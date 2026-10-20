@@ -19,7 +19,7 @@ Linux and macOS are the primary targets; Windows is supported for development.
 - **Privacy off by default.** Session-log upload, plugin-inventory upload, session telemetry, anonymous identity headers and Desktop product analytics all default to off and can be switched on.
 - **No brand opener.** The system prompt no longer starts with a "powered by" harness line.
 - **Commands.** The CLI is `panedesk`, with the short name `pdesk`.
-- Internal package names (`@panedesk/dsh-*`), environment variables (`DSH_*`) and the home directory (`~/.panedesk`) are unchanged for now; the rename list is `docs/改名待改清单.md` (Chinese only).
+- **Names after the rename.** The launcher package is `panedesk` (commands `panedesk` and `pdesk`), every other workspace package is `@panedesk/*` with only the scope swapped (`@panedesk/dsh-*` and the like remain), and the home directory defaults to `~/.panedesk`, overridden by `PANEDESK_HOME` — `~/.dsh` and `DSH_HOME` are never read. The user-facing variables are `PANEDESK_PERMISSION_MODE`, `PANEDESK_TELEMETRY_*`, `PANEDESK_TOOLS_MODE` and `PANEDESK_AGENTS_HOME` (still defaulting to `~/.agents`); the remaining `DSH_*` variables (tests, snapshots, CI, releases) keep their names. The rename itself is mapped and replayed by `scripts/panedesk/rename/` (English README included; upstream fixes go through that script first).
 
 ## Quick start from source
 

@@ -19,7 +19,7 @@
 - **隐私默认关。** 会话日志上传、插件清单上传、会话遥测、匿名身份请求头、桌面版产品分析都默认关闭，可以自行打开。
 - **去掉品牌开场白。** 系统提示不再以「powered by」那句 harness 自我介绍开头。
 - **命令名。** 命令行叫 `panedesk`，短名 `pdesk`。
-- 内部包名（`@panedesk/dsh-*`）、环境变量（`DSH_*`）和主目录（`~/.panedesk`）这一轮暂不改，待改清单见 `docs/改名待改清单.md`（仅中文）。
+- **改名后的命名。** 启动器包是 `panedesk`（命令 `panedesk` 与 `pdesk`），其余工作区包一律 `@panedesk/*`、只换了作用域（所以仍有 `@panedesk/dsh-*` 这样的名字）；主目录默认 `~/.panedesk`，用 `PANEDESK_HOME` 覆盖，`~/.dsh` 与 `DSH_HOME` 一律不读。用户变量有 `PANEDESK_PERMISSION_MODE`、`PANEDESK_TELEMETRY_*`、`PANEDESK_TOOLS_MODE`、`PANEDESK_AGENTS_HOME`（缺省仍 `~/.agents`），其余 `DSH_*`（测试、快照、CI、发布用）名字不变。改名本身由 `scripts/panedesk/rename/` 做映射与重放（那里有英文 README，上游修复先过这个脚本再合）。
 
 ## 从源码快速上手
 
