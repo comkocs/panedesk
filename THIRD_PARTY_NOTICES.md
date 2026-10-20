@@ -11,19 +11,19 @@ The complete npm transitive closure, including the Landlock launcher workspace, 
 
 ## Vendored source (`vendor/`)
 
-The Cordis framework and its foundation libraries are source-vendored into this repository rather than consumed from npm, and republished under the `@deepseek-ai` scope. All are MIT-licensed; each directory preserves its upstream `LICENSE` file. Exact upstream commits and local modifications are recorded in [`vendor/README.md`](vendor/README.md).
+The Cordis framework and its foundation libraries are source-vendored into this repository rather than consumed from npm, and republished under the `@panedesk` scope. All are MIT-licensed; each directory preserves its upstream `LICENSE` file. Exact upstream commits and local modifications are recorded in [`vendor/README.md`](vendor/README.md).
 
 | Package | Upstream name | Source | License |
 | --- | --- | --- | --- |
-| `@deepseek-ai/cosmokit` | `cosmokit` | [vendor/cosmokit](vendor/cosmokit/) | MIT |
-| `@deepseek-ai/schemastery` | `schemastery` | [vendor/schemastery](vendor/schemastery/) | MIT |
-| `@deepseek-ai/cordis` | `cordis` | [vendor/cordis](vendor/cordis/) | MIT |
-| `@deepseek-ai/cordis-plugin-loader` | `@cordisjs/plugin-loader` | [vendor/loader](vendor/loader/) | MIT |
-| `@deepseek-ai/cordis-plugin-include` | `@cordisjs/plugin-include` | [vendor/include](vendor/include/) | MIT |
-| `@deepseek-ai/cordis-plugin-group` | `@cordisjs/plugin-group` | [vendor/group](vendor/group/) | MIT |
-| `@deepseek-ai/cordis-plugin-timer` | `@cordisjs/plugin-timer` | [vendor/timer](vendor/timer/) | MIT |
-| `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [vendor/hmr](vendor/hmr/) | MIT |
-| `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [vendor/logger-console](vendor/logger-console/) | MIT |
+| `@panedesk/cosmokit` | `cosmokit` | [vendor/cosmokit](vendor/cosmokit/) | MIT |
+| `@panedesk/schemastery` | `schemastery` | [vendor/schemastery](vendor/schemastery/) | MIT |
+| `@panedesk/cordis` | `cordis` | [vendor/cordis](vendor/cordis/) | MIT |
+| `@panedesk/cordis-plugin-loader` | `@cordisjs/plugin-loader` | [vendor/loader](vendor/loader/) | MIT |
+| `@panedesk/cordis-plugin-include` | `@cordisjs/plugin-include` | [vendor/include](vendor/include/) | MIT |
+| `@panedesk/cordis-plugin-group` | `@cordisjs/plugin-group` | [vendor/group](vendor/group/) | MIT |
+| `@panedesk/cordis-plugin-timer` | `@cordisjs/plugin-timer` | [vendor/timer](vendor/timer/) | MIT |
+| `@panedesk/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [vendor/hmr](vendor/hmr/) | MIT |
+| `@panedesk/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [vendor/logger-console](vendor/logger-console/) | MIT |
 
 ## Runtime npm dependencies
 
@@ -301,4 +301,4 @@ The [shared runtime lock](scripts/primary-runtime/lock.json) records each distri
 
 ## First-party native packages
 
-`@deepseek-ai/node-addon-system` (and its platform packages) is built and released from this repository under BSD 3-Clause. It is listed here for completeness; it is first-party, not third-party.
+`@panedesk/node-addon-system` (and its platform packages) is built and released from this repository under BSD 3-Clause. It is listed here for completeness; it is first-party, not third-party.
