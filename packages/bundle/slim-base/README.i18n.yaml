@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/bundle/slim-base/README.md
+/:
+  en: 5be69ed89515139c
+  zh: c5c2c24d3f85a13a
+/panedesk-slim-base:
+  en: 19354ea9b90ad0a2
+  zh: 4e44a6bf1748d319
+/panedesk-slim-base/summary:
+  en: 7b0fa3f2ab27346b
+  zh: 2d57c3a5207542bf
+/panedesk-slim-base/known-limitations-and-deferred-work:
+  en: 746f4d160911adac
+  zh: 9597b6950c45b325
