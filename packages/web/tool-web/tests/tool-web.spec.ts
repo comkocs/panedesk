@@ -981,7 +981,7 @@ describe('scope-aware web guidance', () => {
   })
 })
 
-/** Preserve the default persona and exact section separators in the oracle. */
+/** Preserve the opt-out identity default and exact section separators in the oracle. */
 function withPersona(...sections: string[]): string {
-  return ['You are an AI agent powered by Panedesk.', ...sections].join('\n\n')
+  return sections.join('\n\n')
 }

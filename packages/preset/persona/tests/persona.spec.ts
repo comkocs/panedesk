@@ -21,7 +21,7 @@ describe('the persona row', () => {
   it('shadows and interpolates the environment per scope, restoring both defaults on disposal', async () => {
     const ctx = new Context()
     try {
-      await ctx.plugin(SystemPrompt, { personaPrefix: 'Deployment.', personaSuffix: 'Global workspace.' })
+      await ctx.plugin(SystemPrompt, { includeHarnessIdentity: true, personaPrefix: 'Deployment.', personaSuffix: 'Global workspace.' })
       ctx.systemPrompt.variable('cwd', () => '/local')
       ctx.systemPrompt.section({ name: 'guidance', order: 100, text: 'Use tools.' })
       const key: ScopeKey = { agent: 'environment' }

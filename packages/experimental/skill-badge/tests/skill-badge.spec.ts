@@ -42,12 +42,12 @@ describe('dsh-skill-badge', () => {
       .toBe(await readFile(new URL('../../badge-skill-bundle/icon.svg', import.meta.url), 'utf8'))
   })
 
-  it('ships the official 726×120 PNG unchanged', async () => {
+  it('ships the neutral 726×120 PNG placeholder', async () => {
     const image = await readFile(new URL('../assets/dsh-badge.png', import.meta.url))
     expect(image.readUInt32BE(16)).toBe(726)
     expect(image.readUInt32BE(20)).toBe(120)
     expect(createHash('sha256').update(image).digest('hex')).toBe(
-      'f2c4f5ec9cbe847c0c763545c4d839efa8485bc74203733d0a0e8259f233c653',
+      '4db6839a452b500fd987933d581b37c13537e9a86f35f528e00ae3785d406608',
     )
   })
 })

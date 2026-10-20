@@ -130,7 +130,7 @@ export async function paidFixture(cleanups: Array<() => Promise<void>>, options:
     { id: 'session', name: '@panedesk/dsh-session' },
     { id: 'storage', name: '@panedesk/dsh-session-persistence-jsonl', config: { root: storedRoot, compression: 'none' } },
     { id: 'official-custom-id', name: options.officialName ?? '@panedesk/dsh-llm-deepseek-api-key', disabled: !withNativeOwners, config: {
-      baseURL, apiKeyEnv: 'PAID_TRANSLATION_FIXTURE_KEY', models: options.officialModels ?? [{ id: 'deepseek-flash', name: 'Flash version-independent name' }],
+      baseURL, sendAnonymousIdentity: options.withSessionLog === true, apiKeyEnv: 'PAID_TRANSLATION_FIXTURE_KEY', models: options.officialModels ?? [{ id: 'deepseek-flash', name: 'Flash version-independent name' }],
     } },
     { id: 'account-custom-id', name: '@panedesk/dsh-llm-deepseek-account', disabled: !withNativeOwners, config: { baseURL } },
     { id: 'translator', name: '@panedesk/dsh-experimental-translator', config: translator },
@@ -139,7 +139,7 @@ export async function paidFixture(cleanups: Array<() => Promise<void>>, options:
     ] : [],
     ...options.withSessionLog === true ? [
       { id: 'deepseek-llm-api-extensions', name: '@panedesk/dsh-deepseek-llm-api-extensions' },
-      { id: 'session-log-deepseek', name: '@panedesk/dsh-session-log-deepseek' },
+      { id: 'session-log-deepseek', name: '@panedesk/dsh-session-log-deepseek', config: { enabled: true } },
     ] : [],
   ]
   await writeFile(configPath, JSON.stringify(rows()))

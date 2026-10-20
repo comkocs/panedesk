@@ -249,7 +249,7 @@ describe('HarnessSdkJsonRpcServer', () => {
       expect(body.model).toBe('dsagent-model')
       expect(body.output_config).toEqual({ effort: 'max' })
       expect(body.max_tokens).toBe(321)
-      expect(body.system).toBeTypeOf('string')
+      expect(body.system).toBeUndefined()
       expect(body.messages[0]?.role).toBe('user')
       expect(body.messages.at(-1)?.role).toBe('user')
       expect(llmServer.headers[0]?.['x-api-key']).toBe('test-key')
