@@ -4951,7 +4951,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'BashEnvContributor',
-    declaration: 'export interface BashEnvContributor {\n    name: string;\n    variables: Readonly<Record<DshEnvironmentKey, BashEnvVariable>>;\n    resolve(execution: ToolExecution): Readonly<Partial<Record<DshEnvironmentKey, string>>>;\n}',
+    declaration: 'export interface BashEnvContributor {\n    name: string;\n    variables: Readonly<Partial<Record<DshEnvironmentKey, BashEnvVariable>>>;\n    resolve(execution: ToolExecution): Readonly<Partial<Record<DshEnvironmentKey, string>>>;\n}',
   },
   {
     name: 'BashEnvVariable',
@@ -5419,11 +5419,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DshEnvironment',
-    declaration: 'export type DshEnvironment = Readonly<Record<DshEnvironmentKey, string>>;',
+    declaration: 'export type DshEnvironment = Readonly<Partial<Record<DshEnvironmentKey, string>>>;',
   },
   {
     name: 'DshEnvironmentKey',
-    declaration: 'export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}`;',
+    declaration: 'export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}` | \'PANEDESK_HOME\';',
   },
   {
     name: 'DynamicCordisPackage',
