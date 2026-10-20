@@ -441,25 +441,55 @@ describe('OpenTelemetrySessionBackend wire', () => {
 
     defaultCtx.plugin(OTel)
     await defaultCtx.plugin(SessionStore)
+    // Panedesk ships the default mode DISABLED: an exporter alone opts nothing in.
     const defaulted = await defaultCtx.plugin(OpenTelemetrySessionBackend, { exporter: { url } })
-    expect(defaultCtx.sessionTelemetry.sharing).toBe('feedback-only')
+    expect(defaultCtx.sessionTelemetry.sharing).toBe('disabled')
     await defaulted.dispose()
 
     // No record was emitted by any mode, so nothing reached the collector.
     expect(captures).toEqual([])
   })
 
-  it('defaults direct construction to feedback-only delivery', async () => {
+  it('defaults direct construction to disabled delivery and uploads nothing, even for explicit feedback', async () => {
+    const { url, captures } = await mockCollector()
+    const ctx = new Context()
+    ctx.plugin(OTel)
+    try {
+      await ctx.plugin(SessionStore)
+      const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
+      new OpenTelemetrySessionBackend(ctx, {
+        exporter: { url },
+        processor: { scheduledDelayMillis: 1 },
+      })
+      expect(ctx.sessionTelemetry.sharing).toBe('disabled')
+      const session = ctx.sessions.create(SessionId('direct-default'), { meta: {} })
+      session.append('request/header', { header: { config: { provider: 'deepseek-official', model: 'mock' } }, reason: 'initial' })
+      session.append('turn/start', { turn: 1 })
+      expect(captures).toEqual([])
+      recordFeedback(session, { text: 'explicit report' })
+      expect(warn).toHaveBeenCalledWith(
+        'OpenTelemetry session upload is DISABLED; this feedback is not uploaded through OpenTelemetry',
+      )
+      session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+      await ctx.sessionTelemetry.shutdown()
+      expect(captures).toEqual([])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('delivers explicit feedback only after FEEDBACK_ONLY is opted into', async () => {
     const { url, captures } = await mockCollector()
     const ctx = new Context()
     ctx.plugin(OTel)
     try {
       await ctx.plugin(SessionStore)
       new OpenTelemetrySessionBackend(ctx, {
+        mode: SessionTelemetryMode.FEEDBACK_ONLY,
         exporter: { url },
         processor: { scheduledDelayMillis: 1 },
       })
-      const session = ctx.sessions.create(SessionId('direct-default'), { meta: {} })
+      const session = ctx.sessions.create(SessionId('direct-opt-in'), { meta: {} })
       session.append('request/header', { header: { config: { provider: 'deepseek-official', model: 'mock' } }, reason: 'initial' })
       session.append('turn/start', { turn: 1 })
       expect(captures).toEqual([])
@@ -731,12 +761,12 @@ describe('OpenTelemetrySessionBackend config fails loud', () => {
     expectTypeOf<SessionTelemetryMode.FEEDBACK_ONLY>().toExtend<SessionTelemetryMode>()
     expect(Object.values(SessionTelemetryMode)).toEqual(['FEEDBACK_ONLY', 'DISABLED'])
     expect(() => Config({ mode: 'FULL' } as unknown as Config)).toThrow()
-    expect(DEFAULT_TELEMETRY_MODE).toBe(SessionTelemetryMode.FEEDBACK_ONLY)
+    // Panedesk ships session telemetry off; FEEDBACK_ONLY is an explicit opt-in.
+    expect(DEFAULT_TELEMETRY_MODE).toBe(SessionTelemetryMode.DISABLED)
     expect(Config({}).mode).toBe(DEFAULT_TELEMETRY_MODE)
   })
 
   it.each([
-    [{}, /exporter\.url is required/],
     [{ mode: SessionTelemetryMode.FEEDBACK_ONLY }, /exporter\.url is required/],
     [{ mode: SessionTelemetryMode.FEEDBACK_ONLY, exporter: { url: '' } }, /exporter\.url is required/],
     [{ mode: SessionTelemetryMode.FEEDBACK_ONLY, exporter: { url: 'not a url' } }, /not a valid URL/],
@@ -754,6 +784,15 @@ describe('OpenTelemetrySessionBackend config fails loud', () => {
     ctx.plugin(OTel)
     await ctx.plugin(SessionStore)
     await expect(ctx.plugin(OpenTelemetrySessionBackend, config as Config)).rejects.toThrow(message)
+  })
+
+  it('loads the default config without any transport, because the default mode is DISABLED', async () => {
+    const ctx = new Context()
+    ctx.plugin(OTel)
+    await ctx.plugin(SessionStore)
+    const fiber = await ctx.plugin(OpenTelemetrySessionBackend, {})
+    expect(ctx.sessionTelemetry.sharing).toBe('disabled')
+    await fiber.dispose()
   })
 
   it.each(['INVALID', 'FULL'])('rejects direct mode %s before reading transport config', async (mode) => {

@@ -104,7 +104,8 @@ interface LoopHarness {
 /** Real loop and session store around manual compaction. */
 async function loopHarness(): Promise<LoopHarness> {
   const ctx = new Context()
-  await mountAgentLoopTestDependencies(ctx)
+  // Panedesk ships the harness identity line off; these specs pin the leading system message, so opt in.
+  await mountAgentLoopTestDependencies(ctx, { systemPrompt: { includeHarnessIdentity: true } })
   ctx.sessions.registerMessageProjection(imageOffloadProjection)
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(TokenMeter)

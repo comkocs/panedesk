@@ -1279,7 +1279,7 @@ describe('scope-aware search guidance', () => {
   })
 })
 
-/** Preserve the default persona and exact section separators in the oracle. */
+/** Preserve the exact section separators in the oracle; Panedesk's default prompt carries no identity line or persona. */
 function withPersona(...sections: string[]): string {
-  return ['You are an AI agent powered by DeepSeek Harness.', ...sections].join('\n\n')
+  return sections.join('\n\n')
 }

@@ -12,9 +12,11 @@ function manifest(path: string): Manifest {
   return JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8')) as Manifest
 }
 
-it('installs workspace Git hooks without prefetching DevTools', () => {
+it('installs workspace Git hooks only through the explicit hooks:install script, without prefetching DevTools', () => {
   const root = manifest('../../../../package.json')
-  expect(root.scripts?.postinstall).toBe('node scripts/install-lefthook.mjs')
+  // Panedesk does not touch .git on install: the former postinstall hook is an opt-in script.
+  expect(root.scripts?.postinstall).toBeUndefined()
+  expect(root.scripts?.['hooks:install']).toBe('node scripts/install-lefthook.mjs')
   expect(root.scripts?.['prefetch:devtools']).toBeUndefined()
 })
 

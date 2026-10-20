@@ -14,17 +14,18 @@ import { testProfileResolution } from './profiles/headless/tests/profile-resolut
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const dshSourceBin = 'apps/cli/src/bin.ts'
 
-describe('dsh SOURCE launcher (node --import tsx/esm)', () => {
+describe('panedesk SOURCE launcher (node --import tsx/esm)', () => {
   testProfileResolution('src')
 
   it('launches the source CLI without building', async () => {
     const rootPackage = JSON.parse(await readFile(new URL('../../../package.json', import.meta.url), 'utf8')) as {
       readonly scripts?: Record<string, string>
     }
-    expect(rootPackage.scripts?.dsh).toBe('node --import tsx/esm apps/cli/src/bin.ts')
+    expect(rootPackage.scripts?.panedesk).toBe('node --import tsx/esm apps/cli/src/bin.ts')
+    expect(rootPackage.scripts?.pdesk).toBe('node --import tsx/esm apps/cli/src/bin.ts')
   })
 
-  it('boots the source entry and requires a profile', async () => {
+  it('boots the source entry and prints the launcher help when given nothing to run', async () => {
     const result = await execa(process.execPath, ['--import', 'tsx/esm', dshSourceBin], {
       cwd: repoRoot,
       input: '',
@@ -33,10 +34,12 @@ describe('dsh SOURCE launcher (node --import tsx/esm)', () => {
       reject: false,
     })
     if (result.timedOut) {
-      throw new Error(`dsh source launch did not exit within 25s. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
+      throw new Error(`panedesk source launch did not exit within 25s. stdout:\n${result.stdout}\nstderr:\n${result.stderr}`)
     }
-    expect(result.exitCode).not.toBe(0)
-    expect(result.stderr).toContain('--profile <name> is required')
-    expect(result.stdout).toBe('')
+    // A bare invocation has no task and no profile to hand help to: the launcher prints its own help and exits 0.
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain('Usage: panedesk')
+    expect(result.stdout).toContain('slim (default)')
+    expect(result.stderr).toBe('')
   }, 30_000)
 })

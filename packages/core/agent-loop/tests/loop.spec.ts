@@ -28,12 +28,17 @@ function driverDone(agent: Agent): Promise<void> {
   return (agent as Agent & { done: Promise<void> }).done
 }
 
+/**
+ * Panedesk ships the harness identity line off by default. The loop specs pin
+ * the leading system message, so this harness opts the identity in explicitly;
+ * the default is pinned by its own spec below.
+ */
 async function harness(adapter: MockAdapter, persona = '') {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
   await ctx.plugin(SessionProjectionRegistry)
-  await ctx.plugin(SystemPrompt, { personaPrefix: persona })
+  await ctx.plugin(SystemPrompt, { includeHarnessIdentity: true, personaPrefix: persona })
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
@@ -627,6 +632,31 @@ describe('agent loop', () => {
     expect(adapter.requests).toHaveLength(1)
     expect(adapter.requests[0]!.model).toBe('mock')
     expect(systemOf(adapter.requests[0])).toBe('You are an AI agent powered by DeepSeek Harness.\n\nYou run on mock.')
+  })
+
+  it('sends no system message under the shipped defaults: no identity line and no persona', async () => {
+    const adapter = new MockAdapter([textResponse('ok')])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(AgentRegistry)
+    await ctx.plugin(AgentLoop, { agents: [] })
+    ctx.llm.registerAdapter(['mock'], adapter)
+    try {
+      const agent = await ctx.agentLoop.create(SessionId('a-default-prompt'), { provider: 'mock', model: 'mock' })
+      send(agent, 'hi')
+      await waitForIdle(ctx, agent)
+
+      expect(adapter.requests).toHaveLength(1)
+      expect(systemOf(adapter.requests[0])).toBeUndefined()
+      expect(JSON.stringify(adapter.requests[0]!.messages)).not.toContain('DeepSeek Harness')
+      expect(adapter.requests[0]!.messages.map(message => message.role)).toEqual(['user'])
+    } finally {
+      await ctx.fiber.dispose()
+    }
   })
 
   it('sends no system message when system-prompt/assemble short-circuits with an empty assembly', async () => {

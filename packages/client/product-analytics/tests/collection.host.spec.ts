@@ -240,3 +240,9 @@ it('encodes failed fields as a sorted scalar and omits an empty failure list', a
   await b.ctx.productAnalytics.report({ eventName: 'auth_page_view', timestamp: 1, attributes: {} })
   expect(b.emit.mock.calls[0]![0].attributes?.missing_fields).toBe('cpu_physical_core_count=query-failed,os_version_full=timeout')
 })
+
+it('ships collection off unless a layer opts in with enabled: true', () => {
+  expect(Analytics.Config({ appVersion: 'test-version' }).enabled.get()).toBe(false)
+  expect(Analytics.Config({ appVersion: 'test-version', enabled: true }).enabled.get()).toBe(true)
+  expect(Analytics.Config({ appVersion: 'test-version', enabled: false }).enabled.get()).toBe(false)
+})

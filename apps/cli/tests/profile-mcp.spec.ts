@@ -11,7 +11,10 @@ const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 const resourcePackage = '@deepseek-ai/dsh-mcp-resources'
 
 describe('shipped MCP resource composition', () => {
-  it.each(Object.keys(PROFILE_TEMPLATES))('%s carries one shared resource consumer without a server', (name) => {
+  // The slim preset (@panedesk/slim-base) is a minimal row subset of dsh-base
+  // and mounts no MCP surface at all; every other shipped template carries
+  // dsh-base (or sdk-minimal) and so one shared resource consumer.
+  it.each(Object.keys(PROFILE_TEMPLATES))('%s carries the expected resource consumer without a server', (name) => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-profile-mcp-'))
     try {
       const profile = loadProfile('dsh', name, installAnchor, home)
@@ -21,9 +24,9 @@ describe('shipped MCP resource composition', () => {
         profile.patches,
       ], message => warnings.push(message))
 
-      expect(rows.filter(row => row.name === resourcePackage)).toEqual([
-        { id: 'mcp-resources', name: resourcePackage },
-      ])
+      expect(rows.filter(row => row.name === resourcePackage)).toEqual(
+        name === 'slim' ? [] : [{ id: 'mcp-resources', name: resourcePackage }],
+      )
       expect(rows.filter(row => row.name === '@deepseek-ai/dsh-mcp-client')).toEqual([])
       expect(warnings).toEqual([])
 
@@ -33,9 +36,9 @@ describe('shipped MCP resource composition', () => {
         }
         return manifest.dependencies?.[resourcePackage] !== undefined
       })
-      expect(owners.map(owner => owner.packageName)).toEqual([
-        name === 'sdk-minimal' ? '@deepseek-ai/dsh-sdk-minimal' : '@deepseek-ai/dsh-base',
-      ])
+      expect(owners.map(owner => owner.packageName)).toEqual(
+        name === 'slim' ? [] : [name === 'sdk-minimal' ? '@deepseek-ai/dsh-sdk-minimal' : '@deepseek-ai/dsh-base'],
+      )
     } finally {
       rmSync(home, { recursive: true, force: true })
     }

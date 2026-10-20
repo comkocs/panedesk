@@ -695,14 +695,17 @@ describe('in-process structured output', () => {
       textResponse('parent answer'),
       toolCallResponse('c1', STRUCTURED_OUTPUT_TOOL, { answer: 1 }),
     ])
+    // Panedesk's default prompt has no harness identity section, so register a
+    // base section for the instruction to append to.
+    ctx.systemPrompt.section({ name: 'test:base', order: 10, text: 'Base prompt.' })
     parent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
     await parent.whenIdle()
     expect(requestSystem(adapter.requests[0]!)).not.toContain(STRUCTURED_OUTPUT_INSTRUCTION)
     const run = await startTestActivation(ctx, 'spawn', structuredRequest(parent))
     await run.result
-    // The loop always assembles a base prompt (the harness identity section),
-    // so the instruction APPENDS — never replaces.
+    // The base prompt stays and the instruction APPENDS to it — never replaces.
     const childSystem = requestSystem(adapter.requests.at(-1)!)
+    expect(childSystem).toContain('Base prompt.')
     expect(childSystem.endsWith(STRUCTURED_OUTPUT_INSTRUCTION)).toBe(true)
     expect(childSystem.length).toBeGreaterThan(STRUCTURED_OUTPUT_INSTRUCTION.length)
     await run.dispose()

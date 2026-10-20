@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
 import { evaluate } from '@deepseek-ai/cordis-plugin-loader'
-import { bundlePatchPaths, composeEntries, initProfile, loadProfile, PROFILES_DIR } from '@deepseek-ai/dsh-app-boot'
+import { bundlePatchPaths, composeEntries, createRuntimeResolution, initProfile, loadProfile, PROFILE_TEMPLATES, PROFILES_DIR } from '@deepseek-ai/dsh-app-boot'
 
 /**
  * The effective disabled state of one row on one platform: a `!!js` expression
@@ -40,7 +40,7 @@ describe('the shipped shell composition (real bundle layers)', () => {
   // suite composes the shipped patch files, not test fixtures.
   const anchor = fileURLToPath(new URL('../package.json', import.meta.url))
 
-  it('composes the confined pwsh roster on win32 and the bash roster on POSIX from the same rows', () => {
+  it('composes the confined pwsh roster on win32 and the bash roster on POSIX from the same rows', async () => {
     home = mkdtempSync(join(tmpdir(), 'dsh-windows-home-'))
     initProfile(join(home, PROFILES_DIR, 'web'), ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
     const profile = loadProfile('dsh', 'web', anchor, home)
@@ -68,12 +68,16 @@ describe('the shipped shell composition (real bundle layers)', () => {
     for (const id of ['permission', 'ui-permission', 'sandbox', 'sandbox-policy', 'fs-sandbox', 'approval']) {
       expect(byId.get(id)?.disabled, `row ${id}`).not.toBe(true)
     }
-    // The launcher's cold-start module fallback BFS-links the apps/cli
-    // dependency closure into the profile's node_modules, so every bare
-    // plugin name in the base patch must resolve from there.
-    const cliManifest = JSON.parse(readFileSync(anchor, 'utf8')) as { dependencies?: Record<string, string> }
+    // The launcher's runtime resolution BFS-links the apps/cli dependency
+    // closure (dependencies and peers, so the optional @panedesk/full carrier
+    // included) for every profile, so every bare plugin name in the base patch
+    // must resolve from there. The launcher itself now declares only a handful
+    // of packages: the pwsh rows are reached transitively, through
+    // @panedesk/slim-base (and again through @panedesk/full's dsh-base).
+    const resolution = await createRuntimeResolution({ installAnchor: anchor, home })
+    const installed = new Set(resolution.entries.filter(entry => entry.scope === 'installation').map(entry => entry.name))
     for (const name of ['@deepseek-ai/dsh-pwsh-sandbox', '@deepseek-ai/dsh-tool-pwsh']) {
-      expect(cliManifest.dependencies?.[name], `cold-start closure must reach ${name}`).toBeDefined()
+      expect(installed.has(name), `cold-start closure must reach ${name}`).toBe(true)
     }
     expect(warnings).toEqual([])
   })
@@ -96,6 +100,28 @@ describe('the shipped shell composition (real bundle layers)', () => {
     expect(disabledOn(byId.get('tool-bash')!, 'linux'), 'tool-bash on linux').toBe(false)
     expect(disabledOn(byId.get('tool-pwsh')!, 'win32'), 'tool-pwsh on win32').toBe(false)
     expect(disabledOn(byId.get('tool-pwsh')!, 'linux'), 'tool-pwsh on linux').toBe(true)
+    expect(warnings).toEqual([])
+  })
+
+  it('the slim template carries both stacks with the same platform gating', () => {
+    home = mkdtempSync(join(tmpdir(), 'dsh-windows-home-'))
+    initProfile(join(home, PROFILES_DIR, 'slim'), PROFILE_TEMPLATES.slim!.bundles)
+    const profile = loadProfile('dsh', 'slim', anchor, home)
+    const warnings: string[] = []
+    const rows = composeEntries(
+      profile.layers.map(layer => layer.patches),
+      message => warnings.push(message),
+    )
+    const byId = new Map(rows.map(row => [row.id, row]))
+    // slim-base copies these rows verbatim from dsh-base: both platform twins are present and gated symmetrically.
+    for (const [id, win32] of [['bash-sandbox', true], ['tool-bash', true], ['pwsh-sandbox', false], ['tool-pwsh', false]] as const) {
+      expect(byId.has(id), `row ${id}`).toBe(true)
+      expect(disabledOn(byId.get(id)!, 'win32'), `${id} on win32`).toBe(win32)
+      expect(disabledOn(byId.get(id)!, 'linux'), `${id} on linux`).toBe(!win32)
+    }
+    for (const id of ['permission', 'sandbox', 'sandbox-policy', 'fs-sandbox', 'approval']) {
+      expect(byId.get(id)?.disabled, `row ${id}`).not.toBe(true)
+    }
     expect(warnings).toEqual([])
   })
 })

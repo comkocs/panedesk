@@ -33,6 +33,7 @@ import {
   type RuntimeResolution,
 } from '../src/index.ts'
 import { installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
+import { FULL_PRESET_CARRIER } from '../src/profile.ts'
 
 const tempRoots: string[] = []
 afterAll(() => {
@@ -247,6 +248,87 @@ describe('resolveBundleDir', () => {
     expect(() => resolveBundleDir('t', 'absent', anchor, profileDir)).toThrow('cannot resolve profile bundle')
   })
 
+  /**
+   * Register a throwaway shipped template naming fictional bundles, so the hint
+   * logic is pinned without depending on which real bundles a pnpm shim's
+   * NODE_PATH happens to expose to the lookup.
+   */
+  function withFictionalTemplate(bundles: string[]): string {
+    const name = `fictional-${String(tempRoots.length)}-${String(Math.random()).slice(2)}`
+    PROFILE_TEMPLATES[name] = { bundles }
+    onTestFinished(() => { delete PROFILE_TEMPLATES[name] })
+    return name
+  }
+
+  it('hints at the full-preset carrier for shipped bundles outside the slim pair, and at plugin install otherwise', () => {
+    const anchor = stageInstallation({})
+    const profileDir = join(tmp(), 'profiles', 'web')
+    mkdirSync(profileDir, { recursive: true })
+    writeFileSync(join(profileDir, 'package.json'), '{}')
+    expect(FULL_PRESET_CARRIER).toBe('@panedesk/full')
+    withFictionalTemplate(['fictional-full-bundle', '@panedesk/slim-fictional'])
+    // A shipped bundle outside the slim pair arrives with the carrier, not with the slim launcher.
+    expect(() => resolveBundleDir('panedesk', 'fictional-full-bundle', anchor, profileDir)).toThrow(
+      `panedesk: cannot resolve profile bundle "fictional-full-bundle" from the installation or ${profileDir}; `
+      + `install ${FULL_PRESET_CARRIER} beside the launcher to enable the full, web, acp, and sdk profiles`,
+    )
+    // The slim pair ships with the launcher itself and a custom bundle is the user's own dependency.
+    for (const bundle of ['@panedesk/slim-fictional', 'custom-bundle']) {
+      expect(() => resolveBundleDir('panedesk', bundle, anchor, profileDir))
+        .toThrow(`run 'panedesk plugin --profile web install' if its dependency is not installed`)
+      expect(() => resolveBundleDir('panedesk', bundle, anchor, profileDir)).not.toThrow(FULL_PRESET_CARRIER)
+    }
+  })
+
+  it('resolves bundles nested under the full-preset carrier in a non-hoisted layout', () => {
+    // launcher/node_modules/@panedesk/full/node_modules/@fictional/nested-bundle
+    const anchor = stageInstallation({ [FULL_PRESET_CARRIER]: {} })
+    const carrierDir = join(dirname(anchor), 'node_modules', FULL_PRESET_CARRIER)
+    const nested = join(carrierDir, 'node_modules', '@fictional', 'nested-bundle')
+    mkdirSync(nested, { recursive: true })
+    writeFileSync(join(nested, 'package.json'), JSON.stringify({ name: '@fictional/nested-bundle', version: '0.0.0' }))
+    const profileDir = tmp()
+    writeFileSync(join(profileDir, 'package.json'), '{}')
+
+    expect(resolveBundleDir('t', '@fictional/nested-bundle', anchor, profileDir)).toBe(nested)
+    // A bundle that is not beneath the carrier still fails loud.
+    expect(() => resolveBundleDir('t', '@fictional/absent-bundle', anchor, profileDir)).toThrow('cannot resolve profile bundle')
+  })
+
+  it('prefers the launcher over the carrier, and the carrier over the profile directory', () => {
+    const anchor = stageInstallation({ [FULL_PRESET_CARRIER]: {}, 'beside-launcher': { patch: '[]\n' } })
+    const appNodeModules = join(dirname(anchor), 'node_modules')
+    const carrierModules = join(appNodeModules, FULL_PRESET_CARRIER, 'node_modules')
+    const profileDir = tmp()
+    const profileModules = join(profileDir, 'node_modules')
+    writeFileSync(join(profileDir, 'package.json'), '{}')
+    for (const [root, names] of [
+      [carrierModules, ['beside-launcher', 'under-carrier']],
+      [profileModules, ['beside-launcher', 'under-carrier', 'profile-only']],
+    ] as const) {
+      for (const name of names) {
+        mkdirSync(join(root, name), { recursive: true })
+        writeFileSync(join(root, name, 'package.json'), JSON.stringify({ name, version: '0.0.0' }))
+      }
+    }
+    expect(resolveBundleDir('t', 'beside-launcher', anchor, profileDir)).toBe(join(appNodeModules, 'beside-launcher'))
+    expect(resolveBundleDir('t', 'under-carrier', anchor, profileDir)).toBe(join(carrierModules, 'under-carrier'))
+    expect(resolveBundleDir('t', 'profile-only', anchor, profileDir)).toBe(join(profileModules, 'profile-only'))
+  })
+
+  it('behaves as before when the carrier is not installed', () => {
+    const anchor = stageInstallation({ 'in-box': { patch: '[]\n' } })
+    const profileDir = tmp()
+    writeFileSync(join(profileDir, 'package.json'), '{}')
+    mkdirSync(join(profileDir, 'node_modules', 'local-only'), { recursive: true })
+    writeFileSync(join(profileDir, 'node_modules', 'local-only', 'package.json'), JSON.stringify({ name: 'local-only', version: '0.0.0' }))
+    expect(resolveBundleDir('t', 'in-box', anchor, profileDir)).toBe(join(dirname(anchor), 'node_modules', 'in-box'))
+    expect(resolveBundleDir('t', 'local-only', anchor, profileDir)).toBe(join(profileDir, 'node_modules', 'local-only'))
+    withFictionalTemplate(['fictional-full-bundle'])
+    expect(() => resolveBundleDir('t', 'fictional-full-bundle', anchor, profileDir))
+      .toThrow(`install ${FULL_PRESET_CARRIER} beside the launcher`)
+  })
+
   it('resolves a package whose exports map omits ./package.json', () => {
     // Common on npm: an exports map without "./package.json" makes
     // require.resolve('<pkg>/package.json') throw ERR_PACKAGE_PATH_NOT_EXPORTED;
@@ -354,6 +436,40 @@ describe('loadProfile', () => {
     loadProfile('t', 'web', anchor, home)
     expect(readProfileManifest('t', resolveProfileDir('web', home)).dsh?.profile?.bundles)
       .toEqual([...PROFILE_TEMPLATES.web?.bundles ?? []])
+  })
+
+  it('ships the slim default and the full preset as templates, initialized on first use', () => {
+    expect(PROFILE_TEMPLATES.slim).toEqual({ bundles: ['@panedesk/slim-base', '@panedesk/slim-headless'] })
+    expect(PROFILE_TEMPLATES.full).toEqual({ bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'] })
+    const home = tmp()
+    const anchor = stageInstallation({
+      '@panedesk/slim-base': { patch: '[]\n' },
+      '@panedesk/slim-headless': { patch: '[]\n' },
+      '@deepseek-ai/dsh-base': { patch: '[]\n' },
+      '@deepseek-ai/dsh-headless': { patch: '[]\n' },
+    })
+    for (const name of ['slim', 'full']) {
+      const profile = loadProfile('t', name, anchor, home)
+      expect(readProfileManifest('t', resolveProfileDir(name, home)).dsh?.profile?.bundles)
+        .toEqual([...PROFILE_TEMPLATES[name]!.bundles])
+      expect(profile.layers.map(layer => layer.packageName)).toEqual([...PROFILE_TEMPLATES[name]!.bundles])
+      expect(profile.skippedBundles).toEqual([])
+    }
+  })
+
+  it('skips a full-preset bundle with the carrier hint when the carrier is not installed', () => {
+    const home = tmp()
+    const anchor = stageInstallation({
+      '@panedesk/slim-base': { patch: '[]\n' },
+      '@panedesk/slim-headless': { patch: '[]\n' },
+    })
+    // Fictional bundle names: the lookup also honors NODE_PATH, which a pnpm shim points at the workspace store.
+    PROFILE_TEMPLATES['fictional-full'] = { bundles: ['fictional-full-a', 'fictional-full-b'] }
+    onTestFinished(() => { delete PROFILE_TEMPLATES['fictional-full'] })
+    const profile = loadProfile('panedesk', 'fictional-full', anchor, home)
+    expect(profile.layers).toEqual([])
+    expect(profile.skippedBundles.map(skipped => skipped.packageName)).toEqual(['fictional-full-a', 'fictional-full-b'])
+    expect(profile.skippedBundles.every(skipped => skipped.reason.includes('install @panedesk/full beside the launcher'))).toBe(true)
   })
 
   it('normalizes only the exact installation-owned headless bundle tuple', () => {

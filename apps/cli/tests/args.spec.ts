@@ -56,7 +56,7 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'profile', profile: 'web', fromDefaultProfile: 'web', patches: [], args: [] })
   })
 
-  it.each(['web', 'headless', 'sdk', 'sdk-minimal', 'acp', 'tui', 'custom', 'run', 'help'])('expands %s without looking up profiles', (profile) => {
+  it.each(['slim', 'full', 'web', 'headless', 'sdk', 'sdk-minimal', 'acp', 'tui', 'custom', 'run', 'help'])('expands %s without looking up profiles', (profile) => {
     for (const args of [
       [], ['task', 'words'], ['--help'], ['-h'], ['web'],
       ['--patch', 'a.yml', '--patch', 'b.yml'],
@@ -75,8 +75,10 @@ describe('parseDshArgs', () => {
     expect(parse(['--profile', 'x', 'plugin', 'add', 'y']))
       .toMatchObject({ mode: 'profile', profile: 'x', args: ['plugin', 'add', 'y'] })
     expect(parse(['headless', 'web'])).toMatchObject({ profile: 'headless', args: ['web'] })
-    expect(exitCode(['--patch', 'a.yml', 'tui'])).toBe(1)
-    expect(exitCode(['--', 'tui'])).toBe(1)
+    // Without a profile the launcher boots the default preset, so these hand `tui` to the app.
+    expect(parse(['--patch', 'a.yml', 'tui']))
+      .toEqual({ mode: 'profile', profile: 'slim', patches: ['a.yml'], args: ['tui'] })
+    expect(parse(['--', 'tui'])).toEqual({ mode: 'profile', profile: 'slim', patches: [], args: ['tui'] })
   })
 
   it.each([
@@ -138,7 +140,7 @@ describe('parseDshArgs', () => {
   ])('prints the plugin forwarder help for %j', (...argv: string[]) => {
     const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
     expect(exitCode(argv)).toBe(0)
-    expect(stdout.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain('Usage: dsh plugin [options] [args...]')
+    expect(stdout.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain('Usage: panedesk plugin [options] [args...]')
   })
 
   it.each(['desktop', 'Desktop', 'DESKTOP'])('permits installed Desktop plugin commands for %s', (profile) => {
@@ -201,7 +203,6 @@ describe('parseDshArgs', () => {
   })
 
   it.each([
-    ['--dump-config-schema'],
     ['desktop', '--dump-config-schema'],
     ['--profile', 'Desktop', '--dump-config-schema'],
     ['web', '--dump-config-schema', 'task'],
@@ -214,19 +215,18 @@ describe('parseDshArgs', () => {
     expect(exitCode(argv)).toBe(1)
   })
 
-  it('rejects missing profile, removed flags, and contradictory inputs', () => {
-    expect(exitCode([])).toBe(1)
-    expect(exitCode(['--config', 'c.yml'])).toBe(1) // removed
-    expect(exitCode(['-p', 'task'])).toBe(1) // removed
+  it('rejects empty profiles and contradictory inputs', () => {
     expect(exitCode(['--profile', ''])).toBe(1)
+    expect(exitCode([''])).toBe(1)
     expect(exitCode(['--profile', 'x', '--from-default-profile='])).toBe(1)
     expect(exitCode(['--profile', 'x', '--from-default-profile'])).toBe(1)
     expect(exitCode(['--profile', 'x', '--patch='])).toBe(1)
-    expect(exitCode(['--dump-config'])).toBe(1)
+    expect(exitCode(['--dump-config', '--dump-default-config'])).toBe(1)
+    expect(exitCode(['--dump-default-config', '--patch', 'p.yml'])).toBe(1)
+    expect(exitCode(['--dump-config', 'task'])).toBe(1)
     expect(exitCode(['--profile', 'x', '--dump-config', '--dump-default-config'])).toBe(1)
     expect(exitCode(['--profile', 'x', '--dump-default-config', '--patch', 'p.yml'])).toBe(1)
     expect(exitCode(['--profile', 'x', '--dump-config', 'task'])).toBe(1)
-    expect(exitCode(['--bogus'])).toBe(1)
     expect(exitCode(['web', '--dump-config', '--dump-default-config'])).toBe(1)
     expect(exitCode(['web', '--dump-default-config', '--patch', 'w.yml'])).toBe(1)
     expect(exitCode(['web', '--patch='])).toBe(1)
@@ -244,7 +244,22 @@ describe('parseDshArgs', () => {
     expect(exitCode(['--profile', 'desktop', '--dump-config'])).toBe(1)
     expect(exitCode(['plugin', '--profile', 'desktop', 'add', 'x'])).toBe(1)
     expect(exitCode(['plugin', '--profile', 'Desktop', 'add', 'x'])).toBe(1)
-    expect(exitCode(['--from-default-profile', 'web', 'plugin', '--profile', 'x', 'add', 'y'])).toBe(1)
+  })
+
+  it('treats unknown leading flags as app arguments for the default preset', () => {
+    // Formerly "no profile" errors: the launcher hands them to the slim app, which owns their diagnostics.
+    for (const argv of [['--config', 'c.yml'], ['-p', 'task'], ['--bogus']]) {
+      expect(parse(argv)).toEqual({ mode: 'profile', profile: 'slim', patches: [], args: argv })
+    }
+    // `plugin` is only the management command in leading position; behind launcher flags it is an app argument.
+    expect(parse(['--from-default-profile', 'web', 'plugin', '--profile', 'x', 'add', 'y']))
+      .toEqual({
+        mode: 'profile',
+        profile: 'slim',
+        fromDefaultProfile: 'web',
+        patches: [],
+        args: ['plugin', '--profile', 'x', 'add', 'y'],
+      })
   })
 
   it('keeps its own help for an invocation with no app to hand it to', () => {
@@ -253,5 +268,72 @@ describe('parseDshArgs', () => {
     expect(stdout.mock.calls.map(([chunk]) => String(chunk)).join('')).not.toContain('help [command]')
     expect(exitCode(['-h'])).toBe(0)
     expect(exitCode(['--version'])).toBe(0)
+  })
+})
+
+describe('parseDshArgs default preset', () => {
+  const slim = (args: string[], patches: string[] = []) => ({ mode: 'profile', profile: 'slim', patches, args })
+
+  it('boots slim with a task as the only argument, including a non-ASCII one', () => {
+    expect(parse(['只回复 OK'])).toEqual(slim(['只回复 OK']))
+    expect(parse(['run the tests'])).toEqual(slim(['run the tests']))
+    expect(parse(['run the tests', '--json'])).toEqual(slim(['run the tests', '--json']))
+  })
+
+  it('treats a first token containing whitespace as a task, never as a profile name', () => {
+    // Even when it starts with a shipped profile name.
+    expect(parse(['full run the tests'])).toEqual(slim(['full run the tests']))
+    expect(parse(['web app'])).toEqual(slim(['web app']))
+  })
+
+  it('boots slim when only app flags precede the task', () => {
+    expect(parse(['--json', 'task'])).toEqual(slim(['--json', 'task']))
+    expect(parse(['--json'])).toEqual(slim(['--json']))
+  })
+
+  it('selects the full preset by name or flag', () => {
+    expect(parse(['full', 'task'])).toEqual({ mode: 'profile', profile: 'full', patches: [], args: ['task'] })
+    expect(parse(['--profile', 'full', 'task'])).toEqual({ mode: 'profile', profile: 'full', patches: [], args: ['task'] })
+    expect(parse(['slim', 'task'])).toEqual(slim(['task']))
+  })
+
+  it('boots slim past a double dash or launcher overlays', () => {
+    expect(parse(['--', 'tui'])).toEqual(slim(['tui']))
+    expect(parse(['--patch', 'a.yml', 'tui'])).toEqual(slim(['tui'], ['a.yml']))
+    expect(parse(['--patch', 'a.yml'])).toEqual(slim([], ['a.yml']))
+    expect(parse(['--patch', 'a.yml', '--patch', 'b.yml', 'task'])).toEqual(slim(['task'], ['a.yml', 'b.yml']))
+  })
+
+  it('points config dumps at slim when no profile is named', () => {
+    expect(parse(['--dump-config'])).toEqual({ mode: 'dump-config', profile: 'slim', defaultOnly: false, patches: [] })
+    expect(parse(['--dump-default-config'])).toEqual({ mode: 'dump-config', profile: 'slim', defaultOnly: true, patches: [] })
+    expect(parse(['--dump-config-schema'])).toEqual({ mode: 'dump-config-schema', profile: 'slim', patches: [] })
+    expect(parse(['--patch', 'x.yml', '--dump-config']))
+      .toEqual({ mode: 'dump-config', profile: 'slim', defaultOnly: false, patches: ['x.yml'] })
+  })
+
+  it('hands a later --help or -h to the app unchanged when the first leftover token is not help', () => {
+    expect(parse(['--json', '--', '--help'])).toEqual(slim(['--json', '--', '--help']))
+    expect(parse(['--json', '--help'])).toEqual(slim(['--json', '--help']))
+    expect(parse(['--json', '-h'])).toEqual(slim(['--json', '-h']))
+    expect(parse(['run the tests', '--help'])).toEqual(slim(['run the tests', '--help']))
+  })
+
+  it('prints the launcher help and exits 0 for a bare invocation and for -h / --help', () => {
+    for (const argv of [[], ['-h'], ['--help'], ['--', '--help'], ['--patch', 'a.yml', '-h']]) {
+      const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+      expect(exitCode(argv), JSON.stringify(argv)).toBe(0)
+      const text = stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
+      expect(text).toContain('Usage: panedesk')
+      expect(text).toContain('slim (default)')
+      expect(text).toContain('pdesk')
+      expect(text).not.toContain('dsh ')
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('hands -h after a profile to the booted app instead of printing launcher help', () => {
+    expect(parse(['full', '-h'])).toEqual({ mode: 'profile', profile: 'full', patches: [], args: ['-h'] })
+    expect(parse(['slim', '--help'])).toEqual(slim(['--help']))
   })
 })
