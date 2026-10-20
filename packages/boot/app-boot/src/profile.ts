@@ -205,6 +205,9 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   },
 }
 
+/** Dependency carrier that makes the non-slim shipped bundles resolvable beside the slim launcher. */
+export const FULL_PRESET_CARRIER = '@panedesk/full'
+
 /** Installation-owned bundle tuples normalized to the shipped template. */
 const INSTALLATION_OWNED_PROFILE_TUPLES: Record<string, readonly string[]> = {
   headless: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless'],
@@ -729,9 +732,13 @@ export function resolveBundleDir(
     const dir = packageDirFromAnchor(anchor, packageName)
     if (dir !== undefined) return dir
   }
+  // Every shipped bundle except the slim pair arrives with the @panedesk/full carrier.
+  const shipped = Object.values(PROFILE_TEMPLATES).some(template => template.bundles.includes(packageName))
+  const hint = shipped && !packageName.startsWith('@panedesk/slim-')
+    ? `install ${FULL_PRESET_CARRIER} beside the launcher to enable the full, web, acp, and sdk profiles`
+    : `run '${binName} plugin --profile ${basename(profileDir)} install' if its dependency is not installed`
   throw new Error(
-    `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the dsh installation or ${profileDir}; `
-    + `run 'dsh plugin --profile ${basename(profileDir)} install' if its dependency is not installed`,
+    `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the installation or ${profileDir}; ${hint}`,
   )
 }
 

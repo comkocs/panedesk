@@ -169,6 +169,25 @@ describe('request-level dynamic configuration', () => {
     await ctx.credentials.set(KEY_REF, 'sk-arrived')
     await prompt(ctx)
     expect(server.headers[0]?.['x-api-key']).toBe('sk-arrived')
+    // Identity is opt-in, so serving the request still creates no id file.
+    expect(server.headers[0]).not.toHaveProperty('x-deepseek-harness-user-id')
+    await expect(access(join(dir, '.anonymous-user-id'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('creates the anonymous id only once sendAnonymousIdentity is switched on live, and only for a served request', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+    const dir = await home()
+    const server = await mockServer([{ kind: 'sse', events: textEvents }, { kind: 'sse', events: textEvents }])
+    const { ctx } = await boot(dir, { baseURL: server.url })
+    await ctx.credentials.set(KEY_REF, 'sk-arrived')
+
+    await prompt(ctx)
+    expect(server.headers[0]).not.toHaveProperty('x-deepseek-harness-user-id')
+    await expect(access(join(dir, '.anonymous-user-id'))).rejects.toMatchObject({ code: 'ENOENT' })
+
+    await configurations.get(ctx)!.update({ baseURL: server.url, sendAnonymousIdentity: true })
+    await prompt(ctx)
+    expect(server.headers[1]?.['x-deepseek-harness-user-id']).toEqual(expect.any(String))
     await expect(access(join(dir, '.anonymous-user-id'))).resolves.toBeUndefined()
   })
 

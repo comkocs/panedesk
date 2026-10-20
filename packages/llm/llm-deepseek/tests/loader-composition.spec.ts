@@ -1,6 +1,6 @@
 /** Profile patch edits and credential updates reach the next real adapter request. */
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -39,7 +39,7 @@ afterEach(async () => {
 })
 
 async function loadComposition(
-  options: { withDynamic: boolean; baseURL: string; reuseRoot?: string; enableSessionLog?: boolean },
+  options: { withDynamic: boolean; baseURL: string; reuseRoot?: string; enableSessionLog?: boolean; sendAnonymousIdentity?: boolean },
 ): Promise<{ ctx: Context; settingsPath: string; credentialsPath: string }> {
   // A reused root is the restart case: the same harness home, its documents
   // exactly as the previous process left them.
@@ -69,6 +69,9 @@ async function loadComposition(
       : [],
     '- id: plugin-package-inventory-deepseek',
     "  name: '@deepseek-ai/dsh-plugin-package-inventory-deepseek'",
+    // Panedesk ships this contribution off; the composition opts in explicitly.
+    '  config:',
+    '    enabled: true',
     ...options.withDynamic
       ? [
         '- id: credentials',
@@ -82,6 +85,7 @@ async function loadComposition(
     "  name: '@deepseek-ai/dsh-llm-deepseek-api-key'",
     '  config:',
     `    baseURL: ${JSON.stringify(options.baseURL)}`,
+    ...options.sendAnonymousIdentity === undefined ? [] : [`    sendAnonymousIdentity: ${String(options.sendAnonymousIdentity)}`],
     '',
   ].join('\n'))
 
@@ -165,12 +169,13 @@ describe('llm-deepseek real dynamic composition', () => {
     expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(-1)
   })
 
-  it('sends the canonical session suffix by default through Loader composition', async () => {
+  it('sends the canonical session suffix through Loader composition when session upload is enabled', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', 'entry-key')
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
     const { ctx } = await loadComposition({
       withDynamic: false,
       baseURL: server.url,
+      enableSessionLog: true,
     })
     const session = ctx.sessions.create(SessionId('extension-composition-enabled'))
     session.append('turn/start', { turn: 1 })
@@ -195,6 +200,18 @@ describe('llm-deepseek real dynamic composition', () => {
     expect(SessionLogDeepSeek.acceptedThrough(session)).toBe(0)
   })
 
+  it('sends the anonymous user and session ids through Loader composition only when sendAnonymousIdentity is true', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'entry-key')
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+    const { ctx } = await loadComposition({ withDynamic: false, baseURL: server.url, sendAnonymousIdentity: true })
+    const session = ctx.sessions.create(SessionId('identity-composition'))
+
+    await assemble(ctx, { model: 'deepseek-v4-flash', messages: [], sessionId: session.id })
+    expect(server.headers[0]?.['x-deepseek-harness-user-id']).toBe(getOrCreateAnonymousUserId())
+    expect(server.headers[0]?.['x-deepseek-harness-session-id']).toBe('identity-composition')
+    await expect(access(join(root!, '.anonymous-user-id'))).resolves.toBeUndefined()
+  })
+
   it('boots from cordis.yml and routes the next request after external settings and credential edits', async () => {
     vi.stubEnv('DEEPSEEK_API_KEY', '')
     const serverA = await mockServer([{ kind: 'sse', events: textEvents }])
@@ -204,7 +221,10 @@ describe('llm-deepseek real dynamic composition', () => {
     expect(ctx.settings.describe().map(entry => entry.ns)).toContain(NS)
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
     expect(serverA.headers[0]?.['x-api-key']).toBe('boot-key')
-    expect(serverA.headers[0]?.['x-deepseek-harness-user-id']).toBe(getOrCreateAnonymousUserId())
+    // Identity headers are opt-in: the default composition sends neither and never creates the id file.
+    expect(serverA.headers[0]).not.toHaveProperty('x-deepseek-harness-user-id')
+    expect(serverA.headers[0]).not.toHaveProperty('x-deepseek-harness-session-id')
+    await expect(access(join(root!, '.anonymous-user-id'))).rejects.toMatchObject({ code: 'ENOENT' })
 
     // External edits, exactly as a user or the web UI would leave them on disk.
     await writeFile(settingsPath, JSON.stringify([{ id: NS, config: { baseURL: serverB.url } }]))

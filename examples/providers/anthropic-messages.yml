@@ -1,0 +1,24 @@
+# Provider overlay template: any Anthropic Messages-compatible endpoint.
+# Use it per run (`panedesk --patch examples/providers/anthropic-messages.yml "task"`)
+# or copy the rows into your profile's cordis.patch.yml ($DSH_HOME/profiles/slim/).
+# The key is referenced by environment-variable name only; never inline it.
+- id: llm-pi-ai
+  config:
+    providers:
+      my-messages-gateway:
+        displayName: My Messages-compatible gateway
+        api: anthropic-messages
+        baseURL: https://gateway.example.com     # API root, without /v1/messages
+        apiKeyEnv: MY_GATEWAY_API_KEY
+        models:
+          - id: my-model
+            name: my-model
+            contextWindow: 200000
+            maxTokens: 8192
+            input: [text]
+            reasoningEfforts: false
+
+- id: agent-default-model
+  config:
+    provider: my-messages-gateway
+    model: my-model

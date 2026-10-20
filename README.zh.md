@@ -1,96 +1,55 @@
-# DeepSeek Harness
+# Panedesk
 
 [English](README.md) | 中文
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+**Panedesk**（中文名「窗台」）是一套开源、全插件化的编码代理运行框架（harness）：代理循环、模型路由、子代理、会话账本、权限与沙盒都在同一个运行时里。名字由 *pane*（每个代理在自己的窗格里干活，即「开窗」）和 *desk*（以后派发它们的工单台）拼成。
 
-它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+> Built on DSH (DeepSeek Harness)。Panedesk 是 [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 的独立分叉，与 DeepSeek 没有隶属、背书或赞助关系。「DeepSeek Harness」是 DeepSeek 的注册商标，见 [BRAND_GUIDELINES.md](BRAND_GUIDELINES.md)。
 
-文档：[https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+## 状态
 
-## 开发者预览
+里程碑一（瘦身底座）已完成：分叉能构建，能以 headless 单次任务方式接 Anthropic Messages 与 OpenAI Chat Completions 两种接口，能派子代理。目前还没有 Panedesk 自己的界面，也没有发布到 npm。下一步规划：自动开窗引擎、工单台、工作流面板、VS Code 风格深色界面、子代理 map 树、带缓存剩余时间显示的缓存层、Claude Code 式插话与撤回。
 
-DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
+以 Linux 和 macOS 为主要平台；Windows 可用于开发。
 
-运行本项目前，请阅读[安全说明](SAFETY.zh.md)。
+## 相对 DSH 改了什么
 
-<a id="run"></a>
+- **默认瘦身。** 启动器依赖从 86 项减到 9 项。默认的 `slim` 预设挂 39 行插件：最小 headless 核心，加上下文压缩、大输出溢出落盘、工具调用超时守卫和 `AGENTS.md` 加载。
+- **全量按需。** `full` 预设就是上游 DSH 的 headless 组合（98 行）。它和上游的 `web`、`acp`、`sdk` 几个 profile，在启动器旁边装上 `@panedesk/full` 包后可用（开发工作区里已具备）。
+- **隐私默认关。** 会话日志上传、插件清单上传、会话遥测、匿名身份请求头、桌面版产品分析都默认关闭，可以自行打开。
+- **去掉品牌开场白。** 系统提示不再以「powered by」那句 harness 自我介绍开头。
+- **命令名。** 命令行叫 `panedesk`，短名 `pdesk`。
+- 内部包名（`@deepseek-ai/dsh-*`）、环境变量（`DSH_*`）和主目录（`~/.dsh`）这一轮暂不改，待改清单见 [docs/改名待改清单.md](docs/改名待改清单.md)。
 
-## 运行
+## 从源码快速上手
 
-### 通过 `npm` 运行
-
-安装 `Node.js`，然后运行：
-
-```sh
-npx @deepseek-ai/dsh web
-```
-
-该命令默认会在 `http://127.0.0.1:3080` 启动 Web UI，本机启动时还会用默认浏览器打开页面。通过 SSH 启动时只打印宿主机 URL，因为本地转发地址由 SSH 客户端或编辑器持有。传入 `--no-open` 可仅运行服务器而不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.zh.md)。
-
-<a id="run-from-source"></a>
-
-### 从源码运行
-
-如需从仓库源码运行：
+需要 Node.js `^22.19 || >=24`，pnpm 11（经 Corepack）。
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install
-pnpm run build
-pnpm dsh web
+CI=true pnpm install            # CI=true 可跳过上游的 git 钩子安装
+node_modules/.bin/tsx scripts/compile-referenced-projects.ts host-libraries
 ```
 
-`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
+选一个模型提供方。slim 预设默认走 pi-ai 的 `deepseek` 路由，密钥取 `DEEPSEEK_API_KEY`；任何 OpenAI 兼容或 Anthropic Messages 兼容的接口都可以用叠加文件接入（模板在 [examples/providers](examples/providers)），文件里只写密钥的环境变量名：
 
-## 社区与支持
-
-- 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，便于被发现。
-- 欢迎加入 DeepSeek Harness 企微群！扫描下方二维码填写入群问卷，小助手会定期发送入群邀请。
-
-<table>
-  <thead>
-    <tr>
-      <th align="center">入群问卷</th>
-      <th align="center">微信公众号</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><a href="https://trtgsjkv6r.feishu.cn/share/base/form/shrcnIt5twSVdLGD52KJBckGCgg"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-survey.png" alt="DeepSeek Harness 入群问卷二维码" width="180" height="180"></a></td>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wechat-official-account.png" alt="DeepSeek Harness 团队微信公众号二维码" width="180" height="180"></td>
-    </tr>
-  </tbody>
-</table>
-
-## 参与贡献
-
-参见 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
-
-## 开发
-
-请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。
-
-`pnpm run dev:web` 会在一个终端里完成构建、启动，并在源码修改时重建 client bundle；`make help` 列出 Web 与 Desktop 对应的 Make target。完整表格见开发指南的「应用命令」一节。
-
-面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
-
-## 引用
-
-```bibtex
-@misc{deepseek-harness2026,
-  title={DeepSeek Harness: Everything is a Plugin},
-  author={DeepSeek-AI},
-  year={2026},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/deepseek-ai/deepseek-harness}},
-}
+```sh
+export MY_GATEWAY_API_KEY=...   # 你自己的密钥
+node apps/cli/lib/bin.js --patch examples/providers/openai-chat.yml "总结一下这个仓库"
+node apps/cli/lib/bin.js full "同一个任务换 full 预设跑"
+node apps/cli/lib/bin.js --help
 ```
+
+启动器自己的参数（`--profile`、`--patch`、各种 dump）要写在 `--json` 这类应用参数前面。在 Windows 上建议设 `DSH_PERMISSION_MODE=read-only`，否则沙盒会通过改目录 ACL 给工作区授写权限。
+
+## 预设
+
+| 预设 | 怎么跑 | 挂了什么 |
+|---|---|---|
+| `slim`（默认） | `panedesk "任务"` | `@panedesk/slim-base` + `@panedesk/slim-headless` 共 39 行：工具 `read`、`write`、`edit`、`glob`、`grep`、`bash`/`pwsh`、`subagent` |
+| `full` | `panedesk full "任务"` | 上游 `dsh-base` + `dsh-headless` 共 98 行（联网工具、技能、目标、工作流、待办、后台任务等） |
+
+`@panedesk/slim-base` 由 `scripts/panedesk/gen-slim-base.ts` 从上游 `dsh-base` 逐行原样摘出生成，上游对共用行的修复可以直接带过来。
 
 ## 许可证
 
-[MIT](LICENSE)
-
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+MIT。保留上游原句 `Copyright (c) 2026 DeepSeek`，另加 `Copyright (c) 2026 Panedesk contributors`，见 [LICENSE](LICENSE)。从 DSH 继承的第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

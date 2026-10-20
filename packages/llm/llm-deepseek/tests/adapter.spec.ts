@@ -127,7 +127,7 @@ describe('direct Messages HTTP', () => {
 
   it('uses the Messages endpoint, authentication, attribution and final usage', async () => {
     const http = await endpoint()
-    const llm = adapter({ baseURL: http.url })
+    const llm = adapter({ baseURL: http.url, sendAnonymousIdentity: true })
     const response = await assemble(llm.stream(options({ model: 'deepseek-flash', sessionId: SessionId('session-test'), purpose: 'compaction' })), 'deepseek-flash')
     expect(response.message.content).toEqual([{ type: 'text', text: 'Hello 世界' }])
     expect(response.message.source).toMatchObject({
@@ -145,6 +145,62 @@ describe('direct Messages HTTP', () => {
     })
     expect(await llm.resolveModel('deepseek-official', MODEL)).toMatchObject({ id: MODEL })
     expect(llm.imageRequestPricing('deepseek-official', MODEL)).toBeDefined()
+  })
+
+  it.each([undefined, false])('sends no anonymous identity headers and never resolves the user id by default (sendAnonymousIdentity=%s)', async (sendAnonymousIdentity) => {
+    const http = await endpoint()
+    const resolveUserId = vi.fn(() => 'test-user' as AnonymousUserId)
+    const llm = adapter(
+      { baseURL: http.url, ...sendAnonymousIdentity === undefined ? {} : { sendAnonymousIdentity } },
+      { resolveUserId },
+    )
+    await assemble(llm.stream(options({ sessionId: SessionId('session-test'), purpose: 'compaction' })))
+    expect(http.requests[0]?.headers).not.toHaveProperty('x-deepseek-harness-user-id')
+    expect(http.requests[0]?.headers).not.toHaveProperty('x-deepseek-harness-session-id')
+    // The compact marker is request purpose, not identity, and stays.
+    expect(http.requests[0]?.headers['x-deepseek-harness-compact']).toBe('1')
+    expect(resolveUserId).not.toHaveBeenCalled()
+  })
+
+  it('sends the user id once per request and the session id only when present when sendAnonymousIdentity is true', async () => {
+    const http = await endpoint()
+    const resolveUserId = vi.fn(() => 'test-user' as AnonymousUserId)
+    const llm = adapter({ baseURL: http.url, sendAnonymousIdentity: true }, { resolveUserId })
+    await assemble(llm.stream(options({ sessionId: SessionId('session-test') })))
+    await assemble(llm.stream(options()))
+    expect(http.requests[0]?.headers).toMatchObject({
+      'x-deepseek-harness-user-id': 'test-user', 'x-deepseek-harness-session-id': 'session-test',
+    })
+    expect(http.requests[1]?.headers['x-deepseek-harness-user-id']).toBe('test-user')
+    expect(http.requests[1]?.headers).not.toHaveProperty('x-deepseek-harness-session-id')
+    expect(resolveUserId).toHaveBeenCalledTimes(2)
+  })
+
+  it('applies a changed sendAnonymousIdentity setting to the next request', async () => {
+    const http = await endpoint()
+    const resolveUserId = vi.fn(() => 'test-user' as AnonymousUserId)
+    let sendAnonymousIdentity = false
+    const llm = new DeepSeekAdapter({
+      options: () => Messages.resolveAdapterOptions({ baseURL: http.url, sendAnonymousIdentity }),
+      resolveAuth: () => Promise.resolve({ headers: { 'x-api-key': 'test-key' } }), resolveUserId,
+      resolveAttachments: () => undefined, resolveImageAccess: () => undefined, resolveFiles: () => new DeepSeekFileStore(),
+      prepareExtensions,
+    })
+    await chunks(llm.stream(options()))
+    sendAnonymousIdentity = true
+    await chunks(llm.stream(options()))
+    expect(http.requests[0]?.headers).not.toHaveProperty('x-deepseek-harness-user-id')
+    expect(http.requests[1]?.headers['x-deepseek-harness-user-id']).toBe('test-user')
+    expect(resolveUserId).toHaveBeenCalledTimes(1)
+  })
+
+  it('defaults sendAnonymousIdentity to false in the schema and the resolver, and rejects a non-boolean value', () => {
+    expect(Messages.plainOptions(Messages.Config({}))).toMatchObject({ sendAnonymousIdentity: false })
+    expect(Messages.resolveAdapterOptions(Messages.plainOptions(Messages.Config({}))).sendAnonymousIdentity).toBe(false)
+    expect(Messages.resolveAdapterOptions({}).sendAnonymousIdentity).toBe(false)
+    expect(Messages.resolveAdapterOptions(Messages.plainOptions(Messages.Config({ sendAnonymousIdentity: true }))).sendAnonymousIdentity).toBe(true)
+    expect(() => Reflect.apply(Messages.resolveAdapterOptions, undefined, [{ sendAnonymousIdentity: 'false' }]))
+      .toThrow(/sendAnonymousIdentity must be a boolean/)
   })
 
   it.each([

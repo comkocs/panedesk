@@ -1,6 +1,6 @@
 import * as Protocol from '@deepseek-ai/dsh-llm-deepseek'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -379,10 +379,11 @@ describe('DeepSeekAdapter against a mock server', () => {
       output_config: { effort: 'high' },
       stream: true,
     })
-    // App attribution and DeepSeek request identity are independent wire facts.
+    // App attribution is a wire fact; the anonymous identity headers are opt-in and absent by default.
     expect(server.headers[0]?.['user-agent']).toBe(userAgent())
-    expect(server.headers[0]?.['x-deepseek-harness-user-id']).toBe(getOrCreateAnonymousUserId())
+    expect(server.headers[0]).not.toHaveProperty('x-deepseek-harness-user-id')
     expect(server.headers[0]).not.toHaveProperty('x-deepseek-harness-session-id')
+    expect(existsSync(join(testHome, '.anonymous-user-id'))).toBe(false)
     expect(server.headers[0]).not.toHaveProperty('http-referer')
     expect(server.headers[0]).not.toHaveProperty('x-openrouter-title')
     expect(server.headers[0]).not.toHaveProperty('x-openrouter-categories')
@@ -1210,9 +1211,9 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(kinds).toEqual(['block-start', 'text-delta', 'block-end', 'usage', 'finish'])
   })
 
-  it('forwards the harness user and session ids for host-side trajectory routing', async () => {
+  it('forwards the harness user and session ids for host-side trajectory routing when sendAnonymousIdentity is true', async () => {
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
-    const ctx = await harness(server.url)
+    const ctx = await harness(server.url, { sendAnonymousIdentity: true })
 
     await assemble(ctx, {
       model: 'deepseek-v4-flash',
@@ -1225,6 +1226,24 @@ describe('DeepSeekAdapter against a mock server', () => {
 
     expect(server.headers[0]?.['x-deepseek-harness-session-id']).toBe('child-session')
     expect(server.headers[0]?.['x-deepseek-harness-user-id']).toBe(getOrCreateAnonymousUserId())
+  })
+
+  it('forwards no harness user or session id by default, even with a session id on the request', async () => {
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+    const ctx = await harness(server.url)
+
+    await assemble(ctx, {
+      model: 'deepseek-v4-flash',
+      messages: [createUserMessage({
+        content: [{ type: 'text', text: 'hi' }],
+        source: { kind: 'model', provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      })],
+      sessionId: SessionId('child-session'),
+    })
+
+    expect(server.headers[0]).not.toHaveProperty('x-deepseek-harness-session-id')
+    expect(server.headers[0]).not.toHaveProperty('x-deepseek-harness-user-id')
+    expect(existsSync(join(testHome, '.anonymous-user-id'))).toBe(false)
   })
 
   it('marks the auxiliary compaction call on the wire', async () => {
@@ -2319,7 +2338,7 @@ describe('plugin registration and config', () => {
 
   it('resolves connection facts and the credential exactly once per stream call', async () => {
     const server = await mockServer([{ kind: 'sse', events: textEvents }])
-    const options = vi.fn(() => resolveAdapterOptions({ baseURL: server.url }))
+    const options = vi.fn(() => resolveAdapterOptions({ baseURL: server.url, sendAnonymousIdentity: true }))
     const resolveAuth = vi.fn(() => Promise.resolve({ headers: { 'x-api-key': 'per-request-key' } }))
     const resolveUserId = vi.fn(() => TEST_USER_ID)
     const adapter = new DeepSeekAdapter({ options, resolveAuth, resolveUserId, prepareExtensions: noExtensions })

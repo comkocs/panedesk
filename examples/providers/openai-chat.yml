@@ -1,0 +1,24 @@
+# Provider overlay template: any OpenAI-compatible Chat Completions endpoint.
+# Use it per run (`panedesk --patch examples/providers/openai-chat.yml "task"`)
+# or copy the rows into your profile's cordis.patch.yml ($DSH_HOME/profiles/slim/).
+# The key is referenced by environment-variable name only; never inline it.
+- id: llm-pi-ai
+  config:
+    providers:
+      my-openai-gateway:
+        displayName: My OpenAI-compatible gateway
+        api: openai-completions
+        baseURL: https://gateway.example.com/v1   # include the /v1 root
+        apiKeyEnv: MY_GATEWAY_API_KEY
+        models:
+          - id: my-model
+            name: my-model
+            contextWindow: 200000
+            maxTokens: 8192
+            input: [text]
+            reasoningEfforts: false
+
+- id: agent-default-model
+  config:
+    provider: my-openai-gateway
+    model: my-model

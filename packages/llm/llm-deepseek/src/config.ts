@@ -52,6 +52,13 @@ export interface Config {
   fileQuotaCleanupBatch: Volatile<number>
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy: Volatile<RetryPolicyConfig | undefined>
+  /**
+   * When on, every model request carries the harness anonymous user id
+   * (`x-deepseek-harness-user-id`, persisted in `$DSH_HOME/.anonymous-user-id`)
+   * and the session id (`x-deepseek-harness-session-id`) as request headers.
+   * Panedesk default is off: neither header is sent and the id file is never created.
+   */
+  sendAnonymousIdentity: Volatile<boolean>
 }
 
 /** Plain options accepted by the provider resolver. */
@@ -107,6 +114,7 @@ export const deepSeekConfigFields = {
   fileRefreshMarginSeconds: z.number().step(1).min(0).default(DEFAULT_FILE_REFRESH_MARGIN_SECONDS).volatile(),
   fileQuotaCleanupBatch: z.number().step(1).min(1).max(1_000).default(DEFAULT_FILE_QUOTA_CLEANUP_BATCH).volatile(),
   retryPolicy: RetryPolicySchema.volatile(),
+  sendAnonymousIdentity: z.boolean().default(false).volatile(),
 }
 
 export const Config = z.object(deepSeekConfigFields)
@@ -297,6 +305,11 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
     || fileQuotaCleanupBatch > 1_000) {
     throw new Error('llm-deepseek: fileQuotaCleanupBatch must be an integer from 1 through 1000')
   }
+  // Widened: a dynamic config update reaches this check without schema validation.
+  const sendAnonymousIdentity: unknown = config.sendAnonymousIdentity
+  if (sendAnonymousIdentity !== undefined && typeof sendAnonymousIdentity !== 'boolean') {
+    throw new Error('llm-deepseek: sendAnonymousIdentity must be a boolean')
+  }
   const baseURL = config.baseURL ?? environment?.get(BASE_URL_ENV)?.value ?? PUBLIC_BASE_URL
   const parsed = new URL(baseURL)
   if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
@@ -325,5 +338,6 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
       quotaCleanupBatch: fileQuotaCleanupBatch,
     },
     retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-deepseek: retryPolicy'),
+    sendAnonymousIdentity: sendAnonymousIdentity === true,
   }
 }
