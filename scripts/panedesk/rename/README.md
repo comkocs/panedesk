@@ -30,6 +30,7 @@ guidelines and the private rename checklist.
 LibreOffice's externally published packages (including split path arguments) stay
 in their original scope. Provider headers, provider identities, Python package and
 module names, and upstream repository URLs are not product rename targets.
+DeepSeek platform account, API Key, balance, and credit billing wording belongs to the model provider and is intentionally not renamed.
 `APP_IDENTITY.url` remains the upstream URL because its existing interface requires
 it. No compatibility reads of the old home or selected variables are introduced.
 

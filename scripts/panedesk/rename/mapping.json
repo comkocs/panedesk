@@ -447,30 +447,6 @@
         "expected": 1
       },
       {
-        "id": "D041",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'You are not signed in to DeepSeek Harness'",
-        "replacement": "'You are not signed in to Panedesk'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
-        "id": "D042",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'Sign in to DeepSeek Harness to get your dedicated API Key'",
-        "replacement": "'Sign in to Panedesk to get your dedicated API Key'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
-        "id": "D043",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'DeepSeek Harness cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.'",
-        "replacement": "'Panedesk cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
         "id": "D044",
         "description": "Rename an exact runtime product display literal and matching assertions.",
         "literal": "'返回 DeepSeek Harness'",
@@ -479,42 +455,10 @@
         "expected": 7
       },
       {
-        "id": "D045",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'当前未登录 DeepSeek Harness 账号'",
-        "replacement": "'当前未登录 Panedesk 账号'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
-        "id": "D046",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'登录 DeepSeek Harness 账号获取专属 API Key'",
-        "replacement": "'登录 Panedesk 账号获取专属 API Key'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
-        "id": "D047",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'没有可用额度时，DeepSeek Harness 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。'",
-        "replacement": "'没有可用额度时，Panedesk 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
         "id": "D048",
         "description": "Rename an exact runtime product display literal and matching assertions.",
         "literal": "'DeepSeek Harness 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。'",
         "replacement": "'Panedesk 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
-        "id": "D049",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'DeepSeek Harness 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。'",
-        "replacement": "'Panedesk 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。'",
         "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
         "expected": 1
       },
@@ -527,14 +471,6 @@
         "expected": 1
       },
       {
-        "id": "D051",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'没有可用额度时，DeepSeek Harness 将无法开始新的任务。你可以稍后前往 设置 → 账号与余额 进行充值。'",
-        "replacement": "'没有可用额度时，Panedesk 将无法开始新的任务。你可以稍后前往 设置 → 账号与余额 进行充值。'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
         "id": "D052",
         "description": "Rename an exact runtime product display literal and matching assertions.",
         "literal": "'DeepSeek Harness works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.'",
@@ -543,26 +479,10 @@
         "expected": 1
       },
       {
-        "id": "D053",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'DeepSeek Harness charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.'",
-        "replacement": "'Panedesk charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
         "id": "D054",
         "description": "Rename an exact runtime product display literal and matching assertions.",
         "literal": "'This only changes how progress is shown, not what DeepSeek Harness can do.'",
         "replacement": "'This only changes how progress is shown, not what Panedesk can do.'",
-        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
-        "expected": 1
-      },
-      {
-        "id": "D055",
-        "description": "Rename an exact runtime product display literal and matching assertions.",
-        "literal": "'DeepSeek Harness can’t start new tasks without credits. You can add them later in Settings → Account.'",
-        "replacement": "'Panedesk can’t start new tasks without credits. You can add them later in Settings → Account.'",
         "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
         "expected": 1
       },
