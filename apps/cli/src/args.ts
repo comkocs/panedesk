@@ -99,7 +99,7 @@ function rejectElectronProfile(program: Command, profile: string): void {
 const HELP_EXAMPLES = `
 Presets:
   slim (default)   minimal one-shot preset installed with the launcher
-  full             upstream DSH headless composition (needs @panedesk/full installed)
+  full             full headless composition (needs @panedesk/full installed)
 
 Examples:
   panedesk "run the tests"                       answer one task on the slim preset, print the result, and exit
@@ -168,7 +168,7 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
     .name(CLI_NAME)
     .version(version, '-V, --version', 'output the version number')
     .usage(`[[--profile] <name>] [options] [app-args...]\n       ${CLI_NAME} plugin --profile <name> <pnpm-args...>`)
-    .description(`${CLI_NAME}: boot a Panedesk profile (built on DSH) — an ordered stack of plugin-bundle patch layers under your own overrides. Without a profile it boots "${DEFAULT_PROFILE}".`)
+    .description(`${CLI_NAME}: boot a Panedesk profile — an ordered stack of plugin-bundle patch layers under your own overrides. Without a profile it boots "${DEFAULT_PROFILE}".`)
     .addHelpText('after', HELP_EXAMPLES)
     .exitOverride()
     // The launcher's flags come first and end at the first token it does not
