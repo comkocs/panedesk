@@ -157,7 +157,7 @@ const BOOTSTRAP_NAMES = new Set([
 ])
 
 /** Name prefixes no discovered file may set. */
-const BOOTSTRAP_PREFIXES = ['DSH_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
+const BOOTSTRAP_PREFIXES = ['DSH_', 'PANEDESK_', 'XDG_', 'DYLD_', 'BASH_FUNC_']
 
 /**
  * The bootstrap names the Harness-home `.env` alone may set. A proxy chooses the route every

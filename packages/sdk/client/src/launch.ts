@@ -59,7 +59,7 @@ export function resolveDshBinFromManifests(dshManifestUrl: string, clientManifes
     throw new Error(`dsh SDK client ${String(clientManifest.version)} requires the same dsh version, got ${String(dshManifest.version)}`)
   }
   const bin = typeof dshManifest.bin === 'object' && dshManifest.bin !== null
-    ? (dshManifest.bin as Record<string, unknown>).dsh
+    ? (dshManifest.bin as Record<string, unknown>).panedesk
     : dshManifest.bin
   if (typeof bin !== 'string' || bin === '') throw new Error('panedesk declares no dsh executable')
   return resolve(dirname(fileURLToPath(dshManifestUrl)), bin)

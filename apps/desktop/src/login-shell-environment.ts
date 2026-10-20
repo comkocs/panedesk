@@ -14,7 +14,7 @@ const PROBE_ENVIRONMENT = { DISABLE_AUTO_UPDATE: 'true', ZSH_TMUX_AUTOSTARTED: '
 /** Variables that describe the probe shell process rather than the user's configuration. */
 const SHELL_SESSION_KEYS = new Set(['PWD', 'OLDPWD', 'SHLVL', '_', ...Object.keys(PROBE_ENVIRONMENT)])
 /** Desktop resolves paths such as `PANEDESK_HOME` before the read, so the Host keeps the same inherited values. */
-const LAUNCHER_OWNED_PREFIXES = ['DSH_', 'ELECTRON_'] as const
+const LAUNCHER_OWNED_PREFIXES = ['DSH_', 'PANEDESK_', 'ELECTRON_'] as const
 
 /** Validated login-shell read settings. */
 export interface DesktopLoginShellConfig {
@@ -88,7 +88,7 @@ export function parseLoginShellOutput(stdout: string): Record<string, string> | 
 
 /**
  * Overlay login-shell variables on the inherited environment; shell values win except for
- * probe-session variables and launcher-owned `DSH_*` / `ELECTRON_*` names.
+ * probe-session variables and launcher-owned `DSH_*` / `PANEDESK_*` / `ELECTRON_*` names.
  * @param base - Environment Desktop inherited.
  * @param shell - Variables printed by the login shell.
  * @returns A new environment; neither argument is modified.

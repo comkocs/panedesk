@@ -68,7 +68,7 @@ export interface DshInstallLayoutSummary {
 }
 
 function isDshPackage(name: string): boolean {
-  return name === DSH_PACKAGE || name.startsWith(`${DSH_PACKAGE}-`)
+  return name === DSH_PACKAGE || name.startsWith('@panedesk/dsh-')
 }
 
 function cloneForVersion(manifest: object, version: string): MutableRegistryManifest {
