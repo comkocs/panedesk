@@ -13,10 +13,10 @@ import type { Duplex, Readable, Writable } from 'node:stream'
 export const DSH_ENV_PREFIX = 'DSH_' as const
 
 /** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace. */
-export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}`
+export type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}` | 'PANEDESK_HOME'
 
 /** Trusted DeepSeek Harness variables for one child-process execution. */
-export type DshEnvironment = Readonly<Record<DshEnvironmentKey, string>>
+export type DshEnvironment = Readonly<Partial<Record<DshEnvironmentKey, string>>>
 
 /** One captured stream: the (possibly truncated) text plus recovery info. */
 export interface CollectedOutput {

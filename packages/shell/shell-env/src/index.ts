@@ -52,7 +52,7 @@ export interface BashEnvContributor {
   /** Stable contributor name used in diagnostics and duplicate detection. */
   name: string
   /** Complete set of `DSH_*` keys this contributor may return. */
-  variables: Readonly<Record<DshEnvironmentKey, BashEnvVariable>>
+  variables: Readonly<Partial<Record<DshEnvironmentKey, BashEnvVariable>>>
   /**
    * Resolve this contributor's available values for one tool execution.
    * @param execution - the shell tool execution and its optional calling agent.
@@ -122,8 +122,8 @@ export class ShellEnvRegistry extends Service {
 
       const variables = Object.entries(contributor.variables) as [DshEnvironmentKey, BashEnvVariable][]
       for (const [key, variable] of variables) {
-        if (!key.startsWith(DSH_ENV_PREFIX)
-          || !BASH_ENV_KEY_SUFFIX.test(key.slice(DSH_ENV_PREFIX.length))) {
+        if (key !== DSH_HOME_ENV && (!key.startsWith(DSH_ENV_PREFIX)
+          || !BASH_ENV_KEY_SUFFIX.test(key.slice(DSH_ENV_PREFIX.length)))) {
           throw new Error(`bash env contributor "${contributor.name}" declared invalid key "${key}"`)
         }
         if (RESERVED_BASH_ENV_KEYS.has(key)) {
@@ -154,7 +154,7 @@ export class ShellEnvRegistry extends Service {
    * @returns an immutable environment overlay containing built-ins and current contributions.
    */
   collect(execution: ToolExecution): DshEnvironment {
-    const values: Record<DshEnvironmentKey, string> = {
+    const values: Partial<Record<DshEnvironmentKey, string>> = {
       [DSH_HOME_ENV]: this.dshHome,
       [DSH_SHELL_KEY]: '1',
     }
@@ -192,11 +192,11 @@ export class ShellEnvRegistry extends Service {
    */
   list(): BashEnvVariableInfo[] {
     return [...this.contributors.values()]
-      .flatMap(contributor => Object.entries(contributor.variables).map(([key, variable]) => ({
+      .flatMap(contributor => Object.entries(contributor.variables).flatMap(([key, variable]) => variable === undefined ? [] : [{
         contributor: contributor.name,
         description: variable.description,
         key: key as DshEnvironmentKey,
-      })))
+      }]))
       .sort((left, right) => left.key.localeCompare(right.key))
   }
 }
