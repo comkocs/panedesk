@@ -5,30 +5,30 @@
 /:
   en: d11ca88bdc409249
   zh: d11ca88bdc409249
-/dsh-cli-help:
-  en: b7174eab3476579d
-  zh: 5ddab967320e3cff
-/dsh-cli-help/contents:
-  en: 00308bcc6dc90afd
-  zh: 16f7442b76686a02
-/dsh-cli-help/dsh:
-  en: e0695abcf7d8b521
-  zh: 712c23b3c8a115ca
-/dsh-cli-help/dsh-plugin:
-  en: adad99c125d0ac51
-  zh: f11024971184f737
-/dsh-cli-help/dsh-acp:
-  en: bcb0f84577ce5f03
-  zh: 4382e617006849db
-/dsh-cli-help/dsh-headless:
-  en: 878a1dd78017964d
-  zh: bb43d91b4beb9bda
-/dsh-cli-help/dsh-sdk:
-  en: 701f239c5157dedb
-  zh: ee11be2932b05ce4
-/dsh-cli-help/dsh-sdk-minimal:
-  en: 8f0d7548d299ffd3
-  zh: fa2262e70d6819a0
-/dsh-cli-help/dsh-web:
-  en: 5d073104e8954cc8
-  zh: 91cd28f7c6ac96ac
+/panedesk-cli-help:
+  en: d736b875a9442d57
+  zh: 9a8ca78c95be480a
+/panedesk-cli-help/contents:
+  en: eaf94dd1a5b2a2bc
+  zh: 2490c06cae09bfaf
+/panedesk-cli-help/panedesk:
+  en: 9eae83d84f9a0122
+  zh: 228c1952d7dbad09
+/panedesk-cli-help/panedesk-plugin:
+  en: 8aecdccf4fb4bfe8
+  zh: 4d9726ab2da124b0
+/panedesk-cli-help/panedesk-acp:
+  en: 93e6da11a02cf139
+  zh: dbb677bf271677f4
+/panedesk-cli-help/panedesk-full:
+  en: 3d89cfb1ce6442c9
+  zh: aea565ddce6cc3d6
+/panedesk-cli-help/panedesk-sdk:
+  en: 1e59d6b2ea87979f
+  zh: 880c5de6ec22b9f4
+/panedesk-cli-help/panedesk-sdk-minimal:
+  en: 67a353004858f27e
+  zh: 8ac606611f6e09fd
+/panedesk-cli-help/panedesk-web:
+  en: 839c68ff2d15bf7a
+  zh: 377552844701d606
