@@ -25,7 +25,7 @@ export interface Manifest {
 /** Depth limit of the fallback scan, counted in directories below the repository root. */
 const SCAN_DEPTH = 3
 const SKIPPED_DIRECTORIES = new Set(['node_modules', 'test', 'tests', 'fixtures', 'examples', 'example'])
-const DSH_PEER = /^panedesk(?:-|$)/u
+const DSH_PEER = /^(?:panedesk$|@panedesk\/dsh-)/u
 /** Ranges that installation reads as the running DSH version. */
 const CURRENT_DSH = new Set(['workspace:*', 'workspace:^', 'workspace:~'])
 

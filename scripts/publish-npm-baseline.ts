@@ -255,8 +255,8 @@ class WorkspacePackageSet {
       const isVendored = manifestPath.startsWith('vendor/')
       // Vendored packages are rescoped too (vendor/README.md), so publication
       // never carries an upstream name that would squat it on the registry.
-      if (!name.startsWith('@panedesk/')) {
-        throw new Error(`${manifestPath} must name an @panedesk package`)
+      if (name !== 'panedesk' && !name.startsWith('@panedesk/')) {
+        throw new Error(`${manifestPath} must name an @panedesk package or panedesk`)
       }
       if (name === 'panedesk-monorepo') {
         throw new Error(`${manifestPath} unexpectedly selected the workspace root`)
@@ -799,7 +799,7 @@ function parsePackedPackage(value: unknown, index: number): PackedPackage {
   if (origin !== 'harness' && origin !== 'vendor') {
     throw new Error(`invalid package origin in release manifest: ${JSON.stringify(origin)}`)
   }
-  if (origin === 'harness' && (!name.startsWith('@panedesk/') || name === 'panedesk-monorepo')) {
+  if (origin === 'harness' && ((name !== 'panedesk' && !name.startsWith('@panedesk/')) || name === 'panedesk-monorepo')) {
     throw new Error(`invalid package name in release manifest: ${name}`)
   }
   return {

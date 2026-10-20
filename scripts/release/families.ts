@@ -133,7 +133,9 @@ export abstract class ReleaseFamily {
       const name = requireString(manifest, 'name', normalized)
       const version = requireString(manifest, 'version', normalized)
       if (name === WORKSPACE_ROOT_PACKAGE) throw new Error(`${normalized} selected the workspace root`)
-      if (!name.startsWith('@panedesk/')) throw new Error(`${normalized} must name an @panedesk package`)
+      if (name !== this.installedEntry?.packageName && !name.startsWith('@panedesk/')) {
+        throw new Error(`${normalized} must name an @panedesk package or this family's launcher`)
+      }
       if (seen.has(name)) throw new Error(`${name} appears twice in release family ${this.id}`)
       seen.add(name)
       members.push({
