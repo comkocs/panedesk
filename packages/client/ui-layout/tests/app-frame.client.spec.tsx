@@ -285,7 +285,7 @@ describe('AppFrame', () => {
       expect(instance.getSnapshot().layoutInfo).toBe(layoutInfo)
       expect(tracks(frame)).toEqual([280, 0])
       expect(selectedSession).toBe(sessionId)
-      expect(document.title).toBe(panelId === null ? 'Session title — DSH Local Build' : 'Panedesk Local Build')
+      expect(document.title).toBe(panelId === null ? 'Session title — Panedesk Local Build' : 'Panedesk Local Build')
     }
   })
 })

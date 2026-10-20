@@ -39,10 +39,10 @@ describe('desktop package-set selection', () => {
     ])
     expect(selectDesktopPackageClosure(available).map(entry => entry.manifest.name)).toEqual([
       '@panedesk/cordis',
-      'panedesk',
       '@panedesk/dsh-base',
       '@panedesk/dsh-desktop-host',
       '@panedesk/platform-package',
+      'panedesk',
     ])
   })
 
@@ -74,7 +74,7 @@ describe('desktop package-set selection', () => {
       ['@panedesk/dsh-desktop-host', packed('@panedesk/dsh-desktop-host')],
     ])
     expect(selectDesktopPackageClosure(available).map(entry => entry.manifest.name)).toEqual([
-      'panedesk', '@panedesk/dsh-desktop-host',
+      '@panedesk/dsh-desktop-host', 'panedesk',
     ])
   })
 

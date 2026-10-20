@@ -800,8 +800,6 @@ describe('face-aware source classification', () => {
     ].join('\n')
     const uses = collectRuntimeSourceExportUses('probe.ts', source)
     expect(uses.map(({ specifier, exportName }) => ({ specifier, exportName }))).toEqual([
-      { specifier: '@panedesk/dsh-lazy-require', exportName: '*' },
-      { specifier: '@panedesk/dsh-lazy-require', exportName: 'createLazyRequire' },
       { specifier: '@f/dynamic', exportName: '*' },
       { specifier: '@f/effect', exportName: '(side effect)' },
       { specifier: '@f/lazy', exportName: '*' },
@@ -812,6 +810,8 @@ describe('face-aware source classification', () => {
       { specifier: '@f/root', exportName: 'default' },
       { specifier: '@f/root', exportName: 'value' },
       { specifier: '@f/star', exportName: '*' },
+      { specifier: '@panedesk/dsh-lazy-require', exportName: '*' },
+      { specifier: '@panedesk/dsh-lazy-require', exportName: 'createLazyRequire' },
     ])
     expect(uses.find(use => use.specifier === '@f/root' && use.exportName === 'value')).toMatchObject({
       line: 1,

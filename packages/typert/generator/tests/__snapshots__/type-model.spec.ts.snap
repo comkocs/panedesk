@@ -408,7 +408,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/host:packages/host/src/index.ts#Agent#id@493",
+                "id": "@fixture/host:packages/host/src/index.ts#Agent#id@490",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -427,7 +427,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/host:packages/host/src/index.ts#Agent#state@515",
+                "id": "@fixture/host:packages/host/src/index.ts#Agent#state@512",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -447,7 +447,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Read the public display label.",
-                "id": "@fixture/host:packages/host/src/index.ts#Agent#label@748",
+                "id": "@fixture/host:packages/host/src/index.ts#Agent#label@745",
                 "jsDoc": "/** Read the public display label. */",
                 "kind": "getter",
                 "location": {
@@ -473,7 +473,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Accept a public display label.",
-                "id": "@fixture/host:packages/host/src/index.ts#Agent#label@836",
+                "id": "@fixture/host:packages/host/src/index.ts#Agent#label@833",
                 "jsDoc": "/** Accept a public display label. */",
                 "kind": "setter",
                 "location": {
@@ -508,7 +508,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Run one typed input.",
-                "id": "@fixture/host:packages/host/src/index.ts#Agent#run@915",
+                "id": "@fixture/host:packages/host/src/index.ts#Agent#run@912",
                 "jsDoc": "/** Run one typed input. */",
                 "kind": "method",
                 "location": {
@@ -598,7 +598,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Report readiness.",
-                "id": "@fixture/host:packages/host/src/index.ts#AliasedService#ready@1248",
+                "id": "@fixture/host:packages/host/src/index.ts#AliasedService#ready@1245",
                 "jsDoc": "/** Report readiness. */",
                 "kind": "method",
                 "location": {
@@ -651,7 +651,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Report readiness.",
-                "id": "@fixture/host:packages/host/src/index.ts#DefaultOnlyService#ready@1471",
+                "id": "@fixture/host:packages/host/src/index.ts#DefaultOnlyService#ready@1468",
                 "jsDoc": "/** Report readiness. */",
                 "kind": "method",
                 "location": {
@@ -704,7 +704,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Inspect one agent without flattening its generic state.",
-                "id": "@fixture/host:packages/host/src/index.ts#DemoService#inspect@1834",
+                "id": "@fixture/host:packages/host/src/index.ts#DemoService#inspect@1831",
                 "jsDoc": "/** Inspect one agent without flattening its generic state. */",
                 "kind": "method",
                 "location": {
@@ -747,7 +747,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Keep an npm-owned type as External.",
-                "id": "@fixture/host:packages/host/src/index.ts#DemoService#acceptsExternal@2032",
+                "id": "@fixture/host:packages/host/src/index.ts#DemoService#acceptsExternal@2029",
                 "jsDoc": "/** Keep an npm-owned type as External. */",
                 "kind": "method",
                 "location": {
@@ -782,7 +782,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Accept a developer-authored enum without flattening it.",
-                "id": "@fixture/host:packages/host/src/index.ts#DemoService#setPhase@2169",
+                "id": "@fixture/host:packages/host/src/index.ts#DemoService#setPhase@2166",
                 "jsDoc": "/** Accept a developer-authored enum without flattening it. */",
                 "kind": "method",
                 "location": {
@@ -817,7 +817,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Exercise every retained type-graph shape from a public boundary.",
-                "id": "@fixture/host:packages/host/src/index.ts#DemoService#inspectSyntax@2301",
+                "id": "@fixture/host:packages/host/src/index.ts#DemoService#inspectSyntax@2298",
                 "jsDoc": "/** Exercise every retained type-graph shape from a public boundary. */",
                 "kind": "method",
                 "location": {
@@ -852,7 +852,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": true,
                 "description": "Preserve async source metadata without changing its type signature.",
-                "id": "@fixture/host:packages/host/src/index.ts#DemoService#inspectAsync@2436",
+                "id": "@fixture/host:packages/host/src/index.ts#DemoService#inspectAsync@2433",
                 "jsDoc": "/** Preserve async source metadata without changing its type signature. */",
                 "kind": "method",
                 "location": {
@@ -887,7 +887,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Retain an authored binding-pattern parameter.",
-                "id": "@fixture/host:packages/host/src/index.ts#DemoService#destructure@2563",
+                "id": "@fixture/host:packages/host/src/index.ts#DemoService#destructure@2560",
                 "jsDoc": "/** Retain an authored binding-pattern parameter. */",
                 "kind": "method",
                 "location": {
@@ -2809,7 +2809,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/host/src/index.ts:12:43#1#ready@400",
+                "id": "type:packages/host/src/index.ts:12:43#1#ready@397",
                 "kind": "property",
                 "location": {
                   "column": 45,
@@ -2861,7 +2861,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/host/src/index.ts:120:31#1#ready@3118",
+                "id": "type:packages/host/src/index.ts:120:31#1#ready@3112",
                 "kind": "property",
                 "location": {
                   "column": 33,
@@ -3037,7 +3037,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/host/src/index.ts:143:31#1#ready@3569",
+                "id": "type:packages/host/src/index.ts:143:31#1#ready@3560",
                 "kind": "property",
                 "location": {
                   "column": 33,
@@ -3265,7 +3265,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/host/src/index.ts:72:24#1#ready@1857",
+                "id": "type:packages/host/src/index.ts:72:24#1#ready@1854",
                 "kind": "property",
                 "location": {
                   "column": 26,
@@ -5711,7 +5711,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "line": 105,
               },
               "members": [
-                "@fixture/host:packages/host/src/index.ts#AliasedService#ready@1248",
+                "@fixture/host:packages/host/src/index.ts#AliasedService#ready@1245",
               ],
               "summary": "Service exported only through a non-default alias.",
               "symbol": "@fixture/host:packages/host/src/index.ts#AliasedService",
@@ -5736,7 +5736,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "line": 106,
               },
               "members": [
-                "@fixture/host:packages/host/src/index.ts#DefaultOnlyService#ready@1471",
+                "@fixture/host:packages/host/src/index.ts#DefaultOnlyService#ready@1468",
               ],
               "summary": "Service exported only through the package default.",
               "symbol": "@fixture/host:packages/host/src/index.ts#DefaultOnlyService",
@@ -5760,12 +5760,12 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "line": 104,
               },
               "members": [
-                "@fixture/host:packages/host/src/index.ts#DemoService#inspect@1834",
-                "@fixture/host:packages/host/src/index.ts#DemoService#acceptsExternal@2032",
-                "@fixture/host:packages/host/src/index.ts#DemoService#setPhase@2169",
-                "@fixture/host:packages/host/src/index.ts#DemoService#inspectSyntax@2301",
-                "@fixture/host:packages/host/src/index.ts#DemoService#inspectAsync@2436",
-                "@fixture/host:packages/host/src/index.ts#DemoService#destructure@2563",
+                "@fixture/host:packages/host/src/index.ts#DemoService#inspect@1831",
+                "@fixture/host:packages/host/src/index.ts#DemoService#acceptsExternal@2029",
+                "@fixture/host:packages/host/src/index.ts#DemoService#setPhase@2166",
+                "@fixture/host:packages/host/src/index.ts#DemoService#inspectSyntax@2298",
+                "@fixture/host:packages/host/src/index.ts#DemoService#inspectAsync@2433",
+                "@fixture/host:packages/host/src/index.ts#DemoService#destructure@2560",
               ],
               "summary": "Fixture service with generic, mapped, and truly external boundary types.",
               "symbol": "@fixture/host:packages/host/src/index.ts#DemoService",
@@ -5827,7 +5827,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "abstract": false,
                 "async": false,
                 "description": "Return the host-owned object unchanged.",
-                "id": "@fixture/client:packages/client/src/index.ts#ClientBridge#reflect@1109",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientBridge#reflect@1106",
                 "jsDoc": "/** Return the host-owned object unchanged. */",
                 "kind": "method",
                 "location": {
@@ -5888,7 +5888,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#agent@600",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#agent@597",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -5907,7 +5907,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#inherited@645",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#inherited@642",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -5926,7 +5926,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#importedAgent@679",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#importedAgent@676",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -5945,7 +5945,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#importedAgentWithNamedArgument@752",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#importedAgentWithNamedArgument@749",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -5964,7 +5964,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#namespaceAgent@834",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#namespaceAgent@831",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -5983,7 +5983,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#defaultService@889",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#defaultService@886",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -6002,7 +6002,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#payload@928",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#payload@925",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -6021,7 +6021,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "@fixture/client:packages/client/src/index.ts#ClientView#phase@956",
+                "id": "@fixture/client:packages/client/src/index.ts#ClientView#phase@953",
                 "kind": "property",
                 "location": {
                   "column": 3,
@@ -6084,7 +6084,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/client/src/index.ts:11:48#1#ready@482",
+                "id": "type:packages/client/src/index.ts:11:48#1#ready@479",
                 "kind": "property",
                 "location": {
                   "column": 50,
@@ -6130,7 +6130,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/client/src/index.ts:15:29#1#ready@628",
+                "id": "type:packages/client/src/index.ts:15:29#1#ready@625",
                 "kind": "property",
                 "location": {
                   "column": 31,
@@ -6188,7 +6188,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/client/src/index.ts:17:57#1#ready@735",
+                "id": "type:packages/client/src/index.ts:17:57#1#ready@732",
                 "kind": "property",
                 "location": {
                   "column": 59,
@@ -6264,7 +6264,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/client/src/index.ts:19:39#1#ready@872",
+                "id": "type:packages/client/src/index.ts:19:39#1#ready@869",
                 "kind": "property",
                 "location": {
                   "column": 41,
@@ -6371,7 +6371,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
               {
                 "abstract": false,
                 "async": false,
-                "id": "type:packages/client/src/index.ts:28:40#1#ready@1148",
+                "id": "type:packages/client/src/index.ts:28:40#1#ready@1145",
                 "kind": "property",
                 "location": {
                   "column": 42,
@@ -6477,7 +6477,7 @@ exports[`WorkspaceAnalyzer > builds independent face models with an explicit cro
                 "line": 35,
               },
               "members": [
-                "@fixture/client:packages/client/src/index.ts#ClientBridge#reflect@1109",
+                "@fixture/client:packages/client/src/index.ts#ClientBridge#reflect@1106",
               ],
               "summary": "Client-face service.",
               "symbol": "@fixture/client:packages/client/src/index.ts#ClientBridge",

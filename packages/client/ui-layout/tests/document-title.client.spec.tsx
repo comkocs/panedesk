@@ -36,9 +36,9 @@ describe('DocumentTitle', () => {
     const mounted = render(<DocumentTitle {...props} productTitle="Panedesk" />)
     expect(document.title).toBe('Panedesk')
     act(() => { sessions.update((state) => { state.byId[sessionId]!.title = 'First title' }) })
-    expect(document.title).toBe('First title — DeepSeek Harness')
+    expect(document.title).toBe('First title — Panedesk')
     act(() => { sessions.update((state) => { state.byId[sessionId]!.title = 'Revised title' }) })
-    expect(document.title).toBe('Revised title — DeepSeek Harness')
+    expect(document.title).toBe('Revised title — Panedesk')
     act(() => {
       const state = sessions.getSnapshot()
       sessions.set({
@@ -54,8 +54,8 @@ describe('DocumentTitle', () => {
   it('uses the localized product title supplied by the frame', () => {
     const { sessionId, sessions, props } = titleSources()
     sessions.update((state) => { state.byId[sessionId]!.title = 'First title' })
-    const mounted = render(<DocumentTitle {...props} productTitle="DSH Local Build" />)
-    expect(document.title).toBe('First title — DSH Local Build')
+    const mounted = render(<DocumentTitle {...props} productTitle="Panedesk Local Build" />)
+    expect(document.title).toBe('First title — Panedesk Local Build')
     mounted.unmount()
     expect(document.title).toBe('Panedesk Local Build')
   })

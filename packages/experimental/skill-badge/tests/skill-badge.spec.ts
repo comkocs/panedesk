@@ -36,7 +36,7 @@ describe('dsh-skill-badge', () => {
     })
     for (const language of ['en', 'zh']) {
       expect(JSON.parse(await readFile(new URL(`../locale/${language}.json`, import.meta.url), 'utf8')))
-        .toMatchObject({ meta: { title: 'DSH' } })
+        .toMatchObject({ meta: { title: 'Panedesk' } })
     }
     expect(await readFile(new URL('../icon.svg', import.meta.url), 'utf8'))
       .toBe(await readFile(new URL('../../badge-skill-bundle/icon.svg', import.meta.url), 'utf8'))
