@@ -122,7 +122,7 @@ export function initializeProfileFromDefault(
   }
   // Case-insensitive file systems resolve a case variant such as `Web` to the shipped directory.
   const shipped = Object.keys(PROFILE_TEMPLATES).find(shippedName => shippedName.toLowerCase() === name.toLowerCase())
-  if (shipped !== undefined) {
+  if (shipped !== undefined && !((name === 'slim' || name === 'full') && name === fromDefaultProfile)) {
     throw new Error(
       `${NAME}: profile ${JSON.stringify(name)} names shipped profile ${JSON.stringify(shipped)} and cannot be a custom profile target; `
       + 'omit --from-default-profile to use it',

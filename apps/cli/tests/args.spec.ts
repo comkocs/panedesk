@@ -60,7 +60,7 @@ describe('parseDshArgs', () => {
     for (const args of [
       [], ['task', 'words'], ['--help'], ['-h'], ['web'],
       ['--patch', 'a.yml', '--patch', 'b.yml'],
-      ['--from-default-profile', 'web', '--help'],
+      ['--from-default-profile', profile, '--help'],
       ['--dump-config'], ['--dump-default-config'], ['--dump-config-schema'],
       ['--patch', 'a.yml', '--resume', 'id', '--patch', 'late.yml'],
       ['--', '--help'], ['--', '--', 'task'],
@@ -251,12 +251,14 @@ describe('parseDshArgs', () => {
     for (const argv of [['--config', 'c.yml'], ['-p', 'task'], ['--bogus']]) {
       expect(parse(argv)).toEqual({ mode: 'profile', profile: 'slim', patches: [], args: argv })
     }
-    // `plugin` is only the management command in leading position; behind launcher flags it is an app argument.
-    expect(parse(['--from-default-profile', 'web', 'plugin', '--profile', 'x', 'add', 'y']))
+    // A different template must not replace the default preset, even with later app arguments.
+    expect(exitCode(['--from-default-profile', 'web', 'plugin', '--profile', 'x', 'add', 'y'])).toBe(1)
+    // `plugin` behind launcher flags remains an app argument when the template matches.
+    expect(parse(['--from-default-profile', 'slim', 'plugin', '--profile', 'x', 'add', 'y']))
       .toEqual({
         mode: 'profile',
         profile: 'slim',
-        fromDefaultProfile: 'web',
+        fromDefaultProfile: 'slim',
         patches: [],
         args: ['plugin', '--profile', 'x', 'add', 'y'],
       })
@@ -302,6 +304,42 @@ describe('parseDshArgs default preset', () => {
     expect(parse(['--patch', 'a.yml', 'tui'])).toEqual(slim(['tui'], ['a.yml']))
     expect(parse(['--patch', 'a.yml'])).toEqual(slim([], ['a.yml']))
     expect(parse(['--patch', 'a.yml', '--patch', 'b.yml', 'task'])).toEqual(slim(['task'], ['a.yml', 'b.yml']))
+  })
+
+  it.each([[], ['--help'], ['--dump-config'], ['--dump-default-config'], ['--dump-config-schema']])(
+    'rejects a different template for the default slim target with flags %j', (...flags: string[]) => {
+      const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+      expect(exitCode(['--from-default-profile', 'web', ...flags])).toBe(1)
+      const text = stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+      expect(text).toContain('cannot replace preset "slim" with template "web"')
+      expect(text).toContain('panedesk rescue --from-default-profile web')
+      expect(text.trim().split('\n')).toHaveLength(1)
+    },
+  )
+
+  it.each(['slim', 'full'])('rejects a different template for the explicit %s target in boot and dumps', (profile) => {
+    for (const target of [[profile], ['--profile', profile]]) {
+      for (const flags of [[], ['--dump-config'], ['--dump-default-config'], ['--dump-config-schema']]) {
+        expect(exitCode([...target, '--from-default-profile', 'web', ...flags])).toBe(1)
+      }
+    }
+  })
+
+  it.each(['slim', 'full'])('allows resetting the %s preset from its matching template in boot and dumps', (profile) => {
+    const targets = [[profile], ['--profile', profile], ...(profile === 'slim' ? [[]] : [])]
+    for (const target of targets) {
+      for (const flags of [[], ['--dump-config'], ['--dump-default-config'], ['--dump-config-schema']]) {
+        expect(parse([...target, '--from-default-profile', profile, ...flags]))
+          .toMatchObject({ profile, fromDefaultProfile: profile })
+      }
+    }
+  })
+
+  it('allows a different template for a custom target in boot and all dumps', () => {
+    for (const flags of [[], ['--dump-config'], ['--dump-default-config'], ['--dump-config-schema']]) {
+      expect(parse(['rescue', '--from-default-profile', 'web', ...flags]))
+        .toMatchObject({ profile: 'rescue', fromDefaultProfile: 'web' })
+    }
   })
 
   it('points config dumps at slim when no profile is named', () => {

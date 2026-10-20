@@ -127,6 +127,10 @@ function resolveBoot(program: Command, profile: string, options: BootOptions, ar
   const patches = options.patch ?? []
   if (patches.includes('')) program.error('error: --patch needs a path')
   if (options.fromDefaultProfile === '') program.error('error: --from-default-profile needs a name')
+  if ((profile === 'slim' || profile === 'full') && options.fromDefaultProfile !== undefined
+    && options.fromDefaultProfile !== profile) {
+    program.error(`error: cannot replace preset "${profile}" with template "${options.fromDefaultProfile}"; choose a different target name, e.g. panedesk rescue --from-default-profile ${options.fromDefaultProfile}`)
+  }
   const dumps = [options.dumpConfig, options.dumpDefaultConfig, options.dumpConfigSchema].filter(Boolean)
   if (dumps.length === 0) {
     return { mode: 'profile', profile, fromDefaultProfile: options.fromDefaultProfile, patches, args }
@@ -195,7 +199,7 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
       if (options.profile === undefined) {
         const bare = args.length === 0 && options.patch === undefined && options.fromDefaultProfile === undefined
           && options.dumpConfig !== true && options.dumpDefaultConfig !== true && options.dumpConfigSchema !== true
-        if (bare || args[0] === '-h' || args[0] === '--help') program.help()
+        if (bare || (options.fromDefaultProfile === undefined && (args[0] === '-h' || args[0] === '--help'))) program.help()
       }
       const profile = options.profile ?? DEFAULT_PROFILE
       if (profile === '') program.error('error: --profile needs a name')

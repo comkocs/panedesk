@@ -225,6 +225,20 @@ describe('initializeProfileFromDefault', () => {
     })
   })
 
+  it.each(['slim', 'full'])('resets the %s preset from its matching template', (name) => {
+    withHome((home) => {
+      const dir = resolveProfileDir(name, home)
+      initProfile(dir, ['existing-bundle'])
+      writeFileSync(join(dir, PROFILE_PATCH_FILENAME), '- id: existing\n  disabled: true\n')
+
+      initializeProfileFromDefault(name, name, home)
+
+      expect(readProfileManifest('test', dir).dsh?.profile).toEqual(PROFILE_TEMPLATES[name])
+      expect(readFileSync(join(dir, PROFILE_PATCH_FILENAME), 'utf8')).not.toContain('existing')
+      expect(readdirSync(dirname(dir))).toEqual([name])
+    })
+  })
+
   it.each(['unknown', 'toString'])('rejects unknown template %s without creating the target', (source) => {
     withHome((home) => {
       expect(() => {
