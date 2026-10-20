@@ -1,0 +1,1385 @@
+{
+  "description": "Ordered, replayable A-D rename rules; D expectations are counted on the pre-rename tracked tree.",
+  "officeScopeSuffixes": [
+    "^(?:/|\\\\/|%2[fF]|\\\\)libreoffice-kit(?:-|[^A-Za-z0-9_]|$)",
+    "^['\"`]\\s*(?:,|/)\\s*\\(?['\"`]libreoffice-kit",
+    "^['\"`]\\)\\.glob\\(['\"`]libreoffice-kit"
+  ],
+  "groups": {
+    "A": [
+      {
+        "id": "A1",
+        "description": "Rename the monorepo root package.",
+        "pattern": "@deepseek-ai(?:/|\\\\/|%2[fF])dsh-root(?![A-Za-z0-9_-])",
+        "replacement": "panedesk-monorepo"
+      },
+      {
+        "id": "A2",
+        "description": "Rename the unscoped launcher, including escaped and URL-encoded specifiers.",
+        "pattern": "@deepseek-ai(?:/|\\\\/|%2[fF])dsh(?![A-Za-z0-9_-])",
+        "replacement": "panedesk"
+      },
+      {
+        "id": "A2-path",
+        "description": "Rename the launcher when its installed path is split into join arguments.",
+        "pattern": "'@deepseek-ai', 'dsh'",
+        "replacement": "'panedesk'"
+      },
+      {
+        "id": "A3",
+        "description": "Rescope workspace packages while preserving external Office package paths.",
+        "pattern": "@deepseek-ai(?!(?:/|\\\\/|%2[fF]|\\\\)libreoffice-kit(?:-|(?=[^A-Za-z0-9_]|$)))",
+        "replacement": "@panedesk"
+      },
+      {
+        "id": "A4",
+        "description": "Rename scope-derived package anchors, slug references and their assertions.",
+        "pattern": "(?<![A-Za-z0-9_@-])deepseek-aidsh(?=-)",
+        "replacement": "panedeskdsh"
+      },
+      {
+        "id": "A4-launcher",
+        "description": "Rename the standalone unscoped launcher slug.",
+        "pattern": "(?<![A-Za-z0-9_@-])deepseek-aidsh(?![-A-Za-z0-9])",
+        "replacement": "panedesk"
+      }
+    ],
+    "B": [
+      {
+        "id": "B1",
+        "description": "Rename only the complete home environment variable.",
+        "pattern": "\\bDSH_HOME\\b",
+        "replacement": "PANEDESK_HOME"
+      },
+      {
+        "id": "B2",
+        "description": "Rename home, project and auxiliary dot-directory path segments.",
+        "pattern": "(?<![A-Za-z0-9_$.?\\)\\]])\\.dsh(?!-build-preview)(?![A-Za-z0-9_$])",
+        "pathPattern": "^(?!website/(?:\\.vitepress|tests)/)(?!.*\\.css$)",
+        "replacement": ".panedesk"
+      }
+    ],
+    "C": [
+      {
+        "id": "C1",
+        "description": "Rename the user-facing permission mode variable.",
+        "pattern": "\\bDSH_PERMISSION_MODE\\b",
+        "replacement": "PANEDESK_PERMISSION_MODE"
+      },
+      {
+        "id": "C2",
+        "description": "Rename the user-facing tools mode variable.",
+        "pattern": "\\bDSH_TOOLS_MODE\\b",
+        "replacement": "PANEDESK_TOOLS_MODE"
+      },
+      {
+        "id": "C3",
+        "description": "Rename the user-facing agents home variable.",
+        "pattern": "\\bDSH_AGENTS_HOME\\b",
+        "replacement": "PANEDESK_AGENTS_HOME"
+      },
+      {
+        "id": "C4",
+        "description": "Rename the telemetry disabled variable.",
+        "pattern": "\\bDSH_TELEMETRY_DISABLED\\b",
+        "replacement": "PANEDESK_TELEMETRY_DISABLED"
+      },
+      {
+        "id": "C5",
+        "description": "Rename the telemetry mode variable.",
+        "pattern": "\\bDSH_TELEMETRY_MODE\\b",
+        "replacement": "PANEDESK_TELEMETRY_MODE"
+      },
+      {
+        "id": "C6",
+        "description": "Rename the telemetry otlp url variable.",
+        "pattern": "\\bDSH_TELEMETRY_OTLP_URL\\b",
+        "replacement": "PANEDESK_TELEMETRY_OTLP_URL"
+      },
+      {
+        "id": "C7",
+        "description": "Rename the telemetry e2e mode variable.",
+        "pattern": "\\bDSH_TELEMETRY_E2E_MODE\\b",
+        "replacement": "PANEDESK_TELEMETRY_E2E_MODE"
+      },
+      {
+        "id": "C8",
+        "description": "Rename the telemetry e2e feedback variable.",
+        "pattern": "\\bDSH_TELEMETRY_E2E_FEEDBACK\\b",
+        "replacement": "PANEDESK_TELEMETRY_E2E_FEEDBACK"
+      },
+      {
+        "id": "C9",
+        "description": "Rename the telemetry e2e url variable.",
+        "pattern": "\\bDSH_TELEMETRY_E2E_URL\\b",
+        "replacement": "PANEDESK_TELEMETRY_E2E_URL"
+      }
+    ],
+    "D": [
+      {
+        "id": "D001",
+        "description": "Rename the default application identity and its protocol-key assertions.",
+        "literal": "'deepseek-harness'",
+        "replacement": "'panedesk'",
+        "files": [
+          "packages/llm/llm/src/attribution.ts",
+          "packages/llm/llm/tests/attribution.spec.ts",
+          "packages/subagent/subagent-codex/src/wire.ts",
+          "packages/llm/llm-deepseek-account/tests/provider.spec.ts",
+          "packages/llm/llm-deepseek-account/tests/resolve-catalog.spec.ts"
+        ],
+        "expected": 5
+      },
+      {
+        "id": "D002",
+        "description": "Rename the versioned application user-agent assertion.",
+        "literal": "deepseek-harness/${manifest.version}",
+        "replacement": "panedesk/${manifest.version}",
+        "files": [
+          "packages/llm/llm/tests/attribution.spec.ts"
+        ],
+        "expected": 1
+      },
+      {
+        "id": "D003",
+        "description": "Rename the user-agent prefix assertion.",
+        "literal": "^deepseek-harness\\/",
+        "replacement": "^panedesk\\/",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D004",
+        "description": "Rename the HTTP user-agent and omit the optional upstream comment.",
+        "literal": "deepseek-harness/0.0.1 (+https://github.com/deepseek-ai)",
+        "replacement": "panedesk/0.0.1",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D005",
+        "description": "Rename fixed HTTP user-agent versions.",
+        "literal": "deepseek-harness/0.0.1",
+        "replacement": "panedesk/0.0.1",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 4
+      },
+      {
+        "id": "D006",
+        "description": "Rename the exact wire identity without changing executable or Python package names.",
+        "literal": "'deepseek-harness-acp'",
+        "replacement": "'panedesk-acp'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 4
+      },
+      {
+        "id": "D007",
+        "description": "Rename the exact wire identity without changing executable or Python package names.",
+        "literal": "'deepseek-harness-subagent-acp'",
+        "replacement": "'panedesk-subagent-acp'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D008",
+        "description": "Rename the exact wire identity without changing executable or Python package names.",
+        "literal": "'deepseek-harness-sdk-runtime'",
+        "replacement": "'panedesk-sdk-runtime'",
+        "pathPattern": "^(?:apps/|packages/|python/sdk/tests/|snapshots/).*(?<!\\.md)$",
+        "expected": 10
+      },
+      {
+        "id": "D009",
+        "description": "Rename the exact wire identity without changing executable or Python package names.",
+        "literal": "\"deepseek-harness-acp\"",
+        "replacement": "\"panedesk-acp\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 11
+      },
+      {
+        "id": "D010",
+        "description": "Rename the exact wire identity without changing executable or Python package names.",
+        "literal": "\"deepseek-harness-sdk-runtime\"",
+        "replacement": "\"panedesk-sdk-runtime\"",
+        "pathPattern": "^(?:apps/|packages/|python/sdk/tests/|snapshots/).*(?<!\\.md)$",
+        "expected": 1
+      },
+      {
+        "id": "D011",
+        "description": "Rename the provider upgrade-error assertion.",
+        "literal": "requires DeepSeek Harness 99\\.0\\.0-alpha\\.1 or later; current version is ",
+        "replacement": "requires Panedesk 99\\.0\\.0-alpha\\.1 or later; current version is ",
+        "files": [
+          "packages/llm/llm-deepseek-account/tests/provider.spec.ts"
+        ],
+        "expected": 1
+      },
+      {
+        "id": "D012",
+        "description": "Rename the inspector product token.",
+        "literal": "'dsh-experimental-inspector/0'",
+        "replacement": "'panedesk-experimental-inspector/0'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D013",
+        "description": "Rename the inspector user-agent token.",
+        "literal": "'dsh-experimental-inspector'",
+        "replacement": "'panedesk-experimental-inspector'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D014",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'About DeepSeek Harness'",
+        "replacement": "'About Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D015",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness'",
+        "replacement": "'Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 42
+      },
+      {
+        "id": "D016",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Hide DeepSeek Harness'",
+        "replacement": "'Hide Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D017",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Quit DeepSeek Harness'",
+        "replacement": "'Quit Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D018",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Open DeepSeek Harness'",
+        "replacement": "'Open Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D019",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Quit DeepSeek Harness?'",
+        "replacement": "'Quit Panedesk?'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D020",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness is unavailable'",
+        "replacement": "'Panedesk is unavailable'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D021",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Another DSH instance (such as dsh web or the desktop app) is running. They cannot start at the same time. Quit the other running DSH instance, then restart.'",
+        "replacement": "'Another Panedesk instance (such as dsh web or the desktop app) is running. They cannot start at the same time. Quit the other running Panedesk instance, then restart.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D022",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness Update'",
+        "replacement": "'Panedesk Update'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D023",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'关于 DeepSeek Harness'",
+        "replacement": "'关于 Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 3
+      },
+      {
+        "id": "D024",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'隐藏 DeepSeek Harness'",
+        "replacement": "'隐藏 Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D025",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'退出 DeepSeek Harness'",
+        "replacement": "'退出 Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D026",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'打开 DeepSeek Harness'",
+        "replacement": "'打开 Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D027",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'退出 DeepSeek Harness？'",
+        "replacement": "'退出 Panedesk？'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D028",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness 无法使用'",
+        "replacement": "'Panedesk 无法使用'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D029",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'有其他正在运行的 DSH（如其他 dsh web、桌面端），无法同时启动，请退出其他正在运行的 DSH 后重启。'",
+        "replacement": "'有其他正在运行的 Panedesk（如其他 dsh web、桌面端），无法同时启动，请退出其他正在运行的 Panedesk 后重启。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D030",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness 更新'",
+        "replacement": "'Panedesk 更新'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D031",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness\"",
+        "replacement": "\"Panedesk\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 6
+      },
+      {
+        "id": "D032",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DSH\"",
+        "replacement": "\"Panedesk\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 3
+      },
+      {
+        "id": "D033",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness uses your microphone to transcribe speech into message drafts.'",
+        "replacement": "'Panedesk uses your microphone to transcribe speech into message drafts.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D034",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DSH Local Build'",
+        "replacement": "'Panedesk Local Build'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 11
+      },
+      {
+        "id": "D035",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DSH 本地构建'",
+        "replacement": "'Panedesk 本地构建'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D036",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'<title>DSH Local Build</title>'",
+        "replacement": "'<title>Panedesk Local Build</title>'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D037",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Open DeepSeek Harness Desktop once to initialize its profile, then fully quit it before running dsh plugin --profile desktop.'",
+        "replacement": "'Open Panedesk Desktop once to initialize its profile, then fully quit it before running dsh plugin --profile desktop.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D038",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'panedesk: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and DSH versions.\\n'",
+        "replacement": "'panedesk: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and Panedesk versions.\\n'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D039",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "`panedesk: ${command === 'allow-version' ? 'allowed' : 'revoked'} ${request.packageVersion} for DSH ${request.runtimeVersion}\\n`",
+        "replacement": "`panedesk: ${command === 'allow-version' ? 'allowed' : 'revoked'} ${request.packageVersion} for Panedesk ${request.runtimeVersion}\\n`",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D040",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Back to DeepSeek Harness'",
+        "replacement": "'Back to Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D041",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'You are not signed in to DeepSeek Harness'",
+        "replacement": "'You are not signed in to Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D042",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Sign in to DeepSeek Harness to get your dedicated API Key'",
+        "replacement": "'Sign in to Panedesk to get your dedicated API Key'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D043",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.'",
+        "replacement": "'Panedesk cannot start a new task with this account when no balance is available. Would you like to top up? You can also top up later in Settings → Account.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D044",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'返回 DeepSeek Harness'",
+        "replacement": "'返回 Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 7
+      },
+      {
+        "id": "D045",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'当前未登录 DeepSeek Harness 账号'",
+        "replacement": "'当前未登录 Panedesk 账号'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D046",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'登录 DeepSeek Harness 账号获取专属 API Key'",
+        "replacement": "'登录 Panedesk 账号获取专属 API Key'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D047",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'没有可用额度时，DeepSeek Harness 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。'",
+        "replacement": "'没有可用额度时，Panedesk 无法开始新的任务，是否前往充值？或者可以稍后前往 设置 → 账号与余额 进行充值。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D048",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。'",
+        "replacement": "'Panedesk 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D049",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。'",
+        "replacement": "'Panedesk 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D050",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'这只会影响工作过程的展示方式，不会影响 DeepSeek Harness 的工作能力。'",
+        "replacement": "'这只会影响工作过程的展示方式，不会影响 Panedesk 的工作能力。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D051",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'没有可用额度时，DeepSeek Harness 将无法开始新的任务。你可以稍后前往 设置 → 账号与余额 进行充值。'",
+        "replacement": "'没有可用额度时，Panedesk 将无法开始新的任务。你可以稍后前往 设置 → 账号与余额 进行充值。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D052",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.'",
+        "replacement": "'Panedesk works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D053",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.'",
+        "replacement": "'Panedesk charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D054",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This only changes how progress is shown, not what DeepSeek Harness can do.'",
+        "replacement": "'This only changes how progress is shown, not what Panedesk can do.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D055",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness can’t start new tasks without credits. You can add them later in Settings → Account.'",
+        "replacement": "'Panedesk can’t start new tasks without credits. You can add them later in Settings → Account.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D056",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness 0.2 is still in preview, and many areas need continued improvement and refinement. We welcome feedback and suggestions from all developers and users. The new desktop app now targets a broad range of users, while developer-related advanced features can be enabled in the settings. DeepSeek Harness’s product features and plugin APIs are expected to continue rapid iteration and evolution, and will gradually stabilize over time.\\n\\nWe look forward to exploring the limits of intelligence together with users and developers around the world, building on open-source, reusable, and composable infrastructure. We welcome everyone to bring their ideas to life with DeepSeek Harness and participate in the community to enrich the plugin ecosystem.'",
+        "replacement": "'Panedesk 0.2 is still in preview, and many areas need continued improvement and refinement. We welcome feedback and suggestions from all developers and users. The new desktop app now targets a broad range of users, while developer-related advanced features can be enabled in the settings. Panedesk’s product features and plugin APIs are expected to continue rapid iteration and evolution, and will gradually stabilize over time.\\n\\nWe look forward to exploring the limits of intelligence together with users and developers around the world, building on open-source, reusable, and composable infrastructure. We welcome everyone to bring their ideas to life with Panedesk and participate in the community to enrich the plugin ecosystem.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D057",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DeepSeek Harness 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 DeepSeek Harness 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。\\n\\n我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 DeepSeek Harness 将想法变成现实，与社区一起丰富插件生态。'",
+        "replacement": "'Panedesk 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 Panedesk 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。\\n\\n我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 Panedesk 将想法变成现实，与社区一起丰富插件生态。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D058",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Office 预览不可用。请在运行 DeepSeek Harness 的主机上启用文档预览服务。'",
+        "replacement": "'Office 预览不可用。请在运行 Panedesk 的主机上启用文档预览服务。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D059",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Office previews are unavailable. Enable the document preview service on the computer running DeepSeek Harness.'",
+        "replacement": "'Office previews are unavailable. Enable the document preview service on the computer running Panedesk.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D060",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'请重启 DSH 使更改生效。{reason}'",
+        "replacement": "'请重启 Panedesk 使更改生效。{reason}'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D061",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'已安装的插件包解析到了另一个目录，或者更改替换了 DSH 安装自带的包。从其他位置安装前请先卸载。'",
+        "replacement": "'已安装的插件包解析到了另一个目录，或者更改替换了 Panedesk 安装自带的包。从其他位置安装前请先卸载。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D062",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'更改涉及 DSH 自身已加载的模块。'",
+        "replacement": "'更改涉及 Panedesk 自身已加载的模块。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D063",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DSH 无法将已加载的插件与磁盘上的文件进行比较。'",
+        "replacement": "'Panedesk 无法将已加载的插件与磁盘上的文件进行比较。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D064",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'请确认插件来源可信。插件在本机以你的权限运行，来源不明的插件可能损坏 DeepSeek Harness，或读取和泄露你的数据。'",
+        "replacement": "'请确认插件来源可信。插件在本机以你的权限运行，来源不明的插件可能损坏 Panedesk，或读取和泄露你的数据。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D065",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'按需安装的官方插件会在版本与 DSH 不同时提供“更新”。其他插件请先卸载再安装新版。'",
+        "replacement": "'按需安装的官方插件会在版本与 Panedesk 不同时提供“更新”。其他插件请先卸载再安装新版。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D066",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'该插件随 DSH 提供，升级 DSH 即可获得新版本'",
+        "replacement": "'该插件随 Panedesk 提供，升级 Panedesk 即可获得新版本'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D067",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'当前 DSH 对应来源'",
+        "replacement": "'当前 Panedesk 对应来源'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D068",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'当前 DSH 对应版本'",
+        "replacement": "'当前 Panedesk 对应版本'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D069",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'已安装，请重启 DSH 加载它。{reason}'",
+        "replacement": "'已安装，请重启 Panedesk 加载它。{reason}'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D070",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'{plugin} 与 DSH {runtime} 不兼容（要求 {requirements}），运行它可能导致崩溃或数据丢失。'",
+        "replacement": "'{plugin} 与 Panedesk {runtime} 不兼容（要求 {requirements}），运行它可能导致崩溃或数据丢失。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D071",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'这个插件与当前 DSH 版本不兼容，运行它可能导致崩溃或数据丢失。'",
+        "replacement": "'这个插件与当前 Panedesk 版本不兼容，运行它可能导致崩溃或数据丢失。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D072",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'请安装与当前 DSH 兼容的插件版本。'",
+        "replacement": "'请安装与当前 Panedesk 兼容的插件版本。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D073",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'请卸载后重新安装与当前 DSH 兼容的版本。'",
+        "replacement": "'请卸载后重新安装与当前 Panedesk 兼容的版本。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D074",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Restart DSH to apply the change. {reason}'",
+        "replacement": "'Restart Panedesk to apply the change. {reason}'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D075",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'An installed package now resolves to another directory, or the change replaces a package the DSH installation provides. Uninstall a package before installing it from another location.'",
+        "replacement": "'An installed package now resolves to another directory, or the change replaces a package the Panedesk installation provides. Uninstall a package before installing it from another location.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D076",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'The change reaches modules DSH itself loaded.'",
+        "replacement": "'The change reaches modules Panedesk itself loaded.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D077",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DSH could not compare the loaded plugins with their files.'",
+        "replacement": "'Panedesk could not compare the loaded plugins with their files.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D078",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Install only plugins you trust: they run with your permissions and can damage DeepSeek Harness or leak your data.'",
+        "replacement": "'Install only plugins you trust: they run with your permissions and can damage Panedesk or leak your data.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D079",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'On-demand Official plugins offer Update when their version differs from DSH. To update other plugins, uninstall and reinstall them.'",
+        "replacement": "'On-demand Official plugins offer Update when their version differs from Panedesk. To update other plugins, uninstall and reinstall them.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D080",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This plugin ships with DSH; upgrading DSH updates it'",
+        "replacement": "'This plugin ships with Panedesk; upgrading Panedesk updates it'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D081",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Source for this DSH'",
+        "replacement": "'Source for this Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D082",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Version for this DSH'",
+        "replacement": "'Version for this Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D083",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Installed; restart DSH to load it. {reason}'",
+        "replacement": "'Installed; restart Panedesk to load it. {reason}'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D084",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'{plugin} is incompatible with DSH {runtime} (requires {requirements}); running it may cause crashes or data loss.'",
+        "replacement": "'{plugin} is incompatible with Panedesk {runtime} (requires {requirements}); running it may cause crashes or data loss.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D085",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This plugin is incompatible with the running DSH version; running it may cause crashes or data loss.'",
+        "replacement": "'This plugin is incompatible with the running Panedesk version; running it may cause crashes or data loss.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D086",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Install a plugin version compatible with this DSH.'",
+        "replacement": "'Install a plugin version compatible with this Panedesk.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D087",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Uninstall it and install a version compatible with this DSH.'",
+        "replacement": "'Uninstall it and install a version compatible with this Panedesk.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D088",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'当前会话已被占用，可能是其他正在运行的 DSH 导致的（如其他 dsh web、桌面端），请退出其他正在运行的 DSH 后重试。'",
+        "replacement": "'当前会话已被占用，可能是其他正在运行的 Panedesk 导致的（如其他 dsh web、桌面端），请退出其他正在运行的 Panedesk 后重试。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D089",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This session is already in use, possibly by another running DSH instance (such as dsh web or the desktop app). Quit other running DSH instances and try again.'",
+        "replacement": "'This session is already in use, possibly by another running Panedesk instance (such as dsh web or the desktop app). Quit other running Panedesk instances and try again.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D090",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'The package declares no dsh.bundle and cannot be managed as a plugin; install a DSH plugin bundle instead.'",
+        "replacement": "'The package declares no dsh.bundle and cannot be managed as a plugin; install a Panedesk plugin bundle instead.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D091",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This profile runs without HMR; tell the user to stop DSH and run `dsh plugin --profile <profile> remove <bundle>`.'",
+        "replacement": "'This profile runs without HMR; tell the user to stop Panedesk and run `dsh plugin --profile <profile> remove <bundle>`.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D092",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Install a version compatible with the running DSH. A version exemption needs the user\\'s explicit acceptance of crash and data-loss risk.'",
+        "replacement": "'Install a version compatible with the running Panedesk. A version exemption needs the user\\'s explicit acceptance of crash and data-loss risk.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D093",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'pnpm is not available to DSH; tell the user to install pnpm.'",
+        "replacement": "'pnpm is not available to Panedesk; tell the user to install pnpm.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D094",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Tell the user DSH cannot write the profile directory; retry after they fix its permissions.'",
+        "replacement": "'Tell the user Panedesk cannot write the profile directory; retry after they fix its permissions.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D095",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'an installed package now resolves to another directory, or the change replaces a package the DSH installation provides; remove a package before installing it from another location'",
+        "replacement": "'an installed package now resolves to another directory, or the change replaces a package the Panedesk installation provides; remove a package before installing it from another location'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D096",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'the change reaches modules DSH itself loaded'",
+        "replacement": "'the change reaches modules Panedesk itself loaded'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D097",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'DSH could not compare loaded plugins with their files'",
+        "replacement": "'Panedesk could not compare loaded plugins with their files'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D098",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "`Tell the user to restart DSH to apply this change${reason}.`",
+        "replacement": "`Tell the user to restart Panedesk to apply this change${reason}.`",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D099",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately, including upgrades of installed packages; a change result that is not applied carries nextStep, which says what to do or tell the user. Unmet DSH version requirements (engines.dsh, else DSH peer dependencies) block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.'",
+        "replacement": "'List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately, including upgrades of installed packages; a change result that is not applied carries nextStep, which says what to do or tell the user. Unmet Panedesk version requirements (engines.dsh, else Panedesk peer dependencies) block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D100",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'For set_version_exemption: exact DSH version from list_version_exemptions. Target must be the manifest package-name@version, not an alias or version range.'",
+        "replacement": "'For set_version_exemption: exact Panedesk version from list_version_exemptions. Target must be the manifest package-name@version, not an alias or version range.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D101",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "`DeepSeek model \"${model}\" requires DeepSeek Harness ${refusal.requiredVersion} or later; current version is ${APP_IDENTITY.version}`",
+        "replacement": "`DeepSeek model \"${model}\" requires Panedesk ${refusal.requiredVersion} or later; current version is ${APP_IDENTITY.version}`",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D102",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "`DeepSeek model \"${model}\" is not supported by DeepSeek Harness; current version is ${APP_IDENTITY.version}`",
+        "replacement": "`DeepSeek model \"${model}\" is not supported by Panedesk; current version is ${APP_IDENTITY.version}`",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D103",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"unsupported DeepSeek Harness runtime mode {selected!r}: expected 'exe' or 'node' \"",
+        "replacement": "\"unsupported Panedesk runtime mode {selected!r}: expected 'exe' or 'node' \"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D104",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"no bundled DeepSeek Harness SDK runtime exists for this platform \"",
+        "replacement": "\"no bundled Panedesk SDK runtime exists for this platform \"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D105",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "`unknown DeepSeek Harness SDK runtime method: ${method}`",
+        "replacement": "`unknown Panedesk SDK runtime method: ${method}`",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D106",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Advertised URL of the DeepSeek Harness Web GUI serving this session.'",
+        "replacement": "'Advertised URL of the Panedesk Web GUI serving this session.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D107",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "You are an AI agent powered by DeepSeek Harness.",
+        "replacement": "You are an AI agent powered by Panedesk.",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 10
+      },
+      {
+        "id": "D108",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Choose the agent’s tools and how it works. Use Standard mode for everyday tasks, or Creator mode to add capabilities to DSH.'",
+        "replacement": "'Choose the agent’s tools and how it works. Use Standard mode for everyday tasks, or Creator mode to add capabilities to Panedesk.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D109",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Customize DSH through conversation. Let the agent write plugins that add features or UI, or combine tools and prompts to create your own mode.'",
+        "replacement": "'Customize Panedesk through conversation. Let the agent write plugins that add features or UI, or combine tools and prompts to create your own mode.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D110",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Enter Creator mode and make your own DSH plugin'",
+        "replacement": "'Enter Creator mode and make your own Panedesk plugin'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D111",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 DSH 的能力用「创造模式」。'",
+        "replacement": "'选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 Panedesk 的能力用「创造模式」。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D112",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'用对话定制 DSH：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。'",
+        "replacement": "'用对话定制 Panedesk：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D113",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'进入创造模式，制作属于你的 DSH 插件'",
+        "replacement": "'进入创造模式，制作属于你的 Panedesk 插件'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D114",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'随 DSH 提供'",
+        "replacement": "'随 Panedesk 提供'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D115",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'此版本与当前的 DSH {runtime} 不兼容，它要求 DSH {range}'",
+        "replacement": "'此版本与当前的 Panedesk {runtime} 不兼容，它要求 Panedesk {range}'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D116",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'没有与当前 DSH {runtime} 兼容的版本'",
+        "replacement": "'没有与当前 Panedesk {runtime} 兼容的版本'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D117",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'此版本与当前 DSH 不兼容，但你已为它设置了兼容性豁免'",
+        "replacement": "'此版本与当前 Panedesk 不兼容，但你已为它设置了兼容性豁免'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D118",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'Provided by DSH'",
+        "replacement": "'Provided by Panedesk'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D119",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This version is not compatible with the running DSH {runtime}; it requires DSH {range}.'",
+        "replacement": "'This version is not compatible with the running Panedesk {runtime}; it requires Panedesk {range}.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D120",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'No version is compatible with DSH {runtime}'",
+        "replacement": "'No version is compatible with Panedesk {runtime}'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D121",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'This version is not compatible with the running DSH, but you set a compatibility exemption for it.'",
+        "replacement": "'This version is not compatible with the running Panedesk, but you set a compatibility exemption for it.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D122",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'不能在嵌入浏览器中打开 DSH 应用自身。'",
+        "replacement": "'不能在嵌入浏览器中打开 Panedesk 应用自身。'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D123",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "'The embedded browser cannot open the DSH application itself.'",
+        "replacement": "'The embedded browser cannot open the Panedesk application itself.'",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D124",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness runtime closed\"",
+        "replacement": "\"Panedesk runtime closed\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D125",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"{method} timed out waiting for DeepSeek Harness runtime{suffix}\"",
+        "replacement": "\"{method} timed out waiting for Panedesk runtime{suffix}\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D126",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness runtime is not running\"",
+        "replacement": "\"Panedesk runtime is not running\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D127",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"Failed to write to DeepSeek Harness runtime\"",
+        "replacement": "\"Failed to write to Panedesk runtime\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D128",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness runtime stdout closed\"",
+        "replacement": "\"Panedesk runtime stdout closed\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D129",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"Unable to locate the bundled DeepSeek Harness dsh runtime. \"",
+        "replacement": "\"Unable to locate the bundled Panedesk dsh runtime. \"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D130",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness could not be launched. Retry, or clear Launch now and close the installer.\"",
+        "replacement": "\"Panedesk could not be launched. Retry, or clear Launch now and close the installer.\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D131",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"无法启动 DeepSeek Harness。请重试，或取消勾选立即启动后关闭安装程序。\"",
+        "replacement": "\"无法启动 Panedesk。请重试，或取消勾选立即启动后关闭安装程序。\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D132",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness is running. Quit it from the system tray and try again.\"",
+        "replacement": "\"Panedesk is running. Quit it from the system tray and try again.\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D133",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness 正在运行，请先在系统托盘中退出应用后重试。\"",
+        "replacement": "\"Panedesk 正在运行，请先在系统托盘中退出应用后重试。\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D134",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"Choose an empty folder or the registered DeepSeek Harness installation folder.\"",
+        "replacement": "\"Choose an empty folder or the registered Panedesk installation folder.\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D135",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"请选择空文件夹，或 DeepSeek Harness 原来的安装目录。\"",
+        "replacement": "\"请选择空文件夹，或 Panedesk 原来的安装目录。\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D136",
+        "description": "Rename an exact runtime product display literal and matching assertions.",
+        "literal": "\"DeepSeek Harness installer: extraction failed\\r\\n\"",
+        "replacement": "\"Panedesk installer: extraction failed\\r\\n\"",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D137",
+        "description": "Rename the initial HTML page title.",
+        "literal": "<title>DSH Local Build</title>",
+        "replacement": "<title>Panedesk Local Build</title>",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D138",
+        "description": "Rename the manifest short-name assertion.",
+        "literal": "'DSH'",
+        "replacement": "'Panedesk'",
+        "files": [
+          "apps/web/tests/pwa-manifest.e2e.ts"
+        ],
+        "expected": 1
+      },
+      {
+        "id": "D139",
+        "description": "Rename the desktop executable path to match productName.",
+        "literal": "MacOS/DeepSeek Harness",
+        "replacement": "MacOS/Panedesk",
+        "files": [
+          "apps/desktop/cli/dsh"
+        ],
+        "expected": 1
+      },
+      {
+        "id": "D140",
+        "description": "Rename the desktop executable path to match productName.",
+        "literal": "DeepSeek Harness.exe",
+        "replacement": "Panedesk.exe",
+        "files": [
+          "apps/desktop/cli/dsh.cmd"
+        ],
+        "expected": 1
+      },
+      {
+        "id": "D141",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "dsh --profile ",
+        "replacement": "panedesk --profile ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 62
+      },
+      {
+        "id": "D142",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "dsh plugin ",
+        "replacement": "panedesk plugin ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 30
+      },
+      {
+        "id": "D143",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "'dsh: ",
+        "replacement": "'panedesk: ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 33
+      },
+      {
+        "id": "D144",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "`dsh: ",
+        "replacement": "`panedesk: ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 12
+      },
+      {
+        "id": "D145",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "\\ndsh: ",
+        "replacement": "\\npanedesk: ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 12
+      },
+      {
+        "id": "D146",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "dsh web",
+        "replacement": "panedesk web",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 149
+      },
+      {
+        "id": "D147",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "dsh profile ",
+        "replacement": "panedesk profile ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 15
+      },
+      {
+        "id": "D148",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "dsh desktop:",
+        "replacement": "panedesk desktop:",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 14
+      },
+      {
+        "id": "D149",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "dsh --version",
+        "replacement": "panedesk --version",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 3
+      },
+      {
+        "id": "D150",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "restart dsh.",
+        "replacement": "restart panedesk.",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D151",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "incompatible with dsh ",
+        "replacement": "incompatible with panedesk ",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 3
+      },
+      {
+        "id": "D152",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "compatible with this dsh runtime",
+        "replacement": "compatible with this panedesk runtime",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 2
+      },
+      {
+        "id": "D153",
+        "description": "Rename a literal launcher command in runtime output and assertions.",
+        "literal": "on dsh ${issue.runtimeVersion}",
+        "replacement": "on panedesk ${issue.runtimeVersion}",
+        "pathPattern": "^(?:apps/|packages/|python/|scripts/|snapshots/).*(?<!\\.md)(?<!\\.yaml)$",
+        "expected": 1
+      },
+      {
+        "id": "D154",
+        "description": "Rename launcher invocations in CLI help discovery and diagnostics.",
+        "literal": "['dsh', ...args]",
+        "replacement": "['panedesk', ...args]",
+        "files": ["scripts/gen-cli-help.ts"],
+        "expected": 2
+      },
+      {
+        "id": "D155",
+        "description": "Rename the generated English CLI help title.",
+        "literal": "# dsh CLI help",
+        "replacement": "# panedesk CLI help",
+        "files": ["scripts/gen-cli-help.ts"],
+        "expected": 1
+      },
+      {
+        "id": "D156",
+        "description": "Rename the generated Chinese CLI help title.",
+        "literal": "# dsh 命令行帮助",
+        "replacement": "# panedesk 命令行帮助",
+        "files": ["scripts/gen-cli-help.ts"],
+        "expected": 1
+      }
+    ]
+  }
+}
