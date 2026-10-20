@@ -46,7 +46,7 @@ describe('CLI help discovery', () => {
     }, ['web'])
     expect(visited).toEqual(['', 'plugin', 'web', 'web nested', '--profile web'])
     expect(pages.map(page => page.invocations)).toEqual([
-      ['dsh'], ['dsh plugin'], ['panedesk web', 'panedesk --profile web'],
+      ['panedesk'], ['panedesk plugin'], ['panedesk web', 'panedesk --profile web'],
       ['panedesk web nested', 'panedesk --profile web nested'],
     ])
   })
@@ -63,7 +63,7 @@ describe('CLI help discovery', () => {
     }, ['web'])
     expect(visited).toEqual(['', 'plugin', 'web', 'web serve', 'web s', 'web help', '--profile web'])
     expect(pages.map(page => page.invocations)).toEqual([
-      ['dsh'], ['dsh plugin'], ['panedesk web', 'panedesk web help', 'panedesk --profile web', 'panedesk --profile web help'],
+      ['panedesk'], ['panedesk plugin'], ['panedesk web', 'panedesk web help', 'panedesk --profile web', 'panedesk --profile web help'],
       ['panedesk web serve', 'panedesk web s', 'panedesk --profile web serve', 'panedesk --profile web s'],
     ])
   })
