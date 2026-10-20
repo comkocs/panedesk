@@ -1,12 +1,12 @@
 /** Scoped tool that declares filesystem deliveries in their owning Session. */
-import type {} from '@deepseek-ai/dsh-working-directory'
-import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import { FsError } from '@deepseek-ai/dsh-fs'
-import { defineTool, type ToolExecution } from '@deepseek-ai/dsh-tools'
-import type {} from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-session-projection'
-import type { Session } from '@deepseek-ai/dsh-session'
+import type {} from '@panedesk/dsh-working-directory'
+import type { Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import { FsError } from '@panedesk/dsh-fs'
+import { defineTool, type ToolExecution } from '@panedesk/dsh-tools'
+import type {} from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-session-projection'
+import type { Session } from '@panedesk/dsh-session'
 import type { PresentedFile } from './types.ts'
 
 /** Stable Loader identity. */

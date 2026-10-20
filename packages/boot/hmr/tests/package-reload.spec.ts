@@ -4,13 +4,13 @@ import NodeModule, { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Context, FiberState, type Plugin } from '@deepseek-ai/cordis'
-import Loader, { ModuleLoader, type Entry } from '@deepseek-ai/cordis-plugin-loader'
+import { Context, FiberState, type Plugin } from '@panedesk/cordis'
+import Loader, { ModuleLoader, type Entry } from '@panedesk/cordis-plugin-loader'
 import {
   boot, initProfile, ProfileRuntimeResolution, readProfileManifest, readProfilePatches, reconcileProfilePatches, ResolutionRestartRequired,
   type PluginPackages, type ProfileContext, type RuntimeResolution,
-} from '@deepseek-ai/dsh-app-boot'
-import Timer from '@deepseek-ai/cordis-plugin-timer'
+} from '@panedesk/dsh-app-boot'
+import Timer from '@panedesk/cordis-plugin-timer'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import Hmr from '../src/index.ts'
 
@@ -1202,7 +1202,7 @@ it.each(['disabled', 'removed', 'incompatible', 'dynamic'] as const)('never eval
   if (kind === 'incompatible') {
     const path = join(f.dir, 'node_modules', 'addon', 'package.json')
     file(path, JSON.stringify({ name: 'addon', version: '2.0.0', type: 'module', exports: './index.mjs',
-      peerDependencies: { '@deepseek-ai/dsh': '<0.0.0' }, dsh: { bundle: { patch: './cordis.patch.yml' } } }))
+      peerDependencies: { 'panedesk': '<0.0.0' }, dsh: { bundle: { patch: './cordis.patch.yml' } } }))
   } else if (kind === 'removed') {
     f.select(['other'])
   } else {

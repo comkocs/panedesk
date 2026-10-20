@@ -1,16 +1,16 @@
 /** Candidate scheduling is measured by calls and query offsets, never clocks. */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type {
   UserTextFacts, UserTextRule, UserTextNode, UserTextTransformContext,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
+} from '@panedesk/dsh-client-ui-conversation/client'
 import { UserTextRegistry } from '../src/client/conversation/user-text-registry.ts'
 
 interface Range { readonly start: number; readonly end: number; readonly label: string }
 type Id = 'schedule.a' | 'schedule.b' | 'schedule.c'
 type Field = 'scheduleA' | 'scheduleB' | 'scheduleC'
 
-declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
+declare module '@panedesk/dsh-client-ui-conversation/client' {
   interface UserTextDataMap {
     'schedule.a': { readonly label: string }
     'schedule.b': { readonly label: string }

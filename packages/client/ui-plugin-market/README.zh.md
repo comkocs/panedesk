@@ -3,7 +3,7 @@ description: "Web 插件页的「发现」标签页：搜索已配置的插件�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-plugin-market
+# @panedesk/dsh-client-ui-plugin-market
 
 [English](README.md) | 中文
 

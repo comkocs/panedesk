@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { fileURLToPath } from 'node:url'
-import { LspConnection } from '@deepseek-ai/dsh-lsp-stdio'
-import type { ConnectionWriter } from '@deepseek-ai/dsh-lsp-stdio/src/connection.ts'
-import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
-import { spawnSubprocess } from '@deepseek-ai/dsh-subprocess-local/src/spawn.ts'
+import { LspConnection } from '@panedesk/dsh-lsp-stdio'
+import type { ConnectionWriter } from '@panedesk/dsh-lsp-stdio/src/connection.ts'
+import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
+import { spawnSubprocess } from '@panedesk/dsh-subprocess-local/src/spawn.ts'
 
 const fixtureServer = fileURLToPath(new URL('./fixture-server.ts', import.meta.url))
 

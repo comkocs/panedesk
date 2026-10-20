@@ -1,7 +1,7 @@
 /** Real business matchers compose by original position through the data-layer scheduler. */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import type { UserTextFacts, UserTextRule, UserTextNode, UserTextTransformContext } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { UserTextFacts, UserTextRule, UserTextNode, UserTextTransformContext } from '@panedesk/dsh-client-ui-conversation/client'
 import { UserTextRegistry } from '../src/client/conversation/user-text-registry.ts'
 import { sessionReferenceRule } from '../src/client/user-text/session-reference-rule.ts'
 import { fileReferenceRule, folderReferenceRule } from '../../ui-reference/src/client/user-text-rules.ts'

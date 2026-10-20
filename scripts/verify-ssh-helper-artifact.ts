@@ -83,15 +83,15 @@ export async function runArtifactDriver(config: string, report: string, sandbox:
  */
 export function artifactComposition(connection: { id: string; name: string; config: object }, workspace: string): string {
   const rows = [
-    { id: 'projections', name: '@deepseek-ai/dsh-session-projection' },
-    { id: 'policy', name: '@deepseek-ai/dsh-sandbox-policy', config: { mode: 'workspace-write', workspaceRoot: workspace } },
+    { id: 'projections', name: '@panedesk/dsh-session-projection' },
+    { id: 'policy', name: '@panedesk/dsh-sandbox-policy', config: { mode: 'workspace-write', workspaceRoot: workspace } },
     connection,
-    { id: 'fs', name: '@deepseek-ai/dsh-fs-ssh' },
-    { id: 'subprocess', name: '@deepseek-ai/dsh-subprocess-ssh' },
-    { id: 'sandbox', name: '@deepseek-ai/dsh-sandbox-ssh' },
+    { id: 'fs', name: '@panedesk/dsh-fs-ssh' },
+    { id: 'subprocess', name: '@panedesk/dsh-subprocess-ssh' },
+    { id: 'sandbox', name: '@panedesk/dsh-sandbox-ssh' },
   ]
   return rows.map(row => `- ${JSON.stringify(row)}`).join('\n')
-    + '\n- id: ptc\n  name: "@deepseek-ai/dsh-ptc-runtime-node"\n  inject: [ssh]\n  config:\n    launch: !!js ctx.ssh.ptcLaunch\n'
+    + '\n- id: ptc\n  name: "@panedesk/dsh-ptc-runtime-node"\n  inject: [ssh]\n  config:\n    launch: !!js ctx.ssh.ptcLaunch\n'
 }
 
 /**
@@ -110,7 +110,7 @@ export async function verifySshHelper(argv: string[]): Promise<void> {
   const archive = resolve(values.archive)
   const checksum = (await readFile(`${archive}.sha256`, 'utf8')).split(/\s/)[0]
   if (await fileDigest(archive) !== checksum) throw new Error('SSH helper archive checksum mismatch')
-  const temporary = await realpath(await mkdtemp(join(homedir(), '.dsh-helper-check-')))
+  const temporary = await realpath(await mkdtemp(join(homedir(), '.panedesk-helper-check-')))
   try {
     const installed = await extractHelper(archive, temporary)
     const manifest = await verifyPayload(installed)
@@ -132,8 +132,8 @@ export async function verifySshHelper(argv: string[]): Promise<void> {
     const executable = join(installed, 'dsh-ssh-helper')
     const helperHash = await fileDigest(executable)
     const environment = {
-      HOME: home, PATH: process.env.PATH, DSH_HOME: join(home, 'dsh'),
-      TSX_TSCONFIG_PATH: join(root, 'tsconfig.base.json'), DSH_TELEMETRY_DISABLED: '1',
+      HOME: home, PATH: process.env.PATH, PANEDESK_HOME: join(home, 'dsh'),
+      TSX_TSCONFIG_PATH: join(root, 'tsconfig.base.json'), PANEDESK_TELEMETRY_DISABLED: '1',
       ...(values.backend === undefined ? {} : { DSH_EXPECT_SANDBOX_RUNNER: values.backend }),
     }
     const runs = await Promise.allSettled([0, 1].map(async (index) => {

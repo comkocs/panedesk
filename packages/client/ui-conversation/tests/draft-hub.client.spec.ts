@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /** InputHub restores drafts before views and follows Session-owned lexicon subscriptions. */
 import { randomUUID } from 'node:crypto'
-import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { makeTranslate, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
-import { SessionId } from '@deepseek-ai/dsh-session/types'
+import { Context, Service } from '@panedesk/cordis'
+import type { SessionReference } from '@panedesk/dsh-api-session-controller/client'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
+import { makeTranslate, TestSessions } from '@panedesk/dsh-client-test-runtime'
+import { SessionId } from '@panedesk/dsh-session/types'
 import { $nodesOfType } from 'lexical'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type { DraftSnapshot } from '../src/client/contract/draft-editor.ts'

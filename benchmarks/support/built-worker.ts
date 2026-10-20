@@ -89,8 +89,8 @@ export function assertBuiltBenchmarkRuntime(
   moduleUrl: string,
   packageEntries: Readonly<Record<string, string>>,
 ): void {
-  if (!moduleUrl.endsWith('.js') || !moduleUrl.includes('/benchmarks/.dsh-build/')) {
-    throw new Error(`benchmark worker is not running from benchmarks/.dsh-build: ${moduleUrl}`)
+  if (!moduleUrl.endsWith('.js') || !moduleUrl.includes('/benchmarks/.panedesk-build/')) {
+    throw new Error(`benchmark worker is not running from benchmarks/.panedesk-build: ${moduleUrl}`)
   }
   const tsRuntime = process.execArgv.find(argument => /(?:^|[/\\])tsx(?:[/\\]|$)|tsx\/esm|tsx\/cjs/.test(argument))
   if (tsRuntime !== undefined) throw new Error(`benchmark worker received a TypeScript loader: ${tsRuntime}`)

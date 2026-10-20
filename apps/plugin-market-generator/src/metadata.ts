@@ -4,9 +4,9 @@
  */
 import { createHash } from 'node:crypto'
 import { posix } from 'node:path'
-import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
+import type { LocalizedText } from '@panedesk/dsh-package-manifest'
 import hostedGitInfo from 'hosted-git-info'
-import type { MarketRepository } from '@deepseek-ai/dsh-plugin-market-index'
+import type { MarketRepository } from '@panedesk/dsh-plugin-market-index'
 import { exports as resolveExports, type Package } from 'resolve.exports'
 import { PackageFiles } from './files.ts'
 import type { Manifest } from './packages.ts'

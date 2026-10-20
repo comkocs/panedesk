@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-session-title-first-prompt-llm",
+  "name": "@panedesk/dsh-session-title-first-prompt-llm",
   "description": "First-message LLM provider plugin for DeepSeek Harness session titles",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -28,28 +28,28 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-llm": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-session-title": "workspace:*",
-    "@deepseek-ai/dsh-session-title-llm": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-title": "workspace:*",
+    "@panedesk/dsh-session-title-llm": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-util-values": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@panedesk/dsh-util-values": "workspace:*",
+    "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis-plugin-include": "workspace:~",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
-    "@deepseek-ai/dsh-llm": "workspace:*",
-    "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
-    "@deepseek-ai/dsh-llm-deepseek-api-key": "workspace:*",
-    "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-session-title": "workspace:*",
-    "@deepseek-ai/dsh-session-title-llm": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-session-projection": "workspace:*",
-    "@deepseek-ai/dsh-agent-loop": "workspace:*"
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-deepseek": "workspace:*",
+    "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
+    "@panedesk/dsh-llm-pi-ai": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-title": "workspace:*",
+    "@panedesk/dsh-session-title-llm": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-agent-loop": "workspace:*"
   }
 }

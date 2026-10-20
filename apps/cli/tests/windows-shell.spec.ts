@@ -16,9 +16,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
-import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
-import { evaluate } from '@deepseek-ai/cordis-plugin-loader'
-import { bundlePatchPaths, composeEntries, createRuntimeResolution, initProfile, loadProfile, PROFILE_TEMPLATES, PROFILES_DIR } from '@deepseek-ai/dsh-app-boot'
+import { entryListSchema } from '@panedesk/cordis-plugin-include'
+import { evaluate } from '@panedesk/cordis-plugin-loader'
+import { bundlePatchPaths, composeEntries, createRuntimeResolution, initProfile, loadProfile, PROFILE_TEMPLATES, PROFILES_DIR } from '@panedesk/dsh-app-boot'
 
 /**
  * The effective disabled state of one row on one platform: a `!!js` expression
@@ -42,7 +42,7 @@ describe('the shipped shell composition (real bundle layers)', () => {
 
   it('composes the confined pwsh roster on win32 and the bash roster on POSIX from the same rows', async () => {
     home = mkdtempSync(join(tmpdir(), 'dsh-windows-home-'))
-    initProfile(join(home, PROFILES_DIR, 'web'), ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'])
+    initProfile(join(home, PROFILES_DIR, 'web'), ['@panedesk/dsh-base', '@panedesk/dsh-web-app'])
     const profile = loadProfile('dsh', 'web', anchor, home)
     const warnings: string[] = []
     const rows = composeEntries(
@@ -76,7 +76,7 @@ describe('the shipped shell composition (real bundle layers)', () => {
     // @panedesk/slim-base (and again through @panedesk/full's dsh-base).
     const resolution = await createRuntimeResolution({ installAnchor: anchor, home })
     const installed = new Set(resolution.entries.filter(entry => entry.scope === 'installation').map(entry => entry.name))
-    for (const name of ['@deepseek-ai/dsh-pwsh-sandbox', '@deepseek-ai/dsh-tool-pwsh']) {
+    for (const name of ['@panedesk/dsh-pwsh-sandbox', '@panedesk/dsh-tool-pwsh']) {
       expect(installed.has(name), `cold-start closure must reach ${name}`).toBe(true)
     }
     expect(warnings).toEqual([])
@@ -84,7 +84,7 @@ describe('the shipped shell composition (real bundle layers)', () => {
 
   it('base-only profiles carry both stacks with the same platform gating', () => {
     home = mkdtempSync(join(tmpdir(), 'dsh-windows-home-'))
-    initProfile(join(home, PROFILES_DIR, 'base-only'), ['@deepseek-ai/dsh-base'])
+    initProfile(join(home, PROFILES_DIR, 'base-only'), ['@panedesk/dsh-base'])
     const profile = loadProfile('dsh', 'base-only', anchor, home)
     const warnings: string[] = []
     const rows = composeEntries(
@@ -130,9 +130,9 @@ describe('shipped agent presets gate both shell tools by platform', () => {
   const webBundle = fileURLToPath(new URL('../../../packages/bundle/web-app/', import.meta.url))
   const webManifest = JSON.parse(readFileSync(join(webBundle, 'package.json'), 'utf8')) as { dsh: { bundle: { patch: string[] } } }
   const presetRows = composeEntries([bundlePatchPaths(webBundle, webManifest.dsh.bundle).flatMap(file =>
-    yaml.load(readFileSync(file, 'utf8'), { schema: entryListSchema }) as import('@deepseek-ai/cordis-plugin-include').PatchOptions[])])
+    yaml.load(readFileSync(file, 'utf8'), { schema: entryListSchema }) as import('@panedesk/cordis-plugin-include').PatchOptions[])])
 
-  const definitions = presetRows.filter(row => row.name === '@deepseek-ai/dsh-agent-preset').map(row => row.config as import('@deepseek-ai/dsh-agent-preset-registry').PresetDefinition)
+  const definitions = presetRows.filter(row => row.name === '@panedesk/dsh-agent-preset').map(row => row.config as import('@panedesk/dsh-agent-preset-registry').PresetDefinition)
 
   it.each(['standard', 'ptc', 'cordis'])('preset %s gates its shell tool rows by platform', (preset) => {
     const entries: unknown = definitions.find(row => row.id === preset)!.plugins

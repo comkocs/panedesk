@@ -1,10 +1,10 @@
 /** Paid selection, independent native requests, audit-before-I/O and cancellation. */
-import { Context, FiberState } from '@deepseek-ai/cordis'
-import { ReasoningEffortId, createUserMessage, createAssistantMessage, type PreparedLlmCall } from '@deepseek-ai/dsh-llm'
-import { Config as AccountConfig } from '@deepseek-ai/dsh-llm-deepseek-account'
-import { Config as OfficialConfig } from '@deepseek-ai/dsh-llm-deepseek-api-key'
-import { pluginRecordOf, SessionId } from '@deepseek-ai/dsh-session'
-import { TimeoutReason } from '@deepseek-ai/dsh-timeout'
+import { Context, FiberState } from '@panedesk/cordis'
+import { ReasoningEffortId, createUserMessage, createAssistantMessage, type PreparedLlmCall } from '@panedesk/dsh-llm'
+import { Config as AccountConfig } from '@panedesk/dsh-llm-deepseek-account'
+import { Config as OfficialConfig } from '@panedesk/dsh-llm-deepseek-api-key'
+import { pluginRecordOf, SessionId } from '@panedesk/dsh-session'
+import { TimeoutReason } from '@panedesk/dsh-timeout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Translator from '../src/index.ts'
 import { paidFixture, replyEvents, sse } from './paid-fixture.ts'
@@ -115,7 +115,7 @@ describe('native Flash translation', () => {
   })
 
   it('excludes pi-ai ownership, non-native settings paths, unregistered routes and inactive native rows', async () => {
-    const b = await paidFixture(cleanups, { officialName: '@deepseek-ai/dsh-llm-pi-ai' })
+    const b = await paidFixture(cleanups, { officialName: '@panedesk/dsh-llm-pi-ai' })
     expect(await b.ctx.translator.availableProviders()).toEqual(['bing', 'google', 'deepseek-account'])
     await expect(b.translate('deepseek-official')).rejects.toMatchObject({ code: 'TRANSLATION_UNAVAILABLE' })
     expect(b.requests).toEqual([])

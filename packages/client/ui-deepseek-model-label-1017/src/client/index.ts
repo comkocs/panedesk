@@ -1,12 +1,12 @@
 /** Temporary 1017 badge for the two official DeepSeek model routes. */
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-client-locale/client'
+import type {} from '@panedesk/dsh-client-ui-model-selection/client'
+import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import { DeepSeekModelLabel } from './DeepSeekModelLabel.tsx'
 import { en, zh, type LabelKey } from './locales.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The temporary model release badge. */
     'deepseek-model-label-1017': LabelKey

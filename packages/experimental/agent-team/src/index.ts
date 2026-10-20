@@ -1,11 +1,11 @@
 /** Agent Teams service façade over roster, messaging, task, and runtime lifecycle owners. */
 
-import { Context, Service } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-session-persistence'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { steerHostSubagentPrompt } from '@deepseek-ai/dsh-subagent/internal'
+import { Context, Service } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import type { Agent } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-session-persistence'
+import { createUserMessage } from '@panedesk/dsh-llm'
+import { steerHostSubagentPrompt } from '@panedesk/dsh-subagent/internal'
 import { TeamActivity } from './activity.ts'
 import { errorMessage, TeamError } from './error.ts'
 import { TeamJournal } from './journal.ts'
@@ -33,7 +33,7 @@ export type { TeamMembership } from './roster.ts'
 export { TeamId, TeamMessageId, TeamTaskId } from './types.ts'
 export { TeamError } from './error.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     agentTeams: TeamService
   }

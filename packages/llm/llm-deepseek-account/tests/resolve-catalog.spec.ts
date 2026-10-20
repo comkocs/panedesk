@@ -1,6 +1,6 @@
 /** Catalog resolution: version gating, this build's model knowledge, and model overrides. */
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_REQUEST_IMAGE_MAX_BYTES, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
+import { DEFAULT_REQUEST_IMAGE_MAX_BYTES, resolveAdapterOptions } from '@panedesk/dsh-llm-deepseek'
 import type { ModelOverride } from '../src/config.ts'
 import { parseModelListing } from '../src/listing.ts'
 import { resolveAccountCatalog } from '../src/resolve-catalog.ts'
@@ -15,7 +15,7 @@ const PRO = {
   input_modalities: ['text'], output_modalities: ['text'],
   api_capabilities: { anthropic_messages: { system_prompt_update: 'leading-only' } },
 }
-const requires = (version: unknown) => ({ client_requirements: { 'deepseek-harness': { min_version: version } } })
+const requires = (version: unknown) => ({ client_requirements: { 'panedesk': { min_version: version } } })
 const resolve = (rows: object[] | undefined, overrides: Record<string, ModelOverride> = {}) => resolveAccountCatalog({
   listing: rows === undefined ? undefined : parseModelListing({ data: rows }).entries,
   supported: resolveAdapterOptions({}).models,

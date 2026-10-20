@@ -2,14 +2,14 @@
 import assert from 'node:assert/strict'
 import { writeFile } from 'node:fs/promises'
 import { basename } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
-import { boot } from '@deepseek-ai/dsh-app-boot'
-import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
-import type {} from '@deepseek-ai/dsh-ssh'
-import type {} from '@deepseek-ai/dsh-fs-ssh'
-import type {} from '@deepseek-ai/dsh-subprocess-ssh'
-import type {} from '@deepseek-ai/dsh-sandbox-ssh'
-import type {} from '@deepseek-ai/dsh-ptc-runtime-node'
+import { Context } from '@panedesk/cordis'
+import { boot } from '@panedesk/dsh-app-boot'
+import type { SubprocessHandle } from '@panedesk/dsh-subprocess'
+import type {} from '@panedesk/dsh-ssh'
+import type {} from '@panedesk/dsh-fs-ssh'
+import type {} from '@panedesk/dsh-subprocess-ssh'
+import type {} from '@panedesk/dsh-sandbox-ssh'
+import type {} from '@panedesk/dsh-ptc-runtime-node'
 
 const [configPath, reportPath, sandbox] = process.argv.slice(2)
 if (configPath === undefined || reportPath === undefined || !['required', 'unavailable', 'portable'].includes(sandbox ?? '')) throw new Error('Artifact driver requires config, report, and expected sandbox availability')
@@ -102,7 +102,7 @@ try {
   assert(result.logs.join('').includes('worker-output'))
   assert.equal(await ctx.fs.readText(await ctx.fs.resolve(`${root}/ptc.txt`)), 'embedded')
   const locked = await runtime.run(runtime.resolve({
-    program: 'const fs=await import("node:fs"); const {tryLockExclusive}=await import("@deepseek-ai/node-addon-system/flock"); const fd=fs.openSync("native-lock","w"); try { await tryLockExclusive(fd); return "locked" } finally { fs.closeSync(fd) }',
+    program: 'const fs=await import("node:fs"); const {tryLockExclusive}=await import("@panedesk/node-addon-system/flock"); const fd=fs.openSync("native-lock","w"); try { await tryLockExclusive(fd); return "locked" } finally { fs.closeSync(fd) }',
     bindings: [], cwd: root, sandboxPolicy: policy,
   }))
   assert.equal(locked.error, undefined, JSON.stringify(locked))

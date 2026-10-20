@@ -1,12 +1,12 @@
 /** Native SDK lifecycle and catalog behavior without desktop access. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import ComputerUseRegistry from '@deepseek-ai/dsh-computer-use'
-import { ComputerUseProviderName } from '@deepseek-ai/dsh-computer-use/brand'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { Context } from '@panedesk/cordis'
+import ComputerUseRegistry from '@panedesk/dsh-computer-use'
+import { ComputerUseProviderName } from '@panedesk/dsh-computer-use/brand'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime from '@panedesk/dsh-tools'
+import { ToolCallId } from '@panedesk/dsh-llm'
 import * as NativeProvider from '../src/index.ts'
 import { catalog, fixture, resetFixture } from './fixtures/cua-driver.ts'
 

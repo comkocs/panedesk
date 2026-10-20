@@ -8,7 +8,7 @@ import { prepareWindowsSignatureCacheDirectory, resolveWindowsSignatureCacheDire
 
 it.skipIf(process.platform !== 'win32')('resolves an account cache independently of checkout and LocalAppData virtualization', () => {
   expect(resolveWindowsSignatureCacheDirectory({ LOCALAPPDATA: 'C:\\Users\\build\\AppData\\Local' }))
-    .toBe(join(homedir(), '.dsh-desktop-signing', 'signature-cache', 'v1'))
+    .toBe(join(homedir(), '.panedesk-desktop-signing', 'signature-cache', 'v1'))
 })
 
 it('accepts an explicit local cache directory', () => {

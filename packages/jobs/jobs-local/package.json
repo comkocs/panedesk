@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-jobs-local",
+  "name": "@panedesk/dsh-jobs-local",
   "description": "Process-local implementation of the DeepSeek Harness background job registry seam",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -29,25 +29,25 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-agent": "workspace:*",
-    "@deepseek-ai/dsh-scope": "workspace:*",
-    "@deepseek-ai/dsh-jobs": "workspace:*",
-    "@deepseek-ai/dsh-timeout": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-scope": "workspace:*",
+    "@panedesk/dsh-jobs": "workspace:*",
+    "@panedesk/dsh-timeout": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis-plugin-include": "workspace:~",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
-    "@deepseek-ai/dsh-agent": "workspace:*",
-    "@deepseek-ai/dsh-agent-loop-testkit": "workspace:*",
-    "@deepseek-ai/dsh-brand": "workspace:*",
-    "@deepseek-ai/dsh-scope": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-jobs": "workspace:*",
-    "@deepseek-ai/dsh-timeout": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-brand": "workspace:*",
+    "@panedesk/dsh-scope": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-jobs": "workspace:*",
+    "@panedesk/dsh-timeout": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
   }
 }

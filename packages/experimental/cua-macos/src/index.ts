@@ -1,8 +1,8 @@
 /** macOS native CUA provider using the shared application and window API. */
 import { isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Context } from '@deepseek-ai/cordis'
-import { CuaConfig, installCua } from '@deepseek-ai/dsh-cua'
+import type { Context } from '@panedesk/cordis'
+import { CuaConfig, installCua } from '@panedesk/dsh-cua'
 import { nativeHostArchitecture, prepareNativeExecutable } from './native-build.ts'
 import { createSharedNativeChannel } from './shared-native.ts'
 import { GUIDANCE } from './guidance.ts'

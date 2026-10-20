@@ -1,8 +1,8 @@
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@panedesk/cordis'
 import type {
   ConversationMatch, ConversationNodeContext, ConversationNodeDefinition, TurnErrorNode,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { TurnEndReason } from '@deepseek-ai/dsh-session/types'
+} from '@panedesk/dsh-client-ui-conversation/client'
+import type { TurnEndReason } from '@panedesk/dsh-session/types'
 import { chatNode } from './common.ts'
 import { displayFailure } from './event-projection.ts'
 

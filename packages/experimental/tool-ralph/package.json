@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-tool-ralph",
+  "name": "@panedesk/dsh-tool-ralph",
   "description": "Model-facing fresh-agent Ralph loop over the workflow and subagent seams",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -29,32 +29,32 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/dsh-agent": "workspace:*",
-    "@deepseek-ai/dsh-llm": "workspace:*",
-    "@deepseek-ai/dsh-subagent": "workspace:*",
-    "@deepseek-ai/dsh-system-prompt": "workspace:*",
-    "@deepseek-ai/dsh-tools": "workspace:*",
-    "@deepseek-ai/dsh-workflow": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-workflow": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
-    "@deepseek-ai/dsh-agent": "workspace:*",
-    "@deepseek-ai/dsh-agent-loop": "workspace:*",
-    "@deepseek-ai/dsh-agent-loop-testkit": "workspace:*",
-    "@deepseek-ai/dsh-llm": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-subagent": "workspace:*",
-    "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:*",
-    "@deepseek-ai/dsh-subagent-spawn-in-process": "workspace:*",
-    "@deepseek-ai/dsh-system-prompt": "workspace:*",
-    "@deepseek-ai/dsh-tools": "workspace:*",
-    "@deepseek-ai/dsh-workflow": "workspace:*",
-    "@deepseek-ai/dsh-workflow-ptc": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-session-projection": "workspace:*"
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-loop": "workspace:*",
+    "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
+    "@panedesk/dsh-subagent-spawn-in-process": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-workflow": "workspace:*",
+    "@panedesk/dsh-workflow-ptc": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-session-projection": "workspace:*"
   }
 }

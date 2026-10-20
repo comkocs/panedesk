@@ -1,8 +1,8 @@
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest'
 import type {
   UserTextDataMap, UserTextEvaluator, UserTextNode, UserTextRule,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
+} from '@panedesk/dsh-client-ui-conversation/client'
 import { UserTextRegistry } from '../src/client/conversation/user-text-registry.ts'
 
 type JsonValue = string | number | null | readonly string[] | { readonly value: string }
@@ -12,7 +12,7 @@ interface AnnotationData {
   readonly nested?: { readonly values: readonly (string | number | boolean | null)[] }
 }
 
-declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
+declare module '@panedesk/dsh-client-ui-conversation/client' {
   interface UserTextDataMap {
     'test.annotation': AnnotationData
     'test.json': { readonly value: JsonValue }
@@ -38,7 +38,7 @@ declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
   }
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context { userTextTestRegistry: UserTextRegistry }
 }
 

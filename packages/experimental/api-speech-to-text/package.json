@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-experimental-api-speech-to-text",
+  "name": "@panedesk/dsh-experimental-api-speech-to-text",
   "description": "Authenticated experimental speech transcription for browser clients",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -46,17 +46,17 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~",
+    "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-experimental-speech-to-text": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-experimental-speech-to-text": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-experimental-speech-to-text": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-experimental-speech-to-text": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   }
 }

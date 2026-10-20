@@ -1,17 +1,17 @@
-import * as Protocol from '@deepseek-ai/dsh-llm-deepseek'
+import * as Protocol from '@panedesk/dsh-llm-deepseek'
 import { readFileSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import LlmRuntime, { createToolResultMessage, createUserMessage, ToolCallId, ReasoningEffortId, createMessage, createSystemMessage } from '@deepseek-ai/dsh-llm'
-import type { Message, ToolSchema } from '@deepseek-ai/dsh-llm'
-import AttachmentStore, { AttachmentId, ImageVariantId } from '@deepseek-ai/dsh-attachment'
-import LocalAttachments from '@deepseek-ai/dsh-attachment-local'
+import { Context } from '@panedesk/cordis'
+import Loader from '@panedesk/cordis-plugin-loader'
+import AgentRegistry from '@panedesk/dsh-agent'
+import LlmRuntime, { createToolResultMessage, createUserMessage, ToolCallId, ReasoningEffortId, createMessage, createSystemMessage } from '@panedesk/dsh-llm'
+import type { Message, ToolSchema } from '@panedesk/dsh-llm'
+import AttachmentStore, { AttachmentId, ImageVariantId } from '@panedesk/dsh-attachment'
+import LocalAttachments from '@panedesk/dsh-attachment-local'
 import type {
   ImageAttachmentLimits,
   ImageAttachmentRef,
@@ -19,14 +19,14 @@ import type {
   RequestImageAttachment,
   SaveImageAttachment,
   StoredImageAttachment,
-} from '@deepseek-ai/dsh-attachment'
-import { LocalCredentialProvider } from '@deepseek-ai/dsh-credentials-local'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import DeepSeekLlmApiExtensionRegistry from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
-import * as PluginPackageInventoryDeepSeek from '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
-import * as SessionLogDeepSeek from '@deepseek-ai/dsh-session-log-deepseek'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
-import type { Options as Config } from '@deepseek-ai/dsh-llm-deepseek'
+} from '@panedesk/dsh-attachment'
+import { LocalCredentialProvider } from '@panedesk/dsh-credentials-local'
+import SessionStore, { SessionId } from '@panedesk/dsh-session'
+import DeepSeekLlmApiExtensionRegistry from '@panedesk/dsh-deepseek-llm-api-extensions'
+import * as PluginPackageInventoryDeepSeek from '@panedesk/dsh-plugin-package-inventory-deepseek'
+import * as SessionLogDeepSeek from '@panedesk/dsh-session-log-deepseek'
+import * as LlmDeepSeek from '@panedesk/dsh-llm-deepseek-api-key'
+import type { Options as Config } from '@panedesk/dsh-llm-deepseek'
 import type { WireRequest } from '../src/wire-types.ts'
 import { assemble, type AssembledResult } from './assemble.ts'
 
@@ -102,7 +102,7 @@ class E2eAttachmentStore extends AttachmentStore {
 
 beforeEach(async () => {
   identityHome = await mkdtemp(join(tmpdir(), 'dsh-e2e-user-id-'))
-  vi.stubEnv('DSH_HOME', identityHome)
+  vi.stubEnv('PANEDESK_HOME', identityHome)
 })
 
 async function harness(model: string, config: Partial<Config> = {}) {

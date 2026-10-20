@@ -10,17 +10,17 @@
  */
 
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
-import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import * as SessionTurnOutlinePlugin from '@deepseek-ai/dsh-session-turn-outline'
-import { turnOutlineProjectionDefinition } from '@deepseek-ai/dsh-session-turn-outline/src/projection.ts'
-import type { TurnOutlineEntry, TurnOutlineState } from '@deepseek-ai/dsh-session-turn-outline/types'
+import { Context } from '@panedesk/cordis'
+import { createAssistantMessage, createUserMessage } from '@panedesk/dsh-llm'
+import type { ContextFormed } from '@panedesk/dsh-llm'
+import SessionStore, { SessionId, SessionLogOffset, SessionSeq } from '@panedesk/dsh-session'
+import type { Session, SessionEvent } from '@panedesk/dsh-session'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import * as SessionTurnOutlinePlugin from '@panedesk/dsh-session-turn-outline'
+import { turnOutlineProjectionDefinition } from '@panedesk/dsh-session-turn-outline/src/projection.ts'
+import type { TurnOutlineEntry, TurnOutlineState } from '@panedesk/dsh-session-turn-outline/types'
 
-declare module '@deepseek-ai/dsh-llm' {
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'test-injector': { kind: 'test-injector' } & ContextFormed
   }

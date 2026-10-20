@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-api-workspace-controller",
+  "name": "@panedesk/dsh-api-workspace-controller",
   "description": "Workspace Remote commands and reconnect-safe state transport",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -45,11 +45,11 @@
   "dsh": {
     "client": {
       "external": [
-        "@deepseek-ai/dsh-api-gateway/client"
+        "@panedesk/dsh-api-gateway/client"
       ],
       "inject": [
-        "@deepseek-ai/dsh-api-gateway",
-        "@deepseek-ai/dsh-client-connection"
+        "@panedesk/dsh-api-gateway",
+        "@panedesk/dsh-client-connection"
       ],
       "platform": "web"
     }
@@ -71,33 +71,33 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-deque": "workspace:*",
-    "@deepseek-ai/dsh-native-command": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~",
+    "@panedesk/dsh-deque": "workspace:*",
+    "@panedesk/dsh-native-command": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-api-gateway": "workspace:*",
-    "@deepseek-ai/dsh-client-connection": "workspace:*",
-    "@deepseek-ai/dsh-host-directory-picker": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-storage-domain": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
-    "@deepseek-ai/dsh-workspace": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-gateway": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
+    "@panedesk/dsh-host-directory-picker": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-api-gateway": "workspace:*",
-    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
-    "@deepseek-ai/dsh-client-connection": "workspace:*",
-    "@deepseek-ai/dsh-client-store": "workspace:*",
-    "@deepseek-ai/dsh-client-test-runtime": "workspace:*",
-    "@deepseek-ai/dsh-host-directory-picker": "workspace:*",
-    "@deepseek-ai/dsh-remote-mock": "workspace:*",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-storage-domain": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
-    "@deepseek-ai/dsh-workspace": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-gateway": "workspace:*",
+    "@panedesk/dsh-api-remote-access": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
+    "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-host-directory-picker": "workspace:*",
+    "@panedesk/dsh-remote-mock": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   }
 }

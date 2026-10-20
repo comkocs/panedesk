@@ -4,9 +4,9 @@ import { copyFile, mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { Session, SessionId, SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
-import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import { Context } from '@panedesk/cordis'
+import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
+import * as JsonlSessionPersistence from '@panedesk/dsh-session-persistence-jsonl'
 import {
   runBuiltBenchmarkWorker,
   type BuiltBenchmarkWorkerRun,
@@ -76,7 +76,7 @@ const AGENT_RETAINED_HEAP_BUDGET_MB = Math.ceil(
   EXPECTED_AGENT_RETAINED_HEAP_MB * PERFORMANCE_BUDGET_HEADROOM,
 )
 
-const WORKER = join(import.meta.dirname, '..', '.dsh-build', 'session-open', 'session-open.worker.js')
+const WORKER = join(import.meta.dirname, '..', '.panedesk-build', 'session-open', 'session-open.worker.js')
 /**
  * Estimated storage wait of the phase endpoints, whose worker reports CPU time only for the whole run: open
  * and read access one Session log that the page cache usually holds; restore and projection start after the

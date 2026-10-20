@@ -2,11 +2,11 @@
  * Credential recognition, masking forms, and forward-query behavior through the
  * production UserText evaluator.
  */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import type { UserTextNode, UserTextRule, UserTextTransformContext } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { UserTextRegistry } from '@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/user-text-registry.ts'
-import { collapseWhitespaceRule, trimWhitespaceRule } from '@deepseek-ai/dsh-client-ui-conversation/src/client/user-text/whitespace-rules.ts'
+import type { UserTextNode, UserTextRule, UserTextTransformContext } from '@panedesk/dsh-client-ui-conversation/client'
+import { UserTextRegistry } from '@panedesk/dsh-client-ui-conversation/src/client/conversation/user-text-registry.ts'
+import { collapseWhitespaceRule, trimWhitespaceRule } from '@panedesk/dsh-client-ui-conversation/src/client/user-text/whitespace-rules.ts'
 import { formatTables } from '../src/client/format-tables.ts'
 import { createSecretRule } from '../src/client/secret-rule.ts'
 

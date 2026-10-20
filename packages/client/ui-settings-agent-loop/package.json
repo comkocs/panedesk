@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-settings-agent-loop",
-  "description": "Settings page of the agent loop on the dsh web client's Plugins page: the parallel tool-call cap of the agent-loop namespace",
+  "name": "@panedesk/dsh-client-ui-settings-agent-loop",
+  "description": "Settings page of the agent loop on the panedesk web client's Plugins page: the parallel tool-call cap of the agent-loop namespace",
   "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
@@ -29,9 +29,9 @@
   "dsh": {
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-plugin-manager"
+        "@panedesk/dsh-client-locale",
+        "@panedesk/dsh-client-ui-settings",
+        "@panedesk/dsh-client-ui-plugin-manager"
       ],
       "platform": "web"
     }
@@ -42,19 +42,19 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-api-remotes": "workspace:*",
-    "@deepseek-ai/dsh-client-locale": "workspace:*",
-    "@deepseek-ai/dsh-client-store": "workspace:*",
-    "@deepseek-ai/dsh-client-test-runtime": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-plugin-manager": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-renderer": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-settings": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-remotes": "workspace:*",
+    "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-client-ui-plugin-manager": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/dsh-client-ui-renderer": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-client-ui-slots": "workspace:*",
     "react": "^18.2.0"
   },
   "files": [

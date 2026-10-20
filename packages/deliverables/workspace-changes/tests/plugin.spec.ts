@@ -3,11 +3,11 @@ import { mkdir, mkdtemp, readdir, realpath, rename, rm, stat, writeFile } from '
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-agent'
-import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
+import { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-agent'
+import SessionStore, { SessionId, type Session } from '@panedesk/dsh-session'
+import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
+import LocalFileSystem from '@panedesk/dsh-fs-local'
 import * as WorkspaceChanges from '../src/index.ts'
 import { changes, endTurn, git, mutate, scratchDir, settle, startTurn, toolCall } from './support.ts'
 
@@ -182,7 +182,7 @@ describe('workspace-changes in a repository', () => {
     const root = await repository()
     const cwd = join(root, 'pkg')
     await mkdir(cwd)
-    const outside = await mkdtemp(join(homedir(), '.dsh-workspace-changes-test-'))
+    const outside = await mkdtemp(join(homedir(), '.panedesk-workspace-changes-test-'))
     cleanups.push(() => rm(outside, { recursive: true, force: true }))
     const { ctx } = await boot()
     const session = ctx.sessions.create(SessionId('nested'), { meta: { cwd } })
@@ -335,7 +335,7 @@ describe('workspace-changes without a repository', () => {
     const cwd = await scratchDir('dsh-workspace-changes-plain-', cleanups)
     await writeFile(join(cwd, 'existing.txt'), 'before\n')
     await writeFile(join(cwd, 'shell.txt'), 'shell\n')
-    const outside = await mkdtemp(join(homedir(), '.dsh-workspace-changes-plain-'))
+    const outside = await mkdtemp(join(homedir(), '.panedesk-workspace-changes-plain-'))
     cleanups.push(() => rm(outside, { recursive: true, force: true }))
     const { ctx } = await boot()
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)

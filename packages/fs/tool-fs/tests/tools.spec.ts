@@ -3,16 +3,16 @@
  * validation, formatting, typed errors, intent dispatch, and observation-driven authorization.
  */
 
-import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
 import { describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
-import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
-import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { type ToolResult } from '@deepseek-ai/dsh-tools'
-import { FileSystem, FsError, FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
+import { Context } from '@panedesk/cordis'
+import { PtcRuntime } from '@panedesk/dsh-ptc-runtime'
+import { createScope, type Scope } from '@panedesk/dsh-scope'
+import { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import SystemPrompt, { renderPrompt } from '@panedesk/dsh-system-prompt'
+import ToolRuntime, { type ToolResult } from '@panedesk/dsh-tools'
+import { FileSystem, FsError, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -22,18 +22,18 @@ import type {
   FsTarget,
   FsWriteIntent,
   FsWriteOutcome,
-} from '@deepseek-ai/dsh-fs'
-import * as FsPolicy from '@deepseek-ai/dsh-fs-observation-policy'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
+} from '@panedesk/dsh-fs'
+import * as FsPolicy from '@panedesk/dsh-fs-observation-policy'
+import * as ToolFs from '@panedesk/dsh-tool-fs'
 import { STREAM_MIN_SIZE } from '../src/read.ts'
 import { formatReadOutput } from '../src/read-render.ts'
 import type { FileReadOutcome } from '../src/read-render.ts'
 import { sessionResolveOptions } from '../src/session-cwd.ts'
-import ApprovalService from '@deepseek-ai/dsh-user-approval'
-import type { SandboxExecutionPolicy, SandboxMode } from '@deepseek-ai/dsh-sandbox'
-import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
-import { SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import ApprovalService from '@panedesk/dsh-user-approval'
+import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
+import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
+import { SessionId, SessionLogOffset, SessionSeq } from '@panedesk/dsh-session'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 
 const testToolSignal = new AbortController().signal
 
@@ -1123,7 +1123,7 @@ function withPersona(...sections: string[]): string {
 
 /** Schema assembly only: these cases never execute user code. */
 class GuidancePtcRuntime extends PtcRuntime {
-  resolve(request: import('@deepseek-ai/dsh-ptc-runtime').PtcRunRequest): import('@deepseek-ai/dsh-ptc-runtime').PtcRunSpec { return { ...request, cwd: request.cwd ?? process.cwd(), timeoutMs: request.timeoutMs ?? 120_000 } }
+  resolve(request: import('@panedesk/dsh-ptc-runtime').PtcRunRequest): import('@panedesk/dsh-ptc-runtime').PtcRunSpec { return { ...request, cwd: request.cwd ?? process.cwd(), timeoutMs: request.timeoutMs ?? 120_000 } }
 
   readonly language = 'typescript'
   readonly isolation = 'fake'

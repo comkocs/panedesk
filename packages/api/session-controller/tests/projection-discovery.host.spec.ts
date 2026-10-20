@@ -4,24 +4,24 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import SessionStore, { SESSION_FORMAT_VERSION, SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
-import type { SessionHeader } from '@deepseek-ai/dsh-session'
-import type { SessionPersistenceSnapshot } from '@deepseek-ai/dsh-session-persistence'
-import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
+import { Context } from '@panedesk/cordis'
+import AgentRegistry from '@panedesk/dsh-agent'
+import SessionStore, { SESSION_FORMAT_VERSION, SessionId, SessionLogOffset, SessionSeq } from '@panedesk/dsh-session'
+import type { SessionHeader } from '@panedesk/dsh-session'
+import type { SessionPersistenceSnapshot } from '@panedesk/dsh-session-persistence'
+import * as JsonlSessionPersistence from '@panedesk/dsh-session-persistence-jsonl'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SessionProjectionCache, {
   checkpointRecord,
   projectionCacheDomainSpec,
   type CheckpointRecord,
-} from '@deepseek-ai/dsh-session-projection-cache'
-import { titleProjectionDefinition } from '@deepseek-ai/dsh-session-title'
-import Storage from '@deepseek-ai/dsh-storage'
-import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
-import * as StorageJson from '@deepseek-ai/dsh-storage-json'
-import { subagentCatalogProjectionDefinition } from '@deepseek-ai/dsh-subagent/src/catalog.ts'
-import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+} from '@panedesk/dsh-session-projection-cache'
+import { titleProjectionDefinition } from '@panedesk/dsh-session-title'
+import Storage from '@panedesk/dsh-storage'
+import * as StorageDomain from '@panedesk/dsh-storage-domain'
+import * as StorageJson from '@panedesk/dsh-storage-json'
+import { subagentCatalogProjectionDefinition } from '@panedesk/dsh-subagent/src/catalog.ts'
+import { RemoteError } from '@panedesk/dsh-typert-protocol'
 import { createSessionTestController } from './test-remote.ts'
 
 const contexts: Context[] = []

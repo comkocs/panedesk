@@ -4,14 +4,14 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { FiberState, type Context, type Plugin } from '@deepseek-ai/cordis'
-import Timer from '@deepseek-ai/cordis-plugin-timer'
+import { FiberState, type Context, type Plugin } from '@panedesk/cordis'
+import Timer from '@panedesk/cordis-plugin-timer'
 import {
   boot, createRuntimeResolution, initProfile, loadProfileDirectory, PluginPackages, ProfileRuntimeResolution,
   readProfileManifest, readProfilePatches, type ProfileContext,
   ResolutionRestartRequired,
-} from '@deepseek-ai/dsh-app-boot'
-import Hmr from '@deepseek-ai/dsh-hmr'
+} from '@panedesk/dsh-app-boot'
+import Hmr from '@panedesk/dsh-hmr'
 import type { ChokidarOptions } from 'chokidar'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import PluginManager, { type PluginInstallRequestId } from '../src/index.ts'

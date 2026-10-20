@@ -32,14 +32,14 @@ import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import type { Browser, Page } from 'playwright'
 import { expect, it } from 'vitest'
-import { OPTIONAL_BUNDLES } from '@deepseek-ai/dsh-app-boot'
+import { OPTIONAL_BUNDLES } from '@panedesk/dsh-app-boot'
 import {
   packPreviewFixture, packRepositoryImage, previewFixtures, WRAPPER_CONTRACT,
-} from '@deepseek-ai/dsh-experimental-webworker-packer'
+} from '@panedesk/dsh-experimental-webworker-packer'
 import {
   IMAGE_FILE_NAME, IMAGE_MANIFEST_PATH, parseImageManifest, parseTar, PREVIEW_FIXTURE_MANIFEST_FILE,
   PREVIEW_FIXTURE_MANIFEST_VERSION, type ImageManifest, type PreviewFixtureManifest,
-} from '@deepseek-ai/dsh-experimental-webworker-runtime'
+} from '@panedesk/dsh-experimental-webworker-runtime'
 import {
   VFS_EXAMPLE_SESSION_IDS,
   VFS_EXAMPLE_REASONING,
@@ -63,15 +63,15 @@ const SNAPSHOT_MODE = webSnapshotMode()
 const PROFILE = 'web'
 
 /** Optional bundle whose patch layer disables a base row and inserts its replacement. */
-const SESSION_TITLES_BUNDLE = '@deepseek-ai/dsh-experimental-session-titles-bundle'
-const BASE_TITLE_MODULE = '@deepseek-ai/dsh-session-title-first-prompt-llm'
-const BUNDLE_TITLE_MODULE = '@deepseek-ai/dsh-session-title-all-prompts-llm'
-const INSPECTOR_BUNDLE = '@deepseek-ai/dsh-experimental-inspector-profile'
-const INSPECTOR_MODULE = '@deepseek-ai/dsh-experimental-inspector'
-const SESSION_INSPECTOR_MODULE = '@deepseek-ai/dsh-experimental-session-inspector'
+const SESSION_TITLES_BUNDLE = '@panedesk/dsh-experimental-session-titles-bundle'
+const BASE_TITLE_MODULE = '@panedesk/dsh-session-title-first-prompt-llm'
+const BUNDLE_TITLE_MODULE = '@panedesk/dsh-session-title-all-prompts-llm'
+const INSPECTOR_BUNDLE = '@panedesk/dsh-experimental-inspector-profile'
+const INSPECTOR_MODULE = '@panedesk/dsh-experimental-inspector'
+const SESSION_INSPECTOR_MODULE = '@panedesk/dsh-experimental-session-inspector'
 
 /** Package whose terminal chunk the page requests through `require.async`. */
-const TERMINAL_PACKAGE = '@deepseek-ai/dsh-client-ui-sidebar-terminal'
+const TERMINAL_PACKAGE = '@panedesk/dsh-client-ui-sidebar-terminal'
 const TERMINAL_CHUNK = `node_modules/${TERMINAL_PACKAGE}/lib/client.terminal.js`
 
 /** Stable labels authored by the deterministic VFS example fixture. */

@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-plugin-manager",
-  "description": "Plugin management for the dsh web client: the sidebar Plugins panel installs, enables, disables, retries, and composes installed plugin packages",
+  "name": "@panedesk/dsh-client-ui-plugin-manager",
+  "description": "Plugin management for the panedesk web client: the sidebar Plugins panel installs, enables, disables, retries, and composes installed plugin packages",
   "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
@@ -37,10 +37,10 @@
   "dsh": {
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@panedesk/dsh-api-remotes",
+        "@panedesk/dsh-client-locale",
+        "@panedesk/dsh-client-ui-layout",
+        "@panedesk/dsh-client-ui-sidebar"
       ],
       "platform": "web"
     }
@@ -51,28 +51,28 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-api-remotes": "workspace:*",
-    "@deepseek-ai/dsh-client-locale": "workspace:*",
-    "@deepseek-ai/dsh-client-store": "workspace:*",
-    "@deepseek-ai/dsh-client-test-runtime": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-layout": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-renderer": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-sidebar": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:*",
-    "@deepseek-ai/dsh-package-manifest": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-remotes": "workspace:*",
+    "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-client-ui-layout": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/dsh-client-ui-renderer": "workspace:*",
+    "@panedesk/dsh-client-ui-sidebar": "workspace:*",
+    "@panedesk/dsh-client-ui-slots": "workspace:*",
+    "@panedesk/dsh-package-manifest": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "clsx": "^2.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@deepseek-ai/dsh-util-crypto": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-settings": "workspace:*",
-    "@deepseek-ai/dsh-plugin-manager": "workspace:*",
-    "@deepseek-ai/dsh-client-product-analytics": "workspace:*"
+    "@panedesk/dsh-util-crypto": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-plugin-manager": "workspace:*",
+    "@panedesk/dsh-client-product-analytics": "workspace:*"
   },
   "files": [
     "locale/*.json",
@@ -85,9 +85,9 @@
     "lib/typert.remote-client.d.ts"
   ],
   "dependencies": {
-    "@deepseek-ai/dsh-timeout": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~",
+    "@panedesk/dsh-timeout": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   }
 }

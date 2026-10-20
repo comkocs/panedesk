@@ -1,28 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import AgentRegistry, { agentEvents } from '@deepseek-ai/dsh-agent'
-import type { Agent, AgentStatus, Inbox } from '@deepseek-ai/dsh-agent'
-import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
-import GoalService, { GoalId } from '@deepseek-ai/dsh-goal'
-import type { GoalRef } from '@deepseek-ai/dsh-goal'
-import { createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { MessageSource } from '@deepseek-ai/dsh-llm'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
+import { Context } from '@panedesk/cordis'
+import Loader from '@panedesk/cordis-plugin-loader'
+import AgentRegistry, { agentEvents } from '@panedesk/dsh-agent'
+import type { Agent, AgentStatus, Inbox } from '@panedesk/dsh-agent'
+import { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
+import GoalService, { GoalId } from '@panedesk/dsh-goal'
+import type { GoalRef } from '@panedesk/dsh-goal'
+import { createUserMessage, ToolCallId } from '@panedesk/dsh-llm'
+import type { MessageSource } from '@panedesk/dsh-llm'
+import type { ContextFormed } from '@panedesk/dsh-llm'
 import SessionStore, {
   SESSION_FORMAT_VERSION,
   Session,
   SessionId,
   SessionLogOffset,
-} from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import type { ToolExecutionResult } from '@deepseek-ai/dsh-tools'
-import * as toolGoal from '@deepseek-ai/dsh-tool-goal'
-import { createInboxStub } from '@deepseek-ai/dsh-agent-loop-testkit'
+} from '@panedesk/dsh-session'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime from '@panedesk/dsh-tools'
+import type { ToolExecutionResult } from '@panedesk/dsh-tools'
+import * as toolGoal from '@panedesk/dsh-tool-goal'
+import { createInboxStub } from '@panedesk/dsh-agent-loop-testkit'
 
-declare module '@deepseek-ai/dsh-llm' {
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'test': { kind: 'test' } & ContextFormed
   }

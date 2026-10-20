@@ -4,12 +4,12 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { AttachmentError } from '@deepseek-ai/dsh-attachment'
-import { ToolCallId, type StreamChunk } from '@deepseek-ai/dsh-llm'
-import { SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
-import type { SessionHeader } from '@deepseek-ai/dsh-session'
-import { SessionPersistenceRevision, type SessionPersistenceSnapshot } from '@deepseek-ai/dsh-session-persistence'
-import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import { AttachmentError } from '@panedesk/dsh-attachment'
+import { ToolCallId, type StreamChunk } from '@panedesk/dsh-llm'
+import { SESSION_FORMAT_VERSION, SessionId } from '@panedesk/dsh-session'
+import type { SessionHeader } from '@panedesk/dsh-session'
+import { SessionPersistenceRevision, type SessionPersistenceSnapshot } from '@panedesk/dsh-session-persistence'
+import { defineContentToolFixture } from '@panedesk/dsh-tools'
 import { makeBridgeHarness, textResponse, type BridgeHarness } from './harness.ts'
 import { startHttpMcpFixture } from '../../../mcp/mcp-client/tests/http-fixture.ts'
 
@@ -48,7 +48,7 @@ describe('automation-only ACP bridge', () => {
 
     expect(response).toEqual({
       protocolVersion: PROTOCOL_VERSION,
-      agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
+      agentInfo: { name: 'panedesk-acp', version: '0.0.1' },
       agentCapabilities: {
         mcpCapabilities: { http: true },
         promptCapabilities: { image: false, audio: false, embeddedContext: false },

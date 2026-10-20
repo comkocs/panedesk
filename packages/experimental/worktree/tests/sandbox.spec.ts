@@ -1,9 +1,9 @@
 import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { SandboxUnavailableError } from '@deepseek-ai/dsh-sandbox'
-import LocalSandbox from '@deepseek-ai/dsh-sandbox-local'
+import { Context } from '@panedesk/cordis'
+import { SandboxUnavailableError } from '@panedesk/dsh-sandbox'
+import LocalSandbox from '@panedesk/dsh-sandbox-local'
 import { filterCommand, git, harness, repository, testAgent } from './harness.ts'
 
 let ctx: Context | undefined

@@ -4,7 +4,7 @@
  */
 
 import type { IncomingMessage } from 'node:http'
-import type { PeerScope } from '@deepseek-ai/dsh-typert-protocol'
+import type { PeerScope } from '@panedesk/dsh-typert-protocol'
 import { Readable } from 'node:stream'
 import type { ConnectionFetchHandler } from './rpc.ts'
 

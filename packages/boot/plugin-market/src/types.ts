@@ -1,9 +1,9 @@
 /** JSON-safe records and events of the plugin market Remote namespace. */
-import type { MarketIndexMetadata, MarketInstallTarget, MarketPlugin, MarketVersion } from '@deepseek-ai/dsh-plugin-market-index'
-import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
-import type {} from '@deepseek-ai/dsh-typert-protocol'
+import type { MarketIndexMetadata, MarketInstallTarget, MarketPlugin, MarketVersion } from '@panedesk/dsh-plugin-market-index'
+import type { LocalizedText } from '@panedesk/dsh-package-manifest'
+import type {} from '@panedesk/dsh-typert-protocol'
 
-declare module '@deepseek-ai/dsh-typert-protocol' {
+declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** An index URL is not http(s), or carries credentials or a fragment. */
     'plugin-market/invalid-index-url': { readonly url: string; readonly reason: string }
@@ -127,7 +127,7 @@ export interface MarketSearchResult {
   readonly nextOffset: number | null
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Events {
     /**
      * The configured index sources changed.

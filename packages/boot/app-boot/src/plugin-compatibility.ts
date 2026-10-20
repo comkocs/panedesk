@@ -66,7 +66,7 @@ function unmetRequirements(fields: Record<string, unknown>, runtimeVersion: stri
     if (typeof range !== 'string') {
       throw new Error(`Plugin manifest peerDependencies[${JSON.stringify(name)}] must be a string`)
     }
-    if (name !== '@deepseek-ai/dsh' && !name.startsWith('@deepseek-ai/dsh-')) continue
+    if (name !== 'panedesk' && !name.startsWith('@panedesk/dsh-')) continue
     const requirement = ['workspace:^', 'workspace:~', 'workspace:*'].includes(range) ? runtimeVersion : range
     if (!satisfies(runtimeVersion, requirement)) unmet[name] = range
   }
@@ -75,7 +75,7 @@ function unmetRequirements(fields: Record<string, unknown>, runtimeVersion: stri
 
 /**
  * Check the plugin's dsh requirements against the runtime. An own `engines.dsh` range decides alone and
- * peerDependencies are ignored; otherwise every @deepseek-ai/dsh or @deepseek-ai/dsh-* peer must match.
+ * peerDependencies are ignored; otherwise every panedesk or @panedesk/dsh-* peer must match.
  * Prereleases participate in ranges. For peers only, workspace:^, workspace:~, and workspace:* refer to
  * the current runtime; other empty or invalid ranges, including any workspace: `engines.dsh`, are unmet.
  * @param manifest - parsed plugin package.json; inherited fields are ignored.
@@ -109,9 +109,9 @@ export function evaluatePluginCompatibility(
  */
 export function pluginCompatibilityWarning(issue: PluginCompatibility): string {
   const key = `${issue.name}@${issue.version}`
-  return `Plugin ${key} is incompatible with dsh ${issue.runtimeVersion}: requirements ${JSON.stringify(issue.requirements)}. `
+  return `Plugin ${key} is incompatible with panedesk ${issue.runtimeVersion}: requirements ${JSON.stringify(issue.requirements)}. `
     + 'Running it may cause crashes or data loss. '
-    + 'Update the plugin or install a plugin version compatible with this dsh runtime. '
-    + `To accept this risk explicitly, grant the exact-version exemption for ${key} on dsh ${issue.runtimeVersion} with \`dsh plugin allow-version\` or the plugin manager, then retry the installation or restart dsh. `
+    + 'Update the plugin or install a plugin version compatible with this panedesk runtime. '
+    + `To accept this risk explicitly, grant the exact-version exemption for ${key} on panedesk ${issue.runtimeVersion} with \`panedesk plugin allow-version\` or the plugin manager, then retry the installation or restart panedesk. `
     + `Exact-version exemption: ${issue.exempted ? 'active' : 'not active'}.`
 }

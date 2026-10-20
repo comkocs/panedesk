@@ -5,12 +5,12 @@
  * output, and errors use the settled result. A supported terminal
  * call gets its expanded body from `terminalCardModel` instead.
  */
-import type { ToolArgs, ToolCallBlock, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { LocaleKeysOf } from '@deepseek-ai/dsh-client-ui-slots'
-import { abbreviateHomePath, isAbsoluteWorkspacePath, relativizeToCwd } from '@deepseek-ai/dsh-util-workspace-path'
+import type { ToolArgs, ToolCallBlock, ToolResultNode } from '@panedesk/dsh-client-ui-chat/client'
+import type { LocaleKeysOf } from '@panedesk/dsh-client-ui-slots'
+import { abbreviateHomePath, isAbsoluteWorkspacePath, relativizeToCwd } from '@panedesk/dsh-util-workspace-path'
 import { recordedAbsolutePath } from './recorded-path.ts'
 
-export type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
+export type { ToolCallBlock } from '@panedesk/dsh-client-ui-chat/client'
 
 /** Tool-call row variants selected by the generic atomic renderer. */
 export type ToolRowVariant = 'search' | 'read' | 'bash' | 'write' | 'edit' | 'code' | 'others'

@@ -3,7 +3,7 @@ description: "The runtime Typert registry: stores generated package reflection, 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-typert-registry
+# @panedesk/dsh-typert-registry
 
 English | [中文](README.zh.md)
 
@@ -32,14 +32,14 @@ Mount the registry in any Host or Client composition that stores or consumes gen
 Load the registry plugin; the Client face is installed the same way by the Client runtime's own metadata, and both faces run the same implementation:
 
 ```yaml
-- name: '@deepseek-ai/dsh-typert-registry'
+- name: '@panedesk/dsh-typert-registry'
 ```
 
 ### Querying schemas and reflection
 
 Consumers read schemas with `get(key)`, `resolve(key)`, or `list(filter?)` and package reflection with `getPackage(name, face?)` or `listPackages(filter?)`. The first schema read materializes one process-realm instance; later reads reuse it. `resolve()` distinguishes a malformed key, an absent package, and a registered package that contributes no schema under that name, each with its own error. `toJSONSchema(key)` projects the materialized Zod schema to JSON Schema without caching the projection.
 
-Invocation information is available through existing `ctx.typert.local.get/list` and `ctx.typert.remotes.get/list` queries. They return the registered descriptor objects, including generated direct methods with `input(options?)`, `result`, and `invoke`; there is no separate metadata store or RPC API. Consumers select `method.input({ strict: true })` for matching strict parsing and JSON Schema without changing registration or Host dispatch. Use `isTypertRemoteMethod(descriptor)` from `@deepseek-ai/dsh-typert-protocol/remote-info` to narrow the base descriptor. This guard exposes inputs as `object` and outputs as `unknown`, not endpoint-dependent generics. The [ordinary generated `TYPERT_REMOTE.methods` index](<../generator/README.md#ordinary-remote-metadata>) supplies precise per-method static types and aliases those same descriptors within its artifact instance.
+Invocation information is available through existing `ctx.typert.local.get/list` and `ctx.typert.remotes.get/list` queries. They return the registered descriptor objects, including generated direct methods with `input(options?)`, `result`, and `invoke`; there is no separate metadata store or RPC API. Consumers select `method.input({ strict: true })` for matching strict parsing and JSON Schema without changing registration or Host dispatch. Use `isTypertRemoteMethod(descriptor)` from `@panedesk/dsh-typert-protocol/remote-info` to narrow the base descriptor. This guard exposes inputs as `object` and outputs as `unknown`, not endpoint-dependent generics. The [ordinary generated `TYPERT_REMOTE.methods` index](<../generator/README.md#ordinary-remote-metadata>) supplies precise per-method static types and aliases those same descriptors within its artifact instance.
 
 ### Registering a contribution
 

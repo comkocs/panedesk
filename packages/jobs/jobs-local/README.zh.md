@@ -3,7 +3,7 @@ description: "进程本地后台任务注册表，供组合、容量评估或排
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-jobs-local
+# @panedesk/dsh-jobs-local
 
 [English](README.md) | 中文
 
@@ -36,7 +36,7 @@ kind: "package-reference"
 加载插件即注册 `ctx.jobs`；每个字段都是可选的。
 
 ```yaml
-- name: '@deepseek-ai/dsh-jobs-local'
+- name: '@panedesk/dsh-jobs-local'
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -46,7 +46,7 @@ kind: "package-reference"
 | `settledRetainBytes` | `16384` | 任务结算后保留的环容量，UTF-8 字节；模型尚未读取的字节保留到它的首次终态读取 |
 | `pumpPollMs` | `150` | 任务拉取源的轮询间隔，毫秒 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-jobs-local)是每个受支持字段的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-jobs-local)是每个受支持字段的穷尽式真源。
 
 ### 每个所有者得到什么
 

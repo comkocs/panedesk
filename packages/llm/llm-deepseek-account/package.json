@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-llm-deepseek-account",
+  "name": "@panedesk/dsh-llm-deepseek-account",
   "description": "DeepSeek account provider authentication and discovery",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -29,36 +29,36 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/cosmokit": "workspace:~",
-    "@deepseek-ai/dsh-util-values": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~",
+    "@panedesk/cosmokit": "workspace:~",
+    "@panedesk/dsh-util-values": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
     "semver": "^7.8.5"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-llm": "workspace:*",
-    "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
-    "@deepseek-ai/dsh-launch-environment": "workspace:*",
-    "@deepseek-ai/dsh-deepseek-account": "workspace:*",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
-    "@deepseek-ai/dsh-timeout": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-deepseek": "workspace:*",
+    "@panedesk/dsh-launch-environment": "workspace:*",
+    "@panedesk/dsh-deepseek-account": "workspace:*",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-timeout": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-llm": "workspace:*",
-    "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
-    "@deepseek-ai/dsh-launch-environment": "workspace:*",
-    "@deepseek-ai/dsh-deepseek-account": "workspace:*",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
-    "@deepseek-ai/dsh-llm-deepseek-api-key": "workspace:*",
-    "@deepseek-ai/dsh-timeout": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-deepseek": "workspace:*",
+    "@panedesk/dsh-launch-environment": "workspace:*",
+    "@panedesk/dsh-deepseek-account": "workspace:*",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
+    "@panedesk/dsh-timeout": "workspace:*",
     "@types/semver": "^7.8.0"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/dsh-deepseek-account": {
+    "@panedesk/dsh-deepseek-account": {
       "optional": true
     },
-    "@deepseek-ai/cordis-plugin-loader": {
+    "@panedesk/cordis-plugin-loader": {
       "optional": true
     }
   }

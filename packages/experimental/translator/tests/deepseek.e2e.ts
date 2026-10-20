@@ -1,10 +1,10 @@
 /** Explicitly enabled billed Flash smoke through the actual native official provider. */
-import type { ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
-import { boot } from '@deepseek-ai/dsh-app-boot'
-import LlmRuntime from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import * as JsonlPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
-import * as Official from '@deepseek-ai/dsh-llm-deepseek-api-key'
+import type { ModuleLoaderV2 } from '@panedesk/cordis-plugin-loader'
+import { boot } from '@panedesk/dsh-app-boot'
+import LlmRuntime from '@panedesk/dsh-llm'
+import SessionStore, { SessionId } from '@panedesk/dsh-session'
+import * as JsonlPersistence from '@panedesk/dsh-session-persistence-jsonl'
+import * as Official from '@panedesk/dsh-llm-deepseek-api-key'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,22 +15,22 @@ const enabled = process.env.DSH_TRANSLATION_DEEPSEEK_LIVE === '1' && (process.en
 
 it.skipIf(!enabled)('translates a small independent billed query with exact Flash and thinking off', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-paid-translation-live-'))
-  const previousHome = process.env.DSH_HOME
-  process.env.DSH_HOME = root
+  const previousHome = process.env.PANEDESK_HOME
+  process.env.PANEDESK_HOME = root
   let close: (() => Promise<void>) | undefined
   try {
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, JSON.stringify([
-      { id: 'llm', name: '@deepseek-ai/dsh-llm' },
-      { id: 'sessions', name: '@deepseek-ai/dsh-session' },
-      { id: 'storage', name: '@deepseek-ai/dsh-session-persistence-jsonl', config: { root: join(root, 'sessions'), compression: 'none' } },
-      { id: 'official-live-owner', name: '@deepseek-ai/dsh-llm-deepseek-api-key' },
-      { id: 'translator', name: '@deepseek-ai/dsh-experimental-translator', config: { deepseekMaxOutputTokens: 128 } },
+      { id: 'llm', name: '@panedesk/dsh-llm' },
+      { id: 'sessions', name: '@panedesk/dsh-session' },
+      { id: 'storage', name: '@panedesk/dsh-session-persistence-jsonl', config: { root: join(root, 'sessions'), compression: 'none' } },
+      { id: 'official-live-owner', name: '@panedesk/dsh-llm-deepseek-api-key' },
+      { id: 'translator', name: '@panedesk/dsh-experimental-translator', config: { deepseekMaxOutputTokens: 128 } },
     ]))
     const modules = new Map<string, unknown>([
-      ['@deepseek-ai/dsh-llm', LlmRuntime], ['@deepseek-ai/dsh-session', SessionStore],
-      ['@deepseek-ai/dsh-session-persistence-jsonl', JsonlPersistence],
-      ['@deepseek-ai/dsh-llm-deepseek-api-key', Official], ['@deepseek-ai/dsh-experimental-translator', Translator],
+      ['@panedesk/dsh-llm', LlmRuntime], ['@panedesk/dsh-session', SessionStore],
+      ['@panedesk/dsh-session-persistence-jsonl', JsonlPersistence],
+      ['@panedesk/dsh-llm-deepseek-api-key', Official], ['@panedesk/dsh-experimental-translator', Translator],
     ])
     const ctx = await boot('paid-translation-live', configPath, [], (host) => {
       const source: ModuleLoaderV2 = {
@@ -65,8 +65,8 @@ it.skipIf(!enabled)('translates a small independent billed query with exact Flas
     expect(events[1]).toMatchObject({ type: 'plugin:translator/result', ignorable: true, data: { requestSeq: 0, text: result } })
   } finally {
     await close?.()
-    if (previousHome === undefined) Reflect.deleteProperty(process.env, 'DSH_HOME')
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) Reflect.deleteProperty(process.env, 'PANEDESK_HOME')
+    else process.env.PANEDESK_HOME = previousHome
     await rm(root, { recursive: true, force: true })
   }
 })

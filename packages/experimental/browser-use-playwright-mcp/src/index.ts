@@ -2,9 +2,9 @@
 
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Context } from '@deepseek-ai/cordis'
-import { BrowserMcpConfig, mountSessionMcp, validateBrowserMcpConfig } from '@deepseek-ai/dsh-experimental-browser-use-runtime/mcp'
-import type {} from '@deepseek-ai/dsh-working-directory'
+import type { Context } from '@panedesk/cordis'
+import { BrowserMcpConfig, mountSessionMcp, validateBrowserMcpConfig } from '@panedesk/dsh-experimental-browser-use-runtime/mcp'
+import type {} from '@panedesk/dsh-working-directory'
 
 /** Cordis identity for the Playwright MCP browser provider. */
 export const name = 'experimental-browser-use-playwright-mcp'

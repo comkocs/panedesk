@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-workspace",
+  "name": "@panedesk/dsh-workspace",
   "description": "Workspace entity registry (ctx.workspaceRegistry): durable workspace records with validated session attachment over the domain data form for the DeepSeek Harness",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -34,23 +34,23 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-session-persistence": "workspace:*",
-    "@deepseek-ai/dsh-storage": "workspace:*",
-    "@deepseek-ai/dsh-storage-domain": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*",
+    "@panedesk/dsh-storage": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-brand": "workspace:*",
+    "@panedesk/dsh-brand": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-session-persistence": "workspace:*",
-    "@deepseek-ai/dsh-storage": "workspace:*",
-    "@deepseek-ai/dsh-storage-domain": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*",
+    "@panedesk/dsh-storage": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   }
 }

@@ -6,7 +6,7 @@ import { execFile } from 'node:child_process'
 import { totalmem, cpus, platform } from 'node:os'
 import { promisify } from 'node:util'
 import { join } from 'node:path'
-import type {} from '@deepseek-ai/dsh-client-product-analytics'
+import type {} from '@panedesk/dsh-client-product-analytics'
 import { bootProductionProfile } from '../../../../test-support/loader-smoke/tests/fixtures/production-profile.ts'
 
 const overlay = process.argv[2]

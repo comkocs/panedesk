@@ -7,7 +7,7 @@ English | [中文](2026-07-31-installer-adopts-existing-checkout.zh.md)
 
 ## Problem
 
-`scripts/install.sh` produced two incompatible installation layouts. A `curl … | sh` install built the managed layout — a master clone at `~/.dsh/source/master`, a staging worktree on `dsh-staging/<timestamp>`, and the stable `current` symlink the PATH launcher resolves through. Running the same script from a checkout instead linked `dsh` straight at that checkout's `bin/dsh`, per the earlier [in-repo skip-clone decision](../../archived/process/2026-07-22-installer-in-repo-skip-clone.md).
+`scripts/install.sh` produced two incompatible installation layouts. A `curl … | sh` install built the managed layout — a master clone at `~/.panedesk/source/master`, a staging worktree on `dsh-staging/<timestamp>`, and the stable `current` symlink the PATH launcher resolves through. Running the same script from a checkout instead linked `dsh` straight at that checkout's `bin/dsh`, per the earlier [in-repo skip-clone decision](../../archived/process/2026-07-22-installer-in-repo-skip-clone.md).
 
 The direct link cannot be upgraded. `current` is what an upgrade repoints, so an install without it is not upgradable by [`dsh-upgrade`](../../../../skills/dsh-upgrade/SKILL.md); the PATH symlink dangles if the checkout moves; and the launcher resolves to whatever branch the contributor happened to have checked out, which the upgrade contract forbids as a launcher target. The upgrade skill already described this layout as a legacy install needing a one-time migration, so the layouts diverged at install time and were reconciled only later, if ever.
 
@@ -27,7 +27,7 @@ Before `current` is repointed, the installer rejects a staging path that resolve
 
 ## Alternatives considered
 
-**Make `~/.dsh/source/master` a symlink to the arbitrary clone.** Rejected. Git resolves the symlink and records the *real* path: a worktree created through it stores `gitdir: …/<clone>/.git/worktrees/<name>`, and `git worktree list` reports the clone. The symlink is therefore decorative — nothing reads it — while implying the container owns the repository. It also fails silently: moving the clone leaves `master` present but dangling and every staging worktree dead with `fatal: not a git repository`. Worst, it aliases two names onto one tree, so the "current must never be the master clone" check passes by string comparison while being false. `~/.dsh/source/master` is a location, not a name, and only the location is authoritative.
+**Make `~/.panedesk/source/master` a symlink to the arbitrary clone.** Rejected. Git resolves the symlink and records the *real* path: a worktree created through it stores `gitdir: …/<clone>/.git/worktrees/<name>`, and `git worktree list` reports the clone. The symlink is therefore decorative — nothing reads it — while implying the container owns the repository. It also fails silently: moving the clone leaves `master` present but dangling and every staging worktree dead with `fatal: not a git repository`. Worst, it aliases two names onto one tree, so the "current must never be the master clone" check passes by string comparison while being false. `~/.panedesk/source/master` is a location, not a name, and only the location is authoritative.
 
 **Promote the checkout itself to the `current` target.** Rejected: the upgrade contract requires `current` to point to a clean staging worktree on a staging branch, never a feature, review, or detached checkout. It would also make every upgrade rewrite the tree the contributor is editing.
 
@@ -35,7 +35,7 @@ Before `current` is repointed, the installer rejects a staging path that resolve
 
 **Warn or prompt when the tree is dirty.** Rejected: `worktree add` from `HEAD` cannot carry uncommitted work, so the behavior is determined and a prompt only adds a decision the user cannot act on differently. The contract is documented instead.
 
-**Put an adopted clone's staging worktrees beside the clone** (`~/src/staging-*`) rather than in `~/.dsh/source`. Rejected: `current` and the PATH launcher are per-user singletons, so scattering worktrees across clone parents reintroduces the sibling-clone sprawl the source container exists to prevent.
+**Put an adopted clone's staging worktrees beside the clone** (`~/src/staging-*`) rather than in `~/.panedesk/source`. Rejected: `current` and the PATH launcher are per-user singletons, so scattering worktrees across clone parents reintroduces the sibling-clone sprawl the source container exists to prevent.
 
 ## Consequences
 

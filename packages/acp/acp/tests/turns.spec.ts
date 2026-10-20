@@ -1,12 +1,12 @@
 import { mountWorkingDirectoryFixture } from '../../../subagent/subagent/tests/working-directory-fixture.ts'
-import { createUserMessage, type StreamChunk } from '@deepseek-ai/dsh-llm'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, type StreamChunk } from '@panedesk/dsh-llm'
+import type { ContextFormed } from '@panedesk/dsh-llm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
-import { SessionId } from '@deepseek-ai/dsh-session'
+import { SessionId } from '@panedesk/dsh-session'
 import { setImmediate } from 'node:timers/promises'
-import SubagentRuntime, { NO_START_CAPABILITIES } from '@deepseek-ai/dsh-subagent'
-import { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+import SubagentRuntime, { NO_START_CAPABILITIES } from '@panedesk/dsh-subagent'
+import { defineContentToolFixture } from '@panedesk/dsh-tools'
 import { toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import {
   errorResponse,
@@ -16,7 +16,7 @@ import {
   type BridgeHarness,
 } from './harness.ts'
 
-declare module '@deepseek-ai/dsh-llm' {
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'test': { kind: 'test' } & ContextFormed
   }

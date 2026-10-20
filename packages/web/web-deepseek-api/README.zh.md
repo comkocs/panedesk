@@ -3,7 +3,7 @@ description: "DeepSeek Search 与 Fetch API 提供者、共享的鉴权与传输
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-web-deepseek-api
+# @panedesk/dsh-web-deepseek-api
 
 [English](README.md) | 中文
 
@@ -27,11 +27,11 @@ kind: "package-reference"
 将插件与 `dsh-web` 一起挂载，并选择它的提供者。内置配置挂载此插件，同时选择 Messages 搜索和本地 HTTP 抓取。在**插件 > 内置插件配置 > 网页搜索**中开启**启用新版 Web 搜索 API**并保存，会同时选择此包的两个提供者；关闭后恢复内置选择。保存的选择从下一次操作开始生效。
 
 ```yaml
-- name: '@deepseek-ai/dsh-web'
+- name: '@panedesk/dsh-web'
   config:
     searchProvider: deepseek-search-api
     fetchProvider: deepseek-fetch-api
-- name: '@deepseek-ai/dsh-web-deepseek-api'
+- name: '@panedesk/dsh-web-deepseek-api'
   config:
     apiKeyEnv: DEEPSEEK_API_KEY
 ```

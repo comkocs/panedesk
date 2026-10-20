@@ -10,8 +10,8 @@ import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as yaml from 'js-yaml'
-import { applyEntryPatches, entryListSchema } from '@deepseek-ai/cordis-plugin-include'
-import { evaluate } from '@deepseek-ai/cordis-plugin-loader'
+import { applyEntryPatches, entryListSchema } from '@panedesk/cordis-plugin-include'
+import { evaluate } from '@panedesk/cordis-plugin-loader'
 
 interface Row {
   id?: string
@@ -66,7 +66,7 @@ describe('slim-headless bundle', () => {
   it('declares a parseable patch list through the dsh.bundle.patch manifest field', () => {
     expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(slimHeadless.length).toBeGreaterThan(0)
-    expect(manifest.dependencies).toHaveProperty(['@deepseek-ai/dsh-headless'])
+    expect(manifest.dependencies).toHaveProperty(['@panedesk/dsh-headless'])
   })
 
   it('turns the harness identity line off on the system-prompt row', () => {
@@ -80,8 +80,8 @@ describe('slim-headless bundle', () => {
   it('inserts the headless startup provider and runner, identical to the dsh-headless rows', () => {
     const inserted = insertedRows(slimHeadless)
     expect(inserted.map(row => row.id)).toEqual(['headless-startup', 'headless-runner'])
-    expect(inserted.find(row => row.id === 'headless-startup')?.name).toBe('@deepseek-ai/dsh-headless/startup')
-    expect(inserted.find(row => row.id === 'headless-runner')?.name).toBe('@deepseek-ai/dsh-headless')
+    expect(inserted.find(row => row.id === 'headless-startup')?.name).toBe('@panedesk/dsh-headless/startup')
+    expect(inserted.find(row => row.id === 'headless-runner')?.name).toBe('@panedesk/dsh-headless')
     const upstream = new Map(insertedRows(headless).map(row => [row.id, row]))
     for (const row of inserted) expect(row, `row ${String(row.id)}`).toEqual(upstream.get(row.id))
     // Same persona and tools-mode wiring as the upstream headless layer.
@@ -143,13 +143,13 @@ describe('slim-headless bundle', () => {
     expect(warnings).toEqual([])
     const byId = new Map(rows.map(row => [row.id, row]))
     // slim-base still mounts the provider-neutral adapter, with no providers configured.
-    expect(byId.get('llm-pi-ai')?.name).toBe('@deepseek-ai/dsh-llm-pi-ai')
+    expect(byId.get('llm-pi-ai')?.name).toBe('@panedesk/dsh-llm-pi-ai')
     expect(byId.get('llm-pi-ai')?.config?.['providers']).toBeUndefined()
     // The composed default-model row is the failing placeholder, never a DeepSeek route.
     const config = byId.get('agent-default-model')?.config
     expect(config?.['model']).toBe('unconfigured')
     expect(JSON.stringify(config)).not.toMatch(/deepseek-official|deepseek-flash|DEEPSEEK_API_KEY/)
     // The pi-ai row is the bare mount: no config, so no provider profile and no key reference.
-    expect(rows.find(row => row.id === 'llm-pi-ai')).toEqual({ id: 'llm-pi-ai', name: '@deepseek-ai/dsh-llm-pi-ai' })
+    expect(rows.find(row => row.id === 'llm-pi-ai')).toEqual({ id: 'llm-pi-ai', name: '@panedesk/dsh-llm-pi-ai' })
   })
 })

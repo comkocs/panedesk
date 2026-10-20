@@ -229,8 +229,8 @@ The initial channel is `latest`. Its exact target is the publisher- or market-se
 ## Risks
 
 - An index is unsigned. Titles, authors, labels, and scores are market claims; an `official` label is not DSH verification. Clients must show the index URL and each version's `source`.
-- A Git version's `name`, `version`, and `engines.dsh` are claims about the repository. A repository can claim any name, including an `@deepseek-ai/dsh-` name, and the installed manifest decides what is actually installed.
-- An npm version's `source.registry` is equally a claim: it directs the install of any `name`, including an `@deepseek-ai/dsh-` name, to a registry the market chooses, and that registry decides what is installed.
+- A Git version's `name`, `version`, and `engines.dsh` are claims about the repository. A repository can claim any name, including an `@panedesk/dsh-` name, and the installed manifest decides what is actually installed.
+- An npm version's `source.registry` is equally a claim: it directs the install of any `name`, including an `@panedesk/dsh-` name, to a registry the market chooses, and that registry decides what is installed.
 - URL icons disclose the user's IP address to image hosts.
 - Pinned versions and distribution tags stay stale until the index is regenerated.
 - Market text reaches users, and models through any client tool that lists plugins, without review by DSH.

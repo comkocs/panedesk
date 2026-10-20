@@ -19,7 +19,7 @@
 - **隐私默认关。** 会话日志上传、插件清单上传、会话遥测、匿名身份请求头、桌面版产品分析都默认关闭，可以自行打开。
 - **去掉品牌开场白。** 系统提示不再以「powered by」那句 harness 自我介绍开头。
 - **命令名。** 命令行叫 `panedesk`，短名 `pdesk`。
-- 内部包名（`@deepseek-ai/dsh-*`）、环境变量（`DSH_*`）和主目录（`~/.dsh`）这一轮暂不改，待改清单见 `docs/改名待改清单.md`（仅中文）。
+- 内部包名（`@panedesk/dsh-*`）、环境变量（`DSH_*`）和主目录（`~/.panedesk`）这一轮暂不改，待改清单见 `docs/改名待改清单.md`（仅中文）。
 
 ## 从源码快速上手
 
@@ -30,7 +30,7 @@ pnpm install                    # git hooks are opt-in: pnpm run hooks:install
 node_modules/.bin/tsx scripts/compile-referenced-projects.ts host-libraries
 ```
 
-选一个模型提供方。slim 预设不预设默认模型路由：没配置之前，运行会报错并指到这里。任何 OpenAI 兼容或 Anthropic Messages 兼容的接口都可以用叠加文件接入（模板在 [examples/providers](examples/providers)），用 `--patch` 传入，或把内容抄进 `$DSH_HOME/profiles/slim/cordis.patch.yml`；文件里只写密钥的环境变量名：
+选一个模型提供方。slim 预设不预设默认模型路由：没配置之前，运行会报错并指到这里。任何 OpenAI 兼容或 Anthropic Messages 兼容的接口都可以用叠加文件接入（模板在 [examples/providers](examples/providers)），用 `--patch` 传入，或把内容抄进 `$PANEDESK_HOME/profiles/slim/cordis.patch.yml`；文件里只写密钥的环境变量名：
 
 ```sh
 export MY_GATEWAY_API_KEY=...   # your own key
@@ -39,7 +39,7 @@ node apps/cli/lib/bin.js full "the same task on the full preset"
 node apps/cli/lib/bin.js --help
 ```
 
-启动器自己的参数（`--profile`、`--patch`、各种 dump）要写在 `--json` 这类应用参数前面。在 Windows 上建议设 `DSH_PERMISSION_MODE=read-only`，否则沙盒会通过改目录 ACL 给工作区授写权限。
+启动器自己的参数（`--profile`、`--patch`、各种 dump）要写在 `--json` 这类应用参数前面。在 Windows 上建议设 `PANEDESK_PERMISSION_MODE=read-only`，否则沙盒会通过改目录 ACL 给工作区授写权限。
 
 ## 预设
 

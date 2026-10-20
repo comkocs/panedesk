@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-experimental-speech-to-text",
+  "name": "@panedesk/dsh-experimental-speech-to-text",
   "description": "Experimental speech recognition with independently selectable providers",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -38,23 +38,23 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-brand": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@panedesk/dsh-brand": "workspace:*",
+    "@panedesk/schemastery": "workspace:~"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-settings": "workspace:*",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-settings": "workspace:*",
+    "@panedesk/cordis-plugin-loader": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-app-boot": "workspace:*",
-    "@deepseek-ai/dsh-config-editor": "workspace:*",
-    "@deepseek-ai/dsh-settings": "workspace:*",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-config-editor": "workspace:*",
+    "@panedesk/dsh-settings": "workspace:*",
+    "@panedesk/cordis-plugin-loader": "workspace:~"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/cordis-plugin-loader": {
+    "@panedesk/cordis-plugin-loader": {
       "optional": true
     }
   }

@@ -9,7 +9,7 @@ English | [中文](guide.zh.md)
 
 ## Change
 
-The next release removes the loop's built-in `{{cwd}}` prompt variable and the `cwd` configuration key from `@deepseek-ai/dsh-subagent-acp` and `@deepseek-ai/dsh-subagent-dsh-sdk`. Custom prompt templates that retain an unresolved `{{cwd}}` fail before a model request. A Session's current execution directory is supplied as required user context and is persisted separately from its original `Session.header.cwd`.
+The next release removes the loop's built-in `{{cwd}}` prompt variable and the `cwd` configuration key from `@panedesk/dsh-subagent-acp` and `@panedesk/dsh-subagent-dsh-sdk`. Custom prompt templates that retain an unresolved `{{cwd}}` fail before a model request. A Session's current execution directory is supplied as required user context and is persisted separately from its original `Session.header.cwd`.
 
 New subagents use their start request's `cwd` when provided, otherwise they capture the parent's current directory. Existing processes keep their own directories. Changing the execution directory does not change the original project or grant additional write permissions.
 

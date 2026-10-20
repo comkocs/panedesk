@@ -38,8 +38,8 @@ python/**/.pytest_cache/
 packages/**/__pycache__/
 apps/web/dist/
 .artifacts/
-.dsh-build/
-.dsh-report/
+.panedesk-build/
+.panedesk-report/
 .playwright-mcp/
 .orig
 .worktrees/

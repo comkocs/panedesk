@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { provideWorkingDirectoryFixture, unsupportedInbox } from '@deepseek-ai/dsh-agent-loop-testkit'
-import { Context } from '@deepseek-ai/cordis'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { SESSION_FORMAT_VERSION, Session, SessionId } from '@deepseek-ai/dsh-session'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import TerminalSessionService from '@deepseek-ai/dsh-terminal'
+import { provideWorkingDirectoryFixture, unsupportedInbox } from '@panedesk/dsh-agent-loop-testkit'
+import { Context } from '@panedesk/cordis'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import { SESSION_FORMAT_VERSION, Session, SessionId } from '@panedesk/dsh-session'
+import AgentRegistry from '@panedesk/dsh-agent'
+import type { Agent } from '@panedesk/dsh-agent'
+import TerminalSessionService from '@panedesk/dsh-terminal'
 import type {
   TerminalBackend,
   TerminalBackendSession,
@@ -15,10 +15,10 @@ import type {
   TerminalSessionStatus,
   TerminalSignal,
   TerminalWaitReason,
-} from '@deepseek-ai/dsh-terminal'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRegistry from '@deepseek-ai/dsh-tools'
-import * as ToolPwshPersistent from '@deepseek-ai/dsh-tool-pwsh-persistent'
+} from '@panedesk/dsh-terminal'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRegistry from '@panedesk/dsh-tools'
+import * as ToolPwshPersistent from '@panedesk/dsh-tool-pwsh-persistent'
 
 const contexts: Context[] = []
 let callNumber = 0

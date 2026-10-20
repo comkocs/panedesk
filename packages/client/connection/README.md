@@ -3,7 +3,7 @@ description: "Browser-host wire layer for the web GUI: Remote RPC, event-stream 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-connection
+# @panedesk/dsh-client-connection
 
 English | [中文](README.zh.md)
 
@@ -40,7 +40,7 @@ The browser uses HTTP POST for Remote unary calls. API Gateway owns the `/api/re
 
 Over the Web carrier, every Host RPC method and WebSocket stream requires an authenticated browser or API Peer; there is no method-specific loopback tier. Each process mints a random launch token. `dsh-web-app` prints and opens its application URL with `?token=...`, preserving the caller's authority and mount; `frontend-static` delegates root and index requests to `ctx.connection.authorizeIndex`, which accepts that token only on `GET /`, writes an authority-bound signed cookie, and redirects to clean `./`, which drops the token and keeps the request's directory. A missing, expired, malformed, or wrong-authority cookie returns 401 before RPC dispatch. Static assets remain public. The HTTP carrier accepts query tokens only at the root exchange and `/connect`, and accepts no Authorization-header token.
 
-The cookie signing secret is the owner-scoped `client-connection/browser-session` grant record in `ctx.credentials`. The local provider persists it in `$DSH_HOME/.credentials.yaml`; `BrowserAuth` loads or creates the record during Connection activation and retains the secret in memory, so request authentication is synchronous. Deleting or replacing the record takes effect on the next Connection activation. Cookies carry an absolute issue/expiry interval, defaulting to 30 days through `cookieMaxAgeDays`, and bind the normalized hostname plus port in both their deterministic name and signed payload. They are host-only, `Path=/`, `HttpOnly`, and `SameSite=Strict`, and carry `Secure` exactly when the listener that received the index request serves TLS; only that listener's own protocol decides, never a `publicUrl` announcement or a forwarded header.
+The cookie signing secret is the owner-scoped `client-connection/browser-session` grant record in `ctx.credentials`. The local provider persists it in `$PANEDESK_HOME/.credentials.yaml`; `BrowserAuth` loads or creates the record during Connection activation and retains the secret in memory, so request authentication is synchronous. Deleting or replacing the record takes effect on the next Connection activation. Cookies carry an absolute issue/expiry interval, defaulting to 30 days through `cookieMaxAgeDays`, and bind the normalized hostname plus port in both their deterministic name and signed payload. They are host-only, `Path=/`, `HttpOnly`, and `SameSite=Strict`, and carry `Secure` exactly when the listener that received the index request serves TLS; only that listener's own protocol decides, never a `publicUrl` announcement or a forwarded header.
 
 HTTPS cookie names and signed audiences include the `https:` scheme, so HTTP cookies cannot authenticate to a TLS listener even on the same hostname and port. Default ports normalize under the listener's scheme. Existing HTTP cookie audiences remain unchanged.
 
@@ -61,7 +61,7 @@ An ended `$events` stream, a Remote stream error, a non-ready opening item, or a
 
 `ctx.connection.reconnect()` interrupts active work, resets the sequence, and starts retry 1 immediately. Browser `offline` aborts active work, publishes `disconnected`, and suspends automatic attempts; the next `online` transition resets the sequence and starts at the 500ms tier. Only a ready item publishes `connected`. Gateway mux owns no independent retry schedule.
 
-Set the Host Connection row's `config.recovery` to override retry caps, the growth factor, or handshake warning and cancellation times; the [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-client-connection) lists accepted fields. The Host validates these values and injects them into each served page. The Client validates the bootstrap data before providing Connection and uses those defaults when Gateway starts its loop; explicit `start()` timing overrides take precedence. The growth factor must be finite and at least one. Readiness, failure, cancellation, or a hard deadline that occurs before the warning cancels that warning. Reload the page after changing Host recovery configuration.
+Set the Host Connection row's `config.recovery` to override retry caps, the growth factor, or handshake warning and cancellation times; the [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-client-connection) lists accepted fields. The Host validates these values and injects them into each served page. The Client validates the bootstrap data before providing Connection and uses those defaults when Gateway starts its loop; explicit `start()` timing overrides take precedence. The growth factor must be finite and at least one. Readiness, failure, cancellation, or a hard deadline that occurs before the warning cancels that warning. Reload the page after changing Host recovery configuration.
 
 
 <a id="model-experience"></a>

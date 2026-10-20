@@ -3,7 +3,7 @@ description: "DeepSeek account authentication, model listing, and model gating."
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-llm-deepseek-account
+# @panedesk/dsh-llm-deepseek-account
 
 English | [中文](README.zh.md)
 
@@ -35,11 +35,11 @@ A listed model is offered only when the current DeepSeek Harness version can ser
 
 Offered models take the listing's name, `context_window`, input modalities, and Messages system prompt mode over the bundled entry for the same id, which keeps its tool-update mode, image budgets, and description. `max_output_tokens` bounds the request default: a request that names no cap sends the smaller of `maxTokens` and that capability. The listing's effort levels are not read; every model offers `off`, `low`, `high`, and `max`.
 
-`modelOverrides` adjusts single models without replacing the catalog. Keys are model ids; values take the fields of a [Messages `models` entry](../llm-deepseek/README.md#minimal-configuration), and unset fields inherit. Overrides apply over the listing and the bundled catalog; they cannot add models or make a refused model available. Listed capabilities do not bound an override: an override `maxTokens` above the listed `max_output_tokens` is sent as written, and the service rejects requests beyond its limits. An override that names a model neither the listing nor the built-in catalog describes, or that the listed model rejects, becomes the provider diagnostic on the Models page, which has no editor for this route. An override for a refused model that the built-in catalog does not describe is checked only once the current version can serve that model. The route has no `models` field; a configuration that still sets it fails at load and names `modelOverrides`. Edit `$DSH_HOME/profiles/<profile>/cordis.patch.yml`; the next request uses the change.
+`modelOverrides` adjusts single models without replacing the catalog. Keys are model ids; values take the fields of a [Messages `models` entry](../llm-deepseek/README.md#minimal-configuration), and unset fields inherit. Overrides apply over the listing and the bundled catalog; they cannot add models or make a refused model available. Listed capabilities do not bound an override: an override `maxTokens` above the listed `max_output_tokens` is sent as written, and the service rejects requests beyond its limits. An override that names a model neither the listing nor the built-in catalog describes, or that the listed model rejects, becomes the provider diagnostic on the Models page, which has no editor for this route. An override for a refused model that the built-in catalog does not describe is checked only once the current version can serve that model. The route has no `models` field; a configuration that still sets it fails at load and names `modelOverrides`. Edit `$PANEDESK_HOME/profiles/<profile>/cordis.patch.yml`; the next request uses the change.
 
 ```yaml
 - id: llm-deepseek-account
-  name: '@deepseek-ai/dsh-llm-deepseek-account'
+  name: '@panedesk/dsh-llm-deepseek-account'
   config:
     reasoningEffort: high
     modelOverrides:

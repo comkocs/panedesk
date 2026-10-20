@@ -1,12 +1,12 @@
 /** Account-token authentication, the account model listing, and version gating for the DeepSeek account route. */
-import type {} from '@deepseek-ai/cordis-plugin-loader'
-import type { Context } from '@deepseek-ai/cordis'
-import { ACCOUNT_QUOTA_EXCEEDED_CODE, APP_IDENTITY, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
-import type {} from '@deepseek-ai/dsh-deepseek-account'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
-import { catalogModelInfo, registerDeepSeekProvider, resolveAdapterOptions } from '@deepseek-ai/dsh-llm-deepseek'
-import type { DeepSeekRequestAuth, ResolvedDeepSeekOptions } from '@deepseek-ai/dsh-llm-deepseek'
+import type {} from '@panedesk/cordis-plugin-loader'
+import type { Context } from '@panedesk/cordis'
+import { ACCOUNT_QUOTA_EXCEEDED_CODE, APP_IDENTITY, LlmError, QUOTA_EXCEEDED_CODE } from '@panedesk/dsh-llm'
+import type {} from '@panedesk/dsh-deepseek-account'
+import { launchEnvironmentOf } from '@panedesk/dsh-launch-environment'
+import { assertNever } from '@panedesk/dsh-util-values'
+import { catalogModelInfo, registerDeepSeekProvider, resolveAdapterOptions } from '@panedesk/dsh-llm-deepseek'
+import type { DeepSeekRequestAuth, ResolvedDeepSeekOptions } from '@panedesk/dsh-llm-deepseek'
 import { AccountModelCatalog } from './catalog.ts'
 import type { CatalogView } from './catalog.ts'
 import { Config, plainAccountOptions, resolveAccountOptions } from './config.ts'
@@ -35,11 +35,11 @@ function refuse(model: string, refusal: CatalogRefusal | undefined): void {
   switch (refusal.kind) {
     case 'upgrade-required':
       throw new LlmError(
-        `DeepSeek model "${model}" requires DeepSeek Harness ${refusal.requiredVersion} or later; current version is ${APP_IDENTITY.version}`,
+        `DeepSeek model "${model}" requires Panedesk ${refusal.requiredVersion} or later; current version is ${APP_IDENTITY.version}`,
         'CLIENT_UPGRADE_REQUIRED',
       )
     case 'unsupported':
-      throw new LlmError(`DeepSeek model "${model}" is not supported by DeepSeek Harness; current version is ${APP_IDENTITY.version}`, 'MODEL_UNSUPPORTED')
+      throw new LlmError(`DeepSeek model "${model}" is not supported by Panedesk; current version is ${APP_IDENTITY.version}`, 'MODEL_UNSUPPORTED')
     /* v8 ignore next 2 -- catalog resolution produces only the closed refusal union */
     default:
       assertNever(refusal, 'account catalog refusal')

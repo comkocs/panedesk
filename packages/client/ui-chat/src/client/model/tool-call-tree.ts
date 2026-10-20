@@ -1,9 +1,9 @@
-import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
-import type {} from '@deepseek-ai/dsh-tools/types'
+import type { SessionEvent } from '@panedesk/dsh-session/types'
+import type {} from '@panedesk/dsh-tools/types'
 import type {
   ConversationNode, RunningToolCall, ToolCallBlock, ToolResultNode,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { PartialArguments } from '@deepseek-ai/dsh-util-values'
+} from '@panedesk/dsh-client-ui-conversation/client'
+import { PartialArguments } from '@panedesk/dsh-util-values'
 
 interface ProjectedBlock {
   source: ToolCallBlock

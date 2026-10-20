@@ -2,8 +2,8 @@
 
 import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
-import type { PeerId } from '@deepseek-ai/dsh-typert-protocol'
+import type { CredentialProvider } from '@panedesk/dsh-credentials'
+import type { PeerId } from '@panedesk/dsh-typert-protocol'
 import { BrowserAuth } from '../src/browser-auth.ts'
 import type { ConnectionIndexRequest, ConnectionIndexResponse } from '../src/rpc.ts'
 import { RecordCredentials } from './browser-credentials.ts'
@@ -103,7 +103,7 @@ describe('API credentials', () => {
     expect(res.state).toEqual({
       status: 401,
       headers: { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' },
-      body: 'dsh web authentication required; reopen the URL printed by dsh web.\n',
+      body: 'panedesk web authentication required; reopen the URL printed by panedesk web.\n',
     })
     expect(publish).not.toHaveBeenCalled()
   })
@@ -283,7 +283,7 @@ describe('BrowserAuth', () => {
       })
       expect(denied.state.body).toBe(candidate.method === 'HEAD'
         ? undefined
-        : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
+        : 'panedesk web authentication required; reopen the URL printed by panedesk web.\n')
     }
   })
 

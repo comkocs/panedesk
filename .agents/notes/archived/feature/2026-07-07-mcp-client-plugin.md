@@ -15,7 +15,7 @@ The `ToolRuntime` already accepts raw JSON Schema tool definitions (documented i
 
 ### Package
 
-A single package `@deepseek-ai/dsh-mcp-client` at `packages/mcp/mcp-client/`. No capability-seam three-package split — there is no foreseeable second MCP client implementation, and the convention is "don't split preemptively" ([capability seams Agent Note](../architecture/2026-06-13-capability-seams.md)).
+A single package `@panedesk/dsh-mcp-client` at `packages/mcp/mcp-client/`. No capability-seam three-package split — there is no foreseeable second MCP client implementation, and the convention is "don't split preemptively" ([capability seams Agent Note](../architecture/2026-06-13-capability-seams.md)).
 
 ### SDK
 
@@ -61,7 +61,7 @@ Example `cordis.yml` usage:
 
 ```yaml
 - id: mcp-github
-  name: '@deepseek-ai/dsh-mcp-client'
+  name: '@panedesk/dsh-mcp-client'
   config:
     serverName: github
     transport: stdio
@@ -71,7 +71,7 @@ Example `cordis.yml` usage:
       GITHUB_TOKEN: !!js process.env.GITHUB_TOKEN
 
 - id: mcp-web
-  name: '@deepseek-ai/dsh-mcp-client'
+  name: '@panedesk/dsh-mcp-client'
   config:
     serverName: web
     transport: streamable-http

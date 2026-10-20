@@ -1,14 +1,14 @@
-import OTel from '@deepseek-ai/dsh-otel'
+import OTel from '@panedesk/dsh-otel'
 import { createServer, type Server } from 'node:http'
 import { once } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { installProxyFromEnvironment } from '@deepseek-ai/dsh-http-proxy'
-import { recordFeedback } from '@deepseek-ai/dsh-command-feedback'
-import { Context } from '@deepseek-ai/cordis'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import { installProxyFromEnvironment } from '@panedesk/dsh-http-proxy'
+import { recordFeedback } from '@panedesk/dsh-command-feedback'
+import { Context } from '@panedesk/cordis'
+import SessionStore, { SessionId } from '@panedesk/dsh-session'
 import OpenTelemetrySessionBackend, { SessionTelemetryMode } from '../src/index.ts'
 
 const seen: string[] = []
@@ -30,8 +30,8 @@ async function listen(server: Server): Promise<string> {
 
 beforeAll(async () => {
   home = mkdtempSync(join(tmpdir(), 'dsh-otel-egress-'))
-  previousHome = process.env.DSH_HOME
-  process.env.DSH_HOME = home
+  previousHome = process.env.PANEDESK_HOME
+  process.env.PANEDESK_HOME = home
   const proxy = createServer((request, response) => {
     seen.push(request.url ?? '')
     response.writeHead(502).end('fake-proxy')
@@ -62,8 +62,8 @@ afterAll(async () => {
       server.closeAllConnections()
     })))
   } finally {
-    if (previousHome === undefined) delete process.env.DSH_HOME
-    else process.env.DSH_HOME = previousHome
+    if (previousHome === undefined) delete process.env.PANEDESK_HOME
+    else process.env.PANEDESK_HOME = previousHome
     rmSync(home, { recursive: true, force: true })
   }
 })

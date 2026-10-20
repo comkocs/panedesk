@@ -1,20 +1,20 @@
 /** Anonymous text translation with optional durable provider-independent Session results. */
-import { Context, Service } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
+import { Context, Service } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
 import type { TranslationProvider, TranslationRequest, TranslationSpec } from './types.ts'
 import { TranslationError } from './error.ts'
 import { anonymousRecipe, translateText } from './provider.ts'
 import { TranslationStorage } from './storage.ts'
 import { addAbortListener } from 'node:events'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
+import { assertNever } from '@panedesk/dsh-util-values'
 import { availablePaidProviders, deepseekRecipe, translateWithDeepSeek } from './deepseek.ts'
 import type { TranslationIdentity } from './types.ts'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionId } from '@panedesk/dsh-session/types'
 
 export type * from './types.ts'
 export { TranslationError } from './error.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     /** Experimental text translator with optional durable Session reuse. */
     translator: Translator

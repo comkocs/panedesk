@@ -4,29 +4,29 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { setImmediate } from 'node:timers/promises'
-import { Context, FiberState } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import Timer from '@deepseek-ai/cordis-plugin-timer'
-import { initProfile, mountRootInclude, readProfilePatches, type ProfileContext } from '@deepseek-ai/dsh-app-boot'
-import ConfigEditor from '@deepseek-ai/dsh-config-editor'
-import Settings from '@deepseek-ai/dsh-settings'
-import Hmr from '@deepseek-ai/dsh-hmr'
-import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
-import ComputerUseRegistry from '@deepseek-ai/dsh-computer-use'
-import LocalAttachmentStore from '@deepseek-ai/dsh-attachment-local'
-import FileSystem from '@deepseek-ai/dsh-fs-local'
-import UserQuestions from '@deepseek-ai/dsh-user-questions'
-import NodeRuntime from '@deepseek-ai/dsh-ptc-runtime-node'
-import Sandbox from '@deepseek-ai/dsh-sandbox-local'
-import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
-import { LlmAdapter, ToolCallId, type LlmResolvedModelInfo, type StreamChunk } from '@deepseek-ai/dsh-llm'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import Subprocess from '@deepseek-ai/dsh-subprocess'
+import { Context, FiberState } from '@panedesk/cordis'
+import Loader from '@panedesk/cordis-plugin-loader'
+import Timer from '@panedesk/cordis-plugin-timer'
+import { initProfile, mountRootInclude, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
+import ConfigEditor from '@panedesk/dsh-config-editor'
+import Settings from '@panedesk/dsh-settings'
+import Hmr from '@panedesk/dsh-hmr'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@panedesk/dsh-agent-loop-testkit'
+import ComputerUseRegistry from '@panedesk/dsh-computer-use'
+import LocalAttachmentStore from '@panedesk/dsh-attachment-local'
+import FileSystem from '@panedesk/dsh-fs-local'
+import UserQuestions from '@panedesk/dsh-user-questions'
+import NodeRuntime from '@panedesk/dsh-ptc-runtime-node'
+import Sandbox from '@panedesk/dsh-sandbox-local'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import { LlmAdapter, ToolCallId, type LlmResolvedModelInfo, type StreamChunk } from '@panedesk/dsh-llm'
+import { SessionId } from '@panedesk/dsh-session'
+import Subprocess from '@panedesk/dsh-subprocess'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import sharp from 'sharp'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentRef } from '@panedesk/dsh-attachment'
 import * as NativeProvider from '../src/index.ts'
-import type { NativeClient } from '@deepseek-ai/dsh-cua/native-client'
+import type { NativeClient } from '@panedesk/dsh-cua/native-client'
 import type { NativeBuildSpec } from '../src/native-build.ts'
 
 const native = vi.hoisted(() => ({
@@ -40,8 +40,8 @@ vi.mock('../src/native-build.ts', async importOriginal => ({
   nativeHostArchitecture: native.architecture,
   prepareNativeExecutable: native.prepare,
 }))
-vi.mock('@deepseek-ai/dsh-cua/native-client', async importOriginal => ({
-  ...await importOriginal<typeof import('@deepseek-ai/dsh-cua/native-client')>(),
+vi.mock('@panedesk/dsh-cua/native-client', async importOriginal => ({
+  ...await importOriginal<typeof import('@panedesk/dsh-cua/native-client')>(),
   NativeClient: class {
     disposed = false
     constructor(...args: ConstructorParameters<typeof NativeClient>) {

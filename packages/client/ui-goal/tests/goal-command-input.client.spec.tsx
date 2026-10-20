@@ -1,21 +1,21 @@
 // @vitest-environment jsdom
 import { cleanup, render, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { SessionLiveEventEntry } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionLiveEventEntry } from '@panedesk/dsh-api-session-controller/client'
 import type {
   ConversationNodeDefinition, ConversationViewDefinition, UserTextInput,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { ConversationNodeAssembler } from '@deepseek-ai/dsh-client-ui-conversation/client'
+} from '@panedesk/dsh-client-ui-conversation/client'
+import { ConversationNodeAssembler } from '@panedesk/dsh-client-ui-conversation/client'
 import type {
   ChatConversationViewNode, ChatSnapshot,
-} from '@deepseek-ai/dsh-client-ui-chat/client'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import type { PropsRenderFactories } from '@deepseek-ai/dsh-client-ui-slots'
+} from '@panedesk/dsh-client-ui-chat/client'
+import { makeTranslate } from '@panedesk/dsh-client-test-runtime'
+import type { PropsRenderFactories } from '@panedesk/dsh-client-ui-slots'
 import { createUserTextFixture } from '../../ui-conversation/tests/user-text-component-fixture.client.tsx'
-import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
-import { commandDefinition } from '@deepseek-ai/dsh-client-ui-chat/src/client/conversation-nodes/command.ts'
-import { chatViewDefinition } from '@deepseek-ai/dsh-client-ui-chat/src/client/conversation-nodes/chat-snapshot-builder.ts'
+import { zh as commonZh } from '@panedesk/dsh-client-locale/src/locales/zh.ts'
+import type { SessionEvent } from '@panedesk/dsh-session/types'
+import { commandDefinition } from '@panedesk/dsh-client-ui-chat/src/client/conversation-nodes/command.ts'
+import { chatViewDefinition } from '@panedesk/dsh-client-ui-chat/src/client/conversation-nodes/chat-snapshot-builder.ts'
 import { GoalCommandInputView } from '../src/client/GoalCommandInputView.tsx'
 import {
   goalCommandInputDefinition, goalCommandText,

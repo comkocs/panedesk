@@ -1,30 +1,30 @@
 # Keyless replay counterpart of agent-instructions.cordis.yml: apply the
 # scenario values and model swap to the ACP profile.
 - id: llm-deepseek
-  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  name: '@panedesk/dsh-llm-deepseek-api-key'
   disabled: true
 
 - id: agent-default-model
-  name: '@deepseek-ai/dsh-agent-default-model'
+  name: '@panedesk/dsh-agent-default-model'
   config:
     provider: deepseek-official
     model: deepseek-v4-flash
 
 - id: session-persistence-jsonl
-  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  name: '@panedesk/dsh-session-persistence-jsonl'
   config:
     root: !!js dshHomePath('sessions')
     compression: none
 
 - id: agent-instructions
-  name: '@deepseek-ai/dsh-agent-instructions'
+  name: '@panedesk/dsh-agent-instructions'
   config:
     maxBytes: 65536
     projectRootMarkers:
-      - .dsh-project
+      - .panedesk-project
 
 - id: system-prompt
-  name: '@deepseek-ai/dsh-system-prompt'
+  name: '@panedesk/dsh-system-prompt'
   config:
     personaPrefix: |
       You are a coding assistant powered by the {{model}} model.
@@ -33,7 +33,7 @@
 
 - insert:
     - id: llm-replay
-      name: '@deepseek-ai/dsh-llm-replay'
+      name: '@panedesk/dsh-llm-replay'
       config:
         providers:
           - id: deepseek-official

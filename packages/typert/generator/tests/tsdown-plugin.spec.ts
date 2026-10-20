@@ -8,7 +8,7 @@ import type { WorkspaceEmitResult } from '../src/workspace.ts'
 
 const generated = vi.hoisted(() => vi.fn<() => WorkspaceEmitResult[]>(() => [
   {
-    package: '@deepseek-ai/dsh-tools',
+    package: '@panedesk/dsh-tools',
     packageRoot: 'packages/core/tools',
     face: 'host' as const,
     exports: [],
@@ -21,7 +21,7 @@ const generated = vi.hoisted(() => vi.fn<() => WorkspaceEmitResult[]>(() => [
     },
   },
   {
-    package: '@deepseek-ai/dsh-tools',
+    package: '@panedesk/dsh-tools',
     packageRoot: 'packages/core/tools',
     face: 'client' as const,
     exports: [],
@@ -120,11 +120,11 @@ describe('typertPlugin', () => {
   it('writes every generated face beside a nested package bundle', async () => {
     const root = await workspace()
     const output = await packageOutput(root, 'tools', {
-      name: '@deepseek-ai/dsh-tools',
+      name: '@panedesk/dsh-tools',
       exports: { './typert': './lib/typert.host.js' },
     }, 'lib/dev')
     const clientOutput = await packageOutput(root, 'client-tools', {
-      name: '@deepseek-ai/dsh-tools',
+      name: '@panedesk/dsh-tools',
       exports: { './client/typert': './lib/typert.client.js' },
     })
 
@@ -171,7 +171,7 @@ describe('typertPlugin', () => {
   it('removes stale Remote artifacts from a Host package without Remote output', async () => {
     const root = await workspace()
     const output = await packageOutput(root, 'tools', {
-      name: '@deepseek-ai/dsh-tools',
+      name: '@panedesk/dsh-tools',
       exports: { './typert': './lib/typert.host.js' },
     })
     const packageLib = join(root, 'packages', 'tools', 'lib')
@@ -181,7 +181,7 @@ describe('typertPlugin', () => {
       'typert.remote-client.d.ts.map',
     ]) writeFileSync(join(packageLib, file), 'stale\n')
     generated.mockReturnValueOnce([{
-      package: '@deepseek-ai/dsh-tools',
+      package: '@panedesk/dsh-tools',
       packageRoot: 'packages/core/tools',
       face: 'host',
       exports: [],
@@ -201,7 +201,7 @@ describe('typertPlugin', () => {
   it('resolves the workspace root above a dual-face package leaf', async () => {
     const root = await workspace()
     const output = await packageOutput(root, 'api/gateway', {
-      name: '@deepseek-ai/dsh-tools',
+      name: '@panedesk/dsh-tools',
       exports: { './typert': './lib/typert.host.js' },
     })
     writeFileSync(join(root, 'packages/api/gateway/tsconfig.host.json'), '{}\n')
@@ -220,8 +220,8 @@ describe('typertPlugin', () => {
 describe('typertPlugin workspace mode', () => {
   it('generates in one Worker Thread from the first buildStart and writes its artifacts once', async () => {
     const root = await workspace()
-    const trigger = await packageOutput(root, 'typert/generator', { name: '@deepseek-ai/dsh-typert-generator' })
-    const later = await packageOutput(root, 'core/tools', { name: '@deepseek-ai/dsh-tools' })
+    const trigger = await packageOutput(root, 'typert/generator', { name: '@panedesk/dsh-typert-generator' })
+    const later = await packageOutput(root, 'core/tools', { name: '@panedesk/dsh-tools' })
     const plugin = typertPlugin({ mode: 'workspace', faces: ['host'] })
 
     plugin.buildStart({ cwd: join(root, 'packages/typert/generator') })
@@ -260,7 +260,7 @@ describe('typertPlugin workspace mode', () => {
 
   it('starts generation from writeBundle when no buildStart ran', async () => {
     const root = await workspace()
-    const output = await packageOutput(root, 'core/tools', { name: '@deepseek-ai/dsh-tools' })
+    const output = await packageOutput(root, 'core/tools', { name: '@panedesk/dsh-tools' })
     const plugin = typertPlugin({ mode: 'workspace' })
 
     const emission = plugin.writeBundle({ dir: output })
@@ -357,7 +357,7 @@ describe('typertPlugin workspace mode', () => {
 
 function hostArtifact(): WorkspaceEmitResult {
   return {
-    package: '@deepseek-ai/dsh-tools',
+    package: '@panedesk/dsh-tools',
     packageRoot: 'packages/core/tools',
     face: 'host',
     exports: ['TYPERT'],
@@ -373,7 +373,7 @@ function onlyWorker(): FakeWorker {
 
 async function claimedEmission(): Promise<{ readonly emission: Promise<void>; readonly worker: FakeWorker }> {
   const root = await workspace()
-  const output = await packageOutput(root, 'core/tools', { name: '@deepseek-ai/dsh-tools' })
+  const output = await packageOutput(root, 'core/tools', { name: '@panedesk/dsh-tools' })
   const plugin = typertPlugin({ mode: 'workspace' })
   plugin.buildStart({ cwd: join(root, 'packages/core/tools') })
   return { emission: plugin.writeBundle({ dir: output }), worker: onlyWorker() }

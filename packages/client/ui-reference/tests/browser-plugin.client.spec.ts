@@ -3,21 +3,21 @@
  * deterministic ordering and labels, quoted-path suppression, pick projections, codec
  * round-trip, and registration lifecycle.
  */
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, Service } from '@panedesk/cordis'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
-import { UiConversation } from '@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/assembly.ts'
+import { LocaleRuntime } from '@panedesk/dsh-client-locale/client'
+import { SlotRegistry } from '@panedesk/dsh-client-ui-renderer/client'
+import type { PropsRenderSlots } from '@panedesk/dsh-client-ui-slots'
+import { UiConversation } from '@panedesk/dsh-client-ui-conversation/src/client/conversation/assembly.ts'
 import { FileReference, FolderReference, type FileReferenceInjected } from '../src/client/FileReference.tsx'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { RemoteError, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
-import type { SessionFixture } from '@deepseek-ai/dsh-client-test-runtime'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import { RemoteError, TestSessions } from '@panedesk/dsh-client-test-runtime'
+import type { SessionFixture } from '@panedesk/dsh-client-test-runtime'
 import type {
   CandidateRequest, ClientSessionContext, InputTriggerCandidate, InputTriggerSource,
-} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import type { FileReferenceCandidate } from '@deepseek-ai/dsh-file-reference/types'
-import type { SessionReferenceMentionCandidate } from '@deepseek-ai/dsh-session-reference/types'
+} from '@panedesk/dsh-client-ui-input-trigger/client'
+import type { FileReferenceCandidate } from '@panedesk/dsh-file-reference/types'
+import type { SessionReferenceMentionCandidate } from '@panedesk/dsh-session-reference/types'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as nodeApply } from '../src/index.ts'
 

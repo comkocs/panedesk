@@ -4,12 +4,12 @@
  * {@link CompactionEngine}. This interface necessarily depends on session and LLM
  * vocabulary; the dependency rule is documented in the
  * [compaction reference](../README.md#understand-the-implementation).
- * @module @deepseek-ai/dsh-compaction
+ * @module @panedesk/dsh-compaction
  */
 
-import { Context, Service } from '@deepseek-ai/cordis'
-import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
-import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
+import { Context, Service } from '@panedesk/cordis'
+import type { Session, SessionSeq } from '@panedesk/dsh-session'
+import type { CommandId } from '@panedesk/dsh-commands/brand'
 import type { CompactionResult } from './types.ts'
 import type { CompactionCheckpointSource } from './checkpoint.ts'
 
@@ -22,7 +22,7 @@ export { toolPairingBalancedAfter, toolPairingBalancedBefore } from './tool-pair
 export { compactCheckpointSource, isCompactCheckpointSource } from './checkpoint.ts'
 export type { CompactionCheckpointSource } from './checkpoint.ts'
 
-declare module '@deepseek-ai/dsh-llm' {
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'compact-checkpoint': CompactionCheckpointSource
   }
@@ -85,7 +85,7 @@ export interface ManualCompactAgentContext extends CompactionAgentContext {
   runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     compaction: CompactionEngine
   }

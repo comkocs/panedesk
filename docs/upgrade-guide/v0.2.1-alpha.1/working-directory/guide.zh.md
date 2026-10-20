@@ -9,7 +9,7 @@ description: "Session 工作目录替代内置 cwd 配置，工具展示元数�
 
 ## 变更
 
-下一版本移除 loop 的内置 `{{cwd}}` 提示词变量，以及 `@deepseek-ai/dsh-subagent-acp` 和 `@deepseek-ai/dsh-subagent-dsh-sdk` 的 `cwd` 配置键。自定义提示词模板保留未解析的 `{{cwd}}` 时，会在模型请求发出前失败。Session 当前执行目录作为必需的 user context 提供，并与原始 `Session.header.cwd` 分开持久化。
+下一版本移除 loop 的内置 `{{cwd}}` 提示词变量，以及 `@panedesk/dsh-subagent-acp` 和 `@panedesk/dsh-subagent-dsh-sdk` 的 `cwd` 配置键。自定义提示词模板保留未解析的 `{{cwd}}` 时，会在模型请求发出前失败。Session 当前执行目录作为必需的 user context 提供，并与原始 `Session.header.cwd` 分开持久化。
 
 新子代理使用启动请求中显式提供的 `cwd`，未提供时捕获父代理的当前目录。已有进程保留各自的目录。切换执行目录不会改变原始项目，也不会授予额外写权限。
 

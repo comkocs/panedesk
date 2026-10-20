@@ -8,10 +8,10 @@
  */
 import {
   IconChevronDownOutlineRegular, IconChevronUpOutlineRegular,
-} from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+} from '@panedesk/dsh-client-ui-primitives'
+import type { PropsLocale, PropsRuntime, PropsStore } from '@panedesk/dsh-client-ui-slots'
 import { FONT_SIZE_SPECS, type FontRole } from '../theme-settings.ts'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@panedesk/dsh-client-ui-settings/client'
 import type { createFontRowStore } from './settings-store.ts'
 import css from './FontSizeRow.module.css'
 

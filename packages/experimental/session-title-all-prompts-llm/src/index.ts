@@ -1,15 +1,15 @@
 /** All-human-messages model provider for `ctx.sessionTitle`. */
 
 /* jscpd:ignore-start -- both shipped providers import the same shared packages. */
-import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import type { LlmResolvedModelInfo, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
+import type { Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import type { LlmResolvedModelInfo, ReasoningEffortId } from '@panedesk/dsh-llm'
+import { assertNever } from '@panedesk/dsh-util-values'
 import {
   normalizeSessionTitle,
   SessionTitleProviderId,
   type SessionTitleUserMessage,
-} from '@deepseek-ai/dsh-session-title'
+} from '@panedesk/dsh-session-title'
 import {
   executeSessionTitleLlm,
   resolveSessionTitleLlmConfig,
@@ -17,7 +17,7 @@ import {
   type ResolvedSessionTitleLlmConfig,
   type SessionTitleLlmConfig,
   type SessionTitleLlmResponse,
-} from '@deepseek-ai/dsh-session-title-llm'
+} from '@panedesk/dsh-session-title-llm'
 /* jscpd:ignore-end */
 
 export const name = 'session-title-all-prompts-llm'

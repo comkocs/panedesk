@@ -4,14 +4,14 @@
  * Public event payloads live in `./types.ts`; the package-private observer
  * retains only the identity shared by each start/end pair.
  *
- * @module @deepseek-ai/dsh-subagent/lifecycle
+ * @module @panedesk/dsh-subagent/lifecycle
  */
 
 import { randomUUID } from 'node:crypto'
-import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { foldConsumedWork } from '@deepseek-ai/dsh-agent'
-import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
+import type { Context } from '@panedesk/cordis'
+import type { Agent } from '@panedesk/dsh-agent'
+import { foldConsumedWork } from '@panedesk/dsh-agent'
+import type { SessionEvent, SessionId } from '@panedesk/dsh-session'
 import { SubagentRunId } from './types.ts'
 import type { SubagentResult, SubagentRunEndInfo, SubagentRunInfo } from './types.ts'
 

@@ -9,16 +9,16 @@ description: "受管理的子 agent activation 替代前台与 Job 后台委派�
 
 ## 变更
 
-`@deepseek-ai/dsh-tool-subagent` 移除了 `backgroundMode`、`enableRunInBackground` 和模型参数 `run_in_background`。每次委派现在都会在接纳子 agent（智能体）后返回 `{ kind: 'activation', subagentId }`，运行时通过父级完成通知交付最终答案。前台结果和 `{ kind: 'background', jobId }` 结果已移除；子 agent 不再通过 `job_output` 或 `job_kill` 收集结果或停止。
+`@panedesk/dsh-tool-subagent` 移除了 `backgroundMode`、`enableRunInBackground` 和模型参数 `run_in_background`。每次委派现在都会在接纳子 agent（智能体）后返回 `{ kind: 'activation', subagentId }`，运行时通过父级完成通知交付最终答案。前台结果和 `{ kind: 'background', jobId }` 结果已移除；子 agent 不再通过 `job_output` 或 `job_kill` 收集结果或停止。
 
-已发布的 `@deepseek-ai/dsh-subagent-in-process-driver` 包被移除。本地提供方通过 `prepareContinuable()` 提供创建输入，由子 agent 服务拥有执行过程。Spawn 和 Fork 子级可以接收后续消息；组合了持久化和 Session 查询服务时，结算后也能接收。外部提供方只执行一次，不接受后续消息。
+已发布的 `@panedesk/dsh-subagent-in-process-driver` 包被移除。本地提供方通过 `prepareContinuable()` 提供创建输入，由子 agent 服务拥有执行过程。Spawn 和 Fork 子级可以接收后续消息；组合了持久化和 Session 查询服务时，结算后也能接收。外部提供方只执行一次，不接受后续消息。
 
 ## 迁移
 
 1. 从 `cordis.yml`、配置文件补丁和覆盖文件中的 `tool-subagent` 配置项删除 `backgroundMode` 和 `enableRunInBackground`。保留提供方和其余配置。例如：
 
    ```yaml
-   - name: '@deepseek-ai/dsh-tool-subagent'
+   - name: '@panedesk/dsh-tool-subagent'
      config:
        provider: spawn
        toolName: subagent
@@ -31,8 +31,8 @@ description: "受管理的子 agent activation 替代前台与 Job 后台委派�
 3. 对于必须等待结果的宿主代码，将 `ctx.subagents.start()` 或 `startContinuable()` 替换为 `startActivation()`，并选择调用方投递。以下示例假设服务已组合且父 agent 在线：
 
    ```ts
-   import type { Agent } from '@deepseek-ai/dsh-agent'
-   import type SubagentRuntime from '@deepseek-ai/dsh-subagent'
+   import type { Agent } from '@panedesk/dsh-agent'
+   import type SubagentRuntime from '@panedesk/dsh-subagent'
 
    async function collect(subagents: SubagentRuntime, parent: Agent, signal: AbortSignal) {
      const activation = await subagents.startActivation({

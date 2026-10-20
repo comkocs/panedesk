@@ -1,14 +1,14 @@
-import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
+import { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 /** Agent controls use the same manager methods as the Web and bound inventory reads. */
-import { Context } from '@deepseek-ai/cordis'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
-import { Session, SessionId, SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
-import SessionProjections from '@deepseek-ai/dsh-session-projection'
-import ApprovalService, { type ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
+import { Context } from '@panedesk/cordis'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime from '@panedesk/dsh-tools'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import type { Agent } from '@panedesk/dsh-agent'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
+import SessionProjections from '@panedesk/dsh-session-projection'
+import ApprovalService, { type ApprovalOutcome } from '@panedesk/dsh-user-approval'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type PluginManager from '../src/index.ts'
 import type { BundleInfo } from '../src/types.ts'
@@ -85,9 +85,9 @@ it('preserves selected bundle load errors in the agent list result', async () =>
 it('exposes an absent Official bundle installation target without display metadata', async () => {
   const { manager, call } = await fixture()
   const offered: BundleInfo = {
-    name: '@deepseek-ai/dsh-subagent-codex', official: true, availability: 'missing',
+    name: '@panedesk/dsh-subagent-codex', official: true, availability: 'missing',
     installed: false, enabled: false, optional: false, removable: false, rows: [], overrides: [],
-    installTarget: { spec: '@deepseek-ai/dsh-subagent-codex@1.2.3', version: '1.2.3' },
+    installTarget: { spec: '@panedesk/dsh-subagent-codex@1.2.3', version: '1.2.3' },
     meta: { title: 'Codex subagent' },
   }
   manager.listBundles.mockResolvedValue([offered])
@@ -98,11 +98,11 @@ it('exposes an absent Official bundle installation target without display metada
           "availability": "missing",
           "enabled": false,
           "installTarget": {
-            "spec": "@deepseek-ai/dsh-subagent-codex@1.2.3",
+            "spec": "@panedesk/dsh-subagent-codex@1.2.3",
             "version": "1.2.3",
           },
           "installed": false,
-          "name": "@deepseek-ai/dsh-subagent-codex",
+          "name": "@panedesk/dsh-subagent-codex",
           "official": true,
           "optional": false,
           "overrides": [],

@@ -2,7 +2,7 @@
 
 [English](mcp-memory.md) | 中文
 
-这三份**默认关闭的参考配置**通过 [`@deepseek-ai/dsh-mcp-client`](../../../packages/mcp/mcp-client/README.zh.md) 将一个记忆系统连接到 DSH。请选择其中一份，或复制相同的通用 MCP 配置项来连接其他服务器。
+这三份**默认关闭的参考配置**通过 [`@panedesk/dsh-mcp-client`](../../../packages/mcp/mcp-client/README.zh.md) 将一个记忆系统连接到 DSH。请选择其中一份，或复制相同的通用 MCP 配置项来连接其他服务器。
 
 这些第三方配置仅作为互操作参考；收录不代表 DeepSeek 的认可、推荐、合作关系或持续支持承诺。
 
@@ -30,7 +30,7 @@ dsh web --patch "$PWD/apps/cli/config/examples/mcp-memory/memorix.cordis.yml"
 
 请将文件名替换为 `mcp-reference-memory.cordis.yml` 或 `engram.cordis.yml`。该路径可以指向磁盘任意位置的一份复制文件。交付组合不包含任何记忆服务器，因此不传 `--patch` 就会让这三项全部保持关闭。
 
-如果要跨次运行保留所选配置，请将对应文件中的单个 `insert` patch 合并到用户 patch 层：只对一个 profile 生效则写入 `$DSH_HOME/profiles/<name>/cordis.patch.yml`，对本机所有 profile 生效则写入 `$DSH_HOME/cordis.patch.yml`。不要覆盖已有文件，其中可能已经包含无关的用户 patch。
+如果要跨次运行保留所选配置，请将对应文件中的单个 `insert` patch 合并到用户 patch 层：只对一个 profile 生效则写入 `$PANEDESK_HOME/profiles/<name>/cordis.patch.yml`，对本机所有 profile 生效则写入 `$PANEDESK_HOME/cordis.patch.yml`。不要覆盖已有文件，其中可能已经包含无关的用户 patch。
 
 ## 提供方设置
 
@@ -50,7 +50,7 @@ npm install --global @modelcontextprotocol/server-memory@2026.7.4
 dsh web --patch "$PWD/apps/cli/config/examples/mcp-memory/mcp-reference-memory.cordis.yml"
 ```
 
-该参考服务器存储本地知识图谱，并公开实体、关系、观察、读取、搜索和打开工具。它不需要模型或 embedding 服务。该示例将 JSONL 存储在 `$HOME/.dsh-mcp-reference-memory.jsonl`，而不是已安装的 npm 包目录中。若要覆盖该路径，请在启动 DSH 前设置 `MEMORY_FILE_PATH`。
+该参考服务器存储本地知识图谱，并公开实体、关系、观察、读取、搜索和打开工具。它不需要模型或 embedding 服务。该示例将 JSONL 存储在 `$HOME/.panedesk-mcp-reference-memory.jsonl`，而不是已安装的 npm 包目录中。若要覆盖该路径，请在启动 DSH 前设置 `MEMORY_FILE_PATH`。
 
 搜索只对实体名称、类型和观察进行不区分大小写的子字符串匹配，不是语义检索。该服务器不提供 embedding、自动摘要、冲突消解或遗忘策略。
 
@@ -88,7 +88,7 @@ Engram 负责存储和项目选择：它默认使用 `~/.engram`，从 DSH 工�
 ```yaml
 - insert:
     - id: memory-my-server
-      name: '@deepseek-ai/dsh-mcp-client'
+      name: '@panedesk/dsh-mcp-client'
       config:
         serverName: my-memory
         transport: stdio

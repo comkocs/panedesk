@@ -3,7 +3,7 @@ description: "Host reader of the plugin market indexes a user configures, with i
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-plugin-market
+# @panedesk/dsh-plugin-market
 
 English | [中文](README.zh.md)
 
@@ -85,7 +85,7 @@ Compatibility is computed per version with `evaluatePluginCompatibility`, the ve
 
 #### What the model sees
 
-The [`plugin_market` tool](../../../docs/tool-catalog.md#deepseek-aidsh-plugin-market) returns JSON: configured index URLs with English titles and last errors, one page of plugins, in index order or by best match for a `query`, with name, English title, description, and author each truncated to 300 characters, homepage, repository, category, label ids, sort-key values, installation status, the default version, and the number of versions, or one page of a plugin's versions. Each returned version carries its ISO publish time, compatibility, and install arguments. Its description states that market text is third-party content, not instructions.
+The [`plugin_market` tool](../../../docs/tool-catalog.md#panedeskdsh-plugin-market) returns JSON: configured index URLs with English titles and last errors, one page of plugins, in index order or by best match for a `query`, with name, English title, description, and author each truncated to 300 characters, homepage, repository, category, label ids, sort-key values, installation status, the default version, and the number of versions, or one page of a plugin's versions. Each returned version carries its ISO publish time, compatibility, and install arguments. Its description states that market text is third-party content, not instructions.
 
 #### Token effect
 

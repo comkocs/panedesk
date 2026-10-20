@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { inspect } from 'node:util'
-import type { StartupError } from '@deepseek-ai/dsh-app-boot'
+import type { StartupError } from '@panedesk/dsh-app-boot'
 
 /** Launcher-owned context; no environment values or plugin configurations are collected. */
 interface StartupDiagnosticContext {
@@ -24,7 +24,7 @@ function writeStderr(text: string): Promise<void> {
 }
 
 /**
- * Print the startup summary and save a private, uniquely named report under DSH_HOME/logs.
+ * Print the startup summary and save a private, uniquely named report under PANEDESK_HOME/logs.
  * Failed writes print the complete report to stderr instead of claiming a saved path.
  * @param error - startup audit failure retaining plugin metadata and original errors.
  * @param context - resolved Harness home, application version, and selected profile.

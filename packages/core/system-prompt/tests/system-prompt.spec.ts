@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import SystemPrompt, {
   AssembleContext, PromptAssembly, renderContextSections, renderContextSnapshot, renderPrompt,
-} from '@deepseek-ai/dsh-system-prompt'
-import type { PromptContextOrderName, PromptSectionOrderName } from '@deepseek-ai/dsh-system-prompt'
+} from '@panedesk/dsh-system-prompt'
+import type { PromptContextOrderName, PromptSectionOrderName } from '@panedesk/dsh-system-prompt'
 
 /**
  * Every assembly carries the plugin's own built-ins — `harness:identity`
@@ -12,7 +12,7 @@ import type { PromptContextOrderName, PromptSectionOrderName } from '@deepseek-a
  * their own sections; the built-ins' behavior is pinned by its own describe.
  */
 const BUILT_IN = ['harness:identity', 'deployment:persona-prefix', 'deployment:persona-suffix']
-const IDENTITY = 'You are an AI agent powered by DeepSeek Harness.'
+const IDENTITY = 'You are an AI agent powered by Panedesk.'
 /** Panedesk ships the harness identity line off by default; specs that pin the identity section opt in. */
 const WITH_IDENTITY = { includeHarnessIdentity: true } as const
 const SECTION_ORDER_NAMES = [

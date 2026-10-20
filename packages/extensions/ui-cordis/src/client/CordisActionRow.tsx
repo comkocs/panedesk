@@ -2,9 +2,9 @@
 
 import {
   IconInspectOutlineRegular, IconStopFillRegular, IconTrashOutlineRegular,
-} from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
+} from '@panedesk/dsh-client-ui-primitives'
+import type { PropsLocale } from '@panedesk/dsh-client-ui-slots'
+import type { ToolCallViewProps } from '@panedesk/dsh-client-ui-tool/client'
 import { cordisActionCard } from './card-model.ts'
 import css from './CordisRunRow.module.css'
 import { CordisPreparingRow } from './CordisPreparingRow.tsx'

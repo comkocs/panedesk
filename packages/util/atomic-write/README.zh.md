@@ -3,7 +3,7 @@ description: "原子文件替换与跨进程写锁，供绝不允许在磁盘上
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-atomic-write
+# @panedesk/dsh-atomic-write
 
 [English](README.md) | 中文
 
@@ -30,10 +30,10 @@ kind: "package-library"
 ### 原子写入文件
 
 ```ts
-import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { writeFileAtomic } from '@panedesk/dsh-atomic-write'
 
 declare const text: string
-await writeFileAtomic('/home/u/.dsh/cordis.patch.yml', text, { mode: 0o600 })
+await writeFileAtomic('/home/u/.panedesk/cordis.patch.yml', text, { mode: 0o600 })
 ```
 
 父目录会按需创建，读取方只会观察到旧内容或完整的新内容。在 Windows 上，报告为 `EACCES`、`EBUSY` 或 `EPERM` 的瞬时替换干扰会在有界时间内重试；任何剩余失败都会移除临时文件，并保持目标文件不变。
@@ -43,14 +43,14 @@ await writeFileAtomic('/home/u/.dsh/cordis.patch.yml', text, { mode: 0o600 })
 对于单靠原子提交无法保证安全的读-渲染-提交循环，请在操作期间持有写锁：
 
 ```text
-import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
 
 declare const render: (previous: string) => string
 declare const readCurrent: () => Promise<string>
 
-await withFileLock('/home/u/.dsh/cordis.patch.yml', async () => {
+await withFileLock('/home/u/.panedesk/cordis.patch.yml', async () => {
   const previous = await readCurrent()
-  await writeFileAtomic('/home/u/.dsh/cordis.patch.yml', render(previous), { mode: 0o600 })
+  await writeFileAtomic('/home/u/.panedesk/cordis.patch.yml', render(previous), { mode: 0o600 })
 })
 ```
 

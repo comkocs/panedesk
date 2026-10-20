@@ -5,7 +5,7 @@
  * patch overlays to apply, and the config dumps — and hands **everything after
  * its own flags** to the booted tree verbatim, where injected app plugins parse
  * their own flag families and print their own `--help` (see
- * `@deepseek-ai/dsh-cmdline`). Launcher flags therefore come first: the first
+ * `@panedesk/dsh-cmdline`). Launcher flags therefore come first: the first
  * token this parser does not recognize starts the inner arguments, so
  * `panedesk --profile tui --resume abc` boots the tui profile with `--resume abc`,
  * and `panedesk --profile web -h` prints the web app's help, not this one's.
@@ -15,7 +15,7 @@
  * launcher boots {@link DEFAULT_PROFILE}, so `panedesk "fix the tests"` runs one
  * task on the slim preset: a first token containing whitespace is a task, never
  * a profile name, which keeps the shorthand decision free of filesystem lookups.
- * @module @deepseek-ai/dsh/args
+ * @module panedesk/args
  */
 
 import { Command, CommanderError, InvalidArgumentError } from 'commander'
@@ -180,7 +180,7 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
     .passThroughOptions()
     .enablePositionalOptions()
     .argument('[args...]', `arguments for the booted profile's app (see: ${CLI_NAME} --profile <name> --help)`)
-    .option('--profile <name>', `the profile under $DSH_HOME/profiles to boot (default: ${DEFAULT_PROFILE})`, selectProfile)
+    .option('--profile <name>', `the profile under $PANEDESK_HOME/profiles to boot (default: ${DEFAULT_PROFILE})`, selectProfile)
     .option('--from-default-profile <name>', 'replace a custom profile with a fresh copy of a shipped profile template')
     .option('--patch <path>', 'extra patch-list overlay applied after the profile layer (repeatable)', collect)
     .option('--dump-config', 'print the composed profile tree and exit')

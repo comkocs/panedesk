@@ -3,7 +3,7 @@ description: "Inspect and operate native macOS applications through scoped app a
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-cua-macos
+# @panedesk/dsh-experimental-cua-macos
 
 English | [中文](README.zh.md)
 
@@ -53,7 +53,7 @@ The dump command checks profile composition without a model request. For a real 
 | `dragDurationMs` / `dragSteps` | `400` / `20` | Duration and movement segments for a drag. |
 | `textEventIntervalMs` | `0.25` | Delay after each Unicode down/up event, from 0 to 1000 ms. Chord timing is independent. |
 
-The [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-experimental-cua-macos) lists all fields. Native tool calls use `{method, params}`; the complete method-specific schema is exposed to the model. For example, `getApp` returns the `appHandle` needed by `listWindows`, `getState` and input operations.
+The [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-experimental-cua-macos) lists all fields. Native tool calls use `{method, params}`; the complete method-specific schema is exposed to the model. For example, `getApp` returns the `appHandle` needed by `listWindows`, `getState` and input operations.
 
 Keypad names (`KP_0` through `KP_9`, `KP_Enter`, and keypad operators) retain their physical key codes. Key chords use `+` between modifiers and the key. Use `+` for the plus key, `cmd++` for Command-plus, or the key name `plus`; an unfinished chord such as `cmd+` is rejected.
 
@@ -78,7 +78,7 @@ Native preparation serializes compiler checks and publication with the shared fi
 To run through persistent PTC, add `--patch packages/experimental/cua-macos/examples/persistent-ptc.cordis.yml` after the macOS overlay. This provider keeps variables for the live Agent and applies the selected file sandbox policy. The caller imports the bridge and supplies the current authorized `tools.cua` binding. Persistent PTC receives an installation-owned bridge file URL in its CUA instructions, so the project does not need to install this package. The example below is for an external host that resolves the package from its own installation and supplies `tools`; the package does not install a global object or keep variables alive:
 
 ```javascript
-import { connectCua } from '@deepseek-ai/dsh-cua/bridge'
+import { connectCua } from '@panedesk/dsh-cua/bridge'
 const cua = connectCua(() => tools.cua, text => console.log(text))
 const app = await cua.getApp("com.apple.TextEdit")
 void await app.getScreenshot()

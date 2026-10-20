@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-fs-ssh",
+  "name": "@panedesk/dsh-fs-ssh",
   "description": "Filesystem provider over the shared POSIX SSH helper",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -27,21 +27,21 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-ssh": "workspace:*",
-    "@deepseek-ai/dsh-fs": "workspace:*",
-    "@deepseek-ai/dsh-sandbox": "workspace:*",
-    "@deepseek-ai/dsh-sandbox-policy": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-ssh": "workspace:*",
+    "@panedesk/dsh-fs": "workspace:*",
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~",
+    "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-ssh": "workspace:*",
-    "@deepseek-ai/dsh-fs": "workspace:*",
-    "@deepseek-ai/dsh-sandbox": "workspace:*",
-    "@deepseek-ai/dsh-sandbox-policy": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-ssh": "workspace:*",
+    "@panedesk/dsh-fs": "workspace:*",
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*"
   }
 }

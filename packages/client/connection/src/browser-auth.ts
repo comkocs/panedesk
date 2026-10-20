@@ -1,10 +1,10 @@
 /** Browser-session authentication for the Host Connection carrier. */
 
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import type { PeerId } from '@deepseek-ai/dsh-typert-protocol'
+import type { PeerId } from '@panedesk/dsh-typert-protocol'
 import { CONNECT_PATH, type ConnectionInteractions } from './connect-protocol.ts'
-import { credentialKey } from '@deepseek-ai/dsh-credentials'
-import type { CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
+import { credentialKey } from '@panedesk/dsh-credentials'
+import type { CredentialProvider, CredentialRecord } from '@panedesk/dsh-credentials'
 import type {
   ConnectionIndexRequest,
   ConnectionIndexResponse,
@@ -389,6 +389,6 @@ export class BrowserAuth {
     })
     res.end(req.method === 'HEAD'
       ? undefined
-      : 'dsh web authentication required; reopen the URL printed by dsh web.\n')
+      : 'panedesk web authentication required; reopen the URL printed by panedesk web.\n')
   }
 }

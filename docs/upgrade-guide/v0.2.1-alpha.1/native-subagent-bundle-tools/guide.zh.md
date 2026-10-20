@@ -9,7 +9,7 @@ description: "Claude Code 与 Codex bundle 添加全局委派工具，同时保�
 
 ## 变更
 
-`@deepseek-ai/dsh-subagent-claude-code` 和 `@deepseek-ai/dsh-subagent-codex` 保留包名、bundle 选择、提供方行 ID、配置及原生认证。已选中的 bundle 现在还会把委派工具注册为 Host 全局工具，包括 minimal 在内的所有预设都可见；此前 bundle 只注册提供方。启用 bundle 后，运行中的 Agent 从下一次请求起即可看到该工具；关闭后则不再可见。
+`@panedesk/dsh-subagent-claude-code` 和 `@panedesk/dsh-subagent-codex` 保留包名、bundle 选择、提供方行 ID、配置及原生认证。已选中的 bundle 现在还会把委派工具注册为 Host 全局工具，包括 minimal 在内的所有预设都可见；此前 bundle 只注册提供方。启用 bundle 后，运行中的 Agent 从下一次请求起即可看到该工具；关闭后则不再可见。
 
 贡献的 Host 行为 `tool-subagent-claude-code` 和 `tool-subagent-codex`。后续用户层可以按行 ID 覆盖其配置或禁用状态。覆盖不会选中未选中的 bundle。预设自行注册的同名工具会为其 Agent 遮蔽该全局工具。
 

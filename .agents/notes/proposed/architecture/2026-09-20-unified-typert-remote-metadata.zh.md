@@ -22,7 +22,7 @@ CLI 帮助、参数解析和 MCP 工具发现需要在连接受控 Host 前取�
 
 [Registry](../../../../packages/typert/registry/src/service.ts) 实例属于各自的 Cordis Context 和进程。Host 与 Client 入口共享实现，而非状态。既有本地/Remote `get()` 与 `list()` 保留已注册的描述符对象；注册保留原子重复检查、通知、tombstone 和 fiber 管理的释放。不新增 Registry API、存储、订阅、元数据 RPC 或跨进程同步。独立 Program 和进程不共享对象身份。
 
-[发射器](../../../../packages/typert/generator/src/emitter.ts)为每个端点写入一份静态 `TypertRemoteMethodSpec`，并调用已发布纯入口 `@deepseek-ai/dsh-typert-protocol/remote-info` 提供的 `createTypertRemoteInfo({ package, methods }, z)`。端点键提供 `namespace` 和 `method`，`id` 由包名与端点键组合。每份 spec 保留 service、接收者、有序参数、唯一的 `result` codec，以及可选的流模式、scope、uplink、取消、文档和源码位置字段。每个参数都有从同一 checker 解析后类型模型派生的 `codec` 和 `strictCodec`，分析器与模型不携带逐方法策略。参数 `wire` 默认使用 `name`；参数文档保留在 `parameters[].description`。不存在嵌套 `metadata`、独立 `output` 或 `parameterDescriptions`，也不导出顶层 `REMOTE_METHODS`。
+[发射器](../../../../packages/typert/generator/src/emitter.ts)为每个端点写入一份静态 `TypertRemoteMethodSpec`，并调用已发布纯入口 `@panedesk/dsh-typert-protocol/remote-info` 提供的 `createTypertRemoteInfo({ package, methods }, z)`。端点键提供 `namespace` 和 `method`，`id` 由包名与端点键组合。每份 spec 保留 service、接收者、有序参数、唯一的 `result` codec，以及可选的流模式、scope、uplink、取消、文档和源码位置字段。每个参数都有从同一 checker 解析后类型模型派生的 `codec` 和 `strictCodec`，分析器与模型不携带逐方法策略。参数 `wire` 默认使用 `name`；参数文档保留在 `parameters[].description`。不存在嵌套 `metadata`、独立 `output` 或 `parameterDescriptions`，也不导出顶层 `REMOTE_METHODS`。
 
 [factory](../../../../packages/typert/protocol/src/remote-info.ts)返回真正的类实例，而非类构造函数或立即求值的对象字面量。构造时只保留 spec 和生成产物显式传入的 Zod 运行时，不构造 schema。首次读取 `descriptors` 或 `methods` 时（包括挂载或查询时）才构建并缓存一个共享索引。每个 `methods[endpoint]` 就是同一个直接方法描述符对象；仅使用 Context 接收者的方法保留在描述符和作用域声明中。带作用域投影的直接方法保留 scope 字段，但其通用具名调用器要求无作用域 Remote。
 
@@ -86,7 +86,7 @@ page(request: SessionPageRequest, signal: AbortSignal): Promise<SessionPage> {
 **Browser 与 Node 调用。** 源码导出消费方将 `/remote-source` 改为 `/remote`；已有普通消费方本来就使用此路径。实际调用 Context 挂载一次，不额外向 Registry 注册。
 
 ```text
-import { TYPERT_REMOTE } from '@deepseek-ai/dsh-api-session-controller/remote'
+import { TYPERT_REMOTE } from '@panedesk/dsh-api-session-controller/remote'
 await ctx.remote.$mount(TYPERT_REMOTE)
 const result = await ctx.remote.session.page(request, signal)
 const stream = ctx.remote.session.follow(followRequest, signal)
@@ -101,14 +101,14 @@ try {
 
 ```text
 // Old selection.
-import { REMOTE_METHODS } from '@deepseek-ai/dsh-api-session-controller/remote-source'
+import { REMOTE_METHODS } from '@panedesk/dsh-api-session-controller/remote-source'
 const page = REMOTE_METHODS['session/page']
 ```
 
 ```text
 // Metadata plugin: inject: ['typert']; no Gateway, Connection, or Host controller.
-import { TYPERT_REMOTE } from '@deepseek-ai/dsh-api-session-controller/remote'
-import { isTypertRemoteMethod } from '@deepseek-ai/dsh-typert-protocol/remote-info'
+import { TYPERT_REMOTE } from '@panedesk/dsh-api-session-controller/remote'
+import { isTypertRemoteMethod } from '@panedesk/dsh-typert-protocol/remote-info'
 ctx.typert.remotes.register(TYPERT_REMOTE)
 const page = ctx.typert.remotes.get('session/page')
 if (page === undefined || !isTypertRemoteMethod(page)) {
@@ -154,7 +154,7 @@ const value = await ctx.sessionController.page(request, signal)
 **独立消费方。** 读取普通 info 实例的类型化索引，不要求 Registry：
 
 ```text
-import { TYPERT_REMOTE } from '@deepseek-ai/dsh-api-session-controller/remote'
+import { TYPERT_REMOTE } from '@panedesk/dsh-api-session-controller/remote'
 const page = TYPERT_REMOTE.methods['session/page']
 const arguments_ = page.input().create().parse(raw)
 const result = await page.invoke(remote, arguments_, signal)

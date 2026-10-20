@@ -3,7 +3,7 @@ description: "Web display masking for recognized credentials in sent user text, 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-secret-mask
+# @panedesk/dsh-client-ui-secret-mask
 
 English | [中文](README.zh.md)
 

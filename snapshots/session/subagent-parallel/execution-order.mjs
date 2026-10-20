@@ -4,7 +4,7 @@ export const inject = ['tools', 'agents', 'subagents']
 
 /**
  * Install task-local barriers over real tool, Agent, and subagent lifecycle events.
- * @param {import('@deepseek-ai/cordis').Context} ctx - Scenario host context.
+ * @param {import('@panedesk/cordis').Context} ctx - Scenario host context.
  */
 export function apply(ctx) {
   const firstRecorded = Promise.withResolvers()

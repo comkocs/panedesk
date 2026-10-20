@@ -1,7 +1,7 @@
 /** Turn a source list into a validated format-1 index, reusing cached results for unchanged releases and commits. */
 import { existsSync } from 'node:fs'
 import { join, posix } from 'node:path'
-import { parseMarketIndex } from '@deepseek-ai/dsh-plugin-market-index'
+import { parseMarketIndex } from '@panedesk/dsh-plugin-market-index'
 import semver from 'semver'
 import { cacheKey, gitRefs, npmPackument, npmTarball, withGitObjects, type FetchLimits, type GitObjects, type GitTransports } from './fetchers.ts'
 import { readJsonFile, writeIfChanged, type PackageFiles } from './files.ts'

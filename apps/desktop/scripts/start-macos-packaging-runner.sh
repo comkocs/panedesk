@@ -38,5 +38,5 @@ cd "$runner_root"
 exec /usr/bin/env -i HOME="$HOME" USER="$(id -un)" LOGNAME="$(id -un)" \
   PATH="$node_bin:/usr/bin:/bin:/usr/sbin:/sbin" TMPDIR="${TMPDIR:-/tmp}" \
   DEVELOPER_DIR="$developer_dir" SDKROOT="$sdk_root" \
-  ACTIONS_RUNNER_SVC="${ACTIONS_RUNNER_SVC:-0}" LANG=en_US.UTF-8 DSH_PACKAGING_CONFIG_DIR="$config_root" DSH_TELEMETRY_DISABLED=1 \
+  ACTIONS_RUNNER_SVC="${ACTIONS_RUNNER_SVC:-0}" LANG=en_US.UTF-8 DSH_PACKAGING_CONFIG_DIR="$config_root" PANEDESK_TELEMETRY_DISABLED=1 \
   /usr/bin/caffeinate -i "$entry"

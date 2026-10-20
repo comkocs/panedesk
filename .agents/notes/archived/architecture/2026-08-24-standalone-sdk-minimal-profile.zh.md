@@ -15,15 +15,15 @@ Archived: 2026-09-04
 
 ### 启动与所有权
 
-`dsh --profile sdk-minimal` 是随附的仅启动时 profile。其 manifest 只列出 `@deepseek-ai/dsh-sdk-minimal`，不列出 `@deepseek-ai/dsh-base`。该组合包在 launcher 的空 profile 根之上插入完整 Cordis 配置树，而 profile patch、home patch 与有序调用 patch 仍在其上保持普通优先级。
+`dsh --profile sdk-minimal` 是随附的仅启动时 profile。其 manifest 只列出 `@panedesk/dsh-sdk-minimal`，不列出 `@panedesk/dsh-base`。该组合包在 launcher 的空 profile 根之上插入完整 Cordis 配置树，而 profile patch、home patch 与有序调用 patch 仍在其上保持普通优先级。
 
 `dsh` CLI 仍是唯一应用 launcher。Python 示例通过公开 `profile` 字段与显式 Harness home 选择 `sdk-minimal`。Python 不暴露完整配置或任意 argv 路径。完整 Python 与 TypeScript SDK 的默认值仍是 `sdk`。
 
-该组合包复用 `@deepseek-ai/dsh-sdk-app` 提供命令 help、stdin EOF 与有界关闭。启动提供方接受 profile 名称配置，因此两个 SDK profile 都能呈现自己的实际命令，且无需复制进程生命周期代码。
+该组合包复用 `@panedesk/dsh-sdk-app` 提供命令 help、stdin EOF 与有界关闭。启动提供方接受 profile 名称配置，因此两个 SDK profile 都能呈现自己的实际命令，且无需复制进程生命周期代码。
 
 ### 显式组合
 
-该组合包拥有一个 DeepSeek 适配器、SDK JSON-RPC 服务、显式 agent 核心、本地子进程与不受限文件系统提供方、按平台选择的持久 shell、字符串替换 editor，以及位于 `$DSH_HOME/sessions` 的未压缩 JSONL 会话。Linux 与 macOS 挂载 Bash，Windows 挂载 PowerShell。SDK 初始化请求拥有模型 id；`DSH_CONTEXT_WINDOW` 为不在适配器建议目录中的模型提供后备容量。Persona 来自 `DSH_SYSTEM_PROMPT`，凭据来自 `DEEPSEEK_API_KEY`。
+该组合包拥有一个 DeepSeek 适配器、SDK JSON-RPC 服务、显式 agent 核心、本地子进程与不受限文件系统提供方、按平台选择的持久 shell、字符串替换 editor，以及位于 `$PANEDESK_HOME/sessions` 的未压缩 JSONL 会话。Linux 与 macOS 挂载 Bash，Windows 挂载 PowerShell。SDK 初始化请求拥有模型 id；`DSH_CONTEXT_WINDOW` 为不在适配器建议目录中的模型提供后备容量。Persona 来自 `DSH_SYSTEM_PROMPT`，凭据来自 `DEEPSEEK_API_KEY`。
 
 Harness 身份、运行时上下文、workspace 指令、skills、面向模型的 job 控制、compaction、settings、托管凭据、遥测、Web 工具、subagent 与其他所有 base 配置项均不存在，而不是被隐藏。该 profile 固定使用 `danger-full-access`、`maxTokensAsSuccess: false` 与仅启动时 patch 加载。
 

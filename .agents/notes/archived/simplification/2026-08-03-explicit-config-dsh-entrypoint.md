@@ -13,7 +13,7 @@ The shared base is intentionally neutral: it provides capabilities but creates n
 
 ## Decision
 
-Raw executable use is `dsh --config <path>`. The named file must be an Include patch list and is applied directly over `apps/cli/config/base.cordis.yml` at the same include level. It is required for boot, is not a complete replacement tree, and does not inherit `apps/cli/config/web.cordis.yml` or `$DSH_HOME/config.yaml`. Relative paths resolve from the invoking directory. Boot errors fail loud; SIGINT and SIGTERM dispose the root before exit.
+Raw executable use is `dsh --config <path>`. The named file must be an Include patch list and is applied directly over `apps/cli/config/base.cordis.yml` at the same include level. It is required for boot, is not a complete replacement tree, and does not inherit `apps/cli/config/web.cordis.yml` or `$PANEDESK_HOME/config.yaml`. Relative paths resolve from the invoking directory. Boot errors fail loud; SIGINT and SIGTERM dispose the root before exit.
 
 The raw diagnostic forms remain boot-free: `dsh --dump-default-config` prints the base, while `dsh --config <path> --dump-config` prints base plus the required overlay. The dump uses the Include implementation's patch algorithm and YAML dialect.
 

@@ -1,5 +1,5 @@
 /** Order child completion before the parent's next request in recorded snapshots. */
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@panedesk/cordis'
 
 export const name = 'subagent-settlement-barrier'
 export const inject = ['subagents', 'tools']

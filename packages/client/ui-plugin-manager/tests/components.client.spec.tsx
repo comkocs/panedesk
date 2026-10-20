@@ -2,13 +2,13 @@
 import type { ConfigPageForm } from '../src/client/slot-contract.ts'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import type { PluginEntryId, PluginInstallRequestId } from '@deepseek-ai/dsh-api-remotes/client'
-import { allowAllAccess, bindSnapshotSelector, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
-import type { ConfigForm, ConfigFormSnapshot, SettingsMirrorSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Context } from '@panedesk/cordis'
+import { LocaleRuntime } from '@panedesk/dsh-client-locale/client'
+import type { PluginEntryId, PluginInstallRequestId } from '@panedesk/dsh-api-remotes/client'
+import { allowAllAccess, bindSnapshotSelector, stubConfigForm } from '@panedesk/dsh-client-test-runtime'
+import type { ConfigForm, ConfigFormSnapshot, SettingsMirrorSnapshot } from '@panedesk/dsh-client-ui-settings/client'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
+import { MenuItemButton } from '@panedesk/dsh-client-ui-primitives'
 import { StrictMode, type ReactNode } from 'react'
 import { createNavigationStore } from '../src/client/navigation-store.ts'
 import { PluginManagerPage } from '../src/client/PluginManagerPage.tsx'
@@ -50,10 +50,10 @@ function row(overrides: Partial<PackageRow> = {}): PackageRow {
   return { entryId: 'include:sidebar' as PluginEntryId, rowId: 'sidebar', moduleName: 'dsh-better-sidebar', enabled: true, phase: 'active', ...overrides }
 }
 
-const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', requirements: { '@deepseek-ai/dsh': '^0.2.0', '@deepseek-ai/dsh-core': '^0.2.0' } }
+const INCOMPATIBLE = { name: 'dsh-late', version: '2.0.0', runtimeVersion: '0.1.0', requirements: { 'panedesk': '^0.2.0', '@panedesk/dsh-core': '^0.2.0' } }
 /** The English sentence an incompatibility of {@link INCOMPATIBLE}, optionally renamed, reads as. */
 const incompatibleText = (name = INCOMPATIBLE.name): string => en.reasonIncompatibleVersion
-  .replace('{plugin}', `${name}@2.0.0`).replace('{runtime}', '0.1.0').replace('{requirements}', '@deepseek-ai/dsh ^0.2.0, @deepseek-ai/dsh-core ^0.2.0')
+  .replace('{plugin}', `${name}@2.0.0`).replace('{runtime}', '0.1.0').replace('{requirements}', 'panedesk ^0.2.0, @panedesk/dsh-core ^0.2.0')
 const MIRROR = 'https://registry.npmmirror.com/'
 const OFFICIAL = 'https://registry.npmjs.org/'
 
@@ -248,7 +248,7 @@ describe('PluginManagerPage', () => {
   })
 
   it('keeps the Installed tab panel through loading and the More list out of the tabs', () => {
-    const worktree = '@deepseek-ai/dsh-experimental-tool-worktree'
+    const worktree = '@panedesk/dsh-experimental-tool-worktree'
     const { navigation, set } = renderTab({ status: 'loading', packages: [] }, {}, {
       'plugins.tab:discover': (_view, owner) => (
         <button type="button" onClick={() => { (owner as PluginTabProps).openPackage(worktree) }}>Discover open</button>
@@ -619,19 +619,19 @@ describe('PluginManagerPage', () => {
       packages: [
         pkg({ meta: { description: { en: 'A sidebar.' } } }),
         pkg({ name: 'dsh-broken', enabled: false, error: { code: 'not-bundle' } }),
-        pkg({ name: '@deepseek-ai/dsh-web-app', installed: false, removable: false }),
+        pkg({ name: '@panedesk/dsh-web-app', installed: false, removable: false }),
         pkg({ name: 'dsh-protected', readOnlyReason: 'management-required' }),
         pkg({ name: '@acme/dsh-tool', enabled: false }),
         // Selected by the profile but not a bundle: a problem the person can switch off, in the profile's own group.
         pkg({ name: 'dsh-selected', installed: false, error: { code: 'not-bundle' } }),
-        pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false }),
+        pkg({ name: '@panedesk/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false }),
       ],
       busy: ['dsh-protected'],
     })
     const cards = screen.getAllByRole('listitem')
     // Offered extensions precede installed bundles.
     expect(cards.map(card => card.getAttribute('data-plugin-package'))).toEqual([
-      '@deepseek-ai/dsh-experimental-agent-team-profile', 'dsh-better-sidebar', 'dsh-broken', 'dsh-protected', '@acme/dsh-tool', 'dsh-selected',
+      '@panedesk/dsh-experimental-agent-team-profile', 'dsh-better-sidebar', 'dsh-broken', 'dsh-protected', '@acme/dsh-tool', 'dsh-selected',
     ])
     expect(cards.map(card => card.getAttribute('data-plugin-status'))).toEqual(['disabled', 'running', 'problem', 'running', 'disabled', 'problem'])
     // Group titles have no counts; the official bundle retains its experimental marker.
@@ -655,27 +655,27 @@ describe('PluginManagerPage', () => {
     renderTab({
       packages: [
         ...[
-          '@deepseek-ai/dsh-base',
-          '@deepseek-ai/dsh-web-app',
-          '@deepseek-ai/dsh-headless',
-          '@deepseek-ai/dsh-sdk-app',
-          '@deepseek-ai/dsh-acp-app',
-          '@deepseek-ai/dsh-sdk-minimal',
+          '@panedesk/dsh-base',
+          '@panedesk/dsh-web-app',
+          '@panedesk/dsh-headless',
+          '@panedesk/dsh-sdk-app',
+          '@panedesk/dsh-acp-app',
+          '@panedesk/dsh-sdk-minimal',
         ].map(name => pkg({ name })),
         pkg({ name: '@acme/dsh-base', readOnlyReason: 'management-required' }),
         pkg({ name: 'dsh-better-sidebar' }),
-        pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false }),
+        pkg({ name: '@panedesk/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false }),
       ],
     })
     expect(screen.getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package'))).toEqual([
-      '@deepseek-ai/dsh-experimental-agent-team-profile', '@acme/dsh-base', 'dsh-better-sidebar',
+      '@panedesk/dsh-experimental-agent-team-profile', '@acme/dsh-base', 'dsh-better-sidebar',
     ])
     expect(document.querySelector('[data-plugin-count]')).toBeNull()
   })
 
   it.each([false, true])('shows an empty list for built-in bundles with errors and installed=%s', (installed) => {
     renderTab({
-      packages: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app'].map(name => pkg({
+      packages: ['@panedesk/dsh-base', '@panedesk/dsh-web-app'].map(name => pkg({
         name, installed, error: { code: 'operation-error', diagnostic: 'Unreadable bundle' },
       })),
     })
@@ -697,20 +697,20 @@ describe('PluginManagerPage', () => {
   it('opens an official bundle\'s page with its beta tag and no uninstall, and switches it on', () => {
     const title = 'Agent Teams'
     const { actions } = renderTab({
-      packages: [pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', meta: { title }, installed: false, optional: true, removable: false, enabled: false })],
+      packages: [pkg({ name: '@panedesk/dsh-experimental-agent-team-profile', meta: { title }, installed: false, optional: true, removable: false, enabled: false })],
     })
     fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', title) }))
     const detail = document.querySelector('[data-plugin-detail]') as HTMLElement
     expect(within(detail).getByText(en.statusBeta)).toBeTruthy()
     expect(within(detail).queryByRole('button', { name: en.uninstallLabel.replace('{name}', title) })).toBeNull()
     fireEvent.click(within(detail).getByRole('switch', { name: en.enableToggle.replace('{name}', title) }))
-    expect(actions.setEnabled).toHaveBeenCalledExactlyOnceWith('@deepseek-ai/dsh-experimental-agent-team-profile', true)
+    expect(actions.setEnabled).toHaveBeenCalledExactlyOnceWith('@panedesk/dsh-experimental-agent-team-profile', true)
   })
 
   it.each([
-    '@deepseek-ai/dsh-experimental-agent-team-profile',
-    '@deepseek-ai/dsh-experimental-auto-review',
-    '@deepseek-ai/dsh-experimental-fixture-input',
+    '@panedesk/dsh-experimental-agent-team-profile',
+    '@panedesk/dsh-experimental-auto-review',
+    '@panedesk/dsh-experimental-fixture-input',
     '@acme/dsh-local-tools',
   ])('localizes Host metadata for %s across cards, details, switches, and uninstall confirmation', (name) => {
     const meta = {
@@ -727,7 +727,7 @@ describe('PluginManagerPage', () => {
       expect(document.getElementById(card.getAttribute('aria-describedby')!)?.textContent).toBe(description(dict))
       expect(screen.getByRole('switch', { name: dict.enableToggle.replace('{name}', title(dict)) })).toBeTruthy()
       expect(screen.queryByText('Original metadata.')).toBeNull()
-      expect(screen.queryByText(dict.statusBeta) !== null).toBe(name.startsWith('@deepseek-ai/dsh-experimental-'))
+      expect(screen.queryByText(dict.statusBeta) !== null).toBe(name.startsWith('@panedesk/dsh-experimental-'))
     }
     assertCard(en)
     setLanguage(zh)
@@ -785,7 +785,7 @@ describe('PluginManagerPage', () => {
   })
 
   it('shows a known bundle preview in its details before activation, follows the UI language, and survives decode failure', () => {
-    const name = '@deepseek-ai/dsh-experimental-badge-skill-bundle'
+    const name = '@panedesk/dsh-experimental-badge-skill-bundle'
     const { actions, setLanguage } = renderTab({ packages: [pkg({ name, enabled: false }), pkg()] })
     expect(screen.queryByRole('img')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: `View ${name}` }))
@@ -811,7 +811,7 @@ describe('PluginManagerPage', () => {
   })
 
   it('places the new voice illustration after its description and switches the single image with the UI language', () => {
-    const name = '@deepseek-ai/dsh-experimental-voice-input-bundle'
+    const name = '@panedesk/dsh-experimental-voice-input-bundle'
     const description = 'Turn speech into local notes.'
     const { setLanguage } = renderTab({ packages: [pkg({ name, enabled: false, meta: { description }, rows: [row()] })] })
     fireEvent.click(screen.getByRole('button', { name: `View ${name}` }))
@@ -1030,14 +1030,14 @@ describe('PluginManagerPage', () => {
     }
 
     it('keeps configuration and installed plugins on the main list and shows all official plugins on the secondary page', () => {
-      const team = '@deepseek-ai/dsh-experimental-agent-team-profile'
+      const team = '@panedesk/dsh-experimental-agent-team-profile'
       renderTab(
         { packages: [
-          pkg({ name: '@deepseek-ai/dsh-experimental-badge-skill-bundle', official: true, enabled: false }),
-          pkg({ name: '@deepseek-ai/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false }),
-          pkg({ name: '@deepseek-ai/dsh-subagent-claude-code', official: true, availability: 'missing', installed: false, enabled: false }),
-          pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true, enabled: false }),
-          pkg({ name: '@deepseek-ai/dsh-experimental-tool-worktree', official: true, enabled: false }),
+          pkg({ name: '@panedesk/dsh-experimental-badge-skill-bundle', official: true, enabled: false }),
+          pkg({ name: '@panedesk/dsh-experimental-agent-team-profile', installed: false, optional: true, removable: false, enabled: false }),
+          pkg({ name: '@panedesk/dsh-subagent-claude-code', official: true, availability: 'missing', installed: false, enabled: false }),
+          pkg({ name: '@panedesk/dsh-subagent-codex', official: true, enabled: false }),
+          pkg({ name: '@panedesk/dsh-experimental-tool-worktree', official: true, enabled: false }),
           pkg({ name: '@acme/new-official', official: true }),
           pkg(),
         ] },
@@ -1053,7 +1053,7 @@ describe('PluginManagerPage', () => {
       expect(within(extensions).getByRole('heading', { name: en.extensionsTitle })).toBeTruthy()
       expect(within(extensions).getByRole('button', { name: en.moreAction }).textContent).toBe(en.moreAction)
       expect(within(extensions).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package')))
-        .toEqual(['@deepseek-ai/dsh-experimental-agent-team-profile', '@acme/new-official'])
+        .toEqual(['@panedesk/dsh-experimental-agent-team-profile', '@acme/new-official'])
       expect(document.querySelector('[data-plugin-count]')).toBeNull()
       expect(within(basic).getByText('Limits every command.')).toBeTruthy()
       expect(within(basic).queryByRole('switch', { name: en.enableToggle.replace('{name}', 'Shell') })).toBeNull()
@@ -1067,7 +1067,7 @@ describe('PluginManagerPage', () => {
         .toEqual(['more'])
       const more = document.querySelector('[data-plugin-group="more"]') as HTMLElement
       expect(within(more).getAllByRole('listitem').map(card => card.getAttribute('data-plugin-package')))
-        .toEqual([team, '@acme/new-official', '@deepseek-ai/dsh-experimental-tool-worktree', '@deepseek-ai/dsh-experimental-badge-skill-bundle', '@deepseek-ai/dsh-subagent-codex', '@deepseek-ai/dsh-subagent-claude-code'])
+        .toEqual([team, '@acme/new-official', '@panedesk/dsh-experimental-tool-worktree', '@panedesk/dsh-experimental-badge-skill-bundle', '@panedesk/dsh-subagent-codex', '@panedesk/dsh-subagent-claude-code'])
       expect(document.querySelector('[data-plugin-package="dsh-better-sidebar"]')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', team) }))
       fireEvent.click(screen.getByRole('button', { name: en.backToPackage.replace('{name}', en.moreTitle) }))
@@ -1086,7 +1086,7 @@ describe('PluginManagerPage', () => {
     })
 
     it('returns from package details to the secondary page and retains it across React remounts', () => {
-      const name = '@deepseek-ai/dsh-experimental-terminal-bundle'
+      const name = '@panedesk/dsh-experimental-terminal-bundle'
       const b = renderTab({ packages: [pkg({ name, official: true, enabled: false })] })
       fireEvent.click(screen.getByRole('button', { name: en.moreAction }))
       expect(screen.getByRole('heading', { name: en.moreTitle, level: 1 })).toBeTruthy()
@@ -1102,9 +1102,9 @@ describe('PluginManagerPage', () => {
     })
 
     it('pins a bundle the profile picks onto the main list, in its full-list place', () => {
-      const team = '@deepseek-ai/dsh-experimental-agent-team-profile'
-      const first = '@deepseek-ai/dsh-experimental-tool-worktree'
-      const second = '@deepseek-ai/dsh-experimental-cot-translation-bundle'
+      const team = '@panedesk/dsh-experimental-agent-team-profile'
+      const first = '@panedesk/dsh-experimental-tool-worktree'
+      const second = '@panedesk/dsh-experimental-cot-translation-bundle'
       const entry = (name: string, enabled: boolean): PackageView => pkg({ name, official: true, enabled })
       const b = renderTab({ packages: [entry(second, true), entry(team, true), entry(first, false)] })
       const cards = (group: 'extensions' | 'more'): (string | null)[] => {
@@ -1129,7 +1129,7 @@ describe('PluginManagerPage', () => {
     })
 
     it('returns a held-back bundle opened outside the lists to the list that shows it', () => {
-      const name = '@deepseek-ai/dsh-experimental-terminal-bundle'
+      const name = '@panedesk/dsh-experimental-terminal-bundle'
       const b = renderTab({ packages: [pkg({ name, official: true, enabled: false })] })
       act(() => { b.navigation.actions.setView({ kind: 'package', name }) })
       expect(document.querySelector(`[data-plugin-detail="${name}"]`)).toBeTruthy()
@@ -1563,7 +1563,7 @@ describe('PluginManagerPage', () => {
 
   it('shows the subject while installing, folds the pnpm output behind the details, and stops through the Host', () => {
     const subject = { spec: 'dsh-x', status: 'accepted', kind: 'registry', name: 'dsh-x', version: '1.4.2', description: 'A sidebar.', bundle: true, registry: null } as const
-    const run = { jobId: 'j1', command: 'pnpm add dsh-x', cwd: '/home/u/.dsh/profiles/web', output: 'Progress: resolved \x1b[96m1\x1b[39m\n' }
+    const run = { jobId: 'j1', command: 'pnpm add dsh-x', cwd: '/home/u/.panedesk/profiles/web', output: 'Progress: resolved \x1b[96m1\x1b[39m\n' }
     const { actions, set } = renderTab({ install: { ...IDLE_INSTALL, open: true, spec: 'dsh-x', phase: 'running', subject, runs: [run] } })
     expect(screen.getByRole('status').textContent).toBe(en.installingTitle)
     expect(screen.getByRole('status').parentElement?.querySelector('[data-state="ongoing"]')).not.toBeNull()
@@ -1579,7 +1579,7 @@ describe('PluginManagerPage', () => {
     expect(actions.toggleInstallDetails).toHaveBeenCalledTimes(1)
     set({ install: { ...IDLE_INSTALL, open: true, spec: 'dsh-x', phase: 'running', subject, runs: [run], detailsOpen: true } })
     expect(screen.getByRole('button', { name: en.installDetailsHide }).getAttribute('aria-expanded')).toBe('true')
-    expect(screen.getByText(en.installLocation.replace('{dir}', '/home/u/.dsh/profiles/web'))).toBeTruthy()
+    expect(screen.getByText(en.installLocation.replace('{dir}', '/home/u/.panedesk/profiles/web'))).toBeTruthy()
     // The run streams as a terminal: its command line, its coloured output so far, the running label.
     expect(screen.getByText('pnpm add dsh-x')).toBeTruthy()
     const terminal = document.querySelector('[data-terminal]') as HTMLElement
@@ -2078,7 +2078,7 @@ describe('PluginManagerPage', () => {
     const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
     Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scrollIntoView, configurable: true })
     try {
-      const { actions, set } = renderTab({ packages: [pkg(), pkg({ name: '@deepseek-ai/dsh-experimental-terminal-bundle', official: true })] })
+      const { actions, set } = renderTab({ packages: [pkg(), pkg({ name: '@panedesk/dsh-experimental-terminal-bundle', official: true })] })
       // A package the list does not show has nothing to scroll to; the mark still times out.
       set({ highlight: 'missing' })
       expect(scrollIntoView).not.toHaveBeenCalled()
@@ -2101,14 +2101,14 @@ describe('PluginManagerPage', () => {
 
   it('highlights only the visible list and does not extend the mark when navigating or refreshing', () => {
     vi.useFakeTimers()
-    const name = '@deepseek-ai/dsh-experimental-terminal-bundle'
+    const name = '@panedesk/dsh-experimental-terminal-bundle'
     const scrollIntoView = vi.fn()
     const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
     Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scrollIntoView, configurable: true })
     try {
       const { actions, set } = renderTab({ packages: [
         pkg({ name, official: true, enabled: false }),
-        pkg({ name: '@deepseek-ai/dsh-subagent-codex', official: true, enabled: false }),
+        pkg({ name: '@panedesk/dsh-subagent-codex', official: true, enabled: false }),
       ] })
       expect(document.querySelector(`[data-plugin-package="${name}"]`)).toBeNull()
       set({ highlight: name })
@@ -2268,7 +2268,7 @@ describe('PluginManagerPage', () => {
 })
 
 it.each([false, true])('opens activation guidance details and returns to the originating list (experimental: %s)', (fromMore) => {
-  const name = fromMore ? '@deepseek-ai/dsh-experimental-terminal-bundle' : 'dsh-better-sidebar'
+  const name = fromMore ? '@panedesk/dsh-experimental-terminal-bundle' : 'dsh-better-sidebar'
   const bundle = pkg({ name, official: fromMore })
   const { set, actions } = renderTab({ packages: [{ ...bundle, enabled: false }] }, { bundles: new Set([name]) }, {
     [`plugins.bundle.activation:${name}`]: (_view, owner) => <button onClick={(owner as PluginActivationOwnerProps).onOpenDetails}>Go to setup</button>,
@@ -2325,7 +2325,7 @@ it('supplies the accepted entry values and atomic mutation action to a custom pl
 
 
 describe('on-demand Official bundles', () => {
-  const name = '@deepseek-ai/dsh-subagent-codex'
+  const name = '@panedesk/dsh-subagent-codex'
   const title = 'Codex subagent'
   const catalog = (): PackageView => ({ name, meta: { title }, official: true, availability: 'missing', installed: false,
     optional: false, removable: false, enabled: false, rows: [],

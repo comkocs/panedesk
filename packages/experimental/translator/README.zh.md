@@ -3,7 +3,7 @@ description: "通过匿名端点或可选的原生 Flash 进行机器翻译，�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-translator
+# @panedesk/dsh-experimental-translator
 
 [English](README.md) | 中文
 

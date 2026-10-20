@@ -26,14 +26,14 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-headless": "workspace:*"
+    "@panedesk/dsh-headless": "workspace:*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/cordis-plugin-include": "workspace:~",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/slim-base": "workspace:*"
   }
 }

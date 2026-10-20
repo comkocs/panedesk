@@ -6,7 +6,7 @@
  *
  * Usage: dsh-pack-vfs-image --out <file> [--profile web] [--root /dsh]
  *        node --import tsx/esm src/bin.ts --out ../../apps/web/dist/preview/vfs-image.tar.gz
- * @module @deepseek-ai/dsh-experimental-webworker-packer/src/bin
+ * @module @panedesk/dsh-experimental-webworker-packer/src/bin
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import {
   PREVIEW_FIXTURE_MANIFEST_FILE, PREVIEW_FIXTURE_MANIFEST_VERSION,
   type PreviewFixtureManifest,
-} from '@deepseek-ai/dsh-experimental-webworker-runtime'
+} from '@panedesk/dsh-experimental-webworker-runtime'
 import {
   describePack, packPreviewFixture, packRepositoryImage, previewFixtures,
 } from './repository.ts'

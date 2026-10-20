@@ -3,7 +3,7 @@ description: "设置中的账号页面显示 DeepSeek 登录状态，并提供�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-settings-account
+# @panedesk/dsh-client-ui-settings-account
 
 [English](README.md) | 中文
 

@@ -1,14 +1,14 @@
 /**
  * Human-facing `/goal` command over the persisted same-session goal domain.
- * @module @deepseek-ai/dsh-command-goal
+ * @module @panedesk/dsh-command-goal
  */
 
-import type { Context } from '@deepseek-ai/cordis'
-import { CommandDefinitionId } from '@deepseek-ai/dsh-commands/brand'
-import type { CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
-import { GoalError } from '@deepseek-ai/dsh-goal'
-import type { GoalPhase, GoalRef, GoalView } from '@deepseek-ai/dsh-goal'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import type { Context } from '@panedesk/cordis'
+import { CommandDefinitionId } from '@panedesk/dsh-commands/brand'
+import type { CommandInvocation, CommandResult } from '@panedesk/dsh-commands'
+import { GoalError } from '@panedesk/dsh-goal'
+import type { GoalPhase, GoalRef, GoalView } from '@panedesk/dsh-goal'
+import { createUserMessage } from '@panedesk/dsh-llm'
 
 export const name = 'command-goal'
 export const inject = ['commands', 'goals']
@@ -189,7 +189,7 @@ function executeGoalCommand(ctx: Context, invocation: CommandInvocation): Comman
 /** Register the Codex-shaped `/goal` command for every composed command adapter. */
 export function apply(ctx: Context): void {
   ctx.commands.register({
-    definitionId: CommandDefinitionId('@deepseek-ai/dsh-command-goal'),
+    definitionId: CommandDefinitionId('@panedesk/dsh-command-goal'),
     name: 'goal',
     description: 'Set or view the goal for a long-running task',
     input: { hint: '[<objective>|clear|edit <objective>|pause|resume]', attachments: true },

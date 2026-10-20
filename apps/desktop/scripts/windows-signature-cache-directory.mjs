@@ -13,7 +13,7 @@ import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
  */
 export function resolveWindowsSignatureCacheDirectory(environment) {
   const path = environment.DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR
-    ?? win32.join(homedir(), '.dsh-desktop-signing', 'signature-cache', 'v1')
+    ?? win32.join(homedir(), '.panedesk-desktop-signing', 'signature-cache', 'v1')
   if (!/^[a-z]:[\\/]/iu.test(path) || path.slice(2).includes(':') || /[\0\r\n]/u.test(path)) {
     throw new Error('DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_DIR must be an absolute local drive directory')
   }

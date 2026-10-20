@@ -3,7 +3,7 @@ description: "供用户与维护者在组合或调试可继续子级控制功能
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-subagent-control
+# @panedesk/dsh-tool-subagent-control
 
 [English](README.md) | 中文
 
@@ -32,13 +32,13 @@ kind: "package-reference"
 先加载 subagent 服务、一个后端、委派工具与本包。加上独立的列表插件即可公开全部三个工具：
 
 ```yaml
-- name: '@deepseek-ai/dsh-subagent'
-- name: '@deepseek-ai/dsh-subagent-spawn-in-process'
-- name: '@deepseek-ai/dsh-tool-subagent'
+- name: '@panedesk/dsh-subagent'
+- name: '@panedesk/dsh-subagent-spawn-in-process'
+- name: '@panedesk/dsh-tool-subagent'
   config:
     provider: spawn
-- name: '@deepseek-ai/dsh-tool-subagent-control'
-- name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+- name: '@panedesk/dsh-tool-subagent-control'
+- name: '@panedesk/dsh-tool-subagent-control/list-agents'
 ```
 
 本包不接收任何配置：根插件提供 `send_message` 与 `interrupt_agent`，列表插件提供 `list_agents`。
@@ -95,7 +95,7 @@ kind: "package-reference"
 
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——可继续子级、Activation、inbox、中断与后续消息权限。
 - [dsh-tool-subagent](../tool-subagent/README.zh.md)——启动可继续子级的委派工具。
-- [生成工具目录](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent-control)——三个工具的 schema。
+- [生成工具目录](../../../docs/tool-catalog.zh.md#panedeskdsh-tool-subagent-control)——三个工具的 schema。
 
 -----
 
@@ -106,7 +106,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-已生成的 [schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-subagent-control)：`send_message` 接受 `agent_id` 与 `message`；`interrupt_agent` 接受 `agent_id`；`list_agents` 不接受参数。
+已生成的 [schema](../../../docs/tool-catalog.zh.md#panedeskdsh-tool-subagent-control)：`send_message` 接受 `agent_id` 与 `message`；`interrupt_agent` 接受 `agent_id`；`list_agents` 不接受参数。
 
 #### Token 影响
 

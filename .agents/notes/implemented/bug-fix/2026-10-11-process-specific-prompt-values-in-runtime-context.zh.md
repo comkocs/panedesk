@@ -12,7 +12,7 @@ Status: implemented
 |---|---|
 | Desktop 每次启动（`--port 0` 取随机端口） | Web URL |
 | 换 `--port`、A/B 两个 checkout 交替运行 | Web URL、checkout 路径 |
-| npm 安装与 Desktop 安装共用同一个 `DSH_HOME` | checkout 路径 |
+| npm 安装与 Desktop 安装共用同一个 `PANEDESK_HOME` | checkout 路径 |
 
 会话恢复时 loop 重新渲染 prompt。对不声明 `systemPromptUpdate: 'in-history'` 的路由（例如手写的 pi-ai `anthropic-messages` 路由），变化的 prompt 会改写 surface 头节点。Claude 的历史 thinking 块签名绑定包括 system prompt 在内的对话前缀，前缀一变上游返回 400（`Invalid signature … bound to a different conversation`），会话在环境恢复原样之前无法继续。声明 in-history 的路由不报错，但每次变化都追加一份完整 prompt。
 
@@ -24,12 +24,12 @@ Status: implemented
 
 | 包 | 职责 |
 |---|---|
-| `@deepseek-ai/dsh-harness-dev-context`（`packages/context/harness-dev-context`） | 两个 section、两个 context、旧格式投影；全部模块私有，只导出插件协议（`name`、`inject`、`apply`） |
-| `@deepseek-ai/dsh-host-webserver` | `WebServer.getOrigin()`（绑定地址的 URL 形式加协议与实际端口）与 `bindUrlHost(host)` |
-| `@deepseek-ai/dsh-web-app` | `web-runtime` 行提供 `webApp`，其 `getAdvertisedUrl()` 返回配置的 `publicUrl`，否则返回监听器 origin，与 `DSH_WEB_URL` 和启动 URL 同值；bundle patch 挂载 `harness-dev-context` 行 |
-| `@deepseek-ai/dsh-system-prompt` | `CONTEXT_ORDERS.HARNESS_SOURCE = 200`、`WEB_SURFACE = 210` |
+| `@panedesk/dsh-harness-dev-context`（`packages/context/harness-dev-context`） | 两个 section、两个 context、旧格式投影；全部模块私有，只导出插件协议（`name`、`inject`、`apply`） |
+| `@panedesk/dsh-host-webserver` | `WebServer.getOrigin()`（绑定地址的 URL 形式加协议与实际端口）与 `bindUrlHost(host)` |
+| `@panedesk/dsh-web-app` | `web-runtime` 行提供 `webApp`，其 `getAdvertisedUrl()` 返回配置的 `publicUrl`，否则返回监听器 origin，与 `DSH_WEB_URL` 和启动 URL 同值；bundle patch 挂载 `harness-dev-context` 行 |
+| `@panedesk/dsh-system-prompt` | `CONTEXT_ORDERS.HARNESS_SOURCE = 200`、`WEB_SURFACE = 210` |
 
-插件 `inject` 为 `systemPrompt`、`sessionProjections`、`webApp`，在代码里直接读取这些服务；patch 行不写任何配置表达式。checkout 路径取本包源码或构建入口上溯四层，与原 web-app 位置同深度，源码、npm 与 Desktop 安装下结果不变。URL 取 `webApp.getAdvertisedUrl()`，因此 profile 覆盖 `web-runtime` 行的 `publicUrl` 时模型也能看到。插件通过 `import type {} from '@deepseek-ai/dsh-web-app'` 取得 `webApp` 类型；该导入在运行时被擦除，因此 web-app bundle 对本包的依赖仍是唯一的运行时依赖。
+插件 `inject` 为 `systemPrompt`、`sessionProjections`、`webApp`，在代码里直接读取这些服务；patch 行不写任何配置表达式。checkout 路径取本包源码或构建入口上溯四层，与原 web-app 位置同深度，源码、npm 与 Desktop 安装下结果不变。URL 取 `webApp.getAdvertisedUrl()`，因此 profile 覆盖 `web-runtime` 行的 `publicUrl` 时模型也能看到。插件通过 `import type {} from '@panedesk/dsh-web-app'` 取得 `webApp` 类型；该导入在运行时被擦除，因此 web-app bundle 对本包的依赖仍是唯一的运行时依赖。
 
 ### 新会话
 

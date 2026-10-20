@@ -131,8 +131,8 @@ describe('catalog and local closure', () => {
     }
     expect(selection.workspaceNames).toEqual(expect.arrayContaining(selection.members.map(member => member.name)))
     // A vendor package keeps its own version line, so a run must not assume one shared version.
-    expect(packages.get('@deepseek-ai/cordis')?.manifest.version)
-      .not.toBe(packages.get('@deepseek-ai/dsh-brand')?.manifest.version)
+    expect(packages.get('@panedesk/cordis')?.manifest.version)
+      .not.toBe(packages.get('@panedesk/dsh-brand')?.manifest.version)
     // Nothing in this closure is built for another platform, on any host.
     expect(selection.foreignTargets).toEqual([])
   })
@@ -354,14 +354,14 @@ describe('registry HTTP', () => {
     const destination = temporaryDirectory('dsh-local-registry-miss-')
     const { artifact } = fabricate({ destination, name: '@scope/local', version: '1.0.0', source: 'export default 1\n' })
     const url = await servingRun({
-      destination, artifacts: [artifact], workspaceNames: ['@scope/local', '@deepseek-ai/dsh-private-thing'],
+      destination, artifacts: [artifact], workspaceNames: ['@scope/local', '@panedesk/dsh-private-thing'],
     })
-    const owned = await fetch(`${url}@deepseek-ai%2fdsh-private-thing`)
+    const owned = await fetch(`${url}@panedesk%2fdsh-private-thing`)
     expect(owned.status).toBe(404)
     const refusal = await owned.json() as { reason?: string }
     expect(refusal.reason ?? '').toContain('repository-owned')
     // A repository-owned name that is not even in the closure must never reach npm.
-    expect((await fetch(`${url}@deepseek-ai%2fdsh-private-thing/1.0.0`)).status).toBe(404)
+    expect((await fetch(`${url}@panedesk%2fdsh-private-thing/1.0.0`)).status).toBe(404)
 
     const external = await fetch(`${url}@anthropic-ai%2fclaude-agent-sdk`, { redirect: 'manual' })
     expect(external.status).toBe(302)

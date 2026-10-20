@@ -3,7 +3,7 @@ description: "Experimental Chrome DevTools inspection for Host and browser Clien
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-inspector
+# @panedesk/dsh-experimental-inspector
 
 English | [中文](README.zh.md)
 
@@ -94,7 +94,7 @@ The Host plugin injects `webServer` and `connection` and accepts these fields:
 | `maxCordisNodes` | `2048` | Context and Fiber nodes admitted from one realm snapshot before truncation |
 | `maxDisconnectedCordisTrees` | `8` | Last disconnected realm trees retained as non-live snapshots |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-experimental-inspector) is the exhaustive source for accepted fields and their declarations.
+The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-experimental-inspector) is the exhaustive source for accepted fields and their declarations.
 
 The Host logs a `devtools://` URL after the Worker listens. The same Worker serves `/json`, `/json/list`, `/json/version`, the target WebSocket under `/devtools/page/<id>`, and the Client source at `/ingest`.
 
@@ -104,8 +104,8 @@ The Host logs a `devtools://` URL after the Worker listens. The same Worker serv
 Both plugin faces provide the same service:
 
 ```ts
-import type { Context } from '@deepseek-ai/cordis'
-import type { InspectorJsonValue } from '@deepseek-ai/dsh-experimental-inspector'
+import type { Context } from '@panedesk/cordis'
+import type { InspectorJsonValue } from '@panedesk/dsh-experimental-inspector'
 
 declare const ctx: Context
 declare const topic: string

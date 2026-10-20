@@ -1,32 +1,32 @@
 import { randomUUID } from 'node:crypto'
-import { provideWorkingDirectoryFixture, mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture, mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { SandboxBashExecutor } from '@deepseek-ai/dsh-bash-sandbox'
-import { NodePtcRuntime } from '@deepseek-ai/dsh-ptc-runtime-node'
-import * as FsObservationPolicy from '@deepseek-ai/dsh-fs-observation-policy'
-import { SandboxedFileSystem } from '@deepseek-ai/dsh-fs-sandbox'
+import { Context } from '@panedesk/cordis'
+import type { Agent } from '@panedesk/dsh-agent'
+import AgentLoop from '@panedesk/dsh-agent-loop'
+import { SandboxBashExecutor } from '@panedesk/dsh-bash-sandbox'
+import { NodePtcRuntime } from '@panedesk/dsh-ptc-runtime-node'
+import * as FsObservationPolicy from '@panedesk/dsh-fs-observation-policy'
+import { SandboxedFileSystem } from '@panedesk/dsh-fs-sandbox'
 import {
   createUserMessage, isAgentLoopRequest, ToolCallId,
   type StreamChunk,
-} from '@deepseek-ai/dsh-llm'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
-import PermissionPresetService, { AUTO_PRESET } from '@deepseek-ai/dsh-permission-presets'
-import SandboxProvider, { type ConfinedArgv, type SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
-import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
-import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
-import * as ShellEnv from '@deepseek-ai/dsh-shell-env'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
-import { RUN_CODE_NAME } from '@deepseek-ai/dsh-tools'
-import ApprovalService, { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval'
+} from '@panedesk/dsh-llm'
+import * as LlmDeepSeek from '@panedesk/dsh-llm-deepseek-api-key'
+import PermissionPresetService, { AUTO_PRESET } from '@panedesk/dsh-permission-presets'
+import SandboxProvider, { type ConfinedArgv, type SandboxPolicy } from '@panedesk/dsh-sandbox'
+import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
+import { SessionId, type SessionEvent } from '@panedesk/dsh-session'
+import * as ShellEnv from '@panedesk/dsh-shell-env'
+import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
+import * as ToolBash from '@panedesk/dsh-tool-bash'
+import * as ToolFs from '@panedesk/dsh-tool-fs'
+import { RUN_CODE_NAME } from '@panedesk/dsh-tools'
+import ApprovalService, { setApprovalPolicy } from '@panedesk/dsh-user-approval'
 import { expect, it, vi } from 'vitest'
-import * as AutoReview from '@deepseek-ai/dsh-experimental-auto-review'
+import * as AutoReview from '@panedesk/dsh-experimental-auto-review'
 
 const PROVIDER = 'deepseek-official'
 const FLASH = 'deepseek-v4-flash'
@@ -260,7 +260,7 @@ it('certifies eight Auto risk/authorization cases with zero retries and zero ski
     const dshHome = join(root, 'dsh-home')
     await mkdir(workspace)
     await mkdir(dshHome, { mode: 0o700 })
-    vi.stubEnv('DSH_HOME', dshHome)
+    vi.stubEnv('PANEDESK_HOME', dshHome)
     await mount(ctx, workspace, dshHome)
     const runner = orchestrate(ctx, REAL)
     const cases: CaseResult[] = []
@@ -366,7 +366,7 @@ it.each(['native', 'ptc-inner'] as const)('feeds denial back, re-reviews a new c
   try {
     const dshHome = join(root, 'home')
     await mkdir(dshHome)
-    vi.stubEnv('DSH_HOME', dshHome)
+    vi.stubEnv('PANEDESK_HOME', dshHome)
     await mount(ctx, root, dshHome)
     const runner = orchestrate(ctx, false)
     const target = join(root, 'existing.txt')

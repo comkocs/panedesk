@@ -27,7 +27,7 @@ const input = (overrides: Partial<CrashReportInput> = {}): CrashReportInput => (
     errno: -4058, code: 'ENOENT', syscall: 'open', path: 'C:\\Temp\\dsh-subprocess-x\\out.log',
   }),
   rendererConsole: [],
-  app: { name: 'DeepSeek Harness', version: '0.1.7', platform: 'win32', arch: 'x64', electron: '44.0.0', node: '24.18.1', locale: 'zh_CN' },
+  app: { name: 'Panedesk', version: '0.1.7', platform: 'win32', arch: 'x64', electron: '44.0.0', node: '24.18.1', locale: 'zh_CN' },
   time: new Date('2026-09-22T10:30:00.123Z'),
   ...overrides,
 })
@@ -78,7 +78,7 @@ it('returns undefined and logs when the report cannot be written', async () => {
   const blocked = join(root, 'not-a-directory')
   await writeFile(blocked, '')
   expect(await writeCrashReport(blocked, input())).toBeUndefined()
-  expect(error).toHaveBeenCalledWith('dsh desktop: crash report could not be written', expect.stringContaining('crash-'), expect.anything())
+  expect(error).toHaveBeenCalledWith('panedesk desktop: crash report could not be written', expect.stringContaining('crash-'), expect.anything())
 })
 
 it('prunes only the oldest crash reports and leaves other files alone', async () => {

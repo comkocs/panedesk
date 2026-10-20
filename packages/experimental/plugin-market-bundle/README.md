@@ -3,7 +3,7 @@ description: "Enable experimental custom plugin markets from the plugin manager.
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-experimental-plugin-market-bundle
+# @panedesk/dsh-experimental-plugin-market-bundle
 
 English | [中文](README.zh.md)
 

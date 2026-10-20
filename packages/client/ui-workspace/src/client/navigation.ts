@@ -1,7 +1,7 @@
 /** Workspace archive and directory UI capability. */
 
-import { Service, type Context } from '@deepseek-ai/cordis'
-import type { ClientRemote, DirectoryListing, RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
+import { Service, type Context } from '@panedesk/cordis'
+import type { ClientRemote, DirectoryListing, RemoteFailure } from '@panedesk/dsh-api-remotes/client'
 import type {
   ISessions,
   SessionCreateError,
@@ -9,17 +9,17 @@ import type {
   SessionReference,
   SessionTarget,
   SessionListState,
-} from '@deepseek-ai/dsh-api-session-controller/client'
+} from '@panedesk/dsh-api-session-controller/client'
 // Type-only: pulls the `agentPreset` Session projection value into this program.
-import type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
+import type {} from '@panedesk/dsh-agent-preset-registry/types'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
+import type { SubagentAddress } from '@panedesk/dsh-subagent/client'
 import type {
   IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
-} from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { DraftInitializationOptions } from '@deepseek-ai/dsh-client-ui-conversation/client'
+} from '@panedesk/dsh-api-workspace-controller/client'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import type {} from '@panedesk/dsh-client-ui-layout/client'
+import type { DraftInitializationOptions } from '@panedesk/dsh-client-ui-conversation/client'
 import type { RowToast } from './contract/slots.ts'
 import { pinOrderAccounts, pinOrderSource } from './pin-order.ts'
 import type { WorkspaceViewStoreActions } from './stores.ts'
@@ -131,7 +131,7 @@ export interface UiWorkspace {
   createDirectory(path: string, name: string): Promise<string>
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     /** Cross-Controller Workspace navigation and directory UI capability. */
     uiWorkspace: UiWorkspace

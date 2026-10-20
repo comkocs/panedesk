@@ -1,18 +1,18 @@
 import { chmod, mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
-import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import * as AgentInstructions from '@deepseek-ai/dsh-agent-instructions'
-import LlmRuntime, { createUserMessage, ToolCallId, type Message, type MessageSource, type StreamChunk } from '@deepseek-ai/dsh-llm'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-import SessionStore, { SessionId, SessionSeq, type SessionEvent, type SurfaceIntent, type UserMessage } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import AgentRegistry, { agentEvents, type Agent } from '@deepseek-ai/dsh-agent'
-import AgentLoop, { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
-import { FileSystem, FsTargetKey, FsVersion } from '@deepseek-ai/dsh-fs'
+import { Context } from '@panedesk/cordis'
+import Loader from '@panedesk/cordis-plugin-loader'
+import * as AgentInstructions from '@panedesk/dsh-agent-instructions'
+import LlmRuntime, { createUserMessage, ToolCallId, type Message, type MessageSource, type StreamChunk } from '@panedesk/dsh-llm'
+import type { ContextFormed } from '@panedesk/dsh-llm'
+import SessionStore, { SessionId, SessionSeq, type SessionEvent, type SurfaceIntent, type UserMessage } from '@panedesk/dsh-session'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import AgentRegistry, { agentEvents, type Agent } from '@panedesk/dsh-agent'
+import AgentLoop, { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
+import { FileSystem, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import type {
   FsDirEntry,
   FsEditOutcome,
@@ -22,20 +22,20 @@ import type {
   FsTarget,
   FsWriteIntent,
   FsWriteOutcome,
-} from '@deepseek-ai/dsh-fs'
-import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
+} from '@panedesk/dsh-fs'
+import LocalFileSystem from '@panedesk/dsh-fs-local'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime, { defineContentToolFixture } from '@panedesk/dsh-tools'
 import type {
   ToolExecution,
   ToolExecutionToken,
-} from '@deepseek-ai/dsh-tools'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
+} from '@panedesk/dsh-tools'
+import * as ToolFs from '@panedesk/dsh-tool-fs'
 import {
   discoverBaselineInstructionFiles,
   loadBaselineInstructions,
   renderAgentInstructions,
-} from '@deepseek-ai/dsh-agent-instructions'
+} from '@panedesk/dsh-agent-instructions'
 import {
   applyInstructionVersionUpdates,
   baselineInstructionState,
@@ -48,9 +48,9 @@ import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent
 import {
   mountAgentLoopTestDependencies,
   mountAgentLoopTestHarness,
-} from '@deepseek-ai/dsh-agent-loop-testkit'
+} from '@panedesk/dsh-agent-loop-testkit'
 
-declare module '@deepseek-ai/dsh-llm' {
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'downstream': { kind: 'downstream' } & ContextFormed
     'other': { kind: 'other' } & ContextFormed
@@ -76,10 +76,10 @@ const isolatedAgentLoop = await mountAgentLoopTestHarness(isolatedInboxCtx)
 let nextStubSession = 1
 // The shared agents root defaults to the developer's real ~/.agents, whose
 // AGENTS.md would otherwise join every discovery result. Tests that exercise
-// that root pin `DSH_AGENTS_HOME`; the rest read this absent root.
+// that root pin `PANEDESK_AGENTS_HOME`; the rest read this absent root.
 const absentAgentsHome = await mkdtemp(join(tmpdir(), 'dsh-absent-agents-'))
 beforeEach(() => {
-  vi.stubEnv('DSH_AGENTS_HOME', absentAgentsHome)
+  vi.stubEnv('PANEDESK_AGENTS_HOME', absentAgentsHome)
 })
 afterAll(async () => {
   await isolatedInboxCtx.fiber.dispose()
@@ -106,15 +106,15 @@ async function write(path: string, content: string): Promise<void> {
 /**
  * Pin the harness home for the current test; the plugin resolves it from the
  * process environment and ignores row configuration.
- * @param home - absolute harness home that `$DSH_HOME` names.
+ * @param home - absolute harness home that `$PANEDESK_HOME` names.
  */
 function pinHarnessHome(home: string): void {
-  vi.stubEnv('DSH_HOME', home)
+  vi.stubEnv('PANEDESK_HOME', home)
 }
 
 /** Pin the shared agents root for the current test; the plugin resolves it from the process environment. */
 function pinAgentsHome(home: string): void {
-  vi.stubEnv('DSH_AGENTS_HOME', home)
+  vi.stubEnv('PANEDESK_AGENTS_HOME', home)
 }
 
 class RecordingFileSystem extends FileSystem {
@@ -406,7 +406,7 @@ describe('workspace context instruction discovery', () => {
       const files = await discoverBaselineInstructionFiles({ cwd })
 
       expect(files.map(file => file.displayPath)).toEqual([
-        '$DSH_HOME/AGENTS.md',
+        '$PANEDESK_HOME/AGENTS.md',
         'AGENTS.md',
         'CLAUDE.md',
         join('packages', 'CLAUDE.md'),
@@ -689,11 +689,11 @@ describe('workspace context instruction discovery', () => {
   it('uses the default harness home and cwd itself as root when no project marker exists', async () => {
     const root = await tempRepo()
     const emptyHome = await tempRepo()
-    // Isolate the default-home fallback: blank DSH_HOME is treated as unset, and
-    // the home dirs point at an empty dir so the default ~/.dsh holds no global
+    // Isolate the default-home fallback: blank PANEDESK_HOME is treated as unset, and
+    // the home dirs point at an empty dir so the default ~/.panedesk holds no global
     // scope. Windows homedir() reads USERPROFILE (not HOME), so both must be
-    // stubbed or a real ~/.dsh/AGENTS.md would otherwise leak in.
-    vi.stubEnv('DSH_HOME', '')
+    // stubbed or a real ~/.panedesk/AGENTS.md would otherwise leak in.
+    vi.stubEnv('PANEDESK_HOME', '')
     vi.stubEnv('HOME', emptyHome)
     if (process.platform === 'win32') vi.stubEnv('USERPROFILE', emptyHome)
     try {
@@ -725,7 +725,7 @@ describe('workspace context instruction discovery', () => {
       const files = await discoverBaselineInstructionFiles({ cwd: root, dshHome: ownerHome })
       const loaded = await loadBaselineInstructions({ cwd: root, dshHome: ownerHome, maxBytes: 65536 })
 
-      expect(files).toEqual([{ absolutePath: join(ownerHome, 'AGENTS.md'), displayPath: '$DSH_HOME/AGENTS.md' }])
+      expect(files).toEqual([{ absolutePath: join(ownerHome, 'AGENTS.md'), displayPath: '$PANEDESK_HOME/AGENTS.md' }])
       expect(loaded?.text).toContain('owner-resolved rule')
       expect(loaded?.text).not.toContain('environment rule')
     } finally {
@@ -736,16 +736,16 @@ describe('workspace context instruction discovery', () => {
     }
   })
 
-  it('honors DSH_HOME from the process environment', async () => {
+  it('honors PANEDESK_HOME from the process environment', async () => {
     const root = await tempRepo()
     const envHome = await tempRepo()
     try {
       await write(join(envHome, 'AGENTS.md'), 'env global rule')
-      vi.stubEnv('DSH_HOME', envHome)
+      vi.stubEnv('PANEDESK_HOME', envHome)
 
       const files = await discoverBaselineInstructionFiles({ cwd: root })
 
-      expect(files).toEqual([{ absolutePath: join(envHome, 'AGENTS.md'), displayPath: '$DSH_HOME/AGENTS.md' }])
+      expect(files).toEqual([{ absolutePath: join(envHome, 'AGENTS.md'), displayPath: '$PANEDESK_HOME/AGENTS.md' }])
     } finally {
       vi.unstubAllEnvs()
       await rm(root, { recursive: true, force: true })
@@ -753,18 +753,18 @@ describe('workspace context instruction discovery', () => {
     }
   })
 
-  it('honors DSH_AGENTS_HOME from the process environment', async () => {
+  it('honors PANEDESK_AGENTS_HOME from the process environment', async () => {
     const root = await tempRepo()
     const emptyHome = await tempRepo()
     const envAgents = await tempRepo()
     try {
       await write(join(envAgents, 'AGENTS.md'), 'env shared rule')
-      vi.stubEnv('DSH_AGENTS_HOME', envAgents)
+      vi.stubEnv('PANEDESK_AGENTS_HOME', envAgents)
 
       pinHarnessHome(emptyHome)
       const files = await discoverBaselineInstructionFiles({ cwd: root })
 
-      expect(files).toEqual([{ absolutePath: join(envAgents, 'AGENTS.md'), displayPath: '$DSH_AGENTS_HOME/AGENTS.md' }])
+      expect(files).toEqual([{ absolutePath: join(envAgents, 'AGENTS.md'), displayPath: '$PANEDESK_AGENTS_HOME/AGENTS.md' }])
     } finally {
       vi.unstubAllEnvs()
       await rm(root, { recursive: true, force: true })
@@ -787,8 +787,8 @@ describe('workspace context instruction discovery', () => {
       const loaded = await loadBaselineInstructions({ cwd: root, maxBytes: 65536 })
       const text = loaded?.text ?? ''
 
-      expect(text).toContain('Instructions from: $DSH_HOME/AGENTS.md\n\nharness home rule')
-      expect(text).toContain('Instructions from: $DSH_AGENTS_HOME/AGENTS.md\n\nshared agents rule')
+      expect(text).toContain('Instructions from: $PANEDESK_HOME/AGENTS.md\n\nharness home rule')
+      expect(text).toContain('Instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md\n\nshared agents rule')
       expect(text.indexOf('harness home rule')).toBeLessThan(text.indexOf('shared agents rule'))
     } finally {
       vi.unstubAllEnvs()
@@ -806,11 +806,11 @@ describe('workspace context instruction discovery', () => {
 
       // A set environment variable would override the homedir default and
       // relabel the root, so both homes must fall back to the stubbed OS home.
-      vi.stubEnv('DSH_HOME', '')
-      vi.stubEnv('DSH_AGENTS_HOME', '')
+      vi.stubEnv('PANEDESK_HOME', '')
+      vi.stubEnv('PANEDESK_AGENTS_HOME', '')
       vi.resetModules()
       vi.doMock('node:os', () => ({ homedir: () => home }))
-      const isolated = await import('@deepseek-ai/dsh-agent-instructions')
+      const isolated = await import('@panedesk/dsh-agent-instructions')
       const files = await isolated.discoverBaselineInstructionFiles({ cwd: root })
 
       expect(files.map(file => file.displayPath)).toEqual(['~/.agents/AGENTS.md'])
@@ -823,20 +823,20 @@ describe('workspace context instruction discovery', () => {
     }
   })
 
-  it('labels the default DSH home as ~/.dsh when HOME points at the configured default', async () => {
+  it('labels the default DSH home as ~/.panedesk when HOME points at the configured default', async () => {
     const root = await tempRepo()
     const home = await tempRepo()
     try {
-      await write(join(home, '.dsh/AGENTS.md'), 'global default rule')
+      await write(join(home, '.panedesk/AGENTS.md'), 'global default rule')
 
-      // A set DSH_HOME would override the homedir default and relabel the home.
-      vi.stubEnv('DSH_HOME', '')
+      // A set PANEDESK_HOME would override the homedir default and relabel the home.
+      vi.stubEnv('PANEDESK_HOME', '')
       vi.resetModules()
       vi.doMock('node:os', () => ({ homedir: () => home }))
-      const isolated = await import('@deepseek-ai/dsh-agent-instructions')
+      const isolated = await import('@panedesk/dsh-agent-instructions')
       const files = await isolated.discoverBaselineInstructionFiles({ cwd: root })
 
-      expect(files.map(file => file.displayPath)).toEqual(['~/.dsh/AGENTS.md'])
+      expect(files.map(file => file.displayPath)).toEqual(['~/.panedesk/AGENTS.md'])
     } finally {
       vi.unstubAllEnvs()
       vi.doUnmock('node:os')
@@ -846,19 +846,19 @@ describe('workspace context instruction discovery', () => {
     }
   })
 
-  it('expands a ~/.dsh DSH_HOME to the operating-system home directory', async () => {
+  it('expands a ~/.panedesk PANEDESK_HOME to the operating-system home directory', async () => {
     const root = await tempRepo()
     const home = await tempRepo()
     try {
-      await write(join(home, '.dsh/AGENTS.md'), 'global tilde rule')
+      await write(join(home, '.panedesk/AGENTS.md'), 'global tilde rule')
 
       vi.resetModules()
       vi.doMock('node:os', () => ({ homedir: () => home }))
-      const isolated = await import('@deepseek-ai/dsh-agent-instructions')
-      pinHarnessHome('~/.dsh')
+      const isolated = await import('@panedesk/dsh-agent-instructions')
+      pinHarnessHome('~/.panedesk')
       const files = await isolated.discoverBaselineInstructionFiles({ cwd: root })
 
-      expect(files).toEqual([{ absolutePath: join(home, '.dsh/AGENTS.md'), displayPath: '~/.dsh/AGENTS.md' }])
+      expect(files).toEqual([{ absolutePath: join(home, '.panedesk/AGENTS.md'), displayPath: '~/.panedesk/AGENTS.md' }])
     } finally {
       vi.unstubAllEnvs()
       vi.doUnmock('node:os')
@@ -868,7 +868,7 @@ describe('workspace context instruction discovery', () => {
     }
   })
 
-  it('deduplicates user-global instructions when DSH_HOME points at the project root', async () => {
+  it('deduplicates user-global instructions when PANEDESK_HOME points at the project root', async () => {
     const root = await tempRepo()
     try {
       await mkdir(join(root, '.git'), { recursive: true })
@@ -877,7 +877,7 @@ describe('workspace context instruction discovery', () => {
       pinHarnessHome(root)
       const files = await discoverBaselineInstructionFiles({ cwd: root })
 
-      expect(files).toEqual([{ absolutePath: join(root, 'AGENTS.md'), displayPath: '$DSH_HOME/AGENTS.md' }])
+      expect(files).toEqual([{ absolutePath: join(root, 'AGENTS.md'), displayPath: '$PANEDESK_HOME/AGENTS.md' }])
     } finally {
       vi.unstubAllEnvs()
       await rm(root, { recursive: true, force: true })
@@ -1465,7 +1465,7 @@ describe('workspace context request injection', () => {
       const contexts = original.session.snapshotEvents().filter(event => event.type === 'user/message'
         && event.data.source.kind === 'agent-instructions')
       expect(contexts).toHaveLength(1)
-      expect(derivedText(original)).toContain('omitted $DSH_HOME/AGENTS.md')
+      expect(derivedText(original)).toContain('omitted $PANEDESK_HOME/AGENTS.md')
       expect(derivedText(original)).not.toContain('global instruction')
       await syncAgentInstructions(ctx, original)
       await syncAgentInstructions(ctx, original)
@@ -2060,7 +2060,7 @@ describe('workspace context request injection', () => {
         kind: 'agent-instructions',
         changes: [{ action: 'remove', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE) }],
       })
-      expect(blocksText(pending?.content)).toContain('Instructions removed: $DSH_AGENTS_HOME/AGENTS.md')
+      expect(blocksText(pending?.content)).toContain('Instructions removed: $PANEDESK_AGENTS_HOME/AGENTS.md')
     } finally {
       vi.unstubAllEnvs()
       await rm(root, { recursive: true, force: true })
@@ -2087,7 +2087,7 @@ describe('workspace context request injection', () => {
       await syncAgentInstructions(ctx, agent)
 
       const text = blocksText((await agentInstructionsOf(agent))?.content)
-      expect(text).toContain('Additional instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+      expect(text).toContain('Additional instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
       expect(text).toContain('These user-global instructions apply to all work.')
       expect(text).toContain('shared delta rule')
       expect(text).not.toContain(AGENTS_GLOBAL_DIRECTORY)
@@ -2126,7 +2126,7 @@ describe('workspace context request injection', () => {
         await composeBaselinePrefix(ctx, agent)
 
         expect(derivedText(agent).match(/shared global rule/g)).toHaveLength(1)
-        expect(derivedText(agent)).not.toContain('$DSH_AGENTS_HOME/AGENTS.md')
+        expect(derivedText(agent)).not.toContain('$PANEDESK_AGENTS_HOME/AGENTS.md')
         await syncAgentInstructions(ctx, agent)
         expect(agent.inbox.nextStep.filter(message => message.source.kind === 'agent-instructions')).toEqual([])
 
@@ -2152,14 +2152,14 @@ describe('workspace context request injection', () => {
             {
               action: winner === 'edit' ? 'replace' : 'remove',
               scope: sk(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE),
-              path: '$DSH_HOME/AGENTS.md',
+              path: '$PANEDESK_HOME/AGENTS.md',
             },
-            { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$DSH_AGENTS_HOME/AGENTS.md' },
+            { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$PANEDESK_AGENTS_HOME/AGENTS.md' },
           ],
         })
         const recoveredText = blocksText(pending[0]?.content)
-        expect(recoveredText).toContain(`${winner === 'edit' ? 'Updated instructions from:' : 'Instructions removed:'} $DSH_HOME/AGENTS.md`)
-        expect(recoveredText).toContain('Additional instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+        expect(recoveredText).toContain(`${winner === 'edit' ? 'Updated instructions from:' : 'Instructions removed:'} $PANEDESK_HOME/AGENTS.md`)
+        expect(recoveredText).toContain('Additional instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
         expect(recoveredText).toContain('These user-global instructions apply to all work.')
         expect(recoveredText.match(/shared global rule/g)).toHaveLength(1)
         if (winner === 'edit') expect(recoveredText).toContain('new harness rule')
@@ -2227,8 +2227,8 @@ describe('workspace context request injection', () => {
           { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE) },
         ],
       })
-      expect(blocksText(recovered.content)).toContain('Updated instructions from: $DSH_HOME/AGENTS.md')
-      expect(blocksText(recovered.content)).toContain('Additional instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+      expect(blocksText(recovered.content)).toContain('Updated instructions from: $PANEDESK_HOME/AGENTS.md')
+      expect(blocksText(recovered.content)).toContain('Additional instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
       expect(blocksText(recovered.content)).not.toContain('Additional instructions from: AGENTS.md')
       await appendAdditionalContexts(ctx, agent)
       await syncAgentInstructions(ctx, agent)
@@ -2256,7 +2256,7 @@ describe('workspace context request injection', () => {
       const agent = await stubAgent(root)
       const baseline = baselineInstructionState([{
         absolutePath: harnessPath,
-        displayPath: '$DSH_HOME/AGENTS.md',
+        displayPath: '$PANEDESK_HOME/AGENTS.md',
         content: 'shared global rule',
         version: FsVersion('harness-v1'),
       }])
@@ -2287,8 +2287,8 @@ describe('workspace context request injection', () => {
       expect(recovered?.context.source).toMatchObject({
         kind: 'agent-instructions',
         changes: [
-          { action: 'replace', scope: sk(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$DSH_HOME/AGENTS.md' },
-          { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$DSH_AGENTS_HOME/AGENTS.md' },
+          { action: 'replace', scope: sk(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$PANEDESK_HOME/AGENTS.md' },
+          { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$PANEDESK_AGENTS_HOME/AGENTS.md' },
         ],
       })
       expect(blocksText(recovered?.context.content)).toContain('These user-global instructions apply to all work.')
@@ -2322,8 +2322,8 @@ describe('workspace context request injection', () => {
       await syncAgentInstructions(ctx, agent)
 
       const text = blocksText((await agentInstructionsOf(agent))?.content)
-      expect(text).toContain('Instructions removed: $DSH_HOME/AGENTS.md')
-      expect(text).toContain('Additional instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+      expect(text).toContain('Instructions removed: $PANEDESK_HOME/AGENTS.md')
+      expect(text).toContain('Additional instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
       expect(text).toContain('shared global rule')
       expect(text).not.toContain('agents-global')
     } finally {
@@ -2400,8 +2400,8 @@ describe('workspace context request injection', () => {
         await mountAgentInstructionsPlugin(ctx, { maxBytes: 65536 })
         const agent = await stubAgent(root)
         await composeBaselinePrefix(ctx, agent)
-        expect(derivedText(agent)).toContain('Instructions from: $DSH_HOME/AGENTS.md')
-        expect(derivedText(agent)).toContain('Instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+        expect(derivedText(agent)).toContain('Instructions from: $PANEDESK_HOME/AGENTS.md')
+        expect(derivedText(agent)).toContain('Instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
 
         if (formation === 'shared-edited') {
           fs.entries.set(sharedPath, { type: 'file', content: duplicateText, version: FsVersion('shared-v2') })
@@ -2413,9 +2413,9 @@ describe('workspace context request injection', () => {
         expect(removal.source.changes).toContainEqual({
           action: 'remove',
           scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE),
-          path: '$DSH_AGENTS_HOME/AGENTS.md',
+          path: '$PANEDESK_AGENTS_HOME/AGENTS.md',
         })
-        expect(blocksText(removal.content)).toContain('Instructions removed: $DSH_AGENTS_HOME/AGENTS.md')
+        expect(blocksText(removal.content)).toContain('Instructions removed: $PANEDESK_AGENTS_HOME/AGENTS.md')
         await appendAdditionalContexts(ctx, agent)
 
         fs.readTargets.length = 0
@@ -2436,13 +2436,13 @@ describe('workspace context request injection', () => {
             {
               action: winner === 'edit' ? 'replace' : 'remove',
               scope: sk(USER_GLOBAL_DIRECTORY, USER_GLOBAL_FILE),
-              path: '$DSH_HOME/AGENTS.md',
+              path: '$PANEDESK_HOME/AGENTS.md',
             },
-            { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$DSH_AGENTS_HOME/AGENTS.md' },
+            { action: 'set', scope: sk(AGENTS_GLOBAL_DIRECTORY, USER_GLOBAL_FILE), path: '$PANEDESK_AGENTS_HOME/AGENTS.md' },
           ],
         })
         const promotedText = blocksText(promotion.content)
-        expect(promotedText).toContain('Additional instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+        expect(promotedText).toContain('Additional instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
         expect(promotedText).toContain('These user-global instructions apply to all work.')
         expect(promotedText.match(/global rule B/g)).toHaveLength(1)
         expect(fs.readTargets.filter(path => path === sharedPath)).toHaveLength(1)
@@ -2891,8 +2891,8 @@ describe('workspace context request injection', () => {
 
       const text = derivedText(agent)
       expect(text.match(/shared global rule/g)).toHaveLength(1)
-      expect(text).toContain('Instructions from: $DSH_HOME/AGENTS.md')
-      expect(text).not.toContain('Instructions from: $DSH_AGENTS_HOME/AGENTS.md')
+      expect(text).toContain('Instructions from: $PANEDESK_HOME/AGENTS.md')
+      expect(text).not.toContain('Instructions from: $PANEDESK_AGENTS_HOME/AGENTS.md')
     } finally {
       vi.unstubAllEnvs()
       await rm(root, { recursive: true, force: true })
@@ -3484,7 +3484,7 @@ describe('workspace context request injection', () => {
     }
   })
 
-  it('labels a custom DSH_HOME as $DSH_HOME instead of pretending it is ~/.dsh', async () => {
+  it('labels a custom PANEDESK_HOME as $PANEDESK_HOME instead of pretending it is ~/.panedesk', async () => {
     const root = await tempRepo()
     const home = await tempRepo()
     try {
@@ -3492,7 +3492,7 @@ describe('workspace context request injection', () => {
       pinHarnessHome(home)
       const files = await discoverBaselineInstructionFiles({ cwd: root })
 
-      expect(files.map(file => file.displayPath)).toEqual(['$DSH_HOME/AGENTS.md'])
+      expect(files.map(file => file.displayPath)).toEqual(['$PANEDESK_HOME/AGENTS.md'])
     } finally {
       vi.unstubAllEnvs()
       await rm(root, { recursive: true, force: true })
@@ -3519,7 +3519,7 @@ describe('workspace context request injection', () => {
           },
         }
       })
-      const isolated = await import('@deepseek-ai/dsh-agent-instructions')
+      const isolated = await import('@panedesk/dsh-agent-instructions')
       pinHarnessHome(home)
       await isolated.loadBaselineInstructions({ cwd: root, maxBytes: 65536 })
       observedStats.clear()
@@ -3555,7 +3555,7 @@ describe('workspace context request injection', () => {
           },
         }
       })
-      const isolated = await import('@deepseek-ai/dsh-agent-instructions')
+      const isolated = await import('@panedesk/dsh-agent-instructions')
 
       pinHarnessHome(home)
       const rendered = await isolated.loadBaselineInstructions({ cwd: root, maxBytes: 65536 })
@@ -3594,7 +3594,7 @@ describe('workspace context request injection', () => {
           },
         }
       })
-      const isolated = await import('@deepseek-ai/dsh-agent-instructions')
+      const isolated = await import('@panedesk/dsh-agent-instructions')
 
       pinHarnessHome(home)
       await expect(isolated.loadBaselineInstructions({ cwd, maxBytes: 65536 }))

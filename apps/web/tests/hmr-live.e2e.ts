@@ -1,4 +1,4 @@
-/** Built dsh web + the `pnpm run dev:web --no-serve` watchers → browser HMR, with no page reload. */
+/** Built panedesk web + the `pnpm run dev:web --no-serve` watchers → browser HMR, with no page reload. */
 
 import { existsSync, globSync, statSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type { Fiber } from '@deepseek-ai/cordis'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
+import { Context } from '@panedesk/cordis'
+import type { Fiber } from '@panedesk/cordis'
+import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
+import type { SubprocessHandle, SubprocessSpawnSpec } from '@panedesk/dsh-subprocess'
 import { readClientBuildRecord } from '../../../scripts/client-build-environment.ts'
 import { REPO_ROOT } from './support.ts'
 
@@ -108,7 +108,7 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
   const failures: unknown[] = []
   try {
     subprocessFiber = await subprocessCtx.plugin(LocalSubprocessRuntime)
-    // Watchers only: the built `dsh web` below is the server under test, and the
+    // Watchers only: the built `panedesk web` below is the server under test, and the
     // built tree is this lane's precondition rather than something to rebuild.
     watcher = subprocessCtx.subprocess.spawn(spawnSpec(
       ['pnpm', 'run', 'dev:web', '--skip-build', '--no-serve'],
@@ -121,10 +121,10 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
       world,
       {
         DEEPSEEK_API_KEY: 'keyless-hmr-no-call',
-        DSH_HOME: join(world, '.dsh'),
+        PANEDESK_HOME: join(world, '.panedesk'),
       },
     ))
-    const baseUrl = await waitForOutput(host, /dsh web: (http:\/\/[^\s]+)/, 'built dsh web')
+    const baseUrl = await waitForOutput(host, /panedesk web: (http:\/\/[^\s]+)/, 'built panedesk web')
     browser = await chromium.launch()
     const page = await browser.newPage()
     const pageErrors: string[] = []

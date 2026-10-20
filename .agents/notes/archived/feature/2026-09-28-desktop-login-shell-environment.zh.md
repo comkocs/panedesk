@@ -19,7 +19,7 @@ Archived: 2026-09-30
 
 **只使用非交互的 `-lc`。** 多数用户在 `~/.zshrc` 中添加 PATH，而只有交互式 shell 会读取它。交互模式需要设置读取变量，避免 oh-my-zsh 更新提示和 tmux 自动启动阻塞。
 
-**允许 shell 的值覆盖 `DSH_*` 变量。** Desktop 在读取之前已解析 `DSH_HOME` 及其 profile 路径，因此 `~/.zshrc` 导出的 `DSH_HOME` 会让 Host 使用与 Desktop 已准备的不同的 home。
+**允许 shell 的值覆盖 `DSH_*` 变量。** Desktop 在读取之前已解析 `PANEDESK_HOME` 及其 profile 路径，因此 `~/.zshrc` 导出的 `PANEDESK_HOME` 会让 Host 使用与 Desktop 已准备的不同的 home。
 
 **等待 stdout 关闭。** 启动文件启动的后台进程继承 stdout，可能无限期保持它打开，使每次读取都超时。
 

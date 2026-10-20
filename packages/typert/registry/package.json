@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-typert-registry",
+  "name": "@panedesk/dsh-typert-registry",
   "description": "Runtime registry for generated package reflection and Zod schemas",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -56,10 +56,10 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   }
 }

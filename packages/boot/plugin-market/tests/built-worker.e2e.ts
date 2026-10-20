@@ -24,7 +24,7 @@ async function node(script: string): Promise<unknown> {
 describe.skipIf(!built)('built index parsing (plain node)', () => {
   it('searches a valid index and reports an invalid one through the bundled Worker', async () => {
     const result = await node(`
-      import { Context, Service } from '@deepseek-ai/cordis'
+      import { Context, Service } from '@panedesk/cordis'
       import PluginMarket from './lib/index.js'
 
       const bodies = {

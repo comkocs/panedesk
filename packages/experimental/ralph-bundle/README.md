@@ -3,7 +3,7 @@ description: "Run explicitly requested repeated work with fresh agents."
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-experimental-ralph-bundle
+# @panedesk/dsh-experimental-ralph-bundle
 
 English | [中文](README.zh.md)
 

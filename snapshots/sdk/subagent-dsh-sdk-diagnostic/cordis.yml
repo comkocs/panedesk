@@ -1,30 +1,30 @@
 # TypeScript SDK snapshot patch for automatic DSH SDK failure notices.
 
 - id: skill-filesystem
-  name: '@deepseek-ai/dsh-skill-filesystem'
+  name: '@panedesk/dsh-skill-filesystem'
   config:
     includeDefaultRoots: false
 
 - id: llm-deepseek
-  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  name: '@panedesk/dsh-llm-deepseek-api-key'
   config:
     thinking: enabled
     reasoningEffort: max
 
 - id: session-persistence-jsonl
-  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  name: '@panedesk/dsh-session-persistence-jsonl'
   config:
     root: !!js dshHomePath('sessions')
     compression: !!js "process.env.DSH_SNAPSHOT === undefined ? 'zstd' : 'none'"
 
 - id: session-log-deepseek
-  name: '@deepseek-ai/dsh-session-log-deepseek'
+  name: '@panedesk/dsh-session-log-deepseek'
   config:
     enabled: true
 
 - insert:
     - id: subagent-dsh-sdk-diagnostic
-      name: '@deepseek-ai/dsh-subagent-dsh-sdk'
+      name: '@panedesk/dsh-subagent-dsh-sdk'
       config:
         providerName: dsh-sdk-diagnostic
         profile: sdk
@@ -34,16 +34,16 @@
         provider: mock
         model: mock-echo
         env:
-          DSH_TELEMETRY_DISABLED: '1'
+          PANEDESK_TELEMETRY_DISABLED: '1'
           DSH_TEST_CHILD_FAILURE: '1'
     - id: tool-subagent-dsh-sdk-diagnostic
-      name: '@deepseek-ai/dsh-tool-subagent'
+      name: '@panedesk/dsh-tool-subagent'
       config:
         provider: dsh-sdk-diagnostic
         toolName: subagent_dsh_sdk
         maxDepth: provider-managed
     - id: subagent-dsh-sdk-diagnostic-second
-      name: '@deepseek-ai/dsh-subagent-dsh-sdk'
+      name: '@panedesk/dsh-subagent-dsh-sdk'
       config:
         providerName: dsh-sdk-diagnostic-second
         profile: sdk
@@ -53,10 +53,10 @@
         provider: mock
         model: mock-echo
         env:
-          DSH_TELEMETRY_DISABLED: '1'
+          PANEDESK_TELEMETRY_DISABLED: '1'
           DSH_TEST_CHILD_FAILURE: '1'
     - id: tool-subagent-dsh-sdk-diagnostic-second
-      name: '@deepseek-ai/dsh-tool-subagent'
+      name: '@panedesk/dsh-tool-subagent'
       config:
         provider: dsh-sdk-diagnostic-second
         toolName: subagent_dsh_sdk_second

@@ -36,7 +36,7 @@ kind: "package-library"
 ## API
 
 ```ts
-import { MarketIndexError, marketInstallTarget, parseMarketIndex } from '@deepseek-ai/dsh-plugin-market-index'
+import { MarketIndexError, marketInstallTarget, parseMarketIndex } from '@panedesk/dsh-plugin-market-index'
 ```
 
 | 导出 | 作用 |

@@ -1,7 +1,7 @@
 /** Application consent checked before native observations and input. */
-import type { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { UserQuestionError, type AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions'
+import type { Context } from '@panedesk/cordis'
+import type { Agent } from '@panedesk/dsh-agent'
+import { UserQuestionError, type AskUserQuestionAnswer } from '@panedesk/dsh-user-questions'
 import { z } from 'zod'
 import { NativeError, type NativeClient } from './native-client.ts'
 import type { CuaAppHandle } from './types.ts'

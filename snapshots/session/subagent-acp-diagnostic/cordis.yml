@@ -5,7 +5,7 @@
     - id: acp-diagnostic-settlement-order
       name: './settlement-order.mjs'
     - id: subagent-acp-diagnostic
-      name: '@deepseek-ai/dsh-subagent-acp'
+      name: '@panedesk/dsh-subagent-acp'
       config:
         providerName: acp-diagnostic
         command: !!js process.execPath
@@ -16,7 +16,7 @@
           MOCK_PERMISSION: '1'
           MOCK_TOOL_KIND: execute
     - id: tool-subagent-acp-diagnostic
-      name: '@deepseek-ai/dsh-tool-subagent'
+      name: '@panedesk/dsh-tool-subagent'
       config:
         provider: acp-diagnostic
         toolName: subagent_acp

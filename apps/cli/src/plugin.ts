@@ -1,15 +1,15 @@
 /** Profile package management and explicit, exact-version compatibility approvals. */
-import { runPluginCommand, runProfilePnpm, setProfileVersionExemption, type PackageOperationOptions } from '@deepseek-ai/dsh-plugin-manager/operations'
+import { runPluginCommand, runProfilePnpm, setProfileVersionExemption, type PackageOperationOptions } from '@panedesk/dsh-plugin-manager/operations'
 import { INSTALL_ANCHOR } from './profile-boot.ts'
-import { DEFAULT_PROFILE_BUNDLES, initProfile, PROFILE_TEMPLATES, readProfileCompatibility, resolveProfileDir, type ProfileContext } from '@deepseek-ai/dsh-app-boot'
-import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
+import { DEFAULT_PROFILE_BUNDLES, initProfile, PROFILE_TEMPLATES, readProfileCompatibility, resolveProfileDir, type ProfileContext } from '@panedesk/dsh-app-boot'
+import { withFileLock } from '@panedesk/dsh-atomic-write'
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 function requireDesktopProfile(dir: string): void {
   if (!existsSync(join(dir, 'package.json'))) {
-    throw new Error('Open DeepSeek Harness Desktop once to initialize its profile, then fully quit it before running dsh plugin --profile desktop.')
+    throw new Error('Open Panedesk Desktop once to initialize its profile, then fully quit it before running panedesk plugin --profile desktop.')
   }
 }
 
@@ -29,16 +29,16 @@ async function versionCommand(profile: string, args: readonly string[]): Promise
       else if (!argument.startsWith('-') && packageVersion === undefined) packageVersion = argument
       else throw new Error(`unexpected argument ${JSON.stringify(argument)}`)
     }
-    if (command === 'version-exemptions' && rest.length > 0) throw new Error('usage: dsh plugin version-exemptions')
+    if (command === 'version-exemptions' && rest.length > 0) throw new Error('usage: panedesk plugin version-exemptions')
     let request: { packageVersion: string; runtimeVersion: string } | undefined
     if (command !== 'version-exemptions') {
       if (packageVersion === undefined || runtimeVersion === undefined) {
-        throw new Error(`usage: dsh plugin ${command} <package@version> --dsh-version <exact>${command === 'allow-version' ? ' --accept-risk' : ''}`)
+        throw new Error(`usage: panedesk plugin ${command} <package@version> --dsh-version <exact>${command === 'allow-version' ? ' --accept-risk' : ''}`)
       }
       request = { packageVersion, runtimeVersion }
     }
     if (command === 'allow-version') {
-      process.stderr.write('panedesk: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and DSH versions.\n')
+      process.stderr.write('panedesk: warning: allowing incompatible plugin versions can break the application or corrupt data. Approval applies only to the exact package and Panedesk versions.\n')
     }
     const dir = resolveProfileDir(profile)
     if (profile !== 'desktop') await mkdir(dir, { recursive: true })
@@ -51,7 +51,7 @@ async function versionCommand(profile: string, args: readonly string[]): Promise
         process.stdout.write(JSON.stringify(exemptions, undefined, 2) + '\n')
       } else {
         await setProfileVersionExemption(dir, request.packageVersion, request.runtimeVersion, command === 'allow-version', acceptRisk)
-        process.stdout.write(`panedesk: ${command === 'allow-version' ? 'allowed' : 'revoked'} ${request.packageVersion} for DSH ${request.runtimeVersion}\n`)
+        process.stdout.write(`panedesk: ${command === 'allow-version' ? 'allowed' : 'revoked'} ${request.packageVersion} for Panedesk ${request.runtimeVersion}\n`)
       }
     }, { waitMs: 120000 })
     return 0

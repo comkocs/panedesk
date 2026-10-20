@@ -1,14 +1,14 @@
 /** Request immutability through the real loop, including adopted restore graphs. */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import { createAssistantMessage, createUserMessage, isAgentLoopRequest } from '@deepseek-ai/dsh-llm'
-import type { GenerateOptions, ToolSchema } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId, SessionLogOffset, SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
-import * as values from '@deepseek-ai/dsh-util-values'
+import { Context } from '@panedesk/cordis'
+import AgentLoop from '@panedesk/dsh-agent-loop'
+import type { Agent } from '@panedesk/dsh-agent'
+import { mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
+import { createAssistantMessage, createUserMessage, isAgentLoopRequest } from '@panedesk/dsh-llm'
+import type { GenerateOptions, ToolSchema } from '@panedesk/dsh-llm'
+import { Session, SessionId, SessionLogOffset, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
+import * as values from '@panedesk/dsh-util-values'
 import { ReactLoopAgent } from '../src/agent.ts'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
 

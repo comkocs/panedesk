@@ -4,10 +4,10 @@ import { spawn, execFile, type ChildProcessWithoutNullStreams } from 'node:child
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createConnection, type Socket } from 'node:net'
-import { Context, Service } from '@deepseek-ai/cordis'
-import schema from '@deepseek-ai/schemastery'
+import { Context, Service } from '@panedesk/cordis'
+import schema from '@panedesk/schemastery'
 import { z } from 'zod'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
+import { assertNever } from '@panedesk/dsh-util-values'
 import { SshRpcPeer, SSH_PROTOCOL_VERSION } from './protocol.ts'
 import { helloSchema, type SshStreamEndpoint } from './schemas.ts'
 import { authenticateStream } from './stream-security.ts'
@@ -51,7 +51,7 @@ export interface Config {
   leaseMs?: number
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context { ssh: SshConnection }
 }
 

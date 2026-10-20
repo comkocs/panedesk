@@ -3,7 +3,7 @@ description: "The shared Typert Remote protocol: decorators, wire descriptors, c
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-typert-protocol
+# @panedesk/dsh-typert-protocol
 
 English | [中文](README.zh.md)
 
@@ -32,7 +32,7 @@ This package is for business-package and assembly maintainers who expose Host ca
 A business package marks a public instance method with `@Remote` (or `@RemoteScope(key)` when the receiver comes from a scoped Context), and the owning service either extends `TypertRemoteService` or declares a `typertRemote` binding through `bindTypertRemote()`:
 
 ```text
-import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { Remote, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 
 export class GoalService extends TypertRemoteService {
   @Remote
@@ -52,7 +52,7 @@ A stream method (`@Remote({ mode: 'stream' })`) returns `Iterable`, `AsyncIterab
 
 Ordinary `./remote` artifacts export `TYPERT_REMOTE` as a `TypertRemoteInfo`, extending the mountable `TypertRemoteContribution`. Its typed `methods[endpoint]` entries are the same direct descriptor objects found in `descriptors`, with derived `input(options?)` and `invoke(remote, input, signal?)`. Parameter documentation lives in `parameters[].description`; `result` is the single result codec, parser, and optional projection. Unary descriptors omit `mode`; streams use `'stream'`. Context-only receivers remain in `descriptors` and scoped declarations, not `methods`.
 
-`createTypertRemoteInfo(spec, z)` from the published pure `@deepseek-ai/dsh-typert-protocol/remote-info` entry returns a class instance, not a constructor. Construction retains only the static spec and the caller-supplied Zod runtime; the first `descriptors` or `methods` read builds and caches their shared index. Each input-policy view, its parser, and its optional JSON Schema projection are independently lazy and cached; `method.input().create()` requests the ordinary parser. The raw spec requires Zod factories, while consumer-facing `TypertSchema<T>` promises only `parse(value: unknown): T`. JSON Schema comes from generator projections, not runtime `z.toJSONSchema()`. The leaf has no runtime imports; generated artifacts supply Zod. Metadata and schema access never invokes the network; the root also re-exports the factory but imports Cordis.
+`createTypertRemoteInfo(spec, z)` from the published pure `@panedesk/dsh-typert-protocol/remote-info` entry returns a class instance, not a constructor. Construction retains only the static spec and the caller-supplied Zod runtime; the first `descriptors` or `methods` read builds and caches their shared index. Each input-policy view, its parser, and its optional JSON Schema projection are independently lazy and cached; `method.input().create()` requests the ordinary parser. The raw spec requires Zod factories, while consumer-facing `TypertSchema<T>` promises only `parse(value: unknown): T`. JSON Schema comes from generator projections, not runtime `z.toJSONSchema()`. The leaf has no runtime imports; generated artifacts supply Zod. Metadata and schema access never invokes the network; the root also re-exports the factory but imports Cordis.
 
 The invoker takes a caller-owned, mounted, unscoped Client Remote and resolves its namespace method at call time. It preserves the namespace receiver, optional positional holes, and signal, forwarding the same `Promise<RemoteResult<DecodedOutput>>` or complete `RemoteStreamHandle<Output, Uplink>` without an async wrapper. `DecodedOutput` defaults to the authored output; generation supplies `RemoteDecoded<Output>` only for byte-bearing unary methods, avoiding recursive remapping of ordinary JSON results; `result.create().parse()` retains the authored output type and does not normalize shared byte buffers. Documentation and parsing remain available when either input variant or the result lacks JSON Schema support; each variant's `jsonSchemaError` explains its absent projection. Registry readers use `isTypertRemoteMethod(descriptor)` from the same pure entry to narrow a base descriptor to these direct capabilities.
 
@@ -73,7 +73,7 @@ Client Context resolution is synchronous. `typertOwnedValue(value, release)` tra
 One class carries every Remote failure: `RemoteError`, holding a stable `<domain>/<reason>` code and the details typed for that code. This package declares the universal carrier codes (`gateway/bad-request`, `gateway/cancelled`, `gateway/internal`) and owns `RemoteErrorDetailsMap`, the merge-extensible table every other package extends beside its own throwing code:
 
 ```text
-declare module '@deepseek-ai/dsh-typert-protocol' {
+declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'goal/not-found': { readonly goalId: string }
   }

@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
-import FsLocal from '@deepseek-ai/dsh-fs-local'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { Session, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
-import { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import { Context } from '@panedesk/cordis'
+import FsLocal from '@panedesk/dsh-fs-local'
+import { createUserMessage } from '@panedesk/dsh-llm'
+import { Session, SessionId, SessionSeq } from '@panedesk/dsh-session'
+import { renderPrompt } from '@panedesk/dsh-system-prompt'
 import {
   createInboxStub,
   mountAgentLoopTestDependencies,

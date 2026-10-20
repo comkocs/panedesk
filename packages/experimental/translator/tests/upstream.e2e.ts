@@ -1,5 +1,5 @@
 /** Opt-in native-fetch probes of the actual anonymous browser endpoints. */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import Translator from '../src/index.ts'
 

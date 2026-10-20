@@ -34,7 +34,7 @@ Call it at the boundary that receives the zone, before the value reaches anythin
 ## API
 
 ```ts
-import { canonicalClientTimeZone } from '@deepseek-ai/dsh-util-time'
+import { canonicalClientTimeZone } from '@panedesk/dsh-util-time'
 ```
 
 | Export | Role |

@@ -1,36 +1,36 @@
 # Minimal tool-pwsh composition: real app boot path, real pwsh executor, real
 # foreground + background tool calls; driven by the package's loader.spec.ts.
 - id: system-prompt
-  name: '@deepseek-ai/dsh-system-prompt'
+  name: '@panedesk/dsh-system-prompt'
 
 - id: fs
-  name: '@deepseek-ai/dsh-fs-local'
+  name: '@panedesk/dsh-fs-local'
 
 - id: session-projections
-  name: '@deepseek-ai/dsh-session-projection'
+  name: '@panedesk/dsh-session-projection'
 
 - id: working-directory
-  name: '@deepseek-ai/dsh-working-directory'
+  name: '@panedesk/dsh-working-directory'
 
 - id: tools
-  name: '@deepseek-ai/dsh-tools'
+  name: '@panedesk/dsh-tools'
 
 - id: subprocess
-  name: '@deepseek-ai/dsh-subprocess-local'
+  name: '@panedesk/dsh-subprocess-local'
 
 - id: bash
-  name: '@deepseek-ai/dsh-pwsh-local'
+  name: '@panedesk/dsh-pwsh-local'
   config:
     graceMs: 200
 
 - id: shell-env
-  name: '@deepseek-ai/dsh-shell-env'
+  name: '@panedesk/dsh-shell-env'
 
 - id: tasks
-  name: '@deepseek-ai/dsh-jobs-local'
+  name: '@panedesk/dsh-jobs-local'
 
 - id: tool-jobs
-  name: '@deepseek-ai/dsh-tool-jobs'
+  name: '@panedesk/dsh-tool-jobs'
 
 - id: tool-pwsh
-  name: '@deepseek-ai/dsh-tool-pwsh'
+  name: '@panedesk/dsh-tool-pwsh'

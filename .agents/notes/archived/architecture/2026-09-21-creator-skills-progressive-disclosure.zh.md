@@ -7,7 +7,7 @@ Archived: 2026-09-30
 
 ## Problem
 
-出货的 `cordis-plugin-development` skill 把三个互斥的配方和一份验证清单放在一个 8.7 KB 的文件里，超过了标准 preset 工具结果修剪器只保留头尾的 8192 字符阈值。两个创造模式 skill 都禁止读取 DSH 包源码，使 skill 文本成为唯一知识来源，未覆盖的情况只能靠猜。skill 还用 `$DSH_HOME/profiles/<profile>` 指代 profile，而 agent 的 shell 从未拿到这个名字。
+出货的 `cordis-plugin-development` skill 把三个互斥的配方和一份验证清单放在一个 8.7 KB 的文件里，超过了标准 preset 工具结果修剪器只保留头尾的 8192 字符阈值。两个创造模式 skill 都禁止读取 DSH 包源码，使 skill 文本成为唯一知识来源，未覆盖的情况只能靠猜。skill 还用 `$PANEDESK_HOME/profiles/<profile>` 指代 profile，而 agent 的 shell 从未拿到这个名字。
 
 ## Decision
 

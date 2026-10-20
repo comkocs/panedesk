@@ -7,7 +7,7 @@ Archived: 2026-08-10
 
 ## Problem
 
-`scripts/install.sh`会产生两种互不兼容的安装布局。`curl … | sh`安装会构建受管布局——`~/.dsh/source/master`处的 master 克隆、位于`dsh-staging/<时间戳>`分支上的 staging worktree，以及 PATH 启动器据以解析的稳定`current`符号链接。而从检出中运行同一脚本时，则依据此前的[检出内跳过克隆决策](../../archived/process/2026-07-22-installer-in-repo-skip-clone.md)，把`dsh`直接链接到该检出的`bin/dsh`。
+`scripts/install.sh`会产生两种互不兼容的安装布局。`curl … | sh`安装会构建受管布局——`~/.panedesk/source/master`处的 master 克隆、位于`dsh-staging/<时间戳>`分支上的 staging worktree，以及 PATH 启动器据以解析的稳定`current`符号链接。而从检出中运行同一脚本时，则依据此前的[检出内跳过克隆决策](../../archived/process/2026-07-22-installer-in-repo-skip-clone.md)，把`dsh`直接链接到该检出的`bin/dsh`。
 
 这种直接链接无法升级。升级重指的正是`current`，因此缺少它的安装无法通过[`dsh-upgrade`](../../../../skills/dsh-upgrade/SKILL.md)升级；检出一旦移动，PATH 符号链接就会失效；而且启动器会解析到贡献者恰好检出的任意分支，这正是升级约定禁止作为启动器目标的情形。升级技能早已把这种布局描述为需要一次性迁移的旧式安装，因此两种布局从安装时起便不相同，只有以后执行迁移才会一致，而迁移也可能永远不执行。
 
@@ -27,7 +27,7 @@ Archived: 2026-08-10
 
 ## Alternatives considered
 
-**把`~/.dsh/source/master`做成指向该任意克隆的符号链接。** 已否决。Git 会解析该符号链接并记录*真实*路径：经由它创建的 worktree 会存储`gitdir: …/<克隆>/.git/worktrees/<名称>`，而`git worktree list`报告的是该克隆。因此这个符号链接纯属装饰——没有任何代码读取它——却又暗示容器拥有该仓库。它还会静默失效：移动克隆后，`master`看似仍在却已悬空，而每个 staging worktree 都会以`fatal: not a git repository`失败。最糟的是，它把两个名称别名到同一棵树上，于是"current 绝不能是 master 克隆"这项检查会在字符串比较下通过，实则为假。`~/.dsh/source/master`是位置而非名称，且只有位置具有权威性。
+**把`~/.panedesk/source/master`做成指向该任意克隆的符号链接。** 已否决。Git 会解析该符号链接并记录*真实*路径：经由它创建的 worktree 会存储`gitdir: …/<克隆>/.git/worktrees/<名称>`，而`git worktree list`报告的是该克隆。因此这个符号链接纯属装饰——没有任何代码读取它——却又暗示容器拥有该仓库。它还会静默失效：移动克隆后，`master`看似仍在却已悬空，而每个 staging worktree 都会以`fatal: not a git repository`失败。最糟的是，它把两个名称别名到同一棵树上，于是"current 绝不能是 master 克隆"这项检查会在字符串比较下通过，实则为假。`~/.panedesk/source/master`是位置而非名称，且只有位置具有权威性。
 
 **把检出自身提升为`current`的目标。** 已否决：升级约定要求`current`指向 staging 分支上的干净 staging worktree，绝不能指向 feature、review 或 detached 检出。这还会使每次升级都改写贡献者正在编辑的那棵树。
 
@@ -35,7 +35,7 @@ Archived: 2026-08-10
 
 **在工作树不干净时发出警告或提示。** 已否决：以`HEAD`为起点的`worktree add`本就无法带上未提交的内容，因此该行为是确定的，提示只会增加一个用户无法做出不同选择的决策点。改为在文档中说明该约定。
 
-**把被接管克隆的 staging worktree 放在该克隆旁边**（`~/src/staging-*`），而非放进`~/.dsh/source`。已否决：`current`和 PATH 启动器都是每用户唯一的，因此把 worktree 散落到各个克隆的父目录中，会重新引入 source 容器本就为之而设、意在杜绝的同级克隆蔓延问题。
+**把被接管克隆的 staging worktree 放在该克隆旁边**（`~/src/staging-*`），而非放进`~/.panedesk/source`。已否决：`current`和 PATH 启动器都是每用户唯一的，因此把 worktree 散落到各个克隆的父目录中，会重新引入 source 容器本就为之而设、意在杜绝的同级克隆蔓延问题。
 
 ## Consequences
 

@@ -5,7 +5,7 @@ import type { OfficialBundleCatalogEntry } from './official-bundles.ts'
 /** Official on-demand entries, independent of installed packages and registry availability. */
 export const OFFICIAL_ON_DEMAND_CATALOG: readonly OfficialBundleCatalogEntry[] = [
   {
-    packageName: '@deepseek-ai/dsh-subagent-claude-code',
+    packageName: '@panedesk/dsh-subagent-claude-code',
     meta: {
       title: { 'en': 'Claude Code subagent', 'zh': 'Claude Code \u5B50\u667A\u80FD\u4F53' },
       description: { 'en': 'Delegate one task to Claude Code using its native authentication and settings.', 'zh': '\u4F7F\u7528 Claude Code \u539F\u751F\u8BA4\u8BC1\u548C\u8BBE\u7F6E\u59D4\u6D3E\u5355\u4E2A\u4EFB\u52A1\u3002' },
@@ -13,7 +13,7 @@ export const OFFICIAL_ON_DEMAND_CATALOG: readonly OfficialBundleCatalogEntry[] =
     },
   },
   {
-    packageName: '@deepseek-ai/dsh-subagent-codex',
+    packageName: '@panedesk/dsh-subagent-codex',
     meta: {
       title: { 'en': 'Codex subagent', 'zh': 'Codex \u5B50\u667A\u80FD\u4F53' },
       description: { 'en': 'Delegate one task to Codex using its native authentication and settings.', 'zh': '\u4F7F\u7528 Codex \u539F\u751F\u8BA4\u8BC1\u548C\u8BBE\u7F6E\u59D4\u6D3E\u5355\u4E2A\u4EFB\u52A1\u3002' },

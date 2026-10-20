@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { execa } from 'execa'
-import type { SessionFormatJsonObject } from '@deepseek-ai/dsh-session-format'
+import type { SessionFormatJsonObject } from '@panedesk/dsh-session-format'
 import { encodeSegment, generationLogFilename, type JsonlCompression } from '../packages/session/session-persistence-jsonl/src/format.ts'
 import { compressZstdFrame, decompressZstdFrame, scanZstdFrames } from '../packages/session/session-persistence-jsonl/src/zstd.ts'
 import { runMigrationJobs } from './migrate-sessions-to-v4.ts'
@@ -399,7 +399,7 @@ describe('one-time V4 migration command', () => {
 
   it('shows help, rejects unknown arguments, and logs a missing root failure', async () => {
     const help = await run('--help')
-    expect(help.stdout).toContain('Defaults to ~/.dsh/sessions')
+    expect(help.stdout).toContain('Defaults to ~/.panedesk/sessions')
     expect(help.stdout).toContain('CPU count capped at 16')
     expect((await run('--unknown')).status).toBe(1)
     const missing = join(temporaryRoot(), 'missing')

@@ -5,12 +5,12 @@
  * and that any number of observers read at absolute byte offsets — and the
  * event stream announcing every commit, while producers retain their
  * execution resources. The process-local registry lives in
- * `@deepseek-ai/dsh-jobs-local`.
- * @module @deepseek-ai/dsh-jobs
+ * `@panedesk/dsh-jobs-local`.
+ * @module @panedesk/dsh-jobs
  */
 
-import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionId } from '@deepseek-ai/dsh-session'
+import { Context, Service } from '@panedesk/cordis'
+import type { SessionId } from '@panedesk/dsh-session'
 import { installJobArchiveAdmission } from './archive-admission.ts'
 import type { JobEvents, JobId, JobOutputRead, JobRead, JobSpec, JobView } from './types.ts'
 
@@ -41,7 +41,7 @@ export type {
   JobView,
 } from './types.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     jobs: JobRegistry
   }
@@ -91,7 +91,7 @@ export abstract class JobRegistry extends Service {
     // would register a ctx.jobs with no method implementations and fail far
     // from the misconfiguration. Fail loud at load instead.
     if (new.target === JobRegistry) {
-      throw new Error('@deepseek-ai/dsh-jobs is the abstract job registry seam; load an implementation such as @deepseek-ai/dsh-jobs-local instead')
+      throw new Error('@panedesk/dsh-jobs is the abstract job registry seam; load an implementation such as @panedesk/dsh-jobs-local instead')
     }
     super(ctx, 'jobs')
     // Archive admission: the Workspace registry asks what still runs for a

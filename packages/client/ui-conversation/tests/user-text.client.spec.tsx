@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import type { ComponentProps } from 'react'
 import { UserText } from '../src/client/user-text/UserText.tsx'
 import { UserTextRegistry } from '../src/client/conversation/user-text-registry.ts'

@@ -1,6 +1,6 @@
 /** Shared model configuration and context assertions for real Office workflows. */
 import { expect } from 'vitest'
-import { Session, SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { Session, SessionId, type SessionEvent } from '@panedesk/dsh-session'
 
 /** @returns Model provider patches for the configured development or official API. */
 export function officeModelPatches() {

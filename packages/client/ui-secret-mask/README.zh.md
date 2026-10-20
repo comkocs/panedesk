@@ -3,7 +3,7 @@ description: "Web 端已发送用户文本中可识别凭据的显示遮挡，�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-secret-mask
+# @panedesk/dsh-client-ui-secret-mask
 
 [English](README.md) | 中文
 

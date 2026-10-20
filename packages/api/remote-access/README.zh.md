@@ -3,7 +3,7 @@ description: "非 owner Peer 的 Remote 方法级访问控制：基于角色的 
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-api-remote-access
+# @panedesk/dsh-api-remote-access
 
 [English](README.md) | 中文
 

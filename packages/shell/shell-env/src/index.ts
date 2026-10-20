@@ -5,19 +5,19 @@
  * the registry itself while plugins can register additional, enumerable facts
  * with effect-scoped disposal.
  *
- * @module @deepseek-ai/dsh-shell-env
+ * @module @panedesk/dsh-shell-env
  */
 
-import { Service, type Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import { DSH_ENV_PREFIX } from '@deepseek-ai/dsh-shell'
-import type { DshEnvironment, DshEnvironmentKey } from '@deepseek-ai/dsh-shell'
-import { DSH_HOME_ENV, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import type { ToolExecution } from '@deepseek-ai/dsh-tools'
+import { Service, type Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import { DSH_ENV_PREFIX } from '@panedesk/dsh-shell'
+import type { DshEnvironment, DshEnvironmentKey } from '@panedesk/dsh-shell'
+import { DSH_HOME_ENV, resolveDshHome } from '@panedesk/dsh-home-paths'
+import type { ToolExecution } from '@panedesk/dsh-tools'
 // Declares `Context.profileContext`, the launcher-provided profile the built-ins read.
-import type {} from '@deepseek-ai/dsh-app-boot'
+import type {} from '@panedesk/dsh-app-boot'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     shellEnv: ShellEnvRegistry
   }
@@ -28,7 +28,7 @@ export const inject: string[] = []
 
 /** Plugin config (all optional — the built-in facts resolve without defaults). */
 export interface Config {
-  /** DeepSeek Harness home directory exposed as `DSH_HOME`; defaults to `$DSH_HOME` or `~/.dsh`. */
+  /** DeepSeek Harness home directory exposed as `PANEDESK_HOME`; defaults to `$PANEDESK_HOME` or `~/.panedesk`. */
   dshHome?: string
 }
 

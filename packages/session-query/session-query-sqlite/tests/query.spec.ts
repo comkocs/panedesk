@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import { SessionSearchCursor, type SessionQueryErrorCode } from '@deepseek-ai/dsh-session-query'
+import { SessionId } from '@panedesk/dsh-session'
+import { SessionSearchCursor, type SessionQueryErrorCode } from '@panedesk/dsh-session-query'
 import {
   buildEventWhere,
   buildSessionWhere,

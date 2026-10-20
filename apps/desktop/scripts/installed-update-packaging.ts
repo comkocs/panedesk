@@ -36,7 +36,7 @@ async function absent(path: string): Promise<boolean> {
  * @param stateFile Per-user signing interlock; an isolated file may be supplied by tests, not the CLI.
  * @returns Nothing when absent; an inaccessible or existing file rejects before credentials are loaded.
  */
-export async function assertInstalledUpdateSigningClear(stateFile = join(homedir(), '.dsh-desktop-signing', 'attempt.json')): Promise<void> {
+export async function assertInstalledUpdateSigningClear(stateFile = join(homedir(), '.panedesk-desktop-signing', 'attempt.json')): Promise<void> {
   if (!await absent(stateFile)) throw new InstalledUpdateSigningHoldError()
 }
 

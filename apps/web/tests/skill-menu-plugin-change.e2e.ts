@@ -12,7 +12,7 @@ import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts
 import { connectFreshWorkspace, newEnglishPage, PLUGIN_TOGGLE_SETTLE_MS, saveFailureShot, writeComposerDraft } from './support.ts'
 
 const BUNDLE_DIR = fileURLToPath(new URL('../../../packages/experimental/badge-skill-bundle', import.meta.url))
-const BUNDLE = '@deepseek-ai/dsh-experimental-badge-skill-bundle'
+const BUNDLE = '@panedesk/dsh-experimental-badge-skill-bundle'
 const GLOBAL_SKILL = 'dsh-global-skill'
 
 describe('web e2e: the slash menu follows plugin switches', () => {
@@ -26,7 +26,7 @@ describe('web e2e: the slash menu follows plugin switches', () => {
   beforeAll(async () => {
     scaffold = await launchWebScaffold({ profile: { packages: [{ dir: BUNDLE_DIR }] } })
     // The scaffold pins the skill-filesystem harness home inside its temporary world.
-    const directory = join(scaffold.workspaceCwd, '.dsh-home', 'skills', GLOBAL_SKILL)
+    const directory = join(scaffold.workspaceCwd, '.panedesk-home', 'skills', GLOBAL_SKILL)
     await mkdir(directory, { recursive: true })
     await writeFile(join(directory, 'SKILL.md'), [
       '---',

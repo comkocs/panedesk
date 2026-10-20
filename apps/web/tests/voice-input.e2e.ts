@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, type Browser } from 'playwright'
 import { expect, it, onTestFinished, vi } from 'vitest'
-import type { SpeechInput, SpeechPreparationState, SpeechProviderId } from '@deepseek-ai/dsh-experimental-speech-to-text/types'
-import type {} from '@deepseek-ai/dsh-experimental-speech-to-text'
+import type { SpeechInput, SpeechPreparationState, SpeechProviderId } from '@panedesk/dsh-experimental-speech-to-text/types'
+import type {} from '@panedesk/dsh-experimental-speech-to-text'
 import {
   captureStableAria, compareOrRefreshGolden, fixtureUserPrompts, launchWebScaffold, webSnapshotMode, watchConsole,
   type WebScaffold,
@@ -130,7 +130,7 @@ it.skipIf(webSnapshotMode() === 'record')('guides voice setup, records from stan
   await expect.poll(() => detailsAction.evaluate(element => element === document.activeElement)).toBe(true)
   await page.keyboard.press('Enter')
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.locator('[data-plugin-detail="@deepseek-ai/dsh-experimental-voice-input-bundle"]')
+  await page.locator('[data-plugin-detail="@panedesk/dsh-experimental-voice-input-bundle"]')
     .getByRole('button', { name: 'Retry preparation', exact: true }).waitFor()
   expect(await unavailable.count()).toBe(0)
   expect(messages).toBe(0)
@@ -207,7 +207,7 @@ it.skipIf(webSnapshotMode() === 'record')('guides voice setup, records from stan
   await expect.poll(() => page.evaluate(() => (window as Window & { voiceTestStreams?: MediaStream[] }).voiceTestStreams!
     .every(stream => stream.getTracks().every(track => track.readyState === 'ended')))).toBe(true)
   await page.getByRole('button', { name: 'Plugins', exact: true }).click()
-  await page.locator('[data-plugin-package="@deepseek-ai/dsh-experimental-voice-input-bundle"]').waitFor()
+  await page.locator('[data-plugin-package="@panedesk/dsh-experimental-voice-input-bundle"]').waitFor()
   expect(await page.locator('[data-plugin-detail]').count()).toBe(0)
   await page.getByRole('button', { name: 'New session', exact: true }).filter({ hasText: 'New Session' }).click()
   await mic.waitFor()

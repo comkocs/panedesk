@@ -1,5 +1,5 @@
 /**
- * @deepseek-ai/dsh-host-webserver — node:http route registration — node:https
+ * @panedesk/dsh-host-webserver — node:http route registration — node:https
  * when `tls` names a certificate and key — with optional gzip, index injection,
  * and one fallback seat. It knows no harness concepts and serves no files; the
  * composing application owns dist serving. Electron uses file:// plus IPC
@@ -14,8 +14,8 @@ import { createServer as createSecureServer } from 'node:https'
 import { isIP, type AddressInfo } from 'node:net'
 import { resolve } from 'node:path'
 import type { Duplex } from 'node:stream'
-import { Context, Service } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
+import { Context, Service } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
 import compressionMiddleware from 'compression'
 import ipaddr from 'ipaddr.js'
 import Negotiator from 'negotiator'
@@ -24,7 +24,7 @@ import { renderIndexInjections, type IndexInjection } from './injections.ts'
 export { renderIndexInjections } from './injections.ts'
 export type { IndexInjection, IndexInjectionPlacement } from './injections.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     webServer: WebServer
   }

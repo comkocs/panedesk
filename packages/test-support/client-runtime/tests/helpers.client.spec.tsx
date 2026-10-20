@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
-import type { SessionLiveEventEntry } from '@deepseek-ai/dsh-api-session-controller/client'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { EMPTY_CHAT_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-chat/client'
-import { EMPTY_CONVERSATION_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { MainPanelId, PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SessionLiveEventEntry } from '@panedesk/dsh-api-session-controller/client'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
+import { EMPTY_CHAT_SNAPSHOT } from '@panedesk/dsh-client-ui-chat/client'
+import { EMPTY_CONVERSATION_SNAPSHOT } from '@panedesk/dsh-client-ui-conversation/client'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import type { WorkspaceId } from '@panedesk/dsh-api-workspace-controller/client'
+import type { MainPanelId, PanelInfo } from '@panedesk/dsh-client-ui-layout/client'
+import type { PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import {
   allowAllAccess,
@@ -21,7 +21,7 @@ import {
 const originalLanguages = [...navigator.languages]
 const originalLanguage = navigator.language
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@panedesk/dsh-client-ui-slots' {
   interface SlotMap {
     'trt.panel-info': { kind: 'keyed'; scope: 'root'; owner: { label: string } }
   }

@@ -3,11 +3,11 @@ import { lstatSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Context, FiberState, type Plugin } from '@deepseek-ai/cordis'
-import { PluginPackages, readPluginMeta, type RuntimeResolution } from '@deepseek-ai/dsh-app-boot'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
-import type { AgentPresetRegistry } from '@deepseek-ai/dsh-agent-preset-registry'
+import { Context, FiberState, type Plugin } from '@panedesk/cordis'
+import { PluginPackages, readPluginMeta, type RuntimeResolution } from '@panedesk/dsh-app-boot'
+import Loader from '@panedesk/cordis-plugin-loader'
+import { remoteMethods } from '@panedesk/dsh-typert-protocol'
+import type { AgentPresetRegistry } from '@panedesk/dsh-agent-preset-registry'
 import PluginInventoryGateway from '../src/index.ts'
 
 const contexts: Context[] = []
@@ -59,7 +59,7 @@ function metadataFixture(mode: 'native' | 'runtime') {
     expect(lstatSync(dir).isDirectory()).toBe(true)
     for (const path of [
       join(profileDir, 'node_modules'), join(profilesDir, 'node_modules'),
-      join(root, 'node_modules'), join(profileDir, '.dsh-module-fallback'),
+      join(root, 'node_modules'), join(profileDir, '.panedesk-module-fallback'),
     ]) expect(lstatSync(path, { throwIfNoEntry: false }), path).toBeUndefined()
   }
   return { dir, baseUrl, resolution, expectUnlinked }

@@ -8,9 +8,9 @@
  * registry's ranking means by it.
  */
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { parseFileAddress, sessionFileAddress } from '@deepseek-ai/dsh-util-workspace-path'
-import { SidebarRightTabRegistry } from '@deepseek-ai/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
+import { Context } from '@panedesk/cordis'
+import { parseFileAddress, sessionFileAddress } from '@panedesk/dsh-util-workspace-path'
+import { SidebarRightTabRegistry } from '@panedesk/dsh-client-ui-sidebar-right/src/client/tab-registry.ts'
 import { TEXTPREVIEW_ID, TEXTPREVIEW_KIND, basenameOf, textDefinition } from '../src/client/definition.ts'
 
 describe('basenameOf', () => {

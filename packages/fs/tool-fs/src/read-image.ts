@@ -8,17 +8,17 @@
  * image-reading tool is useful only when the exact calling route can inspect
  * its result, so unknown capability refuses instead of relying on an adapter
  * failure after filesystem and attachment work.
- * @module @deepseek-ai/dsh-tool-fs/src/read-image
+ * @module @panedesk/dsh-tool-fs/src/read-image
  */
 
 import { basename, extname } from 'node:path'
-import type { Context } from '@deepseek-ai/cordis'
-import { AttachmentError, AttachmentId } from '@deepseek-ai/dsh-attachment'
-import type { AttachmentStore, ImageAttachmentRef, ImageMediaType } from '@deepseek-ai/dsh-attachment'
-import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { defineTool } from '@deepseek-ai/dsh-tools'
-import type { GenericCallView, ToolExecution } from '@deepseek-ai/dsh-tools'
-import type {} from '@deepseek-ai/dsh-fs'
+import type { Context } from '@panedesk/cordis'
+import { AttachmentError, AttachmentId } from '@panedesk/dsh-attachment'
+import type { AttachmentStore, ImageAttachmentRef, ImageMediaType } from '@panedesk/dsh-attachment'
+import type { ContentBlock } from '@panedesk/dsh-llm'
+import { defineTool } from '@panedesk/dsh-tools'
+import type { GenericCallView, ToolExecution } from '@panedesk/dsh-tools'
+import type {} from '@panedesk/dsh-fs'
 import { resolveRegularReadTarget } from './read-target.ts'
 
 /** Extensions `read_image` accepts; magic-byte validation at the attachment service stays authoritative. */

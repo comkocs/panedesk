@@ -3,7 +3,7 @@ description: "The web GUI host's HTTP server: named-route and upgrade registrati
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-host-webserver
+# @panedesk/dsh-host-webserver
 
 English | [中文](README.zh.md)
 
@@ -30,7 +30,7 @@ Compose the webserver as the HTTP transport of a browser-facing host, then let t
 ### Minimal configuration
 
 ```yaml
-- name: '@deepseek-ai/dsh-host-webserver'
+- name: '@panedesk/dsh-host-webserver'
   config:
     host: 127.0.0.1
     port: 3000
@@ -45,7 +45,7 @@ Set `compression: 'gzip'` to wrap eligible socket-backed responses without chang
 `tls` serves the same routes over TLS on that one address: the carrier opens no second HTTP listener and never redirects. Both files are read once during activation, before the socket binds, so an unreadable, empty, or malformed file, a key that does not match the certificate, or a bind failure rejects initialization — a misconfigured certificate never falls back to HTTP. Paths resolve against the process working directory, the key must be unencrypted PEM, and `certFile` may hold a chain whose leaf certificate comes first. Replacing either file takes a reload, and this carrier neither provisions nor renews certificates.
 
 ```yaml
-- name: '@deepseek-ai/dsh-host-webserver'
+- name: '@panedesk/dsh-host-webserver'
   config:
     host: 127.0.0.1
     port: 3000
@@ -106,7 +106,7 @@ Read these when the server contract is not enough: the subsystem reference, then
 - [HTTP server subsystem](../../../docs/subsystems/web-server.md) — routes, matching order, and the config the server accepts.
 - [SPA dist server](../frontend-static/README.md) — the shipped owner of the fallback seat.
 - [Web config-tree boot and transport layering](../../boot/app-boot/README.md) — why feature plugins own every route.
-- [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-host-webserver) — every accepted config field and its source declaration.
+- [Generated configuration catalog](../../../docs/config-catalog.md#panedeskdsh-host-webserver) — every accepted config field and its source declaration.
 
 -----
 

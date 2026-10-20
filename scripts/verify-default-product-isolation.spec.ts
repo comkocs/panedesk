@@ -10,9 +10,9 @@ import { verifyDefaultProductIsolation } from './verify-default-product-isolatio
 import { writeFixtureFile as write } from './fixture-file.ts'
 
 const roots: string[] = []
-const experimental = '@deepseek-ai/dsh-experimental-prototype'
-const core = '@deepseek-ai/dsh-core'
-const base = '@deepseek-ai/dsh-base'
+const experimental = '@panedesk/dsh-experimental-prototype'
+const core = '@panedesk/dsh-core'
+const base = '@panedesk/dsh-base'
 const profile = 'packages/boot/app-boot/src/profile.ts'
 const preset = 'packages/bundle/web-app/presets/standard.patch.yml'
 const patch = 'packages/bundle/base/cordis.patch.yml'
@@ -25,18 +25,18 @@ function manifest(root: string, path: string, fields: Record<string, unknown>): 
 function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh.default-isolation-'))
   roots.push(root)
-  write(root, 'apps/cli/package.json', { name: '@deepseek-ai/dsh', dependencies: { [core]: 'workspace:^' } })
+  write(root, 'apps/cli/package.json', { name: 'panedesk', dependencies: { [core]: 'workspace:^' } })
   write(root, 'apps/cli/src/bin.ts', 'export {}\n')
-  write(root, 'apps/web/package.json', { name: '@deepseek-ai/dsh-web-frontend' })
+  write(root, 'apps/web/package.json', { name: '@panedesk/dsh-web-frontend' })
   write(root, 'apps/web/index.html', '<script type="module" src="/src/main.ts"></script>')
   write(root, 'apps/web/src/main.ts', 'export {}\n')
-  write(root, 'python/sdk-runtime/package.json', { name: '@deepseek-ai/dsh-python-runtime' })
+  write(root, 'python/sdk-runtime/package.json', { name: '@panedesk/dsh-python-runtime' })
   write(root, 'packages/core/core/package.json', { name: core })
   write(root, 'packages/core/core/src/index.ts', 'export {}\n')
   write(root, 'packages/bundle/base/package.json', { name: base, dsh: { bundle: { patch: './cordis.patch.yml' } } })
   write(root, patch, [{ insert: [{ name: core }] }])
-  write(root, preset, [{ insert: [{ name: '@deepseek-ai/dsh-agent-preset', config: { id: 'standard', plugins: [{ name: core }] } }] }])
-  write(root, 'packages/preset/agent-preset/package.json', { name: '@deepseek-ai/dsh-agent-preset' })
+  write(root, preset, [{ insert: [{ name: '@panedesk/dsh-agent-preset', config: { id: 'standard', plugins: [{ name: core }] } }] }])
+  write(root, 'packages/preset/agent-preset/package.json', { name: '@panedesk/dsh-agent-preset' })
   write(root, profile, `export const PROFILE_TEMPLATES = { web: { bundles: ['${base}'] } }\n`
     + `export const DEFAULT_PROFILE_BUNDLES = ['${base}']\n`)
   write(root, 'packages/experimental/prototype/package.json', { name: experimental })
@@ -59,7 +59,7 @@ describe('default product isolation', () => {
         if (route === 'value import') write(root, 'apps/cli/src/bin.ts', `import '${name}'\n`)
         if (route === 'subpath import') write(root, 'apps/cli/src/bin.ts', `import '${name}/feature'\n`)
         if (route === 'profile row') write(root, patch, [{ insert: [{ name }] }])
-        if (route === 'preset row') write(root, preset, [{ insert: [{ name: '@deepseek-ai/dsh-agent-preset', config: { id: 'standard', plugins: [{ name }] } }] }])
+        if (route === 'preset row') write(root, preset, [{ insert: [{ name: '@panedesk/dsh-agent-preset', config: { id: 'standard', plugins: [{ name }] } }] }])
         expect(verifyDefaultProductIsolation(root).failures).toEqual(expect.arrayContaining([
           expect.stringMatching(new RegExp(`${name}.*default product must not include experimental packages`)),
         ]))
@@ -115,7 +115,7 @@ describe('default product isolation', () => {
 
   it.each([true, false])('ships an optional bundle switched off with legacy icon=%s', (legacy) => {
     const root = fixture()
-    const layer = '@deepseek-ai/dsh-experimental-layer'
+    const layer = '@panedesk/dsh-experimental-layer'
     write(root, 'packages/experimental/layer/package.json', {
       name: layer, ...legacy ? { icon: './icon.svg' } : {},
       exports: { ...legacy ? {} : { './icon': './icon.svg' }, './locale/*.json': './locale/*.json' },
@@ -141,7 +141,7 @@ describe('default product isolation', () => {
   it.each(['dependencies', 'source', 'patch'])(
     'checks a nonexperimental optional bundle for experimental %s', (kind) => {
       const root = fixture()
-      const layer = '@deepseek-ai/dsh-optional-layer'
+      const layer = '@panedesk/dsh-optional-layer'
       write(root, 'packages/bundle/optional-layer/package.json', {
         name: layer, icon: './icon.svg', exports: { './locale/*.json': './locale/*.json' },
         dsh: { bundle: { patch: './cordis.patch.yml' } },
@@ -178,7 +178,7 @@ describe('default product isolation', () => {
     write(root, profile, `export const PROFILE_TEMPLATES = { web: { bundles: ['${base}'] } }\n`
       + `export const DEFAULT_PROFILE_BUNDLES = ['${base}']\n`)
     manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:^', [experimental]: 'workspace:^' } })
-    expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(`@deepseek-ai/dsh dependencies -> ${experimental}`)
+    expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(`panedesk dependencies -> ${experimental}`)
   })
 
   it.each(['dependencies', 'optionalDependencies', 'peerDependencies'])(
@@ -204,12 +204,12 @@ describe('default product isolation', () => {
 
   it('rejects experimental names absent from the inventory and paths with another package name', () => {
     const root = fixture()
-    manifest(root, 'apps/cli/package.json', { dependencies: { '@deepseek-ai/dsh-experimental-missing': '*' } })
+    manifest(root, 'apps/cli/package.json', { dependencies: { '@panedesk/dsh-experimental-missing': '*' } })
     manifest(root, 'packages/experimental/prototype/package.json', { name: '@fixture/innocent' })
     manifest(root, 'python/sdk-runtime/package.json', { dependencies: { '@fixture/innocent': '*' } })
 
     const failures = verifyDefaultProductIsolation(root).failures.join('\n')
-    expect(failures).toContain('@deepseek-ai/dsh-experimental-missing')
+    expect(failures).toContain('@panedesk/dsh-experimental-missing')
     expect(failures).toContain('@fixture/innocent')
   })
 
@@ -312,8 +312,8 @@ describe('default product isolation', () => {
     [{ name: experimental, disabled: true }],
     [{ group: true, config: [{ name: experimental }] }],
     [{ insert: [{ name: experimental }] }],
-    [{ name: '@deepseek-ai/cordis-plugin-group', config: [{ name: experimental }] }],
-    [{ name: '@deepseek-ai/cordis-plugin-include', config: { patches: [{ insert: [{ name: experimental }] }] } }],
+    [{ name: '@panedesk/cordis-plugin-group', config: [{ name: experimental }] }],
+    [{ name: '@panedesk/cordis-plugin-include', config: { patches: [{ insert: [{ name: experimental }] }] } }],
   ].map(entries => ({ entries })))('rejects experimental plugin rows in $entries', ({ entries }) => {
     const root = fixture()
     write(root, patch, entries)
@@ -325,7 +325,7 @@ describe('default product isolation', () => {
     const root = fixture()
     write(root, patch, [{ insert: [{ name: core, config: { name: experimental, insert: [{ name: experimental }] } }] }])
     expect(verifyDefaultProductIsolation(root).failures).toEqual([])
-    write(root, patch, [{ name: '@deepseek-ai/cordis-plugin-include', config: { path: './nested.yml' } }])
+    write(root, patch, [{ name: '@panedesk/cordis-plugin-include', config: { path: './nested.yml' } }])
     write(root, 'packages/bundle/base/nested.yml', [{ name: experimental }])
     expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(experimental)
   })
@@ -405,7 +405,7 @@ describe('default product isolation', () => {
 
   it('checks group contents after an id-only patch changes the composed Web tree', () => {
     const root = fixture()
-    const web = '@deepseek-ai/dsh-web-app'
+    const web = '@panedesk/dsh-web-app'
     write(root, 'packages/bundle/web-app/package.json', { name: web, dsh: { bundle: { patch: './cordis.patch.yml' } } })
     write(root, patch, [{ insert: [{ id: 'feature-group', group: true, config: [{ name: core }] }] }])
     write(root, 'packages/bundle/web-app/cordis.patch.yml', [

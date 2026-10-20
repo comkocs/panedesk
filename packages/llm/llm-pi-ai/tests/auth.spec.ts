@@ -2,10 +2,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
-import { credentialKey, credentialRef } from '@deepseek-ai/dsh-credentials'
-import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
+import { Context } from '@panedesk/cordis'
+import LocalCredentialProvider from '@panedesk/dsh-credentials-local'
+import { credentialKey, credentialRef } from '@panedesk/dsh-credentials'
+import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@panedesk/dsh-launch-environment'
 import { authContextFrom, credentialStoreFrom, recordKeyFor } from '../src/auth.ts'
 
 const home = vi.hoisted(() => ({ unavailable: false }))
@@ -26,7 +26,7 @@ const CODEX = recordKeyFor('openai-codex')
 
 const dirs: string[] = []
 
-/** A context whose credential records live in a throwaway `$DSH_HOME`. */
+/** A context whose credential records live in a throwaway `$PANEDESK_HOME`. */
 async function stored(
   layers?: Parameters<typeof createLaunchEnvironmentSnapshot>[0],
   initialRefs?: Record<string, string>,
@@ -214,7 +214,7 @@ describe('pi-ai ambient auth context', () => {
     const ctx = await stored([
       { source: 'process', values: { OPENAI_API_KEY: 'from-launch' } },
       { source: 'project-env', path: '/work/.env', values: { OPENAI_API_KEY: 'from-project' } },
-      { source: 'user-env', path: '/home/.dsh/.env', values: { OPENAI_API_KEY: 'from-home' } },
+      { source: 'user-env', path: '/home/.panedesk/.env', values: { OPENAI_API_KEY: 'from-home' } },
     ], { OPENAI_API_KEY: 'from-credentials' })
 
     await expect(authContextFrom(ctx).env('OPENAI_API_KEY')).resolves.toBe('from-credentials')

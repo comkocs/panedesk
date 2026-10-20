@@ -1,6 +1,6 @@
 /** Each confinement request resolves remotely before any subprocess receives its argv. */
-import { Context, Service } from '@deepseek-ai/cordis'
-import { SandboxUnavailableError, type SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
+import { Context, Service } from '@panedesk/cordis'
+import { SandboxUnavailableError, type SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { z } from 'zod'
 import { SshSandboxProvider } from '../src/index.ts'

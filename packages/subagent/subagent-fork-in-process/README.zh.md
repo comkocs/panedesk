@@ -3,7 +3,7 @@ description: "面向用户与维护者的进程内 fork subagent 后端说明，
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-subagent-fork-in-process
+# @panedesk/dsh-subagent-fork-in-process
 
 [English](README.md) | 中文
 
@@ -40,9 +40,9 @@ kind: "package-reference"
 先加载 subagent 服务与本后端，再配置一个委派工具。此组合暴露由 fork 支撑的 `subagent` 工具：
 
 ```yaml
-- name: '@deepseek-ai/dsh-subagent'
-- name: '@deepseek-ai/dsh-subagent-fork-in-process'
-- name: '@deepseek-ai/dsh-tool-subagent'
+- name: '@panedesk/dsh-subagent'
+- name: '@panedesk/dsh-subagent-fork-in-process'
+- name: '@panedesk/dsh-tool-subagent'
   config:
     provider: fork
 ```
@@ -51,7 +51,7 @@ kind: "package-reference"
 |---|---|---|
 | `providerName` | `fork` | 注册到 `ctx.subagents` 的提供方名称 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-fork-in-process)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-subagent-fork-in-process)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 一次 fork 委派会做什么
 
@@ -97,7 +97,7 @@ kind: "package-reference"
 - [Subagent 子系统](../../../docs/subsystems/subagent.zh.md)——启动请求、结果、提供方约定与进程内深度和初始内容。
 - [dsh-subagent-spawn-in-process](../subagent-spawn-in-process/README.zh.md)——全新子级的兄弟后端。
 - [dsh-tool-subagent](../tool-subagent/README.zh.md)——指向该提供方的面向模型委派工具。
-- [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-subagent-fork-in-process)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-subagent-fork-in-process)——每个受支持配置字段及其源声明。
 - [Fork child 保留 parent 请求前缀](../../../.agents/notes/implemented/architecture/2026-08-10-fork-children-stay-one-shot.zh.md)——可继续 fork 为何保留继承的请求前缀。
 
 -----

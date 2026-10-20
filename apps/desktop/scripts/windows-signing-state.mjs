@@ -16,7 +16,7 @@ export function beginWindowsSigningAttempt(options) {
     throw new Error('Windows hardware signing requires a supervised packaging run with retained records')
   }
   if (existsSync(join(runDirectory, 'fatal.json'))) throw new Error('Windows signing refused: packaging run already failed')
-  const root = options.stateDirectory ?? join(homedir(), '.dsh-desktop-signing')
+  const root = options.stateDirectory ?? join(homedir(), '.panedesk-desktop-signing')
   const lock = join(root, 'attempt.json')
   const attemptId = randomUUID()
   mkdirSync(root, { recursive: true })

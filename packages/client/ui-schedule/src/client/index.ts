@@ -28,20 +28,20 @@
  * per-Session source.
  */
 
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
-import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
-import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
-import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-client-connection/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { ScheduleCatalogEntry, ScheduleDeliveryHistoryRequest, ScheduleId, ScheduleUpdateRequest } from '@deepseek-ai/dsh-schedule/client'
+import type { Context as ClientContext } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-client-locale/client'
+import type {} from '@panedesk/dsh-client-ui-conversation/client'
+import type {} from '@panedesk/dsh-client-ui-renderer/client'
+import type {} from '@panedesk/dsh-client-ui-session/client'
+import type {} from '@panedesk/dsh-client-ui-sidebar/client'
+import type {} from '@panedesk/dsh-client-ui-sidebar-right/client'
+import type {} from '@panedesk/dsh-client-ui-tool/client'
+import type {} from '@panedesk/dsh-client-ui-workspace/client'
+import type { MainPanelId } from '@panedesk/dsh-client-ui-layout/client'
+import type {} from '@panedesk/dsh-api-remotes/client'
+import type {} from '@panedesk/dsh-client-connection/client'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import type { ScheduleCatalogEntry, ScheduleDeliveryHistoryRequest, ScheduleId, ScheduleUpdateRequest } from '@panedesk/dsh-schedule/client'
 import { createCatalogSource, type CatalogDeleteOutcome, type CatalogInjected } from './catalog-source.ts'
 import { createDeleteToastSource, ScheduleDeleteToast } from './DeleteToast.tsx'
 import { SCHEDULE_TASK_ID, SCHEDULE_TASK_KIND, scheduleTaskDefinition } from './definition.ts'
@@ -64,7 +64,7 @@ import { en as managerEn, zh as managerZh, type TaskManagerKey } from './task-ma
 const MANAGER_NS = 'schedule.manager'
 const PANEL_ID = 'schedules' as MainPanelId
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Active Schedule catalog copy. */
     'schedule.catalog': ScheduleCatalogKey

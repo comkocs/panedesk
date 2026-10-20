@@ -3,7 +3,7 @@ description: "Progressive Office authoring and CLI operation skills for document
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-skill-office
+# @panedesk/dsh-skill-office
 
 English | [中文](README.zh.md)
 
@@ -29,7 +29,7 @@ The catalog lists the Office router and six authoring or operation skills. Full 
 Mount the skill provider beside the skill registry and `dsh-tool-skill`. The provider supplies skill instructions; operation skills append absolute interpreter and CLI paths when loaded.
 
 ```yaml
-- name: '@deepseek-ai/dsh-skill-office'
+- name: '@panedesk/dsh-skill-office'
 
 ```
 

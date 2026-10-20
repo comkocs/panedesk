@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { expect, it } from 'vitest'
-import { runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
-import { parseSessionLog } from '@deepseek-ai/dsh-llm-replay'
+import { runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
+import { parseSessionLog } from '@panedesk/dsh-llm-replay'
 import { expectNoRenderContext, officeModelPatches } from './fixtures/real-office.ts'
 
 const repo = fileURLToPath(new URL('../../../../', import.meta.url))
@@ -15,15 +15,15 @@ const python = runtime && join(runtime, 'dependencies/python', process.platform 
 const launch = {
   binScript: join(repo, 'apps/cli/src/bin.ts'), sourceImport: 'tsx/esm' as const, tsconfigPath: join(repo, 'tsconfig.base.json'),
   configPath: 'office.patch.json', processTimeoutMs: 110_000,
-  env: { DSH_PRIMARY_RUNTIME: runtime, DSH_PERMISSION_MODE: 'danger-full-access', DSH_TELEMETRY_DISABLED: '1', DSH_TOOLS_MODE: 'native',
+  env: { DSH_PRIMARY_RUNTIME: runtime, PANEDESK_PERMISSION_MODE: 'danger-full-access', PANEDESK_TELEMETRY_DISABLED: '1', PANEDESK_TOOLS_MODE: 'native',
     HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY },
 }
 
 async function prepareOffice(cwd: string) {
   await writeFile(join(cwd, 'office.patch.json'), JSON.stringify([
     ...officeModelPatches(),
-    { insert: [{ id: 'skill-office', name: '@deepseek-ai/dsh-skill-office', config: { assetRoot: join(repo, 'packages/skill/skill-office/assets') } }] },
-    { insert: [{ id: 'workspace-dependencies', name: '@deepseek-ai/dsh-tool-workspace-dependencies', config: { source: runtime! } }] },
+    { insert: [{ id: 'skill-office', name: '@panedesk/dsh-skill-office', config: { assetRoot: join(repo, 'packages/skill/skill-office/assets') } }] },
+    { insert: [{ id: 'workspace-dependencies', name: '@panedesk/dsh-tool-workspace-dependencies', config: { source: runtime! } }] },
     { id: 'session-persistence-jsonl', config: { root: join(cwd, '.sessions'), compression: 'none' } },
   ]))
 }
@@ -39,7 +39,7 @@ async function sessionEvents(cwd: string) {
 it.skipIf(!process.env.DEEPSEEK_API_KEY || !runtime).each([{ format: 'docx', mode: 'native' }, { format: 'pdf', mode: 'native' }, { format: 'docx', mode: 'ptc' }])('loads the operation skill and renders $format through the shell in $mode mode', async ({ format, mode }) => {
   await runLoaderSmoke({
     label: 'Office CLI rendering', tempDirPrefix: 'dsh-office-render-',
-    ...launch, env: { ...launch.env, DSH_TOOLS_MODE: mode },
+    ...launch, env: { ...launch.env, PANEDESK_TOOLS_MODE: mode },
     binArgs: ['--profile', 'headless', '--patch', 'office.patch.json',
       `Export page 1 of input.${format} as PNG into preview and check that the exported image is readable. Report briefly in English.`],
     async prepare(cwd) {

@@ -3,7 +3,7 @@ description: "面向用户与维护者的 subagent 委派 seam，用于选择提
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-subagent
+# @panedesk/dsh-subagent
 
 [English](README.md) | 中文
 
@@ -34,9 +34,9 @@ kind: "package-reference"
 挂载服务、提供方与委派工具。提供方按配置名称注册，每个工具行选择一个提供方。最小配置如下：
 
 ```yaml
-- name: '@deepseek-ai/dsh-subagent'
-- name: '@deepseek-ai/dsh-subagent-spawn-in-process'
-- name: '@deepseek-ai/dsh-tool-subagent'
+- name: '@panedesk/dsh-subagent'
+- name: '@panedesk/dsh-subagent-spawn-in-process'
+- name: '@panedesk/dsh-tool-subagent'
   config:
     provider: spawn
     toolName: subagent

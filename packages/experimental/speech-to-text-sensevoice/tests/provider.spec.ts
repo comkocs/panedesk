@@ -1,7 +1,7 @@
 /** Provider activation remains lazy and rejects relative deployment paths. */
-import { Context } from '@deepseek-ai/cordis'
-import LocalSubprocess from '@deepseek-ai/dsh-subprocess-local'
-import SpeechToText from '@deepseek-ai/dsh-experimental-speech-to-text'
+import { Context } from '@panedesk/cordis'
+import LocalSubprocess from '@panedesk/dsh-subprocess-local'
+import SpeechToText from '@panedesk/dsh-experimental-speech-to-text'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as Provider from '../src/index.ts'
 import { SenseVoiceWorker } from '../src/recognizer.ts'

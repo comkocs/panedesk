@@ -9,15 +9,15 @@
  * and registration plus surface disposal ride the plugin fiber (HMR safety).
  * The node half stays inert.
  */
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, Service } from '@panedesk/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import type { MessageId } from '@deepseek-ai/dsh-api-remotes/client'
-import type { MessageFeedbackItem, MessageFeedbackVersion } from '@deepseek-ai/dsh-message-feedback/types'
-import type { CommandDecoration } from '@deepseek-ai/dsh-client-ui-commands/client'
+import { SlotRegistry } from '@panedesk/dsh-client-ui-renderer/client'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import { LocaleRuntime } from '@panedesk/dsh-client-locale/client'
+import type { MessageId } from '@panedesk/dsh-api-remotes/client'
+import type { MessageFeedbackItem, MessageFeedbackVersion } from '@panedesk/dsh-message-feedback/types'
+import type { CommandDecoration } from '@panedesk/dsh-client-ui-commands/client'
 import type { FeedbackDialogInjected, MessageFeedbackInjected } from '../src/client/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as nodeApply } from '../src/index.ts'

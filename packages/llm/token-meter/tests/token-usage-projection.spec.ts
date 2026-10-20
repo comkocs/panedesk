@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { createMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
-import type { TokenUsage } from '@deepseek-ai/dsh-llm'
-import SessionStore from '@deepseek-ai/dsh-session'
-import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import TokenMeter from '@deepseek-ai/dsh-token-meter'
-import type { ContextPressureProjection, TokenUsageProjection } from '@deepseek-ai/dsh-token-meter/client'
-import { RetryId } from '@deepseek-ai/dsh-llm-retry'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-import { CompactionId } from '@deepseek-ai/dsh-compaction'
+import { Context } from '@panedesk/cordis'
+import { createMessage, createUserMessage } from '@panedesk/dsh-llm'
+import type { TokenUsage } from '@panedesk/dsh-llm'
+import SessionStore from '@panedesk/dsh-session'
+import type { Session, SessionSeq } from '@panedesk/dsh-session'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import TokenMeter from '@panedesk/dsh-token-meter'
+import type { ContextPressureProjection, TokenUsageProjection } from '@panedesk/dsh-token-meter/client'
+import { RetryId } from '@panedesk/dsh-llm-retry'
+import type { ContextFormed } from '@panedesk/dsh-llm'
+import { CompactionId } from '@panedesk/dsh-compaction'
 
-declare module '@deepseek-ai/dsh-llm' {
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'test': { kind: 'test' } & ContextFormed
   }

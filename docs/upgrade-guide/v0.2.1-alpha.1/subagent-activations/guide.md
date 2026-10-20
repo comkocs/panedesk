@@ -9,16 +9,16 @@ English | [中文](guide.zh.md)
 
 ## Change
 
-`@deepseek-ai/dsh-tool-subagent` removes `backgroundMode`, `enableRunInBackground`, and the model argument `run_in_background`. Every delegation now returns `{ kind: 'activation', subagentId }` after accepting the child, and the runtime delivers its final answer in a parent completion notice. Foreground results and `{ kind: 'background', jobId }` results are removed; subagents are no longer collected or stopped through `job_output` or `job_kill`.
+`@panedesk/dsh-tool-subagent` removes `backgroundMode`, `enableRunInBackground`, and the model argument `run_in_background`. Every delegation now returns `{ kind: 'activation', subagentId }` after accepting the child, and the runtime delivers its final answer in a parent completion notice. Foreground results and `{ kind: 'background', jobId }` results are removed; subagents are no longer collected or stopped through `job_output` or `job_kill`.
 
-The published `@deepseek-ai/dsh-subagent-in-process-driver` package is removed. Local providers contribute creation inputs through `prepareContinuable()`; the subagent service owns execution. Spawn and Fork children can receive later messages, including after settlement when persistence and Session query are available. External providers execute once and do not accept follow-up messages.
+The published `@panedesk/dsh-subagent-in-process-driver` package is removed. Local providers contribute creation inputs through `prepareContinuable()`; the subagent service owns execution. Spawn and Fork children can receive later messages, including after settlement when persistence and Session query are available. External providers execute once and do not accept follow-up messages.
 
 ## Migration
 
 1. Remove `backgroundMode` and `enableRunInBackground` from `tool-subagent` rows in `cordis.yml`, profile patches, and overlays. Keep the provider and remaining configuration. For example:
 
    ```yaml
-   - name: '@deepseek-ai/dsh-tool-subagent'
+   - name: '@panedesk/dsh-tool-subagent'
      config:
        provider: spawn
        toolName: subagent
@@ -31,8 +31,8 @@ The published `@deepseek-ai/dsh-subagent-in-process-driver` package is removed. 
 3. For host code that must await a result, replace `ctx.subagents.start()` or `startContinuable()` with `startActivation()` and caller delivery. Given a composed service and live parent:
 
    ```ts
-   import type { Agent } from '@deepseek-ai/dsh-agent'
-   import type SubagentRuntime from '@deepseek-ai/dsh-subagent'
+   import type { Agent } from '@panedesk/dsh-agent'
+   import type SubagentRuntime from '@panedesk/dsh-subagent'
 
    async function collect(subagents: SubagentRuntime, parent: Agent, signal: AbortSignal) {
      const activation = await subagents.startActivation({

@@ -95,7 +95,7 @@ it('lists Git versions from release tags and the default branch by reading objec
     'packages/a/locale/en.json': JSON.stringify({ meta: { title: 'Alpha', description: 'Does A' } }),
     'packages/a/icon.svg': '<svg/>',
     'packages/b/package.json': bundle('@s/b', '2.0.0', { keywords: ['head'] }),
-    'packages/d/package.json': JSON.stringify({ ...JSON.parse(bundle('@s/d', '0.1.0')), peerDependencies: { '@deepseek-ai/dsh': 'workspace:>=1' } }),
+    'packages/d/package.json': JSON.stringify({ ...JSON.parse(bundle('@s/d', '0.1.0')), peerDependencies: { 'panedesk': 'workspace:>=1' } }),
   })
   const head = repo.commit(1790000300)
   repo.git(['tag', 'v2.0.0'])

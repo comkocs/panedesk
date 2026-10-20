@@ -1,8 +1,8 @@
 /** Loader fixture selecting a directory after initial prompt assembly. */
 import assert from 'node:assert/strict'
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-working-directory'
+import type { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-working-directory'
 
 /** Loader identity for the admission timing scene. */
 export const name = 'working-directory-admission'

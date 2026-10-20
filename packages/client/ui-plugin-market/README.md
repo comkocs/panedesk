@@ -3,7 +3,7 @@ description: "Discover tab of the Web Plugins page: search configured plugin mar
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-plugin-market
+# @panedesk/dsh-client-ui-plugin-market
 
 English | [中文](README.zh.md)
 

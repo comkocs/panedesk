@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { expect, it } from 'vitest'
-import { runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
-import { parseSessionLog } from '@deepseek-ai/dsh-llm-replay'
-import type {} from '@deepseek-ai/dsh-tools/types'
+import { runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
+import { parseSessionLog } from '@panedesk/dsh-llm-replay'
+import type {} from '@panedesk/dsh-tools/types'
 import { expectNoRenderContext, officeModelPatches } from './fixtures/real-office.ts'
 
 const repo = fileURLToPath(new URL('../../../../', import.meta.url))
@@ -20,7 +20,7 @@ it.skipIf(!process.env.DEEPSEEK_API_KEY || !runtime).each(['native', 'ptc'])('ch
     configPath: 'office.patch.json', processTimeoutMs: 110_000,
     binArgs: ['--profile', 'headless', '--patch', 'office.patch.json',
       'In input.docx, change the title paragraph text to Quarterly results without changing its formatting; save result.docx. Do not render or visually inspect the finished file. Respond briefly in English.'],
-    env: { DSH_PRIMARY_RUNTIME: runtime, DSH_PERMISSION_MODE: 'danger-full-access', DSH_TELEMETRY_DISABLED: '1', DSH_TOOLS_MODE: mode,
+    env: { DSH_PRIMARY_RUNTIME: runtime, PANEDESK_PERMISSION_MODE: 'danger-full-access', PANEDESK_TELEMETRY_DISABLED: '1', PANEDESK_TOOLS_MODE: mode,
       HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY, HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY },
     async prepare(cwd) {
       await execa(python!, ['-c', `
@@ -35,8 +35,8 @@ d.add_paragraph('Q1: 12; Q2: 18')
 d.save('input.docx')
 `], { cwd })
       await writeFile(join(cwd, 'office.patch.json'), JSON.stringify([
-        { insert: [{ id: 'skill-office', name: '@deepseek-ai/dsh-skill-office', config: { assetRoot: join(repo, 'packages/skill/skill-office/assets') } }] },
-        { insert: [{ id: 'workspace-dependencies', name: '@deepseek-ai/dsh-tool-workspace-dependencies', config: { source: runtime! } }] },
+        { insert: [{ id: 'skill-office', name: '@panedesk/dsh-skill-office', config: { assetRoot: join(repo, 'packages/skill/skill-office/assets') } }] },
+        { insert: [{ id: 'workspace-dependencies', name: '@panedesk/dsh-tool-workspace-dependencies', config: { source: runtime! } }] },
         ...officeModelPatches(),
         { id: 'session-persistence-jsonl', config: { root: join(cwd, '.sessions'), compression: 'none' } },
       ]))

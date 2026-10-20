@@ -5,7 +5,7 @@ import { installRuntimeInterception } from './resolver.ts'
 import type { RuntimeResolution } from '../profile.ts'
 
 const registration = getEnvironmentData(
-  '@deepseek-ai/dsh-app-boot/profile-resolution',
+  '@panedesk/dsh-app-boot/profile-resolution',
 ) as {
   resolution: RuntimeResolution
 } | undefined

@@ -3,7 +3,7 @@ description: "Virtualized raw Session log and Chat group/node tables with stream
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-session-inspector
+# @panedesk/dsh-experimental-session-inspector
 
 English | [中文](README.zh.md)
 

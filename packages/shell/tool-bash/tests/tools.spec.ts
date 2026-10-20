@@ -1,29 +1,29 @@
 import { mkdtempSync, rmSync } from 'node:fs'
-import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { ShellExecutor } from '@deepseek-ai/dsh-shell'
-import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellProcess, ShellRunResult } from '@deepseek-ai/dsh-shell'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { TOOL_ABORTED, TOOL_ABORTED_BEFORE_DISPATCH } from '@deepseek-ai/dsh-tools'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { turnBoundaryProjectionDefinition } from '@deepseek-ai/dsh-agent-loop'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
-import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
-import ApprovalService from '@deepseek-ai/dsh-user-approval'
-import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
-import { LocalBashExecutor } from '@deepseek-ai/dsh-bash-local'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
-import { escalationHintMarker, sandboxDenialMarker } from '@deepseek-ai/dsh-sandbox'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
-import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
+import { Context } from '@panedesk/cordis'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import { ShellExecutor } from '@panedesk/dsh-shell'
+import type { ShellExecRequest, ShellExecSpec, ShellExecution, ShellProcess, ShellRunResult } from '@panedesk/dsh-shell'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime, { TOOL_ABORTED, TOOL_ABORTED_BEFORE_DISPATCH } from '@panedesk/dsh-tools'
+import AgentRegistry from '@panedesk/dsh-agent'
+import type { Agent } from '@panedesk/dsh-agent'
+import { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
+import { SessionId } from '@panedesk/dsh-session'
+import LocalJobRegistry from '@panedesk/dsh-jobs-local'
+import * as ToolJobs from '@panedesk/dsh-tool-jobs'
+import ApprovalService from '@panedesk/dsh-user-approval'
+import type { ApprovalOutcome } from '@panedesk/dsh-user-approval'
+import { LocalBashExecutor } from '@panedesk/dsh-bash-local'
+import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
+import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
+import { escalationHintMarker, sandboxDenialMarker } from '@panedesk/dsh-sandbox'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import * as ToolBash from '@panedesk/dsh-tool-bash'
+import * as BashEnvPlugin from '@panedesk/dsh-shell-env'
 import { processOutcome } from '../src/background.ts'
 import { renderJobRead, renderResult } from '../src/render.ts'
 
@@ -629,7 +629,7 @@ describe('background execution through the job runtime', () => {
     const ctx = await setup() // no LocalJobRegistry / ToolJobs
     const result = await call(ctx, 'bash', { command: 'sleep 60', description: 'test command', run_in_background: true })
     expect(result.isError).toBe(true)
-    expect(text(result)).toContain('background jobs unavailable: load @deepseek-ai/dsh-jobs and @deepseek-ai/dsh-tool-jobs')
+    expect(text(result)).toContain('background jobs unavailable: load @panedesk/dsh-jobs and @panedesk/dsh-tool-jobs')
   })
 
   it('a pre-aborted call is skipped before the process starts', async () => {
@@ -1366,7 +1366,7 @@ describe('the model-facing bash tool builds its request from named args only (no
     })
 
     expect(bash.requests[0]?.dshEnv).toEqual({
-      DSH_HOME: recordingDshHome,
+      PANEDESK_HOME: recordingDshHome,
       DSH_SESSION_ID: 'request-fg',
       DSH_SHELL: '1',
     })
@@ -1392,7 +1392,7 @@ describe('the model-facing bash tool builds its request from named args only (no
 
     expect(bash.requests[0]?.env).toBeUndefined()
     expect(bash.requests[0]?.dshEnv).toEqual({
-      DSH_HOME: recordingDshHome,
+      PANEDESK_HOME: recordingDshHome,
       DSH_SESSION_ID: 'request-bg',
       DSH_SHELL: '1',
     })
@@ -1415,12 +1415,12 @@ describe('the model-facing bash tool builds its request from named args only (no
 
     expect(bash.requests.map(request => request.dshEnv)).toEqual([
       {
-        DSH_HOME: recordingDshHome,
+        PANEDESK_HOME: recordingDshHome,
         DSH_SESSION_ID: 'request-parent',
         DSH_SHELL: '1',
       },
       {
-        DSH_HOME: recordingDshHome,
+        PANEDESK_HOME: recordingDshHome,
         DSH_SESSION_ID: 'request-child',
         DSH_SHELL: '1',
       },

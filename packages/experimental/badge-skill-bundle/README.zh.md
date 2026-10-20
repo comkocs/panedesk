@@ -3,7 +3,7 @@ description: "让 Agent 为文档、PR 等产出添加「powered by dsh」徽章
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-experimental-badge-skill-bundle
+# @panedesk/dsh-experimental-badge-skill-bundle
 
 [English](README.md) | 中文
 

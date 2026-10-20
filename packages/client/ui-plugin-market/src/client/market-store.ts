@@ -1,10 +1,10 @@
 /** Discover state: configured index sources, the selected index's query and loaded results, and source editing. */
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
-import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import type { MarketIndexSummary, MarketSearchResult, RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
-import type { LocaleSnapshot } from '@deepseek-ai/dsh-client-locale/client'
+import type { Context as ClientContext } from '@panedesk/cordis'
+import type { LocalizedText } from '@panedesk/dsh-package-manifest'
+import { createSnapshotStore, type SnapshotStore } from '@panedesk/dsh-client-store'
+import type { HostObservable } from '@panedesk/dsh-client-ui-slots'
+import type { MarketIndexSummary, MarketSearchResult, RemoteFailure } from '@panedesk/dsh-api-remotes/client'
+import type { LocaleSnapshot } from '@panedesk/dsh-client-locale/client'
 import { declaredQuery, INITIAL_QUERY, type DiscoverQuery } from './presentation.ts'
 
 /** Why the last listing read failed: the index could not be fetched, is not a valid index, or changed while its pages loaded. */

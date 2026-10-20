@@ -66,9 +66,9 @@ export function handleScaffold(
     case 'Browser.getVersion':
       return {
         protocolVersion: '1.3',
-        product: 'dsh-experimental-inspector/0',
+        product: 'panedesk-experimental-inspector/0',
         revision: '@experimental',
-        userAgent: 'dsh-experimental-inspector',
+        userAgent: 'panedesk-experimental-inspector',
         jsVersion: process.versions.v8,
       }
     default:

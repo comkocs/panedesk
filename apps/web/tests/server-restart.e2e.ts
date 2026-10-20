@@ -31,8 +31,8 @@ class RestartableServer {
       cwd: this.world,
       env: {
         ...process.env, NODE_OPTIONS: '',
-        DSH_HOME: join(this.world, 'home'), DSH_AGENTS_HOME: join(this.world, 'agents'),
-        DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'keyless-server-restart-fixture',
+        PANEDESK_HOME: join(this.world, 'home'), PANEDESK_AGENTS_HOME: join(this.world, 'agents'),
+        PANEDESK_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'keyless-server-restart-fixture',
         DEEPSEEK_BASE_URL: this.modelUrl,
         DSH_WEB_RESTART_HOLD_STARTUP: holdStartup ? '1' : '0',
       },
@@ -41,7 +41,7 @@ class RestartableServer {
     this.child = child
     const receive = (data: Buffer): void => {
       this.output += data.toString()
-      const url = /dsh web: (http:\/\/[^\s]+)/u.exec(this.output)?.[1]
+      const url = /panedesk web: (http:\/\/[^\s]+)/u.exec(this.output)?.[1]
       if (url !== undefined) ready.resolve(url)
     }
     child.stdout?.on('data', receive)

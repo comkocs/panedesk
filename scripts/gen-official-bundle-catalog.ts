@@ -41,11 +41,11 @@ export function generateOfficialBundleCatalog(root: string, names: readonly stri
     if (names.includes(name)) throw new Error(`${name}: on-demand providers must not be installed by the DSH distribution`)
     for (const dependency of manifests.get(name)?.runtime ?? []) checkInstallation(dependency)
   }
-  if (!manifests.has('@deepseek-ai/dsh')) throw new Error('Official catalog requires the DSH installation manifest')
-  checkInstallation('@deepseek-ai/dsh')
+  if (!manifests.has('panedesk')) throw new Error('Official catalog requires the DSH installation manifest')
+  checkInstallation('panedesk')
   return names.map((packageName) => {
     const entry = manifests.get(packageName)
-    if (entry === undefined || !entry.path.startsWith('packages/') || !packageName.startsWith('@deepseek-ai/dsh-') || entry.private || !entry.bundle) {
+    if (entry === undefined || !entry.path.startsWith('packages/') || !packageName.startsWith('@panedesk/dsh-') || entry.private || !entry.bundle) {
       throw new Error(`${packageName}: Official catalog entries must be public DSH bundle packages`)
     }
     const parentURL = pathToFileURL(resolve(root, entry.path)).href

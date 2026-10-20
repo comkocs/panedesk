@@ -4,45 +4,45 @@
 
 - insert:
     - id: sdk-app-startup
-      name: '@deepseek-ai/dsh-sdk-app'
+      name: '@panedesk/dsh-sdk-app'
       config:
         profile: sdk-minimal
 
     - id: sdk-jsonrpc-server
-      name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+      name: '@panedesk/dsh-sdk-jsonrpc-server'
       inject: [sdkAppStartup, loader]
       config:
         maxTokensAsSuccess: false
 
     - id: deepseek-llm-api-extensions
-      name: '@deepseek-ai/dsh-deepseek-llm-api-extensions'
+      name: '@panedesk/dsh-deepseek-llm-api-extensions'
 
     - id: session-log-deepseek
-      name: '@deepseek-ai/dsh-session-log-deepseek'
+      name: '@panedesk/dsh-session-log-deepseek'
 
     - id: plugin-package-inventory-deepseek
-      name: '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
+      name: '@panedesk/dsh-plugin-package-inventory-deepseek'
 
     - id: llm-deepseek
-      name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+      name: '@panedesk/dsh-llm-deepseek-api-key'
       config:
         apiKeyEnv: DEEPSEEK_API_KEY
         defaultContextWindow: !!js Number(process.env.DSH_CONTEXT_WINDOW ?? 1000000)
         streamIdleTimeoutMs: 172800000
 
     - id: sandbox
-      name: '@deepseek-ai/dsh-sandbox-local'
+      name: '@panedesk/dsh-sandbox-local'
 
     # Shared projection registry: sandbox-policy and terminal-bash fold
     # sandbox-mode state through its units and require it as a hard injection.
     - id: filesystem
-      name: '@deepseek-ai/dsh-fs-local'
+      name: '@panedesk/dsh-fs-local'
 
     - id: attachment-local
-      name: '@deepseek-ai/dsh-attachment-local'
+      name: '@panedesk/dsh-attachment-local'
 
     - id: tool-fs
-      name: '@deepseek-ai/dsh-tool-fs'
+      name: '@panedesk/dsh-tool-fs'
       config:
         read: false
         readImage: true
@@ -50,43 +50,43 @@
         edit: false
 
     - id: working-directory
-      name: '@deepseek-ai/dsh-working-directory'
+      name: '@panedesk/dsh-working-directory'
 
     - id: tool-working-directory
-      name: '@deepseek-ai/dsh-tool-working-directory'
+      name: '@panedesk/dsh-tool-working-directory'
 
     - id: session-projection
-      name: '@deepseek-ai/dsh-session-projection'
+      name: '@panedesk/dsh-session-projection'
 
     - id: token-meter
-      name: '@deepseek-ai/dsh-token-meter'
+      name: '@panedesk/dsh-token-meter'
 
     - id: compaction-basic
-      name: '@deepseek-ai/dsh-compaction-basic'
+      name: '@panedesk/dsh-compaction-basic'
 
     - id: image-offload
-      name: '@deepseek-ai/dsh-compaction-image-offload'
+      name: '@panedesk/dsh-compaction-image-offload'
 
     - id: sandbox-policy
-      name: '@deepseek-ai/dsh-sandbox-policy'
+      name: '@panedesk/dsh-sandbox-policy'
       config:
         mode: danger-full-access
         workspaceRoot: !!js process.cwd()
 
     - id: subprocess
-      name: '@deepseek-ai/dsh-subprocess-local'
+      name: '@panedesk/dsh-subprocess-local'
 
     - id: pty
-      name: '@deepseek-ai/dsh-terminal'
+      name: '@panedesk/dsh-terminal'
 
     - id: terminal-bash
-      name: '@deepseek-ai/dsh-terminal-bash'
+      name: '@panedesk/dsh-terminal-bash'
       disabled: !!js process.platform === 'win32'
       config:
         timeoutMs: 300000
 
     - id: terminal-pwsh
-      name: '@deepseek-ai/dsh-terminal-bash'
+      name: '@panedesk/dsh-terminal-bash'
       disabled: !!js process.platform !== 'win32'
       config:
         shellDialect: pwsh
@@ -95,50 +95,50 @@
     # Keep the minimal agent kernel explicit: unlike dsh-base, this profile
     # owns each service row and omits every optional producer it does not use.
     - id: timer
-      name: '@deepseek-ai/cordis-plugin-timer'
+      name: '@panedesk/cordis-plugin-timer'
 
     - id: llm
-      name: '@deepseek-ai/dsh-llm'
+      name: '@panedesk/dsh-llm'
 
     - id: session
-      name: '@deepseek-ai/dsh-session'
+      name: '@panedesk/dsh-session'
 
     - id: session-title
-      name: '@deepseek-ai/dsh-session-title'
+      name: '@panedesk/dsh-session-title'
       config:
         fallbackMaxWords: 5
         fallbackMaxBytes: 40
         maxTitleBytes: 80
 
     - id: system-prompt
-      name: '@deepseek-ai/dsh-system-prompt'
+      name: '@panedesk/dsh-system-prompt'
       config:
         includeHarnessIdentity: false
         includeRuntimeContext: false
         personaPrefix: !!js process.env.DSH_SYSTEM_PROMPT ?? 'You are a helpful software engineer assistant.'
 
     - id: tools
-      name: '@deepseek-ai/dsh-tools'
+      name: '@panedesk/dsh-tools'
 
     - id: mcp-resources
-      name: '@deepseek-ai/dsh-mcp-resources'
+      name: '@panedesk/dsh-mcp-resources'
 
     - id: agent
-      name: '@deepseek-ai/dsh-agent'
+      name: '@panedesk/dsh-agent'
 
     - id: llm-retry
-      name: '@deepseek-ai/dsh-llm-retry'
+      name: '@panedesk/dsh-llm-retry'
 
     - id: jobs
-      name: '@deepseek-ai/dsh-jobs-local'
+      name: '@panedesk/dsh-jobs-local'
 
     - id: agent-loop
-      name: '@deepseek-ai/dsh-agent-loop'
+      name: '@panedesk/dsh-agent-loop'
       config:
         agents: []
 
     - id: persistent-bash
-      name: '@deepseek-ai/dsh-tool-bash-persistent'
+      name: '@panedesk/dsh-tool-bash-persistent'
       disabled: !!js process.platform === 'win32'
       config:
         timeoutMs: 300000
@@ -152,7 +152,7 @@
           * Please run long lived commands in the background, e.g. 'sleep 10 &' or start a server in the background.
 
     - id: persistent-pwsh
-      name: '@deepseek-ai/dsh-tool-pwsh-persistent'
+      name: '@panedesk/dsh-tool-pwsh-persistent'
       disabled: !!js process.platform !== 'win32'
       config:
         timeoutMs: 300000
@@ -166,7 +166,7 @@
           * Please run long lived commands in the background, e.g. 'Start-Job' or start a server with Start-Process.
 
     - id: sessions
-      name: '@deepseek-ai/dsh-session-persistence-jsonl'
+      name: '@panedesk/dsh-session-persistence-jsonl'
       config:
         root: !!js dshHomePath('sessions')
         compression: none

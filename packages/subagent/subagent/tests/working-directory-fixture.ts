@@ -1,7 +1,7 @@
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context, Service } from '@panedesk/cordis'
 import { resolve } from 'node:path'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { Session } from '@deepseek-ai/dsh-session'
+import type { Agent } from '@panedesk/dsh-agent'
+import type { Session } from '@panedesk/dsh-session'
 
 /** Directory selection for orchestration fixtures whose paths are symbolic and whose logs exclude context providers. */
 class FixtureWorkingDirectory extends Service {

@@ -3,18 +3,18 @@ import { mountWorkingDirectoryFixture } from './working-directory-fixture.ts'
 // codes. Session Controller owns catalog observation and transport.
 
 import { describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import AttachmentStore, { AttachmentError } from '@deepseek-ai/dsh-attachment'
-import type { MessageId } from '@deepseek-ai/dsh-llm'
-import { SessionId } from '@deepseek-ai/dsh-session'
+import { Context } from '@panedesk/cordis'
+import AttachmentStore, { AttachmentError } from '@panedesk/dsh-attachment'
+import type { MessageId } from '@panedesk/dsh-llm'
+import { SessionId } from '@panedesk/dsh-session'
 import SubagentRuntime, {
   SubagentError,
   type SubagentPromptRequestId,
-} from '@deepseek-ai/dsh-subagent'
-import { deliverSubagentPrompt, type HostPromptDeliverer } from '@deepseek-ai/dsh-subagent/internal'
-import type { PeerId, Principal, RemoteInvocation } from '@deepseek-ai/dsh-typert-protocol'
+} from '@panedesk/dsh-subagent'
+import { deliverSubagentPrompt, type HostPromptDeliverer } from '@panedesk/dsh-subagent/internal'
+import type { PeerId, Principal, RemoteInvocation } from '@panedesk/dsh-typert-protocol'
 
-declare module '@deepseek-ai/dsh-typert-protocol' {
+declare module '@panedesk/dsh-typert-protocol' {
   interface PrincipalMap {
     /** Test-only non-owner caller shared by the access specs. */
     'test-guest': { readonly kind: 'test-guest'; readonly guest: string }

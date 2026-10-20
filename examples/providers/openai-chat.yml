@@ -1,6 +1,6 @@
 # Provider overlay template: any OpenAI-compatible Chat Completions endpoint.
 # Use it per run (`panedesk --patch examples/providers/openai-chat.yml "task"`)
-# or copy the rows into your profile's cordis.patch.yml ($DSH_HOME/profiles/slim/).
+# or copy the rows into your profile's cordis.patch.yml ($PANEDESK_HOME/profiles/slim/).
 # The key is referenced by environment-variable name only; never inline it.
 - id: llm-pi-ai
   config:

@@ -446,7 +446,7 @@ syncBuiltinESMExports()
     expect(git(fixture, movedRoot, ['config', '--worktree', '--get', 'core.hooksPath'])).toBe(movedHooks)
     const canonicalMoved = git(fixture, movedRoot, ['rev-parse', '--show-toplevel'])
     expect(readFileSync(join(movedHooks, 'pre-commit'), 'utf8')).toContain(`# root=${canonicalMoved}`)
-    expect(readFileSync(join(movedHooks, '.dsh-lefthook-owned'), 'utf8')).toContain(
+    expect(readFileSync(join(movedHooks, '.panedesk-lefthook-owned'), 'utf8')).toContain(
       JSON.stringify(movedHooks),
     )
   })
@@ -457,7 +457,7 @@ syncBuiltinESMExports()
     const first = await runInstaller(fixture, oldRoot)
     expect(first.status, first.stderr).toBe(0)
     const oldHooks = hooksPath(fixture, oldRoot)
-    const markerName = '.dsh-lefthook-owned'
+    const markerName = '.panedesk-lefthook-owned'
     const externalMarker = join(fixture.container, 'external-marker')
     linkSync(join(oldHooks, markerName), externalMarker)
     const externalContent = readFileSync(externalMarker, 'utf8')
@@ -498,7 +498,7 @@ syncBuiltinESMExports()
     const first = await runInstaller(fixture, oldRoot)
     expect(first.status, first.stderr).toBe(0)
     const oldHooks = hooksPath(fixture, oldRoot)
-    const markerName = '.dsh-lefthook-owned'
+    const markerName = '.panedesk-lefthook-owned'
     const previousMarker = readFileSync(join(oldHooks, markerName), 'utf8')
     const movedRoot = join(fixture.container, 'moved-main')
     renameSync(oldRoot, movedRoot)
@@ -659,7 +659,7 @@ syncBuiltinESMExports()
     expect(mainInstall.status, mainInstall.stderr).toBe(0)
     const externalHooks = join(fixture.container, 'external-owned-hooks')
     write(
-      join(externalHooks, '.dsh-lefthook-owned'),
+      join(externalHooks, '.panedesk-lefthook-owned'),
       `${JSON.stringify({
         version: 1,
         owner: 'deepseek-harness worktree-local lefthook hooks',

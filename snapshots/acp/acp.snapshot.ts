@@ -1,4 +1,4 @@
-/** Recorded ACP protocol behavior through the shipped `dsh --profile acp` interface. */
+/** Recorded ACP protocol behavior through the shipped `panedesk --profile acp` interface. */
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,7 +8,7 @@ import {
   parseSnapshotManifest,
   type Scenario,
   type SnapshotSuiteOptions,
-} from '@deepseek-ai/dsh-session-snapshot'
+} from '@panedesk/dsh-session-snapshot'
 
 const corpusDir = fileURLToPath(new URL('./', import.meta.url))
 
@@ -73,7 +73,7 @@ const scenarios: Scenario[] = controllerCases.map((controller) => {
       : {
           env: {
             ...manifest.environment,
-            ...(manifest.permission === undefined ? {} : { DSH_PERMISSION_MODE: manifest.permission }),
+            ...(manifest.permission === undefined ? {} : { PANEDESK_PERMISSION_MODE: manifest.permission }),
           },
         },
   }

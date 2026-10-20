@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-llm",
+  "name": "@panedesk/dsh-llm",
   "description": "Provider-neutral LLM service interface for the DeepSeek Harness",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -58,19 +58,19 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-util-crypto": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~",
+    "@panedesk/dsh-util-crypto": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3",
-    "@deepseek-ai/dsh-timeout": "workspace:*",
-    "@deepseek-ai/dsh-brand": "workspace:*",
-    "@deepseek-ai/dsh-util-values": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@panedesk/dsh-timeout": "workspace:*",
+    "@panedesk/dsh-brand": "workspace:*",
+    "@panedesk/dsh-util-values": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-attachment": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/dsh-attachment": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
   }
 }

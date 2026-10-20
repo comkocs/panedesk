@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { execa } from 'execa'
 import { describe, expect, it } from 'vitest'
-import { FiberState } from '@deepseek-ai/cordis'
+import { FiberState } from '@panedesk/cordis'
 
 const repoRoot = fileURLToPath(new URL('../../../../../../', import.meta.url))
 const bin = join(repoRoot, 'apps/cli/lib/bin.js')
@@ -115,7 +115,7 @@ function fixture() {
 function start(f: ReturnType<typeof fixture>, extra: string[] = [], nodeArgs: string[] = []) {
   const child = execa(process.execPath, [...nodeArgs, bin, '--profile', 'web', '--patch', f.watcher, ...extra, '--no-open', '--port', '0'], {
     cwd: f.root,
-    env: { ...process.env, DSH_HOME: f.home, DSH_AGENTS_HOME: join(f.root, '.agents'), DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'keyless-matrix-no-call', NODE_NO_WARNINGS: '1' },
+    env: { ...process.env, PANEDESK_HOME: f.home, PANEDESK_AGENTS_HOME: join(f.root, '.agents'), PANEDESK_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'keyless-matrix-no-call', NODE_NO_WARNINGS: '1' },
     input: '', reject: false, timeout: 110_000, killSignal: 'SIGKILL',
   })
   let stdout = ''
@@ -133,8 +133,8 @@ function start(f: ReturnType<typeof fixture>, extra: string[] = [], nodeArgs: st
     } catch (cause) { throw new Error(`Web condition failed\n${stdout}\n${stderr}\n${readFileSync(f.diagnostics, 'utf8')}\n${readFileSync(f.events, 'utf8')}`, { cause }) }
   }
   async function serves(currentServer = false) {
-    await wait(() => /dsh web: http:\/\//u.test(stdout))
-    const url = currentServer ? readFileSync(f.serverUrl, 'utf8') : /dsh web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
+    await wait(() => /panedesk web: http:\/\//u.test(stdout))
+    const url = currentServer ? readFileSync(f.serverUrl, 'utf8') : /panedesk web: (http:\/\/[^\s]+)/u.exec(stdout)?.[1]
     if (!url) throw new Error('Missing Web URL')
     const auth = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(10_000) })
     const cookie = auth.headers.get('set-cookie')?.split(';', 1)[0]
@@ -219,11 +219,11 @@ describe.skipIf(!built)('Web process failure matrix', () => {
     try {
       const result = await app.child
       exit(result, 1)
-      expect(result.stderr).toContain('dsh: startup failed: 1 required plugin did not activate')
-      expect(result.stderr).toContain('  web-runtime (required)\n    Package: @deepseek-ai/dsh-web-app')
+      expect(result.stderr).toContain('panedesk: startup failed: 1 required plugin did not activate')
+      expect(result.stderr).toContain('  web-runtime (required)\n    Package: @panedesk/dsh-web-app')
       expect(result.stderr).toContain(`bind address "${host}" carries an interface zone id`)
       expect(result.stderr).toContain('pass --public-url')
-      expect(result.stdout).not.toContain('dsh web: http')
+      expect(result.stdout).not.toContain('panedesk web: http')
       expect(app.events()).toBe('witness apply 0\nwitness dispose 0\n')
     } finally {
       exit(await app.close(), 1)
@@ -240,7 +240,7 @@ describe.skipIf(!built)('Web process failure matrix', () => {
         if (required) {
           const result = await app.child
           exit(result, 1)
-          expect(result.stdout).not.toContain('dsh web: http://')
+          expect(result.stdout).not.toContain('panedesk web: http://')
           expect(result.stderr).toContain('startup failed:')
           expect(app.events()).toBe('witness apply 1\nwitness dispose 1\n')
         } else {
@@ -302,7 +302,7 @@ describe.skipIf(!built)('Web process failure matrix', () => {
       const result = await app.child
       exit(result, 1)
       expect(result.stderr).toContain(diagnostic)
-      expect(result.stdout).not.toContain('dsh web: http://')
+      expect(result.stdout).not.toContain('panedesk web: http://')
       expect(app.events()).toBe('')
     } finally { exit(await app.close(), 1) }
   })

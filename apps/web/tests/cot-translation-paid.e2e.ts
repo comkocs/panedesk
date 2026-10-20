@@ -5,10 +5,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type {} from '@deepseek-ai/dsh-deepseek-account'
-import type {} from '@deepseek-ai/dsh-experimental-translator/types'
-import { pluginRecordOf } from '@deepseek-ai/dsh-session'
-import type { SessionEvent, SessionId } from '@deepseek-ai/dsh-session/types'
+import type {} from '@panedesk/dsh-deepseek-account'
+import type {} from '@panedesk/dsh-experimental-translator/types'
+import { pluginRecordOf } from '@panedesk/dsh-session'
+import type { SessionEvent, SessionId } from '@panedesk/dsh-session/types'
 import { chromium, type Browser } from 'playwright'
 import { expect, it, onTestFailed, onTestFinished, vi } from 'vitest'
 import {
@@ -19,7 +19,7 @@ import {
   connectFreshWorkspaceZh, expandOwningTurnProcess, PLUGIN_TOGGLE_SETTLE_MS, saveFailureShot, ZH_BROWSER_LOCALE,
 } from './support.ts'
 
-const BUNDLE_NAME = '@deepseek-ai/dsh-experimental-cot-translation-bundle'
+const BUNDLE_NAME = '@panedesk/dsh-experimental-cot-translation-bundle'
 const BUNDLE = fileURLToPath(new URL('../../../packages/experimental/cot-translation-bundle', import.meta.url))
 const { version: bundleVersion } = JSON.parse(await readFile(join(BUNDLE, 'package.json'), 'utf8')) as { version: string }
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/web/lifecycle-chrome/session.v4.jsonl', import.meta.url))
@@ -147,7 +147,7 @@ it.skipIf(MODE === 'record')('reuses saved native Account Flash translations acr
   resources.restoreAuth = () => { auth.mockRestore() }
   scaffold.ctx.emit('llm/adapters-updated')
   const owner = [...scaffold.ctx.loader.entries()].find(entry => entry.options.id === 'llm-deepseek-account')
-  expect(owner?.options.name).toBe('@deepseek-ai/dsh-llm-deepseek-account')
+  expect(owner?.options.name).toBe('@panedesk/dsh-llm-deepseek-account')
   expect(await scaffold.ctx.llm.listModels('deepseek-account')).toContainEqual(expect.objectContaining({ id: 'deepseek-flash' }))
   const browser = await chromium.launch(); resources.browser = browser
   const context = await browser.newContext({ viewport: { width: 1680, height: 1000 }, locale: ZH_BROWSER_LOCALE, timezoneId: 'Asia/Shanghai' })

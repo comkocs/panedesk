@@ -1,9 +1,9 @@
 /**
- * Config-dump entry for `dsh --profile <name> --dump-config`: compose the
+ * Config-dump entry for `panedesk --profile <name> --dump-config`: compose the
  * profile's patch layers through the include plugin's patch algorithm without
  * booting or evaluating `!!js`, with one source layer per bundle, the
  * profile's own patch file, and each `--patch` overlay.
- * @module @deepseek-ai/dsh/dump-config
+ * @module panedesk/dump-config
  */
 
 import { existsSync } from 'node:fs'
@@ -14,7 +14,7 @@ import {
   renderConfigDump,
   type ConfigDumpLayer,
   type Profile,
-} from '@deepseek-ai/dsh-app-boot'
+} from '@panedesk/dsh-app-boot'
 import { homePatchPath, prepareProfile, PROFILE_ROOT_FILENAME } from './profile-boot.ts'
 
 const NAME = 'panedesk'

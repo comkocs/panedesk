@@ -3,7 +3,7 @@ description: "共享的 Typert Remote 协议：业务包、生成产物、Host G
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-typert-protocol
+# @panedesk/dsh-typert-protocol
 
 [English](README.md) | 中文
 
@@ -32,7 +32,7 @@ kind: "package-library"
 业务包用 `@Remote`（当接收者来自作用域 Context 时用 `@RemoteScope(key)`）标记一个公开实例方法，所属服务要么继承 `TypertRemoteService`，要么通过 `bindTypertRemote()` 声明 `typertRemote` 绑定：
 
 ```text
-import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { Remote, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 
 export class GoalService extends TypertRemoteService {
   @Remote
@@ -52,7 +52,7 @@ export class GoalService extends TypertRemoteService {
 
 普通 `./remote` 产物将 `TYPERT_REMOTE` 导出为 `TypertRemoteInfo`，它扩展可挂载的 `TypertRemoteContribution`。类型化的 `methods[endpoint]` 条目就是 `descriptors` 中同一个直接方法描述符对象，并带有派生的 `input(options?)` 和 `invoke(remote, input, signal?)`。参数文档位于 `parameters[].description`；`result` 是唯一的结果 codec、解析器和可选投影。一元描述符省略 `mode`；流使用 `'stream'`。仅使用 Context 接收器的方法保留在 `descriptors` 和作用域声明中，不进入 `methods`。
 
-已发布的纯入口 `@deepseek-ai/dsh-typert-protocol/remote-info` 提供 `createTypertRemoteInfo(spec, z)`，返回类实例而非构造函数。构造时只保留静态 spec 和调用方传入的 Zod 运行时；首次读取 `descriptors` 或 `methods` 时才构建并缓存两者共享的索引。每种输入策略的视图、解析器及可选 JSON Schema 投影都独立惰性求值并缓存；`method.input().create()` 请求普通解析器。原始 spec 要求 Zod factory，而面向消费方的 `TypertSchema<T>` 仅保证 `parse(value: unknown): T`。JSON Schema 来自生成器投影，而非运行时 `z.toJSONSchema()`。纯叶入口没有运行时导入；Zod 由生成产物提供。读取元数据和 schema 绝不发起网络调用；根入口也重新导出该 factory，但会导入 Cordis。
+已发布的纯入口 `@panedesk/dsh-typert-protocol/remote-info` 提供 `createTypertRemoteInfo(spec, z)`，返回类实例而非构造函数。构造时只保留静态 spec 和调用方传入的 Zod 运行时；首次读取 `descriptors` 或 `methods` 时才构建并缓存两者共享的索引。每种输入策略的视图、解析器及可选 JSON Schema 投影都独立惰性求值并缓存；`method.input().create()` 请求普通解析器。原始 spec 要求 Zod factory，而面向消费方的 `TypertSchema<T>` 仅保证 `parse(value: unknown): T`。JSON Schema 来自生成器投影，而非运行时 `z.toJSONSchema()`。纯叶入口没有运行时导入；Zod 由生成产物提供。读取元数据和 schema 绝不发起网络调用；根入口也重新导出该 factory，但会导入 Cordis。
 
 调用器接收调用方拥有、已挂载且无作用域的 Client Remote，并在调用时解析其命名空间方法。它保留命名空间接收者、可选位置参数空位和 signal，不使用 async 包装，直接转发同一个 `Promise<RemoteResult<DecodedOutput>>` 或完整 `RemoteStreamHandle<Output, Uplink>`。`DecodedOutput` 默认采用原始输出类型；生成器仅为含字节的一元方法指定 `RemoteDecoded<Output>`，避免递归重映射普通 JSON 结果；`result.create().parse()` 保留原始输出类型，不会规范化共享字节缓冲区。任一输入变体或结果不支持 JSON Schema 时，文档与解析能力仍然保留；各变体的 `jsonSchemaError` 说明其投影缺失的原因。Registry 读取方使用同一纯入口提供的 `isTypertRemoteMethod(descriptor)`，将基础描述符收窄为这些直接调用能力。
 
@@ -73,7 +73,7 @@ Client Context 解析保持同步。`typertOwnedValue(value, release)` 把不抛
 所有 Remote 失败都由一个类承载：`RemoteError`，携带稳定的 `<domain>/<reason>` 码，以及按该码定型的 details。本包声明通用载体码（`gateway/bad-request`、`gateway/cancelled`、`gateway/internal`），并拥有 `RemoteErrorDetailsMap`——可合并扩展的码表，其他每个包都在自己的抛出点旁扩展它：
 
 ```text
-declare module '@deepseek-ai/dsh-typert-protocol' {
+declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'goal/not-found': { readonly goalId: string }
   }

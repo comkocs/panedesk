@@ -21,12 +21,12 @@
  * composition, entry mounting, the activation audit, and its diagnostics are the
  * same code the Node deployment runs. The Worker supplies module loading, the
  * platform overlay, and the command line.
- * @module @deepseek-ai/dsh-experimental-webworker-runtime/src/worker-host
+ * @module @panedesk/dsh-experimental-webworker-runtime/src/worker-host
  */
 import { setActiveModuleLoader, WorkerModuleLoader, type StaticModuleFactory } from './module-system/module-loader.ts'
-import type { ProfileContext } from '@deepseek-ai/dsh-app-boot'
-import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway'
-import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
+import type { ProfileContext } from '@panedesk/dsh-app-boot'
+import type { TypertGateway } from '@panedesk/dsh-api-gateway'
+import type { HostConnectionHandle } from '@panedesk/dsh-client-connection'
 import type { AlsCausality } from './polyfill/async-context/als-runtime.ts'
 import { join } from './module-system/posix-path.ts'
 import { installProcessGlobal } from './node/globals/process.ts'
@@ -103,7 +103,7 @@ export interface WorkerHostOptions {
   readonly cmdlineArgs?: readonly string[]
   /** Port named on the default command line; defaults to {@link DEFAULT_PORT}. */
   readonly port?: number
-  /** Environment for the process shim; `DSH_HOME` defaults to `<root>/home`. */
+  /** Environment for the process shim; `PANEDESK_HOME` defaults to `<root>/home`. */
   readonly env?: Readonly<Record<string, string>>
   /**
    * Image manifest path; defaults to `<root>/config/vfs-manifest.json`. Its
@@ -185,7 +185,7 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
   const start = async (): Promise<void> => {
     try {
       const home = join(root, IMAGE_HOME_DIRECTORY)
-      const processShim = installProcessGlobal({ cwd: root, env: { DSH_HOME: home, HOME: home, ...options.env } })
+      const processShim = installProcessGlobal({ cwd: root, env: { PANEDESK_HOME: home, HOME: home, ...options.env } })
 
       const [bytes, overlays] = await Promise.all([
         readImage(options.image),
@@ -221,11 +221,11 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
       modules = loader
 
       const require = loader.requireFrom(root)
-      const appBoot = require('@deepseek-ai/dsh-app-boot') as AppBootFace
-      const { DSH_LAUNCH_ENVIRONMENT_KEY } = require('@deepseek-ai/dsh-launch-environment') as {
+      const appBoot = require('@panedesk/dsh-app-boot') as AppBootFace
+      const { DSH_LAUNCH_ENVIRONMENT_KEY } = require('@panedesk/dsh-launch-environment') as {
         DSH_LAUNCH_ENVIRONMENT_KEY: string
       }
-      const cmdline = require('@deepseek-ai/dsh-cmdline') as {
+      const cmdline = require('@panedesk/dsh-cmdline') as {
         provideCmdline(ctx: unknown, host: {
           args: readonly string[]
           exit: (code: number) => void
@@ -321,7 +321,7 @@ export interface LogRenderer {
  * @param require - Image resolver, for cordis's own message renderer.
  */
 export function installLogSink(ctx: HostContext, require: (specifier: string) => unknown): void {
-  const { Logger } = require('@deepseek-ai/cordis') as { Logger: LogRenderer }
+  const { Logger } = require('@panedesk/cordis') as { Logger: LogRenderer }
   const exporter: LogExporter = {
     colors: false,
     // cordis compares `exporter.levels ?? logger.level ?? INFO` against the
@@ -441,7 +441,7 @@ function prepareProfile(
   const profile: ProfileContext = {
     name: loaded.name, dir: loaded.dir, patchPath: loaded.patchPath, installAnchor, cwd: root, home,
     startedBundles: loaded.layers.map(layer => layer.packageName),
-    overlays: [], telemetryDisabledEnv: env.DSH_TELEMETRY_DISABLED,
+    overlays: [], telemetryDisabledEnv: env.PANEDESK_TELEMETRY_DISABLED,
   }
   return { patches: appBoot.readProfilePatches(BIN_NAME, profile, loaded), profile, environment }
 }

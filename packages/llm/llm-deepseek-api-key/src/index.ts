@@ -1,9 +1,9 @@
 /** API-key authentication and credential-gated discovery for the official DeepSeek route. */
-import type { Context } from '@deepseek-ai/cordis'
-import { assertUsableApiKey, LlmError } from '@deepseek-ai/dsh-llm'
-import type {} from '@deepseek-ai/cordis-plugin-loader'
-import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
-import { registerDeepSeekProvider, catalogModelInfo } from '@deepseek-ai/dsh-llm-deepseek'
+import type { Context } from '@panedesk/cordis'
+import { assertUsableApiKey, LlmError } from '@panedesk/dsh-llm'
+import type {} from '@panedesk/cordis-plugin-loader'
+import { launchEnvironmentOf } from '@panedesk/dsh-launch-environment'
+import { registerDeepSeekProvider, catalogModelInfo } from '@panedesk/dsh-llm-deepseek'
 import { Config, plainOptions, resolveAdapterOptions } from './config.ts'
 import type { ResolvedDeepSeekOptions } from './config.ts'
 

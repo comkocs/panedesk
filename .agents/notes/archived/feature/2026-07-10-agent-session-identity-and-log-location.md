@@ -17,7 +17,7 @@ The model-facing bash package owns a `ctx.shellEnv` registry. A contributor decl
 
 The registry rebuilds a trusted overlay for every foreground and background bash `ToolExecution`:
 
-- `DSH_HOME` is always the absolute configured Harness home. The standalone [`@deepseek-ai/dsh-home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `dshHome`, then ambient `$DSH_HOME`, then `~/.dsh`.
+- `PANEDESK_HOME` is always the absolute configured Harness home. The standalone [`@panedesk/dsh-home-paths`](../../../../packages/util/home-paths/README.md) utility owns its precedence: explicit `dshHome`, then ambient `$PANEDESK_HOME`, then `~/.panedesk`.
 - `DSH_SHELL=1` is always present and identifies a model bash child managed by DeepSeek Harness.
 - `DSH_SESSION_ID` is present when the execution has an agent and equals `agent.session.header.id`.
 
@@ -39,13 +39,13 @@ Peer products separate stable identity from physical storage. Codex injects stab
 
 A fresh session receives its id before the first turn, so its first bash call can read `DSH_SESSION_ID`. Resume reuses the loaded header and therefore the same id. Fork and spawn create new session ids. Parent and child calls resolve from their own `ToolExecution.agent`; each command receives an immutable snapshot even when calls overlap. The registry is effect-scoped and HMR-safe.
 
-`dshHome` is session-independent deployment context. Agent-core resolves one value through `@deepseek-ai/dsh-home-paths` and routes it to both tool-bash and local skill discovery; standalone consumers call the same resolver. If top-level `dshHome` and `skills.local.dshHome` are both supplied and resolve differently, composition fails instead of exposing contradictory homes. Persistence may change independently without freezing its facts into the session prefix.
+`dshHome` is session-independent deployment context. Agent-core resolves one value through `@panedesk/dsh-home-paths` and routes it to both tool-bash and local skill discovery; standalone consumers call the same resolver. If top-level `dshHome` and `skills.local.dshHome` are both supplied and resolve differently, composition fails instead of exposing contradictory homes. Persistence may change independently without freezing its facts into the session prefix.
 
 ## Testing
 
 Unit coverage pins registry declaration validation, effect disposal, per-execution collection, the `dshHome` precedence, and the local executor's `DSH_*` scrub/rebuild order. Request-recording tests cover foreground/background snapshots, no-agent calls, ignored model `env`, and parent/child isolation. Both hook bridge suites pin the constant degraded transcript dialects.
 
-A keyless full-loop integration drives the real agent loop, JSONL persistence, tool-bash, and bash-local on the first turn. The child prints `DSH_HOME`, `DSH_SHELL`, session id, and an inherited stale sentinel; the test verifies current values, absence of the stale variable, and the eventual persisted header. Snapshot coverage pins the generic bash description in the recorded request header. No with-key test is required because the contract is deterministic local execution rather than model choice.
+A keyless full-loop integration drives the real agent loop, JSONL persistence, tool-bash, and bash-local on the first turn. The child prints `PANEDESK_HOME`, `DSH_SHELL`, session id, and an inherited stale sentinel; the test verifies current values, absence of the stale variable, and the eventual persisted header. Snapshot coverage pins the generic bash description in the recorded request header. No with-key test is required because the contract is deterministic local execution rather than model choice.
 
 ## Alternatives considered
 
@@ -63,4 +63,4 @@ A keyless full-loop integration drives the real agent loop, JSONL persistence, t
 
 Every model bash child receives current Harness home and shell identity, and agent calls additionally receive stable session identity. The managed `DSH_*` facts inside these children come from the harness: ambient values are removed, current trusted values are re-added last, and an ordinary caller's `env` entry cannot displace them.
 
-The namespace is discoverable but not secret. `DSH_HOME` can reveal a configured root, and a command can override variables inside its own shell syntax. Consumers treat them as correlation and environment facts and rely on sandbox/filesystem policy rather than variable secrecy for authorization.
+The namespace is discoverable but not secret. `PANEDESK_HOME` can reveal a configured root, and a command can override variables inside its own shell syntax. Consumers treat them as correlation and environment facts and rely on sandbox/filesystem policy rather than variable secrecy for authorization.

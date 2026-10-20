@@ -5,23 +5,23 @@
  * messages.
  */
 
-import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { mountAgentLoopTestDependencies, provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import { PtcRuntime, type PtcRunRequest, type PtcRunResult, type PtcRunSpec } from '@deepseek-ai/dsh-ptc-runtime'
-import SandboxPolicyService from '@deepseek-ai/dsh-sandbox-policy'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { FsVersion } from '@deepseek-ai/dsh-fs'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH } from '@deepseek-ai/dsh-tools'
-import { LocalFileSystem } from '@deepseek-ai/dsh-fs-local'
-import * as FsPolicy from '@deepseek-ai/dsh-fs-observation-policy'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
+import { Context } from '@panedesk/cordis'
+import { SessionId } from '@panedesk/dsh-session'
+import AgentLoop from '@panedesk/dsh-agent-loop'
+import { PtcRuntime, type PtcRunRequest, type PtcRunResult, type PtcRunSpec } from '@panedesk/dsh-ptc-runtime'
+import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import type { FsVersion } from '@panedesk/dsh-fs'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH } from '@panedesk/dsh-tools'
+import { LocalFileSystem } from '@panedesk/dsh-fs-local'
+import * as FsPolicy from '@panedesk/dsh-fs-observation-policy'
+import * as ToolFs from '@panedesk/dsh-tool-fs'
 
 const testToolSignal = new AbortController().signal
 

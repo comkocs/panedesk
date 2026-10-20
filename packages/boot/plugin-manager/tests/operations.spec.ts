@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PassThrough } from 'node:stream'
 import { expect, it, onTestFinished, vi } from 'vitest'
-import { getDshRuntimeVersion, initProfile, readProfileManifest } from '@deepseek-ai/dsh-app-boot'
+import { getDshRuntimeVersion, initProfile, readProfileManifest } from '@panedesk/dsh-app-boot'
 import { anchorPathSpec, readProfileRegistry, runPluginCommand, runProfilePnpm, viewProfilePackage } from '../src/operations.ts'
 
 /** What execa resolves for a run that settled, including the buffered output the pre-install lookup is read for. */
@@ -172,7 +172,7 @@ function install(dir: string, name: string) {
 function installGuarded(dir: string, dependency: string, name = dependency, version = '1.0.0', peer = '>=999.0.0') {
   install(dir, dependency)
   writeFileSync(join(dir, 'node_modules', dependency, 'package.json'), JSON.stringify({
-    name, version, peerDependencies: { '@deepseek-ai/dsh-app-boot': peer }, dsh: { bundle: { patch: './cordis.patch.yml' } },
+    name, version, peerDependencies: { '@panedesk/dsh-app-boot': peer }, dsh: { bundle: { patch: './cordis.patch.yml' } },
   }))
 }
 
@@ -180,7 +180,7 @@ function installGuarded(dir: string, dependency: string, name = dependency, vers
 function writePathSpec(home: string, peer: string): void {
   mkdirSync(join(home, 'plugin'), { recursive: true })
   writeFileSync(join(home, 'plugin', 'package.json'), JSON.stringify({
-    name: 'plugin', version: '1.0.0', peerDependencies: { '@deepseek-ai/dsh': peer },
+    name: 'plugin', version: '1.0.0', peerDependencies: { 'panedesk': peer },
   }))
 }
 
@@ -200,7 +200,7 @@ it.each([
   })
   expect(outcome.exitCode).toBe(1)
   expect(outcome.incompatible).toEqual([
-    { name: 'plugin', version: '1.0.0', runtimeVersion: getDshRuntimeVersion(), requirements: { '@deepseek-ai/dsh': '999.0.0' } },
+    { name: 'plugin', version: '1.0.0', runtimeVersion: getDshRuntimeVersion(), requirements: { 'panedesk': '999.0.0' } },
   ])
   expect(outcome.output).toContain('installation rejected')
   expect(outcome.output).toContain('plugin@1.0.0')
@@ -219,7 +219,7 @@ it.each(['plugin@1.0.0', '@scope/plugin@1.0.0'])('rejects the registry spec %s t
   const name = spec.slice(0, spec.lastIndexOf('@'))
   pnpm.view = () => ({
     exitCode: 0,
-    stdout: JSON.stringify({ name, version: '1.0.0', peerDependencies: { '@deepseek-ai/dsh': '999.0.0' } }),
+    stdout: JSON.stringify({ name, version: '1.0.0', peerDependencies: { 'panedesk': '999.0.0' } }),
   })
   const manifestBefore = readFileSync(join(dir, 'package.json'), 'utf8')
   const outcome = await runProfilePnpm(context, ['add', spec], { execution: 'service', outputBytes: 8192 })
@@ -239,7 +239,7 @@ it('rejects a registry spec whose engines.dsh the pre-install lookup denies, ign
   const { context, pnpm } = fixture()
   pnpm.view = () => ({
     exitCode: 0,
-    stdout: JSON.stringify({ name: 'plugin', version: '1.0.0', engines: { dsh: '999.0.0' }, peerDependencies: { '@deepseek-ai/dsh': '*' } }),
+    stdout: JSON.stringify({ name: 'plugin', version: '1.0.0', engines: { dsh: '999.0.0' }, peerDependencies: { 'panedesk': '*' } }),
   })
   const outcome = await runProfilePnpm(context, ['add', 'plugin@1.0.0'], { execution: 'service', outputBytes: 8192 })
   expect(outcome).toMatchObject({ exitCode: 1 })
@@ -254,7 +254,7 @@ it('reads the last match when the registry lookup answers with several versions'
     exitCode: 0,
     stdout: JSON.stringify([
       { name: 'plugin', version: '1.0.0' },
-      { name: 'plugin', version: '2.0.0', peerDependencies: { '@deepseek-ai/dsh': '999.0.0' } },
+      { name: 'plugin', version: '2.0.0', peerDependencies: { 'panedesk': '999.0.0' } },
     ]),
   })
   const outcome = await runProfilePnpm(context, ['add', 'plugin@^2', '--registry=https://registry.example'], {
@@ -282,7 +282,7 @@ it('installs an incompatible path spec the profile exempts', async () => {
   pnpm.mutate = (target) => {
     install(target, 'plugin')
     writeFileSync(join(target, 'node_modules', 'plugin', 'package.json'), JSON.stringify({
-      name: 'plugin', version: '1.0.0', peerDependencies: { '@deepseek-ai/dsh': '999.0.0' },
+      name: 'plugin', version: '1.0.0', peerDependencies: { 'panedesk': '999.0.0' },
       dsh: { bundle: { patch: './cordis.patch.yml' } },
     }))
   }
@@ -363,7 +363,7 @@ it.each([true, false])('rejects incompatible installed manifests before activati
     execution: 'service', outputBytes: 8192, activateNewBundles, onOutput: (text) => { messages.push(text) },
   })
   expect(outcome.exitCode).toBe(1)
-  expect(outcome.incompatible).toMatchObject([{ name: 'incompatible', version: '1.0.0', requirements: { '@deepseek-ai/dsh-app-boot': '>=999.0.0' } }])
+  expect(outcome.incompatible).toMatchObject([{ name: 'incompatible', version: '1.0.0', requirements: { '@panedesk/dsh-app-boot': '>=999.0.0' } }])
   expect(outcome.output).toContain('incompatible@1.0.0')
   expect(outcome.output).toContain('installation rejected')
   expect(readFileSync(outcome.logPath, 'utf8')).toContain('incompatible@1.0.0')
@@ -397,7 +397,7 @@ it('reports an unrepaired node_modules when the restoring install fails', async 
   })
   expect(outcome).toMatchObject({ exitCode: 1 })
   expect(outcome.output).toContain('node_modules could not be reinstalled')
-  expect(outcome.output).toContain("run 'dsh plugin install'")
+  expect(outcome.output).toContain("run 'panedesk plugin install'")
 })
 
 it('detects a version update that keeps the dependency spec and removes a lockfile the run created', async () => {
@@ -408,7 +408,7 @@ it('detects a version update that keeps the dependency spec and removes a lockfi
   // `pnpm update` keeps the manifest spec and replaces only the installed contents.
   pnpm.mutate = (target) => {
     writeFileSync(join(target, 'node_modules', 'updated', 'package.json'), JSON.stringify({
-      name: 'updated', version: '2.0.0', peerDependencies: { '@deepseek-ai/dsh-app-boot': '>=999.0.0' },
+      name: 'updated', version: '2.0.0', peerDependencies: { '@panedesk/dsh-app-boot': '>=999.0.0' },
       dsh: { bundle: { patch: './cordis.patch.yml' } },
     }))
     writeFileSync(join(target, 'pnpm-lock.yaml'), 'changed-lock\n')
@@ -438,7 +438,7 @@ it('installs a dependency whose installed manifest declares compatible peers', a
   pnpm.mutate = (target) => {
     install(target, 'plugin')
     writeFileSync(join(target, 'node_modules', 'plugin', 'package.json'), JSON.stringify({
-      name: 'plugin', version: '1.0.0', peerDependencies: { '@deepseek-ai/dsh': '*' },
+      name: 'plugin', version: '1.0.0', peerDependencies: { 'panedesk': '*' },
       dsh: { bundle: { patch: './cordis.patch.yml' } },
     }))
   }
@@ -492,7 +492,7 @@ it('rejects an incompatible component declared by a newly installed bundle', asy
     const component = join(packageDir, 'node_modules', 'component')
     mkdirSync(component, { recursive: true })
     writeFileSync(join(component, 'package.json'), JSON.stringify({
-      name: 'component', version: '1.0.0', peerDependencies: { '@deepseek-ai/dsh': '>=999.0.0' },
+      name: 'component', version: '1.0.0', peerDependencies: { 'panedesk': '>=999.0.0' },
     }))
     writeFileSync(join(packageDir, 'cordis.patch.yml'), '- insert:\n    - id: component\n      name: component/subpath\n')
   }
@@ -601,7 +601,7 @@ it('initializes missing profiles under the same lock and reports initialization'
     await runPluginCommand({ ...context, profile }, ['root'], {
       execution: 'service', outputBytes: 100, lockWaitMs: 1000, onOutput: (text) => { messages.push(text) },
     })
-    expect(readProfileManifest('test', join(home, 'profiles', profile)).dsh?.profile?.bundles).toContain('@deepseek-ai/dsh-base')
+    expect(readProfileManifest('test', join(home, 'profiles', profile)).dsh?.profile?.bundles).toContain('@panedesk/dsh-base')
   }
   expect(messages.filter(text => text.includes('initialized profile'))).toHaveLength(2)
 })
@@ -701,7 +701,7 @@ it.each(['not json', 'null', '{"pid":0,"grouped":false}', '{"pid":12,"grouped":"
     writeFileSync(runRecord(dir), record)
     const outcome = await runProfilePnpm(context, ['add', './extra'], { execution: 'service', outputBytes: 8192 })
     expect(outcome).toMatchObject({ exitCode: 1 })
-    expect(outcome.output).toBe(`dsh: ${runRecord(dir)} does not name a package run; delete it once no earlier package operation is still running in this profile\n`)
+    expect(outcome.output).toBe(`panedesk: ${runRecord(dir)} does not name a package run; delete it once no earlier package operation is still running in this profile\n`)
     expect(command.run).not.toHaveBeenCalled()
   },
 )
@@ -739,7 +739,7 @@ it('terminates a run that stopped printing and reports the silence bound', async
   command.run.mockImplementationOnce(() => silentChild('installing\n'))
   const outcome = await runProfilePnpm(context, ['add', './extra'], { execution: 'service', outputBytes: 100, idleTimeoutMs: 20 })
   expect(outcome).toMatchObject({ exitCode: 1, timedOut: true })
-  expect(outcome.output).toBe('installing\ndsh: pnpm printed nothing for 20ms and was terminated\n')
+  expect(outcome.output).toBe('installing\npanedesk: pnpm printed nothing for 20ms and was terminated\n')
   expect(readFileSync(outcome.logPath, 'utf8')).toBe(outcome.output)
 })
 
@@ -751,7 +751,7 @@ it('settles a run whose pipes stay open past the process exit', async () => {
     execution: 'service', outputBytes: 100, activateNewBundles: false,
   })
   expect(outcome).toMatchObject({ exitCode: 0 })
-  expect(outcome.output).toBe('installed\ndsh: pnpm output was cut short after its process exited\n')
+  expect(outcome.output).toBe('installed\npanedesk: pnpm output was cut short after its process exited\n')
   // The pipes never ended on their own, so the run settled by cutting them here.
   expect(child.stdout.destroyed).toBe(true)
   expect(child.stderr.destroyed).toBe(true)

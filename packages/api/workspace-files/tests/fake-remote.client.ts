@@ -3,10 +3,10 @@
  * opened `changes` generation, and a supervisor that runs one generation and
  * classifies its end the way the real one does.
  */
-import type { RemoteResult, RemoteStreamHandle } from '@deepseek-ai/dsh-typert-protocol'
-import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { streamHandle } from '@deepseek-ai/dsh-remote-mock'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { RemoteResult, RemoteStreamHandle } from '@panedesk/dsh-typert-protocol'
+import { RemoteError } from '@panedesk/dsh-typert-protocol'
+import { streamHandle } from '@panedesk/dsh-remote-mock'
+import type { SessionId } from '@panedesk/dsh-session/types'
 import type { WorkspaceFileWatchFrame, WorkspaceFileStat } from '../src/types.ts'
 import type { SupervisedStream, SupervisedStreamOptions, WorkspaceFilesRemote } from '../src/client/remote.ts'
 

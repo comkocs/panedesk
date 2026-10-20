@@ -1,25 +1,25 @@
 /**
  * Service Definition for the user-questions capability seam (`ctx.userQuestions`): a UI-backed service for
  * pausing an agent tool call until the human answers a question. The model-
- * facing tool lives in `@deepseek-ai/dsh-tool-ask-user`; UI packages compose
+ * facing tool lives in `@panedesk/dsh-tool-ask-user`; UI packages compose
  * answerers on the Agent-scoped Cordis waterfall.
  *
- * @module @deepseek-ai/dsh-user-questions
+ * @module @panedesk/dsh-user-questions
  */
 
-import { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-agent'
-import { createUserMessage, HarnessError, type MessageId, type ToolCallId, type UserMessage } from '@deepseek-ai/dsh-llm'
-import type { Session } from '@deepseek-ai/dsh-session'
-import { scopeTarget } from '@deepseek-ai/dsh-scope'
-import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-session-projection'
-import z from '@deepseek-ai/schemastery'
+import { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-agent'
+import { createUserMessage, HarnessError, type MessageId, type ToolCallId, type UserMessage } from '@panedesk/dsh-llm'
+import type { Session } from '@panedesk/dsh-session'
+import { scopeTarget } from '@panedesk/dsh-scope'
+import { Remote, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
+import type { Agent } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-session-projection'
+import z from '@panedesk/schemastery'
 import { userQuestionProjectionDefinition } from './projection.ts'
 import { TimedQuestionWait } from './timed-wait.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     userQuestions: UserQuestionService
   }

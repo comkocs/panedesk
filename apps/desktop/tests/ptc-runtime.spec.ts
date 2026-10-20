@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { mountRuntime } from '../../../packages/ptc-runtime/ptc-runtime-node/tests/setup.ts'
 
@@ -18,7 +18,7 @@ vi.setConfig({ hookTimeout: 30_000 })
 // Desktop's downloaded Electron binary is not installed by ordinary workspace dependency setup.
 it.skipIf(process.platform !== 'darwin' || !electronInstalled).each(['workspace-write', 'danger-full-access'] as const)('runs PTC writes under Electron with %s', { timeout: 120_000 }, async (mode) => {
   const electron = require('electron') as string
-  const root = await mkdtemp(join(homedir(), '.dsh-electron-ptc-'))
+  const root = await mkdtemp(join(homedir(), '.panedesk-electron-ptc-'))
   const ctx = new Context()
   onTestFinished(async () => {
     try { await ctx.fiber.dispose() } finally {

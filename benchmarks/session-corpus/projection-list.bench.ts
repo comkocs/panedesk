@@ -9,7 +9,7 @@ import { ciTimeBudget, PERFORMANCE_BUDGET_HEADROOM } from '../support/calibratio
 import { recordTimings } from '../support/scaling-report.ts'
 import type { ProjectionListReport } from './projection-list.worker.ts'
 
-const WORKER = join(import.meta.dirname, '..', '.dsh-build', 'session-corpus', 'projection-list.worker.js')
+const WORKER = join(import.meta.dirname, '..', '.panedesk-build', 'session-corpus', 'projection-list.worker.js')
 const ATTEMPTS = 3
 const WORKER_TIMEOUT_MS = 120_000
 /** Coarse reference-machine throughput allowances, before CI scaling and variance headroom. */

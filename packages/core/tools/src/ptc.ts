@@ -3,25 +3,25 @@
  * tools through nested executions scheduled under the native concurrency
  * contract; each sub-dispatch is logged for reconstruction, while only the
  * outer curated result enters model history.
- * @module @deepseek-ai/dsh-tools/src/ptc
+ * @module @panedesk/dsh-tools/src/ptc
  */
 
-import { symbols, type Context } from '@deepseek-ai/cordis'
-import { brandString } from '@deepseek-ai/dsh-brand'
-import { createUserMessage, HarnessError } from '@deepseek-ai/dsh-llm'
-declare module '@deepseek-ai/dsh-llm' {
+import { symbols, type Context } from '@panedesk/cordis'
+import { brandString } from '@panedesk/dsh-brand'
+import { createUserMessage, HarnessError } from '@panedesk/dsh-llm'
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     /** Images deferred from a successful PTC subcall's final result. */
     'ptc-mode': { kind: 'ptc-mode' }
   }
 }
 
-import type { ContentBlock, ToolCallId, ToolSchema } from '@deepseek-ai/dsh-llm'
-import type { PtcBindingFunction, PtcRunResult, PtcRunSandbox, PtcRuntime } from '@deepseek-ai/dsh-ptc-runtime'
-import { approveEscalation, ESCALATION_TARGETS, validateEscalationArgs } from '@deepseek-ai/dsh-sandbox'
-import type { SandboxExecutionPolicy } from '@deepseek-ai/dsh-sandbox'
-import type { ApprovalService } from '@deepseek-ai/dsh-user-approval'
-import { deepFreeze, snapshotJsonValue, type JsonValue } from '@deepseek-ai/dsh-util-values'
+import type { ContentBlock, ToolCallId, ToolSchema } from '@panedesk/dsh-llm'
+import type { PtcBindingFunction, PtcRunResult, PtcRunSandbox, PtcRuntime } from '@panedesk/dsh-ptc-runtime'
+import { approveEscalation, ESCALATION_TARGETS, validateEscalationArgs } from '@panedesk/dsh-sandbox'
+import type { SandboxExecutionPolicy } from '@panedesk/dsh-sandbox'
+import type { ApprovalService } from '@panedesk/dsh-user-approval'
+import { deepFreeze, snapshotJsonValue, type JsonValue } from '@panedesk/dsh-util-values'
 import { defineTool, parameterSchemaSpecToJsonSchema } from './schema.ts'
 import { PtcCalls } from './ptc-calls.ts'
 import { TOOL_RUNTIME_SCHEDULER } from './index.ts'

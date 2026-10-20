@@ -1,7 +1,7 @@
 /** Browser-safe formatting shared by Session and Host reminder catalogs. */
-import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
-import type { ScheduleRecord } from '@deepseek-ai/dsh-schedule/client'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
+import type { Translate } from '@panedesk/dsh-client-ui-slots'
+import type { ScheduleRecord } from '@panedesk/dsh-schedule/client'
+import { assertNever } from '@panedesk/dsh-util-values'
 import type { CronDescriptionKey } from './task-cron.ts'
 import { cronPreview, parseCronExpression } from './task-cron.ts'
 

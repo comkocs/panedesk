@@ -3,7 +3,7 @@ description: "在共享文件系统沙箱下以全新 CPython 进程运行 Pytho
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-ptc-runtime-python
+# @panedesk/dsh-experimental-ptc-runtime-python
 
 [English](README.md) | 中文
 

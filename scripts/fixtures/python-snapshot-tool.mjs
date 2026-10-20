@@ -2,7 +2,7 @@
 export const name = 'python-snapshot-tool'
 export const inject = ['tools', 'jobs']
 
-/** @param {import('@deepseek-ai/cordis').Context} ctx - Scenario-owned tool registration. */
+/** @param {import('@panedesk/cordis').Context} ctx - Scenario-owned tool registration. */
 export function apply(ctx) {
   ctx.on('tools/pre-execute', (exec, next) => {
     if (exec.name !== 'snapshot_double' || exec.arguments.value !== -1) return next()

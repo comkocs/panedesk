@@ -1,5 +1,5 @@
 /**
- * Integration tests: the REAL `@deepseek-ai/dsh-pwsh-local` executor plus the
+ * Integration tests: the REAL `@panedesk/dsh-pwsh-local` executor plus the
  * `pwsh` tool, exercised through `ctx.tools.execute()` with a real PowerShell
  * process. These verify the world — actual commands run, stdout/stderr come
  * back, exit codes render, timeouts abort, background jobs settle through the
@@ -9,22 +9,22 @@
  * gate.
  */
 
-import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { Context } from '@deepseek-ai/cordis'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime, { TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
-import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
-import * as ToolJobs from '@deepseek-ai/dsh-tool-jobs'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import { PwshLocalExecutor, resolvePwshPath } from '@deepseek-ai/dsh-pwsh-local'
-import * as ToolPwsh from '@deepseek-ai/dsh-tool-pwsh'
-import * as BashEnvPlugin from '@deepseek-ai/dsh-shell-env'
+import { Context } from '@panedesk/cordis'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime, { TOOL_ABORTED } from '@panedesk/dsh-tools'
+import LocalJobRegistry from '@panedesk/dsh-jobs-local'
+import * as ToolJobs from '@panedesk/dsh-tool-jobs'
+import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
+import { PwshLocalExecutor, resolvePwshPath } from '@panedesk/dsh-pwsh-local'
+import * as ToolPwsh from '@panedesk/dsh-tool-pwsh'
+import * as BashEnvPlugin from '@panedesk/dsh-shell-env'
 
 const testToolSignal = new AbortController().signal
 

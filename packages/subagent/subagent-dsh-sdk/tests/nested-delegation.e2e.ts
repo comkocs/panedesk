@@ -1,12 +1,12 @@
 /** A full child profile must finish its nested fork before its external task settles. */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
-import { resolveExampleLaunch } from '@deepseek-ai/dsh-loader-smoke'
+import { resolveExampleLaunch } from '@panedesk/dsh-loader-smoke'
 import { createProcessDeepSeekHarness } from '../../../sdk/client/src/api.ts'
 import { spawnSubprocess } from '../../../subprocess/subprocess-local/src/spawn.ts'
 import { startAcpRun } from '../../subagent-acp/src/run.ts'
@@ -30,7 +30,7 @@ describe('external tasks with a nested fork', () => {
     const idle = join(root, 'idle')
     const patch = join(root, 'nested.patch.yml')
     const env = {
-      DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1',
+      PANEDESK_HOME: join(root, 'home'), PANEDESK_TELEMETRY_DISABLED: '1',
       DSH_TEST_CHILD_READY: ready, DSH_TEST_CHILD_RELEASE: release, DSH_TEST_ROOT_IDLE: idle,
       DSH_TEST_SUMMARY_ERROR: outcome === 'error' ? '1' : '0',
     }
@@ -59,7 +59,7 @@ describe('external tasks with a nested fork', () => {
           description: 'nested SDK profile', initializeTimeoutMs: 30_000,
         }, options)
         run = await startSdkRun(request, {
-          profile, patches: [patch], dshHome: env.DSH_HOME, cwd: root, provider: 'mock', model: 'mock', env,
+          profile, patches: [patch], dshHome: env.PANEDESK_HOME, cwd: root, provider: 'mock', model: 'mock', env,
           shutdownTimeoutMs: 1_000, disposeEofGraceMs: 6_000, disposeGraceMs: 3_000,
         })
       } else {

@@ -2,7 +2,7 @@
 export const name = 'python-snapshot-workflow-order'
 
 /**
- * @param {import('@deepseek-ai/cordis').Context} ctx - Scenario-local host context.
+ * @param {import('@panedesk/cordis').Context} ctx - Scenario-local host context.
  * @param {{ parentSessionId: string, prompt: string, direct?: { prompt: string, callId: string } }} config - Exact advanced scenario identities.
  */
 export function apply(ctx, config) {

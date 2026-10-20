@@ -4,16 +4,16 @@
  */
 
 import { describe, expect, onTestFinished, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
-import type { SubagentAddress } from '@deepseek-ai/dsh-subagent/client'
-import { SessionSeq } from '@deepseek-ai/dsh-session/types'
-import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { ok, type RemoteMock } from '@deepseek-ai/dsh-remote-mock'
+import { Context } from '@panedesk/cordis'
+import type { SessionId } from '@panedesk/dsh-api-remotes/client'
+import type { SubagentAddress } from '@panedesk/dsh-subagent/client'
+import { SessionSeq } from '@panedesk/dsh-session/types'
+import { RemoteError } from '@panedesk/dsh-typert-protocol'
+import { ok, type RemoteMock } from '@panedesk/dsh-remote-mock'
 import {
   createClientTest, type ClientTestFixtures, webApp,
-} from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
-import type {} from '@deepseek-ai/dsh-session-title/client'
+} from '@panedesk/dsh-client-test-runtime/src/assembly/index.ts'
+import type {} from '@panedesk/dsh-session-title/client'
 import { SessionManager } from '../src/client/sessions/manager.ts'
 import { ClientSessions } from '../src/client/sessions/service.ts'
 import type { SessionRemotes } from '../src/client/sessions/remotes.ts'
@@ -23,7 +23,7 @@ import { FOLLOW, err, followScript, sessionWorld } from './remote/session.client
 const S1 = 'fk-m1' as SessionId
 const S2 = 'fk-m2' as SessionId
 /** Gateway Client cone used by the subagent-catalog and connected-generation cases. */
-const API_ROSTER = webApp.closure(['@deepseek-ai/dsh-api-gateway'])
+const API_ROSTER = webApp.closure(['@panedesk/dsh-api-gateway'])
 const it = createClientTest({ roster: API_ROSTER })
 
 type SummaryOver = Partial<{

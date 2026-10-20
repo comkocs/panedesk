@@ -28,7 +28,7 @@ function write(path: string, content: string): void {
 function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-release-pack-'))
   roots.push(root)
-  write(join(root, 'package.json'), JSON.stringify({ name: '@deepseek-ai/pack-root', private: true, version: '1.2.3' }))
+  write(join(root, 'package.json'), JSON.stringify({ name: '@panedesk/pack-root', private: true, version: '1.2.3' }))
   write(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - vendor/*\n  - native/*\n  - packages/*/*\n  - apps/*\n')
   return root
 }
@@ -117,11 +117,11 @@ describe('release pack CLI', () => {
   it.each([undefined, '1', '2'])('packs only public family members and records their publish order (concurrency=%s)', async (concurrency) => {
     const root = fixture()
     // Publication places zebra before alpha; pnpm's workspace dev edge points in the opposite direction.
-    packageFixture(root, 'vendor/alpha', '@deepseek-ai/alpha', { peerDependencies: { '@deepseek-ai/zebra': '*' } })
-    packageFixture(root, 'vendor/zebra', '@deepseek-ai/zebra', { devDependencies: { '@deepseek-ai/alpha': 'workspace:*' } })
-    write(join(root, 'vendor/zebra/node_modules/@deepseek-ai/alpha/package.json'), JSON.stringify({ name: '@deepseek-ai/alpha', version: '1.2.3' }))
-    packageFixture(root, 'vendor/private', '@deepseek-ai/private', { private: true })
-    packageFixture(root, 'native/unselected', '@deepseek-ai/unselected')
+    packageFixture(root, 'vendor/alpha', '@panedesk/alpha', { peerDependencies: { '@panedesk/zebra': '*' } })
+    packageFixture(root, 'vendor/zebra', '@panedesk/zebra', { devDependencies: { '@panedesk/alpha': 'workspace:*' } })
+    write(join(root, 'vendor/zebra/node_modules/@panedesk/alpha/package.json'), JSON.stringify({ name: '@panedesk/alpha', version: '1.2.3' }))
+    packageFixture(root, 'vendor/private', '@panedesk/private', { private: true })
+    packageFixture(root, 'native/unselected', '@panedesk/unselected')
     const family = releaseFamily('vendor')
     const members = family.publishOrder(family.members(root)).order
     const expectedOrder = members.map(tarballName)
@@ -143,9 +143,9 @@ describe('release pack CLI', () => {
 
   it('overlaps two independent packs and keeps later packages within the concurrency limit', async () => {
     const root = fixture()
-    const names = ['alpha', 'bravo', 'charlie'].map(name => `@deepseek-ai/${name}`)
+    const names = ['alpha', 'bravo', 'charlie'].map(name => `@panedesk/${name}`)
     for (const name of names) {
-      const directory = `vendor/${name.slice('@deepseek-ai/'.length)}`
+      const directory = `vendor/${name.slice('@panedesk/'.length)}`
       packageFixture(root, directory, name, {
         scripts: { prepack: 'node hook.cjs start', postpack: 'node hook.cjs finish' },
       })
@@ -262,8 +262,8 @@ describe('release pack CLI', () => {
 
   it('does not broaden an empty parallel family to the whole workspace', async () => {
     const root = fixture()
-    packageFixture(root, 'vendor/private', '@deepseek-ai/private', { private: true })
-    packageFixture(root, 'native/unselected', '@deepseek-ai/unselected')
+    packageFixture(root, 'vendor/private', '@panedesk/private', { private: true })
+    packageFixture(root, 'native/unselected', '@panedesk/unselected')
 
     const result = await runPack(root, ['--concurrency', '8'])
 
@@ -275,7 +275,7 @@ describe('release pack CLI', () => {
 
   it('leaves no publish order after a pack hook fails', async () => {
     const root = fixture()
-    packageFixture(root, 'vendor/failing', '@deepseek-ai/failing', { scripts: { prepack: 'node failing.cjs' } })
+    packageFixture(root, 'vendor/failing', '@panedesk/failing', { scripts: { prepack: 'node failing.cjs' } })
     write(join(root, 'vendor/failing/failing.cjs'), "throw new Error('pack fixture failure')\n")
 
     const result = await runPack(root, ['--concurrency', '8'])
@@ -287,11 +287,11 @@ describe('release pack CLI', () => {
 
   it('rejects a successful command that did not produce the expected member tarball', async () => {
     const root = fixture()
-    packageFixture(root, 'vendor/expected', '@deepseek-ai/expected', { scripts: { prepack: 'node rename.cjs' } })
+    packageFixture(root, 'vendor/expected', '@panedesk/expected', { scripts: { prepack: 'node rename.cjs' } })
     write(join(root, 'vendor/expected/rename.cjs'), [
       "const fs = require('node:fs');",
       "const manifest = require('./package.json');",
-      "manifest.name = '@deepseek-ai/renamed';",
+      "manifest.name = '@panedesk/renamed';",
       "fs.writeFileSync('package.json', JSON.stringify(manifest));",
       '',
     ].join('\n'))
@@ -299,15 +299,15 @@ describe('release pack CLI', () => {
     const result = await runPack(root, ['--concurrency', '8'])
 
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('@deepseek-ai/expected produced no tarball')
+    expect(result.stderr).toContain('@panedesk/expected produced no tarball')
     expect(existsSync(join(root, 'packed', 'deepseek-ai-renamed-1.2.3.tgz'))).toBe(true)
     expect(existsSync(join(root, 'packed', PUBLISH_ORDER_FILE))).toBe(false)
   })
 
   it('validates every parallel tarball before recording the publish order', async () => {
     const root = fixture()
-    packageFixture(root, 'packages/util/alpha', '@deepseek-ai/alpha')
-    packageFixture(root, 'packages/util/zebra', '@deepseek-ai/zebra', { files: ['lib/index.js', 'src/index.ts'] })
+    packageFixture(root, 'packages/util/alpha', '@panedesk/alpha')
+    packageFixture(root, 'packages/util/zebra', '@panedesk/zebra', { files: ['lib/index.js', 'src/index.ts'] })
     write(join(root, 'packages/util/zebra/src/index.ts'), 'export const source = 1\n')
     write(join(root, 'apps/web/dist/index.html'), '<main></main>')
     writeClientBuildRecord(root, officialClientBuildEnvironment(root, { DSH_CLIENT_COMMIT_HASH: commit }))
@@ -315,7 +315,7 @@ describe('release pack CLI', () => {
     const result = await runPack(root, ['--family', 'dsh', '--concurrency', '8'])
 
     expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('@deepseek-ai/zebra publishes source file package/src/index.ts')
+    expect(result.stderr).toContain('@panedesk/zebra publishes source file package/src/index.ts')
     expect(readdirSync(join(root, 'packed')).filter(name => name.endsWith('.tgz'))).toHaveLength(2)
     expect(existsSync(join(root, 'packed', PUBLISH_ORDER_FILE))).toBe(false)
   })
@@ -323,19 +323,19 @@ describe('release pack CLI', () => {
   it.each(['dependencies', 'optionalDependencies', 'peerDependencies'])(
     'rejects nonexact DSH %s in the produced tarball before recording publication', async (section) => {
       const root = fixture()
-      packageFixture(root, 'packages/util/probe', '@deepseek-ai/dsh-probe', { [section]: { '@deepseek-ai/dsh-library': '^1.2.3' } })
+      packageFixture(root, 'packages/util/probe', '@panedesk/dsh-probe', { [section]: { '@panedesk/dsh-library': '^1.2.3' } })
       write(join(root, 'apps/web/dist/index.html'), '<main></main>')
       writeClientBuildRecord(root, officialClientBuildEnvironment(root, { DSH_CLIENT_COMMIT_HASH: commit }))
       const result = await runPack(root, ['--family', 'dsh'])
       expect(result.status).not.toBe(0)
-      expect(result.stderr).toContain(`packed ${section}.@deepseek-ai/dsh-library must equal 1.2.3`)
+      expect(result.stderr).toContain(`packed ${section}.@panedesk/dsh-library must equal 1.2.3`)
       expect(existsSync(join(root, 'packed', PUBLISH_ORDER_FILE))).toBe(false)
     },
   )
 
   it('stops the ready pack hook and its stalled descendant before fixture cleanup', async () => {
     const root = fixture()
-    packageFixture(root, 'vendor/stalled', '@deepseek-ai/stalled', { scripts: { prepack: 'node stalled.cjs' } })
+    packageFixture(root, 'vendor/stalled', '@panedesk/stalled', { scripts: { prepack: 'node stalled.cjs' } })
     write(join(root, 'vendor/stalled/stalled.cjs'), [
       "const { spawn } = require('node:child_process');",
       "spawn(process.execPath, ['descendant.cjs'], { stdio: 'inherit' });",

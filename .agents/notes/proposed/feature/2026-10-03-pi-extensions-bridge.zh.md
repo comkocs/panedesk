@@ -16,7 +16,7 @@ DSH 已为另外两个生态提供桥接：为 Claude Code 与 Codex 编写的 s
 
 ### 包与组合
 
-- `@deepseek-ai/dsh-experimental-pi-extensions` 是 Host 包，提供 `ctx.piExtensions`。`@deepseek-ai/dsh-experimental-client-ui-pi-extensions` 是 Web 包。两者都不是可选 bundle；与 Claude Code mods 桥接一样，由一个按需启用的 overlay 组合它们。
+- `@panedesk/dsh-experimental-pi-extensions` 是 Host 包，提供 `ctx.piExtensions`。`@panedesk/dsh-experimental-client-ui-pi-extensions` 是 Web 包。两者都不是可选 bundle；与 Claude Code mods 桥接一样，由一个按需启用的 overlay 组合它们。
 - cordis.yml 的一行指定一个扩展来源：一个文件、一个含 `index.ts` 或 `index.js` 的目录，或一个在 `package.json` 中列出 `pi.extensions` 的 Pi 包目录。该行同时携带扩展的 flag 值。行的顺序就是 Pi 的加载顺序，也是其 handler 的分发顺序。
 - 桥接不扫描 `~/.pi` 或 `.pi`，不安装包，也不判定项目信任。Pi 包中的 skill、提示词模板与主题不会被加载。
 

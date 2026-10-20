@@ -3,7 +3,7 @@ description: "Account settings display DeepSeek login state and offer browser au
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-client-ui-settings-account
+# @panedesk/dsh-client-ui-settings-account
 
 English | [中文](README.zh.md)
 

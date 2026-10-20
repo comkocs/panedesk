@@ -3,8 +3,8 @@ import { constants } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { access, mkdir, readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
-import type { SubprocessOutcome, SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
+import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
+import type { SubprocessOutcome, SubprocessRuntime } from '@panedesk/dsh-subprocess'
 
 /** Architecture names used by the platform-specific native payload. */
 export type NativeArchitecture = 'arm64' | 'x64'
@@ -51,7 +51,7 @@ export async function isSourcePackage(packageRoot: string): Promise<boolean> {
   if (join(root, 'packages/experimental/cua-macos') !== packageRoot) return false
   try {
     const manifest: unknown = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
-    return typeof manifest === 'object' && manifest !== null && 'name' in manifest && manifest.name === '@deepseek-ai/dsh-root'
+    return typeof manifest === 'object' && manifest !== null && 'name' in manifest && manifest.name === 'panedesk-monorepo'
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error

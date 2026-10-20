@@ -2,19 +2,19 @@ import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import Include from '@deepseek-ai/cordis-plugin-include'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import SkillRegistry from '@deepseek-ai/dsh-skill'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
+import { Context } from '@panedesk/cordis'
+import Loader from '@panedesk/cordis-plugin-loader'
+import Include from '@panedesk/cordis-plugin-include'
+import AgentRegistry from '@panedesk/dsh-agent'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import SkillRegistry from '@panedesk/dsh-skill'
+import ToolRuntime from '@panedesk/dsh-tools'
 import { expect, it, vi } from 'vitest'
 import * as desktopOffice from '../src/office.ts'
 
 it('loads Desktop Office CLI paths and removes them on disposal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'desktop-office-'))
-  vi.stubEnv('DSH_HOME', root)
+  vi.stubEnv('PANEDESK_HOME', root)
   const ctx = new Context()
 
   try {

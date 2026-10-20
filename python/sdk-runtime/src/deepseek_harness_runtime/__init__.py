@@ -16,7 +16,7 @@ Two runtime carriers coexist under ``runtime/``, both injected by the repo's
 
 Both carriers execute the same dsh command grammar. The Python SDK selects the
 ``sdk`` profile and requires an explicit Harness home; the installed ``dsh``
-console command requires ``DSH_HOME`` for the same reason.
+console command requires ``PANEDESK_HOME`` for the same reason.
 """
 
 from __future__ import annotations
@@ -113,7 +113,7 @@ def resolve_bundled_launch_args(mode: str | None = None) -> tuple[str, ...]:
     if selected == "node":
         return _node_launch_args()
     raise ValueError(
-        f"unsupported DeepSeek Harness runtime mode {selected!r}: expected 'exe' or 'node' "
+        f"unsupported Panedesk runtime mode {selected!r}: expected 'exe' or 'node' "
         f"(explicit argument or ${RUNTIME_MODE_ENV_VAR})"
     )
 
@@ -127,7 +127,7 @@ def _current_platform_tag() -> str:
         or (plat == "win" and arch != "x64")
     ):
         raise FileNotFoundError(
-            "no bundled DeepSeek Harness SDK runtime exists for this platform "
+            "no bundled Panedesk SDK runtime exists for this platform "
             f"(sys.platform={sys.platform!r}, machine={platform.machine()!r}); supported: "
             "Linux x64/arm64, macOS x64/arm64, and Windows x64. " + _EXE_ACQUISITION_HINT
         )
@@ -194,11 +194,11 @@ def resolve_office_launch_args() -> tuple[str, str]:
 
 
 def main() -> None:
-    """Launch the CLI with explicit DSH_HOME; wait on Windows, replace the process on POSIX."""
-    if not os.environ.get("DSH_HOME", "").strip():
+    """Launch the CLI with explicit PANEDESK_HOME; wait on Windows, replace the process on POSIX."""
+    if not os.environ.get("PANEDESK_HOME", "").strip():
         print(
-            "dsh: the Python runtime command requires an explicit DSH_HOME; "
-            "it never uses ~/.dsh implicitly",
+            "dsh: the Python runtime command requires an explicit PANEDESK_HOME; "
+            "it never uses ~/.panedesk implicitly",
             file=sys.stderr,
         )
         raise SystemExit(2)

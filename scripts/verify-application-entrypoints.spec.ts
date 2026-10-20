@@ -126,7 +126,7 @@ describe('application entrypoints', () => {
 
   it('rejects a new root demo until its launch role is classified', () => {
     const root = fixture()
-    write(root, 'package.json', JSON.stringify({ scripts: { 'demo:new-app': 'dsh --profile new-app' } }))
+    write(root, 'package.json', JSON.stringify({ scripts: { 'demo:new-app': 'panedesk --profile new-app' } }))
 
     expect(applicationEntrypointViolations(root)).toEqual([
       'package.json scripts.demo:new-app: demo launcher has no explicit dsh or in-process classification',

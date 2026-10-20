@@ -33,35 +33,35 @@
  * accent row derived only from each logged call/result slice.
  */
 // Type-only: the carrier types, the forwarded Host-event face and the ctx.remote merge.
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-api-session-controller/client'
+import type {} from '@panedesk/dsh-client-ui-sidebar-right/client'
+import type { Context as ClientContext } from '@panedesk/cordis'
+import type { SkillEntry } from '@panedesk/dsh-api-remotes/client'
+import type {} from '@panedesk/dsh-api-session-controller/client'
 // Type-only: the forwarded `plugin-manager/changed` declaration.
-import type {} from '@deepseek-ai/dsh-plugin-manager/types'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import { fileAddressFor } from '@deepseek-ai/dsh-util-workspace-path'
-import { rankByName } from '@deepseek-ai/dsh-client-ui-primitives'
+import type {} from '@panedesk/dsh-plugin-manager/types'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import type { InputTriggerServiceContract, InputTriggerSource } from '@panedesk/dsh-client-ui-input-trigger/client'
+import { fileAddressFor } from '@panedesk/dsh-util-workspace-path'
+import { rankByName } from '@panedesk/dsh-client-ui-primitives'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
-import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type {} from '@panedesk/dsh-client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@panedesk/dsh-client-ui-renderer/client'
+import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import { SkillRow } from './SkillRow.tsx'
 import { SkillReference, type SkillReferenceInjected } from './SkillReference.tsx'
 import { skillReferenceRule } from './user-text-rules.ts'
 export type {} from './user-text-rules.ts'
 import { en, NS, zh, type SkillKey } from './locales.ts'
 
-declare module '@deepseek-ai/dsh-api-session-controller/client' {
+declare module '@panedesk/dsh-api-session-controller/client' {
   interface SessionReferenceSourceMap {
     /** A skill-catalog fetch waiting for initial history and its RPC result. */
     skillCatalog: unknown
   }
 }
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** The dedicated skill tool row's copy. */
     skill: SkillKey

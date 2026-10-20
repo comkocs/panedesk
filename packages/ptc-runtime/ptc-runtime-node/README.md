@@ -3,7 +3,7 @@ description: "Run TypeScript programs in fresh Node processes with the session f
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-ptc-runtime-node
+# @panedesk/dsh-ptc-runtime-node
 
 English | [中文](README.zh.md)
 
@@ -32,7 +32,7 @@ Mount this provider in a composition that supplies `fs`, `subprocess`, `sandbox`
 Configure the provider row after its required services are available:
 
 ```yaml
-- name: '@deepseek-ai/dsh-ptc-runtime-node'
+- name: '@panedesk/dsh-ptc-runtime-node'
   config:
     executionMode: per-call
     timeoutMs: 120000
@@ -56,7 +56,7 @@ Configure the provider row after its required services are available:
 | `graceMs` | `3,000` | Managed termination and output-drain grace |
 | `launch` | Local carrier | Explicit `{ kind: "node-script", executable, bootstrapPath? }` or `{ kind: "embedded", executable }` in the subprocess world |
 
-The [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-ptc-runtime-node) defines accepted config fields. `resolve(request)` defaults cwd to the sandbox policy workspace root and supplies the numeric or null deadline choice and execution policy; `run(spec)` accepts those resolved inputs and does not fill missing values.
+The [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-ptc-runtime-node) defines accepted config fields. `resolve(request)` defaults cwd to the sandbox policy workspace root and supplies the numeric or null deadline choice and execution policy; `run(spec)` accepts those resolved inputs and does not fill missing values.
 
 ### Execution and results
 
@@ -67,7 +67,7 @@ Direct filesystem, network and subprocess operations remain Node operations, sub
 <a id="persistent-repl"></a>
 ### In-memory mode
 
-Set `executionMode: persistent-in-memory` on the existing `@deepseek-ai/dsh-ptc-runtime-node` plugin to retain state. Both modes require `fs`, `subprocess`, `sandbox` and `sandboxPolicy`; both apply the selected file sandbox policy. Enable it deliberately with a profile patch:
+Set `executionMode: persistent-in-memory` on the existing `@panedesk/dsh-ptc-runtime-node` plugin to retain state. Both modes require `fs`, `subprocess`, `sandbox` and `sandboxPolicy`; both apply the selected file sandbox policy. Enable it deliberately with a profile patch:
 
 ```yaml
 - id: ptc-runtime

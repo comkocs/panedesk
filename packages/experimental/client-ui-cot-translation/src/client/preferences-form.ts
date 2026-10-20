@@ -1,7 +1,7 @@
 /** Staged translation preferences using the shared Plugins form model. */
 import { SettingsFormModel, settingsTextField, type SettingsFieldState, type SettingsFormActions,
-  type SettingsFormScope, type SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
+  type SettingsFormScope, type SettingsFormShell } from '@panedesk/dsh-client-ui-primitives'
+import type { SnapshotStore } from '@panedesk/dsh-client-store'
 import { LANGUAGE_PREFERENCE_PATTERN, PROVIDER_PREFERENCES, type CotTranslationPreferences } from '../preferences.ts'
 
 /** Current drafts and the shared form status. */

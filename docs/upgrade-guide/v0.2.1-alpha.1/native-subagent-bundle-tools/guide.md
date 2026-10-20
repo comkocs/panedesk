@@ -9,7 +9,7 @@ English | [中文](guide.zh.md)
 
 ## Change
 
-`@deepseek-ai/dsh-subagent-claude-code` and `@deepseek-ai/dsh-subagent-codex` keep their package names, bundle selections, provider row IDs, configuration, and native authentication. A selected bundle now also registers its delegation tool as a Host global tool, visible to every preset including minimal; previously the bundle registered only its provider. Live Agents see the tool from their next request after the bundle is enabled, and lose it after the bundle is switched off.
+`@panedesk/dsh-subagent-claude-code` and `@panedesk/dsh-subagent-codex` keep their package names, bundle selections, provider row IDs, configuration, and native authentication. A selected bundle now also registers its delegation tool as a Host global tool, visible to every preset including minimal; previously the bundle registered only its provider. Live Agents see the tool from their next request after the bundle is enabled, and lose it after the bundle is switched off.
 
 The contributed Host rows are `tool-subagent-claude-code` and `tool-subagent-codex`. Later user layers can override their configuration or disabled state by row id. An override does not select an unselected bundle. A preset that registers its own tool with the same name shadows the global tool for its Agents.
 

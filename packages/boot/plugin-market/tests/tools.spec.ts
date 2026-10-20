@@ -1,8 +1,8 @@
 /** The read-only market listing tool over the same service the Discover page uses. */
-import { Context, Service } from '@deepseek-ai/cordis'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
-import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { Context, Service } from '@panedesk/cordis'
+import SystemPrompt from '@panedesk/dsh-system-prompt'
+import ToolRuntime from '@panedesk/dsh-tools'
+import { ToolCallId } from '@panedesk/dsh-llm'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import PluginMarket from '../src/index.ts'
 import * as tool from '../src/tools.ts'

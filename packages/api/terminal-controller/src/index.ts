@@ -1,11 +1,11 @@
 /** Session-owned user terminals with the execution environment's system-user permissions. */
-import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SessionId } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-sandbox-policy'
-import type {} from '@deepseek-ai/dsh-working-directory'
-import { Remote, RemoteError, TypertRemoteService, type RemoteStream } from '@deepseek-ai/dsh-typert-protocol'
+import type { Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import type { Agent } from '@panedesk/dsh-agent'
+import type { SessionId } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-sandbox-policy'
+import type {} from '@panedesk/dsh-working-directory'
+import { Remote, RemoteError, TypertRemoteService, type RemoteStream } from '@panedesk/dsh-typert-protocol'
 import { discoverShells, resolveShell } from './shells.ts'
 import { BrowserTerminal } from './terminal.ts'
 import { TerminalRetention } from './retention.ts'
@@ -16,7 +16,7 @@ import type {
 
 export type * from './types.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     /** Interactive user terminals, separate from the Agent terminal tool registry. */
     terminalController: TerminalController

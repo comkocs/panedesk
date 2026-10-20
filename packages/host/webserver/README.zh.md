@@ -3,7 +3,7 @@ description: "web GUI 宿主的 HTTP 服务器：具名路由与 upgrade 注册�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-host-webserver
+# @panedesk/dsh-host-webserver
 
 [English](README.md) | 中文
 
@@ -30,7 +30,7 @@ kind: "package-reference"
 ### 最小配置
 
 ```yaml
-- name: '@deepseek-ai/dsh-host-webserver'
+- name: '@panedesk/dsh-host-webserver'
   config:
     host: 127.0.0.1
     port: 3000
@@ -45,7 +45,7 @@ kind: "package-reference"
 `tls` 在同一地址上以 TLS 提供同一批路由：载体不会另开一个 HTTP 监听，也从不重定向。两个文件在激活期间、socket 绑定之前各读取一次，因此不可读、为空或格式错误的文件、与证书不匹配的私钥，或绑定失败都会拒绝初始化——配置错误的证书绝不会退回 HTTP。路径相对进程工作目录解析，私钥必须是无口令的 PEM，`certFile` 可以包含证书链且叶子证书在前。替换任一文件都需要重新加载；本载体既不申请也不续期证书。
 
 ```yaml
-- name: '@deepseek-ai/dsh-host-webserver'
+- name: '@panedesk/dsh-host-webserver'
   config:
     host: 127.0.0.1
     port: 3000
@@ -106,7 +106,7 @@ index 启动输入分两层。`collectIndexInjections()` 收集一张全新的�
 - [HTTP 服务器子系统](../../../docs/subsystems/web-server.zh.md)——路由、匹配顺序与服务器接受的配置。
 - [SPA dist 服务器](../frontend-static/README.zh.md)——回退席位的随附持有者。
 - [Web 配置树启动与传输分层](../../boot/app-boot/README.zh.md)——功能插件为何拥有每条路由。
-- [生成配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-host-webserver)——每个受支持配置字段及其源声明。
+- [生成配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-host-webserver)——每个受支持配置字段及其源声明。
 
 -----
 

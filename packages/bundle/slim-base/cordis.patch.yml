@@ -6,28 +6,28 @@
 # headless core plus compaction, output spill, the tool-call timeout guard, and
 # AGENTS.md loading. Rows absent here (Web/API gateway, telemetry, DeepSeek
 # account and request extensions, skills, goals, workflow, web tools, ...) are
-# what the full preset adds back through @deepseek-ai/dsh-base.
+# what the full preset adds back through @panedesk/dsh-base.
 
 - insert:
     - id: llm
-      name: '@deepseek-ai/dsh-llm'
+      name: '@panedesk/dsh-llm'
 
     - id: session
-      name: '@deepseek-ai/dsh-session'
+      name: '@panedesk/dsh-session'
 
     - id: agent
-      name: '@deepseek-ai/dsh-agent'
+      name: '@panedesk/dsh-agent'
 
     # The transport-independent default for Agents created by entry points.
     # Settings may supply a saved selection; consumers read it at creation time.
     - id: agent-default-model
-      name: '@deepseek-ai/dsh-agent-default-model'
+      name: '@panedesk/dsh-agent-default-model'
       config:
         provider: deepseek-official
         model: deepseek-flash
 
     - id: llm-retry
-      name: '@deepseek-ai/dsh-llm-retry'
+      name: '@panedesk/dsh-llm-retry'
 
     # The pi-ai multi-provider twin, mounted dormant: zero routes (and no extra
     # models in the picker) until a `llm-pi-ai:` settings section supplies provider
@@ -37,10 +37,10 @@
     # adapters exist is composition; which providers run is the user's settings
     # document.
     - id: llm-pi-ai
-      name: '@deepseek-ai/dsh-llm-pi-ai'
+      name: '@panedesk/dsh-llm-pi-ai'
 
     - id: session-persistence-jsonl
-      name: '@deepseek-ai/dsh-session-persistence-jsonl'
+      name: '@panedesk/dsh-session-persistence-jsonl'
       config:
         root: !!js dshHomePath('sessions')
 
@@ -48,43 +48,43 @@
     # through its registered units, so the `list_agents` surface below fails
     # loud without it; web layers reuse this same mount for list rows.
     - id: working-directory
-      name: '@deepseek-ai/dsh-working-directory'
+      name: '@panedesk/dsh-working-directory'
 
     - id: session-projection
-      name: '@deepseek-ai/dsh-session-projection'
+      name: '@panedesk/dsh-session-projection'
 
     - id: subprocess
-      name: '@deepseek-ai/dsh-subprocess-local'
+      name: '@panedesk/dsh-subprocess-local'
 
     # Every shipped CLI mode starts with the same file-effect boundary.
     # The environment remains an explicit deployment override; otherwise fresh
     # sessions pin workspace-write + ask through the permission service below.
     - id: sandbox
-      name: '@deepseek-ai/dsh-sandbox-local'
+      name: '@panedesk/dsh-sandbox-local'
 
     - id: sandbox-policy
-      name: '@deepseek-ai/dsh-sandbox-policy'
+      name: '@panedesk/dsh-sandbox-policy'
       config:
-        mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+        mode: !!js process.env.PANEDESK_PERMISSION_MODE ?? 'workspace-write'
         workspaceRoot: !!js process.cwd()
 
     - id: bash-sandbox
-      name: '@deepseek-ai/dsh-bash-sandbox'
+      name: '@panedesk/dsh-bash-sandbox'
       disabled: !!js process.platform === 'win32'
       config:
         timeoutMs: 60000
 
     - id: pwsh-sandbox
-      name: '@deepseek-ai/dsh-pwsh-sandbox'
+      name: '@panedesk/dsh-pwsh-sandbox'
       disabled: !!js process.platform !== 'win32'
 
     - id: approval
-      name: '@deepseek-ai/dsh-user-approval'
+      name: '@panedesk/dsh-user-approval'
       config:
-        policy: !!js "(process.env.DSH_PERMISSION_MODE ?? 'workspace-write') === 'danger-full-access' ? 'never' : 'ask'"
+        policy: !!js "(process.env.PANEDESK_PERMISSION_MODE ?? 'workspace-write') === 'danger-full-access' ? 'never' : 'ask'"
 
     - id: permission
-      name: '@deepseek-ai/dsh-permission-presets'
+      name: '@panedesk/dsh-permission-presets'
       config:
         presets:
           read-only:
@@ -98,71 +98,71 @@
             approval: never
 
     - id: shell-env
-      name: '@deepseek-ai/dsh-shell-env'
+      name: '@panedesk/dsh-shell-env'
 
     - id: tool-bash
-      name: '@deepseek-ai/dsh-tool-bash'
+      name: '@panedesk/dsh-tool-bash'
       disabled: !!js process.platform === 'win32'
 
     - id: tool-pwsh
-      name: '@deepseek-ai/dsh-tool-pwsh'
+      name: '@panedesk/dsh-tool-pwsh'
       disabled: !!js process.platform !== 'win32'
 
     - id: fs-observation-policy
-      name: '@deepseek-ai/dsh-fs-observation-policy'
+      name: '@panedesk/dsh-fs-observation-policy'
 
     - id: tool-fs
-      name: '@deepseek-ai/dsh-tool-fs'
+      name: '@panedesk/dsh-tool-fs'
 
     - id: tool-fs-search
-      name: '@deepseek-ai/dsh-tool-fs-search'
+      name: '@panedesk/dsh-tool-fs-search'
       config:
         sampleOverCapGlobResults: false
 
     - id: agent-instructions
-      name: '@deepseek-ai/dsh-agent-instructions'
+      name: '@panedesk/dsh-agent-instructions'
       config:
         maxBytes: 65536
 
     - id: token-meter
-      name: '@deepseek-ai/dsh-token-meter'
+      name: '@panedesk/dsh-token-meter'
 
     - id: compaction-basic
-      name: '@deepseek-ai/dsh-compaction-basic'
+      name: '@panedesk/dsh-compaction-basic'
 
     - id: subagent
-      name: '@deepseek-ai/dsh-subagent'
+      name: '@panedesk/dsh-subagent'
 
     - id: subagent-spawn-in-process
-      name: '@deepseek-ai/dsh-subagent-spawn-in-process'
+      name: '@panedesk/dsh-subagent-spawn-in-process'
       config:
         providerName: spawn
 
     - id: tool-subagent
-      name: '@deepseek-ai/dsh-tool-subagent'
+      name: '@panedesk/dsh-tool-subagent'
       config:
         provider: spawn
         toolName: subagent
 
     - id: timeout-policy
-      name: '@deepseek-ai/dsh-tool-call-timeout-policy'
+      name: '@panedesk/dsh-tool-call-timeout-policy'
 
     - id: spill-local
-      name: '@deepseek-ai/dsh-spill-local'
+      name: '@panedesk/dsh-spill-local'
 
     - id: spill-policy
-      name: '@deepseek-ai/dsh-spill-policy'
+      name: '@panedesk/dsh-spill-policy'
       config:
         maxInlineTokens: 12500
 
     # Durability checkpoints before each model request and top-level dispatch.
     - id: session-checkpoint-policy
-      name: '@deepseek-ai/dsh-session-checkpoint-policy'
+      name: '@panedesk/dsh-session-checkpoint-policy'
 
     # Compacts oversized tool results before the broader conversation compactor
     # runs, preserving the model-visible result within the configured budget.
     - id: tool-result-pruner
-      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      name: '@panedesk/dsh-compaction-tool-result-pruner'
       config:
         thresholdChars: 8192
         headChars: 4096
@@ -173,23 +173,23 @@
     # The tool registry. Presentation mode is a deployment choice; omitting it here
     # keeps the schema default (native).
     - id: tools
-      name: '@deepseek-ai/dsh-tools'
+      name: '@panedesk/dsh-tools'
 
     # The deployment persona is a deployment choice; plan-mode and tool plugins own
     # their own prompt sections.
     - id: system-prompt
-      name: '@deepseek-ai/dsh-system-prompt'
+      name: '@panedesk/dsh-system-prompt'
       config:
         personaPrefix: ''
 
     # Agents created at startup. The base stays empty; raw overlays may create
     # agents, while Web creates sessions on client request.
     - id: agent-loop
-      name: '@deepseek-ai/dsh-agent-loop'
+      name: '@panedesk/dsh-agent-loop'
       config:
         agents: []
 
     # The sandboxed filesystem provider. `cwd` defaults to `process.cwd()`; an
     # overlay can pin another workspace.
     - id: fs-sandbox
-      name: '@deepseek-ai/dsh-fs-sandbox'
+      name: '@panedesk/dsh-fs-sandbox'

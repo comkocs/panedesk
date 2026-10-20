@@ -4,7 +4,7 @@ export const inject = ['tools', 'subagents']
 
 /**
  * Install a scenario-local completion barrier without changing the tool result.
- * @param {import('@deepseek-ai/cordis').Context} ctx - Scenario host context.
+ * @param {import('@panedesk/cordis').Context} ctx - Scenario host context.
  */
 export function apply(ctx) {
   ctx.on('tools/execute', async (exec, next) => {

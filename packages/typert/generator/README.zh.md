@@ -3,7 +3,7 @@ description: "构建时 Typert 生成器：源代码类型分析、与编译器�
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-typert-generator
+# @panedesk/dsh-typert-generator
 
 [English](README.md) | 中文
 
@@ -54,7 +54,7 @@ factory 返回类实例，并保留 spec，直到 `descriptors` 或 `methods` ge
 
 缺少 JSDoc 或不支持工具 JSON Schema，不会阻止其他方面有效的普通生成及其严格 codec。元数据独立于投影保留解析器与可用文档：每个不受支持的输入变体或输出投影都省略 `jsonSchema`，并记录各自的 `jsonSchemaError`。工具消费方显式选择方法，并要求其所需文档和受支持的输入 schema；输出解析器是必需的，但输出 JSON Schema 是可选的，除非该消费方要求提供。仅有元数据不会让每个 Remote 方法自动成为工具。
 
-每个生成参数 spec 都包含从同一个 checker 解析后类型模型派生的 `codec` 和 `strictCodec`；分析器与模型不携带逐方法输入策略。`method.input()` 与 `{ strict: false }` 选择 Host 分发使用的普通 codec，其已声明对象接受并剥离未知字段。`method.input({ strict: true })` 为解析和受支持的 JSON Schema 选择递归关闭的已声明对象。两种具名参数封装都拒绝额外参数；显式 JSON 与字典键保持开放，具名字典字段也须满足索引值类型的约束。严格解析先展开具名字段与索引值的联合分支，再合并并关闭每个受支持的对象组合，包括可选字段和可空索引值。`result` 保留唯一的普通 codec。工具投影的目标是 [`@deepseek-ai/dsh-tools`](../../core/tools/src/json-schema.ts) 对工具参数、工具输出和生成的 PTC SDK 强制执行的 tool-schema 子集；它支持标量、对象、数组和互斥联合类型，规范的 `JsonValue` 与字符串键 JSON 字典无需递归引用。子集之外的类型会被报告，而不是以更弱的 schema 投影。TypeScript 未表达的数值范围与其他语义规则仍由操作拥有者负责。
+每个生成参数 spec 都包含从同一个 checker 解析后类型模型派生的 `codec` 和 `strictCodec`；分析器与模型不携带逐方法输入策略。`method.input()` 与 `{ strict: false }` 选择 Host 分发使用的普通 codec，其已声明对象接受并剥离未知字段。`method.input({ strict: true })` 为解析和受支持的 JSON Schema 选择递归关闭的已声明对象。两种具名参数封装都拒绝额外参数；显式 JSON 与字典键保持开放，具名字典字段也须满足索引值类型的约束。严格解析先展开具名字段与索引值的联合分支，再合并并关闭每个受支持的对象组合，包括可选字段和可空索引值。`result` 保留唯一的普通 codec。工具投影的目标是 [`@panedesk/dsh-tools`](../../core/tools/src/json-schema.ts) 对工具参数、工具输出和生成的 PTC SDK 强制执行的 tool-schema 子集；它支持标量、对象、数组和互斥联合类型，规范的 `JsonValue` 与字符串键 JSON 字典无需递归引用。子集之外的类型会被报告，而不是以更弱的 schema 投影。TypeScript 未表达的数值范围与其他语义规则仍由操作拥有者负责。
 
 `WorkspaceTypertGenerator` 先分析每个选中 face 的所有贡献方，再筛选要生成产物的包，因此包子集保留与完整构建相同的声明合并结果和输出字节。
 

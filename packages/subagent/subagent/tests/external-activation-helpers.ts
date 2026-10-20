@@ -2,11 +2,11 @@
 
 import { randomUUID } from 'node:crypto'
 import { onTestFinished } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
-import AgentRegistry from '@deepseek-ai/dsh-agent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import { createInboxStub } from '@deepseek-ai/dsh-agent-loop-testkit'
+import type { Context } from '@panedesk/cordis'
+import AgentRegistry from '@panedesk/dsh-agent'
+import type { Agent } from '@panedesk/dsh-agent'
+import SessionStore, { SessionId } from '@panedesk/dsh-session'
+import { createInboxStub } from '@panedesk/dsh-agent-loop-testkit'
 import type { SubagentActivation, SubagentStartRequest } from '../src/types.ts'
 
 const parents = new WeakMap<Context, Promise<WeakMap<Agent, Agent>>>()

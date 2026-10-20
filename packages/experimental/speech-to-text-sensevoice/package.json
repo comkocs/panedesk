@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-experimental-speech-to-text-sensevoice",
+  "name": "@panedesk/dsh-experimental-speech-to-text-sensevoice",
   "description": "Local SenseVoice ONNX transcription with a managed sherpa-onnx process",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -35,21 +35,21 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:~",
-    "@deepseek-ai/dsh-timeout": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
+    "@panedesk/dsh-timeout": "workspace:*",
     "zod": "^4.4.3",
     "sherpa-onnx-node": "1.13.8"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-experimental-speech-to-text": "workspace:*",
-    "@deepseek-ai/dsh-subprocess": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-experimental-speech-to-text": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-experimental-speech-to-text": "workspace:*",
-    "@deepseek-ai/dsh-subprocess": "workspace:*",
-    "@deepseek-ai/dsh-subprocess-local": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-experimental-speech-to-text": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*",
+    "@panedesk/dsh-subprocess-local": "workspace:*",
     "tsx": "^4.23.13"
   }
 }

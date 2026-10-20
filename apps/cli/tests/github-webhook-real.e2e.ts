@@ -13,7 +13,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
-import { initProfile, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-app-boot'
+import { initProfile, PROFILE_TEMPLATES } from '@panedesk/dsh-app-boot'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 const BUILT_BIN = join(REPO_ROOT, 'apps/cli/lib/bin.js')
@@ -35,7 +35,7 @@ function authenticatedWeb(launchUrl: string): Promise<{ origin: string; cookie: 
     const response = await fetch(launchUrl, { redirect: 'manual' })
     const setCookie = response.headers.get('set-cookie')
     if (response.status !== 303 || setCookie === null) {
-      throw new Error(`dsh web authentication returned HTTP ${String(response.status)}`)
+      throw new Error(`panedesk web authentication returned HTTP ${String(response.status)}`)
     }
     return { origin: new URL(launchUrl).origin, cookie: setCookie.split(';', 1)[0]! }
   })()
@@ -89,12 +89,12 @@ function observeProcess(child: ChildProcess): ProcessObservation {
     rejectReady = reject
   })
   const timer = setTimeout(() => {
-    if (!settled) rejectReady(new Error(`dsh web did not become ready within 90s:\n${output}`))
+    if (!settled) rejectReady(new Error(`panedesk web did not become ready within 90s:\n${output}`))
   }, 90_000)
   timer.unref()
   const append = (chunk: Buffer | string): void => {
     output = `${output}${String(chunk)}`.slice(-100_000)
-    const match = /dsh web: (http:\/\/[^\s]+)/u.exec(output)
+    const match = /panedesk web: (http:\/\/[^\s]+)/u.exec(output)
     if (settled || match?.[1] === undefined) return
     settled = true
     clearTimeout(timer)
@@ -106,7 +106,7 @@ function observeProcess(child: ChildProcess): ProcessObservation {
     if (!settled) rejectReady(error)
   })
   child.once('exit', (code) => {
-    if (!settled) rejectReady(new Error(`dsh web exited before readiness (code ${String(code)}):\n${output}`))
+    if (!settled) rejectReady(new Error(`panedesk web exited before readiness (code ${String(code)}):\n${output}`))
   })
   return { ready, text: () => output }
 }
@@ -276,7 +276,7 @@ async function eventually<T>(
   let lastError: unknown
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error(`dsh web exited while waiting for ${label} (code ${String(child.exitCode)}):\n${processOutput()}`)
+      throw new Error(`panedesk web exited while waiting for ${label} (code ${String(child.exitCode)}):\n${processOutput()}`)
     }
     try {
       lastValue = await probe()
@@ -358,11 +358,11 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
     const workspacePath = join(root, 'workspace')
     await mkdir(workspacePath)
     const canonicalWorkspacePath = await realpath(workspacePath)
-    const profile = join(root, '.dsh/profiles/web')
+    const profile = join(root, '.panedesk/profiles/web')
     initProfile(profile, PROFILE_TEMPLATES.web!.bundles)
     const manifestPath = join(profile, 'package.json')
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { dependencies: Record<string, string> }
-    for (const name of ['@deepseek-ai/dsh-webhook', '@deepseek-ai/dsh-webhook-github']) {
+    for (const name of ['@panedesk/dsh-webhook', '@panedesk/dsh-webhook-github']) {
       const directory = dirname(fileURLToPath(import.meta.resolve(`${name}/package.json`)))
       const link = join(profile, 'node_modules', name)
       await mkdir(dirname(link), { recursive: true })
@@ -382,13 +382,13 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
       cwd: root,
       env: {
         ...process.env,
-        DSH_AGENTS_HOME: join(root, '.agents'),
+        PANEDESK_AGENTS_HOME: join(root, '.agents'),
         DSH_GITHUB_E2E_MARKER: MARKER,
         DSH_GITHUB_E2E_WORKSPACE: workspacePath,
         DSH_GITHUB_WEBHOOK_PORT: String(webhookPort),
         DSH_GITHUB_WEBHOOK_SECRET: SECRET,
-        DSH_HOME: join(root, '.dsh'),
-        DSH_TELEMETRY_DISABLED: '1',
+        PANEDESK_HOME: join(root, '.panedesk'),
+        PANEDESK_TELEMETRY_DISABLED: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })

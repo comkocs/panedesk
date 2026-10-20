@@ -9,7 +9,7 @@ import {
   launchAcpTestAgent,
   type AgentUnderTest,
   type LaunchedAcpTestAgent,
-} from '@deepseek-ai/dsh-session-snapshot'
+} from '@panedesk/dsh-session-snapshot'
 import { describe, expect, it } from 'vitest'
 
 const repoRoot = fileURLToPath(new URL('../../../../../../', import.meta.url))
@@ -40,7 +40,7 @@ describe('standard ACP v1 control surface', () => {
   it('selects, mounts MCP, closes, restarts, resumes, and cancels through the SDK only', async () => {
     const cwd = await mkdtemp(join(tmpdir(), 'dsh-acp-control-'))
     const persistenceRoot = join(cwd, '.sessions')
-    const env = { DSH_CONFORMANCE_PERSISTENCE_ROOT: persistenceRoot, DSH_TELEMETRY_DISABLED: '1' }
+    const env = { DSH_CONFORMANCE_PERSISTENCE_ROOT: persistenceRoot, PANEDESK_TELEMETRY_DISABLED: '1' }
     const mcpServers = [{ name: 'fixture', command: process.execPath, args: [mcpServer], env: [] }]
     let first: LaunchedAcpTestAgent | undefined
     let second: LaunchedAcpTestAgent | undefined

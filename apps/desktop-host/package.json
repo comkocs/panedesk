@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-desktop-host",
+  "name": "@panedesk/dsh-desktop-host",
   "description": "Private Node-mode host process for the Electron desktop application",
   "version": "0.2.1-rc.2",
   "private": true,
@@ -13,23 +13,23 @@
   "dependencies": {
     "koffi": "3.1.1",
     "@deepseek-ai/libreoffice-kit": "^0.1.5",
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh": "workspace:*",
-    "@deepseek-ai/dsh-agent": "workspace:*",
-    "@deepseek-ai/dsh-app-boot": "workspace:*",
-    "@deepseek-ai/dsh-client-connection": "workspace:*",
-    "@deepseek-ai/dsh-host-webserver": "workspace:*",
-    "@deepseek-ai/dsh-home-paths": "workspace:*",
-    "@deepseek-ai/dsh-jobs": "workspace:*",
-    "@deepseek-ai/dsh-schedule": "workspace:*",
-    "@deepseek-ai/dsh-tool-workspace-dependencies": "workspace:*",
-    "@deepseek-ai/dsh-skill-office": "workspace:*",
-    "@deepseek-ai/dsh-deepseek-account": "workspace:*",
-    "@deepseek-ai/dsh-workspace": "workspace:*"
+    "@panedesk/cordis": "workspace:~",
+    "panedesk": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
+    "@panedesk/dsh-host-webserver": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-jobs": "workspace:*",
+    "@panedesk/dsh-schedule": "workspace:*",
+    "@panedesk/dsh-tool-workspace-dependencies": "workspace:*",
+    "@panedesk/dsh-skill-office": "workspace:*",
+    "@panedesk/dsh-deepseek-account": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
-    "@deepseek-ai/cordis-plugin-include": "workspace:~",
-    "@deepseek-ai/dsh-skill": "workspace:*"
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/dsh-skill": "workspace:*"
   }
 }

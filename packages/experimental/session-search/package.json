@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-experimental-session-search",
+  "name": "@panedesk/dsh-experimental-session-search",
   "description": "Give Agents tools to search and read earlier sessions from the current workspace.",
   "version": "0.2.1-rc.2",
   "icon": "./icon.svg",
@@ -38,13 +38,13 @@
     }
   },
   "dependencies": {
-    "@deepseek-ai/dsh-session-query-sqlite": "workspace:*",
-    "@deepseek-ai/dsh-tool-session-query": "workspace:*"
+    "@panedesk/dsh-session-query-sqlite": "workspace:*",
+    "@panedesk/dsh-tool-session-query": "workspace:*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   }
 }

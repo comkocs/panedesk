@@ -31,7 +31,7 @@ Each command does only its own job.
 | native | `pnpm run build:native-system` | — |
 | host-src | `node --max-old-space-size=4096 <tsc> -b <references of tsconfig.host.json>` | native |
 | host-bundle | `tsdown --config-loader native --env.DSH_BUILD_FACE host` (runs Typert) | host-src |
-| desktop-bundle | `pnpm --filter @deepseek-ai/dsh-desktop run bundle` | host-bundle |
+| desktop-bundle | `pnpm --filter @panedesk/dsh-desktop run bundle` | host-bundle |
 | client-src | `<tsc> -b <references of tsconfig.client.json>` | desktop-bundle |
 | client-bundle | `tsdown --config-loader native --env.DSH_BUILD_FACE client` | client-src |
 | web | `pnpm run build:web` | client-bundle |
@@ -44,7 +44,7 @@ native → host-src ─┬─ host-check ─────────────
                                                                  └─ client-bundle → web ┘
 ```
 
-- client-src must follow host-bundle: Client packages import `@deepseek-ai/dsh-*/remote`, whose types `lib/typert.remote-client.d.ts` Typert writes, inside Host tsdown in these scopes and through `scripts/generate-typert.ts` in the typecheck scope. host-check reads no Typert output; clean serial builds have always finished the Host aggregate check before Host tsdown.
+- client-src must follow host-bundle: Client packages import `@panedesk/dsh-*/remote`, whose types `lib/typert.remote-client.d.ts` Typert writes, inside Host tsdown in these scopes and through `scripts/generate-typert.ts` in the typecheck scope. host-check reads no Typert output; clean serial builds have always finished the Host aggregate check before Host tsdown.
 - The artifact chain keeps the two non-data edges native → host-src and desktop-bundle → client-src; only the two check steps attach to the chain in parallel.
 - [`compile-referenced-projects.ts`](../../../../scripts/compile-referenced-projects.ts) owns the package-library step list `libraryBuildSteps`, the references argument construction `referencedProjectsCompilerArgs` (relative paths keep the command below Windows' command-line limit), and the aggregate-check arguments `aggregateCheckArgs`. The vendor release rehearsal (`host-libraries`) and CI benchmarks (`--noCheck`) run the same step list serially.
 - The check steps use project mode (`tsc -p`): it reads the declarations that references already emitted and compiles no reference, writing incremental state to the aggregates' existing `tsconfig.{host,client}.tsbuildinfo`. `build` and `build:check` run the same command, so their diagnostics are identical.

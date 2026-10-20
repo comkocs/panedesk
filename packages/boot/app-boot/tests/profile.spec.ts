@@ -212,15 +212,15 @@ describe('initProfile', () => {
   it('creates manifest, user patch layer, and pnpm workspace once, never overwriting', () => {
     const home = tmp()
     const dir = resolveProfileDir('tui', home)
-    initProfile(dir, ['@deepseek-ai/dsh-base'])
+    initProfile(dir, ['@panedesk/dsh-base'])
     const manifest = readProfileManifest('t', dir)
-    expect(manifest.dsh?.profile?.bundles).toEqual(['@deepseek-ai/dsh-base'])
+    expect(manifest.dsh?.profile?.bundles).toEqual(['@panedesk/dsh-base'])
     expect(readFileSync(join(dir, PROFILE_PATCH_FILENAME), 'utf8')).toContain('[]')
     expect(readFileSync(join(dir, 'pnpm-workspace.yaml'), 'utf8')).toContain('nodeLinker: hoisted')
     // Re-init keeps user edits.
     writeFileSync(join(dir, PROFILE_PATCH_FILENAME), '- id: x\n  config: {}\n')
     initProfile(dir, ['other'])
-    expect(readProfileManifest('t', dir).dsh?.profile?.bundles).toEqual(['@deepseek-ai/dsh-base'])
+    expect(readProfileManifest('t', dir).dsh?.profile?.bundles).toEqual(['@panedesk/dsh-base'])
     expect(readFileSync(join(dir, PROFILE_PATCH_FILENAME), 'utf8')).toContain('- id: x')
   })
 })
@@ -423,15 +423,15 @@ describe('loadProfile', () => {
     const home = tmp()
     expect(() => loadProfile('t', 'custom', anchor, home))
       .toThrow('profile "custom" does not exist')
-    expect(PROFILE_TEMPLATES.web?.bundles).toContain('@deepseek-ai/dsh-base')
+    expect(PROFILE_TEMPLATES.web?.bundles).toContain('@panedesk/dsh-base')
     expect(PROFILE_TEMPLATES.acp).toEqual({
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],
+      bundles: ['@panedesk/dsh-base', '@panedesk/dsh-acp-app'],
     })
     expect(PROFILE_TEMPLATES.sdk).toEqual({
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-sdk-app'],
+      bundles: ['@panedesk/dsh-base', '@panedesk/dsh-sdk-app'],
     })
     expect(PROFILE_TEMPLATES['sdk-minimal']).toEqual({
-      bundles: ['@deepseek-ai/dsh-sdk-minimal'],
+      bundles: ['@panedesk/dsh-sdk-minimal'],
     })
     loadProfile('t', 'web', anchor, home)
     expect(readProfileManifest('t', resolveProfileDir('web', home)).dsh?.profile?.bundles)
@@ -440,13 +440,13 @@ describe('loadProfile', () => {
 
   it('ships the slim default and the full preset as templates, initialized on first use', () => {
     expect(PROFILE_TEMPLATES.slim).toEqual({ bundles: ['@panedesk/slim-base', '@panedesk/slim-headless'] })
-    expect(PROFILE_TEMPLATES.full).toEqual({ bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'] })
+    expect(PROFILE_TEMPLATES.full).toEqual({ bundles: ['@panedesk/dsh-base', '@panedesk/dsh-headless'] })
     const home = tmp()
     const anchor = stageInstallation({
       '@panedesk/slim-base': { patch: '[]\n' },
       '@panedesk/slim-headless': { patch: '[]\n' },
-      '@deepseek-ai/dsh-base': { patch: '[]\n' },
-      '@deepseek-ai/dsh-headless': { patch: '[]\n' },
+      '@panedesk/dsh-base': { patch: '[]\n' },
+      '@panedesk/dsh-headless': { patch: '[]\n' },
     })
     for (const name of ['slim', 'full']) {
       const profile = loadProfile('t', name, anchor, home)
@@ -474,48 +474,48 @@ describe('loadProfile', () => {
 
   it('normalizes only the exact installation-owned headless bundle tuple', () => {
     const anchor = stageInstallation({
-      '@deepseek-ai/dsh-base': { patch: '[]\n' },
-      '@deepseek-ai/dsh-web-app': { patch: '[]\n' },
-      '@deepseek-ai/dsh-headless': { patch: '[]\n' },
+      '@panedesk/dsh-base': { patch: '[]\n' },
+      '@panedesk/dsh-web-app': { patch: '[]\n' },
+      '@panedesk/dsh-headless': { patch: '[]\n' },
       'custom-bundle': { patch: '[]\n' },
     })
     const home = tmp()
     const stock = resolveProfileDir('headless', home)
     initProfile(stock, [
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless',
+      '@panedesk/dsh-base', '@panedesk/dsh-web-app', '@panedesk/dsh-headless',
     ])
     const retiredManifest = readProfileManifest('t', stock)
     writeProfileManifest(stock, retiredManifest)
     loadProfile('t', 'headless', anchor, home)
     expect(readProfileManifest('t', stock).dsh?.profile).toEqual({
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
+      bundles: ['@panedesk/dsh-base', '@panedesk/dsh-headless'],
     })
 
     const customHome = tmp()
     const custom = resolveProfileDir('headless', customHome)
     initProfile(custom, [
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless', 'custom-bundle',
+      '@panedesk/dsh-base', '@panedesk/dsh-web-app', '@panedesk/dsh-headless', 'custom-bundle',
     ])
     loadProfile('t', 'headless', anchor, customHome)
     expect(readProfileManifest('t', custom).dsh?.profile?.bundles).toEqual([
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless', 'custom-bundle',
+      '@panedesk/dsh-base', '@panedesk/dsh-web-app', '@panedesk/dsh-headless', 'custom-bundle',
     ])
   })
 
   it('removes a retired bundle from an application-owned profile and keeps the rest of the manifest', () => {
     const anchor = stageInstallation({
-      '@deepseek-ai/dsh-base': { patch: '[]\n' },
+      '@panedesk/dsh-base': { patch: '[]\n' },
       'custom-bundle': { patch: '[]\n' },
     })
     const dir = join(tmp(), 'app-profile')
-    initProfile(dir, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-experimental-schedule-bundle', 'custom-bundle'])
+    initProfile(dir, ['@panedesk/dsh-base', '@panedesk/dsh-experimental-schedule-bundle', 'custom-bundle'])
     writeProfileManifest(dir, { ...readProfileManifest('t', dir), dependencies: { 'custom-bundle': '^1.0.0' } })
     const profile = loadProfileDirectory('t', dir, anchor)
     expect(profile.skippedBundles).toEqual([])
-    expect(profile.layers.map(layer => layer.packageName)).toEqual(['@deepseek-ai/dsh-base', 'custom-bundle'])
+    expect(profile.layers.map(layer => layer.packageName)).toEqual(['@panedesk/dsh-base', 'custom-bundle'])
     expect(readProfileManifest('t', dir)).toMatchObject({
       dependencies: { 'custom-bundle': '^1.0.0' },
-      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'custom-bundle'] } },
+      dsh: { profile: { bundles: ['@panedesk/dsh-base', 'custom-bundle'] } },
     })
   })
 
@@ -571,14 +571,14 @@ describe('loadProfile', () => {
     })
     const manifestPath = join(anchor, '..', 'node_modules', 'guarded', 'package.json')
     writeFileSync(manifestPath, JSON.stringify({
-      ...JSON.parse(readFileSync(manifestPath, 'utf8')) as object, peerDependencies: { '@deepseek-ai/dsh': '999.0.0' },
+      ...JSON.parse(readFileSync(manifestPath, 'utf8')) as object, peerDependencies: { 'panedesk': '999.0.0' },
     }))
     const dir = resolveProfileDir('demo', tmp())
     initProfile(dir, ['guarded', 'kept'])
     const denied = loadProfileDirectory('dsh', dir, anchor)
     expect(denied.layers.map(layer => layer.packageName)).toEqual(['kept'])
     expect(denied.skippedBundles).toEqual([{ packageName: 'guarded', reason: expect.stringContaining(
-      `Error: Plugin guarded@0.0.0 is incompatible with dsh ${getDshRuntimeVersion()}`,
+      `Error: Plugin guarded@0.0.0 is incompatible with panedesk ${getDshRuntimeVersion()}`,
     ) as string }])
     writeFileSync(join(dir, PROFILE_COMPATIBILITY_FILENAME), JSON.stringify({ 'guarded@0.0.0': [getDshRuntimeVersion()] }))
     expect(loadProfileDirectory('dsh', dir, anchor).layers.map(layer => layer.packageName)).toEqual(['guarded', 'kept'])
@@ -873,11 +873,11 @@ describe('removeLinkProjections', () => {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version }))
   }
 
-  it('removes only the symlinks that point into .dsh-module-fallback and the directory itself', () => {
+  it('removes only the symlinks that point into .panedesk-module-fallback and the directory itself', () => {
     const home = tmp()
     const profile = join(home, 'profiles', 'web')
     const modules = join(profile, 'node_modules')
-    const owned = join(profile, '.dsh-module-fallback', 'node_modules')
+    const owned = join(profile, '.panedesk-module-fallback', 'node_modules')
     packageAt(join(modules, 'my-bundle'), 'my-bundle', '1.0.0')
     packageAt(join(modules, 'my-bundle', 'node_modules', 'bridge'), 'bridge', '1.0.0')
     packageAt(join(modules, '@scope', 'helper'), '@scope/helper', '1.0.0')
@@ -892,7 +892,7 @@ describe('removeLinkProjections', () => {
 
     removeLinkProjections(profile)
 
-    expect(existsSync(join(profile, '.dsh-module-fallback'))).toBe(false)
+    expect(existsSync(join(profile, '.panedesk-module-fallback'))).toBe(false)
     expect(lstatSync(join(modules, 'bridge'), { throwIfNoEntry: false })).toBeUndefined()
     expect(lstatSync(join(modules, '@scope', 'tool'), { throwIfNoEntry: false })).toBeUndefined()
     expect(lstatSync(join(modules, 'my-bundle')).isDirectory()).toBe(true)
@@ -907,15 +907,15 @@ describe('removeLinkProjections', () => {
   it('removes the directory when the profile has no node_modules and keeps links whose target parent is gone', () => {
     const home = tmp()
     const profile = join(home, 'profiles', 'web')
-    mkdirSync(join(profile, '.dsh-module-fallback', 'node_modules'), { recursive: true })
+    mkdirSync(join(profile, '.panedesk-module-fallback', 'node_modules'), { recursive: true })
     removeLinkProjections(profile)
-    expect(existsSync(join(profile, '.dsh-module-fallback'))).toBe(false)
+    expect(existsSync(join(profile, '.panedesk-module-fallback'))).toBe(false)
 
     const other = join(home, 'profiles', 'other')
-    mkdirSync(join(other, '.dsh-module-fallback', 'node_modules'), { recursive: true })
+    mkdirSync(join(other, '.panedesk-module-fallback', 'node_modules'), { recursive: true })
     link(join(home, 'missing-parent', 'pkg'), join(other, 'node_modules', 'orphan'))
     removeLinkProjections(other)
-    expect(existsSync(join(other, '.dsh-module-fallback'))).toBe(false)
+    expect(existsSync(join(other, '.panedesk-module-fallback'))).toBe(false)
     expect(lstatSync(join(other, 'node_modules', 'orphan')).isSymbolicLink()).toBe(true)
   })
 

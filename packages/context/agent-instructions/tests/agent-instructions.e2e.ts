@@ -1,19 +1,19 @@
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { provideWorkingDirectoryFixture, mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { createUserMessage } from '@panedesk/dsh-llm'
+import { provideWorkingDirectoryFixture, mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import AgentLoop from '@deepseek-ai/dsh-agent-loop'
-import * as LlmDeepSeek from '@deepseek-ai/dsh-llm-deepseek-api-key'
-import * as AgentInstructions from '@deepseek-ai/dsh-agent-instructions'
+import { Context } from '@panedesk/cordis'
+import { SessionId } from '@panedesk/dsh-session'
+import type { Agent } from '@panedesk/dsh-agent'
+import AgentLoop from '@panedesk/dsh-agent-loop'
+import * as LlmDeepSeek from '@panedesk/dsh-llm-deepseek-api-key'
+import * as AgentInstructions from '@panedesk/dsh-agent-instructions'
 import { candidateScopeKey } from '../src/render.ts'
-import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
-import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import LocalFileSystem from '@panedesk/dsh-fs-local'
+import * as ToolFs from '@panedesk/dsh-tool-fs'
+import type { SessionEvent } from '@panedesk/dsh-session'
 
 const PROBE = 'banana-271828'
 const NESTED_PROBE = 'papaya-314159'
@@ -41,9 +41,9 @@ async function harness(): Promise<{ ctx: Context; agent: Agent }> {
   })
   await ctx.plugin(LocalFileSystem, { cwd: '/' })
   await ctx.plugin(ToolFs)
-  // Keep the developer's real ~/.dsh and ~/.agents out of the model-visible baseline.
-  vi.stubEnv('DSH_HOME', join(workdir, 'absent-dsh'))
-  vi.stubEnv('DSH_AGENTS_HOME', join(workdir, 'absent-agents'))
+  // Keep the developer's real ~/.panedesk and ~/.agents out of the model-visible baseline.
+  vi.stubEnv('PANEDESK_HOME', join(workdir, 'absent-dsh'))
+  vi.stubEnv('PANEDESK_AGENTS_HOME', join(workdir, 'absent-agents'))
   await ctx.plugin(AgentInstructions, { maxBytes: 65536 })
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(LlmDeepSeek, { models: [{ id: 'deepseek-v4-flash' }] })

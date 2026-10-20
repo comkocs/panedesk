@@ -1,12 +1,12 @@
 /** Host access to machine translation of displayed reasoning. */
 import { addAbortListener } from 'node:events'
-import { Context, type Volatile } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import type {} from '@deepseek-ai/dsh-settings'
-import type {} from '@deepseek-ai/dsh-api-session-controller'
-import { TranslationError } from '@deepseek-ai/dsh-experimental-translator'
-import type { TranslationRequest, TranslationSpec } from '@deepseek-ai/dsh-experimental-translator/types'
+import { Context, type Volatile } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
+import type {} from '@panedesk/dsh-settings'
+import type {} from '@panedesk/dsh-api-session-controller'
+import { TranslationError } from '@panedesk/dsh-experimental-translator'
+import type { TranslationRequest, TranslationSpec } from '@panedesk/dsh-experimental-translator/types'
 import { LANGUAGE_PREFERENCE_PATTERN, PROVIDER_PREFERENCES } from './preferences.ts'
 import type { CotTranslationPreferences, CotTranslationSnapshot } from './types.ts'
 
@@ -18,7 +18,7 @@ export interface Config {
   targetLanguage: Volatile<string>
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     /** Remote consumer of the experimental translation service. */
     cotTranslation: CotTranslationController

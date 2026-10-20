@@ -5,10 +5,10 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
-import { readImageFile } from '@deepseek-ai/dsh-attachment-local'
-import { parseSessionLog } from '@deepseek-ai/dsh-llm-replay'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import { runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
+import { readImageFile } from '@panedesk/dsh-attachment-local'
+import { parseSessionLog } from '@panedesk/dsh-llm-replay'
+import type { SessionEvent } from '@panedesk/dsh-session'
 import { expectNoRenderContext, officeModelPatches } from './fixtures/real-office.ts'
 import { renderCliFixture } from './fixtures/render-cli.ts'
 
@@ -85,11 +85,11 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY || !runtime).each(['native', 'ptc'
       processTimeoutMs: 110_000,
       env: {
         DSH_PRIMARY_RUNTIME: runtime,
-        DSH_PERMISSION_MODE: 'danger-full-access',
-        DSH_HOME: join(controlRoot, 'home'),
-        DSH_AGENTS_HOME: join(controlRoot, 'agents'),
-        DSH_TELEMETRY_DISABLED: '1',
-        DSH_TOOLS_MODE: mode,
+        PANEDESK_PERMISSION_MODE: 'danger-full-access',
+        PANEDESK_HOME: join(controlRoot, 'home'),
+        PANEDESK_AGENTS_HOME: join(controlRoot, 'agents'),
+        PANEDESK_TELEMETRY_DISABLED: '1',
+        PANEDESK_TOOLS_MODE: mode,
         HTTP_PROXY: process.env.DSH_OFFICE_TEST_PROXY,
         HTTPS_PROXY: process.env.DSH_OFFICE_TEST_PROXY,
       },
@@ -99,8 +99,8 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY || !runtime).each(['native', 'ptc'
         const fixture = kind === 'blank' || kind === 'formula'
           ? await renderCliFixture(controlRoot, python!, kind === 'blank') : undefined
         await writeFile(configPath, JSON.stringify([
-          { insert: [{ id: 'skill-office', name: '@deepseek-ai/dsh-skill-office', config: { assetRoot, node: process.execPath, ...fixture ? { cli: fixture.cli } : {} } }] },
-          { insert: [{ id: 'workspace-dependencies', name: '@deepseek-ai/dsh-tool-workspace-dependencies', config: { source: runtime! } }] },
+          { insert: [{ id: 'skill-office', name: '@panedesk/dsh-skill-office', config: { assetRoot, node: process.execPath, ...fixture ? { cli: fixture.cli } : {} } }] },
+          { insert: [{ id: 'workspace-dependencies', name: '@panedesk/dsh-tool-workspace-dependencies', config: { source: runtime! } }] },
           ...officeModelPatches(),
           { id: 'attachment-local', config: { dshHome: imageRoot } },
           { id: 'session-persistence-jsonl', config: { root: sessionRoot, compression: 'none' } },

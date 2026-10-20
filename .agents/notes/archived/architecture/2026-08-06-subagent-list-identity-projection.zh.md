@@ -40,7 +40,7 @@ export type SubagentIdentityProjection =
   | { mode: 'one-shot'; label?: string; seq: SessionSeq }
   | { mode: 'continuable'; label: string; seq: SessionSeq }
 
-declare module '@deepseek-ai/dsh-session-projection/types' {
+declare module '@panedesk/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
     subagent: { identity?: SubagentIdentityProjection }
   }

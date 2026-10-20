@@ -1,18 +1,18 @@
 /** Registers the target-neutral Conversation assembly, shell, input, and docks. */
-import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
-import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import type { ISessions, SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
-import { IconPaperclipOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import { createSnapshotStore, type BoundActions } from '@deepseek-ai/dsh-client-store'
-import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type {} from '@panedesk/dsh-client-product-analytics/client'
+import type { Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import type { ISessions, SessionBinding } from '@panedesk/dsh-api-session-controller/client'
+import { IconPaperclipOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
+import { createSnapshotStore, type BoundActions } from '@panedesk/dsh-client-store'
+import { resolveSlotLabel } from '@panedesk/dsh-client-ui-slots'
+import type { SessionId } from '@panedesk/dsh-session/types'
 // Type-only service and declaration merges used by this assembly.
-import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type { ShortcutCommandId, ShortcutFixedCommand } from '@deepseek-ai/dsh-client-shortcuts/client'
+import type {} from '@panedesk/dsh-client-locale/client'
+import type {} from '@panedesk/dsh-client-ui-renderer/client'
+import type {} from '@panedesk/dsh-client-ui-session/client'
+import type {} from '@panedesk/dsh-client-ui-settings/client'
+import type { ShortcutCommandId, ShortcutFixedCommand } from '@panedesk/dsh-client-shortcuts/client'
 import { UiConversation } from './conversation/assembly.ts'
 import { UserText, PlainUserText, SessionReference } from './user-text/UserText.tsx'
 import { sessionReferenceRule } from './user-text/session-reference-rule.ts'
@@ -25,8 +25,8 @@ import type {
 import type { InputNotice } from './contract/input.ts'
 import type { ReferenceInsert } from './contract/draft-editor.ts'
 import { createConversationStore, readConversationViewPreference } from './stores.ts'
-import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
-import { relativizeToCwd, workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
+import { formatFileMention } from '@panedesk/dsh-file-reference/grammar'
+import { relativizeToCwd, workspaceTitleOf } from '@panedesk/dsh-util-workspace-path'
 import { ConversationController, UnsupportedImageMediaTypeError, isImageMediaType } from './service.ts'
 import type { IConversation } from './service.ts'
 import { ComposerBlockRegistry } from './input/blocks.ts'
@@ -48,7 +48,7 @@ import { TRAJECTORY_VIEW_ID, resolveActiveView } from './view-selection.ts'
 import { en, NS, zh, type ConversationKey } from './locales.ts'
 import { CONVERSATION_SETTINGS_NAMESPACE, type ConversationSettings } from '../submission-settings.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Conversation shell, composer, queue, and dock copy. */
     conversation: ConversationKey

@@ -1,7 +1,7 @@
 /** Validate and capture the binding names available to one program. */
-import { DUNDER_MEMBER, PORTABLE_RESERVED_WORDS, RESERVED_BINDING_GLOBALS, RESERVED_ERROR_MEMBERS } from '@deepseek-ai/dsh-ptc-runtime'
-import type { PtcBindingFunction, PtcBindingNamespace, PtcJsonValue, PtcRunRequest } from '@deepseek-ai/dsh-ptc-runtime'
-import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
+import { DUNDER_MEMBER, PORTABLE_RESERVED_WORDS, RESERVED_BINDING_GLOBALS, RESERVED_ERROR_MEMBERS } from '@panedesk/dsh-ptc-runtime'
+import type { PtcBindingFunction, PtcBindingNamespace, PtcJsonValue, PtcRunRequest } from '@panedesk/dsh-ptc-runtime'
+import { snapshotJsonValue } from '@panedesk/dsh-util-values'
 import { encodePtcJsonWire } from './json-wire.ts'
 import type { ReplyMessage } from './protocol.ts'
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/

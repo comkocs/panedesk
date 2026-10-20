@@ -1,7 +1,7 @@
 /**
  * Model-facing workspace instruction rendering within an explicit byte budget.
  *
- * @module @deepseek-ai/dsh-agent-instructions/render
+ * @module @panedesk/dsh-agent-instructions/render
  */
 
 import { basename, dirname, sep } from 'node:path'
@@ -10,7 +10,7 @@ import {
   DEFAULT_AGENTS_HOME_DISPLAY,
   DEFAULT_DSH_HOME_DISPLAY,
   DSH_HOME_ENV,
-} from '@deepseek-ai/dsh-home-paths'
+} from '@panedesk/dsh-home-paths'
 import type { InstructionFile, LoadedInstructionFile } from './files.ts'
 
 const SYSTEM_REMINDER_OPEN = '<system-reminder>'

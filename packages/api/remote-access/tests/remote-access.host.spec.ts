@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import TypertGatewayService from '@deepseek-ai/dsh-api-gateway'
-import { Peer } from '@deepseek-ai/dsh-client-connection'
-import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import { Context } from '@panedesk/cordis'
+import TypertGatewayService from '@panedesk/dsh-api-gateway'
+import { Peer } from '@panedesk/dsh-client-connection'
+import type { IndexInjection } from '@panedesk/dsh-host-webserver'
 import {
   Remote,
   TypertRemoteService,
@@ -11,8 +11,8 @@ import {
   type PrincipalMap,
   type RemoteInvocation,
   type TypertResource,
-} from '@deepseek-ai/dsh-typert-protocol'
-import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
+} from '@panedesk/dsh-typert-protocol'
+import TypertRegistry from '@panedesk/dsh-typert-registry'
 import RemoteAccessService, {
   REMOTE_ACCESS_SNAPSHOT_KEY,
   type RemoteAccessBinding,
@@ -26,7 +26,7 @@ import RemoteAccessService, {
   type RemoteAccessRole,
 } from '../src/index.ts'
 
-declare module '@deepseek-ai/dsh-typert-protocol' {
+declare module '@panedesk/dsh-typert-protocol' {
   interface PrincipalMap {
     /** Test-only non-owner caller shared by the access specs. */
     'test-guest': { readonly kind: 'test-guest'; readonly guest: string }

@@ -12,7 +12,7 @@ English | [中文](2026-10-11-process-specific-prompt-values-in-runtime-context.
 |---|---|
 | Every Desktop launch (`--port 0` picks a random port) | Web URL |
 | A different `--port`, or alternating A/B checkouts | Web URL, checkout path |
-| npm and Desktop installations sharing one `DSH_HOME` | Checkout path |
+| npm and Desktop installations sharing one `PANEDESK_HOME` | Checkout path |
 
 On resume the loop renders the prompt again. On a route without `systemPromptUpdate: 'in-history'`, such as a hand-declared pi-ai `anthropic-messages` route, the changed prompt rewrites the surface head node. Claude binds historical thinking-block signatures to the conversation prefix, system prompt included, so the upstream answers 400 (`Invalid signature … bound to a different conversation`) and the Session cannot continue until the environment is restored. In-history routes do not fail, but every change appends a complete prompt.
 
@@ -24,12 +24,12 @@ Both values become runtime context and the system prompt keeps only value-free g
 
 | Package | Responsibility |
 |---|---|
-| `@deepseek-ai/dsh-harness-dev-context` (`packages/context/harness-dev-context`) | Both sections, both contexts, and the earlier-format projection; all module-private, exporting only the plugin protocol (`name`, `inject`, `apply`) |
-| `@deepseek-ai/dsh-host-webserver` | `WebServer.getOrigin()` (the bind address's URL form with protocol and bound port) and `bindUrlHost(host)` |
-| `@deepseek-ai/dsh-web-app` | The `web-runtime` row provides `webApp`, whose `getAdvertisedUrl()` returns the configured `publicUrl`, otherwise the listener origin, the same value as `DSH_WEB_URL` and the startup URL; the bundle patch mounts the `harness-dev-context` row |
-| `@deepseek-ai/dsh-system-prompt` | `CONTEXT_ORDERS.HARNESS_SOURCE = 200` and `WEB_SURFACE = 210` |
+| `@panedesk/dsh-harness-dev-context` (`packages/context/harness-dev-context`) | Both sections, both contexts, and the earlier-format projection; all module-private, exporting only the plugin protocol (`name`, `inject`, `apply`) |
+| `@panedesk/dsh-host-webserver` | `WebServer.getOrigin()` (the bind address's URL form with protocol and bound port) and `bindUrlHost(host)` |
+| `@panedesk/dsh-web-app` | The `web-runtime` row provides `webApp`, whose `getAdvertisedUrl()` returns the configured `publicUrl`, otherwise the listener origin, the same value as `DSH_WEB_URL` and the startup URL; the bundle patch mounts the `harness-dev-context` row |
+| `@panedesk/dsh-system-prompt` | `CONTEXT_ORDERS.HARNESS_SOURCE = 200` and `WEB_SURFACE = 210` |
 
-The plugin injects `systemPrompt`, `sessionProjections`, and `webApp` and reads those services in code; its patch row carries no configuration expression. The checkout path is four directories above this package's source or built entry, the same depth as the former web-app location, so source, npm, and Desktop installations resolve the same root. The URL is `webApp.getAdvertisedUrl()`, so a profile that overrides the `web-runtime` row's `publicUrl` reaches the model as well. The plugin reaches the `webApp` type through `import type {} from '@deepseek-ai/dsh-web-app'`; the import is erased at runtime, so the web-app bundle's dependency on this package remains the only runtime edge.
+The plugin injects `systemPrompt`, `sessionProjections`, and `webApp` and reads those services in code; its patch row carries no configuration expression. The checkout path is four directories above this package's source or built entry, the same depth as the former web-app location, so source, npm, and Desktop installations resolve the same root. The URL is `webApp.getAdvertisedUrl()`, so a profile that overrides the `web-runtime` row's `publicUrl` reaches the model as well. The plugin reaches the `webApp` type through `import type {} from '@panedesk/dsh-web-app'`; the import is erased at runtime, so the web-app bundle's dependency on this package remains the only runtime edge.
 
 ### New Sessions
 

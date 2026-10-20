@@ -20,7 +20,7 @@ https://gitlab.example.com/group/dsh-plugins
 在仓库中运行生成器：
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-plugin-market-generator start \
+pnpm --filter @panedesk/dsh-plugin-market-generator start \
   --input plugins.txt --output site/index.json --title "Example Market"
 ```
 
@@ -53,7 +53,7 @@ pnpm --filter @deepseek-ai/dsh-plugin-market-generator start \
 
   每个包的版本来自发布标签（tag）和默认分支。`vX.Y.Z` 或 `X.Y.Z` 标签适用于所有包，`<name>@X.Y.Z` 标签（例如 `@scope/dsh-a@1.2.0`）适用于同名的包；标签中的版本必须是确切的 SemVer 版本。当包目录在打标签的提交中有一个组合包 manifest（元数据清单），且其名称相同、版本等于标签版本时，该标签列出这个包。默认分支的提交列出每个包的当前版本，除非某个标签已经列出该版本。多个标签列出同一版本时，`<name>@` 标签优先于统一标签，其次是较早的提交。发布时间是该提交的提交者时间。
 
-`engines.dsh` 取 manifest 的 `engines.dsh` 并去掉首尾空白。没有该字段时，它是 manifest 中 `@deepseek-ai/dsh` 和 `@deepseek-ai/dsh-*` 的 `peerDependencies` 范围的合取；恰为 `workspace:*`、`workspace:^` 或 `workspace:~` 的 peer 表示当前运行的 DSH 版本，不增加限制；相同的范围只出现一次。`*` 范围接受所有版本，因此范围全为 `*` 的版本不列出 `engines.dsh`。如果安装时在所有 DSH 版本上都会拒绝某个版本，该版本会被跳过并发出警告：范围为空、`engines.dsh` 中出现 `workspace:` 值或 peer 中出现其他 `workspace:` 范围、范围无效，或者没有任何版本能同时满足这些范围。
+`engines.dsh` 取 manifest 的 `engines.dsh` 并去掉首尾空白。没有该字段时，它是 manifest 中 `panedesk` 和 `@panedesk/dsh-*` 的 `peerDependencies` 范围的合取；恰为 `workspace:*`、`workspace:^` 或 `workspace:~` 的 peer 表示当前运行的 DSH 版本，不增加限制；相同的范围只出现一次。`*` 范围接受所有版本，因此范围全为 `*` 的版本不列出 `engines.dsh`。如果安装时在所有 DSH 版本上都会拒绝某个版本，该版本会被跳过并发出警告：范围为空、`engines.dsh` 中出现 `workspace:` 值或 peer 中出现其他 `workspace:` 范围、范围无效，或者没有任何版本能同时满足这些范围。
 
 展示字段来自最高的列出版本，并遵循 DSH 读取已安装插件时的规则。`./locale/en.json` 和 `./locale/<language>.json` 通过包的 `exports` 映射以 `import`、`node` 和 `default` 条件解析，没有该映射时按字面路径读取，并且每个 locale 文件都必须与英文文件位于同一目录；其 `meta.title` 和 `meta.description` 缺失时回退到 manifest 的 `name` 和 `description`。图标是 manifest 的 `icon`（相对路径），否则是导出的 `./icon`：格式为 SVG、PNG、JPEG 或 WebP，不超过 256 KiB，并位于包内。`author` 是 manifest `author` 字符串中去掉 `<email>` 和 `(url)` 后的名字部分，或 author 对象的 `name`。`homepage` 在 manifest 的 `homepage` 是绝对 http(s) URL 时按原样复制；缺少时不会用 `repository` 等其他字段代替。`repository` 是 manifest `repository`（如 `github:o/r` 这样的简写或 URL）对应的网页：已知主机通过 [hosted-git-info](https://github.com/npm/hosted-git-info) 转换，并去掉 `#` 后的 committish；其他 http(s) URL 去掉 `git+` 前缀、凭据、查询、片段和 `.git` 后缀。格式接受时复制其 `directory`。没有 http(s) 网页的仓库或不可用的 `directory` 会被报告并省略。格式错误的 locale 文件、无效的 locale 名称和被拒绝的图标会作为警告报告。由于该格式要求英文，没有英文文本也没有 manifest 回退值的翻译会被丢弃。每个条目在写出前都经过 [`dsh-plugin-market-index`](../../packages/util/plugin-market-index/README.zh.md) 校验。
 

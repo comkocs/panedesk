@@ -4,9 +4,9 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Context } from '@deepseek-ai/cordis'
-import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
-import { type ContinuableCreateSpec, type SubagentStartRequest } from '@deepseek-ai/dsh-subagent'
+import type { Context } from '@panedesk/cordis'
+import * as JsonlSessionPersistence from '@panedesk/dsh-session-persistence-jsonl'
+import { type ContinuableCreateSpec, type SubagentStartRequest } from '@panedesk/dsh-subagent'
 import { onTestFinished } from 'vitest'
 
 /**

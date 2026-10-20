@@ -1,9 +1,9 @@
-import { Context } from '@deepseek-ai/cordis'
-import Sandbox from '@deepseek-ai/dsh-sandbox-local'
-import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
-import SessionProjections from '@deepseek-ai/dsh-session-projection'
+import { Context } from '@panedesk/cordis'
+import Sandbox from '@panedesk/dsh-sandbox-local'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjections from '@panedesk/dsh-session-projection'
 import { onTestFinished } from 'vitest'
-import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
+import type { SandboxMode } from '@panedesk/dsh-sandbox'
 
 /** Mount the Python runtime's policy and confinement providers with owned teardown. */
 export async function createRuntimeContext(policy: { mode?: SandboxMode; workspaceRoot?: string } = {}): Promise<Context> {

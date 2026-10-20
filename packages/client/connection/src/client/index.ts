@@ -1,5 +1,5 @@
 /** Browser wire client: Remote transport and connection generations. */
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@panedesk/cordis'
 import {
   ConnectionController,
   type ConnectionRecoveryConfig,
@@ -18,7 +18,7 @@ import { openConnectionWebSocket, type ConnectionWebSocket, type ConnectionWebSo
 export type { ConnectionInteractions } from '../connect-protocol.ts'
 export type { ConnectionWebSocket, ConnectionWebSocketFactory } from './socket.ts'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Events {
     /**
      * A connection generation was established. Wire-derived caches must

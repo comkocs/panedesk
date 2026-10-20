@@ -44,7 +44,7 @@ function packedRelease(versions: readonly string[]): { directory: string; packag
   const directory = mkdtempSync(join(tmpdir(), 'dsh-publish-channel-'))
   onTestFinished(() => { rmSync(directory, { recursive: true, force: true }) })
   const packages = versions.map((version, index) => {
-    const name = `@deepseek-ai/release-fixture-${String(index)}`
+    const name = `@panedesk/release-fixture-${String(index)}`
     const path = join(directory, `${String(index)}.tgz`)
     const bytes = Buffer.from(`${name}@${version}\n`)
     writeFileSync(path, bytes)

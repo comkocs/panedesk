@@ -10,15 +10,15 @@
 import type { ComponentType } from 'react'
 import type {
   CommandClaim, PickOutcome, ReferenceInsert, TokenSpan,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { IconProps } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
+} from '@panedesk/dsh-client-ui-conversation/client'
+import type { IconProps } from '@panedesk/dsh-client-ui-primitives'
+import type { SessionId } from '@panedesk/dsh-session/types'
 
 export type {
   ArbitrateKey, ArbitrateOutcome, BeginCommandRequest, CommandClaim, ConsumeTokenRequest,
   InsertReferenceRequest, InsertTextRequest, PickOutcome, ReferenceInsert, SubmitAttachment,
   SubmitOutcome, TokenSpan,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
+} from '@panedesk/dsh-client-ui-conversation/client'
 
 /**
  * The provider-facing projection of one client session. It carries stable

@@ -1,7 +1,7 @@
 /** Whitespace is ordinary Text-producing matching, including scheduling and Facts invalidation. */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest'
-import type { UserTextFacts, UserTextNode, UserTextRule } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { UserTextFacts, UserTextNode, UserTextRule } from '@panedesk/dsh-client-ui-conversation/client'
 import { UserTextRegistry } from '../src/client/conversation/user-text-registry.ts'
 import { collapseWhitespaceRule, trimWhitespaceRule } from '../src/client/user-text/whitespace-rules.ts'
 import { sessionReferenceRule } from '../src/client/user-text/session-reference-rule.ts'

@@ -14,8 +14,8 @@
 | 编辑时热重载钩子模块；`claude plugin validate`、`claude plugin test`、由 `types/index.d.ts` 生成类型 | 这些命令都没有；重新挂载会在同一已求值模块上重新运行 `register`，模块级变量保留其值 | 仅按需跟进；测试工具包的 `createModTestKit` 在 Vitest 中替代 `claude plugin test` |
 | 钩子模块可以是 TypeScript | `.ts` 钩子模块只在启动器转译时可加载（源码启动可以；构建后的安装不行） | DSH 交付的是纯 Node |
 | 模组在进程内运行，`$` 是其访问宿主的唯一途径 | 钩子模块以 Node 全局对象在进程内运行，没有访问规则，并拥有进程的全部权限：`$.env` 读写 harness 环境变量，`$.http.fetch` 可访问任意 URL，`$.fs` 与 `$.tool.call` 以会话的身份行动 | 不对模组施加沙箱；只挂载你愿意作为插件运行的模组 |
-| `import type { … } from 'claude-code'`、`declare module 'claude-code' { interface PluginState }` | `claude-code` 模块名只在本仓库的测试设置中解析到桥接的类型；仓库外的模组导入 `@deepseek-ai/dsh-experimental-claude-code-mods` | 类型名是桥接自己的 |
-| `hooks.json` 中的设置钩子与模组钩子并行运行 | 不运行；为它们挂载 `@deepseek-ai/dsh-hooks-claude-code` | 不同的桥接 |
+| `import type { … } from 'claude-code'`、`declare module 'claude-code' { interface PluginState }` | `claude-code` 模块名只在本仓库的测试设置中解析到桥接的类型；仓库外的模组导入 `@panedesk/dsh-experimental-claude-code-mods` | 类型名是桥接自己的 |
+| `hooks.json` 中的设置钩子与模组钩子并行运行 | 不运行；为它们挂载 `@panedesk/dsh-hooks-claude-code` | 不同的桥接 |
 
 ## 事件
 
@@ -80,7 +80,7 @@
 
 | `claude-code/testing` | 本桥接 |
 |---|---|
-| `describe`、`test(name, ($, on) => …)`、`expect`、`mock`、`tier` | 在本仓库内同一模块名基于 Vitest 提供它们；`test` 从测试文件位置推断模组（`<mod>/tests/*.test.ts` → `<mod>/index.ts`），`defineModTests` 可覆盖。仓库外则从 `@deepseek-ai/dsh-experimental-claude-code-mods/testing` 获取 `createModTestKit` 与 `mock` |
+| `describe`、`test(name, ($, on) => …)`、`expect`、`mock`、`tier` | 在本仓库内同一模块名基于 Vitest 提供它们；`test` 从测试文件位置推断模组（`<mod>/tests/*.test.ts` → `<mod>/index.ts`），`defineModTests` 可覆盖。仓库外则从 `@panedesk/dsh-experimental-claude-code-mods/testing` 获取 `createModTestKit` 与 `mock` |
 | `on` 为引擎的答案打桩；工具包自行回答 `ui.*` | 相同；`ui.open` 回答 `{ isPlaced: false }`，`ui.invalidate` 与 `ui.close` 成功；`session.cwd`、`process.run`、`fs.*`、`store.*`、`env.*` 需要桩（`mock.store`、`mock.env`、`mock.clock` 回答整个命名空间） |
 | `$.ui.mount({ plugin, surface, component, props })` → `find`、`findAll`、`press`、`unmount` | 相同，另有 `tree()` 与 `text()`；每次读取都经所有已加载模组的钩子重新渲染；`plugin` 与 `surface` 为源码兼容而接受 |
 | 测试中钩子预算 5 秒 | 相同（`budgetMs`） |

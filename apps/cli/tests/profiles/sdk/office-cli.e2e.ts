@@ -57,8 +57,8 @@ it.skipIf(!process.env.DEEPSEEK_API_KEY || process.platform === 'win32')(`agent 
       ...carrier === 'sdk' ? [] : [entry], '--profile', 'sdk', '--patch', patch,
     ], {
       cwd: root, env: {
-        PATH: path, DSH_HOME: join(root, 'home'), DSH_AGENTS_HOME: join(root, 'agents'),
-        DSH_PERMISSION_MODE: 'danger-full-access', DSH_TELEMETRY_DISABLED: '1', DSH_TOOLS_MODE: 'native',
+        PATH: path, PANEDESK_HOME: join(root, 'home'), PANEDESK_AGENTS_HOME: join(root, 'agents'),
+        PANEDESK_PERMISSION_MODE: 'danger-full-access', PANEDESK_TELEMETRY_DISABLED: '1', PANEDESK_TOOLS_MODE: 'native',
         DSH_PRIMARY_RUNTIME: carrier === 'sdk' ? undefined : '',
       },
       timeout: 110_000, killSignal: 'SIGKILL', reject: false,

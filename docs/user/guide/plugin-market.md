@@ -94,7 +94,7 @@ https://gitlab.example.com/team/dsh-plugins
 Run it from a DSH checkout:
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-plugin-market-generator start --input plugins.txt --output site/index.json --title "Team plugins"
+pnpm --filter @panedesk/dsh-plugin-market-generator start --input plugins.txt --output site/index.json --title "Team plugins"
 ```
 
 For an npm package, the index lists every version that is not deprecated and declares `dsh.bundle`. For a Git repository, it finds the bundle packages on the default branch and lists their versions at `vX.Y.Z`, `X.Y.Z`, and `<name>@X.Y.Z` tags, plus each package's version on the default branch. Titles, descriptions, icons, authors, and homepages come from each plugin's highest version. Paths are relative to the directory where you run pnpm.
@@ -134,7 +134,7 @@ Text fields marked `LocalizedText` are a string or an object of strings keyed by
 | `source` | yes | `{ "type": "npm", "registry"?: url }`, or `{ "type": "git", "url": https-url, "commit": 40-hex-sha, "path"?: directory }`. |
 | `engines.dsh` | no | SemVer range of DSH versions this version runs on; absent means any. |
 
-DSH installs an npm version as `name@version`, asking `registry` first when present, and a Git version as `git+<url>.git#<commit>` with `&path:/<path>` for a package in a subdirectory. `engines.dsh` should match the package's own `engines.dsh`, which DSH checks again at installation; a package without one is checked against its `@deepseek-ai/dsh*` peer dependencies instead. The [format note](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.md) defines every rule.
+DSH installs an npm version as `name@version`, asking `registry` first when present, and a Git version as `git+<url>.git#<commit>` with `&path:/<path>` for a package in a subdirectory. `engines.dsh` should match the package's own `engines.dsh`, which DSH checks again at installation; a package without one is checked against its `panedesk*` peer dependencies instead. The [format note](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.md) defines every rule.
 
 <a id="further-exploration"></a>
 ## Further Exploration

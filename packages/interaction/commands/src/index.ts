@@ -1,19 +1,19 @@
 /**
  * Plugin-owned human-command registry shared by interactive UI adapters.
- * @module @deepseek-ai/dsh-commands
+ * @module @panedesk/dsh-commands
  */
 
-import { Context } from '@deepseek-ai/cordis'
-import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { AttachmentError, admitEncodedImages } from '@deepseek-ai/dsh-attachment'
-import type { EncodedImageAttachment, FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment/types'
-import type { FileBlock, ImageBlock } from '@deepseek-ai/dsh-llm'
-import { NamedEntries, ScopedLayers } from '@deepseek-ai/dsh-scope'
-import type { ScopeKey, ScopeLayer } from '@deepseek-ai/dsh-scope'
-import { SessionSeq } from '@deepseek-ai/dsh-session'
-import type { Session, SessionEvent, SessionEventMap } from '@deepseek-ai/dsh-session'
-import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
+import { Context } from '@panedesk/cordis'
+import { randomUUID } from '@panedesk/dsh-util-crypto'
+import type { Agent } from '@panedesk/dsh-agent'
+import { AttachmentError, admitEncodedImages } from '@panedesk/dsh-attachment'
+import type { EncodedImageAttachment, FileAttachmentRef, ImageAttachmentRef } from '@panedesk/dsh-attachment/types'
+import type { FileBlock, ImageBlock } from '@panedesk/dsh-llm'
+import { NamedEntries, ScopedLayers } from '@panedesk/dsh-scope'
+import type { ScopeKey, ScopeLayer } from '@panedesk/dsh-scope'
+import { SessionSeq } from '@panedesk/dsh-session'
+import type { Session, SessionEvent, SessionEventMap } from '@panedesk/dsh-session'
+import { TypertRemoteService, Remote } from '@panedesk/dsh-typert-protocol'
 import { CommandId } from './brand.ts'
 import type { CommandDefinitionId } from './brand.ts'
 import type {
@@ -110,7 +110,7 @@ class CommandLayer implements ScopeLayer {
   }
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     commands: CommandRuntime
   }

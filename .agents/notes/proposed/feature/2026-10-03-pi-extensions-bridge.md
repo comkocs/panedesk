@@ -16,7 +16,7 @@ Add an experimental bridge that loads unmodified Pi extension sources and serves
 
 ### Packages and composition
 
-- `@deepseek-ai/dsh-experimental-pi-extensions` is the Host package and provides `ctx.piExtensions`. `@deepseek-ai/dsh-experimental-client-ui-pi-extensions` is the Web package. Neither is an optional bundle; an opt-in overlay composes them, as for the Claude Code mods bridge.
+- `@panedesk/dsh-experimental-pi-extensions` is the Host package and provides `ctx.piExtensions`. `@panedesk/dsh-experimental-client-ui-pi-extensions` is the Web package. Neither is an optional bundle; an opt-in overlay composes them, as for the Claude Code mods bridge.
 - One cordis.yml row names one extension source: a file, a directory with an `index.ts` or `index.js`, or a Pi package directory whose `package.json` lists `pi.extensions`. The row also carries the extension's flag values. Row order is Pi's load order, which is also its handler dispatch order.
 - The bridge does not scan `~/.pi` or `.pi`, install packages, or decide project trust. A Pi package's skills, prompt templates, and themes are not loaded.
 

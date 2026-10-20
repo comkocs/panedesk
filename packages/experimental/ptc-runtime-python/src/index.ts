@@ -7,7 +7,7 @@
  *
  * The package also owns the versionless fd-3 wire protocol itself; its host-side codec and
  * hostile-frame validators are re-exported so every consumer of the wire shares one vocabulary.
- * @module @deepseek-ai/dsh-experimental-ptc-runtime-python
+ * @module @panedesk/dsh-experimental-ptc-runtime-python
  */
 
 import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
@@ -16,15 +16,15 @@ import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join, resolve } from 'node:path'
 import { getHeapStatistics } from 'node:v8'
 import type { Duplex } from 'node:stream'
-import { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import { PtcRuntime, DUNDER_MEMBER, PORTABLE_RESERVED_WORDS, RESERVED_BINDING_GLOBALS, RESERVED_ERROR_MEMBERS } from '@deepseek-ai/dsh-ptc-runtime'
-import type { PtcBindingErrorClass, PtcBindingFunction, PtcJsonValue, PtcRunFailure, PtcRunRequest, PtcRunResult, PtcRunSandbox, PtcRunSpec } from '@deepseek-ai/dsh-ptc-runtime'
-import { snapshotJsonValue } from '@deepseek-ai/dsh-util-values'
-import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
-import { SandboxUnavailableError, classifyRunnerFailure, isRunnerSpawnFailure } from '@deepseek-ai/dsh-sandbox'
-import type { ConfinedArgv, SandboxMode } from '@deepseek-ai/dsh-sandbox'
-import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import { Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import { PtcRuntime, DUNDER_MEMBER, PORTABLE_RESERVED_WORDS, RESERVED_BINDING_GLOBALS, RESERVED_ERROR_MEMBERS } from '@panedesk/dsh-ptc-runtime'
+import type { PtcBindingErrorClass, PtcBindingFunction, PtcJsonValue, PtcRunFailure, PtcRunRequest, PtcRunResult, PtcRunSandbox, PtcRunSpec } from '@panedesk/dsh-ptc-runtime'
+import { snapshotJsonValue } from '@panedesk/dsh-util-values'
+import { MAX_TIMER_DELAY_MS } from '@panedesk/dsh-timeout'
+import { SandboxUnavailableError, classifyRunnerFailure, isRunnerSpawnFailure } from '@panedesk/dsh-sandbox'
+import type { ConfinedArgv, SandboxMode } from '@panedesk/dsh-sandbox'
+import type {} from '@panedesk/dsh-sandbox-policy'
 import { bootstrapInput, PYTHON_BOOTSTRAP_LOADER } from './launch.ts'
 import type { BootMessage, ChildToHost, ReplyMessage } from './protocol.ts'
 import { checkDoneValue, encodeJsonPlain, hasUnsafeIntegerToken, logTruncationMarker, validateChildFrame } from './protocol.ts'

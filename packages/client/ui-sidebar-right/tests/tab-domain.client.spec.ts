@@ -7,9 +7,9 @@
  * records are left alone, and a tab's own actions name the tab's session and land where the tab is now.
  */
 import { describe, expect, it, vi } from 'vitest'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { LayoutState, TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
-import { DockController, getPane } from '@deepseek-ai/dsh-client-ui-dockkit'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import type { LayoutState, TabId } from '@panedesk/dsh-client-ui-dockkit'
+import { DockController, getPane } from '@panedesk/dsh-client-ui-dockkit'
 import { TabDomain } from '../src/client/tab-domain.ts'
 import type { SidebarRightNavigator } from '../src/client/tab-domain.ts'
 

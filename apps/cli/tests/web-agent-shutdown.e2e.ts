@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 import { expect, it } from 'vitest'
-import { resolveExampleLaunch } from '@deepseek-ai/dsh-loader-smoke'
+import { resolveExampleLaunch } from '@panedesk/dsh-loader-smoke'
 
 it.each([
   { state: 'idle', cancelFirst: false },
@@ -34,9 +34,9 @@ it.each([
       tsconfigPath: fileURLToPath(new URL('../../../tsconfig.json', import.meta.url)),
       configArgs: ['--profile', 'web', '--patch', patch, '--no-open', '--port', '0'],
       env: {
-        DSH_HOME: join(root, '.dsh'),
-        DSH_AGENTS_HOME: join(root, '.agents'),
-        DSH_TELEMETRY_DISABLED: '1',
+        PANEDESK_HOME: join(root, '.panedesk'),
+        PANEDESK_AGENTS_HOME: join(root, '.agents'),
+        PANEDESK_TELEMETRY_DISABLED: '1',
       },
     })
     const child = execa(launch.command, launch.args, {

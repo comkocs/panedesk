@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as yaml from 'js-yaml'
-import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { entryListSchema } from '@panedesk/cordis-plugin-include'
 
 interface Row {
   id?: string
@@ -143,10 +143,10 @@ describe('slim-base bundle', () => {
     }
     const dependencies = manifest.dependencies ?? {}
     for (const name of [
-      '@deepseek-ai/dsh-agent-instructions', '@deepseek-ai/dsh-compaction-basic',
-      '@deepseek-ai/dsh-token-meter', '@deepseek-ai/dsh-compaction-tool-result-pruner',
-      '@deepseek-ai/dsh-spill-local', '@deepseek-ai/dsh-spill-policy',
-      '@deepseek-ai/dsh-tool-call-timeout-policy',
+      '@panedesk/dsh-agent-instructions', '@panedesk/dsh-compaction-basic',
+      '@panedesk/dsh-token-meter', '@panedesk/dsh-compaction-tool-result-pruner',
+      '@panedesk/dsh-spill-local', '@panedesk/dsh-spill-policy',
+      '@panedesk/dsh-tool-call-timeout-policy',
     ]) {
       expect(dependencies, name).toHaveProperty([name])
     }

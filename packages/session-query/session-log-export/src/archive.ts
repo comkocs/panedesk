@@ -22,16 +22,16 @@
  */
 
 import { Zip, ZipDeflate } from 'fflate'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@panedesk/cordis'
 import type {
   AttachmentStore, FileAttachmentRef, ImageAttachmentRef,
-} from '@deepseek-ai/dsh-attachment'
-import type { SessionLineageNode, SessionQueryEngine } from '@deepseek-ai/dsh-session-query'
-import { SESSION_FORMAT_VERSION } from '@deepseek-ai/dsh-session'
-import { sessionFormatLogFilename } from '@deepseek-ai/dsh-session-format'
-import type { SessionEvent, SessionHeader, SessionId, SessionStore } from '@deepseek-ai/dsh-session'
-import type { SessionHandle, SessionPersistence } from '@deepseek-ai/dsh-session-persistence'
-import { SessionPersistenceNotFoundError } from '@deepseek-ai/dsh-session-persistence'
+} from '@panedesk/dsh-attachment'
+import type { SessionLineageNode, SessionQueryEngine } from '@panedesk/dsh-session-query'
+import { SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
+import { sessionFormatLogFilename } from '@panedesk/dsh-session-format'
+import type { SessionEvent, SessionHeader, SessionId, SessionStore } from '@panedesk/dsh-session'
+import type { SessionHandle, SessionPersistence } from '@panedesk/dsh-session-persistence'
+import { SessionPersistenceNotFoundError } from '@panedesk/dsh-session-persistence'
 
 /** Valid fflate DEFLATE levels accepted by session-log export. */
 export type SessionLogCompressionLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9

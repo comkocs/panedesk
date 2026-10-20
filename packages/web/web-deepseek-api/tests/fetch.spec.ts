@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import WebRuntime from '@deepseek-ai/dsh-web'
-import { DeepSeekFetchApiProvider, type DeepSeekFetchApiOptions } from '@deepseek-ai/dsh-web-deepseek-api'
-import * as webApiPlugin from '@deepseek-ai/dsh-web-deepseek-api'
+import { Context } from '@panedesk/cordis'
+import WebRuntime from '@panedesk/dsh-web'
+import { DeepSeekFetchApiProvider, type DeepSeekFetchApiOptions } from '@panedesk/dsh-web-deepseek-api'
+import * as webApiPlugin from '@panedesk/dsh-web-deepseek-api'
 const fetchProvider = (options: DeepSeekFetchApiOptions) => new DeepSeekFetchApiProvider(() => options)
 const options = { apiKey: 'ds-key', baseURL: 'https://api.deepseek.test/api/v1/tools' }
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {

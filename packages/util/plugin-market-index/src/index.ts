@@ -1,10 +1,10 @@
 /**
  * Plugin market index format 1: JSON validation, relative icon resolution, and install arguments.
  * The format is defined by the plugin market index format Agent Note; readers and generators share this validator.
- * @module @deepseek-ai/dsh-plugin-market-index
+ * @module @panedesk/dsh-plugin-market-index
  */
 
-import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
+import type { LocalizedText } from '@panedesk/dsh-package-manifest'
 import semver from 'semver'
 import type {
   MarketDeclaration, MarketEngines, MarketIndex, MarketIndexMetadata, MarketInstallTarget, MarketPlugin, MarketPluginMetadata,

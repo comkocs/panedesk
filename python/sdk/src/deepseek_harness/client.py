@@ -124,7 +124,7 @@ class HarnessClient:
                 proc.kill()
                 proc.wait()
         self._proc = None
-        self._fail_waiters(self._runtime_closed_error("DeepSeek Harness runtime closed"))
+        self._fail_waiters(self._runtime_closed_error("Panedesk runtime closed"))
         if self._reader_thread and self._reader_thread.is_alive():
             self._reader_thread.join(timeout=0.5)
         if self._stderr_thread and self._stderr_thread.is_alive():
@@ -157,7 +157,7 @@ class HarnessClient:
             )
         except TimeoutError as error:
             self.close()
-            raise TimeoutError(f"{error}\nselected dsh profile {self.config.profile!r}") from error
+            raise TimeoutError(f"{error}\nselected panedesk profile {self.config.profile!r}") from error
         except BaseException as error:
             self.close()
             diagnostics = self._runtime_diagnostics()
@@ -332,7 +332,7 @@ class HarnessClient:
                         diagnostics = self._runtime_diagnostics()
                         suffix = f"\n{diagnostics}" if diagnostics else ""
                         raise TimeoutError(
-                            f"{method} timed out waiting for DeepSeek Harness runtime{suffix}"
+                            f"{method} timed out waiting for Panedesk runtime{suffix}"
                         )
                     wait_timeout = remaining if wait_timeout is None else min(wait_timeout, remaining)
                 try:
@@ -358,14 +358,14 @@ class HarnessClient:
     def _write_message(self, message: JsonObject) -> None:
         proc = self._proc
         if proc is None or proc.stdin is None:
-            raise TransportClosedError("DeepSeek Harness runtime is not running")
+            raise TransportClosedError("Panedesk runtime is not running")
         try:
             payload = json.dumps(message, separators=(",", ":")) + "\n"
             with self._write_lock:
                 proc.stdin.write(payload)
                 proc.stdin.flush()
         except Exception as exc:
-            raise self._runtime_closed_error("Failed to write to DeepSeek Harness runtime") from exc
+            raise self._runtime_closed_error("Failed to write to Panedesk runtime") from exc
 
     def _start_reader_thread(self) -> None:
         self._reader_thread = threading.Thread(target=self._reader_loop, name="dsh-runtime-reader", daemon=True)
@@ -391,7 +391,7 @@ class HarnessClient:
         except BaseException as exc:
             self._fail_waiters(exc)
         finally:
-            self._fail_waiters(self._runtime_closed_error("DeepSeek Harness runtime stdout closed"))
+            self._fail_waiters(self._runtime_closed_error("Panedesk runtime stdout closed"))
 
     def _stderr_loop(self) -> None:
         proc = self._proc
@@ -487,7 +487,7 @@ class HarnessClient:
                 from deepseek_harness_runtime import resolve_bundled_launch_args
             except ImportError as exc:
                 raise FileNotFoundError(
-                    "Unable to locate the bundled DeepSeek Harness dsh runtime. "
+                    "Unable to locate the bundled Panedesk dsh runtime. "
                     "Install deepseek-harness-runtime-bin."
                 ) from exc
             base = resolve_bundled_launch_args()
@@ -497,11 +497,11 @@ class HarnessClient:
         if self.config.dsh_home is not None:
             if not self.config.dsh_home.strip():
                 raise ValueError("HarnessConfig requires a non-empty dsh_home")
-            env["DSH_HOME"] = str(Path(self.config.dsh_home).expanduser().resolve())
-        elif not env.get("DSH_HOME", "").strip():
+            env["PANEDESK_HOME"] = str(Path(self.config.dsh_home).expanduser().resolve())
+        elif not env.get("PANEDESK_HOME", "").strip():
             raise ValueError(
-                "HarnessConfig requires an explicit dsh_home or non-empty DSH_HOME; "
-                "the Python SDK never uses ~/.dsh implicitly"
+                "HarnessConfig requires an explicit dsh_home or non-empty PANEDESK_HOME; "
+                "the Python SDK never uses ~/.panedesk implicitly"
             )
 
         patches = tuple(

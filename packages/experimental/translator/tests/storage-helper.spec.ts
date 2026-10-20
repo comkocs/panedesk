@@ -1,5 +1,5 @@
 /** Storage helpers classify their own failures before a provider consumer can catch them. */
-import { SessionSeq } from '@deepseek-ai/dsh-session'
+import { SessionSeq } from '@panedesk/dsh-session'
 import { rm } from 'node:fs/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TranslationStorage } from '../src/storage.ts'

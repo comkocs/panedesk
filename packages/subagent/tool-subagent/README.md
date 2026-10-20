@@ -3,7 +3,7 @@ description: "Model-facing subagent delegation tool for users and maintainers co
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-tool-subagent
+# @panedesk/dsh-tool-subagent
 
 English | [中文](README.zh.md)
 
@@ -34,9 +34,9 @@ Mount one instance per delegation target, each with a distinct `toolName`. The t
 Load the subagent service, an in-process or remote backend, and this tool; then name the provider. This composition exposes a `subagent` tool that delegates to the `spawn` backend:
 
 ```yaml
-- name: '@deepseek-ai/dsh-subagent'
-- name: '@deepseek-ai/dsh-subagent-spawn-in-process'
-- name: '@deepseek-ai/dsh-tool-subagent'
+- name: '@panedesk/dsh-subagent'
+- name: '@panedesk/dsh-subagent-spawn-in-process'
+- name: '@panedesk/dsh-tool-subagent'
   config:
     provider: spawn
     toolName: subagent
@@ -52,7 +52,7 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 | `allowedAgentPresets` | — | Non-empty preset-id allowlist exposed as the model's optional `agent_preset` enum; must include `agentPreset` when both are set |
 | `maxDepth` | Host setting (`1`) | Absolute delegation-depth cap (`0` forbids delegation); `'provider-managed'` sends no cap to an out-of-process provider |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-subagent) is the exhaustive source for every accepted field and its JSDoc.
+The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-tool-subagent) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Managed delegation
 
@@ -125,8 +125,8 @@ Read these pages when the package-level contract is not enough; they move from t
 
 - [Subagent subsystem](../../../docs/subsystems/subagent.md) — providers, activations, results, and continuation.
 - [dsh-tool-subagent-control](../tool-subagent-control/README.md) — messaging, interrupt, and listing tools for continuable children.
-- [Generated tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) — the default schema and backend-specific wording.
-- [Generated configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-subagent) — every accepted config field.
+- [Generated tool catalog](../../../docs/tool-catalog.md#panedeskdsh-tool-subagent) — the default schema and backend-specific wording.
+- [Generated configuration catalog](../../../docs/config-catalog.md#panedeskdsh-tool-subagent) — every accepted config field.
 - [Historical model-selected subagent routes](../../../.agents/notes/archived/feature/2026-08-18-model-selected-subagent-routes.md) — selection policy, inheritance, discovery, and the fork restriction.
 
 -----
@@ -138,7 +138,7 @@ Read these pages when the package-level contract is not enough; they move from t
 
 #### What the model sees
 
-The generated default [`subagent` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-subagent) appears under the configured tool name while its provider exists. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus route guidance; the backend must support `agentOptions`. `allowedAgentPresets` adds the `agent_preset` enum and guidance from the presets' display descriptions. Context inheritance and continuation support determine the task and follow-up descriptions. A tool restriction removes both the schema and its `tool:<toolName>` guidance section.
+The generated default [`subagent` schema](../../../docs/tool-catalog.md#panedeskdsh-tool-subagent) appears under the configured tool name while its provider exists. An enabled Session policy adds `provider`, `model`, and `reasoning_effort` plus route guidance; the backend must support `agentOptions`. `allowedAgentPresets` adds the `agent_preset` enum and guidance from the presets' display descriptions. Context inheritance and continuation support determine the task and follow-up descriptions. A tool restriction removes both the schema and its `tool:<toolName>` guidance section.
 
 #### Token effect
 

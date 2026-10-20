@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { composeEntries, loadProfile, PROFILE_TEMPLATES } from '@deepseek-ai/dsh-app-boot'
+import { composeEntries, loadProfile, PROFILE_TEMPLATES } from '@panedesk/dsh-app-boot'
 
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
-const resourcePackage = '@deepseek-ai/dsh-mcp-resources'
+const resourcePackage = '@panedesk/dsh-mcp-resources'
 
 describe('shipped MCP resource composition', () => {
   // The slim preset (@panedesk/slim-base) is a minimal row subset of dsh-base
@@ -27,7 +27,7 @@ describe('shipped MCP resource composition', () => {
       expect(rows.filter(row => row.name === resourcePackage)).toEqual(
         name === 'slim' ? [] : [{ id: 'mcp-resources', name: resourcePackage }],
       )
-      expect(rows.filter(row => row.name === '@deepseek-ai/dsh-mcp-client')).toEqual([])
+      expect(rows.filter(row => row.name === '@panedesk/dsh-mcp-client')).toEqual([])
       expect(warnings).toEqual([])
 
       const owners = profile.layers.filter((layer) => {
@@ -37,7 +37,7 @@ describe('shipped MCP resource composition', () => {
         return manifest.dependencies?.[resourcePackage] !== undefined
       })
       expect(owners.map(owner => owner.packageName)).toEqual(
-        name === 'slim' ? [] : [name === 'sdk-minimal' ? '@deepseek-ai/dsh-sdk-minimal' : '@deepseek-ai/dsh-base'],
+        name === 'slim' ? [] : [name === 'sdk-minimal' ? '@panedesk/dsh-sdk-minimal' : '@panedesk/dsh-base'],
       )
     } finally {
       rmSync(home, { recursive: true, force: true })

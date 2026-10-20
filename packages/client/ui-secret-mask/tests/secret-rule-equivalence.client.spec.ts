@@ -2,11 +2,11 @@
  * The prefix-pruned matcher produces the same nodes as the regular-expression
  * matcher it replaced, through the production evaluator, on fixed and generated inputs.
  */
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import type { UserTextRule, UserTextTransformContext } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { UserTextRegistry } from '@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/user-text-registry.ts'
-import { collapseWhitespaceRule, trimWhitespaceRule } from '@deepseek-ai/dsh-client-ui-conversation/src/client/user-text/whitespace-rules.ts'
+import type { UserTextRule, UserTextTransformContext } from '@panedesk/dsh-client-ui-conversation/client'
+import { UserTextRegistry } from '@panedesk/dsh-client-ui-conversation/src/client/conversation/user-text-registry.ts'
+import { collapseWhitespaceRule, trimWhitespaceRule } from '@panedesk/dsh-client-ui-conversation/src/client/user-text/whitespace-rules.ts'
 import { createSecretRule } from '../src/client/secret-rule.ts'
 import { regexSecretRule } from './regex-oracle.client.ts'
 

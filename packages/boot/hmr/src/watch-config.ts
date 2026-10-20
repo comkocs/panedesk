@@ -2,7 +2,7 @@
 import { dirname, relative, resolve, sep } from 'node:path'
 import { realpath, stat } from 'node:fs/promises'
 import { watch, type ChokidarOptions } from 'chokidar'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@panedesk/cordis'
 
 const registrations = new WeakMap<Context, Set<string>>()
 

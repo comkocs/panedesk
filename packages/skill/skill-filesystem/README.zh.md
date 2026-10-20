@@ -3,7 +3,7 @@ description: "本地文件系统 skill 提供方，供编写本地 skill 或配�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-skill-filesystem
+# @panedesk/dsh-skill-filesystem
 
 [English](README.md) | 中文
 
@@ -47,7 +47,7 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 
 | Rank | 来源 | 路径 |
 |---|---|---|
-| 100 | `project-dsh` | `<projectRoot>/.dsh/skills` |
+| 100 | `project-dsh` | `<projectRoot>/.panedesk/skills` |
 | 200 | `project-agents` | `<projectRoot>/.agents/skills` |
 | 300 | `custom` | `Config.customSkillDirs` |
 | 400 | `user-dsh` | `<dshHome>/skills` |
@@ -60,21 +60,21 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 与 skill 注册表一起加载该插件；它需要 `ctx.skills`。
 
 ```yaml
-- name: '@deepseek-ai/dsh-skill'
-- name: '@deepseek-ai/dsh-skill-filesystem'
+- name: '@panedesk/dsh-skill'
+- name: '@panedesk/dsh-skill-filesystem'
 ```
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `providerName` | `filesystem` | 注册到 `ctx.skills` 的唯一提供方名称 |
 | `includeDefaultRoots` | `true` | 在 `customSkillDirs` 周围包含项目根与用户根 |
-| `dshHome` | `$DSH_HOME` 或 `~/.dsh` | Harness 配置根目录；扫描其 `skills` 子目录 |
-| `agentsHome` | `$DSH_AGENTS_HOME` 或 `~/.agents` | 为兼容 skill 扫描的共享 agent 配置根目录 |
+| `dshHome` | `$PANEDESK_HOME` 或 `~/.panedesk` | Harness 配置根目录；扫描其 `skills` 子目录 |
+| `agentsHome` | `$PANEDESK_AGENTS_HOME` 或 `~/.agents` | 为兼容 skill 扫描的共享 agent 配置根目录 |
 | `customSkillDirs` | `[]` | 其他本地 skill 根目录，位于项目根之后、用户根之前 |
 | `watch` | `true` | 监视本地根，并在目录可能变化时使提供方失效 |
 | `bundledSkillDir` | — | 配置后按 rank 600 扫描的随包提供的 skill 根目录 |
 
-其余 `watch*` 字段用于调节 Chokidar 行为——轮询、稳定窗口、间隔、项目上限与符号链接跟随。生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-skill-filesystem)完整列出了所有字段，是这些字段的真源。
+其余 `watch*` 字段用于调节 Chokidar 行为——轮询、稳定窗口、间隔、项目上限与符号链接跟随。生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-skill-filesystem)完整列出了所有字段，是这些字段的真源。
 
 ### 变更检测
 

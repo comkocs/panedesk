@@ -31,7 +31,7 @@ Status: implemented
 | native | `pnpm run build:native-system` | — |
 | host-src | `node --max-old-space-size=4096 <tsc> -b <tsconfig.host.json 的 references>` | native |
 | host-bundle | `tsdown --config-loader native --env.DSH_BUILD_FACE host`（运行 Typert） | host-src |
-| desktop-bundle | `pnpm --filter @deepseek-ai/dsh-desktop run bundle` | host-bundle |
+| desktop-bundle | `pnpm --filter @panedesk/dsh-desktop run bundle` | host-bundle |
 | client-src | `<tsc> -b <tsconfig.client.json 的 references>` | desktop-bundle |
 | client-bundle | `tsdown --config-loader native --env.DSH_BUILD_FACE client` | client-src |
 | web | `pnpm run build:web` | client-bundle |
@@ -44,7 +44,7 @@ native → host-src ─┬─ host-check ─────────────
                                                                  └─ client-bundle → web ┘
 ```
 
-- client-src 必须在 host-bundle 之后：Client 包导入 `@deepseek-ai/dsh-*/remote`，其类型 `lib/typert.remote-client.d.ts` 由 Typert 写出：这些 scope 在 Host tsdown 中生成，typecheck scope 经 `scripts/generate-typert.ts` 生成。host-check 不读取 Typert 输出，干净的串行构建一直在 Host tsdown 之前完成 Host 聚合检查。
+- client-src 必须在 host-bundle 之后：Client 包导入 `@panedesk/dsh-*/remote`，其类型 `lib/typert.remote-client.d.ts` 由 Typert 写出：这些 scope 在 Host tsdown 中生成，typecheck scope 经 `scripts/generate-typert.ts` 生成。host-check 不读取 Typert 输出，干净的串行构建一直在 Host tsdown 之前完成 Host 聚合检查。
 - 产物链保留 native → host-src 与 desktop-bundle → client-src 这两条非数据依赖；只有两个 check 步骤并行挂接到链上。
 - [`compile-referenced-projects.ts`](../../../../scripts/compile-referenced-projects.ts) 拥有包库步骤列表 `libraryBuildSteps`、references 参数构造 `referencedProjectsCompilerArgs`（相对路径传参，避开 Windows 命令行长度上限）与聚合检查参数 `aggregateCheckArgs`。vendor 发布演练（`host-libraries`）与 CI benchmark（`--noCheck`）串行执行同一步骤列表。
 - check 步骤使用 project mode（`tsc -p`）：它读取 references 已有的声明而不编译任何 reference，incremental 状态写入聚合配置已有的 `tsconfig.{host,client}.tsbuildinfo`。`build` 与 `build:check` 使用同一条命令，因此诊断相同。

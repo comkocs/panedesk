@@ -1,5 +1,5 @@
 /** Web SSE transport for page-owned client entry reconciliation and rebuilt code replacement. */
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context } from '@panedesk/cordis'
 import { EventSourceParserStream } from 'eventsource-parser/stream'
 import type { PluginsEventParseResult } from '../events.ts'
 import { EVENTS_ROUTE, parsePluginsEventFrame } from '../events.ts'

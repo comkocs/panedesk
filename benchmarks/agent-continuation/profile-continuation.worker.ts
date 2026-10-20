@@ -3,7 +3,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
+import { DeepSeekHarness } from '@panedesk/dsh-sdk-client'
 import { assertBuiltBenchmarkRuntime } from '../support/built-worker.ts'
 import { PARENT_ID, resultText, WORKLOAD } from './workload.ts'
 
@@ -28,14 +28,14 @@ async function run(root: string): Promise<ProfileReport> {
     '- id: llm-deepseek', '  disabled: true',
     '- id: sessions', '  config:', '    root: ' + JSON.stringify(join(root, 'profile-sessions')), '    compression: zstd',
     '- insert:',
-    '    - id: fs-local', "      name: '@deepseek-ai/dsh-fs-local'",
-    '    - id: str-replace-editor', "      name: '@deepseek-ai/dsh-tool-str-replace-editor'",
+    '    - id: fs-local', "      name: '@panedesk/dsh-fs-local'",
+    '    - id: str-replace-editor', "      name: '@panedesk/dsh-tool-str-replace-editor'",
     '    - id: benchmark-model', '      name: ' + JSON.stringify(join(import.meta.dirname, 'profile-adapter.js')),
     '',
   ].join('\n'))
   const env: NodeJS.ProcessEnv = {
     PATH: process.env.PATH, HOME: home, USERPROFILE: home,
-    DSH_AGENTS_HOME: join(home, 'agents'),
+    PANEDESK_AGENTS_HOME: join(home, 'agents'),
   }
   const harness = new DeepSeekHarness({
     dshBin: join(import.meta.dirname, '..', '..', '..', 'apps', 'cli', 'lib', 'bin.js'),
@@ -82,7 +82,7 @@ async function run(root: string): Promise<ProfileReport> {
   }
 }
 
-assertBuiltBenchmarkRuntime(import.meta.url, { '@deepseek-ai/dsh-sdk-client': import.meta.resolve('@deepseek-ai/dsh-sdk-client') })
+assertBuiltBenchmarkRuntime(import.meta.url, { '@panedesk/dsh-sdk-client': import.meta.resolve('@panedesk/dsh-sdk-client') })
 const [root] = process.argv.slice(2)
 if (root === undefined) throw new Error('usage: profile-continuation.worker.js <root>')
 process.stdout.write(JSON.stringify(await run(root)) + '\n')

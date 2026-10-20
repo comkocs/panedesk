@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import type { ChatSnapshot, UseChat } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { PartialArguments } from '@deepseek-ai/dsh-util-values'
+import type { ChatSnapshot, UseChat } from '@panedesk/dsh-client-ui-chat/client'
+import type { PropsRuntime } from '@panedesk/dsh-client-ui-slots'
+import { PartialArguments } from '@panedesk/dsh-util-values'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ApprovalCommand, commandOf } from '../src/client/chat/ApprovalCommand.tsx'

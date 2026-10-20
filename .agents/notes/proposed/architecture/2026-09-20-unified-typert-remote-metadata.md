@@ -22,7 +22,7 @@ Both delivery paths derive from the same [compiler-independent model](../../impl
 
 [Registry](../../../../packages/typert/registry/src/service.ts) instances belong to their Cordis Context and process. Host and Client entries share implementation, not state. Existing local/Remote `get()` and `list()` preserve the registered descriptor objects; registration retains atomic duplicate checks, notifications, tombstones, and fiber-owned disposal. No Registry API, store, subscription, metadata RPC, or cross-process synchronization is added. Separate Programs and processes do not share object identity.
 
-The [emitter](../../../../packages/typert/generator/src/emitter.ts) writes one static `TypertRemoteMethodSpec` per endpoint and calls `createTypertRemoteInfo({ package, methods }, z)` from the published pure `@deepseek-ai/dsh-typert-protocol/remote-info` entry. The endpoint key supplies `namespace` and `method`, and `id` combines it with the package. Each spec keeps the service, receiver, ordered parameters, single `result` codec, and optional stream, scope, uplink, cancellation, documentation, and source-location fields. Every parameter has both `codec` and `strictCodec` from the same checker-resolved type model, with no per-method policy in the analyzer or model. Parameter `wire` defaults to `name`; parameter documentation stays on `parameters[].description`. There is no nested `metadata`, separate `output` or `parameterDescriptions`, or top-level `REMOTE_METHODS` export.
+The [emitter](../../../../packages/typert/generator/src/emitter.ts) writes one static `TypertRemoteMethodSpec` per endpoint and calls `createTypertRemoteInfo({ package, methods }, z)` from the published pure `@panedesk/dsh-typert-protocol/remote-info` entry. The endpoint key supplies `namespace` and `method`, and `id` combines it with the package. Each spec keeps the service, receiver, ordered parameters, single `result` codec, and optional stream, scope, uplink, cancellation, documentation, and source-location fields. Every parameter has both `codec` and `strictCodec` from the same checker-resolved type model, with no per-method policy in the analyzer or model. Parameter `wire` defaults to `name`; parameter documentation stays on `parameters[].description`. There is no nested `metadata`, separate `output` or `parameterDescriptions`, or top-level `REMOTE_METHODS` export.
 
 The [factory](../../../../packages/typert/protocol/src/remote-info.ts) returns an actual class instance, not a class constructor or eager object literal. Construction retains only the spec and the Zod runtime explicitly supplied by the generated artifact, without constructing schemas. The first `descriptors` or `methods` read, including mounting or querying, builds and caches one shared index. Each `methods[endpoint]` aliases the exact direct descriptor object; Context-only receivers remain in descriptors and scoped declarations. Direct methods with scoped projections retain their scope fields but their generic named invoker requires an unscoped Remote.
 
@@ -86,7 +86,7 @@ page(request: SessionPageRequest, signal: AbortSignal): Promise<SessionPage> {
 **Browser and Node invocation.** A source-export consumer changes `/remote-source` to `/remote`; existing ordinary consumers already use this path. The live Context mounts once, without separate Registry registration.
 
 ```text
-import { TYPERT_REMOTE } from '@deepseek-ai/dsh-api-session-controller/remote'
+import { TYPERT_REMOTE } from '@panedesk/dsh-api-session-controller/remote'
 await ctx.remote.$mount(TYPERT_REMOTE)
 const result = await ctx.remote.session.page(request, signal)
 const stream = ctx.remote.session.follow(followRequest, signal)
@@ -101,14 +101,14 @@ try {
 
 ```text
 // Old selection.
-import { REMOTE_METHODS } from '@deepseek-ai/dsh-api-session-controller/remote-source'
+import { REMOTE_METHODS } from '@panedesk/dsh-api-session-controller/remote-source'
 const page = REMOTE_METHODS['session/page']
 ```
 
 ```text
 // Metadata plugin: inject: ['typert']; no Gateway, Connection, or Host controller.
-import { TYPERT_REMOTE } from '@deepseek-ai/dsh-api-session-controller/remote'
-import { isTypertRemoteMethod } from '@deepseek-ai/dsh-typert-protocol/remote-info'
+import { TYPERT_REMOTE } from '@panedesk/dsh-api-session-controller/remote'
+import { isTypertRemoteMethod } from '@panedesk/dsh-typert-protocol/remote-info'
 ctx.typert.remotes.register(TYPERT_REMOTE)
 const page = ctx.typert.remotes.get('session/page')
 if (page === undefined || !isTypertRemoteMethod(page)) {
@@ -154,7 +154,7 @@ const value = await ctx.sessionController.page(request, signal)
 **Independent consumers.** Read the ordinary info instance's typed index; no Registry is required:
 
 ```text
-import { TYPERT_REMOTE } from '@deepseek-ai/dsh-api-session-controller/remote'
+import { TYPERT_REMOTE } from '@panedesk/dsh-api-session-controller/remote'
 const page = TYPERT_REMOTE.methods['session/page']
 const arguments_ = page.input().create().parse(raw)
 const result = await page.invoke(remote, arguments_, signal)

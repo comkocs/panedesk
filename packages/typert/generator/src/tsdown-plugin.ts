@@ -6,7 +6,7 @@
  * Thread started by the pass's first `buildStart`, so bundling continues on the
  * main thread while Typert analyzes; the pass's first `writeBundle` awaits the
  * result and writes every artifact once.
- * @module @deepseek-ai/dsh-typert-generator/tsdown
+ * @module @panedesk/dsh-typert-generator/tsdown
  */
 
 import { existsSync, readFileSync } from 'node:fs'

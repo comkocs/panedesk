@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { Readable } from 'node:stream'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { Context } from '@deepseek-ai/cordis'
+import { Context } from '@panedesk/cordis'
 import { describe, expect, it } from 'vitest'
 import { bridge } from '../src/http-bridge.ts'
 import { Peer } from '../src/peer.ts'

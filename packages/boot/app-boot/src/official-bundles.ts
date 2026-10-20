@@ -1,6 +1,6 @@
 /** Official bundles offered without installing their provider runtimes in the DSH distribution. */
 
-import type { PluginLocalizedMeta } from '@deepseek-ai/dsh-package-manifest'
+import type { PluginLocalizedMeta } from '@panedesk/dsh-package-manifest'
 
 export { ON_DEMAND_BUNDLES } from './official-bundle-packages.ts'
 

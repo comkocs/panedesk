@@ -481,7 +481,7 @@ describe('CI workflow', () => {
     expect(node24Bench.env).toBeUndefined()
     expect(node24Bench.steps).toContainEqual({
       name: 'Install benchmark browser and hosted dependencies',
-      run: 'pnpm --filter @deepseek-ai/dsh-benchmarks exec playwright install --with-deps chromium',
+      run: 'pnpm --filter @panedesk/dsh-benchmarks exec playwright install --with-deps chromium',
     })
     expect(JSON.stringify(node24Bench.steps)).not.toContain('DSH_CI_FAILOVER_LINUX')
     expect(node24Bench.steps).toContainEqual({
@@ -656,7 +656,7 @@ describe('CI workflow', () => {
       uses: 'actions/upload-artifact@v7.0.1',
       with: {
         name: 'benchmark-report',
-        path: 'benchmarks/.dsh-report/',
+        path: 'benchmarks/.panedesk-report/',
         'include-hidden-files': true,
         'if-no-files-found': 'warn',
         'retention-days': 7,
@@ -1176,7 +1176,7 @@ describe('Python release workflows', () => {
     expect(installedRealApiWindows).toMatchObject({ shell: 'pwsh' })
     expect(JSON.stringify(installedRealApiWindows)).toContain('--scenario sdk-live --installed-wheel')
     expect(manylinuxSmoke).toMatchObject({ if: "runner.os == 'Linux'" })
-    expect(JSON.stringify(manylinuxSmoke)).toContain('-e DSH_TELEMETRY_DISABLED')
+    expect(JSON.stringify(manylinuxSmoke)).toContain('-e PANEDESK_TELEMETRY_DISABLED')
   })
 
   it('uses the shared macOS deployment-target check in GitLab', () => {

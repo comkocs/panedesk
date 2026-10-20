@@ -3,7 +3,7 @@ description: "Method-level Remote access control for non-owner Peers: role-based
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-api-remote-access
+# @panedesk/dsh-api-remote-access
 
 English | [中文](README.zh.md)
 

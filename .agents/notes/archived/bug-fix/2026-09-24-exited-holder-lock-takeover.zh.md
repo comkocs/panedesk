@@ -18,13 +18,13 @@ profile 包锁（`<profile>/package.json.lock`）让这个代价显现出来。`
 - 读到同一条记录的竞争者通过一个以 `wx` 创建的认领文件 `<file>.lock.takeover-<记录 SHA-256 的前 16 位十六进制>` 串行化。认领者重新读取锁并再次探测其 PID，仅当锁仍是该记录且该 PID 仍不存在时才移除它，随后移除认领文件并立即重试获取。PID 不存在时记录的持有者无法再释放它，另一次接管需要同一个认领文件，复用了该 PID 的新持有者无法通过第二次探测，因此认领者绝不会移除另一个竞争者在已退出持有者之后获得的锁。
 - 记录为空、不完整、不是十进制 PID，或指向 PID 0 或超出探测所接受的 int32 范围的 PID 时，竞争者继续等待。这些情况都无法证明持有者已经停止。
 - 接管只能证明记录中的进程已退出，不能证明它启动的进程已停止写入。[Plugin Manager](../../../../packages/boot/plugin-manager/README.zh.md) 在每次 pnpm 运行期间把它记录在 `.plugin-manager/run.json` 中；发现该记录的操作最多等待五秒让记录中的运行停止，否则拒绝运行，并指明该进程与记录文件。
-- 探测在竞争者所在主机上进行。不支持多台主机通过网络文件系统共享同一个 `DSH_HOME` 写入；保护 Session 文件的 `flock` 同样无法可靠地排除它们。
+- 探测在竞争者所在主机上进行。不支持多台主机通过网络文件系统共享同一个 `PANEDESK_HOME` 写入；保护 Session 文件的 `flock` 同样无法可靠地排除它们。
 
 ## 考虑过的替代方案
 
 **移除超过固定时长的锁。** 时长无法区分已崩溃的持有者与正在运行十分钟 pnpm 安装的持有者，而插件管理器会合理地持锁这么久。
 
-**由内核释放的锁。** 持有者死亡时内核会释放它们，从根源上消除问题而不是检测它。[Session 写租约](../../../../packages/session/session-persistence-jsonl/src/lease.ts)已在两个平台上持有这种锁：POSIX 上通过 `@deepseek-ai/node-addon-system` 使用 `flock`，Windows 上通过 `koffi` 使用命名信号量。把 `withFileLock` 迁移到它上面，会让零依赖的 `dsh-atomic-write` 引入这两个依赖；而早期版本的进程之间只通过 `<file>.lock` 互斥，因此过渡期必须同时持有两种锁。若 PID 复用或共享文件系统部署变得重要，这仍是更强的修复。
+**由内核释放的锁。** 持有者死亡时内核会释放它们，从根源上消除问题而不是检测它。[Session 写租约](../../../../packages/session/session-persistence-jsonl/src/lease.ts)已在两个平台上持有这种锁：POSIX 上通过 `@panedesk/node-addon-system` 使用 `flock`，Windows 上通过 `koffi` 使用命名信号量。把 `withFileLock` 迁移到它上面，会让零依赖的 `dsh-atomic-write` 引入这两个依赖；而早期版本的进程之间只通过 `<file>.lock` 互斥，因此过渡期必须同时持有两种锁。若 PID 复用或共享文件系统部署变得重要，这仍是更强的修复。
 
 **把陈旧锁重命名到别处，若重命名后的记录不同再恢复。** 恢复可能与在此间隙获取空路径的第三个竞争者竞态，导致出现两个持有者。认领文件无需任何恢复即可防止这一竞态。
 

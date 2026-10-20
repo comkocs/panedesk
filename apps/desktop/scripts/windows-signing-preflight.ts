@@ -43,7 +43,7 @@ export async function preflightWindowsSigning(options: SigningPreflightOptions):
     runDirectory,
     stateDirectory: options.stateDirectory,
   })
-  const state = options.stateDirectory ?? join(homedir(), '.dsh-desktop-signing')
+  const state = options.stateDirectory ?? join(homedir(), '.panedesk-desktop-signing')
   const lock = join(state, 'attempt.json')
   const compiler = join(environment.SystemRoot ?? 'C:\\Windows', 'Microsoft.NET/Framework64/v4.0.30319/csc.exe')
   await access(join(runDirectory, 'run.json'))

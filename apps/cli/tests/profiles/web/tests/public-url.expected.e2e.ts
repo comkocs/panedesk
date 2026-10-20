@@ -54,9 +54,9 @@ function spawnWeb(root: string, patch: string, interrupt: string, flags: string[
     env: {
       ...process.env,
       DEEPSEEK_API_KEY: 'keyless-web-public-url-no-call',
-      DSH_AGENTS_HOME: join(root, '.agents'),
-      DSH_HOME: join(root, 'home'),
-      DSH_TELEMETRY_DISABLED: '1',
+      PANEDESK_AGENTS_HOME: join(root, '.agents'),
+      PANEDESK_HOME: join(root, 'home'),
+      PANEDESK_TELEMETRY_DISABLED: '1',
       NODE_NO_WARNINGS: '1',
       WEB_INTERRUPT_FILE: interrupt,
     },
@@ -77,7 +77,7 @@ interface RunningWeb {
 }
 
 /**
- * Boot the built CLI and wait for its `dsh web:` line and bound listener port.
+ * Boot the built CLI and wait for its `panedesk web:` line and bound listener port.
  * The marker plugin also polls for the interrupt file and emits `SIGTERM` on
  * the child's own process, because Windows has no deliverable SIGTERM.
  */
@@ -113,7 +113,7 @@ async function bootWeb(root: string, flags: string[]): Promise<RunningWeb> {
   }
   lines.on('line', (line) => {
     if (line.startsWith('public-url-listen-port: ')) port = Number(line.slice('public-url-listen-port: '.length))
-    if (line.startsWith('dsh web: http')) startup = new URL(line.slice('dsh web: '.length))
+    if (line.startsWith('panedesk web: http')) startup = new URL(line.slice('panedesk web: '.length))
     announced()
   })
   void child.then((result) => {

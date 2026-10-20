@@ -1,15 +1,15 @@
 /** Recorded todo predecessors follow incremental history repair and nested invocations. */
 import { describe, expect, it } from 'vitest'
-import { ConversationNodeAssembler } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
-import type { SessionLiveEventEntry } from '@deepseek-ai/dsh-api-session-controller/client'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { en } from '@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts'
-import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
+import { ConversationNodeAssembler } from '@panedesk/dsh-client-ui-conversation/client'
+import type { SessionEvent } from '@panedesk/dsh-session/types'
+import type { SessionLiveEventEntry } from '@panedesk/dsh-api-session-controller/client'
+import { makeTranslate } from '@panedesk/dsh-client-test-runtime'
+import { en } from '@panedesk/dsh-client-ui-conversation/src/client/locales.ts'
+import { en as commonEn } from '@panedesk/dsh-client-locale/src/locales/en.ts'
 import { todoCallDefinition, todoHistoryView, todoWriteDefinition, type TodoHistory } from '../src/client/tool/models/todo-history.ts'
 import { todoDiffModel } from '../src/client/tool/models/todo-diff-model.ts'
-import type { ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
-import { PartialArguments } from '@deepseek-ai/dsh-util-values'
+import type { ToolResultNode } from '@panedesk/dsh-client-ui-chat/client'
+import { PartialArguments } from '@panedesk/dsh-util-values'
 
 const t = makeTranslate(en, commonEn)
 const first = [{ content: 'Build', status: 'in_progress' }, { content: 'Review', status: 'pending' }, { content: 'Old task', status: 'pending' }] as const

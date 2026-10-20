@@ -3,28 +3,28 @@
  * durable session metadata, the resolved child `AgentOptions`, the delegated
  * policy seed, and the scoped setup used by local activations.
  *
- * @module @deepseek-ai/dsh-subagent/child-agent
+ * @module @panedesk/dsh-subagent/child-agent
  */
 
-import type { Context } from '@deepseek-ai/cordis'
-import type { Agent, AgentOptions, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
-import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
-import type { Session, SessionId } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-system-prompt'
-import type { ToolRestriction } from '@deepseek-ai/dsh-tools'
+import type { Context } from '@panedesk/cordis'
+import type { Agent, AgentOptions, CreateAgentOptions } from '@panedesk/dsh-agent'
+import type { SandboxMode } from '@panedesk/dsh-sandbox'
+import type { Session, SessionId } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-system-prompt'
+import type { ToolRestriction } from '@panedesk/dsh-tools'
 // Type-only: make `ctx.get('sandboxPolicy')`, `ctx.get('approval')`, and
 // `ctx.get('permissionPresets')` resolve to their services when composed — delegation consumes them
 // opportunistically (the documented `ctx.get` pattern), never as a hard dep —
 // and merge the inherited permission session-event payloads.
-import type {} from '@deepseek-ai/dsh-sandbox-policy'
-import type {} from '@deepseek-ai/dsh-user-approval'
-import type {} from '@deepseek-ai/dsh-permission-presets'
+import type {} from '@panedesk/dsh-sandbox-policy'
+import type {} from '@panedesk/dsh-user-approval'
+import type {} from '@panedesk/dsh-permission-presets'
 // Type-only: make `ctx.get('agentPresets')` resolve to the preset roster when
 // composed — a child inherits its parent's composition opportunistically (the
 // documented `ctx.get` pattern), never as a hard dep. A rosterless deployment
 // keeps its model-facing rows on the host plane, where the child already sees
 // them through the tool registry's global layer.
-import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import type {} from '@panedesk/dsh-agent-preset-registry'
 import { delegationDepthOf } from './depth.ts'
 import { SubagentError } from './error.ts'
 

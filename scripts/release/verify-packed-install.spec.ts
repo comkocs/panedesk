@@ -43,7 +43,7 @@ fs.writeFileSync(process.env.CACHE_EVIDENCE, JSON.stringify({ consumer, files })
       writeFileSync(join(source, 'probe.cjs'), probe + (outcome === 'install failure' ? '\nprocess.exit(37)\n' : ''))
       writeFileSync(join(source, 'lib/bin.js'), outcome === 'entry failure' ? 'process.exit(37)\n' : 'console.log("0.0.1")\n')
       writeFileSync(join(source, 'package.json'), JSON.stringify({
-        name: '@deepseek-ai/dsh',
+        name: 'panedesk',
         version: '0.0.1',
         scripts: { postinstall: 'node probe.cjs' },
       }))

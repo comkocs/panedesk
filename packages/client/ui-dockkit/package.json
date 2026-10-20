@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-dockkit",
+  "name": "@panedesk/dsh-client-ui-dockkit",
   "description": "Docking layout kit: split-tree engine with invertible operations, and the React components that render and drive it (zero cordis)",
   "version": "0.2.1-rc.2",
   "publishConfig": {
@@ -23,9 +23,9 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-brand": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-brand": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "react-dom": "^18.2.0",
     "react": "^18.2.0",
@@ -37,6 +37,6 @@
     "lib/types/**/*.d.ts"
   ],
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   }
 }

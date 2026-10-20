@@ -65,8 +65,8 @@ async function fixture(body: (manifest: string, root: string) => Promise<void>):
 describe('operator-driven packaging entry', () => {
   it('refuses the interlock before loading credentials, confirmation, or child allocation and preserves it byte-for-byte', async () => {
     await fixture(async (manifest, root) => {
-      const lock = join(root, '.dsh-desktop-signing/attempt.json')
-      await mkdir(join(root, '.dsh-desktop-signing'))
+      const lock = join(root, '.panedesk-desktop-signing/attempt.json')
+      await mkdir(join(root, '.panedesk-desktop-signing'))
       await writeFile(lock, 'retained incident record')
       const confirm = vi.fn(async () => true)
       await expect(packageInstalledUpdate(manifest, versions[0], { execute: true, confirm })).rejects.toThrow('interlock exists')
@@ -122,8 +122,8 @@ describe('operator-driven packaging entry', () => {
       await expect(packageInstalledUpdate(manifest, versions[0], { execute: true, confirm: async () => false }))
         .rejects.toThrow('did not confirm')
       await expect(packageInstalledUpdate(manifest, versions[0], { execute: true, confirm: async () => {
-        await mkdir(join(root, '.dsh-desktop-signing'))
-        await writeFile(join(root, '.dsh-desktop-signing/attempt.json'), 'another operation acquired the token')
+        await mkdir(join(root, '.panedesk-desktop-signing'))
+        await writeFile(join(root, '.panedesk-desktop-signing/attempt.json'), 'another operation acquired the token')
         return true
       } })).rejects.toThrow('interlock exists')
       expect(await readdir(join(manifest, '..', versions[0]))).toEqual(['dsh'])

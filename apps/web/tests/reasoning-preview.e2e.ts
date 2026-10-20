@@ -2,8 +2,8 @@
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { expect, it } from 'vitest'
-import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
-import type {} from '@deepseek-ai/dsh-agent-default-model'
+import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@panedesk/dsh-llm'
+import type {} from '@panedesk/dsh-agent-default-model'
 import {
   captureStableAria, compareOrRefreshGolden, launchWebScaffold, watchConsole, webSnapshotMode,
 } from './scaffold.ts'

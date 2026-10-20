@@ -1,6 +1,6 @@
 // Web e2e scenario: generic file upload round trip. A real chromium picks a
 // file through the composer paperclip input; the upload RPC stores the exact
-// bytes below the scaffold's isolated DSH_HOME, the prompt cites the staged
+// bytes below the scaffold's isolated PANEDESK_HOME, the prompt cites the staged
 // reference, request assembly projects the file block to handle text, and the
 // model (replayed or live) reads the saved copy with the REAL read tool. The
 // content-addressed store makes the saved path identical across record and
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import type { SessionEvent } from '@panedesk/dsh-session'
 import {
   acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, recordFixture, watchConsole, webSnapshotMode, type WebScaffold,

@@ -13,7 +13,7 @@ Archived: 2026-08-08
 
 ## 决策
 
-raw 执行方式为 `dsh --config <path>`。指定文件必须是一份 Include 补丁列表，并在同一 include 层级直接应用到 `apps/cli/config/base.cordis.yml` 之上。启动时必须提供该文件；它不是完整的替换配置树，也不会继承 `apps/cli/config/web.cordis.yml` 或 `$DSH_HOME/config.yaml`。相对路径从调用目录解析。启动错误会明确报错；SIGINT 和 SIGTERM 会先对根上下文执行 dispose（资源释放），再退出。
+raw 执行方式为 `dsh --config <path>`。指定文件必须是一份 Include 补丁列表，并在同一 include 层级直接应用到 `apps/cli/config/base.cordis.yml` 之上。启动时必须提供该文件；它不是完整的替换配置树，也不会继承 `apps/cli/config/web.cordis.yml` 或 `$PANEDESK_HOME/config.yaml`。相对路径从调用目录解析。启动错误会明确报错；SIGINT 和 SIGTERM 会先对根上下文执行 dispose（资源释放），再退出。
 
 raw 诊断形式仍然无需启动：`dsh --dump-default-config` 打印 base，`dsh --config <path> --dump-config` 则打印 base 与必需 overlay 的合成结果。转储过程使用 Include 实现的补丁算法和 YAML 方言。
 

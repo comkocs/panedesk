@@ -3,7 +3,7 @@ description: "在实验性 Team 组合中运行具名 teammate，使用直接 in
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-agent-team
+# @panedesk/dsh-experimental-agent-team
 
 [English](README.md) | 中文
 
@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当一个 agent 需要共享工作目录中的具名助手、直接 peer 消息以及持久 roster 与任务状态时，加入本包。与 `@deepseek-ai/dsh-experimental-tool-agent-team` 一起挂载可提供模型工具。
+当一个 agent 需要共享工作目录中的具名助手、直接 peer 消息以及持久 roster 与任务状态时，加入本包。与 `@panedesk/dsh-experimental-tool-agent-team` 一起挂载可提供模型工具。
 
 ### 何时选择
 
@@ -39,9 +39,9 @@ kind: "package-reference"
 
 ```yaml
 # smallest team setup — durable storage plus both Team packages
-- name: '@deepseek-ai/dsh-session-persistence-jsonl'
-- name: '@deepseek-ai/dsh-experimental-agent-team'
-- name: '@deepseek-ai/dsh-experimental-tool-agent-team'
+- name: '@panedesk/dsh-session-persistence-jsonl'
+- name: '@panedesk/dsh-experimental-agent-team'
+- name: '@panedesk/dsh-experimental-tool-agent-team'
 ```
 
 工具安装后，模型会按请求完成其余工作——例如先「创建一个名为 reviewer 的 teammate 检查 diff」，再「把变更摘要发给 reviewer」。所有限制都是可选的，并在启动时校验：
@@ -53,7 +53,7 @@ kind: "package-reference"
 | `maxMessageBytes` | `65,536` | 单条发送消息的最大尺寸 |
 | `disposalTimeoutMs` | `5,000` | 关闭清理允许的时间 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-experimental-agent-team)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-experimental-agent-team)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### Teammate
 
@@ -185,7 +185,7 @@ Mailbox 投影与 checkpoint 准入保留本地声明的校验器之外获准内
 
 #### Token 影响
 
-每次 peer 投递都会把发送者前缀与消息内容加入 target 历史。任务与 roster 变更不增加模型 token；其面向模型的呈现属于 `@deepseek-ai/dsh-experimental-tool-agent-team` 结果。
+每次 peer 投递都会把发送者前缀与消息内容加入 target 历史。任务与 roster 变更不增加模型 token；其面向模型的呈现属于 `@panedesk/dsh-experimental-tool-agent-team` 结果。
 
 #### KV Cache 影响
 

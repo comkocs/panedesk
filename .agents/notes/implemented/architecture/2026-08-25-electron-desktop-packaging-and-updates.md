@@ -12,7 +12,7 @@ Desktop uses Electron as its Node runtime under the [current runtime reference](
 
 DeepSeek Harness needs an Electron desktop application that reuses the Web UI, works without system Node.js or pnpm, installs dsh and desktop plugins through an application-bundled pnpm, and updates the complete desktop release through one user-facing flow.
 
-The desktop application and an npm-installed dsh share the `.dsh` data root, but they may have different dsh and plugin versions. They must share supported product data without sharing executable packages, lockfiles, `node_modules`, plugin activation, or package-manager configuration.
+The desktop application and an npm-installed dsh share the `.panedesk` data root, but they may have different dsh and plugin versions. They must share supported product data without sharing executable packages, lockfiles, `node_modules`, plugin activation, or package-manager configuration.
 
 The current GUI protocol binds the Web client and backend release. Independently versioning the Electron artifact and its bundled dsh would create unqualified shell, client, backend, and plugin combinations and make update availability ambiguous.
 
@@ -20,9 +20,9 @@ The current GUI protocol binds the Web client and backend release. Independently
 
 Ship a small Electron shell and pinned pnpm; the [runtime reference](../../../../apps/desktop/README.md) owns the executable choice. The [thin-wrapper decision](2026-09-10-desktop-web-wrapper.md) owns Host boot and transport: the private Host runs the shared Web profile runner, Electron loads its authenticated HTTP URL, and child IPC carries lifecycle messages.
 
-Electron owns the reserved profile at `.dsh/profiles/desktop`. The [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md) owns core resource storage, external plugin dependencies, shared package links, and profile reconciliation. The private Desktop Host remains outside the public CLI package and is never published to npm.
+Electron owns the reserved profile at `.panedesk/profiles/desktop`. The [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md) owns core resource storage, external plugin dependencies, shared package links, and profile reconciliation. The private Desktop Host remains outside the public CLI package and is never published to npm.
 
-One Desktop release number identifies the Electron artifact and its exact `@deepseek-ai/dsh` and `@deepseek-ai/dsh-desktop-host` dependencies. A release cannot select a different core version at build or runtime. Updating dsh therefore requires a new Electron release even when shell code is unchanged.
+One Desktop release number identifies the Electron artifact and its exact `panedesk` and `@panedesk/dsh-desktop-host` dependencies. A release cannot select a different core version at build or runtime. Updating dsh therefore requires a new Electron release even when shell code is unchanged.
 
 The Desktop Host exposes the shared Web plugin manager for its reserved profile and supplies bundled pnpm through launcher facts. The CLI reserves every case variant of the `desktop` name and rejects boot, config-dump, and plugin-management requests for it. Electron acquires its process-lifetime single-instance lock before profile recovery or Host startup; later launches focus or recreate the primary window without touching profile state.
 
@@ -35,7 +35,7 @@ The Desktop Host exposes the shared Web plugin manager for its reserved profile 
 | Desktop profile | External plugin dependencies, ordered enabled bundles, and shared links defined by the bundled-runtime decision |
 | Private Desktop Host package | Electron-only child-process entry and composition overlay installed with dsh but excluded from the public CLI package and npm publication |
 | Installed dsh package | Backend, matching Web UI, boot manifest, client bundles, and product behavior |
-| Shared `.dsh` owners | Sessions, settings, credentials, workspaces, and storage, guarded by their existing locks and format versions |
+| Shared `.panedesk` owners | Sessions, settings, credentials, workspaces, and storage, guarded by their existing locks and format versions |
 | npm-installed dsh | Its own executable installation and user-managed profiles; no access to the reserved desktop profile or package state |
 
 The renderer uses `nodeIntegration: false`, `contextIsolation: true`, and `sandbox: true`. Preload provides boot readiness and failure reporting, native directory selection, theme synchronization, and Windows menu and appearance adapters. It exposes no raw `ipcRenderer`, filesystem access, shell commands, or pnpm arguments. Electron menus and native dialogs use typed English or Chinese copy with English fallback; Windows follows the main document’s language. The shared Web plugin manager owns its client copy.
@@ -45,7 +45,7 @@ Update confirmations use the shell static origin because they must remain availa
 ## Filesystem layout
 
 ```text
-~/.dsh/
+~/.panedesk/
   profiles/
     desktop/
       package.json
@@ -57,7 +57,7 @@ Update confirmations use the shell static origin because they must remain availa
   storages/
 ```
 
-`.dsh/profiles/desktop` is the only active desktop profile. Its executable package ownership and allowed resolution directories follow the [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md). pnpm selects its store and cache from normal configuration.
+`.panedesk/profiles/desktop` is the only active desktop profile. Its executable package ownership and allowed resolution directories follow the [bundled-runtime decision](2026-09-08-desktop-bundled-runtime-and-external-plugins.md). pnpm selects its store and cache from normal configuration.
 
 ## Installation and resolution
 
@@ -102,7 +102,7 @@ Architecture-specific builds report actual component-level compressed and instal
 | Surface | Implementation |
 |---|---|
 | Shell | `apps/desktop` owns Electron windows, restricted preloads, the custom protocol, child lifecycle, profile preparation, native recovery, update coordination, and electron-builder configuration. |
-| Installed runtime | Private `@deepseek-ai/dsh-desktop-host` invokes the shared profile runner and reports the authenticated Web URL to Electron. |
+| Installed runtime | Private `@panedesk/dsh-desktop-host` invokes the shared profile runner and reports the authenticated Web URL to Electron. |
 | Package state | Electron RunAsNode executes immutable core resources; bundled pnpm modifies only the external plugin graph in the Desktop profile. |
 | Qualification | macOS packaging requires the configured company identity and notary credentials, verifies every native runtime file before inventory generation, verifies the completed application signature, and requires notarization plus Gatekeeper acceptance for both the application and DMG. Windows packaging requires the configured public certificate, SafeNet private-key container, Token Password, and SignTool, and verifies every produced signature. Update hosting, previous-version installed-artifact tests, and platform GUI recordings remain release-environment gates. |
 
@@ -134,7 +134,7 @@ Architecture-specific builds report actual component-level compressed and instal
 
 - A clean offline machine without system Node.js or pnpm starts bundled dsh without installing core dependencies.
 - The signed application inventories final runtime files; every macOS native file has the release Developer ID, secure timestamp, and hardened runtime, and every Windows artifact has the configured hardware-backed EV signature.
-- `.dsh/profiles/desktop/node_modules` stores external plugins managed by the shared Web plugin manager.
+- `.panedesk/profiles/desktop/node_modules` stores external plugins managed by the shared Web plugin manager.
 - Desktop package operations use launcher-supplied bundled pnpm and the shared manager’s subprocess environment and profile configuration.
 - The main application’s Plugins page sends structured package and activation requests to the shared Host service.
 - The reserved Desktop profile remains unavailable to the standalone CLI.
@@ -142,7 +142,7 @@ Architecture-specific builds report actual component-level compressed and instal
 - The active backend and Web UI report the same dsh version and a compatible shell API before the product UI loads.
 - The shared plugin manager owns package-failure handling; native recovery handles fatal Host failures.
 - One Desktop version binds Electron and dsh; every dsh update arrives through one Electron update dialog and one user-visible restart.
-- Shared `.dsh` data rejects incompatible readers before migration or mutation.
+- Shared `.panedesk` data rejects incompatible readers before migration or mutation.
 - The Web application owns HTTP authentication and serving; the sandboxed renderer cannot access arbitrary filesystem or Electron APIs.
 - Workspace development runs current built code without downloading release resources, while unpacked-package verification retains the production installation path.
 - Windows release packaging requires the validated SignTool, EV token, matching public leaf certificate, Token Password, and explicit key container; it never falls back to an unsigned artifact or an exportable key file.

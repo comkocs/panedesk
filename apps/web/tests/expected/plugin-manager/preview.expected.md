@@ -3,7 +3,7 @@
 - heading "DSH 徽章技能" [level=3]
 - text: v{{version}} 实验性
 - paragraph:
-  - code: "@deepseek-ai/dsh-experimental-badge-skill-bundle"
+  - code: "@panedesk/dsh-experimental-badge-skill-bundle"
 - paragraph: 让 Agent 为文档、PR 等产出添加「powered by dsh」徽章。
 - img "DSH 徽章技能功能预览"
 - heading "包含的组件" [level=4]
@@ -12,7 +12,7 @@
   - listitem:
     - text: DSH 提供官方 powered-by-DSH 徽章技能。
     - code: skill-badge
-    - code: "@deepseek-ai/dsh-skill-badge"
+    - code: "@panedesk/dsh-skill-badge"
     - text: 已关闭
 - heading "来源信息" [level=4]
 - term: 代码来源

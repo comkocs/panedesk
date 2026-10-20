@@ -1,27 +1,27 @@
-# Workspace-context snapshot patch: the harness exports DSH_HOME=<cwd>/.dsh and
-# DSH_AGENTS_HOME=<cwd>/.agents, so project-root and both user-global root
+# Workspace-context snapshot patch: the harness exports PANEDESK_HOME=<cwd>/.panedesk and
+# PANEDESK_AGENTS_HOME=<cwd>/.agents, so project-root and both user-global root
 # discoveries stay inside the scenario's temporary cwd.
 - id: agent-default-model
-  name: '@deepseek-ai/dsh-agent-default-model'
+  name: '@panedesk/dsh-agent-default-model'
   config:
     provider: deepseek-official
     model: deepseek-v4-pro
 
 - id: session-persistence-jsonl
-  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  name: '@panedesk/dsh-session-persistence-jsonl'
   config:
     root: !!js dshHomePath('sessions')
     compression: !!js 'process.env.DSH_SNAPSHOT === undefined ? ''zstd'' : ''none'''
 
 - id: agent-instructions
-  name: '@deepseek-ai/dsh-agent-instructions'
+  name: '@panedesk/dsh-agent-instructions'
   config:
     maxBytes: 700
     projectRootMarkers:
-      - .dsh-project
+      - .panedesk-project
 
 - id: system-prompt
-  name: '@deepseek-ai/dsh-system-prompt'
+  name: '@panedesk/dsh-system-prompt'
   config:
     personaPrefix: |
       You are a coding assistant powered by the {{model}} model.

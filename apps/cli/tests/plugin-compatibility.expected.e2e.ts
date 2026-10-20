@@ -22,13 +22,13 @@ it('refuses incompatible installation and startup until an exact risk exemption 
   writeFileSync(join(profile, 'pnpm-workspace.yaml'), 'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n')
   writeFileSync(join(source, 'package.json'), JSON.stringify({
     name: 'compatibility-fixture', version: '1.0.0', type: 'module',
-    peerDependencies: { '@deepseek-ai/dsh': '999.0.0' }, dsh: { bundle: { patch: './cordis.patch.yml' } },
+    peerDependencies: { 'panedesk': '999.0.0' }, dsh: { bundle: { patch: './cordis.patch.yml' } },
   }))
   writeFileSync(join(source, 'cordis.patch.yml'), '- insert:\n    - id: compatibility-fixture\n      name: ./index.mjs\n')
   writeFileSync(join(source, 'index.mjs'), 'process.stdout.write("PLUGIN_IMPORTED\\n"); export function apply() { process.stdout.write("PLUGIN_STARTED\\n") }\n')
   const run = async (args: string[]) => {
     const result = await execa(process.execPath, [bin, ...args], {
-      cwd: home, env: { ...process.env, DSH_HOME: home }, extendEnv: false, reject: false, timeout: 60_000,
+      cwd: home, env: { ...process.env, PANEDESK_HOME: home }, extendEnv: false, reject: false, timeout: 60_000,
     })
     expect(result.timedOut).toBe(false)
     expect(result.signal).toBeUndefined()

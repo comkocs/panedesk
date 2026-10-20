@@ -7,10 +7,10 @@ import { readdir, stat } from 'node:fs/promises'
 import { availableParallelism, homedir, tmpdir } from 'node:os'
 import { basename, join, relative, resolve } from 'node:path'
 import { inspect, parseArgs } from 'node:util'
-import { Context } from '@deepseek-ai/cordis'
-import { SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
-import { sessionFormatCatalog } from '@deepseek-ai/dsh-session-format-catalog'
-import * as JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import { Context } from '@panedesk/cordis'
+import { SESSION_FORMAT_VERSION, SessionId } from '@panedesk/dsh-session'
+import { sessionFormatCatalog } from '@panedesk/dsh-session-format-catalog'
+import * as JsonlSessionPersistence from '@panedesk/dsh-session-persistence-jsonl'
 import { encodeSegment, generationLogFilename, parseGenerationLogFilename, type JsonlCompression } from '../packages/session/session-persistence-jsonl/src/format.ts'
 import { JsonlGenerationSourceChangedError } from '../packages/session/session-persistence-jsonl/src/generation.ts'
 import { classifyMigrationFailure, type MigrationFailureDiagnostic } from './migration-failure-summary.ts'
@@ -18,7 +18,7 @@ import { classifyMigrationFailure, type MigrationFailureDiagnostic } from './mig
 const usage = `Usage: pnpm run migrate:sessions-to-v4 [--sessions-dir PATH] [--jobs N]
 
 Publish V4 successors beside unchanged historical Session generations.
-Defaults to ~/.dsh/sessions. Already-V4 Sessions are opened read-only.
+Defaults to ~/.panedesk/sessions. Already-V4 Sessions are opened read-only.
 No model or API key is used. Failures do not stop subsequent Sessions.
 The text log and final JSON summary are saved in a private OS temporary directory.
 
@@ -293,7 +293,7 @@ if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathS
       if (!Number.isSafeInteger(jobs) || jobs < 1) {
         throw new Error('--jobs must be a positive safe integer')
       }
-      process.exitCode = await migrate(resolve(values['sessions-dir'] ?? join(homedir(), '.dsh', 'sessions')), jobs)
+      process.exitCode = await migrate(resolve(values['sessions-dir'] ?? join(homedir(), '.panedesk', 'sessions')), jobs)
     }
   } catch (error: unknown) {
     console.error(error instanceof Error ? error.message : String(error))

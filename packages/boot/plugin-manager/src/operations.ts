@@ -1,22 +1,22 @@
-/** Shared profile package operations used by dsh plugin and the running manager. */
+/** Shared profile package operations used by panedesk plugin and the running manager. */
 import { once } from 'node:events'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, open, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { execa } from 'execa'
-import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
-import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import type { EntryOptions } from '@panedesk/cordis-plugin-loader'
+import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
 import {
   DEFAULT_PROFILE_BUNDLES, bundlePatchPaths, initProfile, PROFILE_TEMPLATES, readProfileManifest,
   resolveBundleDir, resolveProfileDir, loadOverlayPatches, composeEntries, readProfileVersionExemptions,
   evaluatePluginCompatibility, pluginCompatibilityWarning, type ProfileManifest,
-} from '@deepseek-ai/dsh-app-boot'
-import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
+} from '@panedesk/dsh-app-boot'
+import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
 import { parseInstallSpec } from './install-spec.ts'
 import { awaitTreeGone, leadsOwnGroup, treeAlive, type RunTree } from './run-tree.ts'
 import { incompatiblePlugin } from './failure.ts'
 import type { IncompatiblePlugin, PackageResult, Registry } from './types.ts'
-export { setProfileVersionExemption, readProfileVersionExemptions } from '@deepseek-ai/dsh-app-boot'
+export { setProfileVersionExemption, readProfileVersionExemptions } from '@panedesk/dsh-app-boot'
 
 /** Profile and invocation locations supplied by the launcher. */
 export interface PackageOperationContext {
@@ -99,7 +99,7 @@ async function reconcile(before: ProfileManifest, dir: string, anchor: string, o
     if (beforeDeps.has(name)) continue
     const metadata = bundleManifest(name, dir, anchor)
     if (metadata?.dsh?.bundle === undefined) {
-      options.onOutput?.(`dsh: warning: ${name} declares no dsh.bundle — installed as a plain dependency, not a profile layer\n`, 'stderr')
+      options.onOutput?.(`panedesk: warning: ${name} declares no dsh.bundle — installed as a plain dependency, not a profile layer\n`, 'stderr')
       continue
     }
     for (const file of bundlePatchPaths(resolveBundleDir('dsh', name, anchor, dir), metadata.dsh.bundle)) loadOverlayPatches('dsh', file)
@@ -228,11 +228,11 @@ async function activeRecordedRun(dir: string): Promise<string | undefined> {
     void error
   }
   if (tree === undefined) {
-    return `dsh: ${path} does not name a package run; delete it once no earlier package operation is still running in this profile\n`
+    return `panedesk: ${path} does not name a package run; delete it once no earlier package operation is still running in this profile\n`
   }
   await awaitTreeGone(tree)
   if (treeAlive(tree)) {
-    return `dsh: process ${String(tree.pid)}, started by an earlier package operation whose own process ended, is still running in this profile; `
+    return `panedesk: process ${String(tree.pid)}, started by an earlier package operation whose own process ended, is still running in this profile; `
       + `wait for it or stop it, then retry. If process ${String(tree.pid)} is not that package run, delete ${path}.\n`
   }
   await rm(path, { force: true })
@@ -323,7 +323,7 @@ export async function runProfilePnpm(
   /** Packages a compatibility check refused; callers render them for their own surface. */
   const incompatible: IncompatiblePlugin[] = []
   const rejected = async (warnings: readonly string[], restoration: string): Promise<PackageResult> => {
-    const diagnostic = `\ndsh: installation rejected: ${warnings.join('\n')}\ndsh: ${restoration}.\n`
+    const diagnostic = `\npanedesk: installation rejected: ${warnings.join('\n')}\npanedesk: ${restoration}.\n`
     await log.write(diagnostic)
     options.onOutput?.(diagnostic, 'stderr')
     append(Buffer.from(diagnostic))
@@ -438,7 +438,7 @@ export async function runProfilePnpm(
       cut = true
       child.stdout?.destroy()
       child.stderr?.destroy()
-      const notice = 'dsh: pnpm output was cut short after its process exited\n'
+      const notice = 'panedesk: pnpm output was cut short after its process exited\n'
       await log.write(notice)
       // A failure from before the cut is the run's own and replaces the notice a
       // caller would otherwise read; a rejection the cut itself causes is its end.
@@ -451,7 +451,7 @@ export async function runProfilePnpm(
     const result = completion.value
     exitCode = result.exitCode ?? (result.code === 'ENOENT' ? 127 : 1)
     if (control.stalled) {
-      const notice = `dsh: pnpm printed nothing for ${String(options.idleTimeoutMs)}ms and was terminated\n`
+      const notice = `panedesk: pnpm printed nothing for ${String(options.idleTimeoutMs)}ms and was terminated\n`
       await log.write(notice)
       options.onOutput?.(notice, 'stderr')
       append(Buffer.from(notice))
@@ -492,7 +492,7 @@ export async function runProfilePnpm(
           incompatible.push(...issues)
         }
         else {
-          const notice = `\ndsh: warning: ${found.join('\n')}\ndsh: it stays installed but profile startup denies it until you grant an exemption for those exact versions.\n`
+          const notice = `\npanedesk: warning: ${found.join('\n')}\npanedesk: it stays installed but profile startup denies it until you grant an exemption for those exact versions.\n`
           await log.write(notice)
           options.onOutput?.(notice, 'stderr')
         }
@@ -514,8 +514,8 @@ export async function runProfilePnpm(
         exitCode = 1
         const restoration = repaired.exitCode === 0
           ? 'restored package.json, pnpm-lock.yaml, and node_modules'
-          : "restored package.json and pnpm-lock.yaml, but node_modules could not be reinstalled; run 'dsh plugin install'"
-        const diagnostic = `\ndsh: installation rejected: ${warnings.join('\n')}\ndsh: ${restoration}.\n`
+          : "restored package.json and pnpm-lock.yaml, but node_modules could not be reinstalled; run 'panedesk plugin install'"
+        const diagnostic = `\npanedesk: installation rejected: ${warnings.join('\n')}\npanedesk: ${restoration}.\n`
         await log.write(diagnostic)
         options.onOutput?.(diagnostic, 'stderr')
         append(Buffer.from(diagnostic))
@@ -536,7 +536,7 @@ export async function runProfilePnpm(
   }
 }
 
-/** Initialize and run the dsh plugin command with the same write lock as the service.
+/** Initialize and run the panedesk plugin command with the same write lock as the service.
  * @param context Launcher-owned locations.
  * @param args Pnpm arguments.
  * @param options Output and cancellation policy.
@@ -551,7 +551,7 @@ export async function runPluginCommand(
     if (!existsSync(join(dir, 'package.json'))) {
       const template = PROFILE_TEMPLATES[context.profile]
       initProfile(dir, template?.bundles ?? DEFAULT_PROFILE_BUNDLES)
-      options.onOutput?.(`dsh: initialized profile ${context.profile} at ${dir}\n`, 'stderr')
+      options.onOutput?.(`panedesk: initialized profile ${context.profile} at ${dir}\n`, 'stderr')
     }
     return runProfilePnpm(context, args, options)
   }, options.lockWaitMs === undefined ? undefined : { waitMs: options.lockWaitMs })

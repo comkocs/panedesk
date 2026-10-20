@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-experimental-plugin-market-bundle",
+  "name": "@panedesk/dsh-experimental-plugin-market-bundle",
   "description": "Experimental custom plugin markets: a Discover tab that browses and installs bundles from plugin market indexes",
   "version": "0.2.1-rc.2",
   "icon": "./icon.svg",
@@ -33,14 +33,14 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-client-ui-plugin-market": "workspace:*",
-    "@deepseek-ai/dsh-plugin-market": "workspace:*"
+    "@panedesk/dsh-client-ui-plugin-market": "workspace:*",
+    "@panedesk/dsh-plugin-market": "workspace:*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~"
   },
   "dsh": {
     "bundle": {

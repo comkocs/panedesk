@@ -229,8 +229,8 @@ DSH 只能从用户已知的 spec 安装第三方组合包（bundle）：npm 包
 ## 风险
 
 - 索引没有签名。标题、作者、标签和评分是市场的声明；`official` 标签不是 DSH 验证。客户端必须显示索引 URL 以及每个版本的 `source`。
-- Git 版本的 `name`、`version` 和 `engines.dsh` 是关于仓库的声明。仓库可以声明任意名称，包括 `@deepseek-ai/dsh-` 名称，实际安装的内容由已安装的 manifest 决定。
-- npm 版本的 `source.registry` 同样是一种声明：它把任意 `name`（包括 `@deepseek-ai/dsh-` 名称）的安装引向市场选择的 registry，由该 registry 决定实际安装的内容。
+- Git 版本的 `name`、`version` 和 `engines.dsh` 是关于仓库的声明。仓库可以声明任意名称，包括 `@panedesk/dsh-` 名称，实际安装的内容由已安装的 manifest 决定。
+- npm 版本的 `source.registry` 同样是一种声明：它把任意 `name`（包括 `@panedesk/dsh-` 名称）的安装引向市场选择的 registry，由该 registry 决定实际安装的内容。
 - URL 图标会向图片主机暴露用户的 IP 地址。
 - 固定版本和发布标签在索引重新生成之前一直保持陈旧。
 - 市场文本未经 DSH 审核即到达用户，并通过任何列出插件的客户端工具到达模型。

@@ -3,15 +3,15 @@
  * its keyed `secret` node renderer. Masking changes only the drawn text; the
  * message text, copy actions, and model input keep the original characters.
  *
- * @module @deepseek-ai/dsh-client-ui-secret-mask/client
+ * @module @panedesk/dsh-client-ui-secret-mask/client
  */
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { Context as ClientContext } from '@panedesk/cordis'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
-import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type {} from '@panedesk/dsh-client-locale/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
-import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
+import type {} from '@panedesk/dsh-client-ui-renderer/client'
 // Type-only: pulls the UiConversation service merge (ctx.uiConversation).
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import { SecretText } from './SecretText.tsx'
 import { createSecretRule } from './secret-rule.ts'
 export type {} from './secret-rule.ts'

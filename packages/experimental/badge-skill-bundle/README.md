@@ -3,7 +3,7 @@ description: "Let agents add a “powered by dsh” badge to documents, pull req
 kind: "package-bundle"
 ---
 
-# @deepseek-ai/dsh-experimental-badge-skill-bundle
+# @panedesk/dsh-experimental-badge-skill-bundle
 
 English | [中文](README.zh.md)
 

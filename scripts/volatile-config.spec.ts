@@ -1,9 +1,9 @@
 /** Schemastery and Cordis config reference behavior through direct and Loader updates. */
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { type Volatile } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
+import { type Volatile } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
 import { Config } from './volatile-config.fixture.ts'
-import { createVolatile, deepEqual, volatileEntries } from '@deepseek-ai/cosmokit'
+import { createVolatile, deepEqual, volatileEntries } from '@panedesk/cosmokit'
 import { redactSecrets } from '../packages/settings/settings/src/redact.ts'
 
 describe('volatile schemas', () => {

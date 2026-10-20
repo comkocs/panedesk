@@ -1,33 +1,33 @@
 /**
  * Service Definition for the approval capability seam, covering requests, cancellation, audit, and per-session policy. Missing
  * answerers fail closed; grants apply only to the requested action.
- * @module @deepseek-ai/dsh-user-approval
+ * @module @panedesk/dsh-user-approval
  */
 
 import { randomUUID } from 'node:crypto'
-import { Context, Service } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import { createUserMessage, type ToolCallId } from '@deepseek-ai/dsh-llm'
-import type { ContextFormed } from '@deepseek-ai/dsh-llm'
-declare module '@deepseek-ai/dsh-llm' {
+import { Context, Service } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import type { Agent } from '@panedesk/dsh-agent'
+import { createUserMessage, type ToolCallId } from '@panedesk/dsh-llm'
+import type { ContextFormed } from '@panedesk/dsh-llm'
+declare module '@panedesk/dsh-llm' {
   interface MessageSourceMap {
     'user-approval': { kind: 'user-approval' } & ContextFormed
   }
 }
 
-import { scopeTarget } from '@deepseek-ai/dsh-scope'
-import type { Session } from '@deepseek-ai/dsh-session'
-import { SessionSeq } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-system-prompt'
+import { scopeTarget } from '@panedesk/dsh-scope'
+import type { Session } from '@panedesk/dsh-session'
+import { SessionSeq } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-system-prompt'
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     approval: ApprovalService
   }
 }
 
-declare module '@deepseek-ai/dsh-session/types' {
+declare module '@panedesk/dsh-session/types' {
   interface SessionEventMap {
     /**
      * The session's approval policy was switched — log-only, durable,

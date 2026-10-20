@@ -2,14 +2,14 @@
 
 import { performance } from 'node:perf_hooks'
 import { scheduler } from 'node:timers/promises'
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-agent-preset-registry'
-import type { ImageAttachmentLimits } from '@deepseek-ai/dsh-attachment'
-import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
-import type { ProjectionSnapshot } from '@deepseek-ai/dsh-session-projection'
-import type {} from '@deepseek-ai/dsh-session-projection-cache'
-import { SessionQueryError, type SessionRecord, type SessionSearchCursor } from '@deepseek-ai/dsh-session-query'
-import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
+import type { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-agent-preset-registry'
+import type { ImageAttachmentLimits } from '@panedesk/dsh-attachment'
+import type { Session, SessionEvent, SessionHeader, SessionId } from '@panedesk/dsh-session'
+import type { ProjectionSnapshot } from '@panedesk/dsh-session-projection'
+import type {} from '@panedesk/dsh-session-projection-cache'
+import { SessionQueryError, type SessionRecord, type SessionSearchCursor } from '@panedesk/dsh-session-query'
+import { RemoteError } from '@panedesk/dsh-typert-protocol'
 import { z } from 'zod'
 import {
   SESSION_SEARCH_RESULT_LIMIT,
@@ -193,7 +193,7 @@ export class ApiSessionList {
     if (provider === undefined) {
       throw new RemoteError(
         'gateway/internal',
-        'session search is unavailable: this deployment does not mount @deepseek-ai/dsh-session-query',
+        'session search is unavailable: this deployment does not mount @panedesk/dsh-session-query',
         {},
       )
     }

@@ -2,7 +2,7 @@
 
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
-import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
+import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
 
 const fixtureRoot = new URL('../../../../../../packages/mcp/mcp-client/tests/fixtures/', import.meta.url)
 const configPath = fileURLToPath(new URL('pagination-limit.patch.yml', fixtureRoot))
@@ -25,13 +25,13 @@ it('warns when MCP discovery exceeds the SDK page limit and completes the headle
     tsconfigPath: fileURLToPath(new URL('../../../../../../tsconfig.json', import.meta.url)),
     env: {
       DSH_MCP_PAGINATION_FIXTURE: fileURLToPath(new URL('pagination-limit-server.ts', fixtureRoot)),
-      DSH_PERMISSION_MODE: 'danger-full-access',
-      DSH_TELEMETRY_DISABLED: '1',
+      PANEDESK_PERMISSION_MODE: 'danger-full-access',
+      PANEDESK_TELEMETRY_DISABLED: '1',
     },
   })
   expect(stdout).toBe('CLI tool round trip complete: CLI_TOOL_ROUND_TRIP\n')
-  expect(stderr).toContain('dsh: warning: 1 entry did not activate')
-  expect(stderr).toContain('mcp-pagination-limit (@deepseek-ai/dsh-mcp-client)')
+  expect(stderr).toContain('panedesk: warning: 1 entry did not activate')
+  expect(stderr).toContain('mcp-pagination-limit (@panedesk/dsh-mcp-client)')
   expect(stderr).toContain('initial connection or tool synchronization failed')
   const cause = stderr.split('\n').find(line => line.includes('exceeded listMaxPages'))
   await expect(`${cause}\n`).toMatchFileSnapshot(expectedPath)

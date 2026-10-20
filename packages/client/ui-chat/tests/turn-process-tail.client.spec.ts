@@ -1,13 +1,13 @@
 /** Turn-node Locations and Assistant timing across partial windows and transient retirement. */
 import { describe, expect, it } from 'vitest'
-import { createAssistantMessage, createToolResultMessage, LlmAttemptId, ToolCallId } from '@deepseek-ai/dsh-llm'
-import { AssistantStreamAccumulator } from '@deepseek-ai/dsh-llm/assistant-stream'
-import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session/types'
+import { createAssistantMessage, createToolResultMessage, LlmAttemptId, ToolCallId } from '@panedesk/dsh-llm'
+import { AssistantStreamAccumulator } from '@panedesk/dsh-llm/assistant-stream'
+import { SessionSeq, type SessionEvent } from '@panedesk/dsh-session/types'
 import type {
   SessionAssistantSettlementEntry, SessionEventLikeEntry, SessionLiveEventEntry, SessionTransientEventEntry,
-} from '@deepseek-ai/dsh-api-session-controller/client'
-import { ConversationNodeAssembler } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { ChatSnapshot } from '@deepseek-ai/dsh-client-ui-chat/client'
+} from '@panedesk/dsh-api-session-controller/client'
+import { ConversationNodeAssembler } from '@panedesk/dsh-client-ui-conversation/client'
+import type { ChatSnapshot } from '@panedesk/dsh-client-ui-chat/client'
 import { assistantDefinition } from '../src/client/conversation-nodes/assistant.ts'
 import { chatViewDefinition } from '../src/client/conversation-nodes/chat-snapshot-builder.ts'
 import { turnProcessDefinition } from '../src/client/conversation-nodes/turn-process.ts'

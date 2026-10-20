@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
-import type {} from '@deepseek-ai/dsh-skill'
-import { SessionId } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import type {} from '@panedesk/dsh-skill'
+import { SessionId } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-agent-preset-registry'
 import { launchWebScaffold, type WebScaffold } from './scaffold.ts'
 
 async function writeSkill(root: string, name: string): Promise<void> {
@@ -30,11 +30,11 @@ it('isolates replay skill discovery from every ambient host root', async () => {
     writeSkill(bundled, 'ambient-bundled'),
   ])
 
-  const originalDshHome = process.env.DSH_HOME
-  const originalAgentsHome = process.env.DSH_AGENTS_HOME
+  const originalDshHome = process.env.PANEDESK_HOME
+  const originalAgentsHome = process.env.PANEDESK_AGENTS_HOME
   const originalBundled = process.env.DSH_BUNDLED_SKILL_DIR
-  process.env.DSH_HOME = dshHome
-  process.env.DSH_AGENTS_HOME = agentsHome
+  process.env.PANEDESK_HOME = dshHome
+  process.env.PANEDESK_AGENTS_HOME = agentsHome
   process.env.DSH_BUNDLED_SKILL_DIR = bundled
   let scaffold: WebScaffold | undefined
   try {
@@ -62,10 +62,10 @@ it('isolates replay skill discovery from every ambient host root', async () => {
     try {
       await scaffold?.close()
     } finally {
-      if (originalDshHome === undefined) delete process.env.DSH_HOME
-      else process.env.DSH_HOME = originalDshHome
-      if (originalAgentsHome === undefined) delete process.env.DSH_AGENTS_HOME
-      else process.env.DSH_AGENTS_HOME = originalAgentsHome
+      if (originalDshHome === undefined) delete process.env.PANEDESK_HOME
+      else process.env.PANEDESK_HOME = originalDshHome
+      if (originalAgentsHome === undefined) delete process.env.PANEDESK_AGENTS_HOME
+      else process.env.PANEDESK_AGENTS_HOME = originalAgentsHome
       if (originalBundled === undefined) delete process.env.DSH_BUNDLED_SKILL_DIR
       else process.env.DSH_BUNDLED_SKILL_DIR = originalBundled
       await rm(ambient, { recursive: true, force: true })

@@ -1,8 +1,8 @@
 import { access, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
-import { SubprocessExecutableNotFoundError } from '@deepseek-ai/dsh-subprocess'
+import type { Context } from '@panedesk/cordis'
+import { SubprocessExecutableNotFoundError } from '@panedesk/dsh-subprocess'
 import { contents, filterCommand, git, harness, repository, testAgent } from './harness.ts'
 
 let ctx: Context | undefined

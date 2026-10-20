@@ -4,9 +4,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { lastAssistantStreamChunk, type RetryPolicyConfig, type TokenUsage } from '@deepseek-ai/dsh-llm'
-import { DeepSeekHarness } from '@deepseek-ai/dsh-sdk-client'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import { lastAssistantStreamChunk, type RetryPolicyConfig, type TokenUsage } from '@panedesk/dsh-llm'
+import { DeepSeekHarness } from '@panedesk/dsh-sdk-client'
+import type { SessionEvent } from '@panedesk/dsh-session'
 import { describe, expect, it, onTestFinished } from 'vitest'
 
 const fixturePath = fileURLToPath(new URL('./fixtures/dynamic-tool-cache.mjs', import.meta.url))
@@ -93,7 +93,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('SDK native tool updates with rea
     const harness = new DeepSeekHarness({
       dshBin, profile: 'sdk', patches: [patch], dshHome: join(root, 'home'),
       cwd: root, processCwd: root, provider: 'deepseek-official', model: 'deepseek-flash',
-      env: { ...process.env, DSH_TELEMETRY_DISABLED: '1', DSH_PERMISSION_MODE: 'danger-full-access' },
+      env: { ...process.env, PANEDESK_TELEMETRY_DISABLED: '1', PANEDESK_PERMISSION_MODE: 'danger-full-access' },
       initializeTimeoutMs: 30_000,
     })
     onTestFinished(async () => { await harness.close() })

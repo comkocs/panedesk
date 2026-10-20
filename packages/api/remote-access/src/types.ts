@@ -1,7 +1,7 @@
 /**
  * Method-level access control contracts: actions, roles, bindings, policies,
  * decision requests, and the access snapshot stream.
- * @module @deepseek-ai/dsh-api-remote-access/types
+ * @module @panedesk/dsh-api-remote-access/types
  */
 
 import type {
@@ -9,7 +9,7 @@ import type {
   RemoteAccessResource,
   RemoteAccessResourceKind,
   RemoteAccessResourceOf,
-} from '@deepseek-ai/dsh-typert-protocol'
+} from '@panedesk/dsh-typert-protocol'
 
 export type {
   RemoteAccessResource,
@@ -17,7 +17,7 @@ export type {
   RemoteAccessResourceOf,
   TypertResourceKind,
   TypertResourceMap,
-} from '@deepseek-ai/dsh-typert-protocol'
+} from '@panedesk/dsh-typert-protocol'
 
 /** Canonical `<namespace>/<method>` Remote endpoint; its segments never contain `:`. */
 export type RemoteAccessEndpoint = `${string}/${string}`
@@ -115,7 +115,7 @@ export interface RemoteAccessDeniedDetails {
   readonly reason: string
 }
 
-declare module '@deepseek-ai/dsh-typert-protocol' {
+declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'remote-access/denied': RemoteAccessDeniedDetails
   }

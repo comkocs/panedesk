@@ -1,23 +1,23 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useDisclosure } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/use-disclosure.ts'
+import { useDisclosure } from '@panedesk/dsh-client-ui-chat/src/client/chat/use-disclosure.ts'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import type { StartedToolCall, ToolResultNode } from '@deepseek-ai/dsh-client-ui-chat/client'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
-import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
+import { bindSnapshotSelector } from '@panedesk/dsh-client-test-runtime'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
+import type { StartedToolCall, ToolResultNode } from '@panedesk/dsh-client-ui-chat/client'
+import type { SessionListState } from '@panedesk/dsh-api-session-controller/client'
+import type { SessionId } from '@panedesk/dsh-session/types'
+import { makeTranslate } from '@panedesk/dsh-client-test-runtime'
+import { en as commonEn } from '@panedesk/dsh-client-locale/src/locales/en.ts'
+import { zh as commonZh } from '@panedesk/dsh-client-locale/src/locales/zh.ts'
 import {
   localizeTerminalCardModel, terminalCardModel, terminalFailed, terminalExitLabel,
 } from '../src/client/tool/models/terminal-card-model.ts'
 import { GenericToolCard, type GenericToolCardProps } from '../src/client/tool/toolviews/GenericToolCard.tsx'
 import { BashRow } from '../src/client/tool/toolviews/bash-sample.tsx'
-import { en, zh } from '@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts'
-import { PartialArguments } from '@deepseek-ai/dsh-util-values'
+import { en, zh } from '@panedesk/dsh-client-ui-conversation/src/client/locales.ts'
+import { PartialArguments } from '@panedesk/dsh-util-values'
 
 type BashRowProps = Parameters<typeof BashRow>[0]
 

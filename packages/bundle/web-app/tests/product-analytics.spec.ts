@@ -1,13 +1,13 @@
-import OTel from '@deepseek-ai/dsh-otel'
+import OTel from '@panedesk/dsh-otel'
 /** Desktop-only collector policy and bounded shutdown against an unresponsive receiver. */
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
-import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
-import { loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
-import * as Telemetry from '@deepseek-ai/dsh-host-product-telemetry-otel'
-import Analytics from '@deepseek-ai/dsh-client-product-analytics'
+import { Context } from '@panedesk/cordis'
+import Loader from '@panedesk/cordis-plugin-loader'
+import { loadOverlayPatches } from '@panedesk/dsh-app-boot'
+import * as Telemetry from '@panedesk/dsh-host-product-telemetry-otel'
+import Analytics from '@panedesk/dsh-client-product-analytics'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 
 afterEach(() => { vi.unstubAllEnvs() })

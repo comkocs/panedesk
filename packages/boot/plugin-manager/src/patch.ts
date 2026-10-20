@@ -1,9 +1,9 @@
 /** Comment-preserving profile plugin enablement edits and the entry flattening they compare against. */
 import { readFile } from 'node:fs/promises'
 import { isMap, isNode, isScalar, isSeq, parseDocument } from 'yaml'
-import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
-import { composeEntries, loadOptionalPatches, readBundlePatches, type ProfileContext } from '@deepseek-ai/dsh-app-boot'
-import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
+import type { EntryOptions } from '@panedesk/cordis-plugin-loader'
+import { composeEntries, loadOptionalPatches, readBundlePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
+import { writeFileAtomic } from '@panedesk/dsh-atomic-write'
 
 /** Flatten only the groups addressable by the profile's patch composer.
  * @param rows Composed top-level entries.

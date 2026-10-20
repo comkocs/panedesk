@@ -3,7 +3,7 @@ description: "Machine translation through anonymous endpoints or optional native
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-experimental-translator
+# @panedesk/dsh-experimental-translator
 
 English | [中文](README.zh.md)
 

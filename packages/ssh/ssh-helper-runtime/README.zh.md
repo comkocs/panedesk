@@ -3,7 +3,7 @@ description: "构建并验证内嵌 Node 运行时的 Linux 与 macOS SSH helper
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-ssh-helper-runtime
+# @panedesk/dsh-ssh-helper-runtime
 
 [English](README.md) | 中文
 

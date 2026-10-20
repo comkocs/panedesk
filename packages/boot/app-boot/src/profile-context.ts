@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 import { composeEntries, loadProfileDirectory, PROFILE_PATCH_FILENAME, type Profile } from './profile.ts'
 import { loadOptionalPatches } from './index.ts'
-import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
+import type { PatchOptions } from '@panedesk/cordis-plugin-include'
 
 /** Application-owned package manager executable; environment applies only to package operations. */
 export interface ProfilePnpmInvocation {
@@ -25,11 +25,11 @@ export interface ProfileContext {
   readonly startedBundles: readonly string[]
   /** Parsed command-line overlays, applied above profile and home patches. */
   readonly overlays: readonly PatchOptions[]
-  /** Launch-time DSH_TELEMETRY_DISABLED value; any non-empty value opts out. */
+  /** Launch-time PANEDESK_TELEMETRY_DISABLED value; any non-empty value opts out. */
   readonly telemetryDisabledEnv: string | undefined
 }
 
-declare module '@deepseek-ai/cordis' {
+declare module '@panedesk/cordis' {
   interface Context {
     /** Present only in a profile launched by dsh. */
     profileContext: ProfileContext
@@ -45,7 +45,7 @@ const TELEMETRY_ROW_ID = 'session-telemetry-otel'
  * exports nothing, so the switch is then trivially satisfied and no patch is
  * generated — custom profiles need not mount telemetry to run with the
  * switch set.
- * @param disabledEnv - the raw `DSH_TELEMETRY_DISABLED` value (`undefined` when unset).
+ * @param disabledEnv - the raw `PANEDESK_TELEMETRY_DISABLED` value (`undefined` when unset).
  * @param hasRow - whether the composition carries the telemetry row.
  * @returns the disable patch, or `undefined` when no hard-disable patch is required.
  */

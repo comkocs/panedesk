@@ -15,7 +15,7 @@
 - id: tools
   config:
     # Keep the same temporary process-wide PTC mode opt-in as the Web surface.
-    mode: !!js process.env.DSH_TOOLS_MODE
+    mode: !!js process.env.PANEDESK_TOOLS_MODE
 
 # No default model route: slim mounts only the provider-neutral pi-ai adapter
 # (dormant until configured) and names no provider. Until a profile
@@ -25,16 +25,16 @@
 # OpenAI chat).
 - id: agent-default-model
   config:
-    provider: !!js "(() => { throw new Error('no model route is configured for the slim preset. Pick an endpoint: copy a template from examples/providers/ (openai-chat.yml or anthropic-messages.yml), then pass it with --patch <file> or put its rows into $DSH_HOME/profiles/slim/cordis.patch.yml') })()"
+    provider: !!js "(() => { throw new Error('no model route is configured for the slim preset. Pick an endpoint: copy a template from examples/providers/ (openai-chat.yml or anthropic-messages.yml), then pass it with --patch <file> or put its rows into $PANEDESK_HOME/profiles/slim/cordis.patch.yml') })()"
     model: unconfigured
 
 - insert:
     - id: headless-startup
-      name: '@deepseek-ai/dsh-headless/startup'
+      name: '@panedesk/dsh-headless/startup'
 
     # Reads its task and run options from the ordinary headlessStartup provider.
     - id: headless-runner
-      name: '@deepseek-ai/dsh-headless'
+      name: '@panedesk/dsh-headless'
       inject: [headlessStartup]
       config:
         task: !!js ctx.headlessStartup.task

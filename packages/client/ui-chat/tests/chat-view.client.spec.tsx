@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
 import type { ProcessGroupData } from '../src/client/contract/process-groups.ts'
-import type { InboxState } from '@deepseek-ai/dsh-agent/types'
-import { MessageId } from '@deepseek-ai/dsh-llm/brand'
-import type { GlobalStandardProps, PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InboxState } from '@panedesk/dsh-agent/types'
+import { MessageId } from '@panedesk/dsh-llm/brand'
+import type { GlobalStandardProps, PropsRenderFactories, PropsRenderSlots } from '@panedesk/dsh-client-ui-slots'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useEffect, useMemo } from 'react'
@@ -14,25 +14,25 @@ import type {
   LegacyConversationSlice, ModelRetryNode, StartedToolCall, SteeringMessageNode,
   ToolCallBlock, ToolResultNode, TurnErrorNode, TurnMaxTokensNode,
   TranscriptViewMode, UserContentInput, UserMessageNode,
-} from '@deepseek-ai/dsh-client-ui-chat/client'
+} from '@panedesk/dsh-client-ui-chat/client'
 import type {
   SessionListState, SessionSnapshot,
-} from '@deepseek-ai/dsh-api-session-controller/client'
+} from '@panedesk/dsh-api-session-controller/client'
 import type {
   ConversationGroupedView,
   ConversationSnapshot, ConversationViewSnapshotStore, GroupKey, GroupSnapshot,
   MessageImagesOwnerProps, NodeKey, TurnLocation,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import { SessionSeq, type SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/client'
-import type { KeyedSnapshotSelectorHook, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import { allowAllAccess, bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
-import { createSnapshotStore, type ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
-import { EMPTY_CONVERSATION_SNAPSHOT } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
-import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import { PartialArguments } from '@deepseek-ai/dsh-util-values'
+} from '@panedesk/dsh-client-ui-conversation/client'
+import type { WorkspaceSnapshot } from '@panedesk/dsh-api-workspace-controller/client'
+import { SessionSeq, type SessionId } from '@panedesk/dsh-session/types'
+import type { SessionStatusSnapshot } from '@panedesk/dsh-client-ui-session/client'
+import type { KeyedSnapshotSelectorHook, SnapshotSelectorHook } from '@panedesk/dsh-client-ui-slots'
+import { allowAllAccess, bindSnapshotSelector, makeTranslate } from '@panedesk/dsh-client-test-runtime'
+import { createSnapshotStore, type ObservableSnapshot } from '@panedesk/dsh-client-store'
+import { EMPTY_CONVERSATION_SNAPSHOT } from '@panedesk/dsh-client-ui-conversation/client'
+import { en as commonEn } from '@panedesk/dsh-client-locale/src/locales/en.ts'
+import { zh as commonZh } from '@panedesk/dsh-client-locale/src/locales/zh.ts'
+import { PartialArguments } from '@panedesk/dsh-util-values'
 import { createChatStore } from '../src/client/stores.ts'
 import { derivePresentationPolicy, type CollapseTiming } from '../src/client/presentation-policy.ts'
 import { CHAT_FLOW_INJECT, CHAT_NODE_INJECT } from '../src/client/apply.ts'

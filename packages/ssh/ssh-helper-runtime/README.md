@@ -3,7 +3,7 @@ description: "Build and verify SSH helper executables with an embedded Node runt
 kind: "package-library"
 ---
 
-# @deepseek-ai/dsh-ssh-helper-runtime
+# @panedesk/dsh-ssh-helper-runtime
 
 English | [中文](README.zh.md)
 

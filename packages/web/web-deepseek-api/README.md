@@ -3,7 +3,7 @@ description: "DeepSeek Search and Fetch API providers, their shared authenticati
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-web-deepseek-api
+# @panedesk/dsh-web-deepseek-api
 
 English | [中文](README.zh.md)
 
@@ -27,11 +27,11 @@ Search and fetch the web through the DeepSeek Search and Fetch APIs: one direct 
 Mount the plugin alongside `dsh-web` and select its providers. Shipped profiles mount it while selecting Messages search and local HTTP fetch. Turning on **Use the new Web Search API** in **Plugins > Built-in plugin settings > Web search** and saving selects both providers of this package; turning it off restores the shipped selection. A saved selection applies to the next operation.
 
 ```yaml
-- name: '@deepseek-ai/dsh-web'
+- name: '@panedesk/dsh-web'
   config:
     searchProvider: deepseek-search-api
     fetchProvider: deepseek-fetch-api
-- name: '@deepseek-ai/dsh-web-deepseek-api'
+- name: '@panedesk/dsh-web-deepseek-api'
   config:
     apiKeyEnv: DEEPSEEK_API_KEY
 ```

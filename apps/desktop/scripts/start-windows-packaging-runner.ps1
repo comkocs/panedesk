@@ -14,7 +14,7 @@ if ($ConfigRoot -notmatch '^[A-Za-z]:[\\/]') { throw 'ConfigRoot requires an abs
 $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($ConfigRoot)))
 if ($drive.DriveType -ne [IO.DriveType]::Fixed) { throw 'ConfigRoot requires a fixed local drive' }
 $env:DSH_PACKAGING_CONFIG_DIR=[IO.Path]::GetFullPath($ConfigRoot)
-$env:DSH_TELEMETRY_DISABLED='1'
+$env:PANEDESK_TELEMETRY_DISABLED='1'
 $env:POWERSHELL_TELEMETRY_OPTOUT='1'
 foreach($tool in @('pwsh','node','git','tar','python')) {
     $resolved=Get-Command $tool -CommandType Application -ErrorAction Stop | Select-Object -First 1

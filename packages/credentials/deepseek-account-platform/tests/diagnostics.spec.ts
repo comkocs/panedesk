@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { browserUrl, logoutAccount, requestAccount, requestBonusNotified, requestPlatform, requestUnnotifiedBonuses } from '../src/protocol.ts'
-import type { AccountBonusOrderId } from '@deepseek-ai/dsh-deepseek-account/types'
+import type { AccountBonusOrderId } from '@panedesk/dsh-deepseek-account/types'
 import { readAccountDetail, readUnnotifiedBonuses } from '../src/details.ts'
 
 it.each(['/dsh/authorize', '/dsh/authorized'])('maps %s to the configured development origin and preserves query bytes', (path) => {

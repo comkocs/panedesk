@@ -2,11 +2,11 @@ import { mkdtemp, mkdir, readFile, readdir, rm, symlink } from 'node:fs/promises
 import { homedir } from 'node:os'
 import { createServer, type Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
-import Sandbox from '@deepseek-ai/dsh-sandbox-local'
-import { SandboxUnavailableError } from '@deepseek-ai/dsh-sandbox'
+import { Context } from '@panedesk/cordis'
+import Sandbox from '@panedesk/dsh-sandbox-local'
+import { SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
-import type { PtcBindingFunction, PtcBindingNamespace, PtcRunRequest } from '@deepseek-ai/dsh-ptc-runtime'
+import type { PtcBindingFunction, PtcBindingNamespace, PtcRunRequest } from '@panedesk/dsh-ptc-runtime'
 import type { Config } from '../src/index.ts'
 import { mountRuntime } from './setup.ts'
 
@@ -24,7 +24,7 @@ const sandboxUsable = await (async () => {
 })()
 
 async function setup(config: Config = {}, mode: 'read-only' | 'workspace-write' | 'danger-full-access' = 'danger-full-access') {
-  const root = await mkdtemp(join(homedir(), '.dsh-node-runtime-test-'))
+  const root = await mkdtemp(join(homedir(), '.panedesk-node-runtime-test-'))
   const cwd = join(root, 'workspace')
   await mkdir(cwd)
   const ctx = new Context()

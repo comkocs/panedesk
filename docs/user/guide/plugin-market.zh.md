@@ -94,7 +94,7 @@ https://gitlab.example.com/team/dsh-plugins
 在 DSH 代码仓库中运行它：
 
 ```sh
-pnpm --filter @deepseek-ai/dsh-plugin-market-generator start --input plugins.txt --output site/index.json --title "Team plugins"
+pnpm --filter @panedesk/dsh-plugin-market-generator start --input plugins.txt --output site/index.json --title "Team plugins"
 ```
 
 对于 npm 包，索引列出所有未弃用且声明了 `dsh.bundle` 的版本。对于 Git 仓库，生成器在默认分支上查找组合包，列出它们在 `vX.Y.Z`、`X.Y.Z` 和 `<name>@X.Y.Z` 标签处的版本，以及每个包在默认分支上的版本。标题、描述、图标、作者和主页取自每个插件的最高版本。路径相对于你运行 pnpm 的目录。
@@ -134,7 +134,7 @@ pnpm --filter @deepseek-ai/dsh-plugin-market-generator start --input plugins.txt
 | `source` | 是 | `{ "type": "npm", "registry"?: url }`，或 `{ "type": "git", "url": https-url, "commit": 40 位十六进制 SHA, "path"?: 目录 }`。 |
 | `engines.dsh` | 否 | 该版本可运行的 DSH 版本的 SemVer 范围；缺省表示任意版本。 |
 
-DSH 将 npm 版本安装为 `name@version`，存在 `registry` 时先询问它；将 Git 版本安装为 `git+<url>.git#<commit>`，包位于子目录时追加 `&path:/<path>`。`engines.dsh` 应与包自身的 `engines.dsh` 一致，DSH 会在安装时再次检查；没有该字段的包改为按其 `@deepseek-ai/dsh*` peer 依赖检查。[格式说明](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md)定义了全部规则。
+DSH 将 npm 版本安装为 `name@version`，存在 `registry` 时先询问它；将 Git 版本安装为 `git+<url>.git#<commit>`，包位于子目录时追加 `&path:/<path>`。`engines.dsh` 应与包自身的 `engines.dsh` 一致，DSH 会在安装时再次检查；没有该字段的包改为按其 `panedesk*` peer 依赖检查。[格式说明](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md)定义了全部规则。
 
 <a id="further-exploration"></a>
 ## 延伸阅读

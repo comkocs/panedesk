@@ -28,7 +28,7 @@ function json(path: string, contents: unknown): void {
 
 function manifest(fields: object = {}): void {
   json('package.json', {
-    name: '@deepseek-ai/dsh-test-plugin',
+    name: '@panedesk/dsh-test-plugin',
     description: 'Package description',
     type: 'module',
     exports: { '.': './lib/index.js', './package.json': './package.json', './locale/*.json': './locale/*.json' },
@@ -110,7 +110,7 @@ it.each(['png', 'jpg', 'jpeg', 'webp'].flatMap(extension => ['manifest', 'export
   },
 )
 
-it.each(['@local/demo', '@deepseek-ai/other'])('keeps nonofficial %s SVGs outside official artwork conventions', (name) => {
+it.each(['@local/demo', '@panedesk/other'])('keeps nonofficial %s SVGs outside official artwork conventions', (name) => {
   manifest({ name, icon: './icon.svg', files: ['icon.svg'] })
   file('icon.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"/>')
   expect(packageMetaProblems(root)).toEqual([])
@@ -119,7 +119,7 @@ it.each(['@local/demo', '@deepseek-ai/other'])('keeps nonofficial %s SVGs outsid
 it('checks official artwork in named nested packages', () => {
   manifest({ exports: { '.': './entry.js' }, files: ['nested'] })
   json('nested/package.json', {
-    name: '@deepseek-ai/dsh-nested', exports: { './icon': './icon.svg' }, files: ['icon.svg'],
+    name: '@panedesk/dsh-nested', exports: { './icon': './icon.svg' }, files: ['icon.svg'],
   })
   file('nested/icon.svg', validSvg.replace('width="36"', 'width="16"'))
   expect(packageMetaProblems(root)).toEqual([
@@ -156,7 +156,7 @@ it.each([null, false, '', './missing.svg'])('diagnoses legacy icon %j despite a 
   manifest({ icon, files: ['fallback.svg'],
     exports: { './package.json': './package.json', './icon': './fallback.svg' } })
   file('fallback.svg', validSvg)
-  expect(packageMetaProblems(root).join('\n')).toContain('Plugin metadata for @deepseek-ai/dsh-test-plugin:')
+  expect(packageMetaProblems(root).join('\n')).toContain('Plugin metadata for @panedesk/dsh-test-plugin:')
 })
 
 it.each([undefined, ['art'], ['art/*.webp'], ['./art/icon.webp']])('accepts an exported icon without other resources: %j', (files) => {
@@ -173,7 +173,7 @@ it.each([['lib'], ['art', '!art/icon.webp']])('rejects an exported icon omitted 
 
 it.each([false, 1, '', './icon.gif', '/tmp/icon.svg', './missing.png', '../outside.svg'])('validates exported icon targets: %j', (icon) => {
   manifest({ exports: { './icon': icon } })
-  expect(packageMetaProblems(root).join('\n')).toMatch(/Plugin metadata for @deepseek-ai\/dsh-test-plugin:|exports\["\.\/icon"\] must resolve to a file/u)
+  expect(packageMetaProblems(root).join('\n')).toMatch(/Plugin metadata for @panedesk\/dsh-test-plugin:|exports\["\.\/icon"\] must resolve to a file/u)
 })
 
 it.each([['assets'], ['lib']])('checks publication of the Node-selected conditional icon: %j', (...files) => {
@@ -347,7 +347,7 @@ it.each(['lib', 'tests'])('rejects an icon declaration when its only locale is e
   })
   file(`${directory}/locale/en.json`, '{}')
   const problems = packageMetaProblems(root).join('\n')
-  expect(problems).toContain('@deepseek-ai/dsh-test-plugin: icon metadata requires locale resources to resolve to source JSON')
+  expect(problems).toContain('@panedesk/dsh-test-plugin: icon metadata requires locale resources to resolve to source JSON')
   expect(problems).not.toContain('Plugin metadata for')
 })
 
@@ -671,7 +671,7 @@ it('reports metadata failures from more than one workspace package', () => {
   json('locale/en.json', { meta: { title: 'Second' } })
   json('locale/zh.json', { meta: { description: '' } })
   const problems = packageMetaProblems(root).join('\n')
-  expect(problems).toContain('@deepseek-ai/dsh-test-plugin')
+  expect(problems).toContain('@panedesk/dsh-test-plugin')
   expect(problems).toContain('@test/second')
 })
 
@@ -680,6 +680,6 @@ it.each([[], ['locale']])('rejects a display manifest in build output without re
   if (locales.length > 0) json('locale/en.json', { meta: { title: 'Plugin' } })
   file('lib/display.json', '{')
   const problems = packageMetaProblems(root).join('\n')
-  expect(problems).toContain('@deepseek-ai/dsh-test-plugin/package.json: display manifest must resolve to source JSON')
+  expect(problems).toContain('@panedesk/dsh-test-plugin/package.json: display manifest must resolve to source JSON')
   expect(problems).not.toContain('Plugin metadata for')
 })

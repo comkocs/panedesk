@@ -5,17 +5,17 @@
   disabled: true
 
 - id: llm-deepseek
-  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  name: '@panedesk/dsh-llm-deepseek-api-key'
   disabled: true
 
 - id: session-persistence-jsonl
-  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  name: '@panedesk/dsh-session-persistence-jsonl'
   config:
     root: !!js dshHomePath('sessions')
     compression: none
 
 - id: compaction-basic
-  name: '@deepseek-ai/dsh-compaction-basic'
+  name: '@panedesk/dsh-compaction-basic'
   config:
     thresholdRatio: 0.8
     headroomTokens: 1800
@@ -23,7 +23,7 @@
 
 - insert:
     - id: llm-replay
-      name: '@deepseek-ai/dsh-llm-replay'
+      name: '@panedesk/dsh-llm-replay'
       config:
         providers:
           - id: deepseek-official

@@ -3,20 +3,20 @@
  * The account takeover inside the shipped composition: the frame-wide notice
  * chain, the account settings page, and the one shared native Platform host.
  */
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, screen } from '@testing-library/react'
-import { SlotTestRuntime, stubConfigForm, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
-import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import type { SessionLiveEventEntry, SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
-import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
-import type { ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
+import { SlotTestRuntime, stubConfigForm, usePinnedBrowserLanguages } from '@panedesk/dsh-client-test-runtime'
+import { LocaleRuntime } from '@panedesk/dsh-client-locale/client'
+import type { SessionLiveEventEntry, SessionReference } from '@panedesk/dsh-api-session-controller/client'
+import type { SessionId, SessionSeq } from '@panedesk/dsh-session/types'
+import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
+import type { AccountView } from '@panedesk/dsh-deepseek-account/types'
+import type { ThemeSnapshot } from '@panedesk/dsh-client-ui-theme/client'
 import {
   apply as applyConversation, inject as injectConversation,
-} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { apply as applyChat, inject as injectChat } from '@deepseek-ai/dsh-client-ui-chat/client'
+} from '@panedesk/dsh-client-ui-conversation/client'
+import { apply as applyChat, inject as injectChat } from '@panedesk/dsh-client-ui-chat/client'
 import { AccountPlatformHost, type AccountPlatformHostInjected } from '../src/client/AccountPlatformHost.tsx'
 import { AccountQuotaNotice, type AccountQuotaNoticeInjected } from '../src/client/AccountQuotaNotice.tsx'
 import { AccountSection, type AccountSectionInjected, type AccountSnapshot } from '../src/client/AccountSection.tsx'

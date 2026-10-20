@@ -3,7 +3,7 @@ import { registerHooks } from 'node:module'
 import { join } from 'node:path'
 
 const openerUrl = new URL('./open.mjs', import.meta.url).href
-const exitMarker = join(process.cwd(), `.dsh-browser-open-${process.pid}`)
+const exitMarker = join(process.cwd(), `.panedesk-browser-open-${process.pid}`)
 
 const markerPoll = setInterval(() => {
   if (!existsSync(exitMarker)) return
@@ -24,7 +24,7 @@ if (process.env.DSH_BROWSER_OPEN_TEST_EXIT_ON_READY === '1') {
   const originalLog = console.log
   console.log = (...args) => {
     originalLog(...args)
-    if (typeof args[0] === 'string' && args[0].startsWith('dsh web: ')) {
+    if (typeof args[0] === 'string' && args[0].startsWith('panedesk web: ')) {
       setTimeout(() => process.exit(0), 250)
     }
   }

@@ -1,21 +1,21 @@
 /**
  * Basic replay-aware compaction backend.
  *
- * @module @deepseek-ai/dsh-compaction-basic
+ * @module @panedesk/dsh-compaction-basic
  */
 
-import { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
-import { CompactionEngine, ManualCompactionError } from '@deepseek-ai/dsh-compaction'
-import type { CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
-import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
-import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
-import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
-import { assertNever } from '@deepseek-ai/dsh-util-values'
-import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
-import type { CommandId } from '@deepseek-ai/dsh-commands/brand'
+import { Context } from '@panedesk/cordis'
+import z from '@panedesk/schemastery'
+import { CompactionEngine, ManualCompactionError } from '@panedesk/dsh-compaction'
+import type { CompactionResult, CompactionTrigger } from '@panedesk/dsh-compaction'
+import type { Session, SessionSeq } from '@panedesk/dsh-session'
+import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@panedesk/dsh-llm'
+import type { LlmCallConfig } from '@panedesk/dsh-llm'
+import { assertNever } from '@panedesk/dsh-util-values'
+import type { Agent, PreStepDecision } from '@panedesk/dsh-agent'
+import type { CommandId } from '@panedesk/dsh-commands/brand'
 // Type-only: makes the optional sibling service available to `ctx.get()`.
-import type {} from '@deepseek-ai/dsh-compaction-tool-result-pruner'
+import type {} from '@panedesk/dsh-compaction-tool-result-pruner'
 import {
   resolveCompactSpec,
   resolveConfig,

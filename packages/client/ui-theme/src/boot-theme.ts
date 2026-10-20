@@ -6,7 +6,7 @@
  * that the client presenters adopt.
  */
 
-import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
+import type { IndexInjection } from '@panedesk/dsh-host-webserver'
 import {
   DEFAULT_FONT_SIZES, DEFAULT_PREFERENCE, FONT_ROLES, FONT_SIZE_SPECS, fontFamilyVariable, normalizeFontFamily,
   type FontFamilies, type FontSizes, type ThemePreference,

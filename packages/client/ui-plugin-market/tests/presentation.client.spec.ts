@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { MarketListingEntry, MarketListingVersion } from '@deepseek-ai/dsh-api-remotes/client'
-import type { LocalizedText } from '@deepseek-ai/dsh-package-manifest'
+import type { MarketListingEntry, MarketListingVersion } from '@panedesk/dsh-api-remotes/client'
+import type { LocalizedText } from '@panedesk/dsh-package-manifest'
 import { declaredQuery, displayDeclarations, indexLabel, INITIAL_QUERY, presentedVersion, sourceFacts, withText } from '../src/client/presentation.ts'
 
 const resolveText = (text: LocalizedText): string => typeof text === 'string' ? text : text.zh ?? text.en

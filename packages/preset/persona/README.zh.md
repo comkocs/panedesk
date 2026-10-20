@@ -3,7 +3,7 @@ description: "preset 挂载的可组装人设行，让单个 agent 拥有自己�
 kind: "package-reference"
 ---
 
-# @deepseek-ai/dsh-persona
+# @panedesk/dsh-persona
 
 [English](README.md) | 中文
 
@@ -30,7 +30,7 @@ kind: "package-reference"
 ### 配置
 
 ```yaml
-- name: '@deepseek-ai/dsh-persona'
+- name: '@panedesk/dsh-persona'
   config:
     prefix: You are a terse systems engineer who answers in short commands.
 ```
@@ -42,7 +42,7 @@ kind: "package-reference"
 | `complete` | `false` | 仅将渲染后的前缀用作系统提示词；忽略后缀 |
 | `includeRuntimeContext` | `true` | 是否为此 agent 作用域包含可选运行时上下文；false 会抑制可选贡献，但不禁用拥有它们的服务；必需贡献仍会保留 |
 
-生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-persona)是每个受支持字段及其 JSDoc 的穷尽式真源。
+生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-persona)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
 ### 人设行为
 
@@ -85,7 +85,7 @@ kind: "package-reference"
 
 - [agent-presets 包](../agent-preset-registry/README.zh.md)——本行挂载进的 preset 组装。
 - [系统提示词子系统](../../../docs/subsystems/system-prompt.zh.md)——段落、组装，以及本行所遮蔽的人设槽位。
-- [生成的配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-persona)——每个受支持配置字段及其源声明。
+- [生成的配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-persona)——每个受支持配置字段及其源声明。
 
 -----
 

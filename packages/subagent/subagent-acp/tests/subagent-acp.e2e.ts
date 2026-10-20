@@ -5,12 +5,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Context } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
-import SubagentRuntime from '@deepseek-ai/dsh-subagent'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
-import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import { resolveExampleLaunch } from '@deepseek-ai/dsh-loader-smoke'
+import { Context } from '@panedesk/cordis'
+import type { Agent } from '@panedesk/dsh-agent'
+import SubagentRuntime from '@panedesk/dsh-subagent'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
+import { resolveExampleLaunch } from '@panedesk/dsh-loader-smoke'
 import * as acp from '../src/index.ts'
 
 /**
@@ -37,8 +37,8 @@ function resolveChildLaunch(dshHome: string) {
     env: {
       ...process.env.DEEPSEEK_API_KEY !== undefined ? { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } : {},
       ...process.env.DEEPSEEK_BASE_URL !== undefined ? { DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL } : {},
-      DSH_HOME: dshHome,
-      DSH_PERMISSION_MODE: 'danger-full-access',
+      PANEDESK_HOME: dshHome,
+      PANEDESK_PERMISSION_MODE: 'danger-full-access',
     },
   })
 }
@@ -59,7 +59,7 @@ afterEach(async () => {
 describe.skipIf(!process.env.DEEPSEEK_API_KEY)('ACP backend with-key e2e (drive our own acp-agent)', () => {
   it('drives the real acp-agent example process to answer a prompt', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'dsh-subagent-acp-e2e-'))
-    const childLaunch = resolveChildLaunch(join(workdir, '.dsh-child'))
+    const childLaunch = resolveChildLaunch(join(workdir, '.panedesk-child'))
     ctx = new Context()
     await ctx.plugin(SessionProjectionRegistry)
     await mountWorkingDirectoryFixture(ctx)
@@ -92,7 +92,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('ACP backend with-key e2e (drive 
 
   it('drives the child to do real file work via its own bash tool', async () => {
     workdir = await mkdtemp(join(tmpdir(), 'dsh-subagent-acp-e2e-'))
-    const childLaunch = resolveChildLaunch(join(workdir, '.dsh-child'))
+    const childLaunch = resolveChildLaunch(join(workdir, '.panedesk-child'))
     ctx = new Context()
     await ctx.plugin(SessionProjectionRegistry)
     await mountWorkingDirectoryFixture(ctx)

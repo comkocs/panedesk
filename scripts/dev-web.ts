@@ -1,14 +1,14 @@
 /**
- * The Web development loop: build once, serve through `dsh web`, and keep every
+ * The Web development loop: build once, serve through `panedesk web`, and keep every
  * browser-side artifact rebuilt on source edits, in one terminal.
  *
  * Stages, in order: `pnpm run build:artifacts` (skipped by `--skip-build`), three
- * long-lived watchers, then `dsh web` (skipped by `--no-serve`). The watchers
+ * long-lived watchers, then `panedesk web` (skipped by `--no-serve`). The watchers
  * exist because the compile shell links built lib products rather than
  * sources: `tsc -b tsconfig.client.json --watch` emits `lib/types` (the tsdown
  * lib entries are that emit, not `src`), tsdown watch bundles `lib/index.js`
  * and `lib/client.js`, and `vite build --watch` rewrites `apps/web/dist`, which
- * `dsh web` serves. A missing watcher does not fail — it silently shows the
+ * `panedesk web` serves. A missing watcher does not fail — it silently shows the
  * previous artifact, so an edit appears to do nothing; any stage exiting on its
  * own therefore stops the loop with exit code 1.
  *
@@ -19,11 +19,11 @@
  * MUST NOT run beside `pnpm run build` or `build:artifacts`: they write the same `lib/` and
  * `apps/web/dist/` trees. The build stage here finishes before any watcher starts.
  *
- * Usage: `pnpm run dev:web [--skip-build] [--no-serve] [--poll[=ms]] [dsh web arguments]`.
+ * Usage: `pnpm run dev:web [--skip-build] [--no-serve] [--poll[=ms]] [panedesk web arguments]`.
  * `--skip-build` requires the artifact tree from a prior `build` or `build:artifacts`: every
  * watcher is incremental over the previous stage's output and none of them
  * bootstraps a missing tree. `--no-serve` keeps only the watchers, for a
- * `dsh web` started elsewhere. `--poll` switches the source watchers to polling
+ * `panedesk web` started elsewhere. `--poll` switches the source watchers to polling
  * (default 500ms): network mounts (weka) deliver no inotify events, so native
  * watching sees the initial build only and never a source change. Polling has
  * to reach tsc too — a native-watching tsc never re-emits `lib/types`, which
@@ -56,8 +56,8 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 /** Client-face type emit feeding every tsdown lib entry in the watch set. */
 const CLIENT_TYPE_PROGRAM = 'tsconfig.client.json'
 
-/** Compile-shell workspace whose dist `dsh web` serves. */
-const SHELL_PACKAGE = '@deepseek-ai/dsh-web-frontend'
+/** Compile-shell workspace whose dist `panedesk web` serves. */
+const SHELL_PACKAGE = '@panedesk/dsh-web-frontend'
 
 /**
  * Test infrastructure builds through the client preset but never enters the
@@ -78,15 +78,15 @@ export function devWebBuildEnvironment(
   return clientBuildProcessEnvironment(environment, repositoryClientBuildEnvironment(root, environment))
 }
 
-/** Resolved `dev-web` command line: the script's own flags plus the arguments forwarded to `dsh web`. */
+/** Resolved `dev-web` command line: the script's own flags plus the arguments forwarded to `panedesk web`. */
 export interface DevWebArguments {
   /** Skip the `pnpm run build:artifacts` that otherwise precedes the watchers. */
   readonly skipBuild: boolean
-  /** Start `dsh web`; false keeps only the rebuild watchers beside an already running server. */
+  /** Start `panedesk web`; false keeps only the rebuild watchers beside an already running server. */
   readonly serve: boolean
   /** Source-watcher polling interval in milliseconds; undefined selects native watching. */
   readonly pollInterval: number | undefined
-  /** Arguments forwarded verbatim to `dsh web`, in order. */
+  /** Arguments forwarded verbatim to `panedesk web`, in order. */
   readonly appArgs: readonly string[]
 }
 
@@ -96,11 +96,11 @@ const DEFAULT_POLL_INTERVAL = 500
 /**
  * Parse the script's command line. `--skip-build`, `--no-serve`, and `--poll[=ms]`
  * belong to this script; a bare `--` is dropped; every other token is forwarded
- * to `dsh web`.
+ * to `panedesk web`.
  * @param argv - arguments after the script path.
  * @returns the resolved flags and forwarded arguments.
  * @throws Error when `--poll` carries a non-positive or non-integer interval, or
- * when `--no-serve` leaves forwarded arguments without a `dsh web` process.
+ * when `--no-serve` leaves forwarded arguments without a `panedesk web` process.
  */
 export function parseDevWebArguments(argv: readonly string[]): DevWebArguments {
   let skipBuild = false
@@ -118,7 +118,7 @@ export function parseDevWebArguments(argv: readonly string[]): DevWebArguments {
     } else appArgs.push(arg)
   }
   if (!serve && appArgs.length > 0) {
-    throw new Error(`dev-web: --no-serve leaves no dsh web process for ${appArgs[0] ?? ''}`)
+    throw new Error(`dev-web: --no-serve leaves no panedesk web process for ${appArgs[0] ?? ''}`)
   }
   return { skipBuild, serve, pollInterval, appArgs }
 }
@@ -283,7 +283,7 @@ export class StageSupervisor {
 }
 
 /**
- * Grace period per escalation step. `dsh web` gives its plugin tree five seconds
+ * Grace period per escalation step. `panedesk web` gives its plugin tree five seconds
  * to dispose after the first signal; escalating earlier would turn the graceful
  * drain into a forced exit.
  */
@@ -337,7 +337,7 @@ if (isMain) {
     options = parseDevWebArguments(process.argv.slice(2))
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)
-    console.error('dev-web: usage: pnpm run dev:web [--skip-build] [--no-serve] [--poll[=ms]] [dsh web arguments]')
+    console.error('dev-web: usage: pnpm run dev:web [--skip-build] [--no-serve] [--poll[=ms]] [panedesk web arguments]')
     process.exit(1)
   }
 
@@ -416,9 +416,9 @@ if (isMain) {
     // the bundle gets.
     spawnStage(supervisor, 'vite build --watch', 'pnpm', ['--filter', SHELL_PACKAGE, 'run', 'watch'], false)
     // The same launch vector as the root `dsh` script, so the served Host runs
-    // from source exactly as `pnpm dsh web` would.
+    // from source exactly as `pnpm panedesk web` would.
     if (options.serve) {
-      spawnStage(supervisor, 'dsh web', process.execPath, [
+      spawnStage(supervisor, 'panedesk web', process.execPath, [
         '--import', 'tsx/esm', 'apps/cli/src/bin.ts', 'web', ...options.appArgs,
       ], false)
     }
@@ -427,7 +427,7 @@ if (isMain) {
       + ` and ${String(libraryDirs.length)} statically linked library packages`
       + (options.pollInterval !== undefined ? ` (polling ${String(options.pollInterval)}ms)` : '')
       + `, plus tsc -b ${CLIENT_TYPE_PROGRAM} and the ${SHELL_PACKAGE} dist build`
-      + (options.serve ? ', serving through dsh web' : '')
+      + (options.serve ? ', serving through panedesk web' : '')
       + ':\n  '
       + [...pluginDirs, ...libraryDirs].join('\n  '),
     )

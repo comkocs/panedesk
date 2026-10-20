@@ -2,7 +2,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { z } from 'zod'
 import type { JSONSchema } from 'zod/v4/core'
-import { NativeOnlyOperations, NativeResourceParameters, Request } from '@deepseek-ai/dsh-cua/protocol'
+import { NativeOnlyOperations, NativeResourceParameters, Request } from '@panedesk/dsh-cua/protocol'
 
 type Schema = JSONSchema.JSONSchema
 

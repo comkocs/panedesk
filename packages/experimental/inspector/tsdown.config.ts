@@ -15,7 +15,7 @@ const worker: UserConfig = {
   clean: false,
   outputOptions: { inlineDynamicImports: true },
   deps: { neverBundle: specifier => (
-    specifier === 'ws' || specifier === '@deepseek-ai/dsh-app-boot/worker/profile-resolution-bootstrap'
+    specifier === 'ws' || specifier === '@panedesk/dsh-app-boot/worker/profile-resolution-bootstrap'
   ) },
 }
 

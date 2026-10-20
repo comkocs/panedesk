@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Browser handoff tracks the initiating attempt and cleans up unused tabs. */
 import { afterEach, expect, it, vi } from 'vitest'
-import type { AccountView, SignInAttemptId } from '@deepseek-ai/dsh-deepseek-account/types'
+import type { AccountView, SignInAttemptId } from '@panedesk/dsh-deepseek-account/types'
 import { BrowserLogin } from '../src/client/browser-login.ts'
 
 afterEach(() => { vi.restoreAllMocks() })

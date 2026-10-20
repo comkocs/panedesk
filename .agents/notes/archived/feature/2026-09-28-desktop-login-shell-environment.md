@@ -19,7 +19,7 @@ Before creating the first Host, [Desktop](../../../../apps/desktop/README.md) ru
 
 **Non-interactive `-lc` only.** Most users export PATH additions from `~/.zshrc`, which only interactive shells read. Interactive mode requires the probe variables that stop oh-my-zsh update prompts and tmux autostart from blocking.
 
-**Let shell values replace `DSH_*` variables.** Desktop resolves `DSH_HOME` and its profile paths before the read, so a `DSH_HOME` exported from `~/.zshrc` would give the Host a different home from the one Desktop prepared.
+**Let shell values replace `DSH_*` variables.** Desktop resolves `PANEDESK_HOME` and its profile paths before the read, so a `PANEDESK_HOME` exported from `~/.zshrc` would give the Host a different home from the one Desktop prepared.
 
 **Wait for stdout to close.** Background processes that startup files start inherit stdout and can hold it open indefinitely, which turns every read into a timeout.
 

@@ -21,23 +21,23 @@ describe.skipIf(!built)('built workflow PTC runtime', () => {
     const driverRoot = await mkdtemp(join(packageRoot, '.built-runtime-'))
     let root: string | undefined
     try {
-      root = await mkdtemp(join(homedir(), '.dsh-built-workflow-'))
+      root = await mkdtemp(join(homedir(), '.panedesk-built-workflow-'))
       const cwd = join(root, 'workspace')
       const outside = join(root, 'outside.txt')
       await mkdir(cwd)
       await writeFile(outside, 'unchanged')
       const driver = join(driverRoot, 'driver.mjs')
       await writeFile(driver, `
-import { Context } from '@deepseek-ai/cordis'
-import PtcWorkflowEngine from '@deepseek-ai/dsh-workflow-ptc'
+import { Context } from '@panedesk/cordis'
+import PtcWorkflowEngine from '@panedesk/dsh-workflow-ptc'
 const ctx = new Context()
 try {
   for (const name of ['session', 'session-projection', 'agent', 'system-prompt', 'fs-local', 'working-directory', 'subprocess-local', 'sandbox-local']) {
-    await ctx.plugin((await import('@deepseek-ai/dsh-' + name)).default, {})
+    await ctx.plugin((await import('@panedesk/dsh-' + name)).default, {})
   }
-  await ctx.plugin((await import('@deepseek-ai/dsh-sandbox-policy')).default, { mode: 'read-only', workspaceRoot: process.argv[2] })
-  await ctx.plugin((await import('@deepseek-ai/dsh-ptc-runtime-node')).default, {})
-  await ctx.plugin((await import('@deepseek-ai/dsh-subagent')).default, {})
+  await ctx.plugin((await import('@panedesk/dsh-sandbox-policy')).default, { mode: 'read-only', workspaceRoot: process.argv[2] })
+  await ctx.plugin((await import('@panedesk/dsh-ptc-runtime-node')).default, {})
+  await ctx.plugin((await import('@panedesk/dsh-subagent')).default, {})
   let selectedStarts = 0
   ctx.subagents.registerProvider({
     name: 'built-selected',

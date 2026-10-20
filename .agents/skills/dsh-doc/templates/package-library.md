@@ -16,7 +16,7 @@ kind: "package-library"
 ## Skeleton
 
 ```markdown
-# @deepseek-ai/dsh-<name>
+# @panedesk/dsh-<name>
 
 English | [中文](README.zh.md)
 
