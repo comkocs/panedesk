@@ -36,6 +36,21 @@ export async function reportStartupFailure(
   context: StartupDiagnosticContext,
   write: (text: string) => void | Promise<void> = writeStderr,
 ): Promise<void> {
+  const failed = error.entries.filter(entry => entry.outcome.kind === 'failed')
+  const pending = error.entries.filter(entry => entry.outcome.kind === 'pending')
+  const model = failed[0]
+  const runner = pending[0]
+  if (context.profile === 'slim' && error.entries.length === 2 && failed.length === 1 && pending.length === 1
+    && model?.id === 'agent-default-model' && model.module === '@panedesk/dsh-agent-default-model'
+    && model.outcome.kind === 'failed' && model.outcome.phase === undefined && model.outcome.error instanceof Error
+    && model.outcome.error.message.startsWith('no model route is configured for the slim preset. Pick an endpoint: ')
+    && !/[\r\n]/u.test(model.outcome.error.message)
+    && runner?.id === 'headless-runner' && runner.module === '@panedesk/dsh-headless' && runner.required
+    && runner.outcome.kind === 'pending' && runner.outcome.missing.length === 1
+    && runner.outcome.missing[0] === 'agentDefaultModel') {
+    await write(`panedesk: ${model.outcome.error.message}\n`)
+    return
+  }
   const now = new Date().toISOString()
   const report = 'WARNING: Raw diagnostics may contain configuration or credential values from plugin errors. Review before sharing.\n\n' + inspect({
     timestamp: now,

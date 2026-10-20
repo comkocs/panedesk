@@ -24,7 +24,66 @@ function startupError(reason: unknown): StartupError {
   return error
 }
 
+function unconfiguredSlimError(): StartupError {
+  return new StartupError('panedesk: startup failed: 1 required plugin did not activate', [
+    {
+      id: 'agent-default-model', module: '@panedesk/dsh-agent-default-model', required: false, fiberState: 3,
+      outcome: { kind: 'failed', error: new Error('no model route is configured for the slim preset. Pick an endpoint: copy a template from examples/providers/ and pass it with --patch <file>') },
+    },
+    {
+      id: 'headless-runner', module: '@panedesk/dsh-headless', required: true, fiberState: 0,
+      outcome: { kind: 'pending', missing: ['agentDefaultModel'] },
+    },
+  ])
+}
+
 describe('startup diagnostic files', () => {
+  it('prints only the route hint for the unconfigured slim preset', async () => {
+    const dir = await home()
+    const error = unconfiguredSlimError()
+    const chunks: string[] = []
+    await reportStartupFailure(error, { home: dir, version: '1.2.3', profile: 'slim' }, text => { chunks.push(text) })
+    const outcome = error.entries[0]!.outcome
+    expect(outcome.kind).toBe('failed')
+    if (outcome.kind !== 'failed') throw new Error('expected failed model route')
+    expect(chunks).toEqual([`panedesk: ${(outcome.error as Error).message}\n`])
+    expect(await readdir(dir)).toEqual([])
+  })
+
+  it.each(['other profile', 'other plugin', 'other module', 'other error', 'other missing service', 'additional failure', 'multiline hint', 'other phase'])(
+    'retains full diagnostics for %s instead of treating it as the slim route hint', async (scenario) => {
+      const dir = await home()
+      const original = unconfiguredSlimError()
+      const entries = original.entries.map(entry => ({ ...entry, outcome: { ...entry.outcome } }))
+      const model = entries[0]!
+      const runner = entries[1]!
+      if (scenario === 'other plugin') model.id = 'custom-model'
+      if (scenario === 'other module') model.module = './custom-model.mjs'
+      if (model.outcome.kind === 'failed') {
+        if (scenario === 'other error') model.outcome.error = new Error('provider activation failed')
+        if (scenario === 'multiline hint') model.outcome.error = new Error(`${(model.outcome.error as Error).message}\nmore details`)
+        if (scenario === 'other phase') model.outcome.phase = 'disabled expression failed'
+      }
+      if (scenario === 'other missing service' && runner.outcome.kind === 'pending') runner.outcome.missing = ['otherService']
+      if (scenario === 'additional failure') entries.push({
+        id: 'other', module: './other.mjs', required: false, fiberState: 3,
+        outcome: { kind: 'failed', error: new Error('other activation failure') },
+      })
+      const error = new StartupError(original.message, entries)
+      const chunks: string[] = []
+      await reportStartupFailure(error, {
+        home: dir, version: '1.2.3', profile: scenario === 'other profile' ? 'full' : 'slim',
+      }, text => { chunks.push(text) })
+      expect(chunks[0]).toBe(`${error.message}\n`)
+      expect(chunks.join('')).toContain('Full diagnostics: ')
+      const files = await readdir(join(dir, 'logs'))
+      const report = await readFile(join(dir, 'logs', files[0]!), 'utf8')
+      expect(report).toContain('Error: ')
+      expect(report).toContain('    at ')
+      expect(report).toContain('headless-runner')
+    },
+  )
+
   it('prints the summary and saved path to stderr by default', async () => {
     const dir = await home()
     const write = vi.spyOn(process.stderr, 'write').mockImplementation((_text, callback?: BufferEncoding | ((error?: Error | null) => void)) => {
