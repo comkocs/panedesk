@@ -19,18 +19,18 @@ Linux and macOS are the primary targets; Windows is supported for development.
 - **Privacy off by default.** Session-log upload, plugin-inventory upload, session telemetry, anonymous identity headers and Desktop product analytics all default to off and can be switched on.
 - **No brand opener.** The system prompt no longer starts with a "powered by" harness line.
 - **Commands.** The CLI is `panedesk`, with the short name `pdesk`.
-- Internal package names (`@deepseek-ai/dsh-*`), environment variables (`DSH_*`) and the home directory (`~/.dsh`) are unchanged for now; the rename list is in [docs/改名待改清单.md](docs/改名待改清单.md).
+- Internal package names (`@deepseek-ai/dsh-*`), environment variables (`DSH_*`) and the home directory (`~/.dsh`) are unchanged for now; the rename list is `docs/改名待改清单.md` (Chinese only).
 
 ## Quick start from source
 
 Requirements: Node.js `^22.19 || >=24`, pnpm 11 (via Corepack).
 
 ```sh
-CI=true pnpm install            # CI=true skips installing upstream's git hooks
+pnpm install                    # git hooks are opt-in: pnpm run hooks:install
 node_modules/.bin/tsx scripts/compile-referenced-projects.ts host-libraries
 ```
 
-Pick a model provider. The slim preset defaults to pi-ai's `deepseek` route keyed by `DEEPSEEK_API_KEY`; any OpenAI-compatible or Anthropic Messages-compatible endpoint works through an overlay (templates in [examples/providers](examples/providers)), which references the key by environment-variable name only:
+Pick a model provider. The slim preset ships no default model route: until you configure one, a run stops with an error that points here. Any OpenAI-compatible or Anthropic Messages-compatible endpoint works through an overlay (templates in [examples/providers](examples/providers)), passed with `--patch` or copied into `$DSH_HOME/profiles/slim/cordis.patch.yml`; the overlay references the key by environment-variable name only:
 
 ```sh
 export MY_GATEWAY_API_KEY=...   # your own key

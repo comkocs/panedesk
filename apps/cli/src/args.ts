@@ -188,12 +188,14 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
     .option('--dump-default-config', 'print the profile tree without its user layer or --patch overlays and exit')
     .action((args: string[], options: BootOptions & { profile?: string }) => {
       // With the app owning -h, the launcher's own help is what a bare
-      // `panedesk -h` (no profile to hand it to) must print, as does a bare
-      // `panedesk`; anything else without a profile boots the default preset.
+      // `panedesk -h` (no profile named, help as the first leftover token) must
+      // print, as does a bare `panedesk`. Anything else without a profile boots
+      // the default preset with every token intact, so a later `--help` (after
+      // app flags or `--`) reaches the app or the task text unchanged.
       if (options.profile === undefined) {
         const bare = args.length === 0 && options.patch === undefined && options.fromDefaultProfile === undefined
           && options.dumpConfig !== true && options.dumpDefaultConfig !== true && options.dumpConfigSchema !== true
-        if (bare || args.some(argument => argument === '-h' || argument === '--help')) program.help()
+        if (bare || args[0] === '-h' || args[0] === '--help') program.help()
       }
       const profile = options.profile ?? DEFAULT_PROFILE
       if (profile === '') program.error('error: --profile needs a name')

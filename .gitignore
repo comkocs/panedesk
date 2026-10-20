@@ -50,3 +50,8 @@ native/system/test/bin/
 
 # Panedesk local-only workspace (isolated harness home, run logs, key-reading runners)
 /.local/
+
+# Internal-only items that must never reach the public repository
+.claude/agents
+.claude/agents/
+_work/

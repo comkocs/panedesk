@@ -728,7 +728,12 @@ function packageDirFromAnchor(anchor: string, packageName: string): string | und
 export function resolveBundleDir(
   binName: string, packageName: string, installAnchor: string, profileDir: string,
 ): string {
-  for (const anchor of [installAnchor, join(profileDir, 'package.json')]) {
+  // The full-preset carrier is an optional peer of the launcher: in a non-hoisted
+  // layout its bundles sit beneath it rather than beside the launcher, so the
+  // carrier's own manifest is a resolution anchor between the two above.
+  const carrierDir = packageDirFromAnchor(installAnchor, FULL_PRESET_CARRIER)
+  const anchors = [installAnchor, ...carrierDir === undefined ? [] : [join(carrierDir, 'package.json')], join(profileDir, 'package.json')]
+  for (const anchor of anchors) {
     const dir = packageDirFromAnchor(anchor, packageName)
     if (dir !== undefined) return dir
   }

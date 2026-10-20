@@ -4,16 +4,16 @@
 #   pnpm run verify-translation-pairing --write README.md
 /panedesk:
   en: 1774274b8b83f43e
-  zh: 27fa9b17c5d9f22c
+  zh: 06d639722d52fc0b
 /panedesk/status:
   en: ac2be50b76a9072d
   zh: e62fabc847bc52ab
 /panedesk/what-changed-from-dsh:
-  en: 05b846612febf47b
-  zh: f8e4665651403e26
+  en: d02ae4cc80d7b956
+  zh: 5eafbaacc5536596
 /panedesk/quick-start-from-source:
-  en: e3539bde75c474f0
-  zh: 65ee09b6126c0df1
+  en: 05c897533ca9ef6c
+  zh: d85f1cb1ea7d2169
 /panedesk/presets:
   en: 99ca507969124938
   zh: 734a1dfcee6603a0

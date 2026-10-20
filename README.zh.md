@@ -4,7 +4,7 @@
 
 **Panedesk**（中文名「窗台」）是一套开源、全插件化的编码代理运行框架（harness）：代理循环、模型路由、子代理、会话账本、权限与沙盒都在同一个运行时里。名字由 *pane*（每个代理在自己的窗格里干活，即「开窗」）和 *desk*（以后派发它们的工单台）拼成。
 
-> Built on DSH (DeepSeek Harness)。Panedesk 是 [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 的独立分叉，与 DeepSeek 没有隶属、背书或赞助关系。「DeepSeek Harness」是 DeepSeek 的注册商标，见 [BRAND_GUIDELINES.md](BRAND_GUIDELINES.md)。
+> Built on DSH (DeepSeek Harness)。Panedesk 是 [DSH](https://github.com/deepseek-ai/deepseek-harness) 0.2.1-rc.2 的独立分叉，与 DeepSeek 没有隶属、背书或赞助关系。「DeepSeek Harness」是 DeepSeek 的注册商标，见 [BRAND_GUIDELINES.zh.md](BRAND_GUIDELINES.zh.md)。
 
 ## 状态
 
@@ -19,23 +19,23 @@
 - **隐私默认关。** 会话日志上传、插件清单上传、会话遥测、匿名身份请求头、桌面版产品分析都默认关闭，可以自行打开。
 - **去掉品牌开场白。** 系统提示不再以「powered by」那句 harness 自我介绍开头。
 - **命令名。** 命令行叫 `panedesk`，短名 `pdesk`。
-- 内部包名（`@deepseek-ai/dsh-*`）、环境变量（`DSH_*`）和主目录（`~/.dsh`）这一轮暂不改，待改清单见 [docs/改名待改清单.md](docs/改名待改清单.md)。
+- 内部包名（`@deepseek-ai/dsh-*`）、环境变量（`DSH_*`）和主目录（`~/.dsh`）这一轮暂不改，待改清单见 `docs/改名待改清单.md`（仅中文）。
 
 ## 从源码快速上手
 
 需要 Node.js `^22.19 || >=24`，pnpm 11（经 Corepack）。
 
 ```sh
-CI=true pnpm install            # CI=true 可跳过上游的 git 钩子安装
+pnpm install                    # git hooks are opt-in: pnpm run hooks:install
 node_modules/.bin/tsx scripts/compile-referenced-projects.ts host-libraries
 ```
 
-选一个模型提供方。slim 预设默认走 pi-ai 的 `deepseek` 路由，密钥取 `DEEPSEEK_API_KEY`；任何 OpenAI 兼容或 Anthropic Messages 兼容的接口都可以用叠加文件接入（模板在 [examples/providers](examples/providers)），文件里只写密钥的环境变量名：
+选一个模型提供方。slim 预设不预设默认模型路由：没配置之前，运行会报错并指到这里。任何 OpenAI 兼容或 Anthropic Messages 兼容的接口都可以用叠加文件接入（模板在 [examples/providers](examples/providers)），用 `--patch` 传入，或把内容抄进 `$DSH_HOME/profiles/slim/cordis.patch.yml`；文件里只写密钥的环境变量名：
 
 ```sh
-export MY_GATEWAY_API_KEY=...   # 你自己的密钥
-node apps/cli/lib/bin.js --patch examples/providers/openai-chat.yml "总结一下这个仓库"
-node apps/cli/lib/bin.js full "同一个任务换 full 预设跑"
+export MY_GATEWAY_API_KEY=...   # your own key
+node apps/cli/lib/bin.js --patch examples/providers/openai-chat.yml "summarize this repository"
+node apps/cli/lib/bin.js full "the same task on the full preset"
 node apps/cli/lib/bin.js --help
 ```
 

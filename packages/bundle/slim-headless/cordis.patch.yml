@@ -2,7 +2,7 @@
 # @panedesk/slim-base. It restates the dsh-headless bundle patch (runner rows,
 # persona, tool mode) without that patch's disables of hmr, credentials,
 # authorization, and deepseek-account, rows slim-base never mounts, and adds the
-# Panedesk slim defaults below. `panedesk "<task>"` (or `panedesk slim "<task>"`)
+# Panedesk slim defaults below (no harness identity line, no default model route). `panedesk "<task>"` (or `panedesk slim "<task>"`)
 # answers one task, prints the result, and exits.
 
 # No "powered by" harness identity line: the prompt opens with the persona.
@@ -17,21 +17,16 @@
     # Keep the same temporary process-wide PTC mode opt-in as the Web surface.
     mode: !!js process.env.DSH_TOOLS_MODE
 
-# Default model route. slim mounts only the provider-neutral pi-ai adapter, so
-# the default selects pi-ai's installed `deepseek` catalog route (OpenAI chat
-# protocol) keyed by DEEPSEEK_API_KEY. A profile cordis.patch.yml or --patch
-# overlay that restates these two rows selects any other provider or gateway;
-# see examples/providers/ for Anthropic Messages and OpenAI chat templates.
-- id: llm-pi-ai
-  config:
-    providers:
-      deepseek:
-        apiKeyEnv: DEEPSEEK_API_KEY
-
+# No default model route: slim mounts only the provider-neutral pi-ai adapter
+# (dormant until configured) and names no provider. Until a profile
+# cordis.patch.yml or a --patch overlay restates this row (and llm-pi-ai's
+# providers), the row fails with the message below instead of a request to a
+# route nobody chose. Templates: examples/providers/ (Anthropic Messages,
+# OpenAI chat).
 - id: agent-default-model
   config:
-    provider: deepseek
-    model: deepseek-flash
+    provider: !!js "(() => { throw new Error('no model route is configured for the slim preset. Pick an endpoint: copy a template from examples/providers/ (openai-chat.yml or anthropic-messages.yml), then pass it with --patch <file> or put its rows into $DSH_HOME/profiles/slim/cordis.patch.yml') })()"
+    model: unconfigured
 
 - insert:
     - id: headless-startup
