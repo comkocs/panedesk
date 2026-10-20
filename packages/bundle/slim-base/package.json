@@ -1,0 +1,76 @@
+{
+  "name": "@panedesk/slim-base",
+  "description": "Panedesk slim core as a profile bundle: a verbatim row subset of dsh-base (minimal headless core plus compaction, spill, timeout guard, AGENTS.md loading)",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-agent-default-model": "workspace:*",
+    "@deepseek-ai/dsh-agent-instructions": "workspace:*",
+    "@deepseek-ai/dsh-agent-loop": "workspace:*",
+    "@deepseek-ai/dsh-bash-sandbox": "workspace:*",
+    "@deepseek-ai/dsh-compaction-basic": "workspace:*",
+    "@deepseek-ai/dsh-compaction-tool-result-pruner": "workspace:*",
+    "@deepseek-ai/dsh-fs-observation-policy": "workspace:*",
+    "@deepseek-ai/dsh-fs-sandbox": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*",
+    "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
+    "@deepseek-ai/dsh-llm-retry": "workspace:*",
+    "@deepseek-ai/dsh-permission-presets": "workspace:*",
+    "@deepseek-ai/dsh-pwsh-sandbox": "workspace:*",
+    "@deepseek-ai/dsh-sandbox-local": "workspace:*",
+    "@deepseek-ai/dsh-sandbox-policy": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-session-checkpoint-policy": "workspace:*",
+    "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:*",
+    "@deepseek-ai/dsh-session-projection": "workspace:*",
+    "@deepseek-ai/dsh-shell-env": "workspace:*",
+    "@deepseek-ai/dsh-spill-local": "workspace:*",
+    "@deepseek-ai/dsh-spill-policy": "workspace:*",
+    "@deepseek-ai/dsh-subagent": "workspace:*",
+    "@deepseek-ai/dsh-subagent-spawn-in-process": "workspace:*",
+    "@deepseek-ai/dsh-subprocess-local": "workspace:*",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
+    "@deepseek-ai/dsh-token-meter": "workspace:*",
+    "@deepseek-ai/dsh-tool-bash": "workspace:*",
+    "@deepseek-ai/dsh-tool-call-timeout-policy": "workspace:*",
+    "@deepseek-ai/dsh-tool-fs": "workspace:*",
+    "@deepseek-ai/dsh-tool-fs-search": "workspace:*",
+    "@deepseek-ai/dsh-tool-pwsh": "workspace:*",
+    "@deepseek-ai/dsh-tool-subagent": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-user-approval": "workspace:*",
+    "@deepseek-ai/dsh-working-directory": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/cordis-plugin-include": "workspace:~",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:~",
+    "@deepseek-ai/dsh-base": "workspace:*"
+  }
+}

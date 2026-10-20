@@ -175,8 +175,19 @@ export function resolveProfileDir(name: string, home: string = resolveDshHome())
   return join(home, PROFILES_DIR, name)
 }
 
-/** The shipped profile templates auto-initialized on first use, by name. */
+/**
+ * The shipped profile templates auto-initialized on first use, by name.
+ * `slim` is Panedesk's default one-shot preset and ships with the launcher;
+ * `full` is the upstream headless composition over dsh-base and, like the
+ * acp/web/sdk templates, needs the `@panedesk/full` package installed beside it.
+ */
 export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
+  slim: {
+    bundles: ['@panedesk/slim-base', '@panedesk/slim-headless'],
+  },
+  full: {
+    bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'],
+  },
   acp: {
     bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-acp-app'],
   },

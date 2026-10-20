@@ -40,8 +40,12 @@
     - id: session
       name: '@deepseek-ai/dsh-session'
 
+    # Panedesk ships the official-endpoint upload of Session-log increments
+    # (`dsh_session_log`) off; restate this row with `enabled: true` to opt in.
     - id: session-log-deepseek
       name: '@deepseek-ai/dsh-session-log-deepseek'
+      config:
+        enabled: false
 
     - id: typert
       name: '@deepseek-ai/dsh-typert-registry'
@@ -82,8 +86,11 @@
     - id: agent
       name: '@deepseek-ai/dsh-agent'
 
+    # Off in Panedesk like session-log-deepseek (`dsh_plugin_packages` field).
     - id: plugin-package-inventory-deepseek
       name: '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
+      config:
+        enabled: false
 
     # The transport-independent default for Agents created by entry points.
     # Settings may supply a saved selection; consumers read it at creation time.
@@ -202,6 +209,8 @@
     - id: otel
       name: '@deepseek-ai/dsh-otel'
 
+    # Panedesk ships this mode DISABLED (no transport is built); set
+    # DSH_TELEMETRY_MODE=FEEDBACK_ONLY to opt in. In FEEDBACK_ONLY,
     # OTel releases a Session-log prefix only after explicit user feedback,
     # regardless of model provider. Ordinary activity never triggers capture.
     # DSH_TELEMETRY_OTLP_URL overrides the production endpoint. A non-empty
@@ -218,7 +227,7 @@
     - id: session-telemetry-otel
       name: '@deepseek-ai/dsh-session-telemetry-otel'
       config:
-        mode: !!js process.env.DSH_TELEMETRY_MODE || 'FEEDBACK_ONLY'
+        mode: !!js process.env.DSH_TELEMETRY_MODE || 'DISABLED'
         shutdownTimeoutMillis: 3000
         maxRequestBytes: 4000000
         exporter:

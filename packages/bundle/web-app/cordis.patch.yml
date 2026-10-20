@@ -54,11 +54,13 @@
         serviceVersion: !!js process.env.DSH_CLIENT_VERSION
         endpoint: !!js process.env.DSH_PRODUCT_ANALYTICS_OTLP_URL
 
+    # Panedesk ships Desktop product analytics off; set `enabled: true` in a
+    # later patch layer to opt in.
     - id: product-analytics
       name: '@deepseek-ai/dsh-client-product-analytics'
       disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
       config:
-        enabled: true
+        enabled: false
         appVersion: !!js process.env.DSH_CLIENT_VERSION
 
     # Host-owned opt-in sampled when a new Web session receives its preset

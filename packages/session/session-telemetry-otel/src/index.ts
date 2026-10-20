@@ -33,8 +33,8 @@ export enum SessionTelemetryMode {
   DISABLED = 'DISABLED',
 }
 
-/** Default session-sharing policy for schema and direct construction. */
-export const DEFAULT_TELEMETRY_MODE = SessionTelemetryMode.FEEDBACK_ONLY
+/** Default session-sharing policy for schema and direct construction; Panedesk ships telemetry off (opt in with `FEEDBACK_ONLY`). */
+export const DEFAULT_TELEMETRY_MODE = SessionTelemetryMode.DISABLED
 
 const DISABLED_FEEDBACK_WARNING = 'OpenTelemetry session upload is DISABLED; this feedback is not uploaded through OpenTelemetry'
 const NON_CANONICAL_EVENT_WARNING = 'session telemetry ignored an event absent from the canonical session log'
@@ -83,7 +83,7 @@ function sharingStatusFor(mode: SessionTelemetryMode): SessionTelemetrySharingSt
  * and shutdown deadline at plugin load; `DISABLED` reads neither.
  */
 export interface Config {
-  /** Defaults to `FEEDBACK_ONLY`: capture session history only when feedback is explicitly submitted. */
+  /** Defaults to `DISABLED` in Panedesk; `FEEDBACK_ONLY` captures session history only when feedback is explicitly submitted. */
   mode?: SessionTelemetryMode
   /**
    * Explicit SDK HTTP transport settings, including optional routing headers.

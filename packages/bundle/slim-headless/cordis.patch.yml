@@ -1,0 +1,47 @@
+# The @panedesk/slim-headless bundle patch: one-shot task mode over
+# @panedesk/slim-base. It restates the dsh-headless bundle patch (runner rows,
+# persona, tool mode) without that patch's disables of hmr, credentials,
+# authorization, and deepseek-account, rows slim-base never mounts, and adds the
+# Panedesk slim defaults below. `panedesk "<task>"` (or `panedesk slim "<task>"`)
+# answers one task, prints the result, and exits.
+
+# No "powered by" harness identity line: the prompt opens with the persona.
+- id: system-prompt
+  config:
+    includeHarnessIdentity: false
+    personaPrefix: >-
+      You are a coding agent powered by the {{model}} model.
+
+- id: tools
+  config:
+    # Keep the same temporary process-wide PTC mode opt-in as the Web surface.
+    mode: !!js process.env.DSH_TOOLS_MODE
+
+# Default model route. slim mounts only the provider-neutral pi-ai adapter, so
+# the default selects pi-ai's installed `deepseek` catalog route (OpenAI chat
+# protocol) keyed by DEEPSEEK_API_KEY. A profile cordis.patch.yml or --patch
+# overlay that restates these two rows selects any other provider or gateway;
+# see examples/providers/ for Anthropic Messages and OpenAI chat templates.
+- id: llm-pi-ai
+  config:
+    providers:
+      deepseek:
+        apiKeyEnv: DEEPSEEK_API_KEY
+
+- id: agent-default-model
+  config:
+    provider: deepseek
+    model: deepseek-flash
+
+- insert:
+    - id: headless-startup
+      name: '@deepseek-ai/dsh-headless/startup'
+
+    # Reads its task and run options from the ordinary headlessStartup provider.
+    - id: headless-runner
+      name: '@deepseek-ai/dsh-headless'
+      inject: [headlessStartup]
+      config:
+        task: !!js ctx.headlessStartup.task
+        sessionId: !!js ctx.headlessStartup.sessionId
+        json: !!js ctx.headlessStartup.json
