@@ -7169,12 +7169,30 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-compaction':
         specifier: workspace:*
         version: link:../compaction
+      '@panedesk/dsh-compaction-basic':
+        specifier: workspace:*
+        version: link:../compaction-basic
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+      '@panedesk/dsh-token-meter':
+        specifier: workspace:*
+        version: link:../../llm/token-meter
 
   packages/compaction/compaction-tool-result-pruner:
     dependencies:

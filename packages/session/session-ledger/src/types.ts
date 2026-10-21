@@ -234,7 +234,7 @@ export type LedgerAuxiliaryFact =
   | { kind: 'wait/start' | 'wait/end'; interval: LedgerInterval }
   | { kind: 'cache/break' | 'cache/evidence'; evidence: LedgerCacheEvidence }
   | { kind: 'retry'; phase: 'scheduled' | 'started' | 'exhausted'; logicalRequestId: LedgerRequestId; attemptIndex: number; httpStatus?: number }
-  | { kind: 'compaction'; committedSeq: number; committedAt: number }
+  | { kind: 'compaction'; committedSeq: number; committedAt: number; peakContextUsageTokens?: number; peakContextEstimatedTokens?: number }
   | { kind: 'alert'; alert: LedgerAlert }
   | { kind: 'delivery'; paths: readonly string[]; state: LedgerRunFinish['deliveryState']; errorArtifact?: string }
   | { kind: 'process/observed'; identity: LedgerProcessIdentity; liveness: 'confirmed' | 'unknown' | 'dead'; exitCode?: number; signal?: string }
