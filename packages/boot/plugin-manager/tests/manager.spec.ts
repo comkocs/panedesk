@@ -295,8 +295,16 @@ it('recomposes the remaining layers while another bundle is broken and mounts it
   expect((await manager.listBundles()).find(row => row.name === 'extra')?.error).toBeUndefined()
 })
 
+/** Keep pnpm's NODE_PATH from adding checkout bundles to tests that assert an entire synthetic inventory. */
+function isolateCarrier(home: string): void {
+  const carrier = join(home, 'node_modules', '@panedesk/full')
+  mkdirSync(carrier, { recursive: true })
+  writeFileSync(join(carrier, 'package.json'), '{"name":"@panedesk/full","dependencies":{}}')
+}
+
 it('lists bundle versions and current-profile plugin targets', async () => {
-  const { manager, dir } = await fixture()
+  const { manager, dir, profile } = await fixture()
+  isolateCarrier(profile.home)
   const plugins = await manager.listPlugins()
   expect(plugins.find(row => row.entryId === 'include:managed')).toMatchObject({ patchId: 'managed', enabled: true })
   expect(plugins.find(row => row.entryId === 'include:manager')?.readOnlyReason).toBe('management-required')
@@ -709,6 +717,7 @@ it('keeps saved changes after activation failure and allows a corrected configur
 
 it('reports a selected plain dependency as a problem, omits an unselected one, and reports missing versions', async () => {
   const { manager, dir, profile } = await fixture()
+  isolateCarrier(profile.home)
   writeFileSync(profile.installAnchor, '{}')
   writeFileSync(join(dir, 'node_modules', 'extra', 'package.json'), '{"name":"extra"}')
   expect((await manager.listBundles()).find(row => row.name === 'extra')).toMatchObject({ enabled: true, error: { code: 'not-bundle' } })
@@ -1152,6 +1161,30 @@ it.each(OPTIONAL_BUNDLES)('offers %s switched off and never removable', async (o
   })
   expect(await manager.setBundleEnabled(offered, true)).toMatchObject({ application: 'applied' })
   expect((await manager.listBundles()).find(row => row.name === offered)).toMatchObject({ enabled: true, optional: true, removable: false })
+  expect(await manager.removeBundle(offered)).toMatchObject({ changed: false, application: 'failed' })
+})
+
+it('enumerates experimental bundles supplied by the full-preset carrier as installation-owned', async () => {
+  const { manager, profile, dir, bundle } = await fixture()
+  const carrier = join(profile.home, 'node_modules', '@panedesk/full')
+  const offered = '@panedesk/dsh-experimental-agent-team-profile'
+  mkdirSync(carrier, { recursive: true })
+  writeFileSync(join(carrier, 'package.json'), JSON.stringify({
+    name: '@panedesk/full', dependencies: { [offered]: '1.0.0' },
+  }))
+  bundle(offered, [], carrier)
+  expect((await manager.listBundles()).find(row => row.name === offered)).toMatchObject({
+    name: offered, enabled: false, installed: false, official: true,
+    availability: 'installation', optional: true, removable: false,
+  })
+  const manifest = readProfileManifest('test', dir)
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({
+    ...manifest, dependencies: { ...manifest.dependencies, [offered]: '1.0.0' },
+  }))
+  expect((await manager.listBundles()).find(row => row.name === offered)).toMatchObject({
+    name: offered, enabled: false, installed: true, official: true,
+    availability: 'installation', optional: true, removable: false,
+  })
   expect(await manager.removeBundle(offered)).toMatchObject({ changed: false, application: 'failed' })
 })
 

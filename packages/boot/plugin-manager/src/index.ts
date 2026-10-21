@@ -13,7 +13,7 @@ import { TypertRemoteService, Remote } from '@panedesk/dsh-typert-protocol'
 import { pluginEntryId, readPluginInventory } from '@panedesk/dsh-host-plugin-inventory'
 import {
   readPluginMeta, readProfileManifest, resolveBundleDir, loadOverlayPatches, composeEntries,
-  readProfilePatches, OPTIONAL_BUNDLES, bundlePatchPaths,
+  readProfilePatches, OPTIONAL_BUNDLES, bundlePatchPaths, installationBundleAnchors,
   evaluatePluginCompatibility, readProfileCompatibility, readProfileVersionExemptions,
   setProfileVersionExemption, PROFILE_COMPATIBILITY_FILENAME,
   OFFICIAL_ON_DEMAND_CATALOG, getDshRuntimeVersion, ResolutionRestartRequired,
@@ -319,16 +319,19 @@ export class PluginManager extends TypertRemoteService {
     const selected = bundleSelection(manifest)
     const recorded = manifest.dependencies ?? {}
     const dependencies = Object.keys(recorded)
-    const installation = JSON.parse(readFileSync(this.profile.installAnchor, 'utf8')) as InstallationManifest
+    const installation = new Set(installationBundleAnchors(this.profile.installAnchor).flatMap((anchor) => {
+      const manifest = JSON.parse(readFileSync(anchor, 'utf8')) as InstallationManifest
+      return Object.keys(manifest.dependencies ?? {})
+    }))
     const catalog = new Map(OFFICIAL_ON_DEMAND_CATALOG.map(entry => [entry.packageName, entry]))
-    const names = [...new Set([...selected, ...dependencies, ...Object.keys(installation.dependencies ?? {}), ...catalog.keys()])]
+    const names = [...new Set([...selected, ...dependencies, ...installation, ...catalog.keys()])]
     const bundles: BundleInfo[] = []
     const runtimeVersion = getDshRuntimeVersion()
     for (const name of names) {
       const installed = dependencies.includes(name)
       const optional = OPTIONAL_BUNDLES.includes(name)
       const enabled = selected.includes(name)
-      const shipped = Object.hasOwn(installation.dependencies ?? {}, name)
+      const shipped = installation.has(name)
       const offered = catalog.get(name)
       const official = optional || offered !== undefined
       let target: Pick<BundleInfo, 'installTarget'> = {}

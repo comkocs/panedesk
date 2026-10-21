@@ -714,6 +714,18 @@ function packageDirFromAnchor(anchor: string, packageName: string): string | und
 }
 
 /**
+ * Resolve installation anchors in precedence order, including the optional full-preset carrier.
+ * Only these manifests' direct dependencies are installation-provided bundles, not their dependency closure.
+ * @param installAnchor - absolute path of the launcher's package.json.
+ * @returns the launcher manifest followed by the carrier manifest when installed.
+ */
+export function installationBundleAnchors(installAnchor: string): string[] {
+  // In non-hoisted layouts the carrier's bundles sit beneath it, not beside the launcher.
+  const carrierDir = packageDirFromAnchor(installAnchor, FULL_PRESET_CARRIER)
+  return [installAnchor, ...carrierDir === undefined ? [] : [join(carrierDir, 'package.json')]]
+}
+
+/**
  * Resolve one bundle package's directory: installation anchor first, then the
  * profile directory. The installation-first order is the contract that
  * `@panedesk/dsh-base` (and every other in-box bundle) always comes from
@@ -728,11 +740,7 @@ function packageDirFromAnchor(anchor: string, packageName: string): string | und
 export function resolveBundleDir(
   binName: string, packageName: string, installAnchor: string, profileDir: string,
 ): string {
-  // The full-preset carrier is an optional peer of the launcher: in a non-hoisted
-  // layout its bundles sit beneath it rather than beside the launcher, so the
-  // carrier's own manifest is a resolution anchor between the two above.
-  const carrierDir = packageDirFromAnchor(installAnchor, FULL_PRESET_CARRIER)
-  const anchors = [installAnchor, ...carrierDir === undefined ? [] : [join(carrierDir, 'package.json')], join(profileDir, 'package.json')]
+  const anchors = [...installationBundleAnchors(installAnchor), join(profileDir, 'package.json')]
   for (const anchor of anchors) {
     const dir = packageDirFromAnchor(anchor, packageName)
     if (dir !== undefined) return dir

@@ -64,6 +64,7 @@ export {
   bundlePatchFiles,
   bundlePatchPaths,
   initProfile,
+  installationBundleAnchors,
   removeLinkProjections,
   loadProfile,
   loadProfileDirectory,
