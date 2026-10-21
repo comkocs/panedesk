@@ -14,7 +14,7 @@ import {
   toolPairingBalancedAfter,
   toolPairingBalancedBefore,
 } from '@panedesk/dsh-compaction'
-import type { CompactionResult } from '@panedesk/dsh-compaction'
+import type { CompactionCheckpoint, CompactionResult } from '@panedesk/dsh-compaction'
 import type { CommandId } from '@panedesk/dsh-commands/brand'
 import { createUserMessage, errorChain } from '@panedesk/dsh-llm'
 import type { Message, UserMessage } from '@panedesk/dsh-llm'
@@ -25,6 +25,15 @@ import { frameSummary } from './summarizer.ts'
 import type { SummarizationInput, SummaryResult } from './summarizer.ts'
 interface RegionDependencies {
   readonly meter: TokenMeter
+  checkpoint(payload: {
+    session: Session
+    checkpoint: CompactionCheckpoint
+    additionalTokenBudget: number
+    estimateTokens: (content: CompactionCheckpoint['content']) => number
+    signal?: AbortSignal
+  }): Promise<CompactionCheckpoint>
+  committed(payload: { session: Session; result: CompactionResult; checkpoint: CompactionCheckpoint }): Promise<void>
+  reportCommittedFailure(): void
   summarize(input: SummarizationInput, agent: Agent, signal?: AbortSignal): Promise<SummaryResult>
   recover(error: unknown, agent: Agent, sourceEventSeqs: readonly SessionSeq[], signal?: AbortSignal): boolean
 }
@@ -217,6 +226,7 @@ export async function compactSurfaceRegion(
   let closed = false
   let closing = false
   let stage: TransactionFailure['stage'] = 'summary'
+  let checkpoint: CompactionCheckpoint | undefined
 
   try {
     const prepared = prepareCompaction(dependencies, session, selection)
@@ -229,14 +239,45 @@ export async function compactSurfaceRegion(
       assertStable,
       signal,
     )
-    if (options.owner === null) signal?.throwIfAborted()
-    assertStable(dependencies, session, summarized)
+    const baseMessage = summarized.checkpointMessage
+    const estimateTokens = (content: CompactionCheckpoint['content']): number =>
+      dependencies.meter.estimateMessage({ ...baseMessage, content })
+    const baseTokens = estimateTokens(baseMessage.content)
+    const additionalTokenBudget = Math.max(0, Math.ceil(summarized.shadowedRouteTokenCount) - 1 - baseTokens)
+    for (let attempt = 0; ; attempt += 1) {
+      if (options.owner === null) signal?.throwIfAborted()
+      const revision = SessionSeq(session.seq)
+      checkpoint = await dependencies.checkpoint({
+        session,
+        checkpoint: { content: baseMessage.content, sessionSeq: revision },
+        additionalTokenBudget,
+        estimateTokens,
+        ...signal === undefined ? {} : { signal },
+      })
+      const valid = checkpoint.validate === undefined || await checkpoint.validate()
+      if (options.owner === null) signal?.throwIfAborted()
+      assertStable(dependencies, session, summarized)
+      if (valid && session.seq === revision && checkpoint.sessionSeq === revision) break
+      if (attempt >= (checkpoint.retryLimit ?? 0)) {
+        throw new SurfaceChangedError('compaction: checkpoint snapshot did not stabilize within its retry limit')
+      }
+    }
+    const checkpointTokens = estimateTokens(checkpoint.content)
+    if (checkpointTokens >= summarized.shadowedRouteTokenCount) {
+      throw new Error(`summary is not smaller than the shadowed content (${checkpointTokens} estimated framed tokens >= ${summarized.shadowedRouteTokenCount})`)
+    }
     stage = 'commit'
-    const pending = commitCompactionBody(session, startEvent, summarized)
+    const pending = commitCompactionBody(session, startEvent, {
+      ...summarized, checkpointMessage: { ...baseMessage, content: checkpoint.content },
+    })
     closing = true
     const endEvent = session.append('compaction/end', lifecycle)
     closed = true
-    result = completeCompaction(pending, endEvent)
+    result = {
+      ...completeCompaction(pending, endEvent),
+      committedAt: Date.now(),
+      estimatedContextTokens: summarized.measurement.surfaceTokens,
+    }
   } catch (error: unknown) {
     failure = { error, stage: closing ? 'commit' : stage }
     if (!closing) {
@@ -247,6 +288,16 @@ export async function compactSurfaceRegion(
       } catch (closeError: unknown) {
         failure = { error: closeError, stage: 'commit' }
       }
+    }
+  }
+
+  if (result !== undefined && checkpoint !== undefined) {
+    try {
+      await dependencies.committed({ session, result, checkpoint })
+    } catch (error: unknown) {
+      // The replacement is already committed; never repeat it because accounting failed.
+      void error
+      dependencies.reportCommittedFailure()
     }
   }
 

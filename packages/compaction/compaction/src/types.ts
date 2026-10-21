@@ -100,6 +100,10 @@ export interface CompactionCheckpoint {
   watermarks?: Readonly<Record<string, string>>
   /** Session revision used to construct the checkpoint; revalidate before commit. */
   sessionSeq: SessionSeq
+  /** Recheck contributed snapshots immediately before admission; absent means no external snapshot was read. */
+  validate?: () => Promise<boolean>
+  /** Maximum reconstruction retries after a revision or snapshot validation failure; absent means zero. */
+  retryLimit?: number
 }
 
 /** Result of a successful compaction operation. */
@@ -114,6 +118,10 @@ export interface CompactionResult {
   summarySeq: SessionSeq
   /** The seq of the appended `compaction/end` event. */
   endSeq: SessionSeq
+  /** System wall clock at successful in-memory commit; absent for providers without this observation. */
+  committedAt?: number
+  /** Pre-compaction context estimate, separate from provider-reported input usage. */
+  estimatedContextTokens?: number
   /** The summary content blocks produced by the backend. */
   summary: ContentBlock[]
   /**

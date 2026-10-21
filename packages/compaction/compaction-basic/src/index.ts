@@ -438,6 +438,11 @@ export class BasicCompactionEngine extends CompactionEngine {
   private regionDependencies(): Parameters<typeof compactSurfaceRegion>[0] {
     return {
       meter: this.ctx.tokenMeter,
+      checkpoint: payload => this.ctx.waterfall('compaction/checkpoint', payload, () => Promise.resolve(payload.checkpoint)),
+      committed: payload => this.ctx.serial('compaction/committed', payload),
+      reportCommittedFailure: () => {
+        this.ctx.logger.error('compaction committed, but ledger recording failed; inspect the ledger before relying on compaction counts')
+      },
       summarize: (input, owner, abort) => this.summarize(input, owner, abort),
       recover: (error, agent, sourceEventSeqs, signal) => this.ctx.waterfall('compaction/summary-error', {
         session: agent.session,
