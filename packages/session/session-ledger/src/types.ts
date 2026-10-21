@@ -217,6 +217,15 @@ export interface LedgerRunStart extends LedgerContext {
 }
 /** Terminal lifecycle facts; first committed end wins and late observations remain separate events. */
 export interface LedgerRunFinish {
+  /** External backend totals are aggregate observations, never duplicate physical calls. */
+  externalBackend?: {
+    definitionEnforcement: 'not-applicable'
+    usage?: TokenUsage
+    /** Original numeric counters where disjoint cache semantics are not specified by the backend. */
+    reportedUsage?: Readonly<Record<string, number>>
+    usageState: LedgerUsageState
+    processIdentityState: 'reported' | 'not-reported'
+  }
   runId: LedgerRunId
   endedAt?: number
   observedAt: number

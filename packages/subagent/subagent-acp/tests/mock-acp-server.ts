@@ -211,7 +211,9 @@ function makeAgent() {
           resolveCancel = (reason) => { resolve({ stopReason: reason }) }
         })
       }
-      return { stopReason: STOP }
+      return { stopReason: STOP, ...process.env.MOCK_USAGE === undefined ? {} : {
+        usage: { inputTokens: 12, outputTokens: 3, totalTokens: 15, cachedReadTokens: 4 },
+      } }
     },
     cancel(_params: CancelNotification): Promise<void> {
       if (CRASH_ON_CANCEL) {

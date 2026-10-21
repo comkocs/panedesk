@@ -6,6 +6,7 @@
  * @module @panedesk/dsh-subagent-claude-code/run
  */
 
+import { recordExternalRun, type ExternalLedgerSpec } from './ledger.ts'
 import { randomUUID } from 'node:crypto'
 import {
   query as officialQuery,
@@ -147,7 +148,7 @@ function unattendedDiagnostic(
 /* jscpd:ignore-start -- sibling providers intentionally keep product-private
  * run inputs and error normalization instead of adding a shared lifecycle owner. */
 /** Fully resolved inputs for one official Claude Agent SDK query. */
-export interface ClaudeCodeRunSpec {
+export interface ClaudeCodeRunSpec extends ExternalLedgerSpec {
   /** Selected child working directory supplied to the SDK and real CLI. */
   readonly cwd: string
   /** Profile-selected native model; omitted to preserve Claude settings. */
@@ -386,6 +387,10 @@ export async function startClaudeCodeRun(
   request: SubagentStartRequest,
   spec: ClaudeCodeRunSpec,
 ): Promise<SubagentRun> {
+  return recordExternalRun(request, spec, observed => startClaudeCodeRunUnrecorded(request, observed))
+}
+
+async function startClaudeCodeRunUnrecorded(request: SubagentStartRequest, spec: ClaudeCodeRunSpec): Promise<SubagentRun> {
   const prompt = textTask(request.prompt)
   if (request.signal.aborted) {
     throw new Error('subagent-claude-code: request was aborted before SDK startup')
@@ -516,6 +521,22 @@ export async function startClaudeCodeRun(
   }
 
   const publishedQuery = query
+  async function* observedMessages(): AsyncGenerator<SDKMessage> {
+    for await (const message of publishedQuery) {
+      if (message.type === 'result') {
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- Older frames may omit usage.
+        if (message.usage !== undefined) {
+          spec.observeUsage?.({
+            inputTokens: message.usage.input_tokens,
+            outputTokens: message.usage.output_tokens,
+            cacheReadTokens: message.usage.cache_read_input_tokens,
+            cacheWriteTokens: message.usage.cache_creation_input_tokens,
+          })
+        }
+      }
+      yield message
+    }
+  }
   const publishedChild = child
   const publishedProcessFailure = childProcessFailure
   let receivedResult = false
@@ -523,7 +544,7 @@ export async function startClaudeCodeRun(
     attempt: async () => {
       try {
         return await Promise.race([
-          consumeClaudeQuery(publishedQuery, () => {
+          consumeClaudeQuery(observedMessages(), () => {
             capturePermissionDiagnostic(unattendedDiagnostic(
               spec.permissionMode,
               'tool permission',

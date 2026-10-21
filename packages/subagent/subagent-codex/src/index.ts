@@ -82,7 +82,11 @@ class CodexProvider implements SubagentProvider {
       }
       throw codexStartupFailure(error)
     }
+    const ledger = this.ctx.get('sessionLedger')
+    const parentContext = ledger?.contextFor(request.parent.session.id)
     const spec: CodexRunSpec = {
+      ...ledger === undefined ? {} : { ledger },
+      ...parentContext === undefined ? {} : { parentContext },
       cwd,
       ...this.config.model === undefined ? {} : { model: this.config.model },
       permissionMode: this.config.permissionMode,

@@ -248,6 +248,9 @@ export class CodexAppServerWire {
     output.on('error', this.onOutputError)
   }
 
+  /** Optional observer for source usage counters; never infers disjoint cache billing. */
+  observeReportedUsage: ((usage: Readonly<Record<string, number>>) => void) | undefined
+
   /** Start reading app-server frames. */
   start(): void {
     this.transport.start()
@@ -637,6 +640,25 @@ export class CodexAppServerWire {
     params: JsonObject,
     order?: number,
   ): void {
+    if (method === 'thread/tokenUsage/updated') {
+      if (params.threadId !== this.threadId) return
+      const id = params.turnId
+      if (typeof id !== 'string' || this.turnCompleted === undefined) return
+      if (this.turnId === undefined) {
+        this.observePendingTurnId(id)
+        this.earlyTurnNotifications.push({ method, params, order: this.nextObservationOrder() })
+        return
+      }
+      if (id !== this.turnId) return
+      const total = object(object(params.tokenUsage, 'token usage').total, 'total token usage')
+      const counters: Record<string, number> = {}
+      for (const key of ['totalTokens', 'inputTokens', 'cachedInputTokens', 'cacheWriteInputTokens', 'outputTokens', 'reasoningOutputTokens']) {
+        const value = total[key]
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) counters[key] = value
+      }
+      if (Object.keys(counters).length > 0) this.observeReportedUsage?.(counters)
+      return
+    }
     if (method === 'turn/started') {
       const threadId = string(params.threadId, 'turn/started thread id')
       if (threadId !== this.threadId) return

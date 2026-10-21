@@ -14476,6 +14476,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
@@ -14546,6 +14549,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
@@ -14616,6 +14622,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl

@@ -7,6 +7,7 @@
  * @module @panedesk/dsh-subagent-codex/run
  */
 
+import { recordExternalRun, type ExternalLedgerSpec } from './ledger.ts'
 import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -137,7 +138,7 @@ export function codexAppServerArgv(): string[] {
 }
 
 /** Fully resolved inputs for one Codex app-server run. */
-export interface CodexRunSpec {
+export interface CodexRunSpec extends ExternalLedgerSpec {
   /** Selected child working directory, also supplied to `thread/start`. */
   readonly cwd: string
   /** Profile-selected native model; omitted to preserve Codex settings. */
@@ -226,6 +227,10 @@ export async function startCodexRun(
   request: SubagentStartRequest,
   spec: CodexRunSpec,
 ): Promise<SubagentRun> {
+  return recordExternalRun(request, spec, observed => startCodexRunUnrecorded(request, observed))
+}
+
+async function startCodexRunUnrecorded(request: SubagentStartRequest, spec: CodexRunSpec): Promise<SubagentRun> {
   const texts = textTask(request.prompt)
   if (request.signal.aborted) {
     throw new Error('subagent-codex: request was aborted before app-server startup')
@@ -253,6 +258,7 @@ export async function startCodexRun(
     spec.permissionMode,
     spec.model,
   )
+  wire.observeReportedUsage = spec.observeReportedUsage
   const onStderr = (chunk: Buffer | string): void => {
     const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
     try {

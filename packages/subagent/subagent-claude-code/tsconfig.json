@@ -10,6 +10,9 @@
   ],
   "references": [
     {
+      "path": "../../session/session-ledger"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {
