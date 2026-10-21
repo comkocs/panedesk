@@ -38,13 +38,13 @@ describe('compaction-tool-result-pruner real Loader composition', () => {
     context = new Context()
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
-    context.loader.builtins.include = Include
-    context.loader.import = async (specifier: string) => {
-      if (specifier === 'cordis:include') return Include
-      if (specifier === '@panedesk/dsh-session-projection') return SessionProjectionRegistry
-      if (specifier === '@panedesk/dsh-token-meter') return TokenMeter
-      if (specifier === '@panedesk/dsh-compaction-tool-result-pruner') return ToolResultPruner
-      throw new Error(`unexpected Loader import: ${specifier}`)
+    context.loader.builtins.include = class extends Include {
+      override async import(specifier: string) {
+        if (specifier === '@panedesk/dsh-session-projection') return SessionProjectionRegistry
+        if (specifier === '@panedesk/dsh-token-meter') return TokenMeter
+        if (specifier === '@panedesk/dsh-compaction-tool-result-pruner') return ToolResultPruner
+        throw new Error(`unexpected Loader import: ${specifier}`)
+      }
     }
     await context.loader.create({
       name: 'cordis:include',

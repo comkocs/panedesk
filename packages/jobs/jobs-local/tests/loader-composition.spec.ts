@@ -32,11 +32,11 @@ describe('jobs-local through a real Loader composition', () => {
     context = new Context()
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
-    context.loader.builtins.include = Include
-    context.loader.import = async (specifier: string) => {
-      if (specifier === 'cordis:include') return Include
-      if (specifier === '@panedesk/dsh-jobs-local') return LocalJobRegistry
-      throw new Error(`unexpected Loader import: ${specifier}`)
+    context.loader.builtins.include = class extends Include {
+      override async import(specifier: string) {
+        if (specifier === '@panedesk/dsh-jobs-local') return LocalJobRegistry
+        throw new Error(`unexpected Loader import: ${specifier}`)
+      }
     }
     await context.loader.create({
       name: 'cordis:include',
