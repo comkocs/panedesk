@@ -269,7 +269,7 @@ describe('resolveBundleDir', () => {
     withFictionalTemplate(['fictional-full-bundle', '@panedesk/slim-fictional'])
     // A shipped bundle outside the slim pair arrives with the carrier, not with the slim launcher.
     expect(() => resolveBundleDir('panedesk', 'fictional-full-bundle', anchor, profileDir)).toThrow(
-      `panedesk: cannot resolve profile bundle "fictional-full-bundle" from the installation or ${profileDir}; `
+      `panedesk: cannot resolve profile bundle "fictional-full-bundle" from the panedesk installation or ${profileDir}; `
       + `install ${FULL_PRESET_CARRIER} beside the launcher to enable the full, web, acp, and sdk profiles`,
     )
     // The slim pair ships with the launcher itself and a custom bundle is the user's own dependency.

@@ -751,7 +751,7 @@ export function resolveBundleDir(
     ? `install ${FULL_PRESET_CARRIER} beside the launcher to enable the full, web, acp, and sdk profiles`
     : `run '${binName} plugin --profile ${basename(profileDir)} install' if its dependency is not installed`
   throw new Error(
-    `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the installation or ${profileDir}; ${hint}`,
+    `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the ${binName} installation or ${profileDir}; ${hint}`,
   )
 }
 
