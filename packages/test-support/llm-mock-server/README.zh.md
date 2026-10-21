@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-本包为测试与演示提供可编脚本的 Messages 兼容 HTTP／SSE（Server-Sent Events）端点，并为原生 SDK 消费方发送具名事件，使其无需提供方密钥即可检验模型提供方的失败与成功。每个已接受的 `/v1/messages` 请求依次消费下一个脚本行为，包括重置、停滞、畸形分片、限流、服务器错误、补全与工具调用。测试作者可以通过 `pnpm run mock:llm` 运行服务器，也可以调用 `startMockLlmServer`，后者会返回捕获的请求供断言使用。带种子的 `random` 行为支持可复现的混合故障压力运行。
+本包为测试与演示提供可编脚本的 Anthropic Messages、OpenAI Responses 与 OpenAI Chat Completions HTTP／SSE（Server-Sent Events）端点，使其无需提供方密钥即可检验模型提供方的失败与成功。已接受的 `/v1/messages`、`/v1/responses` 与 `/v1/chat/completions` 请求共用一个按到达顺序消费的脚本，包括重置、停滞、畸形分片、限流、服务器错误、补全与工具调用。测试作者可以通过 `pnpm run mock:llm` 运行服务器，也可以调用 `startMockLlmServer`，后者会返回捕获的请求供断言使用。带种子的 `random` 行为支持可复现的混合故障压力运行。
 
 ## 目录
 
@@ -88,7 +88,7 @@ pnpm run mock:llm \
 
 ### 时序与内容控制
 
-CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-size`、`--chunk-delay-ms`、`--disconnect-delay-ms`、`--retry-after-ms`、`--request-id`、`--tool-name` 与 `--tool-arguments`。毫秒延迟是 Node 定时器范围内的有界整数；`retryAfterMs` 还必须为正数。库接受相同的 camel-case 选项。可选的 `apiKey` 会精确验证 `x-api-key: <token>`；省略时接受任何 token。
+CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-size`、`--chunk-delay-ms`、`--disconnect-delay-ms`、`--retry-after-ms`、`--request-id`、`--tool-name` 与 `--tool-arguments`。毫秒延迟是 Node 定时器范围内的有界整数；`retryAfterMs` 还必须为正数。库接受相同的 camel-case 选项。可选的 `apiKey` 会为 Messages 精确验证 `x-api-key: <token>`，为 OpenAI 精确验证 `Authorization: Bearer <token>`；省略时接受任何 token。
 
 ### 用量、模型、标头与请求证据
 
@@ -100,9 +100,9 @@ CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-s
 | `responseModel` | `--response-model <name>` / `--omit-response-model` | 非空字面量字符串设置 `message_start.message.model`：使用请求的名称可模拟同名响应，使用其他名称可模拟异名响应。库中的 `null` 或省略标志会移除该字段；不配置时保留 `mock-model`。CLI 的两个模型标志互斥。 |
 | `responseHeaders` | `--response-headers <json>` | 为已接受请求添加字符串值标头，包括 HTTP 失败与停滞流。内置标头按不区分大小写的方式优先，包括现有的限流 `retry-after` 与失败 `x-request-id`。无效的标头名称或值会在监听前报错。标头发送前的重置仍不发送标头。 |
 
-服务器在启动时复制证据选项。CLI JSON 必须使用已文档化的字段与值类型。`server.requests` 仍是按序捕获请求正文的 API：每条记录公开解析后的正文、路径、标头与尝试序号，包括按提交原样保留的 `cache_control`、其中的 `ttl` 与任何 `prompt_cache_key`。无效请求不会被捕获，也不会消费序列。校验失败响应不添加证据标头。
+服务器在启动时复制证据选项。CLI JSON 必须使用已文档化的字段与值类型。`server.requests` 仍是按序捕获请求正文的 API：每条记录公开解析后的正文、路径、标头、尝试序号与 `protocol`（`messages`、`responses` 或 `chat_completions`），包括按提交原样保留的 `cache_control`、其中的 `ttl`、`prompt_cache_key` 与 `prompt_cache_options.ttl` / `.mode`。无效请求不会被捕获，也不会消费序列。校验失败响应不添加证据标头。
 
-仅支持 Anthropic Messages HTTP／SSE。不支持 OpenAI chat completions、OpenAI responses，以及 DeepSeek chat completion 用量字段（`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`）；这些路由仍返回 404，且不被捕获。这些选项不会启用额外的协议。
+OpenAI 路由以 SSE 流输出，与 Messages 一样支持可选的网关前缀；不实现非流式 OpenAI JSON 响应。Responses 发出 `response.created`、带索引的 `response.output_item.added`、文本／推理／函数参数增量、`response.output_item.done` 与 `response.completed`（`max_tokens` 时为 `response.incomplete`）。终结响应携带配置的 `model` 与 `usage.input_tokens` / `output_tokens`；缓存读写总数映射到 `input_tokens_details.cached_tokens` / `cache_write_tokens`。Chat 发出不具名的 `chat.completion.chunk` 数据，携带配置的 `model`、文本／推理／工具增量、结束原因分片、最后一个空 choices 用量分片与 `[DONE]`；计数映射到 `prompt_tokens`、`completion_tokens` 与 `prompt_tokens_details.cached_tokens` / `cache_write_tokens`。两者的 `total_tokens` 均为输入与输出之和，默认三个输入 token 与行为原有的输出计数，省略未配置的缓存详情，并忽略 Messages 专属的缓存保留期分档。`responseModel: null` 会移除两个协议中的模型字段。请求缓存选项只捕获、不校验或执行：调用方可断言 `30m` 或仅适用于 Responses 的 `12h` 等 GPT 保留期值。故障场景与 `retryAfterMs` 使用共享行为机制；正常 EOF 故障不发送协议终结事件。不实现 DeepSeek 专属的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` 输出字段。
 
 ### 可能出什么问题
 
@@ -122,13 +122,14 @@ CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-s
 
 ### 设计
 
-服务器建立在一个规则之上：每个已接受的 Messages 请求从按到达顺序排列的 FIFO 游标消费恰好一个行为，服务器从不重试或解读 harness 策略。校验先于游标推进——只有 `POST` 且路径以 `/v1/messages` 结尾、配置密钥时携带有效 API key、且 JSON 正文可解析的请求才消费脚本；其余请求都收到普通 4xx。`random` 条目在请求时通过带种子的 PRNG 按配置权重解析，因此一次运行可由其打印出的种子复现。
+服务器建立在一个规则之上：每个已接受的请求从共享的按到达顺序排列的 FIFO 游标消费恰好一个行为，服务器从不重试或解读 harness 策略。校验先于游标推进——只有 `POST` 且路径以 `/v1/messages`、`/v1/responses` 或 `/v1/chat/completions` 结尾、配置密钥时携带有效 API key、且 JSON 正文可解析的请求才消费脚本；其余请求都收到普通 4xx。`random` 条目在请求时通过带种子的 PRNG 按配置权重解析，因此一次运行可由其打印出的种子复现。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `startMockLlmServer`：listener、行为表、种子随机、遥测（telemetry）、捕获的请求记录 |
+| [`src/openai.ts`](src/openai.ts) | OpenAI Responses 与 Chat Completions SSE 数据与用量映射 |
 | [`src/cli.ts`](src/cli.ts) | `--sequence` 与时序/内容选项解析、JSONL stdout 遥测 |
 | [`src/bin.ts`](src/bin.ts) | `pnpm run mock:llm` 源入口 |
 

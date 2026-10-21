@@ -1,6 +1,6 @@
 /**
- * Scriptable Messages HTTP/SSE server for transport, protocol, and
- * semantic-empty LLM recovery tests. Each accepted Messages request
+ * Scriptable Messages and OpenAI HTTP/SSE server for transport, protocol, and
+ * semantic-empty LLM recovery tests. Each accepted request
  * consumes one behavior; the server never retries or interprets harness policy.
  *
  * @module @panedesk/dsh-llm-mock-server
@@ -11,6 +11,7 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:
 import { randomBytes } from 'node:crypto'
 import { isIP, type AddressInfo } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
+import { openAIEvents } from './openai.ts'
 
 /** Request-scoped behaviors accepted by {@link startMockLlmServer}. */
 export const MOCK_LLM_BEHAVIORS = [
@@ -95,7 +96,9 @@ export type MockLlmServerEvent =
 
 /** Captured wire request and its final server-side outcome. */
 export interface MockLlmRequestRecord {
-  /** One-based accepted Messages request number. */
+  /** Protocol selected by the accepted route. */
+  readonly protocol: 'messages' | 'responses' | 'chat_completions'
+  /** One-based accepted request number across all protocols. */
   readonly attempt: number
   /** Script entry consumed for this request before random resolution. */
   readonly scriptBehavior: MockLlmBehavior | 'script_exhausted'
@@ -113,7 +116,7 @@ export interface MockLlmRequestRecord {
   outcome?: MockLlmRequestOutcome
 }
 
-/** Messages usage fields; omitted counters retain their existing defaults or remain absent. */
+/** Shared usage counters in Messages names; OpenAI routes map them to protocol-specific fields. */
 export interface MockLlmUsage {
   /** Input tokens reported at message start; defaults to three. */
   readonly input_tokens?: number
@@ -138,7 +141,7 @@ export interface MockLlmServerOptions {
   readonly host?: string
   /** TCP port; zero requests an OS-assigned port. */
   readonly port?: number
-  /** Optional exact API key; omission accepts any x-api-key header. */
+  /** Optional exact API key: Messages uses x-api-key, OpenAI uses Bearer authorization; omission accepts any key. */
   readonly apiKey?: string
   /** Ordered request behaviors; exhaustion fails loud unless `repeatLast` is true. */
   readonly sequence: readonly MockLlmBehavior[]
@@ -168,9 +171,9 @@ export interface MockLlmServerOptions {
   readonly toolName?: string
   /** Raw JSON arguments emitted by `tool_call_success`. */
   readonly toolArguments?: string
-  /** Optional Messages usage counters, each a non-negative safe integer. */
+  /** Optional shared usage counters, each a non-negative safe integer; cache lifetime splits are Messages-only. */
   readonly usage?: Readonly<MockLlmUsage>
-  /** Message-start model: a literal name, null to omit, or undefined for `mock-model`. */
+  /** Returned model: a literal name, null to omit, or undefined for `mock-model`. */
   readonly responseModel?: string | null
   /** Additional HTTP headers; built-in headers take precedence, case-insensitively. */
   readonly responseHeaders?: Readonly<Record<string, string>>
@@ -180,7 +183,7 @@ export interface MockLlmServerOptions {
 
 /** Running mock server and captured request state. */
 export interface MockLlmServer {
-  /** Base URL without `/v1`; the endpoint is `/v1/messages`. */
+  /** Base URL without `/v1`; supports Messages, Responses, and Chat Completions endpoints. */
   readonly baseURL: string
   /** Actual bound port, including an OS-assigned value. */
   readonly port: number
@@ -525,6 +528,27 @@ async function runBehavior(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
+  if (record.protocol !== 'messages') {
+    const events = openAIEvents(options, record)
+    if (events !== null) {
+      openSse(response, record.behavior === 'wrong_content_type' ? 'application/json' : undefined)
+      const delayMs = record.behavior === 'slow_success' || record.behavior === 'partial_disconnect' ? options.chunkDelayMs : 0
+      for (const event of events) {
+        writeSse(record, response, event)
+        if (!await pause(delayMs, response)) {
+          finishRecord(options, record, 'client_closed')
+          return
+        }
+      }
+      if (record.behavior === 'partial_disconnect') {
+        await disconnect(options, record, response)
+        return
+      }
+      response.end()
+      finishRecord(options, record, 'completed')
+      return
+    }
+  }
   switch (record.behavior) {
     case 'script_exhausted':
       httpError(options, record, response, 500, 'mock script exhausted', 'MOCK_SCRIPT_EXHAUSTED')
@@ -687,8 +711,8 @@ function chooseRandomBehavior(
 }
 
 /**
- * Start a local Messages server that consumes one configured behavior
- * per accepted request. Only a `POST` path ending in `/v1/messages` consumes the script;
+ * Start a local Messages and OpenAI server with one shared behavior sequence.
+ * Only `POST` paths ending in `/v1/messages`, `/v1/responses`, or `/v1/chat/completions` consume the script;
  * invalid routes, methods, API keys, and JSON receive ordinary 4xx
  * responses. Closing the handle terminates stalled connections.
  *
@@ -724,11 +748,17 @@ export async function startMockLlmServer(options: MockLlmServerOptions): Promise
       response.writeHead(405, { allow: 'POST' }).end()
       return
     }
-    if (!path.endsWith('/v1/messages')) {
+    const protocol = path.endsWith('/v1/messages') ? 'messages'
+      : path.endsWith('/v1/responses') ? 'responses'
+        : path.endsWith('/v1/chat/completions') ? 'chat_completions' : undefined
+    if (protocol === undefined) {
       response.writeHead(404).end()
       return
     }
-    if (resolved.apiKey !== undefined && request.headers['x-api-key'] !== resolved.apiKey) {
+    const authenticated = protocol === 'messages'
+      ? request.headers['x-api-key'] === resolved.apiKey
+      : request.headers.authorization === `Bearer ${resolved.apiKey}`
+    if (resolved.apiKey !== undefined && !authenticated) {
       response.writeHead(401, { 'content-type': 'application/json' })
       response.end(JSON.stringify({ error: { message: 'invalid mock API key', code: 'invalid_api_key' } }))
       return
@@ -746,6 +776,7 @@ export async function startMockLlmServer(options: MockLlmServerOptions): Promise
     for (const [name, value] of Object.entries(resolved.responseHeaders)) response.setHeader(name, value)
     const selected = selectBehavior()
     const record: MockLlmRequestRecord = {
+      protocol,
       attempt: requests.length + 1,
       scriptBehavior: selected.scriptBehavior,
       behavior: selected.behavior,

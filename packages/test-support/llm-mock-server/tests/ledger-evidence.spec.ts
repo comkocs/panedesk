@@ -155,12 +155,14 @@ describe('mock ledger evidence options', () => {
     })
   })
 
-  it.each(['/v1/chat/completions', '/v1/responses'])('does not add the unsupported %s protocol', async (path) => {
-    const server = await start()
+  it.each(['/v1/chat/completions', '/v1/responses'])('captures the supported %s protocol with evidence', async (path) => {
+    const server = await start({ usage: { input_tokens: 12 }, responseModel: 'returned-model' })
     const response = await fetch(`${server.baseURL}${path}`, { method: 'POST', body: '{}' })
-    expect(response.status).toBe(404)
-    expect(server.requests).toEqual([])
-    await response.text()
+    expect(response.status).toBe(200)
+    expect(server.requests).toEqual([expect.objectContaining({ path, body: {}, attempt: 1 })])
+    const wire = await response.text()
+    expect(wire).toContain('returned-model')
+    expect(wire).toContain(path.endsWith('/responses') ? '"input_tokens":12' : '"prompt_tokens":12')
   })
 
   it.each([
