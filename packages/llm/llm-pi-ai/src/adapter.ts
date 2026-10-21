@@ -61,7 +61,7 @@ import { idleWatchdog, timeoutOf } from '@panedesk/dsh-timeout'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
 import { requestImageTarget, toPiContext } from './context.ts'
 import { conversationUpdates, createModels, getSupportedThinkingLevels } from './models.ts'
-import { toStreamChunks } from './stream.ts'
+import { PiResponseEvidence, toStreamChunks } from './stream.ts'
 
 /**
  * Initially active declaration added to an Anthropic request whose projected
@@ -71,6 +71,99 @@ const ANTHROPIC_TOOL_UPDATE_PLACEHOLDER: ToolSchema = {
   name: 'DeferredToolPlaceholder',
   description: 'Reserved placeholder that keeps deferred tool loading active; never call this tool.',
   parameters: { type: 'object', properties: {} },
+}
+
+type CacheMetadata = Pick<Extract<StreamChunk, { type: 'finish' }>, 'cacheWriteTiering' | 'cacheRetention' | 'cacheDowngradeReason'>
+
+interface RequestCache {
+  metadata: CacheMetadata
+  options: Pick<SimpleStreamOptions, 'cacheRetention' | 'onPayload'>
+}
+
+/** Resolve only explicitly supplied Harness controls; absent controls keep pi-ai defaults. */
+function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache {
+  const anthropic = model.api === 'anthropic-messages'
+    && (model.provider === 'anthropic' || /^claude(?:-|$)/i.test(model.id))
+  const version = /^gpt-(\d+)(?:\.(\d+))?(?:-|$)/i.exec(model.id)
+  const gpt = version !== null && (Number(version[1]) > 5 || Number(version[1]) === 5 && Number(version[2] ?? 0) >= 6)
+    && (model.api === 'openai-responses' || model.api === 'openai-completions')
+  const untiered = /^(?:deepseek|glm|grok)(?:-|$)/i.test(model.id)
+    || /^(?:deepseek|zai|z-ai|xai)$/.test(model.provider)
+  const metadata: CacheMetadata = {
+    cacheWriteTiering: anthropic ? { kind: 'tiered', short: '5m', long: '1h' }
+      : gpt ? { kind: 'tiered', short: '30m', long: '12h' }
+        : { kind: untiered ? 'untiered' : 'unknown' },
+  }
+  if (request.cache === undefined) return { metadata, options: {} }
+  const requested = request.cache.retention
+  const unsupported = (): never => {
+    throw new LlmError(`Cache retention "${requested}" is not supported for this model and API`, 'INVALID_CONFIG')
+  }
+  if (anthropic) {
+    const retention = requested === 'default' ? '1h' : requested
+    if (retention !== 'none' && retention !== '5m' && retention !== '1h') return unsupported()
+    return {
+      metadata: { ...metadata, cacheRetention: retention },
+      options: {
+        cacheRetention: retention === 'none' ? 'none' : 'short',
+        onPayload: (payload) => {
+          const body = payloadRecord(payload)
+          if (body === undefined) throw new LlmError('Expected an Anthropic request payload', 'INVALID_CONFIG')
+          const blocks: Record<string, unknown>[] = [body]
+          for (const key of ['system', 'tools']) {
+            const items = body[key]
+            if (Array.isArray(items)) for (const item of items) {
+              const block = payloadRecord(item)
+              if (block !== undefined) blocks.push(block)
+            }
+          }
+          if (Array.isArray(body.messages)) for (const message of body.messages) {
+            const content = payloadRecord(message)?.content
+            if (Array.isArray(content)) for (const item of content) {
+              const block = payloadRecord(item)
+              if (block !== undefined) blocks.push(block)
+            }
+          }
+          let marked = false
+          for (const block of blocks) {
+            if (!Object.hasOwn(block, 'cache_control')) continue
+            if (retention === 'none') delete block.cache_control
+            else { block.cache_control = { type: 'ephemeral', ttl: retention }; marked = true }
+          }
+          if (retention !== 'none' && !marked) body.cache_control = { type: 'ephemeral', ttl: retention }
+          return body
+        },
+      },
+    }
+  }
+  if (gpt) {
+    let retention = requested === 'default' ? '12h' : requested
+    if (retention !== '30m' && retention !== '12h') return unsupported()
+    const downgrade = retention === '12h' && model.api !== 'openai-responses'
+    if (downgrade) retention = '30m'
+    const key = request.cache.key ?? request.sessionId
+    return {
+      metadata: { ...metadata, cacheRetention: retention, ...downgrade ? { cacheDowngradeReason: 'non-responses-api' } : {} },
+      options: {
+        onPayload: (payload) => {
+          const body = payloadRecord(payload)
+          if (body === undefined) throw new LlmError('Expected an OpenAI request payload', 'INVALID_CONFIG')
+          // The SDK's older retention field must not conflict with the explicit TTL.
+          delete body.prompt_cache_retention
+          body.prompt_cache_options = { ttl: retention }
+          if (key !== undefined) body.prompt_cache_key = key
+          return body
+        },
+      },
+    }
+  }
+  if (requested !== 'default' && requested !== 'auto') return unsupported()
+  return { metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} }, options: {} }
+}
+
+function payloadRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown> : undefined
 }
 
 /** One resolution's frozen view: the profiles and the collection built from them. */
@@ -367,6 +460,8 @@ export class PiAiAdapter extends LlmAdapter {
     // the one it started with and the next call picks up the new one.
     const profile = this.profileOf(snapshot, options.provider)
     const model = this.modelOf(snapshot, options.provider, options.model)
+    const cache = requestCache(model, options)
+    const evidence = new PiResponseEvidence(model.id, model.api)
     const updates = conversationUpdates(model)
     // pi-ai collapses Anthropic tool updates without an initially active declaration.
     const tools = options.tools ?? []
@@ -415,6 +510,18 @@ export class PiAiAdapter extends LlmAdapter {
         }, onReplayDegrade)
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
+        ...cache.options,
+        onResponse: (response) => { evidence.status = response.status },
+        // SDKs throw non-2xx responses before onResponse; the public fetch seam
+        // preserves their status without parsing error text or changing retries.
+        ...['anthropic-messages', 'openai-responses', 'openai-completions'].includes(model.api) ? {
+          fetch: async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+            const response = await fetch(input, init)
+            if (!response.ok) evidence.status = response.status
+            return response
+          },
+        } : {},
+        onProviderStreamEvent: (event) => { evidence.observe(event) },
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
@@ -432,7 +539,9 @@ export class PiAiAdapter extends LlmAdapter {
             exhausted = true
             return
           }
-          yield result.value
+          yield evidence.enrich(result.value, {
+            ...cache.metadata, accountLabel: profile.displayName || profile.provider || 'unknown',
+          })
         }
       } finally {
         if (!exhausted) {
