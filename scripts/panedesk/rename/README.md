@@ -28,7 +28,8 @@ Tree mode reads `git ls-files` and treats every strictly decodable UTF-8 file as
 text, including files containing NUL bytes. UTF-8 decoding preserves any existing
 BOM; encoding preserves all untouched bytes, including NUL and line endings.
 It skips symlinks, invalid UTF-8 files, this tool's own directory, licenses, brand
-guidelines, frozen agent notes under `.agents/notes/archived/` and the private rename checklist.
+guidelines, frozen agent notes under `.agents/notes/archived/`, the private rename checklist,
+and `scripts/panedesk/fork-divergences.json`, whose match rules retain upstream bytes.
 `mapping.json` lists preserved lines by path and required text fragment; `--apply`, `--check` and `--patch` leave those lines unchanged so the two root README explanations retain the legacy names they explicitly reject.
 LibreOffice's externally published packages (including split path arguments) stay
 in their original scope. Provider headers, provider identities, Python package and
