@@ -199,6 +199,37 @@ describe('retry projection', () => {
 })
 
 describe('provider-routed retry policy', () => {
+  it.each([429, 503, undefined])('observes status %s without changing retry timing or durable payloads', async (status) => {
+    vi.useFakeTimers()
+    const adapter = new ScriptedAdapter([
+      new LlmError('busy', 'SERVER', status === undefined ? {} : { status }), textResponse('done'),
+    ])
+    const observations: retry.LlmRetryObservation[] = []
+    ;({ ctx: context } = await harness(adapter, undefined, (ctx) => {
+      ctx.on('llm/retry-observed', (observation) => { observations.push(observation) })
+    }))
+    const agent = await context.agentLoop.create(SessionId('retry-evidence'), { provider: 'mock', model: 'mock' })
+    const scheduled = waitForRetry(context, agent, 1)
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'go' }], source: { kind: 'user' } }))
+    await scheduled
+    await vi.advanceTimersByTimeAsync(499)
+    expect(adapter.requests).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+    await agent.whenIdle()
+    expect(adapter.requests).toHaveLength(2)
+    expect(observations.map(value => value.phase)).toEqual(['scheduled', 'started'])
+    for (const value of observations) {
+      if (status === undefined) {
+        expect(value).not.toHaveProperty('status')
+        expect(value).not.toHaveProperty('is429')
+        expect(value).not.toHaveProperty('is503')
+      } else expect(value).toMatchObject({ status, is429: status === 429, is503: status === 503 })
+    }
+    const started = agent.session.snapshotEvents().find(event => event.type === 'llm/retry-started')
+    expect(started?.data).not.toHaveProperty('status')
+    expect(started?.data).not.toHaveProperty('is429')
+  })
+
   it('records the scheduled delay before retrying the request', async () => {
     vi.useFakeTimers()
     const adapter = new ScriptedAdapter([

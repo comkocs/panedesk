@@ -40,6 +40,7 @@ export class BlockAssembler {
   private order: number[] = []
   private _usage: TokenUsage | undefined
   private _finish: FinishReason | undefined
+  private _finishMetadata: Extract<StreamChunk, { type: 'finish' }> | undefined
   private _replayState: ReplayEnvelope | undefined
 
   /**
@@ -88,6 +89,7 @@ export class BlockAssembler {
       }
       case 'finish': {
         this._finish = chunk.reason
+        this._finishMetadata = chunk
         this._replayState = chunk.replayState
         return
       }
@@ -186,6 +188,11 @@ export class BlockAssembler {
   /** Finish reason from the `finish` chunk; `{kind: 'stop'}` when the stream ended without one. */
   get finish(): FinishReason {
     return this._finish ?? { kind: 'stop' }
+  }
+
+  /** Terminal response evidence kept in memory, never copied into message source. */
+  get finishMetadata(): Extract<StreamChunk, { type: 'finish' }> | undefined {
+    return this._finishMetadata
   }
 
   /**

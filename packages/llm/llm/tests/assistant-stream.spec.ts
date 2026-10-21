@@ -20,6 +20,27 @@ import {
 import type { AssistantStreamRecord, AssistantStreamRun, StreamChunk, TimedStreamChunk } from '@panedesk/dsh-llm'
 
 describe('AssistantStreamAccumulator', () => {
+  it.each(['stop', 'error'] as const)('retains complete finish evidence for a %s attempt without changing message source', (kind) => {
+    const finish: Extract<StreamChunk, { type: 'finish' }> = {
+      type: 'finish',
+      reason: kind === 'stop' ? { kind } : { kind, failure: { code: 'SERVER', message: 'busy', status: 503 } },
+      responseModel: 'model-b', responseModelReported: 'different', httpStatus: kind === 'stop' ? 200 : 503,
+      accountLabel: 'route-a', cacheWriteTiering: { kind: 'tiered', short: '30m', long: '12h' },
+      cacheRetention: '30m', cacheDowngradeReason: 'non-responses-api',
+    }
+    const accumulator = new AssistantStreamAccumulator()
+    accumulator.push({ time: 1, chunk: { type: 'text-delta', index: 0, text: 'partial' } })
+    accumulator.push({ time: 2, chunk: finish })
+    const compact = accumulator.snapshot()
+    expect(lastAssistantStreamChunk(compact, 'finish')).toEqual(finish)
+    expect(expandAssistantStream(compact).at(-1)?.chunk).toEqual(finish)
+    const assembled = assembleAssistantStream(compact)
+    expect(assembled.finishMetadata).toEqual(finish)
+    expect(assembled.message({ provider: 'route-a', model: 'model-a' }).source)
+      .toEqual({ kind: 'model', provider: 'route-a', model: 'model-a' })
+    expect(new BlockAssembler().finishMetadata).toBeUndefined()
+  })
+
   it('keeps delta boundaries and timestamps while compacting one attempt', () => {
     const chunks: readonly TimedStreamChunk[] = [
       { time: 1_000, chunk: { type: 'text-delta', index: 0, text: 'hel' } },
