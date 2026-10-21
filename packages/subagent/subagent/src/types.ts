@@ -14,6 +14,31 @@ import type { Branded } from '@panedesk/dsh-brand'
 import type { ContentBlock, MessageId } from '@panedesk/dsh-llm'
 import type { SessionEvent, SessionId } from '@panedesk/dsh-session'
 import type { ObjectJsonSchema } from '@panedesk/dsh-tools'
+import type { Scoped } from '@panedesk/dsh-scope'
+import type { SubagentRuntime } from './index.ts'
+
+declare module '@panedesk/cordis' {
+  interface Events {
+    /**
+     * Persist launch intent before starting child execution; a rejection refuses startup.
+     * Scoped dispatch uses the delegating parent, independently of the existing emit notifications.
+     * @param payload.parent - delegating agent.
+     * @param payload.info - reserved run and child identity.
+     * @param payload.request - accepted task options, including declared delivery files.
+     * @mode serial
+     */
+    'subagent/before-start'(this: Scoped<SubagentRuntime>, payload: { parent: Agent; info: SubagentRunInfo; request: SubagentStartRequest }): Promise<void> | void
+    /**
+     * Persist terminal facts after cleanup and before activation.result settles.
+     * A listener failure must be reported without suppressing remaining cleanup or inventing success.
+     * @param payload.parent - delegating agent.
+     * @param payload.info - paired run identity and observed outcome.
+     * @param payload.result - captured result, including partial output.
+     * @mode serial
+     */
+    'subagent/after-settle'(this: Scoped<SubagentRuntime>, payload: { parent: Agent; info: SubagentRunEndInfo; result: SubagentResult }): Promise<void> | void
+  }
+}
 
 /** Identifies one accepted subagent run across its lifecycle event pair. */
 export type SubagentRunId = Branded<'SubagentRunId'>
@@ -136,6 +161,8 @@ export interface SubagentCapabilities {
 export interface SubagentStartRequest {
   /** Initial child directory; relative paths resolve against the parent's current directory. Omitted inherits that directory at start. */
   readonly cwd?: string
+  /** Declared delivery file paths, validated against the authorized workspace; omission requests no file checks. */
+  readonly deliveryPaths?: readonly string[]
   /**
    * Independent preset id; omission joins the parent's current generation.
    * Requires a provider with `capabilities.agentPreset` that does not inherit

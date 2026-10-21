@@ -185,6 +185,8 @@ export interface TokenUsage {
   totalTokens?: number
   cacheReadTokens?: number
   cacheWriteTokens?: number
+  /** Long-tier writes included in cacheWriteTokens; short-tier writes are the remainder. */
+  cacheWriteLongTokens?: number
   reasoningTokens?: number
 }
 
@@ -479,6 +481,12 @@ export type StreamChunk =
     reason: FinishReason
     /** Replay metadata for a successful response; see {@link ReplayEnvelope}. */
     replayState?: ReplayEnvelope
+    /** Model name observed on the wire; absent when missing or unobservable. */
+    responseModel?: string
+    /** Whether the wire reported the requested name, another name, no name, or could not be observed. */
+    responseModelReported?: ResponseModelReported
+    /** Observed HTTP response status; absent when transport observation is unavailable. */
+    httpStatus?: number
   }
 
 /**
@@ -525,6 +533,20 @@ export interface ToolHistory {
   }[]
 }
 
+/** Provider cache retention; default selects the shortest supported tier of at least one hour. */
+export type CacheRetention = 'default' | 'none' | '5m' | '1h' | '30m' | '12h' | 'auto'
+
+/** Frozen request cache controls; adapters validate the selected route's supported values. */
+export interface LlmCacheControl {
+  /** Default means Anthropic 1h or OpenAI 12h; non-Responses OpenAI falls back to 30m with a recorded reason. */
+  retention: CacheRetention
+  /** Stable session cache key; omission leaves key selection to the session cache policy. */
+  key?: string
+}
+
+/** Wire-model observation, never inferred from an SDK's request-initialized model value. */
+export type ResponseModelReported = 'same' | 'different' | 'missing' | 'unobservable'
+
 /** A single model request, fully assembled. */
 export interface GenerateOptions {
   /** Registered provider route selecting the adapter instance. */
@@ -567,5 +589,7 @@ export interface GenerateOptions {
    * map the purpose to model-hidden transport metadata. Ordinary conversation
    * requests leave it unset.
    */
-  purpose?: 'compaction' | 'session-title'
+  purpose?: 'compaction' | 'session-title' | 'keepalive'
+  /** Frozen cache controls; omission preserves existing route behavior. */
+  cache?: LlmCacheControl
 }

@@ -30,6 +30,20 @@ describe('callConfigEquals', () => {
   })
 })
 
+describe('cache controls', () => {
+  it('compares retention and stable keys by value without defaulting absent controls', () => {
+    const base = { provider: 'p', model: 'm' }
+    const cache = { retention: 'default' as const, key: 'session-a' }
+    expect(callConfigEquals({ ...base, cache }, { ...base, cache: { ...cache } })).toBe(true)
+    expect(callConfigEquals({ ...base, cache }, base)).toBe(false)
+    expect(callConfigEquals(base, { ...base, cache })).toBe(false)
+    expect(callConfigEquals({ ...base, cache }, { ...base, cache: { ...cache, retention: '1h' } })).toBe(false)
+    expect(callConfigEquals({ ...base, cache }, { ...base, cache: { ...cache, key: 'session-b' } })).toBe(false)
+    expect(callConfigEquals({ ...base, cache }, { ...base, cache: { retention: 'default' } })).toBe(false)
+    expect(callConfigEquals({ ...base, cache: { retention: '12h' } }, { ...base, cache: { retention: '12h' } })).toBe(true)
+  })
+})
+
 describe('deepFreeze', () => {
   it('freezes nested structure in place and returns the same reference', () => {
     const value = { a: { b: [1, { c: 'x' }] } }

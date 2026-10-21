@@ -6,7 +6,7 @@
  * @module dsh-llm/call-config
  */
 
-import type { GenerateOptions, LlmResolvedModelInfo } from './types.ts'
+import type { GenerateOptions, LlmCacheControl, LlmResolvedModelInfo } from './types.ts'
 import type { ReasoningEffortId } from './brand.ts'
 
 /** Process-local identities of request objects assembled by dsh-agent-loop. */
@@ -18,6 +18,8 @@ export interface LlmCallControls {
   temperature?: number
   maxTokens?: number
   stop?: string[]
+  /** Frozen cache controls; omission preserves existing route behavior. */
+  cache?: LlmCacheControl
 }
 
 // TODO(call-config-shape): Revisit which fields are epoch-level for cache reuse
@@ -71,6 +73,8 @@ export function callConfigEquals(a: LlmCallConfig, b: LlmCallConfig): boolean {
     || a.reasoningEffort !== b.reasoningEffort
     || a.temperature !== b.temperature
     || a.maxTokens !== b.maxTokens
+    || a.cache?.retention !== b.cache?.retention
+    || a.cache?.key !== b.cache?.key
   ) return false
   if (a.stop === undefined || b.stop === undefined) return a.stop === b.stop
   return a.stop.length === b.stop.length && a.stop.every((s, i) => s === b.stop?.[i])

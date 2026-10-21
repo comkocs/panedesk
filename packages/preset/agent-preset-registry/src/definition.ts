@@ -1,12 +1,26 @@
 /** Declarative preset configuration and YAML validation. */
 import type { EntryOptions, JsExpr } from '@panedesk/cordis-plugin-loader'
 
+/** Runtime-enforced route, effort, and tool allowlist; fork keeps the parent's prompt and enforces these at execution. */
+export interface PresetExecutionPolicy {
+  readonly provider: string
+  readonly model: string
+  readonly reasoningEffort: string
+  readonly allowedTools: readonly string[]
+  /** Stable rule-composition identity, resolved from the locally installed definition. */
+  readonly rulesId: string
+  readonly version: string
+  readonly digest: string
+}
+
 /** Identity, display fields and child Cordis plugins of one preset. */
 export interface PresetDefinition {
   readonly id: string
   readonly name?: string
   readonly description?: string
   readonly order?: number
+  /** Optional enforced execution definition; omission retains the existing uncontrolled preset behavior. */
+  readonly executionPolicy?: PresetExecutionPolicy
   readonly plugins: readonly (Omit<EntryOptions, 'id' | 'disabled'> & { id?: string; disabled?: EntryOptions['disabled'] | JsExpr })[]
 }
 

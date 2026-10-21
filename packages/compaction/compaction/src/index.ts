@@ -10,10 +10,10 @@
 import { Context, Service } from '@panedesk/cordis'
 import type { Session, SessionSeq } from '@panedesk/dsh-session'
 import type { CommandId } from '@panedesk/dsh-commands/brand'
-import type { CompactionResult } from './types.ts'
+import type { CompactionCheckpoint, CompactionResult } from './types.ts'
 import type { CompactionCheckpointSource } from './checkpoint.ts'
 
-export type { CompactionResult } from './types.ts'
+export type { CompactionCheckpoint, CompactionResult } from './types.ts'
 export { CompactionId } from './brand.ts'
 export { toolPairingBalancedAfter, toolPairingBalancedBefore } from './tool-pairing.ts'
 // The checkpoint source constructor and predicate are declared on the cordis-free
@@ -90,6 +90,25 @@ declare module '@panedesk/cordis' {
     compaction: CompactionEngine
   }
   interface Events {
+    /**
+     * Extend a framed summary before final token budgeting; listeners call next() and preserve its contributions.
+     * The producer revalidates the session revision and contributed watermarks before committing.
+     * @param payload.session - session whose visible history will be replaced.
+     * @param payload.checkpoint - framed summary at the observed revision.
+     * @param payload.signal - optional cancellation signal.
+     * @param next - obtain the remaining checkpoint contributions.
+     * @mode waterfall
+     */
+    'compaction/checkpoint'(payload: { session: Session; checkpoint: CompactionCheckpoint; signal?: AbortSignal }, next: () => Promise<CompactionCheckpoint>): Promise<CompactionCheckpoint>
+    /**
+     * Record a successful committed replacement, keyed by session and summary sequence.
+     * Listener failure is reported after commit and cannot roll back the durable replacement.
+     * @param payload.session - session containing the committed replacement.
+     * @param payload.result - successful compaction facts and durable event sequences.
+     * @param payload.checkpoint - exact checkpoint accepted by the final budget check.
+     * @mode serial
+     */
+    'compaction/committed'(payload: { session: Session; result: CompactionResult; checkpoint: CompactionCheckpoint }): Promise<void> | void
     /**
      * Recover a failed summary request by synchronously recording a durable
      * change to its selected input. Return true only after making progress;

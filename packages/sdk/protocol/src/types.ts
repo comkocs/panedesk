@@ -8,9 +8,33 @@
  * @module @panedesk/dsh-sdk-protocol/types
  */
 
-import type { ContentBlock, ReasoningEffortId } from '@panedesk/dsh-llm'
+import type { ContentBlock, LlmCacheControl, ReasoningEffortId } from '@panedesk/dsh-llm'
 import type { SessionEvent } from '@panedesk/dsh-session'
 import type { SubagentStopReason } from '@panedesk/dsh-subagent'
+
+/** Expected installed preset version; the server must resolve local policy rather than trust client authority. */
+export interface InitializeExecutionPolicy {
+  presetId: string
+  version: string
+  digest: string
+}
+
+/** Non-sensitive inherited attribution and parent/child linkage; never written into the Session header. */
+export interface InitializeLedgerContext {
+  seat: string
+  window: string
+  taskId?: string
+  nodeId: string
+  identitySource: 'startup' | 'environment' | 'settings' | 'inherited' | 'free'
+  parentSessionId: string
+  rootSessionId: string
+  subagentRunId: string
+  parentRunId: string
+  /** Parent-reserved child id, explicitly mapped to the child's actual Session id. */
+  childSessionId: string
+  accountLabel?: string
+  deliveryPaths?: readonly string[]
+}
 
 /** Parameters for the process-wide SDK handshake. */
 export interface InitializeParams {
@@ -24,6 +48,14 @@ export interface InitializeParams {
   reasoningEffort?: ReasoningEffortId
   /** Optional positive output-token cap inherited by SDK-created agents and their in-process descendants. */
   maxTokens?: number
+  /** Installed controlled preset; omission preserves the existing handshake. */
+  agentPreset?: string
+  /** Expected installed policy; mismatch or absence of the named local definition rejects initialization. */
+  executionPolicy?: InitializeExecutionPolicy
+  /** Inherited ledger attribution; omission resolves local configured identity or free. */
+  ledgerContext?: InitializeLedgerContext
+  /** Session cache controls; omission resolves the local session policy. */
+  cachePolicy?: LlmCacheControl
 }
 
 /** Wire-stable server identity returned by initialization. */

@@ -158,6 +158,15 @@ export interface SubprocessCollectedOutputs {
   readonly stderr?: SubprocessOutputReader
 }
 
+/** Provider-observed process identity for accounting, not an alternate termination API. */
+export interface SubprocessIdentity {
+  readonly pid: number
+  /** Known managed process group; absent when unavailable or inapplicable. */
+  readonly processGroupId?: number
+  /** OS creation marker used to reject PID reuse; absent means identity is unverified. */
+  readonly startIdentity?: string
+}
+
 /**
  * A live subprocess and its provider-managed process range. Collected output
  * remains readable after exit; piped streams belong to the caller.
@@ -167,6 +176,8 @@ export interface SubprocessCollectedOutputs {
  * and observation limits.
  */
 export interface SubprocessHandle {
+  /** Observation only; omission means unavailable. All termination still uses terminate(). */
+  readonly processIdentity?: SubprocessIdentity
   /** The child's stdin, present iff spawned with `stdin: 'pipe'`. */
   readonly stdin: Writable | undefined
   /** The child's raw stdout, present iff spawned with `stdout: 'pipe'`. */

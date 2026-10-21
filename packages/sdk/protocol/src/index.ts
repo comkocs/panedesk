@@ -10,6 +10,7 @@
 
 export { JsonRpcLineTransport, JsonRpcResponseError } from './transport.ts'
 export type { JsonRpcTransportPeer } from './transport.ts'
+export type { InitializeExecutionPolicy, InitializeLedgerContext } from './types.ts'
 export type {
   HarnessSdkNotificationMap,
   HarnessSdkRequestMap,

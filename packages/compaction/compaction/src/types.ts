@@ -90,6 +90,18 @@ declare module '@panedesk/dsh-session/types' {
   }
 }
 
+/** Revisioned text checkpoint extensions, evaluated before the replacement token budget. */
+export interface CompactionCheckpoint {
+  /** Framed summary and escaped runtime data; the complete content is committed as a user message. */
+  content: ContentBlock[]
+  /** Ledger snapshot observation time; absent when no ledger extension contributed. */
+  asOf?: number
+  /** Opaque per-node durable watermarks; absent when no ledger snapshot was read. */
+  watermarks?: Readonly<Record<string, string>>
+  /** Session revision used to construct the checkpoint; revalidate before commit. */
+  sessionSeq: SessionSeq
+}
+
 /** Result of a successful compaction operation. */
 export interface CompactionResult {
   /** Stable identity shared by this compaction's complete durable lifecycle. */

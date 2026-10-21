@@ -269,6 +269,13 @@ declare module '@panedesk/cordis' {
      */
     'agent/disposed'(this: Scoped<Agent>, payload: { agent: Agent }): void
     /**
+     * Await durable lifecycle settlement after driver quiescence and before scope or session release.
+     * Failure rejects teardown without preventing remaining resource cleanup.
+     * @param payload.agent - the quiescent agent whose resources remain attached.
+     * @mode serial
+     */
+    'agent/ending'(this: Scoped<Agent>, payload: { agent: Agent }): Promise<void> | void
+    /**
      * Agent status changed (`idle` ⇄ `running`). A waking delivery enters
      * `running` synchronously after reserving cancellation; `idle` means no
      * driver remains scheduled or active.

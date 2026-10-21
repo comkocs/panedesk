@@ -18,6 +18,7 @@ import { activeCompositionModules, definitionComposition, mountedCompositionRows
 
 export { agentPresetProjectionDefinition } from './session.ts'
 export { entryListProblem, type PresetDefinition } from './definition.ts'
+export type { PresetExecutionPolicy } from './definition.ts'
 export { auditRows, leakedServices, type PresetMount, type RowAudit } from './mount.ts'
 export type { AgentPresetInspection } from './composition-inventory.ts'
 export type { AgentPreset, Config } from './preset.ts'
