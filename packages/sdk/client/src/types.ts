@@ -6,7 +6,7 @@
  */
 
 import type { ContentBlock, ReasoningEffortId } from '@panedesk/dsh-llm'
-import type { SdkPromptContentBlock } from '@panedesk/dsh-sdk-protocol'
+import type { InitializeParams, SdkPromptContentBlock } from '@panedesk/dsh-sdk-protocol'
 import type { SessionEvent } from '@panedesk/dsh-session'
 
 /** One server-to-client notification as received off the wire. */
@@ -54,6 +54,14 @@ export interface HarnessClientOptions {
 
 /** Options for the high-level {@link DeepSeekHarness} wrapper. */
 export interface DeepSeekHarnessOptions extends HarnessClientOptions {
+  /** Locally installed preset; omission preserves the profile's original composition. */
+  agentPreset?: InitializeParams['agentPreset']
+  /** Expected local policy version and digest; omission leaves legacy presets uncontrolled. */
+  executionPolicy?: InitializeParams['executionPolicy']
+  /** Inherited attribution; omission uses the runtime's local identity. */
+  ledgerContext?: InitializeParams['ledgerContext']
+  /** Session cache override; omission uses local cache settings. */
+  cachePolicy?: InitializeParams['cachePolicy']
   /** Workspace cwd recorded on every SDK-created session (default: the process cwd, else `process.cwd()`). */
   cwd?: string
   /** Provider route for SDK-created agents (default `deepseek-official`). */

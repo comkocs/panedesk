@@ -21,6 +21,7 @@ import {
   type SessionPromptParams,
   type SdkPromptContentBlock,
 } from '@panedesk/dsh-sdk-protocol'
+import { readProcessIdentity, type SubprocessIdentity, type SubprocessOutcome } from '@panedesk/dsh-subprocess'
 import { disposeRuntimeProcess } from './dispose.ts'
 import { resolveDshLaunch, type RuntimeProcessOptions } from './launch.ts'
 import type { HarnessClientOptions, HarnessNotification, NotificationFilter } from './types.ts'
@@ -196,6 +197,35 @@ export class HarnessClient {
   private spawnError: Error | undefined
   private streamsSettled: Promise<void> = Promise.resolve()
   private closeTask: Promise<void> | undefined
+  private identity: SubprocessIdentity | undefined
+  private spawnReady: Promise<void> = Promise.resolve()
+  private exitObserved: Promise<void> = Promise.resolve()
+  private spawnObserver: ((identity: SubprocessIdentity) => Promise<void>) | undefined
+  private exitObserver: ((outcome: SubprocessOutcome) => Promise<void>) | undefined
+
+  /** Immutable OS observation; absent until the direct child reports spawn. */
+  get processIdentity(): SubprocessIdentity | undefined { return this.identity }
+
+  /** Install durable lifecycle observers before spawning. Requests await the spawn observer.
+   * @param spawned - durable identity registration, whose rejection blocks initialization.
+   * @param exited - direct exit observer; close awaits its durable acknowledgement.
+   */
+  observeProcess(
+    spawned: (identity: SubprocessIdentity) => Promise<void>,
+    exited: (outcome: SubprocessOutcome) => Promise<void>,
+  ): void {
+    if (this.child !== undefined) throw new Error('Process observers must be installed before spawn')
+    this.spawnObserver = spawned
+    this.exitObserver = exited
+  }
+
+  /** Await OS spawn and durable identity registration without sending a frame.
+   * @returns acknowledgement, or the spawn/registration failure.
+   */
+  async waitForSpawn(): Promise<void> {
+    this.start()
+    await this.spawnReady
+  }
 
   /** @param options - dsh profile, patch, home, process, environment, and timeout options. */
   constructor(options?: HarnessClientOptions)
@@ -217,6 +247,17 @@ export class HarnessClient {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     this.child = child
+    this.spawnReady = new Promise<void>((resolve, reject) => {
+      child.once('error', reject)
+      child.once('spawn', () => {
+        if (child.pid === undefined) { reject(new Error('Spawn did not publish a PID')); return }
+        const identity = readProcessIdentity(child.pid)
+        this.identity = identity
+        Promise.resolve().then(() => this.spawnObserver?.(identity)).then(resolve, reject)
+      })
+    })
+    // Keep the original rejection for waiters without an unhandled rejection on start-only use.
+    void this.spawnReady.catch(() => {})
     child.once('error', (error) => {
       this.spawnError = error
       // A spawn failure destroys the pipes without an input 'end' edge, so the
@@ -250,13 +291,19 @@ export class HarnessClient {
       settled.stderr = true
       maybeSettle()
     })
-    child.once('exit', (code) => {
+    child.once('exit', (code, signal) => {
+      this.exitObserved = Promise.resolve().then(() => this.exitObserver?.({ exitCode: code, signal }))
+      void this.exitObserved.catch(() => {})
       this.exitCode = code
       settled.exited = true
       maybeSettle()
       this.failSubscriptions(this.closedError('DeepSeek Harness runtime exited'))
     })
-    child.once('close', () => {
+    child.once('close', (exitCode, signal) => {
+      if (this.exitCode === undefined) {
+        this.exitObserved = Promise.resolve().then(() => this.exitObserver?.({ exitCode, signal }))
+        void this.exitObserved.catch(() => {})
+      }
       // All stdio has settled: stdout 'end' already drained every tail frame,
       // so closing now cannot drop responses — it only fails requests that
       // will never be answered.
@@ -344,6 +391,13 @@ export class HarnessClient {
    */
   async request(method: string, params?: object, timeoutMs?: number): Promise<unknown> {
     this.start()
+    if (method !== 'shutdown') {
+      try { await this.spawnReady } catch (error) {
+        if (this.spawnError === undefined) throw error
+        await this.settleStreams()
+        throw this.closedError('DeepSeek Harness runtime failed to start')
+      }
+    }
     // A dead runtime cannot answer; fail with process context instead of
     // writing into a destroyed pipe and hanging until the timeout.
     if (this.exitCode !== undefined || this.spawnError !== undefined) {
@@ -443,6 +497,7 @@ export class HarnessClient {
     })
     this.transport?.close()
     this.failSubscriptions(this.closedError('DeepSeek Harness runtime closed'))
+    await this.exitObserved
   }
 
   private dispatchNotification(notification: HarnessNotification): void {

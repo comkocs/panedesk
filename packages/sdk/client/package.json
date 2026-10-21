@@ -26,7 +26,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "panedesk": "workspace:*"
+    "panedesk": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*"
   },
   "peerDependencies": {
     "@panedesk/dsh-llm": "workspace:*",

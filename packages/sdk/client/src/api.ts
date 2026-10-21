@@ -27,6 +27,7 @@ export class DeepSeekHarness implements AsyncDisposable {
   private readonly model: string
   private readonly reasoningEffort: DeepSeekHarnessOptions['reasoningEffort']
   private readonly maxTokens: number | undefined
+  private readonly handshake: Pick<DeepSeekHarnessOptions, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'>
   private initialized: Promise<void> | undefined
   private closed = false
 
@@ -43,6 +44,12 @@ export class DeepSeekHarness implements AsyncDisposable {
     this.model = options.model ?? 'deepseek-v4-flash'
     this.reasoningEffort = options.reasoningEffort
     this.maxTokens = options.maxTokens
+    this.handshake = structuredClone({
+      ...options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset },
+      ...options.executionPolicy === undefined ? {} : { executionPolicy: options.executionPolicy },
+      ...options.ledgerContext === undefined ? {} : { ledgerContext: options.ledgerContext },
+      ...options.cachePolicy === undefined ? {} : { cachePolicy: options.cachePolicy },
+    })
   }
 
   /**
@@ -71,6 +78,7 @@ export class DeepSeekHarness implements AsyncDisposable {
       try {
         this.clientInstance.start()
         await this.clientInstance.initialize({
+          ...this.handshake,
           cwd: this.cwd,
           provider: this.provider,
           model: this.model,

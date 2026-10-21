@@ -6,14 +6,18 @@
  */
 
 import type { Context } from '@panedesk/cordis'
+import { executionPolicyDigest, validateHandshake } from './handshake.ts'
 import { resolve } from 'node:path'
 import { brandString } from '@panedesk/dsh-brand'
-import type { Agent, AgentHandle } from '@panedesk/dsh-agent'
+import type { Agent, AgentHandle, AgentSetup } from '@panedesk/dsh-agent'
+import type { AgentPreset } from '@panedesk/dsh-agent-preset-registry'
+import type { LedgerSessionContext, LedgerRunId, LedgerNodeId } from '@panedesk/dsh-session-ledger'
 import { admitEncodedImages, type EncodedImageAttachment, type ImageAttachmentRef } from '@panedesk/dsh-attachment'
 import { createUserMessage, ReasoningEffortId, type ContentBlock, type LlmRuntime } from '@panedesk/dsh-llm'
 import { carrierKeyOf, type Scoped } from '@panedesk/dsh-scope'
 import type { SessionId, SessionLogOffset } from '@panedesk/dsh-session'
 import type {} from '@panedesk/dsh-working-directory'
+import type {} from '@panedesk/dsh-tools'
 import type SubagentRuntime from '@panedesk/dsh-subagent'
 import type { SubagentRunEndInfo } from '@panedesk/dsh-subagent'
 import * as LlmDeepSeek from '@panedesk/dsh-llm-deepseek-api-key'
@@ -93,6 +97,8 @@ export class HarnessSdkJsonRpcServer {
   private shutdownTask: Promise<Record<string, never>> | undefined
   private shuttingDown = false
   private initialized = false
+  private initializing = false
+  private handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'> = {}
 
   constructor(
     private readonly ctx: Context,
@@ -153,6 +159,18 @@ export class HarnessSdkJsonRpcServer {
    * @returns server identity for the handshake.
    */
   async initialize(params: InitializeParams): Promise<InitializeResult> {
+    if (this.initialized || this.initializing || this.shuttingDown) throw new Error('SDK server cannot reinitialize')
+    validateHandshake(params)
+    this.initializing = true
+    try {
+      return await this.initializeOnce(structuredClone(params))
+    } finally {
+      this.initializing = false
+    }
+  }
+
+  private async initializeOnce(params: InitializeParams): Promise<InitializeResult> {
+    await this.resolvePreset(params)
     if (params.reasoningEffort !== undefined
       && (typeof params.reasoningEffort !== 'string' || params.reasoningEffort.length === 0)) {
       throw new TypeError('initialize reasoningEffort must be a non-empty string')
@@ -184,6 +202,7 @@ export class HarnessSdkJsonRpcServer {
     this.model = model
     this.reasoningEffort = reasoningEffort
     this.maxTokens = params.maxTokens
+    this.handshake = params
     this.initialized = true
     return { serverInfo: { name: 'panedesk-sdk-runtime', version: '0.0.1' } }
   }
@@ -396,10 +415,59 @@ export class HarnessSdkJsonRpcServer {
   }
 
   private async createSession(sessionId: string, resume: boolean): Promise<SessionRecord> {
-    // No preset composition: this server's compositions keep the model-facing
-    // rows in the host plane, so this agent reads them from the global layer. A
-    // deployment that configures a roster has to join one here first
-    // (@panedesk/dsh-agent-preset-registry README, "Composing a child agent").
+    const linkage = this.handshake.ledgerContext
+    if (linkage !== undefined && sessionId !== linkage.childSessionId) {
+      throw new Error('SDK session does not match the reserved child identity')
+    }
+    const preset = this.handshake.agentPreset === undefined ? undefined : await this.resolvePreset({
+      ...this.handshake, cwd: this.cwd, provider: this.provider, model: this.model,
+      ...this.reasoningEffort === undefined ? {} : { reasoningEffort: this.reasoningEffort },
+    })
+    const setup: AgentSetup = async (agentCtx, agent) => {
+      if (preset !== undefined) {
+        const mounted = await agentCtx.get('agentPresets')?.mount(agentCtx, preset.id)
+        if (mounted === undefined || mounted.id !== preset.id
+          || (preset.executionPolicy !== undefined && (mounted.executionPolicy === undefined
+            || executionPolicyDigest(mounted.executionPolicy) !== preset.executionPolicyDigest))) {
+          throw new Error('Mounted SDK preset does not match the validated execution policy')
+        }
+      }
+      const ledger = agentCtx.get('sessionLedger')
+      if (linkage !== undefined && ledger !== undefined) {
+        const context: LedgerSessionContext = {
+          seat: linkage.seat, window: linkage.window,
+          ...linkage.taskId === undefined ? {} : { taskId: linkage.taskId },
+          nodeId: brandString<LedgerNodeId>(linkage.nodeId), identitySource: 'inherited',
+          sessionId: agent.session.id,
+          parentSessionId: brandString<SessionId>(linkage.parentSessionId),
+          rootSessionId: brandString<SessionId>(linkage.rootSessionId),
+          subagentRunId: brandString<NonNullable<LedgerSessionContext['subagentRunId']>>(linkage.subagentRunId),
+          remoteSessionId: agent.session.id,
+          accountLabel: linkage.accountLabel ?? 'unknown',
+          runId: brandString<LedgerRunId>(linkage.subagentRunId),
+          parentRunId: brandString<LedgerRunId>(linkage.parentRunId),
+        }
+        agentCtx.effect(() => ledger.bindContext(context), 'sdk.ledger-context')
+      }
+      const policy = preset?.executionPolicy
+      if (policy !== undefined) {
+        const tools = agentCtx.get('tools')
+        if (tools === undefined) throw new Error('SDK execution policy requires the tools service')
+        tools.restrict({ allow: [...policy.allowedTools] })
+        tools.guard(exec => policy.allowedTools.includes(exec.name)
+          ? undefined : 'Tool denied by the installed execution policy')
+      }
+      if (policy !== undefined || this.handshake.cachePolicy !== undefined) {
+        agentCtx.on('agent/request', async (_payload, next) => {
+          const config = await next()
+          if (policy !== undefined && (config.provider !== policy.provider || config.model !== policy.model
+            || config.reasoningEffort !== policy.reasoningEffort)) {
+            throw new Error('Request denied by the installed execution policy')
+          }
+          return this.handshake.cachePolicy === undefined ? config : { ...config, cache: this.handshake.cachePolicy }
+        })
+      }
+    }
     const agentOptions = {
       provider: this.provider,
       model: this.model,
@@ -409,14 +477,37 @@ export class HarnessSdkJsonRpcServer {
     const handle = await (resume ? this.ctx.agents.resume({
       resumeSessionId: brandString<SessionId>(sessionId),
       agentOptions,
+      setup,
     }) : this.ctx.agents.create({
       sessionId: brandString<SessionId>(sessionId),
-      meta: { cwd: this.cwd },
+      meta: { cwd: this.cwd, ...preset === undefined ? {} : { agentPreset: preset.id } },
       agentOptions,
+      setup,
     }))
     const rec: SessionRecord = { handle, failure: undefined }
     this.sessions.set(sessionId, rec)
     return rec
+  }
+
+  private async resolvePreset(params: InitializeParams): Promise<AgentPreset | undefined> {
+    if (params.agentPreset === undefined) return undefined
+    const registry = this.ctx.get('agentPresets')
+    if (registry === undefined) throw new Error('SDK preset requires the agent-presets service')
+    const preset = await registry.resolve(params.agentPreset)
+    if (preset.broken !== undefined) throw new Error('SDK preset is unavailable')
+    const expected = params.executionPolicy
+    const policy = preset.executionPolicy
+    if (expected === undefined && policy === undefined) return preset
+    if (expected === undefined || policy === undefined || preset.executionPolicyDigest !== expected.digest
+      || executionPolicyDigest(policy) !== expected.digest
+      || policy.version !== expected.version || preset.id !== expected.presetId) {
+      throw new Error('SDK execution policy version or digest mismatch')
+    }
+    if (params.provider !== policy.provider || params.model !== policy.model
+      || params.reasoningEffort !== policy.reasoningEffort) {
+      throw new Error('SDK route does not match the installed execution policy')
+    }
+    return structuredClone(preset)
   }
 
   private hasAdapterFor(provider: string): boolean {

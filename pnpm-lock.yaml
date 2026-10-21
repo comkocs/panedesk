@@ -12437,6 +12437,9 @@ importers:
 
   packages/sdk/client:
     dependencies:
+      '@panedesk/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
       panedesk:
         specifier: workspace:*
         version: link:../../../apps/cli
@@ -12529,6 +12532,9 @@ importers:
       '@panedesk/dsh-subagent':
         specifier: workspace:*
         version: link:../../subagent/subagent
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
       '@panedesk/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
@@ -14656,6 +14662,9 @@ importers:
       '@panedesk/dsh-agent-instructions':
         specifier: workspace:*
         version: link:../../context/agent-instructions
+      '@panedesk/dsh-agent-preset-registry':
+        specifier: workspace:*
+        version: link:../../preset/agent-preset-registry
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot
