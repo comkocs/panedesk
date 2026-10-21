@@ -43,6 +43,25 @@ function fixture(): string {
   return root
 }
 
+function fullCarrierFixture(): string {
+  const root = fixture()
+  manifest(root, 'packages/experimental/prototype/package.json', {
+    icon: './icon.svg', exports: { './locale/*.json': './locale/*.json' },
+    dsh: { bundle: { patch: './cordis.patch.yml' } },
+  })
+  write(root, 'packages/experimental/prototype/cordis.patch.yml', [{ insert: [{ name: experimental }] }])
+  write(root, 'packages/bundle/full/package.json', {
+    name: '@panedesk/full', dependencies: { [experimental]: 'workspace:*' },
+  })
+  manifest(root, 'apps/cli/package.json', {
+    peerDependencies: { '@panedesk/full': 'workspace:*' },
+    peerDependenciesMeta: { '@panedesk/full': { optional: true } },
+  })
+  const source = readFileSync(join(root, profile), 'utf8')
+  write(root, profile, `${source}export const OPTIONAL_BUNDLES = ['${experimental}']\n`)
+  return root
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
@@ -137,6 +156,85 @@ describe('default product isolation', () => {
       + `export const OPTIONAL_BUNDLES = ['${layer}']\n`)
     expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(`optional bundle ${layer} must not be a default bundle`)
   })
+
+  it('keeps the full carrier and its optional bundle graph outside the slim default installation', () => {
+    const root = fullCarrierFixture()
+    expect(verifyDefaultProductIsolation(root)).toMatchObject({ failures: [], packageCount: 6 })
+  })
+
+  it.each(['dependencies', 'optionalDependencies', 'peerDependencies'])(
+    'rejects full entering the default installation through CLI %s', (section) => {
+      const root = fullCarrierFixture()
+      manifest(root, 'apps/cli/package.json', {
+        [section]: { '@panedesk/full': 'workspace:*' },
+        ...section === 'peerDependencies' ? { peerDependenciesMeta: {} } : {},
+      })
+      expect(verifyDefaultProductIsolation(root).failures).toContain(
+        `@panedesk/full dependencies -> ${experimental}: default product must not include experimental packages`,
+      )
+    },
+  )
+
+  it('rejects a CLI runtime import of the optional full carrier', () => {
+    const root = fullCarrierFixture()
+    write(root, 'apps/cli/src/bin.ts', "import '@panedesk/full'\n")
+    expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(
+      `@panedesk/full dependencies -> ${experimental}`,
+    )
+  })
+
+  it('rejects another default member depending on full even through an optional peer', () => {
+    const root = fullCarrierFixture()
+    manifest(root, 'packages/core/core/package.json', {
+      peerDependencies: { '@panedesk/full': 'workspace:*' },
+      peerDependenciesMeta: { '@panedesk/full': { optional: true } },
+    })
+    expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(
+      `@panedesk/full dependencies -> ${experimental}`,
+    )
+  })
+
+  it('rejects a CLI dependency on an unlisted experimental package beside the full carrier', () => {
+    const root = fullCarrierFixture()
+    const unlisted = '@panedesk/dsh-experimental-unlisted'
+    manifest(root, 'apps/cli/package.json', { dependencies: { [core]: 'workspace:*', [unlisted]: 'workspace:*' } })
+    expect(verifyDefaultProductIsolation(root).failures).toContain(
+      `panedesk dependencies -> ${unlisted}: default product must not include experimental packages`,
+    )
+  })
+
+  it('does not admit another optional peer as a bundle carrier', () => {
+    const root = fullCarrierFixture()
+    manifest(root, 'packages/bundle/full/package.json', { name: '@panedesk/other-full' })
+    manifest(root, 'apps/cli/package.json', {
+      peerDependencies: { '@panedesk/other-full': 'workspace:*' },
+      peerDependenciesMeta: { '@panedesk/other-full': { optional: true } },
+    })
+    const failures = verifyDefaultProductIsolation(root).failures.join('\n')
+    expect(failures).toContain(`optional bundle ${experimental} must be a runtime dependency of apps/cli`)
+    expect(failures).toContain(`@panedesk/other-full dependencies -> ${experimental}`)
+  })
+
+  it.each(['dependencies', 'patch', 'icon', 'locale'])(
+    'still requires full-carried optional bundle %s', (requirement) => {
+      const root = fullCarrierFixture()
+      if (requirement === 'dependencies') {
+        manifest(root, 'packages/bundle/full/package.json', {
+          dependencies: {}, devDependencies: { [experimental]: 'workspace:*' },
+        })
+      } else if (requirement === 'patch') {
+        manifest(root, 'packages/experimental/prototype/package.json', { dsh: {} })
+      } else if (requirement === 'icon') {
+        manifest(root, 'packages/experimental/prototype/package.json', { icon: null })
+      } else {
+        manifest(root, 'packages/experimental/prototype/package.json', { exports: {} })
+      }
+      const message = requirement === 'dependencies' ? 'must be a runtime dependency of apps/cli'
+        : requirement === 'patch' ? 'must declare dsh.bundle.patch'
+          : requirement === 'icon' ? 'must declare icon or export ./icon' : 'must export ./locale/*.json display metadata'
+      expect(verifyDefaultProductIsolation(root).failures.join('\n')).toContain(`optional bundle ${experimental} ${message}`)
+    },
+  )
 
   it.each(['dependencies', 'source', 'patch'])(
     'checks a nonexperimental optional bundle for experimental %s', (kind) => {

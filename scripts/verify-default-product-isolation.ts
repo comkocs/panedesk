@@ -2,6 +2,11 @@
  * Keep experimental packages outside default installations, runtime imports, and shipped compositions.
  * The one declared exception is a bundle the launcher names in `OPTIONAL_BUNDLES`: shipped for the person to
  * switch on, selected by no shipped template, its own dependency graph outside the default product's.
+ *
+ * Panedesk fork divergence: optional bundles may be carried by @panedesk/full instead of apps/cli.
+ * Only the launcher's optional peer edge to that carrier is outside the default installation graph;
+ * default runtime dependencies, imports, and compositions must still exclude experimental packages.
+ * Manually reconcile this exception and OPTIONAL_BUNDLES with upstream during merges.
  */
 
 import { existsSync, globSync, readFileSync, statSync } from 'node:fs'
@@ -23,6 +28,7 @@ import {
 import { isExperimentalPackageName } from './experimental-package-policy.ts'
 // The independently published entry package owns platform-engine dependencies.
 const EXTERNAL_KIT_PACKAGES = new Set(['@deepseek-ai/libreoffice-kit'])
+const OPTIONAL_BUNDLE_CARRIERS = new Set(['@panedesk/full'])
 const PROFILE_SOURCE = 'packages/boot/app-boot/src/profile.ts'
 const PRESET_PATTERN = 'packages/bundle/web-app/presets/*.patch.yml'
 const RUNTIME_SECTIONS = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const
@@ -34,6 +40,7 @@ interface Manifest {
   dependencies?: Record<string, string>
   optionalDependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>
   devDependencies?: Record<string, string>
   dsh?: { bundle?: DshBundleManifest; configTrees?: Array<{ path: string }> }
 }
@@ -81,14 +88,16 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
   if (cli?.manifest.name !== 'panedesk') {
     failures.push('apps/cli/package.json must identify panedesk')
   }
-  // The bundles the launcher ships switched off: each a runtime dependency of the installation that is a bundle
-  // with an icon and locale display metadata for the plugin manager's Official group, none a default.
+  // The plugin manager's Official group needs bundle patches, icons, and locale display metadata even when
+  // optional bundles arrive through a separately installed carrier rather than the launcher itself.
   const profilePath = resolve(root, PROFILE_SOURCE)
   const selection = existsSync(profilePath) ? profilePackages(readFileSync(profilePath, 'utf8')) : undefined
   const optionalBundles = new Set(selection?.optionalBundles ?? [])
+  const carriers = [...OPTIONAL_BUNDLE_CARRIERS].flatMap(name => packages.get(name) ?? [])
   for (const name of optionalBundles) {
-    if (cli?.manifest.dependencies?.[name] === undefined) {
-      failures.push(`${PROFILE_SOURCE}: optional bundle ${name} must be a runtime dependency of apps/cli`)
+    if (cli?.manifest.dependencies?.[name] === undefined
+      && !carriers.some(pkg => pkg.manifest.dependencies?.[name] !== undefined)) {
+      failures.push(`${PROFILE_SOURCE}: optional bundle ${name} must be a runtime dependency of apps/cli or ${[...OPTIONAL_BUNDLE_CARRIERS].join(', ')}`)
     }
     const manifest = packages.get(name)?.manifest
     if (manifest?.dsh?.bundle?.patch === undefined) {
@@ -297,6 +306,8 @@ export function verifyDefaultProductIsolation(root: string): ProductIsolationRes
       for (const [name, range] of Object.entries(manifest[section] ?? {})) {
         const target = packages.get(name)
         if (pkg === cli && section === 'dependencies' && optionalBundles.has(name) && target !== undefined && isExperimental(target)) continue
+        if (pkg === cli && section === 'peerDependencies' && OPTIONAL_BUNDLE_CARRIERS.has(name)
+          && manifest.peerDependenciesMeta?.[name]?.optional === true && target !== undefined) continue
         dependency(name, range, pkg, `${manifest.name} ${section}`)
       }
     }
