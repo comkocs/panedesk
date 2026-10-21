@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, lstatSync } from 'node:fs'
-import { resolve, relative, basename } from 'node:path'
+import { readFileSync, writeFileSync, lstatSync, existsSync, mkdirSync } from 'node:fs'
+import { resolve, relative, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const mapping = JSON.parse(readFileSync(new URL('./mapping.json', import.meta.url), 'utf8'))
@@ -92,30 +92,52 @@ function tree(apply) {
     const after = transform(before, path)
     if (after !== before) changes.push({ path, before, after })
   }
+  // B1/B2 transform file contents; this fixed rule also moves tracked directory
+  // segments, without rewriting legacy-home import code or similarly named files.
+  const moves = files.flatMap(path => {
+    const parts = path.split('/')
+    const target = parts.map((part, index) => index < parts.length - 1 && part === '.dsh' ? '.panedesk' : part).join('/')
+    return target === path ? [] : [{ path, target }]
+  })
   report()
+  for (const { path, target } of moves) console.log(`B2-path\t${path}\t${target}`)
+  console.log(`B2-path\t${moves.length}`)
   if (!apply) {
-    process.exitCode = changes.length === 0 ? 0 : 1
+    process.exitCode = changes.length === 0 && moves.length === 0 ? 0 : 1
     return
   }
+  for (const { path, target } of moves) {
+    if (!lstatSync(resolve(root, path)).isFile()) throw new Error(`Not a regular tracked file: ${path}`)
+    if (existsSync(resolve(root, target))) throw new Error(`Rename destination exists: ${target}`)
+  }
+  // A path-only replay on an already renamed tree has no D substitutions to validate.
+  const pathOnly = changes.length === 0 && moves.length > 0
   // Validate the entire input before the first write; drift must not leave a partial rename.
-  const drift = rules.filter(rule => rule.expected !== undefined && counts.get(rule.id) !== rule.expected)
+  const drift = pathOnly ? [] : rules.filter(rule => rule.expected !== undefined && counts.get(rule.id) !== rule.expected)
   if (drift.length) throw new Error(drift.map(rule => `${rule.id}: expected ${rule.expected}, got ${counts.get(rule.id)}`).join('\n'))
   const generators = [
     ['scripts/gen-tsconfig-paths.ts', 'tsconfig.base.json'],
     ['scripts/gen-dependency-catalog.ts', 'docs/dependency-catalog.json'],
   ]
-  const originals = generators.map(([, path]) => [path, readFileSync(resolve(root, path))])
+  const originals = pathOnly ? [] : generators.map(([, path]) => [path, readFileSync(resolve(root, path))])
+  const moved = []
   try {
     for (const { path, after } of changes) writeFileSync(resolve(root, path), after)
-    for (const [script] of generators) {
+    for (const [script] of pathOnly ? [] : generators) {
       execFileSync(process.execPath, [script], { cwd: root, stdio: 'inherit' })
     }
+    for (const move of moves) {
+      mkdirSync(dirname(resolve(root, move.target)), { recursive: true })
+      git('mv', '--', move.path, move.target)
+      moved.push(move)
+    }
   } catch (error) {
+    for (const { path, target } of moved.reverse()) git('mv', '--', target, path)
     for (const { path, before } of changes) writeFileSync(resolve(root, path), before)
     for (const [path, bytes] of originals) writeFileSync(resolve(root, path), bytes)
     throw error
   }
-  console.log(`Renamed ${changes.length} tracked text files; lockfile received text substitutions only.`)
+  console.log(`Renamed ${changes.length} tracked text files and moved ${moves.length} tracked paths; lockfile received text substitutions only.`)
 }
 
 const args = process.argv.slice(2)

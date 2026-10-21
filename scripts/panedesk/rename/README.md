@@ -47,7 +47,13 @@ are not regenerated.
 `pnpm-lock.yaml` receives text substitutions only: this dependency-free tool does
 not attempt to reserialize YAML or resolve packages. Verify it with
 `CI=true pnpm install --frozen-lockfile`. Generator outputs and substitutions roll back
-if either generator fails. No files are deleted or renamed.
+if either generator fails. After content substitutions, tree mode moves each tracked
+file whose directory segments contain exactly `.dsh` to the corresponding
+`.panedesk` path with `git mv`; filenames and legacy-home import code are not
+rewritten by this path rule. This complements B1/B2's content substitutions.
+`--check` lists each pending move as `B2-path` and reports its count. An already
+content-renamed tree with only pending path moves skips D baseline validation and
+generators; all other applications retain the original count validation.
 
 ## Replay a rename commit
 

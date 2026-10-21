@@ -14,7 +14,7 @@ node scripts/panedesk/rename/rename.mjs --patch upstream.diff panedesk.diff
 
 树模式读取 `git ls-files`，将所有可严格解码的 UTF-8 文件视为文本，包括含 NUL 字节的文件。UTF-8 解码保留已有 BOM；编码保留所有未改动字节，包括 NUL 和行尾。它跳过符号链接、无效 UTF-8 文件、本工具所在目录、许可证、品牌指南、`.agents/notes/archived/` 下的冻结笔记和私有改名检查清单。`mapping.json` 按路径与该行必含的原文片段列出保留行；`--apply`、`--check` 和 `--patch` 均不改写这些行，让根目录两语 README 对明确拒绝读取的旧名称保留原文。LibreOffice 对外发布的包（包括拆分的路径参数）保留原有作用域。提供商请求头、提供商标识、Python 包名与模块名，以及上游仓库 URL 都不是产品改名目标。DeepSeek 平台账户、API Key、余额和信用额度计费措辞属于模型提供商，有意不改名。`APP_IDENTITY.url` 保留上游 URL，因为现有接口要求如此。不引入对旧主目录或选定旧变量的兼容读取。
 
-完成替换后，树模式直接用 Node 运行仓库的 `scripts/gen-tsconfig-paths.ts` 以重新生成路径别名，再运行 `scripts/gen-dependency-catalog.ts`，依据已记录的 npm 解析结果排序依赖目录。两个生成器均离线运行，无需安装依赖；依赖目录命令不刷新解析结果或已记录的元数据。CLI 帮助中的调用字面量和生成标题会映射，但不重新生成 CLI 帮助文档。`pnpm-lock.yaml` 只接受文本替换：这个无依赖工具不尝试重新序列化 YAML 或解析包。用 `CI=true pnpm install --frozen-lockfile` 验证。任一生成器失败时，生成器输出和替换都会回滚。不删除或重命名任何文件。
+完成替换后，树模式直接用 Node 运行仓库的 `scripts/gen-tsconfig-paths.ts` 以重新生成路径别名，再运行 `scripts/gen-dependency-catalog.ts`，依据已记录的 npm 解析结果排序依赖目录。两个生成器均离线运行，无需安装依赖；依赖目录命令不刷新解析结果或已记录的元数据。CLI 帮助中的调用字面量和生成标题会映射，但不重新生成 CLI 帮助文档。`pnpm-lock.yaml` 只接受文本替换：这个无依赖工具不尝试重新序列化 YAML 或解析包。用 `CI=true pnpm install --frozen-lockfile` 验证。任一生成器失败时，生成器输出和替换都会回滚。内容替换后，树模式用 `git mv` 将跟踪文件路径中恰为 `.dsh` 的目录段搬为 `.panedesk`；该路径规则不改文件名或旧主目录迁移导入代码，补足 B1/B2 的内容替换。`--check` 以 `B2-path` 逐条列出待搬路径并汇总计数。对于内容已经改名、只剩路径待搬的树，跳过 D 基线计数校验及生成器；其它应用仍保留原有计数校验。
 
 ## 重放改名提交
 
