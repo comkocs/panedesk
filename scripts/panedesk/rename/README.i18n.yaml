@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write scripts/panedesk/rename/README.md
 /replayable-panedesk-rename:
-  en: b956079b810b4fb4
-  zh: b1dd092dc4b00774
+  en: e94a4fcdb8afcb0f
+  zh: 2afc4323cd30df86
 /replayable-panedesk-rename/replay-a-rename-commit:
   en: 28cf0d2a0176f9a6
   zh: fe583e8c1b3c1dff
