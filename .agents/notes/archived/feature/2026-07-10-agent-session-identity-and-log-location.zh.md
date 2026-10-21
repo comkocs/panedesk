@@ -17,7 +17,7 @@ agent（智能体）可以通过 `session.header.cwd` 识别其工作区，但�
 
 注册表会为每次前台和后台 bash `ToolExecution` 重新构建受信任的覆盖层：
 
-- `PANEDESK_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@panedesk/dsh-home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `dshHome`，其次是环境中的 `$PANEDESK_HOME`，最后是 `~/.panedesk`。
+- `DSH_HOME` 始终是配置的 Harness home 绝对路径。独立的 [`@deepseek-ai/dsh-home-paths`](../../../../packages/util/home-paths/README.zh.md) 工具库规定其优先级：显式 `dshHome`，其次是环境中的 `$DSH_HOME`，最后是 `~/.dsh`。
 - `DSH_SHELL=1` 始终存在，用于标识由 DeepSeek Harness 管理、面向模型的 bash 子进程。
 - 执行具有关联 agent 时，`DSH_SESSION_ID` 存在并等于 `agent.session.header.id`。
 
@@ -39,13 +39,13 @@ bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管
 
 新会话在第一个轮次之前获得 id，因此它的首次 bash 调用即可读取 `DSH_SESSION_ID`。恢复操作复用已加载的 header，因此 id 不变。fork 和 spawn 会创建新的会话 id。父子调用分别从自己的 `ToolExecution.agent` 解析事实；即使调用重叠，每条命令也会收到不可变快照。注册表受 effect 作用域约束，并且可安全用于 HMR（热模块替换）。
 
-`dshHome` 是与会话无关的部署上下文。agent-core 通过 `@panedesk/dsh-home-paths` 解析出一个值，并将其同时传给 tool-bash 和本地 skill（技能）发现；独立消费方调用同一解析器。如果顶层 `dshHome` 与 `skills.local.dshHome` 均已提供但解析结果不同，组合会失败，而不会公开互相矛盾的 home。持久化可以独立变更，无需把其事实冻结到会话前缀中。
+`dshHome` 是与会话无关的部署上下文。agent-core 通过 `@deepseek-ai/dsh-home-paths` 解析出一个值，并将其同时传给 tool-bash 和本地 skill（技能）发现；独立消费方调用同一解析器。如果顶层 `dshHome` 与 `skills.local.dshHome` 均已提供但解析结果不同，组合会失败，而不会公开互相矛盾的 home。持久化可以独立变更，无需把其事实冻结到会话前缀中。
 
 ## 测试
 
 单元测试覆盖注册表声明校验、effect 释放、逐次执行收集、`dshHome` 优先级，以及本地执行器清理并重建 `DSH_*` 的顺序。请求录制测试覆盖前台／后台快照、无 agent 调用、忽略模型 `env`，以及父子隔离。两套钩子桥接测试均锁定恒定的降级 transcript 方言。
 
-一项无密钥的完整循环集成测试会在第一个轮次驱动真实的 agent loop、JSONL 持久化、tool-bash 与 bash-local。子进程打印 `PANEDESK_HOME`、`DSH_SHELL`、会话 id 和继承的陈旧哨兵值；测试校验当前值、陈旧变量不存在，并最终检查持久化 header。快照测试会固定录制请求 header 中的通用 bash 说明。该约定属于确定性的本地执行，不涉及模型选择，因此无需带密钥测试。
+一项无密钥的完整循环集成测试会在第一个轮次驱动真实的 agent loop、JSONL 持久化、tool-bash 与 bash-local。子进程打印 `DSH_HOME`、`DSH_SHELL`、会话 id 和继承的陈旧哨兵值；测试校验当前值、陈旧变量不存在，并最终检查持久化 header。快照测试会固定录制请求 header 中的通用 bash 说明。该约定属于确定性的本地执行，不涉及模型选择，因此无需带密钥测试。
 
 ## 考虑过的替代方案
 
@@ -63,4 +63,4 @@ bash 工具说明只讲解持久约定：当前 harness 环境事实通过受管
 
 每个面向模型的 bash 子进程都会收到当前 Harness home 和 shell 标识，关联 agent 的调用还会收到稳定的会话标识。这些子进程中受管理的 `DSH_*` 事实来自 harness：系统移除环境中已有的受管理值、在最后重新加入当前受信任的值，普通调用方的 `env` 条目无法顶掉它们。
 
-该命名空间可被发现，但并非秘密。`PANEDESK_HOME` 可能泄露配置的根目录，而且命令可以在自己的 shell 语法中覆盖变量。消费方应把这些值视为关联信息和环境事实，并依靠沙箱／文件系统策略而不是变量保密性来完成授权。
+该命名空间可被发现，但并非秘密。`DSH_HOME` 可能泄露配置的根目录，而且命令可以在自己的 shell 语法中覆盖变量。消费方应把这些值视为关联信息和环境事实，并依靠沙箱／文件系统策略而不是变量保密性来完成授权。

@@ -13,6 +13,7 @@ const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8'
 
 function excluded(path) {
   return path.startsWith('scripts/panedesk/rename/') || path === 'docs/改名待改清单.md'
+    || path.startsWith('.agents/notes/archived/')
     || ['LICENSE', 'THIRD_PARTY_NOTICES.md'].includes(basename(path))
     || basename(path).startsWith('BRAND_GUIDELINES')
 }

@@ -15,15 +15,15 @@ A complete caller-supplied Cordis tree gives an exact roster but bypasses profil
 
 ### Launch and ownership
 
-`dsh --profile sdk-minimal` is a shipped startup-only profile. Its manifest lists only `@panedesk/dsh-sdk-minimal`; it does not list `@panedesk/dsh-base`. The bundle inserts the complete Cordis tree over the launcher's empty profile root, while the profile patch, home patch, and ordered invocation patches retain their ordinary precedence above it.
+`dsh --profile sdk-minimal` is a shipped startup-only profile. Its manifest lists only `@deepseek-ai/dsh-sdk-minimal`; it does not list `@deepseek-ai/dsh-base`. The bundle inserts the complete Cordis tree over the launcher's empty profile root, while the profile patch, home patch, and ordered invocation patches retain their ordinary precedence above it.
 
 The `dsh` CLI remains the only application launcher. The Python example selects `sdk-minimal` through the public `profile` field and an explicit Harness home. Python exposes no complete-config or arbitrary-argv path. The full Python and TypeScript SDK defaults remain `sdk`.
 
-The bundle reuses `@panedesk/dsh-sdk-app` for command help, stdin EOF, and bounded shutdown. The startup provider accepts a profile-name config so both SDK profiles render their actual command without duplicating process lifecycle code.
+The bundle reuses `@deepseek-ai/dsh-sdk-app` for command help, stdin EOF, and bounded shutdown. The startup provider accepts a profile-name config so both SDK profiles render their actual command without duplicating process lifecycle code.
 
 ### Explicit composition
 
-The bundle owns one DeepSeek adapter, SDK JSON-RPC serving, the explicit agent core, local subprocess and unrestricted filesystem providers, a platform-selected persistent shell, the string-replace editor, and uncompressed JSONL sessions under `$PANEDESK_HOME/sessions`. Linux and macOS mount Bash; Windows mounts PowerShell. The SDK initialization request owns the model id; `DSH_CONTEXT_WINDOW` supplies fallback capacity for models outside the adapter's advisory catalog. The persona comes from `DSH_SYSTEM_PROMPT`, and the credential from `DEEPSEEK_API_KEY`.
+The bundle owns one DeepSeek adapter, SDK JSON-RPC serving, the explicit agent core, local subprocess and unrestricted filesystem providers, a platform-selected persistent shell, the string-replace editor, and uncompressed JSONL sessions under `$DSH_HOME/sessions`. Linux and macOS mount Bash; Windows mounts PowerShell. The SDK initialization request owns the model id; `DSH_CONTEXT_WINDOW` supplies fallback capacity for models outside the adapter's advisory catalog. The persona comes from `DSH_SYSTEM_PROMPT`, and the credential from `DEEPSEEK_API_KEY`.
 
 Harness identity, runtime context, workspace instructions, skills, model-facing job controls, compaction, settings, managed credentials, telemetry, Web tools, subagents, and every other base row are absent rather than hidden. The profile pins `danger-full-access`, `maxTokensAsSuccess: false`, and startup-only patch loading.
 

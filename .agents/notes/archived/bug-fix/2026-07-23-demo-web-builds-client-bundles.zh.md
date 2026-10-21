@@ -11,7 +11,7 @@ Archived: 2026-07-26
 
 ## Decision
 
-`demo:web` 在 `npm run build:web` 之前先运行 `npm run build`，使插件的 `lib/client.js` 打包产物在 `dsh web` 提供它们之前已经存在。README 的 Web UI 小节针对已安装的 `~/.panedesk/source` 检出运行 `pnpm run build && pnpm run build:web`，因为安装器从不构建它。
+`demo:web` 在 `npm run build:web` 之前先运行 `npm run build`，使插件的 `lib/client.js` 打包产物在 `dsh web` 提供它们之前已经存在。README 的 Web UI 小节针对已安装的 `~/.dsh/source` 检出运行 `pnpm run build && pnpm run build:web`，因为安装器从不构建它。
 
 ## Verification
 

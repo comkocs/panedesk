@@ -49,7 +49,7 @@ Archived: 2026-09-30
 pnpm run build:
 tsc -b tsconfig.host.json
 tsdown --env.DSH_BUILD_FACE host
-pnpm --filter @panedesk/dsh-desktop run bundle
+pnpm --filter @deepseek-ai/dsh-desktop run bundle
 tsc -b tsconfig.client.json
 tsdown --env.DSH_BUILD_FACE client
 pnpm run build:web

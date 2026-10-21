@@ -7,7 +7,7 @@ Archived: 2026-08-03
 
 ## Problem
 
-`dsh` 把调用目录视为 workspace，这正是它能作用于任意项目的原因。但因此，开发 dsh 自身就得先 `cd` 到检出目录——而该目录并不是一个好记的路径：源码安装会把它放在一个容器目录下、作为带时间戳的 staging 工作树（`~/.panedesk/source/staging-<timestamp>`），并由 `current` 符号链接指向，因此每次升级后目标都会变化。`harness:source` 提示词段已经*告知* agent 其源码位置，`cordis` 工具集也能修改该运行时，但人类仍需手工定位该目录才能在其中开始会话。
+`dsh` 把调用目录视为 workspace，这正是它能作用于任意项目的原因。但因此，开发 dsh 自身就得先 `cd` 到检出目录——而该目录并不是一个好记的路径：源码安装会把它放在一个容器目录下、作为带时间戳的 staging 工作树（`~/.dsh/source/staging-<timestamp>`），并由 `current` 符号链接指向，因此每次升级后目标都会变化。`harness:source` 提示词段已经*告知* agent 其源码位置，`cordis` 工具集也能修改该运行时，但人类仍需手工定位该目录才能在其中开始会话。
 
 ## Decision
 
@@ -33,7 +33,7 @@ Archived: 2026-08-03
 
 **在默认界面上加一个 `--experimental-meta` 标志。** 拒绝：默认界面是纯选项形式，以免子命令与位置参数冲突；而一个会静默改变 workspace 的标志读起来像是对当前目录的修饰，而非另一个目标。`meta` 与 `web` 并列符合既有形态。
 
-**解析 `~/.panedesk/source/current` 而非启动器自身路径。** 拒绝：当直接调用某个非安装检出的 `bin/dsh` 时，它会与 `harness:source` 提示词路径产生偏离——告知模型一个源码根目录，却在另一个目录中工作。
+**解析 `~/.dsh/source/current` 而非启动器自身路径。** 拒绝：当直接调用某个非安装检出的 `bin/dsh` 时，它会与 `harness:source` 提示词路径产生偏离——告知模型一个源码根目录，却在另一个目录中工作。
 
 ## Consequences
 

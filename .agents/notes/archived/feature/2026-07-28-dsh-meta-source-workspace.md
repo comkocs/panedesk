@@ -7,7 +7,7 @@ English | [中文](2026-07-28-dsh-meta-source-workspace.zh.md)
 
 ## Problem
 
-`dsh` treats the invoking directory as the workspace, which is what makes it useful on arbitrary projects. Working on dsh itself therefore means `cd`-ing to the checkout first — and the checkout is not a memorable path: the source install keeps it under a container directory as a timestamped staging worktree (`~/.panedesk/source/staging-<timestamp>`) behind a `current` symlink, so the target moves on every upgrade. The agent is already *told* where its source lives by the `harness:source` prompt section, and the `cordis` toolset can modify that runtime, but the human still had to locate the directory by hand to start a session there.
+`dsh` treats the invoking directory as the workspace, which is what makes it useful on arbitrary projects. Working on dsh itself therefore means `cd`-ing to the checkout first — and the checkout is not a memorable path: the source install keeps it under a container directory as a timestamped staging worktree (`~/.dsh/source/staging-<timestamp>`) behind a `current` symlink, so the target moves on every upgrade. The agent is already *told* where its source lives by the `harness:source` prompt section, and the `cordis` toolset can modify that runtime, but the human still had to locate the directory by hand to start a session there.
 
 ## Decision
 
@@ -33,7 +33,7 @@ The mode was verified interactively instead. Launched from `$HOME`, a `pwd` tool
 
 **An `--experimental-meta` flag on the default surface.** Rejected: the default surface is option-only so that subcommands do not collide with a positional, and a flag that silently relocates the workspace reads as a modifier of the current directory rather than a different target. `meta` alongside `web` matches the existing shape.
 
-**Resolve `~/.panedesk/source/current` instead of the launcher's own path.** Rejected: it would diverge from the `harness:source` prompt path whenever a non-installed checkout's `bin/dsh` is invoked directly, telling the model one source root while working in another.
+**Resolve `~/.dsh/source/current` instead of the launcher's own path.** Rejected: it would diverge from the `harness:source` prompt path whenever a non-installed checkout's `bin/dsh` is invoked directly, telling the model one source root while working in another.
 
 ## Consequences
 

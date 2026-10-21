@@ -11,7 +11,7 @@ English | [中文](2026-07-23-demo-web-builds-client-bundles.zh.md)
 
 ## Decision
 
-`demo:web` runs `npm run build` before `npm run build:web`, so the plugin `lib/client.js` bundles exist before `dsh web` serves them. The README's Web UI section runs `pnpm run build && pnpm run build:web` for the installed `~/.panedesk/source` checkout, which the installer never builds.
+`demo:web` runs `npm run build` before `npm run build:web`, so the plugin `lib/client.js` bundles exist before `dsh web` serves them. The README's Web UI section runs `pnpm run build && pnpm run build:web` for the installed `~/.dsh/source` checkout, which the installer never builds.
 
 ## Verification
 

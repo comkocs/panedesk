@@ -7,7 +7,7 @@ Archived: 2026-07-26
 
 ## 问题
 
-`scripts/install.sh`是为`curl ... | sh`路径编写的：它把 harness 克隆到`~/.panedesk/source`，然后安装、软链接并启动。已经有检出的贡献者若直接运行同一脚本（`sh scripts/install.sh`），会在`~/.panedesk/source`得到第二份无关的克隆——安装并软链接的是与他们正在工作的树不同的另一棵树，且无从用本地脚本验证本地源码。
+`scripts/install.sh`是为`curl ... | sh`路径编写的：它把 harness 克隆到`~/.dsh/source`，然后安装、软链接并启动。已经有检出的贡献者若直接运行同一脚本（`sh scripts/install.sh`），会在`~/.dsh/source`得到第二份无关的克隆——安装并软链接的是与他们正在工作的树不同的另一棵树，且无从用本地脚本验证本地源码。
 
 ## 决策
 
@@ -21,7 +21,7 @@ Archived: 2026-07-26
 
 **通过对当前目录执行`git rev-parse --show-toplevel`来检测。** 已否决：`curl ... | sh`常常在某个无关的 git 仓库（用户的`cwd`）内运行，这会误判并对一棵并非 dsh 的树跳过克隆。把决策锚定在`$0`自身的位置，使其绑定到脚本实际所在之处，而`bin/dsh` + `scripts/install.sh`标记则确认它确实是一个 dsh 检出。
 
-**只要从文件运行就总是跳过克隆，忽略`DSH_SOURCE`。** 已否决：贡献者可能合理地运行检出内脚本来配置一份独立的`~/.panedesk/source`安装；尊重与检出不同的显式`DSH_SOURCE`保留了该路径。
+**只要从文件运行就总是跳过克隆，忽略`DSH_SOURCE`。** 已否决：贡献者可能合理地运行检出内脚本来配置一份独立的`~/.dsh/source`安装；尊重与检出不同的显式`DSH_SOURCE`保留了该路径。
 
 ## 影响
 

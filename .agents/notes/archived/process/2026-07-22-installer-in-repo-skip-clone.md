@@ -7,7 +7,7 @@ English | [中文](2026-07-22-installer-in-repo-skip-clone.zh.md)
 
 ## Problem
 
-`scripts/install.sh` is written for the `curl ... | sh` path: it clones the harness into `~/.panedesk/source`, then installs, links, and launches. Contributors who already have a checkout and run the same script directly (`sh scripts/install.sh`) got a second, unrelated clone at `~/.panedesk/source` — installing and linking a different tree than the one they were working in, with no way to exercise the local script against the local source.
+`scripts/install.sh` is written for the `curl ... | sh` path: it clones the harness into `~/.dsh/source`, then installs, links, and launches. Contributors who already have a checkout and run the same script directly (`sh scripts/install.sh`) got a second, unrelated clone at `~/.dsh/source` — installing and linking a different tree than the one they were working in, with no way to exercise the local script against the local source.
 
 ## Decision
 
@@ -21,7 +21,7 @@ Explicit `DSH_SOURCE` wins over detection: the value is captured before defaulti
 
 **Detect via `git rev-parse --show-toplevel` on the current directory.** Rejected: `curl ... | sh` frequently runs from inside some unrelated git repo (the user's `cwd`), which would false-positive and skip the clone against a tree that is not dsh. Anchoring on `$0`'s own location ties the decision to where the script physically lives, and the `bin/dsh` + `scripts/install.sh` markers confirm it is actually a dsh checkout.
 
-**Always skip the clone whenever run from a file, ignoring `DSH_SOURCE`.** Rejected: a contributor may legitimately run the in-repo script to provision a separate `~/.panedesk/source` install; honoring an explicit `DSH_SOURCE` that differs from the checkout preserves that path.
+**Always skip the clone whenever run from a file, ignoring `DSH_SOURCE`.** Rejected: a contributor may legitimately run the in-repo script to provision a separate `~/.dsh/source` install; honoring an explicit `DSH_SOURCE` that differs from the checkout preserves that path.
 
 ## Consequences
 
