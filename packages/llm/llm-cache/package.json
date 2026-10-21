@@ -32,7 +32,11 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
-    "@panedesk/dsh-session-ledger": "workspace:*"
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-session-ledger": { "optional": true }
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
@@ -40,7 +44,11 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
-    "@panedesk/dsh-session-ledger": "workspace:*"
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-agent-loop": "workspace:*",
+    "@panedesk/dsh-time-context": "workspace:*"
   },
   "dependencies": {
     "@panedesk/schemastery": "workspace:~"

@@ -3,7 +3,7 @@ import { Context, Service } from '@panedesk/cordis'
 import type {
   LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult,
   LedgerArtifactFinishResult, LedgerArtifactReference, LedgerCallFinish, LedgerCallStart, LedgerEvent,
-  LedgerOptions, LedgerWaitCategory,
+  LedgerOptions, LedgerWaitCategory, LedgerContext, LedgerRunId, LedgerPriceEntry,
   LedgerPriceUsageRequest, LedgerPriceUsageResult, LedgerQuery,
   LedgerRunFinish, LedgerRunStart, LedgerSnapshot,
 } from './types.ts'
@@ -23,6 +23,16 @@ export abstract class SessionLedger extends Service {
   constructor(ctx: Context) {
     super(ctx, 'sessionLedger')
   }
+
+  /** Resolve trusted attribution and freeze pricing before a call starts.
+   * @param request - explicit session when available; absent sessions use provider-owned auxiliary attribution.
+   * @returns runtime identity, residency identity, and optional matching reference price (absent when unpriced).
+   */
+  abstract resolveCallContext(request: {
+    sessionId?: LedgerContext['sessionId']
+    provider: string
+    model: string
+  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
 
   /** Persist one call start before releasing network dispatch.
    * @param input - immutable request and attribution facts.

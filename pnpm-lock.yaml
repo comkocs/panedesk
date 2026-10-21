@@ -11423,15 +11423,27 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-agent-loop':
+        specifier: workspace:*
+        version: link:../../core/agent-loop
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../llm
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt
+      '@panedesk/dsh-time-context':
+        specifier: workspace:*
+        version: link:../../context/time-context
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools

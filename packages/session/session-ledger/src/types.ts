@@ -191,6 +191,16 @@ export interface LedgerCallFinish {
   errorArtifact?: string
   /** Durable sidecar references returned by appendArtifact; closure is acknowledged by finishArtifact. */
   artifacts?: readonly LedgerArtifactReference[]
+  /** Actual adapter-observed account label; absent when no authoritative label was returned. */
+  accountLabel?: string
+  /** Actual adapter-observed write tiers; absent when unobservable. */
+  cacheWriteTiering?: LedgerCacheWriteTiering
+  /** Final cache observation, including actual retention and any downgrade. */
+  cache?: LedgerCacheEvidence
+  /** Observed failures for this physical call only, not cumulative retry totals. */
+  http429Count?: number
+  /** Observed failures for this physical call only, not cumulative retry totals. */
+  http503Count?: number
 }
 /** One projected call, joining its start with at most one committed terminal fact. */
 export interface LedgerCall {
