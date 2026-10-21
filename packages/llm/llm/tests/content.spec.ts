@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { AttachmentId, ImageVariantId } from '@panedesk/dsh-attachment'
-import type { AttachmentStore, ImageMediaType } from '@panedesk/dsh-attachment'
+import { describe, expect, it, onTestFinished } from 'vitest'
+import { Context } from '@panedesk/cordis'
+import { AttachmentId, AttachmentStore, ImageVariantId } from '@panedesk/dsh-attachment'
+import type { ImageAttachmentLimits, ImageAttachmentRef, ImageMediaType, StoredImageAttachment } from '@panedesk/dsh-attachment'
 import {
   ToolCallId,
   contentHasFile,
@@ -170,9 +171,31 @@ describe('model-facing image access', () => {
 
   it('bridges a provider host object only through the mounted filesystem mapping', () => {
     const attachment = image(1).attachment
-    const attachments = {
-      imageHostPath: () => '/host/.panedesk/attachments/object',
-    } as unknown as AttachmentStore
+    class HostPathStore extends AttachmentStore {
+      readonly imageLimits: ImageAttachmentLimits = {
+        maxImageBytes: 1, maxImagesPerMessage: 1, maxMessageImageBytes: 1,
+        maxImagePixels: 1, maxImageDimension: 1, mediaTypes: ['image/png'],
+      }
+
+      validateImage(): Promise<void> {
+        throw new Error('image validation is not used by host-path resolution')
+      }
+
+      saveImage(): Promise<ImageAttachmentRef> {
+        throw new Error('image storage is not used by host-path resolution')
+      }
+
+      readImage(): Promise<StoredImageAttachment> {
+        throw new Error('image reads are not used by host-path resolution')
+      }
+
+      override imageHostPath(): string | undefined {
+        return '/host/.panedesk/attachments/object'
+      }
+    }
+    const ctx = new Context()
+    onTestFinished(async () => { await ctx.fiber.dispose() })
+    const attachments = new HostPathStore(ctx)
     const mapped = (hostPath: string): string | undefined => hostPath === '/host/.panedesk/attachments/object'
       ? '/workspace/.attachments/object'
       : undefined

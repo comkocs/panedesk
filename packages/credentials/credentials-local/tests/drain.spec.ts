@@ -10,22 +10,23 @@ import { LocalCredentialProvider } from '../src/index.ts'
 // write; gating it makes the dispose-versus-queued-write race fully
 // deterministic. The lock helper passes through so the gated operation still
 // runs inside its real acquire/release cycle.
-vi.mock('@panedesk/dsh-atomic-write', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@panedesk/dsh-atomic-write')>()
-  let gate: Promise<void> = Promise.resolve()
+const { writeGate, setGate } = vi.hoisted(() => {
+  const writeGate = { current: Promise.resolve() }
   return {
-    ...actual,
-    writeFileAtomic: vi.fn(() => gate),
-    __setGate: (next: Promise<void>) => {
-      gate = next
+    writeGate,
+    setGate: (next: Promise<void>): void => {
+      writeGate.current = next
     },
   }
 })
 
-async function setGate(next: Promise<void>): Promise<void> {
-  const mocked = await import('@panedesk/dsh-atomic-write') as unknown as { __setGate: (next: Promise<void>) => void }
-  mocked.__setGate(next)
-}
+vi.mock('@panedesk/dsh-atomic-write', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@panedesk/dsh-atomic-write')>()
+  return {
+    ...actual,
+    writeFileAtomic: vi.fn(() => writeGate.current),
+  }
+})
 
 const KEY = credentialRef('DSH_CRED_DRAIN_A')
 const OTHER = credentialRef('DSH_CRED_DRAIN_B')
@@ -35,7 +36,7 @@ const OTHER_RECORD = credentialKey('llm-drain', 'beta')
 const cleanups: Array<() => Promise<void>> = []
 
 afterEach(async () => {
-  await setGate(Promise.resolve())
+  setGate(Promise.resolve())
   while (cleanups.length > 0) await cleanups.pop()!()
 })
 
@@ -49,7 +50,7 @@ describe('write-drain teardown', () => {
     const service = ctx.credentials
 
     let release!: () => void
-    await setGate(new Promise<void>((resolveGate) => {
+    setGate(new Promise<void>((resolveGate) => {
       release = resolveGate
     }))
     const first = service.set(KEY, 'one')
@@ -80,7 +81,7 @@ describe('write-drain teardown', () => {
     const service = ctx.credentials
 
     let release!: () => void
-    await setGate(new Promise<void>((resolveGate) => {
+    setGate(new Promise<void>((resolveGate) => {
       release = resolveGate
     }))
     const first = service.modifyRecord(RECORD, () => Promise.resolve({ kind: 'grant', payload: { v: 1 } }))

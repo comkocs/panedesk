@@ -54,13 +54,11 @@ describe('spill-local real Loader composition through cordis.yml', () => {
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
     context.loader.builtins.include = Include
-    context.loader.internal = {
-      version: 'v2',
-      async import(specifier: string) {
-        if (specifier !== '@panedesk/dsh-spill-local') throw new Error(`unexpected Loader import: ${specifier}`)
-        return LocalSpillStore
-      },
-    } as unknown as NonNullable<typeof context.loader.internal>
+    context.loader.import = async (specifier: string) => {
+      if (specifier === 'cordis:include') return Include
+      if (specifier !== '@panedesk/dsh-spill-local') throw new Error(`unexpected Loader import: ${specifier}`)
+      return LocalSpillStore
+    }
     await context.loader.create({
       name: 'cordis:include',
       config: { path: pathToFileURL(configPath).href },

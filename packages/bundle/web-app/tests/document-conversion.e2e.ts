@@ -30,13 +30,11 @@ it('loads one shared conversion row and retains caller-owned PDFs after disposal
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   // The Loader resolves the same source-plane module namespace as the test.
-  ctx.loader.internal = {
-    version: 'v2',
-    async import(specifier: string) {
-      if (specifier !== '@panedesk/dsh-office-to-pdf') throw new Error(`Unexpected plugin: ${specifier}`)
-      return LibreOfficeProvider
-    },
-  } as unknown as NonNullable<typeof ctx.loader.internal>
+  ctx.loader.import = async (specifier: string) => {
+    if (specifier === 'cordis:include') return Include
+    if (specifier !== '@panedesk/dsh-office-to-pdf') throw new Error(`Unexpected plugin: ${specifier}`)
+    return LibreOfficeProvider
+  }
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   const entry = [...ctx.loader.entries()].find(candidate => candidate.options.id === 'office-to-pdf')!
