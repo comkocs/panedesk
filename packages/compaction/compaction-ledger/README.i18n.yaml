@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/compaction/compaction-ledger/README.md
+/:
+  en: 0232c94ab4fd1e35
+  zh: d523c63de20c027d
+/panedesk-dsh-compaction-ledger:
+  en: fe1947c23f6844a0
+  zh: 6a572b36255e0f98
+/panedesk-dsh-compaction-ledger/summary:
+  en: 04004f56dfe1f777
+  zh: f0b32fe8a8b1f162
+/panedesk-dsh-compaction-ledger/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: 65e6e399d6b474c7
+/panedesk-dsh-compaction-ledger/use-this-package:
+  en: 03a2708a9ed3df63
+  zh: d37fed8e112c9df3
+/panedesk-dsh-compaction-ledger/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold:
+  en: e62c1383726153d5
+  zh: 3bb528512c369e35
+/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold/what-the-model-sees:
+  en: 6a86a8f8b101145f
+  zh: 20d268b66e850187
+/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold/token-effect:
+  en: 0ff46621086b65e2
+  zh: e718a12e119a30f0
+/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold/kv-cache-effect:
+  en: 49cbbefffbad012b
+  zh: 895288b7bc5c4987
+/panedesk-dsh-compaction-ledger/known-limitations-and-deferred-work:
+  en: 89cea0d221c02e86
+  zh: d7e0d57c062fac72
+/panedesk-dsh-compaction-ledger/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

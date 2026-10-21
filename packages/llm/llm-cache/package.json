@@ -1,0 +1,48 @@
+{
+  "name": "@panedesk/dsh-llm-cache",
+  "description": "Session cache policy and concurrency plugin scaffold",
+  "version": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/llm/llm-cache"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*"
+  },
+  "dependencies": {
+    "@panedesk/schemastery": "workspace:~"
+  }
+}

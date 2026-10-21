@@ -237,6 +237,12 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/session/session-ledger" },
+    { "path": "./packages/session/ledger-query" },
+    { "path": "./packages/session/ledger-watch" },
+    { "path": "./packages/llm/llm-cache" },
+    { "path": "./packages/compaction/compaction-ledger" },
+    { "path": "./packages/bundle/ledger-app" },
     { "path": "./packages/experimental/client-ui-cot-translation/tsconfig.host.json" },
     { "path": "./packages/experimental/cot-translation-bundle" },
     { "path": "./packages/experimental/session-search" },

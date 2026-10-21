@@ -642,12 +642,12 @@ importers:
       '@panedesk/dsh-workflow-ptc':
         specifier: workspace:*
         version: link:../../packages/workflow/workflow-ptc
-      '@panedesk/schemastery':
-        specifier: link:../../vendor/schemastery
-        version: link:../../vendor/schemastery
       '@panedesk/full':
         specifier: workspace:*
         version: link:../../packages/bundle/full
+      '@panedesk/schemastery':
+        specifier: link:../../vendor/schemastery
+        version: link:../../vendor/schemastery
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -688,6 +688,12 @@ importers:
         specifier: ^8.21.3
         version: 8.21.3
     devDependencies:
+      '@electron/get':
+        specifier: ^5.1.0
+        version: 5.1.0(supports-color@9.4.0)
+      '@electron/notarize':
+        specifier: 2.5.0
+        version: 2.5.0(supports-color@9.4.0)
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../../packages/boot/app-boot
@@ -721,12 +727,6 @@ importers:
       '@panedesk/node-addon-system':
         specifier: workspace:~
         version: link:../../native/system/packages/entry
-      '@electron/get':
-        specifier: ^5.1.0
-        version: 5.1.0(supports-color@9.4.0)
-      '@electron/notarize':
-        specifier: 2.5.0
-        version: 2.5.0(supports-color@9.4.0)
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -781,12 +781,12 @@ importers:
 
   apps/desktop-host:
     dependencies:
+      '@deepseek-ai/libreoffice-kit':
+        specifier: ^0.1.5
+        version: 0.1.5
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../vendor/cordis
-      'panedesk':
-        specifier: workspace:*
-        version: link:../cli
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../packages/core/agent
@@ -820,12 +820,12 @@ importers:
       '@panedesk/dsh-workspace':
         specifier: workspace:*
         version: link:../../packages/workspace/workspace
-      '@deepseek-ai/libreoffice-kit':
-        specifier: ^0.1.5
-        version: 0.1.5
       koffi:
         specifier: 3.1.1
         version: 3.1.1
+      panedesk:
+        specifier: workspace:*
+        version: link:../cli
     devDependencies:
       '@panedesk/cordis-plugin-include':
         specifier: workspace:~
@@ -1889,15 +1889,15 @@ importers:
 
   packages/boot/app-boot:
     dependencies:
+      '@eslint-community/regexpp':
+        specifier: ^4.12.2
+        version: 4.12.2
       '@panedesk/dsh-atomic-write':
         specifier: workspace:*
         version: link:../../util/atomic-write
       '@panedesk/dsh-package-manifest':
         specifier: workspace:*
         version: link:../../util/package-manifest
-      '@eslint-community/regexpp':
-        specifier: ^4.12.2
-        version: 4.12.2
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -2798,6 +2798,25 @@ importers:
         specifier: workspace:*
         version: link:../../subagent/subagent
 
+  packages/bundle/ledger-app:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-cmdline':
+        specifier: workspace:*
+        version: link:../../boot/cmdline
+      '@panedesk/dsh-ledger-query':
+        specifier: workspace:*
+        version: link:../../session/ledger-query
+      '@panedesk/dsh-ledger-watch':
+        specifier: workspace:*
+        version: link:../../session/ledger-watch
+
   packages/bundle/sdk-app:
     dependencies:
       '@panedesk/dsh-cmdline':
@@ -3483,6 +3502,9 @@ importers:
         specifier: ^11.0.2
         version: 11.0.4
     devDependencies:
+      '@deepseek-ai/libreoffice-kit':
+        specifier: ^0.1.5
+        version: 0.1.5
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
@@ -3516,9 +3538,6 @@ importers:
       '@panedesk/dsh-typert-registry':
         specifier: workspace:*
         version: link:../../typert/registry
-      '@deepseek-ai/libreoffice-kit':
-        specifier: ^0.1.5
-        version: 0.1.5
 
   packages/client/connection:
     dependencies:
@@ -4157,6 +4176,21 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@lexical/headless':
+        specifier: ^0.49.0
+        version: 0.49.0(typescript@6.0.3)
+      '@lexical/history':
+        specifier: ^0.49.0
+        version: 0.49.0(typescript@6.0.3)
+      '@lexical/plain-text':
+        specifier: ^0.49.0
+        version: 0.49.0(typescript@6.0.3)
+      '@lexical/text':
+        specifier: ^0.49.0
+        version: 0.49.0(typescript@6.0.3)
+      '@lexical/utils':
+        specifier: ^0.49.0
+        version: 0.49.0(typescript@6.0.3)
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
@@ -4259,21 +4293,6 @@ importers:
       '@panedesk/dsh-workspace':
         specifier: workspace:*
         version: link:../../workspace/workspace
-      '@lexical/headless':
-        specifier: ^0.49.0
-        version: 0.49.0(typescript@6.0.3)
-      '@lexical/history':
-        specifier: ^0.49.0
-        version: 0.49.0(typescript@6.0.3)
-      '@lexical/plain-text':
-        specifier: ^0.49.0
-        version: 0.49.0(typescript@6.0.3)
-      '@lexical/text':
-        specifier: ^0.49.0
-        version: 0.49.0(typescript@6.0.3)
-      '@lexical/utils':
-        specifier: ^0.49.0
-        version: 0.49.0(typescript@6.0.3)
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
@@ -6063,6 +6082,12 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@fortune-sheet/core':
+        specifier: 1.0.4
+        version: 1.0.4(patch_hash=8791a230763dbf853fd65d627c68c31de37209992851377855e16cf08ea70532)
+      '@fortune-sheet/react':
+        specifier: 1.0.4
+        version: 1.0.4(patch_hash=2932e52e79afcd4ced08cfa123b5eded786c85043da32f622f3e80af6fc96c37)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
@@ -6123,12 +6148,6 @@ importers:
       '@panedesk/dsh-util-workspace-path':
         specifier: workspace:*
         version: link:../../util/workspace-path
-      '@fortune-sheet/core':
-        specifier: 1.0.4
-        version: 1.0.4(patch_hash=8791a230763dbf853fd65d627c68c31de37209992851377855e16cf08ea70532)
-      '@fortune-sheet/react':
-        specifier: 1.0.4
-        version: 1.0.4(patch_hash=2932e52e79afcd4ced08cfa123b5eded786c85043da32f622f3e80af6fc96c37)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -7141,6 +7160,22 @@ importers:
         specifier: workspace:*
         version: link:../../llm/token-meter
 
+  packages/compaction/compaction-ledger:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-compaction':
+        specifier: workspace:*
+        version: link:../compaction
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+
   packages/compaction/compaction-tool-result-pruner:
     dependencies:
       '@panedesk/dsh-util-values':
@@ -7926,15 +7961,15 @@ importers:
 
   packages/document/office-to-pdf:
     dependencies:
+      '@deepseek-ai/libreoffice-kit':
+        specifier: ^0.1.5
+        version: 0.1.5
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
-      '@deepseek-ai/libreoffice-kit':
-        specifier: ^0.1.5
-        version: 0.1.5
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -9971,15 +10006,15 @@ importers:
 
   packages/experimental/webhook-github:
     dependencies:
+      '@octokit/webhooks':
+        specifier: ^14.2.0
+        version: 14.2.0
       '@panedesk/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@octokit/webhooks':
-        specifier: ^14.2.0
-        version: 14.2.0
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -10042,15 +10077,15 @@ importers:
 
   packages/experimental/webworker-runtime:
     dependencies:
+      '@noble/hashes':
+        specifier: ^2.4.0
+        version: 2.4.0
       '@panedesk/dsh-client-web':
         specifier: workspace:*
         version: link:../../client/web
       '@panedesk/dsh-util-crypto':
         specifier: workspace:*
         version: link:../../util/crypto
-      '@noble/hashes':
-        specifier: ^2.4.0
-        version: 2.4.0
       '@yarnpkg/parsers':
         specifier: ^3.1.0
         version: 3.1.0
@@ -11017,9 +11052,6 @@ importers:
 
   packages/host/product-telemetry-otel:
     dependencies:
-      '@panedesk/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
       '@opentelemetry/api-logs':
         specifier: 0.222.0
         version: 0.222.0
@@ -11029,6 +11061,9 @@ importers:
       '@opentelemetry/sdk-logs':
         specifier: 0.222.0
         version: 0.222.0(@opentelemetry/api@1.9.1)
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -11376,6 +11411,31 @@ importers:
         specifier: workspace:*
         version: link:../../attachment/attachment
 
+  packages/llm/llm-cache:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../llm
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+
   packages/llm/llm-deepseek:
     dependencies:
       '@panedesk/cosmokit':
@@ -11549,6 +11609,9 @@ importers:
 
   packages/llm/llm-pi-ai:
     dependencies:
+      '@earendil-works/pi-ai':
+        specifier: ^1.1.0
+        version: 1.1.0(patch_hash=66eaf960054f10441b93ac3857114e96c1901f6d183713e2f21437b007111644)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.31.0(supports-color@9.4.0)(zod@4.4.3))(@smithy/signature-v4@5.7.4)(supports-color@9.4.0)(undici@8.11.2)(ws@8.21.3)(zod@4.4.3)
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
@@ -11558,9 +11621,6 @@ importers:
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@earendil-works/pi-ai':
-        specifier: ^1.1.0
-        version: 1.1.0(patch_hash=66eaf960054f10441b93ac3857114e96c1901f6d183713e2f21437b007111644)(@aws-sdk/credential-provider-node@3.972.84)(@modelcontextprotocol/sdk@1.31.0(supports-color@9.4.0)(zod@4.4.3))(@smithy/signature-v4@5.7.4)(supports-color@9.4.0)(undici@8.11.2)(ws@8.21.3)(zod@4.4.3)
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -11846,16 +11906,28 @@ importers:
 
   packages/mcp/mcp-client:
     dependencies:
+      '@modelcontextprotocol/client':
+        specifier: 2.2.0
+        version: 2.2.0
       '@panedesk/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@modelcontextprotocol/client':
+    devDependencies:
+      '@modelcontextprotocol/node':
+        specifier: 2.0.0
+        version: 2.0.0(@modelcontextprotocol/server@2.2.0)(hono@4.13.7)
+      '@modelcontextprotocol/server':
         specifier: 2.2.0
         version: 2.2.0
-    devDependencies:
+      '@modelcontextprotocol/server-everything':
+        specifier: ^2026.8.31
+        version: 2026.8.31(supports-color@9.4.0)
+      '@modelcontextprotocol/server-filesystem':
+        specifier: ^2026.8.31
+        version: 2026.8.31(supports-color@9.4.0)(zod@4.4.3)
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
@@ -11889,18 +11961,6 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
-      '@modelcontextprotocol/node':
-        specifier: 2.0.0
-        version: 2.0.0(@modelcontextprotocol/server@2.2.0)(hono@4.13.7)
-      '@modelcontextprotocol/server':
-        specifier: 2.2.0
-        version: 2.2.0
-      '@modelcontextprotocol/server-everything':
-        specifier: ^2026.8.31
-        version: 2026.8.31(supports-color@9.4.0)
-      '@modelcontextprotocol/server-filesystem':
-        specifier: ^2026.8.31
-        version: 2026.8.31(supports-color@9.4.0)(zod@4.4.3)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -12277,12 +12337,12 @@ importers:
 
   packages/schedule/schedule:
     dependencies:
-      '@panedesk/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
       '@js-temporal/polyfill':
         specifier: 0.5.1
         version: 0.5.1
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -12377,7 +12437,7 @@ importers:
 
   packages/sdk/client:
     dependencies:
-      'panedesk':
+      panedesk:
         specifier: workspace:*
         version: link:../../../apps/cli
     devDependencies:
@@ -12602,6 +12662,31 @@ importers:
         specifier: workspace:*
         version: link:../session-query
 
+  packages/session/ledger-query:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../session-ledger
+
+  packages/session/ledger-watch:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-cmdline':
+        specifier: workspace:*
+        version: link:../../boot/cmdline
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../session-ledger
+
   packages/session/session-checkpoint-policy:
     devDependencies:
       '@panedesk/cordis':
@@ -12745,6 +12830,28 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+
+  packages/session/session-ledger:
+    dependencies:
+      '@panedesk/node-addon-system':
+        specifier: workspace:~
+        version: link:../../../native/system/packages/entry
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
 
   packages/session/session-log-deepseek:
     dependencies:
@@ -12940,12 +13047,12 @@ importers:
 
   packages/session/session-telemetry-otel:
     dependencies:
-      '@panedesk/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
       '@opentelemetry/api-logs':
         specifier: 0.222.0
         version: 0.222.0
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -14378,6 +14485,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: 0.93.0
         version: 0.93.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.31.0
+        version: 1.31.0(supports-color@9.4.0)(zod@4.4.3)
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
@@ -14387,9 +14497,6 @@ importers:
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.31.0
-        version: 1.31.0(supports-color@9.4.0)(zod@4.4.3)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -14448,6 +14555,9 @@ importers:
 
   packages/subagent/subagent-codex:
     dependencies:
+      '@openai/codex':
+        specifier: 0.153.4
+        version: 0.153.4
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
@@ -14460,9 +14570,6 @@ importers:
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@openai/codex':
-        specifier: 0.153.4
-        version: 0.153.4
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -15485,15 +15592,15 @@ importers:
 
   packages/web/tool-web:
     dependencies:
+      '@joplin/turndown-plugin-gfm':
+        specifier: ^1.0.67
+        version: 1.0.67
       '@panedesk/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@joplin/turndown-plugin-gfm':
-        specifier: ^1.0.67
-        version: 1.0.67
       turndown:
         specifier: ^7.2.4
         version: 7.2.4
@@ -15891,9 +15998,6 @@ importers:
       '@panedesk/cosmokit':
         specifier: link:../../vendor/cosmokit
         version: link:../../vendor/cosmokit
-      'panedesk':
-        specifier: workspace:*
-        version: link:../../apps/cli
       '@panedesk/dsh-acp':
         specifier: workspace:*
         version: link:../../packages/acp/acp
@@ -16338,6 +16442,9 @@ importers:
       '@panedesk/schemastery':
         specifier: link:../../vendor/schemastery
         version: link:../../vendor/schemastery
+      panedesk:
+        specifier: workspace:*
+        version: link:../../apps/cli
 
   vendor/cordis:
     dependencies:
