@@ -10,7 +10,7 @@
 - text: 共 1 个 · 1 已停用
 - list:
   - listitem:
-    - text: DSH 提供官方 powered-by-DSH 徽章技能。
+    - text: Panedesk 提供官方 powered-by-DSH 徽章技能。
     - code: skill-badge
     - code: "@panedesk/dsh-skill-badge"
     - text: 已关闭
