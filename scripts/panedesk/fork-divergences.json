@@ -11,6 +11,17 @@
         "line": "You are an AI agent powered by DeepSeek Harness.",
         "followingBlankLines": 1
       }
+    },
+    {
+      "id": "default-slim-profile",
+      "description": "A bare launcher run with no --profile falls back to the slim profile, prints help, and exits 0, instead of reporting that a profile is required and exiting 1.",
+      "origin": "Slim launcher, slim/full presets, privacy-off defaults, CLI rename",
+      "reason": "The fork boots the slim profile by default and switches to the full profile with one explicit argument.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["apps/cli/tests/built-bin.e2e.ts"],
+        "test": "prints help for a bare run and rejects removed flags"
+      }
     }
   ]
 }
