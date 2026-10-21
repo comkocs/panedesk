@@ -7,7 +7,9 @@
       "reason": "The fork makes harness identity an explicit opt-in instead of a default system prompt section.",
       "match": {
         "type": "remove-exact-paragraph",
-        "paths": ["snapshots/*/*/system-prompt*.expected.md"],
+        "paths": [
+          "snapshots/*/*/system-prompt*.expected.md"
+        ],
         "line": "You are an AI agent powered by DeepSeek Harness.",
         "followingBlankLines": 1
       }
@@ -19,8 +21,72 @@
       "reason": "The fork boots the slim profile by default and switches to the full profile with one explicit argument.",
       "match": {
         "type": "test-assertion",
-        "paths": ["apps/cli/tests/built-bin.e2e.ts"],
+        "paths": [
+          "apps/cli/tests/built-bin.e2e.ts"
+        ],
         "test": "prints help for a bare run and rejects removed flags"
+      }
+    },
+    {
+      "id": "slim-launcher-help",
+      "description": "Keep upstream launcher help entries and add slim/full presets with an optional default profile.",
+      "origin": "Slim launcher, slim/full presets, privacy-off defaults, CLI rename",
+      "reason": "The fork documents its default slim preset and optional full preset without removing supported upstream profile examples.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "apps/cli/tests/expected/launcher-help.txt"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "Usage: dsh [--profile] <name> [options] [app-args...]"
+            ],
+            "fork": [
+              "Usage: panedesk [[--profile] <name>] [options] [app-args...]"
+            ]
+          },
+          {
+            "upstream": [
+              "layers under your own overrides."
+            ],
+            "fork": [
+              "layers under your own overrides. Without a profile it boots \"slim\"."
+            ]
+          },
+          {
+            "upstream": [
+              "  --profile <name>               the profile under $DSH_HOME/profiles to boot"
+            ],
+            "fork": [
+              "  --profile <name>               the profile under $PANEDESK_HOME/profiles to",
+              "                                 boot (default: slim)"
+            ]
+          }
+        ],
+        "insertions": [
+          {
+            "before": "Examples:",
+            "lines": [
+              "Presets:",
+              "  slim (default)   minimal one-shot preset installed with the launcher",
+              "  full             full headless composition (needs @panedesk/full installed)",
+              ""
+            ]
+          },
+          {
+            "after": "  dsh plugin --profile tui add <package>    install a plugin into the tui profile",
+            "lines": [
+              "  panedesk \"run the tests\"                       answer one task on the slim preset, print the result, and exit",
+              "  panedesk --json \"run the tests\"                the same, printing newline-delimited JSON events",
+              "  panedesk full \"run the tests\"                  the same task on the full preset (same as: panedesk --profile full ...)",
+              "  panedesk --patch ./provider.yml \"task\"         add one overlay (e.g. a model provider) to the default preset",
+              "  panedesk full --help                           the booted app's own flags and help",
+              "  pdesk ...                                      short name for panedesk",
+              ""
+            ]
+          }
+        ]
       }
     }
   ]
