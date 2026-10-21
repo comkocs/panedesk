@@ -6,6 +6,18 @@ import { providerError } from '../src/transport.ts'
 import { assemble, chunks, end, events, MODEL, sse, start, textEvents } from './helpers.ts'
 
 describe('Messages stream', () => {
+  it.each([
+    [MODEL, 'same'], ['model-a', 'different'], [undefined, 'missing'],
+  ])('reports the wire model %s as %s without using response text', async (model, reported) => {
+    const message = { ...start.message, model }
+    const result = await chunks(translate(events([{ ...start, message }, ...textEvents.slice(1)]), MODEL))
+    expect(result.at(-1)).toMatchObject({ type: 'finish', responseModelReported: reported })
+    expect(result.at(-1)).toMatchObject(
+      model === undefined ? { responseModelReported: 'missing' } : { responseModel: model },
+    )
+    if (model === undefined) expect(result.at(-1)).not.toHaveProperty('responseModel')
+  })
+
   it('streams text already present in the starting block', async () => {
     const result = await chunks(translate(events([start, { ...textEvents[1], content_block: { type: 'text', text: 'initial' } }, textEvents[3]!, ...end()]), MODEL))
     expect(result).toContainEqual({ type: 'text-delta', index: 0, text: 'initial' })

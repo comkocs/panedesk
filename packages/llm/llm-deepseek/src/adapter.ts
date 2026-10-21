@@ -92,6 +92,9 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
     options: GenerateOptions, connection: C, signal: AbortSignal, activity: () => void,
   ): AsyncGenerator<StreamChunk> {
     signal.throwIfAborted()
+    if (options.cache !== undefined && !['default', 'auto'].includes(options.cache.retention)) {
+      throw new LlmError('DeepSeek cache retention supports only default or auto', 'INVALID_CONFIG')
+    }
     const { messages, versions } = await prepareImages(
       options.messages, connection, options.model, this.dependencies.resolveAttachments?.(), this.imageAccess, signal,
     )
@@ -167,7 +170,12 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
         }
         await extensions.accept()
         if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')
-        yield* translate(parseSse(response.body, activity), options.model)
+        for await (const chunk of translate(parseSse(response.body, activity), options.model)) {
+          yield chunk.type === 'finish'
+            ? { ...chunk, httpStatus: response.status, accountLabel: this.dependencies.providerName || 'unknown',
+              cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto' }
+            : chunk
+        }
         return
       }
     } catch (error) {

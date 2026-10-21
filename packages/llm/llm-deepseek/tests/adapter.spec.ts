@@ -64,6 +64,28 @@ declare module '@panedesk/dsh-llm' {
 }
 
 describe('direct Messages HTTP', () => {
+  it.each([undefined, 'route-a'])('reports HTTP status and the configured account label %s', async (providerName) => {
+    const http = await endpoint()
+    const output = await chunks(adapter({ baseURL: http.url }, { providerName }).stream(options()))
+    expect(output.at(-1)).toMatchObject({
+      type: 'finish', httpStatus: 200, accountLabel: providerName ?? 'unknown',
+      cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto',
+    })
+    expect(http.requests[0]?.body).not.toHaveProperty('cache_control')
+  })
+
+  it.each(['none', '5m', '1h', '30m', '12h'] as const)('rejects unsupported automatic-cache retention %s', async (retention) => {
+    const http = await endpoint()
+    await expect(chunks(adapter({ baseURL: http.url }).stream(options({ cache: { retention } }))))
+      .rejects.toMatchObject({ code: 'INVALID_CONFIG' })
+    expect(http.requests).toHaveLength(0)
+  })
+
+  it('preserves an HTTP 503 failure status', async () => {
+    const http = await endpoint((response) => { response.writeHead(503); response.end('{}') })
+    await expect(chunks(adapter({ baseURL: http.url }).stream(options())))
+      .rejects.toMatchObject({ failure: { status: 503 } })
+  })
   it('continues through Messages with assistant blocks in saved user history', async () => {
     const http = await endpoint()
     const notice = createUserMessage({ source: { kind: 'saved-notice' }, content: [
