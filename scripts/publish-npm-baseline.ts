@@ -255,8 +255,10 @@ class WorkspacePackageSet {
       const isVendored = manifestPath.startsWith('vendor/')
       // Vendored packages are rescoped too (vendor/README.md), so publication
       // never carries an upstream name that would squat it on the registry.
-      if (name !== 'panedesk' && !name.startsWith('@panedesk/')) {
-        throw new Error(`${manifestPath} must name an @panedesk package or panedesk`)
+      if (!name.startsWith('@panedesk/')) {
+        if (name !== 'panedesk') {
+          throw new Error(`${manifestPath} must name an @panedesk package or panedesk`)
+        }
       }
       if (name === 'panedesk-monorepo') {
         throw new Error(`${manifestPath} unexpectedly selected the workspace root`)
