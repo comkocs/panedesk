@@ -15,6 +15,48 @@ describe('stable prefix', () => {
     expect(() => fingerprintPrefix('stable', [{ ...a, parameters: { invalid: undefined } }])).toThrow('lossless JSON')
   })
 
+  it('applies explicit runtime policy updates ahead of old headers and inherits them in children', async () => {
+    const { ctx, adapter } = await harness()
+    try {
+      const handle = await ctx.agents.create({ sessionId: SessionId('policy-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      const send = async () => {
+        handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue' }], source: { kind: 'user' } }))
+        await handle.agent.whenIdle()
+      }
+      await send()
+      expect(adapter.requests.at(-1)?.cache?.retention).toBe('1h')
+      await ctx.serial('llm-cache/update', { agent: handle.agent, policy: { retention: '5m' } })
+      await send()
+      expect(adapter.requests.at(-1)?.cache?.retention).toBe('5m')
+      const child = await handle.agent.ctx.agents.create({ sessionId: SessionId('policy-child'), parentAgent: handle.agent,
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      child.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue' }], source: { kind: 'user' } }))
+      await child.agent.whenIdle()
+      expect(adapter.requests.at(-1)?.cache?.retention).toBe('5m')
+      await child.dispose()
+      await handle.dispose()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('leaves prompt and request behavior unchanged when the ledger is absent', async () => {
+    const { ctx, adapter } = await harness({ ledger: false })
+    try {
+      let text = 'First'
+      ctx.systemPrompt.section({ name: 'stable', order: 0, text: () => text })
+      const handle = await ctx.agents.create({ sessionId: SessionId('unmetered-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      for (const value of ['First', 'Second']) {
+        text = value
+        handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue' }], source: { kind: 'user' } }))
+        await handle.agent.whenIdle()
+      }
+      expect(adapter.requests.every(request => request.cache === undefined)).toBe(true)
+      expect(adapter.requests[1].messages[0]).toMatchObject({ content: [{ text: 'Second' }] })
+      await handle.dispose()
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('keeps ten requests stable across tools, an interjection, time snapshots, and deferred plugin changes', async () => {
     const { ctx, adapter, ledger } = await harness()
     try {

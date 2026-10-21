@@ -104,6 +104,14 @@ export interface LedgerCacheEvidence {
   retention?: GenerateOptions['cache']
   /** Required evidence when the effective tier is lower than the requested/default tier. */
   downgradeReason?: string
+  /** Explicit session override, restored independently of historical request headers. */
+  sessionPolicy?: { retention: NonNullable<GenerateOptions['cache']>['retention']; stableKey?: string }
+  /** Opt-in maintenance settings; no implicit enablement on recovery. */
+  keepalivePolicy?: { enabled: boolean; leadSeconds: number; minimumIntervalSeconds: number; maxOutputTokens: number }
+  /** Maintenance failures survive residency changes until an ordinary request or explicit update. */
+  keepaliveFailures?: number
+  /** Last maintenance attempt prevents restart-driven rapid retries. */
+  lastKeepaliveAttemptAt?: number
 }
 /** Monotonic durations are measured within one process; wall timestamps only correlate observations. */
 export interface LedgerInterval {

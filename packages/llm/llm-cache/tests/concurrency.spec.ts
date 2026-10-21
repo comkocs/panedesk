@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { agentEvents } from '@panedesk/dsh-agent'
+import { SessionId } from '@panedesk/dsh-session'
+import { createUserMessage } from '@panedesk/dsh-llm'
 import { FamilySemaphore } from '../src/concurrency.ts'
 import { consume, harness } from './harness.ts'
 
@@ -44,6 +47,8 @@ describe('family admission and call accounting', () => {
     try {
       await consume(ctx, purpose)
       expect(adapter.requests).toHaveLength(1)
+      expect(adapter.requests[0].cache).toBeUndefined()
+      expect(ledger?.starts[0].cache.cacheMode).toBe('unknown')
       expect(ledger?.starts).toHaveLength(1)
       expect(ledger?.starts[0]).toMatchObject({ purpose: purpose ?? 'conversation', accountLabel: 'unknown', attemptVisibility: 'adapter' })
       expect(ledger?.ends[0]).toMatchObject({ effectiveModel: 'reported-model', responseModelReported: 'different',
@@ -86,6 +91,46 @@ describe('family admission and call accounting', () => {
       expect(ledger?.ends[0]).toMatchObject({ endReason: 'error', upstreamStopReason: 'iterator-closed' })
       await consume(ctx)
       expect(ledger?.ends).toHaveLength(2)
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('links final partial output to the durable attempt and records exhausted recovery', async () => {
+    const { ctx, ledger, adapter } = await harness()
+    try {
+      adapter.chunks = [{ type: 'text-delta', index: 0, text: 'partial' },
+        { type: 'finish', reason: { kind: 'error', failure: { code: 'RATE_LIMIT', message: 'limited', status: 429 } } }]
+      const handle = await ctx.agents.create({ sessionId: SessionId('retry-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue' }], source: { kind: 'user' } }))
+      await handle.agent.whenIdle()
+      await agentEvents(ctx, handle.agent).waterfall('agent/request-error', {
+        turn: 1, step: 1, provider: 'model-provider', failure: { code: 'RATE_LIMIT', message: 'limited', status: 429 },
+        retryPolicy: { mode: 'normal', maxRetries: 0, initialDelayMs: 1, maxDelayMs: 10, jitterRatio: 0, retryableCodes: ['RATE_LIMIT'] },
+        signal: new AbortController().signal,
+      }, async () => undefined)
+      expect(ledger?.events.some(event => event.kind === 'retry' && event.phase === 'exhausted')).toBe(true)
+      expect(ledger?.events.some(event => event.kind === 'alert' && event.alert.code === 'retry-exhausted' && event.alert.artifact !== undefined)).toBe(true)
+      expect(ledger?.events.some(event => event.kind === 'alert' && event.alert.code === 'partial-attempt-linked')).toBe(true)
+      await handle.dispose()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('drains active auxiliary streams before the agent ending barrier releases', async () => {
+    const { ctx, ledger } = await harness()
+    try {
+      const handle = await ctx.agents.create({ sessionId: SessionId('drain-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      const stream = ctx.llm.stream({ provider: 'model-provider', model: 'model-a', messages: [],
+        sessionId: handle.agent.id, purpose: 'session-title' })[Symbol.asyncIterator]()
+      await stream.next()
+      let ended = false
+      const ending = ctx.agents.ending(handle.agent).then(() => { ended = true })
+      await Promise.resolve()
+      expect(ended).toBe(false)
+      await stream.return?.()
+      await ending
+      expect(ledger?.ends).toHaveLength(1)
+      await handle.dispose()
     } finally { await ctx.fiber.dispose() }
   })
 

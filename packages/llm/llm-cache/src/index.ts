@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
+import { assembleContextFor } from '@panedesk/dsh-agent'
 import type { Agent } from '@panedesk/dsh-agent'
 import type { GenerateOptions, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
 import { renderPrompt } from '@panedesk/dsh-system-prompt'
@@ -15,14 +16,15 @@ import { FamilySemaphore } from './concurrency.ts'
 import { fingerprintPrefix, orderedTools } from './fingerprint.ts'
 import { resolveCachePolicy } from './policy.ts'
 import type { CacheRoute } from './policy.ts'
-import { foldCacheState } from './state.ts'
+import { cacheRemaining, foldCacheState } from './state.ts'
+import type { CacheRemaining } from './types.ts'
 import { scheduleKeepalive } from './keepalive.ts'
 export type * from './types.ts'
 export type { CacheRoute } from './policy.ts'
 
 /** Loader plugin identity. */
 export const name = 'llm-cache'
-/** Accounting is optional; request policy remains usable without a ledger. */
+/** Without the optional ledger, preserve upstream request and admission behavior. */
 export const inject = ['llm', 'agents', 'systemPrompt']
 /** Session cache and harness-process concurrency configuration. */
 export interface Config {
@@ -31,6 +33,24 @@ export interface Config {
   concurrency: FamilyConcurrencyLimit[]
   /** Explicit capabilities for gateway routes; unknown routes never acquire guessed TTL support. */
   routes?: CacheRoute[]
+  /** Consecutive failed refreshes before maintenance pauses until a new ordinary call or explicit update. */
+  keepaliveFailureBudget?: number
+}
+
+declare module '@panedesk/cordis' {
+  interface Events {
+    /** Update an opted-in session without rewriting its historical request headers.
+     * @mode serial
+     * @param update - live session and explicitly replaced settings.
+     */
+    'llm-cache/update'(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }): Promise<void>
+    /** Read the evidence-based remaining estimate without dispatching a model call.
+     * @mode waterfall
+     * @param agent - session whose cache evidence is requested.
+     * @param next - remaining query listeners.
+     */
+    'llm-cache/remaining'(agent: Agent, next: () => Promise<CacheRemaining>): Promise<CacheRemaining>
+  }
 }
 /** Configuration defaults never enable keepalive implicitly. */
 export const Config = z.object({
@@ -44,6 +64,7 @@ export const Config = z.object({
     minimumIntervalSeconds: z.number().min(1).default(60),
     maxOutputTokens: z.number().min(1).default(1),
   }),
+  keepaliveFailureBudget: z.number().min(1).default(3),
   concurrency: z.array(z.object({
     modelFamily: z.string().required(),
     maxInFlight: z.number().min(1).required(),
@@ -82,13 +103,19 @@ interface SessionState {
   failure?: unknown
   lastStart?: LedgerCallStart
   stopped: boolean
+  keepaliveFailures: number
+  policyOverride: boolean
+  backoffMs: number
+  backoffStarted?: number
+  compactionTimes: number[]
+  active: Set<Promise<void>>
+  partial?: LedgerArtifactReference
 }
 
 function builtInRoute(provider: string): CacheRoute {
   switch (provider) {
     case 'anthropic': return { provider, modelFamily: 'anthropic', capability: 'anthropic' }
-    case 'openai': return { provider, modelFamily: 'openai', capability: 'openai-responses' }
-    case 'deepseek': case 'zai': case 'xai': return { provider, modelFamily: provider, capability: 'automatic' }
+    case 'deepseek': return { provider, modelFamily: provider, capability: 'automatic' }
     default: return { provider, modelFamily: provider, capability: 'unsupported' }
   }
 }
@@ -127,6 +154,8 @@ export function apply(ctx: Context, config: Config): void {
       keepalive: structuredClone(agent?.options.cacheKeepalive ?? inherited?.keepalive ?? config.keepalive),
       reasons: new Set(), logicalRequestId: randomUUID() as LedgerRequestId,
       attemptIndex: 0, retryPending: false, inFlight: 0, pending: Promise.resolve(), stopped: false,
+      keepaliveFailures: 0, policyOverride: agent?.options.cachePolicy !== undefined || inherited?.policyOverride === true,
+      backoffMs: 0, compactionTimes: [], active: new Set(),
     }
     states.set(id, state)
     return state
@@ -152,7 +181,8 @@ export function apply(ctx: Context, config: Config): void {
 
   function arm(id: string, state: SessionState): void {
     if (state.timer !== undefined) clearTimeout(state.timer)
-    if (state.stopped || lifetime.signal.aborted || ledger() === undefined || state.request === undefined) return
+    if (state.stopped || lifetime.signal.aborted || ledger() === undefined || state.request === undefined
+      || state.keepaliveFailures >= (config.keepaliveFailureBudget ?? 3)) return
     const due = scheduleKeepalive(state.evidence, state.keepalive, Date.now(), state.lastAttempt)
     if (due === undefined) return
     state.timer = setTimeout(() => {
@@ -168,14 +198,31 @@ export function apply(ctx: Context, config: Config): void {
     const agent = ctx.agents.list().find(candidate => candidate.id === id)
     const request = state.request
     if (agent === undefined || request === undefined || state.stopped) return
+    if (agent.status !== 'idle' || state.inFlight !== 0 || state.active.size !== 0 || semaphore.saturated(routeOf(request.provider).modelFamily)) {
+      queueFact(state, { kind: 'alert', alert: { code: 'keepalive-skipped-busy', message: 'Idle refresh deferred because work is active', redacted: true } })
+      await state.pending
+      arm(id, state)
+      return
+    }
+    const reservation = { entered: false }
     try {
-      if (agent.status !== 'idle' || state.inFlight !== 0 || semaphore.saturated(routeOf(request.provider).modelFamily)) return
+      const priorEvidenceAt = state.evidence?.lastCacheEvidenceAt
       await agent.runMaintenance(async (signal) => {
+        reservation.entered = true
+        const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent, signal))
+        const tools = state.prefix?.tools ?? assembly.tools
+        if (fingerprintPrefix(requestSystem(request), tools) !== state.evidence?.prefixFingerprint) {
+          queueFact(state, { kind: 'alert', alert: { code: 'keepalive-prefix-changed', message: 'Refresh skipped until an ordinary call records changed tool permissions', redacted: true } })
+          state.evidence = undefined
+          return
+        }
         const refresh: GenerateOptions = {
           provider: request.provider, model: request.model,
-          system: requestSystem(request), tools: structuredClone(request.toolHistory?.tools ?? request.tools ?? []),
+          system: requestSystem(request), tools: structuredClone(tools),
           messages: [{ role: 'user', content: [{ type: 'text', text: 'Continue.' }] }],
-          cache: request.cache, sessionId: agent.id, purpose: 'keepalive',
+          cache: resolveCachePolicy(state.policyOverride ? state.policy : request.cache === undefined ? state.policy
+            : { retention: request.cache.retention, stableKey: request.cache.key }, routeOf(request.provider), id).control,
+          sessionId: agent.id, purpose: 'keepalive',
           maxTokens: state.keepalive.maxOutputTokens,
           signal: AbortSignal.any([signal, lifetime.signal]),
         }
@@ -185,11 +232,26 @@ export function apply(ctx: Context, config: Config): void {
           }
         }
       })
+      state.keepaliveFailures = state.evidence?.lastCacheEvidenceAt !== priorEvidenceAt ? 0 : state.keepaliveFailures + 1
     } catch (error: unknown) {
-      ctx.logger.warn('Cache keepalive failed; the next attempt remains interval-limited')
+      if (!reservation.entered) {
+        queueFact(state, { kind: 'alert', alert: { code: 'keepalive-skipped-busy', message: 'Maintenance reservation was unavailable', redacted: true } })
+        return
+      }
+      state.keepaliveFailures += 1
+      ctx.logger.warn('Cache keepalive failed; maintenance has a finite failure budget')
       if (state.failure === undefined && lifetime.signal.aborted) return
       void error
     } finally {
+      if (state.keepaliveFailures >= (config.keepaliveFailureBudget ?? 3)) {
+        queueFact(state, { kind: 'alert', alert: { code: 'keepalive-budget-exhausted', message: 'Maintenance paused after consecutive unconfirmed refreshes', redacted: true } })
+      }
+      if (state.evidence !== undefined) {
+        state.evidence.keepaliveFailures = state.keepaliveFailures
+        state.evidence.lastKeepaliveAttemptAt = state.lastAttempt
+        queueFact(state, { kind: 'cache/evidence', evidence: structuredClone(state.evidence) })
+      }
+      await state.pending
       arm(id, state)
     }
   }
@@ -197,12 +259,72 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('agent/created', async ({ agent }) => {
     const state = stateOf(agent.id, agent)
     const service = ledger()
-    if (service !== undefined) state.evidence = foldCacheState(await service.snapshot({ sessionId: agent.id }))
+    if (service === undefined) return
+    const snapshot = await service.snapshot({ sessionId: agent.id })
+    if (!snapshot.complete) {
+      ctx.logger.warn('Cache recovery is incomplete; maintenance remains disabled until fresh evidence')
+    }
+    state.evidence = structuredClone(foldCacheState(snapshot))
+    state.compactionTimes = snapshot.rows.flatMap(row => row.kind === 'event' && row.event.kind === 'compaction' ? [row.event.committedAt] : [])
+    for (const row of snapshot.rows) {
+      if (row.kind === 'call' && row.start.purpose === 'conversation'
+        && (state.lastStart === undefined || row.start.startedAt >= state.lastStart.startedAt)) state.lastStart = row.start
+    }
+    if (agent.options.cachePolicy === undefined && state.evidence?.sessionPolicy !== undefined) {
+      state.policy = structuredClone(state.evidence.sessionPolicy)
+      state.policyOverride = true
+    }
+    if (agent.options.cacheKeepalive === undefined && state.evidence?.keepalivePolicy !== undefined) {
+      state.keepalive = structuredClone(state.evidence.keepalivePolicy)
+    }
+    state.keepaliveFailures = state.evidence?.keepaliveFailures ?? 0
+    state.lastAttempt = state.evidence?.lastKeepaliveAttemptAt
+    const header = agent.session.requestHeader()
+    const messages = agent.session.deriveMessages()
+    if (header !== undefined) {
+      const request = { ...header.config, tools: header.tools, toolHistory: agent.session.toolHistory(), messages, sessionId: agent.id }
+      state.prefix = { sections: [{ name: 'cache-stable-prefix', text: requestSystem(request), interpolate: false }], tools: orderedTools(header.tools ?? []) }
+      state.route = `${request.provider}:${request.model}`
+      state.request = request
+      if (state.evidence?.prefixFingerprint !== fingerprintPrefix(requestSystem(request), agent.session.toolHistory().tools)) {
+        state.evidence = undefined
+        state.reasons.add('recovery-prefix-change')
+      }
+      arm(agent.id, state)
+    }
     return undefined
+  })
+  ctx.on('llm-cache/update', async ({ agent, policy, keepalive }) => {
+    const state = stateOf(agent.id, agent)
+    if (policy !== undefined) {
+      resolveCachePolicy(policy, routeOf(state.request?.provider ?? agent.options.provider ?? ''), agent.id)
+      state.policy = structuredClone(policy)
+      state.policyOverride = true
+      state.reasons.add('cache-policy-change')
+      // Old evidence describes the old tier, not the new request configuration.
+      state.evidence = { ...state.evidence, cacheMode: 'unknown', breakReasons: ['cache-policy-change'], sessionPolicy: state.policy }
+    }
+    if (keepalive !== undefined) {
+      if (keepalive.leadSeconds <= 0 || keepalive.minimumIntervalSeconds <= 0 || keepalive.maxOutputTokens <= 0) throw new Error('Invalid maintenance budget')
+      state.keepalive = structuredClone(keepalive)
+    }
+    state.keepaliveFailures = 0
+    if (state.evidence !== undefined) {
+      state.evidence.keepalivePolicy = state.keepalive
+      state.evidence.keepaliveFailures = 0
+      queueFact(state, { kind: 'cache/evidence', evidence: structuredClone(state.evidence) })
+    }
+    await state.pending
+    arm(agent.id, state)
+  })
+  ctx.on('llm-cache/remaining', async (agent, next) => {
+    const fallback = await next()
+    const state = states.get(agent.id)
+    return state === undefined ? fallback : cacheRemaining(state.evidence, Date.now())
   })
   ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
     const assembly = await next()
-    if (context.agent === undefined) return assembly
+    if (context.agent === undefined || ledger() === undefined) return assembly
     const state = stateOf(context.agent.id, context.agent)
     const available = new Set(assembly.tools.map(tool => tool.name))
     if (state.prefix === undefined) {
@@ -218,8 +340,10 @@ export function apply(ctx: Context, config: Config): void {
   }, { prepend: true })
   ctx.on('agent/request', async ({ agent }, next) => {
     const request = await next()
+    if (ledger() === undefined) return request
     const state = stateOf(agent.id, agent)
-    const policy = request.cache === undefined ? state.policy : { retention: request.cache.retention, stableKey: request.cache.key }
+    const policy = state.policyOverride || request.cache === undefined ? state.policy
+      : { retention: request.cache.retention, stableKey: request.cache.key }
     const resolved = resolveCachePolicy(policy, routeOf(request.provider), agent.id)
     return { ...request, cache: resolved.control }
   }, { prepend: true })
@@ -228,6 +352,7 @@ export function apply(ctx: Context, config: Config): void {
     if (state === undefined) return
     state.stopped = true
     if (state.timer !== undefined) clearTimeout(state.timer)
+    await Promise.all([...state.active])
     await state.pending
     if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
   })
@@ -238,13 +363,34 @@ export function apply(ctx: Context, config: Config): void {
   async function* stream(request: GenerateOptions, next: () => AsyncIterable<StreamChunk>): AsyncGenerator<StreamChunk> {
     const agent = request.sessionId === undefined ? ctx.agents.currentInitiator() : ctx.agents.get(request.sessionId)
     const id = request.sessionId ?? agent?.id ?? `auxiliary:${randomUUID()}`
-    const state = stateOf(id, agent)
     const service = ledger()
+    if (service === undefined) { yield* next(); return }
+    const sessionState = stateOf(id, agent)
+    const auxiliary = request.purpose !== undefined && request.purpose !== 'keepalive'
+    const state = auxiliary ? stateOf(`call:${randomUUID()}`, agent) : sessionState
+    const completed = Promise.withResolvers<void>()
+    operations.add(completed.promise)
+    sessionState.active.add(completed.promise)
+    try {
+      await sessionState.pending
+      if (sessionState.stopped || lifetime.signal.aborted) throw new Error('Cache accounting is closing')
+      if (sessionState.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: sessionState.failure })
+      yield* metered(request, next, id, agent, state, service)
+    } finally {
+      completed.resolve()
+      operations.delete(completed.promise)
+      sessionState.active.delete(completed.promise)
+      if (state.failure !== undefined) sessionState.failure = state.failure
+      if (auxiliary) for (const [key, value] of states) { if (value === state) states.delete(key) }
+    }
+  }
+
+  async function* metered(request: GenerateOptions, next: () => AsyncIterable<StreamChunk>, id: string,
+    agent: Agent | undefined, state: SessionState, service: SessionLedger): AsyncGenerator<StreamChunk> {
     const callId = randomUUID() as LedgerCallId
     const route = routeOf(request.provider)
-    const resolution = resolveCachePolicy(request.cache === undefined ? state.policy : {
-      retention: request.cache.retention, stableKey: request.cache.key,
-    }, route, id)
+    const resolution = request.cache === undefined ? { mode: 'unknown' as const, ttlSeconds: undefined, downgradeReason: undefined }
+      : resolveCachePolicy({ retention: request.cache.retention, stableKey: request.cache.key }, route, id)
     const fingerprint = fingerprintPrefix(requestSystem(request), request.toolHistory?.tools ?? request.tools ?? [])
     const routeKey = `${request.provider}:${request.model}`
     if (state.route !== undefined && state.route !== routeKey) state.reasons.add('route-change')
@@ -252,37 +398,43 @@ export function apply(ctx: Context, config: Config): void {
     const unexplained = changed && state.reasons.size === 0
     const evidence: LedgerCacheEvidence = {
       prefixFingerprint: fingerprint, fingerprintVersion: 1,
-      cacheEpoch: changed ? randomUUID() : state.evidence?.cacheEpoch ?? randomUUID(),
+      cacheEpoch: changed || state.reasons.size !== 0 ? randomUUID() : state.evidence?.cacheEpoch ?? randomUUID(),
       breakReasons: [...state.reasons], cacheMode: resolution.mode,
       retention: request.cache, ttlSeconds: resolution.ttlSeconds,
       downgradeReason: resolution.downgradeReason,
-      ...(!changed && state.route === routeKey && state.evidence?.lastCacheEvidenceAt !== undefined
+      sessionPolicy: state.policyOverride ? state.policy : undefined, keepalivePolicy: state.keepalive,
+      keepaliveFailures: state.keepaliveFailures, lastKeepaliveAttemptAt: state.lastAttempt,
+      ...(!changed && state.reasons.size === 0 && state.route === routeKey && state.evidence?.lastCacheEvidenceAt !== undefined
         ? { lastCacheEvidenceAt: state.evidence.lastCacheEvidenceAt } : {}),
     }
     await state.pending
     if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
-    if (!state.retryPending) { state.logicalRequestId = randomUUID() as LedgerRequestId; state.attemptIndex = 0 }
-    state.retryPending = false
+    if (request.purpose === undefined && !state.retryPending) {
+      state.logicalRequestId = randomUUID() as LedgerRequestId; state.attemptIndex = 0; state.backoffMs = 0
+    }
+    if (request.purpose === undefined) state.retryPending = false
     const startedAt = Date.now()
     const clock = performance.now()
-    const attribution = service === undefined ? undefined : await service.resolveCallContext({
+    const attribution = await service.resolveCallContext({
       sessionId: request.sessionId ?? agent?.id, provider: request.provider, model: request.model,
     })
-    const start: LedgerCallStart | undefined = attribution === undefined ? undefined : {
+    const start: LedgerCallStart = {
       ...attribution.context, runId: attribution.runId, callId,
-      logicalRequestId: state.logicalRequestId, attemptIndex: state.attemptIndex, attemptVisibility: 'adapter',
+      logicalRequestId: request.purpose === undefined ? state.logicalRequestId : randomUUID() as LedgerRequestId,
+      attemptIndex: request.purpose === undefined ? state.attemptIndex : 0, attemptVisibility: 'adapter',
       provider: request.provider, modelFamily: route.modelFamily, requestedModel: request.model,
       purpose: request.purpose ?? 'conversation', startedAt, cache: evidence, cacheWriteTiering: { kind: 'unknown' },
       priceVersion: attribution.price?.version ?? 'unknown', priceKey: attribution.price?.modelKey ?? request.model,
       referencePrice: true,
     }
-    if (service !== undefined && start !== undefined) committed(await service.beginCall(start))
-    state.lastStart = start
+    const signal = AbortSignal.any([lifetime.signal, ...(request.signal === undefined ? [] : [request.signal])])
+    committed(await service.beginCall(start))
+    if (request.purpose !== 'keepalive') state.lastStart = start
     state.inFlight += 1
     state.route = routeKey
     state.evidence = evidence
     state.reasons.clear()
-    if (request.purpose === undefined) state.request = request
+    if (request.purpose === undefined) { state.request = request; state.keepaliveFailures = 0 }
     let release: (() => void) | undefined
     let admittedAt: number | undefined
     let usage: TokenUsage | undefined
@@ -291,16 +443,18 @@ export function apply(ctx: Context, config: Config): void {
     const artifacts: LedgerArtifactReference[] = []
     let seq = 0
     let failure: unknown
-    const signal = AbortSignal.any([lifetime.signal, ...(request.signal === undefined ? [] : [request.signal])])
     async function artifact(kind: 'partial-response' | 'keepalive-request', content: string, index: number): Promise<LedgerArtifactReference | undefined> {
-      if (service === undefined) return
-      const result = await service.appendArtifact({ callId, kind, seq: index, content })
-      committed(result)
-      if (result.kind === 'conflict') throw new Error('Ledger sidecar conflict')
-      return result.reference
+      try {
+        const result = await service.appendArtifact({ callId, kind, seq: index, content })
+        if (result.kind === 'conflict') throw new Error('Ledger sidecar conflict')
+        return result.reference
+      } catch (error: unknown) {
+        state.failure = error
+        throw error
+      }
     }
     try {
-      if (service !== undefined && start !== undefined) {
+      {
         if (evidence.breakReasons.length !== 0) await fact(service, start, { kind: 'cache/break', evidence })
         if (unexplained) await fact(service, start, { kind: 'alert', alert: { code: 'unexplained-prefix-change', message: 'The stable request prefix changed without an explicit breakpoint', redacted: true } })
         if (semaphore.saturated(route.modelFamily)) await fact(service, start, { kind: 'alert', alert: { code: 'concurrency-queued', message: 'Model family admission is queued', redacted: true } })
@@ -329,39 +483,54 @@ export function apply(ctx: Context, config: Config): void {
       release?.()
       try {
         const failed = failure !== undefined || finish === undefined || finish.reason.kind === 'error' || finish.reason.kind === 'aborted'
-        if (service !== undefined && partial !== undefined) {
-          const closed = await service.finishArtifact(partial)
-          if (failed) artifacts.push(closed.reference)
+        if (partial !== undefined) {
+          try {
+            const closed = await service.finishArtifact(partial)
+            artifacts.push(closed.reference)
+            if (request.purpose === undefined) state.partial = failed ? closed.reference : undefined
+          } catch (error: unknown) {
+            state.failure = error
+            await fact(service, start, { kind: 'alert', alert: { code: 'ledger-unavailable', message: 'Partial response sidecar closure failed', redacted: true } })
+          }
         }
         const reason = finish?.reason
         const status = finish?.httpStatus ?? (reason?.kind === 'error' || reason?.kind === 'aborted' ? reason.failure.status : undefined)
         if (finish?.cacheRetention !== undefined) {
-          const actual = resolveCachePolicy({ retention: finish.cacheRetention, stableKey: request.cache?.key }, route, id)
-          evidence.cacheMode = actual.mode
-          evidence.ttlSeconds = actual.ttlSeconds
-          evidence.retention = actual.control
+          const retention = finish.cacheRetention
+          evidence.cacheMode = retention === 'auto' ? 'automatic' : retention === 'none' ? 'disabled'
+            : retention === 'default' ? 'unknown' : 'explicit'
+          evidence.ttlSeconds = retention === '5m' ? 300 : retention === '1h' ? 3600
+            : retention === '30m' ? 1800 : retention === '12h' ? 43200 : undefined
+          evidence.retention = { retention, key: request.cache?.key }
         }
         evidence.downgradeReason = finish?.cacheDowngradeReason ?? evidence.downgradeReason
         if ((usage?.cacheReadTokens ?? 0) > 0 || (usage?.cacheWriteTokens ?? 0) > 0) evidence.lastCacheEvidenceAt = Date.now()
-        if (service !== undefined && start !== undefined) {
+        {
           const priced = service.priceUsage({ usage, usageState: usage === undefined ? 'missing' : 'complete',
-            tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: attribution?.price })
+            tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: attribution.price })
           const end: LedgerCallFinish = {
             callId, endedAt: Date.now(), observedAt: Date.now(),
             responseModel: finish?.responseModel, responseModelReported: finish?.responseModelReported ?? 'unobservable',
             effectiveModel: finish?.responseModel ?? request.model, httpStatus: status, usage,
             usageState: usage === undefined ? 'missing' : 'complete', costUsd: priced.costUsd, pricingState: priced.state,
             wallMs: settledAt - clock, modelInFlightMs: admittedAt === undefined ? 0 : settledAt - admittedAt,
-            queueMs: (admittedAt ?? settledAt) - clock, backoffMs: 0, waits: [],
-            compactionCount: 0, compactionTimes: [], recovered: false,
+            queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits: [],
+            // Session-to-date observations are snapshots, not additional compaction charges.
+            compactionCount: state.compactionTimes.length, compactionTimes: [...state.compactionTimes], recovered: false,
             endReason: signal.aborted || reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
             upstreamStopReason: reason?.kind ?? 'iterator-closed', artifacts,
             accountLabel: finish?.accountLabel, cacheWriteTiering: finish?.cacheWriteTiering, cache: evidence,
             http429Count: status === 429 ? 1 : 0, http503Count: status === 503 ? 1 : 0,
             ...(usage === undefined ? {} : { peakContextTokens: usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0), peakContextSource: 'usage' as const }),
           }
-          committed(await service.finishCall(end))
-          await fact(service, start, { kind: 'cache/evidence', evidence })
+          const settlementClock = performance.now()
+          const overdue = setTimeout(() => { ctx.logger.warn('Ledger settlement exceeded ten seconds; durable write remains in progress') }, 10_000)
+          overdue.unref()
+          try { committed(await service.finishCall(end)) } finally { clearTimeout(overdue) }
+          if (performance.now() - settlementClock >= 10_000) {
+            await fact(service, start, { kind: 'alert', alert: { code: 'ledger-settlement-delayed', message: 'Call settlement exceeded ten seconds', redacted: true } })
+          }
+          await fact(service, start, { kind: 'cache/evidence', evidence: structuredClone(evidence) })
           if (failed) await fact(service, start, { kind: 'alert', alert: { code: admittedAt === undefined ? 'concurrency-rejected' : 'disconnect', message: 'Model call did not complete', redacted: true } })
         }
       } catch (error: unknown) {
@@ -383,13 +552,45 @@ export function apply(ctx: Context, config: Config): void {
     const type: string = event.type
     if (type === 'llm/retry' || type === 'llm/retry-started') {
       state.retryPending = true
-      if (type === 'llm/retry-started') state.attemptIndex += 1
+      if (type === 'llm/retry') state.backoffStarted = performance.now()
+      if (type === 'llm/retry-started') {
+        state.attemptIndex += 1
+        if (state.backoffStarted !== undefined) state.backoffMs += performance.now() - state.backoffStarted
+        state.backoffStarted = undefined
+      }
       queueFact(state, { kind: 'retry', phase: type === 'llm/retry' ? 'scheduled' : 'started', logicalRequestId: state.logicalRequestId, attemptIndex: state.attemptIndex })
     }
+    if (type === 'compaction/summary') {
+      const committedAt = event.time
+      state.compactionTimes.push(committedAt)
+      queueFact(state, { kind: 'compaction', committedSeq: event.seq, committedAt })
+    }
     if (type === 'compaction/summary' || type === 'image/offload' || type === 'message/prune') state.reasons.add(type)
+    if (event.type === 'assistant/attempt' && state.partial !== undefined) {
+      queueFact(state, { kind: 'alert', alert: { code: 'partial-attempt-linked',
+        message: `Partial response belongs to assistant attempt at session sequence ${event.seq}`,
+        artifact: state.partial.path, redacted: true } })
+    }
     if (event.surfaceOp?.op === 'replace') state.reasons.add('history-edit')
     if (event.type === 'request/header' && event.data.reason === 'change') state.reasons.add('request-config-change')
   })
+  ctx.on('agent/request-error', async ({ agent, failure, retryPolicy, signal }, next) => {
+    const action = await next()
+    const state = states.get(agent.id)
+    if (state !== undefined && action?.kind !== 'retry' && !signal.aborted) {
+      const exhausted = retryPolicy?.mode === 'normal' && retryPolicy.retryableCodes.includes(failure.code)
+        && (state.attemptIndex >= retryPolicy.maxRetries
+          || (failure.providerRetryAfterMs ?? 0) > retryPolicy.maxDelayMs)
+      if (exhausted) {
+        queueFact(state, { kind: 'retry', phase: 'exhausted', logicalRequestId: state.logicalRequestId,
+          attemptIndex: state.attemptIndex, httpStatus: failure.status })
+        queueFact(state, { kind: 'alert', alert: { code: 'retry-exhausted', message: 'Configured retry budget or delay limit ended recovery', artifact: state.partial?.path, redacted: true } })
+      }
+      state.retryPending = false
+      await state.pending
+    }
+    return action
+  }, { prepend: true })
   ctx.on('agent/inbox/inserted', ({ agent }) => {
     if (agent.status === 'running') stateOf(agent.id, agent).reasons.add('interjection')
   })

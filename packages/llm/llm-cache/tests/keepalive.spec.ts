@@ -21,6 +21,60 @@ describe('cache evidence and maintenance', () => {
     expect(foldCacheState({ asOf: 0, watermarks: {}, complete: true, rows: [] })).toBeUndefined()
   })
 
+  it('restores the frozen prefix and idle maintenance from durable evidence and session history', async () => {
+    vi.useFakeTimers()
+    const first = await harness({ config: { keepalive: policy } })
+    const second = await harness({ config: { keepalive: policy } })
+    try {
+      first.ctx.systemPrompt.section({ name: 'stable', order: 0, text: 'Original system' })
+      const handle = await first.ctx.agents.create({ sessionId: SessionId('restore-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
+      await handle.agent.whenIdle()
+      const seed = structuredClone(handle.agent.session.snapshotEvents())
+      if (first.ledger === undefined || second.ledger === undefined) throw new Error('missing ledger')
+      second.ledger.restored = { asOf: Date.now(), complete: true, watermarks: {}, rows: [
+        ...first.ledger.starts.map(start => ({ kind: 'call' as const, start, finish: first.ledger?.ends.find(end => end.callId === start.callId) })),
+        ...first.ledger.events.map(event => ({ kind: 'event' as const, event })),
+      ] }
+      await handle.dispose()
+      second.ctx.systemPrompt.section({ name: 'stable', order: 0, text: 'Changed system' })
+      const restored = await second.ctx.agents.create({ sessionId: SessionId('restore-session'), seed,
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      await vi.advanceTimersByTimeAsync(3_360_000)
+      expect(second.adapter.requests[0]).toMatchObject({ purpose: 'keepalive', system: 'Original system', cache: { retention: '1h' } })
+      restored.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'again' }], source: { kind: 'user' } }))
+      await restored.agent.whenIdle()
+      expect(second.adapter.requests[1].messages[0]).toMatchObject({ content: [{ text: 'Original system' }] })
+      await restored.dispose()
+    } finally { await first.ctx.fiber.dispose(); await second.ctx.fiber.dispose(); vi.useRealTimers() }
+  })
+
+  it('records busy skips and stops after the configured consecutive failure budget', async () => {
+    vi.useFakeTimers()
+    const { ctx, adapter, ledger } = await harness({ config: { keepalive: policy, keepaliveFailureBudget: 2 } })
+    try {
+      const handle = await ctx.agents.create({ sessionId: SessionId('budget-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
+      await handle.agent.whenIdle()
+      const busy = ctx.llm.stream({ provider: 'model-provider', model: 'model-a', messages: [],
+        sessionId: handle.agent.id, purpose: 'session-title' })[Symbol.asyncIterator]()
+      await busy.next()
+      await vi.advanceTimersByTimeAsync(3_360_000)
+      expect(ledger?.events.some(event => event.kind === 'alert' && event.alert.code === 'keepalive-skipped-busy')).toBe(true)
+      await busy.return?.()
+      adapter.chunks = [{ type: 'finish', reason: { kind: 'error', failure: { code: 'RATE_LIMIT', message: 'limited' } } }]
+      await vi.advanceTimersByTimeAsync(240_000)
+      expect(adapter.requests).toHaveLength(4)
+      expect(ledger?.events.some(event => event.kind === 'alert' && event.alert.code === 'keepalive-budget-exhausted')).toBe(true)
+      const count = adapter.requests.length
+      await vi.advanceTimersByTimeAsync(3_600_000)
+      expect(adapter.requests).toHaveLength(count)
+      await handle.dispose()
+    } finally { await ctx.fiber.dispose(); vi.useRealTimers() }
+  })
+
   it('sends one opt-in idle request outside conversation history and persists its snapshot', async () => {
     vi.useFakeTimers()
     const { ctx, adapter, ledger } = await harness({ config: { keepalive: policy } })
@@ -31,6 +85,8 @@ describe('cache evidence and maintenance', () => {
       handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
       await handle.agent.whenIdle()
       const seq = handle.agent.session.seq
+      const remaining = await ctx.waterfall('llm-cache/remaining', handle.agent, async () => ({ kind: 'unknown' as const }))
+      expect(remaining).toMatchObject({ kind: 'estimated', ttlSeconds: 3600 })
       await vi.advanceTimersByTimeAsync(3_360_000)
       expect(adapter.requests).toHaveLength(2)
       expect(adapter.requests[1]).toMatchObject({ purpose: 'keepalive', maxTokens: 1, system: 'Stable system' })

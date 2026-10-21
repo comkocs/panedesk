@@ -52,11 +52,25 @@ describe.each(['backend-first', 'loop-first'] as const)('root shutdown drain (%s
   it('persists buffered turn events without an explicit flush before dispose', async () => {
     const { ctx, root } = await mount(order)
     const sessionId = SessionId('shutdown-drain')
-    const handle = await ctx.agents.create({ sessionId, agentOptions: { provider: 'mock', model: 'mock' } })
+    const agents = ctx.agents
+    const handle = await agents.create({ sessionId, agentOptions: { provider: 'mock', model: 'mock' } })
+    const settlement = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    handle.agent.ctx.on('agent/ending', async ({ agent }) => {
+      expect(agent).toBe(handle.agent)
+      expect(agents.get(sessionId)).toBe(agent)
+      entered.resolve(undefined)
+      await settlement.promise
+    })
     handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'q' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, handle.agent)
     // No explicit flush and no agent dispose: root teardown must drain.
-    await ctx.fiber.dispose()
+    const shutdown = ctx.fiber.dispose()
+    await entered.promise
+    expect(agents.get(sessionId)).toBe(handle.agent)
+    settlement.resolve(undefined)
+    await shutdown
+    expect(agents.get(sessionId)).toBeUndefined()
 
     const verify = new Context()
     await verify.plugin(JsonlSessionPersistence, { root })
