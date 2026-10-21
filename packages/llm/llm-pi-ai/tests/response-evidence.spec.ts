@@ -102,7 +102,7 @@ describe('opt-in wire cache controls', () => {
     const llm = adapter(api, server.url, 'gpt-5.6')
     const effective = api === 'openai-completions' || retention === '30m' ? '30m' : '12h'
     for (const session of ['session-a', 'session-a', 'session-b']) {
-      const result = await collect(llm, 'gpt-5.6', { sessionId: brandString<'SessionId'>(session), cache: { retention } })
+      const result = await collect(llm, 'gpt-5.6', { sessionId: brandString<NonNullable<GenerateOptions['sessionId']>>(session), cache: { retention } })
       expect(result.finish).toMatchObject({ cacheRetention: effective, cacheWriteTiering: { kind: 'tiered', short: '30m', long: '12h' } })
       if (api === 'openai-completions' && retention !== '30m') expect(result.finish?.cacheDowngradeReason).toBe('non-responses-api')
       else expect(result.finish).not.toHaveProperty('cacheDowngradeReason')
