@@ -157,7 +157,7 @@ describe('sdkChildOutcome', () => {
 })
 
 describe('dsh-subagent-dsh-sdk provider', () => {
-  it('commits launch intent and identity before initialize without duplicating child calls', async () => {
+  it.each(['completed', 'kill-before-initialize', 'kill-after-initialize'] as const)('commits launch intent and closes exactly once: %s', async (mode) => {
     const facts: Array<LedgerRunStart | LedgerRunFinish | LedgerEvent> = []
     const order: string[] = []
     const parentContext: LedgerSessionContext = {
@@ -166,15 +166,40 @@ describe('dsh-subagent-dsh-sdk provider', () => {
     }
     const ledger = {
       beginRun: async (fact: LedgerRunStart) => { order.push('intent'); facts.push(fact); return { kind: 'appended' } },
-      appendEvent: async (fact: LedgerEvent) => { order.push('identity'); facts.push(fact); return { kind: 'appended' } },
+      appendEvent: async (fact: LedgerEvent) => {
+        order.push('identity'); facts.push(fact)
+        if (mode === 'kill-before-initialize' && fact.kind === 'process/observed') process.kill(fact.identity.pid, 'SIGKILL')
+        return { kind: 'appended' }
+      },
       finishRun: async (fact: LedgerRunFinish) => { order.push('end'); facts.push(fact); return { kind: 'appended' } },
     } as unknown as SessionLedger
     const create = runInternals.createHarness.bind(runInternals)
     runInternals.createHarness = (options) => { order.push('construct'); return create(options) }
-    const run = await startSdkRun(request(), {
+    const starting = startSdkRun(request(), {
       profile: 'sdk', patches: [], dshHome: process.cwd(), cwd: process.cwd(), provider: 'mock', model: 'mock',
-      env: {}, shutdownTimeoutMs: 1000, disposeEofGraceMs: 1000, disposeGraceMs: 1000, ledger, parentContext,
+      env: mode === 'kill-after-initialize' ? { FAKE_HANG_PROMPT: '1' } : {},
+      shutdownTimeoutMs: 1000, disposeEofGraceMs: 1000, disposeGraceMs: 1000, ledger, parentContext,
     })
+    if (mode === 'kill-before-initialize') {
+      await expect(starting).rejects.toThrow()
+      await expect.poll(() => order.filter(value => value === 'end').length).toBe(1)
+      expect(facts.at(-1)).toMatchObject({ endReason: 'killed', signal: 'SIGKILL' })
+      return
+    }
+    const run = await starting
+    if (mode === 'kill-after-initialize') {
+      const identity = facts.find((fact): fact is LedgerEvent => 'kind' in fact && fact.kind === 'process/observed')
+      if (identity?.kind !== 'process/observed') throw new Error('missing owned process identity')
+      const before = performance.now()
+      process.kill(identity.identity.pid, 'SIGKILL')
+      await expect.poll(() => order.filter(value => value === 'end').length).toBe(1)
+      expect(performance.now() - before).toBeLessThan(1000)
+      await run.result
+      await run.dispose()
+      expect(order.filter(value => value === 'end')).toHaveLength(1)
+      expect(facts.at(-1)).toMatchObject({ endReason: 'killed', signal: 'SIGKILL' })
+      return
+    }
     try {
       expect(order).toEqual(['intent', 'construct', 'identity'])
       expect(createdHarnessOptions[0]?.ledgerContext).toMatchObject({ parentRunId: 'parent-run', parentSessionId: 'parent', identitySource: 'inherited' })

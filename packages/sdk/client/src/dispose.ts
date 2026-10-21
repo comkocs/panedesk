@@ -9,6 +9,13 @@
  */
 
 import type { ChildProcess } from 'node:child_process'
+import { sameProcessIdentity, type SubprocessIdentity } from '@panedesk/dsh-subprocess'
+
+function assertSignalIdentity(identity: SubprocessIdentity | undefined): void {
+  if (identity !== undefined && process.platform === 'linux' && !sameProcessIdentity(identity)) {
+    throw new Error('Runtime process identity is no longer verified; refusing signal')
+  }
+}
 
 /**
  * Race the child's exit against a timer. Neither outcome leaves anything
@@ -32,7 +39,7 @@ function exitsWithin(child: ChildProcess, ms: number): Promise<boolean> {
 }
 
 /** Force-terminate the runtime and reject if no exit edge arrives within the grace. */
-function forceTerminateWithin(child: ChildProcess, ms: number): Promise<void> {
+function forceTerminateWithin(child: ChildProcess, ms: number, identity?: SubprocessIdentity): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
   return new Promise<void>((resolve, reject) => {
     let accepted = false
@@ -59,6 +66,7 @@ function forceTerminateWithin(child: ChildProcess, ms: number): Promise<void> {
       })
     }, ms).unref()
     try {
+      assertSignalIdentity(identity)
       accepted = child.kill('SIGKILL')
       if (child.exitCode !== null || child.signalCode !== null) settle(resolve)
     } catch (error: unknown) {
@@ -81,7 +89,7 @@ function forceTerminateWithin(child: ChildProcess, ms: number): Promise<void> {
  */
 export async function disposeRuntimeProcess(
   child: ChildProcess,
-  graces: { disposeEofGraceMs: number; disposeGraceMs: number },
+  graces: { disposeEofGraceMs: number; disposeGraceMs: number; processIdentity?: SubprocessIdentity },
   platform: NodeJS.Platform = process.platform,
 ): Promise<void> {
   // Already gone: nothing to reap.
@@ -91,9 +99,10 @@ export async function disposeRuntimeProcess(
   if (await exitsWithin(child, graces.disposeEofGraceMs)) return
   // 2. POSIX gets a catchable graceful signal; Windows signals all force-terminate.
   if (platform !== 'win32') {
+    assertSignalIdentity(graces.processIdentity)
     child.kill('SIGTERM')
     if (await exitsWithin(child, graces.disposeGraceMs)) return
   }
   // 3. Force-kill and await a bounded exit edge.
-  await forceTerminateWithin(child, graces.disposeGraceMs)
+  await forceTerminateWithin(child, graces.disposeGraceMs, graces.processIdentity)
 }

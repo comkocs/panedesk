@@ -314,7 +314,7 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
         },
       }))
     }, async (outcome) => {
-      await finish(outcome.signal !== null ? 'killed' : terminalReason ?? 'error',
+      await finish(terminalReason === 'cancelled' ? 'cancelled' : outcome.signal !== null ? 'killed' : terminalReason ?? 'error',
         outcome.exitCode ?? undefined, outcome.signal ?? undefined)
     })
   }

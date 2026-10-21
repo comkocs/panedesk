@@ -494,6 +494,7 @@ export class HarnessClient {
     await disposeRuntimeProcess(child, {
       disposeEofGraceMs: this.runtime.disposeEofGraceMs ?? 6_000,
       disposeGraceMs: this.runtime.disposeGraceMs ?? 3_000,
+      ...this.identity === undefined ? {} : { processIdentity: this.identity },
     })
     this.transport?.close()
     this.failSubscriptions(this.closedError('DeepSeek Harness runtime closed'))

@@ -8,6 +8,7 @@ import { EventEmitter } from 'node:events'
 import type { ChildProcess } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { disposeRuntimeProcess } from '../src/dispose.ts'
+import { readProcessIdentity } from '@panedesk/dsh-subprocess'
 
 /** What fells a scripted {@link FakeChild}. */
 type LethalTrigger = 'eof' | NodeJS.Signals
@@ -72,6 +73,33 @@ function asChild(fake: FakeChild): ChildProcess {
 }
 
 describe('disposeRuntimeProcess', () => {
+  it.skipIf(process.platform !== 'linux').each(['startIdentity', 'bootIdentity'] as const)(
+    'refuses signals when the recorded %s no longer matches', async (field) => {
+      const fake = new FakeChild()
+      const identity = { ...readProcessIdentity(process.pid), [field]: 'different-incarnation' }
+      await expect(disposeRuntimeProcess(asChild(fake), {
+        disposeEofGraceMs: 1, disposeGraceMs: 1, processIdentity: identity,
+      })).rejects.toThrow('refusing signal')
+      expect(fake.kills).toEqual([])
+    },
+  )
+
+  it.skipIf(process.platform !== 'linux')('rechecks identity before escalation instead of trusting the TERM observation', async () => {
+    const fake = new FakeChild()
+    const identity = { ...readProcessIdentity(process.pid) }
+    vi.spyOn(fake, 'kill').mockImplementation((signal) => {
+      fake.kills.push(signal)
+      identity.startIdentity = 'reused-after-term'
+      return true
+    })
+    await expect(disposeRuntimeProcess(asChild(fake), {
+      disposeEofGraceMs: 1, disposeGraceMs: 1, processIdentity: identity,
+    })).rejects.toMatchObject({ message: 'SIGKILL failed', cause: { message: 'Runtime process identity is no longer verified; refusing signal' } })
+    expect(fake.kills).toEqual(['SIGTERM'])
+    expect(fake.listenerCount('exit')).toBe(0)
+    expect(fake.listenerCount('error')).toBe(0)
+  })
+
   it('returns immediately for an already-exited child (no EOF, no signals)', async () => {
     const fake = new FakeChild()
     fake.exitCode = 0
