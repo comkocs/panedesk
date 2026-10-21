@@ -19,6 +19,14 @@
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/bundle/slim-headless"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
