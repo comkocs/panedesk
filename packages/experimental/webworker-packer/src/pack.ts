@@ -69,7 +69,7 @@ export interface ConfigTree extends ImageTree {
   readonly scanRoster?: boolean
 }
 
-/** The installation whose manifest alone anchors bundle resolution inside the image. */
+/** An installation or carrier whose manifest anchors bundle resolution inside the image. */
 export interface ImageInstallation {
   /** Package name the manifest is mounted under, `node_modules/<name>/package.json`. */
   readonly name: string
@@ -88,6 +88,8 @@ export interface PackOptions {
   readonly roster: readonly string[]
   /** Installation manifest copied alone, without its package or dependency closure. */
   readonly installation?: ImageInstallation
+  /** Installation carrier manifests copied without expanding the profile's package roster. */
+  readonly carriers?: readonly ImageInstallation[]
   /** Virtual root the image mounts under; defaults to {@link DEFAULT_ROOT}. */
   readonly root?: string
   /** Package name to absolute directory, for workspace and vendored packages. */
@@ -694,6 +696,9 @@ export function packVfsImage(options: PackOptions): PackResult {
       throw new Error(`vfs image: installation ${installation.name} is also materialized; its manifest must enter the image alone`)
     }
     files[`node_modules/${installation.name}/package.json`] = readFileSync(installation.manifest)
+  }
+  for (const carrier of options.carriers ?? []) {
+    files[`node_modules/${carrier.name}/package.json`] = readFileSync(carrier.manifest)
   }
   if (options.homePatch !== undefined && options.homePatch.length > 0) {
     files[HOME_PATCH_PATH] = encoder.encode(yaml.dump(options.homePatch, { schema: entryListSchema, noRefs: true }))

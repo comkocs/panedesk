@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import {
-  bundlePatchPaths, composeEntries, loadOverlayPatches, OPTIONAL_BUNDLES, PROFILE_TEMPLATES, resolveBundleDir,
+  bundlePatchPaths, composeEntries, installationBundleAnchors, loadOverlayPatches, OPTIONAL_BUNDLES, PROFILE_TEMPLATES, resolveBundleDir,
 } from '@panedesk/dsh-app-boot'
 import type { PatchOptions } from '@panedesk/cordis-plugin-include'
 import { PLATFORM_ENTRY_CONFIG } from '@panedesk/dsh-experimental-webworker-runtime'
@@ -171,17 +171,23 @@ export function installationManifest(repoRoot: string): ImageInstallation {
 }
 
 /**
- * Pack this repository's base image for one shipped profile.
+ * Pack this repository's base image for one shipped profile, retaining installation carrier manifests for bundle inventory.
  * @param repoRoot - Absolute repository root.
  * @param profile - Shipped profile template name.
  * @param root - Virtual root; the runtime default when omitted.
  * @returns The packed image and its lazy archives.
  */
 export function packRepositoryImage(repoRoot: string, profile: string, root?: string): PackResult {
+  const installation = installationManifest(repoRoot)
+  const carriers = installationBundleAnchors(installation.manifest).slice(1).map((manifest) => {
+    const { name } = JSON.parse(readFileSync(manifest, 'utf8')) as { name: string }
+    return { name, manifest }
+  })
   return packVfsImage({
     profile,
     roster: profileRoster(repoRoot, profile).roster,
-    installation: installationManifest(repoRoot),
+    installation,
+    carriers,
     ...root === undefined ? {} : { root },
     workspaces: indexWorkspacePackages(repoRoot),
     resolveFrom: repoRoot,
