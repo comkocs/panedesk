@@ -7,7 +7,7 @@
       "reason": "The fork makes harness identity an explicit opt-in instead of a default system prompt section.",
       "match": {
         "type": "remove-exact-paragraph",
-        "paths": ["snapshots/*/*/system-prompt.expected.md"],
+        "paths": ["snapshots/*/*/system-prompt*.expected.md"],
         "line": "You are an AI agent powered by DeepSeek Harness.",
         "followingBlankLines": 1
       }
