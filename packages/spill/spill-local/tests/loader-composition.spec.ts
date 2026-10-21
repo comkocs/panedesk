@@ -8,9 +8,9 @@ import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
-import Loader from '@panedesk/cordis-plugin-loader'
+import Loader, { EntryTree } from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
 import LocalSpillStore, { sessionDir } from '@panedesk/dsh-spill-local'
 
@@ -24,6 +24,7 @@ afterEach(async () => {
   context = undefined
   if (root !== undefined) await rm(root, { recursive: true, force: true })
   root = undefined
+  vi.restoreAllMocks()
 })
 
 describe('spill-local real Loader composition through cordis.yml', () => {
@@ -54,11 +55,11 @@ describe('spill-local real Loader composition through cordis.yml', () => {
     context.baseUrl = pathToFileURL(root).href + '/'
     await context.plugin(Loader)
     context.loader.builtins.include = Include
-    context.loader.import = async (specifier: string) => {
+    vi.spyOn(EntryTree.prototype, 'import').mockImplementation(async (specifier: string) => {
       if (specifier === 'cordis:include') return Include
       if (specifier !== '@panedesk/dsh-spill-local') throw new Error(`unexpected Loader import: ${specifier}`)
       return LocalSpillStore
-    }
+    })
     await context.loader.create({
       name: 'cordis:include',
       config: { path: pathToFileURL(configPath).href },
