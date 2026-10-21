@@ -30,6 +30,12 @@
       "path": "../../core/session"
     },
     {
+      "path": "../../preset/agent-preset-registry"
+    },
+    {
+      "path": "../../session/session-ledger"
+    },
+    {
       "path": "../protocol"
     },
     {

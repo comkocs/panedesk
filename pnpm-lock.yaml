@@ -12496,6 +12496,9 @@ importers:
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-agent-preset-registry':
+        specifier: workspace:*
+        version: link:../../preset/agent-preset-registry
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
@@ -12514,6 +12517,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
@@ -12667,6 +12673,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-cmdline':
+        specifier: workspace:*
+        version: link:../../boot/cmdline
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../session-ledger
@@ -12852,6 +12861,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/session/session-log-deepseek:
     dependencies:
@@ -14382,6 +14394,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence':
         specifier: workspace:*
         version: link:../../session/session-persistence
@@ -14668,6 +14683,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
@@ -14717,6 +14735,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../../session/session-projection
@@ -14726,6 +14747,9 @@ importers:
       '@panedesk/dsh-subagent-spawn-in-process':
         specifier: workspace:*
         version: link:../subagent-spawn-in-process
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/subagent/subagent-spawn-in-process:
     dependencies:
@@ -14763,6 +14787,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
@@ -14781,6 +14808,9 @@ importers:
       '@panedesk/dsh-tool-subagent':
         specifier: workspace:*
         version: link:../tool-subagent
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/subagent/tool-subagent:
     dependencies:
@@ -14812,6 +14842,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence':
         specifier: workspace:*
         version: link:../../session/session-persistence

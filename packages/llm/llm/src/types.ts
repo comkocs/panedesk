@@ -487,6 +487,14 @@ export type StreamChunk =
     responseModelReported?: ResponseModelReported
     /** Observed HTTP response status; absent when transport observation is unavailable. */
     httpStatus?: number
+    /** Non-sensitive configured route/provider label; never credentials or an endpoint. */
+    accountLabel?: string
+    /** Actual write tier names; absent means no authoritative tier observation. */
+    cacheWriteTiering?: LlmCacheWriteTiering
+    /** Effective wire retention, not the requested default; absent when unobservable. */
+    cacheRetention?: Exclude<CacheRetention, 'default'>
+    /** Why the wire retention is lower than requested, such as a non-Responses route. */
+    cacheDowngradeReason?: string
   }
 
 /**
@@ -543,6 +551,12 @@ export interface LlmCacheControl {
   /** Stable session cache key; omission leaves key selection to the session cache policy. */
   key?: string
 }
+
+/** Actual provider write tiers, structurally identical to the ledger's tier vocabulary. */
+export type LlmCacheWriteTiering =
+  | { kind: 'tiered'; short: string; long: string }
+  | { kind: 'untiered' }
+  | { kind: 'unknown' }
 
 /** Wire-model observation, never inferred from an SDK's request-initialized model value. */
 export type ResponseModelReported = 'same' | 'different' | 'missing' | 'unobservable'

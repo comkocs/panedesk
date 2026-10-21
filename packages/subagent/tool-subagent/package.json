@@ -40,6 +40,7 @@
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
@@ -48,6 +49,9 @@
     "@panedesk/cordis": "workspace:~"
   },
   "peerDependenciesMeta": {
+    "@panedesk/dsh-session-ledger": {
+      "optional": true
+    },
     "@panedesk/dsh-agent-preset-registry": {
       "optional": true
     }
@@ -62,6 +66,7 @@
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-session-persistence": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",

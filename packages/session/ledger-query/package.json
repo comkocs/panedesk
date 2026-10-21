@@ -28,10 +28,12 @@
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
-    "@panedesk/dsh-session-ledger": "workspace:*"
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-cmdline": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
-    "@panedesk/dsh-session-ledger": "workspace:*"
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-cmdline": "workspace:*"
   }
 }

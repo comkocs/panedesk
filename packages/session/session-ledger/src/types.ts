@@ -28,6 +28,45 @@ export type LedgerPricingState = 'priced' | 'missing-price' | 'missing-usage' | 
 /** Auxiliary calls remain billable but can be separated from ordinary traffic. */
 export type LedgerPurpose = NonNullable<GenerateOptions['purpose']> | 'conversation'
 
+/** Trusted wait classifications; unregistered tools remain unclassified. */
+export type LedgerWaitCategory = 'sleep' | 'external-marker' | 'subagent'
+/** Runtime provider configuration; model-authored text never supplies classifications. */
+export interface LedgerOptions {
+  /** Exact registered tool names mapped to trusted categories; no name-based inference. */
+  waitTools?: Readonly<Record<string, LedgerWaitCategory>>
+}
+
+/** Restricted sidecar streams owned by a physical call. */
+export type LedgerArtifactKind = 'partial-response' | 'keepalive-request'
+/** Stable sidecar fragment identity; sequence numbers are zero-based contiguous safe integers. */
+export interface LedgerArtifactKey {
+  callId: LedgerCallId
+  kind: LedgerArtifactKind
+  seq: number
+}
+/** Append one lossless JSON value encoded as UTF-8; equality compares these exact bytes. */
+export interface LedgerArtifactAppend extends LedgerArtifactKey {
+  /** Serialized JSON, without credentials; raw partial output stays in the restricted sidecar only. */
+  content: string
+}
+/** Durable ledger-owned reference; callers never choose a filesystem destination. */
+export interface LedgerArtifactReference extends LedgerArtifactKey {
+  /** Ledger-relative restricted path, not model-visible content. */
+  path: string
+  /** SHA-256 of the exact UTF-8 content bytes for this sequence. */
+  digest: string
+}
+/** Equal replays acknowledge durable bytes; conflicts never overwrite or append incoming bytes. */
+export type LedgerArtifactAppendResult =
+  | { kind: 'appended' | 'existing'; reference: LedgerArtifactReference }
+  | { kind: 'conflict'; key: LedgerArtifactKey; existingDigest: string; incomingDigest: string }
+/** Durable closure acknowledgement; no further sequence may be appended after closure. */
+export interface LedgerArtifactFinishResult {
+  kind: 'finished' | 'existing'
+  /** Last fragment, verified against the durable stream before closing it. */
+  reference: LedgerArtifactReference
+}
+
 /** Non-sensitive dispatch identity; absent seat/window resolve explicitly to free. */
 export interface LedgerIdentity {
   seat: string
@@ -150,6 +189,8 @@ export interface LedgerCallFinish {
   timeoutSource?: string
   recovered: boolean
   errorArtifact?: string
+  /** Durable sidecar references returned by appendArtifact; closure is acknowledged by finishArtifact. */
+  artifacts?: readonly LedgerArtifactReference[]
 }
 /** One projected call, joining its start with at most one committed terminal fact. */
 export interface LedgerCall {

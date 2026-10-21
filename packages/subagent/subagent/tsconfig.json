@@ -51,6 +51,9 @@
       "path": "../../session/session-persistence"
     },
     {
+      "path": "../../session/session-ledger"
+    },
+    {
       "path": "../../session/session-projection"
     },
     {

@@ -25,6 +25,12 @@
     },
     {
       "path": "../subagent"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../session/session-ledger"
     }
   ]
 }

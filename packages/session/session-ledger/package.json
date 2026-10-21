@@ -31,14 +31,16 @@
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
-    "@panedesk/dsh-home-paths": "workspace:*"
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
-    "@panedesk/dsh-home-paths": "workspace:*"
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*"
   },
   "dependencies": {
     "@panedesk/node-addon-system": "workspace:~"

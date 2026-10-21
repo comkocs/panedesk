@@ -16,6 +16,9 @@
     },
     {
       "path": "../session-ledger"
+    },
+    {
+      "path": "../../boot/cmdline"
     }
   ]
 }

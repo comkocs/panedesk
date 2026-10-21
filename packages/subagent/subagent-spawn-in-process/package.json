@@ -30,7 +30,14 @@
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/cordis": "workspace:~"
+  },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-session-ledger": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@panedesk/schemastery": "workspace:~"
@@ -47,6 +54,8 @@
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/dsh-tool-bash": "workspace:*",
     "@panedesk/dsh-tool-subagent": "workspace:*",
     "@panedesk/cordis": "workspace:~",

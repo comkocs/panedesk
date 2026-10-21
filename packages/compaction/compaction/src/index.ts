@@ -95,11 +95,22 @@ declare module '@panedesk/cordis' {
      * The producer revalidates the session revision and contributed watermarks before committing.
      * @param payload.session - session whose visible history will be replaced.
      * @param payload.checkpoint - framed summary at the observed revision.
+     * @param payload.additionalTokenBudget - nonnegative integer budget beyond the input checkpoint, after reserving strict shrinkage.
+     * @param payload.estimateTokens - complete-content estimate using the producer's message estimator and unchanged framing.
+     * Listeners delegate first, then include all returned contributions when comparing the estimated increase against this budget.
      * @param payload.signal - optional cancellation signal.
      * @param next - obtain the remaining checkpoint contributions.
      * @mode waterfall
      */
-    'compaction/checkpoint'(payload: { session: Session; checkpoint: CompactionCheckpoint; signal?: AbortSignal }, next: () => Promise<CompactionCheckpoint>): Promise<CompactionCheckpoint>
+    'compaction/checkpoint'(payload: {
+      session: Session
+      checkpoint: CompactionCheckpoint
+      /** Maximum additional tokens beyond the input checkpoint, reserving strict shrinkage. */
+      additionalTokenBudget: number
+      /** Price complete candidate content with the producer's existing message estimator and framing. */
+      estimateTokens: (content: CompactionCheckpoint['content']) => number
+      signal?: AbortSignal
+    }, next: () => Promise<CompactionCheckpoint>): Promise<CompactionCheckpoint>
     /**
      * Record a successful committed replacement, keyed by session and summary sequence.
      * Listener failure is reported after commit and cannot roll back the durable replacement.

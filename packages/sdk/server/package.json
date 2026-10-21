@@ -33,19 +33,27 @@
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/dsh-working-directory": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-session-ledger": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
@@ -54,6 +62,7 @@
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
