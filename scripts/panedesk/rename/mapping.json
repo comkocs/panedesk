@@ -5,6 +5,16 @@
     "^['\"`]\\s*(?:,|/)\\s*\\(?['\"`]libreoffice-kit",
     "^['\"`]\\)\\.glob\\(['\"`]libreoffice-kit"
   ],
+  "preservedLines": [
+    {
+      "path": "README.md",
+      "includes": "`~/.dsh` and `DSH_HOME` are never read."
+    },
+    {
+      "path": "README.zh.md",
+      "includes": "`~/.dsh` 与 `DSH_HOME` 一律不读。"
+    }
+  ],
   "groups": {
     "A": [
       {

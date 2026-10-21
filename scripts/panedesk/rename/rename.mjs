@@ -19,6 +19,7 @@ function excluded(path) {
 }
 
 function transform(text, path) {
+  const preservedLines = mapping.preservedLines.filter(line => line.path === path)
   for (const rule of rules) {
     if (rule.files && !rule.files.includes(path)) continue
     if (rule.pathPattern && !new RegExp(rule.pathPattern).test(path)) continue
@@ -29,6 +30,12 @@ function transform(text, path) {
       const match = args[0]
       const offset = args.at(-2)
       const source = args.at(-1)
+      if (preservedLines.length) {
+        const start = source.lastIndexOf('\n', offset - 1) + 1
+        const end = source.indexOf('\n', offset)
+        const line = source.slice(start, end < 0 ? undefined : end)
+        if (preservedLines.some(entry => line.includes(entry.includes))) return match
+      }
       // Office package paths can split the scope and package into separate arguments.
       if (rule.id === 'A3') {
         const end = source.indexOf('\n', offset)
