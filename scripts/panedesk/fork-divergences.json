@@ -88,6 +88,52 @@
           }
         ]
       }
+    },
+    {
+      "id": "session-log-upload-opt-in",
+      "description": "Omit delivery acceptance when session log upload is disabled and decrement subsequent event sequence numbers.",
+      "origin": "Slim launcher, slim/full presets, privacy-off defaults, CLI rename",
+      "reason": "The fork keeps session log upload disabled unless the user explicitly enables it.",
+      "match": {
+        "type": "remove-jsonl-record",
+        "paths": [
+          "snapshots/sdk/text-turn/notifications.expected.jsonl"
+        ],
+        "record": {
+          "method": "session.event",
+          "params": {
+            "sessionId": "{{session:1}}",
+            "event": {
+              "type": "session-log-deepseek/delivery-accepted",
+              "seq": 13,
+              "time": 0,
+              "data": {
+                "sessionId": "{{session:1}}",
+                "sessionFormatVersion": 4,
+                "throughSeq": 12
+              }
+            }
+          }
+        },
+        "sequencePath": [
+          "params",
+          "event",
+          "seq"
+        ],
+        "sessionFixture": {
+          "paths": [
+            "snapshots/sdk/text-turn/session.v4.jsonl"
+          ],
+          "record": {
+            "type": "session-log-deepseek/delivery-accepted",
+            "data": {
+              "sessionId": "{{session:1}}",
+              "sessionFormatVersion": 4,
+              "throughSeq": 12
+            }
+          }
+        }
+      }
     }
   ]
 }
