@@ -1,5 +1,7 @@
 # Replayable Panedesk rename
 
+English | [中文](README.zh.md)
+
 Run from the repository root with Node.js 24; no installed dependencies are needed.
 
 ```sh

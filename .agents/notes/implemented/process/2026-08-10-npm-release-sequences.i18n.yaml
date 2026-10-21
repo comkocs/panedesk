@@ -6,20 +6,20 @@
   en: 176f873a6b094838
   zh: 9baeba69cbaea9cf
 /agent-note-private-npm-publication-as-three-independent-sequences/problem:
-  en: b94462e04e350571
-  zh: 07cef78e4cf7a9ac
+  en: da265e42b520d5c0
+  zh: 3a920366baaa059d
 /agent-note-private-npm-publication-as-three-independent-sequences/decision:
   en: a15c7c13f167e5ac
   zh: 63bcc2ef60c2f344
 /agent-note-private-npm-publication-as-three-independent-sequences/decision/three-independent-sequences:
-  en: c1d7c618fa93ab10
-  zh: 887ad2a37ed18035
+  en: 01a2615cb385c685
+  zh: 478b94c6ea835d9a
 /agent-note-private-npm-publication-as-three-independent-sequences/decision/versions-land-in-the-repository-from-a-local-command-ci-only-checks-and-uploads:
   en: 71d4cda384013bfb
   zh: 909d853c18496925
 /agent-note-private-npm-publication-as-three-independent-sequences/decision/vendor-advance-the-complete-family-with-per-package-tags:
-  en: 321f48c7e4afac24
-  zh: 974a7fa1a75c810d
+  en: e632cb21fcf7c014
+  zh: 94f7f19032e03edc
 /agent-note-private-npm-publication-as-three-independent-sequences/decision/publication-runs-only-on-github-and-the-registry-decides-what-goes-out:
   en: 8c8cd90e6eabe07d
   zh: 7035b71a6eeeb379
@@ -42,8 +42,8 @@
   en: c505237cad2c4128
   zh: 55364ba462536680
 /agent-note-private-npm-publication-as-three-independent-sequences/alternatives-considered:
-  en: ed22fa8a47b5c4b6
-  zh: 7b367971a51a67ff
+  en: 985f793fea3e27c4
+  zh: ca95095373af64f3
 /agent-note-private-npm-publication-as-three-independent-sequences/consequences:
   en: 46f82110175ea3f7
   zh: 1cdd1c99bfb88440

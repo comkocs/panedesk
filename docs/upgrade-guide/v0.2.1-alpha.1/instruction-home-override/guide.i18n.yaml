@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-alpha.1/instruction-home-override/guide.md
 /:
-  en: 7081d888aedd32d2
-  zh: 167263e5e4e514cc
+  en: 48fa13af894d8a10
+  zh: 1a1f35bc1cfcf1e3
 /instruction-loading-resolves-one-harness-home:
   en: b308584aa55910bd
   zh: 910cc6b2b7f9b3ea
 /instruction-loading-resolves-one-harness-home/change:
-  en: afd003587be927b4
-  zh: 15dcd2ec55a5c968
+  en: 837dd9cc29f44178
+  zh: a1f2928e3b7bd311
 /instruction-loading-resolves-one-harness-home/migration:
-  en: 483d23f92ad84a8c
-  zh: 3c2648ebf2156b34
+  en: 201935f1702a5a9c
+  zh: dd807fc5ec4a10a5

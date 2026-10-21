@@ -36,17 +36,17 @@
   en: 2feaa0412247d81f
   zh: 461dde8e13fd4734
 /desktop-packaging/macos-release-signing-and-diagnostics:
-  en: 62c125856aa03c26
-  zh: 9fc00a43c8b1e8e2
+  en: 866af2addf089b11
+  zh: 46675f32fd1522d2
 /desktop-packaging/directory-builds-and-preparation:
   en: 30d58517c9c2044f
   zh: 16d26bdc923fc4ba
 /desktop-packaging/local-official-bundles-from-a-loopback-registry:
-  en: b42f103358d0dfd7
-  zh: a534164ad9eb00da
+  en: db7ca192ea27ac8f
+  zh: 2dd3fe4fb242f60b
 /desktop-packaging/runtime-file-selection-and-installation-checks:
-  en: bfd89e1d139c5729
-  zh: 5d6cced5462ba13e
+  en: 515af48df3b07d79
+  zh: 107addd6b7381c0b
 /desktop-packaging/desktop-runtime-preparation:
   en: a7aa3066e649ffe8
   zh: 4334637910058c09

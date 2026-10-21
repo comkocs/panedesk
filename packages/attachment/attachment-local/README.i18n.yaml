@@ -3,59 +3,59 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/attachment/attachment-local/README.md
 /:
-  en: 5d8d225549347391
-  zh: 0fc0e5ee73acf917
-/deepseek-ai-dsh-attachment-local:
-  en: d43be6d0218e5f22
-  zh: 444ec4f8125c08b9
-/deepseek-ai-dsh-attachment-local/summary:
-  en: 2350024cee2e9954
-  zh: 73a4900b1e40013b
-/deepseek-ai-dsh-attachment-local/table-of-contents:
+  en: 84c29f39d2163034
+  zh: 759377eef7b2177b
+/panedesk-dsh-attachment-local:
+  en: 5380207f6f3f5dbe
+  zh: c8446aa0c94389f2
+/panedesk-dsh-attachment-local/summary:
+  en: a097da0a1a1d9ea0
+  zh: 451739b19d2afffe
+/panedesk-dsh-attachment-local/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
-/deepseek-ai-dsh-attachment-local/use-this-package:
+/panedesk-dsh-attachment-local/use-this-package:
   en: 912a19be4b59ff8a
   zh: 9c14694cf2ebbaf2
-/deepseek-ai-dsh-attachment-local/use-this-package/minimal-configuration:
-  en: b34e09c3236f81f1
-  zh: c541b5dc22c8f307
-/deepseek-ai-dsh-attachment-local/use-this-package/where-your-images-are-stored-and-how-long-they-last:
-  en: 4ee90b8f74baa38c
-  zh: 9c577709ec55eb82
-/deepseek-ai-dsh-attachment-local/use-this-package/what-happens-when-you-attach-an-image:
+/panedesk-dsh-attachment-local/use-this-package/minimal-configuration:
+  en: 1b024c71fe646b5d
+  zh: e4633db12e8a2400
+/panedesk-dsh-attachment-local/use-this-package/where-your-images-are-stored-and-how-long-they-last:
+  en: b5d6013311c0bec0
+  zh: fe3be782c691fd6f
+/panedesk-dsh-attachment-local/use-this-package/what-happens-when-you-attach-an-image:
   en: 75ba799b1e4edba4
   zh: 06c5f76200e8da8a
-/deepseek-ai-dsh-attachment-local/use-this-package/what-can-go-wrong:
+/panedesk-dsh-attachment-local/use-this-package/what-can-go-wrong:
   en: 377696b2dc08b170
   zh: 6b831ef31c93f712
-/deepseek-ai-dsh-attachment-local/understand-the-implementation:
+/panedesk-dsh-attachment-local/understand-the-implementation:
   en: e44b0aa3e234a0ef
   zh: b7dd6829478eb7f1
-/deepseek-ai-dsh-attachment-local/understand-the-implementation/design-decisions:
+/panedesk-dsh-attachment-local/understand-the-implementation/design-decisions:
   en: dcd9857653645420
   zh: a27259a09f17465d
-/deepseek-ai-dsh-attachment-local/understand-the-implementation/write-and-read-paths:
-  en: 609ccc784a87b770
-  zh: bc702582cf2b3316
-/deepseek-ai-dsh-attachment-local/understand-the-implementation/source-map:
+/panedesk-dsh-attachment-local/understand-the-implementation/write-and-read-paths:
+  en: a597d901aaca3a65
+  zh: 2cc321a51422127d
+/panedesk-dsh-attachment-local/understand-the-implementation/source-map:
   en: 05af85aa85934d01
   zh: 1c89e80d496dc0a3
-/deepseek-ai-dsh-attachment-local/further-exploration:
-  en: f8b09b2542211379
-  zh: 57a8fa44aa76b737
-/deepseek-ai-dsh-attachment-local/model-experience:
+/panedesk-dsh-attachment-local/further-exploration:
+  en: d6b2def5c2f94942
+  zh: aad6b987614318a2
+/panedesk-dsh-attachment-local/model-experience:
   en: 2e18b3dfbc5af126
   zh: aaee1745632c561a
-/deepseek-ai-dsh-attachment-local/model-experience/kv-cache-effect:
+/panedesk-dsh-attachment-local/model-experience/kv-cache-effect:
   en: 64670486210bdab7
   zh: 44c988dd6268c1ff
-/deepseek-ai-dsh-attachment-local/known-limitations-and-deferred-work:
+/panedesk-dsh-attachment-local/known-limitations-and-deferred-work:
   en: 46a33da5b3740127
   zh: c3ac244228b81d8f
-/deepseek-ai-dsh-attachment-local/known-limitations-and-deferred-work/dev-note:
+/panedesk-dsh-attachment-local/known-limitations-and-deferred-work/dev-note:
   en: d56846da29ad869c
   zh: 41e655e01351fd1d
-/deepseek-ai-dsh-attachment-local/known-limitations-and-deferred-work/dev-note/future-retention-and-remote-storage:
-  en: d4bbda6aadc3c879
-  zh: 97a22323e77affb3
+/panedesk-dsh-attachment-local/known-limitations-and-deferred-work/dev-note/future-retention-and-remote-storage:
+  en: 25bf14f4c1108cbb
+  zh: 690cf535e97a02f6

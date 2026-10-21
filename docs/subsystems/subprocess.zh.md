@@ -16,12 +16,12 @@
 
 ```ts type-equiv
 /** One environment key inside the managed {@link DSH_ENV_PREFIX} namespace. */
-type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}`
+type DshEnvironmentKey = `${typeof DSH_ENV_PREFIX}${string}` | 'PANEDESK_HOME'
 ```
 
 ```ts type-equiv
 /** Trusted DeepSeek Harness variables for one child-process execution. */
-type DshEnvironment = Readonly<Record<DshEnvironmentKey, string>>
+type DshEnvironment = Readonly<Partial<Record<DshEnvironmentKey, string>>>
 ```
 
 ```ts type-equiv
