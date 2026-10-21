@@ -3,14 +3,35 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/full/README.md
 /:
-  en: c10fc4fcbd801fa2
-  zh: ab5f3aab3d01f15c
+  en: 7c49c6555b3a7fc7
+  zh: 447bf84a2049b00d
 /panedesk-full:
   en: 7503bc9d926b33fc
   zh: 7d5c551b76693bfc
 /panedesk-full/summary:
   en: 8b34a2d1fd817ba3
   zh: 9052e2aa5ef40b1f
+/panedesk-full/table-of-contents:
+  en: 638dd73bc5b9dc7a
+  zh: f8d21f4d9e5c23e3
+/panedesk-full/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-full/model-experience/explicit-full-profile-selection:
+  en: ac3b42348ce5fa35
+  zh: 199198f9f96f7595
+/panedesk-full/model-experience/explicit-full-profile-selection/what-the-model-sees:
+  en: 4bcf64ffbc10adb8
+  zh: bb25c6ad1321da37
+/panedesk-full/model-experience/explicit-full-profile-selection/token-effect:
+  en: 94fc10474486882a
+  zh: ac00c07f24e6870c
+/panedesk-full/model-experience/explicit-full-profile-selection/kv-cache-effect:
+  en: c5109eca9091c40f
+  zh: 3364cb024318bfd0
 /panedesk-full/known-limitations-and-deferred-work:
   en: 1be846934869e8d8
-  zh: 8bfbcddf1c0635aa
+  zh: c80991984bb9a7aa
+/panedesk-full/known-limitations-and-deferred-work/dev-note:
+  en: 66ed85bfa1a24930
+  zh: 1deddd69a43866c6

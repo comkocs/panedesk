@@ -11,6 +11,30 @@
 /panedesk-slim-headless/summary:
   en: fb27ef5133fb93a1
   zh: daa0eda49e27a804
+/panedesk-slim-headless/table-of-contents:
+  en: 638dd73bc5b9dc7a
+  zh: f8d21f4d9e5c23e3
+/panedesk-slim-headless/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-slim-headless/model-experience/one-shot-task-composition:
+  en: 137526566bb315f6
+  zh: 732a8551861642fe
+/panedesk-slim-headless/model-experience/one-shot-task-composition/what-the-model-sees:
+  en: f891b97a37caaf79
+  zh: b2b07a993b61aeae
+/panedesk-slim-headless/model-experience/one-shot-task-composition/what-the-model-sees/persona-prefix:
+  en: 03432eed0cd64e5a
+  zh: 5b943708e3ae6116
+/panedesk-slim-headless/model-experience/one-shot-task-composition/token-effect:
+  en: e70ea2035ab6aa1b
+  zh: cebf7c2ed271bcea
+/panedesk-slim-headless/model-experience/one-shot-task-composition/kv-cache-effect:
+  en: 4db21fd48b1b436b
+  zh: 8bf6b80a041642be
 /panedesk-slim-headless/known-limitations-and-deferred-work:
   en: 06de601acd68e92d
-  zh: e492e078abe6d25e
+  zh: 9f85555ee43a3be4
+/panedesk-slim-headless/known-limitations-and-deferred-work/dev-note:
+  en: 671763f46c17b028
+  zh: a5bfe02a4e199d71

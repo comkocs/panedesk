@@ -11,6 +11,27 @@
 /panedesk-slim-base/summary:
   en: 7b0fa3f2ab27346b
   zh: 2d57c3a5207542bf
+/panedesk-slim-base/table-of-contents:
+  en: 638dd73bc5b9dc7a
+  zh: f8d21f4d9e5c23e3
+/panedesk-slim-base/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-slim-base/model-experience/slim-core-composition:
+  en: 2f3b2097d9ac8cfb
+  zh: f7f04e7cf6c009f9
+/panedesk-slim-base/model-experience/slim-core-composition/what-the-model-sees:
+  en: 710c00e15ff09130
+  zh: b02a138f777d5bf9
+/panedesk-slim-base/model-experience/slim-core-composition/token-effect:
+  en: ad52d0c31351db5b
+  zh: 717c503437294de8
+/panedesk-slim-base/model-experience/slim-core-composition/kv-cache-effect:
+  en: 1719737b2304016b
+  zh: 5d688f8fc097f944
 /panedesk-slim-base/known-limitations-and-deferred-work:
   en: 746f4d160911adac
-  zh: 9597b6950c45b325
+  zh: 9a8be75337bbb8a1
+/panedesk-slim-base/known-limitations-and-deferred-work/dev-note:
+  en: a7a3064816f014bf
+  zh: 786f82f4ae795bea
