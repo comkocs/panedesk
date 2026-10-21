@@ -131,7 +131,7 @@ describe('slim-headless bundle', () => {
     expect(typeof expression, 'provider must be a !!js expression').toBe('string')
     expect(expression).toContain('examples/providers/')
     expect(expression).toContain('--patch')
-    expect(() => evaluate({}, expression!)).toThrow(/^no model route is configured for the slim preset/)
+    expect(() => { evaluate({}, expression!) }).toThrow(/^no model route is configured for the slim preset/)
 
     // No llm-pi-ai patch row: slim-headless adds no providers (and so no keys) of its own.
     expect(slimHeadless.some(candidate => candidate.id === 'llm-pi-ai')).toBe(false)

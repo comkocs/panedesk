@@ -72,7 +72,7 @@ function splitRows(patch: string): RowBlock[] {
     const row = /^ {4}- id: (\S+)\s*$/.exec(line)
     if (row !== null) {
       flush()
-      current = { id: row[1]!, lines: [...pending, line] }
+      current = { id: row[1] as string, lines: [...pending, line] }
       pending = []
       continue
     }
@@ -94,8 +94,9 @@ function splitRows(patch: string): RowBlock[] {
 function rowPackage(text: string): string {
   const match = /^ {6}name: '([^']+)'/m.exec(text)
   if (match === null) throw new Error(`gen-slim-base: row without a quoted name:\n${text}`)
-  const parts = match[1]!.split('/')
-  return parts[0]!.startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0]!
+  const parts = (match[1] as string).split('/')
+  const first = parts[0] as string
+  return first.startsWith('@') ? `${first}/${parts[1]}` : first
 }
 
 /** Render the slim-base patch text and dependency map. */

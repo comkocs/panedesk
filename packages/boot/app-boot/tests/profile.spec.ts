@@ -256,7 +256,7 @@ describe('resolveBundleDir', () => {
   function withFictionalTemplate(bundles: string[]): string {
     const name = `fictional-${String(tempRoots.length)}-${String(Math.random()).slice(2)}`
     PROFILE_TEMPLATES[name] = { bundles }
-    onTestFinished(() => { delete PROFILE_TEMPLATES[name] })
+    onTestFinished(() => { Reflect.deleteProperty(PROFILE_TEMPLATES, name) })
     return name
   }
 
@@ -275,7 +275,7 @@ describe('resolveBundleDir', () => {
     // The slim pair ships with the launcher itself and a custom bundle is the user's own dependency.
     for (const bundle of ['@panedesk/slim-fictional', 'custom-bundle']) {
       expect(() => resolveBundleDir('panedesk', bundle, anchor, profileDir))
-        .toThrow(`run 'panedesk plugin --profile web install' if its dependency is not installed`)
+        .toThrow('run \'panedesk plugin --profile web install\' if its dependency is not installed')
       expect(() => resolveBundleDir('panedesk', bundle, anchor, profileDir)).not.toThrow(FULL_PRESET_CARRIER)
     }
   })

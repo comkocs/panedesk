@@ -42,7 +42,7 @@ describe('startup diagnostic files', () => {
     const dir = await home()
     const error = unconfiguredSlimError()
     const chunks: string[] = []
-    await reportStartupFailure(error, { home: dir, version: '1.2.3', profile: 'slim' }, text => { chunks.push(text) })
+    await reportStartupFailure(error, { home: dir, version: '1.2.3', profile: 'slim' }, (text) => { chunks.push(text) })
     const outcome = error.entries[0]!.outcome
     expect(outcome.kind).toBe('failed')
     if (outcome.kind !== 'failed') throw new Error('expected failed model route')
@@ -73,7 +73,7 @@ describe('startup diagnostic files', () => {
       const chunks: string[] = []
       await reportStartupFailure(error, {
         home: dir, version: '1.2.3', profile: scenario === 'other profile' ? 'full' : 'slim',
-      }, text => { chunks.push(text) })
+      }, (text) => { chunks.push(text) })
       expect(chunks[0]).toBe(`${error.message}\n`)
       expect(chunks.join('')).toContain('Full diagnostics: ')
       const files = await readdir(join(dir, 'logs'))

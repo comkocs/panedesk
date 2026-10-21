@@ -198,8 +198,10 @@ describe('direct Messages HTTP', () => {
     expect(Messages.plainOptions(Messages.Config({}))).toMatchObject({ sendAnonymousIdentity: false })
     expect(Messages.resolveAdapterOptions(Messages.plainOptions(Messages.Config({}))).sendAnonymousIdentity).toBe(false)
     expect(Messages.resolveAdapterOptions({}).sendAnonymousIdentity).toBe(false)
-    expect(Messages.resolveAdapterOptions(Messages.plainOptions(Messages.Config({ sendAnonymousIdentity: true }))).sendAnonymousIdentity).toBe(true)
-    expect(() => Reflect.apply(Messages.resolveAdapterOptions, undefined, [{ sendAnonymousIdentity: 'false' }]))
+    expect(Messages.resolveAdapterOptions(
+      Messages.plainOptions(Messages.Config({ sendAnonymousIdentity: true })),
+    ).sendAnonymousIdentity).toBe(true)
+    expect(() => { Reflect.apply(Messages.resolveAdapterOptions, undefined, [{ sendAnonymousIdentity: 'false' }]) })
       .toThrow(/sendAnonymousIdentity must be a boolean/)
   })
 
