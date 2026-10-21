@@ -242,14 +242,15 @@ export async function compactSurfaceRegion(
     const baseMessage = summarized.checkpointMessage
     const estimateTokens = (content: CompactionCheckpoint['content']): number =>
       dependencies.meter.estimateMessage({ ...baseMessage, content })
-    const baseTokens = estimateTokens(baseMessage.content)
+    const baseTokens = estimateTokens([...baseMessage.content])
     const additionalTokenBudget = Math.max(0, Math.ceil(summarized.shadowedRouteTokenCount) - 1 - baseTokens)
     for (let attempt = 0; ; attempt += 1) {
       if (options.owner === null) signal?.throwIfAborted()
-      const revision = SessionSeq(session.seq)
+      const offset = session.seq
+      const revision = SessionSeq(offset)
       checkpoint = await dependencies.checkpoint({
         session,
-        checkpoint: { content: baseMessage.content, sessionSeq: revision },
+        checkpoint: { content: [...baseMessage.content], sessionSeq: revision },
         additionalTokenBudget,
         estimateTokens,
         ...signal === undefined ? {} : { signal },
@@ -257,7 +258,7 @@ export async function compactSurfaceRegion(
       const valid = checkpoint.validate === undefined || await checkpoint.validate()
       if (options.owner === null) signal?.throwIfAborted()
       assertStable(dependencies, session, summarized)
-      if (valid && session.seq === revision && checkpoint.sessionSeq === revision) break
+      if (valid && session.seq === offset && checkpoint.sessionSeq === revision) break
       if (attempt >= (checkpoint.retryLimit ?? 0)) {
         throw new SurfaceChangedError('compaction: checkpoint snapshot did not stabilize within its retry limit')
       }

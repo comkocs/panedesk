@@ -91,7 +91,7 @@ export interface LedgerProcessIdentity {
   nodeId: LedgerNodeId
   pid: number
   processGroupId?: number
-  startIdentity?: string
+  startIdentity?: string | undefined
   bootIdentity?: string
   registeredAt: number
   verification: 'verified' | 'unverified'
@@ -176,7 +176,7 @@ export interface LedgerCallFinish {
   endedAt: number
   observedAt: number
   responseModel?: string
-  responseModelReported: ResponseModelReported
+  responseModelReported: ResponseModelReported | 'not-reported'
   effectiveModel: string
   httpStatus?: number
   usage?: TokenUsage
@@ -339,11 +339,11 @@ export interface LedgerPriceTable extends LedgerPriceMetadata {
 }
 /** Inputs for decimal fixed-point pricing; missing evidence produces an unknown amount. */
 export interface LedgerPriceUsageRequest {
-  usage?: TokenUsage
+  usage?: TokenUsage | undefined
   usageState: LedgerUsageState
   tiering: LedgerCacheWriteTiering
   startedAt: number
-  entry?: LedgerPriceEntry
+  entry?: LedgerPriceEntry | undefined
   cacheStorageTokenHours?: string
 }
 /** Pricing never double counts total cache writes together with their tier breakdown. */

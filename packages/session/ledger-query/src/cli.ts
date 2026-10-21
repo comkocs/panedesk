@@ -46,8 +46,8 @@ export function parseLedgerArgs(args: readonly string[]): LedgerCommand {
       case '--session': result.query.sessionId = value as NonNullable<LedgerQueryOptions['sessionId']>; break
       case '--node': result.query.nodeId = value as NonNullable<LedgerQueryOptions['nodeId']>; break
       case '--purpose':
-        if (!['conversation', 'compaction', 'session-title', 'keepalive'].includes(value)) throw new Error('Invalid ledger purpose')
-        result.query.purpose = value as LedgerQueryOptions['purpose']; break
+        if (value !== 'conversation' && value !== 'compaction' && value !== 'session-title' && value !== 'keepalive') throw new Error('Invalid ledger purpose')
+        result.query.purpose = value; break
       case '--timezone': if (value !== 'Asia/Shanghai') throw new Error('Today uses Asia/Shanghai'); break
       case '--group-by': {
         const keys = value.split(',').map(key => key === 'task' ? 'taskId' : key)

@@ -37,17 +37,17 @@ function snapshot(rows: LedgerSnapshot['rows']): LedgerSnapshot { return { asOf,
 
 class MemoryLedger extends SessionLedger {
   constructor(ctx: Context, private readonly data: LedgerSnapshot) { super(ctx) }
-  async snapshot() { return this.data }
-  async query() { return this.data }
-  beginCall(): never { throw new Error('Read-only fixture') }
-  finishCall(): never { throw new Error('Read-only fixture') }
-  beginRun(): never { throw new Error('Read-only fixture') }
-  finishRun(): never { throw new Error('Read-only fixture') }
-  appendEvent(): never { throw new Error('Read-only fixture') }
-  appendArtifact(): never { throw new Error('Read-only fixture') }
-  finishArtifact(): never { throw new Error('Read-only fixture') }
-  registerWaitTool(): never { throw new Error('Read-only fixture') }
-  priceUsage(): never { throw new Error('Read-only fixture') }
+  override async snapshot() { return this.data }
+  override async query() { return this.data }
+  override beginCall(): never { throw new Error('Read-only fixture') }
+  override finishCall(): never { throw new Error('Read-only fixture') }
+  override beginRun(): never { throw new Error('Read-only fixture') }
+  override finishRun(): never { throw new Error('Read-only fixture') }
+  override appendEvent(): never { throw new Error('Read-only fixture') }
+  override appendArtifact(): never { throw new Error('Read-only fixture') }
+  override finishArtifact(): never { throw new Error('Read-only fixture') }
+  override registerWaitTool(): never { throw new Error('Read-only fixture') }
+  override priceUsage(): never { throw new Error('Read-only fixture') }
 }
 
 describe('daily ledger projections', () => {
@@ -68,7 +68,7 @@ describe('daily ledger projections', () => {
       cacheHitRate: { value: 0.8, state: 'complete' }, cacheHitRateIncludingKeepalive: { value: 0.8 }, tokens: { knownTokens: independentTokens } })
     const imported = parseLedgerExport(serializeLedger(data, 'jsonl'))
     expect(imported.rows).toHaveLength(data.rows.length)
-    expect(imported.rows).toEqual(expect.arrayContaining(data.rows))
+    expect(imported.rows).toEqual(expect.arrayContaining([...data.rows]))
     expect(summarizeToday(imported, asOf, 10000)).toEqual(result)
     const verified = verifyLedger(data, asOf, 10000)
     expect(verified.valid).toBe(true)

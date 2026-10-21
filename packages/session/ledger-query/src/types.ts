@@ -24,7 +24,7 @@ export interface LedgerUsageTotals extends LedgerTokenColumns {
 }
 /** Derived cache-read fraction; no denominator or incomplete evidence is explicit. */
 export interface LedgerHitRate {
-  value?: number
+  value?: number | undefined
   state: 'complete' | 'partial' | 'unavailable'
   cacheReadTokens: number
   inputTokensIncludingCache: number

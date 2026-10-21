@@ -48,11 +48,14 @@ export function tokenColumns(call: LedgerCall): LedgerTokenColumns {
   const usage = call.finish?.usage
   const tiering = call.start.cacheWriteTiering
   return {
-    inputTokens: usage?.inputTokens, outputTokens: usage?.outputTokens,
-    cacheReadTokens: usage?.cacheReadTokens, cacheWriteTokens: usage?.cacheWriteTokens,
-    cacheWriteLongTokens: tiering.kind === 'tiered' ? usage?.cacheWriteLongTokens : undefined,
-    cacheWriteShortTokens: tiering.kind === 'tiered' && usage?.cacheWriteTokens !== undefined && usage.cacheWriteLongTokens !== undefined
-      ? usage.cacheWriteTokens - usage.cacheWriteLongTokens : undefined,
+    ...usage?.inputTokens === undefined ? {} : { inputTokens: usage.inputTokens },
+    ...usage?.outputTokens === undefined ? {} : { outputTokens: usage.outputTokens },
+    ...usage?.cacheReadTokens === undefined ? {} : { cacheReadTokens: usage.cacheReadTokens },
+    ...usage?.cacheWriteTokens === undefined ? {} : { cacheWriteTokens: usage.cacheWriteTokens },
+    ...tiering.kind === 'tiered' && usage?.cacheWriteLongTokens !== undefined
+      ? { cacheWriteLongTokens: usage.cacheWriteLongTokens } : {},
+    ...tiering.kind === 'tiered' && usage?.cacheWriteTokens !== undefined && usage.cacheWriteLongTokens !== undefined
+      ? { cacheWriteShortTokens: usage.cacheWriteTokens - usage.cacheWriteLongTokens } : {},
     cacheWriteTiering: tiering,
   }
 }
@@ -74,10 +77,15 @@ export function usageTotals(calls: readonly LedgerCall[]): LedgerUsageTotals {
   const cacheReadTokens = sum('cacheReadTokens'), cacheWriteTokens = sum('cacheWriteTokens')
   const tier = columns[0]?.cacheWriteTiering
   const sameTier = tier !== undefined && columns.every(column => JSON.stringify(column.cacheWriteTiering) === JSON.stringify(tier))
+  const cacheWriteShortTokens = sameTier ? sum('cacheWriteShortTokens') : undefined
+  const cacheWriteLongTokens = sameTier ? sum('cacheWriteLongTokens') : undefined
   return {
-    inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens,
-    cacheWriteShortTokens: sameTier ? sum('cacheWriteShortTokens') : undefined,
-    cacheWriteLongTokens: sameTier ? sum('cacheWriteLongTokens') : undefined,
+    ...inputTokens === undefined ? {} : { inputTokens },
+    ...outputTokens === undefined ? {} : { outputTokens },
+    ...cacheReadTokens === undefined ? {} : { cacheReadTokens },
+    ...cacheWriteTokens === undefined ? {} : { cacheWriteTokens },
+    ...cacheWriteShortTokens === undefined ? {} : { cacheWriteShortTokens },
+    ...cacheWriteLongTokens === undefined ? {} : { cacheWriteLongTokens },
     cacheWriteTiering: sameTier ? tier : { kind: 'unknown' },
     knownTokens: (inputTokens ?? 0) + (outputTokens ?? 0) + (cacheReadTokens ?? 0) + (cacheWriteTokens ?? 0),
     completeUsageCalls: calls.filter(completeUsage).length, totalCalls: calls.length,
@@ -239,11 +247,11 @@ export function cacheRemaining(snapshot: LedgerSnapshot, asOf: number, options: 
     const latest = events[0]
     if (!latest) return { sessionId, state: 'unknown' }
     const evidence = latest.evidence
-    if (evidence.cacheMode === 'automatic') return { sessionId, state: 'auto', cacheEpoch: evidence.cacheEpoch }
-    if (evidence.cacheMode === 'disabled') return { sessionId, state: 'disabled', cacheEpoch: evidence.cacheEpoch }
+    if (evidence.cacheMode === 'automatic') return { sessionId, state: 'auto', ...evidence.cacheEpoch === undefined ? {} : { cacheEpoch: evidence.cacheEpoch } }
+    if (evidence.cacheMode === 'disabled') return { sessionId, state: 'disabled', ...evidence.cacheEpoch === undefined ? {} : { cacheEpoch: evidence.cacheEpoch } }
     if (latest.kind === 'cache/break' || evidence.cacheMode !== 'explicit' || evidence.lastCacheEvidenceAt === undefined
-      || evidence.lastCacheEvidenceAt > asOf || evidence.ttlSeconds === undefined) return { sessionId, state: 'unknown', cacheEpoch: evidence.cacheEpoch }
+      || evidence.lastCacheEvidenceAt > asOf || evidence.ttlSeconds === undefined) return { sessionId, state: 'unknown', ...evidence.cacheEpoch === undefined ? {} : { cacheEpoch: evidence.cacheEpoch } }
     return { sessionId, state: 'estimated', remainingSeconds: Math.max(0, Math.floor((evidence.lastCacheEvidenceAt + evidence.ttlSeconds * 1000 - asOf) / 1000)),
-      evidenceAt: evidence.lastCacheEvidenceAt, cacheEpoch: evidence.cacheEpoch }
+      evidenceAt: evidence.lastCacheEvidenceAt, ...evidence.cacheEpoch === undefined ? {} : { cacheEpoch: evidence.cacheEpoch } }
   })
 }

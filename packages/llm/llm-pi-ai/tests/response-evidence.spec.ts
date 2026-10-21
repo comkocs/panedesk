@@ -40,7 +40,7 @@ function frames(api: Api, model: string | undefined) {
 }
 
 function adapter(api: Api, url: string, model: string, displayName?: string) {
-  const profiles = resolveProfiles({ 'route-a': { api, baseURL: url, models: [{ id: model }], displayName } })
+  const profiles = resolveProfiles({ 'route-a': { api, baseURL: url, models: [{ id: model }], ...displayName === undefined ? {} : { displayName } } })
   return new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => 'fixture-key', auth: memoryAuth() })
 }
 

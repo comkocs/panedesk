@@ -208,7 +208,8 @@ export class SessionLedger extends Service {
       const scan = await recoverSegments(root, this.options.maxRecordBytes)
       return foldLedger(scan.events, {
         asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
-        filter, complete: scan.complete, watermarks: { [id]: scan.watermark },
+        ...filter === undefined ? {} : { filter },
+        complete: scan.complete, watermarks: { [id]: scan.watermark },
       })
     })
   }

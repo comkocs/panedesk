@@ -96,15 +96,15 @@ class MemoryLedger extends SessionLedger {
   reads = 0
   mutate: ((reads: number) => void) | undefined
   writeFailure = false
-  beginCall: SessionLedger['beginCall'] = () => { throw new Error('unused') }
-  finishCall: SessionLedger['finishCall'] = () => { throw new Error('unused') }
-  beginRun: SessionLedger['beginRun'] = () => { throw new Error('unused') }
-  finishRun: SessionLedger['finishRun'] = () => { throw new Error('unused') }
-  registerWaitTool: SessionLedger['registerWaitTool'] = () => () => {}
-  appendArtifact: SessionLedger['appendArtifact'] = () => { throw new Error('unused') }
-  finishArtifact: SessionLedger['finishArtifact'] = () => { throw new Error('unused') }
-  priceUsage: SessionLedger['priceUsage'] = () => { throw new Error('unused') }
-  query: SessionLedger['query'] = () => this.snapshot()
+  override beginCall: SessionLedger['beginCall'] = () => { throw new Error('unused') }
+  override finishCall: SessionLedger['finishCall'] = () => { throw new Error('unused') }
+  override beginRun: SessionLedger['beginRun'] = () => { throw new Error('unused') }
+  override finishRun: SessionLedger['finishRun'] = () => { throw new Error('unused') }
+  override registerWaitTool: SessionLedger['registerWaitTool'] = () => () => {}
+  override appendArtifact: SessionLedger['appendArtifact'] = () => { throw new Error('unused') }
+  override finishArtifact: SessionLedger['finishArtifact'] = () => { throw new Error('unused') }
+  override priceUsage: SessionLedger['priceUsage'] = () => { throw new Error('unused') }
+  override query: SessionLedger['query'] = () => this.snapshot()
   override snapshot(): Promise<LedgerSnapshot> {
     this.reads += 1
     this.mutate?.(this.reads)
@@ -282,7 +282,7 @@ describe('checkpoint producer and ledger accounting', () => {
   it('rejects a shared budget exhausted by a downstream contribution without replacing or counting', async () => {
     const h = await harness()
     try {
-      h.ctx.on('compaction/checkpoint', async (payload, next) => {
+      h.ctx.on('compaction/checkpoint', async (_payload, next) => {
         const delegated = await next()
         return { ...delegated, content: [...delegated.content, { type: 'text', text: 'extension '.repeat(20000) }] }
       })

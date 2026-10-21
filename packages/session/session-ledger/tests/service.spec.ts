@@ -104,7 +104,7 @@ describe('session ledger service', () => {
     const exec = { name: 'tool-a', callId: 'tool-a', agent: { session: { id: runStart.sessionId } } } as ToolDispatchExecution
     await expect(ctx.waterfall('tools/execute', exec, next)).rejects.toMatchObject({ code: 'LEDGER_UNAVAILABLE' })
     expect(invoked).toBe(false)
-    await ctx.waterfall('tools/execute', { ...exec, agent: undefined }, next)
+    await ctx.waterfall('tools/execute', { ...exec, agent: undefined } as Omit<ToolDispatchExecution, 'agent'>, next)
     expect(invoked).toBe(true)
   })
 })

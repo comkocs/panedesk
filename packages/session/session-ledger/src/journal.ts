@@ -85,7 +85,7 @@ function stringArray(value: unknown): void {
   if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) throw new Error('Invalid ledger string array')
 }
 
-function validateEvent(value: unknown): LedgerEvent {
+function assertEvent(value: unknown): asserts value is LedgerEvent {
   const event = record(value)
   if (event.schemaVersion !== 1 || !Number.isFinite(event.observedAt)) throw new Error('Invalid ledger version or timestamp')
   for (const key of ['eventId', 'nodeId', 'runId', 'sessionId', 'kind']) {
@@ -142,7 +142,11 @@ function validateEvent(value: unknown): LedgerEvent {
     numbers(event, ['attemptIndex'])
     strings(event, ['logicalRequestId', 'phase'])
   } else if (event.kind === 'policy/denied') strings(event, ['operation', 'requested', 'definition', 'reason'])
-  return event as LedgerEvent
+}
+
+function validateEvent(value: unknown): LedgerEvent {
+  assertEvent(value)
+  return value
 }
 
 function frame(payload: unknown, maxBytes: number): Buffer {
@@ -333,6 +337,14 @@ function artifactPath(input: Pick<LedgerArtifactAppend, 'callId' | 'kind'>): str
   return `artifacts/${digest(input.callId)}/${input.kind}`
 }
 
+function assertArtifactAppend(value: unknown): asserts value is LedgerArtifactAppend {
+  const input = record(value)
+  if (typeof input.callId !== 'string' || typeof input.content !== 'string'
+    || !Number.isSafeInteger(input.seq) || Number(input.seq) < 0
+    || !['partial-response', 'keepalive-request'].includes(String(input.kind))) throw new Error('Invalid artifact fragment')
+  JSON.parse(input.content)
+}
+
 async function artifactRecords(root: string, relative: string, maxBytes: number): Promise<ArtifactRecord[]> {
   const records: ArtifactRecord[] = []
   for (const path of await files(join(root, relative))) {
@@ -343,12 +355,9 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
     const value = record(decode(bytes.subarray(0, end), maxBytes))
     if (value.type !== 'fragment' && value.type !== 'closed') throw new Error('Invalid artifact record')
     if (value.type === 'fragment') {
-      const input = record(value.input)
-      if (typeof input.callId !== 'string' || typeof input.content !== 'string'
-        || !Number.isSafeInteger(input.seq) || Number(input.seq) < 0
-        || !['partial-response', 'keepalive-request'].includes(String(input.kind))) throw new Error('Invalid artifact fragment')
-      JSON.parse(input.content)
-      records.push({ type: 'fragment', input: input as LedgerArtifactAppend, path: relativePath(root, path) })
+      const input = value.input
+      assertArtifactAppend(input)
+      records.push({ type: 'fragment', input, path: relativePath(root, path) })
     } else {
       record(value.reference)
       records.push(value as ArtifactRecord)

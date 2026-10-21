@@ -26,7 +26,8 @@ export function apply(ctx: Context, config: Config): void {
     if (!config.nodeId) throw new Error('Ledger watch mode requires a local node')
     if (args.get().length) throw new Error('Ledger watch mode accepts configuration, not command arguments')
     ctx.plugin(watcher, { intervalMs: 2000, settlementBudgetMs: 10000, scanOnStart: true,
-      continuous: true, nodeId: config.nodeId, healthPath: config.healthPath })
+      continuous: true, nodeId: config.nodeId,
+      ...config.healthPath === undefined ? {} : { healthPath: config.healthPath } })
     return
   }
   let running: Promise<void> = Promise.resolve()

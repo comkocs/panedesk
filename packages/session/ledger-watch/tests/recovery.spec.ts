@@ -20,9 +20,9 @@ class MemoryLedger extends SessionLedger {
   beforeFinish?: () => void | Promise<void>
   complete = true
   constructor(ctx: Context, readonly runs: LedgerLifecycle[]) { super(ctx) }
-  async snapshot(): Promise<LedgerSnapshot> { return { asOf: Date.now(), complete: this.complete, watermarks: {}, rows: [...this.runs, ...this.events.map(event => ({ kind: 'event' as const, event }))] } }
-  async query() { return this.snapshot() }
-  async finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult> {
+  override async snapshot(): Promise<LedgerSnapshot> { return { asOf: Date.now(), complete: this.complete, watermarks: {}, rows: [...this.runs, ...this.events.map(event => ({ kind: 'event' as const, event }))] } }
+  override async query() { return this.snapshot() }
+  override async finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult> {
     await this.beforeFinish?.()
     const row = this.runs.find(row => row.start.runId === input.runId)!
     const existed = row.finish !== undefined
@@ -31,17 +31,17 @@ class MemoryLedger extends SessionLedger {
       schemaVersion: 1, eventId: `end-${input.runId}` as LedgerEvent['eventId'], nodeId: row.start.nodeId, observedAt: row.finish.observedAt,
       runId: input.runId, sessionId: row.start.sessionId, kind: 'run/end', data: row.finish } }
   }
-  async appendEvent(event: LedgerEvent): Promise<LedgerAppendResult> {
+  override async appendEvent(event: LedgerEvent): Promise<LedgerAppendResult> {
     this.events.push(event)
     return { kind: 'appended', event, watermark: 'watermark-a' as LedgerSnapshot['watermarks'][string] }
   }
-  beginCall(): never { throw new Error('Unused fixture operation') }
-  finishCall(): never { throw new Error('Unused fixture operation') }
-  beginRun(): never { throw new Error('Unused fixture operation') }
-  appendArtifact(): never { throw new Error('Unused fixture operation') }
-  finishArtifact(): never { throw new Error('Unused fixture operation') }
-  registerWaitTool(): never { throw new Error('Unused fixture operation') }
-  priceUsage(): never { throw new Error('Unused fixture operation') }
+  override beginCall(): never { throw new Error('Unused fixture operation') }
+  override finishCall(): never { throw new Error('Unused fixture operation') }
+  override beginRun(): never { throw new Error('Unused fixture operation') }
+  override appendArtifact(): never { throw new Error('Unused fixture operation') }
+  override finishArtifact(): never { throw new Error('Unused fixture operation') }
+  override registerWaitTool(): never { throw new Error('Unused fixture operation') }
+  override priceUsage(): never { throw new Error('Unused fixture operation') }
 }
 const dead = async () => ({ liveness: 'dead' as const, verification: 'verified' as const, reason: 'missing' as const })
 const policy = { nodeId: 'node-a' as LedgerLifecycle['start']['nodeId'], intervalMs: 2000, settlementBudgetMs: 10000 }

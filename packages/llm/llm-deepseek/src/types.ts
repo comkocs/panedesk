@@ -104,7 +104,7 @@ export interface DeepSeekAdapterOptions<Connection extends DeepSeekConnectionOpt
   /** Report an extension acceptance failure after HTTP 2xx; the request continues. */
   onExtensionsUnaccepted?: (detail: { provider: string; model: string; error: unknown }) => void
   /** Provider label for selectors; omission uses the protocol family name. */
-  providerName?: string
+  providerName?: string | undefined
   /** Provider-owned catalog availability; omission exposes no discovery entries. */
   discoverModels?: (provider: string) => Promise<LlmModelInfo[]>
   /** Current validated connection facts; called once per operation. */

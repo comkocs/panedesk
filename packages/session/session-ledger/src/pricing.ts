@@ -43,8 +43,10 @@ export function tokenColumns(request: LedgerPriceUsageRequest): LedgerTokenColum
   const total = usage?.cacheWriteTokens
   const long = usage?.cacheWriteLongTokens
   return {
-    inputTokens: usage?.inputTokens, outputTokens: usage?.outputTokens,
-    cacheReadTokens: usage?.cacheReadTokens, cacheWriteTokens: total,
+    ...usage?.inputTokens === undefined ? {} : { inputTokens: usage.inputTokens },
+    ...usage?.outputTokens === undefined ? {} : { outputTokens: usage.outputTokens },
+    ...usage?.cacheReadTokens === undefined ? {} : { cacheReadTokens: usage.cacheReadTokens },
+    ...total === undefined ? {} : { cacheWriteTokens: total },
     cacheWriteTiering: request.tiering,
     ...(request.tiering.kind === 'tiered' && total !== undefined && long !== undefined
       ? { cacheWriteShortTokens: total - long, cacheWriteLongTokens: long } : {}),
@@ -91,7 +93,9 @@ function terms(request: LedgerPriceUsageRequest): { state: LedgerPriceUsageResul
  */
 export function priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult {
   const { state, values } = terms(request)
-  const result: LedgerPriceUsageResult = { state, priceVersion: request.entry?.version, reference: true }
+  const result: LedgerPriceUsageResult = {
+    state, ...request.entry === undefined ? {} : { priceVersion: request.entry.version }, reference: true,
+  }
   if (state !== 'priced') return result
   const sum = sumDecimal(values.map(([count, price]) => {
     const a = decimal(count)
@@ -150,7 +154,13 @@ function validatePrices(value: unknown): void {
  * @returns Validated table; malformed prices and ambiguous time windows reject.
  */
 export function loadPriceTable(text: string): LedgerPriceTable {
-  const table = object(JSON.parse(text))
+  const value: unknown = JSON.parse(text)
+  assertPriceTable(value)
+  return value
+}
+
+function assertPriceTable(value: unknown): asserts value is LedgerPriceTable {
+  const table = object(value)
   metadata(table)
   if (!Array.isArray(table.entries)) throw new Error('Missing price entries')
   const keys = new Set<string>()
@@ -192,5 +202,4 @@ export function loadPriceTable(text: string): LedgerPriceTable {
       }
     }
   }
-  return table as LedgerPriceTable
 }

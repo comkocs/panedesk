@@ -39,10 +39,10 @@ describe('multi-node merge', () => {
   })
   it('associates descendant sessions through explicit parent links', () => {
     const child = event()
-    child.callId = 'call-child' as typeof child.callId
+    child.callId = 'call-child' as NonNullable<typeof child.callId>
     child.eventId = 'event-child' as typeof child.eventId
     child.sessionId = 'session-child' as typeof child.sessionId
-    if (child.kind === 'call/start') child.data = { ...child.data, callId: child.callId!, sessionId: child.sessionId, parentSessionId: event().sessionId }
+    if (child.kind === 'call/start') child.data = { ...child.data, callId: child.callId, sessionId: child.sessionId, parentSessionId: event().sessionId }
     const filter = { sessionId: event().sessionId, includeChildren: true }
     expect(foldLedger([event(), child], { asOf: 300, observationMaxAgeMs: 100, filter }).rows).toHaveLength(2)
   })
