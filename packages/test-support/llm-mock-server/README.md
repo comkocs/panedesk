@@ -90,6 +90,20 @@ Omitting `--seed` generates one and prints it in the `ready` record. `--random-w
 
 The CLI exposes `--success-text`, `--partial-text`, `--reasoning-text`, `--chunk-size`, `--chunk-delay-ms`, `--disconnect-delay-ms`, `--retry-after-ms`, `--request-id`, `--tool-name`, and `--tool-arguments`. Millisecond delays are bounded integers within Node's timer range; `retryAfterMs` must also be positive. The library accepts the same camel-case options. An optional exact `apiKey` validates `x-api-key: <token>`; omission accepts any token.
 
+### Usage, model, headers, and request evidence
+
+The existing server options also accept the following evidence controls; they apply to every consumed behavior without changing sequence selection. Omitting them preserves the existing response body bytes and headers.
+
+| Library option | CLI option | Wire behavior |
+|---|---|---|
+| `usage` | `--usage <json>` | Optional Messages counters: `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, and `cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`. Counters must be non-negative safe integers. Input and cache counters appear in `message_start.message.usage`; `message_delta.usage.output_tokens` uses the configured output count. The start event retains zero output tokens. Omitted input/output counters retain three input tokens and the behavior-specific output count; omitted cache counters remain absent. |
+| `responseModel` | `--response-model <name>` / `--omit-response-model` | A nonempty literal string sets `message_start.message.model`: use the requested name for a same-model response or another name for a mismatch. Library `null` or the omit flag removes the field; omission retains `mock-model`. The CLI model flags are mutually exclusive. |
+| `responseHeaders` | `--response-headers <json>` | Additional string-valued headers on accepted requests, including HTTP failures and stalled streams. Built-in headers take precedence case-insensitively, including the existing rate-limit `retry-after` and failure `x-request-id`. Invalid header names or values fail before listening. Resets before headers still send no headers. |
+
+The server copies evidence options at startup. CLI JSON must use the documented fields and value types. `server.requests` remains the ordered request-body capture API: each record exposes the parsed body, path, headers, and attempt number, including `cache_control`, its `ttl`, and any `prompt_cache_key` exactly as submitted. Invalid requests are not captured and do not consume the sequence. Evidence headers are not added to validation failures.
+
+Only Anthropic Messages HTTP/SSE is supported. OpenAI chat completions, OpenAI responses, and DeepSeek chat completion usage fields (`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`) are not supported; their routes remain 404 and are not captured. No additional wire protocol is enabled by these options.
+
 ### What can go wrong
 
 - **The script runs out** — exhaustion returns a structured HTTP 500; set `--repeat-last` or lengthen the sequence when a run needs more requests.

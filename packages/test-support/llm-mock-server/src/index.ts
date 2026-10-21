@@ -6,7 +6,7 @@
  * @module @panedesk/dsh-llm-mock-server
  */
 
-import { createServer } from 'node:http'
+import { createServer, validateHeaderName, validateHeaderValue } from 'node:http'
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http'
 import { randomBytes } from 'node:crypto'
 import { isIP, type AddressInfo } from 'node:net'
@@ -113,6 +113,25 @@ export interface MockLlmRequestRecord {
   outcome?: MockLlmRequestOutcome
 }
 
+/** Messages usage fields; omitted counters retain their existing defaults or remain absent. */
+export interface MockLlmUsage {
+  /** Input tokens reported at message start; defaults to three. */
+  readonly input_tokens?: number
+  /** Output tokens reported at completion; omission retains the behavior-specific count. */
+  readonly output_tokens?: number
+  /** Tokens read from the provider cache; absent by default. */
+  readonly cache_read_input_tokens?: number
+  /** Tokens written to the provider cache; absent by default. */
+  readonly cache_creation_input_tokens?: number
+  /** Cache writes by lifetime; omitted counters remain absent. */
+  readonly cache_creation?: {
+    /** Tokens written with a five-minute lifetime. */
+    readonly ephemeral_5m_input_tokens?: number
+    /** Tokens written with a one-hour lifetime. */
+    readonly ephemeral_1h_input_tokens?: number
+  }
+}
+
 /** Configuration for one mock server instance. */
 export interface MockLlmServerOptions {
   /** Loopback host by default. */
@@ -149,6 +168,12 @@ export interface MockLlmServerOptions {
   readonly toolName?: string
   /** Raw JSON arguments emitted by `tool_call_success`. */
   readonly toolArguments?: string
+  /** Optional Messages usage counters, each a non-negative safe integer. */
+  readonly usage?: Readonly<MockLlmUsage>
+  /** Message-start model: a literal name, null to omit, or undefined for `mock-model`. */
+  readonly responseModel?: string | null
+  /** Additional HTTP headers; built-in headers take precedence, case-insensitively. */
+  readonly responseHeaders?: Readonly<Record<string, string>>
   /** Optional observer for JSONL CLI telemetry; observer failures never affect wire behavior. */
   readonly onEvent?: (event: MockLlmServerEvent) => void
 }
@@ -186,6 +211,9 @@ interface ResolvedOptions {
   readonly requestId?: string
   readonly toolName: string
   readonly toolArguments: string
+  readonly usage: Readonly<MockLlmUsage>
+  readonly responseModel: string | null
+  readonly responseHeaders: Readonly<Record<string, string>>
   readonly onEvent?: (event: MockLlmServerEvent) => void
 }
 
@@ -250,6 +278,25 @@ function resolveOptions(options: MockLlmServerOptions): ResolvedOptions {
     throw new Error('llm-mock-server: toolArguments must be valid JSON')
   }
 
+  const usage = { ...options.usage }
+  const { cache_creation: cacheCreation, ...tokenCounts } = usage
+  for (const [name, value] of Object.entries(tokenCounts)) {
+    boundedInteger(`usage.${name}`, value, 0, Number.MAX_SAFE_INTEGER)
+  }
+  if (cacheCreation !== undefined) {
+    for (const [lifetime, tokens] of Object.entries(cacheCreation)) {
+      boundedInteger(`usage.cache_creation.${lifetime}`, tokens, 0, Number.MAX_SAFE_INTEGER)
+    }
+    usage.cache_creation = { ...cacheCreation }
+  }
+  if (options.responseModel === '') throw new Error('llm-mock-server: responseModel must not be empty')
+  const responseHeaders: Record<string, string> = {}
+  for (const [name, value] of Object.entries(options.responseHeaders ?? {})) {
+    validateHeaderName(name)
+    validateHeaderValue(name, value)
+    responseHeaders[name.toLowerCase()] = value
+  }
+
   const configuredWeights = options.randomWeights ?? DEFAULT_MOCK_LLM_RANDOM_WEIGHTS
   const randomWeights: Array<readonly [ConcreteMockLlmBehavior, number]> = []
   for (const [behavior, weight] of Object.entries(configuredWeights)) {
@@ -284,6 +331,9 @@ function resolveOptions(options: MockLlmServerOptions): ResolvedOptions {
     ...options.requestId === undefined ? {} : { requestId: options.requestId },
     toolName,
     toolArguments,
+    usage,
+    responseModel: options.responseModel === undefined ? 'mock-model' : options.responseModel,
+    responseHeaders,
     ...options.onEvent === undefined ? {} : { onEvent: options.onEvent },
   }
 }
@@ -370,10 +420,15 @@ function httpError(
   finishRecord(options, record, 'completed')
 }
 
-function startMessage(record: MockLlmRequestRecord, response: ServerResponse): void {
+function startMessage(options: ResolvedOptions, record: MockLlmRequestRecord, response: ServerResponse): void {
+  const { output_tokens: _outputTokens, ...inputUsage } = options.usage
   writeSse(record, response, {
     type: 'message_start',
-    message: { id: 'mock-message', type: 'message', role: 'assistant', model: 'mock-model', content: [], usage: { input_tokens: 3, output_tokens: 0 } },
+    message: {
+      id: 'mock-message', type: 'message', role: 'assistant',
+      ...options.responseModel === null ? {} : { model: options.responseModel },
+      content: [], usage: { input_tokens: 3, output_tokens: 0, ...inputUsage },
+    },
   })
 }
 
@@ -381,11 +436,11 @@ function startText(record: MockLlmRequestRecord, response: ServerResponse, index
   writeSse(record, response, { type: 'content_block_start', index, content_block: { type: 'text', text: '' } })
 }
 
-function terminalChunk(reason: string, outputTokens: number): MessageSseEvent {
+function terminalChunk(options: ResolvedOptions, reason: string, outputTokens: number): MessageSseEvent {
   return {
     type: 'message_delta',
     delta: { stop_reason: reason, stop_sequence: null },
-    usage: { output_tokens: outputTokens },
+    usage: { output_tokens: options.usage.output_tokens ?? outputTokens },
   }
 }
 
@@ -434,7 +489,7 @@ async function completeText(
     return
   }
   writeSse(record, response, { type: 'content_block_stop', index })
-  writeSse(record, response, terminalChunk(reason, Array.from(options.successText).length))
+  writeSse(record, response, terminalChunk(options, reason, Array.from(options.successText).length))
   writeDone(record, response)
   response.end()
   finishRecord(options, record, 'completed')
@@ -484,8 +539,8 @@ async function runBehavior(
       return
     case 'empty':
       openSse(response)
-      startMessage(record, response)
-      writeSse(record, response, terminalChunk('end_turn', 0))
+      startMessage(options, record, response)
+      writeSse(record, response, terminalChunk(options, 'end_turn', 0))
       writeDone(record, response)
       response.end()
       finishRecord(options, record, 'completed')
@@ -497,13 +552,13 @@ async function runBehavior(
       return
     case 'stream_eof':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       response.end()
       finishRecord(options, record, 'completed')
       return
     case 'partial_eof':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       startText(record, response, 0)
       await streamText(options, record, response, options.partialText, 0)
       response.end()
@@ -511,7 +566,7 @@ async function runBehavior(
       return
     case 'partial_disconnect':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       startText(record, response, 0)
       if (!await streamText(options, record, response, options.partialText, options.chunkDelayMs)) return
       await disconnect(options, record, response)
@@ -536,7 +591,7 @@ async function runBehavior(
       return
     case 'wrong_content_type':
       openSse(response, 'application/json')
-      startMessage(record, response)
+      startMessage(options, record, response)
       await completeText(options, record, response, 'end_turn', 0)
       return
     case 'rate_limit':
@@ -570,12 +625,12 @@ async function runBehavior(
       return
     case 'success':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       await completeText(options, record, response, 'end_turn', 0)
       return
     case 'reasoning_success':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       writeSse(record, response, { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } })
       for (const chunk of splitText(options.reasoningText, options.chunkSize)) {
         writeSse(record, response, { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: chunk } })
@@ -585,21 +640,21 @@ async function runBehavior(
       return
     case 'tool_call_success':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       for (const chunk of toolCallChunks(options)) writeSse(record, response, chunk)
-      writeSse(record, response, terminalChunk('tool_use', 2))
+      writeSse(record, response, terminalChunk(options, 'tool_use', 2))
       writeDone(record, response)
       response.end()
       finishRecord(options, record, 'completed')
       return
     case 'max_tokens':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       await completeText(options, record, response, 'max_tokens', 0)
       return
     case 'slow_success':
       openSse(response)
-      startMessage(record, response)
+      startMessage(options, record, response)
       await completeText(options, record, response, 'end_turn', options.chunkDelayMs)
       return
   }
@@ -688,6 +743,7 @@ export async function startMockLlmServer(options: MockLlmServerOptions): Promise
       return
     }
 
+    for (const [name, value] of Object.entries(resolved.responseHeaders)) response.setHeader(name, value)
     const selected = selectBehavior()
     const record: MockLlmRequestRecord = {
       attempt: requests.length + 1,

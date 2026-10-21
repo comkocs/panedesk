@@ -90,6 +90,20 @@ pnpm run mock:llm \
 
 CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-size`、`--chunk-delay-ms`、`--disconnect-delay-ms`、`--retry-after-ms`、`--request-id`、`--tool-name` 与 `--tool-arguments`。毫秒延迟是 Node 定时器范围内的有界整数；`retryAfterMs` 还必须为正数。库接受相同的 camel-case 选项。可选的 `apiKey` 会精确验证 `x-api-key: <token>`；省略时接受任何 token。
 
+### 用量、模型、标头与请求证据
+
+现有服务器选项还接受以下证据控制；它们作用于每个已消费的行为，不改变序列选择。省略这些选项时，现有响应正文的字节与标头保持不变。
+
+| 库选项 | CLI 选项 | 协议行为 |
+|---|---|---|
+| `usage` | `--usage <json>` | 可选的 Messages 计数：`input_tokens`、`output_tokens`、`cache_read_input_tokens`、`cache_creation_input_tokens`，以及 `cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`。计数必须是非负安全整数。输入与缓存计数出现在 `message_start.message.usage` 中；`message_delta.usage.output_tokens` 使用配置的输出计数。开始事件仍报告零输出 token。省略输入／输出计数时，保留三个输入 token 与行为原有的输出计数；省略的缓存计数不出现。 |
+| `responseModel` | `--response-model <name>` / `--omit-response-model` | 非空字面量字符串设置 `message_start.message.model`：使用请求的名称可模拟同名响应，使用其他名称可模拟异名响应。库中的 `null` 或省略标志会移除该字段；不配置时保留 `mock-model`。CLI 的两个模型标志互斥。 |
+| `responseHeaders` | `--response-headers <json>` | 为已接受请求添加字符串值标头，包括 HTTP 失败与停滞流。内置标头按不区分大小写的方式优先，包括现有的限流 `retry-after` 与失败 `x-request-id`。无效的标头名称或值会在监听前报错。标头发送前的重置仍不发送标头。 |
+
+服务器在启动时复制证据选项。CLI JSON 必须使用已文档化的字段与值类型。`server.requests` 仍是按序捕获请求正文的 API：每条记录公开解析后的正文、路径、标头与尝试序号，包括按提交原样保留的 `cache_control`、其中的 `ttl` 与任何 `prompt_cache_key`。无效请求不会被捕获，也不会消费序列。校验失败响应不添加证据标头。
+
+仅支持 Anthropic Messages HTTP／SSE。不支持 OpenAI chat completions、OpenAI responses，以及 DeepSeek chat completion 用量字段（`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`）；这些路由仍返回 404，且不被捕获。这些选项不会启用额外的协议。
+
 ### 可能出什么问题
 
 - **脚本耗尽**——耗尽时返回结构化 HTTP 500；当一次运行需要更多请求时设置 `--repeat-last` 或加长序列。
