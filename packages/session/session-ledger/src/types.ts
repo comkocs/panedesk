@@ -32,6 +32,16 @@ export type LedgerPurpose = NonNullable<GenerateOptions['purpose']> | 'conversat
 export type LedgerWaitCategory = 'sleep' | 'external-marker' | 'subagent'
 /** Runtime provider configuration; model-authored text never supplies classifications. */
 export interface LedgerOptions {
+  /** Explicit Harness home; otherwise the shared home-paths resolution applies. */
+  dshHome?: string
+  /** Maximum native-lock contention wait in milliseconds. */
+  lockTimeoutMs?: number
+  /** Delay between nonblocking native-lock attempts in milliseconds. */
+  lockRetryMs?: number
+  /** Maximum encoded journal record or sidecar fragment size in bytes. */
+  maxRecordBytes?: number
+  /** Maximum age of verified local process observations counted as live. */
+  observationMaxAgeMs?: number
   /** Exact registered tool names mapped to trusted categories; no name-based inference. */
   waitTools?: Readonly<Record<string, LedgerWaitCategory>>
 }
