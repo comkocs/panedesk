@@ -6,4 +6,10 @@ export interface LedgerWatchOptions {
   settlementBudgetMs: number
   /** Reconcile already-dead process identities when the watcher starts. */
   scanOnStart: boolean
+  /** Explicit local ledger node; omission disables reconciliation rather than guessing ownership. */
+  nodeId?: string
+  /** Continuous polling is opt-in; omission performs only the configured startup scan. */
+  continuous?: boolean
+  /** Optional owner-only health file, refreshed after acknowledged successful rounds. */
+  healthPath?: string
 }
