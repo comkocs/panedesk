@@ -344,11 +344,14 @@ function startStartupProfile(fixture: StartupFixture, args: readonly string[]) {
 describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', () => {
   testProfileResolution('lib')
 
-  it('requires a profile and rejects removed flags', async () => {
+  it('prints help for a bare run and rejects removed flags', async () => {
     const bare = await runBuiltBin()
-    expect(bare.code).toBe(1)
-    expect(bare.stdout).toBe('')
-    expect(bare.stderr).toContain('--profile <name> is required')
+    // Registered divergence default-slim-profile: a bare run falls back to slim and prints help.
+    expect(bare.code).toBe(0)
+    expect(bare.stderr).toBe('')
+    expect(bare.stdout).toContain('Usage: panedesk')
+    expect(bare.stdout).toContain('Without a profile it boots "slim".')
+    expect(bare.stdout).not.toContain('--profile <name> is required')
     const help = await runBuiltBin(['--help'])
     expect(help.code).toBe(0)
     await expect(help.stdout).toMatchFileSnapshot('./expected/launcher-help.txt')
@@ -360,6 +363,21 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(result.code).toBe(1)
     }
   }, SPAWN_TIMEOUT_MS * 3 + 30_000)
+
+  it('prints help for an explicit full profile', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'dsh-built-full-help-'))
+    try {
+      const full = await runBuiltBin(['--profile', 'full', '--help'], {
+        PANEDESK_HOME: home,
+        PANEDESK_TELEMETRY_DISABLED: '1',
+      })
+      expect(full.code).toBe(0)
+      expect(full.stderr).toBe('')
+      expect(full.stdout).toContain('Usage: panedesk --profile headless')
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  }, SPAWN_TIMEOUT_MS + 30_000)
 
   it('routes help and usage errors without activating startup-dependent rows', async () => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-app-help-'))
