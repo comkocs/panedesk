@@ -15,8 +15,87 @@ import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
 import type { AssistantMessage, AssistantMessageEvent, Usage as PiUsage } from '@earendil-works/pi-ai'
 import { toPiReplayState } from './replay.ts'
 
+type FinishChunk = Extract<StreamChunk, { type: 'finish' }>
+
+/** Per-request wire observations; SDK-initialized model names are never response evidence. */
+export class PiResponseEvidence {
+  private observed = false
+  private responseModel: string | undefined
+  private longWrites: number | undefined
+  /** HTTP status observed by the SDK response hook, absent before any response. */
+  status: number | undefined
+
+  /**
+   * @param requestedModel - request identity used only to compare an observed name.
+   * @param api - resolved wire protocol; unsupported protocols remain unobservable.
+   */
+  constructor(private readonly requestedModel: string, private readonly api: string) {}
+
+  /**
+   * Observe a provider event without modifying the SDK's parser input.
+   * @param raw - untrusted provider stream event from the public SDK hook.
+   */
+  observe(raw: unknown): void {
+    const event = wireObject(raw)
+    if (event === undefined) return
+    let envelope: Record<string, unknown> | undefined
+    if (this.api === 'anthropic-messages') {
+      if (event.type === 'message_start') envelope = wireObject(event.message)
+      if (event.type === 'message_start' || event.type === 'message_delta') {
+        const usage = wireObject(envelope?.usage ?? event.usage)
+        const creation = wireObject(usage?.cache_creation)
+        const long = creation?.ephemeral_1h_input_tokens
+        if (typeof long === 'number' && Number.isSafeInteger(long) && long >= 0) this.longWrites = long
+      }
+    } else if (this.api === 'openai-responses') {
+      envelope = wireObject(event.response)
+    } else if (this.api === 'openai-completions') {
+      envelope = event
+    } else return
+    this.observed = true
+    if (typeof envelope?.model === 'string' && envelope.model.length > 0) this.responseModel = envelope.model
+  }
+
+  /**
+   * Add observed evidence to translated chunks without changing their outcome or replay state.
+   * @param chunk - SDK-translated stream chunk.
+   * @param metadata - resolved route and effective wire-cache evidence.
+   * @returns the chunk with observed usage tiers or terminal metadata.
+   */
+  enrich(chunk: StreamChunk, metadata: Omit<Partial<FinishChunk>, 'type' | 'reason' | 'replayState'>): StreamChunk {
+    if (chunk.type === 'usage') {
+      const long = this.api === 'anthropic-messages' ? this.longWrites
+        : metadata.cacheWriteTiering?.kind === 'tiered' && chunk.usage.cacheWriteTokens !== undefined
+          ? metadata.cacheRetention === '12h' ? chunk.usage.cacheWriteTokens
+            : metadata.cacheRetention === '30m' ? 0 : undefined
+          : undefined
+      return long === undefined ? chunk : { ...chunk, usage: { ...chunk.usage, cacheWriteLongTokens: long } }
+    }
+    if (chunk.type !== 'finish') return chunk
+    const reason = chunk.reason
+    return {
+      ...chunk, ...metadata,
+      ...this.responseModel === undefined ? {} : { responseModel: this.responseModel },
+      responseModelReported: this.responseModel !== undefined
+        ? this.responseModel === this.requestedModel ? 'same' : 'different'
+        : this.observed ? 'missing' : 'unobservable',
+      ...this.status === undefined ? {} : { httpStatus: this.status },
+      reason: this.status !== undefined && this.status >= 400 && (reason.kind === 'error' || reason.kind === 'aborted')
+        ? { ...reason, failure: { ...reason.failure, status: this.status } } : reason,
+    }
+  }
+}
+
+function wireObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown> : undefined
+}
+
 /**
- * Map pi-ai usage (reasoning folded into output by pi-ai).
+ * Map pi-ai usage (reasoning folded into output by pi-ai). Anthropic input_tokens
+ * already excludes cache reads/writes. OpenAI prompt_tokens/input_tokens includes
+ * both; pi-ai subtracts cached_tokens and cache_write_tokens before setting input.
+ * Cache writes remain totals; the provider hook adds only an observed long subset.
  * @param usage - cumulative usage from the terminal pi-ai event.
  * @returns harness counts with pi-ai's exact total; cache fields appear only
  *   when non-zero (pi-ai reports zeros, not absence).

@@ -42,6 +42,36 @@ export interface RetryInternals {
   random?: () => number
 }
 
+/** Process-local retry evidence; durable retry payloads retain their existing fields. */
+export interface LlmRetryObservation {
+  /** Live owner used by ledger consumers to resolve the session. */
+  agent: Agent
+  /** Scheduled wait or completed wait; neither implies a new HTTP request has started. */
+  phase: 'scheduled' | 'started'
+  retryId: RetryId
+  turn: number
+  step: number
+  provider: string
+  retry: number
+  /** Observed status; absent when the provider did not expose one. */
+  status?: number
+  /** Unknown when status is absent; never inferred from error text. */
+  is429?: boolean
+  /** Unknown when status is absent; never inferred from error text. */
+  is503?: boolean
+}
+
+declare module '@panedesk/cordis' {
+  interface Events {
+    /**
+     * Observe retry scheduling and completed waits without changing durable retry events.
+     * @param observation - live retry identity and provider HTTP evidence.
+     * @mode emit
+     */
+    'llm/retry-observed'(observation: LlmRetryObservation): void
+  }
+}
+
 type DownstreamOutcome =
   | { readonly type: 'decision'; readonly decision: RequestErrorAction }
   | { readonly type: 'error'; readonly error: unknown }
@@ -185,9 +215,17 @@ export function apply(ctx: Context, config: Config = {}, internals: RetryInterna
         delayMs,
         failure,
       }
+    const observation = {
+      agent, retryId, turn, step, provider, retry,
+      ...failure.status === undefined ? {} : {
+        status: failure.status, is429: failure.status === 429, is503: failure.status === 503,
+      },
+    }
     agent.session.append('llm/retry', eventData)
+    ctx.emit('llm/retry-observed', { ...observation, phase: 'scheduled' })
     if (!await cancellableDelay(delayMs, fusedSignal)) return
     agent.session.append('llm/retry-started', { retryId, turn, step, retry })
+    ctx.emit('llm/retry-observed', { ...observation, phase: 'started' })
     return { kind: 'retry' }
   }
 

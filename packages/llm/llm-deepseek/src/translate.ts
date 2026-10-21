@@ -31,6 +31,7 @@ function indexOf(event: Record<string, unknown>): number {
   return event.index as number
 }
 
+/** Messages input_tokens excludes cache reads and writes; all three input buckets are disjoint. */
 function updateUsage(usage: TokenUsage, raw: unknown): void {
   const fields = object(raw)
   const keys = { input_tokens: 'inputTokens', output_tokens: 'outputTokens', cache_read_input_tokens: 'cacheReadTokens', cache_creation_input_tokens: 'cacheWriteTokens' } as const
@@ -105,11 +106,14 @@ export async function* translate(events: AsyncIterable<Record<string, unknown>>,
   const blocks = new Map<number, Block>()
   const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 }
   let started = false
+  let responseModel: string | undefined
   let reason: FinishReason | undefined
   for await (const event of events) {
     if (event.type === 'message_start') {
       if (started) return malformed('duplicate message_start')
-      updateUsage(usage, object(event.message).usage)
+      const message = object(event.message)
+      if (message.model != null) responseModel = string(message.model) || undefined
+      updateUsage(usage, message.usage)
       started = true
       continue
     }
@@ -158,7 +162,12 @@ export async function* translate(events: AsyncIterable<Record<string, unknown>>,
       }
       usage.totalTokens = usage.inputTokens + usage.outputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0)
       yield { type: 'usage', usage }
-      yield { type: 'finish', reason, replayState: replayState(model, [...blocks.values()].map(block => block.replay)) }
+      yield {
+        type: 'finish', reason,
+        replayState: replayState(model, [...blocks.values()].map(block => block.replay)),
+        ...responseModel === undefined ? {} : { responseModel },
+        responseModelReported: responseModel === undefined ? 'missing' : responseModel === model ? 'same' : 'different',
+      }
       return
     }
   }
