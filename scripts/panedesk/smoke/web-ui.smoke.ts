@@ -53,8 +53,8 @@ const KNOWN_NOISE: readonly { readonly pattern: RegExp; readonly why: string }[]
 ]
 
 const CHAT_ID = 'm3-smoke-chat'
-const CHAT_PROMPT = '冒烟:请打个招呼'
-const CHAT_REPLY = '冒烟回复:你好,这是种子会话回放出的助手消息。'
+const CHAT_PROMPT = 'Smoke: please say hi'
+const CHAT_REPLY = 'Smoke reply: hello, this assistant message was replayed from the seeded session.'
 const BASH_ID = 'm3-smoke-bash-300'
 const BASH_PROMPT = 'Print 300 numbered lines with seq.'
 const LINES = 300
@@ -193,7 +193,7 @@ describe('Panedesk web UI milestone smoke', () => {
 
   afterAll(async () => {
     if (rig === undefined) {
-      writeFileSync(join(OUT, '01_控制台.txt'), 'rig not assembled — beforeAll failed; see vitest.log\n')
+      writeFileSync(join(OUT, '01_console.txt'), 'rig not assembled — beforeAll failed; see vitest.log\n')
       return
     }
     // Evidence for step 01 lands here so the whole session's noise is covered.
@@ -202,7 +202,7 @@ describe('Panedesk web UI milestone smoke', () => {
       return hit === undefined ? undefined : { text, why: hit.why }
     })
     const blocking = consoleErrors.filter((_, index) => !ignored[index])
-    writeFileSync(join(OUT, '01_控制台.txt'), [
+    writeFileSync(join(OUT, '01_console.txt'), [
       `console error total: ${consoleErrors.length}`,
       `ignored known noise: ${ignored.filter(item => item !== undefined).length}`,
       ...ignored.flatMap(item => item === undefined ? [] : [`  IGNORED: ${item.text} — ${item.why}`]),
@@ -220,7 +220,7 @@ describe('Panedesk web UI milestone smoke', () => {
 
   it('01 main screen loads without console errors', async () => {
     const { page, tripwire } = rigOrThrow()
-    await step(page, '01', '主界面加载', '01_主界面.png', async () => {
+    await step(page, '01', 'Main view loads', '01_main.png', async () => {
       await page.locator('[data-composer-input]').first().waitFor({ timeout: 20_000 })
       // Settle window for late errors before adjudicating.
       await page.waitForTimeout(2500)
@@ -228,45 +228,45 @@ describe('Panedesk web UI milestone smoke', () => {
       const blocking = consoleErrors.filter(text => !KNOWN_NOISE.some(({ pattern }) => pattern.test(text)))
       if (blocking.length > 0) throw new Error(`console error: ${blocking[0] ?? 'no console error text'}`)
       const ignoredCount = consoleErrors.length - blocking.length
-      return `无 error 级报错(共 ${consoleErrors.length} 条 error,忽略已知噪声 ${ignoredCount} 条,明细见 01_控制台.txt);composer 已渲染`
+      return `No error-level console output (${consoleErrors.length} error entries, ${ignoredCount} known-noise entries ignored, details in 01_console.txt); composer rendered`
     })
   })
 
   it('02 blank new-session page after connecting a workspace', async () => {
     const { page, scaffold } = rigOrThrow()
-    await step(page, '02', '连工作区后的空白新会话页', '02_空白新会话.png', async () => {
+    await step(page, '02', 'Blank new session', '02_blank_session.png', async () => {
       await connectFreshWorkspaceZh(page, scaffold.workspaceCwd)
       await page.waitForTimeout(600)
       const heroCount = await page.locator('div[class*="heroOptions"]').count()
       const children = heroCount > 0
         ? await page.locator('div[class*="heroOptions"]').first().evaluate(el => el.childElementCount)
         : -1
-      writeFileSync(join(OUT, '02_heroOptions_命中.txt'),
-        `selector: div[class*="heroOptions"]\n冷启动→连工作区后空白新会话页:命中 ${heroCount} 个,首个子元素数 ${children}\n`)
-      return `空白新会话页已连接工作区;div[class*="heroOptions"] 命中 ${heroCount} 个(首个子元素 ${children} 个)`
+      writeFileSync(join(OUT, '02_hero_options.txt'),
+        `selector: div[class*="heroOptions"]\nblank new-session page after connecting a fresh workspace: ${heroCount} matches, first match child elements ${children}\n`)
+      return `Blank new-session page with workspace connected; div[class*="heroOptions"] matched ${heroCount} (first match child elements: ${children})`
     })
   })
 
   it('03 send a message and get a reply (seeded session replay)', async () => {
     const { page } = rigOrThrow()
-    await step(page, '03', '发消息并得到回复', '03_消息回复.png', async () => {
+    await step(page, '03', 'Send a message and get a reply', '03_reply.png', async () => {
       await openSeededSession(page, CHAT_PROMPT)
       // The sidebar may truncate the prompt in the session title, so the list
       // membership proof is the opened (selected) tree item plus a short-substring
       // probe; the full tree aria goes to the evidence file for inspection.
-      const treeHits = await page.locator('[role="treeitem"]', { hasText: '打个招呼' }).count()
+      const treeHits = await page.locator('[role="treeitem"]', { hasText: 'say hi' }).count()
       const selected = await page.locator('[role="treeitem"][aria-selected="true"]').count()
       const treeAria = await page.locator('[role="tree"]').first().ariaSnapshot().catch(() => 'no [role=tree]')
-      writeFileSync(join(OUT, '03_会话树.txt'), treeAria.split('\n').slice(0, 40).join('\n') + '\n')
+      writeFileSync(join(OUT, '03_session_tree.txt'), treeAria.split('\n').slice(0, 40).join('\n') + '\n')
       await page.getByText(CHAT_REPLY, { exact: true }).waitFor({ timeout: 15_000 })
       if (selected < 1) throw new Error('no selected tree item after opening the session')
-      return `选中态 treeitem ${selected} 个(含该会话);标题含「打个招呼」的 treeitem ${treeHits} 个;消息区出现用户消息「${CHAT_PROMPT}」与回复「${CHAT_REPLY.slice(0, 18)}…」`
+      return `Selected treeitems: ${selected} (including this session); treeitems whose title contains "say hi": ${treeHits}; message area rendered the user message "${CHAT_PROMPT}" and the reply "${CHAT_REPLY.slice(0, 18)}…"`
     })
   })
 
   it('04 tool call and Inspect trajectory with 300-line bash output', async () => {
     const { page } = rigOrThrow()
-    await step(page, '04', '工具调用与查看轨迹', '04_轨迹.png', async () => {
+    await step(page, '04', 'Tool call trajectory', '04_trajectory.png', async () => {
       await openSeededSession(page, BASH_PROMPT)
       await expandTurnProcesses(page)
       const row = page.locator('[data-sample="bash"]').first()
@@ -311,18 +311,18 @@ describe('Panedesk web UI milestone smoke', () => {
       const firstOk = text.includes('001: numbered-line-001') || seen.has('numbered-line-001')
       const lastOk = text.includes('300: numbered-line-300') || seen.has('numbered-line-300')
       const maxSeen = numbers.length > 0 ? Math.max(...numbers) : 0
-      const verdict = seen.size === LINES ? '全量' : `截断到第 ${maxSeen} 行`
-      writeFileSync(join(OUT, '04_轨迹文本.txt'), `${text}\n\n===== 滚动采集并集:命中编号行 ${seen.size}/${LINES};首行 001: ${firstOk};末行 300: ${lastOk};结论: ${verdict} =====\n`)
-      writeFileSync(join(OUT, '04_结论.txt'),
-        `轨迹面板文本共 ${text.length} 字符;采集并集命中编号行 ${seen.size}/${LINES};首行 001: 在=${firstOk};末行 300: 在=${lastOk};结论:${verdict}\n`)
+      const verdict = seen.size === LINES ? 'full' : `truncated at line ${maxSeen}`
+      writeFileSync(join(OUT, '04_trajectory_text.txt'), `${text}\n\n===== Scroll-harvest union: numbered lines hit ${seen.size}/${LINES}; first line 001: ${firstOk}; last line 300: ${lastOk}; verdict: ${verdict} =====\n`)
+      writeFileSync(join(OUT, '04_verdict.txt'),
+        `Trajectory panel text ${text.length} chars; scroll-harvest union hit numbered lines ${seen.size}/${LINES}; first line 001 present=${firstOk}; last line 300 present=${lastOk}; verdict: ${verdict}\n`)
       if (seen.size === 0) throw new Error('trajectory panel rendered no numbered bash output')
-      return `轨迹面板打开;300 行编号输出结论:${verdict}(命中 ${seen.size}/${LINES} 行,001: ${firstOk},300: ${lastOk};文本见 04_轨迹文本.txt)`
+      return `Trajectory panel opened; 300-line numbered output verdict: ${verdict} (${seen.size}/${LINES} lines hit, 001: ${firstOk}, 300: ${lastOk}; text in 04_trajectory_text.txt)`
     })
   })
 
   it('05 settings dialog opens with the General page', async () => {
     const { page } = rigOrThrow()
-    await step(page, '05', '设置页打开,常规页可见', '05_设置.png', async () => {
+    await step(page, '05', 'Settings', '05_settings.png', async () => {
       await openSettings(page, 'zh')
       const dialog = page.getByRole('dialog', { name: '设置' })
       await dialog.waitFor({ timeout: 10_000 })
@@ -331,13 +331,13 @@ describe('Panedesk web UI milestone smoke', () => {
       const language = await dialog.getByText('语言', { exact: true }).count()
       await page.keyboard.press('Escape')
       await dialog.waitFor({ state: 'hidden', timeout: 10_000 })
-      return `设置对话框已打开;「通用设置」aria-current=${current ?? '(null)'};「工作区内修改」与语言项(计数 ${language})可见;Esc 关闭成功`
+      return `Settings dialog opened; General page aria-current=${current ?? '(null)'}; workspace-level edits control and language entry (count ${language}) visible; Esc closed the dialog`
     })
   })
 
   it('06 plugins page opens with a non-empty list', async () => {
     const { page } = rigOrThrow()
-    await step(page, '06', '插件页打开,列表非空', '06_插件.png', async () => {
+    await step(page, '06', 'Plugins', '06_plugins.png', async () => {
       await page.getByRole('navigation', { name: '全局面板' }).getByRole('button', { name: '插件', exact: true }).click()
       const panel = page.locator('[data-plugin-panel]')
       await panel.waitFor({ timeout: 10_000 })
@@ -350,7 +350,7 @@ describe('Panedesk web UI milestone smoke', () => {
       await page.waitForTimeout(1000)
       const items = await panel.getByRole('listitem').count()
       if (items < 1) throw new Error('plugin list rendered 0 items')
-      return `插件页已打开;「内置插件配置」区块存在;面板 listitem 共 ${items} 个(非空)`
+      return `Plugins page opened; built-in plugin configuration section present; panel listitems: ${items} (non-empty)`
     })
   })
 })

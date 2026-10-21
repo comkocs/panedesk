@@ -3,7 +3,7 @@
  * Panedesk fork check: milestone hand-off smoke for the fork's web UI.
  * Runs the six-step keyless walk (scripts/panedesk/smoke/web-ui.smoke.ts)
  * against the current checkout through the repository's own web e2e scaffold,
- * then renders the step table and evidence index into <results-dir>/结果.md.
+ * then renders the step table and evidence index into <results-dir>/result.md.
  *
  * Usage, from the repository root of a prepared tree (pnpm install and
  * pnpm run build:artifacts done):
@@ -96,26 +96,26 @@ const stepsPath = join(out, 'steps.json')
 const parsed = existsSync(stepsPath) ? JSON.parse(readFileSync(stepsPath, 'utf8')) : []
 const steps = Array.isArray(parsed) ? parsed : []
 const rows = steps.map(s =>
-  `| ${s.id} | ${s.name} | ${s.pass ? '通过' : '不通过'} | ${String(s.evidence).split('\n')[0].slice(0, 160)} | ${(s.ms / 1000).toFixed(1)}s |`)
+  `| ${s.id} | ${s.name} | ${s.pass ? 'pass' : 'fail'} | ${String(s.evidence).split('\n')[0].slice(0, 160)} | ${(s.ms / 1000).toFixed(1)}s |`)
 const allPass = steps.length > 0 && steps.every(s => s.pass)
-const verdict = steps.length === 0 ? '未取得步骤结果(见 vitest.log)' : allPass ? '六步全部通过' : '存在不通过步骤'
+const verdict = steps.length === 0 ? 'no step results (see vitest.log)' : allPass ? 'all six steps passed' : 'failing steps present'
 const lines = [
-  '# M3 冒烟结果',
+  '# Smoke walk result',
   '',
-  `- 构建树提交号:\`${commit}\``,
-  `- 用时:${seconds}s(含配置生成与 vitest 启停)`,
-  `- 总结论:**${verdict}**`,
-  `- vitest 退出码:${vitest.status ?? 'spawn failed'}`,
+  `- Build tree commit: \`${commit}\``,
+  `- Duration: ${seconds}s (including config generation and vitest startup/teardown)`,
+  `- Overall verdict: **${verdict}**`,
+  `- vitest exit code: ${vitest.status ?? 'spawn failed'}`,
   '',
-  '| 步 | 名称 | 结论 | 证据摘要 | 用时 |',
+  '| Step | Name | Verdict | Evidence summary | Time |',
   '| --- | --- | --- | --- | --- |',
   ...rows,
   '',
-  ...(steps.length < 6 ? ['> 注:步骤结果不足 6 条,后段步骤可能被中断,详见 vitest.log。', ''] : []),
-  '证据文件:各步截图 `NN_*.png`;01 步控制台明细 `01_控制台.txt`;02 步命中数 `02_heroOptions_命中.txt`;04 步 `04_轨迹文本.txt` / `04_结论.txt`。',
+  ...(steps.length < 6 ? ['> Note: fewer than 6 step results; later steps may have been interrupted, see vitest.log.', ''] : []),
+  'Evidence files: per-step screenshots `NN_*.png`; step 01 console detail `01_console.txt`; step 02 heroOptions match count `02_hero_options.txt`; step 04 `04_trajectory_text.txt` / `04_verdict.txt`.',
   '',
 ]
-writeFileSync(join(out, '结果.md'), lines.join('\n'))
+writeFileSync(join(out, 'result.md'), lines.join('\n'))
 
-console.log(`smoke finished: exit=${vitest.status ?? 'spawn failed'}, ${seconds}s, report: ${join(out, '结果.md')}`)
+console.log(`smoke finished: exit=${vitest.status ?? 'spawn failed'}, ${seconds}s, report: ${join(out, 'result.md')}`)
 process.exit(vitest.status ?? 2)
