@@ -31,8 +31,19 @@
     "@panedesk/dsh-compaction": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*"
   },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-session-ledger": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-compaction-basic": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-token-meter": "workspace:*",
     "@panedesk/dsh-compaction": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*"
   },
