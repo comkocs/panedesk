@@ -82,8 +82,7 @@
               "  panedesk full \"run the tests\"                  the same task on the full preset (same as: panedesk --profile full ...)",
               "  panedesk --patch ./provider.yml \"task\"         add one overlay (e.g. a model provider) to the default preset",
               "  panedesk full --help                           the booted app's own flags and help",
-              "  pdesk ...                                      short name for panedesk",
-              ""
+              "  pdesk ...                                      short name for panedesk"
             ]
           }
         ]
