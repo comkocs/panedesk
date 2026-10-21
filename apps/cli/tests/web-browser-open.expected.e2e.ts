@@ -218,8 +218,8 @@ describe.skipIf(!builtArtifactsExist)('panedesk web browser-open assembled snaps
     })
 
     const diagnostic = result.stderr.split(/\r?\n/u)
-      .find(line => line.startsWith('Error: dsh: '))
-      ?.replace(/^Error: dsh: .*[/\\]\.env/u, 'panedesk: {{root}}/.env')
+      .find(line => line.startsWith('Error: panedesk: '))
+      ?.replace(/^Error: panedesk: .*[/\\]\.env/u, 'panedesk: {{root}}/.env')
 
     expect({
       diagnostic,
