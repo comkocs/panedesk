@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package gives tests and demos a scriptable Messages-compatible HTTP/SSE endpoint with named events for native SDK consumers, so they can exercise model-provider failures and successes without a provider key. Each accepted `/v1/messages` request consumes the next scripted behavior, including resets, stalls, malformed chunks, rate limits, server errors, completions, and tool calls. Test authors can run it with `pnpm run mock:llm` or call `startMockLlmServer`, which returns captured requests for assertions. Seeded `random` behavior supports reproducible mixed-failure stress runs.
+This package gives tests and demos scriptable Anthropic Messages, OpenAI Responses, and OpenAI Chat Completions HTTP/SSE endpoints, so they can exercise model-provider failures and successes without a provider key. Accepted requests to `/v1/messages`, `/v1/responses`, and `/v1/chat/completions` share one arrival-ordered script, including resets, stalls, malformed chunks, rate limits, server errors, completions, and tool calls. Test authors can run it with `pnpm run mock:llm` or call `startMockLlmServer`, which returns captured requests for assertions. Seeded `random` behavior supports reproducible mixed-failure stress runs.
 
 ## Table of Contents
 
@@ -88,7 +88,21 @@ Omitting `--seed` generates one and prints it in the `ready` record. `--random-w
 
 ### Timing and content controls
 
-The CLI exposes `--success-text`, `--partial-text`, `--reasoning-text`, `--chunk-size`, `--chunk-delay-ms`, `--disconnect-delay-ms`, `--retry-after-ms`, `--request-id`, `--tool-name`, and `--tool-arguments`. Millisecond delays are bounded integers within Node's timer range; `retryAfterMs` must also be positive. The library accepts the same camel-case options. An optional exact `apiKey` validates `x-api-key: <token>`; omission accepts any token.
+The CLI exposes `--success-text`, `--partial-text`, `--reasoning-text`, `--chunk-size`, `--chunk-delay-ms`, `--disconnect-delay-ms`, `--retry-after-ms`, `--request-id`, `--tool-name`, and `--tool-arguments`. Millisecond delays are bounded integers within Node's timer range; `retryAfterMs` must also be positive. The library accepts the same camel-case options. An optional exact `apiKey` validates `x-api-key: <token>` for Messages and `Authorization: Bearer <token>` for OpenAI; omission accepts any token.
+
+### Usage, model, headers, and request evidence
+
+The existing server options also accept the following evidence controls; they apply to every consumed behavior without changing sequence selection. Omitting them preserves the existing response body bytes and headers.
+
+| Library option | CLI option | Wire behavior |
+|---|---|---|
+| `usage` | `--usage <json>` | Optional Messages counters: `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, and `cache_creation.ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens`. Counters must be non-negative safe integers. Input and cache counters appear in `message_start.message.usage`; `message_delta.usage.output_tokens` uses the configured output count. The start event retains zero output tokens. Omitted input/output counters retain three input tokens and the behavior-specific output count; omitted cache counters remain absent. |
+| `responseModel` | `--response-model <name>` / `--omit-response-model` | A nonempty literal string sets `message_start.message.model`: use the requested name for a same-model response or another name for a mismatch. Library `null` or the omit flag removes the field; omission retains `mock-model`. The CLI model flags are mutually exclusive. |
+| `responseHeaders` | `--response-headers <json>` | Additional string-valued headers on accepted requests, including HTTP failures and stalled streams. Built-in headers take precedence case-insensitively, including the existing rate-limit `retry-after` and failure `x-request-id`. Invalid header names or values fail before listening. Resets before headers still send no headers. |
+
+The server copies evidence options at startup. CLI JSON must use the documented fields and value types. `server.requests` remains the ordered request-body capture API: each record exposes the parsed body, path, headers, attempt number, and `protocol` (`messages`, `responses`, or `chat_completions`), including `cache_control`, its `ttl`, `prompt_cache_key`, and `prompt_cache_options.ttl` / `.mode` exactly as submitted. Invalid requests are not captured and do not consume the sequence. Evidence headers are not added to validation failures.
+
+OpenAI routes stream SSE under the same optional gateway prefix as Messages; non-streaming OpenAI JSON responses are not implemented. Responses emits `response.created`, indexed `response.output_item.added`, text/reasoning/function-argument deltas, `response.output_item.done`, and `response.completed` (or `response.incomplete` for `max_tokens`). The terminal response carries the configured `model` and `usage.input_tokens` / `output_tokens`; cache read/write totals map to `input_tokens_details.cached_tokens` / `cache_write_tokens`. Chat emits unnamed `chat.completion.chunk` data with the configured `model`, text/reasoning/tool deltas, a finish-reason chunk, a final empty-choices usage chunk, and `[DONE]`; counters map to `prompt_tokens`, `completion_tokens`, and `prompt_tokens_details.cached_tokens` / `cache_write_tokens`. Both report `total_tokens` as input plus output, default to three input tokens and the behavior-specific output count, omit unconfigured cache details, and ignore Messages-only cache lifetime splits. `responseModel: null` removes model fields from both protocols. Request cache options are captured, not validated or enforced: callers can assert GPT retention values such as `30m` or Responses-only `12h`. Fault scenarios and `retryAfterMs` use the shared behavior mechanism; clean EOF faults omit the protocol terminal event. DeepSeek-specific `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` output fields are not implemented.
 
 ### What can go wrong
 
@@ -108,13 +122,14 @@ This section explains the design of the server; the observable behavior is fully
 
 ### Design
 
-The server is built on one rule: each accepted Messages request consumes exactly one behavior from an arrival-ordered FIFO cursor, and the server never retries or interprets harness policy. Validation happens before the cursor advances — only a `POST` whose path ends in `/v1/messages`, with a valid API key when one is configured and a parseable JSON body, consumes the script; everything else receives an ordinary 4xx. `random` entries resolve at request time through a seeded PRNG over the configured weights, so a run is reproducible from its printed seed.
+The server is built on one rule: each accepted request consumes exactly one behavior from a shared arrival-ordered FIFO cursor, and the server never retries or interprets harness policy. Validation happens before the cursor advances — only a `POST` whose path ends in `/v1/messages`, `/v1/responses`, or `/v1/chat/completions`, with a valid API key when one is configured and a parseable JSON body, consumes the script; everything else receives an ordinary 4xx. `random` entries resolve at request time through a seeded PRNG over the configured weights, so a run is reproducible from its printed seed.
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `startMockLlmServer`: listener, behavior table, seeded randomness, telemetry, captured request records |
+| [`src/openai.ts`](src/openai.ts) | OpenAI Responses and Chat Completions SSE payloads and usage mapping |
 | [`src/cli.ts`](src/cli.ts) | `--sequence` and timing/content option parsing, JSONL stdout telemetry |
 | [`src/bin.ts`](src/bin.ts) | The `pnpm run mock:llm` source entry |
 

@@ -10,6 +10,7 @@ import type {
   MockLlmBehavior,
   MockLlmRandomWeights,
   MockLlmServerOptions,
+  MockLlmUsage,
 } from './index.ts'
 
 /** Listener lifecycle behavior understood only by the standalone CLI. */
@@ -59,6 +60,10 @@ Response:
   --request-id <id>
   --tool-name <name>
   --tool-arguments <json>
+  --usage <json>            Messages usage counters
+  --response-model <name>   Literal message-start model (default mock-model)
+  --omit-response-model     Omit the message-start model
+  --response-headers <json>  Additional HTTP headers; built-in headers win
 
 Other:
   --help
@@ -115,7 +120,42 @@ function parseRandomWeights(raw: string): MockLlmRandomWeights {
   return weights
 }
 
-/** parseArgs vocabulary: every documented flag; only `--repeat-last` and `--help` are boolean. */
+function jsonObject(option: string, raw: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(raw)
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`dsh-llm-mock-server: ${option} must be a JSON object`)
+  }
+  return value as Record<string, unknown>
+}
+
+function parseUsage(raw: string): MockLlmUsage {
+  const usage = jsonObject('--usage', raw)
+  const counters = new Set(['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'])
+  for (const [name, value] of Object.entries(usage)) {
+    if (name === 'cache_creation') {
+      const lifetimes = jsonObject('--usage cache_creation', JSON.stringify(value))
+      for (const [lifetime, tokens] of Object.entries(lifetimes)) {
+        if (!['ephemeral_5m_input_tokens', 'ephemeral_1h_input_tokens'].includes(lifetime)
+          || typeof tokens !== 'number' || !Number.isSafeInteger(tokens) || tokens < 0) {
+          throw new Error('dsh-llm-mock-server: --usage cache_creation expects non-negative safe integer lifetime counters')
+        }
+      }
+    } else if (!counters.has(name) || typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+      throw new Error('dsh-llm-mock-server: --usage expects non-negative safe integer Messages counters')
+    }
+  }
+  return usage
+}
+
+function parseResponseHeaders(raw: string): Record<string, string> {
+  const headers = jsonObject('--response-headers', raw)
+  for (const value of Object.values(headers)) {
+    if (typeof value !== 'string') throw new Error('dsh-llm-mock-server: --response-headers values must be strings')
+  }
+  return headers as Record<string, string>
+}
+
+/** parseArgs vocabulary for documented string and boolean flags. */
 const CLI_OPTIONS = {
   'sequence': { type: 'string' },
   'host': { type: 'string' },
@@ -135,6 +175,10 @@ const CLI_OPTIONS = {
   'request-id': { type: 'string' },
   'tool-name': { type: 'string' },
   'tool-arguments': { type: 'string' },
+  'usage': { type: 'string' },
+  'response-model': { type: 'string' },
+  'omit-response-model': { type: 'boolean' },
+  'response-headers': { type: 'string' },
 } as const
 
 /**
@@ -170,6 +214,14 @@ export function parseMockLlmCliArgs(argv: readonly string[]): MockLlmCliParseRes
   const requestId = values['request-id']
   const toolName = values['tool-name']
   const toolArguments = values['tool-arguments']
+  const usage = values.usage === undefined ? undefined : parseUsage(values.usage)
+  const responseHeaders = values['response-headers'] === undefined
+    ? undefined
+    : parseResponseHeaders(values['response-headers'])
+  if (values['omit-response-model'] && values['response-model'] !== undefined) {
+    throw new Error('dsh-llm-mock-server: --response-model and --omit-response-model are mutually exclusive')
+  }
+  const responseModel = values['omit-response-model'] ? null : values['response-model']
 
   if (values.sequence === undefined) throw new Error('dsh-llm-mock-server: --sequence is required')
   const sequenceRaw = values.sequence
@@ -205,6 +257,9 @@ export function parseMockLlmCliArgs(argv: readonly string[]): MockLlmCliParseRes
         ...requestId === undefined ? {} : { requestId },
         ...toolName === undefined ? {} : { toolName },
         ...toolArguments === undefined ? {} : { toolArguments },
+        ...usage === undefined ? {} : { usage },
+        ...responseModel === undefined ? {} : { responseModel },
+        ...responseHeaders === undefined ? {} : { responseHeaders },
       },
       listenDelayMs: parsedSequence.startsUnavailable ? listenDelayMs ?? DEFAULT_LISTEN_DELAY_MS : 0,
       startsUnavailable: parsedSequence.startsUnavailable,
