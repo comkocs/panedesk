@@ -218,6 +218,14 @@ type StreamChunk =
     responseModelReported?: ResponseModelReported
     /** Observed HTTP response status; absent when transport observation is unavailable. */
     httpStatus?: number
+    /** Non-sensitive configured route/provider label; never credentials or an endpoint. */
+    accountLabel?: string
+    /** Actual write tier names; absent means no authoritative tier observation. */
+    cacheWriteTiering?: LlmCacheWriteTiering
+    /** Effective wire retention, not the requested default; absent when unobservable. */
+    cacheRetention?: Exclude<CacheRetention, 'default'>
+    /** Why the wire retention is lower than requested, such as a non-Responses route. */
+    cacheDowngradeReason?: string
   }
 ```
 

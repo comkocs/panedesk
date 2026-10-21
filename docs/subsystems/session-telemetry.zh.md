@@ -216,6 +216,29 @@ abstract finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult>
  */
 abstract appendEvent(event: LedgerEvent): Promise<LedgerAppendResult>
 
+/** Register trusted wait metadata; runtime registrations take precedence over configured defaults.
+ * Equal registrations may coexist; conflicting live categories are rejected rather than last-writer-wins.
+ * @param toolName - exact runtime-registered tool name, never model-supplied category metadata.
+ * @param category - trusted wait classification.
+ * @returns idempotent disposer releasing only this registration; the last release restores configuration or unclassified.
+ */
+abstract registerWaitTool(toolName: string, category: LedgerWaitCategory): () => void
+
+/** Append a restricted JSON sidecar fragment uniquely keyed by callId, kind, and seq.
+ * A new sequence must be contiguous; gaps, malformed JSON, and new fragments after closure reject.
+ * Exact replays remain valid after closure. Success is returned only after file and required directory fsync.
+ * @param input - immutable identity and exact serialized content bytes.
+ * @returns durable reference, existing reference for equal bytes, or a conflict without overwriting.
+ */
+abstract appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult>
+
+/** Close a sidecar durably; a mismatching reference or a non-final sequence rejects without mutation.
+ * Repeating the same closure is idempotent; acknowledgement follows fsync of the closure marker.
+ * @param reference - last durable fragment returned by appendArtifact; an empty stream has no closure reference.
+ * @returns durable closure acknowledgement suitable for call/end linkage.
+ */
+abstract finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult>
+
 /** Select projections without counting lifecycle or retry observations as extra calls.
  * @param filter - half-open business-time and identity selection.
  * @returns snapshot and explicit completeness/watermark evidence.

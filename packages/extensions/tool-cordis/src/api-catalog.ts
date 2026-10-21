@@ -2281,6 +2281,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'durable append outcome after synchronization.',
       },
       {
+        signature: 'abstract registerWaitTool(toolName: string, category: LedgerWaitCategory): () => void',
+        description: 'Register trusted wait metadata; runtime registrations take precedence over configured defaults. Equal registrations may coexist; conflicting live categories are rejected rather than last-writer-wins.',
+        parameters: [{ name: 'toolName', description: 'exact runtime-registered tool name, never model-supplied category metadata.' }, { name: 'category', description: 'trusted wait classification.' }],
+        returns: 'idempotent disposer releasing only this registration; the last release restores configuration or unclassified.',
+      },
+      {
+        signature: 'abstract appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult>',
+        description: 'Append a restricted JSON sidecar fragment uniquely keyed by callId, kind, and seq. A new sequence must be contiguous; gaps, malformed JSON, and new fragments after closure reject. Exact replays remain valid after closure. Success is returned only after file and required directory fsync.',
+        parameters: [{ name: 'input', description: 'immutable identity and exact serialized content bytes.' }],
+        returns: 'durable reference, existing reference for equal bytes, or a conflict without overwriting.',
+      },
+      {
+        signature: 'abstract finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult>',
+        description: 'Close a sidecar durably; a mismatching reference or a non-final sequence rejects without mutation. Repeating the same closure is idempotent; acknowledgement follows fsync of the closure marker.',
+        parameters: [{ name: 'reference', description: 'last durable fragment returned by appendArtifact; an empty stream has no closure reference.' }],
+        returns: 'durable closure acknowledgement suitable for call/end linkage.',
+      },
+      {
         signature: 'abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>',
         description: 'Select projections without counting lifecycle or retry observations as extra calls.',
         parameters: [{ name: 'filter', description: 'half-open business-time and identity selection.' }],
@@ -4272,7 +4290,7 @@ export const EVENT_API: readonly EventApiEntry[] = [
   {
     name: 'compaction/checkpoint',
     mode: 'waterfall',
-    signature: '\'compaction/checkpoint\'(payload: { session: Session; checkpoint: CompactionCheckpoint; signal?: AbortSignal }, next: () => Promise<CompactionCheckpoint>): Promise<CompactionCheckpoint>',
+    signature: '\'compaction/checkpoint\'(payload: { session: Session checkpoint: CompactionCheckpoint /** Maximum additional tokens beyond the input checkpoint, reserving strict shrinkage. */ additionalTokenBudget: number /** Price complete candidate content with the producer\'s existing message estimator and framing. */ estimateTokens: (content: CompactionCheckpoint[\'content\']) => number signal?: AbortSignal }, next: () => Promise<CompactionCheckpoint>): Promise<CompactionCheckpoint>',
     summary: 'Extend a framed summary before final token budgeting; listeners call next() and preserve its contributions.',
     description: 'Extend a framed summary before final token budgeting; listeners call next() and preserve its contributions. The producer revalidates the session revision and contributed watermarks before committing.',
     parameters: [{ name: 'payload', description: '.signal - optional cancellation signal.' }, { name: 'next', description: 'obtain the remaining checkpoint contributions.' }],
@@ -6034,6 +6052,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type LedgerAppendResult = {\n    kind: \'appended\' | \'existing\';\n    event: LedgerEvent;\n    watermark: LedgerWatermark;\n} | {\n    kind: \'conflict\';\n    eventId: LedgerEventId;\n    existingDigest: string;\n    incomingDigest: string;\n};',
   },
   {
+    name: 'LedgerArtifactAppend',
+    declaration: 'export interface LedgerArtifactAppend extends LedgerArtifactKey {\n    content: string;\n}',
+  },
+  {
+    name: 'LedgerArtifactAppendResult',
+    declaration: 'export type LedgerArtifactAppendResult = {\n    kind: \'appended\' | \'existing\';\n    reference: LedgerArtifactReference;\n} | {\n    kind: \'conflict\';\n    key: LedgerArtifactKey;\n    existingDigest: string;\n    incomingDigest: string;\n};',
+  },
+  {
+    name: 'LedgerArtifactFinishResult',
+    declaration: 'export interface LedgerArtifactFinishResult {\n    kind: \'finished\' | \'existing\';\n    reference: LedgerArtifactReference;\n}',
+  },
+  {
+    name: 'LedgerArtifactKey',
+    declaration: 'export interface LedgerArtifactKey {\n    callId: LedgerCallId;\n    kind: LedgerArtifactKind;\n    seq: number;\n}',
+  },
+  {
+    name: 'LedgerArtifactKind',
+    declaration: 'export type LedgerArtifactKind = \'partial-response\' | \'keepalive-request\';',
+  },
+  {
+    name: 'LedgerArtifactReference',
+    declaration: 'export interface LedgerArtifactReference extends LedgerArtifactKey {\n    path: string;\n    digest: string;\n}',
+  },
+  {
     name: 'LedgerAuxiliaryFact',
     declaration: 'export type LedgerAuxiliaryFact = {\n    kind: \'wait/start\' | \'wait/end\';\n    interval: LedgerInterval;\n} | {\n    kind: \'cache/break\' | \'cache/evidence\';\n    evidence: LedgerCacheEvidence;\n} | {\n    kind: \'retry\';\n    phase: \'scheduled\' | \'started\' | \'exhausted\';\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    httpStatus?: number;\n} | {\n    kind: \'compaction\';\n    committedSeq: number;\n    committedAt: number;\n} | {\n    kind: \'alert\';\n    alert: LedgerAlert;\n} | {\n    kind: \'delivery\';\n    paths: readonly string[];\n    state: LedgerRunFinish[\'deliveryState\'];\n    errorArtifact?: string;\n} | {\n    kind: \'process/observed\';\n    identity: LedgerProcessIdentity;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    exitCode?: number;\n    signal?: string;\n} | {\n    kind: \'policy/denied\';\n    operation: \'model\' | \'effort\' | \'tool\';\n    requested: string;\n    definition: string;\n    reason: string;\n};',
   },
@@ -6051,7 +6093,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerCallFinish',
-    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported;\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    usageState: LedgerUsageState;\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n}',
+    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported;\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    usageState: LedgerUsageState;\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n}',
   },
   {
     name: 'LedgerCallId',
@@ -6214,6 +6256,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LedgerUsageTotals extends LedgerTokenColumns {\n    knownTokens: number;\n    completeUsageCalls: number;\n    totalCalls: number;\n}',
   },
   {
+    name: 'LedgerWaitCategory',
+    declaration: 'export type LedgerWaitCategory = \'sleep\' | \'external-marker\' | \'subagent\';',
+  },
+  {
     name: 'LedgerWatermark',
     declaration: 'export type LedgerWatermark = Branded<\'LedgerWatermark\'>;',
   },
@@ -6228,6 +6274,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LlmCacheControl',
     declaration: 'export interface LlmCacheControl {\n    retention: CacheRetention;\n    key?: string;\n}',
+  },
+  {
+    name: 'LlmCacheWriteTiering',
+    declaration: 'export type LlmCacheWriteTiering = {\n    kind: \'tiered\';\n    short: string;\n    long: string;\n} | {\n    kind: \'untiered\';\n} | {\n    kind: \'unknown\';\n};',
   },
   {
     name: 'LlmCallConfig',
@@ -8147,7 +8197,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StreamChunk',
-    declaration: 'export type StreamChunk = {\n    type: \'block-start\';\n    index: number;\n    blockType: ContentBlockType;\n} | {\n    type: \'text-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'reasoning-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'tool-call-delta\';\n    index: number;\n    id: ToolCallId;\n    name?: string;\n    argumentsDelta: string;\n} | {\n    type: \'block-end\';\n    index: number;\n    block: ContentBlock;\n} | {\n    type: \'usage\';\n    usage: TokenUsage;\n} | {\n    type: \'finish\';\n    reason: FinishReason;\n    replayState?: ReplayEnvelope;\n    responseModel?: string;\n    responseModelReported?: ResponseModelReported;\n    httpStatus?: number;\n};',
+    declaration: 'export type StreamChunk = {\n    type: \'block-start\';\n    index: number;\n    blockType: ContentBlockType;\n} | {\n    type: \'text-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'reasoning-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'tool-call-delta\';\n    index: number;\n    id: ToolCallId;\n    name?: string;\n    argumentsDelta: string;\n} | {\n    type: \'block-end\';\n    index: number;\n    block: ContentBlock;\n} | {\n    type: \'usage\';\n    usage: TokenUsage;\n} | {\n    type: \'finish\';\n    reason: FinishReason;\n    replayState?: ReplayEnvelope;\n    responseModel?: string;\n    responseModelReported?: ResponseModelReported;\n    httpStatus?: number;\n    accountLabel?: string;\n    cacheWriteTiering?: LlmCacheWriteTiering;\n    cacheRetention?: Exclude<CacheRetention, \'default\'>;\n    cacheDowngradeReason?: string;\n};',
   },
   {
     name: 'SubagentActivation',
