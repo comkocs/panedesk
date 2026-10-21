@@ -298,9 +298,9 @@ describe.skipIf(!builtArtifactsExist)('dsh Web profile best-effort startup', () 
       expect(result.stderr).toContain('Plugins waiting for services (')
       expect(result.stderr).toMatch(/web-runtime \(required\) +webServer/u)
       expect(result.stderr).toContain('at Server.setupListenHandle')
-      const summary = result.stderr.split(/\n\n(?:Full diagnostics:|dsh: warning:)/u)[0]!
+      const summary = result.stderr.split(/\n\n(?:Full diagnostics:|panedesk: warning:)/u)[0]!
       expect(summary.match(/EADDRINUSE/gu)).toHaveLength(1)
-      expect(summary).not.toMatch(/dsh: warning:|\[cause\]|at boot \(|at runCli \(|Node\.js v/u)
+      expect(summary).not.toMatch(/panedesk: warning:|\[cause\]|at boot \(|at runCli \(|Node\.js v/u)
       let report: string
       if (logsBlocked) {
         expect(result.stderr).toContain('panedesk: warning: could not write startup diagnostics:')
