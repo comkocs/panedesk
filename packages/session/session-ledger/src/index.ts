@@ -5,7 +5,7 @@ import type {
   LedgerArtifactFinishResult, LedgerArtifactReference, LedgerCallFinish, LedgerCallStart, LedgerEvent,
   LedgerOptions, LedgerWaitCategory,
   LedgerPriceUsageRequest, LedgerPriceUsageResult, LedgerQuery,
-  LedgerRunFinish, LedgerRunStart, LedgerSnapshot,
+  LedgerRunFinish, LedgerRunStart, LedgerSnapshot, LedgerSessionContext,
 } from './types.ts'
 export type * from './types.ts'
 
@@ -23,6 +23,17 @@ export abstract class SessionLedger extends Service {
   constructor(ctx: Context) {
     super(ctx, 'sessionLedger')
   }
+
+  /** Bind trusted attribution before publishing a Session; providers retain it for call accounting.
+   * @param context - runtime-owned identity and parent linkage, never Session-header data.
+   * @returns scope-owned disposer removing only this binding.
+   */
+  abstract bindContext(context: LedgerSessionContext): () => void
+  /** Read attribution for delegation or call accounting.
+   * @param sessionId - local Session identity.
+   * @returns bound context, or undefined when local identity resolution is required.
+   */
+  abstract contextFor(sessionId: LedgerSessionContext['sessionId']): LedgerSessionContext | undefined
 
   /** Persist one call start before releasing network dispatch.
    * @param input - immutable request and attribution facts.

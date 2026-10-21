@@ -11,7 +11,7 @@
 import { type ChildProcess, type SpawnOptions, spawn, spawnSync } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import { setTimeout as sleepMs } from 'node:timers/promises'
-import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
+import { readProcessIdentity, scrubbedParentEnv } from '@panedesk/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@panedesk/dsh-timeout'
 import type {
   SubprocessCollect,
@@ -433,6 +433,7 @@ export function bindManagedProcess(
     stdout: outMode === 'pipe' ? stdout ?? undefined : undefined,
     stderr: errMode === 'pipe' ? stderr ?? undefined : undefined,
     control: launch.control,
+    ...launch.processIdentity === undefined ? {} : { processIdentity: launch.processIdentity },
     /* v8 ignore stop */
     collected: {
       ...stdoutCollector !== undefined ? { stdout: stdoutCollector } : {},
@@ -486,6 +487,7 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
     stdout: child.stdout,
     stderr: child.stderr,
     control: controlPipe(child, spec.stdio.control),
+    ...pid === undefined ? {} : { processIdentity: readProcessIdentity(pid) },
     direct,
     owner,
   }, binding)

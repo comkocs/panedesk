@@ -16,6 +16,7 @@ import { statSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import z from '@panedesk/schemastery'
 import type { AgentOptions } from '@panedesk/dsh-agent'
+import { ReasoningEffortId } from '@panedesk/dsh-llm'
 import type { SubagentCapabilities, SubagentProvider, ResolvedSubagentStartRequest } from '@panedesk/dsh-subagent'
 import { assertPositiveFinite, NO_START_CAPABILITIES, assertUsableCwd } from '@panedesk/dsh-subagent'
 import {
@@ -100,6 +101,7 @@ function resolveConfiguredFile(field: string, value: string): string {
 const SDK_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
   ...NO_START_CAPABILITIES,
   agentOptions: true,
+  agentPreset: true,
 })
 
 /** Merge the request's supported route fields over this provider instance's defaults. */
@@ -143,7 +145,27 @@ class SdkSubagentProvider implements SubagentProvider {
       this.ctx.logger.warn(`subagent-dsh-sdk "${this.name}": child start failed: %o`, error)
       throw failure
     }
-    const route = resolveSdkRoute(this.config, request.agentOptions)
+    return this.startResolved(request, cwd)
+  }
+
+  private async startResolved(request: ResolvedSubagentStartRequest, cwd: string) {
+    const preset = request.agentPreset === undefined ? undefined
+      : await this.ctx.get('agentPresets')?.resolve(request.agentPreset)
+    if (request.agentPreset !== undefined && (preset === undefined || preset.broken !== undefined)) {
+      throw sdkConfigurationFailure(new Error('Requested SDK preset is unavailable'))
+    }
+    const policy = preset?.executionPolicy
+    if (policy !== undefined && preset?.executionPolicyDigest === undefined) {
+      throw sdkConfigurationFailure(new Error('Requested SDK policy has no digest'))
+    }
+    const route = resolveSdkRoute(this.config, {
+      ...policy === undefined ? {} : {
+        provider: policy.provider, model: policy.model, reasoningEffort: ReasoningEffortId(policy.reasoningEffort),
+      },
+      ...request.agentOptions,
+    })
+    const ledger = this.ctx.get('sessionLedger')
+    const parentContext = ledger?.contextFor(request.parent.session.id)
     const spec: SdkRunSpec = {
       ...this.config.dshBin === undefined ? {} : { dshBin: this.config.dshBin },
       profile: this.config.profile,
@@ -152,6 +174,12 @@ class SdkSubagentProvider implements SubagentProvider {
       cwd,
       originCwd: request.parent.session.header.cwd,
       ...route,
+      ...request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset },
+      ...policy === undefined || preset?.executionPolicyDigest === undefined ? {} : { executionPolicy: {
+        presetId: preset.id, version: policy.version, digest: preset.executionPolicyDigest,
+      } },
+      ...ledger === undefined ? {} : { ledger },
+      ...parentContext === undefined ? {} : { parentContext },
       env: this.config.env,
       shutdownTimeoutMs: this.config.shutdownTimeoutMs,
       disposeEofGraceMs: this.config.disposeEofGraceMs,
