@@ -3,6 +3,11 @@
  * gates.
  *
  * Run: `tsx scripts/check-workspace-constraints.ts`.
+ *
+ * Panedesk fork divergence: @panedesk/full may carry OPTIONAL_BUNDLES as dependencies alongside
+ * the upstream apps/cli exception. No other release member may depend on experimental packages,
+ * and neither carrier may depend on unlisted experimental packages; default installations stay isolated.
+ * Manually reconcile this exception and the launcher's OPTIONAL_BUNDLES with upstream during merges.
  */
 
 import { existsSync, globSync, readdirSync, readFileSync } from 'node:fs'
@@ -583,8 +588,8 @@ const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies
 const runtimeDependencySections = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const
 
 /**
- * Prevent an official runtime from requiring an experimental package. The dsh installation's `dependencies`
- * may hold the bundles the launcher's `OPTIONAL_BUNDLES` names: shipped switched off, they are not a requirement
+ * Prevent an official runtime from requiring an experimental package. The dsh installation and @panedesk/full
+ * may hold the launcher's `OPTIONAL_BUNDLES` in `dependencies`: shipped switched off, they are not a requirement
  * ([rationale](../.agents/notes/implemented/process/2026-09-15-shipped-optional-bundles.md)).
  * @param manifests - release, private experimental, and deployment-root manifests.
  * @param optionalBundles - the bundles the installation ships switched off; the launcher's list by default.
@@ -600,7 +605,8 @@ export function checkExperimentalDependencyIsolation(
   const errors: string[] = []
   for (const { dir, manifest } of manifests) {
     if (!standardReleaseMemberDirectory.test(dir) && dir !== 'python/sdk-runtime') continue
-    const offered = manifest.name === 'panedesk' ? new Set(optionalBundles) : new Set<string>()
+    const offered = manifest.name === 'panedesk' || manifest.name === '@panedesk/full'
+      ? new Set(optionalBundles) : new Set<string>()
     for (const section of runtimeDependencySections) {
       for (const [name, range] of Object.entries(manifest[section] ?? {})) {
         const experimental = experimentalNames.has(name) || isExperimentalPackageName(name)

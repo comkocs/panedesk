@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
+import { OPTIONAL_BUNDLES } from '../packages/boot/app-boot/src/profile.ts'
 import {
   isPublicExperimentalPackageDirectory,
   PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES,
@@ -227,6 +228,49 @@ describe('experimental workspace constraints', () => {
       'panedesk: peerDependencies.@panedesk/dsh-experimental-prototype must not reference an experimental package',
     ])
   })
+
+  it('allows the slim launcher with the full carrier using the profile optional bundle list', () => {
+    const manifests = ['apps/cli', 'packages/bundle/full'].map(dir => ({
+      dir, manifest: JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest'],
+    }))
+    expect(checkExperimentalDependencyIsolation(manifests)).toEqual([])
+    for (const name of OPTIONAL_BUNDLES) {
+      expect(checkExperimentalDependencyIsolation([{
+        dir: 'packages/bundle/full', manifest: { name: '@panedesk/full', dependencies: { [name]: 'workspace:*' } },
+      }])).toEqual([])
+    }
+  })
+
+  it.each(['@panedesk/full', 'panedesk'])(
+    'rejects %s depending on an experimental package outside OPTIONAL_BUNDLES', (name) => {
+      expect(checkExperimentalDependencyIsolation([experimental, {
+        dir: name === 'panedesk' ? 'apps/cli' : 'packages/bundle/full',
+        manifest: { name, dependencies: { [experimental.manifest.name]: 'workspace:*' } },
+      }])).toEqual([
+        `${name}: dependencies.${experimental.manifest.name} must not reference an experimental package`,
+      ])
+    },
+  )
+
+  it.each(['dependencies', 'optionalDependencies', 'peerDependencies'] as const)(
+    'rejects another release member carrying OPTIONAL_BUNDLES through %s', (section) => {
+      const dependencies = Object.fromEntries(OPTIONAL_BUNDLES.map(name => [name, 'workspace:*']))
+      expect(checkExperimentalDependencyIsolation([{
+        dir: 'packages/bundle/other-full', manifest: { name: '@panedesk/other-full', [section]: dependencies },
+      }])).toEqual(OPTIONAL_BUNDLES.map(name =>
+        `@panedesk/other-full: ${section}.${name} must not reference an experimental package`))
+    },
+  )
+
+  it.each(['optionalDependencies', 'peerDependencies'] as const)(
+    'rejects full offering OPTIONAL_BUNDLES through %s', (section) => {
+      const dependencies = Object.fromEntries(OPTIONAL_BUNDLES.map(name => [name, 'workspace:*']))
+      expect(checkExperimentalDependencyIsolation([{
+        dir: 'packages/bundle/full', manifest: { name: '@panedesk/full', [section]: dependencies },
+      }])).toEqual(OPTIONAL_BUNDLES.map(name =>
+        `@panedesk/full: ${section}.${name} must not reference an experimental package`))
+    },
+  )
 
   it('allows development and experimental consumers but rejects the Python release runtime', () => {
     const manifests: WorkspaceManifest[] = [experimental, {
