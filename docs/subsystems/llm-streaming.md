@@ -212,6 +212,12 @@ type StreamChunk =
     reason: FinishReason
     /** Replay metadata for a successful response; see {@link ReplayEnvelope}. */
     replayState?: ReplayEnvelope
+    /** Model name observed on the wire; absent when missing or unobservable. */
+    responseModel?: string
+    /** Whether the wire reported the requested name, another name, no name, or could not be observed. */
+    responseModelReported?: ResponseModelReported
+    /** Observed HTTP response status; absent when transport observation is unavailable. */
+    httpStatus?: number
   }
 ```
 
@@ -357,6 +363,8 @@ interface TokenUsage {
   totalTokens?: number
   cacheReadTokens?: number
   cacheWriteTokens?: number
+  /** Long-tier writes included in cacheWriteTokens; short-tier writes are the remainder. */
+  cacheWriteLongTokens?: number
   reasoningTokens?: number
 }
 ```
@@ -659,7 +667,9 @@ interface GenerateOptions {
    * map the purpose to model-hidden transport metadata. Ordinary conversation
    * requests leave it unset.
    */
-  purpose?: 'compaction' | 'session-title'
+  purpose?: 'compaction' | 'session-title' | 'keepalive'
+  /** Frozen cache controls; omission preserves existing route behavior. */
+  cache?: LlmCacheControl
 }
 ```
 
@@ -773,6 +783,8 @@ interface LlmCallControls {
   temperature?: number
   maxTokens?: number
   stop?: string[]
+  /** Frozen cache controls; omission preserves existing route behavior. */
+  cache?: LlmCacheControl
 }
 ```
 

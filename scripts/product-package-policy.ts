@@ -16,6 +16,12 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  'packages/session/session-ledger': { category: 'optional', reason: 'Service definition for explicitly configured local call and lifecycle accounting.' },
+  'packages/session/ledger-query': { category: 'optional', reason: 'Read-only ledger query service selected by offline compositions.' },
+  'packages/session/ledger-watch': { category: 'optional', reason: 'Independent process observation selected by a watcher composition.' },
+  'packages/llm/llm-cache': { category: 'optional', reason: 'Explicit session cache and model-family admission policy.' },
+  'packages/compaction/compaction-ledger': { category: 'optional', reason: 'Optional bounded ledger facts in compaction checkpoints.' },
+  'packages/bundle/ledger-app': { category: 'optional', reason: 'Offline ledger application selected independently of model-running profiles.' },
   'packages/bundle/full': { category: 'optional', reason: 'Published dependency carrier installed beside the launcher for explicitly selected full, Web, ACP, and SDK profiles.' },
   'packages/browser-use/browser-use': { category: 'optional', reason: 'Service definition used by explicitly selected browser providers.' },
   'packages/computer-use/computer-use': { category: 'optional', reason: 'Service definition used by explicitly selected computer providers.' },

@@ -146,6 +146,8 @@ spawn 会同步返回活动句柄，目标与受管范围标识则保留在 prov
  * and observation limits.
  */
 interface SubprocessHandle {
+  /** Observation only; omission means unavailable. All termination still uses terminate(). */
+  readonly processIdentity?: SubprocessIdentity
   /** The child's stdin, present iff spawned with `stdin: 'pipe'`. */
   readonly stdin: Writable | undefined
   /** The child's raw stdout, present iff spawned with `stdout: 'pipe'`. */

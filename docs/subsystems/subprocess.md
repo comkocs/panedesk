@@ -146,6 +146,8 @@ A spawn returns a live handle synchronously while target and managed-range ident
  * and observation limits.
  */
 interface SubprocessHandle {
+  /** Observation only; omission means unavailable. All termination still uses terminate(). */
+  readonly processIdentity?: SubprocessIdentity
   /** The child's stdin, present iff spawned with `stdin: 'pipe'`. */
   readonly stdin: Writable | undefined
   /** The child's raw stdout, present iff spawned with `stdout: 'pipe'`. */

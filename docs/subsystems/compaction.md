@@ -255,6 +255,51 @@ Source: [`packages/compaction/compaction-tool-result-pruner/src/index.ts`](../..
 
 ### `compaction/*` events
 
+<a id="compactioncheckpoint--waterfall"></a>
+
+#### `compaction/checkpoint` — waterfall
+
+Extend a framed summary before final token budgeting; listeners call next() and preserve its contributions. The producer revalidates the session revision and contributed watermarks before committing.
+
+```ts cordis-catalog
+/**
+ * Extend a framed summary before final token budgeting; listeners call next() and preserve its contributions.
+ * The producer revalidates the session revision and contributed watermarks before committing.
+ * @param payload.session - session whose visible history will be replaced.
+ * @param payload.checkpoint - framed summary at the observed revision.
+ * @param payload.signal - optional cancellation signal.
+ * @param next - obtain the remaining checkpoint contributions.
+ * @mode waterfall
+ */
+'compaction/checkpoint'(payload: { session: Session; checkpoint: CompactionCheckpoint; signal?: AbortSignal }, next: () => Promise<CompactionCheckpoint>): Promise<CompactionCheckpoint>
+```
+
+Types: [Session](session.md)
+
+Source: [`packages/compaction/compaction/src/index.ts`](../../packages/compaction/compaction/src/index.ts)
+
+<a id="compactioncommitted--serial"></a>
+
+#### `compaction/committed` — serial
+
+Record a successful committed replacement, keyed by session and summary sequence. Listener failure is reported after commit and cannot roll back the durable replacement.
+
+```ts cordis-catalog
+/**
+ * Record a successful committed replacement, keyed by session and summary sequence.
+ * Listener failure is reported after commit and cannot roll back the durable replacement.
+ * @param payload.session - session containing the committed replacement.
+ * @param payload.result - successful compaction facts and durable event sequences.
+ * @param payload.checkpoint - exact checkpoint accepted by the final budget check.
+ * @mode serial
+ */
+'compaction/committed'(payload: { session: Session; result: CompactionResult; checkpoint: CompactionCheckpoint }): Promise<void> | void
+```
+
+Types: [Session](session.md)
+
+Source: [`packages/compaction/compaction/src/index.ts`](../../packages/compaction/compaction/src/index.ts)
+
 <a id="compactionsummary-error--waterfall"></a>
 
 #### `compaction/summary-error` — waterfall

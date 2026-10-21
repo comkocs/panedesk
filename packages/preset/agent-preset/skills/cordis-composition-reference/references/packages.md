@@ -52,6 +52,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@panedesk/dsh-acp-app` | no | The dsh ACP profile bundle: automation-only JSON-RPC stdio and process lifecycle over dsh-base |
 | `@panedesk/dsh-headless` | yes | The dsh one-shot bundle: a direct core Agent/Session runner over dsh-base with no Host, HTTP, or browser layer |
+| `@panedesk/dsh-ledger-app` | yes | Offline ledger application plugin scaffold |
 | `@panedesk/dsh-sdk-app` | yes | The dsh SDK profile bundle: stdio JSON-RPC serving and process lifecycle over dsh-base |
 | `@panedesk/dsh-web-app` | yes | The dsh browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin (frontend dist serving, bash runtime variables, URL line) |
 
@@ -128,6 +129,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-command-compact` | no | Human-facing slash command for explicit session compaction |
 | `@panedesk/dsh-compaction-basic` | yes | Token-meter-driven compaction policy and LLM summarization backend for the DeepSeek Harness |
 | `@panedesk/dsh-compaction-image-offload` | no | Durable image offload for image-capable routes: replace over-budget request images with placeholders and retry |
+| `@panedesk/dsh-compaction-ledger` | yes | Ledger checkpoint projection plugin scaffold |
 | `@panedesk/dsh-compaction-tool-result-pruner` | yes | Replay-safe model-free head/middle/tail pruning for tool-result surface nodes |
 
 ## computer-use
@@ -296,6 +298,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@panedesk/dsh-deepseek-llm-api-extensions` | no | Additive request-field registry for the official DeepSeek LLM API adapter |
 | `@panedesk/dsh-llm` | no | Provider-neutral LLM service interface for the DeepSeek Harness |
+| `@panedesk/dsh-llm-cache` | yes | Session cache policy and concurrency plugin scaffold |
 | `@panedesk/dsh-llm-deepseek-account` | yes | DeepSeek account provider authentication and discovery |
 | `@panedesk/dsh-llm-deepseek-api-key` | yes | DeepSeek api-key provider authentication and discovery |
 | `@panedesk/dsh-llm-pi-ai` | yes | pi-ai-backed DeepSeek adapter for the DeepSeek Harness LLM seam (design-verification twin of dsh-llm-deepseek) |
@@ -362,6 +365,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@panedesk/dsh-ledger-watch` | yes | Independent ledger process watcher plugin scaffold |
 | `@panedesk/dsh-session-checkpoint-policy` | no | Semantic session durability checkpoints before model requests and tool side effects |
 | `@panedesk/dsh-session-log-deepseek` | yes | Incremental lossless session-log request extension for the official DeepSeek LLM API |
 | `@panedesk/dsh-session-persistence-jsonl` | yes | JSONL durable session persistence backend for the DeepSeek Harness |

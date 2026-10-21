@@ -470,6 +470,24 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
 
   {
+    key: 'sessionLedger',
+    pkg: 'session-ledger',
+    title: 'Durable call and lifecycle ledger',
+    mode: 'seam',
+    implementations: [],
+    consumers: [],
+    note: 'Abstract append-only accounting and reference-pricing operations; the scaffold supplies no storage provider.',
+  },
+  {
+    key: 'ledgerQuery',
+    pkg: 'ledger-query',
+    title: 'Read-only ledger queries',
+    mode: 'seam',
+    implementations: [],
+    consumers: [],
+    note: 'Abstract filtering, daily summaries, and exports; the scaffold supplies no query provider.',
+  },
+  {
     key: 'sessionTelemetry',
     pkg: 'session-telemetry',
     title: 'Session telemetry seam',

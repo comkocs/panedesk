@@ -835,6 +835,26 @@ Types: [Scoped](scope.md)
 
 Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
 
+<a id="agentending--serial"></a>
+
+#### `agent/ending` — serial
+
+Await durable lifecycle settlement after driver quiescence and before scope or session release. Failure rejects teardown without preventing remaining resource cleanup.
+
+```ts cordis-catalog
+/**
+ * Await durable lifecycle settlement after driver quiescence and before scope or session release.
+ * Failure rejects teardown without preventing remaining resource cleanup.
+ * @param payload.agent - the quiescent agent whose resources remain attached.
+ * @mode serial
+ */
+'agent/ending'(this: Scoped<Agent>, payload: { agent: Agent }): Promise<void> | void
+```
+
+Types: [Scoped](scope.md)
+
+Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
+
 <a id="agenterror--emit"></a>
 
 #### `agent/error` — emit

@@ -70,6 +70,8 @@ interface SubagentActivation {
 interface SubagentStartRequest {
   /** Initial child directory; relative paths resolve against the parent's current directory. Omitted inherits that directory at start. */
   readonly cwd?: string
+  /** Declared delivery file paths, validated against the authorized workspace; omission requests no file checks. */
+  readonly deliveryPaths?: readonly string[]
   /**
    * Independent preset id; omission joins the parent's current generation.
    * Requires a provider with `capabilities.agentPreset` that does not inherit
@@ -605,6 +607,50 @@ Source: [`packages/subagent/subagent/src/index.ts`](../../packages/subagent/suba
 <a id="subagent-events"></a>
 
 ### `subagent/*` events
+
+<a id="subagentafter-settle--serial"></a>
+
+#### `subagent/after-settle` — serial
+
+Persist terminal facts after cleanup and before activation.result settles. A listener failure must be reported without suppressing remaining cleanup or inventing success.
+
+```ts cordis-catalog
+/**
+ * Persist terminal facts after cleanup and before activation.result settles.
+ * A listener failure must be reported without suppressing remaining cleanup or inventing success.
+ * @param payload.parent - delegating agent.
+ * @param payload.info - paired run identity and observed outcome.
+ * @param payload.result - captured result, including partial output.
+ * @mode serial
+ */
+'subagent/after-settle'(this: Scoped<SubagentRuntime>, payload: { parent: Agent; info: SubagentRunEndInfo; result: SubagentResult }): Promise<void> | void
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)
+
+<a id="subagentbefore-start--serial"></a>
+
+#### `subagent/before-start` — serial
+
+Persist launch intent before starting child execution; a rejection refuses startup. Scoped dispatch uses the delegating parent, independently of the existing emit notifications.
+
+```ts cordis-catalog
+/**
+ * Persist launch intent before starting child execution; a rejection refuses startup.
+ * Scoped dispatch uses the delegating parent, independently of the existing emit notifications.
+ * @param payload.parent - delegating agent.
+ * @param payload.info - reserved run and child identity.
+ * @param payload.request - accepted task options, including declared delivery files.
+ * @mode serial
+ */
+'subagent/before-start'(this: Scoped<SubagentRuntime>, payload: { parent: Agent; info: SubagentRunInfo; request: SubagentStartRequest }): Promise<void> | void
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)
 
 <a id="subagentend--emit"></a>
 

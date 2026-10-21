@@ -151,6 +151,92 @@ Every record passes the `session-telemetry/record` [waterfall](../cordis-primer.
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxledgerquery--ledgerqueryservice-abstract-seam"></a>
+
+### `ctx.ledgerQuery` — `LedgerQueryService` (abstract seam)
+
+Query providers read ledger snapshots without launching an Agent or model provider.
+
+```ts cordis-catalog
+/** Select and group unique call projections.
+ * @param options - half-open time, attribution, and grouping selection.
+ * @returns source snapshot and coverage-aware grouped totals.
+ */
+abstract query(options: LedgerQueryOptions): Promise<LedgerQueryResult>
+
+/** Compute today's overview at the runtime clock or an explicit observation instant.
+ * @param asOf - optional UTC millisecond observation time; omission reads the system clock.
+ * @returns Beijing-day totals and node observation coverage.
+ */
+abstract today(asOf?: number): Promise<LedgerTodaySummary>
+
+/** Export selected rows in stable time, node, and call order.
+ * @param options - selection, format, and caller-authorized destination.
+ * @returns output acknowledgement and source snapshot watermarks.
+ */
+abstract export(options: LedgerExportOptions): Promise<LedgerExportResult>
+```
+
+Source: [`packages/session/ledger-query/src/index.ts`](../../packages/session/ledger-query/src/index.ts)
+
+<a id="ctxsessionledger--sessionledger-abstract-seam"></a>
+
+### `ctx.sessionLedger` — `SessionLedger` (abstract seam)
+
+Durable ledger operations fail closed before model dispatch when the start cannot be committed.
+
+```ts cordis-catalog
+/** Persist one call start before releasing network dispatch.
+ * @param input - immutable request and attribution facts.
+ * @returns committed or existing start, or an explicit conflicting-payload result.
+ */
+abstract beginCall(input: LedgerCallStart): Promise<LedgerAppendResult>
+
+/** Commit at most one terminal fact per call; late evidence never overwrites it.
+ * @param input - observed terminal facts.
+ * @returns committed or already existing terminal fact, or a conflict.
+ */
+abstract finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult>
+
+/** Persist launch intent before permitting child execution.
+ * @param input - reserved identities and trusted dispatch options.
+ * @returns durable launch intent or conflict.
+ */
+abstract beginRun(input: LedgerRunStart): Promise<LedgerAppendResult>
+
+/** Compare-and-set the terminal run slot; later observations are separate events.
+ * @param input - normal settlement or verified death observation.
+ * @returns first committed terminal fact, including when another writer won.
+ */
+abstract finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult>
+
+/** Append a uniquely identified fact; equal replays are idempotent and unequal replays conflict.
+ * @param event - complete versioned event, containing only runtime-authoritative evidence.
+ * @returns durable append outcome after synchronization.
+ */
+abstract appendEvent(event: LedgerEvent): Promise<LedgerAppendResult>
+
+/** Select projections without counting lifecycle or retry observations as extra calls.
+ * @param filter - half-open business-time and identity selection.
+ * @returns snapshot and explicit completeness/watermark evidence.
+ */
+abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>
+
+/** Read a consistent checkpoint view; absent filter selects all locally visible facts.
+ * @param filter - optional visibility and session restriction.
+ * @returns revisioned, bounded-by-watermark snapshot.
+ */
+abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
+
+/** Price authoritative usage with decimal fixed-point arithmetic, without inventing missing values.
+ * @param request - frozen price entry, timestamp, tier names, and observed usage.
+ * @returns reference USD amount or an explicit coverage gap.
+ */
+abstract priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult
+```
+
+Source: [`packages/session/session-ledger/src/index.ts`](../../packages/session/session-ledger/src/index.ts)
+
 <a id="ctxsessiontelemetry--sessiontelemetrybackend-abstract-seam"></a>
 
 ### `ctx.sessionTelemetry` — `SessionTelemetryBackend` (abstract seam)

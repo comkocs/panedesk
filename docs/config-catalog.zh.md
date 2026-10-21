@@ -734,6 +734,29 @@ export interface ModelCompactPolicyConfig extends CompactionPolicyConfig {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-compaction-basic -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-compaction-ledger -->
+<a id="panedeskdsh-compaction-ledger"></a>
+
+## `@panedesk/dsh-compaction-ledger`
+
+- `source`: [`packages/compaction/compaction-ledger/src/index.ts:12`](../packages/compaction/compaction-ledger/src/index.ts)
+
+```ts config-catalog
+/** Bounded checkpoint projection settings. */
+export interface Config extends CompactionLedgerOptions {}
+
+/** Bounded ledger checkpoint projection settings. */
+export interface CompactionLedgerOptions {
+  /** Maximum recent events after the visible in-flight descendant list. */
+  recentEventLimit: number
+  /** Token ceiling for escaped runtime ledger data, charged before final checkpoint admission. */
+  maxTokens: number
+  /** Bound retries when the session revision or ledger watermark changes. */
+  snapshotRetries: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-compaction-ledger -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-compaction-tool-result-pruner -->
 <a id="panedeskdsh-compaction-tool-result-pruner"></a>
 
@@ -1725,6 +1748,97 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-jobs-local -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-ledger-app -->
+<a id="panedeskdsh-ledger-app"></a>
+
+## `@panedesk/dsh-ledger-app`
+
+- `source`: [`packages/bundle/ledger-app/src/index.ts:12`](../packages/bundle/ledger-app/src/index.ts)
+
+```ts config-catalog
+/** Offline application mode. */
+export interface Config extends LedgerAppOptions {}
+
+/** Offline ledger application selection; profile wiring belongs to the launcher composition. */
+export interface LedgerAppOptions {
+  /** Query exits after its operation; watch remains active until disposed. */
+  mode: 'query' | 'watch'
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-ledger-app -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-ledger-watch -->
+<a id="panedeskdsh-ledger-watch"></a>
+
+## `@panedesk/dsh-ledger-watch`
+
+- `source`: [`packages/session/ledger-watch/src/index.ts:12`](../packages/session/ledger-watch/src/index.ts)
+
+```ts config-catalog
+/** Watcher deployment settings; the implementation verifies process creation identities. */
+export interface Config extends LedgerWatchOptions {}
+
+/** Process-observation settings for independent ledger reconciliation. */
+export interface LedgerWatchOptions {
+  /** Milliseconds between scans; the operational target is two seconds. */
+  intervalMs: number
+  /** Total lock/write budget per scan; stale observations must be reported. */
+  settlementBudgetMs: number
+  /** Reconcile already-dead process identities when the watcher starts. */
+  scanOnStart: boolean
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-ledger-watch -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-llm-cache -->
+<a id="panedeskdsh-llm-cache"></a>
+
+## `@panedesk/dsh-llm-cache`
+
+- `refs`: [`CacheRetention`](../packages/llm/llm/src/index.ts)
+- `source`: [`packages/llm/llm-cache/src/index.ts:12`](../packages/llm/llm-cache/src/index.ts)
+
+```ts config-catalog
+/** Session cache and harness-process concurrency configuration. */
+export interface Config {
+  /** Session retention and stable cache-key selection. */
+  policy: CachePolicy
+  /** Explicit opt-in maintenance scheduling and output budget. */
+  keepalive: KeepalivePolicy
+  /** Shared in-flight caps per model family within this harness process. */
+  concurrency: FamilyConcurrencyLimit[]
+}
+
+/** Session-scoped retention selection; omitted requests resolve through the explicit default policy. */
+export interface CachePolicy {
+  /** Provider-validated retention; default selects the shortest supported tier of at least one hour. */
+  retention: CacheRetention
+  /** Session-stable attribution key; omission delegates key selection to the session policy. */
+  stableKey?: string
+}
+
+/** Opt-in maintenance; unknown or automatic TTL never schedules a speculative keepalive. */
+export interface KeepalivePolicy {
+  /** Maintenance is disabled unless explicitly enabled. */
+  enabled: boolean
+  /** Seconds before estimated expiry at which an idle session may refresh evidence. */
+  leadSeconds: number
+  /** Lower bound between maintenance requests, including short retention tiers. */
+  minimumIntervalSeconds: number
+  /** Positive output-token cap for each maintenance request. */
+  maxOutputTokens: number
+}
+
+/** One harness-process limit shared by routes in the same model family. */
+export interface FamilyConcurrencyLimit {
+  /** Family key shared across provider routes in this process. */
+  modelFamily: string
+  /** Positive count of simultaneous physical requests, including auxiliary calls. */
+  maxInFlight: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-llm-cache -->
 
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-llm-deepseek-account -->
 <a id="panedeskdsh-llm-deepseek-account"></a>
@@ -4716,8 +4830,10 @@ export interface Config {
 | `@panedesk/dsh-fs` | `FileSystem` | — | [`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts) |
 | `@panedesk/dsh-host-directory-picker` | `DirectoryPicker` | — | [`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts) |
 | `@panedesk/dsh-jobs` | `JobRegistry` | — | [`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts) |
+| `@panedesk/dsh-ledger-query` | `LedgerQueryService` | — | [`packages/session/ledger-query/src/index.ts`](../packages/session/ledger-query/src/index.ts) |
 | `@panedesk/dsh-ptc-runtime` | `PtcRuntime` | — | [`packages/ptc-runtime/ptc-runtime/src/index.ts`](../packages/ptc-runtime/ptc-runtime/src/index.ts) |
 | `@panedesk/dsh-sandbox` | `SandboxProvider` | — | [`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts) |
+| `@panedesk/dsh-session-ledger` | `SessionLedger` | — | [`packages/session/session-ledger/src/index.ts`](../packages/session/session-ledger/src/index.ts) |
 | `@panedesk/dsh-session-persistence` | `SessionPersistence` | — | [`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts) |
 | `@panedesk/dsh-session-query` | `SessionQueryEngine` | — | [`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts) |
 | `@panedesk/dsh-shell` | `ShellExecutor` | — | [`packages/shell/shell/src/index.ts`](../packages/shell/shell/src/index.ts) |
