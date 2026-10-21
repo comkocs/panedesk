@@ -102,15 +102,19 @@ Presets:
   full             full headless composition (needs @panedesk/full installed)
 
 Examples:
+  panedesk web                                   boot the web profile (same as: panedesk --profile web)
+  panedesk rescue --from-default-profile web
+                                            recreate rescue from the shipped web template, then boot it
+  panedesk headless "run the tests"              answer one task, print the result, and exit
+  panedesk tui --patch ./extra.yml               boot a custom profile with one extra overlay
+  panedesk tui --resume <session>                arguments after the launcher flags reach the app
+  panedesk web --help                            the web app's own flags and help
+  panedesk plugin --profile tui add <package>    install a plugin into the tui profile
   panedesk "run the tests"                       answer one task on the slim preset, print the result, and exit
   panedesk --json "run the tests"                the same, printing newline-delimited JSON events
   panedesk full "run the tests"                  the same task on the full preset (same as: panedesk --profile full ...)
   panedesk --patch ./provider.yml "task"         add one overlay (e.g. a model provider) to the default preset
-  panedesk rescue --from-default-profile slim
-                                                 recreate rescue from the shipped slim template, then boot it
-  panedesk tui --resume <session>                arguments after the launcher flags reach the app
   panedesk full --help                           the booted app's own flags and help
-  panedesk plugin --profile tui add <package>    install a plugin into the tui profile (needs @panedesk/full)
   pdesk ...                                      short name for panedesk
 `
 
