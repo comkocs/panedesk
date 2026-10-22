@@ -292,8 +292,11 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
     /* v8 ignore next -- private callers establish the running phase before proposing a step */
     if (this.phase.kind !== 'running') throw new Error(`agent "${this.id}": pre-step outside running phase`)
     const signal = this.phase.abort.signal
-    await this.dispatch.serial('agent/input-preparing', { ...position, signal })
-    signal.throwIfAborted()
+    const preparation = this.dispatch.prepareInput({ ...position, signal })
+    if (preparation !== undefined) {
+      await preparation
+      signal.throwIfAborted()
+    }
     const claimed = this.inbox.claim(target, position.turn, position.step)
     const assembly = await this.loopCtx.systemPrompt.assemble(assembleContextFor(this, signal))
     signal.throwIfAborted()
@@ -413,7 +416,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       this.throwError(error)
     } finally {
       try {
-        this.inbox.rollback()
+        if (signal.aborted) this.inbox.rollback(turn)
         // oxlint-disable-next-line typescript/no-non-null-assertion -- every exit assigns a turn ending
         this.session.append('turn/end', { turn, reason: turnEnds! })
       } catch (error: unknown) {
@@ -483,7 +486,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       )
       let started = false
       try {
-        this.inbox.dispatchInput(request.messages.map(message => message.id))
+        this.inbox.dispatchInput(request.messages.flatMap(message => message.id === undefined ? [] : [message.id]))
         const stream = preparedCall?.stream(request) ?? this.loopCtx.llm.stream(request)
         signal.throwIfAborted()
         live.start()

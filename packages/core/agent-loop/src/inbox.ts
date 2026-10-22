@@ -43,6 +43,12 @@ interface ScheduledInboxState extends InboxState {
   readonly dispatched: readonly MessageId[]
 }
 
+/** Legacy empty projections contain only the two public pending lists. */
+function scheduledState(state: InboxState | ScheduledInboxState): ScheduledInboxState {
+  if ('scheduling' in state) return state
+  return { ...state, scheduling: {}, sequence: 0, order: {}, claims: {}, dispatched: [] }
+}
+
 const schedulingSchema = z.object({
   priority: z.enum(['immediate', 'steer', 'queue']),
   passive: z.boolean(),
@@ -59,9 +65,10 @@ export const inboxProjectionDefinition = {
     order: z.record(z.string(), z.number().int().nonnegative()),
     claims: z.record(z.string(), z.custom<Claim>()),
     dispatched: z.array(z.custom<MessageId>()).readonly(),
-  }).readonly(),
-  init: (): ScheduledInboxState => ({ 'next-turn': [], 'next-step': [], scheduling: {}, sequence: 0, order: {}, claims: {}, dispatched: [] }),
-  apply(state: ScheduledInboxState, event) {
+  }).readonly().or(inboxProjectionSchema),
+  init: (): InboxState | ScheduledInboxState => ({ 'next-turn': [], 'next-step': [] }),
+  apply(previous: InboxState | ScheduledInboxState, event) {
+    const state = scheduledState(previous)
     if (event.type === 'agent/input/transition') {
       const transition = event.data
       if (transition.phase === 'scheduled') return state
@@ -78,7 +85,7 @@ export const inboxProjectionDefinition = {
           })))
         claims[transition.claimId] = { transition, entries, appended: [] }
       } else if (transition.phase === 'dispatched' || transition.phase === 'rolled-back') {
-        delete claims[transition.claimId]
+        Reflect.deleteProperty(claims, transition.claimId)
       }
       return {
         ...state, claims,
@@ -116,8 +123,8 @@ export const inboxProjectionDefinition = {
       let sequence = state.sequence
       const order = { ...state.order }
       for (const removed of inbox.slice(splice.start, splice.start + removedCount)) {
-        delete scheduling[removed.id]
-        delete order[removed.id]
+        Reflect.deleteProperty(scheduling, removed.id)
+        Reflect.deleteProperty(order, removed.id)
       }
       for (const [index, message] of splice.inserted.entries()) {
         const policy = splice.scheduling?.[index]
@@ -139,12 +146,12 @@ export const inboxProjectionDefinition = {
     // round-trips the session log as lossless JSON. Only the static type
     // narrows to the JSON-safe projection table entry.
     viewSchema: inboxProjectionSchema as unknown as z.ZodType<InboxWireState>,
-    view: (state: ScheduledInboxState) => ({
+    view: (state: InboxState | ScheduledInboxState) => ({
       'next-turn': state['next-turn'], 'next-step': state['next-step'],
     }) as unknown as InboxWireState,
   },
   stateVersion: 2,
-} satisfies ProjectionDefinition<'inbox', ScheduledInboxState>
+} satisfies ProjectionDefinition<'inbox', InboxState | ScheduledInboxState>
 
 /**
  * Driver-owned durable Inbox implementation used by ReactLoopAgent and focused
@@ -221,10 +228,11 @@ export class ReactLoopInbox implements InboxContract {
   claim(target: InboxTarget, turn: number, step?: number): UserMessage[] {
     const state = this.current()
     const reserve = (messages: readonly UserMessage[]): void => {
-      if (step === undefined || messages.length === 0) return
+      const scheduled = messages.filter(message => state.scheduling[message.id] !== undefined)
+      if (step === undefined || scheduled.length === 0) return
       this.session.append('agent/input/transition', {
         phase: 'claimed', claimId: brandString<InputClaimId>(randomUUID()),
-        messageIds: messages.map(message => message.id), turn, step,
+        messageIds: scheduled.map(message => message.id), turn, step,
       })
     }
     if (Object.keys(state.scheduling).length === 0) {
@@ -288,10 +296,13 @@ export class ReactLoopInbox implements InboxContract {
     }
   }
 
-  /** Restore reservations with no historical user append, preserving their original order. */
-  rollback(): void {
+  /**
+   * Restore cancelled scheduled reservations that have not entered history.
+   * @param turn - the cancelled turn; earlier rejected claims are not restored.
+   */
+  rollback(turn: number): void {
     for (const claim of Object.values(this.current().claims)) {
-      if (claim.appended.length > 0) continue
+      if (claim.transition.turn !== turn || claim.appended.length > 0) continue
       for (const { message, scheduling, target } of [...claim.entries].reverse()) {
         if (this.locate(message.id) === undefined) this.mutate(target, 0, 0, [message], false, [scheduling])
       }
@@ -396,7 +407,7 @@ export class ReactLoopInbox implements InboxContract {
         `agent "${this.session.id}" cannot read inbox state: its projection registration is not active`,
       )
     }
-    return state as ScheduledInboxState
+    return scheduledState(state)
   }
 
   /** Commit one normalized mutation and publish its live events. */

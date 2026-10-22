@@ -1,3 +1,4 @@
+import type { AgentInputScheduler } from '@panedesk/dsh-agent'
 import { Context } from '@panedesk/cordis'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import { SessionId } from '@panedesk/dsh-session'
@@ -12,19 +13,47 @@ async function harness() {
   const driver = await mountAgentLoopTestHarness(ctx)
   const adapter = new MockAdapter([textResponse('reply'), textResponse('reply')])
   ctx.llm.registerAdapter(['mock'], adapter)
-  const agent = await driver.create(SessionId('transaction'), { provider: 'mock', model: 'model-a' })
+  const created = await driver.create(SessionId('transaction'), { provider: 'mock', model: 'model-a' })
+  const agent = created as typeof created & AgentInputScheduler
   const message = createUserMessage({ content: [{ type: 'text', text: 'input' }], source: { kind: 'user' } })
   return { ctx, agent, adapter, message }
 }
 
 describe('input transactions', () => {
+  it('claims legacy waking input before returning without an extra preparation microtask', async () => {
+    const { ctx, agent, message } = await harness()
+    const order: string[] = []
+    ctx.on('agent/inbox/claimed', () => { order.push('claimed') })
+    queueMicrotask(() => { order.push('microtask') })
+    agent.followup(message)
+    order.push('returned')
+    expect(order).toEqual(['claimed', 'returned'])
+    await Promise.resolve()
+    expect(order).toEqual(['claimed', 'returned', 'microtask'])
+    await agent.whenIdle()
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'agent/input/transition')).toEqual([])
+  })
+
+  it('waits for scoped asynchronous preparation before claiming scheduled input', async () => {
+    const { agent, message, adapter } = await harness()
+    const gate = Promise.withResolvers<undefined>()
+    agent.ctx.on('agent/input-preparing', async () => { await gate.promise })
+    agent.enqueue(message, { priority: 'queue', passive: false, wakeup: true })
+    await Promise.resolve()
+    expect(agent.inbox.inputState?.(message.id)).toBe('queued')
+    expect(adapter.requests).toHaveLength(0)
+    gate.resolve(undefined)
+    await agent.whenIdle()
+    expect(agent.inbox.inputState?.(message.id)).toBe('injected')
+  })
+
   it('awaits preparation before reserving input and leaves it pending on failure', async () => {
     const { ctx, agent, message, adapter } = await harness()
     ctx.on('agent/input-preparing', () => {
       expect(agent.inbox.inputState?.(message.id)).toBe('queued')
       throw new Error('preparation failed')
     })
-    agent.followup(message)
+    agent.enqueue(message, { priority: 'queue', passive: false, wakeup: true })
     await agent.whenIdle()
     expect(agent.inbox.nextTurn).toEqual([message])
     expect(adapter.requests).toHaveLength(0)
@@ -38,7 +67,7 @@ describe('input transactions', () => {
       agent.cancel({ kind: 'user' }, { keepInbox: true })
       return next()
     })
-    agent.followup(message)
+    agent.enqueue(message, { priority: 'queue', passive: false, wakeup: true })
     await agent.whenIdle()
     expect(agent.inbox.nextTurn).toEqual([message])
     expect(agent.inbox.inputState?.(message.id)).toBe('queued')
@@ -51,7 +80,7 @@ describe('input transactions', () => {
     const derive = vi.spyOn(agent.session, 'deriveMessages').mockImplementationOnce(() => {
       throw new Error('request construction failed')
     })
-    agent.followup(message)
+    agent.enqueue(message, { priority: 'queue', passive: false, wakeup: true })
     await agent.whenIdle()
     expect(agent.inbox.inputState?.(message.id)).toBe('claimed')
     expect(agent.inbox.nextTurn).toEqual([])
@@ -64,6 +93,6 @@ describe('input transactions', () => {
     expect(agent.inbox.inputState?.(message.id)).toBe('injected')
     const transitions = agent.session.snapshotEvents().flatMap(event => event.type === 'agent/input/transition'
       && event.data.messageIds.includes(message.id) ? [event.data.phase] : [])
-    expect(transitions).toEqual(['claimed', 'appended', 'dispatched'])
+    expect(transitions).toEqual(['scheduled', 'claimed', 'appended', 'dispatched'])
   })
 })

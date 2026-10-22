@@ -27,12 +27,12 @@ describe('scheduled input', () => {
     const { ctx, agent, adapter } = await harness([
       toolCallResponse('long-call', 'long_tool', {}), textResponse('continued'), textResponse('queued reply'),
     ])
-    const started = Promise.withResolvers<void>()
-    const released = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
     ctx.tools.register(defineContentToolFixture({
       name: 'long_tool', description: 'A gated tool', parameters: {},
       async execute() {
-        started.resolve()
+        started.resolve(undefined)
         await released.promise
         return [{ type: 'text', text: 'partial result' }]
       },
@@ -42,7 +42,7 @@ describe('scheduled input', () => {
     const message = input(priority)
     agent.enqueue(message, { priority, passive: false, wakeup: true })
     agent.enqueue(message, { priority, passive: false, wakeup: true })
-    released.resolve()
+    released.resolve(undefined)
     await agent.whenIdle()
     const events = agent.session.snapshotEvents()
     const endings = events.flatMap(event => event.type === 'turn/end' ? [event.data.reason.kind] : [])
