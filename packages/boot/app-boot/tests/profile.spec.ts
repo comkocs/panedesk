@@ -46,8 +46,38 @@ it('keeps default profiles unchanged and loads isolated ledger bundle rows', () 
     const profile = loadProfile('panedesk', name, installAnchor, tmp())
     expect(profile.layers.map(layer => layer.packageName)).toEqual(['@panedesk/dsh-ledger-app'])
     const rows = composeEntries(profile.layers.map(layer => layer.patches))
-    expect(rows.map(row => row.name)).toEqual(['@panedesk/dsh-session-ledger', '@panedesk/dsh-ledger-query', '@panedesk/dsh-ledger-app'])
-    expect(JSON.stringify(rows)).not.toMatch(/dsh-agent|dsh-llm|credentials/)
+    const packages = rows.map(row => row.name)
+    expect(packages).toEqual([
+      '@panedesk/dsh-session-ledger',
+      '@panedesk/dsh-agent',
+      '@panedesk/dsh-session',
+      '@panedesk/dsh-session-projection',
+      '@panedesk/dsh-session-persistence-jsonl',
+      '@panedesk/dsh-message-delivery-local',
+      '@panedesk/dsh-ledger-query',
+      '@panedesk/dsh-ledger-app',
+    ])
+    for (const excluded of [
+      '@panedesk/dsh-agent-loop',
+      '@panedesk/dsh-agent-default-model',
+      '@panedesk/dsh-llm',
+      '@panedesk/dsh-llm-deepseek',
+      '@panedesk/dsh-llm-pi-ai',
+      '@panedesk/dsh-llm-deepseek-api-key',
+      '@panedesk/dsh-llm-deepseek-account',
+      '@panedesk/dsh-llm-cache',
+      '@panedesk/dsh-llm-retry',
+      '@panedesk/dsh-deepseek-llm-api-extensions',
+      '@panedesk/dsh-plugin-package-inventory-deepseek',
+      '@panedesk/dsh-token-meter',
+      '@panedesk/dsh-authorization',
+      '@panedesk/dsh-credentials',
+      '@panedesk/dsh-credentials-local',
+      '@panedesk/dsh-deepseek-account',
+      '@panedesk/dsh-deepseek-account-platform',
+      '@panedesk/dsh-instruction-subscriptions',
+    ]) expect(packages).not.toContain(excluded)
+    expect(JSON.stringify(rows)).not.toMatch(/dsh-agent-loop|dsh-llm|credentials|account|instruction-subscriptions/)
   }
 })
 
