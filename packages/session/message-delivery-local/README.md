@@ -1,5 +1,5 @@
 ---
-description: "Inactive local message provider scaffold."
+description: "Private local file mailboxes and lease-backed node registrations."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Inactive local message provider scaffold. The named `apply` function performs no work and registers no listeners or services. See [Session persistence](../../../docs/subsystems/persistence.md).
+Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. The plugin registers already-leased Agents, publishes runtime busy/idle/closing observations, and removes their registrations after disposal. Session write leases remain authoritative; registration never acquires or steals a lease. See [Session persistence](../../../docs/subsystems/persistence.md).
 
 ## Table of Contents
 
@@ -20,27 +20,31 @@ Inactive local message provider scaffold. The named `apply` function performs no
 <a id="dev-note"></a>
 ## Dev Note
 
-`src/index.ts` owns the public declarations; keep both README languages and package contract tests aligned with changes.
+Configuration explicitly supplies `nodeId`, `maxRecordBytes`, `maxContentBytes`, `maxBatchSize`, `lockTimeoutMs`, `lockRetryMs`, `scanIntervalMs`, and `watch`; `dshHome` optionally overrides the product home. Limits are positive integers and the scan interval cannot exceed one second. Mount alongside `agents`, `sessions`, and `sessionPersistence`; optional `subprocess` and message-ledger providers supply platform identity and receipt accounting.
+
+Each record uses exclusive temporary creation, a versioned length/digest envelope, file sync, atomic publication and directory sync on POSIX. Native per-target locks serialize publication and recover watermarks with explicit skipped ranges. Linux directories and files require owner-only permissions and reject symbolic links. Windows admission checks inherited DACL grants before storage initialization; foreign read/write grants are refused. Unknown process identity remains unavailable, never authorization to reclaim a Session.
 
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Local registration
 
 #### What the model sees
 
-`apply` emits no messages, tools, or prompt sections.
+Delivered messages retain the sender-minted identity and enter the model as user input. Invalidation retains the original history and queues a separate steer notification containing the original identity and reason. Receipts never enter the inbox.
 
 #### Token effect
 
-Zero direct token consumption.
+Delivered text and invalidation notifications consume input tokens; registration and receipts consume none.
 
 #### KV Cache effect
 
-No requests or model-visible prefixes are modified.
+New delivered input extends request history. Invalidation appends a notification without rewriting the original model-visible prefix.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The local message provider is not implemented. Loading this scaffold does not activate message delivery or instruction subscriptions.
+- The service arbitrates sends and controls before queue admission, retains control outcomes for replay, and restores persisted input phases before resume delivery. Hosts must preserve the Agent lifecycle ordering around Session lease acquisition and release. Priority mutation requires the priority-aware queue implementation.
+- Receive-policy replay, receipt pagination and wake-latency validation remain integration work. The owner tests use scheduling substitutes; they do not establish kernel guarantees.
+- Windows publication, identity and permission paths require platform validation; Linux tests exercise injected Windows evidence only. Same-user hostile processes are outside the storage isolation guarantee.

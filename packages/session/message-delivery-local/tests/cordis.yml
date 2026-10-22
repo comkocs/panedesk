@@ -1,0 +1,15 @@
+- name: cordis:session
+- name: cordis:agents
+- name: cordis:persistence
+- name: cordis:ledger
+- name: cordis:delivery
+  config:
+    dshHome: HOME_PLACEHOLDER
+    nodeId: node-a
+    maxRecordBytes: 1048576
+    maxContentBytes: 4096
+    maxBatchSize: 100
+    lockTimeoutMs: 5000
+    lockRetryMs: 1
+    scanIntervalMs: 100
+    watch: false

@@ -32,6 +32,12 @@ export function sameProcessIdentity(
   expected: SubprocessIdentity,
   current: SubprocessIdentity = readProcessIdentity(expected.pid),
 ): boolean {
+  if (expected.pid !== current.pid) return false
+  if (expected.startedAt !== undefined && current.startedAt !== undefined
+    && expected.startIdentity !== undefined && current.startIdentity !== undefined
+    && expected.bootIdentity === undefined && current.bootIdentity === undefined) {
+    return expected.startedAt === current.startedAt && expected.startIdentity === current.startIdentity
+  }
   return expected.pid === current.pid && expected.startIdentity !== undefined
     && expected.bootIdentity !== undefined && expected.startIdentity === current.startIdentity
     && expected.bootIdentity === current.bootIdentity

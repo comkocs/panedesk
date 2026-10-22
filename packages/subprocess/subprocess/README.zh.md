@@ -67,6 +67,8 @@ const output = handle.collected.stdout?.readFrom(0)
 
 ### 管理进程生命周期
 
+`readProcessIdentity(pid)` 观察操作系统的进程创建证据，不授予终止权限。提供方无法验证创建身份时只返回 PID；消费方必须视其为不可用，不能判为已死或存活。`sameProcessIdentity` 拒绝证据缺失与 PID 复用。
+
 终止与等待使用同一个由提供方管理的范围。`terminate()` 会启动提供方记录的流程，具有幂等性，并在该范围为空后成为空操作；请求的中止信号会启动同一流程。`waitForExit()` 观察同一范围，只在提供方证明它完全停稳后 resolve，因此直接命令结束不会掩盖仍存活的后代。所选 owner 无法再证明完全停稳时，它会 reject。提供方记录其 native owner 与较弱 fallback；时限、拆卸阶梯与原因分类归调用方所有。
 
 ### 运行终端会话
