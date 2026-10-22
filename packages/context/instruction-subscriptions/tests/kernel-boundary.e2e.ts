@@ -4,12 +4,19 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { load as loadYaml } from 'js-yaml'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { execa } from 'execa'
+import { resolveExampleLaunch } from '@panedesk/dsh-loader-smoke'
 import { performance } from 'node:perf_hooks'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include, { entryListSchema } from '@panedesk/cordis-plugin-include'
 import AgentLoop from '@panedesk/dsh-agent-loop'
+import * as Acp from '@panedesk/dsh-acp'
+import * as CallAccounting from '@panedesk/dsh-llm-cache'
+import { client as createAcpClient, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
+import { HarnessSdkJsonRpcServer } from '@panedesk/dsh-sdk-jsonrpc-server'
+import { decodeMessagesResult } from '@panedesk/dsh-sdk-protocol'
 import { mountAgentLoopTestDependencies, createTestGate } from '@panedesk/dsh-agent-loop-testkit'
 import * as Instructions from '@panedesk/dsh-agent-instructions'
 import { createUserMessage } from '@panedesk/dsh-llm'
@@ -50,7 +57,7 @@ async function bundleRows(bundle: 'base' | 'sdk-minimal') {
 
 async function harness(
   sequence: readonly MockLlmBehavior[], subscriptions = false, root?: string, mock: Partial<MockLlmServerOptions> = {},
-  ledgerAvailable = true, bundle?: 'base' | 'sdk-minimal',
+  ledgerAvailable = true, bundle?: 'base' | 'sdk-minimal', compression: 'none' | 'zstd' = 'none',
 ) {
   const ownRoot = root === undefined
   root ??= await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? tmpdir(), 'kernel-delivery-'))
@@ -73,11 +80,11 @@ async function harness(
   await ctx.plugin(Loader)
   Object.assign(ctx.loader.builtins, {
     include: Include, persistence: Persistence, ledger: Ledger, delivery: Delivery,
-    instructions: Instructions, subscriptions: Subscriptions, model: Model, loop: AgentLoop,
+    instructions: Instructions, subscriptions: Subscriptions, model: Model, loop: AgentLoop, accounting: CallAccounting,
   })
   ctx.baseUrl = pathToFileURL(root).href + '/'
   const rows: { name: string; config?: object; inject?: string[] }[] = [
-    { name: 'cordis:persistence', config: { root: join(home, 'sessions'), compression: 'none' } },
+    { name: 'cordis:persistence', config: { root: join(home, 'sessions'), compression } },
     ...ledgerAvailable ? [{ name: 'cordis:ledger', config: { dshHome: home } }] : [],
     { name: 'cordis:delivery', config: { dshHome: home, maxRecordBytes: 1048576,
       maxContentBytes: 65536, maxBatchSize: 100, scanIntervalMs: 1000, lockTimeoutMs: 5000, lockRetryMs: 1, watch: false } },
@@ -137,6 +144,81 @@ it.each(['base', 'sdk-minimal'] as const)('loads shipped %s message rows through
   await deliveryEntry!.fiber!.dispose()
   expect(h.ctx.get('messageDelivery')).toBeUndefined()
 })
+
+it('sends through the SDK server and joins real call and message records by Session', async () => {
+  const h = await harness(['success'])
+  await h.ctx.loader.create({ name: 'cordis:accounting', config: { policy: { retention: 'default' },
+    keepalive: { enabled: false, leadSeconds: 240, minimumIntervalSeconds: 60, maxOutputTokens: 1 }, concurrency: [] } })
+  await h.ctx.loader.await()
+  const sdk = new HarnessSdkJsonRpcServer(h.ctx, { request: async () => ({}), notify: () => {} })
+  onTestFinished(async () => { await sdk.shutdown() })
+  expect(await sdk.initialize({ cwd: h.root, provider: 'deepseek-official', model: 'model-a', messagesVersion: 1 }))
+    .toMatchObject({ messagesVersion: 1 })
+  const sent = decodeMessagesResult('messages/send', await sdk.handleRequest('messages/send', {
+    target: { sessionId: h.child.agent.id }, messageClass: 'handoff', content: 'SDK live delivery.', operationId: operation(),
+  }))
+  expect(sent.deliveryOutcome).toBe('accepted')
+  await vi.waitFor(async () => {
+    expect(await sdk.handleRequest('messages/status', { messageId: sent.messageId })).toMatchObject({ state: 'responded' })
+  })
+  expect(JSON.stringify(h.server.requests.map(request => request.body))).toContain('SDK live delivery.')
+  const joined = await h.ctx.sessionLedger.querySessions({ sessionId: h.child.agent.id })
+  expect(joined.complete).toBe(true)
+  const group = joined.sessions.find(session => session.sessionId === h.child.agent.id)
+  expect(group?.calls.some(row => row.kind === 'call')).toBe(true)
+  expect(group?.messages.some(message => message.messageId === sent.messageId && message.state === 'responded')).toBe(true)
+})
+
+it('sends and queries ACP extensions over the real delivery and Agent loop', async () => {
+  const h = await harness(['success'])
+  const toClient = new TransformStream<Uint8Array, Uint8Array>()
+  const toAgent = new TransformStream<Uint8Array, Uint8Array>()
+  const fiber = await h.ctx.plugin(Acp, { provider: 'deepseek-official', model: 'model-a',
+    stream: ndJsonStream(toClient.writable, toAgent.readable) })
+  onTestFinished(async () => { await fiber.dispose() })
+  const client = createAcpClient({ name: 'live-delivery-test' }).connect(ndJsonStream(toAgent.writable, toClient.readable)).agent
+  const selected = ['_panedesk/messages/send', '_panedesk/messages/status']
+  const initialized = await client.request(methods.agent.initialize, { protocolVersion: PROTOCOL_VERSION,
+    _meta: { 'panedesk/messages': { version: 1, methods: selected, notifications: [] } } })
+  expect(initialized._meta).toMatchObject({ 'panedesk/messages': { version: 1, methods: selected } })
+  const sent = decodeMessagesResult('messages/send', await client.request('_panedesk/messages/send', {
+    target: { sessionId: h.child.agent.id }, messageClass: 'handoff', content: 'ACP live delivery.', operationId: operation(),
+  }))
+  expect(sent.deliveryOutcome).toBe('accepted')
+  await vi.waitFor(async () => {
+    expect(await client.request('_panedesk/messages/status', { messageId: sent.messageId })).toMatchObject({ state: 'responded' })
+  })
+  expect(JSON.stringify(h.server.requests.map(request => request.body))).toContain('ACP live delivery.')
+})
+
+it('sends and queries messages through the shipped ledger CLI profile', async () => {
+  const h = await harness(['success', 'success'], false, undefined, {}, true, undefined, 'zstd')
+  h.child.agent.followup(input('Persist the recipient before another process discovers it.'))
+  await h.child.agent.whenIdle()
+  await h.ctx.sessions.flush(h.child.agent.session)
+  const launch = resolveExampleLaunch({
+    srcBin: fileURLToPath(new URL('../../../../apps/cli/src/bin.ts', import.meta.url)),
+    tsconfigPath: fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url)), sourceImport: 'tsx/esm',
+    env: { PANEDESK_TELEMETRY_DISABLED: '1' },
+  })
+  const invoke = async (args: string[]) => {
+    const child = execa(launch.command, [...launch.args, '--profile', 'ledger', 'messages', ...args], {
+      cwd: h.root, env: launch.env, timeout: 30_000, reject: false,
+    })
+    console.info(JSON.stringify({ cliChildPid: child.pid }))
+    const result = await child
+    expect(result.exitCode, `${result.stderr}\n${result.stdout}`).toBe(0)
+    return JSON.parse(result.stdout) as object
+  }
+  const sent = decodeMessagesResult('messages/send', await invoke(['send', '--to-session', h.child.agent.id,
+    '--class', 'handoff', '--text', 'CLI live delivery.', '--operation-id', operation()]))
+  expect(sent.deliveryOutcome).toBe('accepted')
+  await vi.waitFor(async () => {
+    expect(await h.ctx.messageDelivery.status(sent.messageId)).toMatchObject({ state: 'responded' })
+  }, { timeout: 5000 })
+  expect(await invoke(['status', '--message-id', sent.messageId])).toMatchObject({ state: 'responded' })
+  expect(JSON.stringify(h.server.requests.map(request => request.body))).toContain('CLI live delivery.')
+}, 60_000)
 
 it('keeps legacy Agent startup and prompting available when the ledger node cannot be resolved', async () => {
   const h = await harness(['success'], false, undefined, {}, false)

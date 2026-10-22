@@ -45,7 +45,7 @@ Like every shipped profile, it mounts [MCP resources](../../mcp/mcp-resources/RE
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The standalone tree includes the session ledger, local message delivery, and instruction subscriptions. Delivery obtains its node identity from the ledger and remains unavailable if that lookup fails; legacy SDK input stays available. Subscriptions contribute no reminders until explicitly registered and do not enable workspace instruction loading.
+The standalone tree includes the session ledger, local message delivery, and instruction subscriptions. Delivery obtains its node identity from the ledger and remains unavailable if that lookup fails; legacy SDK input stays available. Subscriptions track startup-loaded or explicitly configured files; mounting them does not enable workspace instruction loading.
 
 <details>
 <summary>Implementation internals — click to expand</summary>

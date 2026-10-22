@@ -7441,6 +7441,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 1.4.0
+        version: 1.4.0(zod@4.4.3)
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
@@ -7450,6 +7453,9 @@ importers:
       '@panedesk/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
+      '@panedesk/dsh-acp':
+        specifier: workspace:*
+        version: link:../../acp/acp
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
@@ -7468,18 +7474,30 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-llm-deepseek-api-key':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek-api-key
       '@panedesk/dsh-llm-mock-server':
         specifier: workspace:*
         version: link:../../test-support/llm-mock-server
+      '@panedesk/dsh-loader-smoke':
+        specifier: workspace:*
+        version: link:../../test-support/loader-smoke
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../../session/message-delivery
       '@panedesk/dsh-message-delivery-local':
         specifier: workspace:*
         version: link:../../session/message-delivery-local
+      '@panedesk/dsh-sdk-jsonrpc-server':
+        specifier: workspace:*
+        version: link:../../sdk/server
+      '@panedesk/dsh-sdk-protocol':
+        specifier: workspace:*
+        version: link:../../sdk/protocol
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -7495,6 +7513,9 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+      execa:
+        specifier: ^10.0.1
+        version: 10.0.1
 
   packages/context/session-reference:
     dependencies:

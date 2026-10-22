@@ -41,6 +41,13 @@
     "@panedesk/dsh-message-delivery": "workspace:*"
   },
   "devDependencies": {
+    "@agentclientprotocol/sdk": "1.4.0",
+    "@panedesk/dsh-acp": "workspace:*",
+    "@panedesk/dsh-llm-cache": "workspace:*",
+    "@panedesk/dsh-loader-smoke": "workspace:*",
+    "execa": "^10.0.1",
+    "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
+    "@panedesk/dsh-sdk-protocol": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-llm-mock-server": "workspace:*",

@@ -20,6 +20,8 @@ This optional plugin sends metadata-only instruction change reminders through `M
 <a id="dev-note"></a>
 ## Dev Note
 
+`tests/kernel-boundary.e2e.ts` boots delivery and subscriptions through Loader with real JSONL persistence and a local HTTP model fixture. It also exercises SDK and ACP message send/status requests against that same delivery provider, launches the public ledger CLI profile for cross-process send/status, and joins real model-call accounting and message ledger records by Session.
+
 Configure the plugin through an existing profile or patch: `files` defaults to an empty additional-path list, `maxBytes` is a required positive integer limiting each agent's retained raw bytes and each boundary's scan bytes, and `watch` defaults to false. Relative paths resolve from the agent working directory. Watch callbacks only mark dirty; every running agent's boundary still scans. Ending an agent or disposing the plugin closes watchers and discards in-memory snapshots. No previous-content files or ledger prose are written, so filesystem snapshot permissions are not applicable.
 
 Startup load hashes initialize baselines without accepting a racing newer read as the original baseline. Successful same-agent writes suppress a reminder only when version-qualified raw-byte evidence equals the final scanned hash; unavailable evidence never suppresses a change. Parent writes do not suppress child reminders. A rejected delivery retains the old baseline for retry. Added and removed line counts use LF-normalized line comparison; missing retained bytes or unreadable/over-limit states produce null counts rather than fabricated values.
