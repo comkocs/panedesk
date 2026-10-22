@@ -11,6 +11,14 @@ describe('process creation identity', () => {
     expect(sameProcessIdentity({ pid: 123 }, { pid: 123 })).toBe(false)
   })
 
+  it('compares exact Windows creation ticks and refuses missing evidence or a different PID', () => {
+    const identity = { pid: 123, startIdentity: '31000000:100', startedAt: 123456 }
+    expect(sameProcessIdentity(identity, { ...identity })).toBe(true)
+    expect(sameProcessIdentity(identity, { ...identity, startIdentity: '31000000:101' })).toBe(false)
+    expect(sameProcessIdentity(identity, { ...identity, pid: 124 })).toBe(false)
+    expect(sameProcessIdentity(identity, { pid: 123, startedAt: 123456 })).toBe(false)
+  })
+
   it.skipIf(process.platform !== 'linux')('reads Linux start ticks and boot identity', () => {
     const identity = readProcessIdentity(process.pid)
     expect(identity.pid).toBe(process.pid)

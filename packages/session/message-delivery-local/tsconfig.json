@@ -11,8 +11,18 @@
     {
       "path": "../../../vendor/cordis"
     },
-    {
-      "path": "../../session/message-delivery"
-    }
+    { "path": "../message-delivery" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
+    { "path": "../../llm/llm" },
+    { "path": "../../util/home-paths" },
+    { "path": "../session-ledger" },
+    { "path": "../session-persistence" },
+    { "path": "../session-projection" },
+    { "path": "../session-projection-cache" },
+    { "path": "../session-title" },
+    { "path": "../../subprocess/subprocess" },
+    { "path": "../../subprocess/win32-process" },
+    { "path": "../../workspace/workspace" }
   ]
 }

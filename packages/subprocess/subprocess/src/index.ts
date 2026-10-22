@@ -11,7 +11,7 @@
 import { Context, Service } from '@panedesk/cordis'
 import { proxyEnvironmentForChild } from '@panedesk/dsh-http-proxy'
 import { DSH_ENV_PREFIX } from './types.ts'
-import type { SubprocessHandle, SubprocessSpawnSpec } from './types.ts'
+import type { SubprocessHandle, SubprocessSpawnSpec, SubprocessIdentity } from './types.ts'
 import type { SubprocessTerminalEnvironment, SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from './types.ts'
 
 export { DSH_ENV_PREFIX } from './types.ts'
@@ -121,6 +121,16 @@ declare module '@panedesk/cordis' {
 export abstract class SubprocessRuntime extends Service {
   constructor(ctx: Context) {
     super(ctx, 'subprocess')
+  }
+
+  /**
+   * Observe one process incarnation without granting termination authority.
+   * Providers without OS creation evidence return only the PID, never a verified live identity.
+   * @param pid - process identity to inspect in this execution world.
+   * @returns creation evidence, or a PID-only unavailable observation.
+   */
+  readProcessIdentity(pid: number): SubprocessIdentity {
+    return Object.freeze({ pid })
   }
 
   /**

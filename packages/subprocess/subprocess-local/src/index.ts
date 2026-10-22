@@ -17,7 +17,8 @@ import { Context } from '@panedesk/cordis'
 import type * as NodePty from 'node-pty'
 import type { IPtyForkOptions, IWindowsPtyForkOptions } from 'node-pty'
 import { createLazyRequire } from '@panedesk/dsh-lazy-require'
-import { SubprocessRuntime, SubprocessExecutableNotFoundError } from '@panedesk/dsh-subprocess'
+import { SubprocessRuntime, SubprocessExecutableNotFoundError, readProcessIdentity } from '@panedesk/dsh-subprocess'
+import { readWindowsProcessIdentity } from './windows-inspector.ts'
 import type {
   SubprocessHandle,
   SubprocessSpawnSpec,
@@ -150,6 +151,10 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
     if (failures.length > 0) this.terminateForHostExit()
     if (failures.length === 1) throw failures[0]
     if (failures.length > 1) throw new AggregateError(failures, 'local subprocess teardown failed')
+  }
+
+  override readProcessIdentity(pid: number) {
+    return process.platform === 'win32' ? readWindowsProcessIdentity(pid) : readProcessIdentity(pid)
   }
 
   async resolveExecutable(

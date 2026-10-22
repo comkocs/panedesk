@@ -1,6 +1,6 @@
 {
   "name": "@panedesk/dsh-message-delivery-local",
-  "description": "Inactive local message provider scaffold",
+  "description": "Private local file mailboxes and lease-backed node registrations",
   "version": "0.2.1-rc.2",
   "publishConfig": {
     "access": "public"
@@ -31,6 +31,22 @@
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-message-delivery": "workspace:*"
+  },
+  "dependencies": {
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-session-projection-cache": "workspace:*",
+    "@panedesk/dsh-session-title": "workspace:*",
+    "@panedesk/dsh-subprocess": "workspace:*",
+    "@panedesk/dsh-win32-process": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*",
+    "@panedesk/node-addon-system": "workspace:~",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",

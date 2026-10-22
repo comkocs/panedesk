@@ -67,6 +67,8 @@ Set `stdio.control: 'pipe'` to receive a separate raw `Duplex` in `handle.contro
 
 ### Managing process lifetime
 
+`readProcessIdentity(pid)` observes OS creation evidence without granting termination authority. A provider that cannot verify creation returns only the PID; consumers must treat that as unavailable rather than dead or live. `sameProcessIdentity` rejects missing evidence and PID reuse.
+
 Termination and waiting use one provider-managed range. `terminate()` starts the provider's documented procedure, is idempotent, and becomes a no-op after that range is empty; the request's abort signal starts the same procedure. `waitForExit()` observes the same range and resolves only after the provider proves it quiescent, so direct command completion does not hide a surviving descendant. It rejects when the selected owner can no longer prove quiescence. Providers document their native owners and weaker fallbacks; callers own deadlines, teardown ladders, and cause classification.
 
 ### Running a terminal session
