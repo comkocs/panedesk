@@ -41,13 +41,12 @@ it('inherits a durable parent run and restores the original policy from a reopen
     execute: () => Promise.resolve(name) }))
   ctx.llm.registerAdapter(['mock'], new MockAdapter([textResponse('done')],
     { efforts: [{ id: ReasoningEffortId('high'), name: 'High' }], defaultEffort: ReasoningEffortId('high') }))
+  ctx.sessionLedger.bindContext({ sessionId: SessionId('parent-a'), rootSessionId: SessionId('parent-a'), runId: 'parent-run-a' as LedgerRunId,
+    nodeId: await ctx.sessionLedger.nodeId(), seat: 'seat-a', window: 'window-a', taskId: 'task-a', identitySource: 'startup', accountLabel: 'unknown' })
   const parent = (await ctx.agents.create({ sessionId: SessionId('parent-a'), agentOptions: { provider: 'mock', model: 'model-a' },
     setup: async (childCtx) => { await ctx.agentPresets.mount(childCtx, 'controlled') },
   })).agent
-  await ctx.sessionLedger.beginRun({ sessionId: parent.id, rootSessionId: parent.id, runId: 'parent-run-a' as LedgerRunId,
-    nodeId: await ctx.sessionLedger.nodeId(), seat: 'seat-a', window: 'window-a', taskId: 'task-a', identitySource: 'startup',
-    accountLabel: 'unknown', startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
-  expect(ctx.sessionLedger.contextFor(parent.id)).toBeUndefined()
+  expect(ctx.sessionLedger.contextFor(parent.id)).toMatchObject({ runId: 'parent-run-a', seat: 'seat-a' })
   const activation = await startPreparedActivation({ parent, prompt: [{ type: 'text', text: 'work' }], signal: new AbortController().signal })
   await activation.result
   const snapshot = await ctx.sessionLedger.snapshot({ sessionId: activation.id })
