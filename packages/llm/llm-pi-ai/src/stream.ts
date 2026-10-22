@@ -9,7 +9,7 @@
  */
 
 import { brandString } from '@panedesk/dsh-brand'
-import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE } from '@panedesk/dsh-llm'
+import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE } from '@panedesk/dsh-llm'
 import type { FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@panedesk/dsh-llm'
 import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
 import type { AssistantMessage, AssistantMessageEvent, Usage as PiUsage } from '@earendil-works/pi-ai'
@@ -22,14 +22,19 @@ export class PiResponseEvidence {
   private observed = false
   private responseModel: string | undefined
   private longWrites: number | undefined
+  private translatedUsage: TokenUsage | undefined
+  private reportedCacheRetention: string | undefined
+  private readonly reportedUsage: Record<string, number> = {}
   /** HTTP status observed by the SDK response hook, absent before any response. */
   status: number | undefined
 
   /**
    * @param requestedModel - request identity used only to compare an observed name.
    * @param api - resolved wire protocol; unsupported protocols remain unobservable.
+   * @param cacheWriteAccounting - adapter declaration for families without write accounting.
    */
-  constructor(private readonly requestedModel: string, private readonly api: string) {}
+  constructor(private readonly requestedModel: string, private readonly api: string,
+    private readonly cacheWriteAccounting?: 'not-applicable') {}
 
   /**
    * Observe a provider event without modifying the SDK's parser input.
@@ -52,6 +57,17 @@ export class PiResponseEvidence {
     } else if (this.api === 'openai-completions') {
       envelope = event
     } else return
+    if (typeof envelope?.prompt_cache_retention === 'string') this.reportedCacheRetention = envelope.prompt_cache_retention
+    const usage = wireObject(envelope?.usage ?? event.usage)
+    if (usage !== undefined) {
+      for (const [key, value] of Object.entries(usage)) {
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) this.reportedUsage[key] = value
+        const detail = wireObject(value)
+        if (detail !== undefined) for (const [name, count] of Object.entries(detail)) {
+          if (typeof count === 'number' && Number.isSafeInteger(count) && count >= 0) this.reportedUsage[`${key}.${name}`] = count
+        }
+      }
+    }
     this.observed = true
     if (typeof envelope?.model === 'string' && envelope.model.length > 0) this.responseModel = envelope.model
   }
@@ -64,6 +80,7 @@ export class PiResponseEvidence {
    */
   enrich(chunk: StreamChunk, metadata: Omit<Partial<FinishChunk>, 'type' | 'reason' | 'replayState'>): StreamChunk {
     if (chunk.type === 'usage') {
+      this.translatedUsage = chunk.usage
       const long = this.api === 'anthropic-messages' ? this.longWrites
         : metadata.cacheWriteTiering?.kind === 'tiered' && chunk.usage.cacheWriteTokens !== undefined
           ? metadata.cacheRetention === '12h' ? chunk.usage.cacheWriteTokens
@@ -73,7 +90,7 @@ export class PiResponseEvidence {
     }
     if (chunk.type !== 'finish') return chunk
     const reason = chunk.reason
-    return {
+    const finish: FinishChunk = {
       ...chunk, ...metadata,
       ...this.responseModel === undefined ? {} : { responseModel: this.responseModel },
       responseModelReported: this.responseModel !== undefined
@@ -83,6 +100,40 @@ export class PiResponseEvidence {
       reason: this.status !== undefined && this.status >= 400 && (reason.kind === 'error' || reason.kind === 'aborted')
         ? { ...reason, failure: { ...reason.failure, status: this.status } } : reason,
     }
+    const raw = this.reportedUsage
+    const observed = Object.keys(raw).length > 0
+    const usage = observed && this.translatedUsage !== undefined ? { ...this.translatedUsage } : undefined
+    if (usage !== undefined) {
+      const read = raw.cache_read_input_tokens ?? raw['input_tokens_details.cached_tokens']
+        ?? raw['prompt_tokens_details.cached_tokens'] ?? raw.prompt_cache_hit_tokens
+      const write = raw.cache_creation_input_tokens ?? raw['input_tokens_details.cache_write_tokens']
+        ?? raw['prompt_tokens_details.cache_write_tokens'] ?? raw.cache_write_tokens
+      if (read !== undefined) usage.cacheReadTokens = read
+      if (this.cacheWriteAccounting === 'not-applicable') usage.cacheWriteTokens = 0
+      else if (write !== undefined) usage.cacheWriteTokens = write
+      const long = this.api === 'anthropic-messages' ? this.longWrites
+        : write !== undefined && metadata.cacheWriteTiering?.kind === 'tiered'
+          ? (this.reportedCacheRetention ?? metadata.cacheRetention) === '12h' ? write
+            : (this.reportedCacheRetention ?? metadata.cacheRetention) === '30m' ? 0 : undefined
+          : undefined
+      if (long !== undefined) usage.cacheWriteLongTokens = long
+      const prompt = raw.prompt_tokens
+      const completion = raw.completion_tokens
+      const reasoning = raw['completion_tokens_details.reasoning_tokens'] ?? raw.reasoning_tokens
+      if (prompt !== undefined && completion !== undefined && reasoning !== undefined
+        && prompt + completion + reasoning === raw.total_tokens) {
+        usage.outputTokens = completion + reasoning
+        usage.totalTokens = raw.total_tokens
+      }
+    }
+    LlmAdapter.ledgerEvidence?.set(finish, {
+      ...this.cacheWriteAccounting === undefined ? {} : { cacheWriteAccounting: this.cacheWriteAccounting },
+      ...usage === undefined ? {} : { usage },
+      ...this.reportedCacheRetention === undefined ? {} : { reportedCacheRetention: this.reportedCacheRetention },
+      ...observed ? { reportedUsage: { ...raw } } : {},
+      ...['anthropic-messages', 'openai-responses', 'openai-completions'].includes(this.api) ? { usageObserved: observed } : {},
+    })
+    return finish
   }
 }
 

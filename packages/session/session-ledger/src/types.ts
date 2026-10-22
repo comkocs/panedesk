@@ -112,6 +112,12 @@ export interface LedgerCacheEvidence {
   ttlSeconds?: number
   cacheMode: 'disabled' | 'explicit' | 'automatic' | 'unknown'
   retention?: GenerateOptions['cache']
+  /** Provider-returned retention kept verbatim, independently of the request policy. */
+  reportedRetention?: string
+  /** Returned duration wins when parseable; request-derived durations remain estimates. */
+  ttlSource?: 'response' | 'request-estimate'
+  /** Exact write-price tier, or unknown when the returned tier has no reference price. */
+  writePriceTier?: string
   /** Required evidence when the effective tier is lower than the requested/default tier. */
   downgradeReason?: string
   /** Explicit session override, restored independently of historical request headers. */
@@ -193,9 +199,17 @@ export interface LedgerCallFinish {
   effectiveModel: string
   httpStatus?: number
   usage?: TokenUsage
+  /** Numeric wire counters retained independently of Session usage for reproducible accounting. */
+  reportedUsage?: Readonly<Record<string, number>>
   usageState: LedgerUsageState
+  /** Adapter declaration for providers without cache-write accounting. */
+  cacheWriteAccounting?: 'not-applicable'
   costUsd?: string
   pricingState: LedgerPricingState
+  /** Frozen table version and exact selected key; no fuzzy model alias matching. */
+  priceVersion?: string
+  priceKey?: string
+  priceKeySource?: 'response-model' | 'request-model' | 'unknown'
   wallMs: number
   modelInFlightMs: number
   queueMs: number

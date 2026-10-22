@@ -1835,7 +1835,7 @@ export interface LedgerWatchOptions {
 
 - `inject`: `llm` · `agents` · `systemPrompt`
 - `refs`: [`CacheRetention`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/llm/llm-cache/src/index.ts:30`](../packages/llm/llm-cache/src/index.ts)
+- `source`: [`packages/llm/llm-cache/src/index.ts:32`](../packages/llm/llm-cache/src/index.ts)
 
 ```ts config-catalog
 /** Session cache and harness-process concurrency configuration. */
@@ -2936,7 +2936,7 @@ export interface JsonRpcConfig {
 
 ## `@panedesk/dsh-session-ledger`
 
-- `source`: [`packages/session/session-ledger/src/index.ts:27`](../packages/session/session-ledger/src/index.ts)
+- `source`: [`packages/session/session-ledger/src/index.ts:28`](../packages/session/session-ledger/src/index.ts)
 
 ```ts config-catalog
 /** Trusted configuration accepted by concrete ledger providers. */

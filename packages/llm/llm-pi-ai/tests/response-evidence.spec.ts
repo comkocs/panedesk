@@ -1,6 +1,7 @@
 /** Wire evidence and opt-in cache controls through the real SDK transport. */
 import { afterEach, describe, expect, it } from 'vitest'
 import { brandString } from '@panedesk/dsh-brand'
+import { LlmAdapter } from '@panedesk/dsh-llm'
 import type { GenerateOptions, StreamChunk } from '@panedesk/dsh-llm'
 import { PiAiAdapter } from '../src/adapter.ts'
 import { resolveProfiles } from '../src/config.ts'
@@ -51,6 +52,41 @@ async function collect(llm: PiAiAdapter, model: string, controls: Partial<Genera
 }
 
 describe('provider response evidence', () => {
+  it('keeps returned retention separate and encodes non-ASCII session headers deterministically', async () => {
+    const events = frames('openai-responses', 'gpt-5.6').map((event) => {
+      if (typeof event !== 'string') throw new Error('Expected response frame')
+      const raw = JSON.parse(event) as { response?: Record<string, unknown> }
+      return JSON.stringify({ ...raw, ...raw.response === undefined ? {} : { response: { ...raw.response, prompt_cache_retention: '24h' } } })
+    })
+    const server = await mockServer([0, 1, 2].map(() => ({ events })))
+    const llm = adapter('openai-responses', server.url, 'gpt-5.6')
+    const sessions = ['seat-é', 'seat-é', 'seat-a']
+    for (const session of sessions) {
+      const result = await collect(llm, 'gpt-5.6', { sessionId: brandString<NonNullable<GenerateOptions['sessionId']>>(session), cache: { retention: '12h' } })
+      expect(result.finish).toMatchObject({ reason: { kind: 'stop' }, cacheRetention: '12h' })
+      expect(result.finish).not.toHaveProperty('reportedCacheRetention')
+      expect(result.finish && LlmAdapter.ledgerEvidence?.get(result.finish)).toMatchObject({ reportedCacheRetention: '24h' })
+    }
+    expect(server.headers.map(headers => headers.session_id)).toEqual(sessions.map(session => encodeURIComponent(session)))
+    expect(server.requests[0]).toMatchObject({ prompt_cache_key: sessions[0] })
+  })
+  it.each(['deepseek-model-a', 'glm-model-a', 'grok-model-a'])
+  ('declares cache writes not applicable for %s without changing stream usage', async (model) => {
+    const events = textEvents.map((event) => {
+      if (event === '[DONE]') return event
+      const parsed = JSON.parse(event) as Record<string, unknown>
+      return JSON.stringify({ ...parsed, model,
+        usage: { prompt_tokens: 10, completion_tokens: 1, total_tokens: 11, prompt_tokens_details: { cached_tokens: 0 } } })
+    })
+    const server = await mockServer([{ events }])
+    const result = await collect(adapter('openai-completions', server.url, model), model)
+    expect(result.finish && LlmAdapter.ledgerEvidence?.get(result.finish)).toMatchObject({
+      cacheWriteAccounting: 'not-applicable', usage: { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    })
+    expect(result.usage).not.toHaveProperty('cacheWriteTokens')
+    expect(result.finish).not.toHaveProperty('cacheWriteAccounting')
+  })
+
   it.each(apis.flatMap(api => ['model-a', 'model-b', undefined].map(model => ({ api, model }))))
   ('$api reports wire model $model without substituting the requested model', async ({ api, model }) => {
     const server = await mockServer([{ events: frames(api, model) }])

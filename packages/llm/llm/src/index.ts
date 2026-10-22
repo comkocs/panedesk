@@ -206,6 +206,15 @@ export interface PreparedAdapterCall {
  * DeepSeek and library-backed pi-ai adapters meet this contract through different internals.
  */
 export abstract class LlmAdapter {
+  /** Process-local terminal evidence; weak keys keep accounting facts out of durable stream chunks. */
+  static ledgerEvidence?: WeakMap<StreamChunk, {
+    usage?: import('./types.ts').TokenUsage
+    reportedUsage?: Readonly<Record<string, number>>
+    usageObserved?: boolean
+    cacheWriteAccounting?: 'not-applicable'
+    reportedCacheRetention?: string
+  }> = new WeakMap()
+
   /**
    * Describe one provider route owned by this adapter.
    * @param provider - a route passed to `registerAdapter()` for this instance.
