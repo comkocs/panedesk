@@ -7,11 +7,13 @@ import type {} from '@panedesk/dsh-tools'
 import {
   appendUnique, recoverSegments, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
+  appendMessageUnique, recoverMessageSegments,
 } from './journal.ts'
 import { withWriterLock, LedgerUnavailableError } from './lock.ts'
-import { foldLedger } from './projection.ts'
+import { foldLedger, foldMessages, joinSessionLedgers, exportMessages } from './projection.ts'
 import { loadPriceTable, priceUsage } from './pricing.ts'
-import type { LedgerEventId, LedgerNodeId, LedgerInterval } from './types.ts'
+import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, LedgerMessagePage, LedgerSessionPage } from './types.ts'
+import type { MessageCursor, MessageQuery } from '@panedesk/dsh-message-delivery'
 export { LedgerUnavailableError } from './lock.ts'
 import { Context, Service } from '@panedesk/cordis'
 import type {
@@ -124,6 +126,38 @@ export abstract class SessionLedger extends Service {
    * @returns Per-fact append, replay, or conflict outcomes.
    */
   abstract importNode(source: string): Promise<readonly LedgerAppendResult[]>
+  /** Open the independent message journal without changing call accounting.
+   * @returns Body-free message fact storage using the ledger's local node identity.
+   */
+  messages(): Promise<MessageLedgerStore> {
+    return Promise.reject(new LedgerUnavailableError(new Error('Message journal is not provided')))
+  }
+  /** Project all retained versions before selecting current message states.
+   * @param query - Session, creation-time, state, class, age and pagination selection.
+   * @returns Message statuses and integrity of the full scan.
+   */
+  async queryMessages(query: MessageQuery): Promise<LedgerMessagePage> {
+    const page = await (await this.messages()).read({})
+    return foldMessages(page.events, query, Date.now(), page.complete)
+  }
+  /** Join both namespaces by Session without adding messages to billable call rows.
+   * @param query - Shared Session and half-open time filter; all matching messages are retained.
+   * @returns Independent journal views grouped by Session, not an atomic cross-journal snapshot.
+   */
+  async querySessions(query: Pick<LedgerQuery, 'sessionId' | 'from' | 'to'>): Promise<LedgerSessionPage> {
+    const [calls, messages] = await Promise.all([this.query(query), this.queryMessages(query)])
+    const joined = joinSessionLedgers(calls, messages)
+    return query.sessionId === undefined ? joined : {
+      ...joined, sessions: joined.sessions.filter(group => group.sessionId === query.sessionId), unassignedMessages: [],
+    }
+  }
+  /** Export a selected message page without bodies, with an integrity header even when empty.
+   * @param query - Message filters and optional page cursor.
+   * @returns Schema-versioned JSONL metadata and status records.
+   */
+  async exportMessages(query: MessageQuery): Promise<string> {
+    return exportMessages(await this.queryMessages(query))
+  }
 }
 
 /** Local journal provider registered under the unchanged sessionLedger service name. */
@@ -395,6 +429,40 @@ export class JournalSessionLedger extends SessionLedger {
   async importNode(source: string): Promise<readonly LedgerAppendResult[]> {
     const { root } = await this.location()
     return importSegments(root, source, this.options)
+  }
+
+  /** Open body-free message storage outside the call reader's version directory.
+   * @returns Store with durable idempotent appends and explicit scan completeness.
+   */
+  override async messages(): Promise<MessageLedgerStore> {
+    const { id } = await this.location()
+    const root = join(this.home, 'ledger', 'messages', 'v1', id)
+    await ensureDirectory(root)
+    return {
+      append: async event => appendMessageUnique(root, event, this.options),
+      read: async query => withWriterLock(join(root, 'writer.lock'), this.options, async () => {
+        const scan = await recoverMessageSegments(root, this.options.maxRecordBytes)
+        const events = scan.events.sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId))
+        const cursorIndex = query.cursor === undefined ? -1 : events.findIndex(event => event.eventId === String(query.cursor))
+        if (query.cursor !== undefined && cursorIndex < 0) throw new Error('Unknown message ledger cursor')
+        if (query.limit !== undefined && (!Number.isSafeInteger(query.limit) || query.limit <= 0)) throw new Error('Message limit must be a positive safe integer')
+        const selected = events.slice(cursorIndex + 1).filter((event) => {
+          const data = event.data
+          return (query.nodeId === undefined || event.nodeId === query.nodeId)
+            && (query.sessionId === undefined || data.senderSessionId === query.sessionId || data.targetSessionId === query.sessionId)
+            && (query.senderSessionId === undefined || data.senderSessionId === query.senderSessionId)
+            && (query.targetSessionId === undefined || data.targetSessionId === query.targetSessionId)
+            && (query.from === undefined || data.observedAt >= query.from)
+            && (query.to === undefined || data.observedAt < query.to)
+            && (query.states === undefined || query.states.includes(data.state))
+            && (query.messageClasses === undefined || query.messageClasses.includes(data.messageClass))
+        })
+        const page = selected.slice(0, query.limit)
+        const last = page.at(-1)
+        return { events: page, complete: scan.complete,
+          ...last && page.length < selected.length ? { nextCursor: last.eventId as string as MessageCursor } : {} }
+      }),
+    }
   }
 }
 
