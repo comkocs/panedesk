@@ -91,10 +91,12 @@ export async function privateDirectory(root: string, path = root): Promise<void>
 /** Check one already-open file, including its owner and link count. */
 async function checkFile(handle: Awaited<ReturnType<typeof open>>): Promise<void> {
   const stat = await handle.stat()
-  if (!stat.isFile() || stat.nlink !== 1
-    || (process.platform !== 'win32' && (stat.uid !== process.getuid?.() || (stat.mode & 0o077) !== 0))) {
-    throw new MailboxUnavailableError('Mailbox file permissions are not private')
-  }
+  if (!stat.isFile()) throw new MailboxUnavailableError('Mailbox entry is not a regular file')
+  if (stat.nlink === 0) throw new MailboxUnavailableError('Mailbox file was replaced while open and could not be reopened')
+  if (stat.nlink !== 1) throw new MailboxUnavailableError('Mailbox file has more than one hard link')
+  if (process.platform === 'win32') return
+  if (stat.uid !== process.getuid?.()) throw new MailboxUnavailableError('Mailbox file is not owned by the current user')
+  if ((stat.mode & 0o077) !== 0) throw new MailboxUnavailableError('Mailbox file permissions are not private')
 }
 
 /** Synchronize a directory after publishing or removing a file.

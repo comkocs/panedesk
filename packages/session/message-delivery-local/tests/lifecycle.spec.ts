@@ -176,6 +176,6 @@ describe('file mailbox publication', () => {
     await symlink(path, join(root, 'receipts', 'linked.json'))
     await expect(readValue(join(root, 'receipts', 'linked.json'), 65536)).rejects.toThrow()
     await chmod(path, 0o644)
-    await expect(readValue(path, 65536)).rejects.toThrow('permissions')
+    await expect(readValue(path, 65536)).rejects.toThrow('Mailbox file permissions are not private')
   })
 })
