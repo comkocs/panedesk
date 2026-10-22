@@ -20,7 +20,7 @@ kind: "package-reference"
 <a id="dev-note"></a>
 ## 开发备注
 
-配置显式提供 `nodeId`、`maxRecordBytes`、`lockTimeoutMs`、`lockRetryMs` 与 `scanIntervalMs`；可选的 `dshHome` 覆盖产品家目录。限额均为正整数，心跳间隔不得超过一秒。与 `agents` 和 `sessionPersistence` 一同挂载；可选的 `subprocess` 提供方提供平台进程创建证据。
+配置显式提供 `nodeId`、`maxRecordBytes`、`maxContentBytes`、`maxBatchSize`、`lockTimeoutMs`、`lockRetryMs`、`scanIntervalMs` 与 `watch`；可选的 `dshHome` 覆盖产品家目录。限额均为正整数，扫描间隔不得超过一秒。与 `agents`、`sessions` 和 `sessionPersistence` 一同挂载；可选的 `subprocess` 与消息账本提供方提供平台身份和回执记账。
 
 每条记录采用排他临时文件创建、带版本及长度／摘要的封装、文件同步、原子发布及 POSIX 目录同步。每目标原生锁串行发布，并以明确的跳过区间恢复高水位。Linux 目录与文件要求仅属主可访问，并拒绝符号链接。Windows 在初始化存储前核验继承的 DACL 授权；其他主体的读写授权会被拒绝。未知进程身份保持不可用，绝不据此回收会话。
 
@@ -31,19 +31,20 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-注册与存储不发出模型消息、工具或提示词片段。
+投递消息保留发送方铸造的身份，以用户输入进入模型。作废保留原历史，并另行排入包含原号与原因的 steer 通知。回执不进入收件箱。
 
 #### Token 影响
 
-直接 Token 消耗为零。
+投递正文与作废通知消耗输入 Token；注册与回执不消耗。
 
 #### KV Cache 影响
 
-不修改请求或模型可见前缀。
+新投递输入扩展请求历史。作废追加通知，不重写原有模型可见前缀。
 
 ## 已知限制与后续工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 仅注册与信箱存储不会启用消息裁决或投递。宿主必须保持会话租约获取、释放与 agent 生命周期的顺序。
+- 服务在队列入队前裁决发送与控制，留存控制结果供重放，并在恢复投递前还原持久输入阶段。宿主必须保持会话租约获取、释放与 agent 生命周期的顺序。改档依赖支持优先级的队列实现。
+- 收件政策重放、回执分页与唤醒延迟验证仍待集成。属主测试使用调度替身，不构成内核保证。
 - Windows 发布、身份与权限路径需要平台验证；Linux 测试只覆盖注入的 Windows 证据。同一用户的恶意进程不在存储隔离保证内。

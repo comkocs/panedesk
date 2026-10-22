@@ -50,6 +50,8 @@
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-message-delivery": "workspace:*"
   }
 }

@@ -20,7 +20,7 @@ Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. T
 <a id="dev-note"></a>
 ## Dev Note
 
-Configuration explicitly supplies `nodeId`, `maxRecordBytes`, `lockTimeoutMs`, `lockRetryMs`, and `scanIntervalMs`; `dshHome` optionally overrides the product home. Limits are positive integers and the heartbeat interval cannot exceed one second. Mount alongside `agents` and `sessionPersistence`; an optional `subprocess` provider supplies platform creation evidence.
+Configuration explicitly supplies `nodeId`, `maxRecordBytes`, `maxContentBytes`, `maxBatchSize`, `lockTimeoutMs`, `lockRetryMs`, `scanIntervalMs`, and `watch`; `dshHome` optionally overrides the product home. Limits are positive integers and the scan interval cannot exceed one second. Mount alongside `agents`, `sessions`, and `sessionPersistence`; optional `subprocess` and message-ledger providers supply platform identity and receipt accounting.
 
 Each record uses exclusive temporary creation, a versioned length/digest envelope, file sync, atomic publication and directory sync on POSIX. Native per-target locks serialize publication and recover watermarks with explicit skipped ranges. Linux directories and files require owner-only permissions and reject symbolic links. Windows admission checks inherited DACL grants before storage initialization; foreign read/write grants are refused. Unknown process identity remains unavailable, never authorization to reclaim a Session.
 
@@ -31,19 +31,20 @@ Each record uses exclusive temporary creation, a versioned length/digest envelop
 
 #### What the model sees
 
-Registration and storage emit no model messages, tools, or prompt sections.
+Delivered messages retain the sender-minted identity and enter the model as user input. Invalidation retains the original history and queues a separate steer notification containing the original identity and reason. Receipts never enter the inbox.
 
 #### Token effect
 
-Zero direct token consumption.
+Delivered text and invalidation notifications consume input tokens; registration and receipts consume none.
 
 #### KV Cache effect
 
-No requests or model-visible prefixes are modified.
+New delivered input extends request history. Invalidation appends a notification without rewriting the original model-visible prefix.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Registration and mailbox storage do not alone activate message arbitration or delivery. Hosts must preserve the Agent lifecycle ordering around Session lease acquisition and release.
+- The service arbitrates sends and controls before queue admission, retains control outcomes for replay, and restores persisted input phases before resume delivery. Hosts must preserve the Agent lifecycle ordering around Session lease acquisition and release. Priority mutation requires the priority-aware queue implementation.
+- Receive-policy replay, receipt pagination and wake-latency validation remain integration work. The owner tests use scheduling substitutes; they do not establish kernel guarantees.
 - Windows publication, identity and permission paths require platform validation; Linux tests exercise injected Windows evidence only. Same-user hostile processes are outside the storage isolation guarantee.

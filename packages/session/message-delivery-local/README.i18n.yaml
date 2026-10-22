@@ -15,8 +15,8 @@
   en: 367189da11f20d74
   zh: 246160e5a90ca369
 /panedesk-dsh-message-delivery-local/dev-note:
-  en: 3c3d5758c601f099
-  zh: b5936512eff91c82
+  en: 5110d1e11d1b9083
+  zh: 5bc0d67043464841
 /panedesk-dsh-message-delivery-local/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -24,14 +24,14 @@
   en: 05ec3a4f94a0b8da
   zh: e5b4f97b835622ef
 /panedesk-dsh-message-delivery-local/model-experience/local-registration/what-the-model-sees:
-  en: 013c77a9c1a3c26e
-  zh: 7c2f00f1bd4536f9
+  en: acb347b038a8bca3
+  zh: 98d583bab89a8bf6
 /panedesk-dsh-message-delivery-local/model-experience/local-registration/token-effect:
-  en: 49ebe7812e660130
-  zh: 6d73f3da35bd6214
+  en: dc8c85a157f2266f
+  zh: 981a63d0fbf1d912
 /panedesk-dsh-message-delivery-local/model-experience/local-registration/kv-cache-effect:
-  en: 9077442db9e90f62
-  zh: 322dc46abd84aba9
+  en: 3f0c25483ba01bad
+  zh: c05e62deb7d1b384
 /panedesk-dsh-message-delivery-local/known-limitations-and-deferred-work:
-  en: 8460e5a4a1bf282b
-  zh: af72a760222fd715
+  en: e6dc317a35feb467
+  zh: 9660908f6638b09c
