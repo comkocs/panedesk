@@ -12763,6 +12763,9 @@ importers:
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../../boot/cmdline
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../message-delivery
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../session-ledger

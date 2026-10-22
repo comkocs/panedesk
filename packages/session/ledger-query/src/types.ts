@@ -1,5 +1,45 @@
 /** Read-only ledger filtering, export, and daily overview vocabulary. */
-import type { LedgerQuery, LedgerSnapshot, LedgerTokenColumns, LedgerWatermark } from '@panedesk/dsh-session-ledger'
+import type { LedgerQuery, LedgerSnapshot, LedgerTokenColumns, LedgerWatermark, LedgerRow } from '@panedesk/dsh-session-ledger'
+import type { MessageQuery, MessageStatus, MessageStateData, MessageState, MessageCursor, NodeId } from '@panedesk/dsh-message-delivery'
+
+/** Structural view of the optional message-ledger projection, matching its owning provider. */
+export interface LedgerMessageProjection extends MessageStatus {
+  readonly nodeId: NodeId
+  readonly data: MessageStateData
+  readonly createdAt: number
+  readonly stateTimes: Readonly<Partial<Record<MessageState, number>>>
+}
+/** One message page retains scan integrity independently of cursor exhaustion. */
+export interface LedgerMessagesPage {
+  readonly items: readonly LedgerMessageProjection[]
+  readonly complete: boolean
+  readonly asOf: number
+  readonly nextCursor?: MessageCursor
+}
+/** Independent call and message journals joined by real Session identities. */
+export interface LedgerSessionsPage {
+  readonly asOf: number
+  readonly complete: boolean
+  readonly sessions: readonly {
+    readonly sessionId: NonNullable<MessageQuery['sessionId']>
+    readonly calls: readonly LedgerRow[]
+    readonly messages: readonly LedgerMessageProjection[]
+  }[]
+  readonly unassignedMessages: readonly LedgerMessageProjection[]
+}
+/** Optional public reader additions; absence is reported, never replaced with delivery.list. */
+export interface MessageLedgerReader {
+  /** Read current message states with creation-time filters.
+   * @param query - Selection and exclusive pagination.
+   * @returns Status page and full-scan integrity.
+   */
+  queryMessages(query: MessageQuery): Promise<LedgerMessagesPage>
+  /** Read both journal namespaces grouped by Session.
+   * @param query - Shared Session and half-open time selection.
+   * @returns Non-atomic joined view and combined integrity.
+   */
+  querySessions(query: Pick<LedgerQuery, 'sessionId' | 'from' | 'to'>): Promise<LedgerSessionsPage>
+}
 
 /** Supported lossless-machine and spreadsheet export formats. */
 export type LedgerExportFormat = 'jsonl' | 'csv'
