@@ -224,6 +224,10 @@ declare module '@panedesk/dsh-typert-protocol' {
     }
     'session/attachment-invalid': { readonly reason: string }
     'session/queue-item-not-found': { readonly itemId: MessageId }
+    /** Input is reserved for the next request and cannot be changed. */
+    'session/queue-item-claimed': { readonly itemId: MessageId; readonly state: 'claimed' }
+    /** Input has already entered a model request. */
+    'session/queue-item-injected': { readonly itemId: MessageId; readonly state: 'injected' }
     'session/steer-unavailable': { readonly itemId: MessageId }
     /** The queue action is recognized but unavailable in this driver. */
     'session/queue-action-unsupported': { readonly itemId: MessageId }

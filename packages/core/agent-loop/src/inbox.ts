@@ -71,7 +71,7 @@ export const inboxProjectionDefinition = {
     const state = scheduledState(previous)
     if (event.type === 'agent/input/transition') {
       const transition = event.data
-      if (transition.phase === 'scheduled') return state
+      if (transition.phase === 'scheduled') return previous
       const claims = { ...state.claims }
       if (transition.phase === 'claimed') {
         const entries = (['next-step', 'next-turn'] as const).flatMap(target => state[target]
@@ -94,11 +94,11 @@ export const inboxProjectionDefinition = {
     }
     if (event.type === 'user/message') {
       const entry = Object.entries(state.claims).find(([, claim]) => claim.transition.messageIds.includes(event.data.id))
-      if (entry === undefined) return state
+      if (entry === undefined) return previous
       const [id, claim] = entry
       return { ...state, claims: { ...state.claims, [id]: { ...claim, appended: [...claim.appended, event.data.id] } } }
     }
-    if (event.type !== 'agent/inbox/spliced') return state
+    if (event.type !== 'agent/inbox/spliced') return previous
     const splice = event.data
     try {
       const inbox = state[splice.target]
@@ -211,6 +211,18 @@ export class ReactLoopInbox implements InboxContract {
   enqueue(message: UserMessage, scheduling: InputScheduling): void {
     const target = scheduling.priority === 'queue' ? 'next-turn' : 'next-step'
     this.mutate(target, Infinity, 0, [message], false, [scheduling])
+  }
+
+  /**
+   * Remove a queued item for rescheduling without publishing a cancellation.
+   * @param id - pending input identity.
+   * @returns the removed item, or undefined after claim.
+   */
+  takeForScheduling(id: MessageId): UserMessage | undefined {
+    if (this.inputState(id) !== 'queued') return undefined
+    const location = this.locate(id)
+    if (location === undefined) return undefined
+    return this.mutate(location.target, location.index, 1, [], false)[0]
   }
 
   /** Durably cancel all pending input, clearing next-step before next-turn. */

@@ -12,6 +12,7 @@ import type {
   AgentStatus,
   AgentInputScheduler,
   EnqueueOptions,
+  InputPriority,
   CancelOptions,
   InboxTarget,
   PreStepDecision,
@@ -102,6 +103,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
   readonly inbox: ReactLoopInbox
   private phase: Phase
   private activityDone: Promise<void> = Promise.resolve()
+  private readonly inputOperations = new Map<NonNullable<EnqueueOptions['operationId']>, { input: string; options: string }>()
 
   /** The agent-scoped registration boundary; the lifecycle owner unwinds it after the driver exits. */
   readonly scope: Scope
@@ -168,6 +170,14 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
   }
 
   enqueue(input: UserMessage, options: EnqueueOptions): void {
+    const operation = options.operationId === undefined ? undefined : this.inputOperations.get(options.operationId)
+    const signature = { input: JSON.stringify(input), options: JSON.stringify(options) }
+    if (operation !== undefined) {
+      if (operation.input !== signature.input || operation.options !== signature.options) {
+        throw new Error('input operation identity was reused with different input')
+      }
+      return
+    }
     if (this.inbox.inputState(input.id) !== 'missing') return
     const turn = this.phase.kind === 'running' ? this.phase.turn : this.phase.lastTurn
     this.inbox.enqueue(input, {
@@ -176,12 +186,24 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       enqueueSequence: this.inbox.nextSequence,
       earliestTurn: options.earliestTurn ?? (this.phase.kind === 'running' && options.priority !== 'queue' ? turn : turn + 1),
     })
+    if (options.operationId !== undefined) this.inputOperations.set(options.operationId, signature)
     if (options.priority === 'immediate' && !options.passive && this.phase.kind === 'running' && !this.phase.abort.signal.aborted) {
       this.cancel({ kind: 'interjection' }, { keepInbox: true })
     }
     if ((options.wakeup || (options.priority === 'immediate' && this.phase.kind === 'running')) && !options.passive) {
       this.wakeDriver(this.phase.kind !== 'idle' && this.phase.abort.signal.aborted)
     }
+  }
+
+  reprioritize(messageId: UserMessage['id'], priority: InputPriority): boolean {
+    if (this.inbox.inputState(messageId) !== 'queued') return false
+    const message = [...this.inbox.nextTurn, ...this.inbox.nextStep].find(item => item.id === messageId)
+    if (message === undefined) return false
+    const passive = this.inbox.schedulingOf(messageId)?.passive ?? false
+    if (passive && priority !== 'queue') return false
+    if (this.inbox.takeForScheduling(messageId) === undefined) return false
+    this.enqueue(message, { priority, passive, wakeup: priority === 'immediate' })
+    return true
   }
 
   followup(input: UserMessage): void {

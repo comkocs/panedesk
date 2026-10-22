@@ -58,6 +58,8 @@ handle.agent.steer({
 await handle.agent.whenIdle()
 ```
 
+`AgentInputScheduler` adds explicit priority and passive admission without changing legacy input methods. Its optional `reprioritize` moves queued input to the requested priority tail. `mutateAgentQueue(agent, id, action)` shares edit, remove, legacy steer, and reprioritize controls for an already-owned live Agent; it never resolves or resumes one. Results distinguish claimed input from input already injected into a model request. An optional enqueue `operationId` deduplicates identical submissions during the live driver's lifetime; conflicting reuse throws, while durable delivery owners retain identities across reloads.
+
 ### Scope registrations to one agent
 
 `Agent.ctx` is the agent's scoped context: registrations made through it (tools, prompt sections, variables, event listeners, restrictions) apply to that agent alone and unwind on disposal. The same mechanism is what agent presets use to give one session a different capability set without affecting its neighbors.

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import { brandString } from '@panedesk/dsh-brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@panedesk/dsh-agent'
+import { mutateAgentQueue } from '@panedesk/dsh-agent'
 import { AttachmentError } from '@panedesk/dsh-attachment'
 import type {
   AttachmentAdmissionPart, FileAttachmentRef, ImageAttachmentRef,
@@ -12,7 +13,7 @@ import type {
 import type { FileUploadReceiptId } from '@panedesk/dsh-client-file-upload/types'
 import type {} from '@panedesk/dsh-client-file-upload'
 import {
-  ReasoningEffortId, assistantStreamChunks, createUserMessage, freezeMessage,
+  ReasoningEffortId, assistantStreamChunks, createUserMessage,
 } from '@panedesk/dsh-llm'
 import type { MessageSource } from '@panedesk/dsh-llm'
 import { buildForkSeed } from '@panedesk/dsh-session/fork'
@@ -451,42 +452,26 @@ export class SessionCommandController {
         throw apiSessionSubagentOwnershipError(request.sessionId)
       }
     }
-    const nextTurn = agent.inbox.nextTurn.find(message => message.id === request.itemId)
-    const nextStep = agent.inbox.nextStep.find(message => message.id === request.itemId)
-    const located = nextTurn === undefined
-      ? nextStep === undefined ? undefined : { target: 'next-step' as const, message: nextStep }
-      : { target: 'next-turn' as const, message: nextTurn }
-    if (located === undefined) {
-      throw new RemoteError('session/queue-item-not-found', 'queued item is no longer pending', { itemId: request.itemId })
-    }
-    const { target, message } = located
-    if (request.action.kind === 'steer' && (target !== 'next-turn' || agent.status !== 'running')) {
-      throw new RemoteError('session/steer-unavailable', 'current turn no longer accepts steering', { itemId: request.itemId })
-    }
-    switch (request.action.kind) {
-      case 'edit':
-        agent.inbox.replace(request.itemId, freezeMessage<UserMessage>({
-          ...message,
-          content: [...request.action.content],
-        }))
-        break
-      case 'remove': {
-        agent.inbox.remove(request.itemId)
-        const source = message.source
-        if (source.kind === 'user' && 'rpcId' in source) {
-          this.ctx.fileUploads.retirePrompt(agent, source.rpcId)
+    const message = [...agent.inbox.nextTurn, ...agent.inbox.nextStep].find(item => item.id === request.itemId)
+    const result = mutateAgentQueue(agent, request.itemId, request.action)
+    switch (result.kind) {
+      case 'applied':
+        if (request.action.kind === 'remove' && message?.source.kind === 'user' && 'rpcId' in message.source) {
+          this.ctx.fileUploads.retirePrompt(agent, message.source.rpcId)
         }
         break
-      }
-      case 'steer':
-        agent.inbox.remove(request.itemId)
-        agent.steer(message)
-        break
-      case 'reprioritize':
-        throw new RemoteError('session/queue-action-unsupported', 'queue reprioritize is not available yet', { itemId: request.itemId })
-      /* v8 ignore next 2 -- closed-union exhaustiveness guard */
+      case 'claimed':
+        throw new RemoteError('session/queue-item-claimed', 'input is claimed and awaiting injection', { itemId: request.itemId, state: 'claimed' })
+      case 'injected':
+        throw new RemoteError('session/queue-item-injected', 'input has already been injected', { itemId: request.itemId, state: 'injected' })
+      case 'missing':
+        throw new RemoteError('session/queue-item-not-found', 'queued item is no longer pending', { itemId: request.itemId })
+      case 'steer-unavailable':
+        throw new RemoteError('session/steer-unavailable', 'current turn no longer accepts steering', { itemId: request.itemId })
+      case 'unsupported':
+        throw new RemoteError('session/queue-action-unsupported', 'queue action is unavailable in this driver', { itemId: request.itemId })
       default:
-        assertNever(request.action, 'queue action')
+        assertNever(result, 'queue mutation result')
     }
     return { accepted: true }
   }
