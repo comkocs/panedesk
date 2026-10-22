@@ -60,6 +60,8 @@ export interface Config extends PresetSelectionConfig {
    * Session and inherit that decision in its child Sessions.
    */
   modelSelectionSettings?: boolean
+  /** Expose model-authored delivery declarations; inherited preset composition keeps forks identical to their parent. */
+  deliveryDeclarations?: boolean
   /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */
@@ -81,6 +83,7 @@ export const Config: z<Config> = z.object({
   provider: z.string().required(),
   toolName: z.string().default('subagent'),
   modelSelectionSettings: z.boolean().default(false),
+  deliveryDeclarations: z.boolean().default(false),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
   agentOptions: z.object({
     provider: z.string(),
@@ -222,11 +225,13 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             type: 'string',
             description: 'Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent.',
           },
-          deliveryPaths: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Declared delivery files within the authorized workspace. The runtime checks them at settlement and never replaces them with errors.',
-          },
+          ...config.deliveryDeclarations === true ? {
+            deliveryPaths: {
+              type: 'array' as const,
+              items: { type: 'string' as const },
+              description: 'Declared delivery files within the authorized workspace. The runtime checks them at settlement and never replaces them with errors.',
+            },
+          } : {},
           description: {
             type: 'string',
             required: true,
@@ -340,7 +345,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           const maxDepth = runtimeCtx.subagents.resolveMaxDepth(config.maxDepth)
           const request = {
             ...args.cwd === undefined ? {} : { cwd: args.cwd },
-            ...args.deliveryPaths === undefined ? {} : { deliveryPaths: args.deliveryPaths },
+            ...config.deliveryDeclarations !== true || args.deliveryPaths === undefined ? {} : { deliveryPaths: args.deliveryPaths },
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,
             ...agentPreset === undefined ? {} : { agentPreset },
