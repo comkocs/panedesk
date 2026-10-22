@@ -27,6 +27,8 @@ Providers accept `Config.waitTools` and implement `registerWaitTool(name, catego
 
 `appendArtifact` writes restricted `partial-response` or `keepalive-request` JSON fragments under ledger-owned paths. `(callId, kind, seq)` identifies exact UTF-8 content bytes: equal replays return `existing`, unequal bytes return `conflict` without overwriting. Sequences start at zero and remain contiguous. Success follows file and required directory synchronization. `finishArtifact` verifies the last fragment and durably closes the stream; later new fragments reject, while exact replays remain idempotent. `LedgerCallFinish.artifacts` carries the returned references, not raw content.
 
+`JournalSessionLedger.messages()` stores body-free `message/state` facts in `ledger/messages/v1/<nodeId>/events/<UTC-date>/`, independently of the unchanged call namespace `ledger/v1/`. Message envelopes start at `schemaVersion: 1`; human origins may have no Session or run. Event identities derive from node, message, state version, and transition. A native writer lock serializes unique state versions; equal replays synchronize and acknowledge existing bytes, unequal replays reject. Each append creates a restricted checksummed JSONL segment and fsyncs it and its directory. Interrupted tails remain untouched, later writes use new segments, and reads report incomplete storage rather than hiding tails or corruption. Message bodies are rejected.
+
 <a id="model-experience"></a>
 ## Model Experience
 

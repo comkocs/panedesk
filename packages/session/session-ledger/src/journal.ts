@@ -4,7 +4,8 @@ import { lstat, mkdir, open, readdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative as relativePath } from 'node:path'
 import { canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot } from './index-store.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
-import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerNodeId, LedgerWatermark } from './types.ts'
+import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
+import type { MessageCursor } from '@panedesk/dsh-message-delivery'
 
 /** Explicit local storage limits shared by every writer and scanner. */
 export interface JournalOptions extends WriterLockOptions {
@@ -328,6 +329,113 @@ export async function importSegments(root: string, source: string, options: Jour
     }, options.maxRecordBytes))
   })
   return results
+}
+
+/** Derive a stable message fact identity without including transport timestamps.
+ * @param event - Runtime node and message transition identity.
+ * @returns Deterministic identity for idempotent outbox replay.
+ */
+export function messageEventId(event: Pick<MessageLedgerEvent, 'nodeId' | 'data'>): LedgerEventId {
+  return `message/state:${digest(canonicalJson([event.nodeId, event.data.messageId, event.data.stateVersion, event.data.transition]))}` as LedgerEventId
+}
+
+function assertMessageEvent(value: unknown): asserts value is MessageLedgerEvent {
+  const event = record(value)
+  const data = record(event.data)
+  const allowed = ['messageId', 'senderSessionId', 'targetSessionId', 'priority', 'messageClass', 'state', 'revision', 'stateVersion', 'operationId', 'transition', 'observedAt', 'reason', 'firstRequestId', 'firstTurnId', 'deliveryOutcome', 'pending']
+  if (Object.keys(event).some(key => !['schemaVersion', 'eventId', 'nodeId', 'observedAt', 'kind', 'data'].includes(key))
+    || Object.keys(data).some(key => !allowed.includes(key))) throw new Error('Unexpected message ledger field')
+  if (event.schemaVersion !== 1 || event.kind !== 'message/state') throw new Error('Invalid message ledger version or kind')
+  strings(event, ['eventId', 'nodeId'])
+  strings(data, ['messageId', 'operationId'])
+  numbers(event, ['observedAt'])
+  numbers(data, ['observedAt', 'revision', 'stateVersion'])
+  if (event.observedAt !== data.observedAt || !Number.isSafeInteger(data.revision) || !Number.isSafeInteger(data.stateVersion)) throw new Error('Invalid message ledger version or time')
+  for (const key of ['senderSessionId', 'targetSessionId']) {
+    if (data[key] !== null && (typeof data[key] !== 'string' || !data[key])) throw new Error('Invalid message session identity')
+  }
+  for (const [key, values] of [
+    ['priority', ['immediate', 'steer', 'queue']],
+    ['messageClass', ['handoff', 'notice', 'reply']],
+    ['state', ['queued', 'injected', 'responded', 'withdrawn', 'invalidated', 'rejected']],
+    ['transition', ['accepted', 'rejected', 'claimed', 'appended', 'rolled-back', 'injected', 'responded', 'withdrawn', 'edited', 'reprioritized', 'invalidated', 'delivery-uncertain']],
+  ] as const) if (!values.some(item => item === data[key])) throw new Error(`Invalid message ${key}`)
+  if (data.reason !== undefined && !['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous', 'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection'].includes(String(data.reason))) throw new Error('Invalid message reason')
+  if (data.firstRequestId !== undefined) strings(data, ['firstRequestId'])
+  if (data.firstTurnId !== undefined && (!Number.isSafeInteger(data.firstTurnId) || Number(data.firstTurnId) < 0)) throw new Error('Invalid message turn')
+  if (data.pending !== undefined && typeof data.pending !== 'boolean') throw new Error('Invalid message pending flag')
+  if (data.deliveryOutcome !== undefined && !['accepted', 'rejected'].includes(String(data.deliveryOutcome))) throw new Error('Invalid message delivery outcome')
+  if (event.eventId !== messageEventId(value as MessageLedgerEvent)) throw new Error('Invalid stable message event identity')
+}
+
+/** Message scan diagnostics are independent of the call journal. */
+export interface MessageLedgerScan {
+  events: MessageLedgerEvent[]
+  complete: boolean
+  corrupt: string[]
+  tails: string[]
+}
+
+/** Read only a message node's segments, retaining incomplete and conflicting evidence.
+ * @param root - Message node directory, outside ledger/v1.
+ * @param maxRecordBytes - Maximum encoded record size.
+ * @returns Valid unique facts and explicit integrity diagnostics.
+ */
+export async function recoverMessageSegments(root: string, maxRecordBytes: number): Promise<MessageLedgerScan> {
+  const events = new Map<string, MessageLedgerEvent>()
+  const versions = new Map<string, MessageLedgerEvent>()
+  const corrupt: string[] = []
+  const tails: string[] = []
+  for (const path of await files(join(root, 'events'))) {
+    const content = await readFile(path)
+    let start = 0
+    let end: number
+    while ((end = content.indexOf(10, start)) !== -1) {
+      try {
+        const value = decode(content.subarray(start, end), maxRecordBytes)
+        assertMessageEvent(value)
+        const key = canonicalJson([value.nodeId, value.data.messageId, value.data.stateVersion])
+        const prior = events.get(value.eventId) ?? versions.get(key)
+        if (prior && canonicalJson(prior) !== canonicalJson(value)) throw new Error('Conflicting message state version')
+        events.set(value.eventId, value)
+        versions.set(key, value)
+      } catch (error) {
+        if (!(error instanceof Error)) throw error
+        corrupt.push(path)
+      }
+      start = end + 1
+    }
+    if (start !== content.length) tails.push(path)
+  }
+  return { events: [...events.values()], complete: !corrupt.length && !tails.length, corrupt, tails }
+}
+
+/** Commit one message state under the native writer lock; unequal replays reject without mutation.
+ * @param root - Separate message node directory.
+ * @param event - Body-free runtime fact with its derived stable event identity.
+ * @param options - Native lock and encoded record limits.
+ * @returns Stable acknowledgement cursor after file and directory fsync.
+ */
+export async function appendMessageUnique(root: string, event: MessageLedgerEvent, options: JournalOptions): Promise<MessageCursor> {
+  const immutable: unknown = JSON.parse(canonicalJson(event))
+  assertMessageEvent(immutable)
+  const encoded = frame(immutable, options.maxRecordBytes)
+  await ensureDirectory(root)
+  return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    const scan = await recoverMessageSegments(root, options.maxRecordBytes)
+    if (scan.corrupt.length) throw new Error('Message ledger corruption prevents further writes')
+    const prior = scan.events.find(item => item.eventId === immutable.eventId
+      || item.nodeId === immutable.nodeId && item.data.messageId === immutable.data.messageId && item.data.stateVersion === immutable.data.stateVersion)
+    if (prior && canonicalJson(prior) !== canonicalJson(immutable)) throw new Error('Conflicting message state version')
+    await syncFiles(await files(join(root, 'events')))
+    if (!prior) {
+      const directory = join(root, 'events', new Date().toISOString().slice(0, 10))
+      await ensureDirectory(directory)
+      // Never append after an interrupted tail: every committed fact owns a fresh segment.
+      await durableFile(join(directory, `${randomUUID()}.jsonl`), encoded)
+    }
+    return immutable.eventId as string as MessageCursor
+  })
 }
 
 type ArtifactRecord = { type: 'fragment'; input: LedgerArtifactAppend; path: string }
