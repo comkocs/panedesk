@@ -1726,6 +1726,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'messageLedger',
+    summary: 'Separate message namespace under the ledger directory; call-journal readers never scan it.',
+    description: 'Separate message namespace under the ledger directory; call-journal readers never scan it.',
+    methods: [
+      {
+        signature: 'nodeId?(): Promise<LedgerNodeId>',
+        description: 'Resolve the persisted local node identity when provided by this store.',
+        parameters: [],
+        returns: 'Stable identity shared with the full session ledger.',
+      },
+      {
+        signature: 'append(event: MessageLedgerEvent): Promise<MessageCursor>',
+        description: 'Append a runtime-owned fact idempotently, rejecting conflicting event identities.',
+        parameters: [{ name: 'event', description: 'message namespace envelope with schemaVersion 1.' }],
+        returns: 'durable acknowledgement cursor.',
+      },
+      {
+        signature: 'read(query: MessageQuery): Promise<MessageLedgerPage>',
+        description: 'Read only the message namespace with explicit completeness.',
+        parameters: [{ name: 'query', description: 'filters and exclusive cursor.' }],
+        returns: 'retained facts and scan completeness.',
+      },
+    ],
+  },
+  {
     key: 'officeToPdf',
     summary: 'A provider lifetime owns all converters, queued calls, and temporary files.',
     description: 'A provider lifetime owns all converters, queued calls, and temporary files.',
@@ -6921,7 +6946,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MessageLedgerStore',
-    declaration: 'export interface MessageLedgerStore {\n    append(event: MessageLedgerEvent): Promise<MessageCursor>;\n    read(query: MessageQuery): Promise<MessageLedgerPage>;\n}',
+    declaration: 'export interface MessageLedgerStore {\n    nodeId?(): Promise<LedgerNodeId>;\n    append(event: MessageLedgerEvent): Promise<MessageCursor>;\n    read(query: MessageQuery): Promise<MessageLedgerPage>;\n}',
   },
   {
     name: 'MessagePage',

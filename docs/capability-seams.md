@@ -139,6 +139,8 @@ flowchart LR
   svc_messageDelivery["ctx.messageDelivery<br/>Same-node message delivery"]
   pkg_session_ledger["session-ledger"]
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
+  svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
+  pkg_message_delivery_local["message-delivery-local"]
   pkg_ledger_query["ledger-query"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
   pkg_session_telemetry["session-telemetry"]
@@ -403,6 +405,7 @@ flowchart LR
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
   pkg_session --> svc_sessions
+  pkg_session_ledger --> svc_messageLedger
   pkg_session_ledger --> svc_sessionLedger
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
@@ -512,6 +515,7 @@ flowchart LR
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
   svc_mcpResources --> pkg_mcp_resources
+  svc_messageLedger --> pkg_message_delivery_local
   svc_officeToPdf --> pkg_client_ui_sidebar_documentpreview
   svc_otel --> pkg_host_product_telemetry_otel
   svc_otel --> pkg_session_telemetry_otel
@@ -672,6 +676,7 @@ flowchart LR
 | `ctx.productTelemetry` | `service` | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel) | - | - | - | Exports explicitly submitted analytics events through OTLP/HTTP; mounting alone collects nothing. |
 | `ctx.messageDelivery` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | - | - | Abstract delivery, receive policy, durable control, and receipt operations; no provider is registered by the scaffold. |
 | `ctx.sessionLedger` | `seam` | [`session-ledger`](../packages/session/session-ledger) | - | - | - | Abstract append-only accounting and reference-pricing operations; the scaffold supplies no storage provider. |
+| `ctx.messageLedger` | `service` | [`session-ledger`](../packages/session/session-ledger) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | Stores message facts independently of call accounting and shares the full ledger provider's persisted node identity. |
 | `ctx.ledgerQuery` | `seam` | [`ledger-query`](../packages/session/ledger-query) | - | - | - | Abstract filtering, daily summaries, and exports; the scaffold supplies no query provider. |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | The seam captures, redacts, and hands session records to one backend; nothing else consumes the service — its output leaves the process. |
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | Backends register side by side under names; data forms (domain first) mount on the hub and translate typed operations into opaque KV-unit primitives. |

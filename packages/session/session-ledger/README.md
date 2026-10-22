@@ -21,7 +21,7 @@ Durable call and lifecycle ledger service definitions. The package exposes an ab
 <a id="use-this-package"></a>
 ## Use this package
 
-Import public types from the package entry. The package is Host-only and does not provide a browser entry.
+Import public types from the package entry. The package is Host-only and does not provide a browser entry. The `/messages` plugin registers only `messageLedger`, without `sessionLedger` or run, call, and tool accounting hooks. Its optional storage and lock settings match the full provider, and `nodeId()` resolves the same persisted `ledger/v1/node-id`. Default bundles use this message-only entry; accounting profiles retain the full provider.
 
 Providers accept `Config.waitTools` and implement `registerWaitTool(name, category)` for trusted runtime classifications (`sleep`, `external-marker`, `subagent`). Runtime registrations override configured defaults; conflicting live categories reject, and the idempotent disposer releases only its registration. Unregistered tools remain `unclassified`; model output never defines a category.
 

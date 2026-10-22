@@ -16,11 +16,11 @@
       name: '@panedesk/dsh-session'
 
     - id: session-ledger
-      name: '@panedesk/dsh-session-ledger'
+      name: '@panedesk/dsh-session-ledger/messages'
 
     - id: message-delivery
       name: '@panedesk/dsh-message-delivery-local'
-      inject: [sessionLedger]
+      inject: [messageLedger]
       config:
         maxRecordBytes: 1048576
         maxContentBytes: 65536

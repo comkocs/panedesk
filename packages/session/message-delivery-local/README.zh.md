@@ -20,7 +20,7 @@ kind: "package-reference"
 <a id="dev-note"></a>
 ## 开发备注
 
-配置可选提供 `nodeId`；缺省时启动通过 `sessionLedger.nodeId()` 解析持久节点身份。身份不可用时诊断并停用投递，不阻止宿主或旧智能体路径启动。配置显式提供 `maxRecordBytes`、`maxContentBytes`、`maxBatchSize`、`lockTimeoutMs`、`lockRetryMs`、`scanIntervalMs` 与 `watch`；可选的 `dshHome` 覆盖产品家目录。限额均为正整数，扫描间隔不得超过一秒。与 `agents`、`sessions` 和 `sessionPersistence` 一同挂载；可选的 `subprocess` 与消息账本提供方提供平台身份和回执记账。
+配置可选提供 `nodeId`；缺省时，若存在 `messageLedger` 服务，启动通过其 `nodeId()` 解析持久节点身份；否则通过 `sessionLedger.nodeId()` 解析。身份不可用时诊断并停用投递，不阻止宿主或旧智能体路径启动。配置显式提供 `maxRecordBytes`、`maxContentBytes`、`maxBatchSize`、`lockTimeoutMs`、`lockRetryMs`、`scanIntervalMs` 与 `watch`；可选的 `dshHome` 覆盖产品家目录。限额均为正整数，扫描间隔不得超过一秒。与 `agents`、`sessions` 和 `sessionPersistence` 一同挂载；可选的 `subprocess` 与消息账本提供方提供平台身份和回执记账。
 
 每条记录采用排他临时文件创建、带版本及长度／摘要的封装、文件同步、原子发布及 POSIX 目录同步。每目标原生锁串行发布，并以明确的跳过区间恢复高水位。Linux 信箱目录与文件要求仅属主可访问，并拒绝符号链接。产品家目录必须属于当前用户、不能是符号链接，且不能允许其他用户写入；仅当目录组是当前用户主组，且系统名称服务枚举确认没有其他附加成员或以该组为主组的用户时，允许组写入，并在提供方初始化时诊断一次。组成员信息不可查时拒用信箱。不修改既有权限。Windows 在初始化存储前核验继承的 DACL 授权；其他主体的读写授权会被拒绝。未知进程身份保持不可用，绝不据此回收会话。
 

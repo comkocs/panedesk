@@ -21,7 +21,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
+从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。`/messages` 插件只注册 `messageLedger`，不注册 `sessionLedger`，也不挂运行、调用和工具记账监听。可选存储与锁设置与完整提供方一致，`nodeId()` 解析同一份持久化 `ledger/v1/node-id`。默认 bundle 使用此消息专用入口；记账 profile 保留完整提供方。
 
 提供方接受 `Config.waitTools`，并实现 `registerWaitTool(name, category)`，登记可信运行时分类（`sleep`、`external-marker`、`subagent`）。运行时登记优先于配置默认值；存活登记的类别冲突时拒绝，幂等释放函数只释放自己的登记。未登记工具保持 `unclassified`；模型输出不得定义类别。
 

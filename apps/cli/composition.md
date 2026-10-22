@@ -22,7 +22,7 @@ flowchart LR
   cfg --> plugin_dsh_base_deepseek_llm_api_extensions
   plugin_dsh_base_session["session<br/>@panedesk/dsh-session"]
   cfg --> plugin_dsh_base_session
-  plugin_dsh_base_session_ledger["session-ledger<br/>@panedesk/dsh-session-ledger"]
+  plugin_dsh_base_session_ledger["session-ledger<br/>@panedesk/dsh-session-ledger/messages"]
   cfg --> plugin_dsh_base_session_ledger
   plugin_dsh_base_message_delivery["message-delivery<br/>@panedesk/dsh-message-delivery-local"]
   cfg --> plugin_dsh_base_message_delivery
@@ -217,7 +217,7 @@ flowchart LR
 | `llm` | `@panedesk/dsh-llm` |
 | `deepseek-llm-api-extensions` | `@panedesk/dsh-deepseek-llm-api-extensions` |
 | `session` | `@panedesk/dsh-session` |
-| `session-ledger` | `@panedesk/dsh-session-ledger` |
+| `session-ledger` | `@panedesk/dsh-session-ledger/messages` |
 | `message-delivery` | `@panedesk/dsh-message-delivery-local` |
 | `instruction-subscriptions` | `@panedesk/dsh-instruction-subscriptions` |
 | `session-log-deepseek` | `@panedesk/dsh-session-log-deepseek` |

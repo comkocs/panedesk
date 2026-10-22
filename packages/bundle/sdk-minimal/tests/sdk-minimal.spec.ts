@@ -60,7 +60,7 @@ describe('dsh-sdk-minimal bundle', () => {
       ['agent-loop', '@panedesk/dsh-agent-loop'],
       ['persistent-bash', '@panedesk/dsh-tool-bash-persistent'],
       ['persistent-pwsh', '@panedesk/dsh-tool-pwsh-persistent'],
-      ['session-ledger', '@panedesk/dsh-session-ledger'],
+      ['session-ledger', '@panedesk/dsh-session-ledger/messages'],
       ['message-delivery', '@panedesk/dsh-message-delivery-local'],
       ['instruction-subscriptions', '@panedesk/dsh-instruction-subscriptions'],
       ['sessions', '@panedesk/dsh-session-persistence-jsonl'],

@@ -141,6 +141,8 @@ flowchart LR
   svc_messageDelivery["ctx.messageDelivery<br/>Same-node message delivery"]
   pkg_session_ledger["session-ledger"]
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
+  svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
+  pkg_message_delivery_local["message-delivery-local"]
   pkg_ledger_query["ledger-query"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
   pkg_session_telemetry["session-telemetry"]
@@ -405,6 +407,7 @@ flowchart LR
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
   pkg_session --> svc_sessions
+  pkg_session_ledger --> svc_messageLedger
   pkg_session_ledger --> svc_sessionLedger
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
@@ -514,6 +517,7 @@ flowchart LR
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
   svc_mcpResources --> pkg_mcp_resources
+  svc_messageLedger --> pkg_message_delivery_local
   svc_officeToPdf --> pkg_client_ui_sidebar_documentpreview
   svc_otel --> pkg_host_product_telemetry_otel
   svc_otel --> pkg_session_telemetry_otel
@@ -674,6 +678,7 @@ flowchart LR
 | `ctx.productTelemetry` | `service` | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel) | - | - | - | 通过 OTLP/HTTP 发送显式提交的分析事件；仅挂载插件不会采集信息。 |
 | `ctx.messageDelivery` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | - | - | 抽象的投递、接收策略、持久控制与回执操作；骨架不注册提供方。 |
 | `ctx.sessionLedger` | `seam` | [`session-ledger`](../packages/session/session-ledger) | - | - | - | 抽象的仅追加记账与参考定价操作；骨架不提供存储实现。 |
+| `ctx.messageLedger` | `service` | [`session-ledger`](../packages/session/session-ledger) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | 独立于调用记账存储消息事实，并与完整账本提供方共用持久节点标识。 |
 | `ctx.ledgerQuery` | `seam` | [`ledger-query`](../packages/session/ledger-query) | - | - | - | 抽象的过滤、每日汇总与导出；骨架不提供查询实现。 |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | 该 seam 捕获会话记录、进行脱敏并交给一个后端；没有其他组件消费该服务，其输出会离开当前进程。 |
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | 各后端以不同名称并列注册；数据形态（领域优先）挂载到枢纽上，并将类型化操作转换为不透明的 KV 单元原语。 |

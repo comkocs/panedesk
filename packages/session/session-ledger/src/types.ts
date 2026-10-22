@@ -26,6 +26,10 @@ export interface MessageLedgerPage {
 
 /** Separate message namespace under the ledger directory; call-journal readers never scan it. */
 export interface MessageLedgerStore {
+  /** Resolve the persisted local node identity when provided by this store.
+   * @returns Stable identity shared with the full session ledger.
+   */
+  nodeId?(): Promise<LedgerNodeId>
   /**
    * Append a runtime-owned fact idempotently, rejecting conflicting event identities.
    * @param event - message namespace envelope with schemaVersion 1.

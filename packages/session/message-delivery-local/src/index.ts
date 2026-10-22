@@ -168,11 +168,16 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   private async initialize(): Promise<void> {
     let node: string | undefined
-    try { node = this.config.nodeId ?? await this.ctx.get('sessionLedger')?.nodeId() } catch (error) {
-      throw new MailboxUnavailableError('Message delivery unavailable: session ledger node identity could not be resolved', { cause: error })
+    try {
+      const messages = this.ctx.get('messageLedger')
+      node = this.config.nodeId ?? (messages
+        ? await messages.nodeId?.()
+        : await this.ctx.get('sessionLedger')?.nodeId())
+    } catch (error) {
+      throw new MailboxUnavailableError('Message delivery unavailable: ledger node identity could not be resolved', { cause: error })
     }
     if (node === undefined) {
-      throw new MailboxUnavailableError('Message delivery unavailable: session ledger node identity could not be resolved')
+      throw new MailboxUnavailableError('Message delivery unavailable: ledger node identity could not be resolved')
     }
     this.nodeId = component(node) as NodeId
     this.mailbox = new FileMailbox({ ...this.config, home: resolveDshHome(this.config.dshHome), nodeId: this.nodeId })

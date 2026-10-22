@@ -495,6 +495,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Abstract append-only accounting and reference-pricing operations; the scaffold supplies no storage provider.',
   },
   {
+    key: 'messageLedger',
+    pkg: 'session-ledger',
+    title: 'Durable message ledger',
+    mode: 'service',
+    consumers: ['message-delivery-local'],
+    note: 'Stores message facts independently of call accounting and shares the full ledger provider\'s persisted node identity.',
+  },
+  {
     key: 'ledgerQuery',
     pkg: 'ledger-query',
     title: 'Read-only ledger queries',

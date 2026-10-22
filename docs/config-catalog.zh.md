@@ -2991,7 +2991,7 @@ export interface JsonRpcConfig {
 
 ## `@panedesk/dsh-session-ledger`
 
-- `source`: [`packages/session/session-ledger/src/index.ts:32`](../packages/session/session-ledger/src/index.ts)
+- `source`: [`packages/session/session-ledger/src/index.ts:33`](../packages/session/session-ledger/src/index.ts)
 
 ```ts config-catalog
 /** Trusted configuration accepted by concrete ledger providers. */

@@ -185,6 +185,37 @@ async execute(args: readonly string[]): Promise<{ code: number; output: unknown 
 
 Source: [`packages/session/ledger-query/src/index.ts`](../../packages/session/ledger-query/src/index.ts)
 
+<a id="ctxmessageledger--messageledgerstore"></a>
+
+### `ctx.messageLedger` — `MessageLedgerStore`
+
+Separate message namespace under the ledger directory; call-journal readers never scan it.
+
+```ts cordis-catalog
+/** Resolve the persisted local node identity when provided by this store.
+ * @returns Stable identity shared with the full session ledger.
+ */
+nodeId?(): Promise<LedgerNodeId>
+
+/**
+ * Append a runtime-owned fact idempotently, rejecting conflicting event identities.
+ * @param event - message namespace envelope with schemaVersion 1.
+ * @returns durable acknowledgement cursor.
+ */
+append(event: MessageLedgerEvent): Promise<MessageCursor>
+
+/**
+ * Read only the message namespace with explicit completeness.
+ * @param query - filters and exclusive cursor.
+ * @returns retained facts and scan completeness.
+ */
+read(query: MessageQuery): Promise<MessageLedgerPage>
+```
+
+Types: [MessageQuery](persistence.md)
+
+Source: [`packages/session/session-ledger/src/types.ts`](../../packages/session/session-ledger/src/types.ts)
+
 <a id="ctxsessionledger--sessionledger-abstract-seam"></a>
 
 ### `ctx.sessionLedger` — `SessionLedger` (abstract seam)

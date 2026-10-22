@@ -7,13 +7,14 @@ import type {} from '@panedesk/dsh-tools'
 import {
   appendUnique, recoverSegments, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
-  appendMessageUnique, recoverMessageSegments,
+  appendMessageUnique,
 } from './journal.ts'
 import { withWriterLock, LedgerUnavailableError } from './lock.ts'
 import { foldLedger, foldMessages, joinSessionLedgers, exportMessages } from './projection.ts'
 import { loadPriceTable, priceUsage } from './pricing.ts'
 import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, LedgerMessagePage, LedgerSessionPage } from './types.ts'
-import type { MessageCursor, MessageQuery } from '@panedesk/dsh-message-delivery'
+import type { MessageQuery } from '@panedesk/dsh-message-delivery'
+import { readMessagePage } from './message-reader.ts'
 export { LedgerUnavailableError } from './lock.ts'
 export { messageEventId } from './journal.ts'
 import { Context, Service } from '@panedesk/cordis'
@@ -441,28 +442,7 @@ export class JournalSessionLedger extends SessionLedger {
     await ensureDirectory(root)
     return {
       append: async event => appendMessageUnique(root, event, this.options),
-      read: async query => withWriterLock(join(root, 'writer.lock'), this.options, async () => {
-        const scan = await recoverMessageSegments(root, this.options.maxRecordBytes)
-        const events = scan.events.sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId))
-        const cursorIndex = query.cursor === undefined ? -1 : events.findIndex(event => event.eventId === String(query.cursor))
-        if (query.cursor !== undefined && cursorIndex < 0) throw new Error('Unknown message ledger cursor')
-        if (query.limit !== undefined && (!Number.isSafeInteger(query.limit) || query.limit <= 0)) throw new Error('Message limit must be a positive safe integer')
-        const selected = events.slice(cursorIndex + 1).filter((event) => {
-          const data = event.data
-          return (query.nodeId === undefined || event.nodeId === query.nodeId)
-            && (query.sessionId === undefined || data.senderSessionId === query.sessionId || data.targetSessionId === query.sessionId)
-            && (query.senderSessionId === undefined || data.senderSessionId === query.senderSessionId)
-            && (query.targetSessionId === undefined || data.targetSessionId === query.targetSessionId)
-            && (query.from === undefined || data.observedAt >= query.from)
-            && (query.to === undefined || data.observedAt < query.to)
-            && (query.states === undefined || query.states.includes(data.state))
-            && (query.messageClasses === undefined || query.messageClasses.includes(data.messageClass))
-        })
-        const page = selected.slice(0, query.limit)
-        const last = page.at(-1)
-        return { events: page, complete: scan.complete,
-          ...last && page.length < selected.length ? { nextCursor: last.eventId as string as MessageCursor } : {} }
-      }),
+      read: async query => readMessagePage(root, this.options, query),
     }
   }
 }
