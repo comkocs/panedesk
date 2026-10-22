@@ -22,24 +22,27 @@ sequenceDiagram
   Agent->>Driver: queued work wakes driver
   Driver-->>SDK: <code>agent/status</code> running
   Driver->>Session: <code>turn/start</code>
-  Note over Agent,Driver: claim pending next-step input plus one queued prompt
+  Driver->>Hooks: <code>agent/input-preparing</code> serial preparation
+  Note over Agent,Driver: claim eligible immediate, steer, then queue input, passive input needs a natural turn
   Driver-->>SDK: <code>agent/inbox/spliced</code> pure deletion
   Driver-->>SDK: <code>agent/inbox/claimed</code> { message, turn } per message
   Driver->>Prompt: <code>system-prompt/assemble</code> waterfall
   Driver->>Hooks: <code>agent/pre-step</code> waterfall
   Hooks-->>Driver: authoritative reject or enter(messages)
   alt proposed step rejected, first batch empty, or pre-step failed
-    Driver-->>Driver: claimed batch stays removed, the open turn spends no step
+    Driver-->>Driver: restore unappended scheduled claims, preserve legacy removal semantics
   else enter proposed step
   Driver->>Session: <code>step/start</code>
   Driver->>Hooks: <code>agent/request</code> waterfall
   Driver->>LLM: prepareCall(config, signal)
-  Note over Driver,LLM: cancellation during either async phase commits neither system nor users
+  Note over Driver,LLM: cancellation before append restores scheduled claims without committing users
   Note over Driver,Session: synchronous admission using the prepared call capability
   Driver->>Session: <code>system/message</code> ordered per-node reconciliation
   Driver->>Session: <code>user/message</code> per entered message
   Driver->>Session: <code>request/header</code> and <code>request/context</code> as needed
   Driver->>Driver: derive and freeze request from the log
+  Note over Driver,Session: appended input remains claimed after synchronous construction failure
+  Driver-->>Hooks: <code>agent/input-dispatching</code> synchronous first dispatch
   Driver->>LLM: bound prepared call through <code>llm/stream</code> waterfall
   LLM-->>Driver: StreamChunk*
   Driver-->>SDK: <code>agent/assistant-stream</code> chunk*
@@ -65,11 +68,12 @@ sequenceDiagram
     end
   end
   Driver->>Session: <code>step/end</code>
-  opt natural stop and next-step inbox empty
+  opt natural stop and no eligible active next-step input
     Driver->>Hooks: <code>agent/turn-stopping</code> serial terminal checkpoint
   end
-  opt next-step input is pending
-    Driver-->>Driver: claim pending next-step input
+  opt tools owe a request or eligible active next-step input is pending
+    Driver->>Hooks: <code>agent/input-preparing</code> serial preparation
+    Driver-->>Driver: claim eligible next-step input
     Driver-->>SDK: <code>agent/inbox/claimed</code> { message, turn } per message
     Driver->>Hooks: <code>agent/pre-step</code> waterfall
     Hooks-->>Driver: authoritative reject or enter(messages)

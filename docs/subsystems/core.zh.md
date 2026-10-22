@@ -222,6 +222,13 @@ interface Inbox {
   /** Input awaiting the next step boundary. */
   readonly nextStep: readonly UserMessage[]
 
+  /**
+   * Inspect reservation and first-dispatch state when supported by the driver.
+   * @param messageId - identified input.
+   * @returns its current admission stage; legacy drivers omit this capability.
+   */
+  inputState?(messageId: MessageId): 'queued' | 'claimed' | 'injected' | 'missing'
+
   /** Durably cancel all pending input, clearing next-step before next-turn. */
   clear(): void
 
@@ -276,7 +283,7 @@ interface Inbox {
 type InboxTarget = 'next-turn' | 'next-step'
 ```
 
-每个待处理入队项就是其 `UserMessage`；`MessageId` 是唯一标识。结构化 `Inbox` 方法会记录规范化的持久 `agent/inbox/spliced` 变更，并拒绝重复的待处理 id。`replace(messageId, newMessage)` 与 `remove(messageId)` 通过 `MessageId` 跨两份列表定位待处理消息；替换可以改变标识，并先将旧消息作为 discarded 发布，再将新消息作为 inserted 发布。普通删除和 `clear()` 都表示取消。在步骤边界，dsh-agent-loop 包内部的 `ReactLoopInbox` 会通过纯删除 splice 移除拟进入步骤的批次——全部 `next-step` 输入，外加轮次边界上的一条 `next-turn` 消息——且不发出 discarded 通知，随后逐条发出 claimed 通知。仅供循环使用的待处理检测与领取操作不属于 `Agent.inbox`。`AgentLoop` 服务在发布工厂之前注册标准 `inbox` 投影；其 cell 是唯一 live 状态，同一份折叠在没有 Agent 时也服务于冷消费方。该 fold 会拒绝不安全或越界的 splice 坐标，以及跨两份列表重复的标识，并通过事件 seq 指出格式错误的持久历史。跟踪单条消息的消费方使用精确的 `agent/inbox/inserted`、`claimed` 与 `discarded` 通知。
+每个待处理入队项就是其 `UserMessage`；`MessageId` 是唯一标识。结构化 `Inbox` 方法会记录规范化的持久 `agent/inbox/spliced` 变更，并拒绝重复的待处理 id。`replace(messageId, newMessage)` 与 `remove(messageId)` 通过 `MessageId` 跨两份列表定位待处理消息；替换可以改变标识，并先将旧消息作为 discarded 发布，再将新消息作为 inserted 发布。普通删除和 `clear()` 都表示取消。在步骤边界，`ReactLoopInbox` 先等待生产者准备，按 `immediate`、`steer`、`queue` 顺序选择符合条件的输入，同档先进先出，再通过不发出 discarded 通知的纯删除 splice 移除拟进入步骤的批次。被动输入既不唤醒，也不独立续跑轮次；知会等待自然轮次。旧输入保留原有两列表调度。调度认领记录 `agent/input/transition`：历史追加前取消会恢复原身份与顺序，已追加的输入则保持已认领，直到同步首次发出。逐条 claimed 通知不代表发出。仅供循环使用的待处理检测与领取操作不属于 `Agent.inbox`。`AgentLoop` 服务在发布工厂之前注册标准 `inbox` 投影；其 cell 是唯一 live 状态，同一份折叠在没有 Agent 时也服务于冷消费方。该 fold 会拒绝不安全或越界的 splice 坐标，以及跨两份列表重复的标识，并通过事件 seq 指出格式错误的持久历史。跟踪单条消息的消费方使用精确的 `agent/inbox/inserted`、`claimed` 与 `discarded` 通知。
 
 取消：
 
@@ -343,7 +350,7 @@ type PreStepDecision =
 type RequestErrorAction = { kind: 'retry' } | undefined
 ```
 
-`agent/pre-step` 是请求推导前唯一的 waterfall（瀑布式）监听器链。`agent/turn-stopping` 在轮次没有工具或 steering（中途引导）后续时运行，先于最后一次 steering 排空。
+`agent/pre-step` 控制请求推导前的准入；串行 `agent/input-preparing` 在每次认领前运行。`agent/turn-stopping` 在不欠工具响应且下一步骤列表为空时运行，关闭前再检查该列表。带调度信息的 `queue` 输入等待轮次边界；被动知会不启动轮次。
 
 `agent/created` 携带 `SessionStartSource`（会话生命周期为何开始；桥接层据此匹配其 SessionStart）：
 

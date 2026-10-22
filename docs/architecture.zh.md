@@ -112,13 +112,15 @@ turn/end
 
 输入通过同一个 inbox 到达驱动器。带调度信息的输入按 `immediate`、`steer`、`queue` 排列符合条件的消息，同档先进先出；`queue` 等待轮次边界，`steer` 加入下一步骤而不取消当前输出。被动输入既不唤醒，也不独立续跑轮次；符合条件的被动知会随下一次自然开启的轮次进入。旧 `followup`、`steer`、`inject` 保留原调度行为。AgentLoop 的持久 `inbox` 投影使待处理输入在没有活跃 Agent 时仍可读取。
 
-每次认领之前，串行 `agent/input-preparing` 监听器可以等待生产方，并为该边界入队输入；准备失败则输入不被认领。带调度信息的输入分为认领与发出两个阶段，由 `agent/input/transition` 记录。认领到追加 `user/message` 之间取消时，消息保留原身份和顺序，回到同档队头，之后可再次撤回。追加后若同步构造请求失败，消息留在历史中并保持已认领：不做空表面替换，也不重新入队。下一次包含该消息的请求在调用 stream 入口前同步提交首次发出并发布 `agent/input-dispatching`，中间不插入 await。发出表示这个本地入口，不代表远端已收到。
+串行 `agent/input-preparing` 监听器可以在每次认领前等待生产方并入队；失败则输入不被认领。`agent/input/transition` 分别记录认领与发出。追加 `user/message` 前取消会保留身份和先进先出位置，回到同档队头，允许再次撤回。追加后同步构造请求失败则保留历史和已认领状态，不替换表面或重新入队。下一次包含该消息的请求在 stream 入口前提交首次发出并发布 `agent/input-dispatching`，中间不插入 await。发出表示本地入口，不代表远端已收到。
 
-`agent/pre-step` 决定接纳的输入。监听器可以改写或拒绝已领取消息；首次领取被拒绝或为空时，关闭不含步骤的持久轮次。enter 决策可设置 `startsRequestSeries`：循环记录新的 `request/header`（原因为 `series`，或在封装同时变化时为携带 `startsSeries: true` 的 `change`）。包装监听器通过 `{ ...decision, messages }` 保留该声明。组装与 `step/start` 之后，`agent/request` 和 `prepareCall()` 先解析实际路由，再提交系统提示词与已接纳用户消息；在任一异步阶段取消都不会提交这两者。提示词准入依据已准备调用的能力，而非先前的 `request/context`。每次尝试刷新已注册运行时事实、协调绑定的提示词、仅接纳一次用户消息并恢复被移除的运行时上下文、按需记录 header/context，再冻结请求并通过绑定调用发起流式请求。重试不重复组装或 `agent/pre-step`。附接后的 surface 替换和图片省略决定开启新请求序列，包括恢复后的首次 pre-step 中发生的替换；未变化的恢复延续序列。首次接纳的步骤在用户消息之前预留系统头节点，即使提示词为空（不产生协议消息）。提示词仅通过 `system/message` 历史传递：空渲染文本清除所有生效的系统节点，模型不再看到旧提示词；具备能力的路由可在缓存前缀之后追加非空更新，包括同时发生的受支持工具更新；不具备能力的路由与新请求序列将非空提示词文本归并到首个系统节点，并为非空的后续系统节点记录空内容替换（[决策](../.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md)；[决策规则](../packages/core/agent-loop/README.zh.md#understand-the-implementation)）。
+`agent/pre-step` 可以改写或拒绝输入，并声明 `startsRequestSeries`；包装监听器保留该决策。首次认领被拒绝或为空时，轮次不产生步骤就关闭。`step/start` 之后，`agent/request` 与 `prepareCall()` 先解析路由，再提交系统或用户消息；准备期间取消则两者都不提交。请求从日志历史派生；重试复用组装结果，不重复 pre-step 或用户消息准入。[Agent-loop](../packages/core/agent-loop/README.zh.md#understand-the-implementation)负责基于能力的提示词协调、运行时上下文恢复和请求序列规则。
 
 循环发送不可变请求，同时保持取消有效，仅对完全冻结的对象复用冻结证据。主动 `immediate` 输入只以 `interjection` 中断目标 agent 的当前轮次，保留待收输入和 assistant 部分输出，并优先续跑；不取消子代理或后台任务。闲态输入不制造空取消。[Agent-loop](../packages/core/agent-loop/README.zh.md) 负责请求构建与取消原因。
 
 失败步骤会[记录缺失的工具结果](../packages/core/agent-loop/README.zh.md#understand-the-implementation)。插话保留已完成结果，并以已有输出和取消详情结算已开始的调用；未派发的调用得到跳过结果。每个已记录调用都有一个结果，不把未知的外部副作用描述成已回滚。取消仍等待已开始的工具结算。
+
+[本地消息投递](../packages/session/message-delivery-local/README.zh.md)将同节点发送与控制原子发布为信箱文件。只有持有收件会话租约的宿主裁决准入与撤回。已关收件人保留待收消息；恢复时先应用控制，再认领输入。持久回执先于通知，消息账本记录与调用记账分开。SDK、ACP、CLI 扩展共用该服务；新发送缺省 steer，旧 prompt 方法保持原行为。
 
 详情见[时序图](agent-lifecycle.zh.md)、[工具流水线](tool-execution-pipeline.zh.md)和[取消与错误恢复](subsystems/core.zh.md#the-agent-handle)。
 
@@ -126,7 +128,7 @@ turn/end
 
 会话日志是模型所见上下文的来源。`deriveMessages()` 从中投影出模型历史。每个 `assistant/message` 都嵌入产生其组装内容的精确紧凑带时间 stream；`assistant/attempt` 保留已到达 settlement 的失败、重试、取消与 stream error attempt，且不添加模型历史。fork、恢复、transcript（文本记录）、遥测与持久化都从这些持久 settlement 派生，实时 UI 增量则来自 `agent/assistant-stream`；如果进程在 settlement 前硬中断，则不会留下持久 attempt stream（见[决策](../.agents/notes/implemented/architecture/2026-09-01-v2-embedded-assistant-streams.zh.md)）。
 
-Session 消费方只了解当前逻辑格式。仅 header 的 `stat` 与 `list` 会重新扫描每个 Session 目录，选择数值最高的规范 generation，并在不加载事件或发布后继的情况下转换受支持的历史 header。已存储 Session 的 `open` 选择同一 generation，拒绝未来版本，或只 Decode 并组合一次构建时静态确定的相邻迁移链，再返回经过校验的当前逻辑事件。只读 open 直接使用这份内存结果，不发布后继；写 open 则先编码、校验并在未改变源的旁边排他发布最终版本命名的后继。未被后续事件封住的普通中断尾部仍由句柄消费方修复；只有在后续 `turn/start` 已经封住一种有限的已发布 restart 时，migration 才会插入缺失的 interrupted `turn/end`。JSONL v0 使用 `session.jsonl[.zstd]`，v1 及后续版本使用小写 `session.vN.jsonl[.zstd]`；已提交 generation 路径绝不重命名、替换或删除。JSONL provider 负责物理 framing、压缩、generation 选择与排他发布，每个相邻迁移包只负责一个 `vN -> vN+1` 步骤（[决策](../.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md)）。
+Session 消费方使用当前逻辑格式。[JSONL 提供方](../packages/session/session-persistence-jsonl/README.zh.md)选择最高规范代际，并负责帧封装、压缩与排他发布。相邻迁移包转换历史数据；只读打开不发布，写打开则在不变的历史旁发布经过校验的后继。未来版本会被拒绝，已提交代际绝不替换或删除（[决策](../.agents/notes/implemented/architecture/2026-08-31-released-session-format-migrations.zh.md)）。
 
 **模型可见即已记录。** 每个模型请求都必须能从日志重建。新增模型可见输入需要会话事件。修改现有消息内容的插件注册[纯消息投影](subsystems/session.zh.md#plugin-owned-message-projections)，独立读取器显式传入相同的处理器。 工具变更不依赖能力；[Session 工具历史](../packages/core/session/README.zh.md)提供提供方声明。
 

@@ -31,7 +31,7 @@ Each record uses exclusive temporary creation, a versioned length/digest envelop
 
 #### What the model sees
 
-Delivered messages retain the sender-minted identity and enter the model as user input. Invalidation retains the original history and queues a separate steer notification containing the original identity and reason. Receipts never enter the inbox.
+Delivered messages retain the sender-minted identity and enter the model through `user/message`. Invalidation retains the original history and queues a separate steer notification containing the original identity and reason. Receipts never enter the inbox.
 
 #### Token effect
 

@@ -218,6 +218,13 @@ interface Inbox {
   /** Input awaiting the next step boundary. */
   readonly nextStep: readonly UserMessage[]
 
+  /**
+   * Inspect reservation and first-dispatch state when supported by the driver.
+   * @param messageId - identified input.
+   * @returns its current admission stage; legacy drivers omit this capability.
+   */
+  inputState?(messageId: MessageId): 'queued' | 'claimed' | 'injected' | 'missing'
+
   /** Durably cancel all pending input, clearing next-step before next-turn. */
   clear(): void
 
@@ -272,7 +279,7 @@ interface Inbox {
 type InboxTarget = 'next-turn' | 'next-step'
 ```
 
-Every pending occurrence is its `UserMessage`; `MessageId` is the sole identity. The structural `Inbox` methods record normalized durable `agent/inbox/spliced` mutations and reject duplicate pending ids. `replace(messageId, newMessage)` and `remove(messageId)` locate the pending message across both lists; replacement may change identity and emits the old message as discarded followed by the new message as inserted. Ordinary removals and `clear()` are cancellations. At a step boundary, dsh-agent-loop's package-internal `ReactLoopInbox` removes the proposed batch — all `next-step` input plus, at a turn boundary, one `next-turn` message — through pure deletion splices without discarded notifications, then emits per-message claimed notifications. Loop-only pending detection and claiming are not part of `Agent.inbox`. The `AgentLoop` service registers the standard `inbox` projection before publishing its factory; its cell is the sole live state, and the same fold serves cold consumers even when no Agent exists. The fold rejects unsafe or out-of-range splice coordinates and duplicate identities across both lists, identifying malformed durable history by event seq. Consumers following one message use the exact `agent/inbox/inserted`, `claimed`, and `discarded` notifications.
+Every pending occurrence is its `UserMessage`; `MessageId` is the sole identity. The structural `Inbox` methods record normalized durable `agent/inbox/spliced` mutations and reject duplicate pending ids. `replace(messageId, newMessage)` and `remove(messageId)` locate the pending message across both lists; replacement may change identity and emits the old message as discarded followed by the new message as inserted. Ordinary removals and `clear()` are cancellations. At a step boundary, `ReactLoopInbox` prepares producers, selects eligible input in `immediate`, `steer`, then `queue` order with FIFO within each priority, and removes the proposed batch through pure deletion splices without discarded notifications. Passive input neither wakes nor independently continues a turn; notices wait for a natural turn. Legacy input keeps its two-list scheduling. Scheduled claims record `agent/input/transition`: cancellation before history append restores their identities and ordering, while appended input remains claimed until synchronous first dispatch. Per-message claimed notifications do not mean dispatch. Loop-only pending detection and claiming are not part of `Agent.inbox`. The `AgentLoop` service registers the standard `inbox` projection before publishing its factory; its cell is the sole live state, and the same fold serves cold consumers even when no Agent exists. The fold rejects unsafe or out-of-range splice coordinates and duplicate identities across both lists, identifying malformed durable history by event seq. Consumers following one message use the exact `agent/inbox/inserted`, `claimed`, and `discarded` notifications.
 
 Cancellation:
 
@@ -335,7 +342,7 @@ type PreStepDecision =
 type RequestErrorAction = { kind: 'retry' } | undefined
 ```
 
-`agent/pre-step` is the only waterfall listener chain before request derivation. `agent/turn-stopping` runs when a turn has no tool or steering continuation, before one final steering drain.
+`agent/pre-step` controls admission before request derivation; serial `agent/input-preparing` runs before each claim. `agent/turn-stopping` runs when no tool response is owed and the next-step list is empty, then rechecks that list before closing. Scheduled `queue` input waits for a turn boundary; passive notices do not start a turn.
 
 `agent/created` carries a `SessionStartSource` (why the session lifecycle began; a bridge keys its SessionStart matcher on it):
 
