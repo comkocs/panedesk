@@ -203,6 +203,18 @@ export interface LedgerRunStart extends LedgerContext {
   runId: LedgerRunId
   startedAt: number
   definition?: string
+  /** Original enforced policy, retained outside the Session log for cold restoration. */
+  executionPolicy?: {
+    readonly provider: string
+    readonly model: string
+    readonly reasoningEffort: string
+    readonly allowedTools: readonly string[]
+    readonly rulesId: string
+    readonly version: string
+    readonly digest: string
+  }
+  /** Canonical executionPolicy JSON SHA-256; required evidence for controlled restoration. */
+  executionPolicyDigest?: string
   effectiveModel?: string
   processIdentity?: LedgerProcessIdentity
   launchState: 'pending' | 'started'

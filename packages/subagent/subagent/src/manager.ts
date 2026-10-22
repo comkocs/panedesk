@@ -38,6 +38,10 @@ import type {
   SubagentSendMessageOptions, SubagentResult, ResolvedSubagentStartRequest,
 } from './types.ts'
 import { attachStructuredRuntime } from './structured.ts'
+import { definitionOptions, installExecutionPolicy, resolveExecutionPolicy } from './execution-policy.ts'
+import type { PresetExecutionPolicy } from '@panedesk/dsh-agent-preset-registry'
+import { awaitChildWork } from './lifecycle.ts'
+import { restoreExecutionEvidence } from './restoration.ts'
 import type { StructuredAttachment } from './structured.ts'
 import type { SubagentDelivery } from './control-types.ts'
 import { ActivationPool, ChildLock, activationAgent, captureLocalResult, observeLocalFailure, requireLocalActivation } from './activation.ts'
@@ -96,6 +100,8 @@ type MaterializeInputs = MaterializeBase & (
       descriptor: SubagentDescriptorData
     }
     agentOptions: AgentOptions
+    request?: SubagentStartRequest
+    executionPolicy?: PresetExecutionPolicy
     composition: ChildComposition
     outputSchema?: ObjectJsonSchema | undefined
   }
@@ -255,7 +261,7 @@ export class SubagentManager {
       const pending = [...this.materializations].filter(item => item.lineage.includes(parent))
       const children = [...this.resident.values()].filter(item => activationAgent(item) !== parent && item.ancestry.has(parent))
       observed ||= children.some(item => item.kind === 'local' && item.handle.agent.status !== 'idle')
-      await Promise.all(children.flatMap(item => item.kind === 'local' ? [item.handle.agent.whenIdle()] : []))
+      await awaitChildWork(this.ctx, parent, children.flatMap(item => item.kind === 'local' ? [item.handle.agent.whenIdle()] : []))
       const waits: Promise<unknown>[] = pending.map(item => item.settled)
       for (const item of children) {
         if (item.kind === 'external' || item.closing !== undefined) {
@@ -278,7 +284,7 @@ export class SubagentManager {
       }
       if (waits.length > 0) {
         observed = true
-        await Promise.all(waits)
+        await awaitChildWork(this.ctx, parent, waits)
         continue
       }
       // A descendant can be published while whenIdle follows another child.
@@ -408,6 +414,31 @@ export class SubagentManager {
     // but the service is also callable outside a turn.
     const releaseHold = this.holdOwnership(parent, childId)
     try {
+      const policy = await resolveExecutionPolicy(parent, request.agentPreset)
+      let definedOptions: AgentOptions | undefined
+      try { definedOptions = definitionOptions(request.agentOptions, policy) }
+      catch (error) {
+        if (policy !== undefined) {
+          const observer = this.host.observeActivation(spec.provider, childId, parent)
+          await observer.prepare?.({ ...request, signal: spec.signal,
+            agentOptions: { provider: policy.provider, model: policy.model, reasoningEffort: ReasoningEffortId(policy.reasoningEffort) },
+          }, policy)
+          for (const field of ['provider', 'model', 'reasoningEffort'] as const) {
+            const requested = request.agentOptions?.[field]
+            if (requested !== undefined && requested !== policy[field]) {
+              observer.deny?.(field === 'reasoningEffort' ? 'effort' : 'model', requested, policy, failureMessage(error))
+              break
+            }
+          }
+          await observer.complete?.({ output: [], stopReason: 'error', diagnostic: failureMessage(error) })
+        }
+        throw error
+      }
+      if (policy !== undefined) Object.assign(agentOptions, definedOptions)
+      const definedDescriptor = policy === undefined ? descriptor : snapshotSubagentDescriptor({
+        ...descriptor, agentProvider: policy.provider, agentModel: policy.model,
+        agentReasoningEffort: ReasoningEffortId(policy.reasoningEffort),
+      })
       const cwd = await this.resolveDirectory(request, spec.signal)
       const prepared = await this.host.prepareContinuable(spec.provider, {
         sessionId: childId,
@@ -445,9 +476,11 @@ export class SubagentManager {
             meta: childSessionMeta(parent, childDepth, prepared.seed !== undefined, request.agentPreset),
             inheritedEventCount,
             delegatedPolicies,
-            descriptor,
+            descriptor: definedDescriptor,
           },
           agentOptions,
+          request: { ...request, agentOptions, signal: spec.signal },
+          ...policy === undefined ? {} : { executionPolicy: policy },
           composition: { agentPreset: request.agentPreset },
           signal: spec.signal,
           delivery: spec.delivery,
@@ -464,7 +497,7 @@ export class SubagentManager {
           { source: { kind: 'user' }, signal: spec.signal, delivery: 'queue' },
           parent,
           () => {
-            establishCatalogChild(parent.session, childHeader, descriptor)
+            establishCatalogChild(parent.session, childHeader, definedDescriptor)
           },
         )
       })
@@ -858,6 +891,7 @@ export class SubagentManager {
     let childId = inputs.childId
     inputs.signal.throwIfAborted()
     let resource: ActivationResource
+    let observer: ActivationObserver
     if (inputs.kind === 'external') {
       const controller = new AbortController()
       const cancelStartup = (): void => { controller.abort(inputs.signal.reason) }
@@ -874,8 +908,14 @@ export class SubagentManager {
       } finally {
         inputs.signal.removeEventListener('abort', cancelStartup)
       }
+      observer = this.host.observeActivation(provider, childId, parent)
     } else {
       const { create } = inputs
+      observer = this.host.observeActivation(provider, childId, parent)
+      await observer.prepare?.(inputs.request ?? {
+        parent, prompt: [], signal: inputs.signal, agentOptions: inputs.agentOptions,
+        ...inputs.composition.agentPreset === undefined ? {} : { agentPreset: inputs.composition.agentPreset },
+      }, inputs.executionPolicy)
       let structured: StructuredAttachment | undefined
       const setup = async (childCtx: Context, child: Agent): Promise<void> => {
         // Only fresh creation appends the descriptor and delegated policy after
@@ -894,6 +934,8 @@ export class SubagentManager {
           await workingDirectory.set(child, create.cwd, inputs.signal)
         }
         if (inputs.composition.agentPreset === undefined) await applyChildComposition(childCtx, parent, inputs.composition)
+        const inheritedContext = create === undefined ? child.session.header.isSeeded : create.seed !== undefined
+        installExecutionPolicy(childCtx, child, inheritedContext, observer, inputs.executionPolicy)
         if (inputs.outputSchema !== undefined) {
           structured = attachStructuredRuntime(childCtx, inputs.outputSchema, () =>
             this.resident.get(childId)?.ownedChildren.size === 0
@@ -902,15 +944,15 @@ export class SubagentManager {
           )
         }
       }
-      const handle = create === undefined
-        ? await this.ownerCtx.agents.resume({
+      const handle = await (create === undefined
+        ? this.ownerCtx.agents.resume({
           resumeSessionId: childId,
           parentAgent: parent,
           agentOptions: inputs.agentOptions,
           signal: inputs.signal,
           setup,
         })
-        : await this.ownerCtx.agents.create({
+        : this.ownerCtx.agents.create({
           sessionId: childId,
           parentAgent: parent,
           meta: create.meta,
@@ -919,11 +961,13 @@ export class SubagentManager {
           agentOptions: inputs.agentOptions,
           signal: inputs.signal,
           setup,
-        })
+        })).catch(async (error: unknown) => {
+        await observer.complete?.({ output: [], stopReason: inputs.signal.aborted ? 'aborted' : 'error', diagnostic: failureMessage(error) })
+        throw error
+      })
 
       resource = { kind: 'local', handle, outputStart: handle.agent.session.seq, structured, failureAt: undefined, poke: Promise.withResolvers<void>() }
     }
-    const observer = this.host.observeActivation(provider, childId, parent)
 
     const activation: Activation = {
       pool,
@@ -982,7 +1026,11 @@ export class SubagentManager {
   private rollbackUnpublished(activation: Activation, error: unknown): Promise<void> {
     return this.close(activation, async () => {
       try {
-        await (activation.kind === 'local' ? activation.handle.dispose() : activation.run.dispose())
+        try {
+          await (activation.kind === 'local' ? activation.handle.dispose() : activation.run.dispose())
+        } finally {
+          await activation.observer.complete?.({ output: [], stopReason: 'error', diagnostic: failureMessage(error) })
+        }
       } finally {
         this.resident.delete(activation.childId)
         activation.releaseSlot()
@@ -1161,6 +1209,15 @@ export class SubagentManager {
       ))
     }
 
+    try {
+      const accountingResult = activation.kind === 'local' && result.stopReason === 'error' && activation.diagnostic !== undefined
+        ? { ...result, diagnostic: activation.diagnostic } : result
+      const accounted = await activation.observer.complete?.(failures.length === 0 ? accountingResult : { ...accountingResult, stopReason: 'error', diagnostic: failures.map(item => detail(item)).join('; ') })
+      if (accounted?.deliveryState !== undefined) result = { ...result, deliveryState: accounted.deliveryState }
+    } catch (error: unknown) {
+      resultFailure = { error }
+      failures.push(new SubagentError('Subagent terminal accounting failed', 'ACTIVATION_TEARDOWN_FAILED', { cause: error }))
+    }
     let failure: SubagentError | undefined
     if (failures.length === 1) {
       failure = failures[0]
@@ -1175,7 +1232,7 @@ export class SubagentManager {
     this.resident.delete(childId)
     activation.releaseSlot()
     const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
-    this.notifySettlement(activation, result)
+    this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
     this.releaseOwnership(childId)
     activation.observer.settle(terminal)
     if (resultFailure === undefined) activation.result.resolve(result)
@@ -1360,10 +1417,21 @@ export class SubagentManager {
       if (independentlySelected && typeof agentPreset !== 'string') {
         throw new SubagentError(`subagent "${childId}" has no agent preset projection for restoration`, 'NOT_RESUMABLE')
       }
+      let currentPolicy: PresetExecutionPolicy | undefined
+      try { currentPolicy = await resolveExecutionPolicy(parent, agentPreset ?? source.header.agentPreset) }
+      catch (_error) {
+        // Legacy restoration still reports missing or broken presets from its original mount boundary.
+        // Controlled ledger evidence rejects the absent policy before any child is materialized.
+      }
+      const restored = await restoreExecutionEvidence(this.ctx, parent, childId, currentPolicy)
       activation = await this.materialize({
         kind: 'local',
         childId,
         provider: descriptor.provider,
+        ...restored.executionPolicy === undefined ? {} : { executionPolicy: restored.executionPolicy },
+        request: { parent, prompt: [], signal: options.signal,
+          ...typeof agentPreset === 'string' ? { agentPreset } : {},
+          ...restored.deliveryPaths === undefined ? {} : { deliveryPaths: restored.deliveryPaths } },
         parent,
         agentOptions: {
           ...descriptor.agentProvider !== undefined ? { provider: descriptor.agentProvider } : {},
@@ -1371,6 +1439,7 @@ export class SubagentManager {
           ...descriptor.agentReasoningEffort !== undefined
             ? { reasoningEffort: ReasoningEffortId(descriptor.agentReasoningEffort) }
             : {},
+          ...restored.executionPolicy === undefined ? {} : definitionOptions(undefined, restored.executionPolicy),
         },
         composition: { agentPreset: agentPreset ?? undefined, persona: descriptor.persona, toolFilter: descriptor.toolFilter },
         signal: options.signal,
