@@ -141,6 +141,8 @@ export function createSettlementMessage(
   continuable = true,
 ): ReturnType<typeof createUserMessage> {
   const summary = settlementSummary(childId, terminal.stopReason, continuable)
+    + (terminal.deliveryState === 'missing' ? ' Declared delivery files were not written.'
+      : terminal.deliveryState === 'uncheckable' ? ' Declared delivery files could not be checked.' : '')
   // Parent providers receive this notice as a user message and may reject
   // nontext assistant blocks. Keep this conversion local so SDK/UI consumers
   // retain the complete child output.

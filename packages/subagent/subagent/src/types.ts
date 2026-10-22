@@ -300,6 +300,8 @@ export interface SubagentResult {
    * to 4096 UTF-8 bytes. Consumers present it separately from {@link output}.
    */
   readonly diagnostic?: string
+  /** Runtime observation of declared delivery files; absence means no observation was returned. */
+  readonly deliveryState?: 'not-requested' | 'present' | 'missing' | 'uncheckable'
   /** Why the run ended. A non-`completed` reason means `output` may be partial. */
   readonly stopReason: SubagentStopReason
 }

@@ -7,6 +7,7 @@ import type { SessionId, SessionLogOffset } from '@panedesk/dsh-session'
 import { assertNever } from '@panedesk/dsh-util-values'
 import { finalAssistantOutput } from './assistant-output.ts'
 import { epochStopReason } from './lifecycle.ts'
+import { sanitizeDiagnostic } from './delivery.ts'
 import type { ActivationObserver } from './lifecycle.ts'
 import { SubagentError } from './error.ts'
 import type { StructuredAttachment } from './structured.ts'
@@ -82,6 +83,8 @@ export type ActivationResource =
     readonly structured: StructuredAttachment | undefined
     /** Latest live failure not superseded by a later committed turn ending. */
     failureAt: SessionLogOffset | undefined
+    /** Sanitized provider error retained for failed delivery sidecars. */
+    diagnostic?: string
     /** Renewed when local settlement must recheck input or owned children. */
     poke: PromiseWithResolvers<void>
   }
@@ -129,8 +132,9 @@ export function requireLocalActivation(activation: Activation): LocalActivation 
  */
 export function observeLocalFailure(activation: LocalActivation, wake: () => void): void {
   const child = activation.handle.agent
-  child.ctx.on('agent/error', ({ agent }) => {
+  child.ctx.on('agent/error', ({ agent, error }) => {
     if (agent !== child) return
+    activation.diagnostic = sanitizeDiagnostic(error instanceof Error ? error.message : 'Unknown child execution error')
     activation.failureAt = child.session.seq
     wake()
   })
