@@ -300,6 +300,71 @@
         ],
         "test": "waits for AppReady, queries without a model or key, and requests AppExit"
       }
+    },
+    {
+      "id": "message-immediate-priority",
+      "description": "Interrupt the target agent's active turn for immediate input while retaining queued input, partial output, and tool cancellation results.",
+      "origin": "Input priorities, claim recovery, and busy-send defaults",
+      "reason": "The fork lets urgent input interrupt a running turn with an explicit interjection cause without cancelling other agents.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent-loop/tests/message-priority.spec.ts"
+        ],
+        "test": "admits %s at its boundary during a long tool"
+      }
+    },
+    {
+      "id": "claimed-input-recovery",
+      "description": "Restore cancelled claims before history append with the same identity and ordering; retain appended input until its first dispatch.",
+      "origin": "Input priorities, claim recovery, and busy-send defaults",
+      "reason": "The fork distinguishes claim from dispatch so cancellation before append leaves input withdrawable without duplicating model history.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent-loop/tests/input-transaction.spec.ts"
+        ],
+        "test": "restores a cancelled reservation before append and permits removal"
+      }
+    },
+    {
+      "id": "passive-turn-input",
+      "description": "Keep passive input pending for a natural turn instead of independently waking or continuing the driver.",
+      "origin": "Input priorities, claim recovery, and busy-send defaults",
+      "reason": "The fork separates informational input from work that drives a model turn.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent-loop/tests/message-priority.spec.ts"
+        ],
+        "test": "parks passive input and batches it into the next natural turn"
+      }
+    },
+    {
+      "id": "queue-priority-update",
+      "description": "Reprioritize queued input among queue, steer, and immediate without changing message identity or existing queue actions.",
+      "origin": "Input priorities, claim recovery, and busy-send defaults",
+      "reason": "The fork exposes priority changes in every direction while distinguishing claimed input from dispatched input.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/api/session-controller/tests/queue-reprioritize.host.spec.ts"
+        ],
+        "test": "moves %s input to %s without changing its identity"
+      }
+    },
+    {
+      "id": "default-busy-send-steer",
+      "description": "Default busy-state Enter sends to steer when no preference is stored, preserving explicit queue preferences.",
+      "origin": "Input priorities, claim recovery, and busy-send defaults",
+      "reason": "The fork makes unset busy-send preferences join the running turn rather than wait for the next turn.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-conversation/tests/submission-policy.client.spec.ts"
+        ],
+        "test": "defaults to Steer and publishes preference changes"
+      }
     }
   ]
 }
