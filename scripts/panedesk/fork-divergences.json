@@ -365,6 +365,19 @@
         ],
         "test": "defaults to Steer and publishes preference changes"
       }
+    },
+    {
+      "id": "message-delivery-extensions",
+      "description": "Add a local file mailbox, input boundary events, instruction observation hooks, and SDK, ACP, and CLI message extensions; new sends default to steer while legacy prompt behavior stays unchanged.",
+      "origin": "Message delivery and instruction change notifications",
+      "reason": "The fork delivers same-node messages through a single recipient owner and exposes durable delivery state without changing standard prompt methods.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/context/instruction-subscriptions/tests/kernel-boundary.e2e.ts"
+        ],
+        "test": "delivers steer at the next real tool boundary and rejects withdrawal after dispatch"
+      }
     }
   ]
 }
