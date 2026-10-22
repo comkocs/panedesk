@@ -1737,7 +1737,7 @@ export interface TlsConfig {
 
 ## `@panedesk/dsh-instruction-subscriptions`
 
-- `source`: [`packages/context/instruction-subscriptions/src/index.ts:15`](../packages/context/instruction-subscriptions/src/index.ts)
+- `source`: [`packages/context/instruction-subscriptions/src/index.ts:16`](../packages/context/instruction-subscriptions/src/index.ts)
 
 ```ts config-catalog
 /** Deployment-controlled subscription paths and memory/read limits. */
