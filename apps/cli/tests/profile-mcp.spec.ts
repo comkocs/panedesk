@@ -9,11 +9,12 @@ import { composeEntries, loadProfile, PROFILE_TEMPLATES } from '@panedesk/dsh-ap
 
 const installAnchor = fileURLToPath(new URL('../package.json', import.meta.url))
 const resourcePackage = '@panedesk/dsh-mcp-resources'
+const profilesWithoutResources = new Set(['slim', 'ledger', 'ledger-watch'])
 
 describe('shipped MCP resource composition', () => {
-  // The slim preset (@panedesk/slim-base) is a minimal row subset of dsh-base
-  // and mounts no MCP surface at all; every other shipped template carries
-  // dsh-base (or sdk-minimal) and so one shared resource consumer.
+  // Slim mounts no MCP surface; ledger and ledger-watch do not start an Agent.
+  // Every other shipped template carries dsh-base (or sdk-minimal)
+  // and so one shared resource consumer.
   it.each(Object.keys(PROFILE_TEMPLATES))('%s carries the expected resource consumer without a server', (name) => {
     const home = mkdtempSync(join(tmpdir(), 'dsh-profile-mcp-'))
     try {
@@ -25,7 +26,7 @@ describe('shipped MCP resource composition', () => {
       ], message => warnings.push(message))
 
       expect(rows.filter(row => row.name === resourcePackage)).toEqual(
-        name === 'slim' ? [] : [{ id: 'mcp-resources', name: resourcePackage }],
+        profilesWithoutResources.has(name) ? [] : [{ id: 'mcp-resources', name: resourcePackage }],
       )
       expect(rows.filter(row => row.name === '@panedesk/dsh-mcp-client')).toEqual([])
       expect(warnings).toEqual([])
@@ -37,7 +38,7 @@ describe('shipped MCP resource composition', () => {
         return manifest.dependencies?.[resourcePackage] !== undefined
       })
       expect(owners.map(owner => owner.packageName)).toEqual(
-        name === 'slim' ? [] : [name === 'sdk-minimal' ? '@panedesk/dsh-sdk-minimal' : '@panedesk/dsh-base'],
+        profilesWithoutResources.has(name) ? [] : [name === 'sdk-minimal' ? '@panedesk/dsh-sdk-minimal' : '@panedesk/dsh-base'],
       )
     } finally {
       rmSync(home, { recursive: true, force: true })
