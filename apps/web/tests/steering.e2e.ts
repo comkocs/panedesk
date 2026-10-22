@@ -83,6 +83,7 @@ describe('web e2e: mid-turn steering lands durably and visibly', () => {
     scaffold = await launchWebScaffold(MODE === 'record'
       ? {}
       : { replayFixture: FIXTURE, paceMs: REPLAY_PACE_MS, compareReplaySession: true })
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     scaffold.ctx.on('session/event', (_session, event) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
@@ -222,6 +223,7 @@ describe.each(['reconnect', 'delayed-inbox'] as const)('web e2e: composer shortc
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold({ replayFixture: FIXTURE, paceMs: REPLAY_PACE_MS, compareReplaySession: false })
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     scaffold.ctx.on('session/event', (_session, event) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
@@ -334,6 +336,7 @@ describe('web e2e: composer shortcut follows the swapped busy behavior', () => {
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold({ replayFixture: FIXTURE, paceMs: REPLAY_PACE_MS, compareReplaySession: false })
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     scaffold.ctx.on('session/event', (_session, event) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
@@ -410,6 +413,7 @@ describe('web e2e: empty-draft Cmd+Enter steers the whole queue', () => {
       await releaseReplay.promise
       yield* next()
     }, { prepend: true })
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     scaffold.ctx.on('session/event', (_session, event) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)

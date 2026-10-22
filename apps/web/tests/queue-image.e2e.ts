@@ -81,6 +81,7 @@ describe('web e2e: queued image submission', () => {
 
     const sessionEvents: SessionEvent[] = []
     scaffold = await launchWebScaffold({ replayFixture: FIXTURE, replayOverride: overridePath, compareReplaySession: false })
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     scaffold.ctx.on('session/event', (_session, event: SessionEvent) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
