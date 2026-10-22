@@ -16,6 +16,11 @@ function run(id = 'run-a'): LedgerLifecycle {
     processIdentity: { nodeId: 'node-a' as LedgerLifecycle['start']['nodeId'], pid: 123, startIdentity: '456', bootIdentity: 'boot-a', registeredAt: 100, verification: 'verified' } } }
 }
 class MemoryLedger extends SessionLedger {
+  override resolveCallContext: SessionLedger['resolveCallContext'] = () => { throw new Error('Unused fixture operation') }
+  override bindContext: SessionLedger['bindContext'] = () => { throw new Error('Unused fixture operation') }
+  override contextFor: SessionLedger['contextFor'] = () => undefined
+  override nodeId: SessionLedger['nodeId'] = () => { throw new Error('Unused fixture operation') }
+  override importNode: SessionLedger['importNode'] = () => { throw new Error('Unused fixture operation') }
   events: LedgerEvent[] = []
   beforeFinish?: () => void | Promise<void>
   complete = true

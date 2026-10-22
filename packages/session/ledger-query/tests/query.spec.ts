@@ -36,6 +36,11 @@ function observed(row: LedgerLifecycle, liveness: LedgerLifecycle['liveness'], t
 function snapshot(rows: LedgerSnapshot['rows']): LedgerSnapshot { return { asOf, rows, complete: true, watermarks: { 'node-a': 'watermark-a' as LedgerSnapshot['watermarks'][string] } } }
 
 class MemoryLedger extends SessionLedger {
+  override resolveCallContext: SessionLedger['resolveCallContext'] = () => { throw new Error('Read-only fixture') }
+  override bindContext: SessionLedger['bindContext'] = () => { throw new Error('Read-only fixture') }
+  override contextFor: SessionLedger['contextFor'] = () => undefined
+  override nodeId: SessionLedger['nodeId'] = () => { throw new Error('Read-only fixture') }
+  override importNode: SessionLedger['importNode'] = () => { throw new Error('Read-only fixture') }
   constructor(ctx: Context, private readonly data: LedgerSnapshot) { super(ctx) }
   override async snapshot() { return this.data }
   override async query() { return this.data }

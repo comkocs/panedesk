@@ -31,17 +31,46 @@ declare module '@panedesk/cordis' {
   }
 }
 
-/** Durable ledger operations fail closed before model dispatch when the start cannot be committed. */
-export class SessionLedger extends Service {
+/** Durable ledger contract; implementations alone own storage and runtime hooks. */
+export abstract class SessionLedger extends Service {
+  constructor(ctx: Context) {
+    super(ctx, 'sessionLedger')
+  }
+
+  abstract resolveCallContext(request: {
+    sessionId?: LedgerContext['sessionId']
+    provider: string
+    model: string
+  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
+  abstract bindContext(context: LedgerSessionContext): () => void
+  abstract contextFor(sessionId: LedgerSessionContext['sessionId']): LedgerSessionContext | undefined
+  abstract beginCall(input: LedgerCallStart): Promise<LedgerAppendResult>
+  abstract finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult>
+  abstract beginRun(input: LedgerRunStart): Promise<LedgerAppendResult>
+  abstract finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult>
+  abstract appendEvent(event: LedgerEvent): Promise<LedgerAppendResult>
+  abstract registerWaitTool(toolName: string, category: LedgerWaitCategory): () => void
+  abstract appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult>
+  abstract finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult>
+  abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>
+  abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
+  abstract priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult
+  abstract nodeId(): Promise<LedgerNodeId>
+  abstract importNode(source: string): Promise<readonly LedgerAppendResult[]>
+}
+
+/** Local journal provider registered under the unchanged sessionLedger service name. */
+export class JournalSessionLedger extends SessionLedger {
   private readonly options: JournalOptions
   private readonly home: string
   private readonly freshness: number
   private readonly configuredWaits: Readonly<Record<string, LedgerWaitCategory>>
   private readonly waits = new Map<string, { category: LedgerWaitCategory; owners: Set<symbol> }>()
   private node: Promise<{ root: string; id: LedgerNodeId }> | undefined
+  private readonly contexts = new Map<LedgerContext['sessionId'], Map<symbol, LedgerSessionContext>>()
 
   constructor(ctx: Context, config: Config = {}) {
-    super(ctx, 'sessionLedger')
+    super(ctx)
     this.home = resolveDshHome(config.dshHome)
     this.options = {
       lockTimeoutMs: config.lockTimeoutMs ?? 5000,
@@ -117,22 +146,61 @@ export class SessionLedger extends Service {
    * @param request - explicit session when available; absent sessions use provider-owned auxiliary attribution.
    * @returns runtime identity, residency identity, and optional matching reference price (absent when unpriced).
    */
-  abstract resolveCallContext(request: {
+  async resolveCallContext(request: {
     sessionId?: LedgerContext['sessionId']
     provider: string
     model: string
-  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
+  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }> {
+    if (request.sessionId !== undefined) {
+      const bound = this.contextFor(request.sessionId)
+      if (bound !== undefined) return { context: bound, runId: bound.runId }
+      const snapshot = await this.snapshot({ sessionId: request.sessionId })
+      const starts = snapshot.rows.flatMap(row => row.kind === 'run' || row.kind === 'call' ? [row.start] : [])
+        .sort((a, b) => b.startedAt - a.startedAt)
+      const start = starts[0]
+      if (snapshot.complete && start !== undefined) {
+        const { seat, window, taskId, nodeId, identitySource, sessionId, parentSessionId, rootSessionId,
+          subagentRunId, remoteSessionId, accountLabel } = start
+        return { context: { seat, window, nodeId, identitySource, sessionId, rootSessionId, accountLabel,
+          ...taskId === undefined ? {} : { taskId }, ...parentSessionId === undefined ? {} : { parentSessionId },
+          ...subagentRunId === undefined ? {} : { subagentRunId }, ...remoteSessionId === undefined ? {} : { remoteSessionId } },
+        runId: start.runId }
+      }
+    }
+    const sessionId = request.sessionId ?? 'unknown' as LedgerContext['sessionId']
+    return {
+      context: { sessionId, rootSessionId: 'unknown' as LedgerContext['sessionId'],
+        nodeId: await this.nodeId(), seat: 'free', window: 'free', identitySource: 'free', accountLabel: 'unknown' },
+      runId: 'unknown' as LedgerRunId,
+    }
+  }
 
   /** Bind trusted attribution before publishing a Session; providers retain it for call accounting.
    * @param context - runtime-owned identity and parent linkage, never Session-header data.
    * @returns scope-owned disposer removing only this binding.
    */
-  abstract bindContext(context: LedgerSessionContext): () => void
+  bindContext(context: LedgerSessionContext): () => void {
+    const bound = structuredClone(context)
+    const dispose = this.ctx.effect(() => {
+      const owners = this.contexts.get(bound.sessionId) ?? new Map<symbol, LedgerSessionContext>()
+      const owner = Symbol(bound.sessionId)
+      owners.set(owner, bound)
+      this.contexts.set(bound.sessionId, owners)
+      return () => {
+        owners.delete(owner)
+        if (!owners.size) this.contexts.delete(bound.sessionId)
+      }
+    })
+    return () => { void dispose() }
+  }
   /** Read attribution for delegation or call accounting.
    * @param sessionId - local Session identity.
    * @returns bound context, or undefined when local identity resolution is required.
    */
-  abstract contextFor(sessionId: LedgerSessionContext['sessionId']): LedgerSessionContext | undefined
+  contextFor(sessionId: LedgerSessionContext['sessionId']): LedgerSessionContext | undefined {
+    const context = Array.from(this.contexts.get(sessionId)?.values() ?? []).at(-1)
+    return context === undefined ? undefined : structuredClone(context)
+  }
 
   /** Persist one call start before releasing network dispatch.
    * @param input - immutable request and attribution facts.
@@ -259,4 +327,4 @@ export class SessionLedger extends Service {
   }
 }
 
-export default SessionLedger
+export default JournalSessionLedger

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import Ledger, { SessionLedger } from '../src/index.ts'
+import Ledger, { JournalSessionLedger as SessionLedger } from '../src/index.ts'
 import type { LedgerEndReason } from '../src/index.ts'
 
 describe('ledger service contract', () => {

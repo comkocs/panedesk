@@ -6,7 +6,7 @@ import type { Agent } from '@panedesk/dsh-agent'
 import type { CompactionCheckpoint } from '@panedesk/dsh-compaction'
 import { createUserMessage, LlmRuntime } from '@panedesk/dsh-llm'
 import type { LedgerCall, LedgerEvent, LedgerLifecycle, LedgerSnapshot, LedgerWatermark } from '@panedesk/dsh-session-ledger'
-import SessionLedger from '@panedesk/dsh-session-ledger'
+import { SessionLedger } from '@panedesk/dsh-session-ledger'
 import { Session, SessionId, SessionSeq } from '@panedesk/dsh-session'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import TokenMeter from '@panedesk/dsh-token-meter'
@@ -91,6 +91,11 @@ const estimate = (content: CompactionCheckpoint['content']): number => content.r
 
 /** Durable-idempotent in-memory provider, deliberately independent of the ledger implementation. */
 class MemoryLedger extends SessionLedger {
+  override resolveCallContext: SessionLedger['resolveCallContext'] = () => { throw new Error('unused') }
+  override bindContext: SessionLedger['bindContext'] = () => { throw new Error('unused') }
+  override contextFor: SessionLedger['contextFor'] = () => undefined
+  override nodeId: SessionLedger['nodeId'] = () => { throw new Error('unused') }
+  override importNode: SessionLedger['importNode'] = () => { throw new Error('unused') }
   view = snapshot()
   readonly facts = new Map<string, LedgerEvent>()
   reads = 0

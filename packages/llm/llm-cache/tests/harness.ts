@@ -8,7 +8,7 @@ import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRuntime from '@panedesk/dsh-tools'
 import LlmRuntime, { LlmAdapter } from '@panedesk/dsh-llm'
 import type { GenerateOptions, LlmResolvedModelInfo, StreamChunk } from '@panedesk/dsh-llm'
-import SessionLedger from '@panedesk/dsh-session-ledger'
+import { SessionLedger } from '@panedesk/dsh-session-ledger'
 import type {
   LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactReference,
   LedgerArtifactFinishResult, LedgerCallStart, LedgerCallFinish, LedgerContext, LedgerRunId, LedgerEvent,
@@ -18,6 +18,10 @@ import type {
 import * as Cache from '../src/index.ts'
 
 export class MemoryLedger extends SessionLedger {
+  override bindContext: SessionLedger['bindContext'] = () => { throw new Error('unused') }
+  override contextFor: SessionLedger['contextFor'] = () => undefined
+  override nodeId: SessionLedger['nodeId'] = () => { throw new Error('unused') }
+  override importNode: SessionLedger['importNode'] = () => { throw new Error('unused') }
   starts: LedgerCallStart[] = []
   ends: LedgerCallFinish[] = []
   events: LedgerEvent[] = []
