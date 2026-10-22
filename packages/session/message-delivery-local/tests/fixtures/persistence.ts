@@ -6,6 +6,7 @@ import { Context, Service } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
 import AgentRegistry from '@panedesk/dsh-agent'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SessionStore, { SessionId, type SessionEvent, type SessionHeader } from '@panedesk/dsh-session'
 import type { MessageLedgerEvent, MessageLedgerStore } from '@panedesk/dsh-session-ledger'
 import type { MessageCursor, MessageStateEvent } from '@panedesk/dsh-message-delivery'
@@ -66,16 +67,16 @@ export class RecordingLedger extends Service implements MessageLedgerStore {
  * @param home - 测试独占的产品家目录。
  * @returns 服务、账本观察与按租约顺序关闭的入口。
  */
-export async function serviceFixture(home: string) {
+export async function serviceFixture(home: string, watch = false) {
   const ctx = new Context()
   try {
     ctx.baseUrl = pathToFileURL(home).href + '/'
     await ctx.plugin(Loader)
     Object.assign(ctx.loader.builtins, { include: Include, session: SessionStore, agents: AgentRegistry,
-      persistence: MemoryPersistence, ledger: RecordingLedger, delivery: LocalMessageDelivery })
+      persistence: MemoryPersistence, ledger: RecordingLedger, delivery: LocalMessageDelivery, projections: SessionProjectionRegistry })
     const profile = await readFile(new URL('../cordis.yml', import.meta.url), 'utf8')
     const path = join(home, 'cordis.yml')
-    await writeFile(path, profile.replace('HOME_PLACEHOLDER', JSON.stringify(home)))
+    await writeFile(path, profile.replace('HOME_PLACEHOLDER', JSON.stringify(home)).replace('watch: false', `watch: ${watch}`))
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
     await ctx.loader.await()
     const service = ctx.get('messageDelivery')
@@ -90,13 +91,27 @@ export async function serviceFixture(home: string) {
     const session = ctx.sessions.create(SessionId('seat-a'))
     await (await ctx.sessionPersistence.create(session.header)).close()
     return { ctx, service, ledger, emitted, session,
-      async resume() {
-        const lease = await ctx.sessionPersistence.open(session.id, 'write')
-        const scheduler = schedulerFixture(ctx, session)
+      async resume(target = session) {
+        const lease = await ctx.sessionPersistence.open(target.id, 'write')
+        const scheduler = schedulerFixture(ctx, target)
         const detach = ctx.agents.enter(scheduler.agent, undefined)
-        shutdown.push(async () => { await ctx.agents.ending(scheduler.agent); await lease.close(); detach() })
+        const writes: Promise<void>[] = []
+        const stop = ctx.on('session/event', (source, event) => {
+          if (source === target) writes.push(lease.append([event]))
+        })
+        let closed = false
+        const close = async () => {
+          if (closed) return
+          closed = true
+          await ctx.agents.ending(scheduler.agent)
+          stop()
+          await Promise.all(writes)
+          await lease.close()
+          detach()
+        }
+        shutdown.push(close)
         await ctx.agents.announce(scheduler.agent, 'resume')
-        return scheduler
+        return { ...scheduler, close }
       },
       async dispose() { for (const close of shutdown.reverse()) await close(); await ctx.fiber.dispose() },
     }

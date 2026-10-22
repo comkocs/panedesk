@@ -27,8 +27,11 @@ import type {} from '@panedesk/dsh-workspace'
 import { FileMailbox } from './mailbox.ts'
 import { NodeRegistry } from './registry.ts'
 import { MailboxArbitrator } from './arbitrator.ts'
-import { decodeCommand, decodeDecision, decodeSendResult, decodeControlResult, decodeReceipt } from './codec.ts'
-import { component, MailboxUnavailableError, object, privateDirectory, publish, publishedFiles, readValue } from './files.ts'
+import { decodeCommand, decodeDecision, decodeSendResult, decodeControlResult } from './codec.ts'
+import { component, MailboxUnavailableError, object, privateDirectory, publish, readValue } from './files.ts'
+import { RecipientPolicy } from './policy.ts'
+import { broadcast } from './broadcast.ts'
+import { ReceiptStore } from './receipts.ts'
 import { inspectWindowsAcl } from './windows-permissions.ts'
 import { policyReason, resolveRecipients } from './recipients.ts'
 import type { Config, ControlCommand, DeliveryDriver, RecipientMetadata } from './types.ts'
@@ -46,7 +49,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
   private readonly mailbox: FileMailbox
   private readonly registry: NodeRegistry
   private readonly owners = new Map<SessionId, { arbitrator: MailboxArbitrator; generation: string; agent: Agent }>()
-  private readonly settings = new Map<SessionId, MessageSettings>()
+  private readonly policy: RecipientPolicy
+  private readonly receipts: ReceiptStore
   private readonly requestTurns = new Map<SessionId, number>()
   private readonly lifetime = new AbortController()
   private readonly watchers = new Map<SessionId, FSWatcher>()
@@ -66,6 +70,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
     if (config.scanIntervalMs > 1000) throw new MailboxUnavailableError('Mailbox scan interval must not exceed one second')
     this.nodeId = component(config.nodeId) as NodeId
     this.mailbox = new FileMailbox({ ...config, home: resolveDshHome(config.dshHome), nodeId: this.nodeId })
+    this.policy = new RecipientPolicy(ctx)
+    this.receipts = new ReceiptStore(this.mailbox)
     const subprocess = ctx.get('subprocess')
     this.registry = new NodeRegistry(this.mailbox, subprocess ? pid => subprocess.readProcessIdentity(pid) : undefined)
     this.ready = this.initialize()
@@ -84,7 +90,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
       const generation = await this.registry.register(agent.id, agent.status === 'running' ? 'busy' : 'idle')
       const arbitrator = new MailboxArbitrator(this.mailbox, driver,
         () => this.registry.assertOwner(agent.id, generation), event => this.publishReceipt(event),
-        () => this.settingsFor(agent.id).wakeOnHandoff, replay)
+        () => this.settingsFor(agent.id).wakeOnHandoff, replay,
+        message => policyReason(this.settingsFor(agent.id), message.messageClass))
       this.owners.set(agent.id, { arbitrator, generation, agent })
       await arbitrator.drain()
       if (config.watch) {
@@ -112,7 +119,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
     ctx.on('agent/status', ({ agent, status }) => { this.track(this.registry.update(agent.id, status === 'running' ? 'busy' : 'idle')) })
     ctx.on('session/event', (session, event) => {
       const owner = this.owners.get(session.id)
-      if (event.type === 'message/settings') this.settings.set(session.id, event.data)
       if (!owner) return
       if (event.type === 'agent/input/transition') owner.arbitrator.observe(event.data)
       if (event.type === 'assistant/message' && !event.data.interrupted) owner.arbitrator.assistant(event.data.turn)
@@ -204,7 +210,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
   }
 
   private settingsFor(id: SessionId): MessageSettings {
-    return this.settings.get(id) ?? { receiveMode: 'all', wakeOnHandoff: true }
+    return this.policy.live(id)
   }
 
   private async metadata(): Promise<RecipientMetadata[]> {
@@ -223,7 +229,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
       const snapshot = live ? projections?.snapshot(live) : header ? cache?.cachedSnapshot(header) : undefined
       const window = workspace?.list().find(item => item.sessionIds.includes(id))?.title ?? null
       output.push({ sessionId: id, title: snapshot?.values.title ?? null, window,
-        archived: archived.has(id), settings: this.settingsFor(id) })
+        archived: archived.has(id), settings: await this.policy.read(id) })
     }
     return output
   }
@@ -378,23 +384,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
   }
 
   async sendBatch(request: SendBatchRequest): Promise<SendBatchResult> {
-    if (request.recipients.length > this.config.maxBatchSize) throw new MailboxUnavailableError('Recipient list exceeds limit')
-    const resolutions = await this.resolve(request.recipients.map(item => item.target))
-    const seen = new Set<SessionId>()
-    const retained = resolutions.filter((result) => {
-      if (result.kind !== 'resolved') return true
-      if (seen.has(result.recipient.sessionId)) return false
-      seen.add(result.recipient.sessionId)
-      return true
-    })
-    if (request.dryRun) return { kind: 'resolved', recipients: retained }
-    const results: SendMessageResult[] = []
-    for (const result of retained) {
-      const item = request.recipients.find(recipient => recipient.target === result.address)
-      if (!item) throw new MailboxUnavailableError('Resolved recipient lost its operation identity')
-      results.push(await this.send({ ...request, target: item.target, operationId: item.operationId }))
-    }
-    return { kind: 'sent', results }
+    return broadcast(request, this.config.maxBatchSize, addresses => this.resolve(addresses),
+      id => this.policy.read(id), item => this.send(item))
   }
 
   async configure(request: ConfigureMessagesRequest): Promise<MessageSettings> {
@@ -405,17 +396,13 @@ export default class LocalMessageDelivery extends MessageDelivery {
     if (sender.kind === 'session' && sender.sessionId !== request.sessionId) throw new MailboxUnavailableError('unauthorized')
     owner.agent.session.append('message/settings', request.settings)
     await this.ctx.get('sessionPersistence')?.flush()
-    this.settings.set(request.sessionId, request.settings)
-    return request.settings
+    return this.settingsFor(request.sessionId)
   }
 
   private async publishReceipt(event: MessageStateEvent): Promise<void> {
-    const target = event.data.targetSessionId
-    if (!target) throw new MailboxUnavailableError('Receipt has no target')
-    const root = await this.mailbox.target(target)
     const name = createHash('sha256').update(event.cursor).digest('hex')
-    const path = join(root, 'receipts', `${name}.json`)
-    if (await readValue(path, this.config.maxRecordBytes) === undefined) await publish(path, event, this.config.maxRecordBytes)
+    const receipt = await this.receipts.publish(event)
+    event = { ...event, cursor: receipt.cursor }
     const ledger = this.ctx.get('messageLedger')
     if (ledger) await ledger.append({ schemaVersion: 1, kind: 'message/state', eventId: name as import('@panedesk/dsh-session-ledger').LedgerEventId,
       nodeId: this.nodeId, observedAt: event.data.observedAt, data: event.data })
@@ -427,28 +414,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   async *subscribe(request: MessageSubscriptionRequest): AsyncIterable<MessageStateEvent> {
     await this.ready
-    const seen = new Set<string>()
-    let after = request.cursor === undefined
-    while (!this.stopped) {
-      const events: MessageStateEvent[] = []
-      for (const target of await readdir(join(this.mailbox.root, 'mailboxes'))) {
-        const root = await this.mailbox.target(target)
-        for (const name of await publishedFiles(join(root, 'receipts'))) {
-          if (name.startsWith('operation-')) continue
-          const value = decodeReceipt(await readValue(join(root, 'receipts', name), this.config.maxRecordBytes))
-          if (value.data.senderSessionId === request.sessionId || value.data.targetSessionId === request.sessionId) events.push(value)
-        }
-      }
-      events.sort((left, right) => left.data.observedAt - right.data.observedAt || left.cursor.localeCompare(right.cursor))
-      for (const event of events) {
-        if (!after) { if (event.cursor === request.cursor) after = true; seen.add(event.cursor); continue }
-        if (seen.has(event.cursor)) continue
-        seen.add(event.cursor)
-        yield event
-      }
-      try { await wait(this.config.scanIntervalMs, undefined, { signal: this.lifetime.signal }) } catch (error) {
-        if (!this.lifetime.signal.aborted) throw error
-      }
-    }
+    yield* this.receipts.subscribe(request, this.config.scanIntervalMs, this.lifetime.signal)
   }
 }
