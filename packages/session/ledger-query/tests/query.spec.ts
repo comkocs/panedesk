@@ -126,7 +126,7 @@ describe('live evidence and cache projections', () => {
   it('counts a parent and in-process child separately despite their shared confirmed process identity', () => {
     const parent = run('parent'), child = run('child'), unknown = run('unknown')
     child.start.parentSessionId = parent.start.sessionId
-    child.start.processIdentity = parent.start.processIdentity
+    if (parent.start.processIdentity !== undefined) child.start.processIdentity = parent.start.processIdentity
     const data = snapshot([parent, child, unknown, { kind: 'event', event: observed(parent, 'confirmed') },
       { kind: 'event', event: observed(child, 'confirmed') }])
     expect(liveSessions(data, asOf, 10000)).toMatchObject({ confirmed: ['child', 'parent'], unknown: ['unknown'] })

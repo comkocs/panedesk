@@ -23,7 +23,7 @@ class MemoryLedger extends SessionLedger {
   override importNode: SessionLedger['importNode'] = () => { throw new Error('Unused fixture operation') }
   events: LedgerEvent[] = []
   calls: LedgerCall[] = []
-  beforeCallFinish?: () => void | Promise<void>
+  beforeCallFinish?: (() => void | Promise<void>) | undefined
   beforeFinish?: () => void | Promise<void>
   complete = true
   constructor(ctx: Context, readonly runs: LedgerLifecycle[]) { super(ctx) }
