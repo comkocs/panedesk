@@ -1560,7 +1560,7 @@ export class ToolRuntime extends Service {
     /* v8 ignore next -- only registry-minted executions reach the staged scheduler methods */
     if (state === undefined) throw new Error('tool registry scheduler invariant violated: missing cancellation state')
     return state.bodyInvoked
-      ? toolAbortedResult(prior)
+      ? toolAbortedResult(prior, state.callerSignal)
       : toolAbortedBeforeDispatchResult(prior)
   }
 
@@ -1589,7 +1589,7 @@ export class ToolRuntime extends Service {
       const returned = await tool.execute(exec.arguments, exec)
       const result = this.createSuccessResult(exec, tool, returned)
       return isAborted(signal)
-        ? toolAbortedResult(result)
+        ? toolAbortedResult(result, state.callerSignal)
         : result
     } catch (error: unknown) {
       return toolErrorResult(error)
@@ -1962,11 +1962,15 @@ function fuseToolSignals(caller: AbortSignal, wrapper: AbortSignal): FusedToolSi
   return { signal: controller.signal, dispose }
 }
 
-/** Canonical result when cancellation supersedes success after body invocation. */
-function toolAbortedResult(prior?: ToolExecutionResult): ToolExecutionResult {
+/** Interjection retains available body output; other cancellation keeps the canonical error text. */
+function toolAbortedResult(prior: ToolExecutionResult | undefined, signal: AbortSignal): ToolExecutionResult {
   const additionalContexts = prior?.additionalContexts ?? []
+  const reason: unknown = signal.reason
+  const retainOutput = signal.aborted && typeof reason === 'object' && reason !== null
+    && 'kind' in reason && reason.kind === 'interjection' && prior !== undefined
   return {
-    content: [{ type: 'text', text: 'Error: tool call aborted' }],
+    content: retainOutput && prior.content.length > 0 ? prior.content : [{ type: 'text', text: 'Error: tool call aborted' }],
+    ...retainOutput && prior.meta !== undefined ? { meta: prior.meta } : {},
     isError: true,
     error: {
       message: 'tool call aborted',
