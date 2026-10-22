@@ -2,13 +2,13 @@ import { Context, Service } from '@panedesk/cordis'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MessageDelivery } from '@panedesk/dsh-message-delivery'
-import type { MessageAddress, MessageQuery, MessageRecipient, MessageStateEvent, ResolvedRecipient, SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
+import type { ControlResult, MessageAddress, MessageQuery, MessageReason, MessageRecipient, MessageState, MessageStateEvent, ResolvedRecipient, SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
 import type { LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import { LedgerQueryService } from '../src/index.ts'
 import { parseLedgerArgs } from '../src/cli.ts'
-import { serializeMessages } from '../src/messages.ts'
+import { describeControl, describeReason, describeSend, serializeMessages } from '../src/messages.ts'
 import type { LedgerMessageProjection, LedgerMessagesPage, LedgerSessionsPage, MessageLedgerReader } from '../src/types.ts'
 
 const asOf = 1_800_000_000_000
@@ -116,7 +116,9 @@ class Reader extends Service implements MessageLedgerReader {
 }
 const contexts: Context[] = []
 const paths: string[] = []
+let stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
 afterEach(async () => {
+  stderr.mockRestore()
   vi.restoreAllMocks()
   await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
   await Promise.all(paths.splice(0).map(path => rm(path, { recursive: true, force: true })))
@@ -137,6 +139,7 @@ async function setup(delivery = true, reader = true) {
 const recipients = JSON.stringify([{ sessionId: 'session-a' }, { sessionId: 'session-b' }, { sessionId: 'session-c' }])
 
 describe('message CLI commands', () => {
+  beforeEach(() => { stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true) })
   it('sends an explicit three-recipient batch and preserves a closed pending rejection', async () => {
     const { query, delivery } = await setup()
     const result = await query.execute(['messages', 'send-batch', '--recipients', recipients, '--class', 'handoff', '--text', 'Review this item'])
@@ -242,7 +245,11 @@ describe('message CLI commands', () => {
     const status = vi.spyOn(delivery, 'status')
     expect((await query.execute(['messages', 'withdraw', '--message-id', 'offline', '--expected-revision', '1'])).output).toMatchObject({ kind: 'accepted-pending-owner', state: 'queued' })
     expect(status).toHaveBeenCalledTimes(1)
-    expect((await query.execute(['messages', 'withdraw', '--message-id', 'injected'])).code).toBe(4)
+    const refused = await query.execute(['messages', 'withdraw', '--message-id', 'injected'])
+    expect(refused.code).toBe(4)
+    expect(refused.output).toMatchObject({ kind: 'rejected', reason: 'injected', messageId: 'injected', status: { messageId: 'injected', state: 'injected' } })
+    const sentence = stderr.mock.calls.at(-1)?.[0]
+    expect(sentence).toBe('Message injected was refused: already injected, cannot be withdrawn; current state: injected.\n')
     expect((await query.execute(['messages', 'status', '--message-id', 'message-a'])).output).toMatchObject({ messageId: 'message-a', transitions: [{ data: { observedAt: asOf - 660_000 } }] })
     expect((await query.execute(['messages', 'status', '--message-id', 'missing'])).code).toBe(5)
     expect((await query.execute(['messages', 'operation', '--operation-id', 'missing'])).code).toBe(5)
@@ -262,6 +269,30 @@ describe('message CLI commands', () => {
     expect((await query.execute(['today'])).code).toBe(0)
     expect((await query.execute(['messages', '--help'])).output).toContain('panedesk --profile ledger messages')
     expect(await query.execute(['messages', 'send', '--to-session', 'a', '--to-name', 'b'])).toMatchObject({ code: 2, output: { error: { code: 'messages/invalid-arguments' } } })
+  })
+  it('explains every refusal reason and keeps machine-readable control JSON unchanged', () => {
+    const reasons: MessageReason[] = ['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous',
+      'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict',
+      'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found',
+      'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection']
+    const states: MessageState[] = ['queued', 'injected', 'responded', 'withdrawn', 'invalidated', 'rejected']
+    for (const reason of reasons) {
+      for (const state of states) expect(describeReason(reason, state)).toContain(`current state: ${state}`)
+      expect(describeReason(reason, undefined).length).toBeGreaterThan(8)
+    }
+    expect(describeReason('injected', 'responded')).toBe('already injected, cannot be withdrawn; current state: responded')
+    const status = message('msg-1', 'queued')
+    const applied: ControlResult = { kind: 'applied', status, operationId: status.data.operationId, messageId: status.messageId }
+    const pending: ControlResult = { kind: 'accepted-pending-owner', state: 'queued', revision: 2, operationId: status.data.operationId, messageId: status.messageId }
+    const rejected: ControlResult = { kind: 'rejected', reason: 'injected', status: { ...status, state: 'responded' }, operationId: status.data.operationId, messageId: status.messageId }
+    expect(describeControl('withdraw', applied)).toBe('Message msg-1 was withdrawn; current state: queued.')
+    expect(describeControl('edit', applied)).toBe('Message msg-1 was edited; current state: queued.')
+    expect(describeControl('reprioritize', applied)).toBe('Message msg-1 was reprioritized; current state: queued.')
+    expect(describeControl('invalidate', applied)).toBe('Message msg-1 was invalidated; current state: queued.')
+    expect(describeControl('withdraw', pending)).toBe('Message msg-1 was accepted and is waiting for the owner; current state: queued.')
+    expect(describeControl('withdraw', rejected)).toBe('Message msg-1 was refused: already injected, cannot be withdrawn; current state: responded.')
+    const sent: SendMessageResult = { messageId: status.messageId, operationId: status.data.operationId, deliveryOutcome: 'accepted', messageState: 'queued', pending: false, recipient: recipient('session-a') }
+    expect(describeSend(sent)).toBe('Message msg-1 was accepted and queued; current state: queued.')
   })
   it.each([
     [], ['unknown'], ['--help', '--extra'], ['send', '--to-session', 'a', '--to-name', 'b', '--class', 'handoff', '--text', 'x'],
