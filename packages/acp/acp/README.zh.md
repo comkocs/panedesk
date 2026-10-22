@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 何时选择
 
-当自动化应拥有交互时选择它：管理持久会话、工具、模型选择与权限的进程外 subagent、测试运行器或脚本化控制器。当人类需要 DSH 专用呈现卡片、计划、标题、todo、终端视图或 elicitation 时请避开；本服务器刻意只提供标准 ACP v1 界面。
+当自动化应拥有交互时选择它：管理持久会话、工具、模型选择与权限的进程外 subagent、测试运行器或脚本化控制器。当人类需要 DSH 专用呈现卡片、计划、标题、todo、终端视图或 elicitation 时请避开；本服务器提供标准 ACP v1 控制与显式协商启用的程序化消息扩展。
 
 ### 最小配置
 
@@ -77,6 +77,10 @@ kind: "package-reference"
 
 即使前一轮已经完成，追加 `turn/start` 或 `turn/end` 失败仍会使提示词请求失败。
 
+消息扩展要求可选 `messageDelivery` 服务，以及 initialize 请求的 `_meta["panedesk/messages"]`，其中包含 `version: 1`、`methods`（完整方法名）和 `notifications`（完整通知名）。响应使用相同键并返回受支持的交集；缺少或不兼容的提议不改变标准初始化。请求使用 `_panedesk/messages/` 前缀，后接 `send`、`withdraw`、`edit`、`reprioritize`、`invalidate`、`status`、`list`、`subscribe`、`resolve` 或 `sendBatch`。不可用或未协商的方法返回 JSON-RPC `-32601`，并带 `data.reason: "unsupported"`。每个方法均在调用服务前校验参数；拒绝客户端提供发送者权限身份。请求字段遵循[消息投递定义](../../session/message-delivery/README.zh.md)；`status` 用对象包装 `messageId`，`resolve` 用对象包装 `addresses`。省略的优先级保持省略，由提供方解析；明确的 subagent 会话 id 是有效收件对象，包括 `immediate` 档。
+
+`subscribe({ sessionId, cursor? })` 还要求协商 `_panedesk/messages/state`。提供游标时响应回显该排他续取游标；后续通知包含提供方的游标、节点 id 和消息状态数据，其中含 `data.messageId`。同一连接每个会话只允许一个活跃订阅，重复订阅被拒绝。重新初始化或断开连接以释放订阅，再从最后收到的游标订阅续取。流或传输失败会停止该订阅并记录续取诊断，不伪造回执。回执不进入 `session/update`、不启动模型工作，也不改变 prompt/cancel/load 语义。
+
 会话配置从实时 LLM（大语言模型）服务目录提供不透明的提供方／模型选项，并在确切模型声明推理选项时提供 `reasoning_effort`。提示词会在异步图片准入前快照该选择，并在该轮次的每个模型步骤中固定它；并发选项变更从下一轮次开始生效。ACP 客户端是受信控制器：stdio MCP 条目授权其绝对命令与环境，HTTP 条目授权其绝对 HTTP(S) URL 与 header；初始连接或发现失败会回滚尚未发布的 Agent。不支持的界面会被省略或拒绝：`session/load`、删除、fork、附加目录、SSE（Server-Sent Events）或 ACP 传输 MCP、mode、命令、计划、终端、客户端文件系统操作与 elicitation。
 
 -----
@@ -91,7 +95,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-服务器是刻意采用标准公开协议的自动化传输。三项承诺塑造了它：
+服务器是采用标准控制与独立协商消息扩展的自动化传输。三项承诺塑造了它：
 
 - **只发送标准语义更新。** 协议承载已提交消息与 thought、通用工具生命周期、配置与上下文用量；原始提供方增量、重试尝试、DSH 呈现数据与不受支持内容不会进入协议。
 - **诚实的能力与配置状态。** `initialize` 只公布已挂载支持，拓扑变化会发布完整配置选项，提示词则固定其准入时的确切路由。

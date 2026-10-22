@@ -1197,6 +1197,9 @@ importers:
       '@panedesk/dsh-mcp-client':
         specifier: workspace:*
         version: link:../../mcp/mcp-client
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
