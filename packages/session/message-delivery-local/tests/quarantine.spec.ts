@@ -104,7 +104,7 @@ describe('mailbox record quarantine', () => {
       const path = join(f.root, 'records', name)
       await chmod(path, 0o644)
       const drain = () => f.ctx.serial('agent/input-preparing', { agent: scheduler.agent, turn: 1, step: 1, signal: new AbortController().signal })
-      await expect(drain()).rejects.toThrow('permissions')
+      await expect(drain()).rejects.toThrow('Mailbox file permissions are not private')
       await chmod(path, 0o600)
       await expect(drain()).rejects.toThrow('Owner arbitration failed')
       expect((await f.ledger.read()).events.some(event => event.kind === 'message/quarantined')).toBe(false)

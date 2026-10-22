@@ -107,7 +107,12 @@ describe.skipIf(process.platform === 'win32')('private mailbox file publication'
     }
   })
 
-  it.each(['permissions', 'hardlink', 'symlink', 'owner'] as const)('rejects a replacement with invalid %s', async (kind) => {
+  it.each([
+    ['permissions', 'Mailbox file permissions are not private'],
+    ['hardlink', 'Mailbox file was replaced while open and could not be reopened'],
+    ['symlink', 'Mailbox file was replaced while open and could not be reopened'],
+    ['owner', 'Mailbox file is not owned by the current user'],
+  ] as const)('rejects a replacement with invalid %s', async (kind, message) => {
     const f = await ownerFixture()
     try {
       const root = await f.mailbox.target(f.id)
@@ -132,7 +137,42 @@ describe.skipIf(process.platform === 'win32')('private mailbox file publication'
         }
         return handle
       })
-      await expect(readValue(path, 65536)).rejects.toThrow('permissions')
+      await expect(readValue(path, 65536)).rejects.toThrow(message)
+    } finally { await f.dispose() }
+  })
+
+  it.each([
+    ['permissions', 'Mailbox file permissions are not private'],
+    ['hardlink', 'Mailbox file was replaced while open and could not be reopened'],
+    ['owner', 'Mailbox file is not owned by the current user'],
+  ] as const)('names an open mailbox file rejected for %s', async (kind, message) => {
+    const f = await ownerFixture()
+    try {
+      const root = await f.mailbox.target(f.id)
+      const path = join(root, 'decisions', 'seat-a.json')
+      await publish(path, { revision: 0 }, 65536)
+      if (kind === 'permissions') await fs.chmod(path, 0o644)
+      if (kind === 'hardlink') await fs.link(path, join(root, 'decisions', 'seat-b.json'))
+      if (kind === 'owner') {
+        vi.mocked(fs.open).mockImplementation(async (name, flags, mode) => {
+          const handle = await actual.open(name, flags, mode)
+          if (String(name) === path) {
+            const stat = await handle.stat()
+            stat.uid++
+            vi.spyOn(handle, 'stat').mockResolvedValue(stat)
+          }
+          return handle
+        })
+      }
+      await expect(readValue(path, 65536)).rejects.toThrow(message)
+    } finally { await f.dispose() }
+  })
+
+  it('names a directory opened as a mailbox entry', async () => {
+    const f = await ownerFixture()
+    try {
+      const root = await f.mailbox.target(f.id)
+      await expect(readValue(join(root, 'decisions'), 65536)).rejects.toThrow('Mailbox entry is not a regular file')
     } finally { await f.dispose() }
   })
 })
