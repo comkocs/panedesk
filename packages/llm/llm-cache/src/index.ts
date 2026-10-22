@@ -4,6 +4,7 @@ import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { assembleContextFor } from '@panedesk/dsh-agent'
 import type { Agent } from '@panedesk/dsh-agent'
+import { LlmAdapter } from '@panedesk/dsh-llm'
 import type { GenerateOptions, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
 import { renderPrompt } from '@panedesk/dsh-system-prompt'
 import type { PromptAssembly } from '@panedesk/dsh-system-prompt'
@@ -528,6 +529,11 @@ export function apply(ctx: Context, config: Config): void {
             await fact(service, start, { kind: 'alert', alert: { code: 'ledger-unavailable', message: 'Partial response sidecar closure failed', redacted: true } })
           }
         }
+        const terminalEvidence = finish === undefined ? undefined : LlmAdapter.ledgerEvidence?.get(finish)
+        if (terminalEvidence?.usageObserved === false) usage = undefined
+        else if (terminalEvidence?.usage !== undefined) usage = terminalEvidence.usage
+        const usageState = usage === undefined ? 'missing'
+          : usage.cacheReadTokens === undefined || usage.cacheWriteTokens === undefined ? 'partial' : 'complete'
         const reason = finish?.reason
         const status = finish?.httpStatus ?? (reason?.kind === 'error' || reason?.kind === 'aborted' ? reason.failure.status : undefined)
         if (finish?.cacheRetention !== undefined) {
@@ -542,7 +548,7 @@ export function apply(ctx: Context, config: Config): void {
         if (finish?.cacheDowngradeReason !== undefined) evidence.downgradeReason = finish.cacheDowngradeReason
         if ((usage?.cacheReadTokens ?? 0) > 0 || (usage?.cacheWriteTokens ?? 0) > 0) evidence.lastCacheEvidenceAt = Date.now()
         {
-          const priced = service.priceUsage({ usage, usageState: usage === undefined ? 'missing' : 'complete',
+          const priced = service.priceUsage({ usage, usageState,
             tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: attribution.price })
           const end: LedgerCallFinish = {
             callId, endedAt: Date.now(), observedAt: Date.now(),
@@ -550,7 +556,8 @@ export function apply(ctx: Context, config: Config): void {
             responseModelReported: finish?.responseModelReported ?? 'unobservable',
             effectiveModel: finish?.responseModel ?? request.model,
             ...status === undefined ? {} : { httpStatus: status }, ...usage === undefined ? {} : { usage },
-            usageState: usage === undefined ? 'missing' : 'complete',
+            usageState,
+            ...terminalEvidence?.reportedUsage === undefined ? {} : { reportedUsage: terminalEvidence.reportedUsage },
             ...priced.costUsd === undefined ? {} : { costUsd: priced.costUsd }, pricingState: priced.state,
             wallMs: settledAt - clock, modelInFlightMs: admittedAt === undefined ? 0 : settledAt - admittedAt,
             queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits: [],

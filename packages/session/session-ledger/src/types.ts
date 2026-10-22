@@ -193,6 +193,8 @@ export interface LedgerCallFinish {
   effectiveModel: string
   httpStatus?: number
   usage?: TokenUsage
+  /** Numeric wire counters retained independently of Session usage for reproducible accounting. */
+  reportedUsage?: Readonly<Record<string, number>>
   usageState: LedgerUsageState
   costUsd?: string
   pricingState: LedgerPricingState
