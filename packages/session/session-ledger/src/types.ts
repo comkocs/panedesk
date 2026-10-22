@@ -2,20 +2,20 @@
 import type { Branded } from '@panedesk/dsh-brand'
 import type { GenerateOptions, ResponseModelReported, TokenUsage } from '@panedesk/dsh-llm'
 import type { SessionId } from '@panedesk/dsh-session'
-import type { MessageCursor, MessageQuery, MessageStateData, MessageStatus, MessageState } from '@panedesk/dsh-message-delivery'
+import type { MessageCursor, MessageQuery, MessageStateData, MessageStatus, MessageState, MessageQuarantineData } from '@panedesk/dsh-message-delivery'
 
 export type { MessageStateData } from '@panedesk/dsh-message-delivery'
 
 /** Message-only journal envelope; never admitted to the call journal's LedgerEvent union. */
-export interface MessageLedgerEvent {
+export type MessageLedgerEvent = {
   readonly schemaVersion: 1
   readonly eventId: LedgerEventId
   readonly nodeId: LedgerNodeId
   readonly observedAt: number
-  readonly kind: 'message/state'
-  /** Human CLI origins use senderSessionId null; no outer Session or run is fabricated. */
-  readonly data: MessageStateData
-}
+} & (
+  | { readonly kind: 'message/state'; readonly data: MessageStateData }
+  | { readonly kind: 'message/quarantined'; readonly data: MessageQuarantineData }
+)
 
 /** Message journal read result; unsupported or corrupt records make completeness false. */
 export interface MessageLedgerPage {

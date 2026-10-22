@@ -18,11 +18,11 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
-function message(overrides: Partial<MessageLedgerEvent['data']> = {}): MessageLedgerEvent {
-  const data: MessageLedgerEvent['data'] = {
-    messageId: 'message-a' as MessageLedgerEvent['data']['messageId'],
+function message(overrides: Partial<Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']> = {}): Extract<MessageLedgerEvent, { kind: 'message/state' }> {
+  const data: Extract<MessageLedgerEvent, { kind: 'message/state' }>['data'] = {
+    messageId: 'message-a' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['messageId'],
     senderSessionId: null, targetSessionId: null, priority: 'steer', messageClass: 'handoff',
-    state: 'queued', revision: 0, stateVersion: 0, operationId: 'operation-a' as MessageLedgerEvent['data']['operationId'],
+    state: 'queued', revision: 0, stateVersion: 0, operationId: 'operation-a' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['operationId'],
     transition: 'accepted', observedAt: 100, ...overrides,
   }
   const nodeId = 'node-a' as MessageLedgerEvent['nodeId']
@@ -30,6 +30,29 @@ function message(overrides: Partial<MessageLedgerEvent['data']> = {}): MessageLe
 }
 
 describe('message journal', () => {
+  it('reads quarantine facts and projects only messages with retained state facts', async () => {
+    const home = await root()
+    const ctx = new Context()
+    const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+    const original = message()
+    const isolated: MessageLedgerEvent = { schemaVersion: 1, eventId: 'quarantine-a' as MessageLedgerEvent['eventId'],
+      kind: 'message/quarantined', nodeId: original.nodeId, observedAt: 200,
+      data: { messageId: original.data.messageId, reason: 'corrupt', originalFileName: '0000000000000001.json' } }
+    const unidentified: MessageLedgerEvent = { ...isolated, eventId: 'quarantine-b' as MessageLedgerEvent['eventId'],
+      data: { reason: 'invalid-fields', originalFileName: '0000000000000002.json' } }
+    try {
+      const store = await ledger.messages()
+      await store.append(original)
+      await store.append(isolated)
+      await store.append(unidentified)
+      expect(await store.read({})).toMatchObject({ complete: true, events: [original, isolated, unidentified] })
+      const page = await ledger.queryMessages({})
+      expect(page.items).toHaveLength(1)
+      expect(page.items[0]).toMatchObject({ state: 'rejected', phase: 'settled', data: { reason: 'record-corrupt' } })
+      expect((await ledger.exportMessages({})).trim().split('\n')).toHaveLength(2)
+      expect(foldMessages([isolated, unidentified], {}, 300, true).items).toEqual([])
+    } finally { await ctx.fiber.dispose() }
+  })
   it('stores human-origin facts without a fabricated session or run and replays one unique slot', async () => {
     const path = await root()
     const input = message()
@@ -139,7 +162,7 @@ describe('message journal', () => {
       await ledger.finishCall(callFinish)
       const store = await ledger.messages()
       await store.append(message({ senderSessionId: callStart.sessionId, targetSessionId: 'seat-b' as typeof callStart.sessionId }))
-      await store.append(message({ messageId: 'message-b' as MessageLedgerEvent['data']['messageId'] }))
+      await store.append(message({ messageId: 'message-b' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['messageId'] }))
       const joined = await ledger.querySessions({})
       expect(joined.complete).toBe(true)
       expect(joined.sessions.find(group => group.sessionId === callStart.sessionId)).toMatchObject({ calls: [{ kind: 'call' }], messages: [{ messageId: 'message-a' }] })

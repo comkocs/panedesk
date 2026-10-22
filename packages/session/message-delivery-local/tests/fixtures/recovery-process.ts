@@ -32,7 +32,7 @@ try {
     const results = await Promise.all(['edit-a', 'priority-a', 'withdraw-a'].map(id => f.service.operationStatus(id as OperationId)))
     const claimed = scheduler.queue.splice(0).map(message => message.id)
     process.send?.({ role, pid: process.pid, admitted, results, claimed,
-      transitions: (await f.ledger.read()).events.map(event => event.data.transition),
+      transitions: (await f.ledger.read()).events.flatMap(event => event.kind === 'message/state' ? [event.data.transition] : []),
       emitted: f.emitted.map(event => event.data.transition) })
   }
 } finally {

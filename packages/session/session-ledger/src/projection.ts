@@ -125,8 +125,10 @@ export function foldLedger(events: readonly LedgerEvent[], options: {
 export function foldMessages(
   events: readonly MessageLedgerEvent[], query: MessageQuery, asOf: number, complete: boolean,
 ): LedgerMessagePage {
-  const grouped = new Map<string, MessageLedgerEvent[]>()
+  const grouped = new Map<string, Extract<MessageLedgerEvent, { kind: 'message/state' }>[]>()
+  const quarantined = events.filter(event => event.kind === 'message/quarantined')
   for (const event of events) {
+    if (event.kind !== 'message/state') continue
     const key = canonicalJson([event.nodeId, event.data.messageId])
     const group = grouped.get(key) ?? []
     group.push(event)
@@ -135,7 +137,7 @@ export function foldMessages(
   const items: LedgerMessage[] = []
   for (const group of grouped.values()) {
     group.sort((a, b) => a.data.stateVersion - b.data.stateVersion || a.eventId.localeCompare(b.eventId))
-    const versions = new Map<number, MessageLedgerEvent>()
+    const versions = new Map<number, Extract<MessageLedgerEvent, { kind: 'message/state' }>>()
     let conflict = false
     for (const event of group) {
       const prior = versions.get(event.data.stateVersion)
@@ -147,15 +149,20 @@ export function foldMessages(
     const last = ordered.at(-1)
     const first = ordered[0]
     if (last === undefined || first === undefined) continue
-    const data = last.data
-    const stateTimes: Partial<Record<MessageLedgerEvent['data']['state'], number>> = {}
+    const isolated = quarantined.filter(event => event.nodeId === last.nodeId && event.data.messageId === last.data.messageId)
+      .sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId)).at(-1)
+    const data = isolated ? { ...last.data, state: 'rejected' as const, transition: 'rejected' as const,
+      reason: 'record-corrupt' as const, observedAt: isolated.observedAt, deliveryOutcome: 'rejected' as const, pending: false } : last.data
+    const stateTimes: Partial<Record<MessageStatus['state'], number>> = {}
     for (const event of ordered) stateTimes[event.data.state] ??= event.data.observedAt
+    if (isolated) stateTimes.rejected ??= isolated.observedAt
     const createdAt = first.data.observedAt
     let phase: MessageStatus['phase'] = data.state === 'injected' ? 'dispatched' : data.state === 'queued' ? 'pending' : 'settled'
     if (data.transition === 'claimed' || data.transition === 'appended' || data.transition === 'delivery-uncertain') phase = data.transition
     const item: LedgerMessage = { messageId: data.messageId, nodeId: last.nodeId, state: data.state, phase,
       revision: data.revision, stateVersion: data.stateVersion, createdAt, data, stateTimes,
-      transitions: ordered.map(event => ({ cursor: event.eventId as string as MessageCursor, nodeId: event.nodeId, data: event.data })) }
+      transitions: [...ordered.map(event => ({ cursor: event.eventId as string as MessageCursor, nodeId: event.nodeId, data: event.data })),
+        ...isolated ? [{ cursor: isolated.eventId as string as MessageCursor, nodeId: isolated.nodeId, data }] : []] }
     if (query.nodeId !== undefined && item.nodeId !== query.nodeId
       || query.sessionId !== undefined && data.senderSessionId !== query.sessionId && data.targetSessionId !== query.sessionId
       || query.senderSessionId !== undefined && data.senderSessionId !== query.senderSessionId

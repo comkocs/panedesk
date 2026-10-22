@@ -72,7 +72,7 @@ describe('control record publication', () => {
       }
       const state = kind === 'withdraw' || kind === 'invalidate' ? 'withdrawn' : 'queued'
       expect((await f.service.status(sent.messageId)).state).toBe(state)
-      expect((await f.ledger.read()).events.some(event => event.data.messageId === sent.messageId
+      expect((await f.ledger.read()).events.some(event => event.kind === 'message/state' && event.data.messageId === sent.messageId
         && event.data.transition === (kind === 'edit' ? 'edited' : kind === 'reprioritize' ? 'reprioritized' : 'withdrawn'))).toBe(true)
     } finally { await f.dispose(); await rm(home, { recursive: true, force: true }) }
   })

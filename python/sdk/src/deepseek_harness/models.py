@@ -73,7 +73,7 @@ MessageReason: TypeAlias = Literal[
     "receive-disabled", "handoff-only", "cross-node-unsupported", "claimed", "injected",
     "revision-conflict", "operation-conflict", "unauthorized", "invalid-content",
     "invalid-priority", "invalid-reply", "message-not-found", "terminal-state",
-    "unavailable", "delivery-uncertain", "unsupported", "interjection",
+    "unavailable", "delivery-uncertain", "unsupported", "interjection", "record-corrupt",
 ]
 MessageTransition: TypeAlias = Literal[
     "accepted", "rejected", "claimed", "appended", "rolled-back", "injected",

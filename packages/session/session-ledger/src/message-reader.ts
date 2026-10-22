@@ -19,6 +19,9 @@ export async function readMessagePage(root: string, options: JournalOptions, que
     if (query.cursor !== undefined && cursorIndex < 0) throw new Error('Unknown message ledger cursor')
     if (query.limit !== undefined && (!Number.isSafeInteger(query.limit) || query.limit <= 0)) throw new Error('Message limit must be a positive safe integer')
     const selected = events.slice(cursorIndex + 1).filter((event) => {
+      if (event.kind === 'message/quarantined') return (query.nodeId === undefined || event.nodeId === query.nodeId)
+        && (query.from === undefined || event.observedAt >= query.from)
+        && (query.to === undefined || event.observedAt < query.to)
       const data = event.data
       return (query.nodeId === undefined || event.nodeId === query.nodeId)
         && (query.sessionId === undefined || data.senderSessionId === query.sessionId || data.targetSessionId === query.sessionId)

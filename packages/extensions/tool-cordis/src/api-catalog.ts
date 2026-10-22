@@ -6938,7 +6938,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MessageLedgerEvent',
-    declaration: 'export interface MessageLedgerEvent {\n    readonly schemaVersion: 1;\n    readonly eventId: LedgerEventId;\n    readonly nodeId: LedgerNodeId;\n    readonly observedAt: number;\n    readonly kind: \'message/state\';\n    readonly data: MessageStateData;\n}',
+    declaration: 'export type MessageLedgerEvent = {\n    readonly schemaVersion: 1;\n    readonly eventId: LedgerEventId;\n    readonly nodeId: LedgerNodeId;\n    readonly observedAt: number;\n} & ({\n    readonly kind: \'message/state\';\n    readonly data: MessageStateData;\n} | {\n    readonly kind: \'message/quarantined\';\n    readonly data: MessageQuarantineData;\n});',
   },
   {
     name: 'MessageLedgerPage',
@@ -6957,12 +6957,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MessagePriority = InputPriority;',
   },
   {
+    name: 'MessageQuarantineData',
+    declaration: 'export interface MessageQuarantineData {\n    readonly messageId?: MessageId;\n    readonly reason: \'corrupt\' | \'unsupported-version\' | \'invalid-fields\';\n    readonly originalFileName: string;\n}',
+  },
+  {
     name: 'MessageQuery',
     declaration: 'export interface MessageQuery {\n    readonly sessionId?: SessionId;\n    readonly senderSessionId?: SessionId;\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly states?: readonly MessageState[];\n    readonly messageClasses?: readonly MessageClass[];\n    readonly unansweredOlderThanMinutes?: number;\n    readonly includeTerminal?: boolean;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
   },
   {
     name: 'MessageReason',
-    declaration: 'export type MessageReason = \'target-closed-pending\' | \'target-archived\' | \'target-not-found\' | \'target-ambiguous\' | \'receive-disabled\' | \'handoff-only\' | \'cross-node-unsupported\' | \'claimed\' | \'injected\' | \'revision-conflict\' | \'operation-conflict\' | \'unauthorized\' | \'invalid-content\' | \'invalid-priority\' | \'invalid-reply\' | \'message-not-found\' | \'terminal-state\' | \'unavailable\' | \'delivery-uncertain\' | \'unsupported\' | \'interjection\';',
+    declaration: 'export type MessageReason = \'target-closed-pending\' | \'target-archived\' | \'target-not-found\' | \'target-ambiguous\' | \'receive-disabled\' | \'handoff-only\' | \'cross-node-unsupported\' | \'claimed\' | \'injected\' | \'revision-conflict\' | \'operation-conflict\' | \'unauthorized\' | \'invalid-content\' | \'invalid-priority\' | \'invalid-reply\' | \'message-not-found\' | \'terminal-state\' | \'unavailable\' | \'delivery-uncertain\' | \'unsupported\' | \'interjection\' | \'record-corrupt\';',
   },
   {
     name: 'MessageRecipient',

@@ -26,7 +26,14 @@ export type MessageReason =
   | 'receive-disabled' | 'handoff-only' | 'cross-node-unsupported' | 'claimed' | 'injected'
   | 'revision-conflict' | 'operation-conflict' | 'unauthorized' | 'invalid-content'
   | 'invalid-priority' | 'invalid-reply' | 'message-not-found' | 'terminal-state'
-  | 'unavailable' | 'delivery-uncertain' | 'unsupported' | 'interjection'
+  | 'unavailable' | 'delivery-uncertain' | 'unsupported' | 'interjection' | 'record-corrupt'
+
+/** Isolated mailbox evidence; message identity is omitted when it cannot be recovered. */
+export interface MessageQuarantineData {
+  readonly messageId?: MessageId
+  readonly reason: 'corrupt' | 'unsupported-version' | 'invalid-fields'
+  readonly originalFileName: string
+}
 /** Auditable transition, including reservation and rollback without a public state change. */
 export type MessageTransition = 'accepted' | 'rejected' | 'claimed' | 'appended' | 'rolled-back'
   | 'injected' | 'responded' | 'withdrawn' | 'edited' | 'reprioritized' | 'invalidated' | 'delivery-uncertain'

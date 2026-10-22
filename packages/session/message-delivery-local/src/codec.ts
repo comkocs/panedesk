@@ -7,7 +7,7 @@ import type {
   MessageStateEvent, MessageStatus, NodeId, OperationId, SendMessageResult,
 } from '@panedesk/dsh-message-delivery'
 import type { ControlCommand, Decision, SendCommand } from './types.ts'
-import { MailboxUnavailableError } from './files.ts'
+import { MailboxRecordError } from './files.ts'
 
 const integer = z.number().int().nonnegative()
 const messageId = z.string().min(1).transform(value => value as MessageId)
@@ -21,7 +21,7 @@ const reason = z.enum([
   'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected',
   'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content',
   'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state',
-  'unavailable', 'delivery-uncertain', 'unsupported', 'interjection',
+  'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt',
 ]) satisfies z.ZodType<MessageReason>
 const sender = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('human'), sessionId: z.null() }),
@@ -91,7 +91,7 @@ const decision = z.object({ message, status, events: z.array(event), notificatio
 
 function decode<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value)
-  if (!result.success) throw new MailboxUnavailableError('Invalid durable mailbox evidence', { cause: result.error })
+  if (!result.success) throw new MailboxRecordError('Invalid durable mailbox evidence', 'invalid-fields', value)
   return result.data
 }
 
