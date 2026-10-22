@@ -1,4 +1,4 @@
-/** OS-only source fixture; no Cordis or workspace source resolver is loaded. */
+/** Source fixture launched through tsx/esm with explicit workspace source resolution. */
 import { appendUnique } from '../src/journal.ts'
 import type { LedgerEvent } from '../src/types.ts'
 

@@ -142,7 +142,9 @@ describe('journal', () => {
     const path = await root()
     const fixture = join(import.meta.dirname, 'journal-child.ts')
     const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
-    const children = Array.from({ length: 4 }, () => spawn(process.execPath, [fixture, path, JSON.stringify(event())], { env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }))
+    env.TSX_TSCONFIG_PATH = join(import.meta.dirname, '../../../../tsconfig.json')
+    const args = ['--import', 'tsx/esm', fixture, path, JSON.stringify(event())]
+    const children = Array.from({ length: 4 }, () => spawn(process.execPath, args, { env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }))
     const results = children.map(child => new Promise<string>((resolve, reject) => {
       let output = ''
       let errors = ''

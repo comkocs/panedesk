@@ -10,10 +10,10 @@ import {
   appendMessageUnique, recoverMessageSegments,
 } from './journal.ts'
 import { withWriterLock, LedgerUnavailableError } from './lock.ts'
-import { foldLedger } from './projection.ts'
+import { foldLedger, foldMessages, joinSessionLedgers, exportMessages } from './projection.ts'
 import { loadPriceTable, priceUsage } from './pricing.ts'
-import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore } from './types.ts'
-import type { MessageCursor } from '@panedesk/dsh-message-delivery'
+import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, LedgerMessagePage, LedgerSessionPage } from './types.ts'
+import type { MessageCursor, MessageQuery } from '@panedesk/dsh-message-delivery'
 export { LedgerUnavailableError } from './lock.ts'
 import { Context, Service } from '@panedesk/cordis'
 import type {
@@ -131,6 +131,32 @@ export abstract class SessionLedger extends Service {
    */
   messages(): Promise<MessageLedgerStore> {
     return Promise.reject(new LedgerUnavailableError(new Error('Message journal is not provided')))
+  }
+  /** Project all retained versions before selecting current message states.
+   * @param query - Session, creation-time, state, class, age and pagination selection.
+   * @returns Message statuses and integrity of the full scan.
+   */
+  async queryMessages(query: MessageQuery): Promise<LedgerMessagePage> {
+    const page = await (await this.messages()).read({})
+    return foldMessages(page.events, query, Date.now(), page.complete)
+  }
+  /** Join both namespaces by Session without adding messages to billable call rows.
+   * @param query - Shared Session and half-open time filter; all matching messages are retained.
+   * @returns Independent journal views grouped by Session, not an atomic cross-journal snapshot.
+   */
+  async querySessions(query: Pick<LedgerQuery, 'sessionId' | 'from' | 'to'>): Promise<LedgerSessionPage> {
+    const [calls, messages] = await Promise.all([this.query(query), this.queryMessages(query)])
+    const joined = joinSessionLedgers(calls, messages)
+    return query.sessionId === undefined ? joined : {
+      ...joined, sessions: joined.sessions.filter(group => group.sessionId === query.sessionId), unassignedMessages: [],
+    }
+  }
+  /** Export a selected message page without bodies, with an integrity header even when empty.
+   * @param query - Message filters and optional page cursor.
+   * @returns Schema-versioned JSONL metadata and status records.
+   */
+  async exportMessages(query: MessageQuery): Promise<string> {
+    return exportMessages(await this.queryMessages(query))
   }
 }
 
@@ -420,7 +446,7 @@ export class JournalSessionLedger extends SessionLedger {
         const cursorIndex = query.cursor === undefined ? -1 : events.findIndex(event => event.eventId === String(query.cursor))
         if (query.cursor !== undefined && cursorIndex < 0) throw new Error('Unknown message ledger cursor')
         if (query.limit !== undefined && (!Number.isSafeInteger(query.limit) || query.limit <= 0)) throw new Error('Message limit must be a positive safe integer')
-        const selected = events.slice(cursorIndex + 1).filter(event => {
+        const selected = events.slice(cursorIndex + 1).filter((event) => {
           const data = event.data
           return (query.nodeId === undefined || event.nodeId === query.nodeId)
             && (query.sessionId === undefined || data.senderSessionId === query.sessionId || data.targetSessionId === query.sessionId)

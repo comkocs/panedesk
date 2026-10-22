@@ -360,11 +360,11 @@ function assertMessageEvent(value: unknown): asserts value is MessageLedgerEvent
     ['state', ['queued', 'injected', 'responded', 'withdrawn', 'invalidated', 'rejected']],
     ['transition', ['accepted', 'rejected', 'claimed', 'appended', 'rolled-back', 'injected', 'responded', 'withdrawn', 'edited', 'reprioritized', 'invalidated', 'delivery-uncertain']],
   ] as const) if (!values.some(item => item === data[key])) throw new Error(`Invalid message ${key}`)
-  if (data.reason !== undefined && !['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous', 'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection'].includes(String(data.reason))) throw new Error('Invalid message reason')
+  if (data.reason !== undefined && !['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous', 'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection'].some(reason => reason === data.reason)) throw new Error('Invalid message reason')
   if (data.firstRequestId !== undefined) strings(data, ['firstRequestId'])
   if (data.firstTurnId !== undefined && (!Number.isSafeInteger(data.firstTurnId) || Number(data.firstTurnId) < 0)) throw new Error('Invalid message turn')
   if (data.pending !== undefined && typeof data.pending !== 'boolean') throw new Error('Invalid message pending flag')
-  if (data.deliveryOutcome !== undefined && !['accepted', 'rejected'].includes(String(data.deliveryOutcome))) throw new Error('Invalid message delivery outcome')
+  if (data.deliveryOutcome !== undefined && !['accepted', 'rejected'].some(outcome => outcome === data.deliveryOutcome)) throw new Error('Invalid message delivery outcome')
   if (event.eventId !== messageEventId(value as MessageLedgerEvent)) throw new Error('Invalid stable message event identity')
 }
 
@@ -425,7 +425,8 @@ export async function appendMessageUnique(root: string, event: MessageLedgerEven
     const scan = await recoverMessageSegments(root, options.maxRecordBytes)
     if (scan.corrupt.length) throw new Error('Message ledger corruption prevents further writes')
     const prior = scan.events.find(item => item.eventId === immutable.eventId
-      || item.nodeId === immutable.nodeId && item.data.messageId === immutable.data.messageId && item.data.stateVersion === immutable.data.stateVersion)
+      || item.nodeId === immutable.nodeId && item.data.messageId === immutable.data.messageId
+      && item.data.stateVersion === immutable.data.stateVersion)
     if (prior && canonicalJson(prior) !== canonicalJson(immutable)) throw new Error('Conflicting message state version')
     await syncFiles(await files(join(root, 'events')))
     if (!prior) {

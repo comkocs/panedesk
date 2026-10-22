@@ -2,7 +2,7 @@
 import type { Branded } from '@panedesk/dsh-brand'
 import type { GenerateOptions, ResponseModelReported, TokenUsage } from '@panedesk/dsh-llm'
 import type { SessionId } from '@panedesk/dsh-session'
-import type { MessageCursor, MessageQuery, MessageStateData } from '@panedesk/dsh-message-delivery'
+import type { MessageCursor, MessageQuery, MessageStateData, MessageStatus, MessageState } from '@panedesk/dsh-message-delivery'
 
 export type { MessageStateData } from '@panedesk/dsh-message-delivery'
 
@@ -38,6 +38,34 @@ export interface MessageLedgerStore {
    * @returns retained facts and scan completeness.
    */
   read(query: MessageQuery): Promise<MessageLedgerPage>
+}
+
+/** Projected runtime status with first-observed timestamps retained for every public state. */
+export interface LedgerMessage extends MessageStatus {
+  readonly nodeId: LedgerNodeId
+  readonly data: MessageStateData
+  readonly createdAt: number
+  readonly stateTimes: Readonly<Partial<Record<MessageState, number>>>
+}
+
+/** Message projection page; integrity covers the full scan, not only selected rows. */
+export interface LedgerMessagePage {
+  readonly items: readonly LedgerMessage[]
+  readonly complete: boolean
+  readonly asOf: number
+  readonly nextCursor?: MessageCursor
+}
+
+/** Call and message projections grouped by either source or target Session without creating fake Sessions. */
+export interface LedgerSessionPage {
+  readonly asOf: number
+  readonly complete: boolean
+  readonly sessions: readonly {
+    readonly sessionId: SessionId
+    readonly calls: readonly LedgerRow[]
+    readonly messages: readonly LedgerMessage[]
+  }[]
+  readonly unassignedMessages: readonly LedgerMessage[]
 }
 
 /** Globally unique ledger event identity; duplicate content is idempotent, conflicting content is rejected. */

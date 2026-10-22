@@ -29,6 +29,8 @@ Providers accept `Config.waitTools` and implement `registerWaitTool(name, catego
 
 `JournalSessionLedger.messages()` stores body-free `message/state` facts in `ledger/messages/v1/<nodeId>/events/<UTC-date>/`, independently of the unchanged call namespace `ledger/v1/`. Message envelopes start at `schemaVersion: 1`; human origins may have no Session or run. Event identities derive from node, message, state version, and transition. A native writer lock serializes unique state versions; equal replays synchronize and acknowledge existing bytes, unequal replays reject. Each append creates a restricted checksummed JSONL segment and fsyncs it and its directory. Interrupted tails remain untouched, later writes use new segments, and reads report incomplete storage rather than hiding tails or corruption. Message bodies are rejected.
 
+`queryMessages` folds all versions before filtering current state, class, source/target Session and half-open creation time; state times preserve the first observation, including first injection after interrupted turns. Unanswered handoffs include replies and closed-target pending messages, exclude any response, and omit terminal outcomes unless explicitly requested. Projection cursors identify the last message; journal cursors identify the last event. `exportMessages` emits a schema-versioned integrity header even for empty results. `querySessions` joins calls and messages by both participating Session IDs, retaining unassigned human-origin messages separately. It combines independently locked reads, not an atomic cross-namespace checkpoint; messages never enter call totals.
+
 <a id="model-experience"></a>
 ## Model Experience
 

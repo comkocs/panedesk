@@ -5,7 +5,8 @@ import { Context } from '@panedesk/cordis'
 import { JournalSessionLedger } from '../src/index.ts'
 import { appendMessageUnique, messageEventId, recoverMessageSegments } from '../src/journal.ts'
 import type { MessageLedgerEvent } from '../src/types.ts'
-import { options } from './fixtures.ts'
+import { options, callStart, callFinish } from './fixtures.ts'
+import { foldMessages, exportMessages } from '../src/projection.ts'
 
 const roots: string[] = []
 async function root() {
@@ -34,7 +35,9 @@ describe('message journal', () => {
     const input = message()
     const cursors = await Promise.all(Array.from({ length: 4 }, () => appendMessageUnique(path, input, options)))
     expect(new Set(cursors).size).toBe(1)
-    expect(await recoverMessageSegments(path, options.maxRecordBytes)).toMatchObject({ events: [input], complete: true, corrupt: [], tails: [] })
+    expect(await recoverMessageSegments(path, options.maxRecordBytes)).toMatchObject({
+      events: [input], complete: true, corrupt: [], tails: [],
+    })
     expect((await stat(join(path, 'writer.lock'))).mode & 0o777).toBe(0o600)
     const file = (await readdir(join(path, 'events'), { recursive: true })).find(name => name.endsWith('.jsonl'))!
     expect((await stat(join(path, 'events', file))).mode & 0o777).toBe(0o600)
@@ -93,6 +96,60 @@ describe('message journal', () => {
       expect((await store.read({})).events).toEqual([message()])
       expect((await ledger.snapshot()).rows).toEqual([])
       expect(await readdir(join(home, 'ledger'))).toEqual(expect.arrayContaining(['v1', 'messages']))
-    } finally { await ctx.stop() }
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('projects current states with first injection time, unanswered age and exclusive cursors', () => {
+    const first = message({ targetSessionId: callStart.sessionId })
+    const injected = message({ ...first.data, stateVersion: 1, state: 'injected', transition: 'injected', observedAt: 200 })
+    const repeated = message({ ...injected.data, stateVersion: 2, observedAt: 300 })
+    const responded = message({ ...injected.data, stateVersion: 3, state: 'responded', transition: 'responded', observedAt: 400 })
+    const second = message({ messageId: 'message-b' as typeof first.data.messageId, observedAt: 500, reason: 'target-closed-pending', pending: true })
+    const events = [responded, repeated, second, first, injected]
+    const page = foldMessages(events, { sessionId: callStart.sessionId, states: ['responded'], from: 100, to: 101 }, 100_000, true)
+    expect(page.items[0]?.stateTimes).toEqual({ queued: 100, injected: 200, responded: 400 })
+    expect(page.items[0]?.transitions).toHaveLength(4)
+    expect(foldMessages(events, { unansweredOlderThanMinutes: 1 }, 100_000, true).items.map(item => item.messageId)).toEqual(['message-b'])
+    const one = foldMessages(events, { limit: 1 }, 100_000, true)
+    expect(one.nextCursor).toBeDefined()
+    expect(foldMessages(events, { cursor: one.nextCursor!, limit: 1 }, 100_000, true).items[0]?.messageId).toBe('message-b')
+    expect(() => foldMessages(events, { limit: 0 }, 100_000, true)).toThrow('positive')
+    const exported = exportMessages({ ...page, complete: false }).trim().split('\n').map((line): unknown => JSON.parse(line))
+    expect(exported).toHaveLength(2)
+    for (const row of exported) expect(row).toMatchObject({ schemaVersion: 1, complete: false })
+  })
+
+  it('excludes withdrawn notices and responded handoffs from unanswered selections and retains conflicts', () => {
+    const original = message()
+    const withdrawn = message({ stateVersion: 1, state: 'withdrawn', transition: 'withdrawn', observedAt: 200 })
+    expect(foldMessages([original, withdrawn], { unansweredOlderThanMinutes: 0 }, 1000, true).items).toEqual([])
+    expect(foldMessages([original, withdrawn], { unansweredOlderThanMinutes: 0, includeTerminal: true }, 1000, true).items).toHaveLength(1)
+    expect(foldMessages([message({ messageClass: 'notice', priority: 'queue' })], { unansweredOlderThanMinutes: 0 }, 1000, true).items).toEqual([])
+    expect(foldMessages([original, message({ priority: 'immediate' })], {}, 1000, true)).toMatchObject({ items: [], complete: false })
+    expect(JSON.parse(exportMessages({ items: [], complete: false, asOf: 1000 }).trim())).toMatchObject({
+      schemaVersion: 1, complete: false,
+    })
+  })
+
+  it('joins call and message namespaces by sender and target without fabricating a human session', async () => {
+    const ctx = new Context()
+    const ledger = new JournalSessionLedger(ctx, { dshHome: await root() })
+    try {
+      await ledger.beginCall(callStart)
+      await ledger.finishCall(callFinish)
+      const store = await ledger.messages()
+      await store.append(message({ senderSessionId: callStart.sessionId, targetSessionId: 'seat-b' as typeof callStart.sessionId }))
+      await store.append(message({ messageId: 'message-b' as MessageLedgerEvent['data']['messageId'] }))
+      const joined = await ledger.querySessions({})
+      expect(joined.complete).toBe(true)
+      expect(joined.sessions.find(group => group.sessionId === callStart.sessionId)).toMatchObject({ calls: [{ kind: 'call' }], messages: [{ messageId: 'message-a' }] })
+      expect(joined.sessions.find(group => group.sessionId === 'seat-b')?.messages).toHaveLength(1)
+      expect(joined.unassignedMessages).toHaveLength(1)
+      expect((await ledger.querySessions({ sessionId: callStart.sessionId })).sessions).toHaveLength(1)
+      expect((await ledger.queryMessages({ messageClasses: ['handoff'] })).items).toHaveLength(2)
+      expect((await ledger.exportMessages({})).trim().split('\n')).toHaveLength(3)
+      const first = await store.read({ limit: 1 })
+      expect((await store.read({ cursor: first.nextCursor! })).events).toHaveLength(1)
+    } finally { await ctx.fiber.dispose() }
   })
 })

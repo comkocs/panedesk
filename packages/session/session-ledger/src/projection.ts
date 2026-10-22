@@ -1,7 +1,8 @@
 /** Deterministic call/run projection and conflict-preserving multi-node merging. */
 import { canonicalJson, rebuildIndex, uniqueSlot } from './index-store.ts'
 import { projectWaits } from './waits.ts'
-import type { LedgerEvent, LedgerLifecycle, LedgerQuery, LedgerRow, LedgerSnapshot, LedgerWatermark } from './types.ts'
+import type { LedgerEvent, LedgerLifecycle, LedgerQuery, LedgerRow, LedgerSnapshot, LedgerWatermark, MessageLedgerEvent, LedgerMessage, LedgerMessagePage, LedgerSessionPage } from './types.ts'
+import type { MessageCursor, MessageQuery, MessageStatus } from '@panedesk/dsh-message-delivery'
 
 /** Merge output keeps incompatible identities visible to callers. */
 export interface LedgerMerge {
@@ -112,6 +113,105 @@ export function foldLedger(events: readonly LedgerEvent[], options: {
     asOf: options.asOf, watermarks: options.watermarks ?? {},
     complete: (options.complete ?? true) && merged.conflicts.length === 0, rows: selected,
   }
+}
+
+/** Fold message versions before applying current-state filters or pagination.
+ * @param events - Validated runtime facts; repeated identical versions are deduplicated.
+ * @param query - Current state, creation-time, Session, and unanswered filters.
+ * @param asOf - Wall-clock cutoff used for unanswered age.
+ * @param complete - Full journal integrity, propagated even for empty selections.
+ * @returns Ordered statuses with first state times and explicit integrity.
+ */
+export function foldMessages(
+  events: readonly MessageLedgerEvent[], query: MessageQuery, asOf: number, complete: boolean,
+): LedgerMessagePage {
+  const grouped = new Map<string, MessageLedgerEvent[]>()
+  for (const event of events) {
+    const key = canonicalJson([event.nodeId, event.data.messageId])
+    const group = grouped.get(key) ?? []
+    group.push(event)
+    grouped.set(key, group)
+  }
+  const items: LedgerMessage[] = []
+  for (const group of grouped.values()) {
+    group.sort((a, b) => a.data.stateVersion - b.data.stateVersion || a.eventId.localeCompare(b.eventId))
+    const versions = new Map<number, MessageLedgerEvent>()
+    let conflict = false
+    for (const event of group) {
+      const prior = versions.get(event.data.stateVersion)
+      if (prior && canonicalJson(prior) !== canonicalJson(event)) conflict = true
+      else versions.set(event.data.stateVersion, event)
+    }
+    if (conflict) { complete = false; continue }
+    const ordered = [...versions.values()]
+    const last = ordered.at(-1)
+    const first = ordered[0]
+    if (last === undefined || first === undefined) continue
+    const data = last.data
+    const stateTimes: Partial<Record<MessageLedgerEvent['data']['state'], number>> = {}
+    for (const event of ordered) stateTimes[event.data.state] ??= event.data.observedAt
+    const createdAt = first.data.observedAt
+    let phase: MessageStatus['phase'] = data.state === 'injected' ? 'dispatched' : data.state === 'queued' ? 'pending' : 'settled'
+    if (data.transition === 'claimed' || data.transition === 'appended' || data.transition === 'delivery-uncertain') phase = data.transition
+    const item: LedgerMessage = { messageId: data.messageId, nodeId: last.nodeId, state: data.state, phase,
+      revision: data.revision, stateVersion: data.stateVersion, createdAt, data, stateTimes,
+      transitions: ordered.map(event => ({ cursor: event.eventId as string as MessageCursor, nodeId: event.nodeId, data: event.data })) }
+    if (query.nodeId !== undefined && item.nodeId !== query.nodeId
+      || query.sessionId !== undefined && data.senderSessionId !== query.sessionId && data.targetSessionId !== query.sessionId
+      || query.senderSessionId !== undefined && data.senderSessionId !== query.senderSessionId
+      || query.targetSessionId !== undefined && data.targetSessionId !== query.targetSessionId
+      || query.from !== undefined && createdAt < query.from || query.to !== undefined && createdAt >= query.to
+      || query.states !== undefined && !query.states.includes(data.state)
+      || query.messageClasses !== undefined && !query.messageClasses.includes(data.messageClass)) continue
+    if (query.unansweredOlderThanMinutes !== undefined) {
+      if (!Number.isFinite(query.unansweredOlderThanMinutes) || query.unansweredOlderThanMinutes < 0) throw new Error('Unanswered age must be nonnegative')
+      if (data.messageClass === 'notice' || stateTimes.responded !== undefined
+        || createdAt >= asOf - query.unansweredOlderThanMinutes * 60_000
+        || !query.includeTerminal && ['withdrawn', 'invalidated', 'rejected'].includes(data.state)) continue
+    }
+    items.push(item)
+  }
+  items.sort((a, b) => a.createdAt - b.createdAt || a.nodeId.localeCompare(b.nodeId) || a.messageId.localeCompare(b.messageId))
+  const cursorOf = (item: LedgerMessage) => `message:${Buffer.from(canonicalJson([item.nodeId, item.messageId])).toString('base64url')}` as MessageCursor
+  const start = query.cursor === undefined ? -1 : items.findIndex(item => cursorOf(item) === query.cursor)
+  if (query.cursor !== undefined && start < 0) throw new Error('Unknown message projection cursor')
+  if (query.limit !== undefined && (!Number.isSafeInteger(query.limit) || query.limit <= 0)) throw new Error('Message limit must be a positive safe integer')
+  const selected = items.slice(start + 1)
+  const page = selected.slice(0, query.limit)
+  const last = page.at(-1)
+  return { items: page, asOf, complete, ...last && page.length < selected.length ? { nextCursor: cursorOf(last) } : {} }
+}
+
+/** Group independent call and message views by Session, preserving human-origin unassigned facts.
+ * @param calls - Existing call projection, unchanged by message accounting.
+ * @param messages - Complete, unpaginated message projection for the same selection.
+ * @returns Session groups and conjunction of both integrity flags; this is not a cross-journal transaction.
+ */
+export function joinSessionLedgers(calls: LedgerSnapshot, messages: LedgerMessagePage): LedgerSessionPage {
+  const groups = new Map<LedgerSessionPage['sessions'][number]['sessionId'], { sessionId: LedgerSessionPage['sessions'][number]['sessionId']; calls: LedgerRow[]; messages: LedgerMessage[] }>()
+  const groupFor = (sessionId: LedgerSessionPage['sessions'][number]['sessionId']) => {
+    let group = groups.get(sessionId)
+    if (!group) { group = { sessionId, calls: [], messages: [] }; groups.set(sessionId, group) }
+    return group
+  }
+  for (const row of calls.rows) groupFor(row.kind === 'event' ? row.event.sessionId : row.start.sessionId).calls.push(row)
+  const unassignedMessages: LedgerMessage[] = []
+  for (const message of messages.items) {
+    const sessions = new Set([message.data.senderSessionId, message.data.targetSessionId].filter(id => id !== null))
+    if (!sessions.size) unassignedMessages.push(message)
+    for (const sessionId of sessions) groupFor(sessionId).messages.push(message)
+  }
+  return { asOf: Math.max(calls.asOf, messages.asOf), complete: calls.complete && messages.complete,
+    sessions: [...groups.values()].sort((a, b) => a.sessionId.localeCompare(b.sessionId)), unassignedMessages }
+}
+
+/** Export message statuses as JSONL with an integrity header, including empty results.
+ * @param page - Selected message projection page.
+ * @returns Metadata line followed by body-free status rows, each carrying schema version and integrity.
+ */
+export function exportMessages(page: LedgerMessagePage): string {
+  return [canonicalJson({ schemaVersion: 1, kind: 'message/export', complete: page.complete, asOf: page.asOf, nextCursor: page.nextCursor }),
+    ...page.items.map(item => canonicalJson({ schemaVersion: 1, kind: 'message/status', complete: page.complete, item }))].join('\n') + '\n'
 }
 
 /** Count unique confirmed sessions, including children without double counting a residency.
