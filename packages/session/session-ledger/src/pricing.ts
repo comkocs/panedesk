@@ -56,9 +56,12 @@ export function tokenColumns(request: LedgerPriceUsageRequest): LedgerTokenColum
 function terms(request: LedgerPriceUsageRequest): { state: LedgerPriceUsageResult['state']; values: [string, string][] } {
   const usage = request.usage
   if (!usage || request.usageState === 'missing') return { state: 'missing-usage', values: [] }
-  if (request.usageState !== 'complete') return { state: 'partial-usage', values: [] }
   const columns = tokenColumns(request)
-  const { inputTokens: input, outputTokens: output, cacheReadTokens: read, cacheWriteTokens: write } = columns
+  const { inputTokens: input, outputTokens: output, cacheReadTokens: read } = columns
+  const write = columns.cacheWriteTokens
+  if (request.usageState !== 'complete') {
+    return { state: 'partial-usage', values: [] }
+  }
   if (input === undefined || output === undefined || read === undefined || write === undefined
     || [input, output, read, write].some(value => !Number.isSafeInteger(value) || value < 0)) {
     return { state: 'partial-usage', values: [] }
@@ -80,7 +83,7 @@ function terms(request: LedgerPriceUsageRequest): { state: LedgerPriceUsageResul
     if (price === undefined) return { state: 'missing-price', values: [] }
     values.push([String(write), price])
   }
-  if (prices.cacheStoragePerMillionTokenHour !== undefined) {
+  if (prices.cacheStoragePerMillionTokenHour !== undefined && decimal(prices.cacheStoragePerMillionTokenHour).units !== 0n) {
     if (request.cacheStorageTokenHours === undefined) return { state: 'partial-usage', values: [] }
     values.push([request.cacheStorageTokenHours, prices.cacheStoragePerMillionTokenHour])
   }

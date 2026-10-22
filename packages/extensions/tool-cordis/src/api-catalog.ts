@@ -2288,7 +2288,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Durable ledger contract; implementations alone own storage and runtime hooks.',
     methods: [
       {
-        signature: 'abstract resolveCallContext(request: { sessionId?: LedgerContext[\'sessionId\'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>',
+        signature: 'abstract resolveCallContext(request: { sessionId?: LedgerContext[\'sessionId\'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry; priceTable?: LedgerPriceTable }>',
         description: 'Resolve trusted attribution before dispatch.',
         parameters: [{ name: 'request', description: 'Explicit session and serving route.' }],
         returns: 'Resolved identity and optional frozen reference price.',
@@ -6168,7 +6168,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerCacheEvidence',
-    declaration: 'export interface LedgerCacheEvidence {\n    prefixFingerprint?: string;\n    fingerprintVersion?: number;\n    cacheEpoch?: string;\n    wirePrefixDigest?: string;\n    breakReasons: readonly string[];\n    lastCacheEvidenceAt?: number;\n    ttlSeconds?: number;\n    cacheMode: \'disabled\' | \'explicit\' | \'automatic\' | \'unknown\';\n    retention?: GenerateOptions[\'cache\'];\n    downgradeReason?: string;\n    sessionPolicy?: {\n        retention: NonNullable<GenerateOptions[\'cache\']>[\'retention\'];\n        stableKey?: string;\n    };\n    keepalivePolicy?: {\n        enabled: boolean;\n        leadSeconds: number;\n        minimumIntervalSeconds: number;\n        maxOutputTokens: number;\n    };\n    keepaliveFailures?: number;\n    lastKeepaliveAttemptAt?: number;\n}',
+    declaration: 'export interface LedgerCacheEvidence {\n    prefixFingerprint?: string;\n    fingerprintVersion?: number;\n    cacheEpoch?: string;\n    wirePrefixDigest?: string;\n    breakReasons: readonly string[];\n    lastCacheEvidenceAt?: number;\n    ttlSeconds?: number;\n    cacheMode: \'disabled\' | \'explicit\' | \'automatic\' | \'unknown\';\n    retention?: GenerateOptions[\'cache\'];\n    reportedRetention?: string;\n    ttlSource?: \'response\' | \'request-estimate\';\n    writePriceTier?: string;\n    downgradeReason?: string;\n    sessionPolicy?: {\n        retention: NonNullable<GenerateOptions[\'cache\']>[\'retention\'];\n        stableKey?: string;\n    };\n    keepalivePolicy?: {\n        enabled: boolean;\n        leadSeconds: number;\n        minimumIntervalSeconds: number;\n        maxOutputTokens: number;\n    };\n    keepaliveFailures?: number;\n    lastKeepaliveAttemptAt?: number;\n}',
   },
   {
     name: 'LedgerCacheWriteTiering',
@@ -6180,7 +6180,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerCallFinish',
-    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported | \'not-reported\';\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    usageState: LedgerUsageState;\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n    accountLabel?: string;\n    cacheWriteTiering?: LedgerCacheWriteTiering;\n    cache?: LedgerCacheEvidence;\n    http429Count?: number;\n    http503Count?: number;\n}',
+    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported | \'not-reported\';\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    reportedUsage?: Readonly<Record<string, number>>;\n    usageState: LedgerUsageState;\n    cacheWriteAccounting?: \'not-applicable\';\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    priceVersion?: string;\n    priceKey?: string;\n    priceKeySource?: \'response-model\' | \'request-model\' | \'unknown\';\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n    accountLabel?: string;\n    cacheWriteTiering?: LedgerCacheWriteTiering;\n    cache?: LedgerCacheEvidence;\n    http429Count?: number;\n    http503Count?: number;\n}',
   },
   {
     name: 'LedgerCallId',
@@ -6257,6 +6257,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LedgerPriceMetadata',
     declaration: 'export interface LedgerPriceMetadata {\n    version: string;\n    sourceUrls: readonly string[];\n    retrievedOn: string;\n    reference: true;\n}',
+  },
+  {
+    name: 'LedgerPriceTable',
+    declaration: 'export interface LedgerPriceTable extends LedgerPriceMetadata {\n    entries: readonly LedgerPriceEntry[];\n}',
   },
   {
     name: 'LedgerPriceUsageRequest',
@@ -6356,7 +6360,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmAdapter',
-    declaration: 'export abstract class LlmAdapter {\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef): ImageRequestTarget;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
+    declaration: 'export abstract class LlmAdapter {\n    static ledgerEvidence?: WeakMap<StreamChunk, {\n        usage?: import(\'./types.ts\').TokenUsage;\n        reportedUsage?: Readonly<Record<string, number>>;\n        usageObserved?: boolean;\n        cacheWriteAccounting?: \'not-applicable\';\n        reportedCacheRetention?: string;\n    }>;\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef): ImageRequestTarget;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
     name: 'LlmAttemptId',

@@ -196,7 +196,7 @@ Durable ledger contract; implementations alone own storage and runtime hooks.
  * @param request - Explicit session and serving route.
  * @returns Resolved identity and optional frozen reference price.
  */
-abstract resolveCallContext(request: { sessionId?: LedgerContext['sessionId'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
+abstract resolveCallContext(request: { sessionId?: LedgerContext['sessionId'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry; priceTable?: LedgerPriceTable }>
 
 /** Bind runtime-owned attribution before publishing a session.
  * @param context - Trusted identity and parent linkage.

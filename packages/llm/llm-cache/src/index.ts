@@ -4,6 +4,7 @@ import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { assembleContextFor } from '@panedesk/dsh-agent'
 import type { Agent } from '@panedesk/dsh-agent'
+import { LlmAdapter, LlmError } from '@panedesk/dsh-llm'
 import type { GenerateOptions, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
 import { renderPrompt } from '@panedesk/dsh-system-prompt'
 import type { PromptAssembly } from '@panedesk/dsh-system-prompt'
@@ -19,6 +20,7 @@ import type { CacheRoute } from './policy.ts'
 import { cacheRemaining, foldCacheState } from './state.ts'
 import type { CacheRemaining } from './types.ts'
 import { scheduleKeepalive } from './keepalive.ts'
+import { callWaits } from './waits.ts'
 export type * from './types.ts'
 export type { CacheRoute } from './policy.ts'
 
@@ -459,7 +461,7 @@ export function apply(ctx: Context, config: Config): void {
       attemptIndex: request.purpose === undefined ? state.attemptIndex : 0, attemptVisibility: 'adapter',
       provider: request.provider, modelFamily: route.modelFamily, requestedModel: request.model,
       purpose: request.purpose ?? 'conversation', startedAt, cache: evidence, cacheWriteTiering: { kind: 'unknown' },
-      priceVersion: attribution.price?.version ?? 'unknown', priceKey: attribution.price?.modelKey ?? request.model,
+      priceVersion: attribution.priceTable?.version ?? attribution.price?.version ?? 'unknown', priceKey: attribution.price?.modelKey ?? 'unknown',
       referencePrice: true,
     }
     const signal = AbortSignal.any([lifetime.signal, ...(request.signal === undefined ? [] : [request.signal])])
@@ -515,6 +517,7 @@ export function apply(ctx: Context, config: Config): void {
       throw error
     } finally {
       const settledAt = performance.now()
+      const endedAt = Date.now()
       release?.()
       try {
         const failed = failure !== undefined || finish === undefined || finish.reason.kind === 'error' || finish.reason.kind === 'aborted'
@@ -528,6 +531,11 @@ export function apply(ctx: Context, config: Config): void {
             await fact(service, start, { kind: 'alert', alert: { code: 'ledger-unavailable', message: 'Partial response sidecar closure failed', redacted: true } })
           }
         }
+        const terminalEvidence = finish === undefined ? undefined : LlmAdapter.ledgerEvidence?.get(finish)
+        if (terminalEvidence?.usageObserved === false) usage = undefined
+        else if (terminalEvidence?.usage !== undefined) usage = terminalEvidence.usage
+        const usageState = usage === undefined ? 'missing'
+          : usage.cacheReadTokens === undefined || usage.cacheWriteTokens === undefined ? 'partial' : 'complete'
         const reason = finish?.reason
         const status = finish?.httpStatus ?? (reason?.kind === 'error' || reason?.kind === 'aborted' ? reason.failure.status : undefined)
         if (finish?.cacheRetention !== undefined) {
@@ -539,27 +547,60 @@ export function apply(ctx: Context, config: Config): void {
           else evidence.ttlSeconds = ttlSeconds
           evidence.retention = { retention, ...request.cache?.key === undefined ? {} : { key: request.cache.key } }
         }
+        if (evidence.ttlSeconds !== undefined) evidence.ttlSource = 'request-estimate'
+        if (terminalEvidence?.reportedCacheRetention !== undefined) {
+          evidence.reportedRetention = terminalEvidence.reportedCacheRetention
+          const duration = /^(\d+(?:\.\d+)?)(s|m|h|d)$/.exec(evidence.reportedRetention)
+          if (duration !== null) {
+            const seconds = Number(duration[1]) * (duration[2] === 'd' ? 86400 : duration[2] === 'h' ? 3600 : duration[2] === 'm' ? 60 : 1)
+            if (Number.isSafeInteger(seconds) && seconds > 0) {
+              evidence.ttlSeconds = seconds
+              evidence.ttlSource = 'response'
+              evidence.cacheMode = 'explicit'
+            }
+          }
+        }
         if (finish?.cacheDowngradeReason !== undefined) evidence.downgradeReason = finish.cacheDowngradeReason
         if ((usage?.cacheReadTokens ?? 0) > 0 || (usage?.cacheWriteTokens ?? 0) > 0) evidence.lastCacheEvidenceAt = Date.now()
         {
-          const priced = service.priceUsage({ usage, usageState: usage === undefined ? 'missing' : 'complete',
-            tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: attribution.price })
+          const entries = attribution.priceTable?.entries ?? (attribution.price === undefined ? [] : [attribution.price])
+          const responseMatches = entries.filter(entry => entry.modelKey === finish?.responseModel)
+          const requestMatches = entries.filter(entry => entry.modelKey === request.model)
+          const responsePrice = responseMatches.length === 1 ? responseMatches[0] : undefined
+          const selectedPrice = responsePrice ?? (requestMatches.length === 1 ? requestMatches[0] : undefined)
+          let tiering = finish?.cacheWriteTiering ?? start.cacheWriteTiering
+          const reportedRetention = terminalEvidence?.reportedCacheRetention
+          if (reportedRetention !== undefined && tiering.kind === 'tiered') {
+            const known = selectedPrice?.prices.cacheWrite[reportedRetention] !== undefined
+              && (reportedRetention === tiering.short || reportedRetention === tiering.long)
+            evidence.writePriceTier = known ? reportedRetention : 'unknown'
+            if (!known) tiering = { kind: 'unknown' }
+          }
+          const priced = service.priceUsage({ usage, usageState, tiering, startedAt, entry: selectedPrice })
+          const waits = callWaits(await service.snapshot({ sessionId: start.sessionId }), start, endedAt)
+          const timeout = (reason?.kind === 'error' || reason?.kind === 'aborted') && reason.failure.code === 'TIMEOUT'
+            || failure instanceof LlmError && failure.code === 'TIMEOUT'
           const end: LedgerCallFinish = {
-            callId, endedAt: Date.now(), observedAt: Date.now(),
+            callId, endedAt, observedAt: Date.now(),
             ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
             responseModelReported: finish?.responseModelReported ?? 'unobservable',
             effectiveModel: finish?.responseModel ?? request.model,
             ...status === undefined ? {} : { httpStatus: status }, ...usage === undefined ? {} : { usage },
-            usageState: usage === undefined ? 'missing' : 'complete',
+            usageState,
+            ...terminalEvidence?.cacheWriteAccounting === undefined ? {} : { cacheWriteAccounting: terminalEvidence.cacheWriteAccounting },
+            ...terminalEvidence?.reportedUsage === undefined ? {} : { reportedUsage: terminalEvidence.reportedUsage },
             ...priced.costUsd === undefined ? {} : { costUsd: priced.costUsd }, pricingState: priced.state,
+            priceVersion: start.priceVersion, priceKey: selectedPrice?.modelKey ?? 'unknown',
+            priceKeySource: responsePrice !== undefined ? 'response-model' : selectedPrice !== undefined ? 'request-model' : 'unknown',
             wallMs: settledAt - clock, modelInFlightMs: admittedAt === undefined ? 0 : settledAt - admittedAt,
-            queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits: [],
+            queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits,
             // Session-to-date observations are snapshots, not additional compaction charges.
             compactionCount: state.compactionTimes.length, compactionTimes: [...state.compactionTimes], recovered: false,
-            endReason: signal.aborted || reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
+            endReason: signal.aborted ? 'cancelled' : timeout ? 'timeout' : reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
+            ...timeout && !signal.aborted ? { timeoutSource: 'model-call' } : {},
             upstreamStopReason: reason?.kind ?? 'iterator-closed', artifacts,
             ...finish?.accountLabel === undefined ? {} : { accountLabel: finish.accountLabel },
-            ...finish?.cacheWriteTiering === undefined ? {} : { cacheWriteTiering: finish.cacheWriteTiering }, cache: evidence,
+            cacheWriteTiering: tiering, cache: evidence,
             http429Count: status === 429 ? 1 : 0, http503Count: status === 503 ? 1 : 0,
             ...(usage === undefined ? {} : { peakContextTokens: usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0), peakContextSource: 'usage' as const }),
           }

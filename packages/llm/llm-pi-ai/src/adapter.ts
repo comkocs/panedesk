@@ -77,6 +77,7 @@ type CacheMetadata = Pick<Extract<StreamChunk, { type: 'finish' }>, 'cacheWriteT
 
 interface RequestCache {
   metadata: CacheMetadata
+  cacheWriteAccounting?: 'not-applicable'
   options: Pick<SimpleStreamOptions, 'cacheRetention' | 'onPayload'>
 }
 
@@ -94,7 +95,8 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
       : gpt ? { kind: 'tiered', short: '30m', long: '12h' }
         : { kind: untiered ? 'untiered' : 'unknown' },
   }
-  if (request.cache === undefined) return { metadata, options: {} }
+  const accounting = untiered && !anthropic && !gpt ? { cacheWriteAccounting: 'not-applicable' as const } : {}
+  if (request.cache === undefined) return { metadata, ...accounting, options: {} }
   const requested = request.cache.retention
   const unsupported = (): never => {
     throw new LlmError(`Cache retention "${requested}" is not supported for this model and API`, 'INVALID_CONFIG')
@@ -158,7 +160,7 @@ function requestCache(model: Model<Api>, request: GenerateOptions): RequestCache
     }
   }
   if (requested !== 'default' && requested !== 'auto') return unsupported()
-  return { metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} }, options: {} }
+  return { metadata: { ...metadata, .../^deepseek(?:-|$)/i.test(model.id) ? { cacheRetention: 'auto' } : {} }, ...accounting, options: {} }
 }
 
 function payloadRecord(value: unknown): Record<string, unknown> | undefined {
@@ -461,7 +463,7 @@ export class PiAiAdapter extends LlmAdapter {
     const profile = this.profileOf(snapshot, options.provider)
     const model = this.modelOf(snapshot, options.provider, options.model)
     const cache = requestCache(model, options)
-    const evidence = new PiResponseEvidence(model.id, model.api)
+    const evidence = new PiResponseEvidence(model.id, model.api, cache.cacheWriteAccounting)
     const updates = conversationUpdates(model)
     // pi-ai collapses Anthropic tool updates without an initially active declaration.
     const tools = options.tools ?? []
@@ -524,7 +526,9 @@ export class PiAiAdapter extends LlmAdapter {
         onProviderStreamEvent: (event) => { evidence.observe(event) },
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
-        ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
+        ...options.sessionId === undefined ? {} : {
+          sessionId: /^[\x00-\x7F]*$/.test(options.sessionId) ? String(options.sessionId) : encodeURIComponent(options.sessionId),
+        },
         signal: watchdog.signal,
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.

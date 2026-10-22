@@ -17,7 +17,7 @@ import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { AttachmentId } from '@panedesk/dsh-attachment'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
-import LlmRuntime, { createAssistantMessage, createDeveloperMessage, createSystemMessage, createToolResultMessage, createUserMessage, ToolCallId } from '@panedesk/dsh-llm'
+import LlmRuntime, { LlmAdapter, createAssistantMessage, createDeveloperMessage, createSystemMessage, createToolResultMessage, createUserMessage, ToolCallId } from '@panedesk/dsh-llm'
 import type { Message } from '@panedesk/dsh-llm'
 import { credentialRef } from '@panedesk/dsh-credentials'
 import LocalCredentials from '@panedesk/dsh-credentials-local'
@@ -72,6 +72,16 @@ describe('direct Messages HTTP', () => {
       cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto',
     })
     expect(http.requests[0]?.body).not.toHaveProperty('cache_control')
+  })
+
+  it('declares cache writes not applicable outside the durable stream', async () => {
+    const http = await endpoint()
+    const output = await chunks(adapter({ baseURL: http.url }).stream(options()))
+    const finish = output.at(-1)
+    expect(finish && LlmAdapter.ledgerEvidence?.get(finish)).toMatchObject({
+      cacheWriteAccounting: 'not-applicable', usage: { cacheWriteTokens: 0 },
+    })
+    expect(finish).not.toHaveProperty('cacheWriteAccounting')
   })
 
   it.each(['none', '5m', '1h', '30m', '12h'] as const)('rejects unsupported automatic-cache retention %s', async (retention) => {
