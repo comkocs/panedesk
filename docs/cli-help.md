@@ -42,6 +42,12 @@ Options:
                                  shipped profile template
   --patch <path>                 extra patch-list overlay applied after the
                                  profile layer (repeatable)
+  --seat <label>                 runtime ledger seat label (overrides
+                                 environment and settings)
+  --window <label>               runtime ledger window label (overrides
+                                 environment and settings)
+  --task-id <label>              runtime ledger work item label (overrides
+                                 environment and settings)
   --dump-config                  print the composed profile tree and exit
   --dump-config-schema           print JSON Schema for profile entries and
                                  patches without mounting
