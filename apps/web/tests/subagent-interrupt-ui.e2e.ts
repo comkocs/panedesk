@@ -133,6 +133,7 @@ describe.skipIf(MODE === 'record')('web e2e: composer interrupt for a running co
       replayOverride: join(sidecarRoot, 'replay.override.json'),
       replayChildFixtures: [parentTurnPath],
     })
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
     page.on('request', (request) => {
@@ -294,7 +295,7 @@ describe.skipIf(MODE === 'record')('web e2e: composer interrupt for a running co
 
     // Queue a follow-up through Send while independent Stop remains available.
     // The running child's Send names its delivery like an ordinary session:
-    // the default busy-state preference is Queue.
+    // the saved busy-state preference is Queue.
     const promptResponse = page.waitForResponse(response =>
       new URL(response.url()).pathname === '/api/subagents/prompt')
     await input.fill(FOLLOWUP)
