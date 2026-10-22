@@ -58,6 +58,8 @@ handle.agent.steer({
 await handle.agent.whenIdle()
 ```
 
+`AgentInputScheduler` 新增显式优先级与被动准入，不改变旧输入方法。其可选 `reprioritize` 将排队输入移到目标档尾部。`mutateAgentQueue(agent, id, action)` 为已有所有权的实时 Agent 共享编辑、移除、旧 steer 与改档操作；它不解析或恢复 Agent。结果区分已认领输入与已注入模型请求的输入。可选入队 `operationId` 在活驱动生命周期内对相同提交去重；冲突复用抛错，跨恢复的标识保留由持久投递所有者负责。
+
 ### 将注册限定到单个 agent
 
 `Agent.ctx` 是该 agent 的作用域上下文：通过它进行的注册（工具、提示词段、变量、事件监听器、限制）只对该 agent 生效，并在 dispose（资源释放）时全部撤销。同一机制也是 agent preset 用来让一个会话获得不同能力集、同时不影响其邻居的方式。

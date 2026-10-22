@@ -69,6 +69,12 @@ export interface AgentEventDispatch {
    */
   serial<K extends AgentSubjectEvent>(name: K, payload: PayloadRest<K>): Promise<Awaited<Return<Events[K]>>>
   /**
+   * Preserve synchronous progress when no scoped listener needs preparation.
+   * @param payload - the input boundary fields; `agent` is injected.
+   * @returns the serial preparation, or undefined when no listener matches.
+   */
+  prepareInput(payload: PayloadRest<'agent/input-preparing'>): Promise<void> | undefined
+  /**
    * Around-middleware dispatch (Cordis `waterfall`) in the agent's scope. The
    * declared event parameters already end with the `next` callback, so `rest`
    * is exactly the event's arguments after the payload — the final element
@@ -134,6 +140,14 @@ export function agentEvents(ctx: Context, agent: Agent, carrier: Scoped<Agent> =
           ctx.logger.warn(`agent event "${name}" listener threw: ${String(error)}`)
         }
       }
+    },
+    prepareInput(payload) {
+      const args: unknown[] = [carrier, 'agent/input-preparing', fused<'agent/input-preparing'>(payload)]
+      const callbacks = ctx.events.dispatch('serial', args)
+      if (callbacks.length === 0) return undefined
+      return (async () => {
+        for (const callback of callbacks) await callback(...args)
+      })()
     },
     async serial(name, payload) {
       // oxlint-disable-next-line typescript/unbound-method -- the events mixin accessor returns a pre-bound function

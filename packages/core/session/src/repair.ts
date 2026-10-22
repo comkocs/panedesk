@@ -9,7 +9,7 @@ import { brandString } from '@panedesk/dsh-brand'
 import type { MessageId, ToolCallId, ToolResultMessage } from '@panedesk/dsh-llm'
 import { deepFreeze } from '@panedesk/dsh-util-values'
 import { SessionSeq } from './types.ts'
-import type { SessionEvent, SessionSeq as SessionSeqType } from './types.ts'
+import type { AgentCancelCause, SessionEvent, SessionSeq as SessionSeqType } from './types.ts'
 
 /** Recovery code for an assistant tool request that never reached a recorded call start. */
 export const TOOL_NOT_STARTED = 'TOOL_NOT_STARTED'
@@ -155,6 +155,19 @@ export class ToolCallRecovery {
    * @returns pending tool-result events, empty when no request remains unanswered.
    */
   results(): SessionEvent<'tool/result'>[] {
+    return this.buildResults()
+  }
+
+  /**
+   * Settle unrecorded outcomes after a confirmed live cancellation.
+   * @param cancellation - copied cancellation cause.
+   * @returns missing results without claiming rollback of external side effects.
+   */
+  cancellationResults(cancellation: AgentCancelCause): SessionEvent<'tool/result'>[] {
+    return this.buildResults(cancellation)
+  }
+
+  private buildResults(cancellation?: AgentCancelCause): SessionEvent<'tool/result'>[] {
     if (this.last === undefined) return []
     let seq = this.last.seq + 1
     const time = this.last.time
@@ -173,7 +186,9 @@ export class ToolCallRecovery {
         source: { kind: 'tool', callId },
         content: [{
           type: 'text',
-          text: started ? text.started : text.notStarted,
+          text: started && cancellation !== undefined
+            ? 'The tool call was cancelled. Its external side effects are unknown; verify external state before retrying.'
+            : started ? text.started : text.notStarted,
         }],
       })
       results.push({
@@ -184,6 +199,7 @@ export class ToolCallRecovery {
           turn,
           step,
           message,
+          ...(started && cancellation !== undefined ? { cancellation: { cause: cancellation, outcome: 'cancelled' as const, sideEffects: 'unknown' as const } } : {}),
           error: started
             ? { name: 'ToolOutcomeUnknownError', code: TOOL_OUTCOME_UNKNOWN }
             : { name: 'ToolNotStartedError', code: TOOL_NOT_STARTED },

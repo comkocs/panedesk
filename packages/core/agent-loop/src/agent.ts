@@ -10,6 +10,9 @@ import type {
   AgentEventDispatch,
   AgentOptions,
   AgentStatus,
+  AgentInputScheduler,
+  EnqueueOptions,
+  InputPriority,
   CancelOptions,
   InboxTarget,
   PreStepDecision,
@@ -96,10 +99,11 @@ function abortedCancelCause(signal: AbortSignal): AgentCancelCause | undefined {
 }
 
 /** Drives one session through turn and step boundaries. */
-export class ReactLoopAgent implements Agent {
+export class ReactLoopAgent implements Agent, AgentInputScheduler {
   readonly inbox: ReactLoopInbox
   private phase: Phase
   private activityDone: Promise<void> = Promise.resolve()
+  private readonly inputOperations = new Map<NonNullable<EnqueueOptions['operationId']>, { input: string; options: string }>()
 
   /** The agent-scoped registration boundary; the lifecycle owner unwinds it after the driver exits. */
   readonly scope: Scope
@@ -161,6 +165,47 @@ export class ReactLoopAgent implements Agent {
     if (wakeup) this.wakeDriver(wakingAfterAbort)
   }
 
+  get hasRunnable(): boolean {
+    return this.inbox.hasRunnable
+  }
+
+  enqueue(input: UserMessage, options: EnqueueOptions): void {
+    const operation = options.operationId === undefined ? undefined : this.inputOperations.get(options.operationId)
+    const signature = { input: JSON.stringify(input), options: JSON.stringify(options) }
+    if (operation !== undefined) {
+      if (operation.input !== signature.input || operation.options !== signature.options) {
+        throw new Error('input operation identity was reused with different input')
+      }
+      return
+    }
+    if (this.inbox.inputState(input.id) !== 'missing') return
+    const turn = this.phase.kind === 'running' ? this.phase.turn : this.phase.lastTurn
+    this.inbox.enqueue(input, {
+      priority: options.priority,
+      passive: options.passive,
+      enqueueSequence: this.inbox.nextSequence,
+      earliestTurn: options.earliestTurn ?? (this.phase.kind === 'running' && options.priority !== 'queue' ? turn : turn + 1),
+    })
+    if (options.operationId !== undefined) this.inputOperations.set(options.operationId, signature)
+    if (options.priority === 'immediate' && !options.passive && this.phase.kind === 'running' && !this.phase.abort.signal.aborted) {
+      this.cancel({ kind: 'interjection' }, { keepInbox: true })
+    }
+    if ((options.wakeup || (options.priority === 'immediate' && this.phase.kind === 'running')) && !options.passive) {
+      this.wakeDriver(this.phase.kind !== 'idle' && this.phase.abort.signal.aborted)
+    }
+  }
+
+  reprioritize(messageId: UserMessage['id'], priority: InputPriority): boolean {
+    if (this.inbox.inputState(messageId) !== 'queued') return false
+    const message = [...this.inbox.nextTurn, ...this.inbox.nextStep].find(item => item.id === messageId)
+    if (message === undefined) return false
+    const passive = this.inbox.schedulingOf(messageId)?.passive ?? false
+    if (passive && priority !== 'queue') return false
+    if (this.inbox.takeForScheduling(messageId) === undefined) return false
+    this.enqueue(message, { priority, passive, wakeup: priority === 'immediate' })
+    return true
+  }
+
   followup(input: UserMessage): void {
     this.send(input, 'next-turn', true)
   }
@@ -198,7 +243,7 @@ export class ReactLoopAgent implements Agent {
       } finally {
         this.setPhase({ kind: 'idle', lastTurn: maintenance.lastTurn })
         const cause = abortedCancelCause(maintenance.abort.signal)
-        if (cause?.kind !== 'disposed' && maintenance.wakeRequested && this.inbox.hasPending) this.wakeDriver()
+        if (cause?.kind !== 'disposed' && maintenance.wakeRequested && this.inbox.hasRunnable) this.wakeDriver()
         done.resolve()
       }
     })()
@@ -260,7 +305,7 @@ export class ReactLoopAgent implements Agent {
       if (this.phase.kind === 'running') {
         const { turn, wakeRequested } = this.phase
         this.setPhase({ kind: 'idle', lastTurn: turn })
-        if (wakeRequested && this.inbox.hasPending) this.wakeDriver()
+        if (wakeRequested && this.inbox.hasRunnable) this.wakeDriver()
       }
     }
   }
@@ -269,7 +314,12 @@ export class ReactLoopAgent implements Agent {
     /* v8 ignore next -- private callers establish the running phase before proposing a step */
     if (this.phase.kind !== 'running') throw new Error(`agent "${this.id}": pre-step outside running phase`)
     const signal = this.phase.abort.signal
-    const claimed = this.inbox.claim(target, position.turn)
+    const preparation = this.dispatch.prepareInput({ ...position, signal })
+    if (preparation !== undefined) {
+      await preparation
+      signal.throwIfAborted()
+    }
+    const claimed = this.inbox.claim(target, position.turn, position.step)
     const assembly = await this.loopCtx.systemPrompt.assemble(assembleContextFor(this, signal))
     signal.throwIfAborted()
     const decision = await this.dispatch.waterfall(
@@ -344,7 +394,11 @@ export class ReactLoopAgent implements Agent {
           if (turnEnds === null || turnEnds.kind !== 'max-tokens') turnEnds = stepEnd
         } catch (error: unknown) {
           try {
-            for (const event of toolRecovery.results()) {
+            const cancellation = abortedCancelCause(signal)
+            const results = cancellation?.kind === 'interjection'
+              ? toolRecovery.cancellationResults(cancellation)
+              : toolRecovery.results()
+            for (const event of results) {
               this.session.append('tool/result', event.data, {
                 surfaceOp: 'append',
                 ...event.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: event.sourceEventSeqs },
@@ -384,13 +438,14 @@ export class ReactLoopAgent implements Agent {
       this.throwError(error)
     } finally {
       try {
+        if (signal.aborted) this.inbox.rollback(turn)
         // oxlint-disable-next-line typescript/no-non-null-assertion -- every exit assigns a turn ending
         this.session.append('turn/end', { turn, reason: turnEnds! })
       } catch (error: unknown) {
         this.throwError(error)
       }
     }
-    if (!this.inbox.hasPending) return false
+    if (!this.inbox.hasRunnable) return false
     phase.abort = new AbortController()
     // A fresh controller makes a latch set on the old one stale: the live driver claims the queue itself.
     phase.wakeRequested = false
@@ -424,6 +479,7 @@ export class ReactLoopAgent implements Agent {
         this.session.append('system/message', { turn, step, message }, intent)
       }
       let contextAdmitted = false
+      const userEventSeqs: SessionSeq[] = []
       if (firstAttempt) {
         for (const message of decision.messages) {
           if (message.source.kind === 'runtime-context') {
@@ -432,13 +488,14 @@ export class ReactLoopAgent implements Agent {
               contextAdmitted = true
             }
           } else {
-            this.session.append('user/message', message, { surfaceOp: 'append' })
+            userEventSeqs.push(this.session.append('user/message', message, { surfaceOp: 'append' }).seq)
           }
         }
       }
       if (context !== undefined && !contextAdmitted) {
         this.session.append('user/message', context, { surfaceOp: 'append' })
       }
+      this.inbox.appended(turn, step, userEventSeqs)
       firstAttempt = false
       const request = this.buildRequest(config, preparedCall, assembly.tools, { turn, step }, startsRequestSeries, signal)
       const live = new AssistantStreamAttempt(
@@ -451,6 +508,7 @@ export class ReactLoopAgent implements Agent {
       )
       let started = false
       try {
+        this.inbox.dispatchInput(request.messages.flatMap(message => message.id === undefined ? [] : [message.id]))
         const stream = preparedCall?.stream(request) ?? this.loopCtx.llm.stream(request)
         signal.throwIfAborted()
         live.start()
@@ -478,6 +536,7 @@ export class ReactLoopAgent implements Agent {
                   },
                 }),
                 interrupted: true,
+                ...(abortedCancelCause(signal)?.kind === 'interjection' ? { interruptionReason: 'interjection' as const } : {}),
                 ...live.usage === undefined ? {} : { usage: live.usage },
                 stream: live.stream,
               }, { surfaceOp: 'append' }).seq)

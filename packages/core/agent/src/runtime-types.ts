@@ -41,6 +41,8 @@ export interface EnqueueOptions {
   readonly wakeup: boolean
   /** Omission selects the next eligible boundary for the effective priority. */
   readonly earliestTurn?: number
+  /** Live-driver idempotency key; durable delivery owners retain it across reloads. */
+  readonly operationId?: import('@panedesk/dsh-brand').Branded<'MessageOperationId'>
 }
 
 /** Scheduling capability implemented by priority-aware drivers, without changing legacy Agent implementations. */
@@ -53,6 +55,13 @@ export interface AgentInputScheduler {
    * @param options - effective priority, passive admission, and wake policy.
    */
   enqueue(input: UserMessage, options: EnqueueOptions): void
+  /**
+   * Move pending input to the tail of its requested priority.
+   * @param messageId - queued identity.
+   * @param priority - new effective priority.
+   * @returns false if the message is no longer pending.
+   */
+  reprioritize?(messageId: MessageId, priority: InputPriority): boolean
 }
 
 /** Options for {@link Agent.cancel}. */
@@ -71,6 +80,13 @@ export interface Inbox {
   readonly nextTurn: readonly UserMessage[]
   /** Input awaiting the next step boundary. */
   readonly nextStep: readonly UserMessage[]
+
+  /**
+   * Inspect reservation and first-dispatch state when supported by the driver.
+   * @param messageId - identified input.
+   * @returns its current admission stage; legacy drivers omit this capability.
+   */
+  inputState?(messageId: MessageId): 'queued' | 'claimed' | 'injected' | 'missing'
 
   /** Durably cancel all pending input, clearing next-step before next-turn. */
   clear(): void

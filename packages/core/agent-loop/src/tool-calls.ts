@@ -13,7 +13,7 @@
 
 import type { Context } from '@panedesk/cordis'
 import { createToolResultMessage, type ToolCallBlock } from '@panedesk/dsh-llm'
-import type { Session, SessionSeq, UserMessage } from '@panedesk/dsh-session'
+import type { Session, SessionSeq, ToolCancellationResult, UserMessage } from '@panedesk/dsh-session'
 import { TOOL_ABORTED_BEFORE_DISPATCH, TOOL_RUNTIME_SCHEDULER, type ToolExecutionInput, type ToolExecutionMode, type ToolExecutionResult, type ToolRunContext } from '@panedesk/dsh-tools'
 import { assertNever } from '@panedesk/dsh-util-values'
 
@@ -28,6 +28,7 @@ interface Slot {
   exec: ToolRunContext
   result: ToolExecutionResult
   needsPost: boolean
+  cancellation?: ToolCancellationResult
 }
 
 /** One scheduler group outcome, including a drained cancellation. */
@@ -153,7 +154,7 @@ async function runGroup(
         ? await ctx.tools[TOOL_RUNTIME_SCHEDULER].finalize(slot.exec, slot.result)
         : ctx.tools[TOOL_RUNTIME_SCHEDULER].finish(slot.exec, slot.result)
       // oxlint-disable-next-line typescript/no-non-null-assertion -- bounded index
-      appendToolResult(session, turn, step, call!.block, result, callSeqs[committed]!)
+      appendToolResult(session, turn, step, call!.block, result, callSeqs[committed]!, slot.cancellation)
       for (const context of result.additionalContexts ?? []) acceptContext(context)
       concluded ||= result.concludesTurn === true
       committed++
@@ -173,7 +174,15 @@ async function runGroup(
       case 'dispatch': {
         const promise = ctx.tools[TOOL_RUNTIME_SCHEDULER].dispatch(prepared.exec).then(
           (outcome) => {
-            slots[index] = { exec: prepared.exec, result: outcome.result, needsPost: outcome.kind === 'post-result' }
+            const reason: unknown = signal.reason
+            const cancellation: ToolCancellationResult | undefined = signal.aborted
+              && typeof reason === 'object' && reason !== null && 'kind' in reason && reason.kind === 'interjection'
+              ? { cause: { kind: 'interjection' }, outcome: 'cancelled', sideEffects: 'unknown' }
+              : undefined
+            slots[index] = {
+              exec: prepared.exec, result: outcome.result, needsPost: outcome.kind === 'post-result',
+              ...cancellation === undefined ? {} : { cancellation },
+            }
             return index
           },
           (error: unknown) => {
@@ -273,6 +282,7 @@ function appendToolResult(
   block: ToolCallBlock,
   result: ToolExecutionResult,
   callSeq: SessionSeq,
+  cancellation?: ToolCancellationResult,
 ): void {
   const message = createToolResultMessage({
     callId: block.id,
@@ -282,6 +292,7 @@ function appendToolResult(
   session.append('tool/result', {
     turn, step,
     message,
+    ...cancellation === undefined ? {} : { cancellation },
     ...result.error?.info ? { error: result.error.info } : {},
     // The tool's private presentation payload (e.g. a result-time diff),
     // persisted so a UI bridge reproduces the card on replay.
