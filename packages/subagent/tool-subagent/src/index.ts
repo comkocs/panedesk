@@ -222,6 +222,11 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             type: 'string',
             description: 'Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent.',
           },
+          deliveryPaths: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Declared delivery files within the authorized workspace. The runtime checks them at settlement and never replaces them with errors.',
+          },
           description: {
             type: 'string',
             required: true,
@@ -288,12 +293,27 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           const configuredChildAgentOptions = requiresRoutePreflight && providerRouteDefaults !== undefined
             ? { ...providerRouteDefaults, ...config.agentOptions }
             : config.agentOptions
-          const requestedChildAgentOptions = requestedAgentOptions(
+          let requestedChildAgentOptions = requestedAgentOptions(
             parentOptions,
             configuredChildAgentOptions,
             modelRequest,
             modelSelectionEnabled,
           )
+          if (subagentProvider.prepareContinuable !== undefined) {
+            const registry = parent.ctx.get('agentPresets')
+            const definition = agentPreset === undefined ? registry?.composedPolicy(parent.ctx)
+              : await registry?.resolve(agentPreset)
+            const policy = definition?.executionPolicy
+            if (policy !== undefined) {
+              for (const field of ['provider', 'model', 'reasoningEffort'] as const) {
+                if (requestedChildAgentOptions?.[field] !== undefined && requestedChildAgentOptions[field] !== policy[field]) {
+                  throw new Error(`Execution policy denies ${field} "${requestedChildAgentOptions[field]}"; definition requires "${policy[field]}"`)
+                }
+              }
+              requestedChildAgentOptions = { ...requestedChildAgentOptions, provider: policy.provider, model: policy.model,
+                reasoningEffort: ReasoningEffortId(policy.reasoningEffort) }
+            }
+          }
           assertAllowedModelSelection(
             modelSelectionPolicy,
             parentOptions,
@@ -320,6 +340,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           const maxDepth = runtimeCtx.subagents.resolveMaxDepth(config.maxDepth)
           const request = {
             ...args.cwd === undefined ? {} : { cwd: args.cwd },
+            ...args.deliveryPaths === undefined ? {} : { deliveryPaths: args.deliveryPaths },
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,
             ...agentPreset === undefined ? {} : { agentPreset },

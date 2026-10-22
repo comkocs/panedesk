@@ -18,6 +18,15 @@ export default class AgentPreset {
     name: z.string(),
     description: z.string(),
     order: z.number(),
+    executionPolicy: (z.object({
+      provider: z.string().min(1).required(),
+      model: z.string().min(1).required(),
+      reasoningEffort: z.string().min(1).required(),
+      allowedTools: z.array(z.string().min(1)).required(),
+      rulesId: z.string().min(1).required(),
+      version: z.string().min(1).required(),
+      digest: z.string().min(1).required(),
+    }) as z<Config['executionPolicy']>).default(undefined),
     // Cordis owns individual plugin schemas; the registry validates entry structure.
     plugins: z.array(z.any()).required(),
   }) as z<Config>
