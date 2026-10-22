@@ -133,6 +133,162 @@
           }
         }
       }
+    },
+    {
+      "id": "reported-response-model",
+      "description": "Preserve provider-reported model identity and missing-response evidence.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Preserve provider-reported model identity and missing-response evidence.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"
+        ],
+        "test": "does not infer evidence from an unobservable API or an initialized SDK model"
+      }
+    },
+    {
+      "id": "cache-write-long-tier",
+      "description": "Preserve the total cache write count and an optional long-tier count.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Preserve the total cache write count and an optional long-tier count.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/tests/pricing.spec.ts"
+        ],
+        "test": "exports five disjoint columns and agrees with independent arithmetic"
+      }
+    },
+    {
+      "id": "session-cache-policy",
+      "description": "Apply supported cache controls and stable per-session cache keys.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Apply supported cache controls and stable per-session cache keys.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"
+        ],
+        "test": "honors an explicit cache key and leaves absent controls unchanged"
+      }
+    },
+    {
+      "id": "stable-request-prefix",
+      "description": "Freeze stable prompt and tool prefixes and record explicit invalidation.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Freeze stable prompt and tool prefixes and record explicit invalidation.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-cache/tests/prefix.spec.ts"
+        ],
+        "test": "keeps ten requests stable across tools, an interjection, time snapshots, and deferred plugin changes"
+      }
+    },
+    {
+      "id": "cache-keepalive",
+      "description": "Offer opt-in metered keepalive requests outside conversation history.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Offer opt-in metered keepalive requests outside conversation history.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-cache/tests/keepalive.spec.ts"
+        ],
+        "test": "sends one opt-in idle request outside conversation history and persists its snapshot"
+      }
+    },
+    {
+      "id": "durable-call-ledger",
+      "description": "Record runtime call and lifecycle facts in a local append-only ledger.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Record runtime call and lifecycle facts in a local append-only ledger.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/tests/service.spec.ts"
+        ],
+        "test": "persists calls and closes runs with first-terminal-wins compare-and-set"
+      }
+    },
+    {
+      "id": "provider-concurrency-limit",
+      "description": "Bound concurrent requests by provider family without changing retry backoff.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Bound concurrent requests by provider family without changing retry backoff.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-cache/tests/concurrency.spec.ts"
+        ],
+        "test": "hands permits to FIFO waiters and removes cancelled waiters"
+      }
+    },
+    {
+      "id": "partial-response-artifacts",
+      "description": "Preserve interrupted response evidence without committing failed replies.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Preserve interrupted response evidence without committing failed replies.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-cache/tests/concurrency.spec.ts"
+        ],
+        "test": "links final partial output to the durable attempt and records exhausted recovery"
+      }
+    },
+    {
+      "id": "enforced-subagent-definition",
+      "description": "Enforce subagent route and tool policies at runtime.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Enforce subagent route and tool policies at runtime.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/sdk/server/tests/policy-journal.spec.ts"
+        ],
+        "test": "mounts a controlled SDK preset and commits a fourth-tool denial with inherited journal identity"
+      }
+    },
+    {
+      "id": "subagent-process-delivery",
+      "description": "Track process identity, recovery, and declared delivery files.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Track process identity, recovery, and declared delivery files.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/subagent/subagent/tests/cold-policy.spec.ts"
+        ],
+        "test": "preserves delivery declarations and checks them again after cold resume"
+      }
+    },
+    {
+      "id": "ledger-compaction-checkpoint",
+      "description": "Append bounded runtime ledger facts to compaction checkpoints.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Append bounded runtime ledger facts to compaction checkpoints.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/compaction/compaction-ledger/tests/checkpoint.spec.ts"
+        ],
+        "test": "commits model-visible data through the existing message and records exactly two successful facts and times"
+      }
+    },
+    {
+      "id": "ledger-profiles",
+      "description": "Provide opt-in ledger query and watcher profiles without changing default profiles.",
+      "origin": "Cache controls and session ledger",
+      "reason": "Provide opt-in ledger query and watcher profiles without changing default profiles.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/bundle/ledger-app/tests/profile.spec.ts"
+        ],
+        "test": "waits for AppReady, queries without a model or key, and requests AppExit"
+      }
     }
   ]
 }
