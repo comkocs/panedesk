@@ -202,6 +202,35 @@ describe('ACP message extensions', () => {
     await expect(h.requestExtension(`${prefix}status`, { messageId })).rejects.toMatchObject({ code: -32603 })
   })
 
+  it('resolves a provider installed after bridge startup and after renegotiation', async () => {
+    harness = await makeBridgeHarness()
+    const first = await harness.client.initialize(offer())
+    expect(first._meta).toMatchObject({ 'panedesk/messages': { reason: 'unsupported' } })
+    await harness.ctx.plugin(Delivery)
+    delivery = harness.ctx.get('messageDelivery') as Delivery
+    await harness.client.initialize(offer())
+    await expect(harness.requestExtension(`${prefix}status`, { messageId })).resolves.toEqual(status)
+    expect(delivery.status).toHaveBeenCalledWith(messageId)
+  })
+
+  it.each([true, false])('reports subscription failure only when error notifications are negotiated: %s', async (enabled) => {
+    const h = await start()
+    const notifications = enabled ? [notification, `${prefix}error`] : [notification]
+    const initialized = await h.client.initialize(offer(methods, notifications))
+    expect(initialized._meta).toMatchObject({ 'panedesk/messages': { notifications } })
+    await h.requestExtension(`${prefix}subscribe`, { sessionId })
+    delivery.streams[0]!.pending.reject(new Error('private storage diagnostic'))
+    await vi.waitFor(() => { expect(delivery.streams[0]!.returned).toHaveBeenCalledOnce() })
+    // A following request is an explicit transport barrier after the subscription failure.
+    await h.requestExtension(`${prefix}status`, { messageId })
+    if (enabled) await vi.waitFor(() => {
+      expect(h.messageErrors).toEqual([{ sessionId, reason: 'unavailable' }])
+    })
+    else expect(h.messageErrors).toEqual([])
+    expect(h.messageNotifications).toEqual([])
+    expect(h.updates).toEqual([])
+  })
+
   it('preserves unsupported session/load after extension negotiation', async () => {
     const h = await start()
     await h.client.initialize(offer())

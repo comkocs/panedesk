@@ -110,12 +110,13 @@ export function apply(ctx: Context, config: AcpConfig): void {
   const activating = new Set<SessionId>()
   let closed = false
   let imagePromptEnabled = false
-  const messageDelivery = ctx.get('messageDelivery')
   const messageMethods = ['send', 'withdraw', 'edit', 'reprioritize', 'invalidate', 'status', 'list', 'subscribe', 'resolve', 'sendBatch']
   const messagePrefix = '_panedesk/messages/'
   const messageStateMethod = `${messagePrefix}state`
+  const messageErrorMethod = `${messagePrefix}error`
   let negotiatedMessages: ReadonlySet<string> = new Set()
   let messageNotifications = false
+  let messageErrors = false
   const messageSubscriptions = new Map<SessionId, { stop: () => void; done: Promise<void> }>()
 
   const stopMessageSubscriptions = async (): Promise<void> => {
@@ -128,11 +129,14 @@ export function apply(ctx: Context, config: AcpConfig): void {
     await stopMessageSubscriptions()
     negotiatedMessages = new Set()
     messageNotifications = false
+    messageErrors = false
+    const messageDelivery = ctx.get('messageDelivery')
     const offer = params._meta?.['panedesk/messages']
     if (!isMessageObject(offer) || offer.version !== 1 || !Array.isArray(offer.methods)) return undefined
     const offeredMethods = offer.methods
     if (messageDelivery !== undefined) {
       messageNotifications = Array.isArray(offer.notifications) && offer.notifications.includes(messageStateMethod)
+      messageErrors = messageNotifications && Array.isArray(offer.notifications) && offer.notifications.includes(messageErrorMethod)
       negotiatedMessages = new Set(messageMethods.map(method => `${messagePrefix}${method}`)
         .filter(method => offeredMethods.includes(method) && (method !== `${messagePrefix}subscribe` || messageNotifications)))
     }
@@ -140,7 +144,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
       'panedesk/messages': {
         version: 1,
         methods: [...negotiatedMessages],
-        notifications: messageNotifications ? [messageStateMethod] : [],
+        notifications: [...messageNotifications ? [messageStateMethod] : [], ...messageErrors ? [messageErrorMethod] : []],
         ...messageDelivery === undefined ? { reason: 'unsupported' } : {},
       },
     }
@@ -148,6 +152,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
 
   const requireMessages = (method: string) => {
     assertOpen()
+    const messageDelivery = ctx.get('messageDelivery')
     if (messageDelivery === undefined || !negotiatedMessages.has(`${messagePrefix}${method}`)) {
       throw new RequestError(-32601, 'Message extension is unsupported or was not negotiated', {
         reason: 'unsupported', method: `${messagePrefix}${method}`,
@@ -184,8 +189,15 @@ export function apply(ctx: Context, config: AcpConfig): void {
       } finally {
         await iterator.return?.()
       }
-    })().catch((error: unknown) => {
+    })().catch(async (error: unknown) => {
       logger.warn(`acp: message subscription failed; resume from the last received cursor: ${errorChain(error)}`)
+      if (isActive() && messageErrors) {
+        try {
+          await conn.notify(messageErrorMethod, { sessionId: request.sessionId, reason: 'unavailable' })
+        } catch (notificationError) {
+          logger.warn(`acp: message error notification failed: ${errorChain(notificationError)}`)
+        }
+      }
     }).finally(() => {
       if (messageSubscriptions.get(request.sessionId) === subscription) messageSubscriptions.delete(request.sessionId)
     })

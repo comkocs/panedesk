@@ -199,6 +199,7 @@ export interface BridgeHarness {
   client: BridgeClient
   requestExtension: (method: string, params: unknown) => Promise<unknown>
   messageNotifications: unknown[]
+  messageErrors: unknown[]
   adapter: MockAdapter
   attachments: MemoryAttachmentStore | undefined
   updates: CapturedUpdate[]
@@ -268,6 +269,7 @@ export async function makeBridgeHarness(options: {
     client: undefined as unknown as BridgeClient,
     requestExtension: (method, params) => client.request(method, params),
     messageNotifications: [],
+    messageErrors: [],
     acpFiber: undefined as unknown as BridgeHarness['acpFiber'],
     loopFiber,
     closeClientTransport: async () => { await clientToAgentWriter.close() },
@@ -281,6 +283,9 @@ export async function makeBridgeHarness(options: {
   const clientApp = createAcpClientApp({ name: 'dsh-acp-test-client' })
     .onNotification('_panedesk/messages/state', (params: unknown) => params, ({ params }) => {
       harness.messageNotifications.push(params)
+    })
+    .onNotification('_panedesk/messages/error', (params: unknown) => params, ({ params }) => {
+      harness.messageErrors.push(params)
     })
     .onNotification(methods.client.session.update, ({ params }) => {
       updates.push(params.update)
