@@ -205,6 +205,33 @@ async function waitForPidFile(path: string, timeoutMs = 5_000): Promise<number> 
 }
 
 describe('spawnSubprocess', () => {
+  it.skipIf(process.platform !== 'linux').each(['registration', 'signal'] as const)(
+    'kills a child with unknown identity at %s and reports the signal', async (stage) => {
+      const readIdentity = subprocessIdentity.readProcessIdentity
+      const identity = vi.spyOn(subprocessIdentity, 'readProcessIdentity')
+      if (stage === 'registration') identity.mockImplementation(pid => ({ pid }))
+      const child = spawnSubprocess({ argv: [process.execPath, '-e', 'setInterval(() => {}, 1000)'],
+        cwd: process.cwd(), stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }, graceMs: 20 })
+      try {
+        if (stage === 'registration') {
+          expect(child.processIdentity?.pid).toBeGreaterThan(0)
+          expect(child.processIdentity).toEqual({ pid: child.processIdentity?.pid })
+          identity.mockImplementation(readIdentity)
+        } else {
+          identity.mockImplementation(pid => ({ pid }))
+        }
+        child.terminate()
+        await expect(child.done).resolves.toEqual({ exitCode: null, signal: 'SIGTERM' })
+        await expect(child.waitForExit()).resolves.toBe(true)
+      } finally {
+        identity.mockRestore()
+        child.terminateForHostExit()
+        await child.done
+        await child.waitForExit()
+      }
+    },
+  )
+
   it.skipIf(process.platform !== 'linux')('fences actual group termination on mismatched creation evidence', async () => {
     const child = spawnSubprocess({ argv: [process.execPath, '-e', 'setInterval(() => {}, 1000)'],
       cwd: process.cwd(), stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }, graceMs: 20 })
