@@ -9,7 +9,6 @@
  */
 
 import { type ChildProcess, type SpawnOptions, spawn, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
 import type { Readable } from 'node:stream'
 import { setTimeout as sleepMs } from 'node:timers/promises'
 import { readProcessIdentity, sameProcessIdentity, scrubbedParentEnv } from '@panedesk/dsh-subprocess'
@@ -214,16 +213,14 @@ function fallbackOwner(
   const identity = pid === undefined ? undefined : readProcessIdentity(pid)
   const signalIdentityMatches = (): boolean => {
     if (platform !== 'linux' || process.platform !== 'linux') return true
-    if (identity === undefined || identity.bootIdentity === undefined || identity.startIdentity === undefined
-      || identity.processGroupId !== pid) return false
-    if (existsSync(`/proc/${identity.pid}`)) return sameProcessIdentity(identity)
-    // A surviving group keeps its PGID reserved after its leader is reaped.
-    // Keep the original boot evidence; never adopt a newly observed leader.
-    try {
-      return directSettled && readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim() === identity.bootIdentity
-    } catch (_unreadableBootIdentity) {
-      return false
-    }
+    // Unknown creation evidence must preserve the original signalling path,
+    // including virtual children and surviving groups whose leader was reaped.
+    if (identity === undefined || identity.bootIdentity === undefined || identity.startIdentity === undefined) return true
+    const current = readProcessIdentity(identity.pid)
+    if (current.bootIdentity === undefined || current.startIdentity === undefined) return true
+    if (sameProcessIdentity(identity, current)) return true
+    process.stderr.write('dsh-subprocess-local: process identity mismatch; refusing signal\n')
+    return false
   }
   void direct.then(
     () => { directSettled = true },
