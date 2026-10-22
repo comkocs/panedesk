@@ -68,6 +68,14 @@ const agent = {
 }
 ```
 
+### 控制并发场景
+
+`mountInputBarriers(ctx, agent)` 提供四个一次性检查点：`beforePrepare` 等待 `agent/input-preparing`；`claimedPrepare` 观察已认领的 `agent/input/transition` 并挂起 `agent/request` 瀑布；`appended` 观察已追加阶段；`streamEntered` 观察 `agent/input-dispatching`。等待生产者完成前须调用 `release()`，清理时调用 `dispose()`。后两个通知保持同步，绝不在生产追加到流入口的区间插入异步等待。显式测试事件生产者可调用 `await barriers.appended.wait(signal)` 或 `await barriers.streamEntered.wait(signal)` 挂起自身后续动作；生产联动必须保留声明的事件模式。Session 观察者会容纳抛出的错误，因此追加观察者不能用来注入同步异常。
+
+`createTestGate()` 提供可取消的显式检查点。`createTestClocks(wall, monotonic)` 提供可注入的时钟函数；墙钟跳变不影响单调时间，且不修改进程全局对象。`createLongTool(name, cooperative)` 提供真实工具注册表可用的定义与先进先出的 `nextCall()` 通道。每次调用暴露实际信号、部分输出 `emit(text)`、`abortObserved` 和 `finish(text)`；不合作调用在中止后保持待定，直到显式完成。部分文本保留在最终取消结果中，不伪造实时 Session 事件。独立的屏障登记与工具实例为父子提供独立通道，而不替换它们的管线。
+
+`createWatchControl(subscribe, notify)` 可关闭调用方真实 watch 的通知投递，而不改变扫描逻辑。`createWriteFault()` 包装真实写入，可选在调用前注入一次 `ENOSPC`、`EIO` 或 `EACCES`。`createProcessFixture(parent)` 创建唯一私有家目录，启动调用方提供的真实命令，以有界标准输出等待就绪，并提供记录了 PID 的 `crash()` 与重开共用目录。它覆盖子进程 `HOME` / `USERPROFILE`，不设置 `TZ` / `TMPDIR`。排空工作后等待夹具清理；只终止自身仍存活的子进程，只删除自身目录。这些控制不实现 Session 持久化、信箱裁决、租约或进程判活政策。
+
 ### 何时使用
 
 当测试对象是生产 loop 或持久 Inbox 行为时，使用依赖与 loop 辅助函数。只需要编辑队列的消费方领域测试使用结构化桩。当测试探测服务注入失败或部分拓扑时，请直接挂载依赖，因为辅助函数隐藏的正是这类测试必须控制的接线。

@@ -110,6 +110,12 @@ export interface MockLlmRequestRecord {
   readonly headers: Readonly<IncomingHttpHeaders>
   /** Parsed JSON request body. */
   readonly body: unknown
+  /** Explicit user IDs in this request; null when the wire body carries none. */
+  readonly userMessageIds: readonly string[] | null
+  /** Transport cancellation; normal completion does not abort this signal. */
+  readonly signal: AbortSignal
+  /** Resolves after premature response closure is observed, not merely requested by a client. */
+  readonly abortConfirmed: Promise<void>
   /** Number of SSE `data:` events handed to Node before the outcome. */
   chunksSent: number
   /** Final server-side outcome; absent while a stalled request remains open. */
@@ -151,7 +157,11 @@ export interface MockLlmServerOptions {
   readonly randomSeed?: number
   /** Relative weights used whenever a script entry is `random`. */
   readonly randomWeights?: Readonly<MockLlmRandomWeights>
-  /** Complete text returned by success-shaped behaviors. */
+  /** Awaited before each text delta (Messages) or SSE event (OpenAI); observe record.signal on cancellation. */
+  readonly beforeChunk?: (record: MockLlmRequestRecord) => Promise<void>
+  /** Extract IDs from the actual parsed request; null records unavailable wire evidence. */
+  readonly captureUserMessageIds?: (body: unknown) => readonly string[] | null
+  /** Complete text returned by success-shaped behaviors, including optional simulated read acknowledgments. */
   readonly successText?: string
   /** Text emitted before partial EOF/reset behaviors terminate. */
   readonly partialText?: string
@@ -218,6 +228,8 @@ interface ResolvedOptions {
   readonly responseModel: string | null
   readonly responseHeaders: Readonly<Record<string, string>>
   readonly onEvent?: (event: MockLlmServerEvent) => void
+  readonly beforeChunk?: MockLlmServerOptions['beforeChunk']
+  readonly captureUserMessageIds?: MockLlmServerOptions['captureUserMessageIds']
 }
 
 const DEFAULT_SUCCESS_TEXT = 'mock response recovered'
@@ -338,6 +350,8 @@ function resolveOptions(options: MockLlmServerOptions): ResolvedOptions {
     responseModel: options.responseModel === undefined ? 'mock-model' : options.responseModel,
     responseHeaders,
     ...options.onEvent === undefined ? {} : { onEvent: options.onEvent },
+    beforeChunk: options.beforeChunk,
+    captureUserMessageIds: options.captureUserMessageIds,
   }
 }
 
@@ -354,6 +368,29 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   for await (const chunk of request) chunks.push(Buffer.from(chunk as Uint8Array))
   const body = Buffer.concat(chunks).toString('utf8')
   return body.length === 0 ? undefined : JSON.parse(body)
+}
+
+function wireUserMessageIds(body: unknown): readonly string[] | null {
+  if (body === null || typeof body !== 'object') return null
+  const items = 'messages' in body ? body.messages : 'input' in body ? body.input : undefined
+  if (!Array.isArray(items)) return null
+  const ids: string[] = []
+  const messages: readonly unknown[] = items
+  for (const item of messages) {
+    if (item === null || typeof item !== 'object' || !('role' in item) || item.role !== 'user') continue
+    const id: unknown = 'id' in item ? item.id : 'message_id' in item ? item.message_id : undefined
+    if (typeof id !== 'string' || id.length === 0) return null
+    ids.push(id)
+  }
+  return Object.freeze([...new Set(ids)])
+}
+
+async function beforeChunk(options: ResolvedOptions, record: MockLlmRequestRecord): Promise<boolean> {
+  if (record.signal.aborted) return false
+  if (options.beforeChunk !== undefined) {
+    await options.beforeChunk(record)
+  }
+  return !record.signal.aborted
 }
 
 function splitText(text: string, size: number): string[] {
@@ -472,6 +509,7 @@ async function streamText(
   index = 0,
 ): Promise<boolean> {
   for (const chunk of splitText(text, options.chunkSize)) {
+    if (options.beforeChunk !== undefined && !await beforeChunk(options, record)) return false
     writeSse(record, response, { type: 'content_block_delta', index, delta: { type: 'text_delta', text: chunk } })
     if (!await pause(delayMs, response)) return false
   }
@@ -534,6 +572,7 @@ async function runBehavior(
       openSse(response, record.behavior === 'wrong_content_type' ? 'application/json' : undefined)
       const delayMs = record.behavior === 'slow_success' || record.behavior === 'partial_disconnect' ? options.chunkDelayMs : 0
       for (const event of events) {
+        if (options.beforeChunk !== undefined && !await beforeChunk(options, record)) return
         writeSse(record, response, event)
         if (!await pause(delayMs, response)) {
           finishRecord(options, record, 'client_closed')
@@ -775,6 +814,10 @@ export async function startMockLlmServer(options: MockLlmServerOptions): Promise
 
     for (const [name, value] of Object.entries(resolved.responseHeaders)) response.setHeader(name, value)
     const selected = selectBehavior()
+    const cancellation = new AbortController()
+    const confirmation = Promise.withResolvers<void>()
+    const capturedIds = resolved.captureUserMessageIds === undefined
+      ? wireUserMessageIds(body) : resolved.captureUserMessageIds(body)
     const record: MockLlmRequestRecord = {
       protocol,
       attempt: requests.length + 1,
@@ -783,12 +826,17 @@ export async function startMockLlmServer(options: MockLlmServerOptions): Promise
       path,
       headers: { ...request.headers },
       body,
+      userMessageIds: capturedIds === null ? null : Object.freeze([...new Set(capturedIds)]),
+      signal: cancellation.signal,
+      abortConfirmed: confirmation.promise,
       chunksSent: 0,
     }
     requests.push(record)
     response.once('close', () => {
-      if (!response.writableFinished && record.outcome === undefined) {
-        finishRecord(resolved, record, 'client_closed')
+      if (!response.writableFinished) {
+        cancellation.abort()
+        confirmation.resolve()
+        if (record.outcome === undefined) finishRecord(resolved, record, 'client_closed')
       }
     })
     emit(resolved, {

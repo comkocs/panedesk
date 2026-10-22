@@ -32,6 +32,9 @@
 /panedesk-dsh-llm-mock-server/use-this-package/usage-model-headers-and-request-evidence:
   en: bfa3be8b2c5ff74c
   zh: 6da0c6256feac6ed
+/panedesk-dsh-llm-mock-server/use-this-package/explicit-streaming-checkpoints:
+  en: 22331f6c2f6f45f9
+  zh: 23b68c077dd0c52b
 /panedesk-dsh-llm-mock-server/use-this-package/what-can-go-wrong:
   en: 36649554f10ab587
   zh: ef58d0b44e514387

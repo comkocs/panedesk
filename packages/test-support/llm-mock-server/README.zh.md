@@ -104,6 +104,12 @@ CLI 公开 `--success-text`、`--partial-text`、`--reasoning-text`、`--chunk-s
 
 OpenAI 路由以 SSE 流输出，与 Messages 一样支持可选的网关前缀；不实现非流式 OpenAI JSON 响应。Responses 发出 `response.created`、带索引的 `response.output_item.added`、文本／推理／函数参数增量、`response.output_item.done` 与 `response.completed`（`max_tokens` 时为 `response.incomplete`）。终结响应携带配置的 `model` 与 `usage.input_tokens` / `output_tokens`；缓存读写总数映射到 `input_tokens_details.cached_tokens` / `cache_write_tokens`。Chat 发出不具名的 `chat.completion.chunk` 数据，携带配置的 `model`、文本／推理／工具增量、结束原因分片、最后一个空 choices 用量分片与 `[DONE]`；计数映射到 `prompt_tokens`、`completion_tokens` 与 `prompt_tokens_details.cached_tokens` / `cache_write_tokens`。两者的 `total_tokens` 均为输入与输出之和，默认三个输入 token 与行为原有的输出计数，省略未配置的缓存详情，并忽略 Messages 专属的缓存保留期分档。`responseModel: null` 会移除两个协议中的模型字段。请求缓存选项只捕获、不校验或执行：调用方可断言 `30m` 或仅适用于 Responses 的 `12h` 等 GPT 保留期值。故障场景与 `retryAfterMs` 使用共享行为机制；正常 EOF 故障不发送协议终结事件。不实现 DeepSeek 专属的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` 输出字段。
 
+### 显式流式检查点
+
+库调用方可提供 `beforeChunk(record)`，无需定时休眠即可挂起每个 Messages 文本增量或每个 OpenAI SSE 事件。回调必须观察 `record.signal` 并在中止时结束。等待 `record.abortConfirmed` 可确认传输提前关闭；正常完成不会兑现该承诺。它确认的是本地传输关闭，不是远端模型取消。既有 `chunkSize`、`slow_success` 与 `successText` 控制不变；使用 `successText: 'Already read'` 可模拟已读自述，该文本不具备运行时回执语义。
+
+每次请求记录 `userMessageIds`：从 `messages` 或 Responses `input` 中用户条目的显式 `id` / `message_id` 字段提取唯一身份。缺少身份时记 `null`（不可取得），绝不编造；用户集合为空时为 `[]`。对于把身份编码进正文的适配器，可提供 `captureUserMessageIds(body)` 从实际协议正文提取。服务器冻结结果的独立副本。提供方格式若省略身份，必须使用调用方保留的请求证据，不能仅凭此字段复算身份集合。
+
 ### 可能出什么问题
 
 - **脚本耗尽**——耗尽时返回结构化 HTTP 500；当一次运行需要更多请求时设置 `--repeat-last` 或加长序列。
