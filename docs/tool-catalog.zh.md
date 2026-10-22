@@ -2106,13 +2106,6 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
       "type": "string",
       "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
     },
-    "deliveryPaths": {
-      "type": "array",
-      "description": "Declared delivery files within the authorized workspace. The runtime checks them at settlement and never replaces them with errors.",
-      "items": {
-        "type": "string"
-      }
-    },
     "description": {
       "type": "string",
       "description": "A short (3-5 word) description of the delegated task, for display."

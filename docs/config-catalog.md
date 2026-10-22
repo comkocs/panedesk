@@ -4266,6 +4266,8 @@ export interface Config extends PresetSelectionConfig {
    * Session and inherit that decision in its child Sessions.
    */
   modelSelectionSettings?: boolean
+  /** Expose model-authored delivery declarations; inherited preset composition keeps forks identical to their parent. */
+  deliveryDeclarations?: boolean
   /**
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */
