@@ -1,6 +1,17 @@
 from .api import DeepSeekHarness, DeepSeekHarnessConfig, RunResult, Session
-from .client import HarnessClient, HarnessConfig
-from .errors import SdkProtocolError
+from .client import HarnessClient, HarnessConfig, MessagesClient, MessageSubscription
+from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
+from .models import (
+    AppliedMessageControl, ConfigureMessagesRequest, ControlResult, EditMessageRequest,
+    InvalidateMessageRequest, MessageAddress, MessageBatchRecipient, MessageClass,
+    MessageControlRequest, MessagePage, MessagePriority, MessageQuery, MessageReason,
+    MessageRecipient, MessageSettings, MessageState, MessageStateData, MessageStateEvent,
+    MessageStatus, MessageStreamError, MessageSubscriptionRequest, MessagesSubscribeResult,
+    MessageTransition, OperationStatus, PendingMessageControl, RejectedMessageControl,
+    RejectedMessageRecipient, ReprioritizeMessageRequest, ResolvedMessageBatch,
+    ResolvedMessageRecipient, ResolvedRecipient, SendBatchRequest, SendBatchResult,
+    SendMessageRequest, SendMessageResult, SentMessageBatch, UnknownMessageOperation,
+)
 from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, LlmCacheControl, Notification, ServerInfo
 
 __all__ = [
@@ -19,4 +30,45 @@ __all__ = [
     "JsonObject",
     "Notification",
     "ServerInfo",
+    "MessagesClient",
+    "MessageSubscription",
+    "JsonRpcError",
+    "TransportClosedError",
+    "AppliedMessageControl",
+    "ConfigureMessagesRequest",
+    "ControlResult",
+    "EditMessageRequest",
+    "InvalidateMessageRequest",
+    "MessageAddress",
+    "MessageBatchRecipient",
+    "MessageClass",
+    "MessageControlRequest",
+    "MessagePage",
+    "MessagePriority",
+    "MessageQuery",
+    "MessageReason",
+    "MessageRecipient",
+    "MessageSettings",
+    "MessageState",
+    "MessageStateData",
+    "MessageStateEvent",
+    "MessageStatus",
+    "MessageStreamError",
+    "MessageSubscriptionRequest",
+    "MessagesSubscribeResult",
+    "MessageTransition",
+    "OperationStatus",
+    "PendingMessageControl",
+    "RejectedMessageControl",
+    "RejectedMessageRecipient",
+    "ReprioritizeMessageRequest",
+    "ResolvedMessageBatch",
+    "ResolvedMessageRecipient",
+    "ResolvedRecipient",
+    "SendBatchRequest",
+    "SendBatchResult",
+    "SendMessageRequest",
+    "SendMessageResult",
+    "SentMessageBatch",
+    "UnknownMessageOperation",
 ]

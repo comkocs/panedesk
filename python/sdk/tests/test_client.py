@@ -214,6 +214,7 @@ for line in sys.stdin:
         "cwd": str(tmp_path),
         "provider": "deepseek-official",
         "model": "deepseek-v4-flash",
+        "messagesVersion": 1,
         "reasoningEffort": "max",
         "maxTokens": 4096,
     }

@@ -58,6 +58,28 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/saved-home") as harness:
     result = session.run("Continue the task.")
 ```
 
+## Messages
+
+`HarnessClient.messages`, `DeepSeekHarness.messages`, and `Session.messages` expose `send`, `withdraw`, `edit`, `reprioritize`, `invalidate`, `status`, `operation_status`, `list`, `resolve`, `send_batch`, `configure`, and `subscribe`. Request models and dictionaries use camelCase wire fields; `MessageQuery.from_` encodes as `from`. Responses are typed models, including distinct applied, pending-owner, rejected, and not-found outcomes. Retain each `operationId` across uncertain transport failures and query `operation_status`; a stored offline control is not a confirmed withdrawal.
+
+Initialization requests message extension version 1. A runtime that does not negotiate it remains usable for ordinary prompts; message methods raise `JsonRpcError` with code `-32601` and `data.reason == "unsupported"`. Malformed message results or notifications raise `SdkProtocolError`; invalid request fields raise Pydantic `ValidationError`. `send` and `send_batch` default handoff/reply to `steer` and notice to passive `queue`, preserving explicit priorities for runtime validation. The existing `session_prompt()` and `Session.run()` retain their queued behavior.
+
+`Session.messages.send()` defaults an omitted target to that Session, while `list`, `configure`, and `subscribe` default an omitted `sessionId` to it. This supplies no sender identity or authority and does not open an unknown target. Restore an existing Session with `resume_session`, or use the existing Session creation APIs before operations requiring an owned open Session.
+
+```py
+receipt = session.messages.send({
+    "messageClass": "handoff",
+    "content": "Review this item",
+    "operationId": "operation-a",
+})
+status = session.messages.status(receipt.messageId)
+with session.messages.subscribe({"cursor": saved_cursor}) as stream:
+    event = next(stream)
+    saved_cursor = stream.cursor
+```
+
+Receipt subscriptions buffer notifications arriving before admission, filter by sender or target Session, and skip the current duplicate cursor. Persist `stream.cursor` and pass it on a new subscription to resume; there is no automatic reconnect. A `messages.error` notification raises `JsonRpcError` with `data.reason == "unavailable"` and the last cursor. Closing stops local reception and unblocks a waiting iterator; this protocol has no unsubscribe request, so the runtime stream lasts until replacement for the same Session or runtime shutdown. Receipts do not wake the sender, and subscription state does not alter the model request prefix or KV cache.
+
 ## Customize plugins
 
 Persistent customization belongs to a `dsh` profile. Initialize the shipped SDK profile and install an external bundle with the runtime wheel's `dsh` command:
