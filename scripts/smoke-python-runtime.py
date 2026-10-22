@@ -803,7 +803,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
+        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -822,9 +822,9 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
+    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
         parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, runner, and direct scenarios")
-    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
+    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
         parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-restart, sdk-authoring, or all")
     if args.exe is not None and not args.exe.is_file():
         parser.error(f"runtime executable does not exist: {args.exe}")
@@ -874,6 +874,9 @@ def main() -> None:
             smoke_sdk_spawn_node(model.url, args.exe.resolve())
         if args.scenario in {"all", "sdk-mcp"}:
             smoke_sdk_mcp(model.url, None if args.exe is None else args.exe.resolve())
+        if args.scenario in {"all", "sdk-message-delivery"}:
+            assert args.exe is not None
+            smoke_sdk_message_delivery(model.url, args.exe.resolve(), args.update_snapshots)
         if args.scenario in {"all", "sdk-snapshot"}:
             assert args.exe is not None
             smoke_sdk_snapshot(model.url, args.exe.resolve(), args.update_snapshots)
@@ -1598,6 +1601,71 @@ def smoke_sdk_profile_plugin(base_url: str) -> None:
 
         assert result.final_response == PROFILE_PLUGIN_TEXT, result.final_response
         assert_zstd_session_log(dsh_home / "sessions")
+
+
+def smoke_sdk_message_delivery(base_url: str, executable: Path, update_snapshots: bool) -> None:
+    """Record queued edits and withdrawal through the public SDK and shipped profile."""
+    from deepseek_harness import DeepSeekHarness
+
+    with tempfile.TemporaryDirectory(prefix="dsh-sdk-message-delivery-", dir=os.environ.get("PANEDESK_TEST_TEMP_ROOT")) as temporary:
+        root = Path(temporary).resolve()
+        home = root / "home"
+        sessions = home / "sessions"
+        patch = write_profile_patch(root, "delivery.patch.yml", sessions, [
+            {"id": "skill-filesystem", "config": {"includeDefaultRoots": False}},
+        ])
+        with DeepSeekHarness(
+            provider="deepseek-official", model="smoke-model", cwd=str(root),
+            dsh_bin=str(executable), dsh_home=str(home), patches=(str(patch),),
+            env={"PANEDESK_TELEMETRY_DISABLED": "1", "PANEDESK_AGENTS_HOME": str(root / ".agents")},
+            api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,
+        ) as harness:
+            session = harness.start_session(SNAPSHOT_SESSION_ID)
+            session.set_working_directory(str(root))
+            harness.messages.configure({"sessionId": session.id, "settings": {"receiveMode": "all", "wakeOnHandoff": False}})
+            sent = harness.messages.send({"target": {"sessionId": session.id}, "messageClass": "handoff",
+                                          "content": "Use the updated delivery instruction.", "operationId": "send-a"})
+            assert sent.deliveryOutcome == "accepted" and sent.messageState == "queued"
+            edited = harness.messages.edit({"messageId": sent.messageId, "content": "reply with the smoke text",
+                                            "operationId": "edit-a", "expectedRevision": 0})
+            assert edited.kind == "applied"
+            notice = harness.messages.send({"target": {"sessionId": session.id}, "messageClass": "notice",
+                                            "content": "This withdrawn notice must not reach the model.", "operationId": "send-b"})
+            withdrawn = harness.messages.withdraw({"messageId": notice.messageId, "operationId": "withdraw-a", "expectedRevision": 0})
+            assert withdrawn.kind == "applied"
+            result = session.run("reply with the smoke text")
+            assert result.final_response == EXPECTED_TEXT
+            deadline = time.monotonic() + 10
+            while harness.messages.status(sent.messageId).state != "responded":
+                if time.monotonic() >= deadline:
+                    raise AssertionError("Message receipt did not reach responded")
+                time.sleep(0.05)
+            assert harness.messages.status(notice.messageId).state == "withdrawn"
+        logs = read_session_logs(sessions)
+        raw = render_jsonl(logs[SNAPSHOT_SESSION_ID])
+        normalizer = (Path(__file__).resolve().parents[1] / "packages/test-support/session-snapshot/lib/index.js").as_uri()
+        redacted = subprocess.run([
+            "node", "--input-type=module", "-e",
+            "import { readFileSync } from 'node:fs'; "
+            "const { redactSessionSnapshotIds } = await import(process.argv[1]); "
+            "process.stdout.write(redactSessionSnapshotIds([readFileSync(0, 'utf8')])[0]);",
+            normalizer,
+        ], input=raw, text=True, capture_output=True, check=True).stdout
+        replacements = snapshot_directory_replacements(root, "{{cwd}}")
+        records = project_session_snapshot([normalize_snapshot_value(json.loads(line), replacements)
+                                            for line in redacted.splitlines()])
+        inputs = [record["data"] for record in records if record.get("type") == "user/message"]
+        assert not any("withdrawn notice" in json.dumps(message) for message in inputs)
+        transitions = [record["data"] for record in records if record.get("type") == "agent/input/transition"]
+        assert any(item.get("phase") == "scheduled" and item["scheduling"][0]["priority"] == "steer" for item in transitions)
+        assert [item["phase"] for item in transitions if item["phase"] != "scheduled"] == ["claimed", "appended", "dispatched"]
+        files = {
+            "result.json": json.dumps({"final_response": result.final_response, "edited": edited.kind,
+                                       "withdrawn": withdrawn.kind, "states": ["responded", "withdrawn"]}, indent=2) + "\n",
+            "session.v4.jsonl": render_jsonl(records),
+        }
+        compare_snapshot_files(files, update_snapshots, ADVANCED_SNAPSHOT_ROOT / "message-delivery",
+                               ("result.json", "session.v4.jsonl"), native_writer_output=True)
 
 
 def smoke_sdk_snapshot(base_url: str, executable: Path, update_snapshots: bool) -> None:

@@ -1,0 +1,9 @@
+{
+  "final_response": "runtime smoke ok",
+  "edited": "applied",
+  "withdrawn": "applied",
+  "states": [
+    "responded",
+    "withdrawn"
+  ]
+}

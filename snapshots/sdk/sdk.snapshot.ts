@@ -61,7 +61,8 @@ import {
   type RunResult,
   type SdkPromptContentBlock,
 } from '@panedesk/dsh-sdk-client'
-import { SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
+import { SESSION_FORMAT_VERSION, SessionId } from '@panedesk/dsh-session'
+import type { OperationId } from '@panedesk/dsh-message-delivery'
 import { deriveReplayScript, parseSessionLog } from '@panedesk/dsh-llm-replay'
 
 const corpusRoot = fileURLToPath(new URL('../', import.meta.url))
@@ -684,6 +685,20 @@ async function runScenario(scenario: CorpusScenario): Promise<{
     }
     try {
       let session = harness.session(sessionId)
+      if (scenario.name === 'message-delivery') {
+        await session.setWorkingDirectory(cwd)
+        await harness.messages.configure({ sessionId: SessionId(sessionId), settings: { receiveMode: 'all', wakeOnHandoff: false } })
+        const sent = await harness.messages.send({ target: { sessionId: SessionId(sessionId) }, messageClass: 'handoff',
+          content: 'Use the updated delivery instruction.', operationId: 'send-a' as OperationId })
+        expect(sent).toMatchObject({ deliveryOutcome: 'accepted', messageState: 'queued' })
+        expect(await harness.messages.status(sent.messageId)).toMatchObject({ state: 'queued' })
+        expect(await harness.messages.edit({ messageId: sent.messageId, content: 'Reply with exactly: SDK snapshot OK',
+          operationId: 'edit-a' as OperationId, expectedRevision: 0 })).toMatchObject({ kind: 'applied' })
+        const withdrawn = await harness.messages.send({ target: { sessionId: SessionId(sessionId) }, messageClass: 'notice',
+          content: 'This withdrawn notice must not reach the model.', operationId: 'send-b' as OperationId })
+        expect(await harness.messages.withdraw({ messageId: withdrawn.messageId,
+          operationId: 'withdraw-a' as OperationId, expectedRevision: 0 })).toMatchObject({ kind: 'applied' })
+      }
       for (const action of actions) {
         if (action.content === undefined) {
           await waitForRootEvent(
@@ -760,6 +775,13 @@ async function runScenario(scenario: CorpusScenario): Promise<{
           event => event.type === 'turn/end' && (event.data as JsonObject | undefined)?.turn === action.turn,
           observe,
         )
+      }
+      if (scenario.name === 'message-delivery') {
+        await expect.poll(async () => (await harness.messages.list({
+          sessionId: SessionId(sessionId), includeTerminal: true,
+        })).items, { timeout: 10000 }).toEqual(expect.arrayContaining([
+          expect.objectContaining({ state: 'responded' }), expect.objectContaining({ state: 'withdrawn' }),
+        ]))
       }
       for (const type of postTurnEventTypes(primaryFixture)) {
         await waitForRootEvent(subscription, sessionId, event => event.type === type, observe)
