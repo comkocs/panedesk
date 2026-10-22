@@ -61,6 +61,7 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
+    "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",
@@ -112,10 +113,12 @@
     }
   },
   "devDependencies": {
+    "@panedesk/dsh-ptc-runtime": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
+    "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",

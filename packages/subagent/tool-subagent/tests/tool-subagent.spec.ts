@@ -101,6 +101,7 @@ describe('dsh-tool-subagent', () => {
     const props = (schema!.parameters as { properties?: Record<string, unknown> }).properties ?? {}
     expect(Object.keys(props).sort()).toEqual([
       'cwd',
+      'deliveryPaths',
       'description',
       'prompt',
     ])

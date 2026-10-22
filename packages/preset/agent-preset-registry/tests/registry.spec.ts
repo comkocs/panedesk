@@ -14,6 +14,27 @@ afterEach(async () => { for (const ctx of contexts.splice(0)) await ctx.fiber.di
 async function setup() { const ctx = await harness(); contexts.push(ctx); return ctx }
 
 describe('declarative preset revisions', () => {
+  it('freezes execution metadata and retains the exact policy revision for descendants', async () => {
+    const ctx = await setup()
+    const executionPolicy = { provider: 'provider-a', model: 'model-a', reasoningEffort: 'high',
+      allowedTools: ['standard'], rulesId: 'rules-a', version: '1', digest: 'rules-digest' }
+    const old = await declare(ctx, { ...contribution('standard'), executionPolicy })
+    const parent = createScope(ctx, {})
+    await ctx.agentPresets.mount(parent.ctx)
+    const original = ctx.agentPresets.composedPolicy(parent.ctx)
+    expect(original?.executionPolicyDigest).toMatch(/^[a-f\d]{64}$/)
+    expect(Object.isFrozen(original?.executionPolicy)).toBe(true)
+    expect(Object.isFrozen(original?.executionPolicy?.allowedTools)).toBe(true)
+    await old.dispose()
+    await declare(ctx, { ...contribution('standard'), executionPolicy: { ...executionPolicy, model: 'model-b' } })
+    const child = createScope(ctx, {})
+    ctx.agentPresets.composeFrom(child.ctx, parent.ctx)
+    expect(ctx.agentPresets.composedPolicy(child.ctx)).toBe(original)
+    expect((await ctx.agentPresets.resolve('standard')).executionPolicy?.model).toBe('model-b')
+    await child.dispose()
+    await parent.dispose()
+  })
+
   it('eagerly scopes tool and prompt registrations and shares one revision across Agents', async () => {
     const ctx = await setup()
     await declare(ctx, contribution('standard'))

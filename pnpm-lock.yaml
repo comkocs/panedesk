@@ -14409,6 +14409,9 @@ importers:
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
+      '@panedesk/dsh-fs':
+        specifier: workspace:*
+        version: link:../../fs/fs
       '@panedesk/dsh-fs-sandbox':
         specifier: workspace:*
         version: link:../../fs/fs-sandbox
@@ -14418,6 +14421,9 @@ importers:
       '@panedesk/dsh-permission-presets':
         specifier: workspace:*
         version: link:../../interaction/permission-presets
+      '@panedesk/dsh-ptc-runtime':
+        specifier: workspace:*
+        version: link:../../ptc-runtime/ptc-runtime
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../../sandbox/sandbox

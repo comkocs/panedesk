@@ -1,4 +1,5 @@
 /** Declarative Agent capability sets, activation and session binding. */
+import { createHash } from 'node:crypto'
 import { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
@@ -10,7 +11,7 @@ import type { Agent } from '@panedesk/dsh-agent'
 import type {} from '@panedesk/dsh-settings'
 import type {} from '@panedesk/dsh-tools'
 import type { AgentPresetDocument, AgentPresetRoster } from './types.ts'
-import { entryListProblem, type PresetDefinition } from './definition.ts'
+import { entryListProblem, type PresetDefinition, type PresetExecutionPolicy } from './definition.ts'
 import type { AgentPreset, Config } from './preset.ts'
 import { agentPresetProjectionDefinition } from './session.ts'
 import { auditRows, leakedServices, mountPreset, serviceForMount, type PresetMount } from './mount.ts'
@@ -29,10 +30,39 @@ declare module '@panedesk/cordis' {
   }
 }
 
+function policyMetadata(definition: PresetDefinition): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'> {
+  const policy = definition.executionPolicy
+  return policy === undefined ? {} : executionPolicyMetadata(policy)
+}
+
+/** Validate and detach a policy read from configuration or durable ledger evidence.
+ * @param policy Complete execution policy; no defaults are inferred.
+ * @returns Frozen policy and its canonical SHA-256 digest.
+ */
+export function executionPolicyMetadata(
+  policy: PresetExecutionPolicy,
+): { executionPolicy: PresetExecutionPolicy; executionPolicyDigest: string } {
+  for (const field of ['provider', 'model', 'reasoningEffort', 'rulesId', 'version', 'digest'] as const) {
+    if (typeof policy[field] !== 'string' || policy[field].trim() === '') {
+      throw new Error(`Invalid executionPolicy.${field}: expected a nonempty string`)
+    }
+  }
+  if (!Array.isArray(policy.allowedTools) || policy.allowedTools.some(name => typeof name !== 'string' || !name.trim())) {
+    throw new Error('Invalid executionPolicy.allowedTools: expected tool names')
+  }
+  const executionPolicy = Object.freeze({
+    allowedTools: Object.freeze(policy.allowedTools.map((name: string) => name)), digest: policy.digest, model: policy.model,
+    provider: policy.provider, reasoningEffort: policy.reasoningEffort, rulesId: policy.rulesId, version: policy.version,
+  })
+  return Object.freeze({ executionPolicy,
+    executionPolicyDigest: createHash('sha256').update(JSON.stringify(executionPolicy)).digest('hex') })
+}
+
 interface Generation {
   scope: Scope
   key: ScopeKey
   mount: PresetMount
+  policy: Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'>
   users: number
   retired: boolean
 }
@@ -108,8 +138,9 @@ export class AgentPresetRegistry extends TypertRemoteService {
       const problem = entryListProblem(record.config.plugins)
       if (problem !== undefined) throw new Error(problem)
       const context = scope.ctx.extend({ baseUrl: record.context.baseUrl })
+      const policy = policyMetadata(record.config)
       const mount = await mountPreset(context, record.config.id, record.config.plugins)
-      const generation: Generation = { scope, key, mount, users: 0, retired: false }
+      const generation: Generation = { scope, key, mount, policy, users: 0, retired: false }
       context.effect(() => {
         this.generations.set(key, generation)
         return () => { this.generations.delete(key) }
@@ -180,6 +211,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
       const broken = await this.diagnostic(record)
       return {
         id: record.config.id,
+        ...record.generation?.policy,
         ...(record.config.name === undefined ? {} : { name: record.config.name }),
         ...(record.config.description === undefined ? {} : { description: record.config.description }),
         ...(record.config.order === undefined ? {} : { order: record.config.order }),
@@ -208,7 +240,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
     if (record === undefined) throw new RemoteError('agent-preset/not-found', `Unknown agent preset: ${wanted}`,
       { agentPreset: wanted, available: [...this.definitions.keys()] })
     const broken = await this.diagnostic(record)
-    return { id: wanted, ...(broken === undefined ? {} : { broken }) }
+    return { id: wanted, ...record.generation?.policy, ...(broken === undefined ? {} : { broken }) }
   }
 
   /** Read one declaration's child plugin list as YAML, for viewing only.
@@ -283,7 +315,7 @@ export class AgentPresetRegistry extends TypertRemoteService {
     const generation = await this.retain(id)
     try {
       await this.bind(ctx, generation)
-      return { id: generation.mount.presetId }
+      return { id: generation.mount.presetId, ...generation.policy }
     } finally {
       generation.users--
       await this.collect(generation)
@@ -316,6 +348,14 @@ export class AgentPresetRegistry extends TypertRemoteService {
    * @returns Its preset id, if bound.
    */
   composedPreset(ctx: Context): string | undefined { return this.generationFor(ctx)?.mount.presetId }
+
+  /** Read execution metadata from the exact revision retained by an Agent.
+   * @param ctx Agent context.
+   * @returns Frozen policy metadata, or undefined when no preset is bound.
+   */
+  composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'> | undefined {
+    return this.generationFor(ctx)?.policy
+  }
 
   /** Read a service supplied inside an Agent's isolated preset group.
    * @param agent Agent whose composition is queried.
