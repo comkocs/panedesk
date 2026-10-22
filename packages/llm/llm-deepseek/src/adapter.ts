@@ -1,7 +1,7 @@
 /** Direct Messages transport with one cancellable lifecycle per model request. */
 
 import { attributionHeaders, LlmAdapter, LlmError } from '@panedesk/dsh-llm'
-import type { GenerateOptions, ImageAttachmentAccessResolver, PreparedAdapterCall, StreamChunk } from '@panedesk/dsh-llm'
+import type { GenerateOptions, ImageAttachmentAccessResolver, PreparedAdapterCall, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
 import type { DeepSeekLlmApiJson } from '@panedesk/dsh-deepseek-llm-api-extensions'
 import { idleWatchdog, timeoutOf } from '@panedesk/dsh-timeout'
 import { modelInfo } from './model-info.ts'
@@ -170,11 +170,17 @@ export class DeepSeekAdapter<C extends Connection = Connection> extends LlmAdapt
         }
         await extensions.accept()
         if (response.body === null) throw new LlmError('DeepSeek Messages returned no response body', 'EMPTY_RESPONSE')
+        let usage: TokenUsage | undefined
         for await (const chunk of translate(parseSse(response.body, activity), options.model)) {
-          yield chunk.type === 'finish'
-            ? { ...chunk, httpStatus: response.status, accountLabel: this.dependencies.providerName || 'unknown',
-              cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto' }
-            : chunk
+          if (chunk.type === 'usage') usage = chunk.usage
+          if (chunk.type !== 'finish') { yield chunk; continue }
+          const finish: StreamChunk = { ...chunk, httpStatus: response.status, accountLabel: this.dependencies.providerName || 'unknown',
+            cacheWriteTiering: { kind: 'untiered' }, cacheRetention: 'auto' }
+          LlmAdapter.ledgerEvidence?.set(finish, {
+            cacheWriteAccounting: 'not-applicable',
+            ...usage === undefined ? {} : { usage: { ...usage, cacheWriteTokens: 0 } },
+          })
+          yield finish
         }
         return
       }

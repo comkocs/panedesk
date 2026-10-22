@@ -202,6 +202,8 @@ export interface LedgerCallFinish {
   /** Numeric wire counters retained independently of Session usage for reproducible accounting. */
   reportedUsage?: Readonly<Record<string, number>>
   usageState: LedgerUsageState
+  /** Adapter declaration for providers without cache-write accounting. */
+  cacheWriteAccounting?: 'not-applicable'
   costUsd?: string
   pricingState: LedgerPricingState
   /** Frozen table version and exact selected key; no fuzzy model alias matching. */

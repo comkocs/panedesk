@@ -39,6 +39,19 @@ describe('ledger terminal usage evidence', () => {
     expect(LlmAdapter.ledgerEvidence?.get(finish)?.usage).toMatchObject({ cacheReadTokens: 0, cacheWriteTokens: 0, cacheWriteLongTokens: 0 })
   })
 
+  it.each(['openai-responses', 'anthropic-messages'].flatMap(api => [undefined, 0].map(write => ({ api, write }))))
+  ('$api preserves missing writes and reported $write', ({ api, write }) => {
+    const usage = api === 'anthropic-messages'
+      ? { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 0,
+        ...write === undefined ? {} : { cache_creation_input_tokens: write } }
+      : { input_tokens: 10, output_tokens: 2, input_tokens_details: { cached_tokens: 0,
+        ...write === undefined ? {} : { cache_write_tokens: write } } }
+    const raw = api === 'anthropic-messages' ? { type: 'message_start', message: { usage } } : { response: { usage } }
+    const evidence = terminal(raw, api).evidence
+    expect(evidence?.usage?.cacheWriteTokens).toBe(write)
+    expect(evidence).not.toHaveProperty('cacheWriteAccounting')
+  })
+
   it.each([{ total: 15, output: 5 }, { total: 12, output: 2 }, { total: 14, output: 2 }])
   ('includes reasoning only when the wire total proves disjoint completion: $total', ({ total, output }) => {
     const { evidence } = terminal({ usage: { prompt_tokens: 10, completion_tokens: 2, total_tokens: total,

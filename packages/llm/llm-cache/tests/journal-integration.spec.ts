@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import { SessionId } from '@panedesk/dsh-session'
-import { createUserMessage } from '@panedesk/dsh-llm'
+import { createUserMessage, LlmAdapter } from '@panedesk/dsh-llm'
 import { JournalSessionLedger } from '@panedesk/dsh-session-ledger'
 import type { LedgerRunId } from '@panedesk/dsh-session-ledger'
 import { harness, consume } from './harness.ts'
@@ -57,6 +57,21 @@ describe('cache journal integration', () => {
         pricingState: cost === undefined ? 'missing-price' : 'priced' })
       expect(row.finish?.costUsd).toBe(cost)
     }
+  })
+
+  it.each(['deepseek-v4-flash', 'glm-5.3-flash', 'grok-4.7'])
+  ('persists and prices not-applicable writes as complete for %s', async (model) => {
+    const { ctx, adapter, ledger } = await setup()
+    const finish = { type: 'finish' as const, reason: { kind: 'stop' as const }, responseModel: model,
+      cacheWriteTiering: { kind: 'untiered' as const } }
+    const usage = { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0 }
+    adapter.chunks = [{ type: 'usage', usage }, finish]
+    LlmAdapter.ledgerEvidence?.set(finish, { cacheWriteAccounting: 'not-applicable', usage: { ...usage, cacheWriteTokens: 0 } })
+    await consume(ctx)
+    const rows = (await ledger.snapshot()).rows.filter(row => row.kind === 'call')
+    expect(rows[0]?.finish).toMatchObject({ cacheWriteAccounting: 'not-applicable', usageState: 'complete',
+      usage: { cacheWriteTokens: 0 }, pricingState: 'priced' })
+    expect(rows[0]?.finish?.costUsd).toBeDefined()
   })
 
   it('inherits a nonresident parent cache policy from the real journal without copying its evidence clock', async () => {

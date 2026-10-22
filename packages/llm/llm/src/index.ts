@@ -211,6 +211,7 @@ export abstract class LlmAdapter {
     usage?: import('./types.ts').TokenUsage
     reportedUsage?: Readonly<Record<string, number>>
     usageObserved?: boolean
+    cacheWriteAccounting?: 'not-applicable'
     reportedCacheRetention?: string
   }> = new WeakMap()
 

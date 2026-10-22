@@ -70,6 +70,23 @@ describe('provider response evidence', () => {
     expect(server.headers.map(headers => headers.session_id)).toEqual(sessions.map(session => encodeURIComponent(session)))
     expect(server.requests[0]).toMatchObject({ prompt_cache_key: sessions[0] })
   })
+  it.each(['deepseek-model-a', 'glm-model-a', 'grok-model-a'])
+  ('declares cache writes not applicable for %s without changing stream usage', async (model) => {
+    const events = textEvents.map((event) => {
+      if (event === '[DONE]') return event
+      const parsed = JSON.parse(event) as Record<string, unknown>
+      return JSON.stringify({ ...parsed, model,
+        usage: { prompt_tokens: 10, completion_tokens: 1, total_tokens: 11, prompt_tokens_details: { cached_tokens: 0 } } })
+    })
+    const server = await mockServer([{ events }])
+    const result = await collect(adapter('openai-completions', server.url, model), model)
+    expect(result.finish && LlmAdapter.ledgerEvidence?.get(result.finish)).toMatchObject({
+      cacheWriteAccounting: 'not-applicable', usage: { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    })
+    expect(result.usage).not.toHaveProperty('cacheWriteTokens')
+    expect(result.finish).not.toHaveProperty('cacheWriteAccounting')
+  })
+
   it.each(apis.flatMap(api => ['model-a', 'model-b', undefined].map(model => ({ api, model }))))
   ('$api reports wire model $model without substituting the requested model', async ({ api, model }) => {
     const server = await mockServer([{ events: frames(api, model) }])

@@ -41,6 +41,34 @@ describe('ledger terminal evidence consumption', () => {
       reportedUsage: { reasoning_tokens: 3 } })
   })
 
+  it.each(['deepseek', 'glm', 'grok'])('counts %s adapter-declared inapplicable writes as complete', async (family) => {
+    const { ctx, adapter, ledger } = await harness()
+    contexts.push(ctx)
+    const finish: StreamChunk = { type: 'finish', reason: { kind: 'stop' }, responseModel: `${family}-model-a`,
+      cacheWriteTiering: { kind: 'untiered' } }
+    const usage = { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0 }
+    adapter.chunks = [{ type: 'usage', usage }, finish]
+    LlmAdapter.ledgerEvidence?.set(finish, { cacheWriteAccounting: 'not-applicable', usage: { ...usage, cacheWriteTokens: 0 } })
+    await consume(ctx)
+    expect(ledger?.ends[0]).toMatchObject({ cacheWriteAccounting: 'not-applicable', usageState: 'complete',
+      usage: { cacheWriteTokens: 0 }, cacheWriteTiering: { kind: 'untiered' } })
+    expect(usage).not.toHaveProperty('cacheWriteTokens')
+  })
+
+  it.each(['gpt-5.6', 'claude-model-a'].flatMap(model => [undefined, 0].map(write => ({ model, write }))))
+  ('$model keeps missing writes partial and reported $write unchanged', async ({ model, write }) => {
+    const { ctx, adapter, ledger } = await harness()
+    contexts.push(ctx)
+    const finish: StreamChunk = { type: 'finish', reason: { kind: 'stop' }, responseModel: model,
+      cacheWriteTiering: { kind: 'tiered', short: '5m', long: '1h' } }
+    const usage = { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, ...write === undefined ? {} : { cacheWriteTokens: write } }
+    adapter.chunks = [{ type: 'usage', usage }, finish]
+    await consume(ctx)
+    expect(ledger?.ends[0]?.usageState).toBe(write === undefined ? 'partial' : 'complete')
+    expect(ledger?.ends[0]?.usage?.cacheWriteTokens).toBe(write)
+    expect(ledger?.ends[0]).not.toHaveProperty('cacheWriteAccounting')
+  })
+
   it('does not turn a pre-network failure into complete zero usage', async () => {
     const { ctx, adapter, ledger } = await harness()
     contexts.push(ctx)

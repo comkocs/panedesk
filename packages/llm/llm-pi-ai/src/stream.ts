@@ -31,8 +31,10 @@ export class PiResponseEvidence {
   /**
    * @param requestedModel - request identity used only to compare an observed name.
    * @param api - resolved wire protocol; unsupported protocols remain unobservable.
+   * @param cacheWriteAccounting - adapter declaration for families without write accounting.
    */
-  constructor(private readonly requestedModel: string, private readonly api: string) {}
+  constructor(private readonly requestedModel: string, private readonly api: string,
+    private readonly cacheWriteAccounting?: 'not-applicable') {}
 
   /**
    * Observe a provider event without modifying the SDK's parser input.
@@ -107,7 +109,8 @@ export class PiResponseEvidence {
       const write = raw.cache_creation_input_tokens ?? raw['input_tokens_details.cache_write_tokens']
         ?? raw['prompt_tokens_details.cache_write_tokens'] ?? raw.cache_write_tokens
       if (read !== undefined) usage.cacheReadTokens = read
-      if (write !== undefined) usage.cacheWriteTokens = write
+      if (this.cacheWriteAccounting === 'not-applicable') usage.cacheWriteTokens = 0
+      else if (write !== undefined) usage.cacheWriteTokens = write
       const long = this.api === 'anthropic-messages' ? this.longWrites
         : write !== undefined && metadata.cacheWriteTiering?.kind === 'tiered'
           ? (this.reportedCacheRetention ?? metadata.cacheRetention) === '12h' ? write
@@ -124,6 +127,7 @@ export class PiResponseEvidence {
       }
     }
     LlmAdapter.ledgerEvidence?.set(finish, {
+      ...this.cacheWriteAccounting === undefined ? {} : { cacheWriteAccounting: this.cacheWriteAccounting },
       ...usage === undefined ? {} : { usage },
       ...this.reportedCacheRetention === undefined ? {} : { reportedCacheRetention: this.reportedCacheRetention },
       ...observed ? { reportedUsage: { ...raw } } : {},

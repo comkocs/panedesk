@@ -61,10 +61,12 @@ describe('fake reference pricing', () => {
       ] }] },
     ]) expect(() => loadPriceTable(JSON.stringify(invalid))).toThrow()
   })
-  it('prices free untiered writes and free storage without inventing missing usage evidence', () => {
+  it('requires explicit write accounting even when untiered writes and storage are free', () => {
     const entry = { ...fake, prices: { ...fake.prices, cacheWrite: { untiered: '0' }, cacheStoragePerMillionTokenHour: '0' } }
     const usage = { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0 }
-    expect(priceUsage({ ...request, entry, usage, usageState: 'partial', tiering: { kind: 'untiered' } }))
+    expect(priceUsage({ ...request, entry, usage, usageState: 'partial', tiering: { kind: 'untiered' } }).state)
+      .toBe('partial-usage')
+    expect(priceUsage({ ...request, entry, usage: { ...usage, cacheWriteTokens: 0 }, tiering: { kind: 'untiered' } }))
       .toMatchObject({ state: 'priced', costUsd: '0.000026' })
     expect(usage).not.toHaveProperty('cacheWriteTokens')
     expect(priceUsage({ ...request, entry, usage: { inputTokens: 10, outputTokens: 1 }, usageState: 'partial', tiering: { kind: 'untiered' } }).state)

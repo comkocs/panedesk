@@ -58,12 +58,8 @@ function terms(request: LedgerPriceUsageRequest): { state: LedgerPriceUsageResul
   if (!usage || request.usageState === 'missing') return { state: 'missing-usage', values: [] }
   const columns = tokenColumns(request)
   const { inputTokens: input, outputTokens: output, cacheReadTokens: read } = columns
-  const freeUntieredWrites = request.tiering.kind === 'untiered' && request.entry !== undefined
-    && [request.entry.prices, ...request.entry.timeRules?.map(rule => rule.prices) ?? [],
-      ...request.entry.contextRule === undefined ? [] : [request.entry.contextRule.prices]]
-      .every(prices => prices.cacheWrite.untiered !== undefined && decimal(prices.cacheWrite.untiered).units === 0n)
-  const write = columns.cacheWriteTokens ?? (freeUntieredWrites ? 0 : undefined)
-  if (request.usageState !== 'complete' && !(freeUntieredWrites && columns.cacheWriteTokens === undefined)) {
+  const write = columns.cacheWriteTokens
+  if (request.usageState !== 'complete') {
     return { state: 'partial-usage', values: [] }
   }
   if (input === undefined || output === undefined || read === undefined || write === undefined

@@ -45,6 +45,8 @@ describe('family admission and call accounting', () => {
   it.each([undefined, 'compaction', 'session-title', 'keepalive'] as const)('meters %s calls through the same stream entry', async (purpose) => {
     const { ctx, ledger, adapter } = await harness()
     try {
+      adapter.chunks = adapter.chunks.map(chunk => chunk.type === 'usage'
+        ? { ...chunk, usage: { ...chunk.usage, cacheWriteTokens: 0, cacheWriteLongTokens: 0 } } : chunk)
       await consume(ctx, purpose)
       expect(adapter.requests).toHaveLength(1)
       expect(adapter.requests[0]!.cache).toBeUndefined()
@@ -54,6 +56,15 @@ describe('family admission and call accounting', () => {
       expect(ledger?.ends[0]).toMatchObject({ effectiveModel: 'reported-model', responseModelReported: 'different',
         accountLabel: 'route-a', usageState: 'complete', pricingState: 'missing-price', endReason: 'completed' })
       if (purpose === 'keepalive') expect(ledger?.ends[0]!.artifacts?.[0]!.kind).toBe('keepalive-request')
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('keeps usage partial when a write-accounting provider omits writes', async () => {
+    const { ctx, ledger } = await harness()
+    try {
+      await consume(ctx)
+      expect(ledger?.ends[0]).toMatchObject({ usageState: 'partial', cacheWriteTiering: { kind: 'tiered' } })
+      expect(ledger?.ends[0]?.usage).not.toHaveProperty('cacheWriteTokens')
     } finally { await ctx.fiber.dispose() }
   })
 

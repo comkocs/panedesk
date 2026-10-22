@@ -587,6 +587,7 @@ export function apply(ctx: Context, config: Config): void {
             effectiveModel: finish?.responseModel ?? request.model,
             ...status === undefined ? {} : { httpStatus: status }, ...usage === undefined ? {} : { usage },
             usageState,
+            ...terminalEvidence?.cacheWriteAccounting === undefined ? {} : { cacheWriteAccounting: terminalEvidence.cacheWriteAccounting },
             ...terminalEvidence?.reportedUsage === undefined ? {} : { reportedUsage: terminalEvidence.reportedUsage },
             ...priced.costUsd === undefined ? {} : { costUsd: priced.costUsd }, pricingState: priced.state,
             priceVersion: start.priceVersion, priceKey: selectedPrice?.modelKey ?? 'unknown',
