@@ -10,7 +10,14 @@
  */
 
 export { DeepSeekHarness, HarnessSession, validatedSessionEvent } from './api.ts'
-export type { RunOptions } from './api.ts'
+export type { RunOptions, SessionSendMessageRequest } from './api.ts'
+export type {
+  MessagesRequestMap, MessagesSubscribeResult, SendMessageRequest, SendMessageResult,
+  MessageControlRequest, EditMessageRequest, ReprioritizeMessageRequest, InvalidateMessageRequest,
+  ControlResult, MessageStatus, OperationStatus, OperationId, MessageQuery, MessagePage,
+  MessageAddress, ResolvedRecipient, SendBatchRequest, SendBatchResult, ConfigureMessagesRequest,
+  MessageSettings, MessageSubscriptionRequest, MessageStateEvent, MessageCursor,
+} from '@panedesk/dsh-sdk-protocol'
 export {
   HarnessClient,
   RequestTimeoutError,

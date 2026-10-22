@@ -248,6 +248,21 @@ reader.on('line', (line) => {
   const frame = JSON.parse(line) as { id?: string | number; method?: string; params?: Record<string, unknown> }
   if (frame.method === undefined || frame.id === undefined) return
   const respond = (result: object): void => { write({ jsonrpc: '2.0', id: frame.id, result }) }
+  if (frame.method.startsWith('messages/')) {
+    if (env.FAKE_MESSAGE_REQUESTS !== undefined) appendFileSync(env.FAKE_MESSAGE_REQUESTS, `${JSON.stringify(frame)}\n`)
+    if (env.FAKE_MESSAGE_ERROR !== undefined) {
+      write({ jsonrpc: '2.0', id: frame.id, error: { code: -32603, message: 'storage unavailable', data: { reason: 'unavailable' } } })
+      return
+    }
+    const results = JSON.parse(env.FAKE_MESSAGE_RESULTS ?? '{}') as Record<string, object>
+    if (frame.method === 'messages/subscribe') {
+      const events = JSON.parse(env.FAKE_MESSAGE_EVENTS ?? '[]') as { cursor: string }[]
+      const start = frame.params?.cursor === undefined ? 0 : events.findIndex(event => event.cursor === frame.params?.cursor) + 1
+      for (const receipt of events.slice(start)) notify('messages.state', receipt)
+      respond(frame.params?.cursor === undefined ? {} : { cursor: frame.params.cursor })
+    } else respond(results[frame.method] ?? {})
+    return
+  }
   switch (frame.method) {
     case 'initialize':
       if (typeof frame.params?.cwd === 'string') originCwd = frame.params.cwd
@@ -281,7 +296,8 @@ reader.on('line', (line) => {
         respond({ serverInfo: { name: 'panedesk-sdk-runtime', version: process.cwd() } })
         return
       }
-      respond({ serverInfo: { name: 'panedesk-sdk-runtime', version: '0.0.1' } })
+      respond({ serverInfo: { name: 'panedesk-sdk-runtime', version: '0.0.1' },
+        ...env.FAKE_MESSAGES_VERSION === undefined ? {} : { messagesVersion: JSON.parse(env.FAKE_MESSAGES_VERSION) as object } })
       return
     case 'session/resume':
       if (env.FAKE_RESUME_ERROR !== undefined) {

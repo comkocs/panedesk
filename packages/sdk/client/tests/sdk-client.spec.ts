@@ -11,6 +11,7 @@ import { isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReasoningEffortId } from '@panedesk/dsh-llm'
+import { decodeMessagesRequest, decodeMessagesResult, decodeMessageState } from '@panedesk/dsh-sdk-protocol'
 import {
   DeepSeekHarness,
   HarnessClient,
@@ -61,6 +62,98 @@ async function tempDir(prefix: string): Promise<string> {
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   return dir
 }
+
+describe('SDK messages', () => {
+  const control = { messageId: 'message-a', operationId: 'operation-a', expectedRevision: 0 }
+  const send = decodeMessagesRequest('messages/send', { target: { sessionId: 'seat-a' }, operationId: 'operation-a', messageClass: 'handoff', content: 'work' })
+  const receipt = decodeMessageState({ cursor: 'cursor-a', nodeId: 'node-a', data: { messageId: 'message-a', senderSessionId: null,
+    targetSessionId: 'seat-a', priority: 'steer', messageClass: 'handoff', state: 'queued', revision: 0, stateVersion: 1,
+    operationId: 'operation-a', transition: 'accepted', observedAt: 1 } })
+  const status = { messageId: 'message-a', state: 'queued', phase: 'pending', revision: 0, stateVersion: 1, transitions: [receipt] }
+  const results = {
+    'messages/send': { messageId: 'message-a', operationId: 'operation-a', deliveryOutcome: 'rejected', reason: 'target-not-found', messageState: 'rejected', pending: false, candidates: [] },
+    'messages/withdraw': { ...control, kind: 'accepted-pending-owner', state: 'queued', revision: 0 },
+    'messages/edit': { ...control, kind: 'applied', status },
+    'messages/reprioritize': { ...control, kind: 'rejected', reason: 'claimed', status },
+    'messages/invalidate': { ...control, kind: 'rejected', reason: 'injected', status },
+    'messages/status': status,
+    'messages/operationStatus': { kind: 'not-found', operationId: 'operation-a' },
+    'messages/list': { items: [status], complete: true },
+    'messages/resolve': [],
+    'messages/sendBatch': { kind: 'sent', results: [] },
+    'messages/configure': { receiveMode: 'all', wakeOnHandoff: true },
+  }
+  type Messages = HarnessClient['messages']
+  const calls: [keyof typeof results, (messages: Messages) => Promise<unknown>][] = [
+    ['messages/send', messages => messages.send(send)],
+    ['messages/withdraw', messages => messages.withdraw(decodeMessagesRequest('messages/withdraw', control))],
+    ['messages/edit', messages => messages.edit(decodeMessagesRequest('messages/edit', { ...control, content: 'updated' }))],
+    ['messages/reprioritize', messages => messages.reprioritize(decodeMessagesRequest('messages/reprioritize', { ...control, priority: 'immediate' }))],
+    ['messages/invalidate', messages => messages.invalidate(decodeMessagesRequest('messages/invalidate', { ...control, reason: 'superseded' }))],
+    ['messages/status', messages => messages.status(decodeMessagesRequest('messages/status', { messageId: 'message-a' }).messageId)],
+    ['messages/operationStatus', messages => messages.operationStatus(send.operationId)],
+    ['messages/list', messages => messages.list({})],
+    ['messages/resolve', messages => messages.resolve([send.target])],
+    ['messages/sendBatch', messages => messages.sendBatch(decodeMessagesRequest('messages/sendBatch', { messageClass: 'handoff', content: 'work', recipients: [{ target: send.target, operationId: send.operationId }], dryRun: false }))],
+    ['messages/configure', messages => messages.configure(decodeMessagesRequest('messages/configure', { sessionId: 'seat-a', settings: results['messages/configure'] }))],
+  ]
+  it.each(calls)('encodes and decodes %s through both client layers', async (method, invoke) => {
+    const root = await tempDir('sdk-message-wire-')
+    const recorded = join(root, 'requests.jsonl')
+    const harness = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify(results), FAKE_MESSAGE_REQUESTS: recorded })
+    await harness.start()
+    expect(await invoke(harness.client.messages)).toEqual(decodeMessagesResult(method, results[method]))
+    expect(await invoke(harness.messages)).toEqual(results[method])
+    expect(await invoke(harness.session('seat-a').messages)).toEqual(results[method])
+    const frames = (await readFile(recorded, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as { method: string; params: object })
+    expect(frames).toHaveLength(3)
+    for (const frame of frames) {
+      expect(frame.method).toBe(method)
+      expect(() => decodeMessagesRequest(method, frame.params)).not.toThrow()
+    }
+  })
+  it.each(calls)('rejects unsupported, malformed and failed %s results', async (method, invoke) => {
+    const unsupported = harnessWith()
+    await unsupported.start()
+    await expect(invoke(unsupported.client.messages)).rejects.toMatchObject({ data: { reason: 'unsupported' } })
+    const malformed = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify({ [method]: null }) })
+    await malformed.start()
+    await expect(invoke(malformed.client.messages)).rejects.toBeInstanceOf(SdkProtocolError)
+    const failed = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_ERROR: '1' })
+    await failed.start()
+    await expect(invoke(failed.client.messages)).rejects.toMatchObject({ data: { reason: 'unavailable' } })
+  })
+  it('defaults Session target to self and only new sends to steer', async () => {
+    const root = await tempDir('sdk-message-defaults-')
+    const recorded = join(root, 'requests.jsonl')
+    const harness = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify(results), FAKE_MESSAGE_REQUESTS: recorded })
+    const session = harness.session('seat-a')
+    await session.messages.send({ messageClass: 'handoff', content: 'work', operationId: send.operationId })
+    for (const priority of ['queue', 'steer', 'immediate'] as const) await session.messages.send({ ...send, priority })
+    await session.messages.send({ messageClass: 'notice', content: 'notice', operationId: send.operationId })
+    const frames = (await readFile(recorded, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as { params: { target: object; priority: string } })
+    expect(frames.map(frame => frame.params.priority)).toEqual(['steer', 'queue', 'steer', 'immediate', 'queue'])
+    expect(frames[0]?.params.target).toEqual({ sessionId: 'seat-a' })
+    expect((await session.run('legacy prompt')).finalResponse).toBe('hello from fake runtime')
+  })
+  it('buffers notifications before admission and resumes from the consumed cursor', async () => {
+    const second = { ...receipt, cursor: 'cursor-b' }
+    const harness = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_EVENTS: JSON.stringify([receipt, second]) })
+    const session = harness.session('seat-a')
+    const firstStream = session.messages.subscribe()[Symbol.asyncIterator]()
+    expect((await firstStream.next()).value).toEqual(receipt)
+    await firstStream.return?.()
+    const resumed = session.messages.subscribe({ cursor: receipt.cursor })[Symbol.asyncIterator]()
+    expect((await resumed.next()).value).toEqual(second)
+    await resumed.return?.()
+  })
+  it('rejects unsupported subscriptions and malformed capability versions', async () => {
+    const harness = harnessWith()
+    const stream = harness.session('seat-a').messages.subscribe()[Symbol.asyncIterator]()
+    await expect(stream.next()).rejects.toMatchObject({ data: { reason: 'unsupported' } })
+    await expect(harnessWith({ FAKE_MESSAGES_VERSION: '"one"' }).start()).rejects.toBeInstanceOf(SdkProtocolError)
+  })
+})
 
 describe('DeepSeekHarness', () => {
   it('forwards optional handshake fields only after durable spawn observation', async () => {
@@ -344,6 +437,7 @@ describe('DeepSeekHarness', () => {
     await harness.close()
     const records = (await readFile(recordFile, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as object)
     expect(records).toEqual([{
+      messagesVersion: 1,
       cwd: dir,
       provider: 'custom-provider',
       model: 'custom-model',

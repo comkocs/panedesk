@@ -16,6 +16,14 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import {
   JsonRpcLineTransport,
   JsonRpcResponseError,
+  MESSAGES_VERSION,
+  decodeMessagesResult,
+  decodeMessageState,
+  type MessagesRequestMap,
+  type MessageStateEvent,
+  type MessageSubscriptionRequest,
+  type SendMessageRequest,
+  type SendBatchRequest,
   type InitializeParams,
   type InitializeResult,
   type SessionPromptParams,
@@ -186,6 +194,22 @@ class NotificationSubscriptionImpl implements NotificationSubscription {
 export class HarnessClient {
   /** Original public dsh launch and timeout options for this client. */
   readonly options: HarnessClientOptions
+  private messagesVersion: number | undefined
+  /** Message operations require a successful version negotiation; prompt remains queued. */
+  readonly messages = {
+    send: (request: SendMessageRequest) => this.messageRequest('messages/send', resolveMessageSend(request)),
+    withdraw: (request: MessagesRequestMap['messages/withdraw']['params']) => this.messageRequest('messages/withdraw', request),
+    edit: (request: MessagesRequestMap['messages/edit']['params']) => this.messageRequest('messages/edit', request),
+    reprioritize: (request: MessagesRequestMap['messages/reprioritize']['params']) => this.messageRequest('messages/reprioritize', request),
+    invalidate: (request: MessagesRequestMap['messages/invalidate']['params']) => this.messageRequest('messages/invalidate', request),
+    status: (messageId: MessagesRequestMap['messages/status']['params']['messageId']) => this.messageRequest('messages/status', { messageId }),
+    operationStatus: (operationId: MessagesRequestMap['messages/operationStatus']['params']['operationId']) => this.messageRequest('messages/operationStatus', { operationId }),
+    list: (query: MessagesRequestMap['messages/list']['params']) => this.messageRequest('messages/list', query),
+    resolve: (addresses: MessagesRequestMap['messages/resolve']['params']['addresses']) => this.messageRequest('messages/resolve', { addresses }),
+    sendBatch: (request: SendBatchRequest) => this.messageRequest('messages/sendBatch', resolveMessageSend(request)),
+    configure: (request: MessagesRequestMap['messages/configure']['params']) => this.messageRequest('messages/configure', request),
+    subscribe: (request: MessageSubscriptionRequest): AsyncIterable<MessageStateEvent> => this.messageEvents(request),
+  }
   private readonly runtime: RuntimeProcessOptions
   private child: ChildProcess | undefined
   private transport: JsonRpcLineTransport | undefined
@@ -321,12 +345,18 @@ export class HarnessClient {
    * @returns the runtime's wire identity.
    */
   async initialize(params: InitializeParams): Promise<InitializeResult> {
-    const result = await this.request('initialize', { ...params }, this.runtime.initializeTimeoutMs)
+    this.messagesVersion = undefined
+    const result = await this.request('initialize', { messagesVersion: MESSAGES_VERSION, ...params }, this.runtime.initializeTimeoutMs)
     if (!isRecord(result) || !isRecord(result.serverInfo)
       || typeof result.serverInfo.name !== 'string' || typeof result.serverInfo.version !== 'string') {
       throw new SdkProtocolError(`initialize returned no server identity: ${JSON.stringify(result)}`)
     }
-    return { serverInfo: { name: result.serverInfo.name, version: result.serverInfo.version } }
+    if (result.messagesVersion !== undefined && (!Number.isSafeInteger(result.messagesVersion) || Number(result.messagesVersion) <= 0)) {
+      throw new SdkProtocolError('initialize returned an invalid messagesVersion')
+    }
+    this.messagesVersion = result.messagesVersion === MESSAGES_VERSION ? MESSAGES_VERSION : undefined
+    return { serverInfo: { name: result.serverInfo.name, version: result.serverInfo.version },
+      ...this.messagesVersion === undefined ? {} : { messagesVersion: this.messagesVersion } }
   }
 
   /**
@@ -370,6 +400,43 @@ export class HarnessClient {
    */
   setWorkingDirectory(sessionId: string, path: string): Promise<string> {
     return this.workingDirectoryRequest('session/working-directory/set', { sessionId, path })
+  }
+
+  private async messageRequest<M extends keyof MessagesRequestMap>(method: M, params: MessagesRequestMap[M]['params']): Promise<MessagesRequestMap[M]['result']> {
+    if (this.messagesVersion !== MESSAGES_VERSION) {
+      throw new JsonRpcResponseError(-32601, 'Message delivery is unsupported by the runtime', { reason: 'unsupported' })
+    }
+    const result = await this.request(method, params)
+    try {
+      return decodeMessagesResult(method, result)
+    } catch (error) {
+      throw new SdkProtocolError(errorMessage(error))
+    }
+  }
+
+  private async * messageEvents(request: MessageSubscriptionRequest): AsyncIterable<MessageStateEvent> {
+    const subscription = this.subscribe((notification) => {
+      if (notification.method === 'messages.error') return notification.params.sessionId === request.sessionId
+      if (notification.method !== 'messages.state') return false
+      const event = decodeMessageState(notification.params)
+      return event.data.senderSessionId === request.sessionId || event.data.targetSessionId === request.sessionId
+    })
+    let cursor = request.cursor
+    try {
+      await this.messageRequest('messages/subscribe', request)
+      for (;;) {
+        const notification = await subscription.next()
+        if (notification.method === 'messages.error') {
+          throw new JsonRpcResponseError(-32603, 'Message receipt stream is unavailable', { reason: 'unavailable', cursor })
+        }
+        const event = decodeMessageState(notification.params)
+        if (event.cursor === cursor) continue
+        cursor = event.cursor
+        yield event
+      }
+    } finally {
+      subscription.close()
+    }
   }
 
   private async workingDirectoryRequest(method: string, params: object): Promise<string> {
@@ -556,6 +623,11 @@ export class HarnessClient {
     if (this.stderrTail.length > 0) parts.push(`stderr tail:\n${this.stderrTail.join('\n')}`)
     return new TransportClosedError(parts.join('\n'))
   }
+}
+
+/** Resolve the new send default without changing explicit priorities or legacy prompts. */
+function resolveMessageSend<T extends SendMessageRequest | SendBatchRequest>(request: T): T {
+  return { ...request, priority: request.priority ?? (request.messageClass === 'notice' ? 'queue' : 'steer') }
 }
 
 /** Construct the transport against a generic process for package-local fake-runtime tests. */
