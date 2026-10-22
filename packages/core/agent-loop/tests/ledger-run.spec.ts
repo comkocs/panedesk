@@ -1,0 +1,95 @@
+import { Context } from '@panedesk/cordis'
+import { mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
+import { SessionId } from '@panedesk/dsh-session'
+import { createUserMessage, LlmError } from '@panedesk/dsh-llm'
+import { createLaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
+import { MockAdapter, textResponse } from './mock-adapter.ts'
+import { afterEach, expect, it, vi } from 'vitest'
+import AgentLoop from '../src/index.ts'
+import { MemoryLedger } from '../../../subagent/subagent/tests/ledger-fixture.ts'
+
+const contexts: Context[] = []
+afterEach(async () => { for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose() })
+
+it('records a top-level residency before publication and settles it once after disposal', async () => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(MemoryLedger)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const ledger = ctx.sessionLedger as MemoryLedger
+  ctx.on('agent/created', () => { expect(ledger.starts).toHaveLength(1) })
+  const handle = await ctx.agents.create({ sessionId: SessionId('session-a') })
+  expect(ledger.starts[0]).toMatchObject({ sessionId: 'session-a', seat: 'free', window: 'free' })
+  expect(ledger.finishes).toHaveLength(0)
+  await Promise.all([handle.dispose(), handle.dispose()])
+  expect(ledger.finishes).toHaveLength(1)
+  expect(ledger.finishes[0]).toMatchObject({ endReason: 'completed', recovered: false })
+})
+
+it.each(['completed', 'timeout', 'error', 'cancelled'] as const)('records the top-level %s terminal from runtime evidence', async (expected) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(MemoryLedger)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const adapter = new MockAdapter([expected === 'timeout'
+    ? () => { throw new LlmError('Request timed out', 'TIMEOUT') }
+    : expected === 'error' ? () => { throw new Error('Request failed') } : textResponse('done')])
+  ctx.llm.registerAdapter(['mock'], adapter)
+  const handle = await ctx.agents.create({ sessionId: SessionId('session-a'), agentOptions: { provider: 'mock', model: 'model-a' } })
+  const message = createUserMessage({ content: [{ type: 'text', text: 'task-a' }], source: { kind: 'user' } })
+  if (expected === 'cancelled') handle.agent.send(message, 'next-turn', false)
+  else {
+    handle.agent.followup(message)
+    await handle.agent.whenIdle()
+  }
+  await handle.dispose()
+  expect(ledger.finishes).toHaveLength(1)
+  expect(ledger.finishes[0]).toMatchObject({ endReason: expected, recovered: false })
+})
+
+it.each(['startup', 'environment', 'settings', 'free'] as const)('binds %s identity before top-level publication', async (source) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  const labels = { seat: 'seat-a', window: 'window-a', taskId: 'task-a' }
+  ctx.provide('launchEnvironment', createLaunchEnvironmentSnapshot([{ source: 'process', values: source === 'environment'
+    ? { PANEDESK_SEAT: labels.seat, PANEDESK_WINDOW: labels.window, PANEDESK_TASK_ID: labels.taskId } : {} }]))
+  if (source === 'startup') ctx.provide('ledgerStartupIdentity', labels)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(MemoryLedger)
+  await ctx.plugin(AgentLoop, { agents: [], ...source === 'settings' ? { ledgerIdentity: labels } : {} })
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const handle = await ctx.agents.create({ sessionId: SessionId('session-a') })
+  expect(ledger.starts[0]).toMatchObject({ ...(source === 'free' ? { seat: 'free', window: 'free', taskId: 'free' } : labels),
+    identitySource: source })
+  expect(ledger.contextFor(handle.agent.id)?.runId).toBe(ledger.starts[0]?.runId)
+  await handle.dispose()
+  expect(ledger.contextFor(handle.agent.id)).toBeUndefined()
+})
+
+it('refuses publication when the optional ledger cannot persist a start', async () => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(MemoryLedger)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const ledger = ctx.sessionLedger as MemoryLedger
+  ledger.failStart = true
+  const announced = vi.fn()
+  ctx.on('agent/created', announced)
+  await expect(ctx.agents.create({ sessionId: SessionId('session-a') })).rejects.toThrow('synchronization')
+  expect(announced).not.toHaveBeenCalled()
+  expect(ctx.agents.get(SessionId('session-a'))).toBeUndefined()
+})
+
+it('preserves creation and teardown without the optional ledger', async () => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const handle = await ctx.agents.create({ sessionId: SessionId('session-a') })
+  await handle.dispose()
+  expect(ctx.agents.get(SessionId('session-a'))).toBeUndefined()
+})

@@ -5,7 +5,7 @@ import { inspectProcessIdentity } from './process.ts'
 import type { ProcessObservation } from './process.ts'
 
 /** Public-service subset needed by the independent watcher. */
-export type WatchLedger = Pick<SessionLedger, 'snapshot' | 'finishRun' | 'appendEvent'>
+export type WatchLedger = Pick<SessionLedger, 'snapshot' | 'finishRun' | 'finishCall' | 'appendEvent'>
 /** Per-run measurement separates death observation from durable acknowledgement. */
 export interface RecoveryMeasurement {
   runId: string
@@ -49,7 +49,10 @@ export async function reconcileRuns(ledger: WatchLedger, options: ReconcileOptio
   const started = monotonic()
   const report: ReconcileReport = { startedAt: now(), finishedAt: 0, elapsedMs: 0, inspected: 0, deferred: 0, recoveries: [], alerts: [] }
   const source = await ledger.snapshot({ nodeId: options.nodeId })
-  const runs = source.rows.filter((row): row is LedgerLifecycle => row.kind === 'run' && !row.finish && row.start.nodeId === options.nodeId)
+  const pendingCalls = source.rows.filter(row => row.kind === 'call' && !row.finish)
+  const runs = source.rows.filter((row): row is LedgerLifecycle => row.kind === 'run' && row.start.nodeId === options.nodeId
+    && (!row.finish || (row.finish.endReason === 'killed' && row.finish.recovered
+      && pendingCalls.some(call => call.kind === 'call' && call.start.runId === row.start.runId))))
   const alert = async (run: LedgerLifecycle, code: string, message: string) => {
     report.alerts.push(code)
     options.onAlert?.(code)
@@ -79,9 +82,30 @@ export async function reconcileRuns(ledger: WatchLedger, options: ReconcileOptio
       }, Math.max(1, Math.min(10000, options.settlementBudgetMs - (monotonic() - started))))
       const result = await (async () => {
         try {
-          return await ledger.finishRun({ runId: run.start.runId, observedAt, endReason: 'killed',
+          const terminal = await ledger.finishRun({ runId: run.start.runId, observedAt, endReason: 'killed',
             upstreamStopReason: `process-${observation.reason}`, recovered: true,
             deliveryState: run.start.deliveryPaths.length ? 'uncheckable' : 'not-requested' })
+          if (terminal.kind !== 'conflict' && terminal.event.kind === 'run/end'
+            && terminal.event.data.endReason === 'killed' && terminal.event.data.recovered) {
+            // Re-read after the run CAS: normal call endings committed meanwhile are authoritative.
+            const current = await ledger.snapshot({ nodeId: options.nodeId })
+            if (!current.complete) throw new Error('Watcher requires a complete call snapshot')
+            for (const call of current.rows) {
+              if (call.kind !== 'call' || call.finish || call.start.runId !== run.start.runId) continue
+              const finished = await ledger.finishCall({ callId: call.start.callId, endedAt: observedAt, observedAt,
+                responseModelReported: 'not-reported', effectiveModel: call.start.requestedModel,
+                usageState: 'missing', pricingState: 'missing-usage', wallMs: Math.max(0, observedAt - call.start.startedAt),
+                modelInFlightMs: 0, queueMs: 0, backoffMs: 0, waits: [], compactionCount: 0, compactionTimes: [],
+                endReason: 'killed', upstreamStopReason: `process-${observation.reason}`, recovered: true })
+              if (finished.kind === 'conflict') {
+                const raced = await ledger.snapshot({ nodeId: options.nodeId })
+                if (!raced.complete || !raced.rows.some(row => row.kind === 'call' && row.start.callId === call.start.callId && row.finish)) {
+                  throw new Error('Watcher call terminal slot was not acknowledged')
+                }
+              } else if (finished.event.kind !== 'call/end') throw new Error('Watcher call terminal slot was not acknowledged')
+            }
+          }
+          return terminal
         } finally { clearTimeout(deadline) }
       })()
       const persistedAt = now(), latencyMs = monotonic() - observedTick

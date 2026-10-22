@@ -438,7 +438,7 @@ export class HarnessSdkJsonRpcServer {
         const context: LedgerSessionContext = {
           seat: linkage.seat, window: linkage.window,
           ...linkage.taskId === undefined ? {} : { taskId: linkage.taskId },
-          nodeId: brandString<LedgerNodeId>(linkage.nodeId), identitySource: 'inherited',
+          nodeId: brandString<LedgerNodeId>(linkage.nodeId), identitySource: linkage.identitySource,
           sessionId: agent.session.id,
           parentSessionId: brandString<SessionId>(linkage.parentSessionId),
           rootSessionId: brandString<SessionId>(linkage.rootSessionId),

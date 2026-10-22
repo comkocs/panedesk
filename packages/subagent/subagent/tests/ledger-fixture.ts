@@ -7,8 +7,13 @@ import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResu
 
 export class MemoryLedger extends SessionLedger {
   resolveCallContext(_request: Parameters<SessionLedger['resolveCallContext']>[0]): ReturnType<SessionLedger['resolveCallContext']> { throw new Error('Unexpected context resolution') }
-  bindContext(_context: Parameters<SessionLedger['bindContext']>[0]): () => void { return () => undefined }
-  contextFor(_sessionId: SessionId): ReturnType<SessionLedger['contextFor']> { return undefined }
+  private readonly contexts = new Map<SessionId, Parameters<SessionLedger['bindContext']>[0]>()
+  bindContext(context: Parameters<SessionLedger['bindContext']>[0]): () => void {
+    const prior = this.contexts.get(context.sessionId)
+    this.contexts.set(context.sessionId, context)
+    return () => { if (prior === undefined) this.contexts.delete(context.sessionId); else this.contexts.set(context.sessionId, prior) }
+  }
+  contextFor(sessionId: SessionId): ReturnType<SessionLedger['contextFor']> { return this.contexts.get(sessionId) }
   nodeId(): Promise<LedgerNodeId> { return Promise.resolve(brandString<LedgerNodeId>('node-a')) }
   importNode(_source: string): ReturnType<SessionLedger['importNode']> { throw new Error('Unexpected import') }
   readonly events: LedgerEvent[] = []
@@ -56,7 +61,7 @@ export class MemoryLedger extends SessionLedger {
 
 /** Seed trusted parent identity without depending on a concrete persistence provider. */
 export async function seedParentLedger(ledger: MemoryLedger, sessionId = SessionId('parent')): Promise<void> {
-  await ledger.beginRun({ runId: brandString<LedgerRunId>('parent-run'), sessionId, rootSessionId: sessionId,
+  ledger.bindContext({ runId: brandString<LedgerRunId>('parent-run'), sessionId, rootSessionId: sessionId,
     nodeId: brandString<LedgerNodeId>('node-a'), seat: 'seat-a', window: 'window-a', taskId: 'task-a',
-    identitySource: 'startup', accountLabel: 'unknown', startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+    identitySource: 'startup', accountLabel: 'unknown' })
 }

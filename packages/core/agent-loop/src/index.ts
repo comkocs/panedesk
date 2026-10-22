@@ -32,6 +32,8 @@ import type { ProjectionDefinition } from '@panedesk/dsh-session-projection'
 import { SessionPersistenceNotFoundError } from '@panedesk/dsh-session-persistence'
 import type { SessionHandle, SessionPersistence } from '@panedesk/dsh-session-persistence'
 import { ReactLoopAgent } from './agent.ts'
+import { beginAgentRun } from './ledger-run.ts'
+import type { LedgerIdentityOptions } from './ledger-identity.ts'
 import { inboxProjectionDefinition } from './inbox.ts'
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from './constants.ts'
 import type {} from './runtime-context.ts'
@@ -301,6 +303,8 @@ function applyLauncherIdentities(
 
 /** Agent-loop plugin configuration. */
 export interface Config {
+  /** Default ledger attribution, below launcher flags and environment values. */
+  ledgerIdentity?: LedgerIdentityOptions
   /**
    * Maximum parallel-safe calls in flight per agent step. `1` is serial;
    * omission defaults to {@link DEFAULT_MAX_PARALLEL_TOOL_CALLS}.
@@ -342,7 +346,8 @@ export class AgentLoop extends Service implements AgentFactory {
   static inject = ['agents', 'sessions', 'llm', 'tools', 'systemPrompt', 'sessionProjections']
 
   /** Runtime schema for declarative agents. */
-  static Config: z<{ agents?: Config['agents']; maxParallelToolCalls?: number }, Config> = z.object({
+  static Config: z<{ agents?: Config['agents']; maxParallelToolCalls?: number; ledgerIdentity?: LedgerIdentityOptions }, Config> = z.object({
+    ledgerIdentity: z.object({ seat: z.string().min(1), window: z.string().min(1), taskId: z.string().min(1) }),
     maxParallelToolCalls: z.number().step(1).min(1).default(DEFAULT_MAX_PARALLEL_TOOL_CALLS).volatile(),
     agents: z.array(z.object({
       id: z.string().required(),
@@ -354,7 +359,7 @@ export class AgentLoop extends Service implements AgentFactory {
       cwd: z.string(),
       resumeSessionId: z.string(),
     })).default([]),
-  }) as z<{ agents?: Config['agents']; maxParallelToolCalls?: number }, Config>
+  }) as z<{ agents?: Config['agents']; maxParallelToolCalls?: number; ledgerIdentity?: LedgerIdentityOptions }, Config>
 
   /** Validated configuration owned by the agent-loop service. */
   readonly config: Config
@@ -366,6 +371,7 @@ export class AgentLoop extends Service implements AgentFactory {
     super(ctx, 'agentLoop')
 
     this.config = {
+      ...config.ledgerIdentity === undefined ? {} : { ledgerIdentity: config.ledgerIdentity },
       agents: applyLauncherIdentities(config.agents, ctx.get(CONFIGURED_AGENT_IDENTITIES_KEY)),
       maxParallelToolCalls: config.maxParallelToolCalls,
     }
@@ -533,6 +539,9 @@ export class AgentLoop extends Service implements AgentFactory {
     callerSignal?.addEventListener('abort', onCallerAbort, { once: true })
     this.ownership.signal.addEventListener('abort', onFactoryTeardown, { once: true })
 
+    const runStartOffset = session.seq
+    let finishRun: Awaited<ReturnType<typeof beginAgentRun>>
+    let publicationFailed = false
     let machine: ReactLoopAgent | undefined
     let detachSession: (() => void) | undefined
     let detachAgent: (() => void) | undefined
@@ -584,6 +593,14 @@ export class AgentLoop extends Service implements AgentFactory {
       // rather than logged away.
       try {
         await handle?.close()
+      } catch (error: unknown) {
+        failures.push(error)
+      }
+      try {
+        if (finishRun !== undefined) {
+          // oxlint-disable-next-line typescript/no-deprecated -- Read only this residency's settled suffix.
+          await finishRun(session.snapshotEvents(runStartOffset), publicationFailed || failures.length > 0)
+        }
       } catch (error: unknown) {
         failures.push(error)
       }
@@ -657,6 +674,9 @@ export class AgentLoop extends Service implements AgentFactory {
           publication = Promise.withResolvers<void>()
           try {
             assertLive()
+            // Managed children have their own residency accounting owner.
+            if (parentAgent === undefined) finishRun = await beginAgentRun(loopCtx, id, this.config.ledgerIdentity)
+            assertLive()
             detachSession = agent.ctx.sessions.enter(session)
             // The mounted backend routes announced live events into the active
             // write handle by session id; the loop only owns the handle itself.
@@ -666,6 +686,9 @@ export class AgentLoop extends Service implements AgentFactory {
             await loopCtx.agents.announce(agent, source, abort.signal)
             assertLive()
             return { agent, dispose }
+          } catch (error: unknown) {
+            publicationFailed = true
+            throw error
           } finally {
             publication.resolve()
             publication = undefined

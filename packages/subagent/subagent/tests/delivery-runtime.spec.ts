@@ -6,6 +6,7 @@ import { Context } from '@panedesk/cordis'
 import AgentLoop from '@panedesk/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
 import { SessionId } from '@panedesk/dsh-session'
+import { LlmError } from '@panedesk/dsh-llm'
 import SubagentRuntime from '../src/index.ts'
 import { checkDeliveries, prepareDeliveries, writeErrorArtifacts } from '../src/delivery.ts'
 import { awaitChildWork } from '../src/lifecycle.ts'
@@ -41,6 +42,38 @@ async function setup(script: ConstructorParameters<typeof MockAdapter>[0] = [tex
 }
 
 describe('declared delivery settlement', () => {
+  it.runIf(process.platform === 'linux')('confirms the host identity for an in-process child', async () => {
+    const { ledger, request } = await setup()
+    const run = await startPreparedActivation(request)
+    await run.result
+    const child = ledger.starts.find(start => start.parentSessionId === request.parent.id)!
+    expect(child.processIdentity).toMatchObject({ pid: process.pid, verification: 'verified' })
+    expect(child.processIdentity?.startIdentity).toBeTypeOf('string')
+    expect(child.processIdentity?.bootIdentity).toBeTypeOf('string')
+    expect(ledger.events).toContainEqual(expect.objectContaining({ kind: 'process/observed', runId: child.runId, liveness: 'confirmed' }))
+  })
+
+  it('settles a failed process observation before refusing child publication', async () => {
+    const { ledger, request, ctx } = await setup()
+    const append = ledger.appendEvent.bind(ledger)
+    vi.spyOn(ledger, 'appendEvent').mockImplementation(async (event) => {
+      if (event.kind === 'process/observed') throw new Error('Process observation failed')
+      return append(event)
+    })
+    await expect(startPreparedActivation(request)).rejects.toThrow('Process observation failed')
+    const child = ledger.starts.find(start => start.parentSessionId === request.parent.id)!
+    expect(ledger.finishes).toContainEqual(expect.objectContaining({ runId: child.runId, endReason: 'error' }))
+    expect(ledger.contextFor(child.sessionId)).toBeUndefined()
+    expect(ctx.agents.get(child.sessionId)).toBeUndefined()
+  })
+
+  it('classifies a structured runtime timeout without changing the public stop reason', async () => {
+    const { ledger, request } = await setup([() => { throw new LlmError('Request idle deadline exceeded', 'TIMEOUT') }])
+    const run = await startPreparedActivation(request)
+    expect((await run.result).stopReason).toBe('error')
+    expect(ledger.finishes[0]).toMatchObject({ endReason: 'timeout', upstreamStopReason: 'TIMEOUT: Request idle deadline exceeded' })
+  })
+
   it('records missing output separately from execution success', async () => {
     const { ledger, request } = await setup()
     const run = await startPreparedActivation({ ...request, deliveryPaths: ['result.txt'] })

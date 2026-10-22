@@ -92,11 +92,13 @@ export interface Config {
 
 - `inject`: `agents` · `sessions` · `llm` · `tools` · `systemPrompt` · `sessionProjections`
 - `refs`: [`AgentOptions`](subsystems/core.md) · [`SessionId`](subsystems/core.md) · `Volatile` (`@panedesk/cosmokit`)
-- `source`: [`packages/core/agent-loop/src/index.ts:303`](../packages/core/agent-loop/src/index.ts)
+- `source`: [`packages/core/agent-loop/src/index.ts:305`](../packages/core/agent-loop/src/index.ts)
 
 ```ts config-catalog
 /** Agent-loop plugin configuration. */
 export interface Config {
+  /** Default ledger attribution, below launcher flags and environment values. */
+  ledgerIdentity?: LedgerIdentityOptions
   /**
    * Maximum parallel-safe calls in flight per agent step. `1` is serial;
    * omission defaults to {@link DEFAULT_MAX_PARALLEL_TOOL_CALLS}.
@@ -113,6 +115,16 @@ export interface Config {
     /** Persisted session to resume instead of creating a fresh session. */
     resumeSessionId?: SessionId
   })[]
+}
+
+/** Optional non-secret identity labels supplied by a launcher or profile settings. */
+export interface LedgerIdentityOptions {
+  /** Workstation or role label. */
+  seat?: string
+  /** Launcher window label. */
+  window?: string
+  /** Associated work item label. */
+  taskId?: string
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-agent-loop -->

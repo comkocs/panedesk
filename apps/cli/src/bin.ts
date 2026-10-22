@@ -38,6 +38,7 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
           fromDefaultProfile: invocation.fromDefaultProfile,
           patchFiles: invocation.patches,
           args: invocation.args,
+          ...invocation.ledgerIdentity === undefined ? {} : { ledgerIdentity: invocation.ledgerIdentity },
           ...profileOptions,
         })
       } catch (error) {

@@ -8,6 +8,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { readProcessIdentity } from '@panedesk/dsh-subprocess'
 import type { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { foldConsumedWork } from '@panedesk/dsh-agent'
@@ -123,6 +124,9 @@ export function createActivationObserver(
   let plan: DeliveryPlan | undefined
   let begun = false
   let completed = false
+  let unbind: (() => void) | undefined
+  let childAgent: Agent | undefined
+  let epochOffset = parent.session.seq
   const writes: Promise<void>[] = []
   const runId = brandString<LedgerRunId>(identity.runId)
   const append = async (fact: Extract<LedgerEvent, { kind: 'policy/denied' | 'delivery' }>): Promise<void> => {
@@ -152,14 +156,31 @@ export function createActivationObserver(
       }
       await boundary.ctx.serial(boundary.carrier, 'subagent/before-start', { parent, info: { ...identity }, request })
       if (ledger !== undefined && context !== undefined) {
+        const observed = readProcessIdentity(process.pid)
+        const processIdentity: NonNullable<LedgerRunStart['processIdentity']> = {
+          ...observed, nodeId: context.nodeId, registeredAt: Date.now(),
+          verification: observed.startIdentity !== undefined && observed.bootIdentity !== undefined ? 'verified' : 'unverified',
+        }
         const start: LedgerRunStart = { ...context, runId, ...parentRunId === undefined ? {} : { parentRunId }, startedAt: Date.now(), launchState: 'started',
           deliveryPaths: plan?.paths ?? [],
           ...policy === undefined ? {} : (await import('@panedesk/dsh-agent-preset-registry')).executionPolicyMetadata(policy),
           ...request.agentPreset === undefined ? {} : { definition: request.agentPreset },
           ...request.agentOptions?.model === undefined ? {} : { effectiveModel: request.agentOptions.model },
-          processIdentity: { nodeId: context.nodeId, pid: process.pid, registeredAt: Date.now(), verification: 'unverified' } }
+          processIdentity }
         assertLedgerWrite(await ledger.beginRun(start))
         begun = true
+        unbind = ledger.bindContext({ ...context, runId, ...parentRunId === undefined ? {} : { parentRunId } })
+        try {
+          assertLedgerWrite(await ledger.appendEvent({ ...envelope(), kind: 'process/observed', identity: processIdentity,
+            liveness: processIdentity.verification === 'verified' ? 'confirmed' : 'unknown' }))
+        } catch (error) {
+          try {
+            assertLedgerWrite(await ledger.finishRun({ runId, observedAt: Date.now(), endReason: 'error',
+              upstreamStopReason: 'process-observation-failed', recovered: false,
+              deliveryState: start.deliveryPaths.length > 0 ? 'uncheckable' : 'not-requested' }))
+          } finally { unbind(); unbind = undefined }
+          throw error
+        }
       }
     },
     deny: (operation, requested, policy, reason) => {
@@ -189,10 +210,16 @@ export function createActivationObserver(
             assertLedgerWrite(await ledger.appendEvent({ ...envelope(), kind: 'delivery',
               paths: [file.path], state: file.state, ...errorArtifact === undefined ? {} : { errorArtifact } }))
           }
+          // Preserve the public result vocabulary; classify only the ledger's terminal fact.
+          const reason = childAgent === undefined ? undefined
+            // oxlint-disable-next-line typescript/no-deprecated -- Read the settled activation's own suffix.
+            : foldConsumedWork(childAgent.session.snapshotEvents(epochOffset)).end?.data.reason
+          const timeout = reason?.kind === 'error' && reason.error.code === 'TIMEOUT'
           if (failures.length === 0) assertLedgerWrite(await ledger.finishRun({ runId, endedAt: Date.now(), observedAt: Date.now(),
             endReason: result.stopReason === 'completed' ? 'completed' : result.stopReason === 'aborted' ? 'cancelled'
-              : (result.stopReason as string) === 'timeout' ? 'timeout' : (result.stopReason as string) === 'killed' ? 'killed' : 'error',
-            upstreamStopReason: result.stopReason, recovered: false, deliveryState: delivery.state,
+              : timeout ? 'timeout' : 'error',
+            upstreamStopReason: reason?.kind === 'error' ? `${reason.error.code}: ${sanitizeDiagnostic(reason.error.message)}` : result.stopReason,
+            recovered: false, deliveryState: delivery.state,
             ...artifacts[0] === undefined ? {} : { errorArtifact: artifacts[0] } }))
         } catch (error) { failures.push(error) }
       }
@@ -200,10 +227,13 @@ export function createActivationObserver(
         parent, info: { ...identity, stopReason: result.stopReason,
           ...result.output.length === 0 ? {} : { lastAssistantMessage: result.output } }, result,
       }) } catch (error) { failures.push(error) }
+      unbind?.()
       if (failures.length > 0) throw new AggregateError(failures, 'Subagent terminal accounting failed; outcome is not durably confirmed')
       return plan === undefined ? result : { ...result, deliveryState: delivery.state }
     },
     start: (child?: Agent): void => {
+      childAgent = child
+      if (child !== undefined) epochOffset = child.session.seq
       identity.local = child !== undefined
       emit('subagent/start', identity, parent)
     },

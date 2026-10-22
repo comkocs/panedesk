@@ -66,6 +66,17 @@
         ],
         "insertions": [
           {
+            "before": "  --dump-config                  print the composed profile tree and exit",
+            "lines": [
+              "  --seat <label>                 runtime ledger seat label (overrides",
+              "                                 environment and settings)",
+              "  --window <label>               runtime ledger window label (overrides",
+              "                                 environment and settings)",
+              "  --task-id <label>              runtime ledger work item label (overrides",
+              "                                 environment and settings)"
+            ]
+          },
+          {
             "before": "Examples:",
             "lines": [
               "Presets:",
@@ -248,7 +259,7 @@
         "paths": [
           "packages/sdk/server/tests/policy-journal.spec.ts"
         ],
-        "test": "mounts a controlled SDK preset and commits a fourth-tool denial with inherited journal identity"
+        "test": "mounts a controlled SDK preset and commits a fourth-tool denial with %s journal identity"
       }
     },
     {
