@@ -82,7 +82,7 @@ A **step** is one model request plus the tools it calls. A **turn** is zero or m
 
 ```text
 turn/start
-  claim next-step input plus one queued message
+  await agent/input-preparing -> claim eligible input (reserve scheduled messages)
   assemble prompt sections + tool schemas
   -> agent/pre-step; project runtime context at fallback
                                      reject | enter(messages, startsRequestSeries?)
@@ -93,25 +93,28 @@ turn/start
      append entered messages as user/message; reconcile retained runtime context
      log request/header and request/context as needed
      derive and freeze model history from the log
-     stream the bound prepared call -> llm/stream -> agent/assistant-stream start
+     commit input dispatch synchronously -> stream the bound prepared call
+       -> llm/stream -> agent/assistant-stream start
        agent/assistant-stream chunk*
        assistant/message | assistant/attempt -> agent/assistant-stream end
      tool/call* -> tools/pre-execute -> tools/execute -> tools/post-execute -> tool/result*
      step/end
-     tools owe another request, or next-step input arrived -> claim -> next step
+     tools owe another request, or next-step input arrived -> prepare -> claim -> next step
   -> agent/turn-stopping
 turn/end
 ```
 
 `turn/*`, `step/*`, `system/message`, `user/message`, `assistant/message`, `assistant/attempt`, and `tool/*` are durable session events; the rest are live extension points across three domains. `agent/assistant-stream` publishes process-local start, transient chunk, and end frames. The loop commits the complete compact stream as one message or log-only attempt before a committed end frame, and the Web Session-follow adapter is the live event's only remote consumer. `agent/pre-step`, `agent/request`, `llm/stream`, and the three `tools/*` events are waterfalls, whose listeners must call `next()` to delegate; `agent/turn-stopping` is serial and has no `next()`.
 
-One inbox feeds the driver; injected context waits for a waking message. AgentLoop’s durable `inbox` projection exposes pending input without live Agents.
+One inbox feeds the driver. Scheduled input orders eligible messages by `immediate`, `steer`, then `queue`, FIFO within each priority; `queue` waits for a turn boundary, while `steer` joins the next step without cancelling output. Passive input never wakes or independently continues a turn; eligible passive notices join the next naturally started turn. Legacy `followup`, `steer`, and `inject` retain their scheduling behavior. AgentLoop’s durable `inbox` projection exposes pending input without live Agents.
+
+Before each claim, serial `agent/input-preparing` listeners may await producers and enqueue input for that boundary; failure leaves input unclaimed. Scheduled input has separate claim and dispatch phases, recorded by `agent/input/transition`. Cancellation between claim and `user/message` append restores the same message identity and ordering at its priority's head, allowing withdrawal again. After append, a synchronous request-construction failure leaves the message in history and claimed: no empty surface replacement or requeue occurs. The next request containing it commits first dispatch and emits `agent/input-dispatching` immediately before calling the stream entry, without an intervening await. Dispatch denotes this local entry, not remote receipt.
 
 `agent/pre-step` decides the accepted input. Listeners may rewrite or reject claimed messages; a rejected or empty first claim closes a durable turn without a step. An enter decision may set `startsRequestSeries`: the loop logs a fresh `request/header` (reason `series`, or `change` with `startsSeries: true` when the envelope also changed). Wrapping listeners preserve that declaration with `{ ...decision, messages }`. After assembly and `step/start`, `agent/request` and `prepareCall()` resolve the actual route before the system prompt and accepted users are committed; cancellation during either async phase commits neither. Prepared call capabilities govern prompt admission, not preceding `request/context`. Each attempt refreshes registered runtime facts, reconciles the bound prompt, admits users once, and restores removed runtime context, logs header/context as needed, and freezes the request before streaming the bound call. Retries do not repeat assembly or `agent/pre-step`. Surface replacements and image-offload decisions after attachment start a new request series, including during the first resumed pre-step; unchanged resume continues the series. The first admitted step reserves the system head before user messages even for an empty prompt (no wire message). The prompt travels only as `system/message` history: an empty rendering clears all active system nodes, leaving no old prompt model-visible; capable routes append non-empty updates after cached history, including supported tool updates; incapable routes and new request series consolidate non-empty prompt text at the first system node, with logged empty replacements for non-empty later system nodes ([decision](../.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.md); [decision rule](../packages/core/agent-loop/README.md#understand-the-implementation)).
 
-The loop sends immutable requests with live cancellation and reuses freeze evidence for frozen identities; [agent-loop](../packages/core/agent-loop/README.md) owns construction and cancellation causes.
+The loop sends immutable requests with live cancellation and reuses freeze evidence for frozen identities. Active `immediate` input interrupts only its target agent's current turn with `interjection`, preserves queued input and partial assistant output, and resumes with priority; it does not cancel children or background jobs. Idle input causes no empty cancellation. [Agent-loop](../packages/core/agent-loop/README.md) owns construction and cancellation causes.
 
-Failed steps [record missing tool results](../packages/core/agent-loop/README.md#understand-the-implementation).
+Failed steps [record missing tool results](../packages/core/agent-loop/README.md#understand-the-implementation). Interjection retains completed results and settles started calls with their available output and cancellation detail; undispatched calls receive skipped results. Each recorded call has one result, and unknown external side effects are not described as rolled back. Cancellation still waits for started tools to settle.
 
 Details: the [sequence diagram](agent-lifecycle.md), the [tool pipeline](tool-execution-pipeline.md), and [cancellation and error recovery](subsystems/core.md#the-agent-handle).
 
