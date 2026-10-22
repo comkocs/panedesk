@@ -6,6 +6,12 @@ import type { SubprocessIdentity } from '@panedesk/dsh-subprocess'
 import { FileMailbox } from '../src/mailbox.ts'
 import { NodeRegistry } from '../src/registry.ts'
 import { validateAcl } from '../src/windows-permissions.ts'
+import type { MessageSettings, OperationId } from '@panedesk/dsh-message-delivery'
+import { Session, SessionId } from '@panedesk/dsh-session'
+import { serviceFixture } from './fixtures/persistence.ts'
+import { resolveRecipients } from '../src/recipients.ts'
+import type { NodeId } from '@panedesk/dsh-message-delivery'
+import { vi } from 'vitest'
 
 const homes: string[] = []
 afterEach(async () => { await Promise.all(homes.splice(0).map(home => rm(home, { recursive: true, force: true }))) })
@@ -60,6 +66,92 @@ describe('lease-backed runtime registrations', () => {
     await owner.dispose()
     await successor.unregister('seat-a')
     await successor.dispose()
+  })
+})
+
+describe('persisted recipient policy', () => {
+  it.each(['all', 'handoff-only', 'none'] as const)('%s admits handoff and reply independently of notice', async (receiveMode) => {
+    const home = await mkdtemp(join(tmpdir(), 'delivery-policy-'))
+    homes.push(home)
+    const f = await serviceFixture(home)
+    try {
+      const scheduler = await f.resume()
+      const original = await f.service.send({ target: { sessionId: f.session.id }, content: 'original', messageClass: 'notice', operationId: 'original' as OperationId })
+      await f.ctx.serial('agent/input-preparing', { agent: scheduler.agent, turn: 1, step: 1, signal: new AbortController().signal })
+      const settings: MessageSettings = { receiveMode, wakeOnHandoff: false }
+      expect(await f.service.configure({ sessionId: f.session.id, settings })).toEqual(settings)
+      for (const messageClass of ['handoff', 'reply', 'notice'] as const) {
+        const sent = await f.service.send({ target: { sessionId: f.session.id },
+          content: messageClass, operationId: messageClass as OperationId,
+          ...(messageClass === 'reply' ? { messageClass, replyTo: original.messageId } : { messageClass }) })
+        const admitted = receiveMode === 'all' || (receiveMode === 'handoff-only' && messageClass !== 'notice')
+        expect(sent.messageState).toBe(admitted ? 'queued' : 'rejected')
+      }
+      const persisted = await f.ctx.sessionPersistence.open(f.session.id, 'read')
+      expect((await persisted.read()).events.some(event => event.type === 'message/settings')).toBe(true)
+      await persisted.close()
+    } finally { await f.dispose() }
+  })
+
+  it('cold-reads policy and rechecks it before admitting an offline send', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'delivery-cold-'))
+    homes.push(home)
+    const f = await serviceFixture(home)
+    try {
+      const cold = Session.create(SessionId('seat-cold'))
+      const lease = await f.ctx.sessionPersistence.create(cold.header)
+      const setting = cold.append('message/settings', { receiveMode: 'none', wakeOnHandoff: false })
+      await lease.append([setting])
+      await lease.close()
+      expect(await f.service.send({ target: { sessionId: cold.id }, content: 'denied', messageClass: 'handoff', operationId: 'cold-denied' as OperationId }))
+        .toMatchObject({ reason: 'receive-disabled', messageState: 'rejected' })
+      const pending = await f.service.send({ target: { sessionId: f.session.id }, content: 'pending', messageClass: 'handoff', operationId: 'pending' as OperationId })
+      f.session.append('message/settings', { receiveMode: 'none', wakeOnHandoff: true })
+      const scheduler = await f.resume()
+      expect(scheduler.queue).toEqual([])
+      expect(await f.service.status(pending.messageId)).toMatchObject({ state: 'rejected', phase: 'settled' })
+    } finally { await f.dispose() }
+  })
+
+  it('deduplicates explicit lists, previews without mailbox writes or wakeups, and keeps each outcome', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'delivery-batch-'))
+    homes.push(home)
+    const f = await serviceFixture(home)
+    try {
+      const scheduler = await f.resume()
+      const cold = Session.create(SessionId('seat-cold'))
+      await (await f.ctx.sessionPersistence.create(cold.header)).close()
+      const writes = vi.spyOn(FileMailbox.prototype, 'append')
+      const wakeups = vi.spyOn(scheduler.agent, 'enqueue')
+      const request = { content: 'batch', messageClass: 'handoff' as const, dryRun: true, recipients: [
+        { target: { sessionId: f.session.id }, operationId: 'live' as OperationId },
+        { target: { sessionId: f.session.id }, operationId: 'duplicate' as OperationId },
+        { target: { sessionId: cold.id }, operationId: 'cold' as OperationId },
+        { target: { sessionId: SessionId('missing') }, operationId: 'missing' as OperationId },
+      ] }
+      expect(await f.service.sendBatch(request)).toMatchObject({ kind: 'resolved', recipients: [{ kind: 'resolved' }, { kind: 'resolved' }, { kind: 'rejected' }] })
+      expect(writes).toHaveBeenCalledTimes(0)
+      expect(wakeups).toHaveBeenCalledTimes(0)
+      const sent = await f.service.sendBatch({ ...request, dryRun: false })
+      expect(sent).toMatchObject({ kind: 'sent', results: [
+        { deliveryOutcome: 'accepted' }, { reason: 'target-closed-pending' }, { reason: 'target-not-found' },
+      ] })
+      expect(writes).toHaveBeenCalledTimes(2)
+      writes.mockRestore()
+      wakeups.mockRestore()
+    } finally { await f.dispose(); vi.restoreAllMocks() }
+  })
+
+  it('refuses an unresolved live incarnation instead of storing pending mail', async () => {
+    const { owner, change } = await registry()
+    await owner.register('seat-a', 'idle')
+    change({ pid: process.pid })
+    expect(await resolveRecipients('node-a' as NodeId, [{ sessionId: SessionId('seat-a') }], [{
+      sessionId: SessionId('seat-a'), title: null, window: null, archived: false,
+      settings: { receiveMode: 'all', wakeOnHandoff: true },
+    }], id => owner.status(id))).toMatchObject([{ kind: 'rejected', reason: 'unavailable' }])
+    await owner.unregister('seat-a')
+    await owner.dispose()
   })
 })
 

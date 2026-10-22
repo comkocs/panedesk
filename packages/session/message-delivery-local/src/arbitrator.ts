@@ -46,6 +46,7 @@ export class MailboxArbitrator {
     private readonly receipt: (event: MessageStateEvent) => Promise<void>,
     private readonly wakeAllowed: () => boolean,
     private readonly replay: readonly InputTransition[] = [],
+    private readonly admission: (message: DeliveryMessage) => MessageReason | undefined = () => undefined,
   ) {}
 
   /** Process the published high-water cut before the driver's next claim.
@@ -88,9 +89,12 @@ export class MailboxArbitrator {
         if (command.kind === 'send') {
           if (!this.decisions.has(command.message.messageId)) {
             const message = { ...command.message, mailboxSequence: record.sequence }
-            const event = this.event(message, 'accepted', 'queued', 1, message.operationId)
+            const reason = this.admission(message)
+            const state = reason ? 'rejected' : 'queued'
+            const event = this.event(message, reason ? 'rejected' : 'accepted', state, 1, message.operationId,
+              reason ? { reason, deliveryOutcome: 'rejected', pending: false } : {})
             await this.commit({ message, status: {
-              messageId: message.messageId, state: 'queued', phase: 'pending', revision: 0,
+              messageId: message.messageId, state, phase: reason ? 'settled' : 'pending', revision: 0,
               stateVersion: 1, transitions: [event],
             }, events: [event], results: [] })
           }

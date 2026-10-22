@@ -1,5 +1,6 @@
 - name: cordis:session
 - name: cordis:agents
+- name: cordis:projections
 - name: cordis:persistence
 - name: cordis:ledger
 - name: cordis:delivery
