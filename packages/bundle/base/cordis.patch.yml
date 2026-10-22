@@ -40,6 +40,27 @@
     - id: session
       name: '@panedesk/dsh-session'
 
+    - id: session-ledger
+      name: '@panedesk/dsh-session-ledger'
+
+    - id: message-delivery
+      name: '@panedesk/dsh-message-delivery-local'
+      inject: [sessionLedger]
+      config:
+        maxRecordBytes: 1048576
+        maxContentBytes: 65536
+        maxBatchSize: 100
+        scanIntervalMs: 1000
+        lockTimeoutMs: 5000
+        lockRetryMs: 10
+        watch: true
+
+    - id: instruction-subscriptions
+      name: '@panedesk/dsh-instruction-subscriptions'
+      config:
+        maxBytes: 1048576
+        watch: false
+
     # Panedesk ships the official-endpoint upload of Session-log increments
     # (`dsh_session_log`) off; restate this row with `enabled: true` to opt in.
     - id: session-log-deepseek

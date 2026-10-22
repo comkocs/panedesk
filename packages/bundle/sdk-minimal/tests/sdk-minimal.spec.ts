@@ -60,6 +60,9 @@ describe('dsh-sdk-minimal bundle', () => {
       ['agent-loop', '@panedesk/dsh-agent-loop'],
       ['persistent-bash', '@panedesk/dsh-tool-bash-persistent'],
       ['persistent-pwsh', '@panedesk/dsh-tool-pwsh-persistent'],
+      ['session-ledger', '@panedesk/dsh-session-ledger'],
+      ['message-delivery', '@panedesk/dsh-message-delivery-local'],
+      ['instruction-subscriptions', '@panedesk/dsh-instruction-subscriptions'],
       ['sessions', '@panedesk/dsh-session-persistence-jsonl'],
     ])
     expect(rows.find(row => row.id === 'sdk-app-startup')?.config).toEqual({ profile: 'sdk-minimal' })

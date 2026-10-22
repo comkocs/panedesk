@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Offline ledger application plugin scaffold. The package exposes validated configuration and an inert function plugin. Loading it registers no hooks, timers, commands, or services.
+Offline ledger application bundle. Its patch mounts the session ledger, query service, and local message delivery with Agent and Session registries, projection, and JSONL persistence. Delivery takes its node identity from the ledger. The bundle does not mount a model adapter, Agent loop, or instruction subscriptions; an offline command creates no running model Session.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ Import public types from the package entry. The package is Host-only and does no
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Offline command composition
 
 #### What the model sees
 
@@ -44,7 +44,7 @@ The scaffold neither modifies request prefixes nor creates or refreshes cache en
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This package supplies declarations and a scaffold only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
+- This composition does not run recipient Agents; online recipients belong to another running profile. Instruction subscriptions are omitted because offline queries have no input-preparation lifecycle.
 
 <a id="dev-note"></a>
 ### Dev Note

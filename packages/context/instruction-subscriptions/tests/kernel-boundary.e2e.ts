@@ -1,13 +1,14 @@
 /** Real delivery, persisted Agents, and HTTP requests through Loader-owned plugins. */
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { load as loadYaml } from 'js-yaml'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
-import Include from '@panedesk/cordis-plugin-include'
+import Include, { entryListSchema } from '@panedesk/cordis-plugin-include'
 import AgentLoop from '@panedesk/dsh-agent-loop'
 import { mountAgentLoopTestDependencies, createTestGate } from '@panedesk/dsh-agent-loop-testkit'
 import * as Instructions from '@panedesk/dsh-agent-instructions'
@@ -38,9 +39,18 @@ function wireMessages(body: unknown): unknown[] {
   return body.messages
 }
 
+async function bundleRows(bundle: 'base' | 'sdk-minimal') {
+  const patches = loadYaml(await readFile(new URL(`../../../bundle/${bundle}/cordis.patch.yml`, import.meta.url), 'utf8'),
+    { schema: entryListSchema }) as { insert?: { id: string; name: string; config?: object; inject?: string[] }[] }[]
+  const names: Record<string, string> = { 'session-ledger': 'ledger', 'message-delivery': 'delivery',
+    'instruction-subscriptions': 'subscriptions' }
+  return patches.flatMap(patch => patch.insert ?? []).filter(row => row.id in names)
+    .map(row => ({ ...row, name: `cordis:${names[row.id]}` }))
+}
+
 async function harness(
   sequence: readonly MockLlmBehavior[], subscriptions = false, root?: string, mock: Partial<MockLlmServerOptions> = {},
-  ledgerAvailable = true,
+  ledgerAvailable = true, bundle?: 'base' | 'sdk-minimal',
 ) {
   const ownRoot = root === undefined
   root ??= await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? tmpdir(), 'kernel-delivery-'))
@@ -66,7 +76,7 @@ async function harness(
     instructions: Instructions, subscriptions: Subscriptions, model: Model, loop: AgentLoop,
   })
   ctx.baseUrl = pathToFileURL(root).href + '/'
-  const rows = [
+  const rows: { name: string; config?: object; inject?: string[] }[] = [
     { name: 'cordis:persistence', config: { root: join(home, 'sessions'), compression: 'none' } },
     ...ledgerAvailable ? [{ name: 'cordis:ledger', config: { dshHome: home } }] : [],
     { name: 'cordis:delivery', config: { dshHome: home, maxRecordBytes: 1048576,
@@ -76,6 +86,9 @@ async function harness(
     { name: 'cordis:model', config: { baseURL: server.baseURL, streamIdleTimeoutMs: 1000 } },
     { name: 'cordis:loop', config: { agents: [] } },
   ]
+  if (bundle) {
+    rows.splice(1, 2, ...await bundleRows(bundle))
+  }
   const configPath = join(home, 'cordis.yml')
   await mkdir(home, { recursive: true, mode: 0o700 })
   await writeFile(configPath, JSON.stringify(rows))
@@ -109,6 +122,21 @@ async function harness(
     agentOptions: { provider: 'deepseek-official', model: 'model-a' } })
   return { ctx, parent, child, server, root }
 }
+
+it.each(['base', 'sdk-minimal'] as const)('loads shipped %s message rows through Loader and disposes their services', async (bundle) => {
+  const h = await harness(['success'], false, undefined, {}, true, bundle)
+  const sent = await h.ctx.messageDelivery.send({ target: { sessionId: h.child.agent.id }, messageClass: 'handoff',
+    content: 'Use the shipped delivery configuration.', operationId: operation() })
+  await vi.waitFor(() => { expect(h.server.requests).toHaveLength(1) })
+  await h.child.agent.whenIdle()
+  await vi.waitFor(async () => {
+    expect(await h.ctx.messageDelivery.status(sent.messageId)).toMatchObject({ state: 'responded' })
+  })
+  const deliveryEntry = [...h.ctx.loader.entries()].find(entry => entry.options.name === 'cordis:delivery')
+  expect(deliveryEntry?.fiber).toBeDefined()
+  await deliveryEntry!.fiber!.dispose()
+  expect(h.ctx.get('messageDelivery')).toBeUndefined()
+})
 
 it('keeps legacy Agent startup and prompting available when the ledger node cannot be resolved', async () => {
   const h = await harness(['success'], false, undefined, {}, false)

@@ -63,6 +63,8 @@ The built-in `working_directory` tool changes the directory for subsequent opera
 
 The bundle mounts [MCP resources](../../mcp/mcp-resources/README.md) once. Configure only [MCP client entries](../../mcp/mcp-client/README.md) for the servers you need. Clients mounted by another provider also count as configured in their scope. Callers with no configured server in scope receive no MCP tools or prompt text.
 
+The bundle also mounts the session ledger, local message delivery, and instruction subscriptions. Delivery resolves its node identity from the ledger; unavailable identity disables delivery without blocking legacy input. Instruction subscriptions add no content until explicitly registered. Neither service replaces the existing prompt, inbox, or cancellation interfaces.
+
 ### Shell tools per platform
 
 On macOS and Linux you get the bash shell tools; on Windows you get the PowerShell twins instead, so exactly one shell stack is available per machine. The safety behavior is identical on every platform. A Windows host that prefers the unconfined PowerShell executor can switch the shell rows in its profile patch — the switch must disable both PowerShell rows and re-enable both bash rows, otherwise the profile fails to load.

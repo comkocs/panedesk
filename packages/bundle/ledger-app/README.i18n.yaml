@@ -9,8 +9,8 @@
   en: 02fed4df69737fc2
   zh: 1715289142584151
 /panedesk-dsh-ledger-app/summary:
-  en: bbadb71ba72c85ab
-  zh: 778356bacea68682
+  en: 1a271f921c722884
+  zh: bf04b40f3a0be6b5
 /panedesk-dsh-ledger-app/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 65e6e399d6b474c7
@@ -20,21 +20,21 @@
 /panedesk-dsh-ledger-app/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-ledger-app/model-experience/inactive-scaffold:
-  en: e62c1383726153d5
-  zh: 3bb528512c369e35
-/panedesk-dsh-ledger-app/model-experience/inactive-scaffold/what-the-model-sees:
+/panedesk-dsh-ledger-app/model-experience/offline-command-composition:
+  en: 7aaf6e66859dbaa2
+  zh: 4323149d620cb0e3
+/panedesk-dsh-ledger-app/model-experience/offline-command-composition/what-the-model-sees:
   en: 6a86a8f8b101145f
   zh: 20d268b66e850187
-/panedesk-dsh-ledger-app/model-experience/inactive-scaffold/token-effect:
+/panedesk-dsh-ledger-app/model-experience/offline-command-composition/token-effect:
   en: 0ff46621086b65e2
   zh: e718a12e119a30f0
-/panedesk-dsh-ledger-app/model-experience/inactive-scaffold/kv-cache-effect:
+/panedesk-dsh-ledger-app/model-experience/offline-command-composition/kv-cache-effect:
   en: 49cbbefffbad012b
   zh: 895288b7bc5c4987
 /panedesk-dsh-ledger-app/known-limitations-and-deferred-work:
-  en: 89cea0d221c02e86
-  zh: d7e0d57c062fac72
+  en: f18e387f8777a5b0
+  zh: fb126085b2578b5b
 /panedesk-dsh-ledger-app/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

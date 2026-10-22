@@ -2300,6 +2300,9 @@ importers:
       '@panedesk/dsh-hmr':
         specifier: workspace:*
         version: link:../../boot/hmr
+      '@panedesk/dsh-instruction-subscriptions':
+        specifier: workspace:*
+        version: link:../../context/instruction-subscriptions
       '@panedesk/dsh-jobs-local':
         specifier: workspace:*
         version: link:../../jobs/jobs-local
@@ -2321,6 +2324,9 @@ importers:
       '@panedesk/dsh-mcp-resources':
         specifier: workspace:*
         version: link:../../mcp/mcp-resources
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
       '@panedesk/dsh-otel':
         specifier: workspace:*
         version: link:../../telemetry/otel
@@ -2357,6 +2363,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-log-deepseek':
         specifier: workspace:*
         version: link:../../session/session-log-deepseek
@@ -2821,12 +2830,27 @@ importers:
 
   packages/bundle/ledger-app:
     dependencies:
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-ledger-query':
         specifier: workspace:*
         version: link:../../session/ledger-query
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -2895,6 +2919,9 @@ importers:
       '@panedesk/dsh-fs-local':
         specifier: workspace:*
         version: link:../../fs/fs-local
+      '@panedesk/dsh-instruction-subscriptions':
+        specifier: workspace:*
+        version: link:../../context/instruction-subscriptions
       '@panedesk/dsh-jobs-local':
         specifier: workspace:*
         version: link:../../jobs/jobs-local
@@ -2910,6 +2937,9 @@ importers:
       '@panedesk/dsh-mcp-resources':
         specifier: workspace:*
         version: link:../../mcp/mcp-resources
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
       '@panedesk/dsh-plugin-package-inventory-deepseek':
         specifier: workspace:*
         version: link:../../llm/plugin-package-inventory-deepseek
@@ -2928,6 +2958,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-log-deepseek':
         specifier: workspace:*
         version: link:../../session/session-log-deepseek

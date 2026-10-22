@@ -1,6 +1,27 @@
 - insert:
     - id: session-ledger
       name: '@panedesk/dsh-session-ledger'
+    - id: agents
+      name: '@panedesk/dsh-agent'
+    - id: sessions
+      name: '@panedesk/dsh-session'
+    - id: session-projection
+      name: '@panedesk/dsh-session-projection'
+    - id: session-persistence
+      name: '@panedesk/dsh-session-persistence-jsonl'
+      config:
+        root: !!js dshHomePath('sessions')
+    - id: message-delivery
+      name: '@panedesk/dsh-message-delivery-local'
+      inject: [sessionLedger]
+      config:
+        maxRecordBytes: 1048576
+        maxContentBytes: 65536
+        maxBatchSize: 100
+        scanIntervalMs: 1000
+        lockTimeoutMs: 5000
+        lockRetryMs: 10
+        watch: false
     - id: ledger-query
       name: '@panedesk/dsh-ledger-query'
       inject: [sessionLedger]

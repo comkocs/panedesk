@@ -165,6 +165,27 @@
           * Please avoid commands that may produce a very large amount of output.
           * Please run long lived commands in the background, e.g. 'Start-Job' or start a server with Start-Process.
 
+    - id: session-ledger
+      name: '@panedesk/dsh-session-ledger'
+
+    - id: message-delivery
+      name: '@panedesk/dsh-message-delivery-local'
+      inject: [sessionLedger]
+      config:
+        maxRecordBytes: 1048576
+        maxContentBytes: 65536
+        maxBatchSize: 100
+        scanIntervalMs: 1000
+        lockTimeoutMs: 5000
+        lockRetryMs: 10
+        watch: true
+
+    - id: instruction-subscriptions
+      name: '@panedesk/dsh-instruction-subscriptions'
+      config:
+        maxBytes: 1048576
+        watch: false
+
     - id: sessions
       name: '@panedesk/dsh-session-persistence-jsonl'
       config:

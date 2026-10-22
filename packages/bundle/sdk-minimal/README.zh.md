@@ -45,6 +45,8 @@ dsh --profile sdk-minimal
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
+独立配置树包含会话账本、本地消息投递与指令订阅。投递从账本取得本节点身份，查询失败时保持不可用；旧 SDK 输入仍可使用。订阅在显式登记前不贡献提醒，也不会启用工作区指令加载。
+
 <details>
 <summary>实现细节——点击展开</summary>
 
