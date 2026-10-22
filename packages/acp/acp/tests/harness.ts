@@ -197,6 +197,8 @@ interface BridgeClient {
 export interface BridgeHarness {
   ctx: Context
   client: BridgeClient
+  requestExtension: (method: string, params: unknown) => Promise<unknown>
+  messageNotifications: unknown[]
   adapter: MockAdapter
   attachments: MemoryAttachmentStore | undefined
   updates: CapturedUpdate[]
@@ -225,6 +227,7 @@ export async function makeBridgeHarness(options: {
   imageCapable?: boolean
   attachments?: boolean
   persistenceRoot?: string
+  setup?: (ctx: Context) => Promise<void>
 } = {}): Promise<BridgeHarness> {
   const adapter = new MockAdapter(options.script ?? [], options.imageCapable === true)
   const ctx = new Context()
@@ -236,6 +239,7 @@ export async function makeBridgeHarness(options: {
   if (options.attachments !== false) await ctx.plugin(MemoryAttachmentStore)
   const loopFiber = await ctx.plugin(AgentLoop, { agents: [] })
   const primaryAdapter = ctx.llm.registerAdapter(['mock'], adapter)
+  await options.setup?.(ctx)
 
   const agentToClient = new TransformStream<Uint8Array, Uint8Array>()
   const clientToAgent = new TransformStream<Uint8Array, Uint8Array>()
@@ -262,6 +266,8 @@ export async function makeBridgeHarness(options: {
     registerCatalogProvider: provider => ctx.llm.registerAdapter([provider], new MockAdapter([], false, provider)),
     replacePrimaryProviders: (providers) => { primaryAdapter.replace(providers) },
     client: undefined as unknown as BridgeClient,
+    requestExtension: (method, params) => client.request(method, params),
+    messageNotifications: [],
     acpFiber: undefined as unknown as BridgeHarness['acpFiber'],
     loopFiber,
     closeClientTransport: async () => { await clientToAgentWriter.close() },
@@ -273,6 +279,9 @@ export async function makeBridgeHarness(options: {
   }
 
   const clientApp = createAcpClientApp({ name: 'dsh-acp-test-client' })
+    .onNotification('_panedesk/messages/state', (params: unknown) => params, ({ params }) => {
+      harness.messageNotifications.push(params)
+    })
     .onNotification(methods.client.session.update, ({ params }) => {
       updates.push(params.update)
       sessionUpdates.push({ sessionId: params.sessionId, update: params.update })

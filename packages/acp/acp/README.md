@@ -29,7 +29,7 @@ Use this package when a script, test runner, or another harness needs to run age
 
 ### When to choose it
 
-Choose it when automation should own the interaction: an out-of-process subagent, test runner, or scripted controller that manages persistent sessions, tools, model selection, and permissions. Avoid it when a human needs DSH-specific presentation cards, plans, titles, todos, terminal views, or elicitation; this server intentionally exposes only the standard ACP v1 surface.
+Choose it when automation should own the interaction: an out-of-process subagent, test runner, or scripted controller that manages persistent sessions, tools, model selection, and permissions. Avoid it when a human needs DSH-specific presentation cards, plans, titles, todos, terminal views, or elicitation; this server exposes standard ACP v1 controls and opt-in programmatic message extensions.
 
 ### Minimal configuration
 
@@ -77,6 +77,10 @@ A prompt remains in flight while managed descendants run, while their results tr
 
 A failure to append `turn/start` or `turn/end` rejects the prompt even when a preceding turn completed.
 
+Message extensions require the optional `messageDelivery` service and an initialize request `_meta["panedesk/messages"]` containing `version: 1`, `methods` (full method names), and `notifications` (full notification names). The response uses the same key and reports the supported intersection; absent or incompatible offers leave standard initialization unchanged. Requests use `_panedesk/messages/` followed by `send`, `withdraw`, `edit`, `reprioritize`, `invalidate`, `status`, `list`, `subscribe`, `resolve`, or `sendBatch`. Unavailable or unnegotiated methods return JSON-RPC `-32601` with `data.reason: "unsupported"`. Every method validates its parameters before calling the service; client-supplied sender authority is rejected. Request fields follow the [message delivery definition](../../session/message-delivery/README.md); `status` wraps `messageId`, and `resolve` wraps `addresses`. Priority omission is preserved for the provider to resolve; an explicit subagent session id is a valid target, including with `immediate` priority.
+
+`subscribe({ sessionId, cursor? })` additionally requires negotiation of `_panedesk/messages/state`. Its response echoes the exclusive resume cursor when supplied; subsequent notifications contain the provider's cursor, node id, and message state data, including `data.messageId`. One subscription per session is active on a connection; a duplicate is rejected. Reinitialize or disconnect to release subscriptions, then subscribe from the last received cursor to resume. Stream or transport failure stops that subscription and logs a resume diagnostic rather than fabricating a receipt. Receipts never enter `session/update`, start model work, or alter prompt/cancel/load semantics.
+
 Session configuration offers opaque provider/model choices from the live LLM service catalog and a `reasoning_effort` selector when the exact model declares one. A prompt snapshots that selection before asynchronous image admission and pins it across every model step in that turn; a concurrent option change applies to the next turn. ACP clients are trusted controllers: stdio MCP entries authorize their absolute commands and environment, HTTP entries authorize their absolute HTTP(S) URLs and headers, and any initial connection or discovery failure rolls back the unpublished Agent. Unsupported surfaces are omitted or rejected: `session/load`, deletion, fork, additional directories, SSE or ACP-transport MCP, modes, commands, plans, terminals, client filesystem operations, and elicitation.
 
 -----
@@ -91,7 +95,7 @@ This section explains how the server realizes the behavior above and points at t
 
 ### Design philosophy
 
-The server is an automation transport with an intentionally standard public protocol. Three commitments shape it:
+The server is an automation transport with standard controls and separately negotiated message extensions. Three commitments shape it:
 
 - **Standard semantic updates only.** The wire carries committed messages and thoughts, generic tool lifecycle, configuration, and context usage; raw provider deltas, retry attempts, DSH presentation data, and unsupported content stay off the wire.
 - **Truthful capability and configuration state.** `initialize` advertises only mounted support, topology changes publish complete configuration options, and a prompt pins the exact route it admitted.

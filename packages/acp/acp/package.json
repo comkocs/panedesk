@@ -37,12 +37,16 @@
     "@panedesk/dsh-attachment": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-mcp-client": "workspace:*",
+    "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-persistence": "workspace:*",
     "@panedesk/dsh-token-meter": "workspace:*",
     "@panedesk/dsh-user-approval": "workspace:*"
   },
   "peerDependenciesMeta": {
+    "@panedesk/dsh-message-delivery": {
+      "optional": true
+    },
     "@panedesk/dsh-token-meter": {
       "optional": true
     }
@@ -55,6 +59,7 @@
     "@panedesk/dsh-attachment": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-mcp-client": "workspace:*",
+    "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-persistence": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",

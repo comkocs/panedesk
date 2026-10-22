@@ -47,6 +47,12 @@ import {
 } from '@agentclientprotocol/sdk'
 import type { ModelSelection } from '@panedesk/dsh-agent'
 import type { SessionId } from '@panedesk/dsh-session'
+import type { MessageId } from '@panedesk/dsh-llm/brand'
+import type {
+  MessageAddress, MessageClassification, MessageControlRequest, MessageCursor,
+  MessagePriority, MessageQuery, MessageSubscriptionRequest,
+  NodeId, OperationId, SendBatchRequest, SendMessageRequest,
+} from '@panedesk/dsh-message-delivery'
 import type {} from '@panedesk/dsh-session-persistence'
 // Side-effect type import: declaration-merges the approval waterfall answered below.
 import type {} from '@panedesk/dsh-user-approval'
@@ -104,6 +110,87 @@ export function apply(ctx: Context, config: AcpConfig): void {
   const activating = new Set<SessionId>()
   let closed = false
   let imagePromptEnabled = false
+  const messageDelivery = ctx.get('messageDelivery')
+  const messageMethods = ['send', 'withdraw', 'edit', 'reprioritize', 'invalidate', 'status', 'list', 'subscribe', 'resolve', 'sendBatch']
+  const messagePrefix = '_panedesk/messages/'
+  const messageStateMethod = `${messagePrefix}state`
+  let negotiatedMessages: ReadonlySet<string> = new Set()
+  let messageNotifications = false
+  const messageSubscriptions = new Map<SessionId, { stop: () => void; done: Promise<void> }>()
+
+  const stopMessageSubscriptions = async (): Promise<void> => {
+    const active = [...messageSubscriptions.values()]
+    for (const subscription of active) subscription.stop()
+    await Promise.all(active.map(subscription => subscription.done))
+  }
+
+  const negotiateMessages = async (params: InitializeRequest): Promise<InitializeResponse['_meta']> => {
+    await stopMessageSubscriptions()
+    negotiatedMessages = new Set()
+    messageNotifications = false
+    const offer = params._meta?.['panedesk/messages']
+    if (!isMessageObject(offer) || offer.version !== 1 || !Array.isArray(offer.methods)) return undefined
+    const offeredMethods = offer.methods
+    if (messageDelivery !== undefined) {
+      messageNotifications = Array.isArray(offer.notifications) && offer.notifications.includes(messageStateMethod)
+      negotiatedMessages = new Set(messageMethods.map(method => `${messagePrefix}${method}`)
+        .filter(method => offeredMethods.includes(method) && (method !== `${messagePrefix}subscribe` || messageNotifications)))
+    }
+    return {
+      'panedesk/messages': {
+        version: 1,
+        methods: [...negotiatedMessages],
+        notifications: messageNotifications ? [messageStateMethod] : [],
+        ...messageDelivery === undefined ? { reason: 'unsupported' } : {},
+      },
+    }
+  }
+
+  const requireMessages = (method: string) => {
+    assertOpen()
+    if (messageDelivery === undefined || !negotiatedMessages.has(`${messagePrefix}${method}`)) {
+      throw new RequestError(-32601, 'Message extension is unsupported or was not negotiated', {
+        reason: 'unsupported', method: `${messagePrefix}${method}`,
+      })
+    }
+    return messageDelivery
+  }
+
+  const subscribeMessages = (request: MessageSubscriptionRequest) => {
+    const delivery = requireMessages('subscribe')
+    const previous = messageSubscriptions.get(request.sessionId)
+    if (previous !== undefined) {
+      throw invalidParams('a message subscription is already active for this session')
+    }
+    const iterator = delivery.subscribe(request)[Symbol.asyncIterator]()
+    const stopped = Promise.withResolvers<void>()
+    const subscription = {
+      active: true,
+      stop: () => { subscription.active = false; stopped.resolve() },
+      done: Promise.resolve(),
+    }
+    const isActive = () => subscription.active && !closed && messageNotifications
+    messageSubscriptions.set(request.sessionId, subscription)
+    subscription.done = (async () => {
+      try {
+        while (isActive()) {
+          const result = await Promise.race([
+            iterator.next(),
+            stopped.promise.then(() => undefined),
+          ])
+          if (result === undefined || result.done || !isActive()) break
+          await conn.notify(messageStateMethod, result.value)
+        }
+      } finally {
+        await iterator.return?.()
+      }
+    })().catch((error: unknown) => {
+      logger.warn(`acp: message subscription failed; resume from the last received cursor: ${errorChain(error)}`)
+    }).finally(() => {
+      if (messageSubscriptions.get(request.sessionId) === subscription) messageSubscriptions.delete(request.sessionId)
+    })
+    return request.cursor === undefined ? {} : { cursor: request.cursor }
+  }
 
   /** Return the bridge-owned record for an agent, rejecting same-id impostors. */
   const ownedRecord = (agent: Parameters<AcpSession['owns']>[0]): AcpSession | undefined => {
@@ -177,11 +264,13 @@ export function apply(ctx: Context, config: AcpConfig): void {
   })
 
   const implementation = {
-    async initialize(_params: InitializeRequest): Promise<InitializeResponse> {
+    async initialize(params: InitializeRequest): Promise<InitializeResponse> {
       // Single-version agent: the spec's "same version if supported, else
       // the latest supported" both resolve to this server's one version.
       imagePromptEnabled = await supportsAcpImagePrompts(ctx, config.provider, config.model)
+      const messageMeta = await negotiateMessages(params)
       return {
+        ...messageMeta === undefined ? {} : { _meta: messageMeta },
         protocolVersion: PROTOCOL_VERSION,
         agentInfo: { name: 'panedesk-acp', version: '0.0.1' },
         agentCapabilities: {
@@ -392,6 +481,30 @@ export function apply(ctx: Context, config: AcpConfig): void {
     .onRequest(methods.agent.session.setConfigOption, ({ params, signal }) => implementation.setSessionConfigOption(params, signal))
     .onRequest(methods.agent.session.prompt, ({ params, signal }) => implementation.prompt(params, signal))
     .onNotification(methods.agent.session.cancel, ({ params }) => implementation.cancel(params))
+  app
+    .onRequest(`${messagePrefix}send`, parseMessageSend, ({ params }) => requireMessages('send').send(params))
+    .onRequest(`${messagePrefix}withdraw`, parseMessageControl, ({ params }) => requireMessages('withdraw').withdraw(params))
+    .onRequest(`${messagePrefix}edit`, (value) => {
+      const input = messageObject(value)
+      return { ...parseMessageControl(input), content: messageText(input.content, 'content') }
+    }, ({ params }) => requireMessages('edit').edit(params))
+    .onRequest(`${messagePrefix}reprioritize`, (value) => {
+      const input = messageObject(value)
+      return { ...parseMessageControl(input), priority: parseMessagePriority(input.priority) }
+    }, ({ params }) => requireMessages('reprioritize').reprioritize(params))
+    .onRequest(`${messagePrefix}invalidate`, (value) => {
+      const input = messageObject(value)
+      return { ...parseMessageControl(input), reason: messageText(input.reason, 'reason') }
+    }, ({ params }) => requireMessages('invalidate').invalidate(params))
+    .onRequest(`${messagePrefix}status`, value => ({
+      messageId: brandString<MessageId>(messageText(messageObject(value).messageId, 'messageId')),
+    }), ({ params }) => requireMessages('status').status(params.messageId))
+    .onRequest(`${messagePrefix}list`, parseMessageQuery, ({ params }) => requireMessages('list').list(params))
+    .onRequest(`${messagePrefix}subscribe`, parseMessageSubscription, ({ params }) => subscribeMessages(params))
+    .onRequest(`${messagePrefix}resolve`, value => ({
+      addresses: messageArray(messageObject(value).addresses, 'addresses').map(parseMessageAddress),
+    }), ({ params }) => requireMessages('resolve').resolve(params.addresses))
+    .onRequest(`${messagePrefix}sendBatch`, parseMessageBatch, ({ params }) => requireMessages('sendBatch').sendBatch(params))
   const connection = app.connect(stream)
   const conn: AgentContext = connection.client
 
@@ -403,7 +516,10 @@ export function apply(ctx: Context, config: AcpConfig): void {
     // AcpSession.close cancels synchronously before its first await, so every owned
     // prompt stops before any descendant or persistence drain can block.
     quiescing = (async () => {
-      const disposals = await Promise.allSettled(records.map(record => record.close('ACP bridge disposed')))
+      const disposals = await Promise.allSettled([
+        ...records.map(record => record.close('ACP bridge disposed')),
+        stopMessageSubscriptions(),
+      ])
       for (const record of records) {
         /* v8 ignore next -- closed blocks concurrent handlers; each captured record remains mapped until this loop. */
         if (sessions.get(record.agent.session.id) === record) sessions.delete(record.agent.session.id)
@@ -525,6 +641,158 @@ function validateWorkspaceParams(params: { cwd: string; additionalDirectories?: 
     && params.additionalDirectories.length > 0
   ) {
     throw invalidParams('additionalDirectories is not supported')
+  }
+}
+
+/** Extension parsers validate wire values and rebuild inputs without caller-supplied authority. */
+function isMessageObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function messageObject(value: unknown, query = false): Record<string, unknown> {
+  if (!isMessageObject(value)) throw invalidParams('message parameters must be an object')
+  if ('sender' in value || (!query && 'senderSessionId' in value) || 'principal' in value) {
+    throw invalidParams('message sender authority cannot be supplied by the client')
+  }
+  return value
+}
+
+function messageText(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) throw invalidParams(`${field} must be a nonempty string`)
+  return value
+}
+
+function messageArray(value: unknown, field: string): unknown[] {
+  if (!Array.isArray(value)) throw invalidParams(`${field} must be an array`)
+  return value
+}
+
+function messageNumber(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw invalidParams(`${field} must be a finite nonnegative number`)
+  }
+  return value
+}
+
+function messageInteger(value: unknown, field: string): number {
+  const number = messageNumber(value, field)
+  if (!Number.isSafeInteger(number)) throw invalidParams(`${field} must be a safe integer`)
+  return number
+}
+
+function messageBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== 'boolean') throw invalidParams(`${field} must be a boolean`)
+  return value
+}
+
+function parseMessagePriority(value: unknown): MessagePriority {
+  if (value !== 'immediate' && value !== 'steer' && value !== 'queue') throw invalidParams('invalid message priority')
+  return value
+}
+
+function parseMessageAddress(value: unknown): MessageAddress {
+  const input = messageObject(value)
+  const node = input.nodeId === undefined ? {} : { nodeId: brandString<NodeId>(messageText(input.nodeId, 'nodeId')) }
+  if ((input.sessionId === undefined) === (input.name === undefined)) {
+    throw invalidParams('target requires exactly one of sessionId and name')
+  }
+  return input.sessionId === undefined
+    ? { ...node, name: messageText(input.name, 'name') }
+    : { ...node, sessionId: brandString<SessionId>(messageText(input.sessionId, 'sessionId')) }
+}
+
+function parseMessageClassification(input: Record<string, unknown>): MessageClassification {
+  if (input.messageClass === 'reply') {
+    return { messageClass: 'reply', replyTo: brandString<MessageId>(messageText(input.replyTo, 'replyTo')) }
+  }
+  if ((input.messageClass !== 'handoff' && input.messageClass !== 'notice') || input.replyTo !== undefined) {
+    throw invalidParams('messageClass must be handoff, notice, or reply with replyTo')
+  }
+  return { messageClass: input.messageClass }
+}
+
+function parseMessageContent(input: Record<string, unknown>) {
+  const classification = parseMessageClassification(input)
+  const priority = input.priority === undefined ? undefined : parseMessagePriority(input.priority)
+  if (classification.messageClass === 'notice' && priority !== undefined && priority !== 'queue') {
+    throw invalidParams('notice messages require queue priority')
+  }
+  return {
+    ...classification,
+    content: messageText(input.content, 'content'),
+    ...priority === undefined ? {} : { priority },
+  }
+}
+
+function parseMessageSend(value: unknown): SendMessageRequest {
+  const input = messageObject(value)
+  return {
+    ...parseMessageContent(input),
+    target: parseMessageAddress(input.target),
+    operationId: brandString<OperationId>(messageText(input.operationId, 'operationId')),
+  }
+}
+
+function parseMessageControl(value: unknown): MessageControlRequest {
+  const input = messageObject(value)
+  return {
+    messageId: brandString<MessageId>(messageText(input.messageId, 'messageId')),
+    operationId: brandString<OperationId>(messageText(input.operationId, 'operationId')),
+    expectedRevision: messageInteger(input.expectedRevision, 'expectedRevision'),
+  }
+}
+
+function parseMessageBatch(value: unknown): SendBatchRequest {
+  const input = messageObject(value)
+  const recipients = messageArray(input.recipients, 'recipients').map((entry) => {
+    const recipient = messageObject(entry)
+    return {
+      target: parseMessageAddress(recipient.target),
+      operationId: brandString<OperationId>(messageText(recipient.operationId, 'operationId')),
+    }
+  })
+  if (recipients.length === 0) throw invalidParams('recipients must not be empty')
+  return { ...parseMessageContent(input), recipients, dryRun: messageBoolean(input.dryRun, 'dryRun') }
+}
+
+function parseMessageSubscription(value: unknown): MessageSubscriptionRequest {
+  const input = messageObject(value)
+  return {
+    sessionId: brandString<SessionId>(messageText(input.sessionId, 'sessionId')),
+    ...input.cursor === undefined ? {} : { cursor: brandString<MessageCursor>(messageText(input.cursor, 'cursor')) },
+  }
+}
+
+function parseMessageQuery(value: unknown): MessageQuery {
+  const input = messageObject(value, true)
+  const limit = input.limit === undefined ? undefined : messageInteger(input.limit, 'limit')
+  if (limit === 0) throw invalidParams('limit must be positive')
+  const from = input.from === undefined ? undefined : messageNumber(input.from, 'from')
+  const to = input.to === undefined ? undefined : messageNumber(input.to, 'to')
+  if (from !== undefined && to !== undefined && from > to) throw invalidParams('from must not exceed to')
+  return {
+    ...input.sessionId === undefined ? {} : { sessionId: brandString<SessionId>(messageText(input.sessionId, 'sessionId')) },
+    ...input.senderSessionId === undefined ? {} : { senderSessionId: brandString<SessionId>(messageText(input.senderSessionId, 'senderSessionId')) },
+    ...input.targetSessionId === undefined ? {} : { targetSessionId: brandString<SessionId>(messageText(input.targetSessionId, 'targetSessionId')) },
+    ...input.nodeId === undefined ? {} : { nodeId: brandString<NodeId>(messageText(input.nodeId, 'nodeId')) },
+    ...input.cursor === undefined ? {} : { cursor: brandString<MessageCursor>(messageText(input.cursor, 'cursor')) },
+    ...from === undefined ? {} : { from },
+    ...to === undefined ? {} : { to },
+    ...limit === undefined ? {} : { limit },
+    ...input.includeTerminal === undefined ? {} : { includeTerminal: messageBoolean(input.includeTerminal, 'includeTerminal') },
+    ...input.unansweredOlderThanMinutes === undefined ? {} : {
+      unansweredOlderThanMinutes: messageNumber(input.unansweredOlderThanMinutes, 'unansweredOlderThanMinutes'),
+    },
+    ...input.states === undefined ? {} : { states: messageArray(input.states, 'states').map((state) => {
+      if (state !== 'queued' && state !== 'injected' && state !== 'responded' && state !== 'withdrawn' && state !== 'invalidated' && state !== 'rejected') {
+        throw invalidParams('invalid message state')
+      }
+      return state
+    }) },
+    ...input.messageClasses === undefined ? {} : { messageClasses: messageArray(input.messageClasses, 'messageClasses').map((messageClass) => {
+      if (messageClass !== 'handoff' && messageClass !== 'notice' && messageClass !== 'reply') throw invalidParams('invalid message class')
+      return messageClass
+    }) },
   }
 }
 
