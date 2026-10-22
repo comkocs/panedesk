@@ -6,10 +6,23 @@ import type { Scoped } from '@panedesk/dsh-scope'
 export interface InstructionObservation {
   readonly path: string
   readonly hash: string
+  /** Empty hash is not evidence when a version-qualified raw read is unavailable. */
+  readonly evidence?: { readonly status: 'available' } | {
+    readonly status: 'unavailable'
+    readonly reason: 'version-mismatch' | 'read-unavailable' | 'version-unavailable'
+  }
+  /** Startup admission, rather than a later upstream instruction refresh. */
+  readonly baseline?: boolean
 }
 
 declare module '@panedesk/cordis' {
   interface Events {
+    /**
+     * Wait for successful tool-result observations before checking subscriptions.
+     * @mode serial
+     * @param payload.agent - agent whose pending byte reads must settle.
+     */
+    'instructions/writes-settling'(this: Scoped<Agent>, payload: { agent: Agent }): Promise<void> | void
     /**
      * Successful instruction admission for this agent; descendants publish their own loaded sets.
      * @mode emit

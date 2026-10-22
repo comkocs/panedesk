@@ -3,35 +3,35 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/context/instruction-subscriptions/README.md
 /:
-  en: a712145498e2cd47
-  zh: 8c2cb193cdd7f429
+  en: d7d8fa810b99cd65
+  zh: 8858f677a7e0b9c0
 /panedesk-dsh-instruction-subscriptions:
   en: f95d999463ec37cf
   zh: d5fbf94ee521b9ad
 /panedesk-dsh-instruction-subscriptions/summary:
-  en: dce2a3e5342f48ed
-  zh: b71d896c1f85584c
+  en: f67c4dfac0d8fc23
+  zh: 828ebaba29164171
 /panedesk-dsh-instruction-subscriptions/table-of-contents:
   en: 367189da11f20d74
   zh: 246160e5a90ca369
 /panedesk-dsh-instruction-subscriptions/dev-note:
-  en: 858c9dd384138050
-  zh: ad0f486c55866dc6
+  en: 1b9ae80fbcfa2372
+  zh: 3b106e6f893fff4e
 /panedesk-dsh-instruction-subscriptions/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold:
-  en: e62c1383726153d5
-  zh: e138d817f0510492
-/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold/what-the-model-sees:
-  en: 3d30d31c4fafd287
-  zh: b9a8a63a83e8eaac
-/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold/token-effect:
-  en: 49ebe7812e660130
-  zh: 6d73f3da35bd6214
-/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold/kv-cache-effect:
-  en: 9077442db9e90f62
-  zh: 322dc46abd84aba9
+/panedesk-dsh-instruction-subscriptions/model-experience/instruction-change-reminder:
+  en: 5606a21b3ab76fa3
+  zh: 57b1f770262de91f
+/panedesk-dsh-instruction-subscriptions/model-experience/instruction-change-reminder/what-the-model-sees:
+  en: ba273aee32ef3f57
+  zh: 04bd675e7aa0b4d0
+/panedesk-dsh-instruction-subscriptions/model-experience/instruction-change-reminder/token-effect:
+  en: afb258529990c907
+  zh: e9b347d935854aa2
+/panedesk-dsh-instruction-subscriptions/model-experience/instruction-change-reminder/kv-cache-effect:
+  en: 86135c0eac19bf1e
+  zh: eb73e190f35af90d
 /panedesk-dsh-instruction-subscriptions/known-limitations-and-deferred-work:
-  en: 2592667c93441683
-  zh: bc814205bd09bd4d
+  en: c3ea14a350af44ff
+  zh: c856f58a2dc6d87b

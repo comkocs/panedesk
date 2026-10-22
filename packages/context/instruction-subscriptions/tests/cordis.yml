@@ -1,0 +1,7 @@
+- name: cordis:instructions
+  config:
+    maxBytes: 65536
+- name: cordis:subscriptions
+  config:
+    maxBytes: 1048576
+    watch: false
