@@ -22,6 +22,7 @@
 export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'agent-preset/selected',
   'agent/inbox/spliced',
+  'agent/input/transition',
   'approval/asked',
   'approval/decided',
   'approval/policy',
@@ -46,6 +47,7 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'job/settled',
   'llm/retry',
   'llm/retry-started',
+  'message/settings',
   'model/selection',
   'permission/preset',
   'plan/mode',
