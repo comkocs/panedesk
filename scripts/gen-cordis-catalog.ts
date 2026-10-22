@@ -503,6 +503,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   LedgerContext: 'session-telemetry.md',
   LedgerSessionContext: 'session-telemetry.md',
   LedgerPriceEntry: 'session-telemetry.md',
+  LedgerPriceTable: 'session-telemetry.md',
   LedgerRunId: 'session-telemetry.md',
   LedgerNodeId: 'session-telemetry.md',
   LedgerQueryOptions: 'session-telemetry.md',
