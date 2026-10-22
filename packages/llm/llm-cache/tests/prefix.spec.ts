@@ -26,7 +26,7 @@ describe('stable prefix', () => {
       }
       await send()
       expect(adapter.requests.at(-1)?.cache?.retention).toBe('1h')
-      await ctx.serial('llm-cache/update', { agent: handle.agent, policy: { retention: '5m' } })
+      await ctx.llmCache.update({ agent: handle.agent, policy: { retention: '5m' } })
       await send()
       expect(adapter.requests.at(-1)?.cache?.retention).toBe('5m')
       const child = await handle.agent.ctx.agents.create({ sessionId: SessionId('policy-child'), parentAgent: handle.agent,

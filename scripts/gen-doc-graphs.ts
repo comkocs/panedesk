@@ -256,6 +256,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Plugins prepare independent top-level fields; the official adapter merges them and commits their delivery state after HTTP acceptance.',
   },
   {
+    key: 'llmCache',
+    pkg: 'llm-cache',
+    title: 'Session cache policy and evidence',
+    mode: 'core',
+    note: 'Provides explicit live policy updates and evidence-based remaining-time queries without dispatching model calls.',
+  },
+  {
     key: 'tokenMeter',
     pkg: 'token-meter',
     title: 'Replay token measurement',

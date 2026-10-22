@@ -88,7 +88,7 @@ describe('cache evidence and maintenance', () => {
       handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'hello' }], source: { kind: 'user' } }))
       await handle.agent.whenIdle()
       const seq = handle.agent.session.seq
-      const remaining = await ctx.waterfall('llm-cache/remaining', handle.agent, async () => ({ kind: 'unknown' as const }))
+      const remaining = await ctx.llmCache.remaining(handle.agent)
       expect(remaining).toMatchObject({ kind: 'estimated', ttlSeconds: 3600 })
       await vi.advanceTimersByTimeAsync(3_360_000)
       expect(adapter.requests).toHaveLength(2)

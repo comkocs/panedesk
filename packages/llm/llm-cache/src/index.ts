@@ -1,6 +1,6 @@
 /** Session cache policy, durable model-call accounting, and process-local admission. */
 import { randomUUID } from 'node:crypto'
-import type { Context } from '@panedesk/cordis'
+import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { assembleContextFor } from '@panedesk/dsh-agent'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -38,18 +38,33 @@ export interface Config {
 }
 
 declare module '@panedesk/cordis' {
-  interface Events {
-    /** Update an opted-in session without rewriting its historical request headers.
-     * @mode serial
-     * @param update - live session and explicitly replaced settings.
-     */
-    'llm-cache/update'(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }): Promise<void>
-    /** Read the evidence-based remaining estimate without dispatching a model call.
-     * @mode waterfall
-     * @param agent - session whose cache evidence is requested.
-     * @param next - remaining query listeners.
-     */
-    'llm-cache/remaining'(agent: Agent, next: () => Promise<CacheRemaining>): Promise<CacheRemaining>
+  interface Context {
+    llmCache: CacheService
+  }
+}
+
+/** Live cache policy and evidence queries owned by the cache plugin. */
+export class CacheService extends Service {
+  constructor(ctx: Context,
+    private readonly updateSession: (update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }) => Promise<void>,
+    private readonly remainingFor: (agent: Agent) => Promise<CacheRemaining>) {
+    super(ctx, 'llmCache')
+  }
+
+  /** Update an opted-in session without rewriting its historical request headers.
+   * @param update - live session and explicitly replaced settings.
+   * @returns completion of pending policy evidence writes.
+   */
+  update(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }): Promise<void> {
+    return this.updateSession(update)
+  }
+
+  /** Read the evidence-based remaining estimate without dispatching a model call.
+   * @param agent - session whose cache evidence is requested.
+   * @returns the observed estimate, or unknown when no evidence is available.
+   */
+  remaining(agent: Agent): Promise<CacheRemaining> {
+    return this.remainingFor(agent)
   }
 }
 /** Configuration defaults never enable keepalive implicitly. */
@@ -297,7 +312,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     return undefined
   })
-  ctx.on('llm-cache/update', async ({ agent, policy, keepalive }) => {
+  new CacheService(ctx, async ({ agent, policy, keepalive }) => {
     const state = stateOf(agent.id, agent)
     if (policy !== undefined) {
       resolveCachePolicy(policy, routeOf(state.request?.provider ?? agent.options.provider ?? ''), agent.id)
@@ -319,12 +334,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     await state.pending
     arm(agent.id, state)
-  })
-  ctx.on('llm-cache/remaining', async (agent, next) => {
-    const fallback = await next()
-    const state = states.get(agent.id)
-    return state === undefined ? fallback : cacheRemaining(state.evidence, Date.now())
-  })
+  }, agent => Promise.resolve(cacheRemaining(states.get(agent.id)?.evidence, Date.now())))
   ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
     const assembly = await next()
     if (context.agent === undefined || ledger() === undefined) return assembly
