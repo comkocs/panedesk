@@ -1,5 +1,6 @@
 /** Bounded, per-agent instruction subscriptions checked before input claim. */
 import { createHash, randomUUID } from 'node:crypto'
+import { closeSync, constants, fstatSync, openSync, readSync } from 'node:fs'
 import type { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { agentEvents, type Agent } from '@panedesk/dsh-agent'
@@ -59,6 +60,33 @@ async function scan(fs: FileSystem, path: string, maxBytes: number, signal: Abor
     signal.throwIfAborted()
     if (error instanceof Error && 'code' in error && error.code === 'FS_TOO_LARGE') return { status: 'over-limit', hash: null }
     return { status: 'unreadable', hash: null }
+  }
+}
+
+function scanLocal(path: string, maxBytes: number, signal: AbortSignal): Snapshot {
+  signal.throwIfAborted()
+  let descriptor: number | undefined
+  try {
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+    const info = fstatSync(descriptor)
+    if (!info.isFile()) return { status: 'unreadable', hash: null }
+    if (maxBytes <= 0 || info.size > maxBytes) return { status: 'over-limit', hash: null }
+    const bytes = Buffer.alloc(maxBytes + 1)
+    let length = 0
+    while (length < bytes.length) {
+      const count = readSync(descriptor, bytes, length, bytes.length - length, null)
+      if (count === 0) break
+      length += count
+    }
+    if (length > maxBytes) return { status: 'over-limit', hash: null }
+    const content = bytes.subarray(0, length)
+    return { status: 'present', hash: hash(content), bytes: content }
+  } catch (error: unknown) {
+    signal.throwIfAborted()
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return { status: 'deleted', hash: null }
+    return { status: 'unreadable', hash: null }
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor)
   }
 }
 
@@ -142,7 +170,9 @@ export function apply(ctx: Context, config: Config): void {
     if (state.files.has(canonical)) return
     const subscription: Subscription = { path: canonical, dirty: false, snapshot: { status: 'unreadable', hash: null } }
     state.files.set(canonical, subscription)
-    const snapshot = await scan(fs, canonical, config.maxBytes, state.lifecycle.signal)
+    const snapshot = fs.processPathFromHostPath(canonical) === canonical
+      ? scanLocal(canonical, config.maxBytes, state.lifecycle.signal)
+      : await scan(fs, canonical, config.maxBytes, state.lifecycle.signal)
     retain(state, subscription, initialHash !== undefined && snapshot.hash !== initialHash
       ? { status: 'present', hash: initialHash } : snapshot)
     if (watch) {
@@ -177,39 +207,60 @@ export function apply(ctx: Context, config: Config): void {
     if (file.evidence?.status === 'unavailable' || file.hash.length === 0) state.selfWrites.delete(file.path)
     else state.selfWrites.set(file.path, file.hash)
   })
-  ctx.on('agent/input-preparing', async ({ agent, signal }) => {
+  ctx.on('agent/input-preparing', ({ agent, signal }) => {
     const state = states.get(agent)
     const delivery = ctx.get('messageDelivery')
     const fs = ctx.get('fs')
     if (state === undefined || delivery === undefined || fs === undefined || agent.status !== 'running') return
-    await agentEvents(ctx, agent).serial('instructions/writes-settling', {})
-    await enqueue(state, async () => {
-      const scanSignal = AbortSignal.any([signal, state.lifecycle.signal])
-      let remaining = config.maxBytes
-      for (const subscription of state.files.values()) {
-        scanSignal.throwIfAborted()
-        const current = await scan(fs, subscription.path, remaining, scanSignal)
-        if (current.status === 'present') remaining -= current.bytes?.byteLength ?? 0
-        const previous = subscription.snapshot
-        subscription.dirty = false
-        if (previous.hash === current.hash && previous.status === current.status) continue
-        if (current.status !== 'present' || state.selfWrites.get(subscription.path) !== current.hash) {
-          const result = await delivery.send({
-            target: { sessionId: agent.session.id }, messageClass: 'handoff', priority: 'steer',
-            operationId: brandString<OperationId>(randomUUID()),
-            content: JSON.stringify({ kind: 'instruction-change', path: subscription.path,
-              oldHash: previous.hash, newHash: current.hash, status: current.status,
-              ...lineChanges(previous, current) }),
-          })
-          if (result.deliveryOutcome !== 'accepted') {
-            ctx.logger.warn('Instruction reminder delivery rejected: %s', result.reason)
-            continue
-          }
-        }
+    const scanSignal = AbortSignal.any([signal, state.lifecycle.signal])
+    let remaining = config.maxBytes
+    let changed = false
+    for (const subscription of state.files.values()) {
+      if (fs.processPathFromHostPath(subscription.path) !== subscription.path) {
+        changed = true
+        break
+      }
+      const current = scanLocal(subscription.path, remaining, scanSignal)
+      if (current.status === 'present') remaining -= current.bytes?.byteLength ?? 0
+      subscription.dirty = false
+      if (subscription.snapshot.hash === current.hash && subscription.snapshot.status === current.status) continue
+      if (current.status === 'present' && state.selfWrites.get(subscription.path) === current.hash) {
         retain(state, subscription, current)
         state.selfWrites.delete(subscription.path)
-      }
-    })
+      } else changed = true
+    }
+    if (!changed) return
+    return (async () => {
+      await agentEvents(ctx, agent).serial('instructions/writes-settling', {})
+      await enqueue(state, async () => {
+        let remaining = config.maxBytes
+        for (const subscription of state.files.values()) {
+          scanSignal.throwIfAborted()
+          const current = fs.processPathFromHostPath(subscription.path) === subscription.path
+            ? scanLocal(subscription.path, remaining, scanSignal)
+            : await scan(fs, subscription.path, remaining, scanSignal)
+          if (current.status === 'present') remaining -= current.bytes?.byteLength ?? 0
+          const previous = subscription.snapshot
+          subscription.dirty = false
+          if (previous.hash === current.hash && previous.status === current.status) continue
+          if (current.status !== 'present' || state.selfWrites.get(subscription.path) !== current.hash) {
+            const result = await delivery.send({
+              target: { sessionId: agent.session.id }, messageClass: 'handoff', priority: 'steer',
+              operationId: brandString<OperationId>(randomUUID()),
+              content: JSON.stringify({ kind: 'instruction-change', path: subscription.path,
+                oldHash: previous.hash, newHash: current.hash, status: current.status,
+                ...lineChanges(previous, current) }),
+            })
+            if (result.deliveryOutcome !== 'accepted') {
+              ctx.logger.warn('Instruction reminder delivery rejected: %s', result.reason)
+              continue
+            }
+          }
+          retain(state, subscription, current)
+          state.selfWrites.delete(subscription.path)
+        }
+      })
+    })()
   })
   const disposeState = async (agent: Agent, state: AgentState): Promise<void> => {
     state.lifecycle.abort()

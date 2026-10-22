@@ -96,13 +96,16 @@ export default class LocalMessageDelivery extends MessageDelivery {
       await arbitrator.drain()
       if (config.watch) {
         const root = await this.mailbox.target(agent.id)
-        const watcher = watch(join(root, 'records'), () => { this.track(arbitrator.drain()) })
+        const watcher = watch(join(root, 'records'), () => {
+          arbitrator.changed()
+          this.track(arbitrator.drain())
+        })
         watcher.on('error', (error) => { ctx.logger.warn('Mailbox watch unavailable; fallback scanning remains active', error) })
         this.watchers.set(agent.id, watcher)
       }
       return undefined
     })
-    ctx.on('agent/input-preparing', async ({ agent }) => { await this.owners.get(agent.id)?.arbitrator.drain() })
+    ctx.on('agent/input-preparing', ({ agent }) => this.owners.get(agent.id)?.arbitrator.prepare())
     ctx.on('agent/request', ({ agent, turn }, next) => {
       this.requestTurns.set(agent.id, turn)
       return next()
@@ -198,7 +201,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
         throw error
       }
       for (const owner of this.owners.values()) {
-        try { await owner.arbitrator.drain() } catch (error) { this.ctx.logger.error('Mailbox scan failed', error) }
+        try { await owner.arbitrator.probe() } catch (error) { this.ctx.logger.error('Mailbox scan failed', error) }
       }
       if (this.owners.size > 0) await this.registry.heartbeat()
     }

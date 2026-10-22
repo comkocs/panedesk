@@ -35,6 +35,9 @@ export class MailboxArbitrator {
   private readonly assistantTurns = new Set<number>()
   private chain: Promise<void> = Promise.resolve()
   private initialized = false
+  private dirty = true
+  private draining = 0
+  private highWater = 0
   private closing = false
   private failure: unknown
   private readonly pendingTransitions: { messageId: MessageId; data: InputTransition }[] = []
@@ -49,11 +52,33 @@ export class MailboxArbitrator {
     private readonly admission: (message: DeliveryMessage) => MessageReason | undefined = () => undefined,
   ) {}
 
+  /** Mark a watch or local publication for the next preparation. */
+  changed(): void { this.dirty = true }
+
+  /** Avoid yielding when no delivered input or unprocessed publication can be claimed.
+   * @returns ordered arbitration when delivery is active, otherwise undefined.
+   */
+  prepare(): Promise<void> | undefined {
+    const inbox = this.driver.agent.inbox
+    const pending = [...inbox.nextStep, ...inbox.nextTurn].some(input => input.source.kind === 'message-delivery')
+    if (!this.dirty && this.draining === 0 && !pending) return undefined
+    return this.drain()
+  }
+
+  /** Probe published records off the claim path to recover lost watch events. */
+  async probe(): Promise<void> {
+    const snapshot = await this.mailbox.snapshot(this.driver.agent.id)
+    if (snapshot.high > this.highWater) this.changed()
+    if (this.dirty) await this.drain()
+  }
+
   /** Process the published high-water cut before the driver's next claim.
    * @returns completion of ordered controls and admission of remaining queued messages.
    */
   drain(): Promise<void> {
+    this.draining++
     const work = this.chain.then(async () => {
+      this.dirty = false
       if (this.failure !== undefined) throw new MailboxUnavailableError('Owner arbitration failed', { cause: this.failure })
       if (this.closing) return
       await this.assertOwner()
@@ -83,6 +108,7 @@ export class MailboxArbitrator {
       }
       await this.flushTransitions()
       const snapshot = await this.mailbox.snapshot(this.driver.agent.id)
+      this.highWater = snapshot.high
       for (const record of snapshot.records) {
         await this.assertOwner()
         const command = decodeCommand(record.value)
@@ -114,8 +140,9 @@ export class MailboxArbitrator {
         }
       }
     })
-    this.chain = work.catch((error: unknown) => { this.failure = error })
-    return work
+    const completion = work.finally(() => { this.draining-- })
+    this.chain = completion.catch((error: unknown) => { this.failure = error; this.dirty = true })
+    return completion
   }
 
   private enqueue(message: DeliveryMessage, wakeup: boolean, relatedMessageId?: MessageId): void {
