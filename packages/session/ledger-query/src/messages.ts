@@ -45,6 +45,7 @@ export function describeReason(reason: MessageReason, state: MessageState | unde
     case 'delivery-uncertain': return `delivery outcome is uncertain${current}`
     case 'unsupported': return `command is not supported${current}`
     case 'interjection': return `interjection was recorded${current}`
+    case 'record-corrupt': return `the mailbox record is damaged and the message was rejected${current}`
     default: {
       const unreachable: never = reason
       return unreachable

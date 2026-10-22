@@ -274,12 +274,13 @@ describe('message CLI commands', () => {
     const reasons: MessageReason[] = ['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous',
       'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict',
       'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found',
-      'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection']
+      'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt']
     const states: MessageState[] = ['queued', 'injected', 'responded', 'withdrawn', 'invalidated', 'rejected']
     for (const reason of reasons) {
       for (const state of states) expect(describeReason(reason, state)).toContain(`current state: ${state}`)
       expect(describeReason(reason, undefined).length).toBeGreaterThan(8)
     }
+    expect(describeReason('record-corrupt', 'rejected')).toBe('the mailbox record is damaged and the message was rejected; current state: rejected')
     expect(describeReason('injected', 'responded')).toBe('already injected, cannot be withdrawn; current state: responded')
     const status = message('msg-1', 'queued')
     const applied: ControlResult = { kind: 'applied', status, operationId: status.data.operationId, messageId: status.messageId }

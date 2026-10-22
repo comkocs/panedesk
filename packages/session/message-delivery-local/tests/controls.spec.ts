@@ -49,7 +49,7 @@ describe('owner arbitration', () => {
       await f.service.invalidate({ messageId: sent.messageId, reason: 'superseded', operationId: 'invalidate-a' as OperationId, expectedRevision: 1 })
       const expected = ['accepted', 'edited', 'claimed', 'appended', 'injected', 'invalidated']
       const recorded = (await f.ledger.read()).events.filter(event => event.data.messageId === sent.messageId)
-      expect(recorded.map(event => event.data.transition)).toEqual(expected)
+      expect(recorded.flatMap(event => event.kind === 'message/state' ? [event.data.transition] : [])).toEqual(expected)
       expect(f.emitted.filter(event => event.data.messageId === sent.messageId).map(event => event.data.transition)).toEqual(expected)
       const accepted = await f.service.send({ ...request, operationId: 'live-a' as OperationId })
       expect(accepted).toMatchObject({ deliveryOutcome: 'accepted', messageState: 'queued' })

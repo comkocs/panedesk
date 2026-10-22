@@ -40,6 +40,14 @@ EVENT = {
         "stateVersion": 1, "operationId": "operation-a", "transition": "accepted", "observedAt": 1,
     },
 }
+def test_decodes_rejected_status_with_record_corrupt_reason():
+    event = {**EVENT, "data": {**EVENT["data"], "state": "rejected", "transition": "rejected", "reason": "record-corrupt"}}
+    status = {**STATUS, "state": "rejected", "phase": "settled", "transitions": [event]}
+    decoded = sdk.MessageStatus.model_validate(status)
+    assert decoded.transitions[0].data.reason == "record-corrupt"
+    assert decoded.model_dump(exclude_unset=True) == status
+
+
 CASES = [
     ("send", "send", SEND, SENT, {**SEND, "priority": "steer"}),
     ("withdraw", "withdraw", CONTROL, APPLIED, CONTROL),

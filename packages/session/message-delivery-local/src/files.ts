@@ -13,6 +13,14 @@ export class MailboxUnavailableError extends Error {
   }
 }
 
+/** A single unreadable record, distinct from filesystem and permission failures. */
+export class MailboxRecordError extends MailboxUnavailableError {
+  constructor(message: string, readonly reason: 'corrupt' | 'unsupported-version' | 'invalid-fields', readonly value?: unknown) {
+    super(message)
+    this.name = 'MailboxRecordError'
+  }
+}
+
 /** Reject path separators, traversal, and platform-special names at the file boundary.
  * @param value - opaque identity used as one path component.
  * @returns the validated component.
@@ -154,7 +162,7 @@ export async function readValue(path: string, maxBytes: number): Promise<unknown
   try {
     await checkFile(handle)
     const stat = await handle.stat()
-    if (stat.size > maxBytes) throw new MailboxUnavailableError('Mailbox record exceeds byte limit')
+    if (stat.size > maxBytes) throw new MailboxRecordError('Mailbox record exceeds byte limit', 'corrupt')
     const bytes = Buffer.alloc(maxBytes + 1)
     let length = 0
     while (length < bytes.length) {
@@ -162,15 +170,47 @@ export async function readValue(path: string, maxBytes: number): Promise<unknown
       if (read.bytesRead === 0) break
       length += read.bytesRead
     }
-    if (length > maxBytes) throw new MailboxUnavailableError('Mailbox record exceeds byte limit')
-    const envelope: unknown = JSON.parse(bytes.subarray(0, length).toString('utf8'))
-    if (!object(envelope) || envelope.version !== 1 || typeof envelope.payload !== 'string'
-      || envelope.length !== Buffer.byteLength(envelope.payload)
-      || envelope.digest !== createHash('sha256').update(envelope.payload).digest('hex')) {
-      throw new MailboxUnavailableError('Mailbox checksum or version mismatch')
+    if (length > maxBytes) throw new MailboxRecordError('Mailbox record exceeds byte limit', 'corrupt')
+    const envelope = parseRecord(bytes.subarray(0, length).toString('utf8'))
+    if (!object(envelope) || typeof envelope.payload !== 'string') {
+      throw new MailboxRecordError('Mailbox checksum or version mismatch', 'corrupt')
     }
-    const value: unknown = JSON.parse(envelope.payload)
+    const value = parseRecord(envelope.payload)
+    if (envelope.version !== 1) throw new MailboxRecordError('Mailbox checksum or version mismatch', 'unsupported-version', value)
+    if (envelope.length !== Buffer.byteLength(envelope.payload)
+      || envelope.digest !== createHash('sha256').update(envelope.payload).digest('hex')) {
+      throw new MailboxRecordError('Mailbox checksum or version mismatch', 'corrupt', value)
+    }
     return value
+  } finally { await handle.close() }
+}
+
+function parseRecord(text: string): unknown {
+  try { return JSON.parse(text) } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error
+    throw new MailboxRecordError('Invalid mailbox JSON', 'corrupt')
+  }
+}
+
+/** Move verified private evidence without rewriting its bytes or following links.
+ * @param home - private application home.
+ * @param source - published record path.
+ * @param destination - quarantine path with the original file name.
+ */
+export async function quarantineFile(home: string, source: string, destination: string): Promise<void> {
+  await privateDirectory(home, dirname(destination))
+  const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW)
+  try {
+    await checkFile(handle)
+    const held = await handle.stat()
+    const named = await lstat(source)
+    if (named.isSymbolicLink() || named.ino !== held.ino || named.dev !== held.dev) throw new MailboxUnavailableError('Mailbox record identity changed')
+    try { await lstat(destination); throw new MailboxUnavailableError('Quarantine destination already exists') } catch (error) {
+      if (!isMissing(error)) throw error
+    }
+    await rename(source, destination)
+    await syncDirectory(dirname(destination))
+    await syncDirectory(dirname(source))
   } finally { await handle.close() }
 }
 

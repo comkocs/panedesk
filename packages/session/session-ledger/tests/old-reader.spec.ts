@@ -69,9 +69,9 @@ it('keeps old recovery, snapshots, query, export and daily headlines unchanged b
     }
     const beforeHashes = await hashRows()
     const before = await read()
-    const data: MessageLedgerEvent['data'] = { messageId: 'message-a' as MessageLedgerEvent['data']['messageId'],
+    const data: Extract<MessageLedgerEvent, { kind: 'message/state' }>['data'] = { messageId: 'message-a' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['messageId'],
       senderSessionId: null, targetSessionId: start.sessionId, priority: 'immediate', messageClass: 'handoff', state: 'queued',
-      revision: 0, stateVersion: 0, operationId: 'operation-a' as MessageLedgerEvent['data']['operationId'], transition: 'accepted', observedAt: asOf }
+      revision: 0, stateVersion: 0, operationId: 'operation-a' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['operationId'], transition: 'accepted', observedAt: asOf }
     const event: MessageLedgerEvent = { schemaVersion: 1, eventId: messageEventId({ nodeId, data }), nodeId, observedAt: asOf, kind: 'message/state', data }
     await (await ledger.messages()).append(event)
     const after = await read()

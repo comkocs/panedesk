@@ -7,7 +7,7 @@ import type {
   MessageStateEvent, MessageStatus, NodeId, OperationId, SendMessageResult,
 } from '@panedesk/dsh-message-delivery'
 import type { ControlCommand, Decision, SendCommand } from './types.ts'
-import { MailboxUnavailableError } from './files.ts'
+import { MailboxRecordError } from './files.ts'
 
 const integer = z.number().int().nonnegative()
 const messageId = z.string().min(1).transform(value => value as MessageId)
@@ -21,7 +21,7 @@ const reason = z.enum([
   'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected',
   'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content',
   'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state',
-  'unavailable', 'delivery-uncertain', 'unsupported', 'interjection',
+  'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt',
 ]) satisfies z.ZodType<MessageReason>
 const sender = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('human'), sessionId: z.null() }),
@@ -91,7 +91,7 @@ const decision = z.object({ message, status, events: z.array(event), notificatio
 
 function decode<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value)
-  if (!result.success) throw new MailboxUnavailableError('Invalid durable mailbox evidence', { cause: result.error })
+  if (!result.success) throw new MailboxRecordError('Invalid durable mailbox evidence', 'invalid-fields', value)
   return result.data
 }
 
@@ -100,11 +100,21 @@ function decode<T>(schema: z.ZodType<T>, value: unknown): T {
  * @returns message retaining its identity.
  */
 export function decodeMessage(value: unknown): DeliveryMessage { return decode(message, value) }
-/** Validate a sequenced send or control.
- * @param value - durable JSON payload.
+/** Validate a send or control before publication or during durable replay.
+ * @param value - command payload.
+ * @param source - requests reject with the SDK parameter error; durable replay rejects unavailable evidence.
  * @returns validated command.
  */
-export function decodeCommand(value: unknown): SendCommand | ControlCommand { return decode(z.union([send, control]), value) }
+export function decodeCommand(value: unknown, source: 'durable' | 'request' = 'durable'): SendCommand | ControlCommand {
+  const schema = z.union([send, control])
+  if (source === 'durable') return decode(schema, value)
+  const result = schema.safeParse(value)
+  if (!result.success) {
+    const kind = typeof value === 'object' && value !== null && 'kind' in value ? String(value.kind) : 'unknown'
+    throw new TypeError(`Invalid messages/${kind} parameters`, { cause: result.error })
+  }
+  return result.data
+}
 /** Validate a complete status history.
  * @param value - durable JSON payload.
  * @returns validated status.

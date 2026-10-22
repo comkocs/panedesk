@@ -341,13 +341,24 @@ export async function importSegments(root: string, source: string, options: Jour
  * @param event - Runtime node and message transition identity.
  * @returns Deterministic identity for idempotent outbox replay.
  */
-export function messageEventId(event: Pick<MessageLedgerEvent, 'nodeId' | 'data'>): LedgerEventId {
+export function messageEventId(event: { nodeId: LedgerNodeId; data: import('@panedesk/dsh-message-delivery').MessageStateData }): LedgerEventId {
   return `message/state:${digest(canonicalJson([event.nodeId, event.data.messageId, event.data.stateVersion, event.data.transition]))}` as LedgerEventId
 }
 
 function assertMessageEvent(value: unknown): asserts value is MessageLedgerEvent {
   const event = record(value)
   const data = record(event.data)
+  if (event.kind === 'message/quarantined') {
+    if (Object.keys(event).some(key => !['schemaVersion', 'eventId', 'nodeId', 'observedAt', 'kind', 'data'].includes(key))
+      || Object.keys(data).some(key => !['messageId', 'reason', 'originalFileName'].includes(key))) throw new Error('Unexpected quarantine field')
+    if (event.schemaVersion !== 1) throw new Error('Invalid message ledger version')
+    strings(event, ['eventId', 'nodeId'])
+    numbers(event, ['observedAt'])
+    strings(data, ['originalFileName'])
+    if (data.messageId !== undefined) strings(data, ['messageId'])
+    if (!['corrupt', 'unsupported-version', 'invalid-fields'].includes(String(data.reason))) throw new Error('Invalid quarantine reason')
+    return
+  }
   const allowed = ['messageId', 'senderSessionId', 'targetSessionId', 'priority', 'messageClass', 'state', 'revision', 'stateVersion', 'operationId', 'transition', 'observedAt', 'reason', 'firstRequestId', 'firstTurnId', 'deliveryOutcome', 'pending']
   if (Object.keys(event).some(key => !['schemaVersion', 'eventId', 'nodeId', 'observedAt', 'kind', 'data'].includes(key))
     || Object.keys(data).some(key => !allowed.includes(key))) throw new Error('Unexpected message ledger field')
@@ -366,12 +377,12 @@ function assertMessageEvent(value: unknown): asserts value is MessageLedgerEvent
     ['state', ['queued', 'injected', 'responded', 'withdrawn', 'invalidated', 'rejected']],
     ['transition', ['accepted', 'rejected', 'claimed', 'appended', 'rolled-back', 'injected', 'responded', 'withdrawn', 'edited', 'reprioritized', 'invalidated', 'delivery-uncertain']],
   ] as const) if (!values.some(item => item === data[key])) throw new Error(`Invalid message ${key}`)
-  if (data.reason !== undefined && !['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous', 'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection'].some(reason => reason === data.reason)) throw new Error('Invalid message reason')
+  if (data.reason !== undefined && !['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous', 'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt'].some(reason => reason === data.reason)) throw new Error('Invalid message reason')
   if (data.firstRequestId !== undefined) strings(data, ['firstRequestId'])
   if (data.firstTurnId !== undefined && (!Number.isSafeInteger(data.firstTurnId) || Number(data.firstTurnId) < 0)) throw new Error('Invalid message turn')
   if (data.pending !== undefined && typeof data.pending !== 'boolean') throw new Error('Invalid message pending flag')
   if (data.deliveryOutcome !== undefined && !['accepted', 'rejected'].some(outcome => outcome === data.deliveryOutcome)) throw new Error('Invalid message delivery outcome')
-  if (event.eventId !== messageEventId(value as MessageLedgerEvent)) throw new Error('Invalid stable message event identity')
+  if (event.eventId !== messageEventId(value as Extract<MessageLedgerEvent, { kind: 'message/state' }>)) throw new Error('Invalid stable message event identity')
 }
 
 /** Message scan diagnostics are independent of the call journal. */
@@ -398,7 +409,8 @@ export async function recoverMessageSegments(root: string, maxRecordBytes: numbe
       try {
         const value = decode(line, maxRecordBytes)
         assertMessageEvent(value)
-        const key = canonicalJson([value.nodeId, value.data.messageId, value.data.stateVersion])
+        const key = value.kind === 'message/state'
+          ? canonicalJson([value.nodeId, value.data.messageId, value.data.stateVersion]) : value.eventId
         const prior = events.get(value.eventId) ?? versions.get(key)
         if (prior && canonicalJson(prior) !== canonicalJson(value)) throw new Error('Conflicting message state version')
         events.set(value.eventId, value)
@@ -428,7 +440,8 @@ export async function appendMessageUnique(root: string, event: MessageLedgerEven
     const scan = await recoverMessageSegments(root, options.maxRecordBytes)
     if (scan.corrupt.length) throw new Error('Message ledger corruption prevents further writes')
     const prior = scan.events.find(item => item.eventId === immutable.eventId
-      || item.nodeId === immutable.nodeId && item.data.messageId === immutable.data.messageId
+      || item.kind === 'message/state' && immutable.kind === 'message/state'
+      && item.nodeId === immutable.nodeId && item.data.messageId === immutable.data.messageId
       && item.data.stateVersion === immutable.data.stateVersion)
     if (prior && canonicalJson(prior) !== canonicalJson(immutable)) throw new Error('Conflicting message state version')
     await syncFiles(await files(join(root, 'events')))

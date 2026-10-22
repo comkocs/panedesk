@@ -313,7 +313,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
           operationId: request.operationId, mailboxSequence: 0, stateVersion: 0,
           ...(request.messageClass === 'reply' ? { messageClass: 'reply', replyTo: request.replyTo } : { messageClass: request.messageClass }),
         }
-        const record = await this.mailbox.append(recipient.sessionId, request.operationId, digest, { kind: 'send', message, result })
+        const record = await this.mailbox.append(recipient.sessionId, request.operationId, digest,
+          decodeCommand({ kind: 'send', message, result }, 'request'))
         const original = decodeCommand(record.value)
         if (original.kind !== 'send') throw new MailboxUnavailableError('operation-conflict')
         result = original.result
@@ -347,6 +348,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   private async control(command: ControlCommand): Promise<ControlResult> {
     await this.ready
+    decodeCommand(command, 'request')
     const message = await this.findMessage(command.messageId)
     const rejected = (reason: 'message-not-found' | 'invalid-content' | 'unauthorized'): ControlResult => ({ kind: 'rejected',
       operationId: command.operationId, messageId: command.messageId, reason, status: null })
@@ -364,6 +366,22 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   async status(messageId: MessageId): Promise<MessageStatus> {
     await this.ready
+    const ledger = this.ctx.get('messageLedger') ?? await this.ctx.get('sessionLedger')?.messages()
+    const events = (await ledger?.read({}))?.events ?? []
+    const isolated = events.filter(event => event.kind === 'message/quarantined' && event.nodeId === this.nodeId && event.data.messageId === messageId)
+      .sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId)).at(-1)
+    if (isolated) {
+      const states = events.filter(event => event.kind === 'message/state' && event.nodeId === this.nodeId && event.data.messageId === messageId)
+      const transitions = states.flatMap(event => event.kind === 'message/state'
+        ? [{ cursor: event.eventId as string as MessageStateEvent['cursor'], nodeId: event.nodeId, data: event.data }] : [])
+        .sort((a, b) => a.data.stateVersion - b.data.stateVersion)
+      const last = transitions.at(-1)
+      if (!last) throw new MailboxUnavailableError('message-not-found')
+      const data = { ...last.data, state: 'rejected' as const, transition: 'rejected' as const, reason: 'record-corrupt' as const,
+        observedAt: isolated.observedAt, deliveryOutcome: 'rejected' as const, pending: false }
+      return { messageId, state: 'rejected', phase: 'settled', revision: data.revision, stateVersion: data.stateVersion,
+        transitions: [...transitions, { cursor: isolated.eventId as string as MessageStateEvent['cursor'], nodeId: isolated.nodeId, data }] }
+    }
     const message = await this.findMessage(messageId)
     if (!message) throw new MailboxUnavailableError('message-not-found')
     const root = await this.mailbox.target(message.target.sessionId)

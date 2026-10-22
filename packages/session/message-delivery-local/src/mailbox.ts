@@ -4,7 +4,8 @@ import { lstat, open } from 'node:fs/promises'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout } from 'node:timers/promises'
-import { component, MailboxUnavailableError, object, privateDirectory, publish, publishedFiles, readValue } from './files.ts'
+import { component, MailboxRecordError, MailboxUnavailableError, object, privateDirectory, publish, publishedFiles, readValue } from './files.ts'
+import { decodeCommand } from './codec.ts'
 
 /** Resolved storage limits; lock expiry never permits stealing ownership. */
 export interface MailboxOptions {
@@ -27,6 +28,8 @@ export interface MailboxRecord {
 export class FileMailbox {
   /** Private storage root for this node's registry and mailboxes. */
   readonly root: string
+  /** Owner-installed accounting; absent ownership leaves damaged evidence untouched. */
+  readonly quarantines = new Map<string, (root: string, name: string, error: MailboxRecordError) => Promise<void>>()
   constructor(readonly options: MailboxOptions) {
     this.root = join(options.home, 'messages', 'nodes', component(options.nodeId))
   }
@@ -44,7 +47,7 @@ export class FileMailbox {
    */
   async target(sessionId: string): Promise<string> {
     const root = join(this.root, 'mailboxes', component(sessionId))
-    for (const child of ['records', 'decisions', 'receipts']) await privateDirectory(this.options.home, join(root, child))
+    for (const child of ['records', 'decisions', 'receipts', 'quarantine']) await privateDirectory(this.options.home, join(root, child))
     return root
   }
 
@@ -97,6 +100,7 @@ export class FileMailbox {
   async append(sessionId: string, operationId: string, digest: string, value: unknown): Promise<MailboxRecord> {
     const root = await this.target(sessionId)
     return this.locked(join(root, 'publish.lock'), async () => {
+      const publishedHigh = await this.publishedHigh(root)
       const records = await this.scan(root)
       const previous = records.find(record => record.operationId === operationId)
       if (previous) {
@@ -107,7 +111,7 @@ export class FileMailbox {
       if (persisted !== undefined && (!object(persisted) || !Number.isSafeInteger(persisted.sequence) || Number(persisted.sequence) < 0)) {
         throw new MailboxUnavailableError('Invalid mailbox watermark')
       }
-      const high = Math.max(records.at(-1)?.sequence ?? 0, object(persisted) ? Number(persisted.sequence) : 0)
+      const high = Math.max(publishedHigh, records.at(-1)?.sequence ?? 0, object(persisted) ? Number(persisted.sequence) : 0)
       if (!Number.isSafeInteger(high + 1)) throw new MailboxUnavailableError('Mailbox sequence exhausted')
       const record = { sequence: high + 1, operationId, digest, value }
       await publish(join(root, 'records', `${String(record.sequence).padStart(16, '0')}.json`), record, this.options.maxRecordBytes)
@@ -123,12 +127,13 @@ export class FileMailbox {
   async snapshot(sessionId: string): Promise<{ records: MailboxRecord[]; high: number; skipped: [number, number][] }> {
     const root = await this.target(sessionId)
     return this.locked(join(root, 'publish.lock'), async () => {
+      const publishedHigh = await this.publishedHigh(root)
       const records = await this.scan(root)
       const persisted = await readValue(join(root, 'watermark.json'), this.options.maxRecordBytes)
       if (persisted !== undefined && (!object(persisted) || !Number.isSafeInteger(persisted.sequence) || Number(persisted.sequence) < 0)) {
         throw new MailboxUnavailableError('Invalid mailbox watermark')
       }
-      const high = Math.max(records.at(-1)?.sequence ?? 0, object(persisted) ? Number(persisted.sequence) : 0)
+      const high = Math.max(publishedHigh, records.at(-1)?.sequence ?? 0, object(persisted) ? Number(persisted.sequence) : 0)
       const skipped: [number, number][] = []
       let next = 1
       for (const record of records) {
@@ -141,16 +146,32 @@ export class FileMailbox {
     })
   }
 
+  private async publishedHigh(root: string): Promise<number> {
+    let high = 0
+    for (const directory of ['records', 'quarantine']) {
+      for (const name of await publishedFiles(join(root, directory))) {
+        if (/^\d{16}\.json$/.test(name) && Number.isSafeInteger(Number(name.slice(0, -5)))) high = Math.max(high, Number(name.slice(0, -5)))
+      }
+    }
+    return high
+  }
+
   private async scan(root: string): Promise<MailboxRecord[]> {
     const records: MailboxRecord[] = []
     for (const name of await publishedFiles(join(root, 'records'))) {
-      const value = await readValue(join(root, 'records', name), this.options.maxRecordBytes)
-      if (!object(value) || !Number.isSafeInteger(value.sequence) || Number(value.sequence) <= 0
-        || typeof value.operationId !== 'string' || typeof value.digest !== 'string'
-        || name !== `${String(value.sequence).padStart(16, '0')}.json` || !('value' in value)) {
-        throw new MailboxUnavailableError('Invalid published mailbox record')
+      try {
+        const value = await readValue(join(root, 'records', name), this.options.maxRecordBytes)
+        if (!object(value) || !Number.isSafeInteger(value.sequence) || Number(value.sequence) <= 0
+          || typeof value.operationId !== 'string' || typeof value.digest !== 'string'
+          || name !== `${String(value.sequence).padStart(16, '0')}.json` || !('value' in value)) {
+          throw new MailboxRecordError('Invalid published mailbox record', 'invalid-fields', value)
+        }
+        if (this.quarantines.has(root)) decodeCommand(value.value)
+        records.push({ sequence: Number(value.sequence), operationId: value.operationId, digest: value.digest, value: value.value })
+      } catch (error) {
+        if (!(error instanceof MailboxRecordError)) throw error
+        await this.quarantines.get(root)?.(root, name, error)
       }
-      records.push({ sequence: Number(value.sequence), operationId: value.operationId, digest: value.digest, value: value.value })
     }
     return records
   }

@@ -9,6 +9,8 @@ import type { InputTransition } from '@panedesk/dsh-agent/types'
 import type { FileMailbox } from './mailbox.ts'
 import type { ControlCommand, Decision, DeliveryDriver } from './types.ts'
 import { decodeCommand, decodeDecision } from './codec.ts'
+import { quarantineRecord, quarantineMessageId } from './quarantine.ts'
+import type { NodeId } from '@panedesk/dsh-message-delivery'
 import { component, MailboxUnavailableError, publish, publishedFiles, readValue } from './files.ts'
 
 /** Identified input reconstructed from the persisted business message.
@@ -83,6 +85,20 @@ export class MailboxArbitrator {
       if (this.closing) return
       await this.assertOwner()
       const root = await this.mailbox.target(this.driver.agent.id)
+      this.mailbox.quarantines.set(root, async (directory, name, error) => {
+        await this.assertOwner()
+        const ctx = this.driver.agent.ctx
+        const ledger = ctx.get('messageLedger') ?? await ctx.get('sessionLedger')?.messages()
+        await quarantineRecord({ home: this.mailbox.options.home, root: directory, name, error,
+          nodeId: this.mailbox.options.nodeId as NodeId, ledger,
+          diagnose: (file, path) => { ctx.logger.warn('Mailbox record quarantined', { originalFileName: file, quarantinePath: path }) } })
+        const id = quarantineMessageId(error.value)
+        const decision = id === undefined ? undefined : this.decisions.get(id)
+        if (decision) {
+          if (this.queued.has(decision.message.messageId)) this.driver.mutate(decision.message.messageId, { kind: 'remove' })
+          this.decisions.set(decision.message.messageId, { ...decision, status: { ...decision.status, state: 'rejected', phase: 'settled' } })
+        }
+      })
       if (!this.initialized) {
         for (const name of await publishedFiles(join(root, 'decisions'))) {
           const decision = decodeDecision(await readValue(join(root, 'decisions', name), this.mailbox.options.maxRecordBytes))
@@ -131,8 +147,16 @@ export class MailboxArbitrator {
         }
       }
       await this.flushTransitions()
+      const ctx = this.driver.agent.ctx
+      const ledger = ctx.get('messageLedger') ?? await ctx.get('sessionLedger')?.messages()
+      const isolated = new Set((await ledger?.read({}))?.events.flatMap(event =>
+        event.kind === 'message/quarantined' && event.data.messageId !== undefined ? [event.data.messageId] : []) ?? [])
       // Only after the entire cut is decided may an offline send enter the driver.
       for (const decision of this.decisions.values()) {
+        if (isolated.has(decision.message.messageId)) {
+          if (this.queued.has(decision.message.messageId)) this.driver.mutate(decision.message.messageId, { kind: 'remove' })
+          continue
+        }
         for (const event of decision.events) await this.receipt(event)
         if (decision.notification) this.enqueue(decision.notification, false, decision.message.messageId)
         if (decision.status.state === 'queued' && decision.status.phase === 'pending') {
@@ -330,6 +354,7 @@ export class MailboxArbitrator {
   async close(): Promise<void> {
     this.closing = true
     await this.chain
+    this.mailbox.quarantines.delete(await this.mailbox.target(this.driver.agent.id))
     await this.flushTransitions()
     if (this.failure !== undefined) throw new MailboxUnavailableError('Owner arbitration failed', { cause: this.failure })
   }

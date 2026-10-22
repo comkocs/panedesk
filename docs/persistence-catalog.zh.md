@@ -4581,7 +4581,7 @@ SHA-256: `390eed1028aba02774f14408647acec10ec5516e97d4f15ecde2b9989d5a69f2`
 
 SHA-256: `3fef2645b829fcbb4a2abeef1078091e0571b475681852ba9afbb5317562392f`
 
-来源：[`packages/session/message-delivery/src/types.ts:56`](../packages/session/message-delivery/src/types.ts)
+来源：[`packages/session/message-delivery/src/types.ts:63`](../packages/session/message-delivery/src/types.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|

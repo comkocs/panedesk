@@ -46,6 +46,14 @@ describe('Message wire validation', () => {
       await expect(b.request(method, params)).rejects.toMatchObject({ code: -32601, data: { reason: 'unsupported' } })
     } finally { a.close(); b.close() }
   })
+  it('decodes a rejected status carrying the record-corrupt reason', () => {
+    const data = { messageId: 'message-a', senderSessionId: null, targetSessionId: 'seat-a', priority: 'steer',
+      messageClass: 'handoff', state: 'rejected', revision: 0, stateVersion: 1, operationId: 'operation-a',
+      transition: 'rejected', observedAt: 1, reason: 'record-corrupt' }
+    const status = { messageId: 'message-a', state: 'rejected', phase: 'settled', revision: 0, stateVersion: 1,
+      transitions: [{ cursor: 'cursor-a', nodeId: 'node-a', data }] }
+    expect(decodeMessagesResult('messages/status', status)).toEqual(status)
+  })
   it('rejects attribution, invalid enums, incomplete replies and malformed receipts', () => {
     const send = cases[0][1]
     for (const patch of [{ senderSessionId: 'seat-b' }, { sender: {} }, { priority: 'urgent' }, { messageClass: 'reply' }, { target: { sessionId: 'seat-a', name: 'seat-a' } }]) {

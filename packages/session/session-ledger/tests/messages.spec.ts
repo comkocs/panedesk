@@ -28,11 +28,11 @@ it('shares the persisted node identity with the full ledger without registering 
   expect(await readdir(join(home, 'ledger', 'v1'))).not.toContain(id)
   const ledger = new JournalSessionLedger(full, { dshHome: home })
   expect(await ledger.nodeId()).toBe(id)
-  const data: MessageLedgerEvent['data'] = {
-    messageId: 'message-a' as MessageLedgerEvent['data']['messageId'],
+  const data: Extract<MessageLedgerEvent, { kind: 'message/state' }>['data'] = {
+    messageId: 'message-a' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['messageId'],
     senderSessionId: null, targetSessionId: null, priority: 'queue', messageClass: 'notice',
     state: 'withdrawn', revision: 0, stateVersion: 1,
-    operationId: 'operation-a' as MessageLedgerEvent['data']['operationId'],
+    operationId: 'operation-a' as Extract<MessageLedgerEvent, { kind: 'message/state' }>['data']['operationId'],
     transition: 'withdrawn', observedAt: 100,
   }
   const event: MessageLedgerEvent = { schemaVersion: 1, kind: 'message/state', nodeId: id,
