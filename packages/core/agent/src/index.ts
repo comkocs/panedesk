@@ -217,6 +217,7 @@ interface AgentEntry {
   announced: boolean
   announcing: boolean
   detachRequested: boolean
+  ending?: Promise<void>
 }
 
 /** One tracked boundary plus its inherited nesting chain. */
@@ -438,7 +439,14 @@ export class AgentRegistry extends Service {
    */
   register(agent: Agent): ReturnType<Context['effect']> {
     return this.ctx.effect(async function* (this: AgentRegistry) {
-      yield this.enter(agent, undefined)
+      const detach = this.enter(agent, undefined)
+      yield async () => {
+        try {
+          await this.ending(agent)
+        } finally {
+          detach()
+        }
+      }
       await this.announce(agent, 'startup')
     }.bind(this), 'agents.register()')
   }
@@ -493,6 +501,18 @@ export class AgentRegistry extends Service {
       this.detachEntered(entry)
     }
     return detach
+  }
+
+  /** Await durable settlement while the quiescent agent still owns its scope and session.
+   * The driver owner calls this before releasing resources; failure does not perform cleanup.
+   * @param agent - exact registered agent whose driver has drained.
+   * @returns shared settlement promise; unpublished agents need no terminal notification.
+   */
+  async ending(agent: Agent): Promise<void> {
+    const entry = this.store.get(agent.id)
+    if (entry === undefined || entry.agent !== agent || !entry.announced) return
+    entry.ending ??= this.ctx.serial(entry.carrier, 'agent/ending', { agent }).then(() => {})
+    await entry.ending
   }
 
   /** Remove one exact entered agent and emit its paired disposal when announced. */

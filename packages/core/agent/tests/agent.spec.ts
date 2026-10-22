@@ -86,6 +86,20 @@ describe('AgentRegistry', () => {
     expect(lifecycle).toEqual(['created:a1', 'disposed:a1'])
   })
 
+  it('awaits serial ending before disposal and cleans up when settlement rejects', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    const agent = stubAgent('ending')
+    const order: string[] = []
+    ctx.on('agent/ending', async () => { order.push('ending'); await Promise.resolve(); throw new Error('ledger unavailable') })
+    ctx.on('agent/disposed', () => { order.push('disposed') })
+    const dispose = await ctx.agents.register(agent)
+    await expect(Promise.resolve(dispose())).rejects.toThrow()
+    expect(order).toEqual(['ending', 'disposed'])
+    expect(ctx.agents.get(agent.id)).toBeUndefined()
+    await ctx.fiber.dispose()
+  })
+
   it('rejects an agent whose registry and session identities differ', async () => {
     const ctx = new Context()
     await ctx.plugin(AgentRegistry)

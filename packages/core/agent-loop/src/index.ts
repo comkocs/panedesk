@@ -516,6 +516,7 @@ export class AgentLoop extends Service implements AgentFactory {
         : new Error(`agent "${id}" creation aborted`, { cause: callerSignal.reason })
     }
     const loopCtx = this.runtime.ctx
+    const agents = loopCtx.agents
 
     // Deactivation fuses three owners, each with its own reason: the caller's
     // cancellation signal, the owner fiber's unload, and factory teardown.
@@ -564,6 +565,11 @@ export class AgentLoop extends Service implements AgentFactory {
           machine.cancel({ kind: 'disposed' })
           await machine.whenIdle()
         }
+      } catch (error: unknown) {
+        failures.push(error)
+      }
+      try {
+        if (machine !== undefined) await agents.ending(machine)
       } catch (error: unknown) {
         failures.push(error)
       }
