@@ -10,9 +10,11 @@ import uuid
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, TypeAlias, TypeVar
+from typing import Callable, Iterator, TypeAlias, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
+
+from . import models as message_models
 
 from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
 from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, JsonValue, LlmCacheControl, Notification
@@ -60,6 +62,8 @@ class HarnessClient:
         self._stderr_lines: deque[str] = deque(maxlen=400)
         self._reader_thread: threading.Thread | None = None
         self._stderr_thread: threading.Thread | None = None
+        self._messages_version: int | None = None
+        self.messages = MessagesClient(self)
 
     def __enter__(self) -> "HarnessClient":
         self.start()
@@ -93,6 +97,7 @@ class HarnessClient:
 
     def close(self) -> None:
         """Close the runtime after a bounded opportunity to flush durable state."""
+        self._messages_version = None
         proc = self._proc
         if proc is None:
             return
@@ -143,10 +148,12 @@ class HarnessClient:
         ledger_context: InitializeLedgerContext | None = None,
         cache_policy: LlmCacheControl | None = None,
     ) -> InitializeResponse:
+        self._messages_version = None
         payload: JsonObject = {
             "cwd": str(Path(cwd).resolve()),
             "provider": provider,
             "model": model,
+            "messagesVersion": 1,
         }
         if reasoning_effort is not None:
             payload["reasoningEffort"] = reasoning_effort
@@ -162,12 +169,14 @@ class HarnessClient:
             if value is not None:
                 payload[key] = value.model_dump(mode="json", exclude_none=True)
         try:
-            return self.request(
+            response = self.request(
                 "initialize",
                 payload,
                 response_model=InitializeResponse,
                 timeout_seconds=self.config.initialize_timeout_seconds,
             )
+            self._messages_version = 1 if response.messagesVersion == 1 else None
+            return response
         except TimeoutError as error:
             self.close()
             raise TimeoutError(f"{error}\nselected panedesk profile {self.config.profile!r}") from error
@@ -573,6 +582,220 @@ class HarnessClient:
                 return False
             current = parent
         return False
+
+
+MessageResultT = TypeVar("MessageResultT")
+
+
+class MessagesClient:
+    """Typed message requests; unavailable extensions fail without falling back to prompt.
+
+    Request models and dictionaries use the wire's camelCase fields. RPC failures
+    retain their code/data; invalid results raise SdkProtocolError. Transport
+    failures do not imply that a durable operation was rolled back. Retain the
+    operationId when resolving an uncertain outcome with operation_status.
+    """
+
+    def __init__(
+        self,
+        client: HarnessClient,
+        *,
+        _before_request: Callable[[], None] | None = None,
+        _session_id: str | None = None,
+    ) -> None:
+        self._client = client
+        self._before_request = _before_request
+        self._session_id = _session_id
+
+    def _prepare(self) -> None:
+        if self._before_request is not None:
+            self._before_request()
+        if self._client._messages_version != 1:
+            raise JsonRpcError(-32601, "Message delivery is unsupported by the runtime", {"reason": "unsupported"})
+
+    def _payload(self, request: BaseModel | JsonObject) -> JsonObject:
+        if isinstance(request, BaseModel):
+            return request.model_dump(mode="json", by_alias=True, exclude_none=True)
+        return dict(request)
+
+    def _session_payload(self, request: BaseModel | JsonObject | None) -> JsonObject:
+        payload = self._payload(request) if request is not None else {}
+        if self._session_id is not None:
+            payload.setdefault("sessionId", self._session_id)
+        return payload
+
+    def _send_payload(self, request: BaseModel | JsonObject, *, batch: bool = False) -> JsonObject:
+        payload = self._payload(request)
+        if not batch and self._session_id is not None:
+            payload.setdefault("target", {"sessionId": self._session_id})
+        payload.setdefault("priority", "queue" if payload.get("messageClass") == "notice" else "steer")
+        return payload
+
+    def _request(
+        self,
+        method: str,
+        params: JsonObject,
+        request_model: type[BaseModel],
+        result_adapter: TypeAdapter[MessageResultT],
+    ) -> MessageResultT:
+        self._prepare()
+        request = request_model.model_validate(params)
+        result = self._client._request_raw(
+            method, request.model_dump(mode="json", by_alias=True, exclude_none=True),
+        )
+        try:
+            return result_adapter.validate_python(result)
+        except ValidationError as error:
+            raise SdkProtocolError(f"Invalid {method} result") from error
+
+    def send(self, request: message_models.SendMessageRequest | JsonObject) -> message_models.SendMessageResult:
+        """Send with steer by default, or passive queue for notices; preserve explicit priority."""
+        return self._request("messages/send", self._send_payload(request), message_models.SendMessageRequest,
+                             TypeAdapter(message_models.SendMessageResult))
+
+    def withdraw(self, request: message_models.MessageControlRequest | JsonObject) -> message_models.ControlResult:
+        """Submit withdrawal; pending-owner is durable intent, not confirmed removal."""
+        return self._request("messages/withdraw", self._payload(request), message_models.MessageControlRequest,
+                             TypeAdapter(message_models.ControlResult))
+
+    def edit(self, request: message_models.EditMessageRequest | JsonObject) -> message_models.ControlResult:
+        """Replace queued text without changing message identity."""
+        return self._request("messages/edit", self._payload(request), message_models.EditMessageRequest,
+                             TypeAdapter(message_models.ControlResult))
+
+    def reprioritize(self, request: message_models.ReprioritizeMessageRequest | JsonObject) -> message_models.ControlResult:
+        """Request an explicit priority change; the target owner decides eligibility."""
+        return self._request("messages/reprioritize", self._payload(request), message_models.ReprioritizeMessageRequest,
+                             TypeAdapter(message_models.ControlResult))
+
+    def invalidate(self, request: message_models.InvalidateMessageRequest | JsonObject) -> message_models.ControlResult:
+        """Invalidate injected input without deleting history; queued input is withdrawn."""
+        return self._request("messages/invalidate", self._payload(request), message_models.InvalidateMessageRequest,
+                             TypeAdapter(message_models.ControlResult))
+
+    def status(self, message_id: str) -> message_models.MessageStatus:
+        """Read runtime-owned state, phase and retained transition times."""
+        return self._request("messages/status", {"messageId": message_id}, _MessageStatusRequest,
+                             TypeAdapter(message_models.MessageStatus))
+
+    def operation_status(self, operation_id: str) -> message_models.OperationStatus:
+        """Distinguish unknown, pending, applied and rejected durable operations."""
+        return self._request("messages/operationStatus", {"operationId": operation_id}, _MessageOperationRequest,
+                             TypeAdapter(message_models.OperationStatus))
+
+    def list(self, query: message_models.MessageQuery | JsonObject | None = None) -> message_models.MessagePage:
+        """Query receipts; a Session facade defaults sessionId to itself."""
+        return self._request("messages/list", self._session_payload(query), message_models.MessageQuery,
+                             TypeAdapter(message_models.MessagePage))
+
+    def resolve(self, addresses: list[message_models.MessageAddress] | list[JsonObject]) -> list[message_models.ResolvedRecipient]:
+        """Resolve only the explicit addresses without opening or delivering to Sessions."""
+        params: JsonObject = {"addresses": [self._payload(address) for address in addresses]}
+        return self._request("messages/resolve", params, _MessageResolveRequest,
+                             TypeAdapter(list[message_models.ResolvedRecipient]))
+
+    def send_batch(self, request: message_models.SendBatchRequest | JsonObject) -> message_models.SendBatchResult:
+        """Resolve a dry run or send independently to each explicit recipient."""
+        return self._request("messages/sendBatch", self._send_payload(request, batch=True), message_models.SendBatchRequest,
+                             TypeAdapter(message_models.SendBatchResult))
+
+    def configure(self, request: message_models.ConfigureMessagesRequest | JsonObject) -> message_models.MessageSettings:
+        """Replace the complete policy; a Session facade defaults sessionId to itself."""
+        return self._request("messages/configure", self._session_payload(request), message_models.ConfigureMessagesRequest,
+                             TypeAdapter(message_models.MessageSettings))
+
+    def subscribe(self, request: message_models.MessageSubscriptionRequest | JsonObject | None = None) -> "MessageSubscription":
+        """Subscribe before admission to retain early receipts; close the returned stream.
+
+        Pass its cursor to a new subscription after disconnection. Only local
+        reception closes: this wire version has no unsubscribe method. The
+        runtime replaces the previous stream when subscribing to the same Session.
+        """
+        self._prepare()
+        params = message_models.MessageSubscriptionRequest.model_validate(self._session_payload(request))
+        subscription = MessageSubscription(self._client, params)
+        try:
+            self._request("messages/subscribe", self._payload(params), message_models.MessageSubscriptionRequest,
+                          TypeAdapter(message_models.MessagesSubscribeResult))
+        except BaseException:
+            subscription.close()
+            raise
+        return subscription
+
+
+class MessageSubscription(Iterator[message_models.MessageStateEvent]):
+    """Synchronous receipt stream; cursor advances only for validated delivered events.
+
+    Closing unblocks a pending next call. Stream errors retain the last cursor in
+    JsonRpcError.data, while transport failures propagate without automatic retry.
+    """
+
+    def __init__(self, client: HarnessClient, request: message_models.MessageSubscriptionRequest) -> None:
+        self.cursor = request.cursor
+        self._session_id = request.sessionId
+        self._closed = False
+        self._subscription = client.subscribe_notifications(self._matches)
+
+    def _matches(self, notification: Notification) -> bool:
+        try:
+            if notification.method == "messages.error":
+                error = message_models.MessageStreamError.model_validate(notification.payload)
+                return error.sessionId == self._session_id
+            if notification.method != "messages.state":
+                return False
+            event = message_models.MessageStateEvent.model_validate(notification.payload)
+            return self._session_id in (event.data.senderSessionId, event.data.targetSessionId)
+        except ValidationError as error:
+            raise SdkProtocolError(f"Invalid {notification.method} notification") from error
+
+    def __enter__(self) -> "MessageSubscription":
+        return self
+
+    def __exit__(self, _exc_type, _exc, _tb) -> None:
+        self.close()
+
+    def __next__(self) -> message_models.MessageStateEvent:
+        return self.next()
+
+    def next(self) -> message_models.MessageStateEvent:
+        """Wait for a new receipt; duplicate current cursors do not advance the stream."""
+        while not self._closed:
+            try:
+                notification = self._subscription.next()
+                if self._closed:
+                    break
+                if notification.method == "messages.error":
+                    raise JsonRpcError(-32603, "Message receipt stream is unavailable",
+                                       {"reason": "unavailable", "cursor": self.cursor})
+                event = message_models.MessageStateEvent.model_validate(notification.payload)
+                if event.cursor == self.cursor:
+                    continue
+                self.cursor = event.cursor
+                return event
+            except BaseException:
+                self.close()
+                raise
+        raise StopIteration
+
+    def close(self) -> None:
+        """Stop local delivery without sending an unsupported unsubscribe request."""
+        if self._closed:
+            return
+        self._closed = True
+        self._subscription.close()
+        self._subscription._notifications.put(Notification(method="messages.closed", payload={}))
+
+
+class _MessageStatusRequest(message_models._MessageModel):
+    messageId: message_models._MessageText
+
+
+class _MessageOperationRequest(message_models._MessageModel):
+    operationId: message_models._MessageText
+
+
+class _MessageResolveRequest(message_models._MessageModel):
+    addresses: list[message_models.MessageAddress]
 
 
 class NotificationSubscription:

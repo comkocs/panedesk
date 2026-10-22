@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from .client import HarnessClient, HarnessConfig
+from .client import HarnessClient, HarnessConfig, MessagesClient
 from .errors import SdkProtocolError
 from .models import InitializeExecutionPolicy, InitializeLedgerContext, JsonObject, LlmCacheControl, Notification
 
@@ -92,6 +92,7 @@ class DeepSeekHarness:
             _launch_args=_launch_args,
         )
         self._initialized = False
+        self.messages = MessagesClient(self._client, _before_request=self.start)
 
     def __enter__(self) -> "DeepSeekHarness":
         self.start()
@@ -152,6 +153,7 @@ class Session:
     def __init__(self, harness: DeepSeekHarness, session_id: str) -> None:
         self.harness = harness
         self.id = session_id
+        self.messages = MessagesClient(harness.client, _before_request=harness.start, _session_id=session_id)
 
     def get_working_directory(self) -> str:
         """Read the effective directory, recovering a missing directory to the Session origin."""

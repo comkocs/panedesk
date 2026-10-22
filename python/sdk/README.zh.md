@@ -58,6 +58,28 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/saved-home") as harness:
     result = session.run("Continue the task.")
 ```
 
+## 消息
+
+`HarnessClient.messages`、`DeepSeekHarness.messages` 和 `Session.messages` 提供 `send`、`withdraw`、`edit`、`reprioritize`、`invalidate`、`status`、`operation_status`、`list`、`resolve`、`send_batch`、`configure` 与 `subscribe`。请求模型与字典使用协议的 camelCase 字段；`MessageQuery.from_` 编码为 `from`。响应是类型化模型，明确区分已应用、待宿主裁决、被拒与未找到。传输失败而结果不确定时，应保留原 `operationId` 并查询 `operation_status`；离线控制已存储不等于撤回已确认。
+
+初始化请求消息扩展版本 1。未协商该版本的运行时仍可使用普通提示词；消息方法抛出代码为 `-32601`、`data.reason == "unsupported"` 的 `JsonRpcError`。无效消息结果或通知抛出 `SdkProtocolError`；无效请求字段抛出 Pydantic `ValidationError`。`send` 与 `send_batch` 对交接／回复默认使用 `steer`，对知会默认使用被动 `queue`，显式优先级保留并交运行时校验。既有 `session_prompt()` 和 `Session.run()` 保持排队语义。
+
+`Session.messages.send()` 在省略目标时默认使用该 Session；`list`、`configure` 和 `subscribe` 在省略 `sessionId` 时也默认使用它。这不提供发送方身份或权限，也不打开未知目标。需要已拥有且已打开 Session 的操作，应先用 `resume_session` 恢复既有会话，或使用既有 Session 创建 API。
+
+```py
+receipt = session.messages.send({
+    "messageClass": "handoff",
+    "content": "Review this item",
+    "operationId": "operation-a",
+})
+status = session.messages.status(receipt.messageId)
+with session.messages.subscribe({"cursor": saved_cursor}) as stream:
+    event = next(stream)
+    saved_cursor = stream.cursor
+```
+
+回执订阅缓冲准入响应前到达的通知，按发送方或目标 Session 过滤，并跳过当前重复游标。保存 `stream.cursor` 并在新订阅中传入即可续取；SDK 不自动重连。`messages.error` 通知抛出 `JsonRpcError`，包含 `data.reason == "unavailable"` 与最后游标。关闭会停止本地接收并解除迭代器等待；协议没有取消订阅请求，因此运行时流持续到同一 Session 的替代订阅或运行时关闭。回执不会唤醒发送方，订阅状态不会改变模型请求前缀或 KV 缓存。
+
 ## 自定义插件
 
 持久自定义属于 `dsh` profile。使用运行时 wheel 包提供的 `dsh` 命令初始化随附的 SDK profile，并安装外部 bundle：
