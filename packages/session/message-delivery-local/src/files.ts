@@ -148,19 +148,38 @@ export async function publish(path: string, value: unknown, maxBytes: number): P
   }
 }
 
+/** Reopen an atomically replaced file without accepting the unlinked descriptor. */
+async function openPublishedFile(path: string): Promise<Awaited<ReturnType<typeof open>> | undefined> {
+  while (true) {
+    let handle: Awaited<ReturnType<typeof open>>
+    try { handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW) } catch (error) {
+      if (isMissing(error)) return undefined
+      throw error
+    }
+    try {
+      await checkFile(handle)
+      return handle
+    } catch (error) {
+      try {
+        const held = await handle.stat()
+        const named = await lstat(path)
+        if (!(error instanceof MailboxUnavailableError) || !held.isFile() || held.nlink !== 0
+          || (process.platform !== 'win32' && (held.uid !== process.getuid?.() || (held.mode & 0o077) !== 0))
+          || !named.isFile() || named.isSymbolicLink() || (named.ino === held.ino && named.dev === held.dev)) throw error
+      } finally { await handle.close() }
+    }
+  }
+}
+
 /** Read and validate a complete file before domain decoding.
  * @param path - published mailbox file.
  * @param maxBytes - maximum complete encoded bytes.
  * @returns parsed JSON or undefined only when the file does not exist.
  */
 export async function readValue(path: string, maxBytes: number): Promise<unknown> {
-  let handle: Awaited<ReturnType<typeof open>>
-  try { handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW) } catch (error) {
-    if (isMissing(error)) return undefined
-    throw error
-  }
+  const handle = await openPublishedFile(path)
+  if (handle === undefined) return undefined
   try {
-    await checkFile(handle)
     const stat = await handle.stat()
     if (stat.size > maxBytes) throw new MailboxRecordError('Mailbox record exceeds byte limit', 'corrupt')
     const bytes = Buffer.alloc(maxBytes + 1)
