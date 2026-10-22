@@ -4,7 +4,7 @@ import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { assembleContextFor } from '@panedesk/dsh-agent'
 import type { Agent } from '@panedesk/dsh-agent'
-import { LlmAdapter } from '@panedesk/dsh-llm'
+import { LlmAdapter, LlmError } from '@panedesk/dsh-llm'
 import type { GenerateOptions, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
 import { renderPrompt } from '@panedesk/dsh-system-prompt'
 import type { PromptAssembly } from '@panedesk/dsh-system-prompt'
@@ -20,6 +20,7 @@ import type { CacheRoute } from './policy.ts'
 import { cacheRemaining, foldCacheState } from './state.ts'
 import type { CacheRemaining } from './types.ts'
 import { scheduleKeepalive } from './keepalive.ts'
+import { callWaits } from './waits.ts'
 export type * from './types.ts'
 export type { CacheRoute } from './policy.ts'
 
@@ -516,6 +517,7 @@ export function apply(ctx: Context, config: Config): void {
       throw error
     } finally {
       const settledAt = performance.now()
+      const endedAt = Date.now()
       release?.()
       try {
         const failed = failure !== undefined || finish === undefined || finish.reason.kind === 'error' || finish.reason.kind === 'aborted'
@@ -575,8 +577,11 @@ export function apply(ctx: Context, config: Config): void {
             if (!known) tiering = { kind: 'unknown' }
           }
           const priced = service.priceUsage({ usage, usageState, tiering, startedAt, entry: selectedPrice })
+          const waits = callWaits(await service.snapshot({ sessionId: start.sessionId }), start, endedAt)
+          const timeout = (reason?.kind === 'error' || reason?.kind === 'aborted') && reason.failure.code === 'TIMEOUT'
+            || failure instanceof LlmError && failure.code === 'TIMEOUT'
           const end: LedgerCallFinish = {
-            callId, endedAt: Date.now(), observedAt: Date.now(),
+            callId, endedAt, observedAt: Date.now(),
             ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
             responseModelReported: finish?.responseModelReported ?? 'unobservable',
             effectiveModel: finish?.responseModel ?? request.model,
@@ -587,10 +592,11 @@ export function apply(ctx: Context, config: Config): void {
             priceVersion: start.priceVersion, priceKey: selectedPrice?.modelKey ?? 'unknown',
             priceKeySource: responsePrice !== undefined ? 'response-model' : selectedPrice !== undefined ? 'request-model' : 'unknown',
             wallMs: settledAt - clock, modelInFlightMs: admittedAt === undefined ? 0 : settledAt - admittedAt,
-            queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits: [],
+            queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits,
             // Session-to-date observations are snapshots, not additional compaction charges.
             compactionCount: state.compactionTimes.length, compactionTimes: [...state.compactionTimes], recovered: false,
-            endReason: signal.aborted || reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
+            endReason: signal.aborted ? 'cancelled' : timeout ? 'timeout' : reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
+            ...timeout && !signal.aborted ? { timeoutSource: 'model-call' } : {},
             upstreamStopReason: reason?.kind ?? 'iterator-closed', artifacts,
             ...finish?.accountLabel === undefined ? {} : { accountLabel: finish.accountLabel },
             cacheWriteTiering: tiering, cache: evidence,
