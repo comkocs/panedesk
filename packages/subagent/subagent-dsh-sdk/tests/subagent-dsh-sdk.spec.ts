@@ -17,6 +17,8 @@ import { fileURLToPath } from 'node:url'
 import SubagentRuntime from '@panedesk/dsh-subagent'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import type { Agent, AgentOptions } from '@panedesk/dsh-agent'
+import { brandString } from '@panedesk/dsh-brand'
+import type { SessionLedger, LedgerSessionContext, LedgerRunStart, LedgerRunFinish, LedgerEvent } from '@panedesk/dsh-session-ledger'
 import {
   DeepSeekHarness,
   HarnessClient,
@@ -155,6 +157,70 @@ describe('sdkChildOutcome', () => {
 })
 
 describe('dsh-subagent-dsh-sdk provider', () => {
+  it.each(['completed', 'kill-before-initialize', 'kill-after-initialize'] as const)('commits launch intent and closes exactly once: %s', async (mode) => {
+    const facts: Array<LedgerRunStart | LedgerRunFinish | LedgerEvent> = []
+    const order: string[] = []
+    const parentContext: LedgerSessionContext = {
+      seat: 'seat', window: 'window', nodeId: brandString('node'), identitySource: 'startup',
+      sessionId: brandString('parent'), rootSessionId: brandString('root'), runId: brandString('parent-run'), accountLabel: 'unknown',
+    }
+    const ledger = {
+      beginRun: async (fact: LedgerRunStart) => { order.push('intent'); facts.push(fact); return { kind: 'appended' } },
+      appendEvent: async (fact: LedgerEvent) => {
+        order.push('identity'); facts.push(fact)
+        if (mode === 'kill-before-initialize' && fact.kind === 'process/observed') process.kill(fact.identity.pid, 'SIGKILL')
+        return { kind: 'appended' }
+      },
+      finishRun: async (fact: LedgerRunFinish) => { order.push('end'); facts.push(fact); return { kind: 'appended' } },
+    } as unknown as SessionLedger
+    const create = runInternals.createHarness.bind(runInternals)
+    runInternals.createHarness = (options) => { order.push('construct'); return create(options) }
+    const starting = startSdkRun(request(), {
+      profile: 'sdk', patches: [], dshHome: process.cwd(), cwd: process.cwd(), provider: 'mock', model: 'mock',
+      env: mode === 'kill-after-initialize' ? { FAKE_HANG_PROMPT: '1' } : {},
+      shutdownTimeoutMs: 1000, disposeEofGraceMs: 1000, disposeGraceMs: 1000, ledger, parentContext,
+    })
+    if (mode === 'kill-before-initialize') {
+      await expect(starting).rejects.toThrow()
+      await expect.poll(() => order.filter(value => value === 'end').length).toBe(1)
+      expect(facts.at(-1)).toMatchObject({ endReason: 'killed', signal: 'SIGKILL' })
+      return
+    }
+    const run = await starting
+    if (mode === 'kill-after-initialize') {
+      const identity = facts.find((fact): fact is LedgerEvent => 'kind' in fact && fact.kind === 'process/observed')
+      if (identity?.kind !== 'process/observed') throw new Error('missing owned process identity')
+      const before = performance.now()
+      process.kill(identity.identity.pid, 'SIGKILL')
+      await expect.poll(() => order.filter(value => value === 'end').length).toBe(1)
+      expect(performance.now() - before).toBeLessThan(1000)
+      await run.result
+      await run.dispose()
+      expect(order.filter(value => value === 'end')).toHaveLength(1)
+      expect(facts.at(-1)).toMatchObject({ endReason: 'killed', signal: 'SIGKILL' })
+      return
+    }
+    try {
+      expect(order).toEqual(['intent', 'construct', 'identity'])
+      expect(createdHarnessOptions[0]?.ledgerContext).toMatchObject({ parentRunId: 'parent-run', parentSessionId: 'parent', identitySource: 'inherited' })
+      expect(facts[0]).toMatchObject({ launchState: 'pending', parentRunId: 'parent-run', runId: run.id })
+      expect(facts[1]).toMatchObject({ kind: 'process/observed', identity: { verification: 'verified' } })
+      expect((await run.result).stopReason).toBe('completed')
+    } finally { await run.dispose() }
+    expect(order).toEqual(['intent', 'construct', 'identity', 'end'])
+    expect(facts[2]).toMatchObject({ endReason: 'completed' })
+  })
+
+  it('does not construct a process when launch intent cannot be synchronized', async () => {
+    const parentContext = { sessionId: 'parent', runId: 'parent-run' } as LedgerSessionContext
+    const ledger = { beginRun: async () => { throw new Error('intent write failed') } } as unknown as SessionLedger
+    await expect(startSdkRun(request(), {
+      profile: 'sdk', patches: [], dshHome: process.cwd(), cwd: process.cwd(), provider: 'mock', model: 'mock',
+      env: {}, shutdownTimeoutMs: 1000, disposeEofGraceMs: 1000, disposeGraceMs: 1000, ledger, parentContext,
+    })).rejects.toThrow('intent write failed')
+    expect(createdHarnessOptions).toEqual([])
+  })
+
   it('constructs the production dsh-backed harness lazily', async () => {
     const harness = defaultCreateHarness({})
     expect(harness).toBeInstanceOf((await import('@panedesk/dsh-sdk-client')).DeepSeekHarness)
@@ -853,7 +919,7 @@ describe('dsh-subagent-dsh-sdk provider', () => {
     expect(ctx.subagents.getProvider('sdk-hmr')?.inheritsParentContext).toBe(false)
     expect(ctx.subagents.getProvider('sdk-hmr')?.capabilities).toEqual({
       agentOptions: true,
-      agentPreset: false,
+      agentPreset: true,
       outputSchema: false,
       depthLimit: false,
     })

@@ -42,6 +42,9 @@
       "path": "../../subagent/subagent"
     },
     {
+      "path": "../../core/tools"
+    },
+    {
       "path": "../../session/working-directory"
     }
   ]

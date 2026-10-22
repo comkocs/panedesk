@@ -148,6 +148,11 @@ export interface LedgerContext extends LedgerIdentity {
   /** Credential profile or route label only; unknown when unavailable, never a secret or endpoint. */
   accountLabel: string
 }
+/** Trusted process-local attribution bound before Session publication; never part of its durable header. */
+export interface LedgerSessionContext extends LedgerContext {
+  runId: LedgerRunId
+  parentRunId?: LedgerRunId
+}
 /** Journal envelope; schema version is independent of the Session format version. */
 export interface LedgerEnvelope {
   schemaVersion: 1
@@ -229,6 +234,8 @@ export interface LedgerCall {
 /** Launch intent is not confirmed live execution until a verified process observation arrives. */
 export interface LedgerRunStart extends LedgerContext {
   runId: LedgerRunId
+  /** Supervising run; distinct from the child residency's own lifecycle. */
+  parentRunId?: LedgerRunId
   startedAt: number
   definition?: string
   effectiveModel?: string
@@ -238,6 +245,15 @@ export interface LedgerRunStart extends LedgerContext {
 }
 /** Terminal lifecycle facts; first committed end wins and late observations remain separate events. */
 export interface LedgerRunFinish {
+  /** External backend totals are aggregate observations, never duplicate physical calls. */
+  externalBackend?: {
+    definitionEnforcement: 'not-applicable'
+    usage?: TokenUsage
+    /** Original numeric counters where disjoint cache semantics are not specified by the backend. */
+    reportedUsage?: Readonly<Record<string, number>>
+    usageState: LedgerUsageState
+    processIdentityState: 'reported' | 'not-reported'
+  }
   runId: LedgerRunId
   endedAt?: number
   observedAt: number

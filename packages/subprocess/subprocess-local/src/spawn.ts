@@ -9,9 +9,10 @@
  */
 
 import { type ChildProcess, type SpawnOptions, spawn, spawnSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import type { Readable } from 'node:stream'
 import { setTimeout as sleepMs } from 'node:timers/promises'
-import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
+import { readProcessIdentity, sameProcessIdentity, scrubbedParentEnv } from '@panedesk/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS } from '@panedesk/dsh-timeout'
 import type {
   SubprocessCollect,
@@ -210,6 +211,20 @@ function fallbackOwner(
   let stopped = false
   let directSettled = false
   let observation: Promise<void> | undefined
+  const identity = pid === undefined ? undefined : readProcessIdentity(pid)
+  const signalIdentityMatches = (): boolean => {
+    if (platform !== 'linux' || process.platform !== 'linux') return true
+    if (identity === undefined || identity.bootIdentity === undefined || identity.startIdentity === undefined
+      || identity.processGroupId !== pid) return false
+    if (existsSync(`/proc/${identity.pid}`)) return sameProcessIdentity(identity)
+    // A surviving group keeps its PGID reserved after its leader is reaped.
+    // Keep the original boot evidence; never adopt a newly observed leader.
+    try {
+      return directSettled && readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim() === identity.bootIdentity
+    } catch (_unreadableBootIdentity) {
+      return false
+    }
+  }
   void direct.then(
     () => { directSettled = true },
     () => { directSettled = true },
@@ -238,6 +253,7 @@ function fallbackOwner(
         stopped = true
         return
       }
+      if (!signalIdentityMatches()) return
       signalTree(platform, pid, signal, child, taskkill)
     },
     waitForExit: async () => {
@@ -251,7 +267,7 @@ function fallbackOwner(
       await observation
     },
     terminateForHostExit: () => {
-      if (stopped) return
+      if (stopped || !signalIdentityMatches()) return
       signalTree(platform, pid, 'SIGKILL', child, taskkill)
     },
   }
@@ -433,6 +449,7 @@ export function bindManagedProcess(
     stdout: outMode === 'pipe' ? stdout ?? undefined : undefined,
     stderr: errMode === 'pipe' ? stderr ?? undefined : undefined,
     control: launch.control,
+    ...launch.processIdentity === undefined ? {} : { processIdentity: launch.processIdentity },
     /* v8 ignore stop */
     collected: {
       ...stdoutCollector !== undefined ? { stdout: stdoutCollector } : {},
@@ -486,6 +503,7 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
     stdout: child.stdout,
     stderr: child.stderr,
     control: controlPipe(child, spec.stdio.control),
+    ...pid === undefined ? {} : { processIdentity: readProcessIdentity(pid) },
     direct,
     owner,
   }, binding)

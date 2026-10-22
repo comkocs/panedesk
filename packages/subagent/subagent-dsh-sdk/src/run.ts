@@ -25,9 +25,17 @@ import type { SessionId, TurnEndReason } from '@panedesk/dsh-session'
 import type { SubagentResult, SubagentRun, SubagentStartRequest, SubagentStopReason } from '@panedesk/dsh-subagent'
 import { AssistantOutputFold, settleRunResult, subprocessRunHandle } from '@panedesk/dsh-subagent'
 import { scrubbedParentEnv } from '@panedesk/dsh-subprocess'
+import type { SessionLedger, LedgerSessionContext, LedgerRunId, LedgerEventId, LedgerAppendResult, LedgerEndReason } from '@panedesk/dsh-session-ledger'
 
 /** Resolved spawn spec for an SDK runtime child process (no defaults — see Config). */
 export interface SdkRunSpec {
+  /** Local preset and its expected installed policy; never a client-authored allowlist. */
+  agentPreset?: DeepSeekHarnessOptions['agentPreset']
+  executionPolicy?: DeepSeekHarnessOptions['executionPolicy']
+  cachePolicy?: DeepSeekHarnessOptions['cachePolicy']
+  /** Optional durable accounting service and trusted parent attribution. */
+  ledger?: SessionLedger
+  parentContext?: LedgerSessionContext
   /** Explicit dsh CLI module; omission resolves the SDK client's same-version dependency. */
   dshBin?: string
   /** Named child profile. */
@@ -233,6 +241,38 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
   // The run id lives in the parent namespace; the child runtime's session id
   // (minted below, private to the wire) exists only inside the child process.
   const id = brandString<SessionId>(randomUUID())
+  const childSessionId = `session-${randomUUID().replaceAll('-', '')}`
+  const runId = brandString<LedgerRunId>(id)
+  const parent = spec.parentContext
+  const ledger = spec.ledger
+  const committed = (result: LedgerAppendResult): void => {
+    if (result.kind === 'conflict') throw new Error('SDK lifecycle ledger conflict')
+  }
+  if (ledger !== undefined && parent === undefined) throw new Error('SDK ledger requires trusted parent context')
+  let finishTask: Promise<void> | undefined
+  const finish = (endReason: LedgerEndReason, exitCode?: number, signal?: string): Promise<void> => {
+    finishTask ??= (async () => {
+      if (ledger === undefined) return
+      committed(await ledger.finishRun({
+        runId, endedAt: Date.now(), observedAt: Date.now(), endReason,
+        ...exitCode === undefined ? {} : { exitCode }, ...signal === undefined ? {} : { signal },
+        recovered: false, deliveryState: 'not-requested',
+      }))
+    })()
+    return finishTask
+  }
+  if (ledger !== undefined && parent !== undefined) {
+    committed(await ledger.beginRun({
+      ...parent, runId, parentRunId: parent.runId, sessionId: brandString<SessionId>(childSessionId),
+      parentSessionId: parent.sessionId, remoteSessionId: brandString<SessionId>(childSessionId),
+      subagentRunId: brandString<NonNullable<LedgerSessionContext['subagentRunId']>>(id),
+      identitySource: 'inherited', startedAt: Date.now(), launchState: 'pending', deliveryPaths: [],
+      ...spec.agentPreset === undefined ? {} : { definition: spec.agentPreset }, effectiveModel: spec.model,
+    }))
+  }
+  // The signal may change while launch intent is synchronizing.
+  // oxlint-disable-next-line typescript/no-unnecessary-condition -- AbortSignal changes across await.
+  if (request.signal.aborted) { await finish('cancelled'); throw new Error('SDK launch cancelled before spawn') }
 
   const harness = internals.createHarness({
     ...spec.dshBin === undefined ? {} : { dshBin: spec.dshBin },
@@ -247,9 +287,37 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     cwd: spec.originCwd ?? spec.cwd,
     provider: spec.provider,
     model: spec.model,
+    ...spec.agentPreset === undefined ? {} : { agentPreset: spec.agentPreset },
+    ...spec.executionPolicy === undefined ? {} : { executionPolicy: spec.executionPolicy },
+    ...spec.cachePolicy === undefined ? {} : { cachePolicy: spec.cachePolicy },
+    ...parent === undefined ? {} : { ledgerContext: {
+      seat: parent.seat, window: parent.window, nodeId: parent.nodeId,
+      ...parent.taskId === undefined ? {} : { taskId: parent.taskId },
+      identitySource: 'inherited' as const, parentSessionId: parent.sessionId,
+      rootSessionId: parent.rootSessionId, subagentRunId: id, parentRunId: parent.runId,
+      childSessionId, accountLabel: parent.accountLabel,
+    } },
     ...spec.reasoningEffort === undefined ? {} : { reasoningEffort: spec.reasoningEffort },
     ...spec.maxTokens === undefined ? {} : { maxTokens: spec.maxTokens },
   })
+
+  let terminalReason: LedgerEndReason | undefined
+  if (ledger !== undefined && parent !== undefined) {
+    harness.client.observeProcess(async (identity) => {
+      committed(await ledger.appendEvent({
+        schemaVersion: 1, eventId: brandString<LedgerEventId>(randomUUID()),
+        nodeId: parent.nodeId, observedAt: Date.now(), runId,
+        sessionId: brandString<SessionId>(childSessionId), kind: 'process/observed',
+        liveness: identity.startIdentity !== undefined ? 'confirmed' : 'unknown', identity: {
+          ...identity, nodeId: parent.nodeId, registeredAt: Date.now(),
+          verification: identity.startIdentity !== undefined && identity.bootIdentity !== undefined ? 'verified' : 'unverified',
+        },
+      }))
+    }, async (outcome) => {
+      await finish(terminalReason === 'cancelled' ? 'cancelled' : outcome.signal !== null ? 'killed' : terminalReason ?? 'error',
+        outcome.exitCode ?? undefined, outcome.signal ?? undefined)
+    })
+  }
 
   // Cancellation settles the result without waiting for a cooperative child.
   const flags = { cancelled: false }
@@ -258,6 +326,7 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
   const requestCancel = (): void => {
     if (flags.cancelled) return
     flags.cancelled = true
+    terminalReason ??= 'cancelled'
     signalCancelSettled()
   }
   const onAbort = (): void => { requestCancel() }
@@ -293,7 +362,6 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     throw new Error('subagent request was aborted before the SDK child started')
   }
 
-  const childSessionId = `session-${randomUUID().replaceAll('-', '')}`
   // The child's final answer under the seam's canonical selection rule
   // (`AssistantOutputFold`); a partial answer survives cancel and error paths.
   const fold = new AssistantOutputFold()
@@ -343,6 +411,7 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
         }
         if (flags.cancelled) return { output: collectOutput(), stopReason: 'aborted' }
         const outcome = sdkChildOutcome(lastEnd)
+        terminalReason = outcome.stopReason === 'completed' ? 'completed' : 'error'
         diagnostic = outcome.diagnostic
         return {
           output: collectOutput(),

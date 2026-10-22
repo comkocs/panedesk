@@ -31,9 +31,15 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/dsh-subprocess": "workspace:*",
     "@panedesk/dsh-timeout": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-session-ledger": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "1.4.0",
@@ -48,6 +54,7 @@
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-loader-smoke": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-session-checkpoint-policy": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",

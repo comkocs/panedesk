@@ -1029,6 +1029,17 @@ describe('query options and result mapping', () => {
 })
 
 describe('run publication, cancellation, and settlement', () => {
+  it('observes SDK result usage without counting model-authored text', async () => {
+    const message = success('input_tokens: 999999')
+    message.usage = { input_tokens: 7, output_tokens: 5, cache_read_input_tokens: 3,
+      cache_creation_input_tokens: 2 } as SDKResultMessage['usage']
+    const fixture = fakeRun([message])
+    const observeUsage = vi.fn()
+    const run = await startClaudeCodeRun(request(), { ...fixture.spec, observeUsage })
+    await run.result
+    await run.dispose()
+    expect(observeUsage).toHaveBeenCalledExactlyOnceWith({ inputTokens: 7, outputTokens: 5, cacheReadTokens: 3, cacheWriteTokens: 2 })
+  })
   it('publishes only after Query and managed child exist, then disposes once', async () => {
     const fixture = fakeRun([success('exact answer')])
     const run = await startClaudeCodeRun(

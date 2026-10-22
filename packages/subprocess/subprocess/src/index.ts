@@ -16,6 +16,7 @@ import type { SubprocessTerminalEnvironment, SubprocessTerminalHandle, Subproces
 
 export { DSH_ENV_PREFIX } from './types.ts'
 export type { SubprocessIdentity } from './types.ts'
+export { readProcessIdentity, sameProcessIdentity } from './process-identity.ts'
 export type {
   CollectedOutput,
   DshEnvironment,

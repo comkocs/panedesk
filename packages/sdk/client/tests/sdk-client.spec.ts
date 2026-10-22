@@ -63,6 +63,44 @@ async function tempDir(prefix: string): Promise<string> {
 }
 
 describe('DeepSeekHarness', () => {
+  it('forwards optional handshake fields only after durable spawn observation', async () => {
+    const dir = await tempDir('sdk-handshake-')
+    const recorded = join(dir, 'initialize.jsonl')
+    const fields = {
+      agentPreset: 'worker', executionPolicy: { presetId: 'worker', version: '1', digest: 'a'.repeat(64) },
+      ledgerContext: { seat: 'seat', window: 'window', nodeId: 'node', identitySource: 'inherited' as const,
+        parentSessionId: 'parent', rootSessionId: 'root', subagentRunId: 'run', parentRunId: 'parent-run', childSessionId: 'child' },
+      cachePolicy: { retention: '1h' as const },
+    }
+    const harness = createProcessDeepSeekHarness(fakeLaunch({ FAKE_RECORD_INIT: recorded }), fields)
+    cleanups.push(() => harness.close())
+    const gate = Promise.withResolvers<undefined>()
+    const observed = Promise.withResolvers<undefined>()
+    harness.client.observeProcess(async (identity) => {
+      expect(identity.pid).toBeGreaterThan(0)
+      if (process.platform === 'linux') {
+        expect(identity.startIdentity).toMatch(/^\d+$/)
+        expect(identity.bootIdentity).toBeTruthy()
+      }
+      observed.resolve(undefined)
+      await gate.promise
+    }, async () => {})
+    const pending = harness.start()
+    await observed.promise
+    try { await expect(stat(recorded)).rejects.toThrow() } finally { gate.resolve(undefined) }
+    await pending
+    expect(JSON.parse((await readFile(recorded, 'utf8')).trim())).toMatchObject(fields)
+  })
+
+  it('blocks initialize when durable process registration fails', async () => {
+    const dir = await tempDir('sdk-registration-')
+    const recorded = join(dir, 'initialize.jsonl')
+    const harness = createProcessDeepSeekHarness(fakeLaunch({ FAKE_RECORD_INIT: recorded }))
+    cleanups.push(() => harness.close())
+    harness.client.observeProcess(async () => { throw new Error('registration failed') }, async () => {})
+    await expect(harness.start()).rejects.toThrow('registration failed')
+    await expect(stat(recorded)).rejects.toThrow()
+  })
   it('returns a restored handle that can run followups on the same identity', async () => {
     const harness = harnessWith()
     const session = await harness.resumeSession('saved-session')

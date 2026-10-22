@@ -5,6 +5,7 @@
  * @module @panedesk/dsh-subagent-acp/run
  */
 
+import { recordExternalRun, type ExternalLedgerSpec } from './ledger.ts'
 import { randomUUID } from 'node:crypto'
 import { Readable as NodeReadable, Writable as NodeWritable } from 'node:stream'
 import {
@@ -27,7 +28,7 @@ import type { SubprocessHandle, SubprocessOutcome, SubprocessSpawnSpec } from '@
 export type PermissionPolicy = 'allow' | 'reject'
 
 /** Resolved spawn spec for an ACP child process (no defaults — see Config). */
-export interface AcpRunSpec {
+export interface AcpRunSpec extends ExternalLedgerSpec {
   /** The executable to spawn (the child ACP agent). */
   command: string
   /** Arguments passed to {@link command}. */
@@ -334,6 +335,10 @@ function terminalFailure(
  * @returns the ready run handle for the child subprocess.
  */
 export async function startAcpRun(request: SubagentStartRequest, spec: AcpRunSpec): Promise<SubagentRun> {
+  return recordExternalRun(request, spec, observed => startAcpRunUnrecorded(request, observed))
+}
+
+async function startAcpRunUnrecorded(request: SubagentStartRequest, spec: AcpRunSpec): Promise<SubagentRun> {
   if (request.signal.aborted) throw new Error('subagent request was aborted before the ACP child started')
   // ACP session ids are unique only within the child server. The lifecycle id
   // is minted in the parent namespace so fresh processes cannot collide with
@@ -568,6 +573,16 @@ export async function startAcpRun(request: SubagentStartRequest, spec: AcpRunSpe
           }),
           cancelSettled.then((): never => { throw new Error('subagent cancelled while the ACP prompt was running') }),
         ])
+        if (promptResult.usage != null) {
+          // ACP does not specify whether cached counts overlap input; retain source counters.
+          const usage = promptResult.usage
+          spec.observeReportedUsage?.({
+            totalTokens: usage.totalTokens, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens,
+            ...usage.thoughtTokens == null ? {} : { thoughtTokens: usage.thoughtTokens },
+            ...usage.cachedReadTokens == null ? {} : { cachedReadTokens: usage.cachedReadTokens },
+            ...usage.cachedWriteTokens == null ? {} : { cachedWriteTokens: usage.cachedWriteTokens },
+          })
+        }
         const stopReason = acpStopReason(promptResult.stopReason)
         diagnostic = terminalFailure(promptResult.stopReason, latestPermission)
         return {

@@ -1088,6 +1088,19 @@ describe('dsh-subagent-acp', () => {
     await run.dispose()
   })
 
+  it('preserves ACP source usage without guessing cache overlap', async () => {
+    const values: Readonly<Record<string, number>>[] = []
+    const run = await startAcpRun(request(), {
+      command: process.execPath, args: [mockServer], cwd: process.cwd(), permission: 'reject',
+      env: { MOCK_USAGE: '1' }, disposeEofGraceMs: 100, disposeGraceMs: 100,
+      spawn: spec => spawnSubprocess(spec), observeReportedUsage: (usage) => { values.push(usage) },
+    })
+    try {
+      expect((await run.result).stopReason).toBe('completed')
+      expect(values).toEqual([{ inputTokens: 12, outputTokens: 3, totalTokens: 15, cachedReadTokens: 4 }])
+    } finally { await run.dispose() }
+  })
+
   it('classifies a prompt transport failure without copying SDK text', async () => {
     const run = await startAcpRun(request('private prompt text'), {
       command: process.execPath,

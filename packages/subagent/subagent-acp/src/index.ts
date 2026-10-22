@@ -101,7 +101,11 @@ class AcpProvider implements SubagentProvider {
       this.ctx.logger.warn(`subagent-acp "${this.name}": child start failed: %o`, error)
       throw failure
     }
+    const ledger = this.ctx.get('sessionLedger')
+    const parentContext = ledger?.contextFor(request.parent.session.id)
     const spec: AcpRunSpec = {
+      ...ledger === undefined ? {} : { ledger },
+      ...parentContext === undefined ? {} : { parentContext },
       command: this.config.command,
       args: this.config.args,
       cwd,

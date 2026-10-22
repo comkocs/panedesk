@@ -727,6 +727,26 @@ describe('task admission and package contracts', () => {
 })
 
 describe('CodexAppServerWire', () => {
+  it('records only current-turn numeric usage, including frames before turn publication', async () => {
+    const { child, wire } = await initializeWire()
+    const usage: Readonly<Record<string, number>>[] = []
+    wire.observeReportedUsage = (value) => { usage.push(value) }
+    const result = wire.runTurn(['task'], new AbortController().signal)
+    const start = await child.peer.nextMethod('turn/start')
+    child.peer.send({ method: 'thread/tokenUsage/updated', params: {
+      threadId: 'foreign', turnId: 'turn-1', tokenUsage: { total: { inputTokens: 999 } },
+    } })
+    child.peer.send({ method: 'thread/tokenUsage/updated', params: {
+      threadId: 'thread-1', turnId: 'turn-1', tokenUsage: { total: {
+        inputTokens: 12, cachedInputTokens: 4, outputTokens: 3, totalTokens: 15, cacheWriteInputTokens: -1,
+      } },
+    } })
+    child.peer.respond(start, { turn: { id: 'turn-1' } })
+    child.peer.send(agentMessage('answer', 'final_answer'), turnCompleted('completed'))
+    await result
+    expect(usage).toEqual([{ inputTokens: 12, cachedInputTokens: 4, outputTokens: 3, totalTokens: 15 }])
+    wire.close()
+  })
   it('sends the fixed handshake, thread, and turn payloads and keeps final_answer', async () => {
     const child = fakeChild()
     const wire = defaultWire(child)

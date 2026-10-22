@@ -29,6 +29,7 @@
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sdk-client": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
@@ -49,6 +50,7 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-agent-instructions": "workspace:*",
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",

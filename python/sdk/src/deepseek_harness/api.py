@@ -7,7 +7,7 @@ from typing import Callable
 
 from .client import HarnessClient, HarnessConfig
 from .errors import SdkProtocolError
-from .models import JsonObject, Notification
+from .models import InitializeExecutionPolicy, InitializeLedgerContext, JsonObject, LlmCacheControl, Notification
 
 
 @dataclass(slots=True)
@@ -23,6 +23,10 @@ class DeepSeekHarnessConfig:
     model: str = "deepseek-v4-flash"
     reasoning_effort: str | None = None
     max_tokens: int | None = None
+    agent_preset: str | None = None
+    execution_policy: InitializeExecutionPolicy | None = None
+    ledger_context: InitializeLedgerContext | None = None
+    cache_policy: LlmCacheControl | None = None
     cwd: str | None = None
     runtime_cwd: str | None = None
     dsh_bin: str | None = None
@@ -110,6 +114,10 @@ class DeepSeekHarness:
             model=self.config.model,
             reasoning_effort=self.config.reasoning_effort,
             max_tokens=self.config.max_tokens,
+            agent_preset=self.config.agent_preset,
+            execution_policy=self.config.execution_policy,
+            ledger_context=self.config.ledger_context,
+            cache_policy=self.config.cache_policy,
         )
         self._initialized = True
 

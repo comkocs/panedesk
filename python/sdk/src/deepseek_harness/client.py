@@ -15,7 +15,7 @@ from typing import Callable, TypeAlias, TypeVar
 from pydantic import BaseModel
 
 from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
-from .models import IncomingRequest, InitializeResponse, JsonObject, JsonValue, Notification
+from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, JsonValue, LlmCacheControl, Notification
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 NotificationFilter: TypeAlias = Callable[[Notification], bool]
@@ -138,6 +138,10 @@ class HarnessClient:
         model: str,
         reasoning_effort: str | None = None,
         max_tokens: int | None = None,
+        agent_preset: str | None = None,
+        execution_policy: InitializeExecutionPolicy | None = None,
+        ledger_context: InitializeLedgerContext | None = None,
+        cache_policy: LlmCacheControl | None = None,
     ) -> InitializeResponse:
         payload: JsonObject = {
             "cwd": str(Path(cwd).resolve()),
@@ -148,6 +152,15 @@ class HarnessClient:
             payload["reasoningEffort"] = reasoning_effort
         if max_tokens is not None:
             payload["maxTokens"] = max_tokens
+        if agent_preset is not None:
+            payload["agentPreset"] = agent_preset
+        for key, value in (
+            ("executionPolicy", execution_policy),
+            ("ledgerContext", ledger_context),
+            ("cachePolicy", cache_policy),
+        ):
+            if value is not None:
+                payload[key] = value.model_dump(mode="json", exclude_none=True)
         try:
             return self.request(
                 "initialize",
