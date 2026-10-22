@@ -54,7 +54,7 @@ class DeliveryStub extends MessageDelivery {
   override subscribe(): never { throw new Error('Unused') }
 }
 
-async function harness(enabled = true, root?: string, config: Partial<Subscriptions.Config> = {}) {
+async function harness(enabled = true, root?: string, files?: string[]) {
   root ??= await mkdtemp(join(tmpdir(), 'instruction-subscriptions-'))
   if (!roots.includes(root)) roots.push(root)
   await mkdir(join(root, '.git'), { recursive: true })
@@ -73,11 +73,13 @@ async function harness(enabled = true, root?: string, config: Partial<Subscripti
   ctx.baseUrl = pathToFileURL(root).href + '/'
   const yaml = await readFile(new URL('./cordis.yml', import.meta.url), 'utf8')
   const configPath = join(root, 'cordis.yml')
-  await writeFile(configPath, enabled ? yaml : yaml.split('- name: cordis:subscriptions')[0]!)
+  const subscriptions = enabled
+    ? '- name: cordis:subscriptions' + yaml.split('- name: cordis:subscriptions')[1]! + (files === undefined ? '' : `    files:\n${files.map(file => `      - ${file}\n`).join('')}`)
+    : ''
+  await writeFile(configPath, yaml.split('- name: cordis:subscriptions')[0]! + subscriptions)
   const driver = await mountAgentLoopTestHarness(ctx)
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
-  if (Object.keys(config).length > 0) throw new Error('Use explicit configuration fixtures')
   const parent = await driver.create(SessionId('seat-a'), {}, { cwd: root })
   const child = (await ctx.agents.create({ sessionId: SessionId('seat-b'), parentAgent: parent,
     meta: { cwd: root, parentSession: parent.session.id }, agentOptions: {} })).agent
@@ -181,4 +183,67 @@ it('reminds on another session write, deletion, recovery, and ignores idle agent
   await h.boundary(h.parent)
   expect(h.delivery.sent).toHaveLength(3)
   expect(JSON.parse(h.delivery.sent[2]!.content) as object).toMatchObject({ status: 'present', oldHash: null, added: 1, removed: 0 })
+})
+
+const note = 'notes/plan.md'
+
+function logTypes(agent: Agent): string[] {
+  return agent.session.snapshotEvents().map(event => event.type)
+}
+
+function reminderFor(sent: DeliveryStub['sent'], path: string): Record<string, unknown> {
+  const matches = sent.filter(request => request.content.includes(path))
+  expect(matches).toHaveLength(1)
+  return JSON.parse(matches[0]!.content) as Record<string, unknown>
+}
+
+it('reminds once for an externally edited configured file and preserves request prefixes against a plugin-free control', async () => {
+  const original = 'first note line\nunchanged note line\n'
+  const edited = 'second note line\nunchanged note line\nextra note line\n'
+  async function seat(enabled: boolean) {
+    const root = await mkdtemp(join(tmpdir(), 'instruction-subscriptions-'))
+    roots.push(root)
+    await mkdir(join(root, 'notes'), { recursive: true })
+    await writeFile(join(root, note), original)
+    return { ...(await harness(enabled, root, enabled ? [note] : undefined)), notePath: join(root, note) }
+  }
+  const enabled = await seat(true)
+  const before = await enabled.boundary(enabled.parent)
+  await enabled.boundary(enabled.child)
+  const unchanged = await enabled.boundary(enabled.parent)
+  expect(enabled.delivery.sent).toHaveLength(0)
+  const control = await seat(false)
+  const controlBefore = await control.boundary(control.parent)
+  await control.boundary(control.child)
+  const controlUnchanged = await control.boundary(control.parent)
+  expect(logTypes(enabled.parent)).toEqual(logTypes(control.parent))
+  expect(logTypes(enabled.child)).toEqual(logTypes(control.child))
+  await writeFile(enabled.notePath, edited)
+  const after = await enabled.boundary(enabled.parent)
+  const reminder = reminderFor(enabled.delivery.sent, enabled.notePath)
+  expect(reminder).toEqual({
+    kind: 'instruction-change', path: enabled.notePath, status: 'present',
+    oldHash: createHash('sha256').update(original).digest('hex'),
+    newHash: createHash('sha256').update(edited).digest('hex'),
+    added: 2, removed: 1,
+  })
+  expect(enabled.delivery.sent).toHaveLength(1)
+  expect(JSON.stringify(reminder)).not.toContain('note line')
+  process.stdout.write(`CONFIGURED_FILE_REMINDER ${JSON.stringify(reminder).replaceAll(enabled.root, '<workspace>')}\n`)
+  expect(JSON.stringify(after)).not.toContain('Updated instructions')
+  await writeFile(control.notePath, edited)
+  const controlAfter = await control.boundary(control.parent)
+  expect(control.delivery.sent).toHaveLength(0)
+  expect(JSON.stringify(controlAfter)).not.toContain('Updated instructions')
+  expect(JSON.stringify(controlAfter)).not.toContain('note line')
+  const prefix = (messages: typeof before) => messages.slice(0, before.length)
+    .map(message => ({ role: message.role, content: message.content }))
+  const pairs = { withPlugin: [digest(prefix(before)), digest(prefix(unchanged)), digest(prefix(after))],
+    withoutPlugin: [digest(prefix(controlBefore)), digest(prefix(controlUnchanged)), digest(prefix(controlAfter))] }
+  expect(pairs.withPlugin).toEqual(pairs.withoutPlugin)
+  await rm(enabled.notePath)
+  await enabled.boundary(enabled.parent)
+  expect(reminderFor(enabled.delivery.sent.slice(1), enabled.notePath)).toMatchObject({
+    kind: 'instruction-change', path: enabled.notePath, status: 'deleted', oldHash: reminder.newHash, newHash: null,
+  })
 })
