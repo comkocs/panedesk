@@ -1,5 +1,6 @@
 /** Deterministic call/run projection and conflict-preserving multi-node merging. */
 import { canonicalJson, rebuildIndex, uniqueSlot } from './index-store.ts'
+import { projectWaits } from './waits.ts'
 import type { LedgerEvent, LedgerLifecycle, LedgerQuery, LedgerRow, LedgerSnapshot, LedgerWatermark } from './types.ts'
 
 /** Merge output keeps incompatible identities visible to callers. */
@@ -88,7 +89,7 @@ export function foldLedger(events: readonly LedgerEvent[], options: {
       rows.push({ kind: 'run', start: event.data, ...(end?.kind === 'run/end' ? { finish: end.data } : {}), liveness })
     } else if (event.kind !== 'call/end' && event.kind !== 'run/end') rows.push({ kind: 'event', event })
   }
-  const selected = rows.filter((row) => {
+  const selected = projectWaits(rows).filter((row) => {
     const start = row.kind === 'event' ? undefined : row.start
     const at = row.kind === 'event' ? row.event.observedAt : row.start.startedAt
     const context = row.kind === 'event' ? row.event : row.start

@@ -1,13 +1,14 @@
-/** Join only observed waits overlapping one physical call's lifetime. */
+/** Join observed tool waits by the issuing response, never by physical overlap. */
 import type { LedgerCallStart, LedgerInterval, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 
-/** Select complete or open wait facts without attributing adjacent calls or other runs.
- * @param snapshot - session-scoped durable observations at settlement.
- * @param call - the immutable physical call start.
- * @param endedAt - the physical call's wall-clock end.
- * @returns paired, deduplicated intervals clipped to this call; open waits remain open.
+/** Select paired wait facts already visible when a model response settles.
+ * @param snapshot - Session-scoped observations at settlement.
+ * @param call - Immutable issuing call identity.
+ * @param toolCallIds - Complete tool-call identities observed in this response.
+ * @returns Deduplicated full intervals; late facts are joined by the ledger projection.
  */
-export function callWaits(snapshot: LedgerSnapshot, call: LedgerCallStart, endedAt: number): LedgerInterval[] {
+export function callWaits(snapshot: LedgerSnapshot, call: LedgerCallStart,
+  toolCallIds: readonly NonNullable<LedgerInterval['toolCallId']>[]): LedgerInterval[] {
   const intervals = new Map<string, LedgerInterval>()
   for (const row of snapshot.rows) {
     if (row.kind !== 'event') continue
@@ -16,17 +17,9 @@ export function callWaits(snapshot: LedgerSnapshot, call: LedgerCallStart, ended
       || event.nodeId !== call.nodeId || event.sessionId !== call.sessionId
       || (event.callId !== undefined && event.callId !== call.callId)) continue
     const interval = event.interval
+    if (!interval.toolCallId || !toolCallIds.includes(interval.toolCallId)) continue
     const key = JSON.stringify([interval.kind, interval.toolCallId, interval.startedAt])
     if (!intervals.has(key) || event.kind === 'wait/end') intervals.set(key, interval)
   }
-  return [...intervals.values()].flatMap((interval) => {
-    const stop = interval.endedAt ?? endedAt
-    const start = Math.max(call.startedAt, interval.startedAt)
-    const end = Math.min(endedAt, stop)
-    if (end <= start) return []
-    if (interval.endedAt === undefined) return [{ ...interval, startedAt: start }]
-    const clipped = Math.max(0, start - interval.startedAt) + Math.max(0, stop - end)
-    return [{ ...interval, startedAt: start, endedAt: end,
-      durationMs: Math.max(0, (interval.durationMs ?? stop - interval.startedAt) - clipped) }]
-  })
+  return [...intervals.values()]
 }

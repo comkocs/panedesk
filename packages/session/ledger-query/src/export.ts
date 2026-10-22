@@ -1,5 +1,6 @@
 /** Public projection export/import; this format is not the ledger provider's journal. */
 import { open, writeFile } from 'node:fs/promises'
+import { projectWaits, withoutWaitProjection } from '@panedesk/dsh-session-ledger'
 import type { LedgerCall, LedgerRow, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import type { LedgerExportFormat } from './types.ts'
 import { sortRows, sumUsd, summarizeToday, tokenColumns } from './query.ts'
@@ -38,7 +39,8 @@ export function mergeLedger(snapshots: readonly LedgerSnapshot[]): LedgerMergeRe
       const key = rowKey(row)
       let variants = slots.get(key)
       if (!variants) { variants = new Map(); slots.set(key, variants) }
-      variants.set(canonical(row), row)
+      const fact = withoutWaitProjection(row)
+      variants.set(canonical(fact), fact)
     }
   }
   const rows: LedgerRow[] = [], conflicts: LedgerMergeConflict[] = []
@@ -48,7 +50,7 @@ export function mergeLedger(snapshots: readonly LedgerSnapshot[]): LedgerMergeRe
     if (values.length === 1 && first) rows.push(first)
     else conflicts.push({ key, variants: values })
   }
-  const sorted = sortRows(rows)
+  const sorted = sortRows(projectWaits(rows))
   const sessions = new Map<string, LedgerRow[]>()
   for (const row of sorted) {
     const id = row.kind === 'event' ? row.event.sessionId : row.start.sessionId

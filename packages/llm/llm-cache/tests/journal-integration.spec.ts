@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import { SessionId } from '@panedesk/dsh-session'
 import { createUserMessage, LlmAdapter } from '@panedesk/dsh-llm'
+import type { ToolCallId } from '@panedesk/dsh-llm'
 import { JournalSessionLedger } from '@panedesk/dsh-session-ledger'
 import type { LedgerRunId } from '@panedesk/dsh-session-ledger'
 import { harness, consume } from './harness.ts'
@@ -74,6 +75,37 @@ describe('cache journal integration', () => {
     expect(rows[0]?.finish).toMatchObject({ cacheWriteAccounting: 'not-applicable', usageState: 'complete',
       usage: { cacheWriteTokens: 0 }, pricingState: 'priced' })
     expect(rows[0]?.finish?.costUsd).toBeDefined()
+  })
+
+  it('projects late tool waits after settlement and journal reopening without altering call facts', async () => {
+    const { ctx, adapter, ledger, home, context } = await setup()
+    const ids = ['sleep-a', 'child-a'] as ToolCallId[]
+    adapter.chunks = ids.map((id, index) => ({ type: 'block-end', index,
+      block: { type: 'tool-call', id, name: 'wait', arguments: '{}' } }))
+    adapter.chunks.push({ type: 'finish', reason: { kind: 'tool-calls' } })
+    await consume(ctx)
+    const initial = (await ledger.snapshot()).rows.find(row => row.kind === 'call')
+    expect(initial?.finish?.toolCallIds).toEqual(ids)
+    expect(initial?.waits).toEqual([])
+    const startedAt = (initial?.finish?.endedAt ?? 0) + 1
+    for (const [index, kind, durationMs] of [[0, 'sleep', 30000], [1, 'subagent', 20000]] as const) {
+      const interval = { kind, toolCallId: ids[index]!, startedAt, endedAt: startedAt + durationMs, durationMs }
+      await ledger.appendEvent({ schemaVersion: 1, eventId: `wait-${index}` as import('@panedesk/dsh-session-ledger').LedgerEventId,
+        nodeId: context.nodeId, sessionId: context.sessionId, runId: context.runId,
+        observedAt: interval.endedAt, kind: 'wait/end', interval })
+    }
+    const reopenedContext = new Context()
+    contexts.push(reopenedContext)
+    const reopened = new JournalSessionLedger(reopenedContext, { dshHome: home })
+    const snapshot = await reopened.snapshot()
+    const call = snapshot.rows.find(row => row.kind === 'call')
+    const run = snapshot.rows.find(row => row.kind === 'run')
+    expect(call?.finish).toEqual(initial?.finish)
+    expect(call?.waitSummary).toEqual({ categories: {
+      sleep: { toolCalls: 1, durationMs: 30000 }, subagent: { toolCalls: 1, durationMs: 20000 },
+    } })
+    expect(run?.waitSummary).toEqual(call?.waitSummary)
+    expect((await reopened.finishCall(initial!.finish!)).kind).toBe('existing')
   })
 
   it('inherits a nonresident parent cache policy from the real journal without copying its evidence clock', async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { LedgerCall, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { projectWaits } from '@panedesk/dsh-session-ledger'
+import type { LedgerCall, LedgerEvent, LedgerInterval, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import { mergeLedger, parseLedgerExport, serializeLedger, verifyLedger } from '../src/export.ts'
 
 function call(id: string, node = 'node-a'): LedgerCall {
@@ -48,6 +49,30 @@ describe('public ledger export and merge', () => {
     expect(bad.snapshot.complete).toBe(false)
     expect(mergeLedger([snapshot([conflict, b], 'node-b'), snapshot([a])])).toEqual(bad)
   })
+  it('merges late wait projections as derived evidence and roundtrips them in exports', () => {
+    const row = call('a')
+    const toolCallId = 'tool-a' as NonNullable<LedgerInterval['toolCallId']>
+    row.finish = { callId: row.start.callId, endedAt: 200, observedAt: 200, effectiveModel: 'model-a',
+      responseModelReported: 'missing', usageState: 'missing', pricingState: 'missing-usage', wallMs: 100,
+      modelInFlightMs: 100, queueMs: 0, backoffMs: 0, waits: [], toolCallIds: [toolCallId],
+      compactionCount: 0, compactionTimes: [], endReason: 'completed', recovered: false }
+    const event: LedgerEvent = { schemaVersion: 1, eventId: 'wait-a' as LedgerEvent['eventId'],
+      nodeId: row.start.nodeId, sessionId: row.start.sessionId, runId: row.start.runId, observedAt: 30300,
+      kind: 'wait/end', interval: { kind: 'sleep', toolCallId, startedAt: 300, endedAt: 30300, durationMs: 30000 } }
+    const early = snapshot(projectWaits([row]))
+    const late = snapshot(projectWaits([row, { kind: 'event', event }]))
+    const merged = mergeLedger([early, late])
+    expect(merged.conflicts).toEqual([])
+    expect(merged.snapshot.rows.find(item => item.kind === 'call')?.waitSummary)
+      .toEqual({ categories: { sleep: { toolCalls: 1, durationMs: 30000 } } })
+    expect(parseLedgerExport(serializeLedger(merged.snapshot, 'jsonl'))).toEqual(merged.snapshot)
+    expect(serializeLedger(merged.snapshot, 'csv')).toContain('waitSummary')
+    expect(mergeLedger([late, early])).toEqual(merged)
+    const changed = structuredClone(row)
+    changed.finish!.wallMs = 101
+    expect(mergeLedger([late, snapshot([changed])]).conflicts).toHaveLength(1)
+  })
+
   it('rejects incomplete exports, invalid rows and impossible long-write counts', () => {
     const text = serializeLedger(snapshot([call('a')]), 'jsonl')
     expect(() => parseLedgerExport(text.trimEnd())).toThrow('Incomplete')

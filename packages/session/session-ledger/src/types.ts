@@ -215,6 +215,8 @@ export interface LedgerCallFinish {
   queueMs: number
   backoffMs: number
   waits: readonly LedgerInterval[]
+  /** Complete tool calls observed in this model response, used only for ledger attribution. */
+  toolCallIds?: readonly Branded<'ToolCallId'>[]
   peakContextTokens?: number
   peakContextSource?: 'usage' | 'estimate'
   compactionCount: number
@@ -239,11 +241,18 @@ export interface LedgerCallFinish {
   /** Observed failures for this physical call only, not cumulative retry totals. */
   http503Count?: number
 }
+/** Per-category sums of observed tool waits; absent durations are not estimated. */
+export interface LedgerWaitSummary {
+  categories: Partial<Record<LedgerInterval['kind'], { toolCalls: number; durationMs: number }>>
+}
 /** One projected call, joining its start with at most one committed terminal fact. */
 export interface LedgerCall {
   kind: 'call'
   start: LedgerCallStart
   finish?: LedgerCallFinish
+  /** Derived waits include late facts without changing the committed terminal observation. */
+  waits?: readonly LedgerInterval[]
+  waitSummary?: LedgerWaitSummary
 }
 /** Launch intent is not confirmed live execution until a verified process observation arrives. */
 export interface LedgerRunStart extends LedgerContext {
@@ -298,6 +307,12 @@ export interface LedgerLifecycle {
   start: LedgerRunStart
   finish?: LedgerRunFinish
   liveness: 'confirmed' | 'unknown' | 'dead'
+  /** Derived assigned waits and category sums across this run's calls. */
+  waits?: readonly LedgerInterval[]
+  waitSummary?: LedgerWaitSummary
+  /** Observed waits without a unique issuing call remain visible only at run level. */
+  unassignedWaits?: readonly LedgerInterval[]
+  unassignedWaitSummary?: LedgerWaitSummary
 }
 /** Auxiliary observations retain explicit categories without becoming billable call rows. */
 export type LedgerAuxiliaryFact =
