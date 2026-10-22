@@ -20,7 +20,7 @@ afterEach(async () => {
   for (const home of homes.splice(0)) await rm(home, { recursive: true, force: true })
 })
 
-it('mounts a controlled SDK preset and commits a fourth-tool denial with inherited journal identity', async () => {
+it.each(['inherited', 'startup'] as const)('mounts a controlled SDK preset and commits a fourth-tool denial with %s journal identity', async (identitySource) => {
   const home = await mkdtemp(join(import.meta.dirname, '.policy-journal-'))
   homes.push(home)
   const ctx = new Context()
@@ -44,7 +44,7 @@ it('mounts a controlled SDK preset and commits a fourth-tool denial with inherit
   try {
     await server.initialize({ cwd: home, provider: policy.provider, model: policy.model, reasoningEffort: ReasoningEffortId('high'),
       agentPreset: 'controlled', executionPolicy: { presetId: 'controlled', version: '1', digest: executionPolicyMetadata(policy).executionPolicyDigest },
-      ledgerContext: { seat: 'seat-a', window: 'window-a', taskId: 'task-a', nodeId: await ctx.sessionLedger.nodeId(), identitySource: 'inherited',
+      ledgerContext: { seat: 'seat-a', window: 'window-a', taskId: 'task-a', nodeId: await ctx.sessionLedger.nodeId(), identitySource,
         parentSessionId: 'parent-a', rootSessionId: 'root-a', subagentRunId: 'run-a', parentRunId: 'parent-run-a', childSessionId: 'child-a' },
     })
     await server.prompt({ sessionId: 'child-a', contentBlocks: [{ type: 'text', text: 'Try the fourth tool' }] })
@@ -52,7 +52,7 @@ it('mounts a controlled SDK preset and commits a fourth-tool denial with inherit
     expect(executed).toBe(false)
     expect(adapter.requests[0]).toMatchObject({ model: 'model-a', reasoningEffort: 'high' })
     expect(JSON.stringify(adapter.requests[1]?.messages)).toContain('Denied by the installed execution policy')
-    expect(ctx.sessionLedger.contextFor(SessionId('child-a'))).toMatchObject({ seat: 'seat-a', parentRunId: 'parent-run-a', runId: 'run-a' })
+    expect(ctx.sessionLedger.contextFor(SessionId('child-a'))).toMatchObject({ seat: 'seat-a', identitySource, parentRunId: 'parent-run-a', runId: 'run-a' })
     const reopenedContext = new Context()
     contexts.push(reopenedContext)
     const reopened = new JournalSessionLedger(reopenedContext, { dshHome: home })

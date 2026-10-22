@@ -245,6 +245,8 @@ export interface ResolvedProfileRuntime {
 
 /** Options for {@link runProfile}. */
 export interface RunProfileOptions {
+  /** Launcher-owned ledger labels; never appended to a Session header. */
+  ledgerIdentity?: { seat?: string; window?: string; taskId?: string }
   /** This run's frozen environment snapshot, provided before any entry mounts. */
   environment: LaunchEnvironmentSnapshot
   /** The profile name to boot. */
@@ -326,6 +328,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       // Before any config-tree entry mounts, so plugins resolve all launch-time
       // environment values from the same immutable launch snapshot.
       hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
+      if (options.ledgerIdentity !== undefined) hostCtx.provide('ledgerStartupIdentity', Object.freeze({ ...options.ledgerIdentity }))
       await hostCtx.plugin(PluginPackages, {
         resolution: composed.resolution,
       })

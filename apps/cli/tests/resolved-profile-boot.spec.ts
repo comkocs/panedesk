@@ -112,6 +112,8 @@ describe('runProfile with an application-owned profile', () => {
     vi.mocked(installProxyFromEnvironment).mockResolvedValue(disposeProxy)
     vi.mocked(boot).mockImplementation(async (_name, _root, _patches, setup) => {
       await setup?.(ctx)
+      expect(ctx.get('ledgerStartupIdentity')).toEqual({ seat: 'seat-a', window: 'window-a', taskId: 'task-a' })
+      expect(Object.isFrozen(ctx.get('ledgerStartupIdentity'))).toBe(true)
       return ctx
     })
     const homePatch = join(home, 'cordis.patch.yml')
@@ -137,6 +139,7 @@ describe('runProfile with an application-owned profile', () => {
     try {
       const { shutdown } = await runProfile({
         environment, profile: 'desktop', resolvedProfile: runtime,
+        ledgerIdentity: { seat: 'seat-a', window: 'window-a', taskId: 'task-a' },
         patchFiles: [overlay], args: ['--port', '0', '--no-open'],
       })
       expect(installProxyFromEnvironment).toHaveBeenCalledWith(environment, expect.any(Function))

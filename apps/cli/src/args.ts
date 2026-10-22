@@ -29,6 +29,8 @@ export const DEFAULT_PROFILE = 'slim'
 /** Boot a named profile and hand it the invocation's inner arguments. */
 interface ProfileInvocation {
   mode: 'profile'
+  /** Runtime-only attribution supplied before profile plugins mount. */
+  ledgerIdentity?: { seat?: string; window?: string; taskId?: string }
   profile: string
   /** Shipped template that replaces the named profile. */
   fromDefaultProfile?: string | undefined
@@ -71,6 +73,9 @@ export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfi
 
 /** Launcher flags for profile boot and configuration dumps. */
 interface BootOptions {
+  seat?: string
+  window?: string
+  taskId?: string
   patch?: string[]
   dumpConfig?: boolean
   dumpDefaultConfig?: boolean
@@ -136,9 +141,18 @@ function resolveBoot(program: Command, profile: string, options: BootOptions, ar
     program.error(`error: cannot replace preset "${profile}" with template "${options.fromDefaultProfile}"; choose a different target name, e.g. panedesk rescue --from-default-profile ${options.fromDefaultProfile}`)
   }
   const dumps = [options.dumpConfig, options.dumpDefaultConfig, options.dumpConfigSchema].filter(Boolean)
-  if (dumps.length === 0) {
-    return { mode: 'profile', profile, fromDefaultProfile: options.fromDefaultProfile, patches, args }
+  const ledgerIdentity = {
+    ...options.seat === undefined ? {} : { seat: options.seat },
+    ...options.window === undefined ? {} : { window: options.window },
+    ...options.taskId === undefined ? {} : { taskId: options.taskId },
   }
+  if (Object.values(ledgerIdentity).some(value => value.trim().length === 0)) program.error('error: identity labels must not be empty')
+  const hasIdentity = Object.keys(ledgerIdentity).length > 0
+  if (dumps.length === 0) {
+    return { mode: 'profile', profile, fromDefaultProfile: options.fromDefaultProfile, patches, args,
+      ...hasIdentity ? { ledgerIdentity } : {} }
+  }
+  if (hasIdentity) program.error('error: config dumps take no runtime identity labels')
   if (dumps.length > 1) {
     program.error('error: --dump-config, --dump-default-config, and --dump-config-schema are mutually exclusive')
   }
@@ -191,6 +205,9 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
     .option('--profile <name>', `the profile under $PANEDESK_HOME/profiles to boot (default: ${DEFAULT_PROFILE})`, selectProfile)
     .option('--from-default-profile <name>', 'replace a custom profile with a fresh copy of a shipped profile template')
     .option('--patch <path>', 'extra patch-list overlay applied after the profile layer (repeatable)', collect)
+    .option('--seat <label>', 'runtime ledger seat label (overrides environment and settings)')
+    .option('--window <label>', 'runtime ledger window label (overrides environment and settings)')
+    .option('--task-id <label>', 'runtime ledger work item label (overrides environment and settings)')
     .option('--dump-config', 'print the composed profile tree and exit')
     .option('--dump-config-schema', 'print JSON Schema for profile entries and patches without mounting')
     .option('--dump-default-config', 'print the profile tree without its user layer or --patch overlays and exit')
@@ -202,6 +219,7 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
       // app flags or `--`) reaches the app or the task text unchanged.
       if (options.profile === undefined) {
         const bare = args.length === 0 && options.patch === undefined && options.fromDefaultProfile === undefined
+          && options.seat === undefined && options.window === undefined && options.taskId === undefined
           && options.dumpConfig !== true && options.dumpDefaultConfig !== true && options.dumpConfigSchema !== true
         if (bare || (options.fromDefaultProfile === undefined && (args[0] === '-h' || args[0] === '--help'))) program.help()
       }

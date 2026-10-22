@@ -21,6 +21,14 @@ function exitCode(argv: string[], manageDesktopProfile = false): number {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('parseDshArgs', () => {
+  it('passes runtime identity labels separately from application arguments', () => {
+    expect(parse(['--seat', 'seat-a', '--window', 'window-a', '--task-id', 'task-a', 'run the tests']))
+      .toMatchObject({ mode: 'profile', profile: 'slim', ledgerIdentity: { seat: 'seat-a', window: 'window-a', taskId: 'task-a' }, args: ['run the tests'] })
+    expect(parse(['web', '--seat', 'seat-a', '--help'])).toMatchObject({ ledgerIdentity: { seat: 'seat-a' }, args: ['--help'] })
+    expect(exitCode(['--seat='])).toBe(1)
+    expect(exitCode(['--seat', 'seat-a', '--dump-config'])).toBe(1)
+  })
+
   it('routes profile boots and shorthand, handing the rest to the app', () => {
     expect(parse(['--profile', 'tui'])).toEqual({ mode: 'profile', profile: 'tui', patches: [], args: [] })
     expect(parse(['--profile', 'tui', '--patch', 'a.yml', '--patch', 'b.yml']))
