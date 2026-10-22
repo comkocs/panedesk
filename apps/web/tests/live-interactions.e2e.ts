@@ -153,6 +153,7 @@ describe('web e2e: live-turn interactions (cancel / error / retry)', () => {
       marker = join(sidecarHome, '.hang-ready')
       return { patches: [{ at: 0, entry: { kind: 'hang', readyFile: marker } }] }
     })
+    await scaffold!.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     onTestFailed(() => saveFailureShot(page, 'web-e2e-cancel'))
     const { settled } = await sendPrompt()
     // The marker IS the synchronization: the stream is provably parked in the
@@ -170,7 +171,7 @@ describe('web e2e: live-turn interactions (cancel / error / retry)', () => {
 
     const input = page.locator('[data-composer-input]').first()
     await input.fill(RUNNING_DRAFT)
-    // The running primary names its delivery: the default busy-state
+    // The running primary names its delivery: the saved busy-state
     // preference is Queue, so the button reads Queue rather than plain Send.
     const send = page.getByRole('button', { name: 'Queue message', exact: true })
     await send.waitFor({ timeout: 10_000 })
