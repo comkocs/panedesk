@@ -93,8 +93,9 @@ export async function serviceFixture(home: string, watch = false) {
     return { ctx, service, ledger, emitted, session,
       async resume(target = session) {
         const lease = await ctx.sessionPersistence.open(target.id, 'write')
+        const agents = ctx.agents
         const scheduler = schedulerFixture(ctx, target)
-        const detach = ctx.agents.enter(scheduler.agent, undefined)
+        const detach = agents.enter(scheduler.agent, undefined)
         const writes: Promise<void>[] = []
         const stop = ctx.on('session/event', (source, event) => {
           if (source === target) writes.push(lease.append([event]))
@@ -103,7 +104,7 @@ export async function serviceFixture(home: string, watch = false) {
         const close = async () => {
           if (closed) return
           closed = true
-          await ctx.agents.ending(scheduler.agent)
+          await agents.ending(scheduler.agent)
           stop()
           await Promise.all(writes)
           await lease.close()
