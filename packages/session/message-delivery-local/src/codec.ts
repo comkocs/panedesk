@@ -100,11 +100,21 @@ function decode<T>(schema: z.ZodType<T>, value: unknown): T {
  * @returns message retaining its identity.
  */
 export function decodeMessage(value: unknown): DeliveryMessage { return decode(message, value) }
-/** Validate a sequenced send or control.
- * @param value - durable JSON payload.
+/** Validate a send or control before publication or during durable replay.
+ * @param value - command payload.
+ * @param source - requests reject with the SDK parameter error; durable replay rejects unavailable evidence.
  * @returns validated command.
  */
-export function decodeCommand(value: unknown): SendCommand | ControlCommand { return decode(z.union([send, control]), value) }
+export function decodeCommand(value: unknown, source: 'durable' | 'request' = 'durable'): SendCommand | ControlCommand {
+  const schema = z.union([send, control])
+  if (source === 'durable') return decode(schema, value)
+  const result = schema.safeParse(value)
+  if (!result.success) {
+    const kind = typeof value === 'object' && value !== null && 'kind' in value ? String(value.kind) : 'unknown'
+    throw new TypeError(`Invalid messages/${kind} parameters`, { cause: result.error })
+  }
+  return result.data
+}
 /** Validate a complete status history.
  * @param value - durable JSON payload.
  * @returns validated status.

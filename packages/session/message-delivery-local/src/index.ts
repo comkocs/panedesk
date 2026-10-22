@@ -286,7 +286,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
           operationId: request.operationId, mailboxSequence: 0, stateVersion: 0,
           ...(request.messageClass === 'reply' ? { messageClass: 'reply', replyTo: request.replyTo } : { messageClass: request.messageClass }),
         }
-        const record = await this.mailbox.append(recipient.sessionId, request.operationId, digest, { kind: 'send', message, result })
+        const record = await this.mailbox.append(recipient.sessionId, request.operationId, digest,
+          decodeCommand({ kind: 'send', message, result }, 'request'))
         const original = decodeCommand(record.value)
         if (original.kind !== 'send') throw new MailboxUnavailableError('operation-conflict')
         result = original.result
@@ -320,6 +321,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   private async control(command: ControlCommand): Promise<ControlResult> {
     await this.ready
+    decodeCommand(command, 'request')
     const message = await this.findMessage(command.messageId)
     const rejected = (reason: 'message-not-found' | 'invalid-content' | 'unauthorized'): ControlResult => ({ kind: 'rejected',
       operationId: command.operationId, messageId: command.messageId, reason, status: null })
