@@ -1,7 +1,7 @@
 import { once } from 'node:events'
 import { PassThrough, Writable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { JsonRpcLineTransport, JsonRpcResponseError } from '../src/index.ts'
+import { JsonRpcLineTransport, JsonRpcResponseError, decodeMessagesRequest, decodeMessagesResult, decodeMessageState, isMessagesMethod } from '../src/index.ts'
 
 function transportPair() {
   const aToB = new PassThrough()
@@ -10,6 +10,51 @@ function transportPair() {
   const b = new JsonRpcLineTransport(aToB, bToA)
   return { a, b, aToB, bToA }
 }
+
+describe('Message wire validation', () => {
+  const controls = { messageId: 'message-a', operationId: 'operation-a', expectedRevision: 0 }
+  const cases = [
+    ['messages/send', { target: { sessionId: 'seat-a' }, content: 'work', messageClass: 'handoff', operationId: 'operation-a' }, { messageId: 'message-a', operationId: 'operation-a', deliveryOutcome: 'rejected', reason: 'target-not-found', messageState: 'rejected', pending: false, candidates: [] }],
+    ['messages/withdraw', controls, { ...controls, kind: 'accepted-pending-owner', state: 'queued', revision: 0 }],
+    ['messages/edit', { ...controls, content: 'updated' }, { ...controls, kind: 'rejected', reason: 'claimed', status: null }],
+    ['messages/reprioritize', { ...controls, priority: 'immediate' }, { ...controls, kind: 'rejected', reason: 'injected', status: null }],
+    ['messages/invalidate', { ...controls, reason: 'superseded' }, { ...controls, kind: 'accepted-pending-owner', state: 'queued', revision: 0 }],
+    ['messages/status', { messageId: 'message-a' }, { messageId: 'message-a', state: 'queued', phase: 'pending', revision: 0, stateVersion: 1, transitions: [] }],
+    ['messages/operationStatus', { operationId: 'operation-a' }, { operationId: 'operation-a', kind: 'not-found' }],
+    ['messages/list', {}, { items: [], complete: false, nextCursor: 'cursor-a' }],
+    ['messages/resolve', { addresses: [{ name: 'seat-a' }] }, []],
+    ['messages/sendBatch', { messageClass: 'reply', replyTo: 'message-a', content: 'reply', recipients: [], dryRun: true }, { kind: 'resolved', recipients: [] }],
+    ['messages/configure', { sessionId: 'seat-a', settings: { receiveMode: 'none', wakeOnHandoff: false } }, { receiveMode: 'none', wakeOnHandoff: false }],
+    ['messages/subscribe', { sessionId: 'seat-a', cursor: 'cursor-a' }, { cursor: 'cursor-a' }],
+  ] as const
+  it.each(cases)('round trips %s and retains structured refusal', async (method, params, result) => {
+    expect(isMessagesMethod(method)).toBe(true)
+    expect(decodeMessagesRequest(method, params)).toEqual(params)
+    expect(decodeMessagesResult(method, result)).toEqual(result)
+    expect(() => decodeMessagesRequest(method, null)).toThrow()
+    expect(() => decodeMessagesResult(method, null)).toThrow()
+    const { a, b } = transportPair()
+    a.onRequest(async (name, value) => {
+      expect(name).toBe(method)
+      expect(decodeMessagesRequest(method, value)).toEqual(params)
+      return result
+    })
+    a.start(); b.start()
+    try {
+      expect(decodeMessagesResult(method, await b.request(method, params))).toEqual(result)
+      a.onRequest(async () => { throw new JsonRpcResponseError(-32601, 'unsupported', { reason: 'unsupported' }) })
+      await expect(b.request(method, params)).rejects.toMatchObject({ code: -32601, data: { reason: 'unsupported' } })
+    } finally { a.close(); b.close() }
+  })
+  it('rejects attribution, invalid enums, incomplete replies and malformed receipts', () => {
+    const send = cases[0][1]
+    for (const patch of [{ senderSessionId: 'seat-b' }, { sender: {} }, { priority: 'urgent' }, { messageClass: 'reply' }, { target: { sessionId: 'seat-a', name: 'seat-a' } }]) {
+      expect(() => decodeMessagesRequest('messages/send', { ...send, ...patch })).toThrow()
+    }
+    expect(isMessagesMethod('toString')).toBe(false)
+    expect(() => decodeMessageState({ cursor: 'cursor-a' })).toThrow()
+  })
+})
 
 describe('JsonRpcLineTransport', () => {
   it('supports bidirectional requests and notifications over newline-delimited JSON-RPC', async () => {

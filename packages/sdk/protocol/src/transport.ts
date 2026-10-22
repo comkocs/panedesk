@@ -233,7 +233,9 @@ export class JsonRpcLineTransport implements JsonRpcTransportPeer {
       const result = await handler(method, params)
       this.write({ jsonrpc: '2.0', id, result })
     } catch (error) {
-      this.writeError(id, -32603, error instanceof Error ? error.message : String(error))
+      this.writeError(id, error instanceof JsonRpcResponseError ? error.code ?? -32603 : -32603,
+        error instanceof Error ? error.message : String(error),
+        error instanceof JsonRpcResponseError ? error.data : undefined)
     }
   }
 
@@ -253,8 +255,8 @@ export class JsonRpcLineTransport implements JsonRpcTransportPeer {
     pending.resolve(frame.result)
   }
 
-  private writeError(id: JsonRpcId, code: number, message: string): void {
-    this.write({ jsonrpc: '2.0', id, error: { code, message } })
+  private writeError(id: JsonRpcId, code: number, message: string, data?: unknown): void {
+    this.write({ jsonrpc: '2.0', id, error: { code, message, ...data === undefined ? {} : { data } } })
   }
 
   private write(message: Record<string, unknown>): void {

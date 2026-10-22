@@ -33,6 +33,9 @@ function strings(value: Record<string, unknown>, keys: readonly string[]): void 
 export function validateHandshake(params: InitializeParams): void {
   if (!object(params)) throw new TypeError('initialize requires an object')
   strings(params, ['cwd', 'provider', 'model'])
+  if (params.messagesVersion !== undefined && (!Number.isSafeInteger(params.messagesVersion) || params.messagesVersion <= 0)) {
+    throw new TypeError('initialize messagesVersion must be a positive safe integer')
+  }
   if (params.agentPreset !== undefined) strings(params, ['agentPreset'])
   if (params.executionPolicy !== undefined) {
     if (!object(params.executionPolicy)) throw new TypeError('initialize executionPolicy requires an object')
