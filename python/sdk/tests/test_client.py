@@ -214,10 +214,30 @@ for line in sys.stdin:
         "cwd": str(tmp_path),
         "provider": "deepseek-official",
         "model": "deepseek-v4-flash",
-        "messagesVersion": 1,
         "reasoningEffort": "max",
         "maxTokens": 4096,
     }
+
+
+@pytest.mark.parametrize("enable_messages", [None, False, True])
+def test_initialize_sends_message_version_only_when_enabled(tmp_path: Path, monkeypatch, enable_messages) -> None:
+    from deepseek_harness.models import InitializeResponse
+
+    config = HarnessConfig() if enable_messages is None else HarnessConfig(enable_messages=enable_messages)
+    client = HarnessClient(config)
+    requests = []
+
+    def request(method, params, **kwargs):
+        requests.append((method, params))
+        return InitializeResponse(serverInfo={"name": "fixture"}, messagesVersion=1)
+
+    monkeypatch.setattr(client, "request", request)
+    client.initialize(cwd=str(tmp_path), provider="mock", model="model-a")
+    expected = {"cwd": str(tmp_path), "provider": "mock", "model": "model-a"}
+    if enable_messages is True:
+        expected["messagesVersion"] = 1
+    assert requests == [("initialize", expected)]
+    assert client._messages_version == (1 if enable_messages is True else None)
 
 
 def test_session_run_invokes_notification_callback_before_returning(tmp_path: Path) -> None:

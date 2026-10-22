@@ -51,8 +51,8 @@ function processClient(options: RuntimeProcessOptions): HarnessClient {
   return createProcessHarnessClient(options)
 }
 
-function harnessWith(env: Record<string, string> = {}, extra: LaunchOverrides = {}): DeepSeekHarness {
-  const harness = createProcessDeepSeekHarness(fakeLaunch(env, extra))
+function harnessWith(env: Record<string, string> = {}, extra: LaunchOverrides = {}, enableMessages = false): DeepSeekHarness {
+  const harness = createProcessDeepSeekHarness(fakeLaunch(env, extra), { enableMessages })
   cleanups.push(() => harness.close())
   return harness
 }
@@ -64,6 +64,35 @@ async function tempDir(prefix: string): Promise<string> {
 }
 
 describe('SDK messages', () => {
+  function messageHarness(env: Record<string, string> = {}): DeepSeekHarness {
+    return harnessWith(env, {}, true)
+  }
+
+  it.each([undefined, false, true])('negotiates message delivery only when explicitly enabled: %s', async (enableMessages) => {
+    const root = await tempDir('sdk-message-opt-in-')
+    const recorded = join(root, 'initialize.jsonl')
+    const requests = join(root, 'messages.jsonl')
+    const options = enableMessages === undefined ? {} : { enableMessages }
+    const harness = createProcessDeepSeekHarness(fakeLaunch({
+      FAKE_RECORD_INIT: recorded, FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_REQUESTS: requests,
+      FAKE_MESSAGE_RESULTS: JSON.stringify({ 'messages/list': { items: [], complete: true } }),
+    }), options)
+    cleanups.push(() => harness.close())
+    await harness.start()
+    const params = JSON.parse((await readFile(recorded, 'utf8')).trim()) as object
+    if (enableMessages === true) {
+      expect(params).toHaveProperty('messagesVersion', 1)
+      await expect(harness.messages.list({})).resolves.toEqual({ items: [], complete: true })
+    } else {
+      expect(params).not.toHaveProperty('messagesVersion')
+      await expect(harness.messages.list({})).rejects.toMatchObject({
+        code: -32601, message: 'Message delivery capability was not negotiated', data: { reason: 'unsupported' },
+      })
+      const stream = harness.session('seat-a').messages.subscribe()[Symbol.asyncIterator]()
+      await expect(stream.next()).rejects.toMatchObject({ message: 'Message delivery capability was not negotiated' })
+      await expect(stat(requests)).rejects.toThrow()
+    }
+  })
   const control = { messageId: 'message-a', operationId: 'operation-a', expectedRevision: 0 }
   const send = decodeMessagesRequest('messages/send', { target: { sessionId: 'seat-a' }, operationId: 'operation-a', messageClass: 'handoff', content: 'work' })
   const receipt = decodeMessageState({ cursor: 'cursor-a', nodeId: 'node-a', data: { messageId: 'message-a', senderSessionId: null,
@@ -100,7 +129,7 @@ describe('SDK messages', () => {
   it.each(calls)('encodes and decodes %s through both client layers', async (method, invoke) => {
     const root = await tempDir('sdk-message-wire-')
     const recorded = join(root, 'requests.jsonl')
-    const harness = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify(results), FAKE_MESSAGE_REQUESTS: recorded })
+    const harness = messageHarness({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify(results), FAKE_MESSAGE_REQUESTS: recorded })
     await harness.start()
     expect(await invoke(harness.client.messages)).toEqual(decodeMessagesResult(method, results[method]))
     expect(await invoke(harness.messages)).toEqual(results[method])
@@ -113,20 +142,20 @@ describe('SDK messages', () => {
     }
   })
   it.each(calls)('rejects unsupported, malformed and failed %s results', async (method, invoke) => {
-    const unsupported = harnessWith()
+    const unsupported = messageHarness()
     await unsupported.start()
     await expect(invoke(unsupported.client.messages)).rejects.toMatchObject({ data: { reason: 'unsupported' } })
-    const malformed = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify({ [method]: null }) })
+    const malformed = messageHarness({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify({ [method]: null }) })
     await malformed.start()
     await expect(invoke(malformed.client.messages)).rejects.toBeInstanceOf(SdkProtocolError)
-    const failed = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_ERROR: '1' })
+    const failed = messageHarness({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_ERROR: '1' })
     await failed.start()
     await expect(invoke(failed.client.messages)).rejects.toMatchObject({ data: { reason: 'unavailable' } })
   })
   it('defaults Session target to self and only new sends to steer', async () => {
     const root = await tempDir('sdk-message-defaults-')
     const recorded = join(root, 'requests.jsonl')
-    const harness = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify(results), FAKE_MESSAGE_REQUESTS: recorded })
+    const harness = messageHarness({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_RESULTS: JSON.stringify(results), FAKE_MESSAGE_REQUESTS: recorded })
     const session = harness.session('seat-a')
     await session.messages.send({ messageClass: 'handoff', content: 'work', operationId: send.operationId })
     for (const priority of ['queue', 'steer', 'immediate'] as const) await session.messages.send({ ...send, priority })
@@ -138,7 +167,7 @@ describe('SDK messages', () => {
   })
   it('buffers notifications before admission and resumes from the consumed cursor', async () => {
     const second = { ...receipt, cursor: 'cursor-b' }
-    const harness = harnessWith({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_EVENTS: JSON.stringify([receipt, second]) })
+    const harness = messageHarness({ FAKE_MESSAGES_VERSION: '1', FAKE_MESSAGE_EVENTS: JSON.stringify([receipt, second]) })
     const session = harness.session('seat-a')
     const firstStream = session.messages.subscribe()[Symbol.asyncIterator]()
     expect((await firstStream.next()).value).toEqual(receipt)
@@ -148,10 +177,10 @@ describe('SDK messages', () => {
     await resumed.return?.()
   })
   it('rejects unsupported subscriptions and malformed capability versions', async () => {
-    const harness = harnessWith()
+    const harness = messageHarness()
     const stream = harness.session('seat-a').messages.subscribe()[Symbol.asyncIterator]()
     await expect(stream.next()).rejects.toMatchObject({ data: { reason: 'unsupported' } })
-    await expect(harnessWith({ FAKE_MESSAGES_VERSION: '"one"' }).start()).rejects.toBeInstanceOf(SdkProtocolError)
+    await expect(messageHarness({ FAKE_MESSAGES_VERSION: '"one"' }).start()).rejects.toBeInstanceOf(SdkProtocolError)
   })
 })
 
@@ -437,7 +466,6 @@ describe('DeepSeekHarness', () => {
     await harness.close()
     const records = (await readFile(recordFile, 'utf8')).trim().split('\n').map(line => JSON.parse(line) as object)
     expect(records).toEqual([{
-      messagesVersion: 1,
       cwd: dir,
       provider: 'custom-provider',
       model: 'custom-model',

@@ -36,6 +36,7 @@ class HarnessConfig:
     initialize_timeout_seconds: float = 30.0
     request_timeout_seconds: float | None = None
     shutdown_timeout_seconds: float | None = 1.0
+    enable_messages: bool = False
 
 
 class HarnessClient:
@@ -153,8 +154,9 @@ class HarnessClient:
             "cwd": str(Path(cwd).resolve()),
             "provider": provider,
             "model": model,
-            "messagesVersion": 1,
         }
+        if self.config.enable_messages:
+            payload["messagesVersion"] = 1
         if reasoning_effort is not None:
             payload["reasoningEffort"] = reasoning_effort
         if max_tokens is not None:
@@ -175,7 +177,7 @@ class HarnessClient:
                 response_model=InitializeResponse,
                 timeout_seconds=self.config.initialize_timeout_seconds,
             )
-            self._messages_version = 1 if response.messagesVersion == 1 else None
+            self._messages_version = 1 if self.config.enable_messages and response.messagesVersion == 1 else None
             return response
         except TimeoutError as error:
             self.close()
@@ -610,6 +612,8 @@ class MessagesClient:
     def _prepare(self) -> None:
         if self._before_request is not None:
             self._before_request()
+        if not self._client.config.enable_messages:
+            raise JsonRpcError(-32601, "Message delivery capability was not negotiated", {"reason": "unsupported"})
         if self._client._messages_version != 1:
             raise JsonRpcError(-32601, "Message delivery is unsupported by the runtime", {"reason": "unsupported"})
 

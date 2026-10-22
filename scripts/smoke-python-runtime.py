@@ -1615,7 +1615,7 @@ def smoke_sdk_message_delivery(base_url: str, executable: Path, update_snapshots
             {"id": "skill-filesystem", "config": {"includeDefaultRoots": False}},
         ])
         with DeepSeekHarness(
-            provider="deepseek-official", model="smoke-model", cwd=str(root),
+            provider="deepseek-official", model="smoke-model", cwd=str(root), enable_messages=True,
             dsh_bin=str(executable), dsh_home=str(home), patches=(str(patch),),
             env={"PANEDESK_TELEMETRY_DISABLED": "1", "PANEDESK_AGENTS_HOME": str(root / ".agents")},
             api_key="sk-keyless-smoke", base_url=base_url, request_timeout_seconds=60,

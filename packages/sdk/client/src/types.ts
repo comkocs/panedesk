@@ -40,6 +40,8 @@ export interface HarnessClientOptions {
    * for the shared scrub-then-merge base).
    */
   env?: NodeJS.ProcessEnv
+  /** Opt in to message delivery negotiation (default false); legacy prompts are unaffected. */
+  enableMessages?: boolean
   /** Bound (ms) on the initial profile handshake (default 10000). */
   initializeTimeoutMs?: number
   /** Per-request timeout (ms); `undefined` waits indefinitely (a turn can legitimately run long). */

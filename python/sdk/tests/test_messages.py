@@ -94,7 +94,7 @@ for line in sys.stdin:
 ''', encoding="utf-8")
     count = 0
 
-    def create(config=None, *, high=False):
+    def create(config=None, *, high=False, enable_messages=True):
         nonlocal count
         transcript = tmp_path / f"requests-{count}.jsonl"
         count += 1
@@ -103,9 +103,9 @@ for line in sys.stdin:
             del options["version"]
         args = (sys.executable, str(script), json.dumps(options), str(transcript))
         if high:
-            client = DeepSeekHarness(cwd=str(tmp_path), provider="mock", model="model-a", request_timeout_seconds=2, _launch_args=args)
+            client = DeepSeekHarness(cwd=str(tmp_path), provider="mock", model="model-a", enable_messages=enable_messages, request_timeout_seconds=2, _launch_args=args)
         else:
-            client = HarnessClient(HarnessConfig(request_timeout_seconds=2), _launch_args=args)
+            client = HarnessClient(HarnessConfig(request_timeout_seconds=2, enable_messages=enable_messages), _launch_args=args)
             client.start()
             try:
                 client.initialize(cwd=str(tmp_path), provider="mock", model="model-a")
@@ -115,6 +115,22 @@ for line in sys.stdin:
         return client, transcript
 
     return create
+
+
+@pytest.mark.parametrize("high", [False, True], ids=["low", "high"])
+@pytest.mark.parametrize("name,wire,argument,result,expected", CASES, ids=[row[0] for row in CASES])
+def test_disabled_messages_reject_without_sending_requests(runtime, high, name, wire, argument, result, expected):
+    owner, transcript = runtime(high=high, enable_messages=False)
+    try:
+        with pytest.raises(JsonRpcError, match="Message delivery capability was not negotiated") as caught:
+            getattr(owner.messages, name)(argument)
+        assert caught.value.code == -32601
+        assert caught.value.data == {"reason": "unsupported"}
+    finally:
+        owner.close()
+    requests = [json.loads(line) for line in transcript.read_text().splitlines()]
+    assert "messagesVersion" not in requests[0]["params"]
+    assert not any(item["method"].startswith("messages/") for item in requests)
 
 
 def dump(result):

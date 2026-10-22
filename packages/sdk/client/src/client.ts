@@ -346,7 +346,12 @@ export class HarnessClient {
    */
   async initialize(params: InitializeParams): Promise<InitializeResult> {
     this.messagesVersion = undefined
-    const result = await this.request('initialize', { messagesVersion: MESSAGES_VERSION, ...params }, this.runtime.initializeTimeoutMs)
+    const { messagesVersion, ...legacyParams } = params
+    const requestedVersion = this.options.enableMessages === true ? messagesVersion ?? MESSAGES_VERSION : undefined
+    const result = await this.request('initialize', {
+      ...legacyParams,
+      ...requestedVersion === undefined ? {} : { messagesVersion: requestedVersion },
+    }, this.runtime.initializeTimeoutMs)
     if (!isRecord(result) || !isRecord(result.serverInfo)
       || typeof result.serverInfo.name !== 'string' || typeof result.serverInfo.version !== 'string') {
       throw new SdkProtocolError(`initialize returned no server identity: ${JSON.stringify(result)}`)
@@ -354,7 +359,8 @@ export class HarnessClient {
     if (result.messagesVersion !== undefined && (!Number.isSafeInteger(result.messagesVersion) || Number(result.messagesVersion) <= 0)) {
       throw new SdkProtocolError('initialize returned an invalid messagesVersion')
     }
-    this.messagesVersion = result.messagesVersion === MESSAGES_VERSION ? MESSAGES_VERSION : undefined
+    this.messagesVersion = requestedVersion === MESSAGES_VERSION && result.messagesVersion === MESSAGES_VERSION
+      ? MESSAGES_VERSION : undefined
     return { serverInfo: { name: result.serverInfo.name, version: result.serverInfo.version },
       ...this.messagesVersion === undefined ? {} : { messagesVersion: this.messagesVersion } }
   }
@@ -403,6 +409,9 @@ export class HarnessClient {
   }
 
   private async messageRequest<M extends keyof MessagesRequestMap>(method: M, params: MessagesRequestMap[M]['params']): Promise<MessagesRequestMap[M]['result']> {
+    if (this.options.enableMessages !== true) {
+      throw new JsonRpcResponseError(-32601, 'Message delivery capability was not negotiated', { reason: 'unsupported' })
+    }
     if (this.messagesVersion !== MESSAGES_VERSION) {
       throw new JsonRpcResponseError(-32601, 'Message delivery is unsupported by the runtime', { reason: 'unsupported' })
     }
@@ -630,13 +639,17 @@ function resolveMessageSend<T extends SendMessageRequest | SendBatchRequest>(req
   return { ...request, priority: request.priority ?? (request.messageClass === 'notice' ? 'queue' : 'steer') }
 }
 
-/** Construct the transport against a generic process for package-local fake-runtime tests. */
-export function createProcessHarnessClient(options: RuntimeProcessOptions): HarnessClient {
+/** Construct the transport against a generic process for package-local fake-runtime tests.
+ * @param options - process launch and timeout configuration.
+ * @param clientOptions - client capabilities; message delivery is disabled when omitted.
+ * @returns the client owning the configured transport.
+ */
+export function createProcessHarnessClient(options: RuntimeProcessOptions, clientOptions: HarnessClientOptions = {}): HarnessClient {
   const Constructor = HarnessClient as new (
     publicOptions: HarnessClientOptions,
     runtime: RuntimeProcessOptions,
   ) => HarnessClient
-  return new Constructor({}, options)
+  return new Constructor(clientOptions, options)
 }
 
 /**

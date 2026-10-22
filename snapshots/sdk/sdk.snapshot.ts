@@ -649,6 +649,7 @@ async function runScenario(scenario: CorpusScenario): Promise<{
 
   const createHarness = (): DeepSeekHarness => new DeepSeekHarness({
     profile: scenario.manifest.profile,
+    enableMessages: scenario.name === 'message-delivery',
     patches,
     dshHome,
     processCwd: cwd,

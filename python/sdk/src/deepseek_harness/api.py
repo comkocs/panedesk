@@ -39,6 +39,7 @@ class DeepSeekHarnessConfig:
     shutdown_timeout_seconds: float | None = 1.0
     base_url: str | None = None
     api_key: str | None = None
+    enable_messages: bool = False
 
 
 @dataclass(slots=True)
@@ -88,6 +89,7 @@ class DeepSeekHarness:
                 initialize_timeout_seconds=self.config.initialize_timeout_seconds,
                 request_timeout_seconds=self.config.request_timeout_seconds,
                 shutdown_timeout_seconds=self.config.shutdown_timeout_seconds,
+                enable_messages=self.config.enable_messages,
             ),
             _launch_args=_launch_args,
         )
