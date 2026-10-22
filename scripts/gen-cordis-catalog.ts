@@ -514,6 +514,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   LedgerExportResult: 'session-telemetry.md',
   LedgerAppendResult: 'session-telemetry.md',
   LedgerWaitCategory: 'session-telemetry.md',
+  LedgerWaitSummary: 'session-telemetry.md',
   LedgerArtifactAppend: 'session-telemetry.md',
   LedgerArtifactAppendResult: 'session-telemetry.md',
   LedgerArtifactFinishResult: 'session-telemetry.md',

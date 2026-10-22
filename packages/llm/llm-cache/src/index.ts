@@ -5,7 +5,7 @@ import z from '@panedesk/schemastery'
 import { assembleContextFor } from '@panedesk/dsh-agent'
 import type { Agent } from '@panedesk/dsh-agent'
 import { LlmAdapter, LlmError } from '@panedesk/dsh-llm'
-import type { GenerateOptions, StreamChunk, TokenUsage } from '@panedesk/dsh-llm'
+import type { GenerateOptions, StreamChunk, TokenUsage, ToolCallId } from '@panedesk/dsh-llm'
 import { renderPrompt } from '@panedesk/dsh-system-prompt'
 import type { PromptAssembly } from '@panedesk/dsh-system-prompt'
 import type {
@@ -478,6 +478,7 @@ export function apply(ctx: Context, config: Config): void {
     let finish: Extract<StreamChunk, { type: 'finish' }> | undefined
     let partial: LedgerArtifactReference | undefined
     const artifacts: LedgerArtifactReference[] = []
+    const toolCallIds = new Set<ToolCallId>()
     let seq = 0
     let failure: unknown
     async function artifact(kind: 'partial-response' | 'keepalive-request', content: string, index: number): Promise<LedgerArtifactReference | undefined> {
@@ -508,6 +509,7 @@ export function apply(ctx: Context, config: Config): void {
       for await (const chunk of next()) {
         if (chunk.type === 'usage') usage = chunk.usage
         if (chunk.type === 'finish') finish = chunk
+        if (chunk.type === 'block-end' && chunk.block.type === 'tool-call' && chunk.block.id) toolCallIds.add(chunk.block.id)
         // Persist fragments before exposing them, including requests that later terminate without settlement.
         if (chunk.type !== 'finish' && chunk.type !== 'usage') partial = await artifact('partial-response', JSON.stringify(chunk), seq++)
         yield chunk
@@ -577,11 +579,11 @@ export function apply(ctx: Context, config: Config): void {
             if (!known) tiering = { kind: 'unknown' }
           }
           const priced = service.priceUsage({ usage, usageState, tiering, startedAt, entry: selectedPrice })
-          const waits = callWaits(await service.snapshot({ sessionId: start.sessionId }), start, endedAt)
+          const waits = callWaits(await service.snapshot({ sessionId: start.sessionId }), start, [...toolCallIds])
           const timeout = (reason?.kind === 'error' || reason?.kind === 'aborted') && reason.failure.code === 'TIMEOUT'
             || failure instanceof LlmError && failure.code === 'TIMEOUT'
           const end: LedgerCallFinish = {
-            callId, endedAt, observedAt: Date.now(),
+            callId, endedAt, observedAt: Date.now(), toolCallIds: [...toolCallIds],
             ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
             responseModelReported: finish?.responseModelReported ?? 'unobservable',
             effectiveModel: finish?.responseModel ?? request.model,

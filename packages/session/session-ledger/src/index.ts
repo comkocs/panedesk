@@ -23,6 +23,7 @@ import type {
 } from './types.ts'
 export type * from './types.ts'
 export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
+export { projectWaits, withoutWaitProjection } from './waits.ts'
 
 /** Trusted configuration accepted by concrete ledger providers. */
 export type Config = LedgerOptions

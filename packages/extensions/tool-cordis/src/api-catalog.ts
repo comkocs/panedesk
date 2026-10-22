@@ -6176,11 +6176,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerCall',
-    declaration: 'export interface LedgerCall {\n    kind: \'call\';\n    start: LedgerCallStart;\n    finish?: LedgerCallFinish;\n}',
+    declaration: 'export interface LedgerCall {\n    kind: \'call\';\n    start: LedgerCallStart;\n    finish?: LedgerCallFinish;\n    waits?: readonly LedgerInterval[];\n    waitSummary?: LedgerWaitSummary;\n}',
   },
   {
     name: 'LedgerCallFinish',
-    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported | \'not-reported\';\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    reportedUsage?: Readonly<Record<string, number>>;\n    usageState: LedgerUsageState;\n    cacheWriteAccounting?: \'not-applicable\';\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    priceVersion?: string;\n    priceKey?: string;\n    priceKeySource?: \'response-model\' | \'request-model\' | \'unknown\';\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n    accountLabel?: string;\n    cacheWriteTiering?: LedgerCacheWriteTiering;\n    cache?: LedgerCacheEvidence;\n    http429Count?: number;\n    http503Count?: number;\n}',
+    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported | \'not-reported\';\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    reportedUsage?: Readonly<Record<string, number>>;\n    usageState: LedgerUsageState;\n    cacheWriteAccounting?: \'not-applicable\';\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    priceVersion?: string;\n    priceKey?: string;\n    priceKeySource?: \'response-model\' | \'request-model\' | \'unknown\';\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    toolCallIds?: readonly Branded<\'ToolCallId\'>[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n    accountLabel?: string;\n    cacheWriteTiering?: LedgerCacheWriteTiering;\n    cache?: LedgerCacheEvidence;\n    http429Count?: number;\n    http503Count?: number;\n}',
   },
   {
     name: 'LedgerCallId',
@@ -6244,7 +6244,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerLifecycle',
-    declaration: 'export interface LedgerLifecycle {\n    kind: \'run\';\n    start: LedgerRunStart;\n    finish?: LedgerRunFinish;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n}',
+    declaration: 'export interface LedgerLifecycle {\n    kind: \'run\';\n    start: LedgerRunStart;\n    finish?: LedgerRunFinish;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    waits?: readonly LedgerInterval[];\n    waitSummary?: LedgerWaitSummary;\n    unassignedWaits?: readonly LedgerInterval[];\n    unassignedWaitSummary?: LedgerWaitSummary;\n}',
   },
   {
     name: 'LedgerNodeId',
@@ -6353,6 +6353,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LedgerWaitCategory',
     declaration: 'export type LedgerWaitCategory = \'sleep\' | \'external-marker\' | \'subagent\';',
+  },
+  {
+    name: 'LedgerWaitSummary',
+    declaration: 'export interface LedgerWaitSummary {\n    categories: Partial<Record<LedgerInterval[\'kind\'], {\n        toolCalls: number;\n        durationMs: number;\n    }>>;\n}',
   },
   {
     name: 'LedgerWatermark',

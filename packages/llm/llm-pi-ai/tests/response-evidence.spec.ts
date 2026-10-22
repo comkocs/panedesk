@@ -70,19 +70,23 @@ describe('provider response evidence', () => {
     expect(server.headers.map(headers => headers.session_id)).toEqual(sessions.map(session => encodeURIComponent(session)))
     expect(server.requests[0]).toMatchObject({ prompt_cache_key: sessions[0] })
   })
-  it.each(['deepseek-model-a', 'glm-model-a', 'grok-model-a'])
-  ('declares cache writes not applicable for %s without changing stream usage', async (model) => {
+  it.each(['deepseek-model-a', 'glm-model-a', 'grok-model-a'].flatMap(model =>
+    [undefined, 0, 70].map(write => ({ model, write }))))
+  ('$model prefers reported writes $write over provider defaults without changing stream usage', async ({ model, write }) => {
     const events = textEvents.map((event) => {
       if (event === '[DONE]') return event
       const parsed = JSON.parse(event) as Record<string, unknown>
       return JSON.stringify({ ...parsed, model,
-        usage: { prompt_tokens: 10, completion_tokens: 1, total_tokens: 11, prompt_tokens_details: { cached_tokens: 0 } } })
+        usage: { prompt_tokens: 10, completion_tokens: 1, total_tokens: 11 + (write ?? 0),
+          prompt_tokens_details: { cached_tokens: 0 },
+          ...write === undefined ? {} : { cache_creation_input_tokens: write } } })
     })
     const server = await mockServer([{ events }])
     const result = await collect(adapter('openai-completions', server.url, model), model)
-    expect(result.finish && LlmAdapter.ledgerEvidence?.get(result.finish)).toMatchObject({
-      cacheWriteAccounting: 'not-applicable', usage: { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
-    })
+    const evidence = result.finish && LlmAdapter.ledgerEvidence?.get(result.finish)
+    expect(evidence).toMatchObject({ usage: { outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: write ?? 0 } })
+    if (write === undefined) expect(evidence?.cacheWriteAccounting).toBe('not-applicable')
+    else expect(evidence).not.toHaveProperty('cacheWriteAccounting')
     expect(result.usage).not.toHaveProperty('cacheWriteTokens')
     expect(result.finish).not.toHaveProperty('cacheWriteAccounting')
   })
