@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { performance } from 'node:perf_hooks'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
@@ -12,9 +13,10 @@ import { mountAgentLoopTestDependencies, createTestGate } from '@panedesk/dsh-ag
 import * as Instructions from '@panedesk/dsh-agent-instructions'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import * as Model from '@panedesk/dsh-llm-deepseek-api-key'
-import { startMockLlmServer, type MockLlmBehavior } from '@panedesk/dsh-llm-mock-server'
+import { startMockLlmServer, type MockLlmBehavior, type MockLlmServerOptions } from '@panedesk/dsh-llm-mock-server'
 import type { OperationId } from '@panedesk/dsh-message-delivery'
 import Delivery from '@panedesk/dsh-message-delivery-local'
+import { FileMailbox } from '@panedesk/dsh-message-delivery-local/src/mailbox.ts'
 import { SessionId } from '@panedesk/dsh-session'
 import Ledger, { type LedgerRunId } from '@panedesk/dsh-session-ledger'
 import * as Persistence from '@panedesk/dsh-session-persistence-jsonl'
@@ -36,7 +38,9 @@ function wireMessages(body: unknown): unknown[] {
   return body.messages
 }
 
-async function harness(sequence: readonly MockLlmBehavior[], subscriptions = false, root?: string) {
+async function harness(
+  sequence: readonly MockLlmBehavior[], subscriptions = false, root?: string, mock: Partial<MockLlmServerOptions> = {},
+) {
   const ownRoot = root === undefined
   root ??= await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? tmpdir(), 'kernel-delivery-'))
   const home = join(root, randomUUID())
@@ -45,7 +49,7 @@ async function harness(sequence: readonly MockLlmBehavior[], subscriptions = fal
   vi.stubEnv('PANEDESK_HOME', home)
   vi.stubEnv('PANEDESK_AGENTS_HOME', join(home, 'agents'))
   vi.stubEnv('DEEPSEEK_API_KEY', 'mock-key')
-  const server = await startMockLlmServer({ sequence, toolName: 'boundary_tool', toolArguments: '{}' })
+  const server = await startMockLlmServer({ sequence, toolName: 'boundary_tool', toolArguments: '{}', ...mock })
   const ctx = new Context()
   onTestFinished(async () => {
     try { await ctx.fiber.dispose() } finally {
@@ -150,6 +154,116 @@ it('withdraws queued input through the shared queue mutation before a real reque
   await h.child.agent.whenIdle()
   expect(h.server.requests).toHaveLength(1)
   expect(JSON.stringify(h.server.requests[0]!.body)).not.toContain('Withdraw this content.')
+})
+
+it('aborts a real HTTP stream for immediate input and preserves queued work for continuation', async () => {
+  const streaming = createTestGate()
+  const h = await harness(['success', 'success', 'success'], false, undefined, {
+    async beforeChunk(record) {
+      if (record.attempt !== 1 || record.chunksSent < 2) return
+      streaming.release()
+      if (!record.signal.aborted) await new Promise<void>((resolve) => {
+        record.signal.addEventListener('abort', () => { resolve() }, { once: true })
+      })
+    },
+  })
+  h.child.agent.followup(input('Start streaming.'))
+  await streaming.wait()
+  const queued = await h.ctx.messageDelivery.send({ target: { sessionId: h.child.agent.id },
+    messageClass: 'handoff', priority: 'queue', content: 'Retain queued work.', operationId: operation() })
+  const immediate = await h.ctx.messageDelivery.send({ target: { sessionId: h.child.agent.id },
+    messageClass: 'handoff', priority: 'immediate', content: 'Handle urgent work.', operationId: operation() })
+  expect(immediate.deliveryOutcome).toBe('accepted')
+  await h.server.requests[0]!.abortConfirmed
+  await h.child.agent.whenIdle()
+  expect(h.server.requests[0]!.chunksSent).toBeGreaterThan(0)
+  expect(h.server.requests[0]!.signal.aborted).toBe(true)
+  const events = h.child.agent.session.snapshotEvents()
+  const endings = events.flatMap(event => event.type === 'turn/end' ? [event.data.reason.kind] : [])
+  expect(endings[0]).toBe('aborted')
+  expect(endings.slice(1)).toContain('completed')
+  for (const id of [immediate.messageId, queued.messageId]) {
+    expect(events.filter(event => event.type === 'user/message' && event.data.id === id)).toHaveLength(1)
+  }
+  const continuation = h.server.requests.slice(1).map(record => JSON.stringify(record.body)).join('\n')
+  expect(continuation).toContain('Handle urgent work.')
+  expect(continuation).toContain('Retain queued work.')
+})
+
+it('arbitrates offline withdrawal and edit before a real resumed Agent claims input', async () => {
+  const h = await harness(['success', 'success'])
+  h.child.agent.followup(input('Create durable session history.'))
+  await h.child.agent.whenIdle()
+  await h.ctx.sessions.flush(h.child.agent.session)
+  await h.child.dispose()
+  await vi.waitFor(async () => {
+    expect(await h.ctx.messageDelivery.resolve([{ sessionId: h.child.agent.id }]))
+      .toMatchObject([{ kind: 'resolved', recipient: { status: 'closed' } }])
+  })
+  const withdrawn = await h.ctx.messageDelivery.send({ target: { sessionId: h.child.agent.id },
+    messageClass: 'handoff', content: 'Never dispatch this offline message.', operationId: operation() })
+  const edited = await h.ctx.messageDelivery.send({ target: { sessionId: h.child.agent.id },
+    messageClass: 'handoff', content: 'Replace this offline message.', operationId: operation() })
+  expect(withdrawn).toMatchObject({ deliveryOutcome: 'rejected', reason: 'target-closed-pending', messageState: 'queued', pending: true })
+  expect(await h.ctx.messageDelivery.withdraw({ messageId: withdrawn.messageId, operationId: operation(), expectedRevision: 0 }))
+    .toMatchObject({ kind: 'accepted-pending-owner' })
+  expect(await h.ctx.messageDelivery.edit({ messageId: edited.messageId, operationId: operation(), expectedRevision: 0,
+    content: 'Dispatch only the revised offline message.' })).toMatchObject({ kind: 'accepted-pending-owner' })
+  expect(h.server.requests).toHaveLength(1)
+  const resumed = await h.ctx.agents.resume({ resumeSessionId: h.child.agent.id, parentAgent: h.parent.agent,
+    agentOptions: { provider: 'deepseek-official', model: 'model-a' } })
+  await vi.waitFor(() => { expect(h.server.requests).toHaveLength(2) })
+  await resumed.agent.whenIdle()
+  const body = JSON.stringify(h.server.requests[1]!.body)
+  expect(body).toContain('Dispatch only the revised offline message.')
+  expect(body).not.toContain('Never dispatch this offline message.')
+  expect(body).not.toContain('Replace this offline message.')
+  expect(await h.ctx.messageDelivery.status(withdrawn.messageId)).toMatchObject({ state: 'withdrawn' })
+  expect(resumed.agent.session.snapshotEvents().filter(event => event.type === 'user/message' && event.data.id === withdrawn.messageId))
+    .toHaveLength(0)
+})
+
+it('wakes idle real Agents for handoff and reply within five seconds of durable publication', async () => {
+  const h = await harness(['success', 'success'])
+  const persisted = new Map<string, number>()
+  // The observer invokes the original with the same receiver before recording publication.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  const original = FileMailbox.prototype.append
+  const observation = vi.spyOn(FileMailbox.prototype, 'append').mockImplementation(async function (this: FileMailbox, ...args) {
+    const record = await original.apply(this, args)
+    persisted.set(record.operationId, performance.now())
+    return record
+  })
+  onTestFinished(() => { observation.mockRestore() })
+  const starts = new Map<string, number>()
+  h.ctx.on('session/event', (session, event) => {
+    if (event.type === 'turn/start') starts.set(session.id, performance.now())
+  })
+  const handoffOperation = operation()
+  const handoff = await h.ctx.agents.withInitiator(h.parent.agent, () => h.ctx.messageDelivery.send({
+    target: { sessionId: h.child.agent.id }, messageClass: 'handoff', content: 'Review this item.', operationId: handoffOperation,
+  }))
+  await vi.waitFor(() => { expect(starts.has(h.child.agent.id)).toBe(true) }, { timeout: 5000, interval: 10 })
+  await h.child.agent.whenIdle()
+  expect(handoff.deliveryOutcome).toBe('accepted')
+  const replyOperation = operation()
+  const reply = await h.ctx.agents.withInitiator(h.child.agent, () => h.ctx.messageDelivery.send({
+    target: { sessionId: h.parent.agent.id }, messageClass: 'reply', replyTo: handoff.messageId,
+    content: 'Review completed.', operationId: replyOperation,
+  }))
+  await vi.waitFor(() => { expect(starts.has(h.parent.agent.id)).toBe(true) }, { timeout: 5000, interval: 10 })
+  await h.parent.agent.whenIdle()
+  expect(reply.deliveryOutcome).toBe('accepted')
+  const handoffMs = starts.get(h.child.agent.id)! - persisted.get(handoffOperation)!
+  const replyMs = starts.get(h.parent.agent.id)! - persisted.get(replyOperation)!
+  for (const elapsed of [handoffMs, replyMs]) {
+    expect(elapsed).toBeGreaterThanOrEqual(0)
+    expect(elapsed).toBeLessThanOrEqual(5000)
+  }
+  expect(h.server.requests).toHaveLength(2)
+  expect(JSON.stringify(h.server.requests[0]!.body)).toContain('Review this item.')
+  expect(JSON.stringify(h.server.requests[1]!.body)).toContain('Review completed.')
+  process.stdout.write(JSON.stringify({ handoffMs, replyMs, watch: false, realKernel: true }) + '\n')
 })
 
 it('notifies parent and child through real preparation and compares captured request prefixes with subscriptions disabled', async () => {
