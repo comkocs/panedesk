@@ -712,6 +712,7 @@ describe('web e2e: settings modal and General preferences', () => {
 
   it('persists the busy-state Enter behavior across reload and a distinct port', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-enter-behavior'))
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     await openSettings(page, 'zh')
     const dialog = page.getByRole('dialog', { name: '设置' })
     await dialog.waitFor({ timeout: 10_000 })

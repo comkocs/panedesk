@@ -544,6 +544,7 @@ async function openWorld(browser: Browser, scenario: Case, replayDir: string): P
   const scaffold = await launchScaffold(scenario, replayDir)
   let page: Page | undefined
   try {
+    await scaffold.ctx.settings.update('ui-conversation', { busyEnter: 'queue' })
     page = await newEnglishPage(browser, 900)
     return await prepareWorld(browser, scenario, scaffold, page)
   } catch (error) {
