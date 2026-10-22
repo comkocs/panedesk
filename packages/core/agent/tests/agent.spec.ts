@@ -241,6 +241,47 @@ describe('AgentRegistry', () => {
 })
 
 describe('agentEvents()', () => {
+  it('keeps synchronous preparation and claim ahead of the baseline microtask', async () => {
+    const order: string[] = []
+    const ctx = new Context()
+    const agent = stubAgent('sync-preparation')
+    const payload = { turn: 1, step: 1, signal: new AbortController().signal }
+    const baseline = agentEvents(ctx, agent).prepareInput(payload)
+    expect(baseline).toBeUndefined()
+    ctx.on('agent/input-preparing', () => { order.push('first') })
+    ctx.on('agent/input-preparing', () => { order.push('second') })
+    const microtask = Promise.resolve().then(() => { order.push('microtask') })
+    const preparation = agentEvents(ctx, agent).prepareInput(payload)
+    expect(preparation).toBeUndefined()
+    if (preparation !== undefined) await preparation
+    order.push('claim')
+    expect(order).toEqual(['first', 'second', 'claim'])
+    await microtask
+    expect(order).toEqual(['first', 'second', 'claim', 'microtask'])
+    await ctx.fiber.dispose()
+  })
+
+  it('waits serially from the first asynchronous preparation listener', async () => {
+    const ctx = new Context()
+    const agent = stubAgent('async-preparation')
+    const release = Promise.withResolvers<undefined>()
+    const order: string[] = []
+    ctx.on('agent/input-preparing', () => { order.push('first') })
+    ctx.on('agent/input-preparing', async () => {
+      order.push('second:start')
+      await release.promise
+      order.push('second:end')
+    })
+    ctx.on('agent/input-preparing', () => { order.push('third') })
+    const preparation = agentEvents(ctx, agent).prepareInput({ turn: 1, step: 1, signal: new AbortController().signal })
+    expect(preparation).toBeInstanceOf(Promise)
+    expect(order).toEqual(['first', 'second:start'])
+    release.resolve(undefined)
+    await preparation
+    expect(order).toEqual(['first', 'second:start', 'second:end', 'third'])
+    await ctx.fiber.dispose()
+  })
+
   it('contains each synchronous throw and returned-promise rejection', async () => {
     const ctx = new Context()
     const warnings: string[] = []

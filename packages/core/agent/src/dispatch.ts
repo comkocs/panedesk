@@ -71,7 +71,7 @@ export interface AgentEventDispatch {
   /**
    * Preserve synchronous progress when no scoped listener needs preparation.
    * @param payload - the input boundary fields; `agent` is injected.
-   * @returns the serial preparation, or undefined when no listener matches.
+   * @returns the serial preparation, or undefined when every matching listener returns synchronously.
    */
   prepareInput(payload: PayloadRest<'agent/input-preparing'>): Promise<void> | undefined
   /**
@@ -144,10 +144,17 @@ export function agentEvents(ctx: Context, agent: Agent, carrier: Scoped<Agent> =
     prepareInput(payload) {
       const args: unknown[] = [carrier, 'agent/input-preparing', fused<'agent/input-preparing'>(payload)]
       const callbacks = ctx.events.dispatch('serial', args)
-      if (callbacks.length === 0) return undefined
-      return (async () => {
-        for (const callback of callbacks) await callback(...args)
-      })()
+      for (const [index, callback] of callbacks.entries()) {
+        const returned: unknown = callback(...args)
+        if (returned !== null && (typeof returned === 'object' || typeof returned === 'function')
+          && 'then' in returned && typeof returned.then === 'function') {
+          return (async () => {
+            await Promise.resolve(returned)
+            for (const remaining of callbacks.slice(index + 1)) await remaining(...args)
+          })()
+        }
+      }
+      return undefined
     },
     async serial(name, payload) {
       // oxlint-disable-next-line typescript/unbound-method -- the events mixin accessor returns a pre-bound function
