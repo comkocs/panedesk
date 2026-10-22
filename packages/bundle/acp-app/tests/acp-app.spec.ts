@@ -29,7 +29,7 @@ describe('dsh-acp-app bundle', () => {
     const rows = patches.flatMap(patch => patch.insert ?? [])
     expect(rows.find(row => row.id === 'acp-app-startup')?.name).toBe('@panedesk/dsh-acp-app')
     expect(rows.find(row => row.id === 'acp')).toMatchObject({
-      inject: ['acpAppStartup'],
+      inject: ['acpAppStartup', 'messageDelivery'],
       config: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
     })
   })
