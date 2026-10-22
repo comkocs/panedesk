@@ -6,6 +6,11 @@ import { SessionLedger } from '@panedesk/dsh-session-ledger'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerCallFinish, LedgerCallStart, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerPriceUsageRequest, LedgerPriceUsageResult, LedgerQuery, LedgerRunFinish, LedgerRunId, LedgerRunStart, LedgerSnapshot, LedgerWaitCategory, LedgerWatermark } from '@panedesk/dsh-session-ledger'
 
 export class MemoryLedger extends SessionLedger {
+  resolveCallContext(_request: Parameters<SessionLedger['resolveCallContext']>[0]): ReturnType<SessionLedger['resolveCallContext']> { throw new Error('Unexpected context resolution') }
+  bindContext(_context: Parameters<SessionLedger['bindContext']>[0]): () => void { return () => undefined }
+  contextFor(_sessionId: SessionId): ReturnType<SessionLedger['contextFor']> { return undefined }
+  nodeId(): Promise<LedgerNodeId> { return Promise.resolve(brandString<LedgerNodeId>('node-a')) }
+  importNode(_source: string): ReturnType<SessionLedger['importNode']> { throw new Error('Unexpected import') }
   readonly events: LedgerEvent[] = []
   readonly starts: LedgerRunStart[] = []
   readonly finishes: LedgerRunFinish[] = []

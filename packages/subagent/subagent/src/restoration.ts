@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
-import { executionPolicyMetadata, type PresetExecutionPolicy } from '@panedesk/dsh-agent-preset-registry'
+import type { PresetExecutionPolicy } from '@panedesk/dsh-agent-preset-registry'
 import { brandString } from '@panedesk/dsh-brand'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { LedgerEventId, LedgerLifecycle } from '@panedesk/dsh-session-ledger'
@@ -40,6 +40,7 @@ export async function restoreExecutionEvidence(
   const original = controlled.toSorted((a, b) => a.start.startedAt - b.start.startedAt)[0]
   if (original === undefined) return refuse('original execution policy run record is missing')
   const run = original.start
+  const { executionPolicyMetadata } = await import('@panedesk/dsh-agent-preset-registry')
   let metadata: ReturnType<typeof executionPolicyMetadata>
   try {
     if (run.executionPolicy === undefined) return refuse('original execution policy is missing')

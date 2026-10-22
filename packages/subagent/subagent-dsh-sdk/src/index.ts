@@ -165,7 +165,23 @@ class SdkSubagentProvider implements SubagentProvider {
       ...request.agentOptions,
     })
     const ledger = this.ctx.get('sessionLedger')
-    const parentContext = ledger?.contextFor(request.parent.session.id)
+    let parentContext = ledger?.contextFor(request.parent.session.id)
+    const snapshot = ledger === undefined ? undefined : await ledger.snapshot({ sessionId: request.parent.session.id })
+    if (parentContext === undefined && snapshot?.complete) {
+      const start = snapshot.rows.flatMap(row => row.kind === 'event' ? [] : [row.start])
+        .toSorted((a, b) => b.startedAt - a.startedAt)[0]
+      if (start !== undefined) parentContext = { ...start }
+    }
+    const evidence = snapshot?.complete ? snapshot.rows.flatMap(row => row.kind === 'call'
+      ? [{ at: row.start.startedAt, cache: row.finish?.cache ?? row.start.cache }]
+      : row.kind === 'event' && row.event.kind === 'cache/evidence'
+        ? [{ at: row.event.observedAt, cache: row.event.evidence }] : [])
+      .toSorted((a, b) => b.at - a.at)[0]?.cache : undefined
+    const inheritedPolicy = evidence?.sessionPolicy
+    const cachePolicy = inheritedPolicy === undefined ? request.parent.session.requestHeader()?.config.cache : {
+      retention: inheritedPolicy.retention,
+      ...inheritedPolicy.stableKey === undefined ? {} : { key: inheritedPolicy.stableKey },
+    }
     const spec: SdkRunSpec = {
       ...this.config.dshBin === undefined ? {} : { dshBin: this.config.dshBin },
       profile: this.config.profile,
@@ -180,6 +196,7 @@ class SdkSubagentProvider implements SubagentProvider {
       } },
       ...ledger === undefined ? {} : { ledger },
       ...parentContext === undefined ? {} : { parentContext },
+      ...cachePolicy === undefined ? {} : { cachePolicy },
       env: this.config.env,
       shutdownTimeoutMs: this.config.shutdownTimeoutMs,
       disposeEofGraceMs: this.config.disposeEofGraceMs,

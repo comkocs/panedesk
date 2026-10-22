@@ -28,8 +28,11 @@ export const name = 'llm-cache'
 export const inject = ['llm', 'agents', 'systemPrompt']
 /** Session cache and harness-process concurrency configuration. */
 export interface Config {
+  /** Default session cache retention and stable key policy. */
   policy: CachePolicy
+  /** Default maintenance scheduling policy for idle sessions. */
   keepalive: KeepalivePolicy
+  /** Admission limits for explicitly configured provider families. */
   concurrency: FamilyConcurrencyLimit[]
   /** Explicit capabilities for gateway routes; unknown routes never acquire guessed TTL support. */
   routes?: CacheRoute[]
@@ -282,6 +285,18 @@ export function apply(ctx: Context, config: Config): void {
       ctx.logger.warn('Cache recovery is incomplete; maintenance remains disabled until fresh evidence')
     }
     state.evidence = structuredClone(foldCacheState(snapshot))
+    const linkage = service.contextFor(agent.id) ?? snapshot.rows.flatMap(row => row.kind === 'event' ? [] : [row.start])[0]
+    if (state.evidence === undefined && linkage?.parentSessionId !== undefined && !states.has(linkage.parentSessionId)) {
+      const parentSnapshot = await service.snapshot({ sessionId: linkage.parentSessionId })
+      const inherited = parentSnapshot.complete ? foldCacheState(parentSnapshot) : undefined
+      if (agent.options.cachePolicy === undefined && inherited?.sessionPolicy !== undefined) {
+        state.policy = structuredClone(inherited.sessionPolicy)
+        state.policyOverride = true
+      }
+      if (agent.options.cacheKeepalive === undefined && inherited?.keepalivePolicy !== undefined) {
+        state.keepalive = structuredClone(inherited.keepalivePolicy)
+      }
+    }
     state.compactionTimes = snapshot.rows.flatMap(row => row.kind === 'event' && row.event.kind === 'compaction' ? [row.event.committedAt] : [])
     for (const row of snapshot.rows) {
       if (row.kind === 'call' && row.start.purpose === 'conversation'

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { InitializeParams } from '@panedesk/dsh-sdk-protocol'
-import type { Context } from '@panedesk/cordis'
+import { Context } from '@panedesk/cordis'
+import AgentPresets from '@panedesk/dsh-agent-preset-registry'
+import Loader from '@panedesk/cordis-plugin-loader'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { ReasoningEffortId } from '@panedesk/dsh-llm'
 import { executionPolicyDigest, validateHandshake } from '../src/handshake.ts'
 import { HarnessSdkJsonRpcServer } from '../src/server.ts'
@@ -17,8 +20,11 @@ describe('optional SDK handshake validation', () => {
   it.each(['version', 'digest', 'model'] as const)('rejects an installed policy %s mismatch before adapter resolution', async (field) => {
     const policy = { provider: 'mock', model: 'mock', reasoningEffort: 'high', allowedTools: [], rulesId: 'rules', version: '1', digest: 'rules-digest' }
     const digest = executionPolicyDigest(policy)
-    const registry = { resolve: async () => ({ id: 'worker', executionPolicy: policy, executionPolicyDigest: digest }) }
-    const ctx = { on: () => () => {}, get: (name: string) => name === 'agentPresets' ? registry : undefined } as unknown as Context
+    const ctx = new Context()
+    await ctx.plugin(Loader)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(AgentPresets, { default: 'worker' })
+    await ctx.agentPresets.register({ id: 'worker', plugins: [], executionPolicy: policy })
     const server = new HarnessSdkJsonRpcServer(ctx, { notify: () => {}, request: async () => ({}) })
     await expect(server.initialize({ ...legacy, model: field === 'model' ? 'other' : 'mock',
       reasoningEffort: ReasoningEffortId('high'), agentPreset: 'worker', executionPolicy: {
@@ -26,6 +32,7 @@ describe('optional SDK handshake validation', () => {
       },
     })).rejects.toThrow(field === 'model' ? 'route does not match' : 'version or digest mismatch')
     await server.shutdown()
+    await ctx.fiber.dispose()
   })
 
   it('accepts legacy clients and a complete new handshake', () => {

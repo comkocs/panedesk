@@ -7,7 +7,7 @@ import { mountWorkingDirectoryFixture } from '../../subagent/tests/working-direc
  * quiescent disposal are all exercised end to end. No model, no key.
  */
 
-import { startExternalActivation } from '../../subagent/tests/external-activation-helpers.ts'
+import { externalTestParent, startExternalActivation } from '../../subagent/tests/external-activation-helpers.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -18,7 +18,7 @@ import SubagentRuntime from '@panedesk/dsh-subagent'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import type { Agent, AgentOptions } from '@panedesk/dsh-agent'
 import { brandString } from '@panedesk/dsh-brand'
-import type { SessionLedger, LedgerSessionContext, LedgerRunStart, LedgerRunFinish, LedgerEvent } from '@panedesk/dsh-session-ledger'
+import type { LedgerSessionContext, LedgerRunStart, LedgerRunFinish, LedgerEvent } from '@panedesk/dsh-session-ledger'
 import { JournalSessionLedger } from '@panedesk/dsh-session-ledger'
 import {
   DeepSeekHarness,
@@ -158,6 +158,30 @@ describe('sdkChildOutcome', () => {
 })
 
 describe('dsh-subagent-dsh-sdk provider', () => {
+  it('aligns activation identity and inherits an unbound durable parent through the SDK handshake', async () => {
+    const home = mkdtempSync(join(import.meta.dirname, '.sdk-ledger-'))
+    const ctx = await setup()
+    try {
+      await ctx.plugin(JournalSessionLedger, { dshHome: home })
+      const parent = await externalTestParent(ctx, process.cwd())
+      const ledger = ctx.sessionLedger
+      await ledger.beginRun({ sessionId: parent.id, rootSessionId: parent.id,
+        runId: brandString<LedgerSessionContext['runId']>('parent-run-a'), nodeId: await ledger.nodeId(),
+        seat: 'seat-a', window: 'window-a', accountLabel: 'unknown', identitySource: 'startup',
+        startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+      expect(ledger.contextFor(parent.id)).toBeUndefined()
+      let activationId: string | undefined
+      ctx.on('subagent/start', (info) => { activationId = info.runId })
+      const activation = await startExternalActivation(ctx, 'dsh-sdk', { ...request(), parent })
+      await activation.result
+      expect(activationId).toBe(activation.childId)
+      expect(createdHarnessOptions[0]?.ledgerContext).toMatchObject({ parentRunId: 'parent-run-a', seat: 'seat-a', subagentRunId: activationId })
+      expect((await ledger.snapshot()).rows.filter(row => row.kind === 'run')).toHaveLength(2)
+    } finally {
+      await ctx.fiber.dispose()
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
   it('reopens a real journal after an owned SDK child kill with one durable terminal fact', async () => {
     const home = mkdtempSync(join(import.meta.dirname, '.sdk-ledger-'))
     const ctx = new Context()
@@ -208,15 +232,23 @@ describe('dsh-subagent-dsh-sdk provider', () => {
       seat: 'seat', window: 'window', nodeId: brandString<LedgerSessionContext['nodeId']>('node'), identitySource: 'startup',
       sessionId: brandString<LedgerSessionContext['sessionId']>('parent'), rootSessionId: brandString<LedgerSessionContext['sessionId']>('root'), runId: brandString<LedgerSessionContext['runId']>('parent-run'), accountLabel: 'unknown',
     }
-    const ledger = {
-      beginRun: async (fact: LedgerRunStart) => { order.push('intent'); facts.push(fact); return { kind: 'appended' } },
-      appendEvent: async (fact: LedgerEvent) => {
-        order.push('identity'); facts.push(fact)
-        if (mode === 'kill-before-initialize' && fact.kind === 'process/observed') process.kill(fact.identity.pid, 'SIGKILL')
-        return { kind: 'appended' }
-      },
-      finishRun: async (fact: LedgerRunFinish) => { order.push('end'); facts.push(fact); return { kind: 'appended' } },
-    } as unknown as SessionLedger
+    const home = mkdtempSync(fileURLToPath(new URL('.sdk-intent-', import.meta.url)))
+    const ledgerContext = new Context()
+    const ledger = new JournalSessionLedger(ledgerContext, { dshHome: home })
+    onTestFinished(async () => { await ledgerContext.fiber.dispose(); rmSync(home, { recursive: true, force: true }) })
+    const beginRun = ledger.beginRun.bind(ledger), appendEvent = ledger.appendEvent.bind(ledger), finishRun = ledger.finishRun.bind(ledger)
+    vi.spyOn(ledger, 'beginRun').mockImplementation(async (fact) => {
+      order.push('intent'); facts.push(fact); return beginRun(fact)
+    })
+    vi.spyOn(ledger, 'appendEvent').mockImplementation(async (fact) => {
+      order.push('identity'); facts.push(fact)
+      const result = await appendEvent(fact)
+      if (mode === 'kill-before-initialize' && fact.kind === 'process/observed') process.kill(fact.identity.pid, 'SIGKILL')
+      return result
+    })
+    vi.spyOn(ledger, 'finishRun').mockImplementation(async (fact) => {
+      order.push('end'); facts.push(fact); return finishRun(fact)
+    })
     const create = runInternals.createHarness.bind(runInternals)
     runInternals.createHarness = (options) => { order.push('construct'); return create(options) }
     const starting = startSdkRun(request(), {
@@ -257,7 +289,10 @@ describe('dsh-subagent-dsh-sdk provider', () => {
 
   it('does not construct a process when launch intent cannot be synchronized', async () => {
     const parentContext = { sessionId: 'parent', runId: 'parent-run' } as LedgerSessionContext
-    const ledger = { beginRun: async () => { throw new Error('intent write failed') } } as unknown as SessionLedger
+    const ledgerContext = new Context()
+    const ledger = new JournalSessionLedger(ledgerContext)
+    onTestFinished(async () => { await ledgerContext.fiber.dispose() })
+    vi.spyOn(ledger, 'beginRun').mockRejectedValue(new Error('intent write failed'))
     await expect(startSdkRun(request(), {
       profile: 'sdk', patches: [], dshHome: process.cwd(), cwd: process.cwd(), provider: 'mock', model: 'mock',
       env: {}, shutdownTimeoutMs: 1000, disposeEofGraceMs: 1000, disposeGraceMs: 1000, ledger, parentContext,

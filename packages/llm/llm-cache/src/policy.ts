@@ -3,8 +3,11 @@ import type { CachePolicy, ResolvedCachePolicy } from './types.ts'
 
 /** Route capability, supplied by trusted deployment configuration rather than model-name guessing. */
 export interface CacheRoute {
+  /** Registered provider identifier. */
   provider: string
+  /** Explicit model family selected by deployment configuration. */
   modelFamily: string
+  /** Cache controls supported by the serving API. */
   capability: 'anthropic' | 'openai-responses' | 'openai-chat' | 'automatic' | 'unsupported'
 }
 

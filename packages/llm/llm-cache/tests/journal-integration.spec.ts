@@ -34,6 +34,22 @@ async function setup() {
 }
 
 describe('cache journal integration', () => {
+  it('inherits a nonresident parent cache policy from the real journal without copying its evidence clock', async () => {
+    const { ctx, adapter, ledger, context } = await setup()
+    await ledger.appendEvent({ schemaVersion: 1, eventId: 'cache-parent-a' as import('@panedesk/dsh-session-ledger').LedgerEventId,
+      nodeId: context.nodeId, observedAt: Date.now(), runId: context.runId, sessionId: context.sessionId,
+      kind: 'cache/evidence', evidence: { cacheMode: 'disabled', breakReasons: [], sessionPolicy: { retention: 'none' } } })
+    const child = SessionId('child-a')
+    ledger.bindContext({ ...context, sessionId: child, parentSessionId: context.sessionId, runId: 'child-run-a' as LedgerRunId })
+    const handle = await ctx.agents.create({ sessionId: child, agentOptions: { provider: 'model-provider', model: 'model-a' } })
+    try {
+      handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue' }], source: { kind: 'user' } }))
+      await handle.agent.whenIdle()
+      expect(adapter.requests[0]?.cache?.retention).toBe('none')
+      const rows = (await ledger.snapshot({ sessionId: child })).rows.filter(row => row.kind === 'call')
+      expect(rows[0]?.start.cache?.sessionPolicy?.retention).toBe('none')
+    } finally { await handle.dispose() }
+  })
   it('persists bound attribution, adapter evidence and closed sidecars across reopening', async () => {
     const { ctx, adapter, ledger, home, context } = await setup()
     adapter.chunks = [

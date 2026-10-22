@@ -16,7 +16,7 @@ import { SubagentRunId } from './types.ts'
 import type { SubagentResult, SubagentRunEndInfo, SubagentRunInfo, SubagentStartRequest } from './types.ts'
 import { brandString } from '@panedesk/dsh-brand'
 import type { LedgerAppendResult, LedgerContext, LedgerEvent, LedgerEventId, LedgerRunId, LedgerRunStart, SessionLedger } from '@panedesk/dsh-session-ledger'
-import { executionPolicyMetadata, type PresetExecutionPolicy } from '@panedesk/dsh-agent-preset-registry'
+import type { PresetExecutionPolicy } from '@panedesk/dsh-agent-preset-registry'
 import { checkDeliveries, prepareDeliveries, sanitizeDiagnostic, writeErrorArtifacts, type DeliveryPlan } from './delivery.ts'
 import { SubagentError } from './error.ts'
 import type { Scoped } from '@panedesk/dsh-scope'
@@ -104,6 +104,7 @@ export function createLifecycleEmitter(
  * @param provider - the provider name recorded in the durable descriptor.
  * @param childId - the durable child session id.
  * @param parent - the exact live direct parent keying scoped dispatch.
+ * @param boundary - optional runtime services and scoped carrier for durable accounting.
  * @returns the observer whose edges this epoch publishes.
  */
 export function createActivationObserver(
@@ -113,9 +114,12 @@ export function createActivationObserver(
   parent: Agent,
   boundary?: { ctx: Context; carrier: Scoped<SubagentRuntime> },
 ): ActivationObserver {
-  const identity = { runId: SubagentRunId(randomUUID()), provider, id: childId, local: false }
+  const external = boundary?.ctx.get('sessionLedger') !== undefined
+    && boundary.ctx.get('subagents')?.getProvider(provider)?.prepareContinuable === undefined
+  const identity = { runId: SubagentRunId(external ? childId : randomUUID()), provider, id: childId, local: false }
   let ledger: SessionLedger | undefined
   let context: LedgerContext | undefined
+  let parentRunId: LedgerRunId | undefined
   let plan: DeliveryPlan | undefined
   let begun = false
   let completed = false
@@ -138,17 +142,19 @@ export function createActivationObserver(
       if (ledger !== undefined) {
         const snapshot = await ledger.snapshot({ sessionId: parent.id })
         const row = snapshot.rows.findLast(row => row.kind !== 'event' && row.start.sessionId === parent.id)
-        if (row === undefined || row.kind === 'event') throw new SubagentError('Parent ledger identity is unavailable; child execution refused', 'LEDGER_UNAVAILABLE')
-        context = { seat: row.start.seat, window: row.start.window,
-          ...row.start.taskId === undefined ? {} : { taskId: row.start.taskId },
-          nodeId: row.start.nodeId, rootSessionId: row.start.rootSessionId, accountLabel: row.start.accountLabel,
+        const source = ledger.contextFor(parent.id) ?? (snapshot.complete && row?.kind !== 'event' ? row?.start : undefined)
+        if (source === undefined) throw new SubagentError('Parent ledger identity is unavailable; child execution refused', 'LEDGER_UNAVAILABLE')
+        parentRunId = source.runId
+        context = { seat: source.seat, window: source.window,
+          ...source.taskId === undefined ? {} : { taskId: source.taskId },
+          nodeId: source.nodeId, rootSessionId: source.rootSessionId, accountLabel: source.accountLabel,
           sessionId: childId, parentSessionId: parent.id, subagentRunId: identity.runId, identitySource: 'inherited' }
       }
       await boundary.ctx.serial(boundary.carrier, 'subagent/before-start', { parent, info: { ...identity }, request })
       if (ledger !== undefined && context !== undefined) {
-        const start: LedgerRunStart = { ...context, runId, startedAt: Date.now(), launchState: 'started',
+        const start: LedgerRunStart = { ...context, runId, ...parentRunId === undefined ? {} : { parentRunId }, startedAt: Date.now(), launchState: 'started',
           deliveryPaths: plan?.paths ?? [],
-          ...policy === undefined ? {} : executionPolicyMetadata(policy),
+          ...policy === undefined ? {} : (await import('@panedesk/dsh-agent-preset-registry')).executionPolicyMetadata(policy),
           ...request.agentPreset === undefined ? {} : { definition: request.agentPreset },
           ...request.agentOptions?.model === undefined ? {} : { effectiveModel: request.agentOptions.model },
           processIdentity: { nodeId: context.nodeId, pid: process.pid, registeredAt: Date.now(), verification: 'unverified' } }

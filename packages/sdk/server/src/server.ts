@@ -8,10 +8,11 @@
 import type { Context } from '@panedesk/cordis'
 import { executionPolicyDigest, validateHandshake } from './handshake.ts'
 import { resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { brandString } from '@panedesk/dsh-brand'
 import type { Agent, AgentHandle, AgentSetup } from '@panedesk/dsh-agent'
 import type { AgentPreset } from '@panedesk/dsh-agent-preset-registry'
-import type { LedgerSessionContext, LedgerRunId, LedgerNodeId } from '@panedesk/dsh-session-ledger'
+import type { LedgerSessionContext, LedgerRunId, LedgerNodeId, LedgerEventId } from '@panedesk/dsh-session-ledger'
 import { admitEncodedImages, type EncodedImageAttachment, type ImageAttachmentRef } from '@panedesk/dsh-attachment'
 import { createUserMessage, ReasoningEffortId, type ContentBlock, type LlmRuntime } from '@panedesk/dsh-llm'
 import { carrierKeyOf, type Scoped } from '@panedesk/dsh-scope'
@@ -450,19 +451,45 @@ export class HarnessSdkJsonRpcServer {
         agentCtx.effect(() => ledger.bindContext(context), 'sdk.ledger-context')
       }
       const policy = preset?.executionPolicy
+      const deniedWrites = new Set<Promise<void>>()
+      let deniedFailure: unknown
+      const deny = (operation: 'model' | 'effort' | 'tool', requested: string): string => {
+        const reason = 'Denied by the installed execution policy'
+        if (ledger !== undefined && policy !== undefined) {
+          const write = (async () => {
+            const attribution = await ledger.resolveCallContext({ sessionId: agent.id, provider: policy.provider, model: policy.model })
+            const result = await ledger.appendEvent({ schemaVersion: 1, eventId: brandString<LedgerEventId>(randomUUID()),
+              nodeId: attribution.context.nodeId, observedAt: Date.now(), runId: attribution.runId, sessionId: agent.id,
+              kind: 'policy/denied', operation, requested, definition: `${policy.rulesId}@${policy.version}`, reason })
+            if (result.kind === 'conflict') throw new Error('SDK policy denial ledger conflict')
+          })()
+          deniedWrites.add(write)
+          void write.catch((error: unknown) => { deniedFailure = error }).finally(() => deniedWrites.delete(write))
+        }
+        return reason
+      }
+      const flushDenied = async (): Promise<void> => {
+        await Promise.allSettled([...deniedWrites])
+        if (deniedFailure !== undefined) throw new Error('SDK policy denial accounting failed', { cause: deniedFailure })
+      }
       if (policy !== undefined) {
+        agentCtx.on('tools/post-execute', async (_exec, _result, next) => { await flushDenied(); return next() })
+        agentCtx.on('agent/ending', flushDenied)
         const tools = agentCtx.get('tools')
         if (tools === undefined) throw new Error('SDK execution policy requires the tools service')
         tools.restrict({ allow: [...policy.allowedTools] })
-        tools.guard(exec => policy.allowedTools.includes(exec.name)
-          ? undefined : 'Tool denied by the installed execution policy')
+        tools.guard(exec => exec.name === 'run_code' || policy.allowedTools.includes(exec.name)
+          ? undefined : deny('tool', exec.name))
       }
       if (policy !== undefined || this.handshake.cachePolicy !== undefined) {
         agentCtx.on('agent/request', async (_payload, next) => {
           const config = await next()
           if (policy !== undefined && (config.provider !== policy.provider || config.model !== policy.model
             || config.reasoningEffort !== policy.reasoningEffort)) {
-            throw new Error('Request denied by the installed execution policy')
+            const reason = config.provider !== policy.provider || config.model !== policy.model
+              ? deny('model', `${config.provider}/${config.model}`) : deny('effort', config.reasoningEffort ?? 'unspecified')
+            await flushDenied()
+            throw new Error(reason)
           }
           return this.handshake.cachePolicy === undefined ? config : { ...config, cache: this.handshake.cachePolicy }
         })
