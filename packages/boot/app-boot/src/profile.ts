@@ -203,6 +203,12 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   'sdk-minimal': {
     bundles: ['@panedesk/dsh-sdk-minimal'],
   },
+  ledger: {
+    bundles: ['@panedesk/dsh-ledger-app'],
+  },
+  'ledger-watch': {
+    bundles: ['@panedesk/dsh-ledger-app'],
+  },
 }
 
 /** Dependency carrier that makes the non-slim shipped bundles resolvable beside the slim launcher. */

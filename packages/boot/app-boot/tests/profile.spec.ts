@@ -35,6 +35,22 @@ import {
 import { installRuntimeInterception } from '../src/profile-resolution/resolver.ts'
 import { FULL_PRESET_CARRIER } from '../src/profile.ts'
 
+it('keeps default profiles unchanged and loads isolated ledger bundle rows', () => {
+  expect(PROFILE_TEMPLATES.slim?.bundles).toEqual(['@panedesk/slim-base', '@panedesk/slim-headless'])
+  expect(PROFILE_TEMPLATES.full?.bundles).toEqual(['@panedesk/dsh-base', '@panedesk/dsh-headless'])
+  expect(PROFILE_TEMPLATES.sdk?.bundles).toEqual(['@panedesk/dsh-base', '@panedesk/dsh-sdk-app'])
+  const patch = readFileSync(new URL('../../../bundle/ledger-app/cordis.patch.yml', import.meta.url), 'utf8')
+  const installAnchor = stageInstallation({ '@panedesk/dsh-ledger-app': { patch } })
+  for (const name of ['ledger', 'ledger-watch']) {
+    expect(PROFILE_TEMPLATES[name]?.bundles).toEqual(['@panedesk/dsh-ledger-app'])
+    const profile = loadProfile('panedesk', name, installAnchor, tmp())
+    expect(profile.layers.map(layer => layer.packageName)).toEqual(['@panedesk/dsh-ledger-app'])
+    const rows = composeEntries(profile.layers.map(layer => layer.patches))
+    expect(rows.map(row => row.name)).toEqual(['@panedesk/dsh-session-ledger', '@panedesk/dsh-ledger-query', '@panedesk/dsh-ledger-app'])
+    expect(JSON.stringify(rows)).not.toMatch(/dsh-agent|dsh-llm|credentials/)
+  }
+})
+
 const tempRoots: string[] = []
 afterAll(() => {
   for (const root of tempRoots.splice(0)) rmSync(root, { recursive: true, force: true })

@@ -22,6 +22,13 @@ export const Config = z.object({ mode: z.union(['query', 'watch']).default('quer
 export function apply(ctx: Context, config: Config): void {
   const args = ctx.get('cmdlineArgs'), ready = ctx.get('appReady'), exit = ctx.get('appExit')
   if (!args || !ready || !exit) throw new Error('Ledger app requires launcher arguments, readiness and exit services')
+  if (args.get().length === 1 && ['--help', '-h'].includes(args.get()[0] ?? '')) {
+    ctx.effect(() => ready.onReady(() => {
+      process.stdout.write('Usage: ledger [today|query|export|merge|live|cache|verify] [options]\n')
+      exit(0)
+    }))
+    return
+  }
   if (config.mode === 'watch') {
     if (!config.nodeId) throw new Error('Ledger watch mode requires a local node')
     if (args.get().length) throw new Error('Ledger watch mode accepts configuration, not command arguments')

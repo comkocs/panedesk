@@ -2550,6 +2550,9 @@ importers:
       '@panedesk/dsh-compaction-basic':
         specifier: workspace:*
         version: link:../../compaction/compaction-basic
+      '@panedesk/dsh-compaction-ledger':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-ledger
       '@panedesk/dsh-compaction-tool-result-pruner':
         specifier: workspace:*
         version: link:../../compaction/compaction-tool-result-pruner
@@ -2610,6 +2613,18 @@ importers:
       '@panedesk/dsh-jobs-local':
         specifier: workspace:*
         version: link:../../jobs/jobs-local
+      '@panedesk/dsh-ledger-app':
+        specifier: workspace:*
+        version: link:../ledger-app
+      '@panedesk/dsh-ledger-query':
+        specifier: workspace:*
+        version: link:../../session/ledger-query
+      '@panedesk/dsh-ledger-watch':
+        specifier: workspace:*
+        version: link:../../session/ledger-watch
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-mcp-client':
         specifier: workspace:*
         version: link:../../mcp/mcp-client
@@ -2640,6 +2655,9 @@ importers:
       '@panedesk/dsh-sdk-minimal':
         specifier: workspace:*
         version: link:../sdk-minimal
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../../session/session-projection
@@ -2800,6 +2818,12 @@ importers:
 
   packages/bundle/ledger-app:
     dependencies:
+      '@panedesk/dsh-ledger-query':
+        specifier: workspace:*
+        version: link:../../session/ledger-query
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -2810,9 +2834,6 @@ importers:
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../../boot/cmdline
-      '@panedesk/dsh-ledger-query':
-        specifier: workspace:*
-        version: link:../../session/ledger-query
       '@panedesk/dsh-ledger-watch':
         specifier: workspace:*
         version: link:../../session/ledger-watch

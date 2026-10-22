@@ -1,0 +1,12 @@
+- insert:
+    - id: session-ledger
+      name: '@panedesk/dsh-session-ledger'
+    - id: ledger-query
+      name: '@panedesk/dsh-ledger-query'
+      inject: [sessionLedger]
+    - id: ledger-app
+      name: '@panedesk/dsh-ledger-app'
+      inject: [sessionLedger, ledgerQuery]
+      config:
+        mode: !!js "ctx.get('profileContext')?.name === 'ledger-watch' ? 'watch' : 'query'"
+        nodeId: !!js process.env.PANEDESK_LEDGER_NODE
