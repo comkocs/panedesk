@@ -5,6 +5,8 @@ import type { LedgerExportOptions, LedgerExportResult, LedgerQueryOptions, Ledge
 import { cacheRemaining, liveSessions, selectLedger, summarizeToday } from './query.ts'
 import { mergeLedger, readLedgerExport, verifyLedger, writeExport } from './export.ts'
 import { parseLedgerArgs } from './cli.ts'
+import { executeMessages } from './messages.ts'
+import { MessageArgumentError } from './messages-cli.ts'
 export type * from './types.ts'
 
 declare module '@panedesk/cordis' {
@@ -69,8 +71,16 @@ export class LedgerQueryService extends Service {
    * @returns structured command output and a conflict-aware exit status.
    */
   async execute(args: readonly string[]): Promise<{ code: number; output: unknown }> {
-    const command = parseLedgerArgs(args)
+    let command: ReturnType<typeof parseLedgerArgs>
+    try { command = parseLedgerArgs(args) } catch (error) {
+      if (!(error instanceof MessageArgumentError)) throw error
+      return { code: 2, output: { error: { code: error.code, message: error.message } } }
+    }
     switch (command.command) {
+      case 'messages': {
+        if (!command.messages) throw new Error('Missing parsed message command')
+        return executeMessages(this.ctx, command.messages)
+      }
       case 'today': return { code: 0, output: await this.today() }
       case 'query': return { code: 0, output: await this.query(command.query) }
       case 'export': {

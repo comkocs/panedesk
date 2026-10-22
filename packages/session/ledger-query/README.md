@@ -23,6 +23,14 @@ Read-only ledger query and export service definitions. The package exposes an ab
 
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
+`panedesk --profile ledger messages --help` lists strict message commands. Delivery commands use the optional `messageDelivery` service; message queries use the optional ledger `queryMessages` and `querySessions` readers, joining call and message namespaces by Session identity. Missing providers return explicit errors without changing existing ledger commands. Human sends have no invented sender Session; the delivery provider binds the invocation's authority.
+
+`send` accepts exactly one explicit Session or exact name, a class, and text; priorities default to `steer` for handoffs/replies and `queue` for notices. Replies require `--reply-to`. Controls read the current revision unless `--expected-revision` is supplied, retain an explicit `--operation-id` when provided, and distinguish pending-owner intent from applied decisions. `send-batch --dry-run` and `resolve` call only the read-only resolver, never mailbox publication or wakeup.
+
+`unanswered --older-than-minutes N` forwards handoff/reply age filters to the journal projection; withdrawn, invalidated, rejected, and previously responded messages are excluded unless terminal auditing applies. JSONL exports retain stable creation-time/node/message ordering, schema version, exclusive next cursor, and full-scan integrity, and omit message bodies. `--output` creates a new owner-only file; omission returns JSONL in the structured result. `watch --session ID` streams receipt JSONL and supports an exclusive `--cursor`.
+
+Message command exit statuses are 0 for success or durable pending-owner intent, 1 for execution failure, 2 for invalid arguments, 3 for unavailable capabilities, 4 for delivery/control refusal, 5 for a missing operation or a typed missing-message failure, and 6 for incomplete journal scans.
+
 <a id="model-experience"></a>
 ## Model Experience
 
