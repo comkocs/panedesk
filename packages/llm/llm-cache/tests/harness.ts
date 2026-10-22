@@ -13,14 +13,26 @@ import type {
   LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactReference,
   LedgerArtifactFinishResult, LedgerCallStart, LedgerCallFinish, LedgerContext, LedgerRunId, LedgerEvent,
   LedgerEventId, LedgerNodeId, LedgerWatermark, LedgerRunStart, LedgerRunFinish,
-  LedgerSnapshot, LedgerPriceUsageRequest, LedgerPriceUsageResult,
+  LedgerSnapshot, LedgerPriceUsageRequest, LedgerPriceUsageResult, LedgerSessionContext,
 } from '@panedesk/dsh-session-ledger'
 import * as Cache from '../src/index.ts'
 
 export class MemoryLedger extends SessionLedger {
-  override bindContext: SessionLedger['bindContext'] = () => { throw new Error('unused') }
-  override contextFor: SessionLedger['contextFor'] = () => undefined
-  override nodeId: SessionLedger['nodeId'] = () => { throw new Error('unused') }
+  private contexts = new Map<SessionId, Set<LedgerSessionContext>>()
+  override bindContext(context: LedgerSessionContext): () => void {
+    const bound = structuredClone(context)
+    const owners = this.contexts.get(bound.sessionId) ?? new Set<LedgerSessionContext>()
+    owners.add(bound)
+    this.contexts.set(bound.sessionId, owners)
+    return () => {
+      owners.delete(bound)
+      if (owners.size === 0) this.contexts.delete(bound.sessionId)
+    }
+  }
+  override contextFor(sessionId: SessionId): LedgerSessionContext | undefined {
+    return Array.from(this.contexts.get(sessionId) ?? []).at(-1)
+  }
+  override nodeId(): Promise<LedgerNodeId> { return Promise.resolve('node-a' as LedgerNodeId) }
   override importNode: SessionLedger['importNode'] = () => { throw new Error('unused') }
   starts: LedgerCallStart[] = []
   ends: LedgerCallFinish[] = []
@@ -31,6 +43,8 @@ export class MemoryLedger extends SessionLedger {
   failEnd = false
   restored: LedgerSnapshot = { asOf: 0, watermarks: {}, complete: true, rows: [] }
   override resolveCallContext(request: { sessionId?: LedgerContext['sessionId']; provider: string; model: string }) {
+    const bound = request.sessionId === undefined ? undefined : this.contextFor(request.sessionId)
+    if (bound !== undefined) return Promise.resolve({ context: bound, runId: bound.runId })
     return Promise.resolve({
       context: { sessionId: request.sessionId ?? SessionId('auxiliary'), rootSessionId: request.sessionId ?? SessionId('auxiliary'),
         seat: 'free', window: 'free', nodeId: 'node-a' as LedgerNodeId, identitySource: 'free' as const, accountLabel: 'unknown' },
@@ -56,8 +70,18 @@ export class MemoryLedger extends SessionLedger {
     if (start === undefined) return Promise.reject(new Error('missing start'))
     return Promise.resolve(this.result({ ...this.envelope(start), kind: 'call/end', data: input }))
   }
-  override beginRun(_input: LedgerRunStart): Promise<LedgerAppendResult> { throw new Error('not used') }
-  override finishRun(_input: LedgerRunFinish): Promise<LedgerAppendResult> { throw new Error('not used') }
+  override beginRun(input: LedgerRunStart): Promise<LedgerAppendResult> {
+    return this.appendEvent({ schemaVersion: 1, eventId: `run/start:${input.runId}` as LedgerEventId,
+      nodeId: input.nodeId, observedAt: input.startedAt, sessionId: input.sessionId, runId: input.runId,
+      kind: 'run/start', data: input })
+  }
+  override finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult> {
+    const start = this.events.find(event => event.kind === 'run/start' && event.runId === input.runId)
+    if (start === undefined) return Promise.reject(new Error('missing run start'))
+    return this.appendEvent({ schemaVersion: 1, eventId: `run/end:${input.runId}` as LedgerEventId,
+      nodeId: start.nodeId, observedAt: input.observedAt, sessionId: start.sessionId, runId: input.runId,
+      kind: 'run/end', data: input })
+  }
   override appendEvent(event: LedgerEvent): Promise<LedgerAppendResult> {
     this.events.push(structuredClone(event))
     return Promise.resolve(this.result(event))

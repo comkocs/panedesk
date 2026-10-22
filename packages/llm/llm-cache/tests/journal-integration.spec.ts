@@ -16,7 +16,7 @@ afterEach(async () => {
   await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
   await Promise.all(homes.splice(0).map(home => fs.rm(home, { recursive: true, force: true })))
 })
-async function setup() {
+async function setup(runOwner: 'fixture' | 'agent-loop' = 'fixture') {
   const home = await fs.mkdtemp(join(import.meta.dirname, '.durable-cache-'))
   homes.push(home)
   const value = await harness({ ledger: false, config: {
@@ -29,7 +29,9 @@ async function setup() {
     runId: 'run-a' as LedgerRunId, nodeId: await ledger.nodeId(), seat: 'seat-a', window: 'window-a',
     identitySource: 'startup' as const, accountLabel: 'route-a' }
   ledger.bindContext(context)
-  await ledger.beginRun({ ...context, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+  if (runOwner === 'fixture') {
+    await ledger.beginRun({ ...context, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+  }
   return { ...value, ledger, home, context }
 }
 
@@ -121,7 +123,7 @@ describe('cache journal integration', () => {
   })
 
   it('retains the configured chat downgrade when the adapter reports no downgrade field', async () => {
-    const { ctx, adapter, ledger } = await setup()
+    const { ctx, adapter, ledger } = await setup('agent-loop')
     adapter.chunks = [{ type: 'usage', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 1 } },
       { type: 'finish', reason: { kind: 'stop' }, cacheRetention: '30m' }]
     const handle = await ctx.agents.create({ sessionId: SessionId('session-a'),
