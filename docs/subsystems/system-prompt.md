@@ -229,6 +229,25 @@ Types: [Agent](core.md) · [Scoped](scope.md)
 
 Source: [`packages/context/agent-instructions/src/events.ts`](../../packages/context/agent-instructions/src/events.ts)
 
+<a id="instructionswrites-settling--serial"></a>
+
+#### `instructions/writes-settling` — serial
+
+Wait for successful tool-result observations before checking subscriptions.
+
+```ts cordis-catalog
+/**
+ * Wait for successful tool-result observations before checking subscriptions.
+ * @mode serial
+ * @param payload.agent - agent whose pending byte reads must settle.
+ */
+'instructions/writes-settling'(this: Scoped<Agent>, payload: { agent: Agent }): Promise<void> | void
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/context/agent-instructions/src/events.ts`](../../packages/context/agent-instructions/src/events.ts)
+
 <a id="instructionswritten--emit"></a>
 
 #### `instructions/written` — emit

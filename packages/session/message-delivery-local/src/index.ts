@@ -17,7 +17,6 @@ import MessageDelivery, { type ConfigureMessagesRequest, type ControlResult, typ
 } from '@panedesk/dsh-message-delivery'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { messageEventId, type MessageLedgerStore } from '@panedesk/dsh-session-ledger'
-import type {} from '@panedesk/dsh-message-delivery/src/events.ts'
 import type {} from '@panedesk/dsh-subprocess'
 import type {} from '@panedesk/dsh-session-persistence'
 import type {} from '@panedesk/dsh-session-projection'

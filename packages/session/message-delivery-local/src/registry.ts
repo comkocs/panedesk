@@ -53,6 +53,7 @@ function decodeRegistration(value: unknown): ProcessRegistration {
 
 /** Owns this process's registration and fences each residency by generation. */
 export class NodeRegistry {
+  /** Unique registration identity for this process incarnation. */
   readonly generation = randomUUID()
   private readonly sessions = new Map<string, OwnedSession>()
   private readonly identity: SubprocessIdentity

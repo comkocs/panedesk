@@ -2462,6 +2462,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'source', description: 'Local source node directory.' }],
         returns: 'Per-fact append, replay, or conflict outcomes.',
       },
+      {
+        signature: 'messages(): Promise<MessageLedgerStore>',
+        description: 'Open the independent message journal without changing call accounting.',
+        parameters: [],
+        returns: 'Body-free message fact storage using the ledger\'s local node identity.',
+      },
+      {
+        signature: 'async queryMessages(query: MessageQuery): Promise<LedgerMessagePage>',
+        description: 'Project all retained versions before selecting current message states.',
+        parameters: [{ name: 'query', description: 'Session, creation-time, state, class, age and pagination selection.' }],
+        returns: 'Message statuses and integrity of the full scan.',
+      },
+      {
+        signature: 'async querySessions(query: Pick<LedgerQuery, \'sessionId\' | \'from\' | \'to\'>): Promise<LedgerSessionPage>',
+        description: 'Join both namespaces by Session without adding messages to billable call rows.',
+        parameters: [{ name: 'query', description: 'Shared Session and half-open time filter; all matching messages are retained.' }],
+        returns: 'Independent journal views grouped by Session, not an atomic cross-journal snapshot.',
+      },
+      {
+        signature: 'async exportMessages(query: MessageQuery): Promise<string>',
+        description: 'Export a selected message page without bodies, with an integrity header even when empty.',
+        parameters: [{ name: 'query', description: 'Message filters and optional page cursor.' }],
+        returns: 'Schema-versioned JSONL metadata and status records.',
+      },
     ],
   },
   {
@@ -3365,6 +3389,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Abstract subprocess service.',
     description: 'Abstract subprocess service. Subclass, implement spawn, and load the subclass as a plugin — it registers as `ctx.subprocess` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- Executable paths belong to one execution world shared with the mounted filesystem provider.\n- spawn returns a live handle synchronously. Target identity remains provider-private; `done` resolves with the spawned command\'s exit facts and may reject for spawn or provider failures.\n- Collect-mode readers are offset-based and non-consuming, so independent readers never consume one another\'s output; lossy reads report truncation and the spill file holding the complete stream when one exists. Piped streams are handed to the caller raw and never buffered here.\n- SubprocessHandle.terminate (and the spec\'s abort signal) starts the provider\'s documented procedure against its managed range. SubprocessHandle.waitForExit observes that same range so a consumer-owned teardown ladder can hold each tier on real quiescence; each provider documents its signalling and observability limits.\n- Disposal of the service terminates all still-running managed processes and awaits their exit.\n- spawnTerminal owns terminal allocation, text transport, foreground groups, signalling, and whole-session quiescence behind one awaited termination method; readiness and persistent-shell policy stay in the PTY consumer. Its output stream ends after queued terminal output when the top-level process exits.',
     methods: [
+      {
+        signature: 'readProcessIdentity(pid: number): SubprocessIdentity',
+        description: 'Observe one process incarnation without granting termination authority. Providers without OS creation evidence return only the PID, never a verified live identity.',
+        parameters: [{ name: 'pid', description: 'process identity to inspect in this execution world.' }],
+        returns: 'creation evidence, or a PID-only unavailable observation.',
+      },
       {
         signature: 'abstract resolveExecutable( command: string, env?: Readonly<Record<string, string>>, signal?: AbortSignal, ): Promise<string>',
         description: 'Resolve one configured executable in this provider\'s execution world. Absolute paths are verified; bare names use the provider\'s scrubbed PATH plus explicit environment overrides. Relative paths containing separators are rejected: the resolution base is undefined, so providers fail loud instead of guessing.',
@@ -4648,6 +4678,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Successful instruction admission for this agent; descendants publish their own loaded sets.',
     description: 'Successful instruction admission for this agent; descendants publish their own loaded sets.',
     parameters: [{ name: 'payload', description: '.files - exact admitted paths and byte hashes, excluding unreadable files.' }],
+  },
+  {
+    name: 'instructions/writes-settling',
+    mode: 'serial',
+    signature: '\'instructions/writes-settling\'(this: Scoped<Agent>, payload: { agent: Agent }): Promise<void> | void',
+    summary: 'Wait for successful tool-result observations before checking subscriptions.',
+    description: 'Wait for successful tool-result observations before checking subscriptions.',
+    parameters: [{ name: 'payload', description: '.agent - agent whose pending byte reads must settle.' }],
   },
   {
     name: 'instructions/written',
@@ -6099,7 +6137,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'InstructionObservation',
-    declaration: 'export interface InstructionObservation {\n    readonly path: string;\n    readonly hash: string;\n}',
+    declaration: 'export interface InstructionObservation {\n    readonly path: string;\n    readonly hash: string;\n    readonly evidence?: {\n        readonly status: \'available\';\n    } | {\n        readonly status: \'unavailable\';\n        readonly reason: \'version-mismatch\' | \'read-unavailable\' | \'version-unavailable\';\n    };\n    readonly baseline?: boolean;\n}',
   },
   {
     name: 'InternalScheduleError',
@@ -6406,6 +6444,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LedgerLifecycle {\n    kind: \'run\';\n    start: LedgerRunStart;\n    finish?: LedgerRunFinish;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    waits?: readonly LedgerInterval[];\n    waitSummary?: LedgerWaitSummary;\n    unassignedWaits?: readonly LedgerInterval[];\n    unassignedWaitSummary?: LedgerWaitSummary;\n}',
   },
   {
+    name: 'LedgerMessage',
+    declaration: 'export interface LedgerMessage extends MessageStatus {\n    readonly nodeId: LedgerNodeId;\n    readonly data: MessageStateData;\n    readonly createdAt: number;\n    readonly stateTimes: Readonly<Partial<Record<MessageState, number>>>;\n}',
+  },
+  {
+    name: 'LedgerMessagePage',
+    declaration: 'export interface LedgerMessagePage {\n    readonly items: readonly LedgerMessage[];\n    readonly complete: boolean;\n    readonly asOf: number;\n    readonly nextCursor?: MessageCursor;\n}',
+  },
+  {
     name: 'LedgerNodeId',
     declaration: 'export type LedgerNodeId = Branded<\'LedgerNodeId\'>;',
   },
@@ -6480,6 +6526,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LedgerSessionContext',
     declaration: 'export interface LedgerSessionContext extends LedgerContext {\n    runId: LedgerRunId;\n    parentRunId?: LedgerRunId;\n}',
+  },
+  {
+    name: 'LedgerSessionPage',
+    declaration: 'export interface LedgerSessionPage {\n    readonly asOf: number;\n    readonly complete: boolean;\n    readonly sessions: readonly {\n        readonly sessionId: SessionId;\n        readonly calls: readonly LedgerRow[];\n        readonly messages: readonly LedgerMessage[];\n    }[];\n    readonly unassignedMessages: readonly LedgerMessage[];\n}',
   },
   {
     name: 'LedgerSnapshot',
@@ -6860,6 +6910,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MessageId',
     declaration: 'export type MessageId = Branded<\'MessageId\'>;',
+  },
+  {
+    name: 'MessageLedgerEvent',
+    declaration: 'export interface MessageLedgerEvent {\n    readonly schemaVersion: 1;\n    readonly eventId: LedgerEventId;\n    readonly nodeId: LedgerNodeId;\n    readonly observedAt: number;\n    readonly kind: \'message/state\';\n    readonly data: MessageStateData;\n}',
+  },
+  {
+    name: 'MessageLedgerPage',
+    declaration: 'export interface MessageLedgerPage {\n    readonly events: readonly MessageLedgerEvent[];\n    readonly complete: boolean;\n    readonly nextCursor?: MessageCursor;\n}',
+  },
+  {
+    name: 'MessageLedgerStore',
+    declaration: 'export interface MessageLedgerStore {\n    append(event: MessageLedgerEvent): Promise<MessageCursor>;\n    read(query: MessageQuery): Promise<MessageLedgerPage>;\n}',
   },
   {
     name: 'MessagePage',

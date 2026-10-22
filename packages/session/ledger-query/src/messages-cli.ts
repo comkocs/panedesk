@@ -21,6 +21,7 @@ export interface MessagesCommand {
 
 /** Structured argument failure; command execution maps this to usage exit status 2. */
 export class MessageArgumentError extends Error {
+  /** Stable discriminator for CLI argument validation failures. */
   readonly code = 'messages/invalid-arguments'
 }
 function invalid(message: string): never { throw new MessageArgumentError(message) }

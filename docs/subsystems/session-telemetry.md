@@ -287,7 +287,32 @@ abstract nodeId(): Promise<LedgerNodeId>
  * @returns Per-fact append, replay, or conflict outcomes.
  */
 abstract importNode(source: string): Promise<readonly LedgerAppendResult[]>
+
+/** Open the independent message journal without changing call accounting.
+ * @returns Body-free message fact storage using the ledger's local node identity.
+ */
+messages(): Promise<MessageLedgerStore>
+
+/** Project all retained versions before selecting current message states.
+ * @param query - Session, creation-time, state, class, age and pagination selection.
+ * @returns Message statuses and integrity of the full scan.
+ */
+async queryMessages(query: MessageQuery): Promise<LedgerMessagePage>
+
+/** Join both namespaces by Session without adding messages to billable call rows.
+ * @param query - Shared Session and half-open time filter; all matching messages are retained.
+ * @returns Independent journal views grouped by Session, not an atomic cross-journal snapshot.
+ */
+async querySessions(query: Pick<LedgerQuery, 'sessionId' | 'from' | 'to'>): Promise<LedgerSessionPage>
+
+/** Export a selected message page without bodies, with an integrity header even when empty.
+ * @param query - Message filters and optional page cursor.
+ * @returns Schema-versioned JSONL metadata and status records.
+ */
+async exportMessages(query: MessageQuery): Promise<string>
 ```
+
+Types: [MessageQuery](persistence.md)
 
 Source: [`packages/session/session-ledger/src/index.ts`](../../packages/session/session-ledger/src/index.ts)
 

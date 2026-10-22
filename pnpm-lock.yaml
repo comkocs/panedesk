@@ -3040,6 +3040,9 @@ importers:
       '@panedesk/dsh-fs-sandbox':
         specifier: workspace:*
         version: link:../../fs/fs-sandbox
+      '@panedesk/dsh-instruction-subscriptions':
+        specifier: workspace:*
+        version: link:../../context/instruction-subscriptions
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -3049,6 +3052,9 @@ importers:
       '@panedesk/dsh-llm-retry':
         specifier: workspace:*
         version: link:../../llm/llm-retry
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
       '@panedesk/dsh-permission-presets':
         specifier: workspace:*
         version: link:../../interaction/permission-presets
@@ -3067,6 +3073,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
@@ -7516,6 +7525,12 @@ importers:
       execa:
         specifier: ^10.0.1
         version: 10.0.1
+      js-yaml:
+        specifier: ^4.3.2
+        version: 4.3.2
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/context/session-reference:
     dependencies:
@@ -12970,6 +12985,9 @@ importers:
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../message-delivery
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/session/session-checkpoint-policy:
     devDependencies:

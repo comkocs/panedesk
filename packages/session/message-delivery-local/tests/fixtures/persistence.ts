@@ -10,7 +10,7 @@ import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SessionStore, { SessionId, type SessionEvent, type SessionHeader } from '@panedesk/dsh-session'
 import type { MessageLedgerEvent, MessageLedgerStore } from '@panedesk/dsh-session-ledger'
 import type { MessageCursor, MessageStateEvent } from '@panedesk/dsh-message-delivery'
-import type {} from '@panedesk/dsh-message-delivery/src/events.ts'
+import type {} from '@panedesk/dsh-message-delivery'
 import LocalMessageDelivery from '../../src/index.ts'
 import { schedulerFixture } from './owner.ts'
 import { SessionLogOffset } from '@panedesk/dsh-session'
@@ -50,22 +50,22 @@ export class MemoryPersistence extends SessionPersistence {
   }
 }
 
-/** 记录每次记账调用；同一事件身份须保持内容一致。 */
+/** Record ledger calls; repeated event identities require identical content. */
 export class RecordingLedger extends Service implements MessageLedgerStore {
   readonly calls: MessageLedgerEvent[] = []
   constructor(ctx: Context) { super(ctx, 'messageLedger') }
   async append(event: MessageLedgerEvent): Promise<MessageCursor> {
     const previous = this.calls.find(item => item.eventId === event.eventId)
-    if (previous && JSON.stringify(previous) !== JSON.stringify(event)) throw new Error('账本事件身份冲突')
+    if (previous && JSON.stringify(previous) !== JSON.stringify(event)) throw new Error('Conflicting ledger event identity')
     this.calls.push(event)
     return event.eventId as string as MessageCursor
   }
   async read() { return { events: [...new Map(this.calls.map(item => [item.eventId, item])).values()], complete: true } }
 }
 
-/** 通过实际 YAML 组合服务，以调度替身驱动恢复串行段。
- * @param home - 测试独占的产品家目录。
- * @returns 服务、账本观察与按租约顺序关闭的入口。
+/** Compose services through YAML and drive serial recovery with a scheduler substitute.
+ * @param home - test-owned product home.
+ * @returns services, ledger observations, and lease-ordered shutdown.
  */
 export async function serviceFixture(home: string, watch = false) {
   const ctx = new Context()
@@ -81,10 +81,10 @@ export async function serviceFixture(home: string, watch = false) {
     await ctx.loader.await()
     const service = ctx.get('messageDelivery')
     const ledger = ctx.get('messageLedger')
-    if (!service || !(ledger instanceof RecordingLedger)) throw new Error('测试组合未激活')
+    if (!service || !(ledger instanceof RecordingLedger)) throw new Error('Test composition is not active')
     const emitted: MessageStateEvent[] = []
     ctx.on('message/state', (event) => {
-      if (!ledger.calls.some(item => JSON.stringify(item.data) === JSON.stringify(event.data))) throw new Error('通知早于账本提交')
+      if (!ledger.calls.some(item => JSON.stringify(item.data) === JSON.stringify(event.data))) throw new Error('Notification preceded ledger commit')
       emitted.push(event)
     })
     const shutdown: (() => Promise<void>)[] = []

@@ -49,6 +49,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "vitest": "^4.1.11",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",

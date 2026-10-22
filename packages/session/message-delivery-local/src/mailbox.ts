@@ -25,6 +25,7 @@ export interface MailboxRecord {
 
 /** Owns one node's files; business decoding remains with the delivery service. */
 export class FileMailbox {
+  /** Private storage root for this node's registry and mailboxes. */
   readonly root: string
   constructor(readonly options: MailboxOptions) {
     this.root = join(options.home, 'messages', 'nodes', component(options.nodeId))

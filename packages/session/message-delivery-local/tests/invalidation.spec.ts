@@ -12,9 +12,9 @@ function dispatched(f: Awaited<ReturnType<typeof ownerFixture>>): InputTransitio
 }
 
 describe('invalidation and response attribution', () => {
-  it('排队作废等同撤回，已认领作废拒绝且不创建通知', async () => {
+  it('withdraws queued invalidations and rejects claimed invalidations without notices', async () => {
     const queued = await setup()
-    await queued.control({ kind: 'invalidate', operationId: 'invalidate-a' as OperationId, expectedRevision: 0 }, { reason: '取消' })
+    await queued.control({ kind: 'invalidate', operationId: 'invalidate-a' as OperationId, expectedRevision: 0 }, { reason: 'cancelled' })
     await queued.arbitrator.drain()
     expect((await queued.status()).status.state).toBe('withdrawn')
     expect((await queued.status()).notification).toBeUndefined()
@@ -22,20 +22,20 @@ describe('invalidation and response attribution', () => {
     const claimed = await setup()
     claimed.queue.splice(0)
     claimed.arbitrator.observe({ phase: 'claimed', claimId: 'claim-a' as InputClaimId, messageIds: [claimed.message.messageId], turn: 1, step: 1 })
-    await claimed.control({ kind: 'invalidate', operationId: 'invalidate-a' as OperationId, expectedRevision: 0 }, { reason: '取消' })
+    await claimed.control({ kind: 'invalidate', operationId: 'invalidate-a' as OperationId, expectedRevision: 0 }, { reason: 'cancelled' })
     await claimed.arbitrator.drain()
     expect(await claimed.result('invalidate-a')).toMatchObject({ kind: 'rejected', reason: 'claimed' })
     expect((await claimed.status()).notification).toBeUndefined()
   })
 
-  it('已回应作废原子保存新号通知，重复重放不重复入队', async () => {
+  it('atomically persists a new notice for responded invalidation without duplicate replay', async () => {
     const f = await setup()
     f.queue.splice(0)
     f.arbitrator.observe(dispatched(f))
     f.arbitrator.assistant(1)
     await f.arbitrator.finish(1, true)
     expect((await f.status()).status.state).toBe('responded')
-    await f.control({ kind: 'invalidate', operationId: 'invalidate-a' as OperationId, expectedRevision: 0 }, { reason: '失效' })
+    await f.control({ kind: 'invalidate', operationId: 'invalidate-a' as OperationId, expectedRevision: 0 }, { reason: 'invalidated' })
     await f.arbitrator.drain()
     const decision = await f.status()
     expect(decision.status.state).toBe('invalidated')

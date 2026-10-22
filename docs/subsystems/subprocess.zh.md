@@ -281,6 +281,14 @@ Implementations must honor these semantics:
 
 ```ts cordis-catalog
 /**
+ * Observe one process incarnation without granting termination authority.
+ * Providers without OS creation evidence return only the PID, never a verified live identity.
+ * @param pid - process identity to inspect in this execution world.
+ * @returns creation evidence, or a PID-only unavailable observation.
+ */
+readProcessIdentity(pid: number): SubprocessIdentity
+
+/**
  * Resolve one configured executable in this provider's execution world.
  * Absolute paths are verified; bare names use the provider's scrubbed PATH
  * plus explicit environment overrides. Relative paths containing separators

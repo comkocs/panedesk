@@ -22,6 +22,12 @@ flowchart LR
   cfg --> plugin_dsh_base_deepseek_llm_api_extensions
   plugin_dsh_base_session["session<br/>@panedesk/dsh-session"]
   cfg --> plugin_dsh_base_session
+  plugin_dsh_base_session_ledger["session-ledger<br/>@panedesk/dsh-session-ledger"]
+  cfg --> plugin_dsh_base_session_ledger
+  plugin_dsh_base_message_delivery["message-delivery<br/>@panedesk/dsh-message-delivery-local"]
+  cfg --> plugin_dsh_base_message_delivery
+  plugin_dsh_base_instruction_subscriptions["instruction-subscriptions<br/>@panedesk/dsh-instruction-subscriptions"]
+  cfg --> plugin_dsh_base_instruction_subscriptions
   plugin_dsh_base_session_log_deepseek["session-log-deepseek<br/>@panedesk/dsh-session-log-deepseek"]
   cfg --> plugin_dsh_base_session_log_deepseek
   plugin_dsh_base_typert["typert<br/>@panedesk/dsh-typert-registry"]
@@ -211,6 +217,9 @@ flowchart LR
 | `llm` | `@panedesk/dsh-llm` |
 | `deepseek-llm-api-extensions` | `@panedesk/dsh-deepseek-llm-api-extensions` |
 | `session` | `@panedesk/dsh-session` |
+| `session-ledger` | `@panedesk/dsh-session-ledger` |
+| `message-delivery` | `@panedesk/dsh-message-delivery-local` |
+| `instruction-subscriptions` | `@panedesk/dsh-instruction-subscriptions` |
 | `session-log-deepseek` | `@panedesk/dsh-session-log-deepseek` |
 | `typert` | `@panedesk/dsh-typert-registry` |
 | `typert-loader` | `@panedesk/dsh-typert-loader` |

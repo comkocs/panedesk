@@ -18,7 +18,7 @@
 
 - `inject`: `agents` · `llm` · `sessionPersistence` · `sessions`
 - `refs`: `Stream` (`@agentclientprotocol/sdk`)
-- `source`: [`packages/acp/acp/src/index.ts:75`](../packages/acp/acp/src/index.ts)
+- `source`: [`packages/acp/acp/src/index.ts:81`](../packages/acp/acp/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the provider/model selection used for each ACP-created agent. */
@@ -1732,6 +1732,26 @@ export interface TlsConfig {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-host-webserver -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-instruction-subscriptions -->
+<a id="panedeskdsh-instruction-subscriptions"></a>
+
+## `@panedesk/dsh-instruction-subscriptions`
+
+- `source`: [`packages/context/instruction-subscriptions/src/index.ts:15`](../packages/context/instruction-subscriptions/src/index.ts)
+
+```ts config-catalog
+/** Deployment-controlled subscription paths and memory/read limits. */
+export interface Config {
+  /** Additional paths, relative to each agent's working directory. */
+  files?: string[]
+  /** Aggregate retained raw bytes per agent and maximum bytes per scan. */
+  maxBytes: number
+  /** Watch callbacks invalidate hints only; every boundary still scans. */
+  watch?: boolean
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-instruction-subscriptions -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-jobs-local -->
 <a id="panedeskdsh-jobs-local"></a>
 
@@ -1790,7 +1810,7 @@ export interface LedgerAppOptions {
 
 ## `@panedesk/dsh-ledger-query`
 
-- `source`: [`packages/session/ledger-query/src/index.ts:17`](../packages/session/ledger-query/src/index.ts)
+- `source`: [`packages/session/ledger-query/src/index.ts:19`](../packages/session/ledger-query/src/index.ts)
 
 ```ts config-catalog
 /** Read-only ledger observation settings. */
@@ -2431,6 +2451,39 @@ export interface ReconnectConfig {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-mcp-client -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-message-delivery-local -->
+<a id="panedeskdsh-message-delivery-local"></a>
+
+## `@panedesk/dsh-message-delivery-local`
+
+- `inject`: `agents` · `sessions` · `sessionPersistence`
+- `source`: [`packages/session/message-delivery-local/src/types.ts:11`](../packages/session/message-delivery-local/src/types.ts)
+
+```ts config-catalog
+/** Required deployment limits are resolved at plugin activation. */
+export interface Config {
+  /** Harness home containing the private mailbox; omission uses the resolved application home. */
+  readonly dshHome?: string
+  /** Explicit local identity; omission resolves the persisted Session ledger node at startup. */
+  readonly nodeId?: string
+  /** Maximum encoded bytes accepted for one mailbox record. */
+  readonly maxRecordBytes: number
+  /** Maximum UTF-8 bytes accepted for sent or edited message content. */
+  readonly maxContentBytes: number
+  /** Maximum recipients per batch and default message query page size. */
+  readonly maxBatchSize: number
+  /** Mailbox and receipt scan interval in milliseconds, at most one second. */
+  readonly scanIntervalMs: number
+  /** Maximum time in milliseconds to acquire a mailbox lock. */
+  readonly lockTimeoutMs: number
+  /** Delay in milliseconds between mailbox lock acquisition attempts. */
+  readonly lockRetryMs: number
+  /** Enable filesystem notifications in addition to periodic mailbox scans. */
+  readonly watch: boolean
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-message-delivery-local -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-message-feedback -->
 <a id="panedeskdsh-message-feedback"></a>
 
@@ -2938,7 +2991,7 @@ export interface JsonRpcConfig {
 
 ## `@panedesk/dsh-session-ledger`
 
-- `source`: [`packages/session/session-ledger/src/index.ts:29`](../packages/session/session-ledger/src/index.ts)
+- `source`: [`packages/session/session-ledger/src/index.ts:32`](../packages/session/session-ledger/src/index.ts)
 
 ```ts config-catalog
 /** Trusted configuration accepted by concrete ledger providers. */
@@ -4877,11 +4930,9 @@ export interface Config {
 | `@panedesk/dsh-host-directory-picker-auto` | `webServer` · `connection` · `loader` | [`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts) |
 | `@panedesk/dsh-host-directory-picker-native` | — | [`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts) |
 | `@panedesk/dsh-host-plugin-inventory` | `loader` | [`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts) |
-| `@panedesk/dsh-instruction-subscriptions` | — | [`packages/context/instruction-subscriptions/src/index.ts`](../packages/context/instruction-subscriptions/src/index.ts) |
 | `@panedesk/dsh-llm` | — | [`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts) |
 | `@panedesk/dsh-lsp` | — | [`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts) |
 | `@panedesk/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
-| `@panedesk/dsh-message-delivery-local` | — | [`packages/session/message-delivery-local/src/index.ts`](../packages/session/message-delivery-local/src/index.ts) |
 | `@panedesk/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |
 | `@panedesk/dsh-sandbox-ssh` | `ssh` | [`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts) |
 | `@panedesk/dsh-session` | — | [`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts) |

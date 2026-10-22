@@ -8,7 +8,7 @@ import type {
   ReprioritizeMessageRequest, ResolvedRecipient, SendBatchRequest, SendBatchResult,
   SendMessageRequest, SendMessageResult,
 } from './types.ts'
-import type {} from './events.ts'
+export type * from './events.ts'
 
 export type * from './types.ts'
 

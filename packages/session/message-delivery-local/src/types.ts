@@ -9,15 +9,23 @@ import type {
 
 /** Required deployment limits are resolved at plugin activation. */
 export interface Config {
+  /** Harness home containing the private mailbox; omission uses the resolved application home. */
   readonly dshHome?: string
   /** Explicit local identity; omission resolves the persisted Session ledger node at startup. */
   readonly nodeId?: string
+  /** Maximum encoded bytes accepted for one mailbox record. */
   readonly maxRecordBytes: number
+  /** Maximum UTF-8 bytes accepted for sent or edited message content. */
   readonly maxContentBytes: number
+  /** Maximum recipients per batch and default message query page size. */
   readonly maxBatchSize: number
+  /** Mailbox and receipt scan interval in milliseconds, at most one second. */
   readonly scanIntervalMs: number
+  /** Maximum time in milliseconds to acquire a mailbox lock. */
   readonly lockTimeoutMs: number
+  /** Delay in milliseconds between mailbox lock acquisition attempts. */
   readonly lockRetryMs: number
+  /** Enable filesystem notifications in addition to periodic mailbox scans. */
   readonly watch: boolean
 }
 

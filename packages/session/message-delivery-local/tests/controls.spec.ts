@@ -16,18 +16,18 @@ afterEach(async () => { await Promise.all(fixtures.splice(0).map(item => item.di
 async function setup() { const fixture = await ownerFixture(); fixtures.push(fixture); return fixture }
 
 describe('owner arbitration', () => {
-  it('发送先落文件再回执，恢复沿用号源，账本先提交再通知且确认层级分离', async () => {
+  it('persists sends before receipts, retains identity on resume, and commits ledger events before notifications', async () => {
     const home = await mkdtemp(join(tmpdir(), 'delivery-ledger-'))
     const f = await serviceFixture(home)
     try {
-      const request = { target: { sessionId: f.session.id }, content: '原文', messageClass: 'handoff' as const, operationId: 'send-a' as OperationId }
+      const request = { target: { sessionId: f.session.id }, content: 'original', messageClass: 'handoff' as const, operationId: 'send-a' as OperationId }
       const sent = await f.service.send(request)
       const mailbox = new FileMailbox({ home, nodeId: 'node-a', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
       const records = (await mailbox.snapshot(f.session.id)).records
       expect(records).toHaveLength(1)
-      expect(decodeCommand(records[0]?.value)).toMatchObject({ kind: 'send', message: { messageId: sent.messageId, content: '原文' } })
+      expect(decodeCommand(records[0]?.value)).toMatchObject({ kind: 'send', message: { messageId: sent.messageId, content: 'original' } })
       expect(await f.service.send(request)).toEqual(sent)
-      await expect(f.service.send({ ...request, content: '异文' })).rejects.toThrow('operation-conflict')
+      await expect(f.service.send({ ...request, content: 'different' })).rejects.toThrow('operation-conflict')
       expect(await f.service.send({ ...request, operationId: 'bad-reply' as OperationId, messageClass: 'reply', replyTo: 'missing' as MessageId }))
         .toMatchObject({ reason: 'invalid-reply', messageState: 'rejected' })
       expect((await mailbox.snapshot(f.session.id)).records).toHaveLength(1)
@@ -36,7 +36,7 @@ describe('owner arbitration', () => {
       const scheduler = await f.resume()
       expect(scheduler.queue[0]?.id).toBe(sent.messageId)
       expect(scheduler.queue[1]).toMatchObject({ id: reply.messageId, source: { messageClass: 'reply', replyTo: sent.messageId } })
-      const edited = await f.service.edit({ messageId: sent.messageId, content: '新文', operationId: 'edit-a' as OperationId, expectedRevision: 0 })
+      const edited = await f.service.edit({ messageId: sent.messageId, content: 'updated', operationId: 'edit-a' as OperationId, expectedRevision: 0 })
       expect(edited).toMatchObject({ kind: 'applied', status: { state: 'queued', phase: 'pending' } })
       expect((await f.service.status(sent.messageId)).transitions.some(event => event.data.transition === 'injected')).toBe(false)
       scheduler.queue.splice(0, 1)
@@ -46,7 +46,7 @@ describe('owner arbitration', () => {
       f.session.append('agent/input/transition', { ...base, phase: 'dispatched', requestId: 'request-a' as Extract<InputTransition, { phase: 'dispatched' }>['requestId'] })
       await f.ctx.serial('agent/input-preparing', { agent: scheduler.agent, turn: 1, step: 1, signal: new AbortController().signal })
       expect((await f.service.status(sent.messageId)).state).toBe('injected')
-      await f.service.invalidate({ messageId: sent.messageId, reason: '已替代', operationId: 'invalidate-a' as OperationId, expectedRevision: 1 })
+      await f.service.invalidate({ messageId: sent.messageId, reason: 'superseded', operationId: 'invalidate-a' as OperationId, expectedRevision: 1 })
       const expected = ['accepted', 'edited', 'claimed', 'appended', 'injected', 'invalidated']
       const recorded = (await f.ledger.read()).events.filter(event => event.data.messageId === sent.messageId)
       expect(recorded.map(event => event.data.transition)).toEqual(expected)

@@ -142,13 +142,13 @@ export const inboxProjectionDefinition = {
     }
   },
   wire: {
-    // The wire value is the fold state itself: every pending message already
-    // round-trips the session log as lossless JSON. Only the static type
-    // narrows to the JSON-safe projection table entry.
+    // Pending messages round-trip the session log as lossless JSON. Scheduling
+    // and claim metadata stay host-local; the wire exposes only pending lists.
     viewSchema: inboxProjectionSchema as unknown as z.ZodType<InboxWireState>,
-    view: (state: InboxState | ScheduledInboxState) => ({
-      'next-turn': state['next-turn'], 'next-step': state['next-step'],
-    }) as unknown as InboxWireState,
+    view: (input: InboxState | ScheduledInboxState) => {
+      const state: InboxState = { 'next-turn': input['next-turn'], 'next-step': input['next-step'] }
+      return state as unknown as InboxWireState
+    },
   },
   stateVersion: 2,
 } satisfies ProjectionDefinition<'inbox', InboxState | ScheduledInboxState>

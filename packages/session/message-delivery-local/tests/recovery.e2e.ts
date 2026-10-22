@@ -7,7 +7,7 @@ import type { OperationId } from '@panedesk/dsh-message-delivery'
 import { expect, it } from 'vitest'
 import { serviceFixture } from './fixtures/persistence.ts'
 
-it('经 YAML 组合保留离线控制，发送记录先于回执且同号幂等', async () => {
+it('retains offline controls through YAML composition and persists idempotent sends before receipts', async () => {
   const home = await mkdtemp(join(tmpdir(), 'delivery-loader-'))
   const f = await serviceFixture(home)
   try {
@@ -40,13 +40,13 @@ async function runProcess(home: string, role: 'sender' | 'owner'): Promise<unkno
   try {
     await new Promise<void>((resolve, reject) => {
       child.once('error', reject)
-      child.once('exit', (code) => { if (code === 0) resolve(); else reject(new Error(`恢复子进程退出 ${code}: ${stderr}`)) })
+      child.once('exit', (code) => { if (code === 0) resolve(); else reject(new Error(`Recovery child exited ${code}: ${stderr}`)) })
     })
     return output
   } finally { clearTimeout(timeout) }
 }
 
-it('两个真实 Node 进程共享文件信箱，先关后发并先裁离线控制再 claim', async () => {
+it('shares a mailbox across two Node processes and applies offline controls before claiming resumed input', async () => {
   const home = await mkdtemp(join(tmpdir(), 'delivery-process-'))
   try {
     const sender = await runProcess(home, 'sender')
@@ -55,13 +55,13 @@ it('两个真实 Node 进程共享文件信箱，先关后发并先裁离线控�
       controls: [{ kind: 'accepted-pending-owner' }, { kind: 'accepted-pending-owner' }, { kind: 'accepted-pending-owner' }],
       rejected: { reason: 'target-archived', messageState: 'rejected' }, archivedRecords: 0, records: [1, 2, 3, 4, 5] })
     const owner = await runProcess(home, 'owner')
-    expect(owner).toMatchObject({ role: 'owner', admitted: [{ content: [{ type: 'text', text: '离线改字' }], priority: 'immediate' }],
+    expect(owner).toMatchObject({ role: 'owner', admitted: [{ content: [{ type: 'text', text: 'offline edit' }], priority: 'immediate' }],
       results: [{ kind: 'applied' }, { kind: 'applied' }, { kind: 'applied' }],
       transitions: ['accepted', 'accepted', 'edited', 'reprioritized', 'withdrawn'],
       emitted: ['accepted', 'accepted', 'edited', 'reprioritized', 'withdrawn'] })
-    if (!sender || typeof sender !== 'object' || !('edited' in sender) || !sender.edited || typeof sender.edited !== 'object' || !('messageId' in sender.edited)) throw new Error('发送进程结果缺少消息号')
+    if (!sender || typeof sender !== 'object' || !('edited' in sender) || !sender.edited || typeof sender.edited !== 'object' || !('messageId' in sender.edited)) throw new Error('Sender result is missing a message identity')
     expect(owner).toMatchObject({ claimed: [sender.edited.messageId], admitted: [{ id: sender.edited.messageId }] })
-    if (!('pid' in sender)) throw new Error('发送进程缺少进程号')
+    if (!('pid' in sender)) throw new Error('Sender result is missing a process identity')
     expect(owner).not.toMatchObject({ pid: sender.pid })
   } finally { await rm(home, { recursive: true, force: true }) }
 }, 60000)

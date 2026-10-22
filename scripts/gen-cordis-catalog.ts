@@ -174,6 +174,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  messageLedger: 'optional interface-typed message namespace override; sessionLedger.messages() supplies the default — docs/subsystems/session-telemetry.md owns MessageLedgerStore',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
   webTerminals: 'client-side terminal view models — packages/api/terminal-controller/README.md owns the API',
   appReady: 'not a service: launcher-provided successful-startup signal — packages/boot/cmdline/README.md owns the launcher contract',
@@ -511,6 +512,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   ShellRunResult: 'shell.md',
   DshEnvironment: 'subprocess.md',
   SubprocessHandle: 'subprocess.md',
+  SubprocessIdentity: 'subprocess.md',
   SubprocessOutcome: 'subprocess.md',
   SubprocessOutputRead: 'subprocess.md',
   SubprocessOutputReader: 'subprocess.md',
@@ -526,6 +528,9 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   CachePolicy: 'llm-streaming.md',
   KeepalivePolicy: 'llm-streaming.md',
   LlmRetryObservation: 'llm-streaming.md',
+  MessageLedgerStore: 'session-telemetry.md',
+  LedgerMessagePage: 'session-telemetry.md',
+  LedgerSessionPage: 'session-telemetry.md',
   LedgerContext: 'session-telemetry.md',
   LedgerSessionContext: 'session-telemetry.md',
   LedgerPriceEntry: 'session-telemetry.md',

@@ -137,6 +137,8 @@ flowchart LR
   pkg_host_product_telemetry_otel["host-product-telemetry-otel"]
   pkg_session_telemetry_otel["session-telemetry-otel"]
   svc_productTelemetry["ctx.productTelemetry<br/>Product usage event sender"]
+  pkg_message_delivery["message-delivery"]
+  svc_messageDelivery["ctx.messageDelivery<br/>Same-node message delivery"]
   pkg_session_ledger["session-ledger"]
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   pkg_ledger_query["ledger-query"]
@@ -384,6 +386,7 @@ flowchart LR
   pkg_lsp_stdio --> svc_lsp
   pkg_mcp_client --> svc_mcpResources
   pkg_mcp_resources --> svc_mcpResources
+  pkg_message_delivery --> svc_messageDelivery
   pkg_message_feedback --> svc_messageFeedback
   pkg_office_to_pdf --> svc_officeToPdf
   pkg_otel --> svc_otel
@@ -669,6 +672,7 @@ flowchart LR
 | `ctx.productAnalytics` | `service` | [`client-product-analytics`](../packages/client/product-analytics) | - | - | - | 根据 Host 动态采集策略接收指定桌面事件、补充可用登录身份并监听实时压缩。 |
 | `ctx.otel` | `service` | [`otel`](../packages/telemetry/otel) | - | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel), [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | 产品埋点和 Session 反馈适配器通过同一个注入服务创建独立上报通道。 |
 | `ctx.productTelemetry` | `service` | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel) | - | - | - | 通过 OTLP/HTTP 发送显式提交的分析事件；仅挂载插件不会采集信息。 |
+| `ctx.messageDelivery` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | - | - | 抽象的投递、接收策略、持久控制与回执操作；骨架不注册提供方。 |
 | `ctx.sessionLedger` | `seam` | [`session-ledger`](../packages/session/session-ledger) | - | - | - | 抽象的仅追加记账与参考定价操作；骨架不提供存储实现。 |
 | `ctx.ledgerQuery` | `seam` | [`ledger-query`](../packages/session/ledger-query) | - | - | - | 抽象的过滤、每日汇总与导出；骨架不提供查询实现。 |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | 该 seam 捕获会话记录、进行脱敏并交给一个后端；没有其他组件消费该服务，其输出会离开当前进程。 |

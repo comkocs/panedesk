@@ -135,6 +135,8 @@ flowchart LR
   pkg_host_product_telemetry_otel["host-product-telemetry-otel"]
   pkg_session_telemetry_otel["session-telemetry-otel"]
   svc_productTelemetry["ctx.productTelemetry<br/>Product usage event sender"]
+  pkg_message_delivery["message-delivery"]
+  svc_messageDelivery["ctx.messageDelivery<br/>Same-node message delivery"]
   pkg_session_ledger["session-ledger"]
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   pkg_ledger_query["ledger-query"]
@@ -382,6 +384,7 @@ flowchart LR
   pkg_lsp_stdio --> svc_lsp
   pkg_mcp_client --> svc_mcpResources
   pkg_mcp_resources --> svc_mcpResources
+  pkg_message_delivery --> svc_messageDelivery
   pkg_message_feedback --> svc_messageFeedback
   pkg_office_to_pdf --> svc_officeToPdf
   pkg_otel --> svc_otel
@@ -667,6 +670,7 @@ flowchart LR
 | `ctx.productAnalytics` | `service` | [`client-product-analytics`](../packages/client/product-analytics) | - | - | - | Accepts selected Desktop events, enriches available login identity, and observes live compaction under the live Host collection policy. |
 | `ctx.otel` | `service` | [`otel`](../packages/telemetry/otel) | - | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel), [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | Product analytics and Session feedback adapters create independent reporting channels through one injected service. |
 | `ctx.productTelemetry` | `service` | [`host-product-telemetry-otel`](../packages/host/product-telemetry-otel) | - | - | - | Exports explicitly submitted analytics events through OTLP/HTTP; mounting alone collects nothing. |
+| `ctx.messageDelivery` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | - | - | Abstract delivery, receive policy, durable control, and receipt operations; no provider is registered by the scaffold. |
 | `ctx.sessionLedger` | `seam` | [`session-ledger`](../packages/session/session-ledger) | - | - | - | Abstract append-only accounting and reference-pricing operations; the scaffold supplies no storage provider. |
 | `ctx.ledgerQuery` | `seam` | [`ledger-query`](../packages/session/ledger-query) | - | - | - | Abstract filtering, daily summaries, and exports; the scaffold supplies no query provider. |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | The seam captures, redacts, and hands session records to one backend; nothing else consumes the service — its output leaves the process. |

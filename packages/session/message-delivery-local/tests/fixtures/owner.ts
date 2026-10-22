@@ -14,10 +14,10 @@ import type { DeliveryDriver, ControlCommand } from '../../src/types.ts'
 import { decodeDecision, decodeControlResult } from '../../src/codec.ts'
 import { readValue } from '../../src/files.ts'
 
-/** 创建与冻结调度接口一致的替身。
- * @param ctx - 生命周期宿主。
- * @param session - 已持租约的会话。
- * @returns 队列、调度参数与可登记的智能体。
+/** Create a substitute implementing the scheduling interface.
+ * @param ctx - lifecycle host.
+ * @param session - Session with an acquired lease.
+ * @returns queue, scheduling options, and a registerable agent.
  */
 export function schedulerFixture(ctx: Context, session: Session) {
   const queue: UserMessage[] = []
@@ -72,9 +72,9 @@ export function schedulerFixture(ctx: Context, session: Session) {
   return { agent: scheduled, driver, queue, options }
 }
 
-/** 创建独立裁决替身及文件信箱。
- * @param replay - 恢复时已持久化的调度事实。
- * @returns 资源及显式清理入口。
+/** Create an isolated arbitrator fixture and file mailbox.
+ * @param replay - persisted scheduling facts for recovery.
+ * @returns resources with explicit cleanup.
  */
 export async function ownerFixture(replay: readonly InputTransition[] = []) {
   const home = await mkdtemp(join(tmpdir(), 'delivery-owner-'))

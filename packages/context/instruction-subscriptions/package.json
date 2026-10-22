@@ -41,6 +41,8 @@
     "@panedesk/dsh-message-delivery": "workspace:*"
   },
   "devDependencies": {
+    "vitest": "^4.1.11",
+    "js-yaml": "^4.3.2",
     "@agentclientprotocol/sdk": "1.4.0",
     "@panedesk/dsh-acp": "workspace:*",
     "@panedesk/dsh-llm-cache": "workspace:*",

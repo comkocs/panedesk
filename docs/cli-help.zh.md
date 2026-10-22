@@ -152,7 +152,7 @@ Examples:
 调用方式: `panedesk ledger --help`, `panedesk --profile ledger --help`, `panedesk ledger-watch --help`, `panedesk --profile ledger-watch --help`
 
 ```text
-Usage: ledger [today|query|export|merge|live|cache|verify] [options]
+Usage: ledger [today|query|export|merge|live|cache|verify|messages] [options]
 ```
 
 <a id="panedesk-sdk"></a>
