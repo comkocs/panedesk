@@ -72,6 +72,13 @@ export interface Inbox {
   /** Input awaiting the next step boundary. */
   readonly nextStep: readonly UserMessage[]
 
+  /**
+   * Inspect reservation and first-dispatch state when supported by the driver.
+   * @param messageId - identified input.
+   * @returns its current admission stage; legacy drivers omit this capability.
+   */
+  inputState?(messageId: MessageId): 'queued' | 'claimed' | 'injected' | 'missing'
+
   /** Durably cancel all pending input, clearing next-step before next-turn. */
   clear(): void
 

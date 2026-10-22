@@ -15,8 +15,19 @@ import type {
   InboxTarget,
   InboxWireState,
   InputScheduling,
+  InputTransition,
+  InputClaimId,
 } from '@panedesk/dsh-agent'
 import { z } from 'zod'
+import { randomUUID } from 'node:crypto'
+import { brandString } from '@panedesk/dsh-brand'
+
+type Claim = {
+  transition: Extract<InputTransition, { phase: 'claimed' }>
+  entries: { message: UserMessage; scheduling: InputScheduling; target: InboxTarget }[]
+  appended: MessageId[]
+}
+
 
 /** Wire validation for pending agent input reconstructed from durable inbox splices. */
 export const inboxProjectionSchema = z.object({
@@ -28,6 +39,8 @@ interface ScheduledInboxState extends InboxState {
   readonly scheduling: Readonly<Record<string, InputScheduling>>
   readonly sequence: number
   readonly order: Readonly<Record<string, number>>
+  readonly claims: Readonly<Record<string, Claim>>
+  readonly dispatched: readonly MessageId[]
 }
 
 const schedulingSchema = z.object({
@@ -44,9 +57,40 @@ export const inboxProjectionDefinition = {
     scheduling: z.record(z.string(), schedulingSchema),
     sequence: z.number().int().nonnegative(),
     order: z.record(z.string(), z.number().int().nonnegative()),
+    claims: z.record(z.string(), z.custom<Claim>()),
+    dispatched: z.array(z.custom<MessageId>()).readonly(),
   }).readonly(),
-  init: (): ScheduledInboxState => ({ 'next-turn': [], 'next-step': [], scheduling: {}, sequence: 0, order: {} }),
+  init: (): ScheduledInboxState => ({ 'next-turn': [], 'next-step': [], scheduling: {}, sequence: 0, order: {}, claims: {}, dispatched: [] }),
   apply(state: ScheduledInboxState, event) {
+    if (event.type === 'agent/input/transition') {
+      const transition = event.data
+      if (transition.phase === 'scheduled') return state
+      const claims = { ...state.claims }
+      if (transition.phase === 'claimed') {
+        const entries = (['next-step', 'next-turn'] as const).flatMap(target => state[target]
+          .filter(message => transition.messageIds.includes(message.id))
+          .map(message => ({
+            message, target,
+            scheduling: state.scheduling[message.id] ?? {
+              priority: target === 'next-step' ? 'steer' as const : 'queue' as const,
+              passive: false, enqueueSequence: state.order[message.id] ?? 0, earliestTurn: transition.turn,
+            },
+          })))
+        claims[transition.claimId] = { transition, entries, appended: [] }
+      } else if (transition.phase === 'dispatched' || transition.phase === 'rolled-back') {
+        delete claims[transition.claimId]
+      }
+      return {
+        ...state, claims,
+        dispatched: transition.phase === 'dispatched' ? [...state.dispatched, ...transition.messageIds] : state.dispatched,
+      }
+    }
+    if (event.type === 'user/message') {
+      const entry = Object.entries(state.claims).find(([, claim]) => claim.transition.messageIds.includes(event.data.id))
+      if (entry === undefined) return state
+      const [id, claim] = entry
+      return { ...state, claims: { ...state.claims, [id]: { ...claim, appended: [...claim.appended, event.data.id] } } }
+    }
     if (event.type !== 'agent/inbox/spliced') return state
     const splice = event.data
     try {
@@ -174,9 +218,17 @@ export class ReactLoopInbox implements InboxContract {
    * @param turn - turn that will own the claimed batch.
    * @returns next-step input followed by the queued turn, when requested.
    */
-  claim(target: InboxTarget, turn: number): UserMessage[] {
+  claim(target: InboxTarget, turn: number, step?: number): UserMessage[] {
     const state = this.current()
+    const reserve = (messages: readonly UserMessage[]): void => {
+      if (step === undefined || messages.length === 0) return
+      this.session.append('agent/input/transition', {
+        phase: 'claimed', claimId: brandString<InputClaimId>(randomUUID()),
+        messageIds: messages.map(message => message.id), turn, step,
+      })
+    }
     if (Object.keys(state.scheduling).length === 0) {
+      reserve([...this.nextStep, ...(target === 'next-turn' ? this.nextTurn.slice(0, 1) : [])])
       const claimed = this.mutate('next-step', 0, this.nextStep.length, [], false)
       if (target === 'next-turn') claimed.push(...this.mutate('next-turn', 0, 1, [], false))
       for (const message of claimed) this.dispatch.emit('agent/inbox/claimed', { message, turn })
@@ -194,17 +246,73 @@ export class ReactLoopInbox implements InboxContract {
         || (state.order[a.message.id] ?? 0) - (state.order[b.message.id] ?? 0))
     }
     let ordinaryClaimed = false
-    const claimed: UserMessage[] = []
-    for (const { message, list, policy } of candidates) {
+    const selected = candidates.filter(({ list, policy }) => {
       const ordinary = policy === undefined ? list === 'next-turn' : policy.priority === 'queue' && !policy.passive
-      if (ordinary && ordinaryClaimed) continue
+      if (ordinary && ordinaryClaimed) return false
       ordinaryClaimed ||= ordinary
+      return true
+    })
+    reserve(selected.map(item => item.message))
+    const claimed: UserMessage[] = []
+    for (const { message, list } of selected) {
       const index = this.current()[list].findIndex(item => item.id === message.id)
       this.mutate(list, index, 1, [], false)
       claimed.push(message)
     }
     for (const message of claimed) this.dispatch.emit('agent/inbox/claimed', { message, turn })
     return claimed
+  }
+
+  /**
+   * Inspect admission without conflating a reservation with dispatch.
+   * @param id - input identity.
+   * @returns the current admission stage.
+   */
+  inputState(id: MessageId): 'queued' | 'claimed' | 'injected' | 'missing' {
+    const state = this.current()
+    if (Object.values(state.claims).some(claim => claim.transition.messageIds.includes(id))) return 'claimed'
+    if (state.dispatched.includes(id)) return 'injected'
+    return this.locate(id) === undefined ? 'missing' : 'queued'
+  }
+
+  /**
+   * Record appended claims, retaining their reservation through synchronous request failures.
+   * @param turn - owning turn.
+   * @param step - owning step.
+   * @param userEventSeqs - committed user events.
+   */
+  appended(turn: number, step: number, userEventSeqs: readonly import('@panedesk/dsh-session').SessionSeq[]): void {
+    for (const claim of Object.values(this.current().claims)) {
+      if (claim.transition.turn !== turn || claim.transition.step !== step || claim.appended.length === 0) continue
+      this.session.append('agent/input/transition', { ...claim.transition, phase: 'appended', userEventSeqs })
+    }
+  }
+
+  /** Restore reservations with no historical user append, preserving their original order. */
+  rollback(): void {
+    for (const claim of Object.values(this.current().claims)) {
+      if (claim.appended.length > 0) continue
+      for (const { message, scheduling, target } of [...claim.entries].reverse()) {
+        if (this.locate(message.id) === undefined) this.mutate(target, 0, 0, [message], false, [scheduling])
+      }
+      this.session.append('agent/input/transition', {
+        ...claim.transition, phase: 'rolled-back', scheduling: claim.entries.map(entry => entry.scheduling),
+      })
+    }
+  }
+
+  /**
+   * Commit first dispatch for appended input actually present in this request.
+   * @param messageIds - immutable request identities.
+   */
+  dispatchInput(messageIds: readonly MessageId[]): void {
+    const requestId = brandString<Extract<InputTransition, { phase: 'dispatched' }>['requestId']>(randomUUID())
+    for (const claim of Object.values(this.current().claims)) {
+      if (claim.appended.length === 0 || !claim.transition.messageIds.every(id => messageIds.includes(id))) continue
+      const transition: Extract<InputTransition, { phase: 'dispatched' }> = { ...claim.transition, phase: 'dispatched', requestId }
+      this.session.append('agent/input/transition', transition)
+      this.dispatch.emit('agent/input-dispatching', { transition })
+    }
   }
 
   /**
@@ -232,6 +340,7 @@ export class ReactLoopInbox implements InboxContract {
    * @returns whether the message was still pending.
    */
   replace(messageId: MessageId, newMessage: UserMessage): boolean {
+    if (this.inputState(messageId) === 'claimed') return false
     const location = this.locate(messageId)
     if (location === undefined) return false
     const policy = this.schedulingOf(messageId)
@@ -245,6 +354,7 @@ export class ReactLoopInbox implements InboxContract {
    * @returns whether the message was still pending.
    */
   remove(messageId: MessageId): boolean {
+    if (this.inputState(messageId) === 'claimed') return false
     const location = this.locate(messageId)
     if (location === undefined) return false
     this.splice(location.target, location.index, 1, [])
