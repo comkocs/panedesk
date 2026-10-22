@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
-import type { LedgerAppendResult, LedgerEvent, LedgerLifecycle, LedgerRunFinish, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import type { LedgerAppendResult, LedgerCall, LedgerCallFinish, LedgerEvent, LedgerLifecycle, LedgerRunFinish, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import { SessionLedger } from '@panedesk/dsh-session-ledger'
 import { reconcileRuns, startWatching } from '../src/watch.ts'
 import { apply } from '../src/index.ts'
@@ -22,10 +22,12 @@ class MemoryLedger extends SessionLedger {
   override nodeId: SessionLedger['nodeId'] = () => { throw new Error('Unused fixture operation') }
   override importNode: SessionLedger['importNode'] = () => { throw new Error('Unused fixture operation') }
   events: LedgerEvent[] = []
+  calls: LedgerCall[] = []
+  beforeCallFinish?: () => void | Promise<void>
   beforeFinish?: () => void | Promise<void>
   complete = true
   constructor(ctx: Context, readonly runs: LedgerLifecycle[]) { super(ctx) }
-  override async snapshot(): Promise<LedgerSnapshot> { return { asOf: Date.now(), complete: this.complete, watermarks: {}, rows: [...this.runs, ...this.events.map(event => ({ kind: 'event' as const, event }))] } }
+  override async snapshot(): Promise<LedgerSnapshot> { return { asOf: Date.now(), complete: this.complete, watermarks: {}, rows: [...this.runs, ...this.calls, ...this.events.map(event => ({ kind: 'event' as const, event }))] } }
   override async query() { return this.snapshot() }
   override async finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult> {
     await this.beforeFinish?.()
@@ -41,25 +43,70 @@ class MemoryLedger extends SessionLedger {
     return { kind: 'appended', event, watermark: 'watermark-a' as LedgerSnapshot['watermarks'][string] }
   }
   override beginCall(): never { throw new Error('Unused fixture operation') }
-  override finishCall(): never { throw new Error('Unused fixture operation') }
+  override async finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult> {
+    await this.beforeCallFinish?.()
+    const row = this.calls.find(call => call.start.callId === input.callId)!
+    const eventId = `call/end:${input.callId}` as LedgerEvent['eventId']
+    if (row.finish) return { kind: 'conflict', eventId, existingDigest: 'first', incomingDigest: 'second' }
+    row.finish = input
+    return { kind: 'appended', watermark: 'watermark-a' as LedgerSnapshot['watermarks'][string], event: {
+      schemaVersion: 1, eventId, nodeId: row.start.nodeId, observedAt: input.observedAt,
+      runId: row.start.runId, sessionId: row.start.sessionId, kind: 'call/end', data: input } }
+  }
   override beginRun(): never { throw new Error('Unused fixture operation') }
   override appendArtifact(): never { throw new Error('Unused fixture operation') }
   override finishArtifact(): never { throw new Error('Unused fixture operation') }
   override registerWaitTool(): never { throw new Error('Unused fixture operation') }
   override priceUsage(): never { throw new Error('Unused fixture operation') }
 }
+function callFor(row: LedgerLifecycle): LedgerCall {
+  return { kind: 'call', start: { ...row.start, callId: 'call-a' as LedgerCall['start']['callId'],
+    logicalRequestId: 'request-a' as LedgerCall['start']['logicalRequestId'], attemptIndex: 0, attemptVisibility: 'physical',
+    provider: 'mock', modelFamily: 'mock', requestedModel: 'model-a', purpose: 'conversation',
+    cache: { prefixFingerprint: 'prefix-a', breakReasons: [], cacheMode: 'unknown' }, cacheWriteTiering: { kind: 'unknown' },
+    priceVersion: 'unknown', priceKey: 'unknown', referencePrice: true } }
+}
 const dead = async () => ({ liveness: 'dead' as const, verification: 'verified' as const, reason: 'missing' as const })
 const policy = { nodeId: 'node-a' as LedgerLifecycle['start']['nodeId'], intervalMs: 2000, settlementBudgetMs: 10000 }
 
 describe('ledger death reconciliation', () => {
+  it('retries unfinished calls after a run terminal survived an interrupted recovery', async () => {
+    const row = run()
+    row.finish = { runId: row.start.runId, observedAt: 101, endReason: 'killed', recovered: true, deliveryState: 'not-requested' }
+    const ledger = new MemoryLedger(new Context(), [row])
+    ledger.calls.push(callFor(row))
+    ledger.beforeCallFinish = () => { throw new Error('Temporary write failure') }
+    await expect(reconcileRuns(ledger, { ...policy, inspect: dead })).rejects.toThrow('Temporary write failure')
+    ledger.beforeCallFinish = undefined
+    await reconcileRuns(ledger, { ...policy, inspect: dead })
+    expect(ledger.calls[0]!.finish).toMatchObject({ endReason: 'killed', recovered: true })
+  })
+
+  it('preserves a racing call terminal instead of overwriting it', async () => {
+    const row = run(), ledger = new MemoryLedger(new Context(), [row])
+    const call = callFor(row)
+    ledger.calls.push(call)
+    ledger.beforeCallFinish = () => {
+      call.finish = { callId: call.start.callId, endedAt: 101, observedAt: 101, responseModelReported: 'not-reported',
+        effectiveModel: 'model-a', usageState: 'missing', pricingState: 'missing-usage', wallMs: 1,
+        modelInFlightMs: 1, queueMs: 0, backoffMs: 0, waits: [], compactionCount: 0, compactionTimes: [],
+        endReason: 'completed', recovered: false }
+    }
+    await reconcileRuns(ledger, { ...policy, inspect: dead })
+    expect(call.finish).toMatchObject({ endReason: 'completed', recovered: false })
+  })
+
   it('recovers local dead runs and never overwrites a racing normal terminal slot', async () => {
     const a = run(), b = run('run-b'), remote = run('remote'); remote.start.nodeId = 'node-b' as typeof remote.start.nodeId
     const ledger = new MemoryLedger(new Context(), [a, b, remote])
+    const normalCall = callFor(b)
+    ledger.calls.push(normalCall)
     ledger.beforeFinish = () => { if (!b.finish) b.finish = { runId: b.start.runId, observedAt: 101, endReason: 'completed', recovered: false, deliveryState: 'not-requested' } }
     const report = await reconcileRuns(ledger, { ...policy, inspect: dead })
     expect(a.finish).toMatchObject({ endReason: 'killed', recovered: true })
     expect(a.finish!.endedAt).toBeUndefined()
     expect(b.finish).toMatchObject({ endReason: 'completed', recovered: false })
+    expect(normalCall.finish).toBeUndefined()
     expect(remote.finish).toBeUndefined()
     expect(report.recoveries.map(item => item.outcome)).toEqual(['appended', 'existing'])
     await reconcileRuns(ledger, { ...policy, inspect: dead })
@@ -142,6 +189,7 @@ describe('ledger death reconciliation', () => {
     row.start.processIdentity = { nodeId: policy.nodeId, pid, startIdentity,
       bootIdentity: (await readFile('/proc/sys/kernel/random/boot_id', 'utf8')).trim(), registeredAt: Date.now(), verification: 'verified' }
     const ledger = new MemoryLedger(new Context(), [row])
+    ledger.calls.push(callFor(row))
     let reportReady!: () => void
     const recovered = new Promise<void>((resolve) => { reportReady = resolve })
     const reports: Awaited<ReturnType<typeof reconcileRuns>>[] = []
@@ -157,6 +205,7 @@ describe('ledger death reconciliation', () => {
       expect(acknowledgement.persistedAt - killedAt).toBeLessThanOrEqual(10000)
       expect(acknowledgement.latencyMs).toBeLessThanOrEqual(10000)
       expect(row.finish).toMatchObject({ endReason: 'killed', recovered: true })
+      expect(ledger.calls[0]!.finish).toMatchObject({ endReason: 'killed', recovered: true })
       process.stderr.write(JSON.stringify({ fixture: 'real-child-kill', pid, signal: 'SIGKILL', killedAt, ...acknowledgement }) + '\n')
     } finally {
       await controller.stop()
