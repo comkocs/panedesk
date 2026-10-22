@@ -23,6 +23,7 @@
   },
   "files": [
     "lib/index.js",
+    "prices/reference-v1.json",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",

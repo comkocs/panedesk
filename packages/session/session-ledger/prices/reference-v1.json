@@ -1,0 +1,495 @@
+{
+  "version": "reference-v1",
+  "reference": true,
+  "retrievedOn": "2026-10-22",
+  "sourceUrls": [
+    "https://developers.openai.com/api/docs/pricing",
+    "https://developers.openai.com/api/docs/guides/prompt-caching",
+    "https://platform.claude.com/docs/en/about-claude/pricing",
+    "https://api-docs.deepseek.com/quick_start/pricing",
+    "https://docs.z.ai/guides/overview/pricing",
+    "https://docs.x.ai/developers/models/grok-4.7"
+  ],
+  "entries": [
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/guides/prompt-caching"
+      ],
+      "modelFamily": "openai",
+      "modelKey": "gpt-6-astra",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "10",
+        "output": "50",
+        "cacheRead": "1",
+        "cacheWrite": {
+          "30m": "12.50",
+          "12h": "25"
+        }
+      },
+      "contextRule": {
+        "thresholdTokens": 272000,
+        "counting": "all-input-including-cache-read-write",
+        "prices": {
+          "input": "20",
+          "output": "75",
+          "cacheRead": "2",
+          "cacheWrite": {
+            "30m": "25",
+            "12h": "50"
+          }
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/guides/prompt-caching"
+      ],
+      "modelFamily": "openai",
+      "modelKey": "gpt-6.1-sol",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "2",
+        "output": "10",
+        "cacheRead": "0.10",
+        "cacheWrite": {
+          "30m": "2.50",
+          "12h": "5"
+        }
+      },
+      "contextRule": {
+        "thresholdTokens": 272000,
+        "counting": "all-input-including-cache-read-write",
+        "prices": {
+          "input": "4",
+          "output": "15",
+          "cacheRead": "0.20",
+          "cacheWrite": {
+            "30m": "5",
+            "12h": "10"
+          }
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/guides/prompt-caching"
+      ],
+      "modelFamily": "openai",
+      "modelKey": "gpt-6-luna",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "0.10",
+        "output": "0.50",
+        "cacheRead": "0.01",
+        "cacheWrite": {
+          "30m": "0.125",
+          "12h": "0.25"
+        }
+      },
+      "contextRule": {
+        "thresholdTokens": 272000,
+        "counting": "all-input-including-cache-read-write",
+        "prices": {
+          "input": "0.20",
+          "output": "0.75",
+          "cacheRead": "0.02",
+          "cacheWrite": {
+            "30m": "0.25",
+            "12h": "0.50"
+          }
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "modelFamily": "anthropic",
+      "modelKey": "claude-fable-5-1",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "10",
+        "output": "50",
+        "cacheRead": "0.25",
+        "cacheWrite": {
+          "5m": "12.50",
+          "1h": "20"
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "modelFamily": "anthropic",
+      "modelKey": "claude-opus-5-5",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "4",
+        "output": "20",
+        "cacheRead": "0.20",
+        "cacheWrite": {
+          "5m": "5",
+          "1h": "8"
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "modelFamily": "anthropic",
+      "modelKey": "claude-sonnet-5-5",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "2",
+        "output": "10",
+        "cacheRead": "0.10",
+        "cacheWrite": {
+          "5m": "2.50",
+          "1h": "4"
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://platform.claude.com/docs/en/about-claude/pricing"
+      ],
+      "modelFamily": "anthropic",
+      "modelKey": "claude-haiku-5-5",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "0.10",
+        "output": "0.50",
+        "cacheRead": "0.01",
+        "cacheWrite": {
+          "5m": "0.125",
+          "1h": "0.20"
+        }
+      },
+      "contextRule": {
+        "thresholdTokens": 100000,
+        "counting": "all-input-including-cache-read-write",
+        "prices": {
+          "input": "0.50",
+          "output": "2.50",
+          "cacheRead": "0.05",
+          "cacheWrite": {
+            "5m": "0.625",
+            "1h": "1"
+          }
+        }
+      }
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://api-docs.deepseek.com/quick_start/pricing"
+      ],
+      "modelFamily": "deepseek",
+      "modelKey": "deepseek-flash",
+      "currency": "USD",
+      "holidaysUnmodeled": true,
+      "prices": {
+        "input": "0.15",
+        "output": "0.6",
+        "cacheRead": "0.003",
+        "cacheWrite": {
+          "untiered": "0"
+        }
+      },
+      "timeRules": [
+        {
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "fromHour": 1,
+          "toHour": 4,
+          "prices": {
+            "input": "0.3",
+            "output": "1.2",
+            "cacheRead": "0.006",
+            "cacheWrite": {
+              "untiered": "0"
+            }
+          }
+        },
+        {
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "fromHour": 6,
+          "toHour": 10,
+          "prices": {
+            "input": "0.3",
+            "output": "1.2",
+            "cacheRead": "0.006",
+            "cacheWrite": {
+              "untiered": "0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://api-docs.deepseek.com/quick_start/pricing"
+      ],
+      "modelFamily": "deepseek",
+      "modelKey": "deepseek-v4-flash",
+      "currency": "USD",
+      "holidaysUnmodeled": true,
+      "prices": {
+        "input": "0.15",
+        "output": "0.6",
+        "cacheRead": "0.003",
+        "cacheWrite": {
+          "untiered": "0"
+        }
+      },
+      "timeRules": [
+        {
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "fromHour": 1,
+          "toHour": 4,
+          "prices": {
+            "input": "0.3",
+            "output": "1.2",
+            "cacheRead": "0.006",
+            "cacheWrite": {
+              "untiered": "0"
+            }
+          }
+        },
+        {
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "fromHour": 6,
+          "toHour": 10,
+          "prices": {
+            "input": "0.3",
+            "output": "1.2",
+            "cacheRead": "0.006",
+            "cacheWrite": {
+              "untiered": "0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://api-docs.deepseek.com/quick_start/pricing"
+      ],
+      "modelFamily": "deepseek",
+      "modelKey": "deepseek-v4-pro",
+      "currency": "USD",
+      "holidaysUnmodeled": true,
+      "prices": {
+        "input": "0.66",
+        "output": "1.98",
+        "cacheRead": "0.022",
+        "cacheWrite": {
+          "untiered": "0"
+        }
+      },
+      "timeRules": [
+        {
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "fromHour": 1,
+          "toHour": 4,
+          "prices": {
+            "input": "1.32",
+            "output": "3.96",
+            "cacheRead": "0.044",
+            "cacheWrite": {
+              "untiered": "0"
+            }
+          }
+        },
+        {
+          "weekdays": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "fromHour": 6,
+          "toHour": 10,
+          "prices": {
+            "input": "1.32",
+            "output": "3.96",
+            "cacheRead": "0.044",
+            "cacheWrite": {
+              "untiered": "0"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://docs.z.ai/guides/overview/pricing"
+      ],
+      "modelFamily": "glm",
+      "modelKey": "glm-5.3",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "1.4",
+        "output": "4.4",
+        "cacheRead": "0.26",
+        "cacheWrite": {
+          "untiered": "0"
+        },
+        "cacheStoragePerMillionTokenHour": "0"
+      },
+      "notes": "Cache storage is temporarily free at the retrieval date."
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://docs.z.ai/guides/overview/pricing"
+      ],
+      "modelFamily": "glm",
+      "modelKey": "glm-5.3-flash",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "0.15",
+        "output": "0.50",
+        "cacheRead": "0.03",
+        "cacheWrite": {
+          "untiered": "0"
+        },
+        "cacheStoragePerMillionTokenHour": "0"
+      },
+      "notes": "Cache storage is temporarily free at the retrieval date."
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://docs.z.ai/guides/overview/pricing"
+      ],
+      "modelFamily": "glm",
+      "modelKey": "glm-5.3-flashx",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "0.37",
+        "output": "1.25",
+        "cacheRead": "0.075",
+        "cacheWrite": {
+          "untiered": "0"
+        },
+        "cacheStoragePerMillionTokenHour": "0"
+      },
+      "notes": "Cache storage is temporarily free at the retrieval date."
+    },
+    {
+      "version": "reference-v1",
+      "reference": true,
+      "retrievedOn": "2026-10-22",
+      "sourceUrls": [
+        "https://docs.x.ai/developers/models/grok-4.7"
+      ],
+      "modelFamily": "grok",
+      "modelKey": "grok-4.7",
+      "currency": "USD",
+      "holidaysUnmodeled": false,
+      "prices": {
+        "input": "2",
+        "output": "6",
+        "cacheRead": "0.50",
+        "cacheWrite": {
+          "untiered": "0"
+        }
+      },
+      "contextRule": {
+        "thresholdTokens": 200000,
+        "counting": "all-input-including-cache-read-write",
+        "prices": {
+          "input": "4",
+          "output": "12",
+          "cacheRead": "1",
+          "cacheWrite": {
+            "untiered": "0"
+          }
+        }
+      }
+    }
+  ]
+}

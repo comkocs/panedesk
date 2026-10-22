@@ -211,6 +211,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@panedesk/dsh-experimental-inspector': ['lib/client.*.js', 'lib/worker.js', 'lib/devtools/**'],
   // Creator's composition guidance travels with the declaration package.
   '@panedesk/dsh-agent-preset': ['skills'],
+  // The offline ledger publishes its versioned reference price table as data.
+  '@panedesk/dsh-session-ledger': ['prices/reference-v1.json'],
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
   '@panedesk/dsh-tool-subagent': ['lib/model-selection-settings.js'],
