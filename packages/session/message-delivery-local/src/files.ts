@@ -24,8 +24,8 @@ export function component(value: string): string {
   return value
 }
 
-/** Check a private product subtree without following links.
- * @param root - existing private product home or new private root.
+/** Check owner-controlled home and private descendants without following links.
+ * @param root - product home; group writes are allowed, other-user writes are refused.
  * @param path - descendant directory to create and validate.
  */
 export async function privateDirectory(root: string, path = root): Promise<void> {
@@ -61,8 +61,9 @@ export async function privateDirectory(root: string, path = root): Promise<void>
       if (!isExists(error)) throw error
     }
     const stat = await lstat(directory)
+    const forbidden = directory === base ? 0o002 : 0o077
     if (!stat.isDirectory() || stat.isSymbolicLink()
-      || (process.platform !== 'win32' && (stat.uid !== process.getuid?.() || (stat.mode & 0o077) !== 0))) {
+      || (process.platform !== 'win32' && (stat.uid !== process.getuid?.() || (stat.mode & forbidden) !== 0))) {
       throw new MailboxUnavailableError('Mailbox directory permissions are not private')
     }
   }

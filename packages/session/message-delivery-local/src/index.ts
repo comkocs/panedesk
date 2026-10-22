@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { watch, type FSWatcher } from 'node:fs'
-import { readdir } from 'node:fs/promises'
+import { lstat, readdir } from 'node:fs/promises'
 import { setTimeout as wait } from 'node:timers/promises'
 import { Context, Service } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -161,6 +161,9 @@ export default class LocalMessageDelivery extends MessageDelivery {
 
   private async initialize(): Promise<void> {
     await privateDirectory(this.mailbox.options.home)
+    if (process.platform !== 'win32' && ((await lstat(this.mailbox.options.home)).mode & 0o020) !== 0) {
+      this.ctx.logger.warn('Product home permits group writes; mailbox directories remain owner-only')
+    }
     if (process.platform === 'win32') await inspectWindowsAcl(this.mailbox.options.home)
     await this.mailbox.initialize()
   }
