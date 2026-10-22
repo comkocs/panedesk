@@ -4,7 +4,8 @@ import { createUserMessage } from '@panedesk/dsh-llm'
 import { SessionId } from '@panedesk/dsh-session'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@panedesk/dsh-agent-loop-testkit'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { MockAdapter, textResponse } from './mock-adapter.ts'
+import { MockAdapter, textResponse, toolCallResponse } from './mock-adapter.ts'
+import { defineContentToolFixture } from '@panedesk/dsh-tools'
 
 function input(text: string) {
   return createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'user' } })
@@ -22,6 +23,38 @@ async function harness(script = [textResponse('reply'), textResponse('reply')]) 
 }
 
 describe('scheduled input', () => {
+  it.each(['queue', 'steer', 'immediate'] as const)('admits %s at its boundary during a long tool', async (priority) => {
+    const { ctx, agent, adapter } = await harness([
+      toolCallResponse('long-call', 'long_tool', {}), textResponse('continued'), textResponse('queued reply'),
+    ])
+    const started = Promise.withResolvers<void>()
+    const released = Promise.withResolvers<void>()
+    ctx.tools.register(defineContentToolFixture({
+      name: 'long_tool', description: 'A gated tool', parameters: {},
+      async execute() {
+        started.resolve()
+        await released.promise
+        return [{ type: 'text', text: 'partial result' }]
+      },
+    }))
+    agent.followup(input('start'))
+    await started.promise
+    const message = input(priority)
+    agent.enqueue(message, { priority, passive: false, wakeup: true })
+    agent.enqueue(message, { priority, passive: false, wakeup: true })
+    released.resolve()
+    await agent.whenIdle()
+    const events = agent.session.snapshotEvents()
+    const endings = events.flatMap(event => event.type === 'turn/end' ? [event.data.reason.kind] : [])
+    expect(endings).toEqual(priority === 'queue' ? ['completed', 'completed'] : priority === 'steer' ? ['completed'] : ['aborted', 'completed'])
+    expect(adapter.requests[1]!.messages.some(item => item.id === message.id)).toBe(priority !== 'queue')
+    const results = events.filter(event => event.type === 'tool/result')
+    expect(results).toHaveLength(1)
+    if (priority === 'immediate') {
+      expect(results[0]!.data).toMatchObject({ cancellation: { cause: { kind: 'interjection' }, outcome: 'cancelled', sideEffects: 'unknown' } })
+    }
+  })
+
   it('orders both containers by priority and receipt sequence', async () => {
     const { agent, driver } = await harness()
     const messages = ['queue-a', 'queue-b', 'steer-a', 'steer-b', 'immediate'].map(input)

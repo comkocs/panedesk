@@ -168,6 +168,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
   }
 
   enqueue(input: UserMessage, options: EnqueueOptions): void {
+    if (this.inbox.inputState(input.id) !== 'missing') return
     const turn = this.phase.kind === 'running' ? this.phase.turn : this.phase.lastTurn
     this.inbox.enqueue(input, {
       priority: options.priority,
@@ -175,7 +176,10 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
       enqueueSequence: this.inbox.nextSequence,
       earliestTurn: options.earliestTurn ?? (this.phase.kind === 'running' && options.priority !== 'queue' ? turn : turn + 1),
     })
-    if (options.wakeup && !options.passive) {
+    if (options.priority === 'immediate' && !options.passive && this.phase.kind === 'running' && !this.phase.abort.signal.aborted) {
+      this.cancel({ kind: 'interjection' }, { keepInbox: true })
+    }
+    if ((options.wakeup || (options.priority === 'immediate' && this.phase.kind === 'running')) && !options.passive) {
       this.wakeDriver(this.phase.kind !== 'idle' && this.phase.abort.signal.aborted)
     }
   }
@@ -365,7 +369,11 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
           if (turnEnds === null || turnEnds.kind !== 'max-tokens') turnEnds = stepEnd
         } catch (error: unknown) {
           try {
-            for (const event of toolRecovery.results()) {
+            const cancellation = abortedCancelCause(signal)
+            const results = cancellation?.kind === 'interjection'
+              ? toolRecovery.cancellationResults(cancellation)
+              : toolRecovery.results()
+            for (const event of results) {
               this.session.append('tool/result', event.data, {
                 surfaceOp: 'append',
                 ...event.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: event.sourceEventSeqs },
@@ -503,6 +511,7 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
                   },
                 }),
                 interrupted: true,
+                ...(abortedCancelCause(signal)?.kind === 'interjection' ? { interruptionReason: 'interjection' as const } : {}),
                 ...live.usage === undefined ? {} : { usage: live.usage },
                 stream: live.stream,
               }, { surfaceOp: 'append' }).seq)
