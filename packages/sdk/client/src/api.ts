@@ -8,10 +8,14 @@
 
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
-import type { SessionEvent, TurnEndReason } from '@panedesk/dsh-session'
+import { SessionId, type SessionEvent, type TurnEndReason } from '@panedesk/dsh-session'
 import { createProcessHarnessClient, HarnessClient, isRecord, SdkProtocolError } from './client.ts'
 import type { RuntimeProcessOptions } from './launch.ts'
-import type { InitializeParams } from '@panedesk/dsh-sdk-protocol'
+import type { InitializeParams, MessagesRequestMap, SendMessageRequest, MessageStateEvent, MessageSubscriptionRequest } from '@panedesk/dsh-sdk-protocol'
+
+/** Session sends preserve reply classification while defaulting only the target address. */
+export type SessionSendMessageRequest = SendMessageRequest extends infer R
+  ? R extends SendMessageRequest ? Omit<R, 'target'> & { target?: R['target'] } : never : never
 import type { ContentBlock, DeepSeekHarnessOptions, HarnessNotification, RunResult, SdkPromptContentBlock } from './types.ts'
 
 /**
@@ -21,6 +25,27 @@ import type { ContentBlock, DeepSeekHarnessOptions, HarnessNotification, RunResu
  * child is reaped.
  */
 export class DeepSeekHarness implements AsyncDisposable {
+  /** Message operations initialize the owning runtime before use. */
+  readonly messages = {
+    send: async (request: SendMessageRequest) => { await this.start(); return this.client.messages.send(request) },
+    withdraw: async (request: MessagesRequestMap['messages/withdraw']['params']) => { await this.start(); return this.client.messages.withdraw(request) },
+    edit: async (request: MessagesRequestMap['messages/edit']['params']) => { await this.start(); return this.client.messages.edit(request) },
+    reprioritize: async (request: MessagesRequestMap['messages/reprioritize']['params']) => { await this.start(); return this.client.messages.reprioritize(request) },
+    invalidate: async (request: MessagesRequestMap['messages/invalidate']['params']) => { await this.start(); return this.client.messages.invalidate(request) },
+    status: async (id: MessagesRequestMap['messages/status']['params']['messageId']) => { await this.start(); return this.client.messages.status(id) },
+    operationStatus: async (id: MessagesRequestMap['messages/operationStatus']['params']['operationId']) => { await this.start(); return this.client.messages.operationStatus(id) },
+    list: async (query: MessagesRequestMap['messages/list']['params']) => { await this.start(); return this.client.messages.list(query) },
+    resolve: async (addresses: MessagesRequestMap['messages/resolve']['params']['addresses']) => { await this.start(); return this.client.messages.resolve(addresses) },
+    sendBatch: async (request: MessagesRequestMap['messages/sendBatch']['params']) => { await this.start(); return this.client.messages.sendBatch(request) },
+    configure: async (request: MessagesRequestMap['messages/configure']['params']) => { await this.start(); return this.client.messages.configure(request) },
+    subscribe: (request: MessageSubscriptionRequest): AsyncIterable<MessageStateEvent> => this.messageEvents(request),
+  }
+
+  private async * messageEvents(request: MessageSubscriptionRequest): AsyncIterable<MessageStateEvent> {
+    await this.start()
+    yield * this.client.messages.subscribe(request)
+  }
+
   private clientInstance: HarnessClient
   private readonly createClient: () => HarnessClient
   private readonly cwd: string
@@ -181,6 +206,25 @@ export interface RunOptions {
  * One SDK session: a stable id plus owned activity intervals.
  */
 export class HarnessSession {
+  /** Session-local defaults never turn the target into a trusted sender identity. */
+  readonly messages = {
+    send: (request: SessionSendMessageRequest) => this.harness.messages.send({
+      ...request, target: request.target ?? { sessionId: SessionId(this.id) },
+    }),
+    withdraw: (request: MessagesRequestMap['messages/withdraw']['params']) => this.harness.messages.withdraw(request),
+    edit: (request: MessagesRequestMap['messages/edit']['params']) => this.harness.messages.edit(request),
+    reprioritize: (request: MessagesRequestMap['messages/reprioritize']['params']) => this.harness.messages.reprioritize(request),
+    invalidate: (request: MessagesRequestMap['messages/invalidate']['params']) => this.harness.messages.invalidate(request),
+    status: (id: MessagesRequestMap['messages/status']['params']['messageId']) => this.harness.messages.status(id),
+    operationStatus: (id: MessagesRequestMap['messages/operationStatus']['params']['operationId']) => this.harness.messages.operationStatus(id),
+    list: (query: MessagesRequestMap['messages/list']['params'] = {}) => this.harness.messages.list({ ...query, sessionId: query.sessionId ?? SessionId(this.id) }),
+    resolve: (addresses: MessagesRequestMap['messages/resolve']['params']['addresses']) => this.harness.messages.resolve(addresses),
+    sendBatch: (request: MessagesRequestMap['messages/sendBatch']['params']) => this.harness.messages.sendBatch(request),
+    configure: (request: Omit<MessagesRequestMap['messages/configure']['params'], 'sessionId'> & { sessionId?: SessionId }) =>
+      this.harness.messages.configure({ ...request, sessionId: request.sessionId ?? SessionId(this.id) }),
+    subscribe: (request: Omit<MessageSubscriptionRequest, 'sessionId'> & { sessionId?: SessionId } = {}) =>
+      this.harness.messages.subscribe({ ...request, sessionId: request.sessionId ?? SessionId(this.id) }),
+  }
   /**
    * @param harness - the owning harness (supplies the client and handshake).
    * @param id - the wire session id this handle runs on.
@@ -287,6 +331,7 @@ function validatedTurnEndReason(value: unknown): TurnEndReason {
       case 'parent':
       case 'disposed':
       case 'legacy':
+      case 'interjection':
         break
       case 'hook':
         if (typeof value.reason.reason !== 'string') {

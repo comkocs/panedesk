@@ -67,6 +67,8 @@ export interface InitializeLedgerContext {
 
 /** Parameters for the process-wide SDK handshake. */
 export interface InitializeParams {
+  /** Message extension version understood by the client; omission preserves the original handshake. */
+  messagesVersion?: number
   /** Working directory recorded on every SDK-created session's header. */
   cwd: string
   /** Provider route every SDK-created agent runs on. */
@@ -89,6 +91,8 @@ export interface InitializeParams {
 
 /** Wire-stable server identity returned by initialization. */
 export interface InitializeResult {
+  /** Negotiated message extension version; absent when delivery is unavailable. */
+  messagesVersion?: number
   /** Wire-stable server identity (`deepseek-harness-sdk-runtime`) and version. */
   serverInfo: { name: string; version: string }
 }
@@ -197,6 +201,8 @@ export interface SubagentFinishedNotification {
 /** Server-to-client notifications by JSON-RPC method name. */
 export interface HarnessSdkNotificationMap {
   'messages.state': MessageStateEvent
+  /** Receipt stream terminated; resume from the last consumed cursor after restoring availability. */
+  'messages.error': { readonly sessionId: MessageSubscriptionRequest['sessionId']; readonly reason: 'unavailable' }
   'session.event': SessionEventNotification
   'session.status': SessionStatusNotification
   'subagent.started': SubagentStartedNotification

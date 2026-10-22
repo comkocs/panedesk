@@ -22,7 +22,9 @@ import type {} from '@panedesk/dsh-tools'
 import type SubagentRuntime from '@panedesk/dsh-subagent'
 import type { SubagentRunEndInfo } from '@panedesk/dsh-subagent'
 import * as LlmDeepSeek from '@panedesk/dsh-llm-deepseek-api-key'
+import { decodeMessagesRequest, isMessagesMethod, JsonRpcResponseError, MESSAGES_VERSION } from '@panedesk/dsh-sdk-protocol'
 import type {
+  MessageStateEvent, MessageSubscriptionRequest, MessagesRequestMap,
   InitializeParams,
   InitializeResult,
   JsonRpcTransportPeer,
@@ -97,6 +99,8 @@ export class HarnessSdkJsonRpcServer {
   private readonly disposers: (() => void)[] = []
   private shutdownTask: Promise<Record<string, never>> | undefined
   private shuttingDown = false
+  private messagesEnabled = false
+  private readonly messageStreams = new Map<string, { stop: () => Promise<void> }>()
   private initialized = false
   private initializing = false
   private handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'> = {}
@@ -205,7 +209,9 @@ export class HarnessSdkJsonRpcServer {
     this.maxTokens = params.maxTokens
     this.handshake = params
     this.initialized = true
-    return { serverInfo: { name: 'panedesk-sdk-runtime', version: '0.0.1' } }
+    this.messagesEnabled = params.messagesVersion === MESSAGES_VERSION && this.ctx.get('messageDelivery') !== undefined
+    return { serverInfo: { name: 'panedesk-sdk-runtime', version: '0.0.1' },
+      ...this.messagesEnabled ? { messagesVersion: MESSAGES_VERSION } : {} }
   }
 
   /**
@@ -328,6 +334,9 @@ export class HarnessSdkJsonRpcServer {
     const records = [...this.sessions.values()]
     this.sessions.clear()
     const failures: unknown[] = []
+    const streams = await Promise.allSettled([...this.messageStreams.values()].map(stream => stream.stop()))
+    for (const result of streams) if (result.status === 'rejected') failures.push(result.reason)
+    this.messageStreams.clear()
     while (this.disposers.length > 0) {
       try {
         this.disposers.pop()?.()
@@ -361,6 +370,7 @@ export class HarnessSdkJsonRpcServer {
    * @returns the handler's result, to be serialized as the response.
    */
   async handleRequest(method: string, params: Record<string, unknown> | undefined): Promise<unknown> {
+    if (isMessagesMethod(method)) return this.messageRequest(method, params)
     switch (method) {
       case 'initialize':
         return this.initialize(params as unknown as InitializeParams)
@@ -394,6 +404,89 @@ export class HarnessSdkJsonRpcServer {
       default:
         throw new Error(`unknown Panedesk SDK runtime method: ${method}`)
     }
+  }
+
+  private async messageRequest(method: keyof MessagesRequestMap, params: unknown): Promise<unknown> {
+    const delivery = this.ctx.get('messageDelivery')
+    if (!this.initialized || this.shuttingDown || !this.messagesEnabled || delivery === undefined) {
+      throw new JsonRpcResponseError(-32601, 'Message delivery is unsupported on this connection', { reason: 'unsupported' })
+    }
+    const linkedId = this.handshake.ledgerContext?.childSessionId
+    const initiator = linkedId === undefined ? this.ctx.agents.currentInitiator() : this.sessions.get(linkedId)?.handle.agent
+    if (linkedId !== undefined && initiator === undefined) {
+      throw new JsonRpcResponseError(-32603, 'The bound SDK session is not open', { reason: 'unauthorized' })
+    }
+    if (initiator !== undefined) this.authorizeMessageSession(initiator.session.id)
+    const invoke = async (): Promise<unknown> => {
+      switch (method) {
+        case 'messages/send': return delivery.send(decodeMessagesRequest(method, params))
+        case 'messages/withdraw': return delivery.withdraw(decodeMessagesRequest(method, params))
+        case 'messages/edit': return delivery.edit(decodeMessagesRequest(method, params))
+        case 'messages/reprioritize': return delivery.reprioritize(decodeMessagesRequest(method, params))
+        case 'messages/invalidate': return delivery.invalidate(decodeMessagesRequest(method, params))
+        case 'messages/status': return delivery.status(decodeMessagesRequest(method, params).messageId)
+        case 'messages/operationStatus': return delivery.operationStatus(decodeMessagesRequest(method, params).operationId)
+        case 'messages/list': return delivery.list(decodeMessagesRequest(method, params))
+        case 'messages/resolve': return delivery.resolve(decodeMessagesRequest(method, params).addresses)
+        case 'messages/sendBatch': return delivery.sendBatch(decodeMessagesRequest(method, params))
+        case 'messages/configure': {
+          const request = decodeMessagesRequest(method, params)
+          this.authorizeMessageSession(request.sessionId)
+          return delivery.configure(request)
+        }
+        case 'messages/subscribe': {
+          const request = decodeMessagesRequest(method, params)
+          this.authorizeMessageSession(request.sessionId)
+          await this.messageStreams.get(request.sessionId)?.stop()
+          if (this.shuttingDown) throw new Error('SDK server is shutting down')
+          return this.watchMessages(request, delivery.subscribe(request))
+        }
+      }
+    }
+    return initiator === undefined ? this.ctx.agents.withoutInitiator(invoke) : this.ctx.agents.withInitiator(initiator, invoke)
+  }
+
+  private authorizeMessageSession(sessionId: string): void {
+    const record = this.sessions.get(sessionId)
+    const linkedId = this.handshake.ledgerContext?.childSessionId
+    if (record === undefined || (linkedId !== undefined && sessionId !== linkedId)) {
+      throw new JsonRpcResponseError(-32603, 'Message operation requires an owned SDK session', { reason: 'unauthorized' })
+    }
+    this.assertLiveAgent(record, sessionId)
+  }
+
+  private watchMessages(request: MessageSubscriptionRequest, events: AsyncIterable<MessageStateEvent>): object {
+    const iterator = events[Symbol.asyncIterator]()
+    let stopped = false
+    const isStopped = (): boolean => stopped
+    let stopping: Promise<void> | undefined
+    const stream = {
+      stop: (): Promise<void> => stopping ??= (async () => {
+        stopped = true
+        await iterator.return?.()
+      })(),
+    }
+    this.messageStreams.set(request.sessionId, stream)
+    const pump = async (): Promise<void> => {
+      try {
+        while (!isStopped()) {
+          const item = await iterator.next()
+          if (item.done || isStopped()) break
+          this.transport.notify('messages.state', item.value)
+        }
+      } catch (error) {
+        // Receipt storage errors are observable without leaking provider diagnostics to the wire.
+        if (!isStopped()) {
+          this.ctx.logger.warn('Message receipt subscription failed', error)
+          this.transport.notify('messages.error', { sessionId: request.sessionId, reason: 'unavailable' })
+        }
+      } finally {
+        await stream.stop()
+        if (this.messageStreams.get(request.sessionId) === stream) this.messageStreams.delete(request.sessionId)
+      }
+    }
+    void pump().catch((error: unknown) => { this.ctx.logger.warn('Message receipt cleanup failed', error) })
+    return request.cursor === undefined ? {} : { cursor: request.cursor }
   }
 
   private async getOrCreateSession(sessionId: string): Promise<SessionRecord> {
