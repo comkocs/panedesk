@@ -18,7 +18,8 @@ describe('physical call waits and deadlines', () => {
       const start = ledger.starts[0]
       if (start === undefined) throw new Error('Expected call start')
       const interval = { kind, startedAt: start.startedAt + 1, endedAt: start.startedAt + 4, durationMs: 3 }
-      const base = { schemaVersion: 1 as const, nodeId: start.nodeId, sessionId: start.sessionId, runId: start.runId, observedAt: start.startedAt + 4 }
+      const base = { schemaVersion: 1 as const, nodeId: start.nodeId, sessionId: start.sessionId,
+        runId: start.runId, observedAt: start.startedAt + 4 }
       const events: LedgerEvent[] = [
         { ...base, eventId: 'wait-a' as LedgerEventId, kind: 'wait/start', interval: { kind, startedAt: interval.startedAt } },
         { ...base, eventId: 'wait-b' as LedgerEventId, kind: 'wait/end', interval },

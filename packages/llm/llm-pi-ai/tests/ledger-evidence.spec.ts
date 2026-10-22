@@ -36,7 +36,8 @@ describe('ledger terminal usage evidence', () => {
     evidence.observe({ type: 'message_delta', usage: { output_tokens: 2 } })
     evidence.enrich({ type: 'usage', usage: { inputTokens: 10, outputTokens: 2 } }, {})
     const finish = evidence.enrich({ type: 'finish', reason: { kind: 'stop' } }, {})
-    expect(LlmAdapter.ledgerEvidence?.get(finish)?.usage).toMatchObject({ cacheReadTokens: 0, cacheWriteTokens: 0, cacheWriteLongTokens: 0 })
+    expect(LlmAdapter.ledgerEvidence?.get(finish)?.usage)
+      .toMatchObject({ cacheReadTokens: 0, cacheWriteTokens: 0, cacheWriteLongTokens: 0 })
   })
 
   it.each(['openai-responses', 'anthropic-messages'].flatMap(api => [undefined, 0].map(write => ({ api, write }))))

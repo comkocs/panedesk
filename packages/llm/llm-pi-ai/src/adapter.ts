@@ -526,7 +526,9 @@ export class PiAiAdapter extends LlmAdapter {
         onProviderStreamEvent: (event) => { evidence.observe(event) },
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
-        ...options.sessionId === undefined ? {} : { sessionId: /^[\x00-\x7F]*$/.test(options.sessionId) ? String(options.sessionId) : encodeURIComponent(options.sessionId) },
+        ...options.sessionId === undefined ? {} : {
+          sessionId: /^[\x00-\x7F]*$/.test(options.sessionId) ? String(options.sessionId) : encodeURIComponent(options.sessionId),
+        },
         signal: watchdog.signal,
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.
