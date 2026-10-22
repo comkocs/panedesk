@@ -5,7 +5,7 @@ import { watch, type FSWatcher } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { setTimeout as wait } from 'node:timers/promises'
 import { Context, Service } from '@panedesk/cordis'
-import type { Agent, AgentInputScheduler } from '@panedesk/dsh-agent'
+import type { Agent } from '@panedesk/dsh-agent'
 import { createUserMessage, isAgentLoopRequest, type MessageId } from '@panedesk/dsh-llm'
 import type { SessionId } from '@panedesk/dsh-session'
 import MessageDelivery, { type ConfigureMessagesRequest, type ControlResult, type EditMessageRequest,
@@ -16,7 +16,7 @@ import MessageDelivery, { type ConfigureMessagesRequest, type ControlResult, typ
   type SendMessageRequest, type SendMessageResult, type MessageSender, type DeliveryMessage,
 } from '@panedesk/dsh-message-delivery'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import type { MessageLedgerStore } from '@panedesk/dsh-session-ledger'
+import { messageEventId, type MessageLedgerStore } from '@panedesk/dsh-session-ledger'
 import type {} from '@panedesk/dsh-message-delivery/src/events.ts'
 import type {} from '@panedesk/dsh-subprocess'
 import type {} from '@panedesk/dsh-session-persistence'
@@ -27,11 +27,12 @@ import type {} from '@panedesk/dsh-workspace'
 import { FileMailbox } from './mailbox.ts'
 import { NodeRegistry } from './registry.ts'
 import { MailboxArbitrator } from './arbitrator.ts'
+import { deliveryDriver } from './driver.ts'
 import { decodeCommand, decodeDecision, decodeSendResult, decodeControlResult, decodeReceipt } from './codec.ts'
 import { component, MailboxUnavailableError, object, privateDirectory, publish, publishedFiles, readValue } from './files.ts'
 import { inspectWindowsAcl } from './windows-permissions.ts'
 import { policyReason, resolveRecipients } from './recipients.ts'
-import type { Config, ControlCommand, DeliveryDriver, RecipientMetadata } from './types.ts'
+import type { Config, ControlCommand, RecipientMetadata } from './types.ts'
 
 export type { Config } from './types.ts'
 
@@ -72,7 +73,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
     ctx.on('agent/created', async ({ agent }) => {
       await this.ready
       if (!ctx.get('sessionPersistence')) throw new MailboxUnavailableError('Message delivery requires a Session write lease')
-      const driver = this.driver(agent)
+      const driver = deliveryDriver(agent)
       if (!driver) throw new MailboxUnavailableError('Agent does not expose priority-aware input scheduling')
       const handle = await ctx.sessionPersistence.open(agent.id, 'read')
       let replay: readonly import('@panedesk/dsh-agent/types').InputTransition[]
@@ -175,25 +176,6 @@ export default class LocalMessageDelivery extends MessageDelivery {
         try { await owner.arbitrator.drain() } catch (error) { this.ctx.logger.error('Mailbox scan failed', error) }
       }
       if (this.owners.size > 0) await this.registry.heartbeat()
-    }
-  }
-
-  private driver(agent: Agent): DeliveryDriver | undefined {
-    if (!('enqueue' in agent) || typeof agent.enqueue !== 'function' || !('hasRunnable' in agent)) return undefined
-    const scheduler = agent as Agent & AgentInputScheduler
-    return {
-      agent, get hasRunnable() { return scheduler.hasRunnable },
-      enqueue: (input, options) => { scheduler.enqueue(input, options) },
-      mutate: (id, action) => {
-        if (action.kind === 'remove') return agent.inbox.remove(id)
-        if (action.kind === 'edit') return agent.inbox.replace(id, action.message)
-        // The priority driver must expose the shared mutation; never emulate priority with legacy splice.
-        if ('reprioritize' in agent.inbox && typeof agent.inbox.reprioritize === 'function') {
-          const reprioritize = agent.inbox.reprioritize as (messageId: MessageId, priority: import('@panedesk/dsh-message-delivery').MessagePriority) => boolean
-          return reprioritize.call(agent.inbox, id, action.priority)
-        }
-        throw new MailboxUnavailableError('Priority queue mutation is unavailable')
-      },
     }
   }
 
@@ -416,8 +398,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
     const name = createHash('sha256').update(event.cursor).digest('hex')
     const path = join(root, 'receipts', `${name}.json`)
     if (await readValue(path, this.config.maxRecordBytes) === undefined) await publish(path, event, this.config.maxRecordBytes)
-    const ledger = this.ctx.get('messageLedger')
-    if (ledger) await ledger.append({ schemaVersion: 1, kind: 'message/state', eventId: name as import('@panedesk/dsh-session-ledger').LedgerEventId,
+    const ledger = this.ctx.get('messageLedger') ?? await this.ctx.get('sessionLedger')?.messages()
+    if (ledger) await ledger.append({ schemaVersion: 1, kind: 'message/state', eventId: messageEventId(event),
       nodeId: this.nodeId, observedAt: event.data.observedAt, data: event.data })
     if (!this.emitted.has(event.cursor)) {
       this.emitted.add(event.cursor)

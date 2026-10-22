@@ -7423,6 +7423,9 @@ importers:
       '@panedesk/dsh-agent-instructions':
         specifier: workspace:*
         version: link:../agent-instructions
+      '@panedesk/dsh-agent-loop':
+        specifier: workspace:*
+        version: link:../../core/agent-loop
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
@@ -7432,15 +7435,33 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-llm-deepseek-api-key':
+        specifier: workspace:*
+        version: link:../../llm/llm-deepseek-api-key
+      '@panedesk/dsh-llm-mock-server':
+        specifier: workspace:*
+        version: link:../../test-support/llm-mock-server
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../../session/message-delivery
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
       '@panedesk/dsh-tool-fs':
         specifier: workspace:*
         version: link:../../fs/tool-fs
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/context/session-reference:
     dependencies:

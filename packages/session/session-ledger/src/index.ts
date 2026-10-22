@@ -15,6 +15,7 @@ import { loadPriceTable, priceUsage } from './pricing.ts'
 import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, LedgerMessagePage, LedgerSessionPage } from './types.ts'
 import type { MessageCursor, MessageQuery } from '@panedesk/dsh-message-delivery'
 export { LedgerUnavailableError } from './lock.ts'
+export { messageEventId } from './journal.ts'
 import { Context, Service } from '@panedesk/cordis'
 import type {
   LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult,
