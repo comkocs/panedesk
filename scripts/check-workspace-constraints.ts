@@ -183,6 +183,8 @@ export function readWorkspaceManifests(repositoryRoot: string): WorkspaceManifes
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  // Local mailboxes load platform storage and shared file helpers as emitted chunks.
+  '@panedesk/dsh-message-delivery-local': ['lib/files-*.js', 'lib/windows-storage-*.js'],
   // CUA publishes its client API and attributed native source for local macOS builds.
   '@panedesk/dsh-cua': ['lib/api.js', 'lib/bridge.js', 'lib/native-client.js', 'lib/protocol.js'],
   '@panedesk/dsh-experimental-cua-macos': ['native/bin', 'native/Package.swift', 'native/Sources', 'native/tests/swift', 'native/tests/test_swift.py', 'native/LICENSE.cua-driver', 'native/upstream.json', 'native/README.md', 'native/README.zh.md', 'native/protocol.schema.json'],

@@ -65,7 +65,7 @@ const marksUnit = (): Omit<ProjectionDefinition<'test/marks', MarksState>, 'wire
   apply: (state, event) => (event.type === 'test/mark' ? (event).data : state),
   wire: {
     viewSchema: marksViewSchema,
-    view: state => state ?? { marks: [] },
+    view: (state: MarksState) => state ?? { marks: [] },
   },
   stateVersion: 1,
 })
@@ -317,7 +317,7 @@ describe('SessionProjectionRegistry drive', () => {
       },
       wire: {
         viewSchema: marksViewSchema,
-        view: (state) => {
+        view: (state: MarksState) => {
           const value = viewByState.get(state)
           if (value === undefined) throw new Error('test state lacks a raw view')
           computedViews.push(value)

@@ -73,7 +73,7 @@ const marksUnit = (stateVersion = 1) => ({
   apply: (state, event) => (event.type === 'cache-test/mark' ? (event).data : state),
   wire: {
     viewSchema: z.object({ marks: z.array(z.string()) }),
-    view: state => state ?? { marks: [] },
+    view: (state: MarksState) => state ?? { marks: [] },
   },
   stateVersion,
 }) satisfies ProjectionDefinition<'cache-test/marks', MarksState>
@@ -85,7 +85,7 @@ const marks3Unit = {
   apply: state => state,
   wire: {
     viewSchema: z.object({ marks: z.array(z.string()) }),
-    view: state => state ?? { marks: [] },
+    view: (state: MarksState) => state ?? { marks: [] },
   },
   stateVersion: 1,
 } satisfies ProjectionDefinition<'cache-test/marks3', MarksState>
@@ -105,7 +105,7 @@ const secondaryMarksUnit = {
   apply: (state, event) => event.type === 'cache-test/mark' ? event.data : state,
   wire: {
     viewSchema: z.object({ marks: z.array(z.string()) }),
-    view: state => state ?? { marks: [] },
+    view: (state: MarksState) => state ?? { marks: [] },
   },
   stateVersion: 1,
 } satisfies ProjectionDefinition<'cache-test/secondary-marks', MarksState>

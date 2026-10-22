@@ -180,6 +180,15 @@ async function durableFile(path: string, encoded: Buffer): Promise<void> {
   await syncDirectory(dirname(path))
 }
 
+function* completeLines(content: Buffer): Generator<Buffer> {
+  let start = 0
+  let end: number
+  while ((end = content.indexOf(10, start)) !== -1) {
+    yield content.subarray(start, end)
+    start = end + 1
+  }
+}
+
 async function syncFiles(paths: readonly string[]): Promise<void> {
   for (const path of paths) {
     const handle = await open(path, 'r+')
@@ -200,11 +209,9 @@ export async function recoverSegments(root: string, maxRecordBytes: number): Pro
   const marks: string[] = []
   for (const path of await files(join(root, 'events'))) {
     const content = await readFile(path)
-    let start = 0
-    let end: number
-    while ((end = content.indexOf(10, start)) !== -1) {
+    for (const line of completeLines(content)) {
       try {
-        const event = validateEvent(decode(content.subarray(start, end), maxRecordBytes))
+        const event = validateEvent(decode(line, maxRecordBytes))
         events.push(event)
         marks.push(digest(canonicalJson(event)))
       } catch (error) {
@@ -212,9 +219,8 @@ export async function recoverSegments(root: string, maxRecordBytes: number): Pro
         if (!(error instanceof Error)) throw error
         corrupt.push(path)
       }
-      start = end + 1
     }
-    if (start !== content.length) tails.push(path)
+    if (content.length > 0 && content.at(-1) !== 10) tails.push(path)
   }
   let importedConflicts = false
   for (const path of await files(join(root, 'imports'))) {
@@ -388,11 +394,9 @@ export async function recoverMessageSegments(root: string, maxRecordBytes: numbe
   const tails: string[] = []
   for (const path of await files(join(root, 'events'))) {
     const content = await readFile(path)
-    let start = 0
-    let end: number
-    while ((end = content.indexOf(10, start)) !== -1) {
+    for (const line of completeLines(content)) {
       try {
-        const value = decode(content.subarray(start, end), maxRecordBytes)
+        const value = decode(line, maxRecordBytes)
         assertMessageEvent(value)
         const key = canonicalJson([value.nodeId, value.data.messageId, value.data.stateVersion])
         const prior = events.get(value.eventId) ?? versions.get(key)
@@ -403,9 +407,8 @@ export async function recoverMessageSegments(root: string, maxRecordBytes: numbe
         if (!(error instanceof Error)) throw error
         corrupt.push(path)
       }
-      start = end + 1
     }
-    if (start !== content.length) tails.push(path)
+    if (content.length > 0 && content.at(-1) !== 10) tails.push(path)
   }
   return { events: [...events.values()], complete: !corrupt.length && !tails.length, corrupt, tails }
 }

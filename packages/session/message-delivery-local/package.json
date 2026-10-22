@@ -25,6 +25,8 @@
   "files": [
     "locale/*.json",
     "lib/index.js",
+    "lib/files-*.js",
+    "lib/windows-storage-*.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
