@@ -12,7 +12,10 @@
 import type {} from '@panedesk/dsh-working-directory'
 import type { Context } from '@panedesk/cordis'
 import { isDeepStrictEqual } from 'node:util'
-import type { Agent, PreStepDecision } from '@panedesk/dsh-agent'
+import { agentEvents, type Agent, type PreStepDecision } from '@panedesk/dsh-agent'
+import { installInstructionWriteObservations, observeInstructionBytes } from './observations.ts'
+import type { LoadedInstructionFile } from './files.ts'
+import type { InstructionObservation } from './events.ts'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import type { Session, UserMessage } from '@panedesk/dsh-session'
 import type {} from '@panedesk/dsh-session-projection'
@@ -85,6 +88,26 @@ function filePathFromExecution(exec: ToolExecution): string | undefined {
 
 export function apply(ctx: Context, config: Config): void {
   const resolved: ResolvedConfig = resolveConfig(config)
+  installInstructionWriteObservations(ctx, resolved.maxSourceBytes)
+  const publishLoaded = async (
+    agent: Agent, files: readonly LoadedInstructionFile[], baseline: boolean, signal: AbortSignal,
+  ): Promise<void> => {
+    const fs = ctx.get('fs')
+    if (fs === undefined) return
+    const observations: InstructionObservation[] = []
+    for (const file of files) {
+      if (file.version === undefined) continue
+      try {
+        const target = await fs.resolve(file.absolutePath, { signal })
+        const observation = await observeInstructionBytes(fs, target, file.version, resolved.maxSourceBytes, signal)
+        if (observation.evidence?.status === 'available') observations.push({ ...observation, baseline })
+      } catch (error: unknown) {
+        signal.throwIfAborted()
+        ctx.logger.warn('Instruction load observation unavailable: %o', error)
+      }
+    }
+    if (observations.length > 0) agentEvents(ctx, agent).emit('instructions/loaded', { files: observations })
+  }
   const instructionVersions: InstructionVersionCache = new WeakMap()
   const baselinePreparations = new WeakMap<Session, {
     identity: string
@@ -152,6 +175,7 @@ export function apply(ctx: Context, config: Config): void {
         replacePreviousBaseline,
         signal,
       }, fileSystem)
+      await publishLoaded(agent, instructions?.included ?? [], true, signal)
       const baseline = baselineInstructionState(instructions?.included ?? [])
       const observedBaseline = baselineInstructionState(instructions?.observed ?? [])
       const includedDigestsByGroup = new Map<string, Set<string>>()
@@ -222,6 +246,7 @@ export function apply(ctx: Context, config: Config): void {
       },
     )
     if (update !== undefined) {
+      await publishLoaded(agent, update.loadedFiles, false, signal)
       content.push(...update.context.content)
       /* v8 ignore next -- reconciliation constructs only agent-instructions contexts. */
       if (update.context.source.kind === 'agent-instructions') {

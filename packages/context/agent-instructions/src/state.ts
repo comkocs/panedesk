@@ -80,6 +80,8 @@ export interface InstructionVersionUpdate {
 export interface ReconciledInstructionContext {
   context: UserMessage
   versionUpdates: InstructionVersionUpdate[]
+  /** Raw-read candidates represented by this admitted refresh. */
+  loadedFiles: LoadedInstructionFile[]
 }
 
 function agentInstructionsHook(text: string, changes: AgentInstructionChange[]): UserMessage {
@@ -452,5 +454,7 @@ export async function reconcileInstructionContext(
   return {
     context: agentInstructionsHook(rendered.text, rendered.changes),
     versionUpdates: retainedInstructionVersionUpdates(versionUpdates, rendered.changes),
+    loadedFiles: items.filter(item => item.change.action !== 'remove'
+      && rendered.changes.some(change => sameInstructionChange(change, item.change))).map(item => item.file),
   }
 }
