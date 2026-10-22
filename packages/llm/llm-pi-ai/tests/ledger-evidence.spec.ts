@@ -40,7 +40,7 @@ describe('ledger terminal usage evidence', () => {
       .toMatchObject({ cacheReadTokens: 0, cacheWriteTokens: 0, cacheWriteLongTokens: 0 })
   })
 
-  it.each(['openai-responses', 'anthropic-messages'].flatMap(api => [undefined, 0].map(write => ({ api, write }))))
+  it.each(['openai-responses', 'anthropic-messages'].flatMap(api => [undefined, 0, 70].map(write => ({ api, write }))))
   ('$api preserves missing writes and reported $write', ({ api, write }) => {
     const usage = api === 'anthropic-messages'
       ? { input_tokens: 10, output_tokens: 2, cache_read_input_tokens: 0,
@@ -51,6 +51,18 @@ describe('ledger terminal usage evidence', () => {
     const evidence = terminal(raw, api).evidence
     expect(evidence?.usage?.cacheWriteTokens).toBe(write)
     expect(evidence).not.toHaveProperty('cacheWriteAccounting')
+  })
+
+  it.each(['cache_creation_input_tokens', 'input_tokens_details', 'prompt_tokens_details', 'cache_write_tokens']
+    .flatMap(field => [0, 70].map(write => ({ field, write }))))
+  ('prefers reported $field=$write over an inapplicable declaration', ({ field, write }) => {
+    const evidence = new PiResponseEvidence('model-a', 'openai-completions', 'not-applicable')
+    evidence.observe({ usage: { prompt_tokens: 10, completion_tokens: 2,
+      [field]: field.endsWith('_details') ? { cache_write_tokens: write } : write } })
+    evidence.enrich({ type: 'usage', usage: { inputTokens: 10, outputTokens: 2 } }, {})
+    const finish = evidence.enrich({ type: 'finish', reason: { kind: 'stop' } }, {})
+    expect(LlmAdapter.ledgerEvidence?.get(finish)?.usage?.cacheWriteTokens).toBe(write)
+    expect(LlmAdapter.ledgerEvidence?.get(finish)).not.toHaveProperty('cacheWriteAccounting')
   })
 
   it.each([{ total: 15, output: 5 }, { total: 12, output: 2 }, { total: 14, output: 2 }])

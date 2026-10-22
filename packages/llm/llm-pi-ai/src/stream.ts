@@ -103,14 +103,15 @@ export class PiResponseEvidence {
     const raw = this.reportedUsage
     const observed = Object.keys(raw).length > 0
     const usage = observed && this.translatedUsage !== undefined ? { ...this.translatedUsage } : undefined
+    const write = raw.cache_creation_input_tokens ?? raw['input_tokens_details.cache_write_tokens']
+      ?? raw['prompt_tokens_details.cache_write_tokens'] ?? raw.cache_write_tokens
+    const inapplicable = write === undefined && this.cacheWriteAccounting === 'not-applicable'
     if (usage !== undefined) {
       const read = raw.cache_read_input_tokens ?? raw['input_tokens_details.cached_tokens']
         ?? raw['prompt_tokens_details.cached_tokens'] ?? raw.prompt_cache_hit_tokens
-      const write = raw.cache_creation_input_tokens ?? raw['input_tokens_details.cache_write_tokens']
-        ?? raw['prompt_tokens_details.cache_write_tokens'] ?? raw.cache_write_tokens
       if (read !== undefined) usage.cacheReadTokens = read
-      if (this.cacheWriteAccounting === 'not-applicable') usage.cacheWriteTokens = 0
-      else if (write !== undefined) usage.cacheWriteTokens = write
+      if (write !== undefined) usage.cacheWriteTokens = write
+      else if (inapplicable) usage.cacheWriteTokens = 0
       const long = this.api === 'anthropic-messages' ? this.longWrites
         : write !== undefined && metadata.cacheWriteTiering?.kind === 'tiered'
           ? (this.reportedCacheRetention ?? metadata.cacheRetention) === '12h' ? write
@@ -127,7 +128,7 @@ export class PiResponseEvidence {
       }
     }
     LlmAdapter.ledgerEvidence?.set(finish, {
-      ...this.cacheWriteAccounting === undefined ? {} : { cacheWriteAccounting: this.cacheWriteAccounting },
+      ...inapplicable ? { cacheWriteAccounting: 'not-applicable' as const } : {},
       ...usage === undefined ? {} : { usage },
       ...this.reportedCacheRetention === undefined ? {} : { reportedCacheRetention: this.reportedCacheRetention },
       ...observed ? { reportedUsage: { ...raw } } : {},
