@@ -53,7 +53,8 @@ export async function beginAgentRun(
         : reason === undefined || reason.kind === 'completed' ? 'completed' : 'error'
     try {
       assertWrite(await ledger.finishRun({ runId: context.runId, endedAt: Date.now(), observedAt: Date.now(), endReason,
-        upstreamStopReason: reason?.kind === 'error' ? `${reason.error.code}: ${reason.error.message}` : reason?.kind ?? 'idle',
+        upstreamStopReason: reason?.kind === 'aborted' && reason.reason.kind === 'interjection' ? 'interjection'
+          : reason?.kind === 'error' ? `${reason.error.code}: ${reason.error.message}` : reason?.kind ?? 'idle',
         recovered: false, deliveryState: 'not-requested' }))
     } finally { unbind() }
   }

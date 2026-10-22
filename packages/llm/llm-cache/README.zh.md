@@ -23,6 +23,8 @@ kind: "package-reference"
 
 从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
 
+运行期间插入收件仍沿用 `interjection` 缓存断点。`interjection` 中止令被打断调用以 `cancelled` 结束，细因写 `upstreamStopReason: 'interjection'`，保留部分响应片段，并在被打断调用与后续调用记断点。普通用户取消保持独立。上游请求开头重组不被抑制：已提交的历史替换沿用 `history-edit`，请求头改变沿用 `request-config-change`；每次调用记录真实开头指纹。
+
 <a id="model-experience"></a>
 ## 模型体验
 

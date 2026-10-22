@@ -582,6 +582,16 @@ export function apply(ctx: Context, config: Config): void {
           const waits = callWaits(await service.snapshot({ sessionId: start.sessionId }), start, [...toolCallIds])
           const timeout = (reason?.kind === 'error' || reason?.kind === 'aborted') && reason.failure.code === 'TIMEOUT'
             || failure instanceof LlmError && failure.code === 'TIMEOUT'
+          const cancellation: unknown = request.signal?.aborted ? request.signal.reason : undefined
+          const interjection = cancellation !== null && typeof cancellation === 'object'
+            && 'kind' in cancellation && cancellation.kind === 'interjection'
+          if (interjection) {
+            state.reasons.add('interjection')
+            if (!evidence.breakReasons.includes('interjection')) {
+              evidence.breakReasons = [...evidence.breakReasons, 'interjection']
+              await fact(service, start, { kind: 'cache/break', evidence })
+            }
+          }
           const end: LedgerCallFinish = {
             callId, endedAt, observedAt: Date.now(), toolCallIds: [...toolCallIds],
             ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
@@ -600,7 +610,7 @@ export function apply(ctx: Context, config: Config): void {
             compactionCount: state.compactionTimes.length, compactionTimes: [...state.compactionTimes], recovered: false,
             endReason: signal.aborted ? 'cancelled' : timeout ? 'timeout' : reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
             ...timeout && !signal.aborted ? { timeoutSource: 'model-call' } : {},
-            upstreamStopReason: reason?.kind ?? 'iterator-closed', artifacts,
+            upstreamStopReason: interjection ? 'interjection' : reason?.kind ?? 'iterator-closed', artifacts,
             ...finish?.accountLabel === undefined ? {} : { accountLabel: finish.accountLabel },
             cacheWriteTiering: tiering, cache: evidence,
             http429Count: status === 429 ? 1 : 0, http503Count: status === 503 ? 1 : 0,

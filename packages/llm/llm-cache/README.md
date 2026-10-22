@@ -23,6 +23,8 @@ Session cache policy and concurrency plugin scaffold. The package exposes valida
 
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
+An active inbox insertion retains the existing `interjection` cache breakpoint. An `interjection` abort settles the interrupted call as `cancelled` with `upstreamStopReason: 'interjection'`, preserves partial-response artifacts, and records the breakpoint on the interrupted call and its continuation. Ordinary user cancellation remains distinct. Upstream prefix reconstruction is not suppressed: committed history replacement retains `history-edit`, and changed request headers retain `request-config-change`; each call records its actual prefix fingerprint.
+
 <a id="model-experience"></a>
 ## Model Experience
 
