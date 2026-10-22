@@ -40,6 +40,7 @@ function wireMessages(body: unknown): unknown[] {
 
 async function harness(
   sequence: readonly MockLlmBehavior[], subscriptions = false, root?: string, mock: Partial<MockLlmServerOptions> = {},
+  ledgerAvailable = true,
 ) {
   const ownRoot = root === undefined
   root ??= await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? tmpdir(), 'kernel-delivery-'))
@@ -67,8 +68,8 @@ async function harness(
   ctx.baseUrl = pathToFileURL(root).href + '/'
   const rows = [
     { name: 'cordis:persistence', config: { root: join(home, 'sessions'), compression: 'none' } },
-    { name: 'cordis:ledger', config: { dshHome: home } },
-    { name: 'cordis:delivery', config: { dshHome: home, nodeId: 'node-a', maxRecordBytes: 1048576,
+    ...ledgerAvailable ? [{ name: 'cordis:ledger', config: { dshHome: home } }] : [],
+    { name: 'cordis:delivery', config: { dshHome: home, maxRecordBytes: 1048576,
       maxContentBytes: 65536, maxBatchSize: 100, scanIntervalMs: 1000, lockTimeoutMs: 5000, lockRetryMs: 1, watch: false } },
     { name: 'cordis:instructions', config: { maxBytes: 65536 } },
     ...subscriptions ? [{ name: 'cordis:subscriptions', config: { maxBytes: 1048576, watch: false } }] : [],
@@ -84,9 +85,13 @@ async function harness(
   expect(ctx.get('agents')).toBeDefined()
   expect(ctx.get('sessions')).toBeDefined()
   expect(ctx.get('sessionPersistence')).toBeDefined()
-  expect(ctx.get('messageDelivery')).toBeDefined()
+  if (ledgerAvailable) expect(ctx.get('messageDelivery')).toBeDefined()
+  else expect(ctx.get('messageDelivery')).toBeUndefined()
   const parent = await ctx.agents.create({ sessionId: SessionId('seat-a'), meta: { cwd: root },
     agentOptions: { provider: 'deepseek-official', model: 'model-a' } })
+  if (!ledgerAvailable) return { ctx, parent, child: parent, server, root }
+  const [resolved] = await ctx.messageDelivery.resolve([{ sessionId: parent.agent.id }])
+  expect(resolved).toMatchObject({ kind: 'resolved', recipient: { nodeId: await ctx.sessionLedger.nodeId() } })
   const parentContext = ctx.sessionLedger.contextFor(parent.agent.id)
   if (!parentContext) throw new Error('Parent run attribution is unavailable')
   const childContext = { ...parentContext, sessionId: SessionId('seat-b'), parentSessionId: parent.agent.id,
@@ -104,6 +109,15 @@ async function harness(
     agentOptions: { provider: 'deepseek-official', model: 'model-a' } })
   return { ctx, parent, child, server, root }
 }
+
+it('keeps legacy Agent startup and prompting available when the ledger node cannot be resolved', async () => {
+  const h = await harness(['success'], false, undefined, {}, false)
+  h.parent.agent.followup(input('Use the legacy input path.'))
+  await h.parent.agent.whenIdle()
+  expect(h.server.requests).toHaveLength(1)
+  expect(JSON.stringify(h.server.requests[0]!.body)).toContain('Use the legacy input path.')
+  expect(h.ctx.get('messageDelivery')).toBeUndefined()
+})
 
 it('delivers steer at the next real tool boundary and rejects withdrawal after dispatch', async () => {
   const h = await harness(['tool_call_success', 'success'])

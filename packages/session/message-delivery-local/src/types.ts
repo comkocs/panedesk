@@ -10,7 +10,8 @@ import type {
 /** Required deployment limits are resolved at plugin activation. */
 export interface Config {
   readonly dshHome?: string
-  readonly nodeId: string
+  /** Explicit local identity; omission resolves the persisted Session ledger node at startup. */
+  readonly nodeId?: string
   readonly maxRecordBytes: number
   readonly maxContentBytes: number
   readonly maxBatchSize: number

@@ -47,18 +47,18 @@ declare module '@panedesk/cordis' {
 /** Concrete provider; missing optional accounting leaves durable receipts authoritative. */
 export default class LocalMessageDelivery extends MessageDelivery {
   static inject = ['agents', 'sessions', 'sessionPersistence']
-  private readonly mailbox: FileMailbox
-  private readonly registry: NodeRegistry
+  private mailbox!: FileMailbox
+  private registry!: NodeRegistry
   private readonly owners = new Map<SessionId, { arbitrator: MailboxArbitrator; generation: string; agent: Agent }>()
   private readonly policy: RecipientPolicy
-  private readonly receipts: ReceiptStore
+  private receipts!: ReceiptStore
   private readonly requestTurns = new Map<SessionId, number>()
   private readonly lifetime = new AbortController()
   private readonly watchers = new Map<SessionId, FSWatcher>()
   private readonly tasks = new Set<Promise<void>>()
   private readonly emitted = new Set<string>()
   private readonly ready: Promise<void>
-  private readonly nodeId: NodeId
+  private nodeId!: NodeId
   private stopped = false
 
   constructor(ctx: Context, private readonly config: Config) {
@@ -69,13 +69,13 @@ export default class LocalMessageDelivery extends MessageDelivery {
       if (!Number.isSafeInteger(value) || value <= 0) throw new MailboxUnavailableError('Mailbox limits must be positive integers')
     }
     if (config.scanIntervalMs > 1000) throw new MailboxUnavailableError('Mailbox scan interval must not exceed one second')
-    this.nodeId = component(config.nodeId) as NodeId
-    this.mailbox = new FileMailbox({ ...config, home: resolveDshHome(config.dshHome), nodeId: this.nodeId })
     this.policy = new RecipientPolicy(ctx)
-    this.receipts = new ReceiptStore(this.mailbox)
-    const subprocess = ctx.get('subprocess')
-    this.registry = new NodeRegistry(this.mailbox, subprocess ? pid => subprocess.readProcessIdentity(pid) : undefined)
     this.ready = this.initialize()
+  }
+
+  private activate(): void {
+    const ctx = this.ctx
+    const config = this.config
     ctx.on('agent/created', async ({ agent }) => {
       await this.ready
       if (!ctx.get('sessionPersistence')) throw new MailboxUnavailableError('Message delivery requires a Session write lease')
@@ -156,10 +156,27 @@ export default class LocalMessageDelivery extends MessageDelivery {
   }
 
   protected async [Service.init](): Promise<void> {
-    await this.ready
+    try { await this.ready } catch (error) {
+      this.ctx.logger.error('Message delivery unavailable: initialization failed', error)
+      this.ctx.set('messageDelivery', undefined)
+      return
+    }
+    this.activate()
   }
 
   private async initialize(): Promise<void> {
+    let node: string | undefined
+    try { node = this.config.nodeId ?? await this.ctx.get('sessionLedger')?.nodeId() } catch (error) {
+      throw new MailboxUnavailableError('Message delivery unavailable: session ledger node identity could not be resolved', { cause: error })
+    }
+    if (node === undefined) {
+      throw new MailboxUnavailableError('Message delivery unavailable: session ledger node identity could not be resolved')
+    }
+    this.nodeId = component(node) as NodeId
+    this.mailbox = new FileMailbox({ ...this.config, home: resolveDshHome(this.config.dshHome), nodeId: this.nodeId })
+    this.receipts = new ReceiptStore(this.mailbox)
+    const subprocess = this.ctx.get('subprocess')
+    this.registry = new NodeRegistry(this.mailbox, subprocess ? pid => subprocess.readProcessIdentity(pid) : undefined)
     await privateDirectory(this.mailbox.options.home)
     if (process.platform !== 'win32' && ((await lstat(this.mailbox.options.home)).mode & 0o020) !== 0) {
       this.ctx.logger.warn('Product home permits private-user-group writes; mailbox directories remain owner-only')
