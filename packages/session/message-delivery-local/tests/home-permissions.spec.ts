@@ -2,8 +2,13 @@
 import { chmod, mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileMailbox } from '../src/mailbox.ts'
+import * as membership from '../src/group-membership.ts'
+
+beforeEach(() => {
+  vi.spyOn(membership, 'readGroupMembers').mockResolvedValue([process.getuid?.() ?? -1])
+})
 
 const roots: string[] = []
 afterEach(async () => {
@@ -18,7 +23,7 @@ async function mailbox(mode: number) {
 }
 
 describe.skipIf(process.platform === 'win32')('product home permissions', () => {
-  it('accepts a 0775 home without changing it and creates private mailbox descendants', async () => {
+  it('accepts a group-writable home owned by a private primary user group', async () => {
     const store = await mailbox(0o775)
     await store.initialize()
     await store.append('seat-a', 'operation-a', 'digest-a', {})
@@ -27,6 +32,17 @@ describe.skipIf(process.platform === 'win32')('product home permissions', () => 
     const root = await store.target('seat-a')
     expect((await stat(join(root, 'records'))).mode & 0o777).toBe(0o700)
     expect((await stat(join(root, 'records', '0000000000000001.json'))).mode & 0o777).toBe(0o600)
+  })
+  it('refuses a group-writable home when the group contains another user', async () => {
+    const store = await mailbox(0o775)
+    const uid = process.getuid!()
+    vi.mocked(membership.readGroupMembers).mockResolvedValue([uid, uid + 1])
+    await expect(store.initialize()).rejects.toThrow('group is not private')
+  })
+  it('refuses a group-writable home when membership cannot be determined', async () => {
+    const store = await mailbox(0o775)
+    vi.mocked(membership.readGroupMembers).mockRejectedValue(new Error('Name service unavailable'))
+    await expect(store.initialize()).rejects.toThrow('group membership is unavailable')
   })
   it('refuses a 0777 home without changing its permissions', async () => {
     const store = await mailbox(0o777)

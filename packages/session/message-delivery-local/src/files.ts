@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { lstat, mkdir, open, readdir, rename, unlink } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
+import { readGroupMembers } from './group-membership.ts'
 
 /** Storage failures stop dependent delivery rather than acknowledging uncertain writes. */
 export class MailboxUnavailableError extends Error {
@@ -25,7 +26,7 @@ export function component(value: string): string {
 }
 
 /** Check owner-controlled home and private descendants without following links.
- * @param root - product home; group writes are allowed, other-user writes are refused.
+ * @param root - product home; only a verified private primary group may have write access.
  * @param path - descendant directory to create and validate.
  */
 export async function privateDirectory(root: string, path = root): Promise<void> {
@@ -65,6 +66,16 @@ export async function privateDirectory(root: string, path = root): Promise<void>
     if (!stat.isDirectory() || stat.isSymbolicLink()
       || (process.platform !== 'win32' && (stat.uid !== process.getuid?.() || (stat.mode & forbidden) !== 0))) {
       throw new MailboxUnavailableError('Mailbox directory permissions are not private')
+    }
+    if (directory === base && process.platform !== 'win32' && (stat.mode & 0o020) !== 0) {
+      if (stat.gid !== process.getgid?.()) throw new MailboxUnavailableError('Product home group is not the primary user group')
+      let members: readonly number[]
+      try { members = await readGroupMembers(stat.gid) } catch (error) {
+        throw new MailboxUnavailableError('Product home group membership is unavailable', { cause: error })
+      }
+      if (!members.includes(stat.uid) || members.some(uid => uid !== stat.uid)) {
+        throw new MailboxUnavailableError('Product home group is not private to the current user')
+      }
     }
   }
 }

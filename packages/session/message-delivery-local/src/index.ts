@@ -162,7 +162,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
   private async initialize(): Promise<void> {
     await privateDirectory(this.mailbox.options.home)
     if (process.platform !== 'win32' && ((await lstat(this.mailbox.options.home)).mode & 0o020) !== 0) {
-      this.ctx.logger.warn('Product home permits group writes; mailbox directories remain owner-only')
+      this.ctx.logger.warn('Product home permits private-user-group writes; mailbox directories remain owner-only')
     }
     if (process.platform === 'win32') await inspectWindowsAcl(this.mailbox.options.home)
     await this.mailbox.initialize()
