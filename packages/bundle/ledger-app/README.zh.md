@@ -1,6 +1,6 @@
 ---
 description: "离线账本应用插件骨架。"
-kind: "package-reference"
+kind: "package-bundle"
 ---
 
 # @panedesk/dsh-ledger-app

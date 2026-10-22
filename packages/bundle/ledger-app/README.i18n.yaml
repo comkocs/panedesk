@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/ledger-app/README.md
 /:
-  en: 9c18860ce4997181
-  zh: dd553ab8c752cdc8
+  en: 6e923c2b4953349c
+  zh: 90358ec96de3809b
 /panedesk-dsh-ledger-app:
   en: 02fed4df69737fc2
   zh: 1715289142584151

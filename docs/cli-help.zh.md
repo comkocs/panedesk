@@ -15,6 +15,7 @@
 - [`panedesk plugin`](#panedesk-plugin)
 - [`panedesk acp`](#panedesk-acp)
 - [`panedesk full`](#panedesk-full)
+- [`panedesk ledger`](#panedesk-ledger)
 - [`panedesk sdk`](#panedesk-sdk)
 - [`panedesk sdk-minimal`](#panedesk-sdk-minimal)
 - [`panedesk web`](#panedesk-web)
@@ -137,6 +138,15 @@ Examples:
   panedesk --profile headless --json "run the tests"   emit machine-readable run events
   panedesk --profile headless --session-id session-… "continue"   resume an existing Session
 
+```
+
+<a id="panedesk-ledger"></a>
+## `panedesk ledger`
+
+调用方式: `panedesk ledger --help`, `panedesk --profile ledger --help`, `panedesk ledger-watch --help`, `panedesk --profile ledger-watch --help`
+
+```text
+Usage: ledger [today|query|export|merge|live|cache|verify] [options]
 ```
 
 <a id="panedesk-sdk"></a>

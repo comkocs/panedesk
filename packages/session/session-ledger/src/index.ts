@@ -21,6 +21,7 @@ import type {
   LedgerRunFinish, LedgerRunStart, LedgerSnapshot, LedgerSessionContext,
 } from './types.ts'
 export type * from './types.ts'
+export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
 
 /** Trusted configuration accepted by concrete ledger providers. */
 export type Config = LedgerOptions
@@ -37,25 +38,89 @@ export abstract class SessionLedger extends Service {
     super(ctx, 'sessionLedger')
   }
 
+  /** Resolve trusted attribution before dispatch.
+   * @param request - Explicit session and serving route.
+   * @returns Resolved identity and optional frozen reference price.
+   */
   abstract resolveCallContext(request: {
     sessionId?: LedgerContext['sessionId']
     provider: string
     model: string
   }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
+  /** Bind runtime-owned attribution before publishing a session.
+   * @param context - Trusted identity and parent linkage.
+   * @returns Disposer removing only this binding.
+   */
   abstract bindContext(context: LedgerSessionContext): () => void
+  /** Read an in-memory trusted binding.
+   * @param sessionId - Local session identity.
+   * @returns Bound attribution, or undefined when absent.
+   */
   abstract contextFor(sessionId: LedgerSessionContext['sessionId']): LedgerSessionContext | undefined
+  /** Persist call intent before network dispatch.
+   * @param input - Immutable request and attribution facts.
+   * @returns Durable append, replay, or conflict outcome.
+   */
   abstract beginCall(input: LedgerCallStart): Promise<LedgerAppendResult>
+  /** Commit one terminal call fact.
+   * @param input - Observed terminal facts.
+   * @returns Durable append, replay, or conflict outcome.
+   */
   abstract finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult>
+  /** Persist launch intent before child execution.
+   * @param input - Reserved identities and trusted dispatch options.
+   * @returns Durable launch intent or conflict.
+   */
   abstract beginRun(input: LedgerRunStart): Promise<LedgerAppendResult>
+  /** Compare and set the terminal run slot.
+   * @param input - Normal settlement or verified death observation.
+   * @returns First committed terminal fact or append outcome.
+   */
   abstract finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult>
+  /** Append a uniquely identified runtime fact.
+   * @param event - Complete versioned evidence.
+   * @returns Synchronized append, replay, or conflict outcome.
+   */
   abstract appendEvent(event: LedgerEvent): Promise<LedgerAppendResult>
+  /** Register trusted wait classification.
+   * @param toolName - Exact runtime tool name.
+   * @param category - Trusted wait category.
+   * @returns Disposer releasing only this registration.
+   */
   abstract registerWaitTool(toolName: string, category: LedgerWaitCategory): () => void
+  /** Append a contiguous restricted sidecar fragment.
+   * @param input - Immutable identity and exact serialized bytes.
+   * @returns Durable reference, replay, or conflict outcome.
+   */
   abstract appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult>
+  /** Close a sidecar durably without changing its contents.
+   * @param reference - Last durable fragment reference.
+   * @returns Closure acknowledgement for terminal call linkage.
+   */
   abstract finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult>
+  /** Select projections without counting observations as extra calls.
+   * @param filter - Business-time and identity selection.
+   * @returns Snapshot with completeness and watermark evidence.
+   */
   abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>
+  /** Read a consistent checkpoint view.
+   * @param filter - Optional visibility and session restriction.
+   * @returns Revisioned snapshot bounded by watermarks.
+   */
   abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
+  /** Price observed usage with decimal fixed-point arithmetic.
+   * @param request - Frozen price, timestamp, tiers, and usage.
+   * @returns Reference amount or explicit coverage gap.
+   */
   abstract priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult
+  /** Resolve the persisted local node identity.
+   * @returns Stable node identity after synchronization.
+   */
   abstract nodeId(): Promise<LedgerNodeId>
+  /** Import validated offline node facts.
+   * @param source - Local source node directory.
+   * @returns Per-fact append, replay, or conflict outcomes.
+   */
   abstract importNode(source: string): Promise<readonly LedgerAppendResult[]>
 }
 

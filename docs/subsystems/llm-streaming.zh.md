@@ -427,6 +427,8 @@ declare class BlockAssembler {
   get usage(): TokenUsage | undefined;
   /** Finish reason from the `finish` chunk; `{kind: 'stop'}` when the stream ended without one. */
   get finish(): FinishReason;
+  /** Terminal response evidence kept in memory, never copied into message source. */
+  get finishMetadata(): Extract<StreamChunk, { type: 'finish' }> | undefined;
   /**
    * Replay metadata from the terminal finish chunk, if any, with per-block
    * entries pruned in step with {@link blocks}. Undefined when the envelope's
@@ -1171,6 +1173,30 @@ Types: [FileAttachmentRef](attachment.zh.md) · [ImageAttachmentRef](attachment.
 
 Source: [`packages/llm/llm/src/index.ts`](../../packages/llm/llm/src/index.ts)
 
+<a id="ctxllmcache--cacheservice"></a>
+
+### `ctx.llmCache` — `CacheService`
+
+Live cache policy and evidence queries owned by the cache plugin.
+
+```ts cordis-catalog
+/** Update an opted-in session without rewriting its historical request headers.
+ * @param update - live session and explicitly replaced settings.
+ * @returns completion of pending policy evidence writes.
+ */
+update(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }): Promise<void>
+
+/** Read the evidence-based remaining estimate without dispatching a model call.
+ * @param agent - session whose cache evidence is requested.
+ * @returns the observed estimate, or unknown when no evidence is available.
+ */
+remaining(agent: Agent): Promise<CacheRemaining>
+```
+
+Types: [Agent](core.zh.md)
+
+Source: [`packages/llm/llm-cache/src/index.ts`](../../packages/llm/llm-cache/src/index.ts)
+
 <a id="llm-events"></a>
 
 ### `llm/*` events
@@ -1195,6 +1221,23 @@ The provider topology changed: an adapter registered or unregistered routes, or 
 ```
 
 Source: [`packages/llm/llm/src/types.ts`](../../packages/llm/llm/src/types.ts)
+
+<a id="llmretry-observed--emit"></a>
+
+#### `llm/retry-observed` — emit
+
+Observe retry scheduling and completed waits without changing durable retry events.
+
+```ts cordis-catalog
+/**
+ * Observe retry scheduling and completed waits without changing durable retry events.
+ * @param observation - live retry identity and provider HTTP evidence.
+ * @mode emit
+ */
+'llm/retry-observed'(observation: LlmRetryObservation): void
+```
+
+Source: [`packages/llm/llm-retry/src/index.ts`](../../packages/llm/llm-retry/src/index.ts)
 
 <a id="llmstream--waterfall"></a>
 

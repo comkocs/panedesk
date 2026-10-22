@@ -365,8 +365,10 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@panedesk/dsh-ledger-query` | yes | Read-only ledger query and export service definitions |
 | `@panedesk/dsh-ledger-watch` | yes | Independent ledger process watcher plugin scaffold |
 | `@panedesk/dsh-session-checkpoint-policy` | no | Semantic session durability checkpoints before model requests and tool side effects |
+| `@panedesk/dsh-session-ledger` | yes | Durable call and lifecycle ledger service definitions |
 | `@panedesk/dsh-session-log-deepseek` | yes | Incremental lossless session-log request extension for the official DeepSeek LLM API |
 | `@panedesk/dsh-session-persistence-jsonl` | yes | JSONL durable session persistence backend for the DeepSeek Harness |
 | `@panedesk/dsh-session-projection` | no | Session-projection seam: the merge-extensible projection type table, the provider contract, and the ctx.sessionProjections registry serving whole current values of log-derived per-session state |

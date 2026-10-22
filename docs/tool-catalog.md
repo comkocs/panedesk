@@ -2100,6 +2100,13 @@ Delegate a self-contained task to a subagent (a separate agent that works in its
       "type": "string",
       "description": "Initial child working directory. Relative paths use your current directory; omitted inherits it. Later directory changes in either agent are independent."
     },
+    "deliveryPaths": {
+      "type": "array",
+      "description": "Declared delivery files within the authorized workspace. The runtime checks them at settlement and never replaces them with errors.",
+      "items": {
+        "type": "string"
+      }
+    },
     "description": {
       "type": "string",
       "description": "A short (3-5 word) description of the delegated task, for display."

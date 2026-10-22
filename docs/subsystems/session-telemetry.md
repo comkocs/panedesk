@@ -151,9 +151,9 @@ Every record passes the `session-telemetry/record` [waterfall](../cordis-primer.
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
-<a id="ctxledgerquery--ledgerqueryservice-abstract-seam"></a>
+<a id="ctxledgerquery--ledgerqueryservice"></a>
 
-### `ctx.ledgerQuery` — `LedgerQueryService` (abstract seam)
+### `ctx.ledgerQuery` — `LedgerQueryService`
 
 Query providers read ledger snapshots without launching an Agent or model provider.
 
@@ -162,19 +162,25 @@ Query providers read ledger snapshots without launching an Agent or model provid
  * @param options - half-open time, attribution, and grouping selection.
  * @returns source snapshot and coverage-aware grouped totals.
  */
-abstract query(options: LedgerQueryOptions): Promise<LedgerQueryResult>
+async query(options: LedgerQueryOptions): Promise<LedgerQueryResult>
 
 /** Compute today's overview at the runtime clock or an explicit observation instant.
  * @param asOf - optional UTC millisecond observation time; omission reads the system clock.
  * @returns Beijing-day totals and node observation coverage.
  */
-abstract today(asOf?: number): Promise<LedgerTodaySummary>
+async today(asOf?: number): Promise<LedgerTodaySummary>
 
 /** Export selected rows in stable time, node, and call order.
  * @param options - selection, format, and caller-authorized destination.
  * @returns output acknowledgement and source snapshot watermarks.
  */
-abstract export(options: LedgerExportOptions): Promise<LedgerExportResult>
+async export(options: LedgerExportOptions): Promise<LedgerExportResult>
+
+/** Execute validated offline command arguments without loading a model runtime.
+ * @param args - boot/cmdline inner arguments.
+ * @returns structured command output and a conflict-aware exit status.
+ */
+async execute(args: readonly string[]): Promise<{ code: number; output: unknown }>
 ```
 
 Source: [`packages/session/ledger-query/src/index.ts`](../../packages/session/ledger-query/src/index.ts)
@@ -183,79 +189,104 @@ Source: [`packages/session/ledger-query/src/index.ts`](../../packages/session/le
 
 ### `ctx.sessionLedger` — `SessionLedger` (abstract seam)
 
-Durable ledger operations fail closed before model dispatch when the start cannot be committed.
+Durable ledger contract; implementations alone own storage and runtime hooks.
 
 ```ts cordis-catalog
-/** Persist one call start before releasing network dispatch.
- * @param input - immutable request and attribution facts.
- * @returns committed or existing start, or an explicit conflicting-payload result.
+/** Resolve trusted attribution before dispatch.
+ * @param request - Explicit session and serving route.
+ * @returns Resolved identity and optional frozen reference price.
+ */
+abstract resolveCallContext(request: { sessionId?: LedgerContext['sessionId'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
+
+/** Bind runtime-owned attribution before publishing a session.
+ * @param context - Trusted identity and parent linkage.
+ * @returns Disposer removing only this binding.
+ */
+abstract bindContext(context: LedgerSessionContext): () => void
+
+/** Read an in-memory trusted binding.
+ * @param sessionId - Local session identity.
+ * @returns Bound attribution, or undefined when absent.
+ */
+abstract contextFor(sessionId: LedgerSessionContext['sessionId']): LedgerSessionContext | undefined
+
+/** Persist call intent before network dispatch.
+ * @param input - Immutable request and attribution facts.
+ * @returns Durable append, replay, or conflict outcome.
  */
 abstract beginCall(input: LedgerCallStart): Promise<LedgerAppendResult>
 
-/** Commit at most one terminal fact per call; late evidence never overwrites it.
- * @param input - observed terminal facts.
- * @returns committed or already existing terminal fact, or a conflict.
+/** Commit one terminal call fact.
+ * @param input - Observed terminal facts.
+ * @returns Durable append, replay, or conflict outcome.
  */
 abstract finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult>
 
-/** Persist launch intent before permitting child execution.
- * @param input - reserved identities and trusted dispatch options.
- * @returns durable launch intent or conflict.
+/** Persist launch intent before child execution.
+ * @param input - Reserved identities and trusted dispatch options.
+ * @returns Durable launch intent or conflict.
  */
 abstract beginRun(input: LedgerRunStart): Promise<LedgerAppendResult>
 
-/** Compare-and-set the terminal run slot; later observations are separate events.
- * @param input - normal settlement or verified death observation.
- * @returns first committed terminal fact, including when another writer won.
+/** Compare and set the terminal run slot.
+ * @param input - Normal settlement or verified death observation.
+ * @returns First committed terminal fact or append outcome.
  */
 abstract finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult>
 
-/** Append a uniquely identified fact; equal replays are idempotent and unequal replays conflict.
- * @param event - complete versioned event, containing only runtime-authoritative evidence.
- * @returns durable append outcome after synchronization.
+/** Append a uniquely identified runtime fact.
+ * @param event - Complete versioned evidence.
+ * @returns Synchronized append, replay, or conflict outcome.
  */
 abstract appendEvent(event: LedgerEvent): Promise<LedgerAppendResult>
 
-/** Register trusted wait metadata; runtime registrations take precedence over configured defaults.
- * Equal registrations may coexist; conflicting live categories are rejected rather than last-writer-wins.
- * @param toolName - exact runtime-registered tool name, never model-supplied category metadata.
- * @param category - trusted wait classification.
- * @returns idempotent disposer releasing only this registration; the last release restores configuration or unclassified.
+/** Register trusted wait classification.
+ * @param toolName - Exact runtime tool name.
+ * @param category - Trusted wait category.
+ * @returns Disposer releasing only this registration.
  */
 abstract registerWaitTool(toolName: string, category: LedgerWaitCategory): () => void
 
-/** Append a restricted JSON sidecar fragment uniquely keyed by callId, kind, and seq.
- * A new sequence must be contiguous; gaps, malformed JSON, and new fragments after closure reject.
- * Exact replays remain valid after closure. Success is returned only after file and required directory fsync.
- * @param input - immutable identity and exact serialized content bytes.
- * @returns durable reference, existing reference for equal bytes, or a conflict without overwriting.
+/** Append a contiguous restricted sidecar fragment.
+ * @param input - Immutable identity and exact serialized bytes.
+ * @returns Durable reference, replay, or conflict outcome.
  */
 abstract appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult>
 
-/** Close a sidecar durably; a mismatching reference or a non-final sequence rejects without mutation.
- * Repeating the same closure is idempotent; acknowledgement follows fsync of the closure marker.
- * @param reference - last durable fragment returned by appendArtifact; an empty stream has no closure reference.
- * @returns durable closure acknowledgement suitable for call/end linkage.
+/** Close a sidecar durably without changing its contents.
+ * @param reference - Last durable fragment reference.
+ * @returns Closure acknowledgement for terminal call linkage.
  */
 abstract finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult>
 
-/** Select projections without counting lifecycle or retry observations as extra calls.
- * @param filter - half-open business-time and identity selection.
- * @returns snapshot and explicit completeness/watermark evidence.
+/** Select projections without counting observations as extra calls.
+ * @param filter - Business-time and identity selection.
+ * @returns Snapshot with completeness and watermark evidence.
  */
 abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>
 
-/** Read a consistent checkpoint view; absent filter selects all locally visible facts.
- * @param filter - optional visibility and session restriction.
- * @returns revisioned, bounded-by-watermark snapshot.
+/** Read a consistent checkpoint view.
+ * @param filter - Optional visibility and session restriction.
+ * @returns Revisioned snapshot bounded by watermarks.
  */
 abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>
 
-/** Price authoritative usage with decimal fixed-point arithmetic, without inventing missing values.
- * @param request - frozen price entry, timestamp, tier names, and observed usage.
- * @returns reference USD amount or an explicit coverage gap.
+/** Price observed usage with decimal fixed-point arithmetic.
+ * @param request - Frozen price, timestamp, tiers, and usage.
+ * @returns Reference amount or explicit coverage gap.
  */
 abstract priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult
+
+/** Resolve the persisted local node identity.
+ * @returns Stable node identity after synchronization.
+ */
+abstract nodeId(): Promise<LedgerNodeId>
+
+/** Import validated offline node facts.
+ * @param source - Local source node directory.
+ * @returns Per-fact append, replay, or conflict outcomes.
+ */
+abstract importNode(source: string): Promise<readonly LedgerAppendResult[]>
 ```
 
 Source: [`packages/session/session-ledger/src/index.ts`](../../packages/session/session-ledger/src/index.ts)

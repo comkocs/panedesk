@@ -190,6 +190,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Its preset id, if bound.',
       },
       {
+        signature: 'composedPolicy(ctx: Context): Pick<AgentPreset, \'executionPolicy\' | \'executionPolicyDigest\'> | undefined',
+        description: 'Read execution metadata from the exact revision retained by an Agent.',
+        parameters: [{ name: 'ctx', description: 'Agent context.' }],
+        returns: 'Frozen policy metadata, or undefined when no preset is bound.',
+      },
+      {
         signature: 'serviceFor<K extends string & keyof Context>(agent: { ctx: Context }, name: K): Context[K] | undefined',
         description: 'Read a service supplied inside an Agent\'s isolated preset group.',
         parameters: [{ name: 'agent', description: 'Agent whose composition is queried.' }, { name: 'name', description: 'Cordis service name.' }],
@@ -283,6 +289,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Insert an already-constructed agent without announcing it. This is the advanced ordered-lifecycle primitive used by the async agent factory: it first completes setup while the agent is unpublished, then assigns the returned detach closure into its pre-installed composite teardown before calling announce. Ordinary callers use register.',
         parameters: [{ name: 'agent', description: 'the prepared, unpublished agent.' }, { name: 'owner', description: 'explicitly supplied live runtime owner, or undefined for a top-level runtime root. This is runtime ownership, not the resumed session\'s durable parent lineage.' }],
         returns: 'an idempotent closure that removes this exact entry and emits `agent/disposed` with listener failures contained. When called from a `agent/created` listener, removal and disposal wait until the serial creation dispatch settles.',
+      },
+      {
+        signature: 'async ending(agent: Agent): Promise<void>',
+        description: 'Await durable settlement while the quiescent agent still owns its scope and session. The driver owner calls this before releasing resources; failure does not perform cleanup.',
+        parameters: [{ name: 'agent', description: 'exact registered agent whose driver has drained.' }],
+        returns: 'shared settlement promise; unpublished agents need no terminal notification.',
       },
       {
         signature: 'async announce(agent: Agent, source: SessionStartSource, signal?: AbortSignal): Promise<void>',
@@ -1429,22 +1441,28 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Query providers read ledger snapshots without launching an Agent or model provider.',
     methods: [
       {
-        signature: 'abstract query(options: LedgerQueryOptions): Promise<LedgerQueryResult>',
+        signature: 'async query(options: LedgerQueryOptions): Promise<LedgerQueryResult>',
         description: 'Select and group unique call projections.',
         parameters: [{ name: 'options', description: 'half-open time, attribution, and grouping selection.' }],
         returns: 'source snapshot and coverage-aware grouped totals.',
       },
       {
-        signature: 'abstract today(asOf?: number): Promise<LedgerTodaySummary>',
+        signature: 'async today(asOf?: number): Promise<LedgerTodaySummary>',
         description: 'Compute today\'s overview at the runtime clock or an explicit observation instant.',
         parameters: [{ name: 'asOf', description: 'optional UTC millisecond observation time; omission reads the system clock.' }],
         returns: 'Beijing-day totals and node observation coverage.',
       },
       {
-        signature: 'abstract export(options: LedgerExportOptions): Promise<LedgerExportResult>',
+        signature: 'async export(options: LedgerExportOptions): Promise<LedgerExportResult>',
         description: 'Export selected rows in stable time, node, and call order.',
         parameters: [{ name: 'options', description: 'selection, format, and caller-authorized destination.' }],
         returns: 'output acknowledgement and source snapshot watermarks.',
+      },
+      {
+        signature: 'async execute(args: readonly string[]): Promise<{ code: number; output: unknown }>',
+        description: 'Execute validated offline command arguments without loading a model runtime.',
+        parameters: [{ name: 'args', description: 'boot/cmdline inner arguments.' }],
+        returns: 'structured command output and a conflict-aware exit status.',
       },
     ],
   },
@@ -1549,6 +1567,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Stream one model call as raw chunks (token-level deltas). Replay state is retained only when the same adapter instance owns its historical provider and the target provider. Final adapter selection remains fixed through asynchronous exact-model resolution and dispatch. Adapter selection, dispatch, and iteration failures become terminal `error` or `aborted` finish chunks; middleware, nested-call, cleanup, and consumer failures remain thrown.',
         parameters: [{ name: 'options', description: 'the full request; `options.provider` selects the adapter.' }],
         returns: 'the chunk stream, possibly wrapped by `llm/stream` listeners.',
+      },
+    ],
+  },
+  {
+    key: 'llmCache',
+    summary: 'Live cache policy and evidence queries owned by the cache plugin.',
+    description: 'Live cache policy and evidence queries owned by the cache plugin.',
+    methods: [
+      {
+        signature: 'update(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }): Promise<void>',
+        description: 'Update an opted-in session without rewriting its historical request headers.',
+        parameters: [{ name: 'update', description: 'live session and explicitly replaced settings.' }],
+        returns: 'completion of pending policy evidence writes.',
+      },
+      {
+        signature: 'remaining(agent: Agent): Promise<CacheRemaining>',
+        description: 'Read the evidence-based remaining estimate without dispatching a model call.',
+        parameters: [{ name: 'agent', description: 'session whose cache evidence is requested.' }],
+        returns: 'the observed estimate, or unknown when no evidence is available.',
       },
     ],
   },
@@ -2247,74 +2284,104 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   },
   {
     key: 'sessionLedger',
-    summary: 'Durable ledger operations fail closed before model dispatch when the start cannot be committed.',
-    description: 'Durable ledger operations fail closed before model dispatch when the start cannot be committed.',
+    summary: 'Durable ledger contract; implementations alone own storage and runtime hooks.',
+    description: 'Durable ledger contract; implementations alone own storage and runtime hooks.',
     methods: [
       {
+        signature: 'abstract resolveCallContext(request: { sessionId?: LedgerContext[\'sessionId\'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>',
+        description: 'Resolve trusted attribution before dispatch.',
+        parameters: [{ name: 'request', description: 'Explicit session and serving route.' }],
+        returns: 'Resolved identity and optional frozen reference price.',
+      },
+      {
+        signature: 'abstract bindContext(context: LedgerSessionContext): () => void',
+        description: 'Bind runtime-owned attribution before publishing a session.',
+        parameters: [{ name: 'context', description: 'Trusted identity and parent linkage.' }],
+        returns: 'Disposer removing only this binding.',
+      },
+      {
+        signature: 'abstract contextFor(sessionId: LedgerSessionContext[\'sessionId\']): LedgerSessionContext | undefined',
+        description: 'Read an in-memory trusted binding.',
+        parameters: [{ name: 'sessionId', description: 'Local session identity.' }],
+        returns: 'Bound attribution, or undefined when absent.',
+      },
+      {
         signature: 'abstract beginCall(input: LedgerCallStart): Promise<LedgerAppendResult>',
-        description: 'Persist one call start before releasing network dispatch.',
-        parameters: [{ name: 'input', description: 'immutable request and attribution facts.' }],
-        returns: 'committed or existing start, or an explicit conflicting-payload result.',
+        description: 'Persist call intent before network dispatch.',
+        parameters: [{ name: 'input', description: 'Immutable request and attribution facts.' }],
+        returns: 'Durable append, replay, or conflict outcome.',
       },
       {
         signature: 'abstract finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult>',
-        description: 'Commit at most one terminal fact per call; late evidence never overwrites it.',
-        parameters: [{ name: 'input', description: 'observed terminal facts.' }],
-        returns: 'committed or already existing terminal fact, or a conflict.',
+        description: 'Commit one terminal call fact.',
+        parameters: [{ name: 'input', description: 'Observed terminal facts.' }],
+        returns: 'Durable append, replay, or conflict outcome.',
       },
       {
         signature: 'abstract beginRun(input: LedgerRunStart): Promise<LedgerAppendResult>',
-        description: 'Persist launch intent before permitting child execution.',
-        parameters: [{ name: 'input', description: 'reserved identities and trusted dispatch options.' }],
-        returns: 'durable launch intent or conflict.',
+        description: 'Persist launch intent before child execution.',
+        parameters: [{ name: 'input', description: 'Reserved identities and trusted dispatch options.' }],
+        returns: 'Durable launch intent or conflict.',
       },
       {
         signature: 'abstract finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult>',
-        description: 'Compare-and-set the terminal run slot; later observations are separate events.',
-        parameters: [{ name: 'input', description: 'normal settlement or verified death observation.' }],
-        returns: 'first committed terminal fact, including when another writer won.',
+        description: 'Compare and set the terminal run slot.',
+        parameters: [{ name: 'input', description: 'Normal settlement or verified death observation.' }],
+        returns: 'First committed terminal fact or append outcome.',
       },
       {
         signature: 'abstract appendEvent(event: LedgerEvent): Promise<LedgerAppendResult>',
-        description: 'Append a uniquely identified fact; equal replays are idempotent and unequal replays conflict.',
-        parameters: [{ name: 'event', description: 'complete versioned event, containing only runtime-authoritative evidence.' }],
-        returns: 'durable append outcome after synchronization.',
+        description: 'Append a uniquely identified runtime fact.',
+        parameters: [{ name: 'event', description: 'Complete versioned evidence.' }],
+        returns: 'Synchronized append, replay, or conflict outcome.',
       },
       {
         signature: 'abstract registerWaitTool(toolName: string, category: LedgerWaitCategory): () => void',
-        description: 'Register trusted wait metadata; runtime registrations take precedence over configured defaults. Equal registrations may coexist; conflicting live categories are rejected rather than last-writer-wins.',
-        parameters: [{ name: 'toolName', description: 'exact runtime-registered tool name, never model-supplied category metadata.' }, { name: 'category', description: 'trusted wait classification.' }],
-        returns: 'idempotent disposer releasing only this registration; the last release restores configuration or unclassified.',
+        description: 'Register trusted wait classification.',
+        parameters: [{ name: 'toolName', description: 'Exact runtime tool name.' }, { name: 'category', description: 'Trusted wait category.' }],
+        returns: 'Disposer releasing only this registration.',
       },
       {
         signature: 'abstract appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult>',
-        description: 'Append a restricted JSON sidecar fragment uniquely keyed by callId, kind, and seq. A new sequence must be contiguous; gaps, malformed JSON, and new fragments after closure reject. Exact replays remain valid after closure. Success is returned only after file and required directory fsync.',
-        parameters: [{ name: 'input', description: 'immutable identity and exact serialized content bytes.' }],
-        returns: 'durable reference, existing reference for equal bytes, or a conflict without overwriting.',
+        description: 'Append a contiguous restricted sidecar fragment.',
+        parameters: [{ name: 'input', description: 'Immutable identity and exact serialized bytes.' }],
+        returns: 'Durable reference, replay, or conflict outcome.',
       },
       {
         signature: 'abstract finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult>',
-        description: 'Close a sidecar durably; a mismatching reference or a non-final sequence rejects without mutation. Repeating the same closure is idempotent; acknowledgement follows fsync of the closure marker.',
-        parameters: [{ name: 'reference', description: 'last durable fragment returned by appendArtifact; an empty stream has no closure reference.' }],
-        returns: 'durable closure acknowledgement suitable for call/end linkage.',
+        description: 'Close a sidecar durably without changing its contents.',
+        parameters: [{ name: 'reference', description: 'Last durable fragment reference.' }],
+        returns: 'Closure acknowledgement for terminal call linkage.',
       },
       {
         signature: 'abstract query(filter: LedgerQuery): Promise<LedgerSnapshot>',
-        description: 'Select projections without counting lifecycle or retry observations as extra calls.',
-        parameters: [{ name: 'filter', description: 'half-open business-time and identity selection.' }],
-        returns: 'snapshot and explicit completeness/watermark evidence.',
+        description: 'Select projections without counting observations as extra calls.',
+        parameters: [{ name: 'filter', description: 'Business-time and identity selection.' }],
+        returns: 'Snapshot with completeness and watermark evidence.',
       },
       {
         signature: 'abstract snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot>',
-        description: 'Read a consistent checkpoint view; absent filter selects all locally visible facts.',
-        parameters: [{ name: 'filter', description: 'optional visibility and session restriction.' }],
-        returns: 'revisioned, bounded-by-watermark snapshot.',
+        description: 'Read a consistent checkpoint view.',
+        parameters: [{ name: 'filter', description: 'Optional visibility and session restriction.' }],
+        returns: 'Revisioned snapshot bounded by watermarks.',
       },
       {
         signature: 'abstract priceUsage(request: LedgerPriceUsageRequest): LedgerPriceUsageResult',
-        description: 'Price authoritative usage with decimal fixed-point arithmetic, without inventing missing values.',
-        parameters: [{ name: 'request', description: 'frozen price entry, timestamp, tier names, and observed usage.' }],
-        returns: 'reference USD amount or an explicit coverage gap.',
+        description: 'Price observed usage with decimal fixed-point arithmetic.',
+        parameters: [{ name: 'request', description: 'Frozen price, timestamp, tiers, and usage.' }],
+        returns: 'Reference amount or explicit coverage gap.',
+      },
+      {
+        signature: 'abstract nodeId(): Promise<LedgerNodeId>',
+        description: 'Resolve the persisted local node identity.',
+        parameters: [],
+        returns: 'Stable node identity after synchronization.',
+      },
+      {
+        signature: 'abstract importNode(source: string): Promise<readonly LedgerAppendResult[]>',
+        description: 'Import validated offline node facts.',
+        parameters: [{ name: 'source', description: 'Local source node directory.' }],
+        returns: 'Per-fact append, replay, or conflict outcomes.',
       },
     ],
   },
@@ -4488,6 +4555,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'llm/retry-observed',
+    mode: 'emit',
+    signature: '\'llm/retry-observed\'(observation: LlmRetryObservation): void',
+    summary: 'Observe retry scheduling and completed waits without changing durable retry events.',
+    description: 'Observe retry scheduling and completed waits without changing durable retry events.',
+    parameters: [{ name: 'observation', description: 'live retry identity and provider HTTP evidence.' }],
+  },
+  {
     name: 'llm/stream',
     mode: 'waterfall',
     signature: '\'llm/stream\'(this: LlmRuntime, options: GenerateOptions, next: () => AsyncIterable<StreamChunk>): AsyncIterable<StreamChunk>',
@@ -5128,6 +5203,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ButtonProps {\n    readonly label: string;\n    readonly hotkey?: string | undefined;\n    readonly disabled?: boolean | undefined;\n    readonly onPress?: (() => unknown) | undefined;\n}',
   },
   {
+    name: 'CachePolicy',
+    declaration: 'export interface CachePolicy {\n    retention: CacheRetention;\n    stableKey?: string;\n}',
+  },
+  {
+    name: 'CacheRemaining',
+    declaration: 'export type CacheRemaining = {\n    kind: \'estimated\';\n    seconds: number;\n    evidenceAt: number;\n    ttlSeconds: number;\n} | {\n    kind: \'automatic\' | \'disabled\' | \'unknown\';\n};',
+  },
+  {
     name: 'CacheRetention',
     declaration: 'export type CacheRetention = \'default\' | \'none\' | \'5m\' | \'1h\' | \'30m\' | \'12h\' | \'auto\';',
   },
@@ -5205,7 +5288,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CompactionCheckpoint',
-    declaration: 'export interface CompactionCheckpoint {\n    content: ContentBlock[];\n    asOf?: number;\n    watermarks?: Readonly<Record<string, string>>;\n    sessionSeq: SessionSeq;\n}',
+    declaration: 'export interface CompactionCheckpoint {\n    content: ContentBlock[];\n    asOf?: number;\n    watermarks?: Readonly<Record<string, string>>;\n    sessionSeq: SessionSeq;\n    validate?: () => Promise<boolean>;\n    retryLimit?: number;\n}',
   },
   {
     name: 'CompactionId',
@@ -5213,7 +5296,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CompactionResult',
-    declaration: 'export interface CompactionResult {\n    compactionId: CompactionId;\n    sourceCommandId?: CommandId;\n    startSeq: SessionSeq;\n    summarySeq: SessionSeq;\n    endSeq: SessionSeq;\n    summary: ContentBlock[];\n    shadowedRange: {\n        start: SessionSeq;\n        end: SessionSeq;\n    };\n    shadowedSeqs: SessionSeq[];\n    shadowedTokenCount: number;\n}',
+    declaration: 'export interface CompactionResult {\n    compactionId: CompactionId;\n    sourceCommandId?: CommandId;\n    startSeq: SessionSeq;\n    summarySeq: SessionSeq;\n    endSeq: SessionSeq;\n    committedAt?: number;\n    estimatedContextTokens?: number;\n    summary: ContentBlock[];\n    shadowedRange: {\n        start: SessionSeq;\n        end: SessionSeq;\n    };\n    shadowedSeqs: SessionSeq[];\n    shadowedTokenCount: number;\n}',
   },
   {
     name: 'CompactionTrigger',
@@ -6028,6 +6111,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type JsonValue = null | boolean | number | string | JsonValue[] | {\n    [key: string]: JsonValue;\n};',
   },
   {
+    name: 'KeepalivePolicy',
+    declaration: 'export interface KeepalivePolicy {\n    enabled: boolean;\n    leadSeconds: number;\n    minimumIntervalSeconds: number;\n    maxOutputTokens: number;\n}',
+  },
+  {
     name: 'KvFacet',
     declaration: 'export interface KvFacet {\n    open(descriptor: KvUnitDescriptor): Promise<KvUnit>;\n}',
   },
@@ -6077,11 +6164,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerAuxiliaryFact',
-    declaration: 'export type LedgerAuxiliaryFact = {\n    kind: \'wait/start\' | \'wait/end\';\n    interval: LedgerInterval;\n} | {\n    kind: \'cache/break\' | \'cache/evidence\';\n    evidence: LedgerCacheEvidence;\n} | {\n    kind: \'retry\';\n    phase: \'scheduled\' | \'started\' | \'exhausted\';\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    httpStatus?: number;\n} | {\n    kind: \'compaction\';\n    committedSeq: number;\n    committedAt: number;\n} | {\n    kind: \'alert\';\n    alert: LedgerAlert;\n} | {\n    kind: \'delivery\';\n    paths: readonly string[];\n    state: LedgerRunFinish[\'deliveryState\'];\n    errorArtifact?: string;\n} | {\n    kind: \'process/observed\';\n    identity: LedgerProcessIdentity;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    exitCode?: number;\n    signal?: string;\n} | {\n    kind: \'policy/denied\';\n    operation: \'model\' | \'effort\' | \'tool\';\n    requested: string;\n    definition: string;\n    reason: string;\n};',
+    declaration: 'export type LedgerAuxiliaryFact = {\n    kind: \'wait/start\' | \'wait/end\';\n    interval: LedgerInterval;\n} | {\n    kind: \'cache/break\' | \'cache/evidence\';\n    evidence: LedgerCacheEvidence;\n} | {\n    kind: \'retry\';\n    phase: \'scheduled\' | \'started\' | \'exhausted\';\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    httpStatus?: number;\n} | {\n    kind: \'compaction\';\n    committedSeq: number;\n    committedAt: number;\n    peakContextUsageTokens?: number;\n    peakContextEstimatedTokens?: number;\n} | {\n    kind: \'alert\';\n    alert: LedgerAlert;\n} | {\n    kind: \'delivery\';\n    paths: readonly string[];\n    state: LedgerRunFinish[\'deliveryState\'];\n    errorArtifact?: string;\n} | {\n    kind: \'process/observed\';\n    identity: LedgerProcessIdentity;\n    liveness: \'confirmed\' | \'unknown\' | \'dead\';\n    exitCode?: number;\n    signal?: string;\n} | {\n    kind: \'policy/denied\';\n    operation: \'model\' | \'effort\' | \'tool\';\n    requested: string;\n    definition: string;\n    reason: string;\n};',
   },
   {
     name: 'LedgerCacheEvidence',
-    declaration: 'export interface LedgerCacheEvidence {\n    prefixFingerprint?: string;\n    fingerprintVersion?: number;\n    cacheEpoch?: string;\n    wirePrefixDigest?: string;\n    breakReasons: readonly string[];\n    lastCacheEvidenceAt?: number;\n    ttlSeconds?: number;\n    cacheMode: \'disabled\' | \'explicit\' | \'automatic\' | \'unknown\';\n    retention?: GenerateOptions[\'cache\'];\n    downgradeReason?: string;\n}',
+    declaration: 'export interface LedgerCacheEvidence {\n    prefixFingerprint?: string;\n    fingerprintVersion?: number;\n    cacheEpoch?: string;\n    wirePrefixDigest?: string;\n    breakReasons: readonly string[];\n    lastCacheEvidenceAt?: number;\n    ttlSeconds?: number;\n    cacheMode: \'disabled\' | \'explicit\' | \'automatic\' | \'unknown\';\n    retention?: GenerateOptions[\'cache\'];\n    downgradeReason?: string;\n    sessionPolicy?: {\n        retention: NonNullable<GenerateOptions[\'cache\']>[\'retention\'];\n        stableKey?: string;\n    };\n    keepalivePolicy?: {\n        enabled: boolean;\n        leadSeconds: number;\n        minimumIntervalSeconds: number;\n        maxOutputTokens: number;\n    };\n    keepaliveFailures?: number;\n    lastKeepaliveAttemptAt?: number;\n}',
   },
   {
     name: 'LedgerCacheWriteTiering',
@@ -6093,7 +6180,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerCallFinish',
-    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported;\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    usageState: LedgerUsageState;\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n}',
+    declaration: 'export interface LedgerCallFinish {\n    callId: LedgerCallId;\n    endedAt: number;\n    observedAt: number;\n    responseModel?: string;\n    responseModelReported: ResponseModelReported | \'not-reported\';\n    effectiveModel: string;\n    httpStatus?: number;\n    usage?: TokenUsage;\n    usageState: LedgerUsageState;\n    costUsd?: string;\n    pricingState: LedgerPricingState;\n    wallMs: number;\n    modelInFlightMs: number;\n    queueMs: number;\n    backoffMs: number;\n    waits: readonly LedgerInterval[];\n    peakContextTokens?: number;\n    peakContextSource?: \'usage\' | \'estimate\';\n    compactionCount: number;\n    compactionTimes: readonly number[];\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    errorArtifact?: string;\n    artifacts?: readonly LedgerArtifactReference[];\n    accountLabel?: string;\n    cacheWriteTiering?: LedgerCacheWriteTiering;\n    cache?: LedgerCacheEvidence;\n    http429Count?: number;\n    http503Count?: number;\n}',
   },
   {
     name: 'LedgerCallId',
@@ -6145,7 +6232,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerHitRate',
-    declaration: 'export interface LedgerHitRate {\n    value?: number;\n    state: \'complete\' | \'partial\' | \'unavailable\';\n    cacheReadTokens: number;\n    inputTokensIncludingCache: number;\n}',
+    declaration: 'export interface LedgerHitRate {\n    value?: number | undefined;\n    state: \'complete\' | \'partial\' | \'unavailable\';\n    cacheReadTokens: number;\n    inputTokensIncludingCache: number;\n}',
   },
   {
     name: 'LedgerIdentity',
@@ -6173,7 +6260,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerPriceUsageRequest',
-    declaration: 'export interface LedgerPriceUsageRequest {\n    usage?: TokenUsage;\n    usageState: LedgerUsageState;\n    tiering: LedgerCacheWriteTiering;\n    startedAt: number;\n    entry?: LedgerPriceEntry;\n    cacheStorageTokenHours?: string;\n}',
+    declaration: 'export interface LedgerPriceUsageRequest {\n    usage?: TokenUsage | undefined;\n    usageState: LedgerUsageState;\n    tiering: LedgerCacheWriteTiering;\n    startedAt: number;\n    entry?: LedgerPriceEntry | undefined;\n    cacheStorageTokenHours?: string;\n}',
   },
   {
     name: 'LedgerPriceUsageResult',
@@ -6185,7 +6272,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerProcessIdentity',
-    declaration: 'export interface LedgerProcessIdentity {\n    nodeId: LedgerNodeId;\n    pid: number;\n    processGroupId?: number;\n    startIdentity?: string;\n    bootIdentity?: string;\n    registeredAt: number;\n    verification: \'verified\' | \'unverified\';\n}',
+    declaration: 'export interface LedgerProcessIdentity {\n    nodeId: LedgerNodeId;\n    pid: number;\n    processGroupId?: number;\n    startIdentity?: string | undefined;\n    bootIdentity?: string;\n    registeredAt: number;\n    verification: \'verified\' | \'unverified\';\n}',
   },
   {
     name: 'LedgerPurpose',
@@ -6217,7 +6304,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerRunFinish',
-    declaration: 'export interface LedgerRunFinish {\n    runId: LedgerRunId;\n    endedAt?: number;\n    observedAt: number;\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    deliveryState: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    errorArtifact?: string;\n}',
+    declaration: 'export interface LedgerRunFinish {\n    externalBackend?: {\n        definitionEnforcement: \'not-applicable\';\n        usage?: TokenUsage;\n        reportedUsage?: Readonly<Record<string, number>>;\n        usageState: LedgerUsageState;\n        processIdentityState: \'reported\' | \'not-reported\';\n    };\n    runId: LedgerRunId;\n    endedAt?: number;\n    observedAt: number;\n    endReason: LedgerEndReason;\n    upstreamStopReason?: string;\n    exitCode?: number;\n    signal?: string;\n    timeoutSource?: string;\n    recovered: boolean;\n    deliveryState: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    errorArtifact?: string;\n}',
   },
   {
     name: 'LedgerRunId',
@@ -6225,7 +6312,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerRunStart',
-    declaration: 'export interface LedgerRunStart extends LedgerContext {\n    runId: LedgerRunId;\n    startedAt: number;\n    definition?: string;\n    effectiveModel?: string;\n    processIdentity?: LedgerProcessIdentity;\n    launchState: \'pending\' | \'started\';\n    deliveryPaths: readonly string[];\n}',
+    declaration: 'export interface LedgerRunStart extends LedgerContext {\n    runId: LedgerRunId;\n    parentRunId?: LedgerRunId;\n    startedAt: number;\n    definition?: string;\n    executionPolicy?: {\n        readonly provider: string;\n        readonly model: string;\n        readonly reasoningEffort: string;\n        readonly allowedTools: readonly string[];\n        readonly rulesId: string;\n        readonly version: string;\n        readonly digest: string;\n    };\n    executionPolicyDigest?: string;\n    effectiveModel?: string;\n    processIdentity?: LedgerProcessIdentity;\n    launchState: \'pending\' | \'started\';\n    deliveryPaths: readonly string[];\n}',
+  },
+  {
+    name: 'LedgerSessionContext',
+    declaration: 'export interface LedgerSessionContext extends LedgerContext {\n    runId: LedgerRunId;\n    parentRunId?: LedgerRunId;\n}',
   },
   {
     name: 'LedgerSnapshot',
@@ -6342,6 +6433,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LlmResolvedModelInfo',
     declaration: 'export interface LlmResolvedModelInfo extends LlmModelInfo {\n    context?: LlmModelContext;\n    defaultMaxTokens?: number;\n    reasoning?: LlmModelReasoningInfo;\n    systemPromptUpdate?: SystemPromptUpdate;\n    toolUpdate?: ToolUpdate;\n}',
+  },
+  {
+    name: 'LlmRetryObservation',
+    declaration: 'export interface LlmRetryObservation {\n    agent: Agent;\n    phase: \'scheduled\' | \'started\';\n    retryId: RetryId;\n    turn: number;\n    step: number;\n    provider: string;\n    retry: number;\n    status?: number;\n    is429?: boolean;\n    is503?: boolean;\n}',
   },
   {
     name: 'LlmRuntime',
@@ -7206,6 +7301,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResumeAgentOptions',
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
+  },
+  {
+    name: 'RetryId',
+    declaration: 'export type RetryId = Branded<\'RetryId\'>;',
   },
   {
     name: 'RpcId',
@@ -8253,7 +8352,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentResult',
-    declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly stopReason: SubagentStopReason;\n}',
+    declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly deliveryState?: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    readonly stopReason: SubagentStopReason;\n}',
   },
   {
     name: 'SubagentRun',
@@ -8309,7 +8408,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessIdentity',
-    declaration: 'export interface SubprocessIdentity {\n    readonly pid: number;\n    readonly processGroupId?: number;\n    readonly startIdentity?: string;\n}',
+    declaration: 'export interface SubprocessIdentity {\n    readonly pid: number;\n    readonly processGroupId?: number;\n    readonly startIdentity?: string;\n    readonly bootIdentity?: string;\n}',
   },
   {
     name: 'SubprocessOutcome',

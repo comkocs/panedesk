@@ -1,6 +1,6 @@
 ---
 description: "Offline ledger application plugin scaffold."
-kind: "package-reference"
+kind: "package-bundle"
 ---
 
 # @panedesk/dsh-ledger-app

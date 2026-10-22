@@ -13,13 +13,19 @@ declare module '@panedesk/cordis' {
   }
 }
 
+/** Read-only ledger observation settings. */
+export interface Config {
+  /** Maximum age of a process observation considered current, in milliseconds. */
+  observationFreshnessMs?: number
+}
+
 /** Query providers read ledger snapshots without launching an Agent or model provider. */
 export class LedgerQueryService extends Service {
   static inject: string[] = []
 
   private readonly freshnessMs: number
 
-  constructor(ctx: Context, config: { observationFreshnessMs?: number } = {}) {
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'ledgerQuery')
     this.freshnessMs = config.observationFreshnessMs ?? 10000
     if (!Number.isFinite(this.freshnessMs) || this.freshnessMs <= 0) throw new Error('Invalid observation freshness')

@@ -205,7 +205,12 @@ export async function readLedgerExport(path: string): Promise<LedgerSnapshot> {
  * @param freshnessMs - freshness policy used for the accompanying live classification.
  * @returns independent call totals, summary, and explicit verification status.
  */
-export function verifyLedger(snapshot: LedgerSnapshot, asOf: number, freshnessMs: number) {
+export function verifyLedger(snapshot: LedgerSnapshot, asOf: number, freshnessMs: number): {
+  valid: boolean
+  recomputed: { costUsd: string; tokens: number; cacheReadTokens: number; inputTokensIncludingCache: number; unknownCostCalls: number }
+  summary: ReturnType<typeof summarizeToday>
+  conflicts: ReturnType<typeof mergeLedger>['conflicts']
+} {
   const merged = mergeLedger([snapshot])
   const summary = summarizeToday(merged.snapshot, asOf, freshnessMs)
   const date = new Date(asOf + 28800000)

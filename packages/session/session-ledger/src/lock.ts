@@ -13,6 +13,7 @@ export interface WriterLockOptions {
 
 /** Local accounting failures stop dependent dispatch; callers may retry only with the same fact identity. */
 export class LedgerUnavailableError extends Error {
+  /** Stable failure code for callers that must stop dependent dispatch. */
   readonly code = 'LEDGER_UNAVAILABLE'
   constructor(cause: unknown) {
     super('Local accounting is unavailable; dispatch was stopped. Inspect the ledger before retrying.', { cause })

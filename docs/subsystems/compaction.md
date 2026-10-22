@@ -54,6 +54,10 @@ interface CompactionResult {
   summarySeq: SessionSeq
   /** The seq of the appended `compaction/end` event. */
   endSeq: SessionSeq
+  /** System wall clock at successful in-memory commit; absent for providers without this observation. */
+  committedAt?: number
+  /** Pre-compaction context estimate, separate from provider-reported input usage. */
+  estimatedContextTokens?: number
   /** The summary content blocks produced by the backend. */
   summary: ContentBlock[]
   /**

@@ -9,8 +9,8 @@
   en: d736b875a9442d57
   zh: 9a8ca78c95be480a
 /panedesk-cli-help/contents:
-  en: eaf94dd1a5b2a2bc
-  zh: 2490c06cae09bfaf
+  en: e309a4ef128677d1
+  zh: 7ffb6c0ca3c59ad5
 /panedesk-cli-help/panedesk:
   en: 9eae83d84f9a0122
   zh: 228c1952d7dbad09
@@ -21,8 +21,11 @@
   en: 93e6da11a02cf139
   zh: dbb677bf271677f4
 /panedesk-cli-help/panedesk-full:
-  en: 3d89cfb1ce6442c9
-  zh: aea565ddce6cc3d6
+  en: ffc0f3ee07e65f12
+  zh: 37441bbc468a92ef
+/panedesk-cli-help/panedesk-ledger:
+  en: e90fdf5d7e0cec7d
+  zh: 3e426aebdd80d529
 /panedesk-cli-help/panedesk-sdk:
   en: 1e59d6b2ea87979f
   zh: 880c5de6ec22b9f4

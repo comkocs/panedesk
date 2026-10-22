@@ -555,6 +555,12 @@ composeFrom(ctx: Context, parent: Context): string | undefined
  */
 composedPreset(ctx: Context): string | undefined
 
+/** Read execution metadata from the exact revision retained by an Agent.
+ * @param ctx Agent context.
+ * @returns Frozen policy metadata, or undefined when no preset is bound.
+ */
+composedPolicy(ctx: Context): Pick<AgentPreset, 'executionPolicy' | 'executionPolicyDigest'> | undefined
+
 /** Read a service supplied inside an Agent's isolated preset group.
  * @param agent Agent whose composition is queried.
  * @param name Cordis service name.
@@ -724,6 +730,13 @@ register(agent: Agent): ReturnType<Context['effect']>
  *   creation dispatch settles.
  */
 enter(agent: Agent, owner: Agent | undefined): () => void
+
+/** Await durable settlement while the quiescent agent still owns its scope and session.
+ * The driver owner calls this before releasing resources; failure does not perform cleanup.
+ * @param agent - exact registered agent whose driver has drained.
+ * @returns shared settlement promise; unpublished agents need no terminal notification.
+ */
+async ending(agent: Agent): Promise<void>
 
 /**
  * Announce an agent previously inserted with {@link enter}.
