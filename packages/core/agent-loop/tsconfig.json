@@ -40,6 +40,15 @@
     },
     {
       "path": "../../session/session-projection"
+    },
+    {
+      "path": "../../session/session-ledger"
+    },
+    {
+      "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../util/launch-environment"
     }
   ]
 }
