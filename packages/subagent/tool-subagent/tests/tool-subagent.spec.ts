@@ -95,13 +95,18 @@ describe('dsh-tool-subagent', () => {
     }
   })
 
-  it('exposes only task inputs without scheduling controls', async () => {
-    const ctx = await setup({ provider: 'mock' })
+  it.each([
+    { deliveryDeclarations: false, inheritsParentContext: false },
+    { deliveryDeclarations: true, inheritsParentContext: false },
+    { deliveryDeclarations: false, inheritsParentContext: true },
+    { deliveryDeclarations: true, inheritsParentContext: true },
+  ])('exposes only configured task inputs without scheduling controls: %j', async ({ deliveryDeclarations, inheritsParentContext }) => {
+    const ctx = await setup({ provider: 'mock', deliveryDeclarations }, { inheritsParentContext })
     const schema = ctx.tools.schemas().find(s => s.name === 'subagent')
     const props = (schema!.parameters as { properties?: Record<string, unknown> }).properties ?? {}
     expect(Object.keys(props).sort()).toEqual([
       'cwd',
-      'deliveryPaths',
+      ...deliveryDeclarations ? ['deliveryPaths'] : [],
       'description',
       'prompt',
     ])
