@@ -1,5 +1,6 @@
 /** Pure selection and coverage-aware projections over public ledger snapshots. */
 import type { LedgerCall, LedgerLifecycle, LedgerRow, LedgerSnapshot, LedgerTokenColumns } from '@panedesk/dsh-session-ledger'
+import type { LedgerCacheEvidence } from '@panedesk/dsh-session-ledger'
 import type { LedgerGroupBy, LedgerHitRate, LedgerQueryOptions, LedgerQueryResult, LedgerTodaySummary, LedgerUsageTotals } from './types.ts'
 
 /** Exact nonnegative decimal addition without binary floating-point rounding.
@@ -46,7 +47,7 @@ function compare(a: string, b: string): number { return a < b ? -1 : a > b ? 1 :
  */
 export function tokenColumns(call: LedgerCall): LedgerTokenColumns {
   const usage = call.finish?.usage
-  const tiering = call.start.cacheWriteTiering
+  const tiering = call.finish?.cacheWriteTiering ?? call.start.cacheWriteTiering
   return {
     ...usage?.inputTokens === undefined ? {} : { inputTokens: usage.inputTokens },
     ...usage?.outputTokens === undefined ? {} : { outputTokens: usage.outputTokens },
@@ -241,11 +242,26 @@ export function cacheRemaining(snapshot: LedgerSnapshot, asOf: number, options: 
   const sessions = new Set(selected.rows.map(row => row.kind === 'event' ? row.event.sessionId : row.start.sessionId))
   if (options.sessionId) sessions.add(options.sessionId)
   return [...sessions].sort().map((sessionId) => {
-    const events = selected.rows.flatMap(row => row.kind === 'event' && row.event.sessionId === sessionId
-      && (row.event.kind === 'cache/evidence' || row.event.kind === 'cache/break') && row.event.observedAt <= asOf ? [row.event] : [])
+    const auxiliary = new Set(selected.rows.flatMap(row => row.kind === 'call'
+      && row.start.purpose !== 'conversation' && row.start.purpose !== 'keepalive' ? [row.start.callId] : []))
+    const observations = selected.rows.flatMap<{
+      evidence: LedgerCacheEvidence
+      observedAt: number
+      eventId: string
+      kind: 'cache/evidence' | 'cache/break'
+    }>((row) => {
+      if (row.kind === 'call' && row.start.sessionId === sessionId && !auxiliary.has(row.start.callId)) {
+        return [{ evidence: row.finish?.cache ?? row.start.cache, observedAt: row.finish?.observedAt ?? row.start.startedAt,
+          eventId: row.start.callId, kind: 'cache/evidence' }]
+      }
+      if (row.kind === 'event' && row.event.sessionId === sessionId
+        && (row.event.kind === 'cache/evidence' || row.event.kind === 'cache/break')
+        && (row.event.callId === undefined || !auxiliary.has(row.event.callId))) return [row.event]
+      return []
+    }).filter(item => item.observedAt <= asOf)
       .sort((a, b) => b.observedAt - a.observedAt || compare(b.eventId, a.eventId))
-    const latest = events[0]
-    if (!latest) return { sessionId, state: 'unknown' }
+    const latest = observations[0]
+    if (!snapshot.complete || !latest) return { sessionId, state: 'unknown' }
     const evidence = latest.evidence
     if (evidence.cacheMode === 'automatic') return { sessionId, state: 'auto', ...evidence.cacheEpoch === undefined ? {} : { cacheEpoch: evidence.cacheEpoch } }
     if (evidence.cacheMode === 'disabled') return { sessionId, state: 'disabled', ...evidence.cacheEpoch === undefined ? {} : { cacheEpoch: evidence.cacheEpoch } }

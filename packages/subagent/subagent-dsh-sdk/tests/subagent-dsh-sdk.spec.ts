@@ -19,6 +19,7 @@ import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import type { Agent, AgentOptions } from '@panedesk/dsh-agent'
 import { brandString } from '@panedesk/dsh-brand'
 import type { SessionLedger, LedgerSessionContext, LedgerRunStart, LedgerRunFinish, LedgerEvent } from '@panedesk/dsh-session-ledger'
+import { JournalSessionLedger } from '@panedesk/dsh-session-ledger'
 import {
   DeepSeekHarness,
   HarnessClient,
@@ -157,12 +158,55 @@ describe('sdkChildOutcome', () => {
 })
 
 describe('dsh-subagent-dsh-sdk provider', () => {
+  it('reopens a real journal after an owned SDK child kill with one durable terminal fact', async () => {
+    const home = mkdtempSync(join(import.meta.dirname, '.sdk-ledger-'))
+    const ctx = new Context()
+    const reopenedContext = new Context()
+    let run: Awaited<ReturnType<typeof startSdkRun>> | undefined
+    try {
+      await ctx.plugin(JournalSessionLedger, { dshHome: home })
+      const ledger = ctx.sessionLedger
+      const context: LedgerSessionContext = {
+        seat: 'seat-a', window: 'window-a', nodeId: await ledger.nodeId(), identitySource: 'startup',
+        sessionId: brandString<LedgerSessionContext['sessionId']>('parent-a'), rootSessionId: brandString<LedgerSessionContext['sessionId']>('root-a'),
+        runId: brandString<LedgerSessionContext['runId']>('parent-run-a'), accountLabel: 'unknown',
+      }
+      ledger.bindContext(context)
+      const parentContext = ledger.contextFor(context.sessionId)
+      if (parentContext === undefined) throw new Error('Missing bound parent context')
+      run = await startSdkRun(request(), {
+        profile: 'sdk', patches: [], dshHome: home, cwd: process.cwd(), provider: 'mock', model: 'mock',
+        env: { FAKE_HANG_PROMPT: '1' }, shutdownTimeoutMs: 1000, disposeEofGraceMs: 1000, disposeGraceMs: 1000,
+        ledger, parentContext,
+      })
+      const before = await ledger.snapshot()
+      const observed = before.rows.find(row => row.kind === 'event' && row.event.kind === 'process/observed')
+      if (observed?.kind !== 'event' || observed.event.kind !== 'process/observed') throw new Error('Missing owned process identity')
+      const pid = observed.event.identity.pid
+      expect(before.rows.filter(row => row.kind === 'run')).toHaveLength(1)
+      process.kill(pid, 'SIGKILL')
+      await run.result
+      await run.dispose()
+      const reopened = new JournalSessionLedger(reopenedContext, { dshHome: home })
+      const rows = (await reopened.snapshot()).rows.filter(row => row.kind === 'run')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({ start: { parentSessionId: context.sessionId, parentRunId: context.runId },
+        finish: { endReason: 'killed', signal: 'SIGKILL', recovered: false } })
+      expect(rows[0]?.kind === 'run' && rows[0].finish?.runId).toBe(run.id)
+    } finally {
+      await run?.dispose()
+      await reopenedContext.fiber.dispose()
+      await ctx.fiber.dispose()
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+
   it.each(['completed', 'kill-before-initialize', 'kill-after-initialize'] as const)('commits launch intent and closes exactly once: %s', async (mode) => {
     const facts: Array<LedgerRunStart | LedgerRunFinish | LedgerEvent> = []
     const order: string[] = []
     const parentContext: LedgerSessionContext = {
-      seat: 'seat', window: 'window', nodeId: brandString('node'), identitySource: 'startup',
-      sessionId: brandString('parent'), rootSessionId: brandString('root'), runId: brandString('parent-run'), accountLabel: 'unknown',
+      seat: 'seat', window: 'window', nodeId: brandString<LedgerSessionContext['nodeId']>('node'), identitySource: 'startup',
+      sessionId: brandString<LedgerSessionContext['sessionId']>('parent'), rootSessionId: brandString<LedgerSessionContext['sessionId']>('root'), runId: brandString<LedgerSessionContext['runId']>('parent-run'), accountLabel: 'unknown',
     }
     const ledger = {
       beginRun: async (fact: LedgerRunStart) => { order.push('intent'); facts.push(fact); return { kind: 'appended' } },

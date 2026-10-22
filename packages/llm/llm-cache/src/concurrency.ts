@@ -49,7 +49,7 @@ export class FamilySemaphore {
     if (state.active >= state.limit) {
       await new Promise<void>((resolve, reject) => {
         const waiter: Waiter = {
-          signal, reject,
+          ...signal === undefined ? {} : { signal }, reject,
           grant: resolve,
           abort: () => {
             const index = state.queue.indexOf(waiter)

@@ -127,6 +127,6 @@ export async function harness(options: { ledger?: boolean; config?: Partial<Cach
 export async function consume(ctx: Context, purpose?: GenerateOptions['purpose']): Promise<StreamChunk[]> {
   const chunks: StreamChunk[] = []
   for await (const chunk of ctx.llm.stream({ provider: 'model-provider', model: 'model-a',
-    sessionId: SessionId('session-a'), messages: [], system: 'Stable', purpose })) chunks.push(chunk)
+    sessionId: SessionId('session-a'), messages: [], system: 'Stable', ...purpose === undefined ? {} : { purpose } })) chunks.push(chunk)
   return chunks
 }

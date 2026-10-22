@@ -52,7 +52,7 @@ describe('stable prefix', () => {
         await handle.agent.whenIdle()
       }
       expect(adapter.requests.every(request => request.cache === undefined)).toBe(true)
-      expect(adapter.requests[1].messages[0]).toMatchObject({ content: [{ text: 'Second' }] })
+      expect(adapter.requests[1]!.messages[0]).toMatchObject({ content: [{ text: 'Second' }] })
       await handle.dispose()
     } finally { await ctx.fiber.dispose() }
   })

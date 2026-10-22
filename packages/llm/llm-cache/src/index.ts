@@ -89,7 +89,7 @@ interface SessionState {
   policy: CachePolicy
   keepalive: KeepalivePolicy
   prefix?: Pick<PromptAssembly, 'sections' | 'tools'>
-  evidence?: LedgerCacheEvidence
+  evidence?: LedgerCacheEvidence | undefined
   reasons: Set<string>
   request?: GenerateOptions
   route?: string
@@ -97,8 +97,8 @@ interface SessionState {
   attemptIndex: number
   retryPending: boolean
   inFlight: number
-  lastAttempt?: number
-  timer?: ReturnType<typeof setTimeout>
+  lastAttempt?: number | undefined
+  timer?: ReturnType<typeof setTimeout> | undefined
   pending: Promise<void>
   failure?: unknown
   lastStart?: LedgerCallStart
@@ -106,10 +106,11 @@ interface SessionState {
   keepaliveFailures: number
   policyOverride: boolean
   backoffMs: number
-  backoffStarted?: number
+  backoffStarted?: number | undefined
   compactionTimes: number[]
   active: Set<Promise<void>>
-  partial?: LedgerArtifactReference
+  partial?: LedgerArtifactReference | undefined
+  downgradeReason?: string | undefined
 }
 
 function builtInRoute(provider: string): CacheRoute {
@@ -221,7 +222,8 @@ export function apply(ctx: Context, config: Config): void {
           system: requestSystem(request), tools: structuredClone(tools),
           messages: [{ role: 'user', content: [{ type: 'text', text: 'Continue.' }] }],
           cache: resolveCachePolicy(state.policyOverride ? state.policy : request.cache === undefined ? state.policy
-            : { retention: request.cache.retention, stableKey: request.cache.key }, routeOf(request.provider), id).control,
+            : { retention: request.cache.retention,
+              ...request.cache.key === undefined ? {} : { stableKey: request.cache.key } }, routeOf(request.provider), id).control,
           sessionId: agent.id, purpose: 'keepalive',
           maxTokens: state.keepalive.maxOutputTokens,
           signal: AbortSignal.any([signal, lifetime.signal]),
@@ -282,7 +284,8 @@ export function apply(ctx: Context, config: Config): void {
     const header = agent.session.requestHeader()
     const messages = agent.session.deriveMessages()
     if (header !== undefined) {
-      const request = { ...header.config, tools: header.tools, toolHistory: agent.session.toolHistory(), messages, sessionId: agent.id }
+      const request = { ...header.config, ...header.tools === undefined ? {} : { tools: header.tools },
+        toolHistory: agent.session.toolHistory(), messages, sessionId: agent.id }
       state.prefix = { sections: [{ name: 'cache-stable-prefix', text: requestSystem(request), interpolate: false }], tools: orderedTools(header.tools ?? []) }
       state.route = `${request.provider}:${request.model}`
       state.request = request
@@ -343,8 +346,10 @@ export function apply(ctx: Context, config: Config): void {
     if (ledger() === undefined) return request
     const state = stateOf(agent.id, agent)
     const policy = state.policyOverride || request.cache === undefined ? state.policy
-      : { retention: request.cache.retention, stableKey: request.cache.key }
+      : { retention: request.cache.retention,
+        ...request.cache.key === undefined ? {} : { stableKey: request.cache.key } }
     const resolved = resolveCachePolicy(policy, routeOf(request.provider), agent.id)
+    state.downgradeReason = resolved.downgradeReason
     return { ...request, cache: resolved.control }
   }, { prepend: true })
   ctx.on('agent/ending', async ({ agent }) => {
@@ -390,20 +395,24 @@ export function apply(ctx: Context, config: Config): void {
     const callId = randomUUID() as LedgerCallId
     const route = routeOf(request.provider)
     const resolution = request.cache === undefined ? { mode: 'unknown' as const, ttlSeconds: undefined, downgradeReason: undefined }
-      : resolveCachePolicy({ retention: request.cache.retention, stableKey: request.cache.key }, route, id)
+      : resolveCachePolicy({ retention: request.cache.retention,
+        ...request.cache.key === undefined ? {} : { stableKey: request.cache.key } }, route, id)
     const fingerprint = fingerprintPrefix(requestSystem(request), request.toolHistory?.tools ?? request.tools ?? [])
     const routeKey = `${request.provider}:${request.model}`
     if (state.route !== undefined && state.route !== routeKey) state.reasons.add('route-change')
     const changed = state.evidence?.prefixFingerprint !== undefined && state.evidence.prefixFingerprint !== fingerprint
     const unexplained = changed && state.reasons.size === 0
+    const downgradeReason = resolution.downgradeReason ?? state.downgradeReason
     const evidence: LedgerCacheEvidence = {
       prefixFingerprint: fingerprint, fingerprintVersion: 1,
       cacheEpoch: changed || state.reasons.size !== 0 ? randomUUID() : state.evidence?.cacheEpoch ?? randomUUID(),
       breakReasons: [...state.reasons], cacheMode: resolution.mode,
-      retention: request.cache, ttlSeconds: resolution.ttlSeconds,
-      downgradeReason: resolution.downgradeReason,
-      sessionPolicy: state.policyOverride ? state.policy : undefined, keepalivePolicy: state.keepalive,
-      keepaliveFailures: state.keepaliveFailures, lastKeepaliveAttemptAt: state.lastAttempt,
+      ...request.cache === undefined ? {} : { retention: request.cache },
+      ...resolution.ttlSeconds === undefined ? {} : { ttlSeconds: resolution.ttlSeconds },
+      ...downgradeReason === undefined ? {} : { downgradeReason },
+      ...state.policyOverride ? { sessionPolicy: state.policy } : {}, keepalivePolicy: state.keepalive,
+      keepaliveFailures: state.keepaliveFailures,
+      ...state.lastAttempt === undefined ? {} : { lastKeepaliveAttemptAt: state.lastAttempt },
       ...(!changed && state.reasons.size === 0 && state.route === routeKey && state.evidence?.lastCacheEvidenceAt !== undefined
         ? { lastCacheEvidenceAt: state.evidence.lastCacheEvidenceAt } : {}),
     }
@@ -415,8 +424,9 @@ export function apply(ctx: Context, config: Config): void {
     if (request.purpose === undefined) state.retryPending = false
     const startedAt = Date.now()
     const clock = performance.now()
+    const sessionId = request.sessionId ?? agent?.id
     const attribution = await service.resolveCallContext({
-      sessionId: request.sessionId ?? agent?.id, provider: request.provider, model: request.model,
+      ...sessionId === undefined ? {} : { sessionId }, provider: request.provider, model: request.model,
     })
     const start: LedgerCallStart = {
       ...attribution.context, runId: attribution.runId, callId,
@@ -497,29 +507,34 @@ export function apply(ctx: Context, config: Config): void {
         const status = finish?.httpStatus ?? (reason?.kind === 'error' || reason?.kind === 'aborted' ? reason.failure.status : undefined)
         if (finish?.cacheRetention !== undefined) {
           const retention = finish.cacheRetention
-          evidence.cacheMode = retention === 'auto' ? 'automatic' : retention === 'none' ? 'disabled'
-            : retention === 'default' ? 'unknown' : 'explicit'
-          evidence.ttlSeconds = retention === '5m' ? 300 : retention === '1h' ? 3600
+          evidence.cacheMode = retention === 'auto' ? 'automatic' : retention === 'none' ? 'disabled' : 'explicit'
+          const ttlSeconds = retention === '5m' ? 300 : retention === '1h' ? 3600
             : retention === '30m' ? 1800 : retention === '12h' ? 43200 : undefined
-          evidence.retention = { retention, key: request.cache?.key }
+          if (ttlSeconds === undefined) delete evidence.ttlSeconds
+          else evidence.ttlSeconds = ttlSeconds
+          evidence.retention = { retention, ...request.cache?.key === undefined ? {} : { key: request.cache.key } }
         }
-        evidence.downgradeReason = finish?.cacheDowngradeReason ?? evidence.downgradeReason
+        if (finish?.cacheDowngradeReason !== undefined) evidence.downgradeReason = finish.cacheDowngradeReason
         if ((usage?.cacheReadTokens ?? 0) > 0 || (usage?.cacheWriteTokens ?? 0) > 0) evidence.lastCacheEvidenceAt = Date.now()
         {
           const priced = service.priceUsage({ usage, usageState: usage === undefined ? 'missing' : 'complete',
             tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: attribution.price })
           const end: LedgerCallFinish = {
             callId, endedAt: Date.now(), observedAt: Date.now(),
-            responseModel: finish?.responseModel, responseModelReported: finish?.responseModelReported ?? 'unobservable',
-            effectiveModel: finish?.responseModel ?? request.model, httpStatus: status, usage,
-            usageState: usage === undefined ? 'missing' : 'complete', costUsd: priced.costUsd, pricingState: priced.state,
+            ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
+            responseModelReported: finish?.responseModelReported ?? 'unobservable',
+            effectiveModel: finish?.responseModel ?? request.model,
+            ...status === undefined ? {} : { httpStatus: status }, ...usage === undefined ? {} : { usage },
+            usageState: usage === undefined ? 'missing' : 'complete',
+            ...priced.costUsd === undefined ? {} : { costUsd: priced.costUsd }, pricingState: priced.state,
             wallMs: settledAt - clock, modelInFlightMs: admittedAt === undefined ? 0 : settledAt - admittedAt,
             queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits: [],
             // Session-to-date observations are snapshots, not additional compaction charges.
             compactionCount: state.compactionTimes.length, compactionTimes: [...state.compactionTimes], recovered: false,
             endReason: signal.aborted || reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
             upstreamStopReason: reason?.kind ?? 'iterator-closed', artifacts,
-            accountLabel: finish?.accountLabel, cacheWriteTiering: finish?.cacheWriteTiering, cache: evidence,
+            ...finish?.accountLabel === undefined ? {} : { accountLabel: finish.accountLabel },
+            ...finish?.cacheWriteTiering === undefined ? {} : { cacheWriteTiering: finish.cacheWriteTiering }, cache: evidence,
             http429Count: status === 429 ? 1 : 0, http503Count: status === 503 ? 1 : 0,
             ...(usage === undefined ? {} : { peakContextTokens: usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0), peakContextSource: 'usage' as const }),
           }
@@ -571,7 +586,7 @@ export function apply(ctx: Context, config: Config): void {
         message: `Partial response belongs to assistant attempt at session sequence ${event.seq}`,
         artifact: state.partial.path, redacted: true } })
     }
-    if (event.surfaceOp?.op === 'replace') state.reasons.add('history-edit')
+    if (typeof event.surfaceOp === 'object') state.reasons.add('history-edit')
     if (event.type === 'request/header' && event.data.reason === 'change') state.reasons.add('request-config-change')
   })
   ctx.on('agent/request-error', async ({ agent, failure, retryPolicy, signal }, next) => {
@@ -583,8 +598,9 @@ export function apply(ctx: Context, config: Config): void {
           || (failure.providerRetryAfterMs ?? 0) > retryPolicy.maxDelayMs)
       if (exhausted) {
         queueFact(state, { kind: 'retry', phase: 'exhausted', logicalRequestId: state.logicalRequestId,
-          attemptIndex: state.attemptIndex, httpStatus: failure.status })
-        queueFact(state, { kind: 'alert', alert: { code: 'retry-exhausted', message: 'Configured retry budget or delay limit ended recovery', artifact: state.partial?.path, redacted: true } })
+          attemptIndex: state.attemptIndex, ...failure.status === undefined ? {} : { httpStatus: failure.status } })
+        queueFact(state, { kind: 'alert', alert: { code: 'retry-exhausted', message: 'Configured retry budget or delay limit ended recovery',
+          ...state.partial === undefined ? {} : { artifact: state.partial.path }, redacted: true } })
       }
       state.retryPending = false
       await state.pending

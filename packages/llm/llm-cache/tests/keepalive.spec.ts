@@ -34,7 +34,10 @@ describe('cache evidence and maintenance', () => {
       const seed = structuredClone(handle.agent.session.snapshotEvents())
       if (first.ledger === undefined || second.ledger === undefined) throw new Error('missing ledger')
       second.ledger.restored = { asOf: Date.now(), complete: true, watermarks: {}, rows: [
-        ...first.ledger.starts.map(start => ({ kind: 'call' as const, start, finish: first.ledger?.ends.find(end => end.callId === start.callId) })),
+        ...first.ledger.starts.map((start) => {
+          const finish = first.ledger?.ends.find(end => end.callId === start.callId)
+          return { kind: 'call' as const, start, ...finish === undefined ? {} : { finish } }
+        }),
         ...first.ledger.events.map(event => ({ kind: 'event' as const, event })),
       ] }
       await handle.dispose()
@@ -45,7 +48,7 @@ describe('cache evidence and maintenance', () => {
       expect(second.adapter.requests[0]).toMatchObject({ purpose: 'keepalive', system: 'Original system', cache: { retention: '1h' } })
       restored.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'again' }], source: { kind: 'user' } }))
       await restored.agent.whenIdle()
-      expect(second.adapter.requests[1].messages[0]).toMatchObject({ content: [{ text: 'Original system' }] })
+      expect(second.adapter.requests[1]!.messages[0]).toMatchObject({ content: [{ text: 'Original system' }] })
       await restored.dispose()
     } finally { await first.ctx.fiber.dispose(); await second.ctx.fiber.dispose(); vi.useRealTimers() }
   })
@@ -91,7 +94,7 @@ describe('cache evidence and maintenance', () => {
       expect(adapter.requests).toHaveLength(2)
       expect(adapter.requests[1]).toMatchObject({ purpose: 'keepalive', maxTokens: 1, system: 'Stable system' })
       expect(handle.agent.session.seq).toBe(seq)
-      expect(ledger?.starts[1].purpose).toBe('keepalive')
+      expect(ledger?.starts[1]!.purpose).toBe('keepalive')
       expect(ledger?.fragments.some(fragment => fragment.kind === 'keepalive-request')).toBe(true)
       await handle.dispose()
       await vi.advanceTimersByTimeAsync(3_600_000)

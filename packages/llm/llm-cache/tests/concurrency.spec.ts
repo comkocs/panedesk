@@ -47,13 +47,13 @@ describe('family admission and call accounting', () => {
     try {
       await consume(ctx, purpose)
       expect(adapter.requests).toHaveLength(1)
-      expect(adapter.requests[0].cache).toBeUndefined()
-      expect(ledger?.starts[0].cache.cacheMode).toBe('unknown')
+      expect(adapter.requests[0]!.cache).toBeUndefined()
+      expect(ledger?.starts[0]!.cache.cacheMode).toBe('unknown')
       expect(ledger?.starts).toHaveLength(1)
       expect(ledger?.starts[0]).toMatchObject({ purpose: purpose ?? 'conversation', accountLabel: 'unknown', attemptVisibility: 'adapter' })
       expect(ledger?.ends[0]).toMatchObject({ effectiveModel: 'reported-model', responseModelReported: 'different',
         accountLabel: 'route-a', usageState: 'complete', pricingState: 'missing-price', endReason: 'completed' })
-      if (purpose === 'keepalive') expect(ledger?.ends[0].artifacts?.[0].kind).toBe('keepalive-request')
+      if (purpose === 'keepalive') expect(ledger?.ends[0]!.artifacts?.[0]!.kind).toBe('keepalive-request')
     } finally { await ctx.fiber.dispose() }
   })
 
@@ -77,9 +77,9 @@ describe('family admission and call accounting', () => {
       ]
       await consume(ctx)
       expect(ledger?.ends[0]).toMatchObject({ endReason: 'error', usageState: 'missing', http429Count: 1, http503Count: 0 })
-      expect(ledger?.ends[0].usage).toBeUndefined()
-      expect(ledger?.ends[0].artifacts?.[0].kind).toBe('partial-response')
-      expect(JSON.parse(ledger?.fragments[0].content ?? '{}')).toMatchObject({ text: 'partial output' })
+      expect(ledger?.ends[0]!.usage).toBeUndefined()
+      expect(ledger?.ends[0]!.artifacts?.[0]!.kind).toBe('partial-response')
+      expect(JSON.parse(ledger?.fragments[0]!.content ?? '{}')).toMatchObject({ text: 'partial output' })
       expect(ledger?.events.some(event => event.kind === 'alert')).toBe(true)
     } finally { await ctx.fiber.dispose() }
   })

@@ -11,6 +11,7 @@ import { resolve } from 'node:path'
 import type { SessionEvent, TurnEndReason } from '@panedesk/dsh-session'
 import { createProcessHarnessClient, HarnessClient, isRecord, SdkProtocolError } from './client.ts'
 import type { RuntimeProcessOptions } from './launch.ts'
+import type { InitializeParams } from '@panedesk/dsh-sdk-protocol'
 import type { ContentBlock, DeepSeekHarnessOptions, HarnessNotification, RunResult, SdkPromptContentBlock } from './types.ts'
 
 /**
@@ -27,7 +28,7 @@ export class DeepSeekHarness implements AsyncDisposable {
   private readonly model: string
   private readonly reasoningEffort: DeepSeekHarnessOptions['reasoningEffort']
   private readonly maxTokens: number | undefined
-  private readonly handshake: Pick<DeepSeekHarnessOptions, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'>
+  private readonly handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'>
   private initialized: Promise<void> | undefined
   private closed = false
 
