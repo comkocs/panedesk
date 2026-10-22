@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import type { Context } from '@panedesk/cordis'
-import type { MessageDelivery, MessageControlRequest, OperationId, ControlResult, MessageQuery } from '@panedesk/dsh-message-delivery'
+import type { MessageDelivery, MessageControlRequest, OperationId, ControlResult, MessageQuery, MessageReason, MessageState, SendMessageResult, ResolvedRecipient, OperationStatus, SendBatchResult } from '@panedesk/dsh-message-delivery'
 import type { MessagesCommand } from './messages-cli.ts'
 import { messagesHelp } from './messages-cli.ts'
 import type { LedgerMessagesPage, LedgerMessageProjection, MessageLedgerReader, LedgerSessionsPage } from './types.ts'
@@ -12,12 +12,112 @@ export interface MessageCommandResult { code: number; output: unknown }
 function failure(code: number, reason: string, message: string): MessageCommandResult {
   return { code, output: { error: { code: reason, message } } }
 }
+/** Current public state, when the runtime attached one to a refusal. */
+function stateOf(status: { readonly state: MessageState } | null | undefined): MessageState | undefined {
+  return status?.state
+}
+/** One English sentence for a structured refusal cause and, when known, the current state.
+ * @param reason - Structured refusal cause from the delivery service.
+ * @param state - Current public state, when the runtime reported one.
+ * @returns Sentence naming the cause and the current state.
+ */
+export function describeReason(reason: MessageReason, state: MessageState | undefined): string {
+  const current = state === undefined ? '' : `; current state: ${state}`
+  switch (reason) {
+    case 'injected': return `already injected, cannot be withdrawn${current}`
+    case 'claimed': return `already claimed and about to be injected${current}`
+    case 'terminal-state': return `already in a terminal state and cannot be changed${current}`
+    case 'revision-conflict': return `revision conflict; the message changed before this command${current}`
+    case 'operation-conflict': return `operation conflict; this operation id was already used with different input${current}`
+    case 'unauthorized': return `not authorized to control this message${current}`
+    case 'invalid-content': return `invalid message content${current}`
+    case 'invalid-priority': return `invalid message priority${current}`
+    case 'invalid-reply': return `invalid reply; a reply requires an existing message${current}`
+    case 'message-not-found': return `message not found${current}`
+    case 'target-closed-pending': return `target is closed; stored as pending delivery${current}`
+    case 'target-archived': return `target is archived and does not accept messages${current}`
+    case 'target-not-found': return `target not found${current}`
+    case 'target-ambiguous': return `target name is ambiguous; refusing to pick one${current}`
+    case 'receive-disabled': return `target does not accept messages${current}`
+    case 'handoff-only': return `target accepts handoffs only${current}`
+    case 'cross-node-unsupported': return `cross-node delivery is not supported${current}`
+    case 'unavailable': return `target is unavailable${current}`
+    case 'delivery-uncertain': return `delivery outcome is uncertain${current}`
+    case 'unsupported': return `command is not supported${current}`
+    case 'interjection': return `interjection was recorded${current}`
+    default: {
+      const unreachable: never = reason
+      return unreachable
+    }
+  }
+}
+/** English sentence for one control outcome. JSON fields stay unchanged.
+ * @param action - Control command that produced the outcome.
+ * @param result - Owner decision or pending-owner acknowledgement.
+ * @returns Sentence naming the message, the outcome, and the current state.
+ */
+export function describeControl(action: 'withdraw' | 'edit' | 'reprioritize' | 'invalidate', result: ControlResult): string {
+  const id = String(result.messageId)
+  if (result.kind === 'applied') {
+    const state = result.status.state
+    const verb = action === 'withdraw' ? 'withdrawn' : action === 'edit' ? 'edited' : action === 'reprioritize' ? 'reprioritized' : 'invalidated'
+    return `Message ${id} was ${verb}; current state: ${state}.`
+  }
+  if (result.kind === 'accepted-pending-owner') return `Message ${id} was accepted and is waiting for the owner; current state: queued.`
+  return `Message ${id} was refused: ${describeReason(result.reason, stateOf(result.status))}.`
+}
+/** English sentence for one send acknowledgement.
+ * @param result - Delivery acknowledgement, distinct from later lifecycle state.
+ * @returns Sentence naming the message and the delivery outcome.
+ */
+export function describeSend(result: SendMessageResult): string {
+  const id = String(result.messageId)
+  if (result.deliveryOutcome === 'accepted') return `Message ${id} was accepted and queued; current state: queued.`
+  return `Message ${id} was refused: ${describeReason(result.reason, result.messageState)}.`
+}
+/** English sentence for one address resolution, including a dry run.
+ * @param item - Exact recipient or a refusal with candidates.
+ * @returns Sentence naming the resolved session or the refusal cause.
+ */
+export function describeResolution(item: ResolvedRecipient): string {
+  if (item.kind === 'resolved') {
+    const name = item.recipient.window ?? item.recipient.title ?? String(item.recipient.sessionId)
+    return `Recipient ${name} resolved to session ${String(item.recipient.sessionId)} (${item.recipient.status}).`
+  }
+  return `Recipient was refused: ${describeReason(item.reason, undefined)}.`
+}
+/** English sentences for a batch send or a resolution-only result.
+ * @param result - Independent recipient resolutions or send acknowledgements.
+ * @returns One sentence per recipient, separated by newlines.
+ */
+export function describeBatch(result: SendBatchResult): string {
+  if (result.kind === 'resolved') return result.recipients.map(describeResolution).join('\n')
+  return result.results.map(describeSend).join('\n')
+}
+/** English sentence for a durable operation observation. The operation record has no command verb.
+ * @param result - Missing, pending, or settled operation observation.
+ * @returns Sentence naming the operation and its outcome.
+ */
+export function describeOperation(result: OperationStatus): string {
+  const id = String(result.operationId)
+  if (result.kind === 'not-found') return `Operation ${id} was not found.`
+  if (result.kind === 'applied') return `Operation ${id} was applied to message ${String(result.messageId)}; current state: ${result.status.state}.`
+  if (result.kind === 'accepted-pending-owner') return `Operation ${id} was accepted and is waiting for the owner; current state: queued.`
+  return `Operation ${id} was refused: ${describeReason(result.reason, stateOf(result.status))}.`
+}
+/** Write the human-readable sentence. Machine-readable JSON stays on stdout. */
+function explain(sentence: string): void {
+  process.stderr.write(sentence.endsWith('\n') ? sentence : `${sentence}\n`)
+}
 function reader(value: object): value is object & MessageLedgerReader {
   return 'queryMessages' in value && typeof value.queryMessages === 'function'
     && 'querySessions' in value && typeof value.querySessions === 'function'
 }
 function operation(): OperationId { return randomUUID() as OperationId }
-function controlResult(result: ControlResult): MessageCommandResult { return { code: result.kind === 'rejected' ? 4 : 0, output: result } }
+function controlResult(action: 'withdraw' | 'edit' | 'reprioritize' | 'invalidate', result: ControlResult): MessageCommandResult {
+  explain(describeControl(action, result))
+  return { code: result.kind === 'rejected' ? 4 : 0, output: result }
+}
 function safeData(data: LedgerMessageProjection['data']) {
   return { messageId: data.messageId, senderSessionId: data.senderSessionId, targetSessionId: data.targetSessionId,
     priority: data.priority, messageClass: data.messageClass, state: data.state, revision: data.revision, stateVersion: data.stateVersion,
@@ -62,37 +162,44 @@ async function deliver(delivery: MessageDelivery, command: MessagesCommand): Pro
       if (!command.target || !command.classification || command.text === undefined) throw new Error('Invalid parsed send')
       const result = await delivery.send({ ...command.classification, target: command.target, content: command.text,
         operationId: command.operationId ?? operation(), ...command.priority === undefined ? {} : { priority: command.priority } })
+      explain(describeSend(result))
       return { code: result.deliveryOutcome === 'rejected' ? 4 : 0, output: result }
     }
     case 'withdraw': case 'edit': case 'reprioritize': case 'invalidate': {
       if (!command.messageId) throw new Error('Invalid parsed control')
       const request: MessageControlRequest = { messageId: command.messageId, operationId: command.operationId ?? operation(),
         expectedRevision: command.expectedRevision ?? (await delivery.status(command.messageId)).revision }
-      if (command.action === 'withdraw') return controlResult(await delivery.withdraw(request))
-      if (command.action === 'edit' && command.text !== undefined) return controlResult(await delivery.edit({ ...request, content: command.text }))
-      if (command.action === 'reprioritize' && command.priority) return controlResult(await delivery.reprioritize({ ...request, priority: command.priority }))
-      if (command.action === 'invalidate' && command.reason !== undefined) return controlResult(await delivery.invalidate({ ...request, reason: command.reason }))
+      if (command.action === 'withdraw') return controlResult('withdraw', await delivery.withdraw(request))
+      if (command.action === 'edit' && command.text !== undefined) return controlResult('edit', await delivery.edit({ ...request, content: command.text }))
+      if (command.action === 'reprioritize' && command.priority) return controlResult('reprioritize', await delivery.reprioritize({ ...request, priority: command.priority }))
+      if (command.action === 'invalidate' && command.reason !== undefined) return controlResult('invalidate', await delivery.invalidate({ ...request, reason: command.reason }))
       throw new Error('Invalid parsed control payload')
     }
     case 'status': {
       if (!command.messageId) throw new Error('Invalid parsed status')
-      return { code: 0, output: await delivery.status(command.messageId) }
+      const status = await delivery.status(command.messageId)
+      explain(`Message ${String(status.messageId)} is ${status.state}; current state: ${status.state}.`)
+      return { code: 0, output: status }
     }
     case 'operation': {
       if (!command.operationId) throw new Error('Invalid parsed operation')
       const result = await delivery.operationStatus(command.operationId)
+      explain(describeOperation(result))
       return { code: result.kind === 'not-found' ? 5 : result.kind === 'rejected' ? 4 : 0, output: result }
     }
     case 'resolve': case 'send-batch': {
       if (!command.recipients) throw new Error('Invalid parsed recipients')
       if (command.action === 'resolve' || command.dryRun) {
         const recipients = await delivery.resolve(command.recipients)
-        return { code: recipients.some(item => item.kind === 'rejected') ? 4 : 0, output: { kind: 'resolved', recipients } }
+        const resolved = { kind: 'resolved' as const, recipients }
+        explain(describeBatch(resolved))
+        return { code: recipients.some(item => item.kind === 'rejected') ? 4 : 0, output: resolved }
       }
       if (!command.classification || command.text === undefined) throw new Error('Invalid parsed batch')
       const result = await delivery.sendBatch({ ...command.classification, content: command.text, dryRun: false,
         ...command.priority === undefined ? {} : { priority: command.priority },
         recipients: command.recipients.map(target => ({ target, operationId: operation() })) })
+      explain(describeBatch(result))
       return { code: result.kind === 'sent' && result.results.some(item => item.deliveryOutcome === 'rejected') ? 4 : 0, output: result }
     }
     case 'watch': {
@@ -135,7 +242,13 @@ export async function executeMessages(ctx: Context, command: MessagesCommand): P
     return await deliver(delivery, command)
   } catch (error) {
     const reason = error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : undefined
-    if (reason === 'message-not-found' || reason === 'messages/message-not-found') return failure(5, 'messages/message-not-found', 'The message does not exist')
-    return failure(1, 'messages/operation-failed', 'Message command failed; check service availability, identifiers, and output permissions')
+    if (reason === 'message-not-found' || reason === 'messages/message-not-found') {
+      const missing = failure(5, 'messages/message-not-found', 'The message does not exist')
+      explain('The message does not exist.')
+      return missing
+    }
+    const failed = failure(1, 'messages/operation-failed', 'Message command failed; check service availability, identifiers, and output permissions')
+    explain('Message command failed; check service availability, identifiers, and output permissions.')
+    return failed
   }
 }

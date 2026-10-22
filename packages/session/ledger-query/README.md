@@ -29,7 +29,7 @@ Import public types from the package entry. The package is Host-only and does no
 
 `unanswered --older-than-minutes N` forwards handoff/reply age filters to the journal projection; withdrawn, invalidated, rejected, and previously responded messages are excluded unless terminal auditing applies. JSONL exports retain stable creation-time/node/message ordering, schema version, exclusive next cursor, and full-scan integrity, and omit message bodies. `--output` creates a new owner-only file; omission returns JSONL in the structured result. `watch --session ID` streams receipt JSONL and supports an exclusive `--cursor`.
 
-Message command exit statuses are 0 for success or durable pending-owner intent, 1 for execution failure, 2 for invalid arguments, 3 for unavailable capabilities, 4 for delivery/control refusal, 5 for a missing operation or a typed missing-message failure, and 6 for incomplete journal scans.
+Message command exit statuses are 0 for success or durable pending-owner intent, 1 for execution failure, 2 for invalid arguments, 3 for unavailable capabilities, 4 for delivery/control refusal, 5 for a missing operation or a typed missing-message failure, and 6 for incomplete journal scans. stdout stays machine-readable JSON. `send`, `send-batch`, `withdraw`, `edit`, `reprioritize`, `invalidate`, `status`, `operation`, and `resolve` also write one plain-language English sentence to stderr; refusals name the reason and the current state when the runtime reported one.
 
 <a id="model-experience"></a>
 ## Model Experience

@@ -181,4 +181,5 @@ Filters: --session ID --sender-session ID --target-session ID --node ID --from I
 Priorities default to steer for handoffs/replies and queue for notices. Replies require --reply-to.
 Controls read the current revision unless --expected-revision is supplied. Offline acceptance is not completion.
 Exports contain metadata and status records, never message bodies. Existing output files are not overwritten.
+Machine-readable JSON is unchanged on stdout. A plain-language sentence for send, send-batch, withdraw, edit, reprioritize, invalidate, status, operation, and resolve is written to stderr.
 `
