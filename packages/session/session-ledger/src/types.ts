@@ -112,6 +112,12 @@ export interface LedgerCacheEvidence {
   ttlSeconds?: number
   cacheMode: 'disabled' | 'explicit' | 'automatic' | 'unknown'
   retention?: GenerateOptions['cache']
+  /** Provider-returned retention kept verbatim, independently of the request policy. */
+  reportedRetention?: string
+  /** Returned duration wins when parseable; request-derived durations remain estimates. */
+  ttlSource?: 'response' | 'request-estimate'
+  /** Exact write-price tier, or unknown when the returned tier has no reference price. */
+  writePriceTier?: string
   /** Required evidence when the effective tier is lower than the requested/default tier. */
   downgradeReason?: string
   /** Explicit session override, restored independently of historical request headers. */

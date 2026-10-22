@@ -545,6 +545,19 @@ export function apply(ctx: Context, config: Config): void {
           else evidence.ttlSeconds = ttlSeconds
           evidence.retention = { retention, ...request.cache?.key === undefined ? {} : { key: request.cache.key } }
         }
+        if (evidence.ttlSeconds !== undefined) evidence.ttlSource = 'request-estimate'
+        if (terminalEvidence?.reportedCacheRetention !== undefined) {
+          evidence.reportedRetention = terminalEvidence.reportedCacheRetention
+          const duration = /^(\d+(?:\.\d+)?)(s|m|h|d)$/.exec(evidence.reportedRetention)
+          if (duration !== null) {
+            const seconds = Number(duration[1]) * (duration[2] === 'd' ? 86400 : duration[2] === 'h' ? 3600 : duration[2] === 'm' ? 60 : 1)
+            if (Number.isSafeInteger(seconds) && seconds > 0) {
+              evidence.ttlSeconds = seconds
+              evidence.ttlSource = 'response'
+              evidence.cacheMode = 'explicit'
+            }
+          }
+        }
         if (finish?.cacheDowngradeReason !== undefined) evidence.downgradeReason = finish.cacheDowngradeReason
         if ((usage?.cacheReadTokens ?? 0) > 0 || (usage?.cacheWriteTokens ?? 0) > 0) evidence.lastCacheEvidenceAt = Date.now()
         {
@@ -553,8 +566,15 @@ export function apply(ctx: Context, config: Config): void {
           const requestMatches = entries.filter(entry => entry.modelKey === request.model)
           const responsePrice = responseMatches.length === 1 ? responseMatches[0] : undefined
           const selectedPrice = responsePrice ?? (requestMatches.length === 1 ? requestMatches[0] : undefined)
-          const priced = service.priceUsage({ usage, usageState,
-            tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: selectedPrice })
+          let tiering = finish?.cacheWriteTiering ?? start.cacheWriteTiering
+          const reportedRetention = terminalEvidence?.reportedCacheRetention
+          if (reportedRetention !== undefined && tiering.kind === 'tiered') {
+            const known = selectedPrice?.prices.cacheWrite[reportedRetention] !== undefined
+              && (reportedRetention === tiering.short || reportedRetention === tiering.long)
+            evidence.writePriceTier = known ? reportedRetention : 'unknown'
+            if (!known) tiering = { kind: 'unknown' }
+          }
+          const priced = service.priceUsage({ usage, usageState, tiering, startedAt, entry: selectedPrice })
           const end: LedgerCallFinish = {
             callId, endedAt: Date.now(), observedAt: Date.now(),
             ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
@@ -573,7 +593,7 @@ export function apply(ctx: Context, config: Config): void {
             endReason: signal.aborted || reason?.kind === 'aborted' ? 'cancelled' : failed ? 'error' : 'completed',
             upstreamStopReason: reason?.kind ?? 'iterator-closed', artifacts,
             ...finish?.accountLabel === undefined ? {} : { accountLabel: finish.accountLabel },
-            ...finish?.cacheWriteTiering === undefined ? {} : { cacheWriteTiering: finish.cacheWriteTiering }, cache: evidence,
+            cacheWriteTiering: tiering, cache: evidence,
             http429Count: status === 429 ? 1 : 0, http503Count: status === 503 ? 1 : 0,
             ...(usage === undefined ? {} : { peakContextTokens: usage.inputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0), peakContextSource: 'usage' as const }),
           }

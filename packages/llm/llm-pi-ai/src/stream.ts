@@ -23,6 +23,7 @@ export class PiResponseEvidence {
   private responseModel: string | undefined
   private longWrites: number | undefined
   private translatedUsage: TokenUsage | undefined
+  private reportedCacheRetention: string | undefined
   private readonly reportedUsage: Record<string, number> = {}
   /** HTTP status observed by the SDK response hook, absent before any response. */
   status: number | undefined
@@ -54,6 +55,7 @@ export class PiResponseEvidence {
     } else if (this.api === 'openai-completions') {
       envelope = event
     } else return
+    if (typeof envelope?.prompt_cache_retention === 'string') this.reportedCacheRetention = envelope.prompt_cache_retention
     const usage = wireObject(envelope?.usage ?? event.usage)
     if (usage !== undefined) {
       for (const [key, value] of Object.entries(usage)) {
@@ -108,7 +110,8 @@ export class PiResponseEvidence {
       if (write !== undefined) usage.cacheWriteTokens = write
       const long = this.api === 'anthropic-messages' ? this.longWrites
         : write !== undefined && metadata.cacheWriteTiering?.kind === 'tiered'
-          ? metadata.cacheRetention === '12h' ? write : metadata.cacheRetention === '30m' ? 0 : undefined
+          ? (this.reportedCacheRetention ?? metadata.cacheRetention) === '12h' ? write
+            : (this.reportedCacheRetention ?? metadata.cacheRetention) === '30m' ? 0 : undefined
           : undefined
       if (long !== undefined) usage.cacheWriteLongTokens = long
       const prompt = raw.prompt_tokens
@@ -122,6 +125,7 @@ export class PiResponseEvidence {
     }
     LlmAdapter.ledgerEvidence?.set(finish, {
       ...usage === undefined ? {} : { usage },
+      ...this.reportedCacheRetention === undefined ? {} : { reportedCacheRetention: this.reportedCacheRetention },
       ...observed ? { reportedUsage: { ...raw } } : {},
       ...['anthropic-messages', 'openai-responses', 'openai-completions'].includes(this.api) ? { usageObserved: observed } : {},
     })

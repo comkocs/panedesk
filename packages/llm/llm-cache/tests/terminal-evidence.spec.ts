@@ -4,11 +4,29 @@ import { LlmAdapter } from '@panedesk/dsh-llm'
 import type { Context } from '@panedesk/cordis'
 import type { StreamChunk } from '@panedesk/dsh-llm'
 import { consume, harness } from './harness.ts'
+import { cacheRemaining } from '../src/state.ts'
 
 const contexts: Context[] = []
 afterEach(async () => { await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose())) })
 
 describe('ledger terminal evidence consumption', () => {
+  it.each([{ retention: '24h', seconds: 86400, source: 'response' },
+    { retention: 'provider-default', seconds: 43200, source: 'request-estimate' }])
+  ('uses returned retention $retention for cache time without guessing a write price', async ({ retention, seconds, source }) => {
+    const { ctx, adapter, ledger } = await harness()
+    contexts.push(ctx)
+    const finish: StreamChunk = { type: 'finish', reason: { kind: 'stop' }, cacheRetention: '12h',
+      cacheWriteTiering: { kind: 'tiered', short: '30m', long: '12h' } }
+    adapter.chunks = [{ type: 'usage', usage: { inputTokens: 10, outputTokens: 1, cacheReadTokens: 20, cacheWriteTokens: 1 } }, finish]
+    LlmAdapter.ledgerEvidence?.set(finish, { reportedCacheRetention: retention })
+    await consume(ctx)
+    const cache = ledger?.ends[0]?.cache
+    expect(cache).toMatchObject({ reportedRetention: retention, retention: { retention: '12h' }, ttlSeconds: seconds,
+      ttlSource: source, writePriceTier: 'unknown' })
+    expect(ledger?.ends[0]?.cacheWriteTiering).toEqual({ kind: 'unknown' })
+    expect(cacheRemaining(cache, cache?.lastCacheEvidenceAt ?? 0)).toMatchObject({ kind: 'estimated', seconds })
+  })
+
   it('records explicit zero counters and reasoning without changing emitted usage', async () => {
     const { ctx, adapter, ledger } = await harness()
     contexts.push(ctx)
