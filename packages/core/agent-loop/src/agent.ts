@@ -85,6 +85,7 @@ function abortedCancelCause(signal: AbortSignal): AgentCancelCause | undefined {
     case 'user':
     case 'parent':
     case 'disposed':
+    case 'interjection':
       return { kind: cause.kind }
     case 'hook':
       return { kind: 'hook', reason: cause.reason }

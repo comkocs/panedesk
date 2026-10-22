@@ -482,6 +482,8 @@ export class SessionCommandController {
         agent.inbox.remove(request.itemId)
         agent.steer(message)
         break
+      case 'reprioritize':
+        throw new RemoteError('session/queue-action-unsupported', 'queue reprioritize is not available yet', { itemId: request.itemId })
       /* v8 ignore next 2 -- closed-union exhaustiveness guard */
       default:
         assertNever(request.action, 'queue action')

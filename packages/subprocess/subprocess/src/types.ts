@@ -165,6 +165,8 @@ export interface SubprocessIdentity {
   readonly processGroupId?: number
   /** OS creation marker used to reject PID reuse; absent means identity is unverified. */
   readonly startIdentity?: string
+  /** OS-observed creation time in Unix milliseconds on Linux or Windows; absent when unavailable, never a PID-only liveness claim. */
+  readonly startedAt?: number
   /** OS boot marker disambiguating creation ticks across restarts. */
   readonly bootIdentity?: string
 }

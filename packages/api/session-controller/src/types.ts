@@ -173,6 +173,7 @@ export type QueueAction =
   }
   | { readonly kind: 'remove' }
   | { readonly kind: 'steer' }
+  | { readonly kind: 'reprioritize'; readonly priority: 'immediate' | 'steer' | 'queue' }
 
 /** One Session list entry. */
 export interface SessionSummary {
@@ -224,6 +225,8 @@ declare module '@panedesk/dsh-typert-protocol' {
     'session/attachment-invalid': { readonly reason: string }
     'session/queue-item-not-found': { readonly itemId: MessageId }
     'session/steer-unavailable': { readonly itemId: MessageId }
+    /** The queue action is recognized but unavailable in this driver. */
+    'session/queue-action-unsupported': { readonly itemId: MessageId }
     'session/title-invalid': { readonly sessionId: SessionId }
     'session/fork-unavailable': { readonly sessionId: SessionId }
     'session/migration-required': { readonly sessionId: SessionId }

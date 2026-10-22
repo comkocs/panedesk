@@ -11,6 +11,35 @@
 import type { ContentBlock, LlmCacheControl, ReasoningEffortId } from '@panedesk/dsh-llm'
 import type { SessionEvent } from '@panedesk/dsh-session'
 import type { SubagentStopReason } from '@panedesk/dsh-subagent'
+import type { MessageId } from '@panedesk/dsh-llm/brand'
+import type {
+  ConfigureMessagesRequest, ControlResult, EditMessageRequest, InvalidateMessageRequest,
+  MessageAddress, MessageControlRequest, MessageCursor, MessagePage, MessageQuery, MessageSettings,
+  MessageStateEvent, MessageStatus, MessageSubscriptionRequest, OperationId, OperationStatus,
+  ReprioritizeMessageRequest, ResolvedRecipient, SendBatchRequest, SendBatchResult,
+  SendMessageRequest, SendMessageResult,
+} from '@panedesk/dsh-message-delivery'
+
+/** Message receipt stream admission; notifications resume strictly after the supplied cursor. */
+export interface MessagesSubscribeResult {
+  readonly cursor?: MessageCursor
+}
+
+/** Message requests share provider validation; sender authority comes from the authenticated connection. */
+export interface MessagesRequestMap {
+  'messages/send': { params: SendMessageRequest; result: SendMessageResult }
+  'messages/withdraw': { params: MessageControlRequest; result: ControlResult }
+  'messages/edit': { params: EditMessageRequest; result: ControlResult }
+  'messages/reprioritize': { params: ReprioritizeMessageRequest; result: ControlResult }
+  'messages/invalidate': { params: InvalidateMessageRequest; result: ControlResult }
+  'messages/status': { params: { readonly messageId: MessageId }; result: MessageStatus }
+  'messages/operationStatus': { params: { readonly operationId: OperationId }; result: OperationStatus }
+  'messages/list': { params: MessageQuery; result: MessagePage }
+  'messages/resolve': { params: { readonly addresses: readonly MessageAddress[] }; result: readonly ResolvedRecipient[] }
+  'messages/sendBatch': { params: SendBatchRequest; result: SendBatchResult }
+  'messages/configure': { params: ConfigureMessagesRequest; result: MessageSettings }
+  'messages/subscribe': { params: MessageSubscriptionRequest; result: MessagesSubscribeResult }
+}
 
 /** Expected installed preset version; the server must resolve local policy rather than trust client authority. */
 export interface InitializeExecutionPolicy {
@@ -167,6 +196,7 @@ export interface SubagentFinishedNotification {
 
 /** Server-to-client notifications by JSON-RPC method name. */
 export interface HarnessSdkNotificationMap {
+  'messages.state': MessageStateEvent
   'session.event': SessionEventNotification
   'session.status': SessionStatusNotification
   'subagent.started': SubagentStartedNotification
@@ -174,7 +204,7 @@ export interface HarnessSdkNotificationMap {
 }
 
 /** Client-to-server request methods with their param and result shapes. */
-export interface HarnessSdkRequestMap {
+export interface HarnessSdkRequestMap extends MessagesRequestMap {
   'initialize': { params: InitializeParams; result: InitializeResult }
   'session/prompt': { params: SessionPromptParams; result: SessionPromptResult }
   'session/resume': { params: SessionResumeParams; result: Record<string, never> }

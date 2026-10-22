@@ -295,6 +295,7 @@ type AgentCancelCause =
   | { readonly kind: 'parent' }
   | { readonly kind: 'hook'; readonly reason: string }
   | { readonly kind: 'disposed' }
+  | { readonly kind: 'interjection' }
 ```
 
 The cause is a TypeScript-enforced same-process input. An active cancellation holder exposes that same object as the runtime-only `AbortSignal.reason`; a signal grants cooperating listeners no classification authority. Durable `turn/end` records the outcome as `{ kind: 'aborted', reason: TurnEndCancelCause }`, so the cancel cause lands in the terminal result.
@@ -955,6 +956,48 @@ One message entered the live inbox.
 ```
 
 Types: [Scoped](scope.md) · [UserMessage](session.md)
+
+Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
+
+<a id="agentinput-dispatching--emit"></a>
+
+#### `agent/input-dispatching` — emit
+
+Synchronous dispatch commit after append and request construction, at the stream entry; no await or rollback follows.
+
+```ts cordis-catalog
+/**
+ * Synchronous dispatch commit after append and request construction, at the stream entry; no await or rollback follows.
+ * @mode emit
+ * @param payload.agent - agent entering the request stream.
+ * @param payload.transition - dispatched claim and request identities, persisted before notification.
+ */
+'agent/input-dispatching'(this: Scoped<Agent>, payload: { agent: Agent; transition: Extract<InputTransition, { phase: 'dispatched' }> }): void
+```
+
+Types: [Scoped](scope.md)
+
+Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
+
+<a id="agentinput-preparing--serial"></a>
+
+#### `agent/input-preparing` — serial
+
+Await input producers before claim. Rejection aborts preparation without reserving input.
+
+```ts cordis-catalog
+/**
+ * Await input producers before claim. Rejection aborts preparation without reserving input.
+ * @mode serial
+ * @param payload.agent - agent approaching the boundary.
+ * @param payload.turn - proposed owning turn.
+ * @param payload.step - proposed request step.
+ * @param payload.signal - cancellation observed before claim.
+ */
+'agent/input-preparing'(this: Scoped<Agent>, payload: { agent: Agent; turn: number; step: number; signal: AbortSignal }): Promise<void> | void
+```
+
+Types: [Scoped](scope.md)
 
 Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
 

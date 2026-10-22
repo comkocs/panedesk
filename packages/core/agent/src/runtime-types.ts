@@ -12,7 +12,7 @@ import type {
 } from '@panedesk/dsh-llm'
 import type { AgentCancelCause, Session, SessionSeq, UserMessage } from '@panedesk/dsh-session'
 export type { AgentCancelCause } from '@panedesk/dsh-session'
-import type { Agent, InboxTarget } from './types.ts'
+import type { Agent, InboxTarget, InputPriority, InputTransition } from './types.ts'
 export type { Agent } from './types.ts'
 import type {} from '@panedesk/dsh-system-prompt'
 declare module '@panedesk/dsh-system-prompt' {
@@ -32,6 +32,27 @@ export interface AgentOptions {
   reasoningEffort?: ReasoningEffortId
   /** Maximum output tokens for each conversation-model request. */
   maxTokens?: number
+}
+
+/** Explicit enqueue policy; the driver assigns sequence and resolves the earliest eligible turn before persistence. */
+export interface EnqueueOptions {
+  readonly priority: InputPriority
+  readonly passive: boolean
+  readonly wakeup: boolean
+  /** Omission selects the next eligible boundary for the effective priority. */
+  readonly earliestTurn?: number
+}
+
+/** Scheduling capability implemented by priority-aware drivers, without changing legacy Agent implementations. */
+export interface AgentInputScheduler {
+  /** Passive pending items alone never make this true; eligible active work may drive another turn. */
+  readonly hasRunnable: boolean
+  /**
+   * Persist identified input under explicit scheduling policy; preserve its message identity.
+   * @param input - already identified immutable input.
+   * @param options - effective priority, passive admission, and wake policy.
+   */
+  enqueue(input: UserMessage, options: EnqueueOptions): void
 }
 
 /** Options for {@link Agent.cancel}. */
@@ -313,6 +334,22 @@ declare module '@panedesk/cordis' {
      */
     'agent/inbox/discarded'(this: Scoped<Agent>, payload: { agent: Agent; message: UserMessage }): void
     // ---- the machine's extension points ----
+    /**
+     * Await input producers before claim. Rejection aborts preparation without reserving input.
+     * @mode serial
+     * @param payload.agent - agent approaching the boundary.
+     * @param payload.turn - proposed owning turn.
+     * @param payload.step - proposed request step.
+     * @param payload.signal - cancellation observed before claim.
+     */
+    'agent/input-preparing'(this: Scoped<Agent>, payload: { agent: Agent; turn: number; step: number; signal: AbortSignal }): Promise<void> | void
+    /**
+     * Synchronous dispatch commit after append and request construction, at the stream entry; no await or rollback follows.
+     * @mode emit
+     * @param payload.agent - agent entering the request stream.
+     * @param payload.transition - dispatched claim and request identities, persisted before notification.
+     */
+    'agent/input-dispatching'(this: Scoped<Agent>, payload: { agent: Agent; transition: Extract<InputTransition, { phase: 'dispatched' }> }): void
     /**
      * Reject a proposed step or replace the messages that enter it. Calling
      * `next()` preserves the current messages.

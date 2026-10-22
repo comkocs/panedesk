@@ -5,6 +5,8 @@
  */
 
 import type { UserMessage } from '@panedesk/dsh-llm/types'
+import type { MessageId } from '@panedesk/dsh-llm/brand'
+import type { Branded } from '@panedesk/dsh-brand'
 // Type-only: the Workspace registry's archive-admission family map this registry merges `turn` into.
 import type {} from '@panedesk/dsh-workspace/types'
 import type { OptionalSessionSeq, SessionId, SessionSeq } from '@panedesk/dsh-session/types'
@@ -37,6 +39,43 @@ declare module '@panedesk/dsh-typert-protocol' {
 
 /** One of the two ordered pending-message lists owned by an agent. */
 export type InboxTarget = 'next-turn' | 'next-step'
+
+/** Effective scheduling order: immediate before steer before queue; equal priorities retain enqueue order. */
+export type InputPriority = 'immediate' | 'steer' | 'queue'
+
+/** One reservation, retained until rollback or the first actual request dispatch. */
+export type InputClaimId = Branded<'InputClaimId'>
+
+/** Durable scheduling facts; legacy entries without them retain their original inbox semantics. */
+export interface InputScheduling {
+  readonly priority: InputPriority
+  /** Passive work joins a natural turn but never drives a new turn by itself. */
+  readonly passive: boolean
+  /** Host-assigned order, independent of wall time and message identity. */
+  readonly enqueueSequence: number
+  /** Earliest eligible turn; queue notices cannot enter the current turn mid-step. */
+  readonly earliestTurn: number
+}
+
+/** Required-on-read input lifecycle facts; appended input stays claimed after a synchronous pre-dispatch failure. */
+export type InputTransition =
+  | {
+    /** Commit before the matching inbox splice; older readers refuse this required event before replaying scheduling-aware input. */
+    readonly phase: 'scheduled'
+    readonly messageIds: readonly MessageId[]
+    readonly scheduling: readonly InputScheduling[]
+  }
+  | ({
+    readonly claimId: InputClaimId
+    readonly messageIds: readonly MessageId[]
+    readonly turn: number
+    readonly step: number
+  } & (
+    | { readonly phase: 'claimed' }
+    | { readonly phase: 'appended'; readonly userEventSeqs: readonly SessionSeq[] }
+    | { readonly phase: 'rolled-back'; readonly scheduling: readonly InputScheduling[] }
+    | { readonly phase: 'dispatched'; readonly requestId: Branded<'InputRequestId'> }
+  ))
 
 /** Complete pending Inbox value reconstructed from durable splices. */
 export interface InboxState {
@@ -99,6 +138,13 @@ declare module '@panedesk/dsh-session/types' {
       removedCount?: number
       inserted: UserMessage[]
       outcome?: 'canceled'
+      /** Parallel to inserted; absence retains legacy scheduling. A required scheduled transition must precede this splice. */
+      scheduling?: readonly InputScheduling[]
     }
+    /**
+     * Required input reservation fact; rollback is legal only before append, dispatch commits first injection.
+     * @param data - claim identity, input identities, boundary, and committed phase.
+     */
+    'agent/input/transition': InputTransition
   }
 }

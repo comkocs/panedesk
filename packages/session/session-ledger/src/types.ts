@@ -2,6 +2,43 @@
 import type { Branded } from '@panedesk/dsh-brand'
 import type { GenerateOptions, ResponseModelReported, TokenUsage } from '@panedesk/dsh-llm'
 import type { SessionId } from '@panedesk/dsh-session'
+import type { MessageCursor, MessageQuery, MessageStateData } from '@panedesk/dsh-message-delivery'
+
+export type { MessageStateData } from '@panedesk/dsh-message-delivery'
+
+/** Message-only journal envelope; never admitted to the call journal's LedgerEvent union. */
+export interface MessageLedgerEvent {
+  readonly schemaVersion: 1
+  readonly eventId: LedgerEventId
+  readonly nodeId: LedgerNodeId
+  readonly observedAt: number
+  readonly kind: 'message/state'
+  /** Human CLI origins use senderSessionId null; no outer Session or run is fabricated. */
+  readonly data: MessageStateData
+}
+
+/** Message journal read result; unsupported or corrupt records make completeness false. */
+export interface MessageLedgerPage {
+  readonly events: readonly MessageLedgerEvent[]
+  readonly complete: boolean
+  readonly nextCursor?: MessageCursor
+}
+
+/** Separate message namespace under the ledger directory; call-journal readers never scan it. */
+export interface MessageLedgerStore {
+  /**
+   * Append a runtime-owned fact idempotently, rejecting conflicting event identities.
+   * @param event - message namespace envelope with schemaVersion 1.
+   * @returns durable acknowledgement cursor.
+   */
+  append(event: MessageLedgerEvent): Promise<MessageCursor>
+  /**
+   * Read only the message namespace with explicit completeness.
+   * @param query - filters and exclusive cursor.
+   * @returns retained facts and scan completeness.
+   */
+  read(query: MessageQuery): Promise<MessageLedgerPage>
+}
 
 /** Globally unique ledger event identity; duplicate content is idempotent, conflicting content is rejected. */
 export type LedgerEventId = Branded<'LedgerEventId'>

@@ -92,6 +92,8 @@ interface SessionEventMap {
     stream: AssistantStreamRecord[]
     usage?: TokenUsage
     interrupted?: true
+    /** Present only for a prefix interrupted by an explicit interjection; absence retains the coarse interrupted marker. */
+    interruptionReason?: 'interjection'
   }
   /**
    * One model attempt that committed no surface message. The embedded stream
@@ -127,6 +129,8 @@ interface SessionEventMap {
      * allowed only when the message has `isError: true`.
      */
     error?: { name: string; code: string; reason?: string }
+    /** Present for runtime-confirmed cancellation; absent for ordinary completion or crash-unknown recovery. */
+    cancellation?: ToolCancellationResult
     meta?: JsonValue
   }
   /**
