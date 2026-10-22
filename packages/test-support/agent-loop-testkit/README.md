@@ -68,6 +68,14 @@ const agent = {
 }
 ```
 
+### Control concurrent scenarios
+
+`mountInputBarriers(ctx, agent)` provides four one-shot checkpoints: `beforePrepare` awaits `agent/input-preparing`; `claimedPrepare` observes the claimed `agent/input/transition` and suspends the `agent/request` waterfall; `appended` observes the appended transition; `streamEntered` observes `agent/input-dispatching`. Call `release()` before awaiting the producer's completion, and `dispose()` in teardown. The last two notifications remain synchronous: they never introduce an await into the production append-to-stream interval. An explicit test event producer can call `await barriers.appended.wait(signal)` or `await barriers.streamEntered.wait(signal)` to suspend its own continuation; production integration must preserve the declared event modes. Session observers contain thrown errors, so an appended observer is not a synchronous exception injector.
+
+`createTestGate()` supplies a cancellable explicit checkpoint. `createTestClocks(wall, monotonic)` supplies injectable clock functions; wall jumps do not change monotonic time and no process globals are patched. `createLongTool(name, cooperative)` supplies a definition for the real tool registry and a FIFO `nextCall()` channel. Each invocation exposes its actual signal, partial `emit(text)`, `abortObserved`, and `finish(text)`; uncooperative calls stay pending after abort until explicitly finished. Partial text is retained in the final cancellation result, not fabricated as a live Session event. Separate barrier registrations and tool instances provide independent parent/child channels without replacing their pipelines.
+
+`createWatchControl(subscribe, notify)` disables delivery from a caller's real watch while leaving scanner logic untouched. `createWriteFault()` wraps a real write with an optional one-shot `ENOSPC`, `EIO`, or `EACCES` failure before invocation. `createProcessFixture(parent)` creates a unique private home, starts caller-supplied real commands with bounded stdout readiness, and exposes captured-PID `crash()` plus a shared directory for reopening. It overrides child `HOME` / `USERPROFILE`, not `TZ` / `TMPDIR`. Await fixture disposal after draining work; it kills only its own live children and removes only its own directory. These controls do not implement Session persistence, mailbox decisions, leases, or process liveness policy.
+
 ### When to use it
 
 Use the dependency and loop helpers for tests whose subject is production loop or durable Inbox behavior. Use the structural stub for consumer-domain tests that only need queue editing. Mount dependencies directly when a test probes service injection failures or partial topologies, because the helper hides exactly the wiring those tests must control.

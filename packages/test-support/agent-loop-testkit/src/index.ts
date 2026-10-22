@@ -22,6 +22,14 @@ import WorkingDirectory from '@panedesk/dsh-working-directory'
 
 export { createInboxStub, unsupportedInbox } from './inbox.ts'
 export { provideWorkingDirectoryFixture } from './working-directory-fixture.ts'
+export { createTestGate, createTestClocks, createWatchControl, createWriteFault } from './controls.ts'
+export type { TestGate, TestClocks, WatchControl, WriteFault } from './controls.ts'
+export { mountInputBarriers } from './barriers.ts'
+export type { InputBarrierName, InputCheckpoint, InputBarriers } from './barriers.ts'
+export { createLongTool } from './long-tool.ts'
+export type { LongTool, LongToolCall } from './long-tool.ts'
+export { createProcessFixture } from './process-fixture.ts'
+export type { TestProcessExit, TestProcess, ProcessFixture } from './process-fixture.ts'
 
 interface DriverInbox extends Inbox {
   claim(target: InboxTarget, turn: number): UserMessage[]
