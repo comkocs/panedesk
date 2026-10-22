@@ -24,15 +24,17 @@ describe('resolveSubmitMode', () => {
 })
 
 describe('ComposerSubmissionPolicy', () => {
-  it('defaults to Queue and publishes preference changes', () => {
+  it('defaults to Steer and publishes preference changes', () => {
     const policy = new ComposerSubmissionPolicy()
-    expect(policy.busyEnter.getSnapshot()).toBe(DEFAULT_BUSY_ENTER_BEHAVIOR)
+    expect(DEFAULT_BUSY_ENTER_BEHAVIOR).toBe('steer')
+    expect(policy.busyEnter.getSnapshot()).toBe('steer')
+    expect(resolveSubmitMode(policy.busyEnter.getSnapshot(), true, 'enter', true)).toBe('steer')
 
     const changed = vi.fn()
     policy.busyEnter.subscribe(changed)
-    policy.setBusyEnter('steer')
+    policy.setBusyEnter('queue')
     expect(changed).toHaveBeenCalledTimes(1)
-    expect(policy.busyEnter.getSnapshot()).toBe('steer')
+    expect(policy.busyEnter.getSnapshot()).toBe('queue')
   })
 
   it('writes an explicit change through the scope after publishing it locally', () => {
@@ -48,9 +50,11 @@ describe('ComposerSubmissionPolicy', () => {
     }
     const policy = new ComposerSubmissionPolicy(scope)
     liveBehavior = () => policy.busyEnter.getSnapshot()
-    policy.setBusyEnter('steer')
-    expect(observed).toEqual(['busyEnter=steer:steer'])
-    expect(host.set).toHaveBeenCalledWith('busyEnter', 'steer')
+    expect(policy.busyEnter.getSnapshot()).toBe('steer')
+    expect(host.set).not.toHaveBeenCalled()
+    policy.setBusyEnter('queue')
+    expect(observed).toEqual(['busyEnter=queue:queue'])
+    expect(host.set).toHaveBeenCalledWith('busyEnter', 'queue')
     expect(host.set).toHaveBeenCalledOnce()
   })
 
@@ -70,5 +74,15 @@ describe('ComposerSubmissionPolicy', () => {
     host.publish({ status: 'ready', value: { busyEnter: 'steer' }, revision: 1, writable: true })
     const policy = new ComposerSubmissionPolicy(host.scope)
     expect(policy.busyEnter.getSnapshot()).toBe('steer')
+  })
+
+  it('preserves an explicitly stored Queue preference without writing it back', () => {
+    const host = stubConfigForm<ConversationSettings>()
+    host.publish({ status: 'ready', value: { busyEnter: 'queue' }, revision: 1, writable: true })
+    const policy = new ComposerSubmissionPolicy(host.scope)
+    expect(policy.busyEnter.getSnapshot()).toBe('queue')
+    expect(resolveSubmitMode(policy.busyEnter.getSnapshot(), true, 'enter', true)).toBe('queue')
+    expect(resolveSubmitMode(policy.busyEnter.getSnapshot(), true, 'accelerated', true)).toBe('steer')
+    expect(host.set).not.toHaveBeenCalled()
   })
 })
