@@ -109,7 +109,7 @@ describe.skipIf(process.platform === 'win32')('private mailbox file publication'
 
   it.each([
     ['permissions', 'Mailbox file permissions are not private'],
-    ['hardlink', 'Mailbox file was replaced while open and could not be reopened'],
+    ['hardlink', 'Mailbox file has more than one hard link'],
     ['symlink', 'Mailbox file was replaced while open and could not be reopened'],
     ['owner', 'Mailbox file is not owned by the current user'],
   ] as const)('rejects a replacement with invalid %s', async (kind, message) => {
@@ -143,7 +143,7 @@ describe.skipIf(process.platform === 'win32')('private mailbox file publication'
 
   it.each([
     ['permissions', 'Mailbox file permissions are not private'],
-    ['hardlink', 'Mailbox file was replaced while open and could not be reopened'],
+    ['hardlink', 'Mailbox file has more than one hard link'],
     ['owner', 'Mailbox file is not owned by the current user'],
   ] as const)('names an open mailbox file rejected for %s', async (kind, message) => {
     const f = await ownerFixture()
