@@ -57,6 +57,9 @@
       "path": "../../session/session-ledger"
     },
     {
+      "path": "../../subprocess/subprocess"
+    },
+    {
       "path": "../../session/session-projection"
     },
     {

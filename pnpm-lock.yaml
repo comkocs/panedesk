@@ -14472,6 +14472,9 @@ importers:
       '@panedesk/dsh-session-query':
         specifier: workspace:*
         version: link:../../session-query/session-query
+      '@panedesk/dsh-subprocess':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt
