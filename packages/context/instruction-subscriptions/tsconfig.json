@@ -8,6 +8,11 @@
     "src"
   ],
   "references": [
+    { "path": "../../core/agent" },
+    { "path": "../../core/session" },
+    { "path": "../../fs/fs" },
+    { "path": "../../util/brand" },
+    { "path": "../../../vendor/schemastery" },
     { "path": "../agent-instructions" },
     {
       "path": "../../../vendor/cordis"
