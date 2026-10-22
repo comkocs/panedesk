@@ -61,6 +61,15 @@ describe('fake reference pricing', () => {
       ] }] },
     ]) expect(() => loadPriceTable(JSON.stringify(invalid))).toThrow()
   })
+  it('prices free untiered writes and free storage without inventing missing usage evidence', () => {
+    const entry = { ...fake, prices: { ...fake.prices, cacheWrite: { untiered: '0' }, cacheStoragePerMillionTokenHour: '0' } }
+    const usage = { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0 }
+    expect(priceUsage({ ...request, entry, usage, usageState: 'partial', tiering: { kind: 'untiered' } }))
+      .toMatchObject({ state: 'priced', costUsd: '0.000026' })
+    expect(usage).not.toHaveProperty('cacheWriteTokens')
+    expect(priceUsage({ ...request, entry, usage: { inputTokens: 10, outputTokens: 1 }, usageState: 'partial', tiering: { kind: 'untiered' } }).state)
+      .toBe('partial-usage')
+  })
   it('retains tiny decimal amounts rather than rounding them to zero', () => {
     const entry = { ...fake, prices: { ...fake.prices, input: '0.000000001' } }
     expect(priceUsage({ ...request, entry, usage: { inputTokens: 1, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, cacheWriteLongTokens: 0 } }).costUsd).toBe('0.000000000000001')

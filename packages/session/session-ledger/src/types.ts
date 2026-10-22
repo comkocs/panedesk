@@ -198,6 +198,10 @@ export interface LedgerCallFinish {
   usageState: LedgerUsageState
   costUsd?: string
   pricingState: LedgerPricingState
+  /** Frozen table version and exact selected key; no fuzzy model alias matching. */
+  priceVersion?: string
+  priceKey?: string
+  priceKeySource?: 'response-model' | 'request-model' | 'unknown'
   wallMs: number
   modelInFlightMs: number
   queueMs: number

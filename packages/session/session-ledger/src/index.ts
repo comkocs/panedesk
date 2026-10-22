@@ -1,5 +1,6 @@
 /** Durable local call and lifecycle accounting with fail-closed writes and trusted wait metering. */
 import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { performance } from 'node:perf_hooks'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import type {} from '@panedesk/dsh-tools'
@@ -9,14 +10,14 @@ import {
 } from './journal.ts'
 import { withWriterLock, LedgerUnavailableError } from './lock.ts'
 import { foldLedger } from './projection.ts'
-import { priceUsage } from './pricing.ts'
+import { loadPriceTable, priceUsage } from './pricing.ts'
 import type { LedgerEventId, LedgerNodeId, LedgerInterval } from './types.ts'
 export { LedgerUnavailableError } from './lock.ts'
 import { Context, Service } from '@panedesk/cordis'
 import type {
   LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult,
   LedgerArtifactFinishResult, LedgerArtifactReference, LedgerCallFinish, LedgerCallStart, LedgerEvent,
-  LedgerOptions, LedgerWaitCategory, LedgerContext, LedgerRunId, LedgerPriceEntry,
+  LedgerOptions, LedgerWaitCategory, LedgerContext, LedgerRunId, LedgerPriceEntry, LedgerPriceTable,
   LedgerPriceUsageRequest, LedgerPriceUsageResult, LedgerQuery,
   LedgerRunFinish, LedgerRunStart, LedgerSnapshot, LedgerSessionContext,
 } from './types.ts'
@@ -46,7 +47,7 @@ export abstract class SessionLedger extends Service {
     sessionId?: LedgerContext['sessionId']
     provider: string
     model: string
-  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }>
+  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry; priceTable?: LedgerPriceTable }>
   /** Bind runtime-owned attribution before publishing a session.
    * @param context - Trusted identity and parent linkage.
    * @returns Disposer removing only this binding.
@@ -215,10 +216,14 @@ export class JournalSessionLedger extends SessionLedger {
     sessionId?: LedgerContext['sessionId']
     provider: string
     model: string
-  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry }> {
+  }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry; priceTable?: LedgerPriceTable }> {
+    const priceTable = loadPriceTable(await readFile(new URL('../prices/reference-v1.json', import.meta.url), 'utf8'))
+    const matches = priceTable.entries.filter(entry => entry.modelKey === request.model)
+    const price = matches.length === 1 ? matches[0] : undefined
+    const pricing = { priceTable, ...price === undefined ? {} : { price } }
     if (request.sessionId !== undefined) {
       const bound = this.contextFor(request.sessionId)
-      if (bound !== undefined) return { context: bound, runId: bound.runId }
+      if (bound !== undefined) return { context: bound, runId: bound.runId, ...pricing }
       const snapshot = await this.snapshot({ sessionId: request.sessionId })
       const starts = snapshot.rows.flatMap(row => row.kind === 'run' || row.kind === 'call' ? [row.start] : [])
         .sort((a, b) => b.startedAt - a.startedAt)
@@ -229,14 +234,14 @@ export class JournalSessionLedger extends SessionLedger {
         return { context: { seat, window, nodeId, identitySource, sessionId, rootSessionId, accountLabel,
           ...taskId === undefined ? {} : { taskId }, ...parentSessionId === undefined ? {} : { parentSessionId },
           ...subagentRunId === undefined ? {} : { subagentRunId }, ...remoteSessionId === undefined ? {} : { remoteSessionId } },
-        runId: start.runId }
+        runId: start.runId, ...pricing }
       }
     }
     const sessionId = request.sessionId ?? 'unknown' as LedgerContext['sessionId']
     return {
       context: { sessionId, rootSessionId: 'unknown' as LedgerContext['sessionId'],
         nodeId: await this.nodeId(), seat: 'free', window: 'free', identitySource: 'free', accountLabel: 'unknown' },
-      runId: 'unknown' as LedgerRunId,
+      runId: 'unknown' as LedgerRunId, ...pricing,
     }
   }
 

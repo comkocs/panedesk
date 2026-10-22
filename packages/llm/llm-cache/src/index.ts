@@ -460,7 +460,7 @@ export function apply(ctx: Context, config: Config): void {
       attemptIndex: request.purpose === undefined ? state.attemptIndex : 0, attemptVisibility: 'adapter',
       provider: request.provider, modelFamily: route.modelFamily, requestedModel: request.model,
       purpose: request.purpose ?? 'conversation', startedAt, cache: evidence, cacheWriteTiering: { kind: 'unknown' },
-      priceVersion: attribution.price?.version ?? 'unknown', priceKey: attribution.price?.modelKey ?? request.model,
+      priceVersion: attribution.priceTable?.version ?? attribution.price?.version ?? 'unknown', priceKey: attribution.price?.modelKey ?? 'unknown',
       referencePrice: true,
     }
     const signal = AbortSignal.any([lifetime.signal, ...(request.signal === undefined ? [] : [request.signal])])
@@ -548,8 +548,13 @@ export function apply(ctx: Context, config: Config): void {
         if (finish?.cacheDowngradeReason !== undefined) evidence.downgradeReason = finish.cacheDowngradeReason
         if ((usage?.cacheReadTokens ?? 0) > 0 || (usage?.cacheWriteTokens ?? 0) > 0) evidence.lastCacheEvidenceAt = Date.now()
         {
+          const entries = attribution.priceTable?.entries ?? (attribution.price === undefined ? [] : [attribution.price])
+          const responseMatches = entries.filter(entry => entry.modelKey === finish?.responseModel)
+          const requestMatches = entries.filter(entry => entry.modelKey === request.model)
+          const responsePrice = responseMatches.length === 1 ? responseMatches[0] : undefined
+          const selectedPrice = responsePrice ?? (requestMatches.length === 1 ? requestMatches[0] : undefined)
           const priced = service.priceUsage({ usage, usageState,
-            tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: attribution.price })
+            tiering: finish?.cacheWriteTiering ?? start.cacheWriteTiering, startedAt, entry: selectedPrice })
           const end: LedgerCallFinish = {
             callId, endedAt: Date.now(), observedAt: Date.now(),
             ...finish?.responseModel === undefined ? {} : { responseModel: finish.responseModel },
@@ -559,6 +564,8 @@ export function apply(ctx: Context, config: Config): void {
             usageState,
             ...terminalEvidence?.reportedUsage === undefined ? {} : { reportedUsage: terminalEvidence.reportedUsage },
             ...priced.costUsd === undefined ? {} : { costUsd: priced.costUsd }, pricingState: priced.state,
+            priceVersion: start.priceVersion, priceKey: selectedPrice?.modelKey ?? 'unknown',
+            priceKeySource: responsePrice !== undefined ? 'response-model' : selectedPrice !== undefined ? 'request-model' : 'unknown',
             wallMs: settledAt - clock, modelInFlightMs: admittedAt === undefined ? 0 : settledAt - admittedAt,
             queueMs: (admittedAt ?? settledAt) - clock, backoffMs: request.purpose === undefined ? state.backoffMs : 0, waits: [],
             // Session-to-date observations are snapshots, not additional compaction charges.

@@ -34,6 +34,31 @@ async function setup() {
 }
 
 describe('cache journal integration', () => {
+  it.each([
+    { requested: 'grok-4.7', reported: 'grok-4.7-build', key: 'grok-4.7', source: 'request-model', cost: '0.000026' },
+    { requested: 'grok-4.7', reported: 'glm-5.3-flash', key: 'glm-5.3-flash', source: 'response-model', cost: '0.000002' },
+    { requested: 'model-a', reported: 'grok-4.7', key: 'grok-4.7', source: 'response-model', cost: '0.000026' },
+    { requested: 'model-a', reported: 'model-b', key: 'unknown', source: 'unknown', cost: undefined },
+  ])('prices ordinary and keepalive calls using exact keys: $requested / $reported', async ({ requested, reported, key, source, cost }) => {
+    const { ctx, adapter, ledger } = await setup()
+    adapter.chunks = [
+      { type: 'usage', usage: { inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } },
+      { type: 'finish', reason: { kind: 'stop' }, responseModel: reported, cacheWriteTiering: { kind: 'untiered' } },
+    ]
+    for (const purpose of [undefined, 'keepalive'] as const) {
+      for await (const chunk of ctx.llm.stream({ provider: 'model-provider', model: requested, messages: [],
+        sessionId: SessionId('session-a'), ...purpose === undefined ? {} : { purpose } })) void chunk
+    }
+    const rows = (await ledger.snapshot()).rows.filter(row => row.kind === 'call')
+    expect(rows).toHaveLength(2)
+    for (const row of rows) {
+      expect(row.start.priceVersion).toBe('reference-v1')
+      expect(row.finish).toMatchObject({ priceVersion: 'reference-v1', priceKey: key, priceKeySource: source,
+        pricingState: cost === undefined ? 'missing-price' : 'priced' })
+      expect(row.finish?.costUsd).toBe(cost)
+    }
+  })
+
   it('inherits a nonresident parent cache policy from the real journal without copying its evidence clock', async () => {
     const { ctx, adapter, ledger, context } = await setup()
     await ledger.appendEvent({ schemaVersion: 1, eventId: 'cache-parent-a' as import('@panedesk/dsh-session-ledger').LedgerEventId,
