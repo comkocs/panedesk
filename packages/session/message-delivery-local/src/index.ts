@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { watch, type FSWatcher } from 'node:fs'
 import { lstat, readdir } from 'node:fs/promises'
 import { setTimeout as wait } from 'node:timers/promises'
-import { Context, Service } from '@panedesk/cordis'
+import { Context, FiberState, Service } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { createUserMessage, isAgentLoopRequest, type MessageId } from '@panedesk/dsh-llm'
 import type { SessionId } from '@panedesk/dsh-session'
@@ -48,7 +48,13 @@ export default class LocalMessageDelivery extends MessageDelivery {
   static inject = ['agents', 'sessions', 'sessionPersistence']
   private mailbox!: FileMailbox
   private registry!: NodeRegistry
-  private readonly owners = new Map<SessionId, { arbitrator: MailboxArbitrator; generation: string; agent: Agent }>()
+  private readonly owners = new Map<SessionId, {
+    arbitrator: MailboxArbitrator
+    generation: string
+    agent: Agent
+    closing: boolean
+    released: ReturnType<typeof Promise.withResolvers<void>>
+  }>()
   private readonly policy: RecipientPolicy
   private receipts!: ReceiptStore
   private readonly requestTurns = new Map<SessionId, number>()
@@ -92,7 +98,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
         () => this.registry.assertOwner(agent.id, generation), event => this.publishReceipt(event),
         () => this.settingsFor(agent.id).wakeOnHandoff, replay,
         message => policyReason(this.settingsFor(agent.id), message.messageClass))
-      this.owners.set(agent.id, { arbitrator, generation, agent })
+      this.owners.set(agent.id, { arbitrator, generation, agent, closing: false, released: Promise.withResolvers<void>() })
       await arbitrator.drain()
       if (config.watch) {
         const root = await this.mailbox.target(agent.id)
@@ -119,7 +125,12 @@ export default class LocalMessageDelivery extends MessageDelivery {
       }
       return next()
     })
-    ctx.on('agent/status', ({ agent, status }) => { this.track(this.registry.update(agent.id, status === 'running' ? 'busy' : 'idle')) })
+    ctx.on('agent/status', ({ agent, status }) => {
+      const owner = this.owners.get(agent.id)
+      // A closing residency stays closed: a trailing idle status must not republish it as live.
+      if (!owner || owner.closing) return
+      this.track(this.registry.update(agent.id, status === 'running' ? 'busy' : 'idle'))
+    })
     ctx.on('session/event', (session, event) => {
       const owner = this.owners.get(session.id)
       if (!owner) return
@@ -127,34 +138,50 @@ export default class LocalMessageDelivery extends MessageDelivery {
       if (event.type === 'assistant/message' && !event.data.interrupted) owner.arbitrator.assistant(event.data.turn)
       if (event.type === 'turn/end') this.track(owner.arbitrator.finish(event.data.turn, event.data.reason.kind === 'completed'))
     })
-    ctx.on('agent/ending', async ({ agent }) => {
+    const stopEnding = ctx.on('agent/ending', async ({ agent }) => {
       const owner = this.owners.get(agent.id)
-      if (!owner) return
+      if (!owner || owner.closing) return
+      owner.closing = true
       await this.registry.update(agent.id, 'closing')
       this.watchers.get(agent.id)?.close()
       this.watchers.delete(agent.id)
       await owner.arbitrator.close()
     })
-    ctx.on('agent/disposed', ({ agent }) => {
+    const stopDisposed = ctx.on('agent/disposed', ({ agent }) => {
+      const owner = this.owners.get(agent.id)
+      if (!owner) return
       this.owners.delete(agent.id)
       this.requestTurns.delete(agent.id)
-      this.track(this.registry.unregister(agent.id))
+      this.track(this.registry.unregister(agent.id).finally(() => { owner.released.resolve() }))
     })
-    ctx.effect(() => {
-      const scanning = this.scanLoop()
-      void scanning.catch((error: unknown) => { this.ctx.logger.error('Mailbox scanning failed', error) })
-      return async () => {
+    const scanning = this.scanLoop()
+    void scanning.catch((error: unknown) => { this.ctx.logger.error('Mailbox scanning failed', error) })
+    ctx.effect(function* (this: LocalMessageDelivery) {
+      // Retain lease-release notifications until registry cleanup has settled.
+      yield stopEnding
+      yield stopDisposed
+      yield async () => {
         this.stopped = true
         this.lifetime.abort()
         for (const watcher of this.watchers.values()) watcher.close()
         this.watchers.clear()
         await scanning
         await Promise.all([...this.tasks])
-        for (const owner of this.owners.values()) await owner.arbitrator.close()
-        // Host teardown must release the Agent leases before removing their registration.
+        const owners = [...this.owners.entries()]
+        for (const [sessionId, owner] of owners) {
+          owner.closing = true
+          await this.registry.update(sessionId, 'closing')
+          await owner.arbitrator.close()
+        }
+        // Root teardown owns the Agent disposers; plugin-only unload must not
+        // wait for still-live Agents or claim that their leases were released.
+        if (ctx.root.fiber.state === FiberState.UNLOADING || ctx.root.fiber.state === FiberState.DISPOSED) {
+          await Promise.all(owners.map(([, owner]) => owner.released.promise))
+        }
+        await Promise.all([...this.tasks])
         if (this.owners.size === 0) await this.registry.dispose()
       }
-    })
+    }.bind(this))
   }
 
   protected async [Service.init](): Promise<void> {

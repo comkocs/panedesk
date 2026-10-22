@@ -84,7 +84,7 @@ export class NodeRegistry {
    */
   async update(sessionId: string, status: OwnedSession['status']): Promise<void> {
     const session = this.sessions.get(sessionId)
-    if (!session) return
+    if (!session || session.status === 'closing') return
     this.sessions.set(sessionId, { ...session, status })
     await this.heartbeat()
   }

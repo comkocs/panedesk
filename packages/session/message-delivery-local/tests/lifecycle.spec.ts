@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, chmod, symlink, writeFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FileMailbox } from '../src/mailbox.ts'
 import { publish, readValue, privateDirectory, object } from '../src/files.ts'
 import { wakeupFixture } from './fixtures/wakeup.ts'
@@ -71,6 +71,9 @@ describe('wake and receipt lifecycle', () => {
       expect(await registry.status(f.session.id)).toBe('idle')
       await f.ctx.agents.ending(f.scheduler.agent)
       expect(await registry.status(f.session.id)).toBe('unavailable')
+      f.ctx.emit('agent/status', { agent: f.scheduler.agent, status: 'idle' })
+      await f.drain()
+      expect(await registry.status(f.session.id)).toBe('unavailable')
       const sent = await f.service.send({ target: { sessionId: f.session.id }, content: 'closing', messageClass: 'handoff', operationId: 'closing' as OperationId })
       expect(sent).toMatchObject({ reason: 'unavailable' })
       await f.scheduler.close()
@@ -78,6 +81,49 @@ describe('wake and receipt lifecycle', () => {
       await f.ctx.fiber.dispose()
       expect(await registry.status(f.session.id)).toBe('closed')
     } finally { await f.dispose() }
+  })
+})
+
+describe('registry shutdown', () => {
+  it('keeps closing through late status updates and heartbeat writes', async () => {
+    const { mailbox } = await storage()
+    const registry = new NodeRegistry(mailbox)
+    await registry.register('seat-a', 'idle')
+    await registry.update('seat-a', 'closing')
+    await registry.update('seat-a', 'idle')
+    await registry.heartbeat()
+    expect(await registry.status('seat-a')).toBe('unavailable')
+    await registry.unregister('seat-a')
+    await registry.dispose()
+    expect(await registry.status('seat-a')).toBe('closed')
+  })
+
+  it('retains lifecycle listeners during root shutdown until the lease is released', async () => {
+    const f = await wakeupFixture(false)
+    const mailbox = new FileMailbox({ home: f.home, nodeId: 'node-a', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
+    const registry = new NodeRegistry(mailbox)
+    const closing = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    // oxlint-disable-next-line typescript/unbound-method -- Called below with the registry receiver.
+    const update = NodeRegistry.prototype.update
+    const observed = vi.spyOn(NodeRegistry.prototype, 'update').mockImplementation(async function (this: NodeRegistry, id, status) {
+      await update.call(this, id, status)
+      if (status === 'closing') closing.resolve(undefined)
+    })
+    f.ctx.effect(() => async () => { await release.promise; await f.scheduler.close() })
+    const disposing = f.ctx.fiber.dispose()
+    try {
+      await closing.promise
+      expect(await registry.status(f.session.id)).toBe('unavailable')
+      release.resolve(undefined)
+      await disposing
+      expect(await registry.status(f.session.id)).toBe('closed')
+    } finally {
+      release.resolve(undefined)
+      await disposing
+      observed.mockRestore()
+      await f.dispose()
+    }
   })
 })
 
