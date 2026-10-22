@@ -1,6 +1,7 @@
 /** Local message service: durable sender intents, lease-backed arbitration, and receipt-only subscriptions. */
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
+import { homedir } from 'node:os'
 import { watch, type FSWatcher } from 'node:fs'
 import { lstat, readdir } from 'node:fs/promises'
 import { setTimeout as wait } from 'node:timers/promises'
@@ -55,14 +56,14 @@ export default class LocalMessageDelivery extends MessageDelivery {
     closing: boolean
     released: ReturnType<typeof Promise.withResolvers<void>>
   }>()
-  private readonly policy: RecipientPolicy
+  private policy!: RecipientPolicy
   private receipts!: ReceiptStore
   private readonly requestTurns = new Map<SessionId, number>()
   private readonly lifetime = new AbortController()
   private readonly watchers = new Map<SessionId, FSWatcher>()
   private readonly tasks = new Set<Promise<void>>()
   private readonly emitted = new Set<string>()
-  private readonly ready: Promise<void>
+  private readonly ready: Promise<void> | undefined
   private nodeId!: NodeId
   private stopped = false
 
@@ -74,7 +75,12 @@ export default class LocalMessageDelivery extends MessageDelivery {
       if (!Number.isSafeInteger(value) || value <= 0) throw new MailboxUnavailableError('Mailbox limits must be positive integers')
     }
     if (config.scanIntervalMs > 1000) throw new MailboxUnavailableError('Mailbox scan interval must not exceed one second')
-    this.policy = new RecipientPolicy(ctx)
+    // A virtual filesystem without local ownership cannot host a private mailbox.
+    if (typeof lstat !== 'function' || typeof readdir !== 'function' || typeof homedir !== 'function'
+      || (process.platform !== 'win32' && (typeof process.getuid !== 'function' || typeof process.getgid !== 'function'))) {
+      ctx.set('messageDelivery', undefined)
+      return
+    }
     this.ready = this.initialize()
   }
 
@@ -185,11 +191,13 @@ export default class LocalMessageDelivery extends MessageDelivery {
   }
 
   protected async [Service.init](): Promise<void> {
+    if (!this.ready) return
     try { await this.ready } catch (error) {
       this.ctx.logger.error('Message delivery unavailable: initialization failed', error)
       this.ctx.set('messageDelivery', undefined)
       return
     }
+    this.policy = new RecipientPolicy(this.ctx)
     this.activate()
   }
 
