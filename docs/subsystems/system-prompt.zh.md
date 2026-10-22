@@ -205,6 +205,50 @@ async assemble(context: AssembleContext = {}): Promise<PromptAssembly>
 
 Source: [`packages/core/system-prompt/src/index.ts`](../../packages/core/system-prompt/src/index.ts)
 
+<a id="instructions-events"></a>
+
+### `instructions/*` events
+
+<a id="instructionsloaded--emit"></a>
+
+#### `instructions/loaded` — emit
+
+Successful instruction admission for this agent; descendants publish their own loaded sets.
+
+```ts cordis-catalog
+/**
+ * Successful instruction admission for this agent; descendants publish their own loaded sets.
+ * @mode emit
+ * @param payload.agent - agent that actually loaded the files.
+ * @param payload.files - exact admitted paths and byte hashes, excluding unreadable files.
+ */
+'instructions/loaded'(this: Scoped<Agent>, payload: { agent: Agent; files: readonly InstructionObservation[] }): void
+```
+
+Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)
+
+Source: [`packages/context/agent-instructions/src/events.ts`](../../packages/context/agent-instructions/src/events.ts)
+
+<a id="instructionswritten--emit"></a>
+
+#### `instructions/written` — emit
+
+Successful self-write evidence; reads, failed writes, and ancestor writes do not qualify.
+
+```ts cordis-catalog
+/**
+ * Successful self-write evidence; reads, failed writes, and ancestor writes do not qualify.
+ * @mode emit
+ * @param payload.agent - agent whose successful write produced these bytes.
+ * @param payload.file - written path and post-write hash used for exact self-write suppression.
+ */
+'instructions/written'(this: Scoped<Agent>, payload: { agent: Agent; file: InstructionObservation }): void
+```
+
+Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)
+
+Source: [`packages/context/agent-instructions/src/events.ts`](../../packages/context/agent-instructions/src/events.ts)
+
 <a id="system-prompt-events"></a>
 
 ### `system-prompt/*` events

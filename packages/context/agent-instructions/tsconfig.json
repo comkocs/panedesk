@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../core/scope" },
     {
       "path": "../../../vendor/cordis"
     },

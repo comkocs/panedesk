@@ -16,6 +16,9 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  'packages/session/message-delivery': { category: 'optional', reason: 'Service definition for explicitly selected same-node message delivery.' },
+  'packages/session/message-delivery-local': { category: 'optional', reason: 'Inactive local message provider scaffold awaiting explicit composition.' },
+  'packages/context/instruction-subscriptions': { category: 'optional', reason: 'Inactive instruction observation consumer scaffold awaiting explicit composition.' },
   'packages/llm/llm-cache': { category: 'optional', reason: 'Explicit session cache and model-family admission policy.' },
   'packages/compaction/compaction-ledger': { category: 'optional', reason: 'Optional bounded ledger facts in compaction checkpoints.' },
   'packages/bundle/full': { category: 'optional', reason: 'Published dependency carrier installed beside the launcher for explicitly selected full, Web, ACP, and SDK profiles.' },

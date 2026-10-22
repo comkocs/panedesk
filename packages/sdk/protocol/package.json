@@ -26,12 +26,14 @@
   ],
   "license": "MIT",
   "peerDependencies": {
+    "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",

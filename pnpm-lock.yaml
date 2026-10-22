@@ -7303,6 +7303,9 @@ importers:
       '@panedesk/dsh-llm-deepseek-api-key':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek-api-key
+      '@panedesk/dsh-scope':
+        specifier: workspace:*
+        version: link:../../core/scope
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -7392,6 +7395,18 @@ importers:
       '@panedesk/dsh-web-app':
         specifier: workspace:*
         version: link:../../bundle/web-app
+
+  packages/context/instruction-subscriptions:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent-instructions':
+        specifier: workspace:*
+        version: link:../agent-instructions
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
 
   packages/context/session-reference:
     dependencies:
@@ -7572,6 +7587,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -12528,6 +12546,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -12762,6 +12783,33 @@ importers:
         specifier: workspace:*
         version: link:../session-ledger
 
+  packages/session/message-delivery:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+
+  packages/session/message-delivery-local:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../message-delivery
+
   packages/session/session-checkpoint-policy:
     devDependencies:
       '@panedesk/cordis':
@@ -12924,6 +12972,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../message-delivery
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -16280,6 +16331,9 @@ importers:
       '@panedesk/dsh-mcp-client':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-client
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../packages/session/message-delivery
       '@panedesk/dsh-message-feedback':
         specifier: workspace:*
         version: link:../../packages/feedback/message-feedback

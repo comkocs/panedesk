@@ -477,6 +477,15 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
 
   {
+    key: 'messageDelivery',
+    pkg: 'message-delivery',
+    title: 'Same-node message delivery',
+    mode: 'seam',
+    implementations: [],
+    consumers: [],
+    note: 'Abstract delivery, receive policy, durable control, and receipt operations; no provider is registered by the scaffold.',
+  },
+  {
     key: 'sessionLedger',
     pkg: 'session-ledger',
     title: 'Durable call and lifecycle ledger',

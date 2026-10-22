@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/session/message-delivery/README.md
+/:
+  en: 241874db6ead13a6
+  zh: ed6b716a1aca1168
+/panedesk-dsh-message-delivery:
+  en: b879789ec3f9e329
+  zh: 93ad417e3d6be724
+/panedesk-dsh-message-delivery/summary:
+  en: 6172c582076f3ef0
+  zh: 6a2a230f0531e60c
+/panedesk-dsh-message-delivery/table-of-contents:
+  en: a6d49d2df8fd1a63
+  zh: 28bfa19de7b41fb7
+/panedesk-dsh-message-delivery/public-api:
+  en: b59346acc357d810
+  zh: 3264b7214e45171a
+/panedesk-dsh-message-delivery/dev-note:
+  en: 858c9dd384138050
+  zh: ad0f486c55866dc6
+/panedesk-dsh-message-delivery/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-message-delivery/model-experience/abstract-service:
+  en: 7d20ad0ad3b9916f
+  zh: f39b17de9afb8f19
+/panedesk-dsh-message-delivery/model-experience/abstract-service/what-the-model-sees:
+  en: 03bd21ac17ac20f8
+  zh: 22b1566b0b5ea843
+/panedesk-dsh-message-delivery/model-experience/abstract-service/token-effect:
+  en: 9df5bf6a8df2227f
+  zh: adb8aa2884f530be
+/panedesk-dsh-message-delivery/model-experience/abstract-service/kv-cache-effect:
+  en: 0a7fdd8371f130e2
+  zh: 102741d1654630b8
+/panedesk-dsh-message-delivery/known-limitations-and-deferred-work:
+  en: aab8fe21d17568b5
+  zh: ff4dba39028388a9

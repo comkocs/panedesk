@@ -34,6 +34,7 @@
   ],
   "license": "MIT",
   "peerDependencies": {
+    "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
@@ -50,6 +51,7 @@
     }
   },
   "devDependencies": {
+    "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",

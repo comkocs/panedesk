@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/context/instruction-subscriptions/README.md
+/:
+  en: a712145498e2cd47
+  zh: 8c2cb193cdd7f429
+/panedesk-dsh-instruction-subscriptions:
+  en: f95d999463ec37cf
+  zh: d5fbf94ee521b9ad
+/panedesk-dsh-instruction-subscriptions/summary:
+  en: dce2a3e5342f48ed
+  zh: b71d896c1f85584c
+/panedesk-dsh-instruction-subscriptions/table-of-contents:
+  en: 367189da11f20d74
+  zh: 246160e5a90ca369
+/panedesk-dsh-instruction-subscriptions/dev-note:
+  en: 858c9dd384138050
+  zh: ad0f486c55866dc6
+/panedesk-dsh-instruction-subscriptions/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold:
+  en: e62c1383726153d5
+  zh: e138d817f0510492
+/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold/what-the-model-sees:
+  en: 3d30d31c4fafd287
+  zh: b9a8a63a83e8eaac
+/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold/token-effect:
+  en: 49ebe7812e660130
+  zh: 6d73f3da35bd6214
+/panedesk-dsh-instruction-subscriptions/model-experience/inactive-scaffold/kv-cache-effect:
+  en: 9077442db9e90f62
+  zh: 322dc46abd84aba9
+/panedesk-dsh-instruction-subscriptions/known-limitations-and-deferred-work:
+  en: 2592667c93441683
+  zh: bc814205bd09bd4d

@@ -18,6 +18,9 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./events": {
+      "types": "./lib/types/events.d.ts"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
@@ -30,6 +33,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
@@ -46,6 +50,7 @@
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",

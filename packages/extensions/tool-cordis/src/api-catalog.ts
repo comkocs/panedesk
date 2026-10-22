@@ -1622,6 +1622,85 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'messageDelivery',
+    summary: 'Caller authority is bound by the provider; wire input never supplies trusted sender identity.',
+    description: 'Caller authority is bound by the provider; wire input never supplies trusted sender identity.',
+    methods: [
+      {
+        signature: 'abstract send(request: SendMessageRequest): Promise<SendMessageResult>',
+        description: 'Publish one message without waiting for model execution.',
+        parameters: [{ name: 'request', description: 'address, classification, content, and idempotency identity.' }],
+        returns: 'delivery acknowledgement distinct from lifecycle state.',
+      },
+      {
+        signature: 'abstract withdraw(request: MessageControlRequest): Promise<ControlResult>',
+        description: 'Request withdrawal before claim; an offline owner acknowledges only durable intent.',
+        parameters: [{ name: 'request', description: 'message identity, expected revision, and operation identity.' }],
+        returns: 'owner decision or pending-owner acknowledgement.',
+      },
+      {
+        signature: 'abstract edit(request: EditMessageRequest): Promise<ControlResult>',
+        description: 'Replace unclaimed content without replacing its identity or FIFO position.',
+        parameters: [{ name: 'request', description: 'revision-checked replacement text.' }],
+        returns: 'owner decision or pending-owner acknowledgement.',
+      },
+      {
+        signature: 'abstract reprioritize(request: ReprioritizeMessageRequest): Promise<ControlResult>',
+        description: 'Move unclaimed input to the new priority\'s FIFO tail.',
+        parameters: [{ name: 'request', description: 'revision-checked effective priority.' }],
+        returns: 'owner decision or pending-owner acknowledgement.',
+      },
+      {
+        signature: 'abstract invalidate(request: InvalidateMessageRequest): Promise<ControlResult>',
+        description: 'Withdraw queued input or preserve injected history and publish an invalidation notice.',
+        parameters: [{ name: 'request', description: 'message identity and human-readable invalidation reason.' }],
+        returns: 'owner decision or pending-owner acknowledgement.',
+      },
+      {
+        signature: 'abstract status(messageId: MessageId): Promise<MessageStatus>',
+        description: 'Read runtime-owned history; a missing identity rejects rather than fabricating state.',
+        parameters: [{ name: 'messageId', description: 'sender-minted business identity.' }],
+        returns: 'current state and retained transition timestamps.',
+      },
+      {
+        signature: 'abstract operationStatus(operationId: OperationId): Promise<OperationStatus>',
+        description: 'Observe durable control settlement without resubmitting the command.',
+        parameters: [{ name: 'operationId', description: 'caller-retained control identity.' }],
+        returns: 'explicit missing, pending, or settled outcome.',
+      },
+      {
+        signature: 'abstract list(query: MessageQuery): Promise<MessagePage>',
+        description: 'Query messages without treating missing evidence as an empty complete result.',
+        parameters: [{ name: 'query', description: 'filters and bounded cursor pagination.' }],
+        returns: 'status page with storage completeness.',
+      },
+      {
+        signature: 'abstract resolve(addresses: readonly MessageAddress[]): Promise<ResolvedRecipient[]>',
+        description: 'Resolve exact addresses without publishing messages or opening Sessions.',
+        parameters: [{ name: 'addresses', description: 'explicit local addresses, without wildcard expansion.' }],
+        returns: 'candidates or exact recipients with observation times.',
+      },
+      {
+        signature: 'abstract sendBatch(request: SendBatchRequest): Promise<SendBatchResult>',
+        description: 'Resolve or publish an explicit recipient list, deduplicated by Session identity.',
+        parameters: [{ name: 'request', description: 'independent recipient operation identities and dry-run selection.' }],
+        returns: 'dry-run resolutions or independent delivery outcomes.',
+      },
+      {
+        signature: 'abstract configure(request: ConfigureMessagesRequest): Promise<MessageSettings>',
+        description: 'Persist receive policy without retroactively dropping accepted input.',
+        parameters: [{ name: 'request', description: 'complete policy for an authorized Session.' }],
+        returns: 'the committed settings.',
+      },
+      {
+        signature: 'abstract subscribe(request: MessageSubscriptionRequest): AsyncIterable<MessageStateEvent>',
+        description: 'Replay and watch receipts; iterator return or service disposal releases the subscription. Subscription never wakes a Session or emits model-authored receipt claims.',
+        parameters: [{ name: 'request', description: 'authorized Session and exclusive resume cursor.' }],
+        returns: 'ordered runtime-owned state events; storage failures reject iteration.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Session-log service; cold operations never construct a Session or Agent.',
     description: 'Session-log service; cold operations never construct a Session or Agent.',
@@ -4243,6 +4322,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.message - the inserted message. Scope-filtered dispatch (`@panedesk/dsh-scope`): agent-scoped listeners receive only that agent.' }],
   },
   {
+    name: 'agent/input-dispatching',
+    mode: 'emit',
+    signature: '\'agent/input-dispatching\'(this: Scoped<Agent>, payload: { agent: Agent; transition: Extract<InputTransition, { phase: \'dispatched\' }> }): void',
+    summary: 'Synchronous dispatch commit after append and request construction, at the stream entry; no await or rollback follows.',
+    description: 'Synchronous dispatch commit after append and request construction, at the stream entry; no await or rollback follows.',
+    parameters: [{ name: 'payload', description: '.transition - dispatched claim and request identities, persisted before notification.' }],
+  },
+  {
+    name: 'agent/input-preparing',
+    mode: 'serial',
+    signature: '\'agent/input-preparing\'(this: Scoped<Agent>, payload: { agent: Agent; turn: number; step: number; signal: AbortSignal }): Promise<void> | void',
+    summary: 'Await input producers before claim.',
+    description: 'Await input producers before claim. Rejection aborts preparation without reserving input.',
+    parameters: [{ name: 'payload', description: '.signal - cancellation observed before claim.' }],
+  },
+  {
     name: 'agent/pre-step',
     mode: 'waterfall',
     signature: '\'agent/pre-step\'(this: Scoped<Agent>, payload: { agent: Agent; messages: UserMessage[]; turn: number; step: number; signal: AbortSignal }, next: () => Promise<PreStepDecision>): Promise<PreStepDecision>',
@@ -4547,6 +4642,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'reloads', description: 'Replaced plugins and their module locations.' }],
   },
   {
+    name: 'instructions/loaded',
+    mode: 'emit',
+    signature: '\'instructions/loaded\'(this: Scoped<Agent>, payload: { agent: Agent; files: readonly InstructionObservation[] }): void',
+    summary: 'Successful instruction admission for this agent; descendants publish their own loaded sets.',
+    description: 'Successful instruction admission for this agent; descendants publish their own loaded sets.',
+    parameters: [{ name: 'payload', description: '.files - exact admitted paths and byte hashes, excluding unreadable files.' }],
+  },
+  {
+    name: 'instructions/written',
+    mode: 'emit',
+    signature: '\'instructions/written\'(this: Scoped<Agent>, payload: { agent: Agent; file: InstructionObservation }): void',
+    summary: 'Successful self-write evidence; reads, failed writes, and ancestor writes do not qualify.',
+    description: 'Successful self-write evidence; reads, failed writes, and ancestor writes do not qualify.',
+    parameters: [{ name: 'payload', description: '.file - written path and post-write hash used for exact self-write suppression.' }],
+  },
+  {
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
@@ -4569,6 +4680,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Waterfall around every streaming model call (retry, replay, routing).',
     description: 'Waterfall around every streaming model call (retry, replay, routing). Bound to the LlmRuntime; call `next()` to reach the resolved adapter\'s stream, or yield your own chunks to short-circuit.',
     parameters: [{ name: 'options', description: 'the full request. A LOOP-built request carries the process-local {@link markAgentLoopRequest} identity and arrives deep-frozen (mutation throws): its content is a pure function of the session log (the reconstructability Agent Note), so listeners read it, never rewrite it. Hand-built calls do not carry that marker; callers own their request inputs and must keep them unchanged until the stream settles.' }],
+  },
+  {
+    name: 'message/state',
+    mode: 'emit',
+    signature: '\'message/state\'(event: MessageStateEvent): void',
+    summary: 'Committed receipt notification; it neither drives a turn nor substitutes for durable replay.',
+    description: 'Committed receipt notification; it neither drives a turn nor substitutes for durable replay.',
+    parameters: [{ name: 'event', description: 'durable cursor and runtime-observed message state.' }],
   },
   {
     name: 'permission-presets/catalog-changed',
@@ -4928,7 +5047,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AgentCancelCause',
-    declaration: 'export type AgentCancelCause = {\n    readonly kind: \'user\';\n} | {\n    readonly kind: \'parent\';\n} | {\n    readonly kind: \'hook\';\n    readonly reason: string;\n} | {\n    readonly kind: \'disposed\';\n};',
+    declaration: 'export type AgentCancelCause = {\n    readonly kind: \'user\';\n} | {\n    readonly kind: \'parent\';\n} | {\n    readonly kind: \'hook\';\n    readonly reason: string;\n} | {\n    readonly kind: \'disposed\';\n} | {\n    readonly kind: \'interjection\';\n};',
   },
   {
     name: 'AgentFactory',
@@ -5315,6 +5434,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ConfigureCall = (controls: Readonly<LlmCallControls>, model: Readonly<LlmResolvedModelInfo>) => LlmCallControls;',
   },
   {
+    name: 'ConfigureMessagesRequest',
+    declaration: 'export interface ConfigureMessagesRequest {\n    readonly sessionId: SessionId;\n    readonly settings: MessageSettings;\n}',
+  },
+  {
     name: 'ConfinedArgv',
     declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
   },
@@ -5397,6 +5520,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ContinuableCreateSpec',
     declaration: 'export interface ContinuableCreateSpec {\n    readonly seed?: readonly SessionEvent[];\n}',
+  },
+  {
+    name: 'ControlResult',
+    declaration: 'export type ControlResult = {\n    readonly operationId: OperationId;\n    readonly messageId: MessageId;\n} & ({\n    readonly kind: \'applied\';\n    readonly status: MessageStatus;\n} | {\n    readonly kind: \'accepted-pending-owner\';\n    readonly state: \'queued\';\n    readonly revision: number;\n} | {\n    readonly kind: \'rejected\';\n    readonly reason: MessageReason;\n    readonly status: MessageStatus | null;\n});',
   },
   {
     name: 'CordisDynamicPackageId',
@@ -5559,6 +5686,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type DeepSeekLlmApiJson = null | boolean | number | string | DeepSeekLlmApiJson[] | {\n    [key: string]: DeepSeekLlmApiJson;\n};',
   },
   {
+    name: 'DeliveryOutcome',
+    declaration: 'export type DeliveryOutcome = \'accepted\' | \'rejected\';',
+  },
+  {
     name: 'DeliveryRetentionBounds',
     declaration: 'export interface DeliveryRetentionBounds {\n    readonly days: number;\n    readonly records: number;\n}',
   },
@@ -5673,6 +5804,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EditGoalRequest',
     declaration: 'export interface EditGoalRequest {\n    readonly objective?: string;\n    readonly maxGoalRounds?: number;\n}',
+  },
+  {
+    name: 'EditMessageRequest',
+    declaration: 'export interface EditMessageRequest extends MessageControlRequest {\n    readonly content: string;\n}',
   },
   {
     name: 'EncodedFileAttachment',
@@ -5919,6 +6054,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
   },
   {
+    name: 'InputClaimId',
+    declaration: 'export type InputClaimId = Branded<\'InputClaimId\'>;',
+  },
+  {
+    name: 'InputPriority',
+    declaration: 'export type InputPriority = \'immediate\' | \'steer\' | \'queue\';',
+  },
+  {
+    name: 'InputScheduling',
+    declaration: 'export interface InputScheduling {\n    readonly priority: InputPriority;\n    readonly passive: boolean;\n    readonly enqueueSequence: number;\n    readonly earliestTurn: number;\n}',
+  },
+  {
+    name: 'InputTransition',
+    declaration: 'export type InputTransition = {\n    readonly phase: \'scheduled\';\n    readonly messageIds: readonly MessageId[];\n    readonly scheduling: readonly InputScheduling[];\n} | ({\n    readonly claimId: InputClaimId;\n    readonly messageIds: readonly MessageId[];\n    readonly turn: number;\n    readonly step: number;\n} & ({\n    readonly phase: \'claimed\';\n} | {\n    readonly phase: \'appended\';\n    readonly userEventSeqs: readonly SessionSeq[];\n} | {\n    readonly phase: \'rolled-back\';\n    readonly scheduling: readonly InputScheduling[];\n} | {\n    readonly phase: \'dispatched\';\n    readonly requestId: Branded<\'InputRequestId\'>;\n}));',
+  },
+  {
     name: 'InspectOptions',
     declaration: 'export interface InspectOptions {\n    readonly registry?: Registry;\n}',
   },
@@ -5947,8 +6098,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type InstallSpecKind = \'registry\' | \'path\' | \'git\' | \'tarball\';',
   },
   {
+    name: 'InstructionObservation',
+    declaration: 'export interface InstructionObservation {\n    readonly path: string;\n    readonly hash: string;\n}',
+  },
+  {
     name: 'InternalScheduleError',
     declaration: 'export interface InternalScheduleError {\n    readonly code: \'internal_error\';\n    readonly message: string;\n}',
+  },
+  {
+    name: 'InvalidateMessageRequest',
+    declaration: 'export interface InvalidateMessageRequest extends MessageControlRequest {\n    readonly reason: string;\n}',
   },
   {
     name: 'InvalidPromptError',
@@ -6603,6 +6762,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type Message = MessageRoleMap[keyof MessageRoleMap];',
   },
   {
+    name: 'MessageAddress',
+    declaration: 'export type MessageAddress = {\n    readonly nodeId?: NodeId;\n    readonly sessionId: SessionId;\n    readonly name?: never;\n} | {\n    readonly nodeId?: NodeId;\n    readonly name: string;\n    readonly sessionId?: never;\n};',
+  },
+  {
+    name: 'MessageClass',
+    declaration: 'export type MessageClass = \'handoff\' | \'notice\' | \'reply\';',
+  },
+  {
+    name: 'MessageClassification',
+    declaration: 'export type MessageClassification = {\n    readonly messageClass: \'handoff\' | \'notice\';\n    readonly replyTo?: never;\n} | {\n    readonly messageClass: \'reply\';\n    readonly replyTo: MessageId;\n};',
+  },
+  {
+    name: 'MessageControlRequest',
+    declaration: 'export interface MessageControlRequest {\n    readonly messageId: MessageId;\n    readonly operationId: OperationId;\n    readonly expectedRevision: number;\n}',
+  },
+  {
+    name: 'MessageCursor',
+    declaration: 'export type MessageCursor = Branded<\'MessageCursor\'>;',
+  },
+  {
     name: 'MessageFeedbackDeleteRequest',
     declaration: 'export interface MessageFeedbackDeleteRequest {\n    readonly sessionId: SessionId;\n    readonly messageId: MessageId;\n    readonly ifVersion: MessageFeedbackVersion;\n}',
   },
@@ -6683,12 +6862,60 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MessageId = Branded<\'MessageId\'>;',
   },
   {
+    name: 'MessagePage',
+    declaration: 'export interface MessagePage {\n    readonly items: readonly MessageStatus[];\n    readonly complete: boolean;\n    readonly nextCursor?: MessageCursor;\n}',
+  },
+  {
+    name: 'MessagePriority',
+    declaration: 'export type MessagePriority = InputPriority;',
+  },
+  {
+    name: 'MessageQuery',
+    declaration: 'export interface MessageQuery {\n    readonly sessionId?: SessionId;\n    readonly senderSessionId?: SessionId;\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly states?: readonly MessageState[];\n    readonly messageClasses?: readonly MessageClass[];\n    readonly unansweredOlderThanMinutes?: number;\n    readonly includeTerminal?: boolean;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
+  },
+  {
+    name: 'MessageReason',
+    declaration: 'export type MessageReason = \'target-closed-pending\' | \'target-archived\' | \'target-not-found\' | \'target-ambiguous\' | \'receive-disabled\' | \'handoff-only\' | \'cross-node-unsupported\' | \'claimed\' | \'injected\' | \'revision-conflict\' | \'operation-conflict\' | \'unauthorized\' | \'invalid-content\' | \'invalid-priority\' | \'invalid-reply\' | \'message-not-found\' | \'terminal-state\' | \'unavailable\' | \'delivery-uncertain\' | \'unsupported\' | \'interjection\';',
+  },
+  {
+    name: 'MessageRecipient',
+    declaration: 'export interface MessageRecipient {\n    readonly nodeId: NodeId;\n    readonly sessionId: SessionId;\n    readonly window: string | null;\n    readonly title: string | null;\n    readonly status: RecipientStatus;\n    readonly matchedFields: readonly (\'sessionId\' | \'window\' | \'title\')[];\n    readonly observedAt: number;\n}',
+  },
+  {
     name: 'MessageRoleMap',
     declaration: 'export interface MessageRoleMap {\n    system: SystemMessage;\n    developer: DeveloperMessage;\n    user: UserMessage;\n    assistant: AssistantMessage;\n    tool: ToolResultMessage;\n}',
   },
   {
+    name: 'MessageSettings',
+    declaration: 'export interface MessageSettings {\n    readonly receiveMode: \'all\' | \'handoff-only\' | \'none\';\n    readonly wakeOnHandoff: boolean;\n}',
+  },
+  {
     name: 'MessageSourceMap',
     declaration: 'export interface MessageSourceMap {\n    user: {\n        kind: \'user\';\n    };\n    model: ModelMessageSource;\n    tool: ToolMessageSource;\n    \'system-prompt\': SystemPromptMessageSource;\n}',
+  },
+  {
+    name: 'MessageState',
+    declaration: 'export type MessageState = \'queued\' | \'injected\' | \'responded\' | \'withdrawn\' | \'invalidated\' | \'rejected\';',
+  },
+  {
+    name: 'MessageStateData',
+    declaration: 'export interface MessageStateData {\n    readonly messageId: MessageId;\n    readonly senderSessionId: SessionId | null;\n    readonly targetSessionId: SessionId | null;\n    readonly priority: MessagePriority;\n    readonly messageClass: MessageClass;\n    readonly state: MessageState;\n    readonly revision: number;\n    readonly stateVersion: number;\n    readonly operationId: OperationId;\n    readonly transition: MessageTransition;\n    readonly observedAt: number;\n    readonly reason?: MessageReason;\n    readonly firstRequestId?: Branded<\'InputRequestId\'>;\n    readonly firstTurnId?: number;\n    readonly deliveryOutcome?: DeliveryOutcome;\n    readonly pending?: boolean;\n}',
+  },
+  {
+    name: 'MessageStateEvent',
+    declaration: 'export interface MessageStateEvent {\n    readonly cursor: MessageCursor;\n    readonly nodeId: NodeId;\n    readonly data: MessageStateData;\n}',
+  },
+  {
+    name: 'MessageStatus',
+    declaration: 'export interface MessageStatus {\n    readonly messageId: MessageId;\n    readonly state: MessageState;\n    readonly phase: \'pending\' | \'claimed\' | \'appended\' | \'dispatched\' | \'settled\' | \'delivery-uncertain\';\n    readonly revision: number;\n    readonly stateVersion: number;\n    readonly transitions: readonly MessageStateEvent[];\n}',
+  },
+  {
+    name: 'MessageSubscriptionRequest',
+    declaration: 'export interface MessageSubscriptionRequest {\n    readonly sessionId: SessionId;\n    readonly cursor?: MessageCursor;\n}',
+  },
+  {
+    name: 'MessageTransition',
+    declaration: 'export type MessageTransition = \'accepted\' | \'rejected\' | \'claimed\' | \'appended\' | \'rolled-back\' | \'injected\' | \'responded\' | \'withdrawn\' | \'edited\' | \'reprioritized\' | \'invalidated\' | \'delivery-uncertain\';',
   },
   {
     name: 'ModDefinition',
@@ -6759,6 +6986,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
   },
   {
+    name: 'NodeId',
+    declaration: 'export type NodeId = Branded<\'LedgerNodeId\'>;',
+  },
+  {
     name: 'NotFutureError',
     declaration: 'export interface NotFutureError {\n    readonly code: \'not_future\';\n    readonly message: string;\n}',
   },
@@ -6801,6 +7032,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OneShotScheduleRecord',
     declaration: 'export type OneShotScheduleRecord = AfterScheduleRecord | AtScheduleRecord;',
+  },
+  {
+    name: 'OperationId',
+    declaration: 'export type OperationId = Branded<\'MessageOperationId\'>;',
+  },
+  {
+    name: 'OperationStatus',
+    declaration: 'export type OperationStatus = {\n    readonly kind: \'not-found\';\n    readonly operationId: OperationId;\n} | ControlResult;',
   },
   {
     name: 'OptionalSessionSeq',
@@ -7116,7 +7355,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'QueueAction',
-    declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n};',
+    declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n} | {\n    readonly kind: \'reprioritize\';\n    readonly priority: \'immediate\' | \'steer\' | \'queue\';\n};',
   },
   {
     name: 'ReadFileLine',
@@ -7137,6 +7376,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ReasoningEffortId',
     declaration: 'export type ReasoningEffortId = Branded<\'ReasoningEffortId\'>;',
+  },
+  {
+    name: 'RecipientStatus',
+    declaration: 'export type RecipientStatus = \'busy\' | \'idle\' | \'closed\';',
   },
   {
     name: 'RecurringScheduleRecord',
@@ -7243,6 +7486,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ReplayEnvelope {\n    response: unknown;\n    blocks?: readonly unknown[];\n}',
   },
   {
+    name: 'ReprioritizeMessageRequest',
+    declaration: 'export interface ReprioritizeMessageRequest extends MessageControlRequest {\n    readonly priority: MessagePriority;\n}',
+  },
+  {
     name: 'RequestContext',
     declaration: 'export interface RequestContext {\n    provider: string;\n    model: string;\n    contextWindow?: number;\n    systemPromptUpdate?: SystemPromptUpdate;\n}',
   },
@@ -7281,6 +7528,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResolvedNormalRetryPolicy',
     declaration: 'export interface ResolvedNormalRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'normal\';\n    readonly maxRetries: number;\n    readonly retryableCodes: readonly string[];\n}',
+  },
+  {
+    name: 'ResolvedRecipient',
+    declaration: 'export type ResolvedRecipient = {\n    readonly kind: \'resolved\';\n    readonly address: MessageAddress;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly kind: \'rejected\';\n    readonly address: MessageAddress;\n    readonly reason: MessageReason;\n    readonly candidates: readonly MessageRecipient[];\n};',
   },
   {
     name: 'ResolvedRetryBackoff',
@@ -7463,6 +7714,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
   },
   {
+    name: 'SendBatchRequest',
+    declaration: 'export type SendBatchRequest = MessageClassification & {\n    readonly content: string;\n    readonly priority?: MessagePriority;\n    readonly recipients: readonly {\n        readonly target: MessageAddress;\n        readonly operationId: OperationId;\n    }[];\n    readonly dryRun: boolean;\n};',
+  },
+  {
+    name: 'SendBatchResult',
+    declaration: 'export type SendBatchResult = {\n    readonly kind: \'resolved\';\n    readonly recipients: readonly ResolvedRecipient[];\n} | {\n    readonly kind: \'sent\';\n    readonly results: readonly SendMessageResult[];\n};',
+  },
+  {
+    name: 'SendMessageRequest',
+    declaration: 'export type SendMessageRequest = MessageClassification & {\n    readonly target: MessageAddress;\n    readonly content: string;\n    readonly priority?: MessagePriority;\n    readonly operationId: OperationId;\n};',
+  },
+  {
+    name: 'SendMessageResult',
+    declaration: 'export type SendMessageResult = {\n    readonly messageId: MessageId;\n    readonly operationId: OperationId;\n} & ({\n    readonly deliveryOutcome: \'accepted\';\n    readonly messageState: \'queued\';\n    readonly pending: boolean;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: \'target-closed-pending\';\n    readonly messageState: \'queued\';\n    readonly pending: true;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: Exclude<MessageReason, \'target-closed-pending\'>;\n    readonly messageState: \'rejected\';\n    readonly pending: false;\n    readonly candidates: readonly MessageRecipient[];\n});',
+  },
+  {
     name: 'SendTeamMessageRequest',
     declaration: 'export interface SendTeamMessageRequest {\n    readonly target: string;\n    readonly content: ContentBlock[];\n    readonly signal: AbortSignal;\n}',
   },
@@ -7580,7 +7847,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionEventMap',
-    declaration: 'export interface SessionEventMap {\n    \'turn/start\': {\n        turn: number;\n    };\n    \'turn/end\': {\n        turn: number;\n        reason: TurnEndReason;\n    };\n    \'step/start\': {\n        turn: number;\n        step: number;\n    };\n    \'step/end\': {\n        turn: number;\n        step: number;\n    };\n    \'user/message\': UserMessage;\n    \'developer/message\': {\n        turn: number;\n        step: number;\n        message: DeveloperMessage;\n        headerSeq?: SessionSeq;\n    };\n    \'system/message\': {\n        turn: number;\n        step: number;\n        message: SystemMessage;\n    };\n    \'assistant/message\': {\n        turn: number;\n        step: number;\n        message: AssistantMessage;\n        stream: AssistantStreamRecord[];\n        usage?: TokenUsage;\n        interrupted?: true;\n    };\n    \'assistant/attempt\': {\n        turn: number;\n        step: number;\n        stream: AssistantStreamRecord[];\n    };\n    \'tool/call\': {\n        turn: number;\n        step: number;\n        callId: ToolCallId;\n        name: string;\n        arguments: string;\n    };\n    \'tool/result\': {\n        turn: number;\n        step: number;\n        message: ToolResultMessage;\n        error?: {\n            name: string;\n            code: string;\n            reason?: string;\n        };\n        meta?: JsonValue;\n    };\n    \'request/header\': {\n        header: EpochHeader;\n        reason: RequestHeaderReason;\n        startsSeries?: true;\n    };\n    \'request/context\': RequestContext;\n    \'session/end-seed\': {\n   /* …truncated — full shape in source */',
+    declaration: 'export interface SessionEventMap {\n    \'turn/start\': {\n        turn: number;\n    };\n    \'turn/end\': {\n        turn: number;\n        reason: TurnEndReason;\n    };\n    \'step/start\': {\n        turn: number;\n        step: number;\n    };\n    \'step/end\': {\n        turn: number;\n        step: number;\n    };\n    \'user/message\': UserMessage;\n    \'developer/message\': {\n        turn: number;\n        step: number;\n        message: DeveloperMessage;\n        headerSeq?: SessionSeq;\n    };\n    \'system/message\': {\n        turn: number;\n        step: number;\n        message: SystemMessage;\n    };\n    \'assistant/message\': {\n        turn: number;\n        step: number;\n        message: AssistantMessage;\n        stream: AssistantStreamRecord[];\n        usage?: TokenUsage;\n        interrupted?: true;\n        interruptionReason?: \'interjection\';\n    };\n    \'assistant/attempt\': {\n        turn: number;\n        step: number;\n        stream: AssistantStreamRecord[];\n    };\n    \'tool/call\': {\n        turn: number;\n        step: number;\n        callId: ToolCallId;\n        name: string;\n        arguments: string;\n    };\n    \'tool/result\': {\n        turn: number;\n        step: number;\n        message: ToolResultMessage;\n        error?: {\n            name: string;\n            code: string;\n            reason?: string;\n        };\n        cancellation?: ToolCancellationResult;\n        meta?: JsonValue;\n    };\n    \'request/header\': {\n        header: EpochHeader;\n        reason: RequestHeaderReason;\n        sta /* …truncated — full shape in source */',
   },
   {
     name: 'SessionEventMetadataFilter',
@@ -8416,7 +8683,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubprocessIdentity',
-    declaration: 'export interface SubprocessIdentity {\n    readonly pid: number;\n    readonly processGroupId?: number;\n    readonly startIdentity?: string;\n    readonly bootIdentity?: string;\n}',
+    declaration: 'export interface SubprocessIdentity {\n    readonly pid: number;\n    readonly processGroupId?: number;\n    readonly startIdentity?: string;\n    readonly startedAt?: number;\n    readonly bootIdentity?: string;\n}',
   },
   {
     name: 'SubprocessOutcome',
@@ -8709,6 +8976,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ToolCallView',
     declaration: 'export type ToolCallView = GenericCallView | TerminalCallView | DiffCallView;',
+  },
+  {
+    name: 'ToolCancellationResult',
+    declaration: 'export interface ToolCancellationResult {\n    readonly cause: AgentCancelCause;\n    readonly outcome: \'cancelled\';\n    readonly sideEffects: \'unknown\';\n}',
   },
   {
     name: 'ToolDefinition',

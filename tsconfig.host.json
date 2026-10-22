@@ -237,6 +237,9 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/session/message-delivery" },
+    { "path": "./packages/session/message-delivery-local" },
+    { "path": "./packages/context/instruction-subscriptions" },
     { "path": "./packages/session/session-ledger" },
     { "path": "./packages/session/ledger-query" },
     { "path": "./packages/session/ledger-watch" },

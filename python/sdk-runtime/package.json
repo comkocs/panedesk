@@ -70,6 +70,7 @@
     "@panedesk/dsh-llm-pi-ai": "workspace:*",
     "@panedesk/dsh-llm-retry": "workspace:*",
     "@panedesk/dsh-mcp-client": "workspace:*",
+    "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-output-retention": "workspace:*",
     "@panedesk/dsh-permission-presets": "workspace:*",
     "@panedesk/dsh-persona": "workspace:*",

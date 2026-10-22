@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/session/message-delivery-local/README.md
+/:
+  en: 1fabc2b8a9976827
+  zh: e209235347d2f5c8
+/panedesk-dsh-message-delivery-local:
+  en: f051d8e17addad7e
+  zh: bbe0d54f621bfc58
+/panedesk-dsh-message-delivery-local/summary:
+  en: d6e67a0ffbff36c4
+  zh: a5f42a7199602320
+/panedesk-dsh-message-delivery-local/table-of-contents:
+  en: 367189da11f20d74
+  zh: 246160e5a90ca369
+/panedesk-dsh-message-delivery-local/dev-note:
+  en: 858c9dd384138050
+  zh: ad0f486c55866dc6
+/panedesk-dsh-message-delivery-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-message-delivery-local/model-experience/inactive-scaffold:
+  en: e62c1383726153d5
+  zh: e138d817f0510492
+/panedesk-dsh-message-delivery-local/model-experience/inactive-scaffold/what-the-model-sees:
+  en: 3d30d31c4fafd287
+  zh: b9a8a63a83e8eaac
+/panedesk-dsh-message-delivery-local/model-experience/inactive-scaffold/token-effect:
+  en: 49ebe7812e660130
+  zh: 6d73f3da35bd6214
+/panedesk-dsh-message-delivery-local/model-experience/inactive-scaffold/kv-cache-effect:
+  en: 9077442db9e90f62
+  zh: 322dc46abd84aba9
+/panedesk-dsh-message-delivery-local/known-limitations-and-deferred-work:
+  en: cff2dc175c631509
+  zh: f1b741d91a04011d

@@ -145,6 +145,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-agent-instructions` | yes | Workspace context loader for AGENTS.md/CLAUDE.md instruction files |
 | `@panedesk/dsh-file-reference-local` | yes | Local-filesystem ctx.fileReferences provider with bounded fuzzy indexes |
 | `@panedesk/dsh-harness-dev-context` | no | Model context naming the DeepSeek Harness checkout and Web GUI URL without letting either change the system prompt |
+| `@panedesk/dsh-instruction-subscriptions` | no | Inactive instruction observation consumer scaffold |
 | `@panedesk/dsh-session-reference` | yes | Cross-session snapshot references and durable untrusted model context (ctx.sessionReferenceResolver) |
 | `@panedesk/dsh-time-context` | yes | Durable per-step context with the current time and elapsed time |
 | `@panedesk/dsh-tmux-context` | yes | Opt-in durable per-step context with this agent's tmux pane and window location |
@@ -367,6 +368,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@panedesk/dsh-ledger-query` | yes | Read-only ledger query and export service definitions |
 | `@panedesk/dsh-ledger-watch` | yes | Independent ledger process watcher plugin scaffold |
+| `@panedesk/dsh-message-delivery-local` | no | Inactive local message provider scaffold |
 | `@panedesk/dsh-session-checkpoint-policy` | no | Semantic session durability checkpoints before model requests and tool side effects |
 | `@panedesk/dsh-session-ledger` | yes | Durable call and lifecycle ledger service definitions |
 | `@panedesk/dsh-session-log-deepseek` | yes | Incremental lossless session-log request extension for the official DeepSeek LLM API |
