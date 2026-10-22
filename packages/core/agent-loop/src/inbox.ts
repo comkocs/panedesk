@@ -14,6 +14,7 @@ import type {
   InboxState,
   InboxTarget,
   InboxWireState,
+  InputScheduling,
 } from '@panedesk/dsh-agent'
 import { z } from 'zod'
 
@@ -23,12 +24,29 @@ export const inboxProjectionSchema = z.object({
   'next-step': z.array(z.custom<UserMessage>()).readonly(),
 }).readonly()
 
+interface ScheduledInboxState extends InboxState {
+  readonly scheduling: Readonly<Record<string, InputScheduling>>
+  readonly sequence: number
+  readonly order: Readonly<Record<string, number>>
+}
+
+const schedulingSchema = z.object({
+  priority: z.enum(['immediate', 'steer', 'queue']),
+  passive: z.boolean(),
+  enqueueSequence: z.number().int().nonnegative(),
+  earliestTurn: z.number().int().nonnegative(),
+})
+
 /** Standard fold that reconstructs pending input and rejects invalid durable splice history. */
 export const inboxProjectionDefinition = {
   key: 'inbox',
-  stateSchema: inboxProjectionSchema,
-  init: (): InboxState => ({ 'next-turn': [], 'next-step': [] }),
-  apply(state: InboxState, event) {
+  stateSchema: inboxProjectionSchema.unwrap().extend({
+    scheduling: z.record(z.string(), schedulingSchema),
+    sequence: z.number().int().nonnegative(),
+    order: z.record(z.string(), z.number().int().nonnegative()),
+  }).readonly(),
+  init: (): ScheduledInboxState => ({ 'next-turn': [], 'next-step': [], scheduling: {}, sequence: 0, order: {} }),
+  apply(state: ScheduledInboxState, event) {
     if (event.type !== 'agent/inbox/spliced') return state
     const splice = event.data
     try {
@@ -47,9 +65,27 @@ export const inboxProjectionDefinition = {
         if (ids.has(message.id)) throw new Error(`message "${message.id}" is already pending`)
         ids.add(message.id)
       }
-      return splice.target === 'next-turn'
-        ? { 'next-turn': next, 'next-step': state['next-step'] }
-        : { 'next-turn': state['next-turn'], 'next-step': next }
+      if (splice.scheduling !== undefined && splice.scheduling.length !== splice.inserted.length) {
+        throw new Error('scheduling must match inserted messages')
+      }
+      const scheduling = { ...state.scheduling }
+      let sequence = state.sequence
+      const order = { ...state.order }
+      for (const removed of inbox.slice(splice.start, splice.start + removedCount)) {
+        delete scheduling[removed.id]
+        delete order[removed.id]
+      }
+      for (const [index, message] of splice.inserted.entries()) {
+        const policy = splice.scheduling?.[index]
+        if (policy !== undefined) {
+          scheduling[message.id] = schedulingSchema.parse(policy)
+          sequence = Math.max(sequence, policy.enqueueSequence)
+        } else {
+          sequence++
+        }
+        order[message.id] = policy?.enqueueSequence ?? state.order[message.id] ?? sequence
+      }
+      return { ...state, [splice.target]: next, scheduling, sequence, order }
     } catch (error: unknown) {
       throw new Error(`invalid persisted inbox splice at session seq ${event.seq}`, { cause: error })
     }
@@ -59,10 +95,12 @@ export const inboxProjectionDefinition = {
     // round-trips the session log as lossless JSON. Only the static type
     // narrows to the JSON-safe projection table entry.
     viewSchema: inboxProjectionSchema as unknown as z.ZodType<InboxWireState>,
-    view: (state: InboxState) => state as unknown as InboxWireState,
+    view: (state: ScheduledInboxState) => ({
+      'next-turn': state['next-turn'], 'next-step': state['next-step'],
+    }) as unknown as InboxWireState,
   },
-  stateVersion: 1,
-} satisfies ProjectionDefinition<'inbox', InboxState>
+  stateVersion: 2,
+} satisfies ProjectionDefinition<'inbox', ScheduledInboxState>
 
 /**
  * Driver-owned durable Inbox implementation used by ReactLoopAgent and focused
@@ -94,6 +132,36 @@ export class ReactLoopInbox implements InboxContract {
     return state['next-turn'].length > 0 || state['next-step'].length > 0
   }
 
+  /** Passive input never drives a turn independently. */
+  get hasRunnable(): boolean {
+    const state = this.current()
+    return [...state['next-turn'], ...state['next-step']].some(message => !state.scheduling[message.id]?.passive)
+  }
+
+  /**
+   * Read explicit scheduling, leaving legacy inbox behavior distinguishable.
+   * @param id - pending message identity.
+   * @returns persisted policy, or undefined for legacy input.
+   */
+  schedulingOf(id: MessageId): InputScheduling | undefined {
+    return this.current().scheduling[id]
+  }
+
+  /** Next host-assigned order, including legacy arrivals. */
+  get nextSequence(): number {
+    return this.current().sequence + 1
+  }
+
+  /**
+   * Commit required scheduling facts before inserting scheduled input.
+   * @param message - identified input.
+   * @param scheduling - resolved admission policy.
+   */
+  enqueue(message: UserMessage, scheduling: InputScheduling): void {
+    const target = scheduling.priority === 'queue' ? 'next-turn' : 'next-step'
+    this.mutate(target, Infinity, 0, [message], false, [scheduling])
+  }
+
   /** Durably cancel all pending input, clearing next-step before next-turn. */
   clear(): void {
     this.splice('next-step', 0, this.nextStep.length, [])
@@ -107,8 +175,34 @@ export class ReactLoopInbox implements InboxContract {
    * @returns next-step input followed by the queued turn, when requested.
    */
   claim(target: InboxTarget, turn: number): UserMessage[] {
-    const claimed = this.mutate('next-step', 0, this.nextStep.length, [], false)
-    if (target === 'next-turn') claimed.push(...this.mutate('next-turn', 0, 1, [], false))
+    const state = this.current()
+    if (Object.keys(state.scheduling).length === 0) {
+      const claimed = this.mutate('next-step', 0, this.nextStep.length, [], false)
+      if (target === 'next-turn') claimed.push(...this.mutate('next-turn', 0, 1, [], false))
+      for (const message of claimed) this.dispatch.emit('agent/inbox/claimed', { message, turn })
+      return claimed
+    }
+    const rank = { immediate: 0, steer: 1, queue: 2 }
+    const candidates = (['next-step', 'next-turn'] as const).flatMap(list => state[list].map(message => ({
+      message, list, policy: state.scheduling[message.id],
+    }))).filter(({ list, policy }) => policy === undefined
+      ? list === 'next-step' || target === 'next-turn'
+      : policy.earliestTurn <= turn && (policy.priority !== 'queue' || target === 'next-turn'))
+    if (Object.keys(state.scheduling).length > 0) {
+      candidates.sort((a, b) => rank[a.policy?.priority ?? (a.list === 'next-step' ? 'steer' : 'queue')]
+        - rank[b.policy?.priority ?? (b.list === 'next-step' ? 'steer' : 'queue')]
+        || (state.order[a.message.id] ?? 0) - (state.order[b.message.id] ?? 0))
+    }
+    let ordinaryClaimed = false
+    const claimed: UserMessage[] = []
+    for (const { message, list, policy } of candidates) {
+      const ordinary = policy === undefined ? list === 'next-turn' : policy.priority === 'queue' && !policy.passive
+      if (ordinary && ordinaryClaimed) continue
+      ordinaryClaimed ||= ordinary
+      const index = this.current()[list].findIndex(item => item.id === message.id)
+      this.mutate(list, index, 1, [], false)
+      claimed.push(message)
+    }
     for (const message of claimed) this.dispatch.emit('agent/inbox/claimed', { message, turn })
     return claimed
   }
@@ -140,7 +234,8 @@ export class ReactLoopInbox implements InboxContract {
   replace(messageId: MessageId, newMessage: UserMessage): boolean {
     const location = this.locate(messageId)
     if (location === undefined) return false
-    this.splice(location.target, location.index, 1, [newMessage])
+    const policy = this.schedulingOf(messageId)
+    this.mutate(location.target, location.index, 1, [newMessage], true, policy === undefined ? undefined : [policy])
     return true
   }
 
@@ -184,14 +279,14 @@ export class ReactLoopInbox implements InboxContract {
   }
 
   /** Read the current durable projection state. */
-  private current(): InboxState {
+  private current(): ScheduledInboxState {
     const state = this.projections.stateOf(this.session, 'inbox')
     if (state === undefined) {
       throw new Error(
         `agent "${this.session.id}" cannot read inbox state: its projection registration is not active`,
       )
     }
-    return state
+    return state as ScheduledInboxState
   }
 
   /** Commit one normalized mutation and publish its live events. */
@@ -201,6 +296,7 @@ export class ReactLoopInbox implements InboxContract {
     deleteCount: number,
     inserted: UserMessage[],
     discardRemoved: boolean,
+    scheduling?: readonly InputScheduling[],
   ): UserMessage[] {
     const state = this.current()
     const inbox = state[target]
@@ -229,9 +325,13 @@ export class ReactLoopInbox implements InboxContract {
       start: actualStart,
       ...(actualDeleteCount === 0 ? {} : { removedCount: actualDeleteCount }),
       inserted,
+      ...(scheduling === undefined ? {} : { scheduling }),
       ...(outcome === undefined ? {} : { outcome }),
     }
     const removed = inbox.slice(actualStart, actualStart + actualDeleteCount)
+    if (scheduling !== undefined) {
+      this.session.append('agent/input/transition', { phase: 'scheduled', messageIds: inserted.map(message => message.id), scheduling })
+    }
     const event = this.session.append('agent/inbox/spliced', splice)
     if (discardRemoved) {
       for (const message of removed) this.dispatch.emit('agent/inbox/discarded', { message })

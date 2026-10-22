@@ -10,6 +10,8 @@ import type {
   AgentEventDispatch,
   AgentOptions,
   AgentStatus,
+  AgentInputScheduler,
+  EnqueueOptions,
   CancelOptions,
   InboxTarget,
   PreStepDecision,
@@ -96,7 +98,7 @@ function abortedCancelCause(signal: AbortSignal): AgentCancelCause | undefined {
 }
 
 /** Drives one session through turn and step boundaries. */
-export class ReactLoopAgent implements Agent {
+export class ReactLoopAgent implements Agent, AgentInputScheduler {
   readonly inbox: ReactLoopInbox
   private phase: Phase
   private activityDone: Promise<void> = Promise.resolve()
@@ -161,6 +163,23 @@ export class ReactLoopAgent implements Agent {
     if (wakeup) this.wakeDriver(wakingAfterAbort)
   }
 
+  get hasRunnable(): boolean {
+    return this.inbox.hasRunnable
+  }
+
+  enqueue(input: UserMessage, options: EnqueueOptions): void {
+    const turn = this.phase.kind === 'running' ? this.phase.turn : this.phase.lastTurn
+    this.inbox.enqueue(input, {
+      priority: options.priority,
+      passive: options.passive,
+      enqueueSequence: this.inbox.nextSequence,
+      earliestTurn: options.earliestTurn ?? (this.phase.kind === 'running' && options.priority !== 'queue' ? turn : turn + 1),
+    })
+    if (options.wakeup && !options.passive) {
+      this.wakeDriver(this.phase.kind !== 'idle' && this.phase.abort.signal.aborted)
+    }
+  }
+
   followup(input: UserMessage): void {
     this.send(input, 'next-turn', true)
   }
@@ -198,7 +217,7 @@ export class ReactLoopAgent implements Agent {
       } finally {
         this.setPhase({ kind: 'idle', lastTurn: maintenance.lastTurn })
         const cause = abortedCancelCause(maintenance.abort.signal)
-        if (cause?.kind !== 'disposed' && maintenance.wakeRequested && this.inbox.hasPending) this.wakeDriver()
+        if (cause?.kind !== 'disposed' && maintenance.wakeRequested && this.inbox.hasRunnable) this.wakeDriver()
         done.resolve()
       }
     })()
@@ -260,7 +279,7 @@ export class ReactLoopAgent implements Agent {
       if (this.phase.kind === 'running') {
         const { turn, wakeRequested } = this.phase
         this.setPhase({ kind: 'idle', lastTurn: turn })
-        if (wakeRequested && this.inbox.hasPending) this.wakeDriver()
+        if (wakeRequested && this.inbox.hasRunnable) this.wakeDriver()
       }
     }
   }
@@ -390,7 +409,7 @@ export class ReactLoopAgent implements Agent {
         this.throwError(error)
       }
     }
-    if (!this.inbox.hasPending) return false
+    if (!this.inbox.hasRunnable) return false
     phase.abort = new AbortController()
     // A fresh controller makes a latch set on the old one stale: the live driver claims the queue itself.
     phase.wakeRequested = false
