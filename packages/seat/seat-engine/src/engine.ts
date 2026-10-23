@@ -104,6 +104,10 @@ export class SeatEngine extends SeatEngineService {
       if (this.options.config.nodeAliases[input.definition.node] !== this.options.nodeId) {
         return rejected('cross-node-unsupported', 'The seat belongs to another node')
       }
+      if (this.localAccess?.preAdmit) {
+        const refusal = await this.localAccess.preAdmit(input)
+        if (refusal) return refusal
+      }
       const frozenOpen: T.SeatFrozenOpen = { definition: input.definition, title: input.title,
         frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto' }
       const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')

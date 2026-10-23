@@ -27,9 +27,9 @@ Catalogs initially belong to their import source. A recorded authority change pe
 
 ## Window transactions
 
-Traditional creation checks directory ownership before the factory runs. Mismatched or ambiguous ownership returns candidates and opening commands without selecting a seat. Trusted adapters consume one-use traditional confirmations through `seatLocalCreation.confirmTraditional/run`. Free identity is stored beside Session data in the engine journal, not in Session headers or the seat roster. Parent identity comes from durable opening or binding facts.
+Traditional creation checks directory ownership before the factory runs. Mismatched or ambiguous ownership returns candidates and opening commands without selecting a seat. Trusted adapters consume one-use traditional confirmations through `seatLocalCreation.confirmTraditional/run`. Free identity is stored beside Session data in the engine journal, not in Session headers or the seat roster. Parent identity comes from durable opening or binding facts. Free creation registers failure cleanup, so even an unconfirmed factory failure releases temporary ledger attribution before returning. Resume checks admission before residency accounting: durable seat bindings supply attribution, while free or unbound resumes retain the loop's launch-label resolution. Temporary resume bindings are released after factory settlement; the loop owns successful residency attribution. Neither path changes Session headers.
 
-Local single opening invokes optional `before-open` before initial admission; batches invoke `before-batch-open` before their first seat. Accepted operations replay frozen inputs. Manual renewal checks runtime work as well as cache evidence. Window lists display six runtime states independently from engine budget stop and closing, both of which prevent renewal.
+Local single opening invokes optional `before-open` before initial admission; batches invoke `before-batch-open` before their first seat. Direct engine openings use the same policy through registered `preAdmit`, before acceptance or Session effects; a refusal records only the existing policy audit once. Accepted operations replay frozen inputs. Manual renewal checks runtime work as well as cache evidence. Window lists display six runtime states independently from engine budget stop and closing, both of which prevent renewal.
 
 Policy hosts persist worktree registrations and operation identities through the existing storage facility and verify repositories and branches with read-only Git queries. `repositoryId` is the canonical Git common directory. Reminders use existing durable steer delivery; acceptance does not imply model completion.
 
@@ -75,8 +75,7 @@ Reminders append input without cancelling the current step or replacing prior hi
 
 ## Known Limitations and Deferred Work
 
-- Direct engine `openWindow` writes its first admission before the local executor runs. The local creation gate rejects before physical creation but cannot undo accepted facts. The complete remote chain still lacks composition evidence.
-- A free create outside `seatLocalCreation.run` that fails before factory publication retains its preparation binding until provider unload; readonly admission options expose no failure cleanup hook. Free bindings survive reload, but traditional `resume` has no pre-residency hook to override ledger startup labels.
+- The complete remote opening chain still lacks composition evidence.
 - The worktree host lacks a trusted merge target and durable file-activity timestamps, so maturity remains unknown. Forced registration is rejected without an independent authorization provider.
 - Durable prefill admission is unavailable with engines that do not expose the optional opening transaction. The local ingress rejects it rather than sending an unintended first turn.
 - Rename recovery refuses a staged receipt whose title event is absent from the restored Session. It does not infer an outcome or append a speculative replacement event.

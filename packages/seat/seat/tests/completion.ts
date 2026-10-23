@@ -1,8 +1,8 @@
 import type { Context } from '@panedesk/cordis'
+import type { Agent } from '@panedesk/dsh-agent'
 import type { UserMessage } from '@panedesk/dsh-llm'
 import type { Session, SessionEvent, SessionId } from '@panedesk/dsh-session'
 import type { EngineEffect } from '../src/index.ts'
-import { onTestFinished } from 'vitest'
 
 /** Run an operation after subscribing to its input's completed turn.
  * @param ctx - context carrying session events.
@@ -38,6 +38,7 @@ export async function completesTurn<T>(ctx: Context, sessionId: SessionId | ((id
     else completed.reject(new Error(`Input turn ended with ${event.data.reason.kind}`))
   }
   const off = ctx.on('session/event', observe)
+  const { onTestFinished } = await import('vitest')
   onTestFinished(() => { off(); offReceipt() })
   try {
     const [result] = await Promise.all([action(), completed.promise])
@@ -66,6 +67,7 @@ export async function insertsInput<T>(ctx: Context, sessionId: SessionId,
   const off = ctx.on('agent/inbox/inserted', ({ agent, message }) => {
     if (agent.id === sessionId && matches(message)) inserted.resolve(undefined)
   })
+  const { onTestFinished } = await import('vitest')
   onTestFinished(() => { off() })
   try {
     const [result] = await Promise.all([action(), inserted.promise])
@@ -85,6 +87,7 @@ export async function commitsEffect<T>(ctx: Context, matches: (effect: EngineEff
   const off = ctx.on('seat/decision', (decision) => {
     if (decision.effects.some(matches)) committed.resolve(undefined)
   })
+  const { onTestFinished } = await import('vitest')
   onTestFinished(() => { off() })
   try {
     const [result] = await Promise.all([action(), committed.promise])
@@ -104,4 +107,24 @@ export async function seatsReady(ctx: Context): Promise<void> {
       off = () => fiber.dispose()
     })
   } finally { await off?.() }
+}
+
+/** Wait for the owned input interval to reach idle after a committed turn end.
+ * @param ctx - event subscription owner.
+ * @param agent - exact live agent driven by this test.
+ * @param dispatch - synchronous input dispatch after listeners are installed.
+ * @returns completion after a committed turn end and idle, with bounded failure diagnostics.
+ */
+export async function completesIdleTurn(ctx: Context, agent: Agent, dispatch: () => void): Promise<void> {
+  const completed = Promise.withResolvers<undefined>()
+  let ended = false
+  const off = ctx.on('session/event', (session, event) => {
+    if (session.id === agent.id && event.type === 'turn/end') ended = true
+  })
+  const offStatus = ctx.on('agent/status', ({ agent: subject, status }) => {
+    if (subject.id === agent.id && status === 'idle' && ended) completed.resolve(undefined)
+  })
+  const timer = setTimeout(() => { completed.reject(new Error(`Turn completion timed out: ${agent.id}; ended=${ended}`)) }, 10000)
+  try { dispatch(); await completed.promise }
+  finally { clearTimeout(timer); offStatus(); off() }
 }

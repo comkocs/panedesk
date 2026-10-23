@@ -820,6 +820,8 @@ export interface SeatFrozenOpen {
 }
 /** Trusted provider capabilities are registered privately with the engine, never exposed as external authority. */
 export interface SeatEngineLocalAccess {
+  /** Refuse a manual opening before acceptance; omitted preserves admission unchanged. */
+  preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>
   list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>
   close(request: CloseSeatRequest): Promise<CloseSeatResult>
   freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>
