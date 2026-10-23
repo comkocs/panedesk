@@ -501,7 +501,7 @@ export class SeatEngine extends SeatEngineService {
         directories: definition.directories,
         memoryDirectories: definition.memoryDirectories, subscriptions: definition.subscriptions,
         openingDigest: item.frozenOpen?.frozenOpening?.digest ?? digest(definition.opening) }
-      const date = new Intl.DateTimeFormat('en-US', { timeZone: this.options.config.budgetTimeZone,
+      const date = new Intl.DateTimeFormat('en-US', { timeZone: this.ctx.get('seatGates')?.getTimeZone() ?? 'UTC',
         month: '2-digit', day: '2-digit' }).format(new Date()).replace('/', '-')
       const open: T.EngineOpenData = { intentId, sessionId, seatRevision: definition.revision,
         phase: 'intent', completedStages: [], binding,

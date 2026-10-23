@@ -274,10 +274,12 @@ export class LocalSeatService extends SeatService {
       hook: 'before-open', cwd: startup.path, candidateSeats: [request.seat] })
     if (gate !== null) return gate
     const date = new Date().toISOString().slice(0, 10)
+    const titleDate = new Intl.DateTimeFormat('en-US', { timeZone: this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC',
+      month: '2-digit', day: '2-digit' }).format(new Date()).replace('/', '-')
     const opening = renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: request.taskId ?? null }, this.options.maxOpeningBytes)
     const input = { request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' as const },
-      authority, definition, opening, title: `${definition.seat} ${date.slice(5)}` }
+      authority, definition, opening, title: `${definition.seat} ${titleDate}` }
     return engine.openWindow ? engine.openWindow(input) : admitLocalOpen(engine, this.state, input, this.options.nodeName)
   }
   async openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
