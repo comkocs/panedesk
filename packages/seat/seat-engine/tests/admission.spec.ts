@@ -1,5 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
+import type { SessionId } from '@panedesk/dsh-session'
 import { inTimeWindow, reserveOpen } from '../src/admission.ts'
 import { EngineProjection } from '../src/projection.ts'
 import { auto, budget, definition, harness, nodeId, seat, trigger } from './fixtures.ts'
@@ -44,6 +45,33 @@ it('A15 returns the fifth child ticket immediately and admits it after release',
   }
   await h.engine.releaseChild(tickets[0]!.ticketId)
   expect((await h.engine.ticket(tickets[4]!.ticketId))?.phase).toBe('admitted')
+})
+it('limits a transaction-bound permit to one extra seat window without changing node accounting', () => {
+  const projection = new EngineProjection(), def = definition(), old = budget().sessionId
+  const next = 'window-b' as SessionId, epoch = 'epoch-a' as T.OwnerEpoch
+  const permit: T.HandoverPermit = { permitId: 'permit-a' as T.HandoverPermitId,
+    replacementId: 'replacement-a' as T.ReplacementId, oldSessionId: old, newSessionId: next,
+    ownerEpoch: epoch, state: 'issued', issuedAt: '2026-01-01T00:00:00Z', expiredAt: null }
+  projection.resources.set(old, { owner: { sessionId: old, intentId: 'intent-a' as T.OpenIntentId,
+    ownerEpoch: epoch, resourceRevision: 1 }, nodeId, seat, exclusiveTags: ['resource-a'], engineWindowUnits: 1, seatWindowUnits: 1 })
+  const input = { projection, definition: def, nodeId, aliases: { local: nodeId }, engine: true,
+    now: Date.now(), budget: budget(next), sessionId: next, replacement: permit }
+  expect(reserveOpen(input)).toMatchObject({ status: 'pending', reason: 'seat-capacity' })
+  const transaction: T.EngineReplacementData = { replacementId: permit.replacementId,
+    operationId: 'replace-a' as T.SeatOperationId, oldSessionId: old, newSessionId: null,
+    phase: 'queued', permit: null, pending: null, openingMessageId: null, firstTurn: null, failure: null }
+  projection.replacements.set(permit.replacementId, transaction)
+  expect(reserveOpen(input)).toEqual({ status: 'allowed', tags: [] })
+  expect(reserveOpen({ ...input, nodeLimit: 1 })).toMatchObject({ status: 'pending', reason: 'node-capacity' })
+  for (const replacement of [{ ...permit, state: 'expired-success' as const }, { ...permit, state: 'expired-failure' as const },
+    { ...permit, ownerEpoch: 'another-epoch' as T.OwnerEpoch }, { ...permit, newSessionId: 'another-window' as SessionId }]) {
+    expect(reserveOpen({ ...input, replacement })).toMatchObject({ status: 'pending', reason: 'seat-capacity' })
+  }
+  projection.replacements.set(permit.replacementId, { ...transaction, phase: 'opening', newSessionId: next, permit })
+  expect(reserveOpen(input)).toMatchObject({ status: 'pending', reason: 'seat-capacity' })
+  projection.replacements.set(permit.replacementId, transaction)
+  projection.resources.set(next, { ...projection.resources.get(old)!, owner: { ...projection.resources.get(old)!.owner, sessionId: next } })
+  expect(reserveOpen(input)).toMatchObject({ status: 'pending', reason: 'seat-capacity' })
 })
 it('A07 counts reservations and rejects established capacity without reserving partial labels', () => {
   const projection = new EngineProjection(), def = definition()

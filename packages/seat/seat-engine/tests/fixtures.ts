@@ -55,7 +55,7 @@ export async function harness(options: Partial<T.SeatEngineConfig> = {}, keepali
     observe: async open => physical.has(open.sessionId) ? 'matching' : 'absent',
     create: async (open) => { physical.add(open.sessionId); creates.push(open.sessionId); return open.sessionId },
     configure: async () => {}, opening: async () => ({ messageId: 'opening-a' as never, state: state.opening }),
-    replacementFirstTurn: async () => ({ messageId: 'opening-a' as never, turnId: 'turn-a',
+    replacementFirstTurn: async () => state.opening === 'pending' ? null : ({ messageId: 'opening-a' as never, turnId: 'turn-a',
       completed: state.opening === 'completed', hasAssistantReply: state.opening === 'completed' }),
     wakeSender: async (timeout) => { wakes.push(timeout); return 'sent' }, owner: async () => state.owner,
     notifyBudget: async (request) => { if (!warned.has(request.operationId)) { warned.add(request.operationId); warnings.push(request) } },

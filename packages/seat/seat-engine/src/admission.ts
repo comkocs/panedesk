@@ -67,8 +67,11 @@ export function reserveOpen(input: {
   if (input.aliases[definition.node] !== input.nodeId) return { status: 'rejected', code: 'cross-node-unsupported' }
   const resources = [...projection.resources.values()]
   const own = resources.filter(resource => resource.seat === definition.seat)
+  const transaction = replacement ? projection.replacements.get(replacement.replacementId) : undefined
   const handover = replacement?.newSessionId === input.sessionId
     && (replacement.state === 'issued' || replacement.state === 'first-turn-running')
+    && transaction?.phase === 'queued' && transaction.newSessionId === null
+    && transaction.oldSessionId === replacement.oldSessionId
     && own.some(resource => resource.owner.sessionId === replacement.oldSessionId && resource.owner.ownerEpoch === replacement.ownerEpoch)
   const created = own.filter((resource) => {
     const phase = projection.opens.get(resource.owner.sessionId)?.phase
@@ -77,7 +80,9 @@ export function reserveOpen(input: {
   if (!handover && created.length >= definition.maxOpenSessions) return { status: 'rejected', code: 'seat-already-open' }
   if (input.engine && !inTimeWindow(rule?.timeWindows ?? [], input.now)) return pending('time-window')
   if (input.engine && input.nodeLimit !== undefined && resources.reduce((sum, resource) => sum + resource.engineWindowUnits, 0) >= input.nodeLimit) return pending('node-capacity')
-  if (own.reduce((sum, resource) => sum + resource.seatWindowUnits, 0) >= definition.maxOpenSessions) return pending('seat-capacity')
+  // A queued replacement may reserve only its old/new pair; ordinary opens retain the configured limit.
+  const seatLimit = handover ? 2 : definition.maxOpenSessions
+  if (own.reduce((sum, resource) => sum + resource.seatWindowUnits, 0) >= seatLimit) return pending('seat-capacity')
   const tags = handover ? [] : [...new Set(rule?.exclusiveTags ?? [])].sort()
   const blocked = tags.filter(tag => resources.some(resource => resource.exclusiveTags.includes(tag)))
   if (blocked.length) return pending('exclusive-tag', blocked)
