@@ -117,9 +117,11 @@ export function createEngineAccess(service: T.SeatService, options: LocalSeatOpt
           openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto' }
       }
       const date = trigger.receivedAt.slice(0, 10)
+      const titleDate = new Intl.DateTimeFormat('en-US', { timeZone: service['ctx'].get('seatGates')?.getTimeZone() ?? 'UTC',
+        month: '2-digit', day: '2-digit' }).format(new Date(trigger.receivedAt)).replace('/', '-')
       const frozenOpening = renderOpening(await readSeatText(definition.opening, options.maxOpeningBytes),
         { seat: definition.seat, date, taskId: trigger.taskId ?? null }, options.maxOpeningBytes)
-      return { definition, title: `${definition.seat} ${date.slice(5)}`, frozenOpening, openingMode: 'auto' }
+      return { definition, title: `${definition.seat} ${titleDate}`, frozenOpening, openingMode: 'auto' }
     },
   }
 }
