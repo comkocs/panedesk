@@ -307,6 +307,11 @@ Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.t
 Registry provider owns deterministic evaluation, durable hit counts and expiration.
 
 ```ts cordis-catalog
+/** Read the node policy clock's IANA time zone, independently of rule and budget zones.
+ * @returns configured node time zone, or UTC when no override is supplied.
+ */
+getTimeZone(): string
+
 /** Register installed code, never source-provided expressions.
  * @param criterion - typed evaluator with validated parameter ownership.
  * @returns disposer that removes the contribution.

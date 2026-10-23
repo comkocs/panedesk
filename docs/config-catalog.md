@@ -3177,6 +3177,13 @@ export interface WebhookSource {
   projectId: SeatProjectId
   /** Signing key versions mapped to credential references, never secret values. */
   credentialRefs: Readonly<Record<string, string>>
+  /** Optional receipt destination; only HTTP(S) and a registered signing key version are accepted. */
+  callback?: {
+    /** Trusted destination resolved from this registration, never from event data. */
+    url: string
+    /** Signing version present in this source's credentialRefs. */
+    keyVersion: string
+  }
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-seat-remote -->

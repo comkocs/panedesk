@@ -1484,6 +1484,7 @@ flowchart TD
   pkg_seat_remote --> pkg_host_webserver
   pkg_seat_remote --> pkg_sdk_protocol
   pkg_seat_remote --> pkg_seat
+  pkg_seat_remote --> pkg_seat_engine
   pkg_seat_remote --> pkg_typert_protocol
   pkg_ledger_app --> pkg_cmdline
   pkg_ledger_app --> pkg_ledger_query
@@ -1870,7 +1871,7 @@ flowchart TD
 | [`sdk-protocol`](../packages/sdk/protocol) | `sdk` | [`llm`](../packages/llm/llm), [`message-delivery`](../packages/session/message-delivery), [`seat`](../packages/seat/seat), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`ledger-query`](../packages/session/ledger-query) | `session` | [`cmdline`](../packages/boot/cmdline), [`message-delivery`](../packages/session/message-delivery), [`seat`](../packages/seat/seat), [`session-ledger`](../packages/session/session-ledger) |
 | [`seat-app`](../packages/seat/seat-app) | `seat` | [`cmdline`](../packages/boot/cmdline), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat) |
-| [`seat-remote`](../packages/seat/seat-remote) | `seat` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat), [`typert-protocol`](../packages/typert/protocol) |
+| [`seat-remote`](../packages/seat/seat-remote) | `seat` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat), [`seat-engine`](../packages/seat/seat-engine), [`typert-protocol`](../packages/typert/protocol) |
 | [`ledger-app`](../packages/bundle/ledger-app) | `bundle` | [`cmdline`](../packages/boot/cmdline), [`ledger-query`](../packages/session/ledger-query), [`ledger-watch`](../packages/session/ledger-watch), [`session-ledger`](../packages/session/session-ledger) |
 | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
 | [`sdk-jsonrpc-server`](../packages/sdk/server) | `sdk` | [`agent`](../packages/core/agent), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`llm-deepseek-api-key`](../packages/llm/llm-deepseek-api-key), [`scope`](../packages/core/scope), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session), [`session-ledger`](../packages/session/session-ledger), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |

@@ -2554,6 +2554,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Registry provider owns deterministic evaluation, durable hit counts and expiration.',
     methods: [
       {
+        signature: 'getTimeZone(): string',
+        description: 'Read the node policy clock\'s IANA time zone, independently of rule and budget zones.',
+        parameters: [],
+        returns: 'configured node time zone, or UTC when no override is supplied.',
+      },
+      {
         signature: 'abstract register(criterion: GateCriterion): () => void',
         description: 'Register installed code, never source-provided expressions.',
         parameters: [{ name: 'criterion', description: 'typed evaluator with validated parameter ownership.' }],
@@ -6953,7 +6959,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'EngineEventDataMap',
-    declaration: 'export interface EngineEventDataMap {\n    \'cache/keepalive\': EngineKeepAliveData;\n    \'cache/keepalive-skipped\': EngineKeepAliveData;\n    \'git/checkpoint\': EngineGitCheckpoint;\n    \'trigger/accepted\': EngineTriggerData;\n    \'trigger/deduplicated\': EngineTriggerData;\n    \'trigger/coalesced\': EngineTriggerData;\n    \'queue/pending\': PendingSeatItem;\n    \'queue/approved\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'queue/cancelled\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'open/intent\': EngineOpenData;\n    \'open/created\': EngineOpenData;\n    \'open/configured\': EngineOpenData;\n    \'open/opening-failed\': EngineOpenData;\n    \'open/rejected\': {\n        error: SeatFailure;\n        candidates: readonly import(\'./types.ts\').SeatWindowCandidate[];\n    };\n    \'source/rejected\': {\n        sourceId: SeatSourceId;\n        sourceEventId: SourceEventId | null;\n        digest: SeatDigest;\n        error: SeatFailure;\n    };\n    \'seat/binding\': SeatBinding;\n    \'window/closing\': EngineCloseData;\n    \'window/closed\': EngineCloseData;\n    \'window/replacement\': EngineReplacementData;\n    \'callback/pending\': SeatCallbackDelivery;\n    \'callback/attempted\': SeatCallbackDelivery;\n    \'callback/delivered\': SeatCallbackDelivery;\n    \'gate/hit\': EngineGateData;\n    \'gate/expired\': {\n        definition:  /* …truncated — full shape in source */',
+    declaration: 'export interface EngineEventDataMap {\n    \'cache/keepalive\': EngineKeepAliveData;\n    \'cache/keepalive-skipped\': EngineKeepAliveData;\n    \'git/checkpoint\': EngineGitCheckpoint;\n    \'trigger/accepted\': EngineTriggerData;\n    \'trigger/deduplicated\': EngineTriggerData;\n    \'trigger/coalesced\': EngineTriggerData;\n    \'queue/reminded\': EngineReminderData;\n    \'queue/pending\': PendingSeatItem;\n    \'queue/approved\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'queue/cancelled\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'open/intent\': EngineOpenData;\n    \'open/created\': EngineOpenData;\n    \'open/configured\': EngineOpenData;\n    \'open/opening-failed\': EngineOpenData;\n    \'open/rejected\': {\n        error: SeatFailure;\n        candidates: readonly import(\'./types.ts\').SeatWindowCandidate[];\n    };\n    \'source/rejected\': {\n        sourceId: SeatSourceId;\n        sourceEventId: SourceEventId | null;\n        digest: SeatDigest;\n        error: SeatFailure;\n    };\n    \'seat/binding\': SeatBinding;\n    \'window/closing\': EngineCloseData;\n    \'window/closed\': EngineCloseData;\n    \'window/replacement\': EngineReplacementData;\n    \'callback/pending\': SeatCallbackDelivery;\n    \'callback/attempted\': SeatCallbackDelivery;\n    \'callback/delivered\': SeatCallbackDelivery;\n    \'gate/hit\': EngineGateData;\n /* …truncated — full shape in source */',
   },
   {
     name: 'EngineEventId',
@@ -6998,6 +7004,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EngineQueryResult',
     declaration: 'export interface EngineQueryResult {\n    effects: readonly EngineEffect[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n}',
+  },
+  {
+    name: 'EngineReminderData',
+    declaration: 'export interface EngineReminderData {\n    queueItemId: PendingSeatItem[\'queueItemId\'];\n    seat: SeatName;\n    projectId: PendingSeatItem[\'projectId\'];\n    triggerKind: PendingSeatItem[\'triggerKind\'];\n    reason: \'approval\';\n    triggerId: TriggerId;\n    sequence: number;\n    stateVersion: number;\n    remindedAt: SeatTimestamp;\n}',
   },
   {
     name: 'EngineReplacementData',
