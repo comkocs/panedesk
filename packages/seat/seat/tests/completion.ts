@@ -3,6 +3,34 @@ import type { Agent } from '@panedesk/dsh-agent'
 import type { UserMessage } from '@panedesk/dsh-llm'
 import type { Session, SessionEvent, SessionId } from '@panedesk/dsh-session'
 import type { EngineEffect } from '../src/index.ts'
+import type { OpenSeatRequest, OpenSeatResult, SeatService } from '../src/index.ts'
+
+/** Wait for this opening's queue decision before replaying its retained outcome.
+ * @param ctx - context publishing committed engine decisions.
+ * @param seats - authorized opening service.
+ * @param request - unchanged opening identity for submission and replay.
+ * @returns the opening outcome after its pending item leaves the queue.
+ */
+export async function settlesOpening(ctx: Context, seats: SeatService, request: OpenSeatRequest): Promise<OpenSeatResult> {
+  const settled = Promise.withResolvers<undefined>()
+  const cancelled = new Set<string>()
+  let queued: string | undefined
+  const off = ctx.on('seat/decision', (decision) => {
+    for (const effect of decision.effects) {
+      if (effect.kind === 'queue/cancelled') cancelled.add(effect.data.pending.queueItemId)
+    }
+    if (queued !== undefined && cancelled.has(queued)) settled.resolve(undefined)
+  })
+  const { onTestFinished } = await import('vitest')
+  onTestFinished(off)
+  try {
+    const result = await seats.open(request)
+    if (result.status !== 'queued') return result
+    queued = result.queueItemId
+    if (!cancelled.has(queued)) await settled.promise
+    return await seats.open(request)
+  } finally { off() }
+}
 
 /** Run an operation after subscribing to its input's completed turn.
  * @param ctx - context carrying session events.
