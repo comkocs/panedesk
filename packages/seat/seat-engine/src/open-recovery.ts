@@ -15,8 +15,15 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
   let current = journal.projection.opens.get(initial.sessionId) ?? initial
   if (current.phase === 'active' || current.phase === 'opening-failed') return current
   const publish = async (kind: 'open/created' | 'open/configured', updated: EngineOpenData, extra: readonly EngineEffect[] = []) => {
-    await journal.commit(() => [fact({ kind, sessionId: updated.sessionId, ...(updated.binding.kind === 'seat' ? { seat: updated.binding.seat } : {}), data: updated }), ...extra])
-    current = updated
+    await journal.commit((view) => {
+      const latest = view.opens.get(updated.sessionId)
+      const budget = view.budgets.get(updated.sessionId) ?? updated.budget
+      current = { ...updated, budget,
+        ...(latest?.frozenOpening ? { frozenOpening: latest.frozenOpening } : {}),
+        ...(latest?.openingMode ? { openingMode: latest.openingMode } : {}) }
+      return [fact({ kind, sessionId: current.sessionId,
+        ...(current.binding.kind === 'seat' ? { seat: current.binding.seat } : {}), data: current }), ...extra]
+    })
   }
   if (current.phase === 'intent' || current.phase === 'creating') {
     const observed = await executor.observe(current)
@@ -33,6 +40,10 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     if (current.completedStages.includes(stage)) continue
     await executor.configure(current, stage)
     await publish('open/configured', { ...current, phase: 'configuring', completedStages: [...current.completedStages, stage] })
+  }
+  if (current.openingMode === 'prefill') {
+    await publish('open/configured', { ...current, phase: 'active' })
+    return current
   }
   if (current.phase !== 'opening-pending') await publish('open/configured', { ...current, phase: 'opening-pending' })
   const opening = await executor.opening(current)

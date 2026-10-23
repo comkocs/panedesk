@@ -47,7 +47,12 @@ const evidence = discriminated('kind', {
 const trigger = fields({ triggerId: id, sourceId: id, eventId: optional(id), kind: triggerKind, evidence,
   seat: id, projectId: id, receivedAt: timestamp, dataDigest: id, data: json, taskId: optional(id), callbackRef: id,
   cause: optional(fields({ eventId: id, depth: integer })) })
-const pending = fields({ queueItemId: id, seat: id, projectId: id, triggerKind, action: one('open', 'wake-sender', 'replace'),
+const frozenOpening = fields({ text, digest: id, variables: fields({ seat: id,
+  date: value => typeof value === 'string' && /^\d{4}-\d\d-\d\d$/.test(value), taskId: nullable(id) }) })
+const frozenOpen: Check = value => fields({ definition, title: text,
+  openingMode: one('auto', 'prefill'), frozenOpening: optional(frozenOpening) })(value)
+const pending = fields({ frozenOpen: optional(frozenOpen), queueItemId: id, seat: id, projectId: id,
+  triggerKind, action: one('open', 'wake-sender', 'replace'),
   replacementId: optional(id), handoffTimeout: optional(timeout), sequence: positive, effectiveMode: mode,
   reason: pendingReason, blockedBy: array(text), sources: array(trigger), relatedTaskIds: array(id),
   queuedAt: timestamp, stateVersion: positive })
@@ -80,6 +85,7 @@ const binding = discriminated('kind', {
     subscriptions: array(text), openingDigest: id }),
 })
 const open = fields({ definition: optional(definition), sources: optional(array(trigger)), title: optional(text),
+  frozenOpening: optional(frozenOpening), openingMode: optional(one('auto', 'prefill')),
   intentId: id, sessionId: id, seatRevision: integer,
   phase: one('intent', 'creating', 'created', 'configuring', 'opening-pending', 'active', 'opening-failed'),
   completedStages: array(one('workspace', 'model', 'permission', 'subscriptions', 'title', 'binding', 'opening')),
@@ -90,7 +96,7 @@ const report = fields({ reportId: id, sessionId: id, canClose: boolean,
     condition: fields({ description: text }) }), prerequisites: array(text) }), submittedAt: timestamp, stateVersion: integer })
 const endReason = one('manual', 'self-report', 'replaced', 'owner-dead', 'replacement-failed')
 const reportStatus = one('submitted', 'not-submitted', 'revoked')
-const close = fields({ sessionId: id, phase: one('admission', 'rechecking', 'archiving', 'renaming', 'flushing', 'closed'),
+const close = fields({ operationId: optional(id), barrierReleased: optional(boolean), sessionId: id, phase: one('admission', 'rechecking', 'archiving', 'renaming', 'flushing', 'closed'),
   reason: endReason, stateVersion: integer, endedAt: nullable(timestamp), reportId: nullable(id),
   selfReport: nullable(report), selfReportStatus: reportStatus })
 const permit = fields({ permitId: id, replacementId: id, oldSessionId: id, newSessionId: id,
@@ -205,7 +211,9 @@ function consistent(effect: EngineEffect): boolean {
       return pendingConsistent(effect.data.pending) && effect.data.revision === effect.data.previousRevision + 1
     case 'window/closing': case 'window/closed': {
       const data = effect.data
-      return (effect.kind !== 'window/closed' || data.phase === 'closed')
+      return (effect.kind !== 'window/closed' || (data.phase === 'closed' && data.barrierReleased !== true))
+        && (data.barrierReleased !== true || (data.operationId !== undefined && data.endedAt === null
+          && ['admission', 'rechecking'].includes(data.phase)))
         && (data.selfReportStatus !== 'submitted' || (data.selfReport !== null && data.reportId === data.selfReport.reportId))
         && (data.selfReport === null || data.selfReport.sessionId === data.sessionId)
     }

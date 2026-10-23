@@ -25,6 +25,8 @@ Mount the plugin with a complete `Config` and a `sessionLedger` provider. The le
 
 Project policy defaults to `remind` with `modeChosen: false`. Approval removes only reminder confirmation; capacity, time windows, exclusive resources, and budget checks still apply. Incomplete cost evidence blocks admission rather than counting as zero. The local executor owns Session effects; the engine retains original intent identities through recovery and never blindly retries uncertain model requests.
 
+Accepted openings retain their definition, title and rendered text through queueing and recovery; current project and rule mode restrictions still apply. Manual prefill configures the original Session without sending a model request. Opening progress cannot roll back a committed budget revision. Local providers register engine-only list and close capabilities without relaxing external authority checks. Close barriers retain their operation identity, and conflicting replacement terminal summaries fail with `state-conflict` before append.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>

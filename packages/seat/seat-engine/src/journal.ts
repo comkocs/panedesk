@@ -139,6 +139,7 @@ export class EngineJournal {
         sequence: this.projection.sequence + 1, observedAt: metadata?.observedAt ?? new Date().toISOString(),
         nodeId: this.nodeId, policyRevision, effects })
       if (metadata) decodeFrame(canonical(decision), this.maxBytes)
+      this.projection.validate(decision)
       await this.append(decision)
       return decision
     })

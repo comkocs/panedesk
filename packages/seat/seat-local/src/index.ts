@@ -5,7 +5,7 @@ import { SeatStore } from './store.ts'
 import { LocalSeatService } from './service.ts'
 import { createLocalRuntime } from './runtime.ts'
 import { createOpenExecutor } from './executor.ts'
-import { createCloseExecutor } from './close-executor.ts'
+import { createEngineAccess } from './engine-access.ts'
 import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
 import { closingState } from './closing-service.ts'
@@ -69,11 +69,11 @@ export function apply(ctx: Context, config: Config): void {
           const unregisterSource = engine.registerSource({ sourceId: localSourceId, kinds: ['manual'], maxRedeliveryMs: null,
             callback: () => Promise.resolve() })
           const unregister = engine.registerExecutor(createOpenExecutor(child, runtime, config))
-          const unregisterClose = engine.registerCloseExecutor?.(createCloseExecutor(child, runtime, config))
+          const unregisterAccess = engine.registerLocalAccess?.(createEngineAccess(installed, config))
           const recovery = engine.ready().then(() => installed.recover())
           void recovery.catch((error: unknown) => { child.logger.warn('Seat recovery failed', error) })
           return async () => {
-            try { await unregister(); await unregisterClose?.(); await unregisterSource(); await recovery }
+            try { await unregister(); await unregisterAccess?.(); await unregisterSource(); await recovery }
             finally { await installed.pause() }
           }
         })

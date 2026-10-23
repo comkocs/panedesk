@@ -45,6 +45,11 @@ it.each([
   ['budget/reconfigured', 'previousRevision', 9],
   ['resource/reserved', 'engineWindowUnits', 2],
   ['callback/pending', 'payloadDigest', 'wrong-digest'],
+  ['window/closing', 'operationId', false],
+  ['window/closing', 'barrierReleased', 'true'],
+  ['window/closed', 'barrierReleased', true],
+  ['open/intent', 'openingMode', 'unknown'],
+  ['open/intent', 'frozenOpening', { text: 'Text', digest: 'digest', variables: { seat: 'seat-a', date: 'invalid', taskId: null } }],
 ] as const)('rejects inconsistent %s.%s with a decoder reason', (kind, field, value) => {
   expect(() => decodeFrame(encoded(kind, { ...examples[kind], [field]: value }), 200000)).toThrow(/engine effect/)
 })

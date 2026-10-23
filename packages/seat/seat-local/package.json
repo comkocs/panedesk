@@ -43,6 +43,7 @@
     "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-compaction-basic": "workspace:*",
     "@panedesk/dsh-token-meter": "workspace:*",
+    "@panedesk/dsh-jobs-local": "workspace:*",
     "@panedesk/dsh-typert-registry": "workspace:*",
     "@panedesk/dsh-seat-engine": "workspace:*",
     "@panedesk/dsh-message-delivery-local": "workspace:*",

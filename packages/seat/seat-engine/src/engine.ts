@@ -12,8 +12,9 @@ import { TriggerRegistry, rejected, fact } from './triggers.ts'
 import { CallbackOutbox } from './outbox.ts'
 import { effectiveMode, reserveOpen } from './admission.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
-import { queryEngine, exportEngine, verifyEngine } from './query.ts'
+import { queryEngine, exportEngine, verifyEngine, redactPending } from './query.ts'
 import { reconcileOpen } from './open-recovery.ts'
+import { openLocalWindow } from './local-open.ts'
 import { closeEffects } from './closing.ts'
 import { queueReplacement, ReplacementDriver } from './replacement.ts'
 import { KeepAliveScheduler, type KeepAliveRuntime } from './keepalive.ts'
@@ -37,6 +38,7 @@ export class SeatEngine extends SeatEngineService {
   private readonly replacements: ReplacementDriver
   private readonly keepalive: KeepAliveScheduler
   private executor: T.SeatOpenExecutor | undefined
+  private localAccess: T.SeatEngineLocalAccess | undefined
   private activeDrive: Promise<void> | undefined
   private started: Promise<void> | undefined
   private readyAt: string | null = null
@@ -50,8 +52,8 @@ export class SeatEngine extends SeatEngineService {
       options.nodeId, options.config.maxDecisionBytes)
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
     this.outbox = new CallbackOutbox(this.journal, this.sources, options.config)
-    this.replacements = new ReplacementDriver(this.journal, () => dependencies.seats(), options.config.nodeName)
-    this.keepalive = new KeepAliveScheduler(this.journal, () => dependencies.seats(), dependencies.keepalive ?? {
+    this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName)
+    this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {
       remaining: () => Promise.resolve({ kind: 'unknown' }),
       renew: () => Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' }),
     }, async sessionId => (await this.admitTurn(sessionId)).status !== 'allow')
@@ -82,6 +84,31 @@ export class SeatEngine extends SeatEngineService {
     await this.journal.close()
     for (const notify of this.listeners) notify()
   }
+  private internalSeats(): Pick<SeatService, 'resolve' | 'list' | 'close'> | undefined {
+    const seats = this.dependencies.seats(), access = this.localAccess
+    return seats && access ? { resolve: seat => seats.resolve(seat), list: request => access.list(request),
+      close: request => access.close(request) } : seats
+  }
+  override registerLocalAccess = (access: T.SeatEngineLocalAccess): (() => Promise<void>) => {
+    if (this.localAccess) throw new EngineError('invalid-request', 'Local engine access is already registered')
+    this.localAccess = access
+    return async () => { if (this.localAccess === access) this.localAccess = undefined; await this.activeDrive }
+  }
+  override openWindow = async (input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> => {
+    await this.ready()
+    return openLocalWindow(this, input, async (envelope) => {
+      if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
+      if (this.options.config.nodeAliases[input.definition.node] !== this.options.nodeId) {
+        return rejected('cross-node-unsupported', 'The seat belongs to another node')
+      }
+      const frozenOpen: T.SeatFrozenOpen = { definition: input.definition, title: input.title,
+        frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto' }
+      const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')
+      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen)
+      await this.publish()
+      return result
+    })
+  }
   registerSource(source: T.SeatTriggerSource): () => Promise<void> { return this.sources.register(source) }
   registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void> {
     if (this.executor) throw new EngineError('invalid-request', 'An open executor is already registered')
@@ -108,8 +135,11 @@ export class SeatEngine extends SeatEngineService {
       await this.publish()
       return result
     }
-    const rule = definition.rules.find(rule => rule.enabled && rule.trigger.kind === envelope.kind)
-    const result = await this.triggers.accept(envelope, rule?.mode)
+    const receivedAt = new Date().toISOString()
+    const frozenOpen = await this.localAccess?.freeze(definition, { ...envelope, receivedAt }) ?? {
+      definition, title: `${envelope.seat} ${receivedAt.slice(5, 10)}`, openingMode: 'auto' as const }
+    const rule = frozenOpen.definition.rules.find(rule => rule.enabled && rule.trigger.kind === envelope.kind)
+    const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen)
     await this.publish()
     return result
   }
@@ -186,7 +216,7 @@ export class SeatEngine extends SeatEngineService {
     const all = [...this.journal.projection.pending.values()].sort((a, b) => a.sequence - b.sequence)
       .filter(item => (!request.projectId || item.projectId === request.projectId) && (!request.seat || item.seat === request.seat)
         && (!request.cursor || item.sequence > request.cursor.sequence))
-    const items = all.slice(0, request.limit).map(item => ({ ...item, sources: item.sources.map(source => ({ ...source, data: null })) }))
+    const items = all.slice(0, request.limit).map(redactPending)
     const last = items.at(-1)
     return { items, complete: all.length <= request.limit, watermark: this.journal.projection.sequence,
       ...(last ? { nextCursor: { nodeId: this.options.nodeId, sequence: last.sequence, effectIndex: 0 } } : {}) }
@@ -399,9 +429,12 @@ export class SeatEngine extends SeatEngineService {
     }
   }
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
-    const definition = await this.dependencies.seats()?.resolve(item.seat)
+    const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
     const rule = definition.rules.find(rule => rule.enabled && rule.trigger.kind === item.triggerKind)
+    const livePolicy = item.triggerKind === 'manual' ? undefined : await this.dependencies.seats()?.resolve(item.seat)
+    const ruleMode = livePolicy && !('status' in livePolicy)
+      ? livePolicy.rules.find(rule => rule.enabled && rule.trigger.kind === item.triggerKind)?.mode : rule?.mode
     const sessionId = randomUUID() as SessionId
     const budget = await this.readBudget(sessionId, item.seat, {
       ...(rule?.windowBudgetUsd !== undefined ? { windowBudgetUsd: rule.windowBudgetUsd } : {}),
@@ -411,7 +444,7 @@ export class SeatEngine extends SeatEngineService {
       const current = view.pending.get(item.queueItemId)
       if (!current) return []
       const policy = view.policies.get(item.projectId)
-      const mode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', rule?.mode)
+      const mode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
       const pending = (reason: T.PendingReason, blockedBy: readonly string[] = []): T.EngineEffect[] => {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
         return [fact({ kind: 'queue/pending', seat: item.seat, data: { ...current, effectiveMode: mode,
@@ -446,13 +479,15 @@ export class SeatEngine extends SeatEngineService {
         ...(item.relatedTaskIds[0] ? { taskId: item.relatedTaskIds[0] } : {}), relatedTaskIds: item.relatedTaskIds,
         directories: definition.directories,
         memoryDirectories: definition.memoryDirectories, subscriptions: definition.subscriptions,
-        openingDigest: digest(definition.opening) }
+        openingDigest: item.frozenOpen?.frozenOpening?.digest ?? digest(definition.opening) }
       const date = new Intl.DateTimeFormat('en-US', { timeZone: this.options.config.budgetTimeZone,
         month: '2-digit', day: '2-digit' }).format(new Date()).replace('/', '-')
       const open: T.EngineOpenData = { intentId, sessionId, seatRevision: definition.revision,
         phase: 'intent', completedStages: [], binding,
         openingOperationId: operationId, openingMessageId: null, openingDigest: binding.openingDigest, budget, failure: null, definition,
-        sources: current.sources, title: `${item.seat} ${date}` }
+        sources: current.sources, title: item.frozenOpen?.title ?? `${item.seat} ${date}`,
+        ...(item.frozenOpen ? { openingMode: item.frozenOpen.openingMode,
+          ...(item.frozenOpen.frozenOpening ? { frozenOpening: item.frozenOpen.frozenOpening } : {}) } : {}) }
       return [
         ...(replacement && permit ? [fact({ kind: 'window/replacement', data: { ...replacement,
           newSessionId: sessionId, phase: 'opening', permit, pending: null } })] : []),
@@ -520,6 +555,8 @@ export class SeatEngine extends SeatEngineService {
     const open = this.journal.projection.opens.get(sessionId)
     if (!open) return { status: 'allow' }
     if (!this.journal.projection.resources.has(sessionId)) return { status: 'defer', reason: 'owner-unknown' }
+    const closing = this.journal.projection.closing.get(sessionId)
+    if (closing && !closing.barrierReleased) return { status: 'defer', reason: 'configuring' }
     if (open.phase !== 'active' && open.phase !== 'opening-pending') return { status: 'defer', reason: 'configuring' }
     const level = budgetLevel(await this.budget(sessionId))
     return level === 'stopped' ? { status: 'defer', reason: 'budget-stopped' }

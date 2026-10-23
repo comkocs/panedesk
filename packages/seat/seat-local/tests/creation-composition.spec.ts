@@ -27,12 +27,13 @@ import { checkContextEpoch } from './context-composition.ts'
 import { checkChildContext } from './child-context-composition.ts'
 import { checkWindowEcho } from './window-echo-composition.ts'
 import { checkReplacement } from './replacement-composition.ts'
+import { checkFrozenPrefill } from './frozen-composition.ts'
 import { checkDirectories } from './directory-composition.ts'
 import type * as T from '@panedesk/dsh-seat'
 import { operation } from './fixtures.ts'
 import * as Local from '../src/index.ts'
 
-it.each(['budget', 'opening'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
+it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
   const f = await engineFixture(true)
   try {
     f.definition.contextThresholdTokens = 60
@@ -70,13 +71,8 @@ it.each(['budget', 'opening'] as const)('creates and restores the same Session t
     expect(f.ctx.get('messageDelivery')).toBeDefined()
     await f.unregister()
     const executor = createOpenExecutor(f.ctx, f.runtime, f.options)
-    let openingComplete = false
     let unloadLocal: (() => Promise<() => Promise<void>>) | undefined
-    if (scenario === 'budget') {
-      f.engine.registerExecutor({ ...executor,
-        opening: async () => ({ messageId: 'opening-test' as NonNullable<T.EngineOpenData['openingMessageId']>,
-          state: openingComplete ? 'completed' : 'pending' }) })
-    } else {
+    {
       await f.unregisterSource()
       f.ctx.loader.builtins.local = Local
       const localPath = join(f.options.directory, 'local.yml')
@@ -103,7 +99,16 @@ it.each(['budget', 'opening'] as const)('creates and restores the same Session t
       expect(await seats.save({ definition: f.definition, expectedRevision: 1, operationId: operation('save-creation') }))
         .toMatchObject({ status: 'saved' })
     }
+    if (scenario === 'prefill') {
+      if (!seats) throw new Error('Local provider is unavailable')
+      await checkFrozenPrefill(f, seats, adapter)
+      return
+    }
     const openingRequest = { seat: f.definition.seat, origin: 'manual' as const, operationId: operation('open-a'), openingMode: 'auto' as const }
+    const releaseOpening = scenario === 'budget'
+      ? f.ctx.on('agent/turn-admitting', async (_request, next) => {
+        await next(); return { kind: 'defer', reason: 'Inspect budget revision during original opening.' }
+      }) : () => {}
     const opened = seats ? await seats.open(openingRequest) : await f.open()
     if (opened.status !== 'opened') throw new Error('Controlled opening did not create a window')
     expect(f.ctx.agents.get(opened.sessionId)?.id).toBe(opened.sessionId)
@@ -139,8 +144,7 @@ it.each(['budget', 'opening'] as const)('creates and restores the same Session t
       await checkWindowEcho(f, opened.sessionId, adapter)
     } else {
       await checkDirectories(f, opened.sessionId)
-      openingComplete = true
-      await f.engine.drive()
+      expect(f.engine.journal.projection.opens.get(opened.sessionId)?.phase).toBe('opening-pending')
       const releaseTurn = f.ctx.on('agent/turn-admitting', () => ({ kind: 'defer', reason: 'Inspect durable budget delivery.' }))
       try {
         expect(await f.engine.configureBudget({ sessionId: opened.sessionId, limits: { windowBudgetUsd: '100' as T.MicroUsd },
@@ -158,7 +162,7 @@ it.each(['budget', 'opening'] as const)('creates and restores the same Session t
         && JSON.stringify(event.data).includes('budget-warning')).length).toBe(1)
         await f.ctx.sessions.flush(agent.session)
         expect(JSON.stringify((await f.ctx.sessionQuery.readSession(opened.sessionId))?.events)).toContain('budget-warning')
-      } finally { releaseTurn() }
+      } finally { releaseTurn(); releaseOpening() }
     }
     await loop.dispose()
     expect(f.ctx.agents.get(opened.sessionId)).toBeUndefined()

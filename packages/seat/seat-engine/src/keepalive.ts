@@ -31,7 +31,7 @@ export class KeepAliveScheduler {
       const page = await seats?.list({})
       const window = page?.status === 'listed' ? page.sessions.find(item => item.sessionId === open.sessionId) : undefined
       if (!window || window.evidence !== 'complete') { await this.skip(open.sessionId, 'evidence-unavailable', null, null); continue }
-      if (window.engineStatus === 'closing' || window.engineStatus === 'budget-stopped' || window.status !== 'idle'
+      if (window.engineStatus === 'closing' || window.engineStatus === 'budget-stopped' || (window.status !== 'idle' && window.status !== 'completed')
         || window.runningSubagents > 0 || window.activeJobs > 0 || window.busyReasons.length > 0) {
         this.schedules.delete(open.sessionId); continue
       }

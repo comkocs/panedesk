@@ -570,6 +570,8 @@ export type AcceptTriggerResult =
   | SeatRejected
 /** Coalescing retains every source callback and related task reference. */
 export interface PendingSeatItem {
+  /** First accepted opening snapshot; coalescing and dispatch retain this revision. */
+  frozenOpen?: SeatFrozenOpen
   queueItemId: QueueItemId
   seat: SeatName
   projectId: SeatProjectId
@@ -806,6 +808,19 @@ export interface SeatCloseExecutor {
   evidence(sessionId: SessionId): Promise<{ stateVersion: number; busyReasons: readonly SeatBusyReason[] }>
   /** Called only after the close barrier commits; replay must not reopen the window. */
   archive(request: { sessionId: SessionId; operationId: SeatOperationId }): Promise<void>
+}
+/** Accepted configuration and title remain fixed while resource admission is queued. */
+export interface SeatFrozenOpen {
+  definition: SeatDefinition
+  title: string
+  openingMode: 'auto' | 'prefill'
+  frozenOpening?: NonNullable<import('./events.ts').EngineOpenData['frozenOpening']>
+}
+/** Trusted provider capabilities are registered privately with the engine, never exposed as external authority. */
+export interface SeatEngineLocalAccess {
+  list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>
+  close(request: CloseSeatRequest): Promise<CloseSeatResult>
+  freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>
 }
 /** Frozen manual-open input; the engine allocates Session identity and owns resource admission. */
 export interface SeatLocalOpenRequest {

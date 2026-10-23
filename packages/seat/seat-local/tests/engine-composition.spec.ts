@@ -56,6 +56,9 @@ it('releases a pre-archive failure barrier without publishing a terminal window 
       .rejects.toThrow('Close providers are unavailable')
     const facts = (await f.state.read()).effects
     expect(closingState(facts, opened.sessionId)).toMatchObject({ phase: 'admission', barrierReleased: true })
+    expect(f.engine.journal.projection.closing.get(opened.sessionId)).toMatchObject({
+      operationId: operation('close-a'), barrierReleased: true })
+    expect(await f.engine.admitTurn(opened.sessionId)).toEqual({ status: 'allow' })
     expect(facts.filter(effect => effect.kind === 'window/closed' || effect.kind === 'resource/released')).toHaveLength(0)
     expect(await reports.revoke({ sessionId: opened.sessionId, reportId: report.reportId, expectedStateVersion: 1,
       operationId: operation('revoke-close') }, authority)).toMatchObject({ status: 'revoked', stateVersion: 2 })
@@ -79,6 +82,12 @@ it('publishes real close accounting only after archive, title and Session persis
     expect(result.status).toBe('closed')
     expect(await closer.close(request)).toEqual(result)
     expect(record).toHaveBeenCalledOnce()
+    expect(f.engine.journal.projection.closing.get(opened.sessionId)).toMatchObject({ phase: 'closed', operationId: request.operationId })
+    const reports = new ReportStore(f.state)
+    expect(await reports.revoke({ sessionId: opened.sessionId, reportId: 'closed-report' as T.CloseReportId,
+      expectedStateVersion: 1, operationId: operation('revoke-closed') }, {
+      principalId: 'user-a' as T.SeatPrincipalId, origin: 'manual', nodeId: f.options.nodeId,
+    })).toMatchObject({ status: 'rejected', error: { code: 'state-conflict' } })
     expect(flush.mock.invocationCallOrder[0]).toBeLessThan(record.mock.invocationCallOrder[0] ?? 0)
     expect(f.ctx.workspaceRegistry.archivedSessionIds).toContain(opened.sessionId)
     const session = f.ctx.sessions.get(opened.sessionId)
@@ -101,6 +110,7 @@ it('retains the post-archive barrier and resumes flush before releasing the orig
     const facts = (await f.state.read()).effects
     expect(closingState(facts, opened.sessionId)).toMatchObject({ phase: 'admission', operationId: request.operationId })
     expect(closingState(facts, opened.sessionId)?.barrierReleased).not.toBe(true)
+    expect(await f.engine.admitTurn(opened.sessionId)).toMatchObject({ status: 'defer' })
     expect(facts.filter(effect => effect.kind === 'window/closed' || effect.kind === 'resource/released')).toHaveLength(0)
     await first.drain()
     const recovered = new LocalCloser(f.ctx, f.state, f.runtime, f.options)

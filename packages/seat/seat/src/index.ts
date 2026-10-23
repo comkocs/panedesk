@@ -183,7 +183,13 @@ export abstract class SeatEngineService extends Service {
    * @returns durable opening outcome; absence means this provider cannot admit local openings.
    */
   openWindow?: (request: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>
+  /** Register trusted local capabilities for engine-only calls; external seats still require authority.
+   * @param access - provider-owned closures, captured under internal authority.
+   * @returns disposer draining the current engine drive before detaching.
+   */
+  registerLocalAccess?: (access: T.SeatEngineLocalAccess) => () => Promise<void>
   /** Register close effects; the engine owns barriers, version checks and resource release.
+   * @deprecated Local providers own close barriers and executors; publish flushed results with recordClosed.
    * @param executor - public archive and title adapter.
    * @returns disposer that drains in-flight closes before unregistering.
    */
@@ -194,6 +200,7 @@ export abstract class SeatEngineService extends Service {
    */
   replaceWindow?: (request: T.ReplaceSeatRequest) => Promise<T.ReplaceSeatResult>
   /** Serialize archive admission with new work, report revocation and resource release.
+   * @deprecated Use authorized SeatService.close; its provider commits the flushed result with recordClosed.
    * @param request - state-version checked operation and optional current report identity.
    * @returns close result after the registered executor flushes its effects.
    */
@@ -203,6 +210,7 @@ export abstract class SeatEngineService extends Service {
     expectedReportVersion?: number
   }) => Promise<T.CloseSeatResult>
   /** Record renewal source beside the upstream maintenance call, never as conversation text.
+   * @deprecated Use renew, which records the attempt before maintenance and retains its outcome.
    * @param request - retained operation, source and observed result.
    * @returns after the source attribution is durable.
    */

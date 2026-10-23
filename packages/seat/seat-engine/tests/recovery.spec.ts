@@ -1,6 +1,33 @@
 import { afterEach, expect, it } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { auto, definition, harness, seat, trigger } from './fixtures.ts'
+import { fact } from '../src/triggers.ts'
+import { digest } from '../src/journal.ts'
+
+it('retains executor-frozen opening text and a newer budget through replay', async () => {
+  const h = await harness(); cleanups.push(h.close); await auto(h.engine)
+  const create = h.executor.create.bind(h.executor)
+  const frozenOpening = { text: 'Retained opening', digest: digest('Retained opening'),
+    variables: { seat, date: '2026-01-01', taskId: null } }
+  h.executor.create = async (open) => {
+    await h.engine.journal.commit(() => [fact({ kind: 'open/intent', data: { ...open, frozenOpening } })])
+    return create(open)
+  }
+  h.state.opening = 'pending'
+  await h.engine.accept(trigger()); await h.engine.drive()
+  const before = [...h.engine.journal.projection.opens.values()][0]!
+  expect(before.frozenOpening).toEqual(frozenOpening)
+  await h.engine.configureBudget({ sessionId: before.sessionId, expectedRevision: 0,
+    limits: { windowBudgetUsd: '100' as T.MicroUsd }, operationId: 'budget-a' as T.SeatOperationId,
+    authorizationRef: 'authority-a' as T.AuthorizationRef })
+  await h.engine.drive()
+  expect((await h.engine.budget(before.sessionId)).budgetRevision).toBe(1)
+  await h.engine.shutdown()
+  const recovered = await h.start(); await recovered.drive()
+  expect(recovered.journal.projection.opens.get(before.sessionId)?.frozenOpening).toEqual(frozenOpening)
+  expect((await recovered.budget(before.sessionId)).budgetRevision).toBe(1)
+  expect(h.creates).toHaveLength(1)
+})
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup() })
