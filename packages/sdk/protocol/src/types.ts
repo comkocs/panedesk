@@ -41,6 +41,34 @@ export interface MessagesRequestMap {
   'messages/subscribe': { params: MessageSubscriptionRequest; result: MessagesSubscribeResult }
 }
 
+import type * as Seat from '@panedesk/dsh-seat'
+
+/** Additive seat operations retain the provider's request and result declarations. */
+export interface SeatRequestMap {
+  'seats/import.preview': { params: Seat.PreviewSeatImportRequest; result: Seat.SeatImportPlan | Seat.SeatRejected }
+  'seats/import.commit': { params: Seat.CommitSeatImportRequest; result: Seat.CommitSeatImportResult }
+  'seats/setAuthority': { params: Seat.SetSeatAuthorityRequest; result: Seat.SeatCatalogMutationResult }
+  'seats/report.submit': { params: Seat.SubmitCloseReportRequest; result: Seat.CloseReportResult }
+  'seats/wait.register': { params: Seat.RegisterSeatWaitRequest; result: Seat.RegisterSeatWaitResult }
+  'seats/wait.cancel': { params: Seat.CancelSeatWaitRequest; result: Seat.CancelSeatWaitResult }
+  'seats/list': { params: Seat.ListSeatWindowsRequest; result: Seat.ListSeatWindowsResult }
+  'seats/open': { params: Seat.OpenSeatRequest; result: Seat.OpenSeatResult }
+  'seats/openBatch': { params: Seat.OpenSeatBatchRequest; result: Seat.OpenSeatBatchResult }
+  'seats/renew': { params: Seat.RenewSeatRequest; result: Seat.RenewSeatResult }
+  'seats/close': { params: Seat.CloseSeatRequest; result: Seat.CloseSeatResult }
+  'seats/replace': { params: Seat.ReplaceSeatRequest; result: Seat.ReplaceSeatResult }
+  'seats/rename': { params: Seat.RenameSeatRequest; result: Seat.RenameSeatResult }
+  'seats/wake': { params: Seat.WakeSeatRequest; result: Seat.WakeSeatResult }
+  'seats/operation': { params: Seat.SeatOperationQuery; result: Seat.SeatOperationResult }
+  'seats/binding': { params: Seat.SeatBindingRequest; result: Seat.SeatBinding | null | Seat.SeatRejected }
+  'seats/setProjectMode': { params: Seat.SetProjectModeRequest; result: Seat.SetProjectModeResult }
+  'seats/pending': { params: Seat.ListPendingSeatsRequest; result: Seat.ListPendingSeatsResult }
+  'seats/approve': { params: Seat.ApprovePendingSeatRequest; result: Seat.PendingSeatMutationResult }
+  'seats/cancel': { params: Seat.CancelPendingSeatRequest; result: Seat.PendingSeatMutationResult }
+  'seats/gates': { params: Seat.ListSeatGatesRequest; result: Seat.ListSeatGatesResult }
+  'seats/nodeStatus': { params: Record<string, never>; result: Seat.SeatNodeStatus }
+}
+
 /** Expected installed preset version; the server must resolve local policy rather than trust client authority. */
 export interface InitializeExecutionPolicy {
   presetId: string
@@ -210,7 +238,7 @@ export interface HarnessSdkNotificationMap {
 }
 
 /** Client-to-server request methods with their param and result shapes. */
-export interface HarnessSdkRequestMap extends MessagesRequestMap {
+export interface HarnessSdkRequestMap extends MessagesRequestMap, SeatRequestMap {
   'initialize': { params: InitializeParams; result: InitializeResult }
   'session/prompt': { params: SessionPromptParams; result: SessionPromptResult }
   'session/resume': { params: SessionResumeParams; result: Record<string, never> }

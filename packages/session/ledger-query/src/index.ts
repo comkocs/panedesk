@@ -7,6 +7,8 @@ import { mergeLedger, readLedgerExport, verifyLedger, writeExport } from './expo
 import { parseLedgerArgs } from './cli.ts'
 import { executeMessages } from './messages.ts'
 import { MessageArgumentError } from './messages-cli.ts'
+import { EngineArgumentError } from './engine-cli.ts'
+import { executeEngine } from './engine.ts'
 export type * from './types.ts'
 
 declare module '@panedesk/cordis' {
@@ -73,10 +75,15 @@ export class LedgerQueryService extends Service {
   async execute(args: readonly string[]): Promise<{ code: number; output: unknown }> {
     let command: ReturnType<typeof parseLedgerArgs>
     try { command = parseLedgerArgs(args) } catch (error) {
+      if (error instanceof EngineArgumentError) return { code: 2, output: { error: { code: 'invalid-request', message: error.message } } }
       if (!(error instanceof MessageArgumentError)) throw error
       return { code: 2, output: { error: { code: error.code, message: error.message } } }
     }
     switch (command.command) {
+      case 'engine': {
+        if (!command.engine) throw new Error('Missing parsed engine command')
+        return executeEngine(this.ctx, command.engine)
+      }
       case 'messages': {
         if (!command.messages) throw new Error('Missing parsed message command')
         return executeMessages(this.ctx, command.messages)

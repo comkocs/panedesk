@@ -11,6 +11,9 @@
 import type { MessagesRequestMap, HarnessSdkNotificationMap } from './types.ts'
 
 export { JsonRpcLineTransport, JsonRpcResponseError } from './transport.ts'
+export { decodeSeatRequest, decodeSeatResult, isSeatMethod } from './seat.ts'
+export type { SeatRequestMap } from './types.ts'
+export type * from '@panedesk/dsh-seat'
 
 /** Version of the optional same-node message extension. */
 export const MESSAGES_VERSION = 1

@@ -30,12 +30,14 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",
-    "@panedesk/dsh-cmdline": "workspace:*"
+    "@panedesk/dsh-cmdline": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",
-    "@panedesk/dsh-cmdline": "workspace:*"
+    "@panedesk/dsh-cmdline": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*"
   }
 }

@@ -10,6 +10,8 @@
  */
 
 export { DeepSeekHarness, HarnessSession, validatedSessionEvent } from './api.ts'
+export { SeatsClient } from './seats.ts'
+export type { SeatRequestMap } from '@panedesk/dsh-sdk-protocol'
 export type { RunOptions, SessionSendMessageRequest } from './api.ts'
 export type {
   MessagesRequestMap, MessagesSubscribeResult, SendMessageRequest, SendMessageResult,

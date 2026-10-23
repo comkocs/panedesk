@@ -27,9 +27,21 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@panedesk/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-credentials": "workspace:*",
+    "@panedesk/dsh-host-webserver": "workspace:*",
+    "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
-    "@panedesk/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-credentials": "workspace:*",
+    "@panedesk/dsh-host-webserver": "workspace:*",
+    "@panedesk/schemastery": "workspace:~"
   }
 }

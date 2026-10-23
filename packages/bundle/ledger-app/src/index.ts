@@ -24,7 +24,7 @@ export function apply(ctx: Context, config: Config): void {
   if (!args || !ready || !exit) throw new Error('Ledger app requires launcher arguments, readiness and exit services')
   if (args.get().length === 1 && ['--help', '-h'].includes(args.get()[0] ?? '')) {
     ctx.effect(() => ready.onReady(() => {
-      process.stdout.write('Usage: ledger [today|query|export|merge|live|cache|verify|messages] [options]\n')
+      process.stdout.write('Usage: ledger [today|query|export|merge|live|cache|verify|messages|engine] [options]\n')
       exit(0)
     }))
     return

@@ -23,6 +23,8 @@ kind: "package-reference"
 
 从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
 
+`panedesk --profile ledger engine` 通过可选的 seat 提供方分派 `events`、`gates`、`pending`、`export` 与 `verify`。事件保留排他续读游标、完整性及已提交水位；引擎记录与调用和消息账本分离。导出须显式指定 JSONL 输出路径；验证不会执行导入操作。缺少提供方不改变既有调用和消息命令。
+
 `panedesk --profile ledger messages --help` 列出严格校验的消息命令。投递命令使用可选的 `messageDelivery` 服务；消息查询使用可选账本的 `queryMessages` 和 `querySessions` 读取接口，按会话标识联读调用与消息命名空间。缺少提供方时返回明确错误，不改变既有账本命令。人工发送不虚构发送方会话；调用权限由投递提供方绑定。
 
 `send` 只接受一个明确会话号或精确名字、消息类与正文；交接及回复的默认优先级为 `steer`，知会为 `queue`。回复须带 `--reply-to`。控制命令未带 `--expected-revision` 时读取当前修订号，保留显式传入的 `--operation-id`，并区分等待宿主的意图与已裁决结果。`send-batch --dry-run` 和 `resolve` 仅调用只读解析，不发布信箱记录、不唤醒。

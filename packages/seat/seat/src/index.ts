@@ -221,6 +221,16 @@ export abstract class SeatEngineService extends Service {
    * @returns allow or a durable-policy deferral.
    */
   abstract admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission>
+  /** Commit a rejected external-source attempt without admitting it to the opening queue.
+   * @param request - bounded source identity, body digest, observation time and sanitized failure.
+   * @returns only after the source/rejected audit fact is durable; storage failures reject.
+   */
+  abstract auditSourceRejection(request: {
+    sourceId: T.SeatSourceId
+    digest: T.SeatDigest
+    observedAt: T.SeatTimestamp
+    error: T.SeatFailure
+  }): Promise<void>
   /** Register a trusted source without persisting callback code or credentials.
    * @param source - installed source adapter and redelivery horizon.
    * @returns asynchronous disposer that stops ingress and drains accepted calls.
