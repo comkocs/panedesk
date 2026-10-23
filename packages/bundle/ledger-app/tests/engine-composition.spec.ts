@@ -10,7 +10,7 @@ import * as Persistence from '@panedesk/dsh-session-persistence-jsonl'
 import SessionLedger from '@panedesk/dsh-session-ledger'
 import LocalMessageDelivery from '@panedesk/dsh-message-delivery-local'
 import LedgerQuery from '@panedesk/dsh-ledger-query'
-import * as Reader from '@panedesk/dsh-seat-engine/reader'
+import { hit } from './gate-reader-fixtures.ts'
 import { EngineJournal } from '@panedesk/dsh-seat-engine'
 import type { EngineEffect } from '@panedesk/dsh-seat'
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
@@ -44,7 +44,8 @@ it('reads engine commands through the shipped Loader composition without changin
       triggerKind: 'manual', action: 'open', sequence: 1, effectiveMode: 'remind', reason: 'approval',
       blockedBy: [], sources: [], relatedTaskIds: [], queuedAt: '2026-01-01T00:00:00Z', stateVersion: 1,
     } }
-    await journal.commit(() => [effect])
+    const gate = hit(2)
+    await journal.commit(() => [effect, gate])
     await journal.close()
     const segment = (await readdir(join(journal.root, 'events')))[0]!
     const input = join(journal.root, 'events', segment), output = join(home, 'not-created.jsonl')
@@ -61,22 +62,21 @@ it('reads engine commands through the shipped Loader composition without changin
         await ctx.plugin(Loader)
         Object.assign(ctx.loader.builtins, { include: Include, agents: AgentRegistry, sessions: SessionStore,
           projections: SessionProjectionRegistry, persistence: Persistence, ledger: SessionLedger,
-          delivery: LocalMessageDelivery, query: LedgerQuery, reader: Reader, app: App })
+          delivery: LocalMessageDelivery, query: LedgerQuery, app: App })
         provideCmdline(ctx, { args, exit, ready: { onReady(callback) { ready = callback; return () => { ready = undefined } } } })
         const patch = loadOverlayPatches('ledger', fileURLToPath(new URL('../cordis.patch.yml', import.meta.url)))
         const entries = applyEntryPatches([], [...patch,
           { id: 'session-ledger', config: { dshHome: home } },
           { id: 'session-persistence', config: { root: join(home, 'sessions'), compression: 'none' } },
-          { id: 'seat-engine-query', disabled: false, config: { home, maxDecisionBytes } },
           { id: 'message-delivery', config: { dshHome: home, maxRecordBytes: 1048576, maxContentBytes: 65536,
             maxBatchSize: 100, scanIntervalMs: 1000, lockTimeoutMs: 5000, lockRetryMs: 10, watch: false } },
-          { id: 'ledger-app', config: { mode: 'query' } },
+          { id: 'ledger-app', config: { mode: 'query', engineReader: { home, maxDecisionBytes } } },
         ], (message) => { throw new Error(message) })
         const modules: Record<string, string> = {
           '@panedesk/dsh-session-ledger': 'ledger', '@panedesk/dsh-agent': 'agents', '@panedesk/dsh-session': 'sessions',
           '@panedesk/dsh-session-projection': 'projections', '@panedesk/dsh-session-persistence-jsonl': 'persistence',
           '@panedesk/dsh-message-delivery-local': 'delivery', '@panedesk/dsh-ledger-query': 'query',
-          '@panedesk/dsh-seat-engine/reader': 'reader', '@panedesk/dsh-ledger-app': 'app',
+          '@panedesk/dsh-ledger-app': 'app',
         }
         for (const entry of entries) {
           expect(modules[entry.name]).toBeDefined()
@@ -89,22 +89,24 @@ it('reads engine commands through the shipped Loader composition without changin
         expect(ctx.get('seatEngine')).toBeUndefined()
         expect(ctx.get('seatEngineQuery')).toBeDefined()
         expect(ctx.get('seatGates')).toBeUndefined()
+        expect(ctx.get('seatGatesQuery')).toBeDefined()
         expect(exit).not.toHaveBeenCalled()
         ready!()
-        await vi.waitFor(() => { expect(exit).toHaveBeenCalledExactlyOnceWith(args[1] === 'gates' ? 2 : 0) })
+        await vi.waitFor(() => { expect(exit).toHaveBeenCalledExactlyOnceWith(0) })
         const text = String(stdout.mock.calls[0]![0])
         const result: unknown = JSON.parse(text)
-        if (args[1] === 'events') expect(result).toMatchObject({ effects: [effect], complete: true, watermark: 1 })
+        if (args[1] === 'events') expect(result).toMatchObject({ effects: [effect, gate], complete: true, watermark: 1 })
         if (args[1] === 'pending') expect(result).toMatchObject({ items: [effect.data], complete: true, watermark: 1 })
-        if (args[1] === 'export') expect(result).toMatchObject({ count: 1, complete: true, watermark: 1 })
+        if (args[1] === 'export') expect(result).toMatchObject({ count: 2, complete: true, watermark: 1 })
         if (args[1] === 'verify') expect(result).toMatchObject({ status: 'verified' })
-        if (args[1] === 'gates') expect(result).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+        if (args[1] === 'gates') expect(result).toMatchObject({ complete: true, watermark: 1,
+          gates: [{ hitCount: 2, expired: false, limit: { status: 'reached', value: 2, observed: 2 } }] })
         stdout.mockRestore()
-        console.log(JSON.stringify({ command: args.slice(0, 2).join(' '), code: exit.mock.calls[0]![0], output: result }))
+        process.stderr.write(JSON.stringify({ command: args.slice(0, 2).join(' '), code: exit.mock.calls[0]![0], output: result }) + '\n')
       } finally { stdout.mockRestore(); await ctx.fiber.dispose() }
       expect(ready).toBeUndefined()
       expect(await inventory(home)).toEqual(before)
     }
-    console.log('Home inventory and file bytes unchanged after all five commands.')
+    process.stderr.write('Home inventory and file bytes unchanged after all five commands.\n')
   } finally { await journal.close(); await writer.fiber.dispose(); await rm(root, { recursive: true, force: true }) }
 })

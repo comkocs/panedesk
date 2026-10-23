@@ -1,7 +1,7 @@
 import { Context } from '@panedesk/cordis'
 import { provideCmdline } from '@panedesk/dsh-cmdline'
 import LedgerQuery from '@panedesk/dsh-ledger-query'
-import type { SeatEngineService } from '@panedesk/dsh-seat'
+import type { SeatEngineService, SeatGateService, SeatGatesQueryService } from '@panedesk/dsh-seat'
 import { describe, expect, it, vi } from 'vitest'
 import { apply } from '../src/index.ts'
 
@@ -24,6 +24,21 @@ describe('offline engine command projection', () => {
       expect(ctx.get('agents')).toBeUndefined()
     } finally { output.mockRestore(); await ctx.fiber.dispose() }
     expect(ready).toBeUndefined()
+  })
+  it('prefers the gate reader, falls back to live gates and retains unavailable without either', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LedgerQuery)
+    const live = vi.fn(async () => ({ gates: [], complete: true, watermark: 3 }))
+    const offline = vi.fn(async () => ({ gates: [], complete: true, watermark: 7 }))
+    try {
+      expect(await ctx.ledgerQuery.execute(['engine', 'gates'])).toMatchObject({ code: 2, output: { error: { code: 'unavailable' } } })
+      ctx.provide('seatGates', { list: live } as Partial<SeatGateService> as SeatGateService)
+      expect(await ctx.ledgerQuery.execute(['engine', 'gates'])).toMatchObject({ code: 0, output: { watermark: 3 } })
+      ctx.provide('seatGatesQuery', { list: offline } as Partial<SeatGatesQueryService> as SeatGatesQueryService)
+      expect(await ctx.ledgerQuery.execute(['engine', 'gates'])).toMatchObject({ code: 0, output: { watermark: 7 } })
+      expect(live).toHaveBeenCalledTimes(1)
+      expect(offline).toHaveBeenCalledTimes(1)
+    } finally { await ctx.fiber.dispose() }
   })
   it('reports unavailable without a seat plugin rather than querying accounting data', async () => {
     const ctx = new Context()

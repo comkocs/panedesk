@@ -2863,6 +2863,9 @@ importers:
       '@panedesk/dsh-seat-engine':
         specifier: workspace:*
         version: link:../../seat/seat-engine
+      '@panedesk/dsh-seat-gates':
+        specifier: workspace:*
+        version: link:../../seat/seat-gates
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session

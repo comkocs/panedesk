@@ -23,7 +23,7 @@ kind: "package-bundle"
 
 从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
 
-将 `PANEDESK_SEAT_MAX_DECISION_BYTES` 设为目标 writer 的 `maxDecisionBytes`，可启用 `seat-engine-query` reader；也可通过 profile patch 为该行显式指定 `home`、`nodeId` 与 `maxDecisionBytes`。帧上限不从测试夹具推断。未设置时，普通账本命令仍可用，引擎查询返回不可用。引擎命令禁用本地消息投递，避免加载时初始化邮箱。reader 无需挂载 writer 即支持 `engine events`、`pending`、`export` 与 `verify`；导出在 `content` 中返回 JSONL，不写入输出路径。由于未挂载可变闸提供方，`engine gates` 返回不可用；历史闸事实仍可通过 events 查询。
+将 `PANEDESK_SEAT_MAX_DECISION_BYTES` 设为目标 writer 的 `maxDecisionBytes`，或在 `ledger-app` 行的 `engineReader` 中显式设置 `home`、`nodeId` 与 `maxDecisionBytes`。仅 `engine` 命令参数挂载引擎与闸只读服务；其他命令保留默认插件行及服务。不推断帧上限。没有 reader 配置时，引擎查询返回不可用。引擎命令禁用本地消息投递，避免初始化邮箱。reader 无需挂载 writer 即支持 `engine events`、`pending`、`export`、`verify` 与 `gates`；导出在 `content` 中返回 JSONL，不写入输出路径。闸查询从同一个已验证账本前缀重算每个已记录修订的命中次数、到期及上限证据。未记录的策略不列出，未记录的上限为 `unknown`；客户端工作树上限使用已记录的计数和界限。分页游标绑定观测水位，新提交后失效。
 
 <a id="model-experience"></a>
 ## 模型体验
