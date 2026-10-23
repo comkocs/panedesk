@@ -47,7 +47,9 @@ export function readWindowStatus(facts: WindowEvidence): { status: SeatWindowSta
  * @returns refusal or null; the upstream executor must recheck before sending maintenance.
  */
 export function renewalRefusal(facts: WindowEvidence, cache: SeatCacheEvidence, now: number): SeatFailure | null {
-  if (readWindowStatus(facts).busyReasons.length) return rejected('session-busy', 'The window still has outstanding work.', 'Wait for the listed work to settle.').error
+  const busy = readWindowStatus(facts).busyReasons
+  if (busy.length) return rejected('session-busy', `The window still has outstanding work: ${busy.map(reason => reason.summary).join(' ')}`,
+    'Wait for the listed work to settle.').error
   const last = cache.lastActivityAt === null ? NaN : Date.parse(cache.lastActivityAt)
   if (!Number.isFinite(last) || last > now || cache.cacheTtlMs === null || !cache.reusableRequest || cache.prefixDigest === null) {
     return rejected('cache-evidence-unavailable', 'Reusable cache evidence is unavailable.', 'Send a normal task instead of renewing an unknown cache.').error

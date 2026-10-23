@@ -5,6 +5,8 @@ import { SeatStore } from './store.ts'
 import { LocalSeatService } from './service.ts'
 import { createLocalRuntime } from './runtime.ts'
 import { createOpenExecutor } from './executor.ts'
+import { installCreateAdmission } from './create-admission.ts'
+import { installPolicyHosts } from './policy-hosts.ts'
 import { createEngineAccess, registerLocalReadAccess } from './engine-access.ts'
 import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
@@ -44,6 +46,7 @@ export function apply(ctx: Context, config: Config): void {
     const lifecycle = new AbortController()
     let service: LocalSeatService | undefined
     let store: SeatStore | undefined
+    let closeHosts: (() => Promise<void>) | undefined
     const starting = (async () => {
       const facility = ctx.get('storageDomain')
       if (facility === undefined) throw new Error('Catalog storage is unavailable')
@@ -53,6 +56,8 @@ export function apply(ctx: Context, config: Config): void {
       service = new LocalSeatService(ctx, store, config, runtime)
       const installed = service
       registerLocalReadAccess(ctx, installed, config)
+      installCreateAdmission(ctx, installed, store)
+      closeHosts = await installPolicyHosts(ctx, facility)
       const catalog = store
       ctx.on('agent/turn-admitting', async ({ agent }, next) => {
         const upstream = await next()
@@ -133,7 +138,7 @@ export function apply(ctx: Context, config: Config): void {
     void starting.catch((error: unknown) => { ctx.logger.warn('Seat provider startup failed', error) })
     return async () => {
       lifecycle.abort()
-      try { await starting } finally { await service?.stop(); await store?.close() }
+      try { await starting } finally { await service?.stop(); await closeHosts?.(); await store?.close() }
     }
   })
 }

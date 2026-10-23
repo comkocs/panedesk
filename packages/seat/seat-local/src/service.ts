@@ -7,6 +7,7 @@ import { SeatStore, setCatalogAuthority, digest } from './store.ts'
 import { SeatImporter } from './import.ts'
 import { resolveSeat } from './schema.ts'
 import { DirectoryAdmission } from './directory-admission.ts'
+import { openingContext, openingGate } from './open-gates.ts'
 import { rejected, SeatLocalError, refuse } from './errors.ts'
 import { LocalEngineState, localFact } from './engine-state.ts'
 import { ReportStore, latestReport } from './report-store.ts'
@@ -137,6 +138,15 @@ export class LocalSeatService extends SeatService {
     return [...opened.values()].flatMap(open => open.binding.kind === 'seat' && !closed.has(open.sessionId)
       ? [{ binding: open.binding, open }] : [])
   }
+  private async windowEngineStatus(open: T.EngineOpenData, complete: boolean): Promise<T.SeatEngineStatus> {
+    const closing = closingState((await this.state.read()).effects, open.sessionId)
+    if (closing && !closing.barrierReleased && closing.phase !== 'closed') return 'closing'
+    const admission = await this.engine()?.admitTurn(open.sessionId)
+    if (admission?.status === 'defer' && admission.reason === 'budget-stopped') return 'budget-stopped'
+    if (!complete) return 'unknown'
+    if (open.phase !== 'active' && open.phase !== 'opening-pending') return 'configuring'
+    return open.openingMode === 'prefill' ? 'prefilled' : 'active'
+  }
   async list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult> {
     const refusal = await this.guard(request.nodeId)
     if (refusal !== null) return refusal
@@ -151,11 +161,15 @@ export class LocalSeatService extends SeatService {
       const evidence = await this.runtime.evidence(open.sessionId)
       const cache = await this.runtime.cache(open.sessionId)
       const status = readWindowStatus(evidence)
-      const renewRejection = renewalRefusal(evidence, cache, Date.now())
+      const engineStatus = await this.windowEngineStatus(open, evidence.complete)
+      const renewRejection = engineStatus === 'budget-stopped' || engineStatus === 'closing'
+        ? rejected(engineStatus === 'budget-stopped' ? 'budget-stopped' : 'session-busy',
+          `Window admission is ${engineStatus}.`, 'Resolve window admission before renewing.').error
+        : renewalRefusal(evidence, cache, Date.now())
       const activity = evidence.lastActivityAt === null ? NaN : Date.parse(evidence.lastActivityAt)
       const view: T.SeatWindowView = { seat: binding.seat, sessionId: open.sessionId, nodeId: binding.nodeId,
         title: await this.runtime.title(open.sessionId) ?? open.title ?? binding.seat,
-        ...status, engineStatus: evidence.complete ? open.openingMode === 'prefill' ? 'prefilled' : 'active' : 'unknown',
+        ...status, engineStatus,
         evidence: evidence.complete ? 'complete' : 'unknown', idleMinutes: evidence.complete && !evidence.running && Number.isFinite(activity)
           ? Math.max(0, (Date.now() - activity) / 60000) : null,
         runningSubagents: evidence.subagents.length, activeJobs: evidence.jobs.length, canRenew: renewRejection === null,
@@ -224,6 +238,11 @@ export class LocalSeatService extends SeatService {
     if (candidates.length >= definition.maxOpenSessions && request.origin === 'manual') {
       return { status: 'choice-required', candidates, choices: ['switch', 'replace', 'cancel'], defaultChoice: 'switch' }
     }
+    const startup = definition.directories.find(directory => directory.startup)
+    if (!startup) return rejected('invalid-definition', 'Startup directory is unavailable.', 'Set the seat startup directory.')
+    const gate = await openingGate(this.runtime.context, { ...openingContext(this.options.nodeId, request.operationId, request.seat),
+      hook: 'before-open', cwd: startup.path, candidateSeats: [request.seat] })
+    if (gate !== null) return gate
     const date = new Date().toISOString().slice(0, 10)
     const opening = renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: request.taskId ?? null }, this.options.maxOpeningBytes)
@@ -240,6 +259,9 @@ export class LocalSeatService extends SeatService {
     }
     if (request.seats.length > this.options.maxBatchSeats) return rejected('batch-limit-exceeded', 'Batch exceeds the configured limit.', 'Split the explicit list.')
     for (const seat of request.seats) { const definition = await this.resolve(seat); if ('status' in definition) return definition }
+    const gate = await openingGate(this.runtime.context, { ...openingContext(this.options.nodeId, request.operationId, null),
+      hook: 'before-batch-open', seats: request.seats })
+    if (gate !== null) return gate
     const results: { seat: T.SeatName; result: T.OpenSeatResult }[] = []
     for (const seat of request.seats) results.push({ seat, result: await this.open({ ...request, seat,
       operationId: `${request.operationId}:${seat}` as T.SeatOperationId }) })
@@ -250,6 +272,9 @@ export class LocalSeatService extends SeatService {
     if (refusal !== null) return { ...refusal, cacheEvidence: { lastActivityAt: null, cacheTtlMs: null,
       prefixDigest: null, observedAt: new Date().toISOString(), reusableRequest: false } }
     const cacheEvidence = await this.runtime.cache(request.sessionId)
+    const evidence = await this.runtime.evidence(request.sessionId)
+    const renewalError = renewalRefusal(evidence, cacheEvidence, Date.now())
+    if (renewalError !== null) return { status: 'rejected', error: renewalError, cacheEvidence }
     const engine = this.engine()
     if (engine === undefined) return { ...rejected('unavailable', 'Renewal accounting is unavailable.', 'Restore the engine before renewing.'), cacheEvidence }
     return engine.renew({ ...request, source: 'manual' })
