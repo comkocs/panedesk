@@ -23,7 +23,7 @@ Projects the [seat services](../../../docs/subsystems/seat.md) through the `seat
 
 Mount beside the authenticated Remote runtime and seat providers. Calls require the owner principal. The adapter derives authority from the invocation and local engine identity, rejects injected authority fields, and forces remote opening through the automatic provider path. Missing providers return explicit unavailable errors.
 
-Webhook ingress is absent unless `webhook` is configured with a path, bounded body and response timing policy, accepted clock skew, and explicit sources referencing credentials. Rejected source attempts are durably audited through the engine. Do not place credential values in source records or query output.
+Webhook ingress is absent unless `webhook` is configured with a path, bounded body and response timing policy, accepted clock skew, and explicit sources referencing credentials. Each configured source is registered with the engine under the same identity as its HTTP allowlist entry; unloading removes both the route and source registrations after draining requests. Valid signatures enter durable admission; invalid signatures only produce rejection audits. The source callback acknowledges locally and does not send outbound HTTP. Rejected source attempts are durably audited through the engine. Do not place credential values in source records or query output.
 
 <a id="model-experience"></a>
 ## Model Experience

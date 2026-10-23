@@ -129,7 +129,7 @@ const wait = fields({ waitId: id, sessionId: id, mode: one('any', 'all'), object
   phase: one('registered', 'satisfied', 'woken', 'cancelled'), operationId: id, wakeOperationId: id,
   toolCallId: optional(id), rootCallId: optional(id), stateVersion: integer, durability: one('durable', 'best-effort') })
 const child = fields({ ticketId: id, parentSessionId: id, sequence: integer, requestDigest: id, agentPreset: id,
-  permissionRevision: integer, phase: one('queued', 'admitted', 'released', 'cancelled'), childSessionId: nullable(id), ownerEpoch: id, stateVersion: integer })
+  permissionRevision: integer, activation: optional(json), phase: one('queued', 'admitted', 'released', 'cancelled'), childSessionId: nullable(id), ownerEpoch: id, stateVersion: integer })
 const hook = one('before-open', 'before-batch-open', 'before-memory-write', 'before-tool-call',
   'before-subagent-dispatch', 'after-subagent-return', 'after-compaction')
 const gate = fields({ id, name: text, hook, criterion: fields({ type: id, parameters: dictionary(json) }),

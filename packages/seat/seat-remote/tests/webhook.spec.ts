@@ -13,7 +13,7 @@ function fixture() {
   const accept = vi.fn(async (_request: TriggerEnvelope): Promise<AcceptTriggerResult> => ({ status: 'accepted', triggerId: 'trigger-a' as never, queueItemId: 'queue-a' as never, sequence: 1 }))
   const resolve = vi.fn(async () => ({ value: secret, source: 'test' }))
   ctx.provide('credentials', { resolve } as Partial<CredentialProvider> as CredentialProvider)
-  ctx.provide('seatEngine', { accept } as Partial<SeatEngineService> as SeatEngineService)
+  ctx.provide('seatEngine', { accept, registerSource: () => async () => {} } as Partial<SeatEngineService> as SeatEngineService)
   const options: WebhookOptions = { path: '/seat-events', maxBodyBytes: 1024, maxClockSkewMs: 5000, bodyTimeoutMs: 1000,
     sources: [{ sourceId: 'source-a' as never, seat: 'seat-a' as never, projectId: 'project-a' as never, credentialRefs: { current: 'TEST_SOURCE_KEY' } }], audit: vi.fn(async () => {}) }
   const send = async (body: string, headers: Record<string, string> = {}) => {

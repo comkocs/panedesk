@@ -27,6 +27,10 @@ Project policy defaults to `remind` with `modeChosen: false`. Approval removes o
 
 Accepted openings retain their definition, title and rendered text through queueing and recovery; current project and rule mode restrictions still apply. Manual prefill configures the original Session without sending a model request. Opening progress cannot roll back a committed budget revision. Local providers register engine-only list and close capabilities without relaxing external authority checks. Close barriers retain their operation identity, and conflicting replacement terminal summaries fail with `state-conflict` before append.
 
+The Loader installs `subagentAdmission`, `subagentNotifications`, and `jobNotifications`. Seat-bound parents use their definition's child capacity and child-specific cache/context evidence. Completion records live under the node journal's `notifications` directory; job intent writes are synchronous before producer effects, and pending handoff/steer sends reuse stable message operations. Unsettled recovered jobs report unknown owner loss, never replay external work.
+
+Explicit `sources` configure schedule records, registered Git paths/refs, window-ended observations, and unanswered handoff deadlines. Schedule uses the existing `seat.open` action; Git only reads registered repositories. Manual ingress remains with the local provider and signed external ingress with the remote provider. Source callbacks for these observers are local acknowledgements, not outbound HTTP callbacks.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>

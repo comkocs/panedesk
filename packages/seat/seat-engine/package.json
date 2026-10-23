@@ -39,6 +39,10 @@
   },
   "dependencies": {
     "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-jobs": "workspace:*",
+    "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-schedule": "workspace:*",
+    "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",

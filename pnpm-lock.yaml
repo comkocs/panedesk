@@ -12849,9 +12849,18 @@ importers:
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@panedesk/dsh-jobs':
+        specifier: workspace:*
+        version: link:../../jobs/jobs
       '@panedesk/dsh-llm-cache':
         specifier: workspace:*
         version: link:../../llm/llm-cache
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
+      '@panedesk/dsh-schedule':
+        specifier: workspace:*
+        version: link:../../schedule/schedule
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat
@@ -12861,6 +12870,9 @@ importers:
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
       '@panedesk/node-addon-system':
         specifier: workspace:~
         version: link:../../../native/system/packages/entry
