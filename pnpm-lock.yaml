@@ -12773,9 +12773,15 @@ importers:
 
   packages/seat/seat-engine:
     dependencies:
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat

@@ -1,5 +1,7 @@
 /** Explicitly installed engine provider; absent optional services never alter upstream behavior. */
 import type { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-agent'
+import type { CacheRenewOperationId } from '@panedesk/dsh-llm-cache'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import type { SeatEngineConfig } from '@panedesk/dsh-seat'
 import { SeatEngine } from './engine.ts'
@@ -40,6 +42,14 @@ export function validateConfig(config: Config): Config {
  */
 export function apply(ctx: Context, config: Config): void {
   validateConfig(config)
+  ctx.on('agent/turn-admitting', async ({ agent }, next) => {
+    const upstream = await next()
+    if (upstream.kind !== 'allow') return upstream
+    const engine = ctx.get('seatEngine')
+    if (!engine) return upstream
+    const admission = await engine.admitTurn(agent.id)
+    return admission.status === 'allow' ? upstream : { kind: 'defer', reason: admission.reason }
+  })
   ctx.inject(['sessionLedger'], (child) => {
     const ledger = child.get('sessionLedger')
     if (!ledger) return
@@ -48,7 +58,15 @@ export function apply(ctx: Context, config: Config): void {
       const starting = ledger.nodeId().then(async (nodeId) => {
         if (stopped) return
         engine = new SeatEngine(child, { home: resolveDshHome(config.home), nodeId: nodeId, config },
-          { seats: () => child.get('seats'), ledger: () => child.get('sessionLedger') })
+          { seats: () => child.get('seats'), ledger: () => child.get('sessionLedger'), keepalive: {
+            remaining: async (sessionId) => {
+              const agent = child.get('agents')?.get(sessionId), cache = child.get('llmCache')
+              return agent && cache ? cache.remaining(agent) : { kind: 'unknown' }
+            },
+            renew: async (sessionId, operationId) => child.get('llmCache')?.renewOnce({ sessionId,
+              operationId: operationId as string as CacheRenewOperationId })
+              ?? { kind: 'rejected', reason: 'cache-evidence-unavailable' },
+          } })
         await engine.ready()
       })
       void starting.catch(() => { console.error('Seat engine startup failed; ingress is unavailable') })

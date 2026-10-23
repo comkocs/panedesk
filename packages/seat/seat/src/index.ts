@@ -185,6 +185,21 @@ export abstract class SeatEngineService extends Service {
    * @returns disposer that drains in-flight recovery before detaching.
    */
   abstract registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void>
+  /** Queue a replacement without bypassing either window's capacity.
+   * @param request - old window and retained transaction identity.
+   * @returns the durable replacement state.
+   */
+  abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>
+  /** Commit a flushed close together with release and source callbacks.
+   * @param closed - provider-confirmed archive, title and flush result.
+   * @returns after all close facts are durable.
+   */
+  abstract recordClosed(closed: import('./events.ts').EngineCloseData): Promise<void>
+  /** Use the same durable maintenance path as automatic renewal, marked as manual.
+   * @param request - local window and caller-retained operation identity.
+   * @returns renewed, rejected or uncertain without conversation content.
+   */
+  abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>
   /** Reevaluate pending work and original open identities.
    * @returns after the current reconciliation batch settles.
    */

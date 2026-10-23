@@ -56,6 +56,17 @@ it('A17 sends one steer warning and stops only new turns with a complete budget 
   expect(h.callbacks.find(payload => payload.kind === 'budget-stopped')).toMatchObject({ sessionId, seat, budgetSnapshot: { windowCost: '100', costState: 'known' } })
   expect(h.engine.journal.projection.decisions.flatMap(d => d.effects).filter(e => e.kind === 'budget/warning')).toHaveLength(1)
 })
+it('A17 retains a daily-full request without creating or reserving a new window', async () => {
+  const h = await harness(); cleanups.push(h.close); await auto(h.engine)
+  h.definitions.get(seat)!.rules = [{ id: 'rule-a' as T.SeatRuleId, enabled: true,
+    trigger: { kind: 'external', sourceId: trigger().sourceId }, timeWindows: [], exclusiveTags: ['resource-a'],
+    dailyBudgetUsd: '100' as T.MicroUsd }]
+  h.state.snapshot = { asOf: 2, watermarks: {}, complete: true, rows: [call('earlier-window' as SessionId, '0.0001')] }
+  await h.engine.accept(trigger()); await h.engine.drive()
+  expect(h.creates).toEqual([])
+  expect(h.engine.journal.projection.resources.size).toBe(0)
+  expect((await h.engine.pending({ limit: 10 })).items).toEqual([expect.objectContaining({ reason: 'budget-full', seat })])
+})
 it('A17 includes descendants and keepalive while late settlement stays on its original day', () => {
   const sessionId = budget().sessionId, parent = call(sessionId, '0.00002'), child = call('child-a' as SessionId, '0.00003'), keepalive = call(sessionId, '0.00004', 'keepalive')
   child.start = { ...child.start, rootSessionId: sessionId, callId: 'child-call' as LedgerCallStart['callId'] }

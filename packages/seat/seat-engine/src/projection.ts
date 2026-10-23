@@ -20,6 +20,11 @@ export class EngineProjection {
   readonly children = new Map<ChildTicketId, ChildAdmissionTicket>()
   readonly budgets = new Map<SessionId, SeatBudgetSnapshot>()
   readonly fenced = new Set<OwnerEpoch>()
+  readonly closed = new Map<SessionId, import('@panedesk/dsh-seat').EngineCloseData>()
+  readonly replacements = new Map<import('@panedesk/dsh-seat').ReplacementId, import('@panedesk/dsh-seat').EngineReplacementData>()
+  readonly git = new Map<string, import('@panedesk/dsh-seat').EngineGitCheckpoint>()
+  readonly keepalive = new Map<SessionId, import('@panedesk/dsh-seat').EngineKeepAliveData>()
+  readonly renewals = new Map<string, import('@panedesk/dsh-seat').EngineKeepAliveData>()
 
   /** Apply a contiguous committed frame; gaps invalidate this view.
    * @param decision - verified durable frame.
@@ -69,9 +74,16 @@ export class EngineProjection {
           this.children.set(effect.data.ticketId, effect.data); break
         case 'budget/warning': case 'budget/stopped': this.budgets.set(effect.data.sessionId, effect.data); break
         case 'budget/reconfigured': this.budgets.set(effect.data.budget.sessionId, effect.data.budget); break
+        case 'window/closed': this.closed.set(effect.data.sessionId, effect.data); break
+        case 'window/replacement': this.replacements.set(effect.data.replacementId, effect.data); break
+        case 'cache/keepalive': case 'cache/keepalive-skipped':
+          this.keepalive.set(effect.data.sessionId, effect.data)
+          this.renewals.set(JSON.stringify([effect.data.sessionId, effect.data.operationId]), effect.data)
+          break
+        case 'git/checkpoint': this.git.set(JSON.stringify([effect.data.repositoryId, effect.data.ref]), effect.data); break
         // These facts are queried directly; they own no second mutable index here.
         case 'open/rejected': case 'source/rejected': case 'seat/binding': case 'window/closing':
-        case 'window/closed': case 'window/replacement': case 'gate/hit': case 'gate/expired':
+        case 'gate/hit': case 'gate/expired':
         case 'wait/registered': case 'wait/satisfied': case 'wait/woken': case 'wait/cancelled':
         case 'job/observed': case 'memory/audit': case 'report/submitted': case 'report/revoked': break
         default: { const unreachable: never = effect; throw new Error(`Unknown engine effect: ${String(unreachable)}`) }

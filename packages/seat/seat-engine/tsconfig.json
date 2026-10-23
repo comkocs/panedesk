@@ -10,6 +10,8 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../seat" },
+    { "path": "../../core/agent" },
+    { "path": "../../llm/llm-cache" },
     { "path": "../../core/session" },
     { "path": "../../session/session-ledger" },
     { "path": "../../util/home-paths" }

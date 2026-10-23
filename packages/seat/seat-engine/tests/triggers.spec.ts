@@ -6,6 +6,24 @@ const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup() })
 async function setup() { const h = await harness(); cleanups.push(h.close); return h }
 describe('durable trigger admission', () => {
+  it.each(['source-not-found', 'unauthorized'] as const)('audits %s without admitting business work', async (code) => {
+    const h = await setup()
+    const envelope = trigger()
+    if (code === 'source-not-found') envelope.sourceId = 'unregistered-a' as T.SeatSourceId
+    else envelope.callbackRef = 'other-a' as T.SeatSourceId
+    expect(await h.engine.accept(envelope)).toMatchObject({ status: 'rejected', error: { code } })
+    expect(h.engine.journal.projection.pending.size).toBe(0)
+    expect(h.engine.journal.projection.dedup.size).toBe(0)
+    expect(h.engine.journal.projection.decisions.flatMap(item => item.effects)).toMatchObject([
+      { kind: 'source/rejected', data: { sourceId: envelope.sourceId, sourceEventId: envelope.eventId, error: { code } } },
+    ])
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    expect(restarted.journal.projection.decisions.flatMap(item => item.effects)).toMatchObject([
+      { kind: 'source/rejected', data: { error: { code } } },
+    ])
+    expect(h.creates).toEqual([])
+  })
   it.each(['schedule', 'git', 'external', 'window-ended', 'handoff-timeout', 'manual'] as const)('A08 routes %s through each project mode', async (kind) => {
     for (const mode of ['off', 'remind', 'auto'] as const) {
       const h = await setup()
@@ -40,6 +58,12 @@ describe('durable trigger admission', () => {
     h.definitions.get(seat)!.rules = [{ id: 'rule-a' as T.SeatRuleId, enabled: true, trigger: { kind: 'external', sourceId: trigger().sourceId }, mode: 'remind', timeWindows: [], exclusiveTags: [] }]
     await h.engine.drive(); expect(h.creates).toEqual([])
     expect((await h.engine.pending({ limit: 10 })).items[0]?.reason).toBe('approval')
+    expect(await h.engine.projectPolicy(projectId)).toEqual({ projectId, mode: 'auto', modeChosen: true, revision: 3 })
+    h.definitions.get(seat)!.rules = []
+    await h.engine.drive()
+    expect(h.creates).toHaveLength(1)
+    expect((await h.engine.pending({ limit: 10 })).items).toEqual([])
+    expect([...h.engine.journal.projection.opens.values()][0]?.sources?.map(source => source.eventId)).toEqual(['event-a'])
   })
   it('A09 deduplicates three deliveries and rejects conflicting content', async () => {
     const h = await setup(); await auto(h.engine)
