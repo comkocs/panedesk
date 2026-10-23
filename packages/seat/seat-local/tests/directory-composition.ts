@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { engineFixture } from './engine-fixture.ts'
-import { LocalSeatDirectoryService } from '../src/directory-service.ts'
+import type * as T from '@panedesk/dsh-seat'
 import { operation } from './fixtures.ts'
 
 /** Exercise registered directories through the real filesystem and mutable Session policy.
@@ -17,9 +17,14 @@ export async function checkDirectories(f: Awaited<ReturnType<typeof engineFixtur
   if (!agent) throw new Error('Directory owner is unavailable')
   const additional = join(f.options.directory, 'additional')
   await mkdir(additional)
-  const definitions = [{ ...f.definition, directories: [...f.definition.directories,
-    { path: additional, startup: false }] }]
-  const directory = new LocalSeatDirectoryService(f.ctx, f.state, () => definitions)
+  const seats = f.ctx.get('seats')?.withAuthority({ principalId: 'user-a' as T.SeatPrincipalId,
+    origin: 'manual', nodeId: f.options.nodeId })
+  const directory = f.ctx.get('seatDirectories')
+  if (!seats || !directory) throw new Error('Directory services are unavailable')
+  const catalog = await seats.definitions({})
+  expect(await seats.save({ definition: { ...f.definition, directories: [...f.definition.directories,
+    { path: additional, startup: false }] }, expectedRevision: catalog.revision,
+  operationId: operation('directory-definition') })).toMatchObject({ status: 'saved' })
   const root = (await directory.roots(sessionId)).find(item => item.kind === 'additional')
   if (!root) throw new Error('Registered additional root was not exposed')
   const request = { sessionId, rootId: root.rootId, relativePath: 'memo.txt', content: 'First', operationId: operation('directory-write') }

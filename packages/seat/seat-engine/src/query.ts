@@ -33,17 +33,25 @@ export function queryEngine(decisions: readonly EngineDecision[], request: Engin
   }
   return { effects, complete: true, watermark, ...(nextCursor ? { nextCursor } : {}) }
 }
+/** Remove frozen instruction content and raw source data from public queue pages.
+ * @param item - retained queue entry.
+ * @returns metadata-only pending entry.
+ */
+export function redactPending(item: import('@panedesk/dsh-seat').PendingSeatItem): import('@panedesk/dsh-seat').PendingSeatItem {
+  const { frozenOpen: _frozenOpen, ...metadata } = item
+  return { ...metadata, sources: item.sources.map(source => ({ ...source, data: null })) }
+}
 function redact(effect: EngineEffect): EngineEffect {
   if (effect.kind === 'open/intent' || effect.kind === 'open/created' || effect.kind === 'open/configured' || effect.kind === 'open/opening-failed') {
-    const { definition: _definition, ...data } = effect.data
+    const { definition: _definition, frozenOpening: _frozenOpening, ...data } = effect.data
     return { ...effect, data: { ...data, ...(data.sources ? { sources: data.sources.map(source => ({ ...source, data: null })) } : {}) } }
   }
   if (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced' || effect.kind === 'trigger/deduplicated') {
     return { ...effect, data: { ...effect.data, trigger: { ...effect.data.trigger, data: null },
-      pending: { ...effect.data.pending, sources: effect.data.pending.sources.map(source => ({ ...source, data: null })) } } }
+      pending: redactPending(effect.data.pending) } }
   }
-  if (effect.kind === 'queue/pending') return { ...effect, data: { ...effect.data, sources: effect.data.sources.map(source => ({ ...source, data: null })) } }
-  if (effect.kind === 'queue/approved' || effect.kind === 'queue/cancelled') return { ...effect, data: { ...effect.data, pending: { ...effect.data.pending, sources: effect.data.pending.sources.map(source => ({ ...source, data: null })) } } }
+  if (effect.kind === 'queue/pending') return { ...effect, data: redactPending(effect.data) }
+  if (effect.kind === 'queue/approved' || effect.kind === 'queue/cancelled') return { ...effect, data: { ...effect.data, pending: redactPending(effect.data.pending) } }
   return effect
 }
 /** Export only selected facts in stable order, preserving frame sequence for offline verification.

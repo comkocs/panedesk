@@ -7,7 +7,7 @@ import { SeatEngineQueryService, type SeatNodeId, type SeatRejected } from '@pan
 import type * as T from '@panedesk/dsh-seat'
 import { decodeFrame, EngineError } from './journal.ts'
 import { EngineProjection } from './projection.ts'
-import { queryEngine, serializeEngine, verifyEngine } from './query.ts'
+import { queryEngine, serializeEngine, verifyEngine, redactPending } from './query.ts'
 
 /** Node selection never initializes the accounting ledger identity. */
 export interface Config {
@@ -84,7 +84,7 @@ export class SeatEngineReader extends SeatEngineQueryService {
       const all = [...projection.pending.values()].sort((a, b) => a.sequence - b.sequence)
         .filter(item => (!request.projectId || item.projectId === request.projectId) && (!request.seat || item.seat === request.seat)
           && (!request.cursor || item.sequence > request.cursor.sequence))
-      const items = all.slice(0, request.limit).map(item => ({ ...item, sources: item.sources.map(source => ({ ...source, data: null })) }))
+      const items = all.slice(0, request.limit).map(redactPending)
       const last = items.at(-1)
       return { items, complete: complete && all.length <= request.limit, watermark: projection.sequence,
         ...(last ? { nextCursor: { nodeId, sequence: last.sequence, effectIndex: 0 } } : {}) }

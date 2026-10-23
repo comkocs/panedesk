@@ -115,8 +115,10 @@ export class ReplacementDriver {
       const result = await seats.close({ sessionId: target, expectedStateVersion: window.stateVersion,
         operationId: `replace-close:${current.replacementId}:${target}` as T.SeatOperationId })
       if (result.status !== 'closed') return
-      closed = { sessionId: target, phase: 'closed', reason: current.failure ? 'replacement-failed' : 'replaced',
-        stateVersion: result.stateVersion, endedAt: result.endedAt, reportId: null, selfReport: null, selfReportStatus: 'not-submitted' }
+      closed = this.journal.projection.closed.get(target) ?? { sessionId: target, phase: 'closed',
+        operationId: `replace-close:${current.replacementId}:${target}` as T.SeatOperationId,
+        reason: current.failure ? 'replacement-failed' : 'replaced', stateVersion: result.stateVersion,
+        endedAt: result.endedAt, reportId: null, selfReport: null, selfReportStatus: 'not-submitted' }
     }
     const terminal = closed
     await this.journal.commit((view) => {

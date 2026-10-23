@@ -29,9 +29,11 @@ export class TriggerRegistry {
   /** Admit one host-stamped event, preserving all callback subscribers when coalesced.
    * @param envelope - adapter-authenticated bounded payload.
    * @param ruleMode - current rule restriction resolved by the engine.
+   * @param frozenOpen - configuration and text resolved at acceptance.
    * @returns stable acceptance or explicit refusal.
    */
-  async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode): Promise<AcceptTriggerResult> {
+  async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode,
+    frozenOpen?: import('@panedesk/dsh-seat').SeatFrozenOpen): Promise<AcceptTriggerResult> {
     try {
       const result = await this.sources.use<AcceptTriggerResult>(envelope.sourceId, async (source): Promise<AcceptTriggerResult> => {
         if (!source.kinds.includes(envelope.kind) || envelope.evidence.kind !== envelope.kind || envelope.callbackRef !== envelope.sourceId) return rejected('unauthorized',
@@ -73,7 +75,9 @@ export class TriggerRegistry {
             && item.projectId === trigger.projectId && item.triggerKind === trigger.kind
             && (trigger.evidence.kind !== 'handoff-timeout' || item.handoffTimeout?.messageId === trigger.evidence.messageId))
           const sources = [...(previous?.sources ?? []), trigger]
+          const retainedOpen = previous?.frozenOpen ?? frozenOpen
           const pending: PendingSeatItem = {
+            ...(retainedOpen ? { frozenOpen: structuredClone(retainedOpen) } : {}),
             queueItemId: previous?.queueItemId ?? randomUUID() as QueueItemId,
             seat: trigger.seat, projectId: trigger.projectId, triggerKind: trigger.kind,
             action: trigger.kind === 'handoff-timeout' ? 'wake-sender' : 'open',

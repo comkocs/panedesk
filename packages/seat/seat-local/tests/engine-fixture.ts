@@ -40,7 +40,7 @@ export async function engineFixture(withArchive = false) {
   const created: T.EngineOpenData[] = []
   const renewals: T.SeatOperationId[] = []
   const dependencies: EngineDependencies = {
-    seats: () => ({ resolve: async () => def,
+    seats: () => ctx.get('seats') ?? ({ resolve: async () => def,
       list: async () => ({ status: 'listed', sessions: [], unopenedSeats: [], complete: true, snapshotAt: new Date().toISOString() }),
       close: async () => { throw new Error('Session archive is not installed in this fixture') } }),
     ledger: () => ctx.get('sessionLedger') ?? ({ snapshot: async () => ({ rows: [], complete: true, asOf: 0, watermarks: {} }) }),

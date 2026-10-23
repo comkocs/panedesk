@@ -27,7 +27,7 @@ Catalogs initially belong to their import source. A recorded authority change pe
 
 ## Window transactions
 
-Manual opening freezes rendered text and the request in durable ingress. The executor uses the reserved Session identity, binds ledger attribution during creation or resume, configures the window, and sends the opening through durable message delivery. Replacement completion requires the original opening message, a completed containing turn and an assistant reply; a later unrelated reply does not qualify.
+Manual opening freezes the definition, date title, rendered text and request in durable ingress. Prefill returns the frozen draft after configuration without sending input or starting a turn. The provider privately registers trusted engine list and close capabilities; the public unscoped service still rejects calls without authority. The executor uses the reserved Session identity, binds ledger attribution during creation or resume, configures the window, and sends the opening through durable message delivery. Replacement completion requires the original opening message, a completed containing turn and an assistant reply; a later unrelated reply does not qualify.
 
 Manual renewal uses the engine maintenance path. Close blocks new turns, rechecks evidence, archives the Session, pins the closed title and flushes persistence before recording terminal accounting. A failure before archive releases the barrier; a failure after archive retains it for replay. Rename receipts retain the original result, so replaying an earlier rename cannot overwrite a later title. Ambiguous intermediate title history is rejected rather than reported as success.
 
@@ -70,7 +70,4 @@ Reminders append input without cancelling the current step or replacing prior hi
 ## Known Limitations and Deferred Work
 
 - Durable prefill admission is unavailable with engines that do not expose the optional opening transaction. The local ingress rejects it rather than sending an unintended first turn.
-- Engines must preserve the frozen definition and title when admitting queued local ingress. The current dispatcher resolves its own definition and title, so delayed admission across catalog revisions needs engine-side reconciliation.
-- Engine-internal list and close calls require a trusted authority adapter. A replacement driver that republishes a different terminal close after `recordClosed` can report a terminal-state conflict; subsequent reconciliation reads the committed close.
-- Reconfiguring a budget while opening remains pending requires an engine that does not overwrite that revision with the earlier opening snapshot.
 - Rename recovery refuses a staged receipt whose title event is absent from the restored Session. It does not infer an outcome or append a speculative replacement event.

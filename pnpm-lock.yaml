@@ -13020,6 +13020,9 @@ importers:
       '@panedesk/dsh-compaction-basic':
         specifier: workspace:*
         version: link:../../compaction/compaction-basic
+      '@panedesk/dsh-jobs-local':
+        specifier: workspace:*
+        version: link:../../jobs/jobs-local
       '@panedesk/dsh-message-delivery-local':
         specifier: workspace:*
         version: link:../../session/message-delivery-local
