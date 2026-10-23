@@ -26,9 +26,13 @@ describe('memory ownership', () => {
     await writeFile(join(root, 'other.md'), 'data')
     expect((await snapshotMemory([root], 100, 1)).complete).toBe(false)
   })
-  it('refuses another seat and free windows with real authorized-directory alternatives', () => {
-    expect(checkMemoryWrite('/memory/b/note.md', seatA, roots)).toMatchObject({ code: 'memory-seat-mismatch', alternative: 'Use seat_write with an authorized memory directory: /memory/a, /memory/shared.' })
-    expect(checkMemoryWrite('/memory/a/note.md', null, roots)).toMatchObject({ code: 'memory-seat-mismatch', alternative: 'Open the owning seat before writing its memory directory.' })
+  it('refuses another seat and free windows while naming the owning seat', () => {
+    expect(checkMemoryWrite('/memory/b/note.md', seatA, roots)).toMatchObject({ code: 'memory-seat-mismatch',
+      message: 'This memory directory is not authorized for the current seat; its owning seat is seat-b.',
+      alternative: 'Use seat_write with an authorized memory directory: /memory/a, /memory/shared.' })
+    expect(checkMemoryWrite('/memory/a/note.md', null, roots)).toMatchObject({ code: 'memory-seat-mismatch',
+      message: 'This memory directory is not authorized for the current seat; its owning seat is seat-a.',
+      alternative: 'Open the owning seat (seat-a) before writing its memory directory.' })
     expect(checkMemoryWrite('/memory/a/note.md', seatA, roots)).toBeNull()
     expect(checkMemoryWrite('/memory/shared/note.md', seatA, roots)).toBeNull()
     expect(checkMemoryWrite('/memory/another/note.md', null, roots)).toBeNull()
