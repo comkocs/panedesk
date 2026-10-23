@@ -57,9 +57,9 @@ export class LocalCloser {
         return { effects: [], result: rejected('state-conflict', 'Close authorization changed.', 'Read the latest report.') }
       }
       const replacement = effects.findLast(effect => effect.kind === 'window/replacement'
-        && (effect.data.oldSessionId === request.sessionId || effect.data.newSessionId === request.sessionId)
-        && effect.data.phase !== 'completed' && effect.data.phase !== 'failed')
+        && (effect.data.oldSessionId === request.sessionId || effect.data.newSessionId === request.sessionId))
       const reason: T.WindowEndReason = replacement?.kind === 'window/replacement'
+        && replacement.data.phase !== 'completed' && replacement.data.phase !== 'failed'
         ? replacement.data.failure ? 'replacement-failed' : 'replaced' : report ? 'self-report' : 'manual'
       const data: T.EngineCloseData = { sessionId: request.sessionId, operationId: request.operationId,
         phase: 'admission', reason, stateVersion: initial.stateVersion, endedAt: null,
