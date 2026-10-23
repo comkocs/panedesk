@@ -21,6 +21,7 @@ import { JobRegistry, JobId } from '@panedesk/dsh-jobs'
 import type {
   JobAppendOptions, JobEvent, JobEvents, JobHandle, JobKind, JobOutcome, JobOutputRead, JobOutputSource,
   JobRead, JobRegisteredData, JobSettleCause, JobSettledData, JobSpec, JobStatus, JobToolCall, JobView,
+  JobNotificationReservation, JobNotificationState,
 } from '@panedesk/dsh-jobs'
 import { JobEventHub, JobLayer } from './events.ts'
 import { startPump } from './pump.ts'
@@ -76,6 +77,8 @@ interface ProducerState {
 /** The registry's mutable per-job record (never handed out — see {@link LocalJobRegistry.view}). */
 interface TrackedJob {
   id: JobId
+  notification: JobNotificationReservation | undefined
+  notificationState: JobNotificationState
   toolCall: JobToolCall | undefined
   kind: JobKind
   label: string
@@ -238,12 +241,23 @@ export class LocalJobRegistry extends JobRegistry {
       append: (text, options) => { this.appendRing(state, ring, text, options, 'producer') },
       updateProgress: (line) => { this.updateProgress(state, line) },
     }
+    const bridge = this.selfCtx.get('jobNotifications')
+    const intentStartedAt = bridge === undefined ? undefined : Date.now()
+    // A synchronous durable intent is required before side effects. Failure here
+    // rejects start; a throwing producer leaves only that intent for recovery.
+    const notification = bridge?.prepare({
+      jobId: id, kind: spec.kind, label: spec.label, startedAt: intentStartedAt ?? Date.now(),
+      ...owner === undefined ? {} : { owner: owner.id },
+      ...toolCall === undefined ? {} : { toolCall },
+    })
     const hooks = spec.run(handle)
 
     let markSettled!: () => void
     const settled = new Promise<void>((resolve) => { markSettled = resolve })
     const job: TrackedJob = {
       id,
+      notification,
+      notificationState: notification === undefined ? 'best-effort' : 'pending',
       toolCall,
       kind: spec.kind,
       label: spec.label,
@@ -257,7 +271,7 @@ export class LocalJobRegistry extends JobRegistry {
       state,
       detail: undefined,
       result: undefined,
-      startedAt: Date.now(),
+      startedAt: intentStartedAt ?? Date.now(),
       finishedAt: undefined,
       killReason: undefined,
       settleCause: undefined,
@@ -272,6 +286,15 @@ export class LocalJobRegistry extends JobRegistry {
     // call reaches the registered record for its terminal checks and signals.
     state.job = job
     this.store.set(id, job)
+    if (notification !== undefined) {
+      try { notification.running() }
+      catch (_error: unknown) {
+        // Side effects already started: keep the controllable job, never throw
+        // an apparent startup failure that could cause a caller to run it twice.
+        job.notificationState = 'unavailable'
+        this.selfCtx.logger.warn(`jobs: durable running notification unavailable for ${id}; intent retained`)
+      }
+    }
     this.recordSessionEvent(job)
     // Registration is complete and cannot fail from here, so the visible set
     // has genuinely changed. The announcement precedes the pump because the
@@ -305,6 +328,10 @@ export class LocalJobRegistry extends JobRegistry {
       this.settle(job, outcome, job.settleCause ?? 'producer', producerReported)
     })
     return id
+  }
+
+  override notificationState(id: JobId, caller?: SessionId): JobNotificationState {
+    return this.expect(id, caller).notificationState
   }
 
   list(caller?: SessionId): JobView[] {
@@ -626,11 +653,29 @@ export class LocalJobRegistry extends JobRegistry {
     // cursor has not consumed. A job that finishes before its first model
     // read keeps everything the live cap retained until that read.
     job.ring.trim(Math.max(this.settledRetainBytes, job.ring.total - job.modelCursor))
+    if (job.notification !== undefined) {
+      try {
+        job.notification.settled({
+          outcome: { ...outcome, ...job.detail === undefined ? {} : { detail: job.detail } },
+          finishedAt: job.finishedAt, cause, producerReported,
+          eventKind: 'job', messageClass: 'handoff', delivery: 'steer',
+        })
+        job.notificationState = 'accepted'
+      } catch (_error: unknown) {
+        // Producer completion is still true and legacy waiters must be released.
+        // No notification success is claimed; the durable intent/outbox owns
+        // uncertain recovery and must never restart the producer.
+        job.notificationState = 'unavailable'
+        this.selfCtx.logger.warn(`jobs: durable settlement notification unavailable for ${job.id}; recovery required`)
+      }
+    }
     const waitResolvers = [...job.waitResolvers]
     job.waitResolvers.clear()
     for (const resolveWait of waitResolvers) resolveWait()
     job.markSettled()
-    this.emit({ type: 'settled', job: this.view(job), cause, awaited: waitResolvers.length > 0 }, job.owner)
+    this.emit({ type: 'settled', job: this.view(job), cause, awaited: waitResolvers.length > 0,
+      ...job.notification === undefined ? {} : { notificationOwner: 'durable' as const },
+    }, job.owner)
     // The ring's stream ends with settlement; the signal follows the committed
     // settlement so an observer that wakes on it reads the terminal state.
     this.emitOutput(job)

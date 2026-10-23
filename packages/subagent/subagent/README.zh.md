@@ -56,6 +56,12 @@ kind: "package-reference"
 
 容量耗尽时，新建或冷恢复以 `ACTIVATION_LIMIT_REACHED` 拒绝（浏览器消息返回 `subagent/delivery-unavailable`）：等待子代理完成，或继续使用现有代理。接纳不会排队，避免等待后代的父代理又等待自己占用的名额。名额仅存在于当前进程，不限制累计 Session 历史或 token 用量。
 
+### 可选准入与完成投递
+
+`subagentAdmission` 提供方在本地或外部新执行及冷恢复之前预留名额，并在收件箱投递之前核对该子级自身的续派证据，直接 manager 调用同样受约束。提供方负责按父级持久 FIFO、票据、取消与重放；既有 activation 树上限保持独立。`requestActivation()` 立即返回 queued 票据，不等待空位；`startActivation()` 通过 `SubagentQueuedError` 报告同一票据。启动回滚或终态清理后释放预留。未安装提供方时旧准入行为不变。
+
+`subagentNotifications` 提供方在结果完成之前，接纳带稳定执行 run id 与 handoff/steer 元数据的原始完成消息。它负责持久去重与唤醒投递；接纳不确定使结果拒绝，不回退为重复父级消息。未安装时沿用既有父级通知路径。
+
 ### 本地与外部子级
 
 `startActivation({ provider, label, request, signal, delivery })` 返回 `{ childId, messageId?, result, dispose }`。提供 `childId` 会选择本地后端，并保证返回 `messageId`。本地子级接受后续消息并支持冷恢复；外部子级只暴露一次执行，拒绝继续输入。`request.agentOptions` 覆盖后端支持的子级模型设置。`delivery: 'parent'` 提供面向模型的完成通知；`delivery: 'caller'` 让工作流等待结果，不发送父级通知，也不附加初始返回指导。本地父级投递需要持久化，调用方投递可以使用临时本地会话；冷恢复需要持久化与 Session 查询服务。

@@ -10,6 +10,28 @@ import type {} from '@panedesk/dsh-session/types'
 // Type-only: the Workspace registry's archive-admission family map this plugin merges `schedule` into.
 import type {} from '@panedesk/dsh-workspace/types'
 
+/** JSON data persisted independently of Session reminder records. */
+export type ScheduleActionPayload = null | boolean | number | string | ScheduleActionPayload[] | { [key: string]: ScheduleActionPayload }
+
+/** Durable action task accepted by an installed action handler. */
+export interface ScheduleActionRequest {
+  readonly record: ScheduleRecord
+  readonly actionId: string
+  readonly payload: ScheduleActionPayload
+}
+
+/** Stable occurrence identity survives retries and Host restarts. */
+export interface ScheduleActionDispatch extends ScheduleActionRequest {
+  readonly eventId: string
+  readonly scheduledAt: string
+}
+
+/** Acknowledgment means durable acceptance, never model completion. */
+export type ScheduleActionReceipt = { readonly status: 'accepted' | 'skipped-disabled' }
+
+/** Rejecting leaves the same occurrence pending for retry. */
+export type ScheduleActionHandler = (request: ScheduleActionDispatch) => Promise<ScheduleActionReceipt>
+
 /** Stable globally unique reminder identity. */
 export type ScheduleId = Branded<'ScheduleId'>
 

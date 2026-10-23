@@ -35,7 +35,7 @@ import type { ActivationObserver } from './lifecycle.ts'
 import type {
   ContinuableCreateRequest, ContinuableCreateSpec, SubagentInterruptAuthority,
   SubagentActivationSpec, SubagentActivation, SubagentStartRequest, SubagentRun,
-  SubagentSendMessageOptions, SubagentResult, ResolvedSubagentStartRequest,
+  SubagentSendMessageOptions, SubagentResult, ResolvedSubagentStartRequest, SubagentQueued, SubagentReservation,
 } from './types.ts'
 import { attachStructuredRuntime } from './structured.ts'
 import { definitionOptions, installExecutionPolicy, resolveExecutionPolicy } from './execution-policy.ts'
@@ -130,6 +130,14 @@ type SettlementAttempt =
 /** Render only the safe outer message from execution or teardown failures. */
 function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'unknown teardown failure'
+}
+
+/** Legacy activation callers receive a typed ticket instead of waiting for capacity. */
+export class SubagentQueuedError extends Error {
+  constructor(readonly ticket: SubagentQueued) {
+    super('Subagent queued; observe the ticket and end the turn instead of retrying.')
+    this.name = 'SubagentQueuedError'
+  }
 }
 
 /** Own subagent requests and the resources of every live activation. */
@@ -383,6 +391,43 @@ export class SubagentManager {
    * @returns the durable child id and accepted initial prompt message id.
    */
   async startLocal(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
+    return this.admitStart(spec, () => this.startLocalAdmitted(spec))
+  }
+
+  private async admitStart<T extends SubagentActivation>(spec: SubagentActivationSpec, start: () => Promise<T>): Promise<T> {
+    this.assertAdmitting(spec.request.parent)
+    const policy = this.ctx.get('subagentAdmission')
+    if (policy === undefined) return start()
+    const admission = await policy.acquire(spec)
+    if (admission.status === 'queued') throw new SubagentQueuedError(admission)
+    let activation: T
+    try {
+      spec.signal.throwIfAborted()
+      this.assertAdmitting(spec.request.parent)
+      activation = await start()
+    } catch (error: unknown) {
+      await admission.release()
+      throw error
+    }
+    const result = this.releaseAdmissionOnSettlement(activation.result, admission, activation.childId)
+    return { ...activation, result }
+  }
+
+  private releaseAdmissionOnSettlement(
+    settlement: Promise<SubagentResult>, admission: SubagentReservation, childId: SessionId,
+  ): Promise<SubagentResult> {
+    const result = settlement.then(
+      async (value) => { await admission.release(childId); return value },
+      async (error: unknown) => { await admission.release(childId); throw error },
+    )
+    // Background callers need no result await, but policy persistence failures remain observable.
+    void result.catch((error: unknown) => {
+      this.ctx.logger.warn(`subagent admission settlement failed: ${failureMessage(error)}`)
+    })
+    return result
+  }
+
+  private async startLocalAdmitted(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
     const request = spec.request
     const parent = request.parent
     this.assertAdmitting(parent)
@@ -514,6 +559,10 @@ export class SubagentManager {
    * @returns the accepted activation and its result/disposal capabilities.
    */
   async startExternal(spec: SubagentActivationSpec): Promise<SubagentActivation> {
+    return this.admitStart(spec, () => this.startExternalAdmitted(spec))
+  }
+
+  private async startExternalAdmitted(spec: SubagentActivationSpec): Promise<SubagentActivation> {
     const parent = spec.request.parent
     this.assertAdmitting(parent)
     const pendingId = brandString<SessionId>(randomUUID())
@@ -1232,7 +1281,12 @@ export class SubagentManager {
     this.resident.delete(childId)
     activation.releaseSlot()
     const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
-    this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
+    try {
+      await this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
+    } catch (error: unknown) {
+      resultFailure = { error }
+      failure ??= new SubagentError('Subagent settlement notification was not durably accepted', 'ACTIVATION_TEARDOWN_FAILED', { cause: error })
+    }
     this.releaseOwnership(childId)
     activation.observer.settle(terminal)
     if (resultFailure === undefined) activation.result.resolve(result)
@@ -1241,8 +1295,19 @@ export class SubagentManager {
   }
 
   /** Deliver the captured execution result to the durable direct parent after cleanup. */
-  private notifySettlement(activation: Activation, terminal: SubagentResult): void {
+  private async notifySettlement(activation: Activation, terminal: SubagentResult): Promise<void> {
     if (!activation.announced || activation.delivery === 'caller') return
+    const notifications = this.ctx.get('subagentNotifications')
+    if (notifications !== undefined) {
+      // The bridge owns durable delivery even when the original parent is no longer resident.
+      // Failure must reach activation.result; falling back would duplicate an uncertain acceptance.
+      await notifications.accept({
+        parent: activation.parent, childId: activation.childId, runId: activation.observer.runId, result: terminal,
+        message: createSettlementMessage(activation.childId, terminal, activation.kind === 'local'),
+        eventKind: 'subagent', messageClass: 'handoff', delivery: 'steer',
+      })
+      return
+    }
     try {
       const parent = this.ctx.agents.get(activation.parent.id)
       if (parent !== activation.parent) return
@@ -1291,6 +1356,12 @@ export class SubagentManager {
     options: ChildDeliveryOptions,
   ): Promise<MessageId> {
     this.assertAdmitting(parent)
+    const admission = this.ctx.get('subagentAdmission')
+    if (admission !== undefined) {
+      await admission.continue(parent, childId)
+      this.assertAdmitting(parent)
+    }
+    options.signal.throwIfAborted()
     const releaseHold = this.holdOwnership(parent, childId)
     try {
       return await this.deliverFollowup(parent, childId, content, options)
@@ -1410,6 +1481,9 @@ export class SubagentManager {
         'NOT_RESUMABLE',
       )
     }
+    const policy = this.ctx.get('subagentAdmission')
+    const admission = policy === undefined ? undefined : await policy.resume(parent, childId)
+    if (admission?.status === 'queued') throw new SubagentQueuedError(admission)
     let activation: Activation
     try {
       const independentlySelected = hasIndependentPresetSelection(ownEvents)
@@ -1445,10 +1519,12 @@ export class SubagentManager {
         signal: options.signal,
       })
     } catch (error: unknown) {
+      await admission?.release()
       options.signal.throwIfAborted()
       if (error instanceof SubagentError) throw error
       throw new SubagentError(`subagent "${childId}" is unavailable`, 'NOT_RESUMABLE', { cause: error })
     }
+    if (admission !== undefined) void this.releaseAdmissionOnSettlement(activation.result.promise, admission, childId)
     return await this.submitMaterialized(activation, content, options, parent)
   }
 

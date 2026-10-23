@@ -29,6 +29,8 @@ import type SubagentRuntime from './index.ts'
  * in-package contract rather than a published extension point.
  */
 export interface ActivationObserver {
+  /** Stable identity shared by durable completion and its notification outbox. */
+  readonly runId: SubagentRunInfo['runId']
   /**
    * Publish the start edge once the epoch is resident.
    * @param child - the resident local Agent, or undefined for an external execution.
@@ -138,6 +140,7 @@ export function createActivationObserver(
       nodeId: context.nodeId, observedAt: Date.now(), runId, sessionId: childId }
   }
   return {
+    runId: identity.runId,
     prepare: async (request, policy) => {
       if (boundary === undefined) return
       identity.local = true

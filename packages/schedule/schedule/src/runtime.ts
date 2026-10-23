@@ -35,6 +35,7 @@ export class ScheduleRuntime {
     private readonly transact: (work: () => Promise<void>) => Promise<void>,
     private readonly commit: (task: ScheduleTask) => Promise<void>,
     private readonly retention: DeliveryRetentionBounds,
+    private readonly actions?: { drive(stopping: () => boolean): Promise<number | undefined> | undefined },
   ) {}
 
   /**
@@ -152,11 +153,18 @@ export class ScheduleRuntime {
       }
     }
     if (this.stopping) return
+    const actionDrive = this.actions?.drive(() => this.stopping)
+    let actionNext: number | undefined
+    if (actionDrive !== undefined) {
+      actionNext = await actionDrive
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- Disposal can run while action persistence is awaited.
+      if (this.stopping) return
+    }
     const next = this.tasks().filter(task => task.status === 'active' && !failed.has(task.record.id))
       .reduce<number | undefined>((at, task) => {
         const target = Date.parse(task.record.scheduledAt)
         return at === undefined ? target : Math.min(at, target)
-      }, undefined)
+      }, actionNext)
     if (next !== undefined) {
       this.timer = setTimeout(() => { this.timer = undefined; this.requestDrive() },
         Math.max(0, Math.min(next - Date.now(), MAX_TIMER_DELAY_MS)))

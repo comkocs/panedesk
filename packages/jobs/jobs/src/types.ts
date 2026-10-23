@@ -65,6 +65,51 @@ declare module '@panedesk/dsh-session/types' {
   }
 }
 
+/** Durability of the optional notification outbox, independent of producer outcome. */
+export type JobNotificationState = 'best-effort' | 'pending' | 'accepted' | 'unavailable'
+
+/** Identity committed before a synchronous producer may perform side effects. */
+export interface JobIntent {
+  readonly jobId: JobId
+  readonly owner?: SessionId
+  readonly kind: JobKind
+  readonly label: string
+  readonly startedAt: number
+  readonly toolCall?: JobToolCall
+}
+
+/** Synchronous durable writes preserve the existing synchronous start API. */
+export interface JobNotificationReservation {
+  /** Commit running; failure leaves the durable intent for owner-lost recovery. */
+  running(): void
+  /**
+   * Commit the terminal fact and its outbox entry before scheduling delivery.
+   * Throws when acceptance is uncertain; retries must deduplicate by jobId.
+   * The bridge owns handoff/steer delivery and recovery, never producer replay.
+   * @param observation - Producer outcome and waking event metadata.
+   */
+  settled(observation: {
+    readonly outcome: JobOutcome
+    readonly finishedAt: number
+    readonly cause: JobSettleCause
+    readonly producerReported: boolean
+    readonly eventKind: 'job'
+    readonly messageClass: 'handoff'
+    readonly delivery: 'steer'
+  }): void
+}
+
+/** Optional durable outbox provider; absence retains legacy best-effort behavior. */
+export interface JobNotifications {
+  /**
+   * Persist intent synchronously before run; a throw prevents producer execution.
+   * Unsettled recovered intents report unknown/owner-lost, never success or replay.
+   * @param intent - Immutable execution identity and owner.
+   * @returns An execution-bound writer retained across bridge unregistration.
+   */
+  prepare(intent: JobIntent): JobNotificationReservation
+}
+
 /** Terminal result supplied by a producer through {@link JobHooks.done}. */
 export interface JobOutcome {
   /** How the job ended: finished (`completed`), cancelled (`killed`), or broke (`failed`). */
@@ -270,6 +315,8 @@ export type JobEvent =
      * aborted before the settlement does not count.
      */
     readonly awaited: boolean
+    /** Execution-bound durable bridge owns delivery, including uncertain-write recovery. */
+    readonly notificationOwner?: 'durable'
   }
   | {
     readonly type: 'output'

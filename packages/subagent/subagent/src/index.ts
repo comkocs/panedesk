@@ -68,7 +68,7 @@ import { SubagentError } from './error.ts'
 import { assertSubagentMaxDepth } from './depth.ts'
 import { createActivationObserver, createLifecycleEmitter } from './lifecycle.ts'
 import type { ActivationObserver, LifecycleEmitter } from './lifecycle.ts'
-import SubagentManager from './manager.ts'
+import SubagentManager, { SubagentQueuedError } from './manager.ts'
 import { listChildren as listSubagentChildren, listDescendants as listSubagentDescendants } from './list-children.ts'
 import type { SubagentDescendantListEntry } from './list-children.ts'
 import { installSubagentArchiveAdmission } from './archive-admission.ts'
@@ -82,6 +82,8 @@ export * from './out-of-process.ts'
 export { recordExternalRun, type ExternalLedgerSpec } from './external-ledger.ts'
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
 export { SubagentRunId } from './types.ts'
+export type { SubagentAdmission, SubagentReservation, SubagentQueued, SubagentNotifications } from './types.ts'
+export { SubagentQueuedError } from './manager.ts'
 export type {
   ContinuableCreateRequest,
   ContinuableCreateSpec,
@@ -282,6 +284,19 @@ export class SubagentRuntime extends TypertRemoteService {
     return provider.prepareContinuable === undefined
       ? manager.startExternal(spec)
       : manager.startLocal(spec)
+  }
+
+  /**
+   * @param spec - Task, backend, and result recipient.
+   * @returns An activation or a durable queued ticket without waiting for capacity.
+   */
+  async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import('./types.ts').SubagentQueued> {
+    try {
+      return await this.startActivation(spec)
+    } catch (error: unknown) {
+      if (error instanceof SubagentQueuedError) return error.ticket
+      throw error
+    }
   }
 
   /**

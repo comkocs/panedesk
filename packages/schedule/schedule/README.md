@@ -54,6 +54,10 @@ Archiving a Session with active reminders is refused until they stop, and choosi
 
 Every update is a complete-record compare-and-set inside the same FIFO as creation and deletion, and it preserves the task id, original Session binding, status, latest receipt, and complete saved history. Missing tasks or wrong bindings return `schedule_not_found`; inactive tasks return `schedule_ended`. If delivery, target advancement, or another edit changed the expected record, the update returns `schedule_conflict` without overwriting it. Name, instruction, and timing validation errors retain their specific codes; storage failures reject rather than report persisted success. Refresh the catalog and capture a new expected record before retrying a conflict. See the [task page](../../client/ui-schedule/README.md) for the staged form's Save and Cancel behavior.
 
+### Registered actions
+
+`registerAction()` installs an effect-scoped durable acceptor. `scheduleAction()` stores its existing recurrence record and JSON payload in the independent `schedule_actions` version-1 domain, without binding or resolving a Session. The shared Host timer freezes an occurrence id before dispatch; acceptance or an explicit disabled receipt advances it, while rejection retains the same id for retry after `actionRetryMs` (default 1000). Handlers must deduplicate that id and acknowledge durable acceptance rather than downstream execution. Unavailable handlers retain tasks until registration; unloading the registering fiber removes the handler. `listActions()` and `deleteAction()` inspect or remove this separate task set. Legacy reminders and their storage remain unchanged.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 

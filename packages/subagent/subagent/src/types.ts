@@ -52,6 +52,70 @@ export function SubagentRunId(id: string): SubagentRunId {
   return id as SubagentRunId
 }
 
+/** Queue identity returned before an activation exists. */
+export interface SubagentQueued {
+  readonly status: 'queued'
+  readonly ticketId: Branded<'SeatChildTicketId'>
+  readonly parentSessionId: SessionId
+}
+
+/** Optional policy reserves capacity before the original parent-chain pool. */
+export interface SubagentAdmission {
+  /**
+   * @param spec - Validated start request; the provider owns durable FIFO and replay.
+   * @returns A reservation or a nonblocking queue ticket.
+   */
+  acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>
+  /**
+   * @param parent - Authorized parent requesting another child turn.
+   * @param childId - Child whose own cache/context evidence must be checked.
+   * @returns Only after continuation policy permits input; rejection must include an alternative.
+   */
+  continue(parent: Agent, childId: SessionId): Promise<void>
+  /**
+   * Reserve capacity for a cold activation after durable lineage validation.
+   * @param parent - Authorized direct parent.
+   * @param childId - Existing child; never create another identity on replay.
+   * @returns A reservation or a durable nonblocking ticket.
+   */
+  resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>
+}
+
+/** A policy reservation is released after startup rollback or final cleanup. */
+export interface SubagentReservation {
+  readonly status: 'reserved'
+  /**
+   * @param childId - Published child, absent when startup failed.
+   * @returns After durable release and FIFO selection commit.
+   */
+  release(childId?: SessionId): Promise<void>
+}
+
+/** Optional bridge accepts the original settlement message instead of duplicating it. */
+export interface SubagentNotifications {
+  /**
+   * @param request - Original parent, child, result and model-visible message.
+   * @returns After durable outbox acceptance; retries must deduplicate the run identity.
+   */
+  accept(request: {
+    parent: Agent
+    childId: SessionId
+    runId: SubagentRunId
+    result: SubagentResult
+    message: import('@panedesk/dsh-llm').UserMessage
+    eventKind: 'subagent'
+    messageClass: 'handoff'
+    delivery: 'steer'
+  }): Promise<void>
+}
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    subagentAdmission: SubagentAdmission
+    subagentNotifications: SubagentNotifications
+  }
+}
+
 /** One managed child execution and its result delivery policy. */
 export interface SubagentActivationSpec {
   /** Registered backend to use. */
