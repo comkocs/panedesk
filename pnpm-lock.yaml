@@ -12837,12 +12837,156 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-agent-default-model':
+        specifier: workspace:*
+        version: link:../../core/agent-default-model
+      '@panedesk/dsh-agent-loop':
+        specifier: workspace:*
+        version: link:../../core/agent-loop
+      '@panedesk/dsh-agent-loop-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
+      '@panedesk/dsh-attachment-local':
+        specifier: workspace:*
+        version: link:../../attachment/attachment-local
+      '@panedesk/dsh-bash-sandbox':
+        specifier: workspace:*
+        version: link:../../shell/bash-sandbox
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../../boot/cmdline
+      '@panedesk/dsh-commands':
+        specifier: workspace:*
+        version: link:../../interaction/commands
+      '@panedesk/dsh-compaction-basic':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-basic
+      '@panedesk/dsh-compaction-ledger':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-ledger
+      '@panedesk/dsh-compaction-tool-result-pruner':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-tool-result-pruner
+      '@panedesk/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@panedesk/dsh-credentials-local':
+        specifier: workspace:*
+        version: link:../../credentials/credentials-local
+      '@panedesk/dsh-fs-local':
+        specifier: workspace:*
+        version: link:../../fs/fs-local
+      '@panedesk/dsh-host-webserver':
+        specifier: workspace:*
+        version: link:../../host/webserver
+      '@panedesk/dsh-instruction-subscriptions':
+        specifier: workspace:*
+        version: link:../../context/instruction-subscriptions
+      '@panedesk/dsh-jobs-local':
+        specifier: workspace:*
+        version: link:../../jobs/jobs-local
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
+      '@panedesk/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../interaction/permission-presets
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../../sdk/protocol
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+      '@panedesk/dsh-session-query-sqlite':
+        specifier: workspace:*
+        version: link:../../session-query/session-query-sqlite
+      '@panedesk/dsh-session-title':
+        specifier: workspace:*
+        version: link:../../session/session-title
+      '@panedesk/dsh-shell':
+        specifier: workspace:*
+        version: link:../../shell/shell
+      '@panedesk/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@panedesk/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@panedesk/dsh-storage-json':
+        specifier: workspace:*
+        version: link:../../storage/storage-json
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
+      '@panedesk/dsh-subagent-spawn-in-process':
+        specifier: workspace:*
+        version: link:../../subagent/subagent-spawn-in-process
+      '@panedesk/dsh-subprocess-local':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess-local
+      '@panedesk/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@panedesk/dsh-token-meter':
+        specifier: workspace:*
+        version: link:../../llm/token-meter
+      '@panedesk/dsh-tool-fs':
+        specifier: workspace:*
+        version: link:../../fs/tool-fs
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-typert-registry':
+        specifier: workspace:*
+        version: link:../../typert/registry
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
+      '@panedesk/dsh-user-questions':
+        specifier: workspace:*
+        version: link:../../interaction/user-questions
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      js-yaml:
+        specifier: ^4.3.2
+        version: 4.3.2
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/seat/seat-engine:
     dependencies:
