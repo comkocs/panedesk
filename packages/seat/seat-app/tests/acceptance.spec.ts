@@ -11,6 +11,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
 import { fixture, operation, seatName, childFixture, type Fixture } from './fixtures/source.ts'
+import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
 
 const active: Fixture[] = []
 afterEach(async () => { for (const f of active.splice(0)) await f.close() })
@@ -572,10 +573,11 @@ it('A19 wakes an all-object schedule wait once within five seconds without polli
   await f.ctx.schedule.delete({ sessionId, id: first.id })
   await expect.poll(async () => (await f.seats.wait(wait.waitId))?.observations.length).toBe(1)
   expect((await f.seats.wait(wait.waitId))?.phase).toBe('registered')
-  const result = await measured('A19 schedule wake', async () => {
-    await f.ctx.schedule.delete({ sessionId, id: second.id })
-    await expect.poll(async () => (await f.seats.wait(wait.waitId))?.phase, { timeout: 5000 }).toBe('woken')
-  })
+  const result = await completesTurn(f.ctx, sessionId, inputContains('Wait wait-a:'), () =>
+    measured('A19 schedule wake', async () => {
+      await f.ctx.schedule.delete({ sessionId, id: second.id })
+      await expect.poll(async () => (await f.seats.wait(wait.waitId))?.phase, { timeout: 5000 }).toBe('woken')
+    }))
   expect(result.milliseconds).toBeLessThan(5000)
   const replay = await f.seats.registerWait(wait)
   expect(replay, JSON.stringify(replay)).toMatchObject({ status: 'registered', wait: { phase: 'woken' } })
