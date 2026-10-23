@@ -1,0 +1,157 @@
+/** Bounded source parsing and three-way previews; source bytes never execute as instructions. */
+import { createHash, randomUUID } from 'node:crypto'
+import { readFile, stat } from 'node:fs/promises'
+import Papa from 'papaparse'
+import { fromMarkdown } from 'mdast-util-from-markdown'
+import { gfm } from 'micromark-extension-gfm'
+import { gfmFromMarkdown } from 'mdast-util-gfm'
+import type { Nodes } from 'mdast'
+import type { CommitSeatImportRequest, CommitSeatImportResult, PreviewSeatImportRequest,
+  SeatDefinition, SeatDigest, SeatImportPlan, SeatImportPlanId, SeatImportRow, SeatJson, SeatName } from '@panedesk/dsh-seat'
+import { resolveSeat, type DefinitionCatalogs } from './schema.ts'
+import { digest, SeatStore } from './store.ts'
+import { refuse, SeatLocalError } from './errors.ts'
+
+function fields(definition: SeatDefinition): Record<string, SeatJson> {
+  const { source: _source, revision: _revision, ...values } = definition
+  return JSON.parse(JSON.stringify(values)) as Record<string, SeatJson>
+}
+function nodeText(node: Nodes): string {
+  if ('value' in node) return node.value
+  if ('children' in node) return node.children.map(child => nodeText(child)).join('')
+  return ''
+}
+function parseRows(content: string, request: PreviewSeatImportRequest): { row: number; values: Record<string, string> }[] {
+  if (request.format === 'csv') {
+    const result = Papa.parse<Record<string, string>>(content, { header: true, delimiter: ',', skipEmptyLines: 'greedy' })
+    if (result.errors.length) refuse('invalid-definition', result.errors.map(error => error.message).join('; '), 'Correct the CSV source before importing.')
+    return result.data.map((values, index) => ({ row: index + 2, values }))
+  }
+  const tree = fromMarkdown(content, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] })
+  let heading = ''
+  const tables = tree.children.flatMap((node) => {
+    if (node.type === 'heading') heading = nodeText(node)
+    return node.type === 'table' && (request.table === undefined || heading === request.table) ? [node] : []
+  })
+  if (tables.length !== 1) refuse('invalid-definition', 'Select exactly one Markdown table.', 'Set table to its unique preceding heading.')
+  const table = tables[0]
+  const header = table?.children[0]
+  if (table === undefined || header === undefined) refuse('invalid-definition', 'Table header is missing.', 'Provide a header row.')
+  const headers = header.children.map(nodeText)
+  if (new Set(headers).size !== headers.length) refuse('invalid-definition', 'Duplicate table column names.', 'Use unique headers.')
+  return table.children.slice(1).map((row) => {
+    if (row.position === undefined) refuse('invalid-definition', 'Table row location is missing.', 'Preview a source with row locations.')
+    return { row: row.position.start.line, values: Object.fromEntries(row.children.map((cell, index) => {
+      const name = headers[index]
+      if (name === undefined) refuse('invalid-definition', 'Table row exceeds its header.', 'Correct the table columns.')
+      return [name, nodeText(cell)]
+    })) }
+  })
+}
+const structuredFields = new Set(['directories', 'memoryDirectories', 'opening', 'openingInstructionFiles',
+  'subscriptions', 'checkpointFiles', 'wakeTemplate', 'rules', 'worktree'])
+const numericFields = new Set(['revision', 'schemaVersion', 'maxOpenSessions', 'maxActiveSubagents',
+  'contextThresholdTokens', 'subagentContextThresholdTokens', 'pollingThreshold', 'maxSleepSeconds'])
+
+/** Owns previews until commit; restarted callers must preview again rather than replay stale selections. */
+export class SeatImporter {
+  private readonly plans = new Map<SeatImportPlanId, { plan: SeatImportPlan; request: PreviewSeatImportRequest }>()
+  constructor(private readonly store: SeatStore, private readonly catalogs: DefinitionCatalogs,
+    private readonly limits: { maxSourceBytes: number; maxPlans: number }) {}
+
+  private async source(request: PreviewSeatImportRequest): Promise<{ text: string; hash: SeatDigest }> {
+    if ((await stat(request.sourcePath)).size > this.limits.maxSourceBytes) refuse('invalid-definition', 'Import source exceeds the configured byte limit.', 'Select a smaller source.')
+    const bytes = await readFile(request.sourcePath)
+    if (bytes.byteLength > this.limits.maxSourceBytes) refuse('invalid-definition', 'Import source grew past the configured byte limit.', 'Select a smaller source.')
+    return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes), hash: createHash('sha256').update(bytes).digest('hex') as SeatDigest }
+  }
+
+  /** Preview independently validated rows without writing the catalog.
+   * @param request - selected source and explicit column-to-field mapping.
+   * @returns preview bound to source bytes and catalog revision.
+   */
+  async preview(request: PreviewSeatImportRequest): Promise<SeatImportPlan> {
+    const source = await this.source(request)
+    const catalog = this.store.snapshot()
+    const mappingHash = digest({ columnMap: request.columnMap, defaults: request.defaults, table: request.table, format: request.format })
+    const rows: SeatImportRow[] = []
+    for (const row of parseRows(source.text, request)) {
+      const values: Record<string, unknown> = { ...request.defaults }
+      try {
+        for (const [column, field] of Object.entries(request.columnMap)) {
+          const value = row.values[column]
+          if (value === undefined) refuse('invalid-definition', `Missing mapped column ${column}.`, 'Correct the column mapping.')
+          if (value !== '') values[field] = structuredFields.has(field) ? JSON.parse(value) : numericFields.has(field) ? Number(value) : value
+        }
+        const resolved = await resolveSeat(values, this.catalogs)
+        if ('status' in resolved) throw new SeatLocalError(resolved.error)
+        const normalized = fields(resolved)
+        const rowHash = digest(normalized)
+        const columnHashes = Object.fromEntries(Object.entries(normalized).map(([key, value]) => [key, digest(value)]))
+        const local = catalog.definitions.find(item => item.seat === resolved.seat)
+        const baseline = local?.source?.baseline
+        const localFields = local === undefined ? {} : fields(local)
+        const differences = Object.keys(normalized).flatMap((field) => {
+          const b = baseline?.[field] ?? null, l = localFields[field] ?? null, s = normalized[field] ?? null
+          const manual = local !== undefined && digest(l) !== digest(b)
+          const changed = digest(s) !== digest(b)
+          return digest(l) === digest(s) && !manual ? [] : [{ field, baseline: b, local: l, source: s, conflict: manual && changed }]
+        })
+        const conflict = local !== undefined && baseline !== undefined
+          && digest(localFields) !== digest(baseline) && digest(normalized) !== digest(baseline)
+        const merged = { ...normalized }
+        for (const difference of differences) {
+          if (digest(difference.local) !== digest(difference.baseline)) merged[difference.field] = difference.local
+        }
+        const definition = { ...resolved, ...merged, revision: (local?.revision ?? 0) + 1,
+          source: { sourcePath: request.sourcePath, sourceFileHash: source.hash, rowHash, mappingHash,
+            columnHashes, baseline: normalized, authority: catalog.authority } } as SeatDefinition
+        rows.push({ row: row.row, seat: resolved.seat, definition, rowHash, columnHashes,
+          action: conflict ? 'conflict' : local === undefined ? 'create' : digest(fields(local)) === digest(fields(definition)) ? 'retain' : 'update',
+          selected: !conflict, differences, diagnostics: [] })
+      } catch (error) {
+        if (!(error instanceof SeatLocalError) && !(error instanceof SyntaxError)) throw error
+        rows.push({ row: row.row, seat: typeof values.seat === 'string' ? values.seat as SeatName : null,
+          definition: null, rowHash: digest(row.values), columnHashes: {}, action: 'invalid', selected: false, differences: [],
+          diagnostics: [error instanceof SeatLocalError ? error.failure : { code: 'invalid-definition', message: 'Invalid JSON cell.', alternative: 'Correct the mapped JSON field.', retryable: false, effectState: 'none' }] })
+      }
+    }
+    for (const row of rows) if (row.seat !== null && rows.filter(other => other.seat === row.seat).length > 1) { row.action = 'invalid'; row.selected = false }
+    const present = new Set(rows.map(row => row.seat))
+    for (const local of catalog.definitions) if (local.source?.sourcePath === request.sourcePath && !present.has(local.seat)) {
+      rows.push({ row: -rows.length - 1, seat: local.seat, definition: local, rowHash: digest(fields(local)), columnHashes: {}, action: 'tombstone', selected: false, differences: [], diagnostics: [] })
+    }
+    const plan: SeatImportPlan = { planId: randomUUID() as SeatImportPlanId, sourceFileHash: source.hash, mappingHash, baseRevision: catalog.revision, rows }
+    if (this.plans.size >= this.limits.maxPlans) refuse('unavailable', 'Import preview capacity reached.', 'Commit a preview or restart preview ownership.')
+    this.plans.set(plan.planId, { plan: structuredClone(plan), request: structuredClone(request) })
+    return plan
+  }
+
+  /** Recheck source bytes and CAS before applying only selected, nonconflicting rows.
+   * @param request - retained plan, selected rows and observed catalog revision.
+   * @returns committed revision; conflicting rows and tombstones never overwrite data.
+   */
+  async commit(request: CommitSeatImportRequest): Promise<CommitSeatImportResult> {
+    const retained = this.plans.get(request.planId)
+    if (retained === undefined) refuse('import-preview-stale', 'Import preview is no longer available.', 'Preview the source again.')
+    const { plan } = retained
+    const source = await this.source(retained.request)
+    if (source.hash !== plan.sourceFileHash || request.expectedRevision !== plan.baseRevision) {
+      refuse('import-preview-stale', 'Source bytes or selected revision changed.', 'Preview the source again.')
+    }
+    const selected = new Set(request.selectedRows)
+    if (selected.size !== request.selectedRows.length || request.selectedRows.some(row => !plan.rows.some(item => item.row === row))) {
+      refuse('invalid-request', 'The selection contains duplicate or unknown rows.', 'Select row identities from the preview.')
+    }
+    const revision = await this.store.mutate(request.expectedRevision, request.operationId, request, (catalog) => {
+      if (catalog.authority !== 'import-source') refuse('seat-store-authoritative', 'The catalog owns editing authority.', 'Edit the catalog instead of importing updates.')
+      for (const row of plan.rows) {
+        if (!selected.has(row.row) || row.definition === null || row.action === 'conflict' || row.action === 'invalid' || row.action === 'tombstone') continue
+        const index = catalog.definitions.findIndex(item => item.seat === row.seat)
+        if (index < 0) catalog.definitions.push(row.definition)
+        else catalog.definitions[index] = row.definition
+      }
+    })
+    return { status: 'committed', revision, rows: structuredClone(plan.rows) }
+  }
+}

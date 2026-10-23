@@ -8,8 +8,16 @@
     "src"
   ],
   "references": [
-    {
-      "path": "../../../vendor/cordis"
-    }
+    { "path": "../../../vendor/cordis" },
+    { "path": "../seat" },
+    { "path": "../../fs/fs" },
+    { "path": "../../sandbox/sandbox" },
+    { "path": "../../core/agent" },
+    { "path": "../../llm/llm" },
+    { "path": "../../core/session" },
+    { "path": "../../session/session-ledger" },
+    { "path": "../../storage/storage-domain" },
+    { "path": "../../util/home-paths" },
+    { "path": "../../../native/system/packages/entry" }
   ]
 }

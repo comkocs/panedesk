@@ -12781,10 +12781,62 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/seat/seat-local:
+    dependencies:
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-fs':
+        specifier: workspace:*
+        version: link:../../fs/fs
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@panedesk/node-addon-system':
+        specifier: workspace:~
+        version: link:../../../native/system/packages/entry
+      mdast-util-from-markdown:
+        specifier: ^2.0.3
+        version: 2.0.3(supports-color@9.4.0)
+      mdast-util-gfm:
+        specifier: ^3.1.0
+        version: 3.1.0(supports-color@9.4.0)
+      micromark-extension-gfm:
+        specifier: ^3.0.0
+        version: 3.0.0
+      papaparse:
+        specifier: 5.7.0
+        version: 5.7.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@types/mdast':
+        specifier: ^4.0.4
+        version: 4.0.4
+      '@types/papaparse':
+        specifier: ^5.3.16
+        version: 5.5.2
 
   packages/seat/seat-remote:
     devDependencies:

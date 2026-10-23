@@ -30,6 +30,25 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@panedesk/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@types/papaparse": "^5.3.16",
+    "@types/mdast": "^4.0.4"
+  },
+  "dependencies": {
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-fs": "workspace:*",
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/node-addon-system": "workspace:~",
+    "papaparse": "5.7.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "zod": "^4.4.3"
   }
 }
