@@ -37,7 +37,10 @@ it.each(['open/intent', 'open/created', 'open/configured'])(
     try {
       const first = host(root, stage); children.push(first)
       expect(first.pid).toBeTypeOf('number')
-      expect(await first.ready).toMatchObject({ kind: 'barrier', pid: first.pid })
+      const barrier = await first.ready
+      expect(barrier).toMatchObject({ kind: 'barrier', pid: first.pid, openingMessageId: null,
+        phase: stage === 'open/intent' ? 'intent' : stage === 'open/created' ? 'created' : 'configuring' })
+      expect(barrier.completedStages).not.toContain('opening')
       await kill(first.child, first.pid)
       const recovered = host(root, 'recover'); children.push(recovered)
       const result = await recovered.ready

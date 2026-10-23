@@ -406,10 +406,16 @@ export class SeatEngine extends SeatEngineService {
       await this.releaseDead(executor)
       for (const item of [...this.journal.projection.pending.values()].sort((a, b) => a.sequence - b.sequence)) await this.dispatch(item,
         executor)
+      // Publish each durable checkpoint before its next external Session effect.
+      await this.publish()
+      const recoveryExecutor: T.SeatOpenExecutor = { ...executor,
+        configure: async (open, stage) => { await this.publish(); await executor.configure(open, stage) },
+        opening: async (open) => { await this.publish(); return executor.opening(open) },
+      }
       for (const open of [...this.journal.projection.opens.values()]) {
         if (!this.journal.projection.resources.has(open.sessionId)) continue
         let recovered: T.EngineOpenData
-        try { recovered = await reconcileOpen(this.journal, open, executor, current => this.callbacks(current, 'opened')) }
+        try { recovered = await reconcileOpen(this.journal, open, recoveryExecutor, current => this.callbacks(current, 'opened')) }
         catch (error) {
           const replacement = [...this.journal.projection.replacements.values()].find(item => item.newSessionId === open.sessionId)
           if (!replacement || !(error instanceof EngineError) || !['open-create-failed', 'open-configuration-failed'].includes(error.code)) throw error
