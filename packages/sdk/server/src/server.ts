@@ -22,7 +22,8 @@ import type {} from '@panedesk/dsh-tools'
 import type SubagentRuntime from '@panedesk/dsh-subagent'
 import type { SubagentRunEndInfo } from '@panedesk/dsh-subagent'
 import * as LlmDeepSeek from '@panedesk/dsh-llm-deepseek-api-key'
-import { decodeMessagesRequest, isMessagesMethod, JsonRpcResponseError, MESSAGES_VERSION } from '@panedesk/dsh-sdk-protocol'
+import { decodeMessagesRequest, isMessagesMethod, decodeSeatRequest, isSeatMethod, JsonRpcResponseError, MESSAGES_VERSION } from '@panedesk/dsh-sdk-protocol'
+import type { SeatRequestMap, SeatCallContext } from '@panedesk/dsh-sdk-protocol'
 import type {
   MessageStateEvent, MessageSubscriptionRequest, MessagesRequestMap,
   InitializeParams,
@@ -370,6 +371,7 @@ export class HarnessSdkJsonRpcServer {
    * @returns the handler's result, to be serialized as the response.
    */
   async handleRequest(method: string, params: Record<string, unknown> | undefined): Promise<unknown> {
+    if (isSeatMethod(method)) return this.seatRequest(method, params)
     if (isMessagesMethod(method)) return this.messageRequest(method, params)
     switch (method) {
       case 'initialize':
@@ -403,6 +405,47 @@ export class HarnessSdkJsonRpcServer {
         return this.shutdown()
       default:
         throw new Error(`unknown Panedesk SDK runtime method: ${method}`)
+    }
+  }
+
+  private async seatRequest(method: keyof SeatRequestMap, params: unknown): Promise<unknown> {
+    const seats = this.ctx.get('seats'), engine = this.ctx.get('seatEngine')
+    if (!this.initialized || this.shuttingDown || !seats || !engine) {
+      throw new JsonRpcResponseError(-32601, 'Seat operations are unavailable', { reason: 'unsupported' })
+    }
+    // A delegated SDK connection is not the local owner and cannot promote its ledger tags.
+    if (this.handshake.ledgerContext !== undefined || this.ctx.agents.currentInitiator() !== undefined) {
+      throw new JsonRpcResponseError(-32603, 'Seat operations require the local owner', { reason: 'unauthorized' })
+    }
+    const node = await engine.nodeStatus()
+    const service = seats.withAuthority({ principalId: 'owner' as SeatCallContext['principalId'], origin: 'remote', nodeId: node.nodeId })
+    switch (method) {
+      case 'seats/import.preview': return service.previewImport(decodeSeatRequest(method, params))
+      case 'seats/import.commit': return service.commitImport(decodeSeatRequest(method, params))
+      case 'seats/setAuthority': return service.setAuthority(decodeSeatRequest(method, params))
+      case 'seats/report.submit': return service.submitReport(decodeSeatRequest(method, params))
+      case 'seats/wait.register': return service.registerWait(decodeSeatRequest(method, params))
+      case 'seats/wait.cancel': return service.cancelWait(decodeSeatRequest(method, params))
+      case 'seats/list': return service.list(decodeSeatRequest(method, params))
+      case 'seats/open': return service.open({ ...decodeSeatRequest(method, params), origin: 'remote', openingMode: 'auto' })
+      case 'seats/openBatch': return service.openBatch({ ...decodeSeatRequest(method, params), origin: 'remote', openingMode: 'auto' })
+      case 'seats/renew': return service.renew(decodeSeatRequest(method, params))
+      case 'seats/close': return service.close(decodeSeatRequest(method, params))
+      case 'seats/replace': return service.replace(decodeSeatRequest(method, params))
+      case 'seats/rename': return service.rename(decodeSeatRequest(method, params))
+      case 'seats/wake': return service.wake(decodeSeatRequest(method, params))
+      case 'seats/binding': return service.binding(decodeSeatRequest(method, params))
+      case 'seats/operation': return service.operation(decodeSeatRequest(method, params))
+      case 'seats/setProjectMode': return engine.setProjectMode(decodeSeatRequest(method, params))
+      case 'seats/pending': return engine.pending(decodeSeatRequest(method, params))
+      case 'seats/approve': return engine.approve(decodeSeatRequest(method, params))
+      case 'seats/cancel': return engine.cancel(decodeSeatRequest(method, params))
+      case 'seats/nodeStatus': decodeSeatRequest(method, params); return node
+      case 'seats/gates': {
+        const gates = this.ctx.get('seatGates')
+        if (!gates) throw new JsonRpcResponseError(-32601, 'Seat gates are unavailable')
+        return gates.list(decodeSeatRequest(method, params))
+      }
     }
   }
 

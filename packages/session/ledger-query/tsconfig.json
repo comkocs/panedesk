@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../../seat/seat"
+    },
+    {
       "path": "../../../vendor/cosmokit"
     },
     {

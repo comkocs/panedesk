@@ -33,7 +33,7 @@ kind: "package-library"
 
 ### SDK 方法
 
-两个协议端共享同一套方法：七个客户端到服务端请求与四个服务端到客户端通知。
+两个协议端共享以下核心方法，以及按可选能力提供的请求。
 
 | 方向 | 方法 | 载荷类型 |
 |---|---|---|
@@ -54,6 +54,8 @@ kind: "package-library"
 `session/wait` 接受已有 SDK 会话的 `{ sessionId }`，在根 Agent 持续空闲且活跃的受管理后代工作结束后返回 `{}`。带有停放输入的空闲后代保持驻留，不阻塞这次等待。未知 id，以及没有后续终止事件记录的 Agent 运行时错误，都会使请求失败。等待期间提交的通知在同一传输上先于响应到达；原始 `session.status` 转换仍表示整个 Agent 的状态。
 
 `session/resume` 接受非空的持久化 `{ sessionId }`，恢复该会话后返回 `{}`。它要求先完成初始化并使用原持久化存储，不发送新输入；会话缺失、不可读、不兼容或被占用时，请求失败且不创建替代会话。历史事件保留在存储日志中，通知只报告新提交的事件。
+
+`SeatRequestMap` 以加法方式提供 `seats/*` 操作，不改变 Session 事件和既有方法标识。`decodeSeatRequest` 校验明确目标并拒绝调用方注入权限；`decodeSeatResult` 校验判别字段及嵌套字段。管理方法为 `import.preview`、`import.commit`、`setAuthority`、`report.submit`、`wait.register` 和 `wait.cancel`；其余方法覆盖窗口操作、绑定、操作状态、项目模式、待开队列、闸与节点状态。仅类型的 `./types` 导出允许声明消费者不导入传输代码。
 
 ### 载荷语义
 

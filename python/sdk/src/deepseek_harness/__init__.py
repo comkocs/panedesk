@@ -1,5 +1,11 @@
 from .api import DeepSeekHarness, DeepSeekHarnessConfig, RunResult, Session
-from .client import HarnessClient, HarnessConfig, MessagesClient, MessageSubscription
+from .client import HarnessClient, HarnessConfig, MessagesClient, MessageSubscription, SeatsClient
+from .models import (OpenSeatRequest, OpenSeatBatchRequest, SeatSessionRequest, CloseSeatRequest,
+                     RenameSeatRequest, WakeSeatRequest, ListSeatsRequest, SeatOperationRequest,
+                     SeatResult, SeatFailure, SeatCursor, PendingSeatsRequest, SeatGatesRequest,
+                     SetSeatProjectModeRequest, PendingSeatMutationRequest, SeatBindingRequest,
+                     PreviewSeatImportRequest, CommitSeatImportRequest, SetSeatAuthorityRequest,
+                     SubmitCloseReportRequest, RegisterSeatWaitRequest, CancelSeatWaitRequest)
 from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
 from .models import (
     AppliedMessageControl, ConfigureMessagesRequest, ControlResult, EditMessageRequest,
@@ -30,6 +36,13 @@ __all__ = [
     "JsonObject",
     "Notification",
     "ServerInfo",
+    "SeatsClient",
+    "OpenSeatRequest", "OpenSeatBatchRequest", "SeatSessionRequest", "CloseSeatRequest",
+    "RenameSeatRequest", "WakeSeatRequest", "ListSeatsRequest", "SeatOperationRequest",
+    "SeatResult", "SeatFailure", "SeatCursor", "PendingSeatsRequest", "SeatGatesRequest",
+    "SetSeatProjectModeRequest", "PendingSeatMutationRequest", "SeatBindingRequest",
+    "PreviewSeatImportRequest", "CommitSeatImportRequest", "SetSeatAuthorityRequest",
+    "SubmitCloseReportRequest", "RegisterSeatWaitRequest", "CancelSeatWaitRequest",
     "MessagesClient",
     "MessageSubscription",
     "JsonRpcError",

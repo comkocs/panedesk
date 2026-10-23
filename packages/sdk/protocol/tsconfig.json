@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../seat/seat" },
     { "path": "../../session/message-delivery" },
     {
       "path": "../../../vendor/cosmokit"

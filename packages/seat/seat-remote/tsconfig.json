@@ -8,6 +8,12 @@
     "src"
   ],
   "references": [
+    { "path": "../seat" },
+    { "path": "../../sdk/protocol" },
+    { "path": "../../typert/protocol" },
+    { "path": "../../credentials/credentials" },
+    { "path": "../../host/webserver" },
+    { "path": "../../../vendor/schemastery" },
     {
       "path": "../../../vendor/cordis"
     }

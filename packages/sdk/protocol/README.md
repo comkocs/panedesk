@@ -33,7 +33,7 @@ Wire one JSON-RPC 2.0 message per `\n`-terminated line over byte streams you own
 
 ### The SDK methods
 
-Both wire ends share one method set: seven client-to-server requests and four server-to-client notifications.
+Both wire ends share the following core methods, plus optional capability-specific requests.
 
 | Direction | Method | Payload types |
 |---|---|---|
@@ -54,6 +54,8 @@ Both wire ends share one method set: seven client-to-server requests and four se
 `session/wait` accepts `{ sessionId }` for an existing SDK-owned session and returns `{}` after the root stays idle and progressing managed descendant work finishes. Idle descendants with parked input remain resident without blocking this wait. Unknown ids and live Agent failures without a newer committed terminal are rejected. Notifications committed during the wait precede its response on the same transport; raw `session.status` transitions retain their whole-agent meaning.
 
 `session/resume` accepts a non-empty persisted `{ sessionId }` and returns `{}` after restoring that exact session. It requires initialization and the original persistence store, sends no new input, and rejects missing, unreadable, incompatible, or occupied sessions without creating a replacement. Historical events remain in the stored log; notifications report newly committed events.
+
+`SeatRequestMap` adds `seats/*` operations without changing Session events or existing method identifiers. `decodeSeatRequest` checks explicit targets and rejects caller-supplied authority; `decodeSeatResult` checks discriminants and nested fields. Management methods are `import.preview`, `import.commit`, `setAuthority`, `report.submit`, `wait.register`, and `wait.cancel`; other methods cover window operations, binding, operation status, project mode, pending work, gates, and node status. The type-only `./types` export supports declaration consumers without importing transport code.
 
 ### Payload semantics
 

@@ -18,6 +18,9 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./types": {
+      "types": "./lib/types/types.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -27,6 +30,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/dsh-message-delivery": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
@@ -34,6 +38,7 @@
   },
   "devDependencies": {
     "@panedesk/dsh-message-delivery": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
