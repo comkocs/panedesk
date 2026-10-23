@@ -47,9 +47,10 @@ export class LocalCloser {
       if (old?.phase === 'closed') return { effects: [], result: old }
       if (old && !old.barrierReleased) return { effects: [], result: old.operationId === request.operationId ? old
         : rejected('state-conflict', 'Another close owns this window.', 'Resume the original close.') }
-      if (initial.stateVersion !== request.expectedStateVersion) return { effects: [], result: { status: 'conflict',
-        expectedStateVersion: request.expectedStateVersion, actualStateVersion: initial.stateVersion } }
       const busyReasons = readWindowStatus(initial).busyReasons
+      if (initial.stateVersion !== request.expectedStateVersion) return { effects: [], result: { status: 'conflict',
+        expectedStateVersion: request.expectedStateVersion, actualStateVersion: initial.stateVersion,
+        ...(busyReasons.length ? { busyReasons } : {}) } }
       if (busyReasons.length) return { effects: [], result: { status: 'busy', sessionId: request.sessionId, busyReasons } }
       const current = latestReport(effects, request.sessionId)
       if (report && (current?.reportId !== report.reportId || current.stateVersion !== report.stateVersion || !current.canClose)) {
