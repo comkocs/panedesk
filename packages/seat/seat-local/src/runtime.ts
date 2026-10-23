@@ -12,9 +12,11 @@ import type {} from '@panedesk/dsh-permission-presets'
 import type * as T from '@panedesk/dsh-seat'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { rejected } from './errors.ts'
+import { digest } from './store.ts'
 import { createWaitObservation } from './wait-observation.ts'
 import { LocalEngineState } from './engine-state.ts'
 import { projectedWaits } from './wait-store.ts'
+import { LocalRenamer } from './rename.ts'
 import type {} from '@panedesk/dsh-session-query'
 
 /** Build late-bound public adapters without instantiating upstream private controllers.
@@ -25,6 +27,8 @@ import type {} from '@panedesk/dsh-session-query'
 export function createLocalRuntime(ctx: Context, options: LocalSeatOptions): LocalSeatRuntime {
   const state = new LocalEngineState(() => ctx.get('seatEngine'), options.nodeId, options.pageSize, options.transactionRetries)
   const observation = createWaitObservation(ctx, state)
+  const renamer = new LocalRenamer(ctx)
+  ctx.effect(() => () => renamer.close())
   const cache = async (sessionId: SessionId): Promise<T.SeatCacheEvidence> => {
     const ledger = await ctx.get('sessionLedger')?.query({ sessionId })
     const calls = ledger?.rows.filter(row => row.kind === 'call') ?? []
@@ -90,23 +94,17 @@ export function createLocalRuntime(ctx: Context, options: LocalSeatOptions): Loc
       error: rejected('renewal-uncertain', 'Maintenance outcome is uncertain.', 'Do not replay this maintenance attempt.').error }
     return { ...rejected('cache-evidence-unavailable', 'Cache maintenance is unavailable.', 'Wait for reusable cache evidence.'), cacheEvidence }
   },
-  rename: async (request) => {
-    const agent = ctx.get('agents')?.get(request.sessionId)
-    const titles = ctx.get('sessionTitle')
-    if (agent === undefined || titles === undefined) return rejected('unavailable', 'Title ownership is unavailable.', 'Resume this local window first.')
-    const title = titles.rename(agent.session, request.title)
-    await ctx.get('sessions')?.flush(agent.session)
-    return { status: 'renamed', sessionId: request.sessionId, title }
-  },
-  title: (sessionId) => {
+  rename: request => renamer.rename(request),
+  title: async (sessionId) => {
     const agent = ctx.get('agents')?.get(sessionId)
-    return Promise.resolve(agent === undefined ? null : ctx.get('sessionTitle')?.get(agent.session)?.title ?? null)
+    return (agent === undefined ? (await ctx.get('sessionQuery')?.readTitle(sessionId))?.title
+      : ctx.get('sessionTitle')?.get(agent.session)?.title) ?? null
   },
   send: async (request) => {
     const delivery = ctx.get('messageDelivery')
     if (delivery === undefined) throw new Error('Message delivery is unavailable')
     const result = await delivery.send({ target: { sessionId: request.sessionId }, content: request.text,
-      operationId: String(request.operationId) as OperationId, messageClass: 'handoff', priority: request.mode })
+      operationId: digest(request.operationId) as string as OperationId, messageClass: 'handoff', priority: request.mode })
     if (result.deliveryOutcome !== 'accepted' && result.reason !== 'target-closed-pending') throw new Error(`Message delivery refused: ${result.reason}`)
     return { messageId: result.messageId }
   }, ...observation }

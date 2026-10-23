@@ -35,8 +35,9 @@ export class ReportStore {
         && digest(prior.data.report) === digest(request.report)
         ? { status: 'recorded', reportId: prior.data.report.reportId, stateVersion: prior.data.report.stateVersion }
         : rejected('operation-id-conflict', 'The report operation has different contents.', 'Use its original request.') }
-      if (effects.some(effect => (effect.kind === 'window/closing' || effect.kind === 'window/closed')
-        && effect.data.sessionId === request.report.sessionId)) return { effects: [],
+      const closing = effects.findLast(effect => (effect.kind === 'window/closing' || effect.kind === 'window/closed')
+        && effect.data.sessionId === request.report.sessionId)
+      if (closing?.kind === 'window/closed' || (closing?.kind === 'window/closing' && !closing.data.barrierReleased)) return { effects: [],
         result: rejected('state-conflict', 'Closing already owns this window.', 'Inspect the committed close operation.') }
       const versions = effects.flatMap(effect => effect.kind === 'report/submitted' && effect.data.report.sessionId === request.report.sessionId
         ? [effect.data.report.stateVersion] : effect.kind === 'report/revoked' && effect.data.sessionId === request.report.sessionId
@@ -65,8 +66,9 @@ export class ReportStore {
         && prior.data.stateVersion === request.expectedStateVersion + 1
         ? { status: 'revoked', reportId: request.reportId, stateVersion: prior.data.stateVersion }
         : rejected('operation-id-conflict', 'The revocation operation has different contents.', 'Use its original request.') }
-      if (effects.some(effect => (effect.kind === 'window/closing' || effect.kind === 'window/closed')
-        && effect.data.sessionId === request.sessionId)) return { effects: [],
+      const closing = effects.findLast(effect => (effect.kind === 'window/closing' || effect.kind === 'window/closed')
+        && effect.data.sessionId === request.sessionId)
+      if (closing?.kind === 'window/closed' || (closing?.kind === 'window/closing' && !closing.data.barrierReleased)) return { effects: [],
         result: rejected('state-conflict', 'Closing already owns this window.', 'Inspect the committed close operation.') }
       const current = latestReport(effects, request.sessionId)
       if (current?.reportId !== request.reportId || current.stateVersion !== request.expectedStateVersion) return { effects: [],

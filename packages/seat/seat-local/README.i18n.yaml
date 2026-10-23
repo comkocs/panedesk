@@ -1,0 +1,49 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/seat/seat-local/README.md
+/:
+  en: b3f34f5233eb1f99
+  zh: 0690de70bad29027
+/panedesk-dsh-seat-local:
+  en: a506844af05b2067
+  zh: 9c1c661ebcb34439
+/panedesk-dsh-seat-local/summary:
+  en: a8f2650ab1959055
+  zh: 7b62b3ccec752e28
+/panedesk-dsh-seat-local/configuration-and-ownership:
+  en: d6d201b0464006c4
+  zh: bcbf1452c87b66d6
+/panedesk-dsh-seat-local/window-transactions:
+  en: 45816be4fe285d76
+  zh: f15575ed689496cc
+/panedesk-dsh-seat-local/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-seat-local/model-experience/opening-and-wake-messages:
+  en: d6e9bc6945521779
+  zh: 37d57472ae39b923
+/panedesk-dsh-seat-local/model-experience/opening-and-wake-messages/what-the-model-sees:
+  en: a47af4a90c411aaf
+  zh: 851303e1dc82969e
+/panedesk-dsh-seat-local/model-experience/opening-and-wake-messages/token-effect:
+  en: 177d7c05e7ab7477
+  zh: a032d16994d13573
+/panedesk-dsh-seat-local/model-experience/opening-and-wake-messages/kv-cache-effect:
+  en: 8c63f0da65c79482
+  zh: 303c41c7066e80c7
+/panedesk-dsh-seat-local/model-experience/context-budget-and-wait-reminders:
+  en: a5d15e7b769ed275
+  zh: 1eeb85e15e8ffe4a
+/panedesk-dsh-seat-local/model-experience/context-budget-and-wait-reminders/what-the-model-sees:
+  en: 056815a5b28bf693
+  zh: 94955cec59f557d6
+/panedesk-dsh-seat-local/model-experience/context-budget-and-wait-reminders/token-effect:
+  en: 7781b0618d5fc435
+  zh: 78be63f0d8537b8f
+/panedesk-dsh-seat-local/model-experience/context-budget-and-wait-reminders/kv-cache-effect:
+  en: 54285341045dbccd
+  zh: 9c71e0a76a09bf4f
+/panedesk-dsh-seat-local/known-limitations-and-deferred-work:
+  en: aa56106b8b8895f2
+  zh: 68a4ede48a2c7785

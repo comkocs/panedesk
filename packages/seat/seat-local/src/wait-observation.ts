@@ -8,12 +8,20 @@ import type {} from '@panedesk/dsh-jobs'
 import type {} from '@panedesk/dsh-message-delivery'
 import type { LocalSeatRuntime } from './service-options.ts'
 import { rejected } from './errors.ts'
+import { projectedWaits } from './wait-store.ts'
+import type { SessionId } from '@panedesk/dsh-session'
 
 /** Build task snapshot and registration capabilities without polling model turns.
  * @param ctx - owner of all installed subscriptions.
  * @returns authorized observations with awaited per-wait disposal.
  */
-export function createWaitObservation(ctx: Context, state: LocalEngineState): Pick<LocalSeatRuntime, 'authorizeWait' | 'snapshot' | 'subscribe'> {
+export function createWaitObservation(ctx: Context, state: LocalEngineState):
+Pick<LocalSeatRuntime, 'authorizeWait' | 'snapshot' | 'subscribe' | 'drainObservations'> {
+  const running = new Set<Promise<void>>()
+  const ownerOf = async (object: WaitObject): Promise<SessionId | undefined> => {
+    const waits = projectedWaits((await state.read()).effects)
+    return [...waits.values()].find(wait => wait.objects.some(item => item.kind === object.kind && item.id === object.id))?.sessionId
+  }
   const snapshot = async (object: WaitObject): Promise<WaitObservation | null> => {
     const observedAt = new Date().toISOString()
     if (object.kind === 'message') {
@@ -24,7 +32,12 @@ export function createWaitObservation(ctx: Context, state: LocalEngineState): Pi
     }
     const query = ctx.get('sessionQuery')
     if (object.kind === 'schedule') {
-      const task = (await ctx.get('schedule')?.catalog())?.find(item => item.id === object.id)
+      const catalog = await ctx.get('schedule')?.catalog()
+      const task = catalog?.find(item => item.id === object.id)
+      if (catalog && !task && await ownerOf(object)) {
+        const facts = await state.read()
+        return { object, observedAt, watermark: facts.watermark + 1, durability: 'durable', outcome: 'cancelled' }
+      }
       if (task?.lastDelivery !== undefined) {
         const saved = await query?.readSession(task.sessionId)
         const messageId = task.lastDelivery.messageId
@@ -53,16 +66,13 @@ export function createWaitObservation(ctx: Context, state: LocalEngineState): Pi
         }
       }
     }
-    for (const session of await query?.listSessions() ?? []) {
-      const saved = await query?.readSession(session.header.id)
-      for (const event of [...saved?.events ?? []].reverse()) {
-        if (object.kind === 'job' && event.type === 'job/settled' && event.data.jobId === object.id) {
-          return { object, observedAt, watermark: event.seq, durability: 'durable',
-            outcome: event.data.status === 'completed' ? 'completed' : event.data.status === 'killed' ? 'cancelled' : 'failed' }
-        }
-        if (object.kind === 'schedule' && event.type === 'schedule/change' && event.data.operation === 'delete'
-          && event.data.id === object.id) return { object, observedAt, watermark: event.seq, durability: 'durable', outcome: 'cancelled' }
-      }
+    if (object.kind === 'job') {
+      const owner = await ownerOf(object)
+      const saved = owner === undefined ? undefined : await query?.readSession(owner)
+      const event = saved?.events.findLast(event => event.type === 'job/settled'
+        && event.data.jobId === object.id && event.data.owner === owner)
+      if (event?.type === 'job/settled') return { object, observedAt, watermark: event.seq, durability: 'durable',
+        outcome: event.data.status === 'completed' ? 'completed' : event.data.status === 'killed' ? 'cancelled' : 'failed' }
     }
     if (object.kind === 'subagent') {
       const facts = (await state.read()).effects
@@ -72,13 +82,14 @@ export function createWaitObservation(ctx: Context, state: LocalEngineState): Pi
     }
     return null
   }
-  return { snapshot,
+  return { snapshot, drainObservations: async () => { await Promise.allSettled(running) },
     authorizeWait: async (request) => {
-      const session = ctx.get('sessions')?.get(request.sessionId)
-      if (session === undefined) return rejected('wait-object-unauthorized', 'The waiting session is unavailable.', 'Resume its local owner.')
+      const saved = await ctx.get('sessionQuery')?.readSession(request.sessionId)
+      if (!saved) return rejected('wait-object-unauthorized', 'The waiting session is unavailable.', 'Restore its durable history.')
       for (const object of request.objects) {
         let owned = false
-        if (object.kind === 'job') owned = ctx.get('jobs')?.list(request.sessionId).some(job => job.id === object.id && job.owner === request.sessionId) ?? false
+        if (object.kind === 'job') owned = saved.events.some(event => (event.type === 'job/registered' || event.type === 'job/settled')
+          && event.data.jobId === object.id && event.data.owner === request.sessionId)
         if (object.kind === 'schedule') owned = (await ctx.get('schedule')?.catalog())?.some(item => item.id === object.id && item.sessionId === request.sessionId) ?? false
         if (object.kind === 'subagent') owned = (await state.read()).effects.some(effect => effect.kind === 'job/observed'
           && effect.data.sessionId === request.sessionId && effect.data.observation.object.kind === 'subagent'
@@ -105,11 +116,14 @@ export function createWaitObservation(ctx: Context, state: LocalEngineState): Pi
         return tail
       }
       const invalidated = () => {
-        tail = changed().catch((error: unknown) => { ctx.logger.warn('seat wait observation failed', error) })
+        const task = changed().catch((error: unknown) => { ctx.logger.warn('seat wait observation failed', error) })
+        running.add(task)
+        tail = task.finally(() => { running.delete(task) })
       }
       const off = ctx.on('session/event', invalidated)
       const message = ctx.on('message/state', invalidated)
       const decision = ctx.on('seat/decision', invalidated)
-      return () => { lifecycle.abort(); off(); message(); decision(); return Promise.resolve() }
+      const schedule = ctx.on('schedule/changed', invalidated)
+      return () => { lifecycle.abort(); off(); message(); decision(); schedule(); return Promise.resolve() }
     } }
 }

@@ -44,6 +44,10 @@ export interface EngineOpenData {
 }
 /** Close facts publish only after archive, title and flush complete. */
 export interface EngineCloseData {
+  /** Original close identity permits recovery without admitting another archive. */
+  operationId?: SeatOperationId
+  /** True only after a failed pre-archive operation releases its local barrier. */
+  barrierReleased?: boolean
   sessionId: SessionId
   phase: ClosePhase
   reason: WindowEndReason

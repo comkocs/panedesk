@@ -37,4 +37,6 @@ export interface LocalSeatRuntime {
   authorizeWait: WaitRuntime['authorize']
   snapshot: WaitRuntime['snapshot']
   subscribe: WaitRuntime['subscribe']
+  /** Drain snapshot work after every observation subscription has been released. */
+  drainObservations?(): Promise<void>
 }

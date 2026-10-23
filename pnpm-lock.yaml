@@ -12847,6 +12847,9 @@ importers:
       '@panedesk/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../../api/session-controller
+      '@panedesk/dsh-compaction':
+        specifier: workspace:*
+        version: link:../../compaction/compaction
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../../fs/fs
@@ -12938,21 +12941,54 @@ importers:
       '@panedesk/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
+      '@panedesk/dsh-agent-default-model':
+        specifier: workspace:*
+        version: link:../../core/agent-default-model
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
+      '@panedesk/dsh-attachment-local':
+        specifier: workspace:*
+        version: link:../../attachment/attachment-local
+      '@panedesk/dsh-client-file-upload':
+        specifier: workspace:*
+        version: link:../../client/file-upload
+      '@panedesk/dsh-commands':
+        specifier: workspace:*
+        version: link:../../interaction/commands
+      '@panedesk/dsh-compaction-basic':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-basic
       '@panedesk/dsh-message-delivery-local':
         specifier: workspace:*
         version: link:../../session/message-delivery-local
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../seat-engine
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl
+      '@panedesk/dsh-shell':
+        specifier: workspace:*
+        version: link:../../shell/shell
       '@panedesk/dsh-storage':
         specifier: workspace:*
         version: link:../../storage/storage
       '@panedesk/dsh-storage-json':
         specifier: workspace:*
         version: link:../../storage/storage-json
+      '@panedesk/dsh-token-meter':
+        specifier: workspace:*
+        version: link:../../llm/token-meter
+      '@panedesk/dsh-typert-registry':
+        specifier: workspace:*
+        version: link:../../typert/registry
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4

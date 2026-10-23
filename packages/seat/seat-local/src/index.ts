@@ -8,6 +8,8 @@ import { createOpenExecutor } from './executor.ts'
 import { createCloseExecutor } from './close-executor.ts'
 import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
+import { closingState } from './closing-service.ts'
+import { localSourceId } from './open-admission.ts'
 import type { OwnerEpoch } from '@panedesk/dsh-seat'
 
 export { LocalSeatService } from './service.ts'
@@ -51,6 +53,12 @@ export function apply(ctx: Context, config: Config): void {
       service = new LocalSeatService(ctx, store, config, runtime)
       const installed = service
       const catalog = store
+      ctx.on('agent/turn-admitting', async ({ agent }, next) => {
+        const upstream = await next()
+        if (upstream.kind !== 'allow' || ctx.get('seatEngine') === undefined) return upstream
+        const closing = closingState((await installed.state.read()).effects, agent.id)
+        return closing && !closing.barrierReleased ? { kind: 'defer', reason: 'Window close is pending.' } : upstream
+      })
       ctx.inject(['seatEngine', 'fs', 'sandboxPolicy', 'agents'], (child) => {
         new LocalSeatDirectoryService(child, installed.state, () => catalog.snapshot().definitions)
       })
@@ -58,12 +66,15 @@ export function apply(ctx: Context, config: Config): void {
         child.effect(() => {
           const engine = child.get('seatEngine')
           if (engine === undefined) throw new Error('Injected seat engine is unavailable')
-          const unregister = engine.registerExecutor(createOpenExecutor(child, runtime))
+          const unregisterSource = engine.registerSource({ sourceId: localSourceId, kinds: ['manual'], maxRedeliveryMs: null,
+            callback: () => Promise.resolve() })
+          const unregister = engine.registerExecutor(createOpenExecutor(child, runtime, config))
           const unregisterClose = engine.registerCloseExecutor?.(createCloseExecutor(child, runtime, config))
           const recovery = engine.ready().then(() => installed.recover())
           void recovery.catch((error: unknown) => { child.logger.warn('Seat recovery failed', error) })
           return async () => {
-            try { await unregister(); await unregisterClose?.(); await recovery } finally { await installed.pause() }
+            try { await unregister(); await unregisterClose?.(); await unregisterSource(); await recovery }
+            finally { await installed.pause() }
           }
         })
         child.effect(() => {
@@ -82,10 +93,13 @@ export function apply(ctx: Context, config: Config): void {
             if (status === 'idle') schedule(agent.id)
           })
           const offEvent = child.on('session/event', (session, event) => {
-            if (event.type === 'job/settled' || event.type === 'approval/decided') schedule(session.id)
+            if (event.type === 'job/settled' || event.type === 'approval/decided' || event.type === 'step/end') schedule(session.id)
           })
           const offDecision = child.on('seat/decision', (decision) => {
             for (const effect of decision.effects) {
+              if (effect.kind === 'open/configured' && effect.data.completedStages.includes('opening')) {
+                child.get('agents')?.get(effect.data.sessionId)?.wake?.()
+              }
               if (effect.kind === 'wait/woken' || effect.kind === 'wait/cancelled') schedule(effect.data.sessionId)
               if (effect.kind === 'child/released') schedule(effect.data.parentSessionId)
               if (effect.kind === 'job/observed' && effect.data.phase === 'settled') schedule(effect.data.sessionId)

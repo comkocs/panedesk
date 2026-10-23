@@ -13,6 +13,10 @@ import { ReportStore, latestReport } from './report-store.ts'
 import { WaitStore, projectedWaits } from './wait-store.ts'
 import { WaitCoordinator } from './wait.ts'
 import { CloseCoordinator } from './report.ts'
+import { LocalCloser, closingState } from './closing-service.ts'
+import { admitLocalOpen, localSourceId } from './open-admission.ts'
+import { readLocalOpenInput } from './open-input.ts'
+import { readContextUsage, remindContext } from './context-runtime.ts'
 import { readWindowStatus, renewalRefusal } from './status.ts'
 import { readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
@@ -27,6 +31,7 @@ export class LocalSeatService extends SeatService {
   private readonly directories: DirectoryAdmission
   private readonly coordinator: WaitCoordinator
   private readonly closer: CloseCoordinator
+  private readonly windowCloser: LocalCloser
   constructor(ctx: Context, private readonly store: SeatStore, readonly options: LocalSeatOptions,
     private readonly runtime: LocalSeatRuntime) {
     super(ctx)
@@ -43,12 +48,13 @@ export class LocalSeatService extends SeatService {
         await runtime.send({ sessionId: wait.sessionId, operationId: wait.wakeOperationId, text: delivery.text, mode: 'steer' })
         await this.waits.woken(wait.waitId)
       } })
+    this.windowCloser = new LocalCloser(ctx, this.state, runtime, options)
     this.closer = new CloseCoordinator({ latest: async id => latestReport((await this.state.read()).effects, id),
       evidence: id => runtime.evidence(id),
       remind: async (sessionId, operationId, text) => { await runtime.send({ sessionId, operationId, text, mode: 'steer' }) },
-      closeIfCurrent: async (report, stateVersion) => this.engine()?.closeWindow?.({ sessionId: report.sessionId,
-        operationId: `${report.reportId}:close:${report.stateVersion}` as T.SeatOperationId, expectedStateVersion: stateVersion,
-        reason: 'self-report', reportId: report.reportId, expectedReportVersion: report.stateVersion }) ?? rejected('unavailable', 'Close admission is unavailable.', 'Retry after engine recovery.') })
+      closeIfCurrent: (report, stateVersion) => this.windowCloser.close({ sessionId: report.sessionId,
+        operationId: `${report.reportId}:close:${report.stateVersion}` as T.SeatOperationId,
+        expectedStateVersion: stateVersion }, report) })
   }
   private engine(): SeatEngineService | undefined { return this.runtime.context.get('seatEngine') }
   private caller(): T.SeatCallContext {
@@ -167,7 +173,23 @@ export class LocalSeatService extends SeatService {
     const authority = this.caller()
     if (request.origin !== authority.origin) return rejected('unauthorized', 'Opening origin is not authenticated.', 'Use the trusted adapter origin.')
     if (this.engine() === undefined) return rejected('unavailable', 'Opening admission is unavailable.', 'Install the seat engine.')
-    const replay = (await this.state.read()).effects.find(effect => effect.operationId === request.operationId
+    const facts = (await this.state.read()).effects
+    const accepted = facts.find(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
+      && effect.data.trigger.sourceId === localSourceId && effect.data.trigger.evidence.kind === 'manual'
+      && effect.data.trigger.evidence.operationId === request.operationId)
+    if (accepted?.kind === 'trigger/accepted' || accepted?.kind === 'trigger/coalesced') {
+      const retained = readLocalOpenInput(accepted.data.trigger.data)
+      const canonical = (value: T.OpenSeatRequest) => ({ seat: value.seat, origin: value.origin, taskId: value.taskId,
+        nodeId: value.nodeId, openingMode: value.origin === 'manual' ? value.openingMode ?? 'auto' : 'auto',
+        expectedSeatRevision: value.expectedSeatRevision })
+      if (digest(canonical(request)) !== digest(canonical(retained.request))) {
+        return rejected('operation-id-conflict', 'Opening replay changed its original input.', 'Use the original request.')
+      }
+      const engine = this.engine()
+      if (!engine) return rejected('unavailable', 'Opening recovery is unavailable.', 'Restore the engine.')
+      return admitLocalOpen(engine, this.state, { ...retained, authority }, this.options.nodeName)
+    }
+    const replay = facts.find(effect => effect.operationId === request.operationId
       && (effect.kind === 'open/intent' || effect.kind === 'open/created' || effect.kind === 'open/configured'))
     if (replay?.kind === 'open/intent' || replay?.kind === 'open/created' || replay?.kind === 'open/configured') {
       const open = replay.data
@@ -200,12 +222,12 @@ export class LocalSeatService extends SeatService {
     if (candidates.length >= definition.maxOpenSessions && request.origin === 'manual') {
       return { status: 'choice-required', candidates, choices: ['switch', 'replace', 'cancel'], defaultChoice: 'switch' }
     }
-    if (engine.openWindow === undefined) return rejected('unavailable', 'Opening admission is unavailable.', 'Install an engine with local admission.')
     const date = new Date().toISOString().slice(0, 10)
     const opening = renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: request.taskId ?? null }, this.options.maxOpeningBytes)
-    return engine.openWindow({ request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
-      authority, definition, opening, title: `${definition.seat} ${date.slice(5)}` })
+    const input = { request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' as const },
+      authority, definition, opening, title: `${definition.seat} ${date.slice(5)}` }
+    return engine.openWindow ? engine.openWindow(input) : admitLocalOpen(engine, this.state, input, this.options.nodeName)
   }
   async openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
@@ -227,24 +249,18 @@ export class LocalSeatService extends SeatService {
       prefixDigest: null, observedAt: new Date().toISOString(), reusableRequest: false } }
     const cacheEvidence = await this.runtime.cache(request.sessionId)
     const engine = this.engine()
-    if (engine?.recordRenewal === undefined) return { ...rejected('unavailable', 'Renewal accounting is unavailable.', 'Restore the engine before renewing.'), cacheEvidence }
-    const failure = renewalRefusal(await this.runtime.evidence(request.sessionId), cacheEvidence, Date.now())
-    if (failure !== null) return { status: 'rejected', error: failure, cacheEvidence }
-    const source = request.source ?? 'manual'
-    const result = await this.runtime.renew({ ...request, source })
-    await engine.recordRenewal({ request, source, result })
-    return result
+    if (engine === undefined) return { ...rejected('unavailable', 'Renewal accounting is unavailable.', 'Restore the engine before renewing.'), cacheEvidence }
+    return engine.renew({ ...request, source: 'manual' })
   }
   async close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
-    return this.engine()?.closeWindow?.({ ...request, reason: 'manual' })
-      ?? rejected('unavailable', 'Close admission is unavailable.', 'Restore the engine before closing.')
+    return this.windowCloser.close(request)
   }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
-    return this.engine()?.replaceWindow?.(request)
+    return this.engine()?.replace(request)
       ?? rejected('unavailable', 'Replacement admission is unavailable.', 'Restore the engine before replacing.')
   }
   async rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult> {
@@ -318,15 +334,7 @@ export class LocalSeatService extends SeatService {
   }
   async contextUsage(sessionId: SessionId): Promise<T.SeatContextUsage> {
     this.caller()
-    const ledger = this.runtime.context.get('sessionLedger')
-    const snapshot = await ledger?.query({ sessionId })
-    const calls = snapshot?.rows.filter(row => row.kind === 'call') ?? []
-    const usage = calls.at(-1)?.finish?.usage
-    const values = [usage?.inputTokens, usage?.cacheReadTokens, usage?.cacheWriteTokens]
-    const observedAt = new Date().toISOString()
-    if (!snapshot?.complete || values.some(value => value === undefined)) return { status: 'unknown', observedAt }
-    return { status: 'known', source: 'last-call-usage', tokens: values.reduce<number>((sum, value) => sum + (value ?? 0), 0),
-      observedAt, estimated: true, contextEpoch: calls.reduce((sum, call) => sum + (call.finish?.compactionCount ?? 0), 0) }
+    return readContextUsage(this.runtime.context, sessionId)
   }
   /** Restore committed reports and waits after engine readiness, without minting new identities.
    * @returns after subscriptions and current idle report evaluations are installed.
@@ -335,6 +343,13 @@ export class LocalSeatService extends SeatService {
     if (this.engine() === undefined) return
     const effects = (await this.state.read()).effects
     for (const wait of projectedWaits(effects).values()) await this.coordinator.watch(wait)
+    const closing = new Set(effects.flatMap(effect => effect.kind === 'window/closing' ? [effect.data.sessionId] : []))
+    for (const sessionId of closing) {
+      const retained = closingState(effects, sessionId)
+      if (retained && retained.phase !== 'closed' && !retained.barrierReleased && retained.operationId) {
+        await this.windowCloser.close({ sessionId, operationId: retained.operationId, expectedStateVersion: retained.stateVersion })
+      }
+    }
     const sessions = new Set(effects.flatMap(effect => effect.kind === 'report/submitted' ? [effect.data.report.sessionId] : []))
     for (const sessionId of sessions) await this.closer.evaluate(sessionId)
   }
@@ -342,15 +357,23 @@ export class LocalSeatService extends SeatService {
    * @param sessionId - local window whose state changed.
    * @returns after current evidence has been checked.
    */
-  async reevaluateReport(sessionId: SessionId): Promise<void> { await this.closer.evaluate(sessionId) }
+  async reevaluateReport(sessionId: SessionId): Promise<void> {
+    await remindContext(this.runtime.context, this.state, this.runtime, sessionId)
+    await this.closer.evaluate(sessionId)
+  }
   /** Release observation ownership before catalog shutdown.
    * @returns after all accepted callbacks settle.
    */
-  async stop(): Promise<void> { this.directories.dispose(); await this.coordinator.dispose() }
+  async stop(): Promise<void> {
+    this.directories.dispose()
+    await this.coordinator.dispose()
+    await this.runtime.drainObservations?.()
+    await this.windowCloser.drain()
+  }
   /** Pause observation on engine unload while retaining recovery capability.
    * @returns after current subscriptions and callbacks drain.
    */
-  async pause(): Promise<void> { await this.coordinator.pause() }
+  async pause(): Promise<void> { await this.coordinator.pause(); await this.runtime.drainObservations?.(); await this.windowCloser.drain() }
   async setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult> {
     return this.result(async () => {
       const refusal = await this.guard(undefined, request.operationId)

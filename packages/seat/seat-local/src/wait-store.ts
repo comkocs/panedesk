@@ -89,7 +89,7 @@ export class WaitStore {
         result: rejected('state-conflict', 'Wait observations changed.', 'Read the current wait version.') }
       const next: T.SeatWait = { ...wait, phase: 'cancelled', stateVersion: wait.stateVersion + 1 }
       return { result: { status: 'cancelled', wait: next }, effects: [localFact({ kind: 'wait/cancelled',
-        sessionId: wait.sessionId, operationId: request.operationId, data: next })] }
+        sessionId: wait.sessionId, operationId: wait.operationId, data: next })] }
     })
   }
 
@@ -101,7 +101,7 @@ export class WaitStore {
     await this.state.mutate((effects) => {
       const wait = projectedWaits(effects).get(waitId)
       return { result: undefined, effects: wait?.phase === 'satisfied' ? [localFact({ kind: 'wait/woken',
-        sessionId: wait.sessionId, operationId: wait.wakeOperationId,
+        sessionId: wait.sessionId, operationId: wait.operationId,
         data: { ...wait, phase: 'woken', stateVersion: wait.stateVersion + 1 } })] : [] }
     })
   }

@@ -110,8 +110,6 @@ export interface SeatDefinition {
   /** Omitted enables idle cache maintenance; false disables automatic renewal. */
   autoKeepAlive?: boolean
   maxOpenSessions: number
-  /** Enables idle cache maintenance; definition resolution defaults this to true. */
-  autoKeepAlive?: boolean
   maxActiveSubagents: number
   contextThresholdTokens?: number
   subagentContextThresholdTokens: number

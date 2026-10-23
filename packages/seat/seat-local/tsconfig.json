@@ -14,6 +14,7 @@
     { "path": "../../sandbox/sandbox" },
     { "path": "../../sandbox/sandbox-policy" },
     { "path": "../../core/agent" },
+    { "path": "../../compaction/compaction" },
     { "path": "../../api/session-controller/tsconfig.host.json" },
     { "path": "../../context/instruction-subscriptions" },
     { "path": "../../jobs/jobs" },
