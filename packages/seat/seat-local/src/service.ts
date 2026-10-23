@@ -313,8 +313,8 @@ export class LocalSeatService extends SeatService {
     if (definition.wakeTemplate === undefined) return rejected('wake-template-missing', 'This seat has no wake template.', 'Configure a wake template.')
     const text = renderOpening(await readSeatText(definition.wakeTemplate, this.options.maxOpeningBytes),
       { seat: definition.seat, date: new Date().toISOString().slice(0, 10), taskId: null }, this.options.maxOpeningBytes).text
-    const sent = await this.runtime.send({ sessionId: target.open.sessionId, operationId: request.operationId, text, mode: 'queue' })
     const admission = await this.engine()?.admitTurn(target.open.sessionId)
+    const sent = await this.runtime.send({ sessionId: target.open.sessionId, operationId: request.operationId, text, mode: 'queue' })
     return { status: admission?.status === 'defer' && admission.reason === 'budget-stopped' ? 'stored-budget-stopped' : 'sent',
       sessionId: target.open.sessionId, messageId: sent.messageId, operationId: request.operationId,
       title: await this.runtime.title(target.open.sessionId) ?? target.open.title ?? definition.seat }
