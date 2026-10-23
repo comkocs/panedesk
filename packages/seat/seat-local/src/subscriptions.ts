@@ -1,11 +1,11 @@
 /** Session-local subscription sets preserve catalog order and canonical deduplication. */
 import type { SeatDefinition } from '@panedesk/dsh-seat'
-import type { SessionId } from '@panedesk/dsh-session'
+import type { Agent } from '@panedesk/dsh-agent'
 import { canonicalPath } from './identity.ts'
 
 /** Public registration signature consumed from the installed subscription provider. */
 export interface SessionSubscriptionRegistry {
-  registerForSession(request: { sessionId: SessionId; files: readonly string[]; operationId: string }): Promise<void>
+  register(agent: Agent, files: readonly string[]): Promise<() => Promise<void>>
 }
 
 /** Include discovered instructions, explicit opening pointers and separately configured subscriptions.
@@ -19,13 +19,14 @@ export async function subscriptionFiles(definition: SeatDefinition, discovered: 
   return [...new Set(await Promise.all(files.map(file => canonicalPath(file))))]
 }
 
-/** Wait for registration before opening delivery; absence is an explicit configuration failure.
- * @param registry - optional upstream provider.
- * @param request - fixed operation and session-owned files.
- * @returns after all files are registered.
+/** Await subscription registration before opening delivery; the owning instance disposes it.
+ * @param registry - optional subscription provider.
+ * @param agent - Session instance owning the subscriptions.
+ * @param files - canonical file paths.
+ * @returns asynchronous disposer after registration succeeds.
  */
 export async function registerSubscriptions(registry: SessionSubscriptionRegistry | undefined,
-  request: Parameters<SessionSubscriptionRegistry['registerForSession']>[0]): Promise<void> {
+  agent: Agent, files: readonly string[]): Promise<() => Promise<void>> {
   if (registry === undefined) throw new Error('Session subscription registration is unavailable')
-  await registry.registerForSession(request)
+  return registry.register(agent, files)
 }

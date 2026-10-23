@@ -12804,18 +12804,42 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../../fs/fs
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@panedesk/dsh-instruction-subscriptions':
+        specifier: workspace:*
+        version: link:../../context/instruction-subscriptions
+      '@panedesk/dsh-jobs':
+        specifier: workspace:*
+        version: link:../../jobs/jobs
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
+      '@panedesk/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../interaction/permission-presets
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-schedule':
+        specifier: workspace:*
+        version: link:../../schedule/schedule
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat
@@ -12825,9 +12849,27 @@ importers:
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
+      '@panedesk/dsh-session-persistence':
+        specifier: workspace:*
+        version: link:../../session/session-persistence
+      '@panedesk/dsh-session-query':
+        specifier: workspace:*
+        version: link:../../session-query/session-query
+      '@panedesk/dsh-session-title':
+        specifier: workspace:*
+        version: link:../../session/session-title
       '@panedesk/dsh-storage-domain':
         specifier: workspace:*
         version: link:../../storage/storage-domain
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
+      '@panedesk/dsh-user-questions':
+        specifier: workspace:*
+        version: link:../../interaction/user-questions
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
       '@panedesk/node-addon-system':
         specifier: workspace:~
         version: link:../../../native/system/packages/entry
@@ -12850,6 +12892,27 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-agent-loop-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
+      '@panedesk/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@panedesk/dsh-storage-json':
+        specifier: workspace:*
+        version: link:../../storage/storage-json
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4

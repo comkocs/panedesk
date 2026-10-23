@@ -81,7 +81,12 @@ export class SeatImporter {
         for (const [column, field] of Object.entries(request.columnMap)) {
           const value = row.values[column]
           if (value === undefined) refuse('invalid-definition', `Missing mapped column ${column}.`, 'Correct the column mapping.')
-          if (value !== '') values[field] = structuredFields.has(field) ? JSON.parse(value) : numericFields.has(field) ? Number(value) : value
+          if (value !== '') {
+            if (field === 'autoKeepAlive') {
+              if (value !== 'true' && value !== 'false') refuse('invalid-definition', 'Expected true or false.', 'Correct the boolean cell.')
+              values[field] = value === 'true'
+            } else values[field] = structuredFields.has(field) ? JSON.parse(value) : numericFields.has(field) ? Number(value) : value
+          }
         }
         const resolved = await resolveSeat(values, this.catalogs)
         if ('status' in resolved) throw new SeatLocalError(resolved.error)
@@ -121,7 +126,8 @@ export class SeatImporter {
     for (const local of catalog.definitions) if (local.source?.sourcePath === request.sourcePath && !present.has(local.seat)) {
       rows.push({ row: -rows.length - 1, seat: local.seat, definition: local, rowHash: digest(fields(local)), columnHashes: {}, action: 'tombstone', selected: false, differences: [], diagnostics: [] })
     }
-    const plan: SeatImportPlan = { planId: randomUUID() as SeatImportPlanId, sourceFileHash: source.hash, mappingHash, baseRevision: catalog.revision, rows }
+    const plan: SeatImportPlan = { planId: randomUUID() as SeatImportPlanId, sourceFileHash: source.hash,
+      mappingHash, baseRevision: catalog.revision, rows }
     if (this.plans.size >= this.limits.maxPlans) refuse('unavailable', 'Import preview capacity reached.', 'Commit a preview or restart preview ownership.')
     this.plans.set(plan.planId, { plan: structuredClone(plan), request: structuredClone(request) })
     return plan

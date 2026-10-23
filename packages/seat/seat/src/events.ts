@@ -26,6 +26,10 @@ export interface EngineOpenData {
   definition?: import('./types.ts').SeatDefinition
   sources?: readonly TriggerEnvelope[]
   title?: string
+  /** Resolved once before creation; recovery never rereads the template source. */
+  frozenOpening?: { text: string; digest: SeatDigest; variables: { seat: SeatName; date: string; taskId: SeatTaskId | null } }
+  /** Omission preserves automatic engine opening. */
+  openingMode?: 'auto' | 'prefill'
   intentId: OpenIntentId
   sessionId: SessionId
   seatRevision: number

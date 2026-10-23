@@ -108,6 +108,8 @@ export interface SeatDefinition {
   checkpointFiles: readonly SeatCheckpointFile[]
   wakeTemplate?: SeatText
   maxOpenSessions: number
+  /** Enables idle cache maintenance; definition resolution defaults this to true. */
+  autoKeepAlive?: boolean
   maxActiveSubagents: number
   contextThresholdTokens?: number
   subagentContextThresholdTokens: number
@@ -278,6 +280,7 @@ export type OpenSeatResult =
   | ({ status: 'prefilled'; draft: string } & OpenedSeatWindow)
   | { status: 'choice-required'; candidates: readonly SeatWindowCandidate[]; choices: readonly ['switch', 'replace', 'cancel']; defaultChoice: 'switch' }
   | { status: 'switched'; window: SeatWindowCandidate }
+  | { status: 'replacement'; result: ReplaceSeatResult }
   | { status: 'cancelled' }
   | SeatQueued | SeatRejected
 /** Explicit bounded names only; wildcard and implicit-all forms are rejected before any open. */
@@ -309,7 +312,13 @@ export interface ListSeatWindowsRequest { nodeId?: SeatNodeId; projectId?: SeatP
 /** Incomplete scans carry a cursor rather than pretending the unopened set is complete. */
 export type ListSeatWindowsResult = { status: 'listed'; sessions: readonly SeatWindowView[]; unopenedSeats: readonly SeatName[]; snapshotAt: SeatTimestamp; complete: boolean; nextCursor?: string } | SeatRejected
 /** One maintenance operation, never a normal conversation input. */
-export interface RenewSeatRequest { sessionId: SessionId; operationId: SeatOperationId; nodeId?: SeatNodeId }
+export interface RenewSeatRequest {
+  sessionId: SessionId
+  operationId: SeatOperationId
+  nodeId?: SeatNodeId
+  /** Missing means a human-requested renewal; schedulers explicitly select auto. */
+  source?: 'manual' | 'auto'
+}
 /** Unknown evidence forbids retrying a possibly issued network maintenance call. */
 export interface SeatCacheEvidence {
   lastActivityAt: SeatTimestamp | null
@@ -366,7 +375,13 @@ export type RenameSeatResult = { status: 'renamed'; sessionId: SessionId; title:
 export interface WakeSeatRequest { seat: SeatName; sessionId?: SessionId; operationId: SeatOperationId; nodeId?: SeatNodeId }
 /** Stored mail cannot lift a budget admission barrier. */
 export type WakeSeatResult =
-  | { status: 'sent' | 'stored-budget-stopped'; sessionId: SessionId; messageId: Branded<'MessageId'>; operationId: SeatOperationId }
+  | {
+    status: 'sent' | 'stored-budget-stopped'
+    sessionId: SessionId
+    messageId: Branded<'MessageId'>
+    operationId: SeatOperationId
+    /** Human-readable committed title; never used for addressing or deduplication. */
+    title?: string }
   | { status: 'opened'; result: OpenSeatResult }
   | { status: 'choice-required'; candidates: readonly SeatWindowCandidate[] }
   | SeatRejected
@@ -780,6 +795,21 @@ export interface SeatOpenExecutor {
   wakeSender(timeout: SeatHandoffTimeout): Promise<'sent' | 'cancelled' | 'unavailable'>
   /** Unknown owners retain resources; death must already have a durable terminal observation. */
   owner(owner: ResourceOwner): Promise<'alive' | 'dead' | 'unknown'>
+}
+/** Archive under the engine barrier; completion does not replace the engine resource commit. */
+export interface SeatCloseExecutor {
+  /** Read current busy evidence; unknown evidence must not count as idle. */
+  evidence(sessionId: SessionId): Promise<{ stateVersion: number; busyReasons: readonly SeatBusyReason[] }>
+  /** Called only after the close barrier commits; replay must not reopen the window. */
+  archive(request: { sessionId: SessionId; operationId: SeatOperationId }): Promise<void>
+}
+/** Frozen manual-open input; the engine allocates Session identity and owns resource admission. */
+export interface SeatLocalOpenRequest {
+  request: OpenSeatRequest
+  authority: SeatCallContext
+  definition: SeatDefinition
+  opening: NonNullable<import('./events.ts').EngineOpenData['frozenOpening']>
+  title: string
 }
 /** Child admission allocates no running slot until the journal commits its ticket. */
 export interface AdmitSeatChildRequest {

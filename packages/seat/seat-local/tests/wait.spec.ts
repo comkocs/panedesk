@@ -15,14 +15,14 @@ describe('event-driven waits and wake', () => {
       operationId: operation('wait-a'), wakeOperationId: operation('wake-a'), stateVersion: 1, durability: 'durable' }
     let settled = false
     const dispose = vi.fn(async () => {})
-    const runtime: WaitRuntime = {
+    const runtime = {
       authorize: async () => null, register: async () => state, read: async () => state,
       snapshot: async () => settled ? observation : null,
       subscribe: () => { settled = true; return dispose },
       observe: async (_waitId, item) => { if (state.phase === 'registered') state = { ...state, observations: [item], phase: 'satisfied', stateVersion: 2 }; return state },
-      wake: vi.fn(async () => { state = { ...state, phase: 'woken', stateVersion: 3 } }),
+      wake: vi.fn<WaitRuntime['wake']>(async () => { state = { ...state, phase: 'woken', stateVersion: 3 } }),
       cancel: async () => ({ status: 'already-settled', wait: state }),
-    }
+    } satisfies WaitRuntime
     const coordinator = new WaitCoordinator(runtime)
     const result = await coordinator.register({ waitId: state.waitId, sessionId, mode: 'any', objects: [object], operationId: operation('wait-a') })
     expect(result).toMatchObject({ status: 'registered', wait: { phase: 'woken' } })
@@ -34,9 +34,14 @@ describe('event-driven waits and wake', () => {
 
   it('uses handoff to wake an active seat and delegates unopened seats to the same open function', async () => {
     const def = definition(process.cwd(), { wakeTemplate: { kind: 'text', text: 'Resume {{seat}}.' } })
-    const runtime: WakeRuntime = { resolve: async () => def, candidates: vi.fn(async () => [{ sessionId, seat, nodeId, title: 'window-a' }]),
-      open: vi.fn(async () => ({ status: 'cancelled' })), send: vi.fn(async request => ({ status: 'sent', sessionId, messageId: 'message-a' as Extract<import('@panedesk/dsh-seat').WakeSeatResult, { status: 'sent' | 'stored-budget-stopped' }>['messageId'], operationId: request.operationId })),
-      freeze: async (_operationId, render) => render(), date: () => '2026-01-01', maxTextBytes: 4096, origin: 'manual' }
+    const runtime = { resolve: async () => def,
+      candidates: vi.fn<WakeRuntime['candidates']>(async () => [{ sessionId, seat, nodeId, title: 'window-a' }]),
+      open: vi.fn<WakeRuntime['open']>(async () => ({ status: 'cancelled' })),
+      send: vi.fn<WakeRuntime['send']>(async request => ({ status: 'sent', sessionId,
+        messageId: 'message-a' as Extract<import('@panedesk/dsh-seat').WakeSeatResult,
+          { status: 'sent' | 'stored-budget-stopped' }>['messageId'], operationId: request.operationId })),
+      freeze: async (_operationId, render) => render(), date: () => '2026-01-01', maxTextBytes: 4096, origin: 'manual',
+    } satisfies WakeRuntime
     expect(await wakeWindow(runtime, { seat, operationId: operation('wake-a') })).toMatchObject({ status: 'sent', sessionId })
     expect(runtime.send).toHaveBeenCalledWith({ sessionId, operationId: 'wake-a', text: 'Resume seat-a.', messageClass: 'handoff', mode: 'queue' })
     vi.mocked(runtime.candidates).mockResolvedValue([])

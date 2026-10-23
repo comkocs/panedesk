@@ -1,7 +1,7 @@
 import { vi } from 'vitest'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { LedgerSessionContext } from '@panedesk/dsh-session-ledger'
-import type { OpenIntentId, OpenSeatResult, SeatBudgetSnapshot, SeatDigest, SeatOperationId } from '@panedesk/dsh-seat'
+import type { OpenIntentId, OpenSeatResult, SeatBudgetSnapshot, SeatOperationId } from '@panedesk/dsh-seat'
 import type { LocalOpenIntent, OpenRuntime } from '../src/open.ts'
 import { definition, nodeId, operation, seat } from './fixtures.ts'
 import { renderOpening } from '../src/template.ts'
@@ -24,8 +24,8 @@ export function openingFixture() {
     owners.push(context)
     return () => { const index = owners.indexOf(context); if (index >= 0) owners.splice(index, 1) }
   }
-  const runtime: OpenRuntime = {
-    controller: { create: vi.fn(async (request) => {
+  const runtime = {
+    controller: { create: vi.fn<OpenRuntime['controller']['create']>(async (request) => {
       steps.push('create')
       const context = structuredClone(owners.at(-1)!)
       runs.push(context)
@@ -33,13 +33,21 @@ export function openingFixture() {
       request.releasePreparation?.()
       return { agent: { id: request.sessionId }, agentPreset: request.agentPreset }
     }) }, ledger: { bindContext }, now: () => new Date('2026-01-01T00:00:00.000Z'), maxOpeningBytes: 4096,
-    resolve: vi.fn(async () => def), intent: vi.fn(async () => intent), exists: vi.fn(async () => false),
-    restore: vi.fn(async () => { const context = structuredClone(owners.at(-1)!); runs.push(context); endRun = bindContext(context) }),
-    created: vi.fn(async () => { steps.push('created-callback'); intent.data.phase = 'created' }),
-    configure: vi.fn(async (stage) => { steps.push(stage) }), configured: vi.fn(async (stage) => { intent.data.completedStages = [...intent.data.completedStages, stage] }),
-    releaseAdmission: vi.fn(async () => { steps.push('release') }), sendOpening: vi.fn(async () => { steps.push('send') }),
+    resolve: vi.fn<OpenRuntime['resolve']>(async () => def), intent: vi.fn<OpenRuntime['intent']>(async () => intent),
+    exists: vi.fn<OpenRuntime['exists']>(async () => false),
+    restore: vi.fn<OpenRuntime['restore']>(async () => {
+      const context = structuredClone(owners.at(-1)!); runs.push(context); endRun = bindContext(context)
+    }),
+    created: vi.fn<OpenRuntime['created']>(async () => { steps.push('created-callback'); intent.data.phase = 'created' }),
+    configure: vi.fn<OpenRuntime['configure']>(async (stage) => { steps.push(stage) }),
+    configured: vi.fn<OpenRuntime['configured']>(async (stage) => {
+      intent.data.completedStages = [...intent.data.completedStages, stage]
+    }),
+    releaseAdmission: vi.fn<OpenRuntime['releaseAdmission']>(async () => { steps.push('release') }),
+    sendOpening: vi.fn<OpenRuntime['sendOpening']>(async () => { steps.push('send') }),
     result: vi.fn(async (): Promise<OpenSeatResult> => ({ status: 'opened', sessionId, seat, nodeId, nodeName: 'node-a', title: intent.title,
-      budget: {}, phase: 'active', stateVersion: 1, callbackIds: [] })), failed: vi.fn(async (_intent, error) => ({ status: 'rejected', error })),
-  }
-  return { runtime, intent, owners, runs, steps, endRun: () =>{  endRun(); } }
+      budget: {}, phase: 'active', stateVersion: 1, callbackIds: [] })),
+    failed: vi.fn<OpenRuntime['failed']>(async (_intent, error) => ({ status: 'rejected', error })),
+  } satisfies OpenRuntime
+  return { runtime, intent, owners, runs, steps, endRun: () => { endRun() } }
 }
