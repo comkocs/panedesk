@@ -31,6 +31,7 @@
       "@panedesk/dsh-seat": ["./packages/seat/seat/src/index.ts"],
       "@panedesk/dsh-seat-local": ["./packages/seat/seat-local/src/index.ts"],
       "@panedesk/dsh-seat-engine": ["./packages/seat/seat-engine/src/index.ts"],
+      "@panedesk/dsh-seat-engine/reader": ["./packages/seat/seat-engine/src/reader.ts"],
       "@panedesk/dsh-seat-gates": ["./packages/seat/seat-gates/src/index.ts"],
       "@panedesk/dsh-tool-seat": ["./packages/seat/tool-seat/src/index.ts"],
       "@panedesk/dsh-seat-remote": ["./packages/seat/seat-remote/src/index.ts"],

@@ -87,6 +87,8 @@ it('A17 persists one handoff/steer warning, completes the admitted turn and leav
     expect(callbacks.filter(payload => payload.kind === 'budget-stopped')).toHaveLength(1)
     expect(callbacks.find(payload => payload.kind === 'budget-stopped')).toMatchObject({ sessionId: active.id,
       budgetSnapshot: { windowCost: '100', costState: 'known' } })
+    // Driver quiescence does not include the persistence provider's buffered writes.
+    await expect(ctx.sessions.flush(active.session)).resolves.toBe(true)
     const handle = await ctx.sessionPersistence.open(active.id, 'read')
     try {
       const persisted = (await handle.read()).events
