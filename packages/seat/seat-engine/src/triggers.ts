@@ -1,0 +1,97 @@
+/** All six trigger families share durable deduplication, coalescing and project policy. */
+import { randomUUID } from 'node:crypto'
+import type { AcceptTriggerResult, EngineEffect, EngineEventId, PendingSeatItem, QueueItemId, SeatEngineConfig, SeatProjectPolicy, TriggerEnvelope, EngineTriggerData, SeatRejected, SeatErrorCode } from '@panedesk/dsh-seat'
+import { canonical, digest, EngineJournal, EngineError } from './journal.ts'
+import { effectiveMode } from './admission.ts'
+import { SourceRegistry } from './sources.ts'
+
+/** Safe machine rejection carries no source body or credential material.
+ * @param code - stable failure classification.
+ * @param message - safe diagnostic.
+ * @returns actionable rejection with no committed business effect.
+ */
+export function rejected(code: SeatErrorCode, message: string): SeatRejected {
+  return { status: 'rejected', error: { code, message, alternative: 'Inspect engine state and retry with the same operation identity.',
+    retryable: code === 'unavailable', effectState: 'none' } }
+}
+/** Assign an effect identity while preserving its discriminated payload.
+ * @param effect - complete fact except for its generated event identity.
+ * @returns identified effect.
+ */
+export function fact(effect: EngineEffect extends infer E ? E extends EngineEffect ? Omit<E, 'eventId'> : never : never): EngineEffect {
+  return { ...effect, eventId: randomUUID() as EngineEventId }
+}
+/** Authenticated ingress acknowledges only the complete synchronized decision. */
+export class TriggerRegistry {
+  constructor(private readonly journal: EngineJournal, private readonly sources: SourceRegistry,
+    private readonly config: SeatEngineConfig) {}
+
+  /** Admit one host-stamped event, preserving all callback subscribers when coalesced.
+   * @param envelope - adapter-authenticated bounded payload.
+   * @param ruleMode - current rule restriction resolved by the engine.
+   * @returns stable acceptance or explicit refusal.
+   */
+  async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode): Promise<AcceptTriggerResult> {
+    try {
+      return await this.sources.use(envelope.sourceId, async (source) => {
+        if (!source.kinds.includes(envelope.kind) || envelope.evidence.kind !== envelope.kind || envelope.callbackRef !== envelope.sourceId) return rejected('unauthorized',
+          'Source is not authorized for this trigger')
+        if (Buffer.byteLength(canonical(envelope)) > this.config.maxSourceBytes) return rejected('source-payload-too-large',
+          'Source event exceeds its byte limit')
+        if (envelope.cause && envelope.cause.depth >= this.config.maxCauseDepth) return rejected('causal-depth-exceeded',
+          'Trigger causal chain requires manual review')
+        const now = Date.now(), receivedAt = new Date(now).toISOString()
+        const trigger = { ...envelope, receivedAt }
+        const bucket = envelope.eventId ? null : Math.floor(now / this.config.dedupWindowMs)
+        const contentDigest = digest({ kind: trigger.kind, evidence: trigger.evidence, seat: trigger.seat,
+          projectId: trigger.projectId, data: trigger.data, taskId: trigger.taskId, callbackRef: trigger.callbackRef })
+        const key = canonical([trigger.sourceId, trigger.eventId ?? contentDigest, bucket])
+        let result: AcceptTriggerResult = rejected('unavailable', 'Ingress did not commit')
+        await this.journal.commit((view) => {
+          const existing = view.dedup.get(key)
+          if (existing) {
+            if (existing.deduplication.digest !== contentDigest) { result = rejected('event-id-conflict',
+              'Event identity has different content'); return [] }
+            result = { status: 'duplicate', triggerId: trigger.triggerId, originalTriggerId: existing.trigger.triggerId,
+              queueItemId: existing.pending.queueItemId }
+            return [fact({ kind: 'trigger/deduplicated', triggerId: trigger.triggerId, seat: trigger.seat,
+              data: { ...existing, trigger, originalTriggerId: existing.trigger.triggerId } })]
+          }
+          const policy: SeatProjectPolicy = view.policies.get(trigger.projectId) ?? { projectId: trigger.projectId,
+            mode: 'remind', modeChosen: false, revision: 0 }
+          const mode = trigger.kind === 'manual' ? 'auto' : effectiveMode(policy.mode, ruleMode)
+          if (mode === 'off') {
+            result = rejected('disabled', 'Automatic triggering is disabled')
+            return [fact({ kind: 'source/rejected', seat: trigger.seat, data: { sourceId: trigger.sourceId,
+              sourceEventId: trigger.eventId ?? null, digest: contentDigest, error: result.error } })]
+          }
+          const previous = [...view.pending.values()].find(item => item.seat === trigger.seat
+            && item.projectId === trigger.projectId && item.triggerKind === trigger.kind
+            && (trigger.evidence.kind !== 'handoff-timeout' || item.handoffTimeout?.messageId === trigger.evidence.messageId))
+          const sources = [...(previous?.sources ?? []), trigger]
+          const pending: PendingSeatItem = {
+            queueItemId: previous?.queueItemId ?? randomUUID() as QueueItemId,
+            seat: trigger.seat, projectId: trigger.projectId, triggerKind: trigger.kind,
+            action: trigger.kind === 'handoff-timeout' ? 'wake-sender' : 'open',
+            ...(trigger.evidence.kind === 'handoff-timeout' ? { handoffTimeout: trigger.evidence } : {}),
+            sequence: previous?.sequence ?? view.sequence + 1, effectiveMode: mode,
+            reason: mode === 'remind' ? 'approval' : 'provider-unavailable', blockedBy: [], sources,
+            relatedTaskIds: [...new Set(sources.flatMap(source => source.taskId ? [source.taskId] : []))],
+            queuedAt: previous?.queuedAt ?? receivedAt, stateVersion: (previous?.stateVersion ?? 0) + 1,
+          }
+          const data: EngineTriggerData = { trigger, pending, originalTriggerId: previous?.sources[0]?.triggerId ?? null,
+            deduplication: { key, digest: contentDigest, receivedAt, bucket, sourceId: trigger.sourceId,
+              eventId: trigger.eventId ?? null } }
+          result = { status: previous ? 'coalesced' : 'accepted', triggerId: trigger.triggerId,
+            queueItemId: pending.queueItemId, sequence: pending.sequence }
+          return [fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
+            seat: trigger.seat, data })]
+        })
+        return result
+      })
+    } catch (error) {
+      if (error instanceof EngineError) return rejected(error.code, error.message)
+      throw error
+    }
+  }
+}

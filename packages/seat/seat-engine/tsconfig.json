@@ -8,8 +8,10 @@
     "src"
   ],
   "references": [
-    {
-      "path": "../../../vendor/cordis"
-    }
+    { "path": "../../../vendor/cordis" },
+    { "path": "../seat" },
+    { "path": "../../core/session" },
+    { "path": "../../session/session-ledger" },
+    { "path": "../../util/home-paths" }
   ]
 }

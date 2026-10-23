@@ -180,6 +180,30 @@ export abstract class SeatEngineService extends Service {
    * @returns stable accepted, duplicate, coalesced or rejected identity.
    */
   abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>
+  /** Install the local Session executor without coupling engine storage to its implementation.
+   * @param executor - trusted local implementation.
+   * @returns disposer that drains in-flight recovery before detaching.
+   */
+  abstract registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void>
+  /** Reevaluate pending work and original open identities.
+   * @returns after the current reconciliation batch settles.
+   */
+  abstract drive(): Promise<void>
+  /** Admit a child through the parent's persistent FIFO capacity.
+   * @param request - frozen ticket and resolved parent limit.
+   * @returns durable queued or admitted ticket.
+   */
+  abstract admitChild(request: T.AdmitSeatChildRequest): Promise<T.ChildAdmissionResult>
+  /** Release a settled child and wake queued admission.
+   * @param ticketId - original admission identity.
+   * @returns after release is durable.
+   */
+  abstract releaseChild(ticketId: T.ChildTicketId): Promise<void>
+  /** Check a new turn before inbox claim; never interrupts an existing turn.
+   * @param sessionId - exact window identity.
+   * @returns allow or a durable-policy deferral.
+   */
+  abstract admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission>
   /** Register a trusted source without persisting callback code or credentials.
    * @param source - installed source adapter and redelivery horizon.
    * @returns asynchronous disposer that stops ingress and drains accepted calls.
