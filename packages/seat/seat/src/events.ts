@@ -26,6 +26,10 @@ export interface EngineOpenData {
   definition?: import('./types.ts').SeatDefinition
   sources?: readonly TriggerEnvelope[]
   title?: string
+  /** Resolved once before creation; recovery never rereads the template source. */
+  frozenOpening?: { text: string; digest: SeatDigest; variables: { seat: SeatName; date: string; taskId: SeatTaskId | null } }
+  /** Omission preserves automatic engine opening. */
+  openingMode?: 'auto' | 'prefill'
   intentId: OpenIntentId
   sessionId: SessionId
   seatRevision: number
@@ -40,6 +44,10 @@ export interface EngineOpenData {
 }
 /** Close facts publish only after archive, title and flush complete. */
 export interface EngineCloseData {
+  /** Original close identity permits recovery without admitting another archive. */
+  operationId?: SeatOperationId
+  /** True only after a failed pre-archive operation releases its local barrier. */
+  barrierReleased?: boolean
   sessionId: SessionId
   phase: ClosePhase
   reason: WindowEndReason

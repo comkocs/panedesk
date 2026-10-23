@@ -6,21 +6,26 @@ import { operation } from './fixtures.ts'
 import type { WindowEvidence } from '../src/status.ts'
 
 export function evidence(overrides: Partial<WindowEvidence> = {}): WindowEvidence {
-  return { complete: true, running: false, approvals: [], planReviews: [], answers: [], subagents: [], jobs: [], waits: [], tickets: [], inbox: [],
+  return { complete: true, running: false, approvals: [], planReviews: [], answers: [],
+    subagents: [], jobs: [], waits: [], tickets: [], inbox: [],
     lastConsumedTurn: null, droppedUnrun: false, lastActivityAt: '2026-01-01T00:00:00.000Z', stateVersion: 1, ...overrides }
 }
 const sessionId = 'session-a' as SessionId
 const request: CloseSeatRequest = { sessionId, operationId: operation('close-a'), expectedStateVersion: 1 }
 export function closeFixture() {
   const steps: string[] = []
-  const runtime: CloseRuntime = {
-    evidence: vi.fn(async () => evidence()), begin: vi.fn(async () => { steps.push('barrier'); return null }),
-    archiveSession: vi.fn(async () => { steps.push('archive') }), title: vi.fn(async () => 'window-a'),
-    rename: vi.fn(async (_session, title) => { steps.push(`title:${title}`) }), flush: vi.fn(async () => { steps.push('flush') }),
-    report: vi.fn(async () => null), finish: vi.fn(async (): Promise<Extract<CloseSeatResult, { status: 'closed' }>> => {
+  const runtime = {
+    evidence: vi.fn<CloseRuntime['evidence']>(async () => evidence()),
+    begin: vi.fn<CloseRuntime['begin']>(async () => { steps.push('barrier'); return null }),
+    archiveSession: vi.fn<CloseRuntime['archiveSession']>(async () => { steps.push('archive') }),
+    title: vi.fn<CloseRuntime['title']>(async () => 'window-a'),
+    rename: vi.fn<CloseRuntime['rename']>(async (_session, title) => { steps.push(`title:${title}`) }),
+    flush: vi.fn<CloseRuntime['flush']>(async () => { steps.push('flush') }),
+    report: vi.fn<CloseRuntime['report']>(async () => null),
+    finish: vi.fn<CloseRuntime['finish']>(async (): Promise<Extract<CloseSeatResult, { status: 'closed' }>> => {
       steps.push('closed-callback'); return { status: 'closed', sessionId, phase: 'closed', endedAt: '2026-01-01T00:01:00.000Z', stateVersion: 2 }
-    }), releaseBarrier: vi.fn(async () => { steps.push('release') }),
-  }
+    }), releaseBarrier: vi.fn<CloseRuntime['releaseBarrier']>(async () => { steps.push('release') }),
+  } satisfies CloseRuntime
   return { runtime, steps }
 }
 

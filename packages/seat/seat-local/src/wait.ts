@@ -20,6 +20,7 @@ export interface WaitRuntime {
 export class WaitCoordinator {
   private readonly subscriptions = new Map<WaitId, (() => Promise<void>)[]>()
   private readonly running = new Set<Promise<void>>()
+  private readonly deliveries = new Map<WaitId, Promise<void>>()
   private disposed = false
   constructor(private readonly runtime: WaitRuntime) {}
 
@@ -52,8 +53,10 @@ export class WaitCoordinator {
     try {
       for (const object of wait.objects) {
         const before = await this.runtime.snapshot(object)
+        if (this.subscriptions.get(wait.waitId) !== disposers) break
         disposers.push(this.runtime.subscribe(object, observation => this.track(this.observed(wait.waitId, observation))))
         if (before !== null) await this.observed(wait.waitId, before)
+        if (this.subscriptions.get(wait.waitId) !== disposers) break
         const after = await this.runtime.snapshot(object)
         if (after !== null) await this.observed(wait.waitId, after)
       }
@@ -72,10 +75,18 @@ export class WaitCoordinator {
     if (wait.phase === 'satisfied') await this.deliver(wait)
   }
 
-  private async deliver(wait: SeatWait): Promise<void> {
-    await this.runtime.wake(wait, { messageClass: 'handoff', mode: 'steer',
-      text: `Wait ${wait.waitId}: ${wait.observations.map(item => `${item.object.kind} ${item.object.id}: ${item.outcome}`).join('; ')}` })
-    // Subscription cleanup follows durable wake so delivery failures remain recoverable.
+  private deliver(wait: SeatWait): Promise<void> {
+    const current = this.deliveries.get(wait.waitId)
+    if (current !== undefined) return current
+    const task = Promise.resolve().then(async () => {
+      const latest = await this.runtime.read(wait.waitId)
+      if (latest?.phase !== 'satisfied') return
+      await this.runtime.wake(latest, { messageClass: 'handoff', mode: 'steer',
+        text: `Wait ${latest.waitId}: ${latest.observations.map(item => `${item.object.kind} ${item.object.id}: ${item.outcome}`).join('; ')}` })
+      await this.unwatch(wait.waitId)
+    }).finally(() => { this.deliveries.delete(wait.waitId) })
+    this.deliveries.set(wait.waitId, task)
+    return this.track(task)
   }
 
   /** Cancel only the observation; task producers retain ownership of their tasks.
@@ -99,6 +110,13 @@ export class WaitCoordinator {
    */
   async dispose(): Promise<void> {
     this.disposed = true
+    await this.pause()
+  }
+
+  /** Pause observations while the engine is absent, allowing registration recovery later.
+   * @returns after subscriptions are released and accepted callbacks are drained.
+   */
+  async pause(): Promise<void> {
     for (const waitId of this.subscriptions.keys()) await this.unwatch(waitId)
     await Promise.all(this.running)
   }

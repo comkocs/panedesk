@@ -27,8 +27,12 @@ describe('catalog ownership', () => {
 
   it('does not steal a live writer and releases ownership after draining', async () => {
     const fixture = await storeFixture(); fixtures.push(fixture)
-    await expect(SeatStore.open(fixture.facility, fixture.root)).rejects.toMatchObject({ code: expect.stringMatching(/EAGAIN|EWOULDBLOCK/) })
-    const writes = fixture.store.mutate(0, operation('authority-a'), {}, catalog =>{  setCatalogAuthority(catalog, 'seat-store', 'authorization-a'); })
+    const error: unknown = await SeatStore.open(fixture.facility, fixture.root).catch((reason: unknown) => reason)
+    expect(error).toBeInstanceOf(Error)
+    expect(error instanceof Error && 'code' in error ? error.code : null).toMatch(/EAGAIN|EWOULDBLOCK/)
+    const writes = fixture.store.mutate(0, operation('authority-a'), {}, (catalog) => {
+      setCatalogAuthority(catalog, 'seat-store', 'authorization-a')
+    })
     await fixture.store.close()
     await expect(writes).resolves.toBe(1)
     const next = await SeatStore.open(fixture.facility, fixture.root)

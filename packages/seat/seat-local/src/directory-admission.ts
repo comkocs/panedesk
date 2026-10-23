@@ -33,7 +33,8 @@ export class DirectoryAdmission {
    * @param definitions - authorized local definitions.
    * @returns complete choices or an explicit free/seat admission.
    */
-  async resolve(request: ResolveDirectoryChoiceRequest, principalId: SeatPrincipalId, definitions: readonly SeatDefinition[]): Promise<DirectoryChoiceResult> {
+  async resolve(request: ResolveDirectoryChoiceRequest, principalId: SeatPrincipalId,
+    definitions: readonly SeatDefinition[]): Promise<DirectoryChoiceResult> {
     const cwd = await canonicalPath(request.cwd)
     const owners = await directoryOwners(cwd, definitions)
     const candidates = owners.map(({ seat, revision }) => ({ seat, revision }))

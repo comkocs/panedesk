@@ -178,6 +178,35 @@ export abstract class SeatService extends Service {
 /** Engine owns the journal, queues, resources and outbox; local providers depend only on this definition. */
 export abstract class SeatEngineService extends Service {
   constructor(ctx: Context) { super(ctx, 'seatEngine') }
+  /** Admit a manual opening through the same resource transaction as automatic triggers.
+   * @param request - authenticated operation and already frozen opening data.
+   * @returns durable opening outcome; absence means this provider cannot admit local openings.
+   */
+  openWindow?: (request: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>
+  /** Register close effects; the engine owns barriers, version checks and resource release.
+   * @param executor - public archive and title adapter.
+   * @returns disposer that drains in-flight closes before unregistering.
+   */
+  registerCloseExecutor?: (executor: T.SeatCloseExecutor) => () => Promise<void>
+  /** Admit and recover a replacement, counting both windows and retaining old tags until close.
+   * @param request - old-window operation.
+   * @returns FIFO admission or durable replacement state; absence never permits a local capacity bypass.
+   */
+  replaceWindow?: (request: T.ReplaceSeatRequest) => Promise<T.ReplaceSeatResult>
+  /** Serialize archive admission with new work, report revocation and resource release.
+   * @param request - state-version checked operation and optional current report identity.
+   * @returns close result after the registered executor flushes its effects.
+   */
+  closeWindow?: (request: T.CloseSeatRequest & {
+    reason: T.WindowEndReason
+    reportId?: T.CloseReportId
+    expectedReportVersion?: number
+  }) => Promise<T.CloseSeatResult>
+  /** Record renewal source beside the upstream maintenance call, never as conversation text.
+   * @param request - retained operation, source and observed result.
+   * @returns after the source attribution is durable.
+   */
+  recordRenewal?: (request: { request: T.RenewSeatRequest; source: 'manual' | 'auto'; result: T.RenewSeatResult }) => Promise<void>
   /** Commit ingress before acknowledging acceptance.
    * @param envelope - authenticated bounded source event.
    * @returns stable accepted, duplicate, coalesced or rejected identity.

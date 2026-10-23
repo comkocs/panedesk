@@ -15,7 +15,7 @@ export function definition(root: string, overrides: Partial<SeatDefinition> = {}
   return { schemaVersion: 1, revision: 1, seat, platform: 'server', node: 'node-a', projectId: 'project-a' as SeatProjectId,
     directories: [{ path: root, startup: true }], memoryDirectories: [], opening: { kind: 'text', text: 'Open {{seat}} on {{date}} for {{taskId}}.' },
     openingInstructionFiles: [], agentPreset: 'agent-a', provider: 'provider-a', model: 'model-a', reasoningEffort: 'effort-a',
-    permissionPreset: 'permission-a', subscriptions: [], checkpointFiles: [], maxOpenSessions: 1, maxActiveSubagents: 4,
+    permissionPreset: 'permission-a', subscriptions: [], checkpointFiles: [], maxOpenSessions: 1, autoKeepAlive: true, maxActiveSubagents: 4,
     subagentContextThresholdTokens: 400000, rules: [], worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 48 }, ...overrides }
 }
 export function catalogs(root: string): DefinitionCatalogs {

@@ -13,6 +13,15 @@ async function setup() {
 }
 
 describe('seat import previews', () => {
+  it('maps keepalive columns, defaults empty cells to enabled and rejects nonboolean text', async () => {
+    const { importer, sourcePath } = await setup()
+    await writeFile(sourcePath, 'seat,keep\nseat-a,true\nseat-b,false\nseat-c,\nseat-d,yes\n')
+    const plan = await importer.preview({ format: 'csv', sourcePath,
+      columnMap: { seat: 'seat', keep: 'autoKeepAlive' }, defaults: {} })
+    expect(plan.rows.slice(0, 3).map(row => row.definition?.autoKeepAlive)).toEqual([true, false, true])
+    expect(plan.rows[3]).toMatchObject({ action: 'invalid', selected: false })
+  })
+
   it('previews CSV quoted commas and newlines, retains the source hash and commits selected rows only', async () => {
     const { root, importer, sourcePath, store } = await setup()
     await writeFile(sourcePath, 'seat,model\nseat-a,"model,a\nline"\nseat-b,model-b\n')

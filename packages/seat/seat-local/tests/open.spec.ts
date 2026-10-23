@@ -20,8 +20,9 @@ describe('seat opening', () => {
   it('uses public controlled create and publishes created callback before configuration or opening delivery', async () => {
     const { runtime, intent, steps, owners, endRun } = openingFixture()
     expect(await openSeat(runtime, request)).toMatchObject({ status: 'opened', sessionId })
-    expect(runtime.controller.create).toHaveBeenCalledWith({ sessionId, cwd: process.cwd(), agentPreset: 'agent-a',
-      releasePreparation: expect.any(Function), selection: { provider: 'provider-a', model: 'model-a', reasoningEffort: 'effort-a' } })
+    expect(runtime.controller.create.mock.calls[0]?.[0]).toMatchObject({ sessionId, cwd: process.cwd(), agentPreset: 'agent-a',
+      selection: { provider: 'provider-a', model: 'model-a', reasoningEffort: 'effort-a' } })
+    expect(runtime.controller.create.mock.calls[0]?.[0].releasePreparation).toBeTypeOf('function')
     expect(steps).toEqual(['create', 'created-callback', 'workspace', 'model', 'permission', 'subscriptions', 'title', 'binding', 'release', 'send'])
     expect(runtime.sendOpening).toHaveBeenCalledExactlyOnceWith(intent)
     expect(owners).toHaveLength(1)

@@ -22,6 +22,14 @@ export interface ReplacementRuntime {
 export async function replaceWindow(runtime: ReplacementRuntime, request: ReplaceSeatRequest): Promise<ReplaceSeatResult> {
   let transaction = await runtime.admit(request)
   if ('status' in transaction) return transaction
+  if (transaction.phase === 'completed' && transaction.permit !== null && transaction.newSessionId !== null) {
+    return { status: 'replacing', replacementId: transaction.replacementId, oldSessionId: transaction.oldSessionId,
+      newSessionId: transaction.newSessionId, phase: 'completed', permit: transaction.permit }
+  }
+  if (transaction.phase === 'closing-new' || transaction.phase === 'failed' || transaction.permit?.state === 'expired-failure') {
+    if (transaction.failure === null) throw new Error('Failed replacement has no durable cause')
+    return cleanupReplacement(runtime, transaction, transaction.failure)
+  }
   let reason: 'replacement-open-failed' | 'replacement-first-turn-failed' = 'replacement-open-failed'
   try {
     if (transaction.phase === 'opening' || transaction.newSessionId === null) transaction = await runtime.openNew(transaction)
@@ -42,15 +50,7 @@ export async function replaceWindow(runtime: ReplacementRuntime, request: Replac
     transaction = { ...transaction, phase: 'closing-new', failure: cause,
       permit: transaction.permit === null ? null : { ...transaction.permit, state: 'expired-failure', expiredAt: runtime.now() } }
     await runtime.persist(transaction)
-    let cleanup: 'not-created' | 'closed' | 'pending' = 'not-created'
-    if (transaction.newSessionId !== null) {
-      try { cleanup = await runtime.close(transaction.newSessionId, 'replacement-failed') === 'closed' ? 'closed' : 'pending' }
-      catch (cleanupError) { void cleanupError; cleanup = 'pending' }
-    }
-    transaction = { ...transaction, phase: cleanup === 'pending' ? 'closing-new' : 'failed' }
-    await runtime.failed(transaction, cleanup)
-    return { status: 'failed', replacementId: transaction.replacementId, oldSessionId: transaction.oldSessionId,
-      newSessionId: transaction.newSessionId, phase: 'failed', reason, cause, cleanup }
+    return cleanupReplacement(runtime, transaction, cause)
   }
   // Old-window close failures retain a successful new window; they are not opening failures.
   const permit = transaction.permit as HandoverPermit
@@ -59,9 +59,26 @@ export async function replaceWindow(runtime: ReplacementRuntime, request: Replac
     return { status: 'replacing', replacementId: transaction.replacementId, oldSessionId: transaction.oldSessionId,
       newSessionId, phase: 'awaiting-old-idle', permit }
   }
+  transaction = { ...transaction, phase: 'closing-old' }
+  await runtime.persist(transaction)
   await runtime.transferTags(transaction)
   transaction = { ...transaction, phase: 'completed' }
   await runtime.persist(transaction)
   return { status: 'replacing', replacementId: transaction.replacementId, oldSessionId: transaction.oldSessionId,
     newSessionId, phase: 'completed', permit }
+}
+
+async function cleanupReplacement(runtime: ReplacementRuntime, transaction: EngineReplacementData,
+  cause: SeatFailure): Promise<ReplaceSeatResult> {
+  let cleanup: 'not-created' | 'closed' | 'pending' = transaction.newSessionId === null ? 'not-created' : 'closed'
+  if (transaction.phase !== 'failed' && transaction.newSessionId !== null) {
+    try { cleanup = await runtime.close(transaction.newSessionId, 'replacement-failed') === 'closed' ? 'closed' : 'pending' }
+    catch (cleanupError) { void cleanupError; cleanup = 'pending' }
+  }
+  if (transaction.phase !== 'failed') {
+    await runtime.failed({ ...transaction, phase: cleanup === 'pending' ? 'closing-new' : 'failed' }, cleanup)
+  }
+  return { status: 'failed', replacementId: transaction.replacementId, oldSessionId: transaction.oldSessionId,
+    newSessionId: transaction.newSessionId, phase: 'failed',
+    reason: cause.code === 'replacement-open-failed' ? 'replacement-open-failed' : 'replacement-first-turn-failed', cause, cleanup }
 }

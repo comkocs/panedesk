@@ -65,7 +65,9 @@ export class SeatDirectoryAccess {
    * @returns committed path or an actionable refusal.
    */
   async write(request: SeatDirectoryWriteRequest): Promise<SeatDirectoryWriteResult> {
-    return this.mutate(request, async (target, policy) => { await this.fs.writeText(target, request.content, undefined, undefined, policy) })
+    return this.mutate(request, async (target, policy) => {
+      await this.fs.writeText(target, request.content, undefined, undefined, policy)
+    })
   }
 
   /** Apply one exact replacement under the same admission as writing.

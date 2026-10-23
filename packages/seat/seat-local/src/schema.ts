@@ -35,7 +35,7 @@ const shape = z.object({
   reasoningEffort: z.string().min(1), permissionPreset: z.string().min(1),
   subscriptions: z.array(absolute), checkpointFiles: z.array(z.object({
     path: absolute, section: z.string().min(1), maxBytes: positive, required: z.boolean(),
-  })), wakeTemplate: text.optional(), maxOpenSessions: positive, maxActiveSubagents: positive,
+  })), wakeTemplate: text.optional(), maxOpenSessions: positive, autoKeepAlive: z.boolean().default(true), maxActiveSubagents: positive,
   contextThresholdTokens: positive.optional(), subagentContextThresholdTokens: positive,
   pollingThreshold: positive.optional(), maxSleepSeconds: positive.optional(),
   worktree: z.object({ clientTreesPerSlot: positive, staleOnSettle: z.literal('notify'),

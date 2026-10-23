@@ -8,17 +8,28 @@ const sessionId = 'session-a' as SessionId
 const report: CloseSelfReport = { sessionId, reportId: 'report-a' as CloseReportId, canClose: true,
   waitingFor: [], nextOpen: { when: { kind: 'unspecified' }, prerequisites: ['Review results.'] },
   submittedAt: '2026-01-01T00:00:00.000Z', stateVersion: 1 }
-const idle = { complete: true, running: false, approvals: [], planReviews: [], answers: [], subagents: [], jobs: [], waits: [], tickets: [], inbox: [],
+const idle = { complete: true, running: false, approvals: [], planReviews: [], answers: [],
+  subagents: [], jobs: [], waits: [], tickets: [], inbox: [],
   lastConsumedTurn: null, droppedUnrun: false, lastActivityAt: null, stateVersion: 1 }
 
 describe('self-report and context reminders', () => {
   it('reminds instead of closing while child work remains and closes with the latest three report fields once idle', async () => {
-    const runtime: ReportRuntime = { latest: vi.fn(async () => report), evidence: vi.fn(async () => ({ ...idle, subagents: ['child-a'] })),
-      remind: vi.fn(async () => {}), closeIfCurrent: vi.fn(async () => ({ status: 'closed', sessionId, phase: 'closed', endedAt: report.submittedAt, stateVersion: 2 })) }
+    const runtime = { latest: vi.fn<ReportRuntime['latest']>(async () => report),
+      evidence: vi.fn<ReportRuntime['evidence']>(async () => ({ ...idle, subagents: ['child-a'] })),
+      remind: vi.fn<ReportRuntime['remind']>(async () => {}),
+      closeIfCurrent: vi.fn<ReportRuntime['closeIfCurrent']>(async () => ({ status: 'closed', sessionId,
+        phase: 'closed', endedAt: report.submittedAt, stateVersion: 2 })),
+    } satisfies ReportRuntime
     const coordinator = new CloseCoordinator(runtime)
     expect(await coordinator.evaluate(sessionId)).toMatchObject({ status: 'busy' })
     expect(runtime.closeIfCurrent).not.toHaveBeenCalled()
-    expect(runtime.remind).toHaveBeenCalledWith(sessionId, 'report-a:busy', expect.stringContaining('child-a'), 'steer')
+    expect(runtime.remind).toHaveBeenCalledWith(sessionId, expect.stringMatching(/^report-a:1:busy:/), expect.stringContaining('child-a'), 'steer')
+    const original = runtime.remind.mock.calls[0]?.[1]
+    await coordinator.evaluate(sessionId)
+    expect(runtime.remind.mock.calls[1]?.[1]).toBe(original)
+    runtime.evidence.mockResolvedValue({ ...idle, subagents: ['child-b'] })
+    await coordinator.evaluate(sessionId)
+    expect(runtime.remind.mock.calls[2]?.[1]).not.toBe(original)
     vi.mocked(runtime.evidence).mockResolvedValue(idle)
     expect(await coordinator.evaluate(sessionId)).toMatchObject({ status: 'closed' })
     expect(runtime.closeIfCurrent).toHaveBeenCalledWith(report, 1)
@@ -39,7 +50,8 @@ describe('self-report and context reminders', () => {
     expect(await observer.remind(sessionId, 400, 1, false)).toBe(false)
     observer.sample(sessionId, { inputTokens: 400, cacheReadTokens: 0, cacheWriteTokens: 0 }, report.submittedAt)
     expect(await observer.remind(sessionId, 400, 1, true)).toBe(true)
-    expect(send.mock.calls[1]?.[0]).toMatchObject({ operationId: 'session-a:context:1:1', mode: 'steer', text: expect.stringContaining('new agent') })
+    expect(send.mock.calls[1]?.[0]).toMatchObject({ operationId: 'session-a:context:1:1', mode: 'steer' })
+    expect(send.mock.calls[1]?.[0].text).toContain('new agent')
     expect(await observer.remind(sessionId, undefined, 2, false)).toBe(false)
     expect(observer.sample(sessionId, { inputTokens: 400 }, report.submittedAt).status).toBe('unknown')
     expect(await observer.remind(sessionId, 400, 3, true)).toBe(false)

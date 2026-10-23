@@ -15,7 +15,9 @@ describe('memory identity', () => {
     await Promise.all([own, other, shared].map(path => mkdir(path)))
     const definitions = [definition(root, { memoryDirectories: [own, shared] }),
       definition(root, { seat: 'seat-b' as SeatName, memoryDirectories: [other, shared] })]
-    expect((await checkMemoryWrite(join(other, 'file'), seat, definitions))?.error).toMatchObject({ code: 'memory-seat-mismatch', alternative: expect.stringContaining(own) })
+    const refusal = await checkMemoryWrite(join(other, 'file'), seat, definitions)
+    expect(refusal?.error.code).toBe('memory-seat-mismatch')
+    expect(refusal?.error.alternative).toContain(own)
     expect((await checkMemoryWrite(join(shared, 'file'), null, definitions))?.error.code).toBe('memory-seat-mismatch')
     expect(await checkMemoryWrite(join(own, 'file'), seat, definitions)).toBeNull()
     expect(await checkMemoryWrite(join(shared, 'file'), seat, definitions)).toBeNull()
