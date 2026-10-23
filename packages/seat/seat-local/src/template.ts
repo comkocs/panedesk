@@ -47,6 +47,17 @@ export async function readSeatText(source: SeatText, maxBytes: number): Promise<
   return lines.slice(start + 1, end).join('\n')
 }
 
+/** Format a node-local calendar date without changing the template's YYYY-MM-DD representation.
+ * @param instant - time captured for the opening or wake operation.
+ * @param timeZone - node policy time zone; omission uses UTC.
+ * @returns calendar date in the selected time zone.
+ */
+export function formatTemplateDate(instant: Date, timeZone = 'UTC'): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(instant)
+  return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)?.value).join('-')
+}
+
 /** Render the three supported variables in one pass; backslash escapes an opening delimiter.
  * @param source - literal template, using seat, date and taskId placeholders.
  * @param variables - frozen host inputs; missing task identity renders an empty string.
