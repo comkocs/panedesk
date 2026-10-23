@@ -11,7 +11,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
 import { fixture, operation, seatName, childFixture, type Fixture } from './fixtures/source.ts'
-import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
+import { completesTurn, inputContains, settlesOpening } from '../../seat/tests/completion.ts'
 
 const active: Fixture[] = []
 afterEach(async () => { for (const f of active.splice(0)) await f.close() })
@@ -237,13 +237,35 @@ it('A07 refuses occupied remote and engine seats and keeps concurrent openings w
   expect(await f.seats.open({ seat: seatName('seat-a'), origin: 'manual', operationId: operation() }))
     .toMatchObject({ status: 'choice-required', choices: ['switch', 'replace', 'cancel'], defaultChoice: 'switch' })
   const remote = f.ctx.seats.withAuthority({ principalId: 'owner' as never, origin: 'remote', nodeId: f.nodeId })
-  expect(await remote.open({ seat: seatName('seat-a'), origin: 'remote', operationId: operation() }))
+  expect(await settlesOpening(f.ctx, remote, { seat: seatName('seat-a'), origin: 'remote', operationId: operation() }))
     .toMatchObject({ status: 'rejected', error: { code: 'seat-already-open' } })
   await f.save(f.definition('seat-b', { maxOpenSessions: 2, directories: [{ path: join(f.home, 'workspace-b'), startup: true }] }))
-  const results = await Promise.all(Array.from({ length: 3 }, () => remote.open({ seat: seatName('seat-b'), origin: 'remote', operationId: operation() })))
-  expect(results.filter(result => result.status === 'opened')).toHaveLength(2)
-  expect(results.filter(result => result.status === 'rejected')).toMatchObject([{ error: { code: 'seat-already-open' } }])
-  expect(f.ctx.agents.list()).toHaveLength(3)
+  const before = new Set((await f.ctx.sessionPersistence.list()).map(item => item.header.id))
+  const results = await Promise.all(Array.from({ length: 3 }, () => settlesOpening(f.ctx, remote,
+    { seat: seatName('seat-b'), origin: 'remote', operationId: operation() })))
+  const physical = (await f.ctx.sessionPersistence.list()).map(item => item.header.id).filter(id => !before.has(id)).sort()
+  const facts = await f.effects()
+  const reserved = facts.filter((effect): effect is Extract<EngineEffect, { kind: 'resource/reserved' }> =>
+    effect.kind === 'resource/reserved' && effect.data.seat === 'seat-b')
+  const live = f.ctx.agents.list().map(agent => agent.id).filter(id => !before.has(id)).sort()
+  const opens = openingFacts(facts).filter(open => open.binding.kind === 'seat' && open.binding.seat === 'seat-b')
+  const opened = results.filter(result => result.status === 'opened')
+  // Same-seat, same-kind pending requests coalesce, so multiple opened results may identify one physical window.
+  expect(physical.length).toBeGreaterThan(0)
+  expect(physical.length).toBeLessThanOrEqual(2)
+  expect([...new Set(opened.map(result => result.sessionId))].sort()).toEqual(physical)
+  expect(live).toEqual(physical)
+  expect(opens.map(open => open.sessionId).sort()).toEqual(physical)
+  expect(reserved.map(effect => effect.data.owner.sessionId).sort()).toEqual(physical)
+  expect(reserved.reduce((sum, effect) => sum + effect.data.seatWindowUnits, 0)).toBe(physical.length)
+  for (const result of results) {
+    expect(['opened', 'rejected', 'queued']).toContain(result.status)
+    if (result.status === 'opened') expect(physical).toContain(result.sessionId)
+    if (result.status === 'rejected') expect(result.error.code).toBe('seat-already-open')
+  }
+  process.stdout.write(JSON.stringify({ name: 'A07 physical evidence', results, physical, live,
+    opens: opens.map(open => ({ sessionId: open.sessionId, phase: open.phase })),
+    resources: reserved.map(effect => effect.data), node: await f.engine.nodeStatus() }) + '\n')
 }, 20000)
 
 it.each(['open/intent', 'open/created', 'open/configured'])('A09 recovers a real Loader child after SIGKILL at %s', async (stage) => {
