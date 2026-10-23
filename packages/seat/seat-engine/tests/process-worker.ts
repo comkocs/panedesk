@@ -86,6 +86,7 @@ if (target === 'closing-archived' || target === 'release' || await exists(closin
   const closed: T.EngineCloseData = JSON.parse(await readFile(closing, 'utf8')) as T.EngineCloseData
   await engine.recordClosed(closed); await engine.drive()
 }
+await engine.shutdown()
 const files = await readdir(home)
 const result = { physical: await readdir(root), sessionId: open.sessionId, operationId: open.openingOperationId,
   phase: open.phase, pending: engine.journal.projection.pending.size, resources: engine.journal.projection.resources.size,

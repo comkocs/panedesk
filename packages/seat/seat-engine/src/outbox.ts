@@ -19,6 +19,9 @@ export class CallbackOutbox {
     this.running = this.run(now).finally(() => { this.running = undefined })
     return this.running
   }
+  /** Drain owned callbacks and their durable acknowledgements before closing the journal. */
+  async close(): Promise<void> { await this.running }
+
   private async run(now: number): Promise<void> {
     const blocked = new Set<string>()
     const deliveries = [...this.journal.projection.callbacks.values()].sort((a, b) => a.payload.stateVersion - b.payload.stateVersion)

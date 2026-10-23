@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { auto, harness, seat, trigger } from './fixtures.ts'
 
@@ -18,7 +18,11 @@ it('A10 publishes complete opened payload before first-turn completion and retri
   expect(first.title).toMatch(/^seat-a \d\d-\d\d$/)
   expect(first.callbackId).toBeTruthy()
   expect(h.engine.journal.projection.opens.get(h.creates[0]!)?.phase).toBe('opening-pending')
-  await new Promise(resolve => setTimeout(resolve, 5)); await h.engine.drive()
+  await vi.waitFor(() => { expect([...h.engine.journal.projection.callbacks.values()]
+    .some(item => item.phase === 'retry-due')).toBe(true) })
+  await h.engine.drive()
+  await vi.waitFor(() => { expect([...h.engine.journal.projection.callbacks.values()]
+    .every(item => item.phase === 'delivered')).toBe(true) })
   const retries = h.callbacks.filter(payload => payload.triggerId === first.triggerId)
   expect(retries).toHaveLength(2); expect(retries[1]).toEqual(first)
   expect(new Set(h.callbacks.map(payload => payload.callbackId)).size).toBe(2)
@@ -37,8 +41,10 @@ it('A10 preserves ended reason and all report fields after an earlier failed cal
   expect(h.engine.journal.projection.resources.has(h.creates[0]!)).toBe(false)
   const closeFrame = h.engine.journal.projection.decisions.at(-1)!
   expect(closeFrame.effects.map(effect => effect.kind)).toEqual(['window/closed', 'resource/released', 'callback/pending'])
-  await new Promise(resolve => setTimeout(resolve, 5)); await h.engine.drive()
-  expect(h.callbacks.map(payload => payload.kind)).toEqual(['opened', 'opened', 'window-ended'])
+  await vi.waitFor(() => { expect([...h.engine.journal.projection.callbacks.values()]
+    .some(item => item.phase === 'retry-due')).toBe(true) })
+  await h.engine.drive()
+  await vi.waitFor(() => { expect(h.callbacks.map(payload => payload.kind)).toEqual(['opened', 'opened', 'window-ended']) })
   const ended = h.callbacks.at(-1)!
   expect(ended.callbackId).toBeTypeOf('string')
   expect(ended.callbackId).not.toBe(opened.callbackId)

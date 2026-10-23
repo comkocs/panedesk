@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { EngineError } from '../src/journal.ts'
 import { auto, harness, seat, trigger } from './fixtures.ts'
@@ -72,8 +72,8 @@ it.each(['absent', 'first-turn'] as const)('cleans failed replacement %s without
   expect(h.engine.journal.projection.resources.get(h.old)?.exclusiveTags).toEqual(['tag-a'])
   expect(h.closed).not.toContain(h.old)
   expect(h.engine.journal.projection.resources.size).toBe(1)
-  expect(h.callbacks.find(item => item.kind === 'replacement-failed')).toMatchObject({
+  await vi.waitFor(() => { expect(h.callbacks.find(item => item.kind === 'replacement-failed')).toMatchObject({
     oldSessionId: h.old, cleanup: failure === 'absent' ? 'not-created' : 'closed',
     reason: failure === 'absent' ? 'replacement-open-failed' : 'replacement-first-turn-failed',
-  })
+  }) })
 })

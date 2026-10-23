@@ -40,6 +40,7 @@ export class SeatEngine extends SeatEngineService {
   private executor: T.SeatOpenExecutor | undefined
   private localAccess: T.SeatEngineLocalAccess | undefined
   private activeDrive: Promise<void> | undefined
+  private activeCallbacks: Promise<void> | undefined
   private started: Promise<void> | undefined
   private readyAt: string | null = null
   private stopped = false
@@ -79,8 +80,10 @@ export class SeatEngine extends SeatEngineService {
   async shutdown(): Promise<void> {
     this.stopped = true
     if (this.timer) clearTimeout(this.timer)
-    await this.sources.close()
     await this.activeDrive
+    await this.outbox.close()
+    await this.activeCallbacks
+    await this.sources.close()
     await this.journal.close()
     for (const notify of this.listeners) notify()
   }
@@ -408,13 +411,14 @@ export class SeatEngine extends SeatEngineService {
       await this.replacements.drive(executor)
     }
     await this.keepalive.drive()
-    await this.outbox.deliver()
+    this.activeCallbacks ??= this.outbox.deliver().then(() => this.publish())
+      .catch((error: unknown) => { this.failure = error }).finally(() => { this.activeCallbacks = undefined })
     await this.publish()
   }
   private async releaseDead(executor: T.SeatOpenExecutor): Promise<void> {
     for (const resource of [...this.journal.projection.resources.values()]) {
       const open = this.journal.projection.opens.get(resource.owner.sessionId)
-      if (!open || open.phase === 'intent') continue
+      if (!open) continue
       const start = performance.now(), observedAt = new Date().toISOString()
       if (await executor.owner(resource.owner) !== 'dead') continue
       const recovered = this.recoveredOwners.has(resource.owner.ownerEpoch)
