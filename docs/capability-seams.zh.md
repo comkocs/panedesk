@@ -24,6 +24,7 @@ flowchart LR
   svc_seatEngineQuery["ctx.seatEngineQuery<br/>Read-only engine history"]
   svc_seatLocalRead["ctx.seatLocalRead<br/>Provider-owned seat reads"]
   svc_seatLocalSession["ctx.seatLocalSession<br/>Current-Session seat writes"]
+  svc_seatLocalCreation["ctx.seatLocalCreation<br/>Confirmed traditional creation"]
   svc_seatGatesQuery["ctx.seatGatesQuery<br/>Read-only seat policy queries"]
   svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
   svc_seatDirectories["ctx.seatDirectories<br/>Authorized seat directories"]
@@ -452,6 +453,7 @@ flowchart LR
   pkg_seat_gates --> svc_seatGates
   pkg_seat_gates --> svc_seatGatesQuery
   pkg_seat_gates --> svc_subagentDispatch
+  pkg_seat_local --> svc_seatLocalCreation
   pkg_seat_local --> svc_seatLocalRead
   pkg_seat_local --> svc_seatLocalSession
   pkg_seat_local --> svc_seats
@@ -716,6 +718,7 @@ flowchart LR
 | `ctx.seatEngineQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`ledger-query`](../packages/session/ledger-query) | - | 读取已验证的既有日志前缀，不创建文件，也不获取写入者所有权。 |
 | `ctx.seatLocalRead` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-gates`](../packages/seat/seat-gates), [`tool-seat`](../packages/seat/tool-seat) | - | 读取定义、绑定和窗口，不授予写权限。 |
 | `ctx.seatLocalSession` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | 仅为精确匹配的在线调用会话授权等待和自报。 |
+| `ctx.seatLocalCreation` | `service` | [`seat-local`](../packages/seat/seat-local) | - | - | - | 限定经过身份验证的一次性目录选择的作用域，并释放创建期间的临时所有权。 |
 | `ctx.seatGatesQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`ledger-query`](../packages/session/ledger-query) | - | 读取策略定义与已记录的命中，不挂载运行时闸消费者。 |
 | `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | 评估可信操作事实，并通过引擎提交命中计数。 |
 | `ctx.seatDirectories` | `seam` | [`seat`](../packages/seat/seat) | - | [`tool-seat`](../packages/seat/tool-seat) | - | 在工位授权下提供有界的目录读取与编辑。 |

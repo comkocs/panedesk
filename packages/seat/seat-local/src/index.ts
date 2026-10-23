@@ -16,6 +16,7 @@ import { localSourceId } from './open-admission.ts'
 import type { OwnerEpoch } from '@panedesk/dsh-seat'
 
 export { LocalSeatService } from './service.ts'
+export type { LocalSeatCreation } from './create-admission.ts'
 export type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 /** Plugin loader identifier. */
 export const name = 'seat-local'

@@ -138,6 +138,10 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Authorizes waits and reports only for the exact live calling Session.',
   },
   {
+    key: 'seatLocalCreation', pkg: 'seat-local', title: 'Confirmed traditional creation', mode: 'service',
+    note: 'Scopes single-use authenticated directory choices and releases temporary creation ownership.',
+  },
+  {
     key: 'seatGatesQuery', pkg: 'seat', title: 'Read-only seat policy queries', mode: 'seam',
     implementations: ['seat-gates'], consumers: ['ledger-query'],
     note: 'Reads policy definitions and recorded hits without mounting runtime gate consumers.',
