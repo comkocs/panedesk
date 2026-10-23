@@ -32,6 +32,7 @@ import { checkDirectories } from './directory-composition.ts'
 import type * as T from '@panedesk/dsh-seat'
 import { operation } from './fixtures.ts'
 import * as Local from '../src/index.ts'
+import { completesTurn, inputContains, insertsInput, seatsReady } from '../../seat/tests/completion.ts'
 
 it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
   const f = await engineFixture(true)
@@ -79,13 +80,13 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
       await writeFile(localPath, JSON.stringify([{ name: 'cordis:local', config: f.options }]))
       const entry = await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(localPath).href } })
       await f.ctx.loader.await()
-      await expect.poll(() => f.ctx.get('seats') !== undefined).toBe(true)
+      await seatsReady(f.ctx)
       unloadLocal = async () => {
         await f.ctx.loader.resolve(entry).fiber?.dispose()
         return async () => {
           await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(localPath).href } })
           await f.ctx.loader.await()
-          await expect.poll(() => f.ctx.get('seats') !== undefined).toBe(true)
+          await seatsReady(f.ctx)
         }
       }
     }
@@ -109,7 +110,10 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
       ? f.ctx.on('agent/turn-admitting', async (_request, next) => {
         await next(); return { kind: 'defer', reason: 'Inspect budget revision during original opening.' }
       }) : () => {}
-    const opened = seats ? await seats.open(openingRequest) : await f.open()
+    const openWindow = () => seats ? seats.open(openingRequest) : f.open()
+    const opened = scenario === 'opening'
+      ? await completesTurn(f.ctx, () => true, inputContains('Frozen opening'), openWindow)
+      : await openWindow()
     if (opened.status !== 'opened') throw new Error('Controlled opening did not create a window')
     expect(f.ctx.agents.get(opened.sessionId)?.id).toBe(opened.sessionId)
     const saved = await f.ctx.sessionPersistence.stat(opened.sessionId)
@@ -121,13 +125,14 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
     if (open?.kind !== 'open/configured') throw new Error('Open facts are missing')
     expect(open.data.sessionId).toBe(opened.sessionId)
     if (scenario === 'opening') {
-      await expect.poll(() => adapter.requests.length).toBe(1)
-      await f.ctx.agents.get(opened.sessionId)?.whenIdle()
-      await expect.poll(async () => {
-        await f.engine.drive()
-        const latest = (await f.state.read()).effects.findLast(effect => effect.kind === 'open/configured')
-        return latest?.kind === 'open/configured' ? latest.data.phase : undefined
-      }).toBe('active')
+      expect(adapter.requests).toHaveLength(1)
+      const openingAgent = f.ctx.agents.get(opened.sessionId)
+      if (!openingAgent) throw new Error('Opening agent is unavailable')
+      await openingAgent.whenIdle()
+      await expect(f.ctx.sessions.flush(openingAgent.session)).resolves.toBe(true)
+      await f.engine.drive()
+      const latest = (await f.state.read()).effects.findLast(effect => effect.kind === 'open/configured')
+      expect(latest?.kind === 'open/configured' ? latest.data.phase : undefined).toBe('active')
       const active = (await f.state.read()).effects.findLast(effect => effect.kind === 'open/configured')
       if (active?.kind !== 'open/configured') throw new Error('Configured opening is unavailable')
       expect(active.data.phase).toBe('active')
@@ -150,17 +155,19 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
         expect(await f.engine.configureBudget({ sessionId: opened.sessionId, limits: { windowBudgetUsd: '100' as T.MicroUsd },
           expectedRevision: 0, authorizationRef: 'test-budget' as T.AuthorizationRef,
           operationId: operation('budget-config') })).toMatchObject({ status: 'configured' })
-        await recordCost(f.ctx, opened.sessionId, 'budget-cost', '0.00008')
-        expect(await f.engine.budget(opened.sessionId)).toMatchObject({ costState: 'known', windowCost: '80' })
-        await f.engine.drive()
-        await f.engine.drive()
+        await insertsInput(f.ctx, opened.sessionId, inputContains('budget-warning'), async () => {
+          await recordCost(f.ctx, opened.sessionId, 'budget-cost', '0.00008')
+          expect(await f.engine.budget(opened.sessionId)).toMatchObject({ costState: 'known', windowCost: '80' })
+          await f.engine.drive()
+          await f.engine.drive()
+        })
         const warnings = (await f.state.read()).effects.filter(effect => effect.kind === 'budget/warning')
         expect(warnings).toHaveLength(1)
         const agent = f.ctx.agents.get(opened.sessionId)
         if (!agent) throw new Error('Budget target disappeared')
-        await expect.poll(() => agent.session.snapshotEvents().filter(event => event.type === 'agent/inbox/spliced'
-        && JSON.stringify(event.data).includes('budget-warning')).length).toBe(1)
-        await f.ctx.sessions.flush(agent.session)
+        expect(agent.session.snapshotEvents().filter(event => event.type === 'agent/inbox/spliced'
+        && JSON.stringify(event.data).includes('budget-warning'))).toHaveLength(1)
+        await expect(f.ctx.sessions.flush(agent.session)).resolves.toBe(true)
         expect(JSON.stringify((await f.ctx.sessionQuery.readSession(opened.sessionId))?.events)).toContain('budget-warning')
       } finally { releaseTurn(); releaseOpening() }
     }

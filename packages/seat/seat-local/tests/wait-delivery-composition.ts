@@ -6,6 +6,7 @@ import type * as T from '@panedesk/dsh-seat'
 import type { engineFixture } from './engine-fixture.ts'
 import type { CreationAdapter } from './creation-provider.ts'
 import { operation } from './fixtures.ts'
+import { commitsEffect, completesTurn, inputContains } from '../../seat/tests/completion.ts'
 
 /** Measure persistence-to-model consumption without scanning unrelated Sessions.
  * @param f - real engine and local provider composition.
@@ -21,7 +22,7 @@ export async function checkWaitDelivery(f: Awaited<ReturnType<typeof engineFixtu
   const seats = service.withAuthority({ principalId: 'wait-owner' as T.SeatPrincipalId, origin: 'manual', nodeId: f.options.nodeId })
   const job = { jobId: 'durable-cold-job' as JobId, owner: sessionId, kind: 'test', label: 'Durable job', startedAt: Date.now() }
   agent.session.append('job/registered', job)
-  await f.ctx.sessions.flush(agent.session)
+  await expect(f.ctx.sessions.flush(agent.session)).resolves.toBe(true)
   const request: T.RegisterSeatWaitRequest = { waitId: 'wait-delivery' as T.WaitId, sessionId, mode: 'all',
     objects: [{ kind: 'job', id: job.jobId }], operationId: operation('wait-delivery') }
   const list = vi.spyOn(f.ctx.sessionQuery, 'listSessions')
@@ -35,16 +36,17 @@ export async function checkWaitDelivery(f: Awaited<ReturnType<typeof engineFixtu
     const stoppedReads = reads.mock.calls.length
     const started = performance.now()
     agent.session.append('job/settled', { ...job, finishedAt: Date.now(), status: 'completed', cause: 'producer', producerReported: true })
-    await f.ctx.sessions.flush(agent.session)
+    await expect(f.ctx.sessions.flush(agent.session)).resolves.toBe(true)
     expect(reads.mock.calls).toHaveLength(stoppedReads)
     expect(adapter.requests).toHaveLength(before)
-    await restore()
-    await expect.poll(() => adapter.requests.length, { timeout: 4000 }).toBe(before + 1)
+    await commitsEffect(f.ctx, effect => effect.kind === 'wait/woken' && effect.data.waitId === request.waitId,
+      () => completesTurn(f.ctx, sessionId, inputContains(`Wait ${request.waitId}:`), restore))
+    expect(adapter.requests).toHaveLength(before + 1)
     const elapsedMs = performance.now() - started
     expect(elapsedMs).toBeLessThanOrEqual(5000)
     expect(JSON.stringify(adapter.requests[before])).toContain('Wait wait-delivery: job durable-cold-job: completed')
     await agent.whenIdle()
-    await expect.poll(async () => (await seats.wait(request.waitId))?.phase).toBe('woken')
+    expect((await seats.wait(request.waitId))?.phase).toBe('woken')
     expect(list).not.toHaveBeenCalled()
     expect(reads.mock.calls.every(([id]) => id === sessionId)).toBe(true)
     console.info(JSON.stringify({ elapsedMs, sessionReads: reads.mock.calls.length, globalScans: list.mock.calls.length,

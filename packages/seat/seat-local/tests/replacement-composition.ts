@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url'
 import type { engineFixture } from './engine-fixture.ts'
 import { operation } from './fixtures.ts'
 import { localFact } from '../src/engine-state.ts'
+import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
 
 /** Exercise both capacity and archive using the production internal authority registration.
  * @param f - real engine, local service, AgentLoop and persistence.
@@ -47,16 +48,21 @@ export async function checkReplacement(f: Awaited<ReturnType<typeof engineFixtur
     expect(f.engine.journal.projection.resources.size).toBe(1)
     expect([...f.engine.journal.projection.replacements.values()][0]?.newSessionId).toBeNull()
     expect([...f.engine.journal.projection.pending.values()]).toMatchObject([{ reason: 'seat-capacity' }])
-    await saveLimit(2)
-    await f.engine.drive()
+    await completesTurn(f.ctx, id => id !== oldSessionId, inputContains('Frozen opening'), async () => {
+      await saveLimit(2)
+      await f.engine.drive()
+    })
     const next = [...f.engine.journal.projection.replacements.values()][0]?.newSessionId
     if (!next) throw new Error('Replacement Session was not reserved')
     expect(next).not.toBe(oldSessionId)
     expect(f.engine.journal.projection.resources.size).toBe(2)
-    await expect.poll(() => f.ctx.agents.get(next)?.session.snapshotEvents().some(event => event.type === 'turn/end'
+    expect(f.ctx.agents.get(next)?.session.snapshotEvents().some(event => event.type === 'turn/end'
       && event.data.reason.kind === 'completed')).toBe(true)
     await f.ctx.agents.get(oldSessionId)?.whenIdle()
-    await f.ctx.agents.get(next)?.whenIdle()
+    const replacementAgent = f.ctx.agents.get(next)
+    if (!replacementAgent) throw new Error('Replacement agent is unavailable')
+    await replacementAgent.whenIdle()
+    await expect(f.ctx.sessions.flush(replacementAgent.session)).resolves.toBe(true)
     await f.engine.drive()
     expect([...f.engine.journal.projection.replacements.values()][0]?.phase).toBe('awaiting-old-idle')
     expect(f.engine.journal.projection.resources.get(oldSessionId)?.exclusiveTags).toEqual(['resource-a'])

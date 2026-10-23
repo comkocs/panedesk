@@ -18,6 +18,7 @@ async function exists(path: string): Promise<boolean> {
 }
 async function barrier(stage: string): Promise<void> {
   if (target !== stage) return
+  process.channel?.ref()
   process.send?.({ stage, pid: process.pid })
   await new Promise<void>(() => {})
 }

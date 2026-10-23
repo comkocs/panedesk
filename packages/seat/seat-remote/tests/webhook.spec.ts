@@ -34,10 +34,12 @@ describe('external seat source authentication', () => {
     const f = fixture()
     try {
       const barrier = Promise.withResolvers<undefined>()
-      f.accept.mockImplementationOnce(async () => { await barrier.promise; return { status: 'accepted', triggerId: 'trigger-a' as never, queueItemId: 'queue-a' as never, sequence: 1 } })
+      const entered = Promise.withResolvers<undefined>()
+      f.accept.mockImplementationOnce(async () => { entered.resolve(undefined); await barrier.promise; return { status: 'accepted', triggerId: 'trigger-a' as never, queueItemId: 'queue-a' as never, sequence: 1 } })
       let finished = false
       const response = f.send('{ "eventId": "event-a", "eventType": "open", "data": {"seat":"seat-b"} }').then((result) => { finished = true; return result })
-      await vi.waitFor(() => { expect(f.accept).toHaveBeenCalledTimes(1) })
+      await entered.promise
+      expect(f.accept).toHaveBeenCalledTimes(1)
       expect(finished).toBe(false)
       expect(f.accept.mock.calls[0]?.[0]).toMatchObject({ seat: 'seat-a', projectId: 'project-a', sourceId: 'source-a', eventId: 'event-a', kind: 'external' })
       barrier.resolve(undefined)
@@ -121,12 +123,14 @@ describe('external seat source authentication', () => {
     const writeHead = vi.fn(), end = vi.fn()
     const res = { headersSent: false, writeHead, end } as Partial<ServerResponse> as ServerResponse
     const audit = Promise.withResolvers<undefined>()
-    vi.mocked(f.options.audit).mockImplementationOnce(() => audit.promise)
+    const entered = Promise.withResolvers<undefined>()
+    vi.mocked(f.options.audit).mockImplementationOnce(() => { entered.resolve(undefined); return audit.promise })
     try {
       const task = route.handler(req, res)
       let disposed = false
       const disposal = f.ctx.fiber.dispose().then(() => { disposed = true })
-      await vi.waitFor(() => { expect(f.options.audit).toHaveBeenCalledTimes(1) })
+      await entered.promise
+      expect(f.options.audit).toHaveBeenCalledTimes(1)
       expect(routes.size).toBe(0)
       expect(disposed).toBe(false)
       audit.resolve(undefined)

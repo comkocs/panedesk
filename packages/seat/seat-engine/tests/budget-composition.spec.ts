@@ -8,6 +8,7 @@ import { composition } from './composition-fixture.ts'
 import { SeatEngine } from '../src/engine.ts'
 import { digest } from '../src/journal.ts'
 import { auto, seat, sourceId, trigger } from './fixtures.ts'
+import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
 
 it('A17 persists one handoff/steer warning, completes the admitted turn and leaves the next input unclaimed', async () => {
   const f = await composition()
@@ -15,7 +16,7 @@ it('A17 persists one handoff/steer warning, completes the admitted turn and leav
   const callbacks: T.SeatCallbackPayload[] = []
   let agent: Agent | undefined
   try {
-    await expect.poll(() => ctx.get('seatEngine') !== undefined).toBe(true)
+    expect(ctx.get('seatEngine')).toBeDefined()
     const engine = ctx.seatEngine
     if (!(engine instanceof SeatEngine)) throw new Error('Production engine is not mounted')
     await engine.ready()
@@ -32,9 +33,11 @@ it('A17 persists one handoff/steer warning, completes the admitted turn and leav
       },
       configure: async () => {},
       opening: async (open) => {
-        const result = await send(open.sessionId, open.openingOperationId, 'Begin the assigned task.')
-        if (result.deliveryOutcome === 'rejected') throw new Error(result.reason)
-        await agent?.whenIdle()
+        const result = await completesTurn(ctx, open.sessionId, inputContains('Begin the assigned task.'), async () => {
+          const sent = await send(open.sessionId, open.openingOperationId, 'Begin the assigned task.')
+          if (sent.deliveryOutcome === 'rejected') throw new Error(sent.reason)
+          return sent
+        })
         return { messageId: result.messageId, state: 'completed' }
       },
       owner: async () => 'alive',
@@ -48,8 +51,6 @@ it('A17 persists one handoff/steer warning, completes the admitted turn and leav
     await engine.accept(trigger()); await engine.drive()
     if (!agent) throw new Error('Agent was not created')
     const active = agent
-    active.wake?.()
-    await expect.poll(() => adapter.requests.length).toBe(1)
     await active.whenIdle()
     expect(adapter.requests).toHaveLength(1)
     expect(await engine.configureBudget({ sessionId: active.id, limits: { windowBudgetUsd: '100' as T.MicroUsd },
@@ -68,21 +69,31 @@ it('A17 persists one handoff/steer warning, completes the admitted turn and leav
         endReason: 'completed', recovered: false, costUsd }
       await ctx.sessionLedger.beginCall(start); await ctx.sessionLedger.finishCall(finish)
     }
-    await recordCost('cost-a', '0.00008')
-    await engine.drive(); await adapter.started
-    await engine.drive()
-    expect(adapter.requests).toHaveLength(2)
-    expect(JSON.stringify(adapter.requests[1])).toContain('Budget has reached 80%')
-    await recordCost('cost-b', '0.00002')
-    await engine.drive()
-    const queued = await ctx.messageDelivery.send({ target: { sessionId: active.id },
-      operationId: 'queued-a' as OperationId, content: 'Do the next task.', messageClass: 'handoff', priority: 'queue' })
-    expect(queued.deliveryOutcome).not.toBe('rejected')
-    adapter.finish(); await active.whenIdle(); await engine.drive()
+    await completesTurn(ctx, active.id, inputContains('Budget has reached 80%'), async () => {
+      await recordCost('cost-a', '0.00008')
+      await engine.drive(); await adapter.started
+      await engine.drive()
+      expect(adapter.requests).toHaveLength(2)
+      expect(JSON.stringify(adapter.requests[1])).toContain('Budget has reached 80%')
+      await recordCost('cost-b', '0.00002')
+      await engine.drive()
+      const inserted = Promise.withResolvers<undefined>()
+      const off = ctx.on('agent/inbox/inserted', ({ agent: target, message }) => {
+        if (target.id === active.id && inputContains('Do the next task.')(message)) inserted.resolve(undefined)
+      })
+      try {
+        const queued = await ctx.messageDelivery.send({ target: { sessionId: active.id },
+          operationId: 'queued-a' as OperationId, content: 'Do the next task.', messageClass: 'handoff', priority: 'queue' })
+        expect(queued.deliveryOutcome).not.toBe('rejected')
+        await inserted.promise
+      } finally { off() }
+      adapter.finish()
+    })
+    await active.whenIdle(); await engine.drive()
     expect(adapter.requests).toHaveLength(2)
     expect(active.session.snapshotEvents().filter(event => event.type === 'turn/end')).toHaveLength(2)
     expect(active.session.snapshotEvents().filter(event => event.type === 'turn/start')).toHaveLength(2)
-    await expect.poll(() => active.inbox.nextTurn.length + active.inbox.nextStep.length).toBeGreaterThan(0)
+    expect(active.inbox.nextTurn.length + active.inbox.nextStep.length).toBeGreaterThan(0)
     expect(await engine.admitTurn(active.id)).toEqual({ status: 'defer', reason: 'budget-stopped' })
     expect(callbacks.filter(payload => payload.kind === 'budget-stopped')).toHaveLength(1)
     expect(callbacks.find(payload => payload.kind === 'budget-stopped')).toMatchObject({ sessionId: active.id,

@@ -6,6 +6,7 @@ import { engineFixture } from './engine-fixture.ts'
 import { operation } from './fixtures.ts'
 import { WaitStore } from '../src/wait-store.ts'
 import { WaitCoordinator } from '../src/wait.ts'
+import { commitsEffect } from '../../seat/tests/completion.ts'
 
 it('authorizes a durable job and observes settlement within five seconds without listing unrelated sessions', async () => {
   const f = await engineFixture(true)
@@ -16,7 +17,7 @@ it('authorizes a durable job and observes settlement within five seconds without
     if (!session) throw new Error('Session did not load')
     const job = { jobId: 'job-a' as JobId, owner: session.id, kind: 'test', label: 'Observed job', startedAt: Date.now() }
     session.append('job/registered', job)
-    await f.ctx.sessions.flush(session)
+    await expect(f.ctx.sessions.flush(session)).resolves.toBe(true)
     const object: WaitObject = { kind: 'job', id: job.jobId }
     const request = { waitId: 'wait-job' as WaitId, sessionId: session.id, mode: 'all' as const,
       objects: [object], operationId: operation('wait-job') }
@@ -32,9 +33,11 @@ it('authorizes a durable job and observes settlement within five seconds without
     try {
       expect(await coordinator.register(request)).toMatchObject({ status: 'registered', wait: { phase: 'registered' } })
       const started = performance.now()
-      session.append('job/settled', { ...job, finishedAt: Date.now(), status: 'completed', cause: 'producer', producerReported: true })
-      await f.ctx.sessions.flush(session)
-      await expect.poll(async () => (await store.read(request.waitId))?.phase, { timeout: 4000 }).toBe('woken')
+      await commitsEffect(f.ctx, effect => effect.kind === 'wait/woken' && effect.data.waitId === request.waitId, async () => {
+        session.append('job/settled', { ...job, finishedAt: Date.now(), status: 'completed', cause: 'producer', producerReported: true })
+        await expect(f.ctx.sessions.flush(session)).resolves.toBe(true)
+      })
+      expect((await store.read(request.waitId))?.phase).toBe('woken')
       expect(sent).toHaveLength(1)
       const elapsed = (sent[0] ?? Infinity) - started
       expect(elapsed).toBeLessThanOrEqual(5000)
@@ -45,7 +48,7 @@ it('authorizes a durable job and observes settlement within five seconds without
       await f.runtime.drainObservations?.()
       const count = read.mock.calls.length
       session.append('job/settled', { ...job, finishedAt: Date.now(), status: 'completed', cause: 'producer', producerReported: true })
-      await f.ctx.sessions.flush(session)
+      await expect(f.ctx.sessions.flush(session)).resolves.toBe(true)
       await f.runtime.drainObservations?.()
       expect(read.mock.calls).toHaveLength(count)
     } finally { await coordinator.dispose(); await f.runtime.drainObservations?.() }

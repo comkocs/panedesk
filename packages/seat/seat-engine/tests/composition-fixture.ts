@@ -55,6 +55,8 @@ export async function composition(cache = false) {
       config: { ...config, home, nodeAliases: { local: nodeId } } }]))
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(engineProfile).href } })
     await ctx.loader.await()
+    await new Promise<void>((resolve) => { ctx.inject(['seatEngine'], () => { resolve() }) })
+    await ctx.seatEngine.ready()
     const adapter = new BarrierAdapter()
     ctx.llm.registerAdapter(['mock'], adapter)
     return { ctx, adapter, home, async close() {
