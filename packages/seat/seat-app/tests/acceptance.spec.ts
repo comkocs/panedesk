@@ -762,8 +762,8 @@ it.each(['authorized-idle', 'not-authorized', 'running', 'child', 'job'] as cons
       if (scenario === 'running' || scenario === 'child' || scenario === 'job') {
         const facts = await f.effects()
         expect(facts.filter(effect => effect.kind === 'window/closed')).toHaveLength(0)
-        const messages = await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })
-        expect(messages.items).toHaveLength(messagesBefore.items.length + 1)
+        await expect.poll(async () => (await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })).items.length,
+          { timeout: 5000 }).toBe(messagesBefore.items.length + 1)
       }
     } finally {
       finishJob?.()
@@ -860,6 +860,8 @@ it('A24 filters seats, kinds, pending rows and gates while retaining legacy mess
   try {
     for (let index = 0; index < 3; index++) await f.ctx.messageDelivery.send({ target: { sessionId: recipient.agent.id },
       operationId: operation() as never, messageClass: 'handoff', priority: 'queue', content: `Message ${index}.` })
+    await expect.poll(async () => (await f.ctx.sessionLedger.queryMessages({ targetSessionId: recipient.agent.id })).items.length,
+      { timeout: 5000 }).toBe(3)
     const legacy = await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id })
     expect(legacy.items).toHaveLength(3)
     expect(await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id, limit: 1 }))
