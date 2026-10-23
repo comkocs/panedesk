@@ -27,6 +27,12 @@ Catalogs initially belong to their import source. A recorded authority change pe
 
 ## Window transactions
 
+Traditional creation checks directory ownership before the factory runs. Mismatched or ambiguous ownership returns candidates and opening commands without selecting a seat. Trusted adapters consume one-use traditional confirmations through `seatLocalCreation.confirmTraditional/run`. Free identity is stored beside Session data in the engine journal, not in Session headers or the seat roster. Parent identity comes from durable opening or binding facts.
+
+Local single opening invokes optional `before-open` before initial admission; batches invoke `before-batch-open` before their first seat. Accepted operations replay frozen inputs. Manual renewal checks runtime work as well as cache evidence. Window lists display six runtime states independently from engine budget stop and closing, both of which prevent renewal.
+
+Policy hosts persist worktree registrations and operation identities through the existing storage facility and verify repositories and branches with read-only Git queries. `repositoryId` is the canonical Git common directory. Reminders use existing durable steer delivery; acceptance does not imply model completion.
+
 Manual opening freezes the definition, date title, rendered text and request in durable ingress. Prefill returns the frozen draft after configuration without sending input or starting a turn. The provider privately registers trusted engine list and close capabilities; the public unscoped service still rejects calls without authority. The executor uses the reserved Session identity, binds ledger attribution during creation or resume, configures the window, and sends the opening through durable message delivery. Replacement completion requires the original opening message, a completed containing turn and an assistant reply; a later unrelated reply does not qualify.
 
 Manual renewal uses the engine maintenance path. Close blocks new turns, rechecks evidence, archives the Session, pins the closed title and flushes persistence before recording terminal accounting. A failure before archive releases the barrier; a failure after archive retains it for replay. Rename receipts retain the original result, so replaying an earlier rename cannot overwrite a later title. Ambiguous intermediate title history is rejected rather than reported as success.
@@ -69,5 +75,8 @@ Reminders append input without cancelling the current step or replacing prior hi
 
 ## Known Limitations and Deferred Work
 
+- Direct engine `openWindow` writes its first admission before the local executor runs. The local creation gate rejects before physical creation but cannot undo accepted facts. The complete remote chain still lacks composition evidence.
+- A free create outside `seatLocalCreation.run` that fails before factory publication retains its preparation binding until provider unload; readonly admission options expose no failure cleanup hook. Free bindings survive reload, but traditional `resume` has no pre-residency hook to override ledger startup labels.
+- The worktree host lacks a trusted merge target and durable file-activity timestamps, so maturity remains unknown. Forced registration is rejected without an independent authorization provider.
 - Durable prefill admission is unavailable with engines that do not expose the optional opening transaction. The local ingress rejects it rather than sending an unintended first turn.
 - Rename recovery refuses a staged receipt whose title event is absent from the restored Session. It does not infer an outcome or append a speculative replacement event.
