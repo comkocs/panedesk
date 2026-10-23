@@ -4,7 +4,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@panedesk/cordis'
 import { credentialRef } from '@panedesk/dsh-credentials'
 import type {} from '@panedesk/dsh-host-webserver'
-import type { SeatDigest, SeatName, SeatProjectId, SeatSourceId, TriggerEnvelope, SeatFailure } from '@panedesk/dsh-seat'
+import type { SeatDigest, SeatName, SeatProjectId, SeatSourceId, TriggerEnvelope, SeatFailure, SeatCallbackPayload } from '@panedesk/dsh-seat'
+import { EngineError, SeatEngine } from '@panedesk/dsh-seat-engine'
 
 /** Trusted source configuration never contains credential values. */
 export interface WebhookSource {
@@ -16,6 +17,13 @@ export interface WebhookSource {
   projectId: SeatProjectId
   /** Signing key versions mapped to credential references, never secret values. */
   credentialRefs: Readonly<Record<string, string>>
+  /** Optional receipt destination; only HTTP(S) and a registered signing key version are accepted. */
+  callback?: {
+    /** Trusted destination resolved from this registration, never from event data. */
+    url: string
+    /** Signing version present in this source's credentialRefs. */
+    keyVersion: string
+  }
 }
 /** Explicit deployment bounds; no network address or secret enters audit records. */
 export interface WebhookOptions {
@@ -135,6 +143,46 @@ export async function handleWebhook(
   }
 }
 
+async function deliverCallback(ctx: Context, source: WebhookSource, engine: SeatEngine, payload: SeatCallbackPayload): Promise<void> {
+  const callback = source.callback
+  if (!callback) return
+  const controller = new AbortController()
+  const timer = setTimeout(() => { controller.abort() }, engine.options.config.callbackTimeoutMs)
+  let status: number, oversized = false
+  try {
+    const credentials = ctx.get('credentials'), ref = source.credentialRefs[callback.keyVersion]
+    if (!credentials || !ref) throw new Error('Callback credentials are unavailable')
+    const credential = await credentials.resolve(credentialRef(ref))
+    if (!credential) throw new Error('Callback credentials are unavailable')
+    controller.signal.throwIfAborted()
+    const body = JSON.stringify(payload), timestamp = String(Date.now())
+    const signature = createHmac('sha256', credential.value).update(`${timestamp}.`).update(body).digest('hex')
+    const response = await fetch(callback.url, { method: 'POST', redirect: 'manual', signal: controller.signal,
+      headers: { 'content-type': 'application/json', 'x-seat-source': source.sourceId, 'x-seat-timestamp': timestamp,
+        'x-seat-key-version': callback.keyVersion, 'x-seat-signature': signature, 'idempotency-key': payload.callbackId }, body })
+    status = response.status
+    const reader = response.body?.getReader()
+    if (reader) {
+      try {
+        let bytes = 0
+        while (true) {
+          const chunk = await reader.read()
+          if (chunk.done) break
+          bytes += chunk.value.byteLength
+          if (bytes > engine.options.config.callbackMaxResponseBytes) { oversized = true; controller.abort(); break }
+        }
+      } finally { reader.releaseLock() }
+    }
+  } catch (error) {
+    // Provider and transport diagnostics can contain credentials or the registered destination.
+    void error
+    throw new Error('External source callback could not complete')
+  } finally { clearTimeout(timer) }
+  if (status === 401 || status === 403) throw new EngineError('callback-authentication-failed', 'External source callback authentication failed')
+  if (status >= 500) throw new Error('External source callback is temporarily unavailable')
+  if (oversized || status < 200 || status >= 300) throw new EngineError('callback-protocol-error', 'External source callback response violated protocol')
+}
+
 /** Register an optional route and drain owned requests during unload.
  * @param ctx - route owner.
  * @param options - explicit route policy and durable audit sink.
@@ -144,13 +192,28 @@ export function registerWebhook(ctx: Context, options: WebhookOptions): void {
     || !Number.isSafeInteger(options.maxClockSkewMs) || options.maxClockSkewMs < 0
     || !Number.isSafeInteger(options.bodyTimeoutMs) || options.bodyTimeoutMs <= 0) throw new Error('Invalid external source bounds')
   if (new Set(options.sources.map(source => source.sourceId)).size !== options.sources.length) throw new Error('Duplicate external source')
+  for (const source of options.sources) {
+    if (!source.callback) continue
+    let url: URL
+    try { url = new URL(source.callback.url) }
+    catch (error) { void error; throw new Error('Invalid external source bounds') }
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password
+      || !Object.hasOwn(source.credentialRefs, source.callback.keyVersion) || !source.credentialRefs[source.callback.keyVersion]) {
+      throw new Error('Invalid external source bounds')
+    }
+  }
   const install = (owner: Context) => {
     const engine = owner.get('seatEngine'), web = owner.get('webServer')
     if (!engine || !web) return
-    for (const source of options.sources) owner.effect(() => engine.registerSource({
-      sourceId: source.sourceId, kinds: ['external'], maxRedeliveryMs: null,
-      callback: async () => {},
-    }))
+    for (const source of options.sources) {
+      if (source.callback && !(engine instanceof SeatEngine)) throw new Error('External source callback requires engine delivery bounds')
+      owner.effect(() => engine.registerSource({
+        sourceId: source.sourceId, kinds: ['external'], maxRedeliveryMs: null,
+        callback: async (payload) => {
+          if (source.callback && engine instanceof SeatEngine) await deliverCallback(owner, source, engine, payload)
+        },
+      }))
+    }
     owner.effect(() => {
       const running = new Set<Promise<void>>()
       const controller = new AbortController()

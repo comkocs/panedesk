@@ -28,7 +28,9 @@ export class SeatRemote extends TypertRemoteService {
   static Config = z.object({ webhook: z.object({ path: z.string().required(), maxBodyBytes: z.natural().min(1).required(),
     bodyTimeoutMs: z.natural().min(1).required(), maxClockSkewMs: z.natural().required(),
     sources: z.array(z.object({ sourceId: z.string().required(), seat: z.string().required(),
-      projectId: z.string().required(), credentialRefs: z.dict(z.string()).required() })).required() }).default(undefined as never) })
+      projectId: z.string().required(), credentialRefs: z.dict(z.string()).required(),
+      callback: z.object({ url: z.string().required(), keyVersion: z.string().required() }).default(undefined as never),
+    })).required() }).default(undefined as never) })
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'seatRemote', { namespace: 'seats' })

@@ -9,6 +9,7 @@
   ],
   "references": [
     { "path": "../seat" },
+    { "path": "../seat-engine" },
     { "path": "../../sdk/protocol" },
     { "path": "../../typert/protocol" },
     { "path": "../../credentials/credentials" },
