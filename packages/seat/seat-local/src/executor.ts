@@ -16,6 +16,7 @@ import { LocalEngineState, localFact } from './engine-state.ts'
 import { readSeatText, renderOpening } from './template.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { localSourceId } from './open-admission.ts'
+import { observeOwner } from './owner-observation.ts'
 
 /** Create an identity-preserving executor whose caller owns registration and disposal.
  * @param ctx - local plugin context.
@@ -176,6 +177,6 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
         messageClass: 'handoff', priority: 'steer', operationId: String(request.wakeOperationId) as OperationId })
       return result.deliveryOutcome === 'accepted' ? 'sent' : 'unavailable'
     },
-    owner: owner => Promise.resolve(ctx.get('agents')?.get(owner.sessionId) === undefined ? 'unknown' : 'alive'),
+    owner: owner => observeOwner(ctx, owner, options.nodeId),
   }
 }
