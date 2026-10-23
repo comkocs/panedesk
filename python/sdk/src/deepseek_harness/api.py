@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from .client import HarnessClient, HarnessConfig, MessagesClient
+from .client import HarnessClient, HarnessConfig, MessagesClient, SeatsClient
 from .errors import SdkProtocolError
 from .models import InitializeExecutionPolicy, InitializeLedgerContext, JsonObject, LlmCacheControl, Notification
 
@@ -95,6 +95,7 @@ class DeepSeekHarness:
         )
         self._initialized = False
         self.messages = MessagesClient(self._client, _before_request=self.start)
+        self.seats = SeatsClient(self._client, _before_request=self.start)
 
     def __enter__(self) -> "DeepSeekHarness":
         self.start()

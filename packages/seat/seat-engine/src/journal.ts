@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { tryLockExclusive } from '@panedesk/node-addon-system/flock'
 import { SEAT_ENGINE_NAMESPACE, SEAT_ENGINE_EVENT_NAMES, type EngineDecision, type EngineEffect, type EngineDecisionId, type SeatDigest, type SeatNodeId, type SeatErrorCode } from '@panedesk/dsh-seat'
 import { EngineProjection } from './projection.ts'
+import { validEffect } from './validation.ts'
 
 /** Storage errors stop dispatch; ambiguous writes require reopening and replaying the journal. */
 export class EngineError extends Error {
@@ -51,12 +52,29 @@ export function decodeFrame(text: string, maxBytes: number): EngineDecision {
   if (!record(parsed) || parsed.namespace !== SEAT_ENGINE_NAMESPACE || parsed.schemaVersion !== 1
     || typeof parsed.decisionId !== 'string' || typeof parsed.nodeId !== 'string'
     || !Number.isSafeInteger(parsed.sequence) || Number(parsed.sequence) < 1
-    || !Number.isSafeInteger(parsed.policyRevision) || typeof parsed.observedAt !== 'string'
+    || !parsed.decisionId || !parsed.nodeId || !Number.isSafeInteger(parsed.policyRevision) || Number(parsed.policyRevision) < 0
+    || typeof parsed.observedAt !== 'string'
     || !Number.isFinite(Date.parse(parsed.observedAt)) || !Array.isArray(parsed.effects) || parsed.effects.length === 0
     || typeof parsed.digest !== 'string' || typeof parsed.byteLength !== 'number') throw new EngineError('engine-store-corrupt', 'Invalid engine frame header')
+  const eventIds = new Set<string>()
   for (const effect of parsed.effects) {
     if (!record(effect) || typeof effect.eventId !== 'string' || typeof effect.kind !== 'string'
-      || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !record(effect.data)) throw new EngineError('engine-store-corrupt', 'Invalid engine effect')
+      || !effect.eventId || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !record(effect.data)
+      || !validEffect(effect.kind as EngineEffect['kind'], effect.data)
+      || ['seat', 'sessionId', 'taskId', 'triggerId', 'operationId', 'causedBy'].some(key => effect[key] !== undefined
+        && (typeof effect[key] !== 'string' || !effect[key]))) throw new EngineError('engine-store-corrupt',
+      `Invalid engine effect ${record(effect) && typeof effect.kind === 'string' ? effect.kind : 'unknown'}: missing, mistyped or inconsistent fields`)
+    if (eventIds.has(effect.eventId)) throw new EngineError('engine-store-corrupt', 'Duplicate engine event identity')
+    eventIds.add(effect.eventId)
+    const data = effect.data
+    for (const key of ['sessionId', 'seat', 'operationId'] as const) {
+      if (effect[key] !== undefined && data[key] !== undefined && effect[key] !== data[key]) {
+        throw new EngineError('engine-store-corrupt', `Inconsistent engine effect ${effect.kind}: ${key}`)
+      }
+    }
+    if ('payload' in data && record(data.payload) && digest(data.payload) !== data.payloadDigest) {
+      throw new EngineError('engine-store-corrupt', `Inconsistent engine effect ${effect.kind}: payloadDigest`)
+    }
   }
   const { digest: checksum, byteLength, ...body } = parsed
   if (digest(body) !== checksum || Buffer.byteLength(canonical(body)) !== byteLength) throw new EngineError('engine-store-corrupt', 'Engine checksum mismatch')
@@ -104,16 +122,22 @@ export class EngineJournal {
 
   /** Serialize a synchronous decision builder; no business awaits hold the journal transaction.
    * @param build - evaluates latest committed state and returns all effects or no mutation.
+   * @param policyRevision - policy revision recorded with the decision.
+   * @param metadata - optional caller identity and observation time; supplied frames use replay validation before writing.
    * @returns committed frame, or null when the decision has no effects.
    */
-  async commit(build: (view: EngineProjection) => readonly EngineEffect[], policyRevision = 0): Promise<EngineDecision | null> {
+  async commit(build: (view: EngineProjection) => readonly EngineEffect[], policyRevision = 0,
+    metadata?: Partial<Pick<EngineDecision, 'decisionId' | 'observedAt'>>): Promise<EngineDecision | null> {
     if (this.closing) throw new EngineError('unavailable', 'Engine journal is closing')
     const result = this.chain.then(async () => {
       if (!this.owner || this.failed) throw new EngineError('unavailable', 'Engine journal is not writable')
       const effects = build(this.projection)
       if (!effects.length) return null
-      const decision = frame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1, decisionId: randomUUID() as EngineDecisionId,
-        sequence: this.projection.sequence + 1, observedAt: new Date().toISOString(), nodeId: this.nodeId, policyRevision, effects })
+      const decision = frame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
+        decisionId: metadata?.decisionId ?? randomUUID() as EngineDecisionId,
+        sequence: this.projection.sequence + 1, observedAt: metadata?.observedAt ?? new Date().toISOString(),
+        nodeId: this.nodeId, policyRevision, effects })
+      if (metadata) decodeFrame(canonical(decision), this.maxBytes)
       await this.append(decision)
       return decision
     })

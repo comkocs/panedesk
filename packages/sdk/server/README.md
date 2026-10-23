@@ -53,6 +53,8 @@ Stdout carries only JSON-RPC frames, so clients can parse every byte; diagnostic
 
 `session/wait` observes an existing SDK-owned session through managed descendant completion and any resulting root turns. It rejects unknown or retired roots, never creates a session, and responds after the root stays idle across the descendant check. Idle children with parked inbox messages remain resident but do not delay this response; later waking input can resume them. Session notifications emitted before completion precede the response on the stdio transport. A live Agent failure remains associated with that exact session until a later committed `turn/end` accounts for the outcome; otherwise the wait rejects, including when the failure preceded the wait request. Errors already represented by a terminal remain in Session events, and later successful activity clears an earlier live failure.
 
+`seats/*` requests require initialization and optional `seats`/`seatEngine` providers. The server captures local-owner authority, rejects delegated connections, validates requests, and routes operations through the scoped service rather than a private Session controller. Remote opening forces `origin: 'remote'` and `openingMode: 'auto'`. Management requests include import preview/commit, authority transfer, reports, and waits; missing providers report unsupported without starting a replacement runtime.
+
 ### Shutdown and exit
 
 The plugin answers `shutdown`, flushes the response, disposes the root context so SDK-owned agents, subscriptions, and persistence reach quiescence, then exits 0. EOF and signal exits belong to the app bin, which also disposes the root context. Unloading only this plugin stops serving without exiting the process.

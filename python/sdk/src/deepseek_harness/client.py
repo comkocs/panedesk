@@ -65,6 +65,7 @@ class HarnessClient:
         self._stderr_thread: threading.Thread | None = None
         self._messages_version: int | None = None
         self.messages = MessagesClient(self)
+        self.seats = SeatsClient(self)
 
     def __enter__(self) -> "HarnessClient":
         self.start()
@@ -584,6 +585,155 @@ class HarnessClient:
                 return False
             current = parent
         return False
+
+
+class SeatsClient:
+    """Node-local seat operations; never fall back to ordinary prompts on failure."""
+
+    def __init__(self, client: HarnessClient, *, _before_request: Callable[[], None] | None = None) -> None:
+        self._client = client
+        self._before_request = _before_request
+
+    def _call(self, method: str, request: BaseModel | JsonObject, model: type[BaseModel] | None = None) -> JsonObject | None:
+        payload = request.model_dump(mode="json", exclude_none=True) if isinstance(request, BaseModel) else dict(request)
+        if model is not None:
+            payload = model.model_validate(payload).model_dump(mode="json", exclude_none=True)
+        if method in ("open", "openBatch"):
+            payload.update(origin="remote", openingMode="auto")
+        if self._before_request is not None:
+            self._before_request()
+        if method == "operation" and "nodeId" in payload:
+            raise ValueError("operation lookup accepts only operationId")
+        result = self._client._request_raw("seats/" + method, payload)
+        if method == "binding" and result is None:
+            return None
+        if not isinstance(result, dict):
+            raise SdkProtocolError("Invalid seats/" + method + " result")
+        try:
+            message_models.validate_seat_result(method, result)
+            if method in ("import.preview", "import.commit", "setAuthority", "report.submit", "wait.register", "wait.cancel"):
+                return result
+            if "status" in result:
+                message_models.SeatResult.model_validate(result)
+                variants = {
+                    "list": ("listed",), "open": ("opened", "prefilled", "choice-required", "switched", "cancelled", "queued"),
+                    "openBatch": ("processed",), "renew": ("renewed", "uncertain"), "close": ("closed", "busy", "conflict"),
+                    "replace": ("queued", "replacing", "failed"), "rename": ("renamed",),
+                    "wake": ("sent", "stored-budget-stopped", "opened", "choice-required"),
+                    "operation": ("missing", "pending", "settled"), "setProjectMode": ("saved",),
+                    "approve": ("approved",), "cancel": ("cancelled",),
+                }
+                if result["status"] != "rejected" and result["status"] not in variants.get(method, ()):
+                    raise ValueError("unexpected seat outcome")
+                if method == "open" and result["status"] == "queued" and not isinstance(result.get("blockedBy"), list):
+                    raise ValueError("missing queue blockers")
+                if method == "open" and result["status"] == "opened" and "sessionId" not in result:
+                    raise ValueError("missing opened session")
+            elif method == "binding":
+                if not result.get("sessionId") or not result.get("nodeId") or result.get("kind") not in ("free", "seat"):
+                    raise ValueError("invalid binding")
+                if result["kind"] == "free" and result.get("identitySource") != "free":
+                    raise ValueError("invalid free binding")
+            elif method == "nodeStatus":
+                if any(key not in result for key in ("nodeId", "nodeName", "engine", "openEngineWindows", "limit")):
+                    raise ValueError("incomplete node status")
+            elif method in ("pending", "gates"):
+                key = "items" if method == "pending" else "gates"
+                if not isinstance(result.get(key), list) or type(result.get("complete")) is not bool or type(result.get("watermark")) is not int:
+                    raise ValueError("invalid result page")
+            else:
+                raise ValueError("missing status")
+        except (ValidationError, ValueError) as error:
+            raise SdkProtocolError("Invalid seats/" + method + " result") from error
+        return result
+
+    def list(self, request: message_models.ListSeatsRequest | JsonObject | None = None) -> JsonObject | None:
+        """List runtime states and unopened seats, preserving incomplete evidence."""
+        return self._call("list", request or {}, message_models.ListSeatsRequest)
+
+    def open(self, request: message_models.OpenSeatRequest | JsonObject) -> JsonObject | None:
+        """Open an exact definition with automatic remote opening."""
+        return self._call("open", request, message_models.OpenSeatRequest)
+
+    def open_batch(self, request: message_models.OpenSeatBatchRequest | JsonObject) -> JsonObject | None:
+        """Open only explicit unique names and return independent outcomes."""
+        return self._call("openBatch", request, message_models.OpenSeatBatchRequest)
+
+    def renew(self, request: message_models.SeatSessionRequest | JsonObject) -> JsonObject | None:
+        """Request one maintenance call without conversation text."""
+        return self._call("renew", request, message_models.SeatSessionRequest)
+
+    def close(self, request: message_models.CloseSeatRequest | JsonObject) -> JsonObject | None:
+        """Close at the observed state version, never force-stop busy work."""
+        return self._call("close", request, message_models.CloseSeatRequest)
+
+    def replace(self, request: message_models.SeatSessionRequest | JsonObject) -> JsonObject | None:
+        """Open new before closing old; retain operation identity across uncertainty."""
+        return self._call("replace", request, message_models.SeatSessionRequest)
+
+    def rename(self, request: message_models.RenameSeatRequest | JsonObject) -> JsonObject | None:
+        """Preserve upstream pinned-title semantics."""
+        return self._call("rename", request, message_models.RenameSeatRequest)
+
+    def wake(self, request: message_models.WakeSeatRequest | JsonObject) -> JsonObject | None:
+        """Send the definition's wake text or open an unopened seat."""
+        return self._call("wake", request, message_models.WakeSeatRequest)
+
+    def operation(self, request: message_models.SeatOperationRequest | JsonObject) -> JsonObject | None:
+        """Observe a durable operation instead of replaying side effects."""
+        return self._call("operation", request, message_models.SeatOperationRequest)
+
+    def binding(self, request: message_models.SeatBindingRequest | JsonObject) -> JsonObject | None:
+        """Read the Session's engine metadata without changing its log."""
+        return self._call("binding", request, message_models.SeatBindingRequest)
+
+    def preview_import(self, request: message_models.PreviewSeatImportRequest | JsonObject) -> JsonObject | None:
+        """Preview explicit source rows without catalog mutation."""
+        return self._call("import.preview", request, message_models.PreviewSeatImportRequest)
+
+    def commit_import(self, request: message_models.CommitSeatImportRequest | JsonObject) -> JsonObject | None:
+        """Commit only selected preview rows at the observed revision."""
+        return self._call("import.commit", request, message_models.CommitSeatImportRequest)
+
+    def set_authority(self, request: message_models.SetSeatAuthorityRequest | JsonObject) -> JsonObject | None:
+        """Transfer editing authority with independent authorization."""
+        return self._call("setAuthority", request, message_models.SetSeatAuthorityRequest)
+
+    def submit_report(self, request: message_models.SubmitCloseReportRequest | JsonObject) -> JsonObject | None:
+        """Record a report without claiming that the window is idle."""
+        return self._call("report.submit", request, message_models.SubmitCloseReportRequest)
+
+    def register_wait(self, request: message_models.RegisterSeatWaitRequest | JsonObject) -> JsonObject | None:
+        """Register observations without awaiting task completion."""
+        return self._call("wait.register", request, message_models.RegisterSeatWaitRequest)
+
+    def cancel_wait(self, request: message_models.CancelSeatWaitRequest | JsonObject) -> JsonObject | None:
+        """Cancel observation without cancelling underlying tasks."""
+        return self._call("wait.cancel", request, message_models.CancelSeatWaitRequest)
+
+    def node_status(self) -> JsonObject | None:
+        """Read the configured node alias and local capacity."""
+        return self._call("nodeStatus", {})
+
+    def pending(self, request: message_models.PendingSeatsRequest | JsonObject) -> JsonObject | None:
+        """Read pending work at its committed watermark."""
+        return self._call("pending", request, message_models.PendingSeatsRequest)
+
+    def gates(self, request: message_models.SeatGatesRequest | JsonObject) -> JsonObject | None:
+        """Read committed gate counts and expiration evidence."""
+        return self._call("gates", request, message_models.SeatGatesRequest)
+
+    def set_project_mode(self, request: message_models.SetSeatProjectModeRequest | JsonObject) -> JsonObject | None:
+        """Select project policy with revision comparison."""
+        return self._call("setProjectMode", request, message_models.SetSeatProjectModeRequest)
+
+    def approve(self, request: message_models.PendingSeatMutationRequest | JsonObject) -> JsonObject | None:
+        """Approve reminder confirmation without bypassing admission."""
+        return self._call("approve", request, message_models.PendingSeatMutationRequest)
+
+    def cancel(self, request: message_models.PendingSeatMutationRequest | JsonObject) -> JsonObject | None:
+        """Cancel unopened work without closing windows."""
+        return self._call("cancel", request, message_models.PendingSeatMutationRequest)
 
 
 MessageResultT = TypeVar("MessageResultT")

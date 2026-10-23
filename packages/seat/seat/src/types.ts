@@ -107,6 +107,8 @@ export interface SeatDefinition {
   subscriptions: readonly string[]
   checkpointFiles: readonly SeatCheckpointFile[]
   wakeTemplate?: SeatText
+  /** Omitted enables idle cache maintenance; false disables automatic renewal. */
+  autoKeepAlive?: boolean
   maxOpenSessions: number
   /** Enables idle cache maintenance; definition resolution defaults this to true. */
   autoKeepAlive?: boolean
@@ -575,6 +577,8 @@ export interface PendingSeatItem {
   projectId: SeatProjectId
   triggerKind: SeatTrigger['kind']
   action: 'open' | 'wake-sender' | 'replace'
+  /** Present only for an engine-owned replacement queue item. */
+  replacementId?: ReplacementId
   /** Required for wake-sender; absent for ordinary opens and replacements. */
   handoffTimeout?: SeatHandoffTimeout
   sequence: number
@@ -781,6 +785,8 @@ export interface SeatBindingRequest { sessionId: SessionId; nodeId?: SeatNodeId 
 export interface SeatOperationQuery { operationId: SeatOperationId }
 /** Local executor owns Session side effects; the engine owns identities and recovery stages. */
 export interface SeatOpenExecutor {
+  /** Query the original replacement turn; absent evidence keeps the old window open. */
+  replacementFirstTurn?(open: import('./events.ts').EngineOpenData): Promise<import('./events.ts').EngineReplacementData['firstTurn']>
   /** Deliver a durable next-turn warning; operationId deduplicates recovery retries in M5. */
   notifyBudget?(request: { sessionId: SessionId; operationId: SeatOperationId; messageClass: 'handoff'; mode: 'steer'; budget: SeatBudgetSnapshot }): Promise<void>
   /** Inspect persistent identity without creating or resuming model execution. */

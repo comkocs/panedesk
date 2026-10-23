@@ -12676,6 +12676,9 @@ importers:
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../../session/message-delivery
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -12770,12 +12773,27 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-cmdline':
+        specifier: workspace:*
+        version: link:../../boot/cmdline
+      '@panedesk/dsh-sdk-protocol':
+        specifier: workspace:*
+        version: link:../../sdk/protocol
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
 
   packages/seat/seat-engine:
     dependencies:
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat
@@ -12794,6 +12812,28 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/seat/seat-gates:
+    dependencies:
+      '@panedesk/dsh-compaction':
+        specifier: workspace:*
+        version: link:../../compaction/compaction
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -12921,12 +12961,41 @@ importers:
         version: 5.5.2
 
   packages/seat/seat-remote:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@panedesk/dsh-host-webserver':
+        specifier: workspace:*
+        version: link:../../host/webserver
+      '@panedesk/dsh-sdk-protocol':
+        specifier: workspace:*
+        version: link:../../sdk/protocol
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
 
   packages/seat/tool-seat:
+    dependencies:
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -13078,6 +13147,9 @@ importers:
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../message-delivery
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../session-ledger

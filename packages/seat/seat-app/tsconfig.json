@@ -8,6 +8,9 @@
     "src"
   ],
   "references": [
+    { "path": "../seat" },
+    { "path": "../../sdk/protocol" },
+    { "path": "../../boot/cmdline" },
     {
       "path": "../../../vendor/cordis"
     }

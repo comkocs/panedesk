@@ -55,6 +55,10 @@ export interface EngineCloseData {
 }
 /** Replacement observations preserve both windows throughout cleanup and recovery. */
 export interface EngineReplacementData {
+  /** Caller identity supports recovery and duplicate replacement requests. */
+  operationId?: SeatOperationId
+  /** Confirmed cleanup distinguishes an absent reservation from a flushed window. */
+  cleanup?: 'not-created' | 'closed' | 'pending'
   replacementId: ReplacementId
   oldSessionId: SessionId
   newSessionId: SessionId | null
@@ -78,8 +82,29 @@ export interface EngineGateData { definition: GateDefinition; context: GateConte
 export interface EngineJobData { sessionId: SessionId; ownerEpoch: import('./types.ts').OwnerEpoch; phase: 'intent' | 'running' | 'settled'; observation: WaitObservation }
 /** Memory audit cannot attribute concurrent external changes to the current Session. */
 export interface EngineMemoryAuditData { sessionId: SessionId; paths: readonly { path: string; before: SeatDigest | null; after: SeatDigest | null }[]; attribution: 'authorized' | 'unauthorized' | 'unknown'; complete: boolean; reason: string | null }
+/** Cache maintenance attempts never append conversation content. */
+export interface EngineKeepAliveData {
+  sessionId: SessionId
+  operationId: SeatOperationId
+  source: 'auto' | 'manual'
+  phase: 'attempted' | 'renewed' | 'uncertain' | 'skipped'
+  reason: string | null
+  evidenceAt: number | null
+  dueAt: number | null
+  observedAt: SeatTimestamp
+}
+/** Ref position and accepted ingress share a journal decision. */
+export interface EngineGitCheckpoint {
+  repositoryId: string
+  ref: string
+  objectId: string | null
+  sequence: number
+}
 /** Closed ledger map: adding a durable kind requires an explicit reader and schema review. */
 export interface EngineEventDataMap {
+  'cache/keepalive': EngineKeepAliveData
+  'cache/keepalive-skipped': EngineKeepAliveData
+  'git/checkpoint': EngineGitCheckpoint
   'trigger/accepted': EngineTriggerData
   'trigger/deduplicated': EngineTriggerData
   'trigger/coalesced': EngineTriggerData
@@ -149,6 +174,7 @@ export interface EngineDecision {
 
 /** Exhaustive decoder name table; unknown names require explicit version negotiation. */
 export const SEAT_ENGINE_EVENT_NAMES = {
+  'cache/keepalive': true, 'cache/keepalive-skipped': true, 'git/checkpoint': true,
   'trigger/accepted': true, 'trigger/deduplicated': true, 'trigger/coalesced': true,
   'queue/pending': true, 'queue/approved': true, 'queue/cancelled': true,
   'open/intent': true, 'open/created': true, 'open/configured': true,

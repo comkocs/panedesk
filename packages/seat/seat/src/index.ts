@@ -40,6 +40,8 @@ declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
     seatEngine: SeatEngineService
+    seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
+    seatReminderHost: import('./gates.ts').SeatReminderHost
     seatGates: SeatGateService
     seatDirectories: SeatDirectoryService
   }
@@ -214,6 +216,21 @@ export abstract class SeatEngineService extends Service {
    * @returns disposer that drains in-flight recovery before detaching.
    */
   abstract registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void>
+  /** Queue a replacement without bypassing either window's capacity.
+   * @param request - old window and retained transaction identity.
+   * @returns the durable replacement state.
+   */
+  abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>
+  /** Commit a flushed close together with release and source callbacks.
+   * @param closed - provider-confirmed archive, title and flush result.
+   * @returns after all close facts are durable.
+   */
+  abstract recordClosed(closed: import('./events.ts').EngineCloseData): Promise<void>
+  /** Use the same durable maintenance path as automatic renewal, marked as manual.
+   * @param request - local window and caller-retained operation identity.
+   * @returns renewed, rejected or uncertain without conversation content.
+   */
+  abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>
   /** Reevaluate pending work and original open identities.
    * @returns after the current reconciliation batch settles.
    */
@@ -233,6 +250,16 @@ export abstract class SeatEngineService extends Service {
    * @returns allow or a durable-policy deferral.
    */
   abstract admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission>
+  /** Commit a rejected external-source attempt without admitting it to the opening queue.
+   * @param request - bounded source identity, body digest, observation time and sanitized failure.
+   * @returns only after the source/rejected audit fact is durable; storage failures reject.
+   */
+  abstract auditSourceRejection(request: {
+    sourceId: T.SeatSourceId
+    digest: T.SeatDigest
+    observedAt: T.SeatTimestamp
+    error: T.SeatFailure
+  }): Promise<void>
   /** Register a trusted source without persisting callback code or credentials.
    * @param source - installed source adapter and redelivery horizon.
    * @returns asynchronous disposer that stops ingress and drains accepted calls.
@@ -243,6 +270,11 @@ export abstract class SeatEngineService extends Service {
    * @returns durable frame or a sequence conflict.
    */
   abstract transact(request: T.EngineTransactionRequest): Promise<T.EngineTransactionResult>
+  /** Frame and commit effects under engine-owned canonical encoding and sequence CAS.
+   * @param request - stable decision identity, observed facts and expected committed watermark.
+   * @returns committed frame, current watermark conflict or explicit refusal.
+   */
+  abstract appendEffects(request: { decisionId: import('./events.ts').EngineDecisionId; expectedSequence: number; observedAt: T.SeatTimestamp; policyRevision: number; effects: readonly import('./events.ts').EngineEffect[] }): Promise<T.EngineTransactionResult>
   /** Reconcile original identities without replaying uncertain model side effects.
    * @returns only after recovery barriers and projections are ready.
    */
@@ -355,6 +387,11 @@ export abstract class SeatGateService extends Service {
    * @returns affected trees and safe alternatives.
    */
   abstract onTaskEnded(request: T.SeatTaskEndedRequest): Promise<T.SeatWorktreeResult>
+  /** Emit one durable next-step handoff reminder per child context epoch and threshold revision.
+   * @param request - child-owned context evidence and bounded handoff summary.
+   * @returns observable delivery or evidence status; never changes notice semantics.
+   */
+  abstract remindChild(request: import('./gates.ts').SeatChildThresholdRequest): Promise<'sent' | 'below' | 'unknown' | 'unavailable'>
 }
 
 /** Additional-root tools retain filesystem permission checks and do not widen shell write policy. */

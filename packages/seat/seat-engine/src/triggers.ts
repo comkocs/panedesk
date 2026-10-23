@@ -33,7 +33,7 @@ export class TriggerRegistry {
    */
   async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode): Promise<AcceptTriggerResult> {
     try {
-      return await this.sources.use(envelope.sourceId, async (source) => {
+      const result = await this.sources.use<AcceptTriggerResult>(envelope.sourceId, async (source): Promise<AcceptTriggerResult> => {
         if (!source.kinds.includes(envelope.kind) || envelope.evidence.kind !== envelope.kind || envelope.callbackRef !== envelope.sourceId) return rejected('unauthorized',
           'Source is not authorized for this trigger')
         if (Buffer.byteLength(canonical(envelope)) > this.config.maxSourceBytes) return rejected('source-payload-too-large',
@@ -48,6 +48,10 @@ export class TriggerRegistry {
         const key = canonical([trigger.sourceId, trigger.eventId ?? contentDigest, bucket])
         let result: AcceptTriggerResult = rejected('unavailable', 'Ingress did not commit')
         await this.journal.commit((view) => {
+          const checkpoint = trigger.evidence.kind === 'git' ? [fact({ kind: 'git/checkpoint', data: {
+            repositoryId: trigger.evidence.repositoryId, ref: trigger.evidence.ref,
+            objectId: trigger.evidence.newObjectId, sequence: trigger.evidence.observationSequence,
+          } })] : []
           const existing = view.dedup.get(key)
           if (existing) {
             if (existing.deduplication.digest !== contentDigest) { result = rejected('event-id-conflict',
@@ -62,7 +66,7 @@ export class TriggerRegistry {
           const mode = trigger.kind === 'manual' ? 'auto' : effectiveMode(policy.mode, ruleMode)
           if (mode === 'off') {
             result = rejected('disabled', 'Automatic triggering is disabled')
-            return [fact({ kind: 'source/rejected', seat: trigger.seat, data: { sourceId: trigger.sourceId,
+            return [...checkpoint, fact({ kind: 'source/rejected', seat: trigger.seat, data: { sourceId: trigger.sourceId,
               sourceEventId: trigger.eventId ?? null, digest: contentDigest, error: result.error } })]
           }
           const previous = [...view.pending.values()].find(item => item.seat === trigger.seat
@@ -84,14 +88,24 @@ export class TriggerRegistry {
               eventId: trigger.eventId ?? null } }
           result = { status: previous ? 'coalesced' : 'accepted', triggerId: trigger.triggerId,
             queueItemId: pending.queueItemId, sequence: pending.sequence }
-          return [fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
+          return [...checkpoint, fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
             seat: trigger.seat, data })]
         })
         return result
       })
+      if (result.status === 'rejected' && result.error.code !== 'disabled') await this.auditRejection(envelope, result)
+      return result
     } catch (error) {
-      if (error instanceof EngineError) return rejected(error.code, error.message)
-      throw error
+      if (!(error instanceof EngineError)) throw error
+      const result = rejected(error.code, error.message)
+      await this.auditRejection(envelope, result)
+      return result
     }
+  }
+  private async auditRejection(envelope: TriggerEnvelope, result: SeatRejected): Promise<void> {
+    await this.journal.commit(() => [fact({ kind: 'source/rejected', seat: envelope.seat, data: {
+      sourceId: envelope.sourceId, sourceEventId: envelope.eventId ?? null,
+      digest: digest(envelope.data), error: result.error,
+    } })])
   }
 }

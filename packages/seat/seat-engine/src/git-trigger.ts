@@ -2,10 +2,11 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { watch, type FSWatcher } from 'node:fs'
-import { open, readFile, rename, mkdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import type { AcceptTriggerResult, SeatTriggerEvidence } from '@panedesk/dsh-seat'
-import { EngineError } from './journal.ts'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { AcceptTriggerResult, SeatTriggerEvidence, EngineGitCheckpoint } from '@panedesk/dsh-seat'
+import { EngineError, type EngineJournal } from './journal.ts'
+import { fact } from './triggers.ts'
 
 const execute = promisify(execFile)
 type GitEvidence = Extract<SeatTriggerEvidence, { kind: 'git' }>
@@ -15,7 +16,10 @@ export interface GitTriggerOptions {
   repository: string
   repositoryId: GitEvidence['repositoryId']
   ref: string
+  /** Legacy checkpoint is read only when no journal position exists. */
   checkpoint: string
+  /** The engine journal owns baseline migration and accepted positions. */
+  journal: EngineJournal
   fallbackMs: number
   accept(evidence: GitEvidence): Promise<AcceptTriggerResult>
   onError(error: unknown): void
@@ -53,16 +57,20 @@ export class GitTrigger {
     return this.running
   }
   private async observe(): Promise<void> {
-    let previous: Checkpoint | undefined
-    try {
+    const key = JSON.stringify([this.options.repositoryId, this.options.ref])
+    let previous: EngineGitCheckpoint | undefined = this.options.journal.projection.git.get(key)
+    if (!previous) try {
       const value: unknown = JSON.parse(await readFile(this.options.checkpoint, 'utf8'))
       if (!value || typeof value !== 'object' || !('schemaVersion' in value) || value.schemaVersion !== 1
         || !('repositoryId' in value) || value.repositoryId !== this.options.repositoryId
         || !('ref' in value) || value.ref !== this.options.ref || !('sequence' in value) || !Number.isSafeInteger(value.sequence)
+        || Number(value.sequence) < 0 || Number(value.sequence) >= Number.MAX_SAFE_INTEGER
         || !('objectId' in value) || (value.objectId !== null && (typeof value.objectId !== 'string' || !/^[a-f0-9]{40,64}$/.test(value.objectId)))) {
         throw new EngineError('engine-store-corrupt', 'Invalid git observation checkpoint')
       }
       previous = value as Checkpoint
+      const migrated = previous
+      await this.options.journal.commit(() => [fact({ kind: 'git/checkpoint', data: migrated })])
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
     const { stdout } = await execute('git', ['for-each-ref', '--format=%(refname) %(objectname)',
       this.options.ref], { cwd: this.options.repository })
@@ -76,15 +84,12 @@ export class GitTrigger {
       if (result.status === 'rejected' && result.error.code !== 'disabled') throw new EngineError('unavailable',
         'Git ingress was not durably accepted')
     }
-    await mkdir(dirname(this.options.checkpoint), { recursive: true, mode: 0o700 })
-    const temporary = `${this.options.checkpoint}.next`
-    const handle = await open(temporary, 'w', 0o600)
-    try { await handle.writeFile(JSON.stringify({ schemaVersion: 1, repositoryId: this.options.repositoryId,
-      ref: this.options.ref, objectId, sequence })); await handle.sync() }
-    finally { await handle.close() }
-    await rename(temporary, this.options.checkpoint)
-    const directory = await open(dirname(this.options.checkpoint), 'r')
-    try { await directory.sync() } finally { await directory.close() }
+    if (!previous) await this.options.journal.commit(() => [fact({ kind: 'git/checkpoint', data: {
+      repositoryId: this.options.repositoryId, ref: this.options.ref, objectId, sequence,
+    } })])
+    const committed = this.options.journal.projection.git.get(key)
+    if (committed?.objectId !== objectId || committed.sequence !== sequence) throw new EngineError('unavailable',
+      'Git ingress did not commit its checkpoint')
   }
   /** Stop new observations and drain the one owned scan. */
   async stop(): Promise<void> {

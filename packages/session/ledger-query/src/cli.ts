@@ -2,10 +2,12 @@
 import type { LedgerQueryOptions, LedgerExportFormat, LedgerGroupBy } from './types.ts'
 import { parseMessagesArgs } from './messages-cli.ts'
 import type { MessagesCommand } from './messages-cli.ts'
+import { parseEngineArgs, type EngineCommand } from './engine-cli.ts'
 
 /** Parsed command with explicit file operands and shared query filters. */
 export interface LedgerCommand {
-  command: 'today' | 'query' | 'export' | 'merge' | 'live' | 'cache' | 'verify' | 'messages'
+  command: 'today' | 'query' | 'export' | 'merge' | 'live' | 'cache' | 'verify' | 'messages' | 'engine'
+  engine?: EngineCommand
   messages?: MessagesCommand
   query: LedgerQueryOptions
   format?: LedgerExportFormat
@@ -17,6 +19,7 @@ export interface LedgerCommand {
  * @returns validated command; missing operands and unknown options throw.
  */
 export function parseLedgerArgs(args: readonly string[]): LedgerCommand {
+  if (args[0] === 'engine') return { command: 'engine', engine: parseEngineArgs(args), query: {}, inputs: [] }
   if (args[0] === 'messages') return { command: 'messages', messages: parseMessagesArgs(args), query: {}, inputs: [] }
   const command = args[0] ?? 'today'
   if (!['today', 'query', 'export', 'merge', 'live', 'cache', 'verify'].includes(command)) throw new Error('Unknown ledger command')
@@ -26,7 +29,7 @@ export function parseLedgerArgs(args: readonly string[]): LedgerCommand {
   const allowed: Record<LedgerCommand['command'], readonly string[]> = {
     today: ['--timezone'], query: [...common, '--group-by'], export: [...common, '--format', '--output'],
     merge: ['--input', '--output'], live: ['--session', '--node', '--include-children'],
-    cache: ['--session', '--include-children'], verify: ['--input'], messages: [],
+    cache: ['--session', '--include-children'], verify: ['--input'], messages: [], engine: [],
   }
   for (let i = 1; i < args.length; i++) {
     const flag = args[i] ?? ''

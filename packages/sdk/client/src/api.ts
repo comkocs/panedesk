@@ -7,6 +7,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { SeatsClient } from './seats.ts'
 import { resolve } from 'node:path'
 import { SessionId, type SessionEvent, type TurnEndReason } from '@panedesk/dsh-session'
 import { createProcessHarnessClient, HarnessClient, isRecord, SdkProtocolError } from './client.ts'
@@ -25,6 +26,8 @@ import type { ContentBlock, DeepSeekHarnessOptions, HarnessNotification, RunResu
  * child is reaped.
  */
 export class DeepSeekHarness implements AsyncDisposable {
+  /** Seat operations share the existing runtime and never fall back to prompt. */
+  readonly seats = new SeatsClient(async (method, params) => { await this.start(); return this.client.request(method, params) })
   /** Message operations initialize the owning runtime before use. */
   readonly messages = {
     send: async (request: SendMessageRequest) => { await this.start(); return this.client.messages.send(request) },

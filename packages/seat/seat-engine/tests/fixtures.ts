@@ -3,9 +3,10 @@ import { Context } from '@panedesk/cordis'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SessionId } from '@panedesk/dsh-session'
-import type { SessionLedger, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import type { LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import type * as T from '@panedesk/dsh-seat'
 import { SeatEngine } from '../src/engine.ts'
+import type { KeepAliveRuntime } from '../src/keepalive.ts'
 import { digest } from '../src/journal.ts'
 
 export const nodeId = 'node-a' as T.SeatNodeId
@@ -42,7 +43,7 @@ export function budget(sessionId = 'window-a' as SessionId): T.SeatBudgetSnapsho
   return { sessionId, seat, currency: 'USD', costState: 'known', windowCost: '0' as T.MicroUsd, dailyCost: '0' as T.MicroUsd,
     limits: {}, dayKey: '2026-01-01', budgetTimeZone: 'UTC', inFlightUnknown: 0, watermark: 0, budgetRevision: 0 }
 }
-export async function harness(options: Partial<T.SeatEngineConfig> = {}) {
+export async function harness(options: Partial<T.SeatEngineConfig> = {}, keepalive?: KeepAliveRuntime) {
   const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests/.home-'))
   const definitions = new Map<T.SeatName, T.SeatDefinition>([[seat, definition()]])
   const physical = new Set<SessionId>(), creates: SessionId[] = [], callbacks: T.SeatCallbackPayload[] = []
@@ -54,6 +55,8 @@ export async function harness(options: Partial<T.SeatEngineConfig> = {}) {
     observe: async open => physical.has(open.sessionId) ? 'matching' : 'absent',
     create: async (open) => { physical.add(open.sessionId); creates.push(open.sessionId); return open.sessionId },
     configure: async () => {}, opening: async () => ({ messageId: 'opening-a' as never, state: state.opening }),
+    replacementFirstTurn: async () => ({ messageId: 'opening-a' as never, turnId: 'turn-a',
+      completed: state.opening === 'completed', hasAssistantReply: state.opening === 'completed' }),
     wakeSender: async (timeout) => { wakes.push(timeout); return 'sent' }, owner: async () => state.owner,
     notifyBudget: async (request) => { if (!warned.has(request.operationId)) { warned.add(request.operationId); warnings.push(request) } },
   }
@@ -61,17 +64,32 @@ export async function harness(options: Partial<T.SeatEngineConfig> = {}) {
     'git', 'window-ended', 'handoff-timeout'], maxRedeliveryMs: null,
   callback: async (payload) => { callbacks.push(payload); if (state.callbackFailures-- > 0) throw new Error('Transient callback failure') } }
   const contexts: Context[] = [], engines: SeatEngine[] = []
+  const closed: SessionId[] = []
+  const seatProvider = {
+    resolve: async (name: T.SeatName) => definitions.get(name)!,
+    list: async (): Promise<T.ListSeatWindowsResult> => ({ status: 'listed', unopenedSeats: [], complete: true,
+      snapshotAt: new Date().toISOString(), sessions: [...physical].filter(id => !closed.includes(id)).map(sessionId => ({
+        sessionId, seat, title: 'window-a', nodeId, status: 'idle', engineStatus: 'active', evidence: 'complete',
+        idleMinutes: 0, runningSubagents: 0, activeJobs: 0, canRenew: true, renewRejection: null, busyReasons: [],
+        stateVersion: 1, seatBinding: null,
+      })) }),
+    close: async (request: T.CloseSeatRequest): Promise<T.CloseSeatResult> => {
+      if (!closed.includes(request.sessionId)) closed.push(request.sessionId)
+      return { status: 'closed', sessionId: request.sessionId, phase: 'closed', endedAt: new Date().toISOString(), stateVersion: 2 }
+    },
+  }
   async function start() {
     const ctx = new Context(); contexts.push(ctx)
     const engine = new SeatEngine(ctx, { home, nodeId, config: { ...config, ...options } }, {
-      seats: () => ({ resolve: async (name: T.SeatName) => definitions.get(name)! }) as T.SeatService,
-      ledger: () => ({ snapshot: async () => state.snapshot }) as SessionLedger,
+      seats: () => seatProvider,
+      ledger: () => ({ snapshot: async () => state.snapshot }),
+      ...(keepalive ? { keepalive } : {}),
     })
     engines.push(engine); engine.registerExecutor(executor); engine.registerSource(source); await engine.ready()
     return engine
   }
   const engine = await start()
-  return { home, engine, definitions, physical, creates, callbacks, wakes, warnings, state, executor, start,
+  return { home, engine, definitions, physical, creates, callbacks, wakes, warnings, state, executor, start, seatProvider, closed,
     close: async () => { for (const engine of engines) await engine.shutdown(); for (const ctx of contexts) await ctx.fiber.dispose()
       await rm(home, { recursive: true, force: true }) } }
 }
