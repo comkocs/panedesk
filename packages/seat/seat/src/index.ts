@@ -45,6 +45,7 @@ declare module '@panedesk/cordis' {
     seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
     seatReminderHost: import('./gates.ts').SeatReminderHost
     seatGates: SeatGateService
+    seatGatesQuery: SeatGatesQueryService
     seatDirectories: SeatDirectoryService
   }
 }
@@ -397,6 +398,16 @@ export abstract class SeatEngineQueryService extends Service {
    * @returns framing integrity or a structured storage refusal.
    */
   abstract verify(request: T.EngineVerifyRequest): Promise<T.EngineVerifyResult>
+}
+
+/** Offline gate observations never evaluate policies or acquire engine ownership. */
+export abstract class SeatGatesQueryService extends Service {
+  constructor(ctx: Context) { super(ctx, 'seatGatesQuery') }
+  /** Rebuild recorded gate revisions without inventing unrecorded policies or limits.
+   * @param request - bounded gate filters and snapshot-relative cursor.
+   * @returns recorded counters, expiry and limit evidence, or a structured refusal.
+   */
+  abstract list(request: T.ListSeatGatesRequest): Promise<import('./gates.ts').SeatGatesQueryResult | T.SeatRejected>
 }
 
 /** Registry provider owns deterministic evaluation, durable hit counts and expiration. */

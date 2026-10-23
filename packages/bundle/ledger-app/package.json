@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@panedesk/dsh-seat-engine": "workspace:*",
+    "@panedesk/dsh-seat-gates": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",

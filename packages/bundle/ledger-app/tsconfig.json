@@ -9,6 +9,12 @@
   ],
   "references": [
     {
+      "path": "../../seat/seat-engine"
+    },
+    {
+      "path": "../../seat/seat-gates"
+    },
+    {
       "path": "../../../vendor/cosmokit"
     },
     {

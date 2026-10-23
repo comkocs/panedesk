@@ -128,6 +128,18 @@ export interface GateSnapshot {
   lastHitAt: SeatTimestamp | null
   watermark: number
 }
+/** Read-only limit evidence is unknown unless the journal records both operands. */
+export interface SeatGateQuerySnapshot extends GateSnapshot {
+  limit: { status: 'unknown' | 'below' | 'reached'; value: number | null; observed: number | null }
+}
+/** Only revisions present in committed gate facts are included, not unobserved configuration. */
+export interface SeatGatesQueryResult {
+  gates: readonly SeatGateQuerySnapshot[]
+  complete: boolean
+  watermark: number
+  nextCursor?: import('./types.ts').EngineCursor
+}
+
 /** Registered evaluators are installed code, not expressions loaded from source payloads. */
 export interface GateCriterion {
   id: GateCriterionId

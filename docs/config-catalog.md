@@ -1785,11 +1785,15 @@ export interface Config {
 ## `@panedesk/dsh-ledger-app`
 
 - `inject`: `cmdlineArgs` · `appReady` · `appExit`
-- `source`: [`packages/bundle/ledger-app/src/index.ts:15`](../packages/bundle/ledger-app/src/index.ts)
+- `refs`: `engineReader` (`@panedesk/dsh-seat-engine/reader`)
+- `source`: [`packages/bundle/ledger-app/src/index.ts:17`](../packages/bundle/ledger-app/src/index.ts)
 
 ```ts config-catalog
 /** Offline application mode. */
-export interface Config extends LedgerAppOptions {}
+export interface Config extends LedgerAppOptions {
+  /** Optional offline engine selection; mounted only for engine command arguments. */
+  engineReader?: engineReader.Config
+}
 
 /** Offline ledger application selection; profile wiring belongs to the launcher composition. */
 export interface LedgerAppOptions {

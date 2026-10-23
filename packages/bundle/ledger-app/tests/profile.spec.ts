@@ -12,7 +12,9 @@ describe('minimal offline ledger app', () => {
     new LedgerQueryService(ctx)
     const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
     try {
-      apply(ctx, { mode: 'query' })
+      apply(ctx, { mode: 'query', engineReader: { maxDecisionBytes: 200000 } })
+      expect(ctx.get('seatEngineQuery')).toBeUndefined()
+      expect(ctx.get('seatGatesQuery')).toBeUndefined()
       expect(exit).not.toHaveBeenCalled()
       expect(output).not.toHaveBeenCalled()
       listener!()

@@ -3,6 +3,8 @@ import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-cmdline'
 import type {} from '@panedesk/dsh-ledger-query'
 import * as watcher from '@panedesk/dsh-ledger-watch'
+import * as engineReader from '@panedesk/dsh-seat-engine/reader'
+import * as gatesReader from '@panedesk/dsh-seat-gates/reader'
 import z from '@panedesk/schemastery'
 import type { LedgerAppOptions } from './types.ts'
 export type * from './types.ts'
@@ -12,9 +14,16 @@ export const name = 'ledger-app'
 /** Offline operation requires launcher facts, never an Agent, LLM, or credentials. */
 export const inject = ['cmdlineArgs', 'appReady', 'appExit']
 /** Offline application mode. */
-export interface Config extends LedgerAppOptions {}
+export interface Config extends LedgerAppOptions {
+  /** Optional offline engine selection; mounted only for engine command arguments. */
+  engineReader?: engineReader.Config
+}
 /** Query exits after one operation; watch requires explicit node ownership. */
-export const Config = z.object({ mode: z.union(['query', 'watch']).default('query'), nodeId: z.string(), healthPath: z.string() })
+export const Config = z.object({ mode: z.union(['query', 'watch']).default('query'), nodeId: z.string(), healthPath: z.string(),
+  engineReader: z.union([z.object({
+    home: z.string(), nodeId: z.string(), maxDecisionBytes: z.number().step(1).min(1).required(),
+  }), z.const(undefined)]),
+})
 /** Register ready-gated execution and retain pending work during teardown.
  * @param ctx - launcher context with optional query provider.
  * @param config - validated query/watch selection.
@@ -37,11 +46,15 @@ export function apply(ctx: Context, config: Config): void {
       ...config.healthPath === undefined ? {} : { healthPath: config.healthPath } })
     return
   }
+  const readers = args.get()[0] === 'engine' && config.engineReader
+    ? Promise.all([ctx.plugin(engineReader, config.engineReader), ctx.plugin(gatesReader)])
+    : Promise.resolve()
   let running: Promise<void> = Promise.resolve()
   ctx.effect(() => {
     const remove = ready.onReady(() => {
       running = (async () => {
         try {
+          await readers
           const service = ctx.get('ledgerQuery')
           if (!service) throw new Error('Ledger query provider is unavailable')
           const result = await service.execute(args.get())

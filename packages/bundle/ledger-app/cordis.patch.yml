@@ -23,11 +23,6 @@
         lockTimeoutMs: 5000
         lockRetryMs: 10
         watch: false
-    - id: seat-engine-query
-      name: '@panedesk/dsh-seat-engine/reader'
-      disabled: !!js "!process.env.PANEDESK_SEAT_MAX_DECISION_BYTES"
-      config:
-        maxDecisionBytes: !!js Number(process.env.PANEDESK_SEAT_MAX_DECISION_BYTES)
     - id: ledger-query
       name: '@panedesk/dsh-ledger-query'
       inject: [sessionLedger]
@@ -37,3 +32,4 @@
       config:
         mode: !!js "ctx.get('profileContext')?.name === 'ledger-watch' ? 'watch' : 'query'"
         nodeId: !!js process.env.PANEDESK_LEDGER_NODE
+        engineReader: !!js "ctx.get('cmdlineArgs')?.get()[0] === 'engine' && process.env.PANEDESK_SEAT_MAX_DECISION_BYTES ? { maxDecisionBytes: Number(process.env.PANEDESK_SEAT_MAX_DECISION_BYTES) } : undefined"
