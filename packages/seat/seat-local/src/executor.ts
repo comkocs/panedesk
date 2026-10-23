@@ -67,7 +67,17 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
       runId: randomUUID() as LedgerRunId, nodeId: binding.nodeId, seat: binding.seat, window: open.title ?? binding.seat,
       identitySource: binding.identitySource, accountLabel: 'unknown', ...(binding.taskId === undefined ? {} : { taskId: binding.taskId }) })
     try {
-      const handle = await agents.resume({ resumeSessionId: open.sessionId })
+      const def = definition(open)
+      const handle = await agents.resume({ resumeSessionId: open.sessionId,
+        agentOptions: { provider: def.provider, model: def.model,
+          reasoningEffort: ReasoningEffortId(def.reasoningEffort) },
+        setup: (_agentCtx, agent) => {
+          // Completed permission stages retain their durable selection on resume.
+          if (open.completedStages.includes('permission')) return
+          const permissions = ctx.get('permissionPresets')
+          if (permissions === undefined) throw new Error('Permission service is unavailable')
+          permissions.set(agent.session, def.permissionPreset)
+        } })
       ctx.effect(() => () => handle.dispose())
       return handle.agent
     } finally { release() }
@@ -177,6 +187,18 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
         messageClass: 'handoff', priority: 'steer', operationId: String(request.wakeOperationId) as OperationId })
       return result.deliveryOutcome === 'accepted' ? 'sent' : 'unavailable'
     },
-    owner: owner => observeOwner(ctx, owner, options.nodeId),
+    owner: async (owner) => {
+      const facts = (await state.read()).effects
+      const latest = facts.findLast(effect => (effect.kind === 'open/intent' || effect.kind === 'open/created'
+        || effect.kind === 'open/configured' || effect.kind === 'open/opening-failed') && effect.data.sessionId === owner.sessionId)
+      if (latest && (latest.kind === 'open/intent' || latest.kind === 'open/created' || latest.kind === 'open/configured')
+        && latest.data.phase !== 'active' && latest.data.phase !== 'opening-failed') {
+        // An unfinished opening retains its reservation until the original Session can continue.
+        const persistence = ctx.get('sessionPersistence')
+        if (persistence === undefined || await persistence.stat(owner.sessionId) === undefined) return 'unknown'
+        await agentFor(latest.data)
+      }
+      return observeOwner(ctx, owner, options.nodeId)
+    },
   }
 }

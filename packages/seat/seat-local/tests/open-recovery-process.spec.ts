@@ -6,8 +6,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-function host(root: string, stage: string) {
-  const child = fork(fileURLToPath(new URL('./open-recovery-worker.ts', import.meta.url)), [root, stage], {
+function host(root: string, stage: string, route?: string) {
+  const child = fork(fileURLToPath(new URL('./open-recovery-worker.ts', import.meta.url)), [root, stage, ...route ? [route] : []], {
     execArgv: ['--import', 'tsx/esm'], stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
     env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/.test(key))),
   })
@@ -43,7 +43,7 @@ it.each(['open/intent', 'open/created', 'open/configured'])(
       const result = await recovered.ready
       expect(result).toMatchObject({ kind: 'recovered', opens: 1, sessions: 1, messages: 1, accepted: 1 })
       expect(result.milliseconds).toBeLessThanOrEqual(5000)
-      console.log(JSON.stringify({ stage, ...result }))
+      process.stdout.write(`${JSON.stringify({ stage, ...result })}\n`)
       const exited = once(recovered.child, 'exit')
       recovered.child.send('stop')
       expect(await exited).toEqual([0, null])
@@ -52,3 +52,26 @@ it.each(['open/intent', 'open/created', 'open/configured'])(
       await rm(root, { recursive: true, force: true })
     }
   }, 30000)
+
+it('uses the frozen model for the first resumed turn after the catalog model changes', async () => {
+  const root = await mkdtemp(join(process.cwd(), '.seat-open-route-'))
+  const children: ReturnType<typeof host>[] = []
+  try {
+    const first = host(root, 'open/created', 'frozen-route'); children.push(first)
+    expect(await first.ready).toMatchObject({ kind: 'barrier', pid: first.pid })
+    await kill(first.child, first.pid)
+    const recovered = host(root, 'recover', 'frozen-route'); children.push(recovered)
+    const result = await recovered.ready
+    expect(result).toMatchObject({ kind: 'recovered', opens: 1, sessions: 1, messages: 1, accepted: 1, requests: 1,
+      frozenModel: 'model-b', currentModel: 'model-c', permission: 'permission-a',
+      firstRoute: { provider: 'provider-a', model: 'model-b', reasoningEffort: 'effort-a' } })
+    expect(result.milliseconds).toBeLessThanOrEqual(5000)
+    process.stdout.write(`${JSON.stringify({ stage: 'frozen-route', ...result })}\n`)
+    const exited = once(recovered.child, 'exit')
+    recovered.child.send('stop')
+    expect(await exited).toEqual([0, null])
+  } finally {
+    for (const child of children) await kill(child.child, child.pid)
+    await rm(root, { recursive: true, force: true })
+  }
+}, 30000)
