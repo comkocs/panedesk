@@ -93,9 +93,11 @@ it('authorizes model waits and reports only for the calling session and refuses 
     model.calls.push({ name: 'seat_cancel_wait', arguments: { waitId, expectedStateVersion: 1 } },
       { name: 'seat_revoke_report', arguments: { reportId, expectedStateVersion: 1 } })
     const requestCount = model.requests.length
-    await f.ctx.get('messageDelivery')!.send({ target: { sessionId: agent.id }, priority: 'queue', messageClass: 'handoff',
-      operationId: 'message-foreign' as OperationId, content: 'Attempt the supplied foreign identities.' })
-    await expect.poll(() => model.requests.length).toBe(requestCount + 3)
+    await completesTurn(f.ctx, agent.id, inputContains('Attempt the supplied foreign identities.'), async () => {
+      await f.ctx.get('messageDelivery')!.send({ target: { sessionId: agent.id }, priority: 'queue', messageClass: 'handoff',
+        operationId: 'message-foreign' as OperationId, content: 'Attempt the supplied foreign identities.' })
+    })
+    expect(model.requests).toHaveLength(requestCount + 3)
     await agent.whenIdle()
     await f.ctx.sessions.flush(agent.session)
     const foreignResults = JSON.stringify((await f.ctx.sessionQuery.readSession(agent.id)).events.filter(event => event.type === 'tool/result'))
