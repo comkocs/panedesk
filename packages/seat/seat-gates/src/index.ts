@@ -6,12 +6,17 @@ import type {} from '@panedesk/dsh-tools'
 import type {} from '@panedesk/dsh-compaction'
 import { GateRegistry } from './registry.ts'
 import { installConsumers } from './consumers.ts'
-import { builtinCriterion } from './policies.ts'
+import { builtinCriterion, validateDefinitions } from './policies.ts'
+import { registerWorktree, taskEnded } from './worktree-service.ts'
+import { installLifecycle } from './lifecycle.ts'
+import { remindChild } from './continuation.ts'
 export { GateRegistry } from './registry.ts'
 export { checkContinuation } from './continuation.ts'
 export { checkPolling, recognizeSleeps } from './polling.ts'
 export { checkMemoryWrite, canonicalWritePath } from './memory.ts'
 export { WorktreePolicy } from './worktree.ts'
+export { inspectWorktree, type GitReader } from './worktree-git.ts'
+export { snapshotMemory, compareMemory, type MemorySnapshot } from './memory-audit.ts'
 export { buildCheckpoint } from './checkpoint.ts'
 export { SeatClock } from './clock.ts'
 
@@ -27,6 +32,9 @@ export interface Config {
   checkpointMaxBytes: number
   checkpointRetryLimit: number
   ledgerCheckpointReserveTokens: number
+  memoryAuditMaxBytes: number
+  memoryAuditMaxFiles: number
+  timeZone: string
 }
 /** Validated bounded defaults; JSON configuration cannot provide executable criteria. */
 export const Config = z.object({
@@ -42,42 +50,53 @@ export const Config = z.object({
   checkpointMaxBytes: z.number().step(1).min(0).default(32768),
   checkpointRetryLimit: z.number().step(1).min(0).default(2),
   ledgerCheckpointReserveTokens: z.number().step(1).min(0).default(512),
+  memoryAuditMaxBytes: z.number().step(1).min(1).default(1048576),
+  memoryAuditMaxFiles: z.number().step(1).min(1).default(256),
+  timeZone: z.string().default('UTC'),
 })
 
 class GateProvider extends SeatGateService {
   readonly registry: GateRegistry
   constructor(ctx: Context, config: Config) {
     super(ctx)
-    const engine = ctx.get('seatEngine')!
+    const engine = ctx.get('seatEngine')
+    if (!engine) throw new Error('Seat engine is required during provider activation.')
+    validateDefinitions(config.definitions)
     const builtins = [
       ['polling', 'before-tool-call'], ['memory', 'before-memory-write'], ['continuation', 'before-subagent-dispatch'],
+      ['worktree-client', 'before-open'], ['worktree-settle', 'before-tool-call'], ['worktree-mature', 'before-tool-call'],
     ] as const
     const definitions: GateDefinition[] = builtins.map(([id, hook]) => ({
       id: id as GateDefinition['id'], name: id, hook, criterion: { type: id as GateDefinition['criterion']['type'], parameters: {} },
       alternative: id === 'continuation' ? 'Start a new subagent with the handoff summary.' : 'Use seat_wait or an authorized seat directory tool.',
       expiresAt: null, enabled: true, revision: 1, order: 0,
     }))
-    this.registry = new GateRegistry(engine, [...definitions.filter(row => !config.definitions.some(item => item.id === row.id)), ...config.definitions], Date.now)
-    for (const id of ['polling', 'memory', 'continuation', 'required-fields', 'report-first-line', 'pathspec', 'secret-scan']) {
+    this.registry = new GateRegistry(engine, [
+      ...definitions.filter(row => !config.definitions.some(item => item.id === row.id)), ...config.definitions,
+    ], Date.now)
+    for (const id of ['polling', 'memory', 'continuation', 'required-fields', 'report-first-line', 'pathspec', 'secret-scan',
+      'worktree-client', 'worktree-settle', 'worktree-mature', 'seat-choice', 'explicit-batch']) {
       ctx.effect(() => this.registry.register(builtinCriterion(ctx, config, id)))
     }
   }
   register(criterion: GateCriterion): () => void { return this.registry.register(criterion) }
   evaluate(context: GateContext): Promise<readonly GateResult[]> { return this.registry.evaluate(context) }
   async list(request: ListSeatGatesRequest) {
-    const snapshots = (await this.registry.snapshots()).filter(row => (request.gateId === undefined || row.definition.id === request.gateId) && (request.hook === undefined || row.definition.hook === request.hook))
-    return { gates: snapshots.slice(0, request.limit), complete: snapshots.length <= request.limit, watermark: Math.max(0, ...snapshots.map(row => row.watermark)) }
+    const snapshots = (await this.registry.snapshots()).filter(row =>
+      (request.gateId === undefined || row.definition.id === request.gateId)
+      && (request.hook === undefined || row.definition.hook === request.hook))
+    return { gates: snapshots.slice(0, request.limit), complete: snapshots.length <= request.limit,
+      watermark: Math.max(0, ...snapshots.map(row => row.watermark)) }
   }
-  async registerWorktree(_request: RegisterSeatWorktreeRequest) {
-    return unavailableWorktree()
+  registerWorktree(request: RegisterSeatWorktreeRequest) {
+    return registerWorktree(this.ctx, request)
   }
-  async onTaskEnded(_request: SeatTaskEndedRequest) {
-    return unavailableWorktree()
+  onTaskEnded(request: SeatTaskEndedRequest) {
+    return taskEnded(this.ctx, request)
   }
-}
-
-function unavailableWorktree(): import('@panedesk/dsh-seat').SeatRejected {
-  return { status: 'rejected', error: { code: 'worktree-unverified', message: 'No authoritative worktree registry is installed.', alternative: 'Register a verified worktree provider before applying worktree policy.', retryable: false, effectState: 'none' } }
+  remindChild(request: import('@panedesk/dsh-seat').SeatChildThresholdRequest) {
+    return remindChild(this.ctx.get('seatReminderHost'), request)
+  }
 }
 
 /** Install policy only when the seat service and durable engine are both present.
@@ -85,8 +104,9 @@ function unavailableWorktree(): import('@panedesk/dsh-seat').SeatRejected {
  * @param config - validated policy and checkpoint limits.
  */
 export function apply(ctx: Context, config: Config): void {
-  ctx.inject(['seats', 'seatEngine'], scope => {
+  ctx.inject(['seats', 'seatEngine'], (scope) => {
     const provider = new GateProvider(scope, config)
     installConsumers(scope, config, provider)
+    installLifecycle(scope, config)
   })
 }

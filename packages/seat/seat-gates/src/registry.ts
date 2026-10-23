@@ -7,7 +7,9 @@ export class GateRegistry {
   constructor(private readonly engine: Pick<SeatEngineService, 'query' | 'appendEffects'>, private readonly definitions: readonly GateDefinition[], private readonly now: () => number) {
     const ids = new Set<string>()
     for (const definition of definitions) {
-      if (ids.has(definition.id) || !definition.alternative.trim() || (definition.expiresAt !== null && !Number.isFinite(Date.parse(definition.expiresAt)))) throw new Error('Invalid gate configuration.')
+      if (ids.has(definition.id) || !definition.id || !definition.name.trim() || !definition.alternative.trim()
+        || !Number.isSafeInteger(definition.revision) || definition.revision < 1 || !Number.isFinite(definition.order)
+        || (definition.expiresAt !== null && !Number.isFinite(Date.parse(definition.expiresAt)))) throw new Error('Invalid gate configuration.')
       ids.add(definition.id)
     }
   }
@@ -89,11 +91,16 @@ export class GateRegistry {
         : { ...evaluated, ...facts }
       if (result.outcome !== 'allow') result.hitCount++
       const eventId = `gate:${definition.id}:${definition.revision}:${expired ? 'expired' : context.callId}` as EngineEventId
+      const recordedContext: GateContext = definition.criterion.type === 'secret-scan' && context.hook === 'before-tool-call'
+        ? { ...context, arguments: { redacted: true } } : context
       const effect: EngineEffect = expired
         ? { eventId, kind: 'gate/expired', data: { definition, hitCount: snapshot.hitCount, expiredAt: new Date(this.now()).toISOString() } }
-        : { eventId, operationId: context.operationId, kind: 'gate/hit', data: { definition, context, result } }
+        : { eventId, operationId: context.operationId, kind: 'gate/hit', data: { definition, context: recordedContext, result } }
       try {
-        const committed = await this.engine.appendEffects({ decisionId: eventId as string as EngineDecisionId, expectedSequence: history.watermark, observedAt: new Date(this.now()).toISOString(), policyRevision: definition.revision, effects: [effect] })
+        const committed = await this.engine.appendEffects({
+          decisionId: eventId as string as EngineDecisionId, expectedSequence: history.watermark,
+          observedAt: new Date(this.now()).toISOString(), policyRevision: definition.revision, effects: [effect],
+        })
         if (committed.status === 'conflict') continue
         if (committed.status === 'rejected') return { ...result, audit: 'unavailable' }
         return result

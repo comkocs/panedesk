@@ -20,16 +20,18 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
     const seats = ctx.get('seats')
     if (!seats) return upstream
     const binding = await seats.binding({ sessionId: exec.agent.session.id })
-    if (binding === null) return upstream
-    if ('status' in binding) return { kind: 'deny', reason: binding.error.alternative }
+    if (binding !== null && 'status' in binding) return { kind: 'deny', reason: binding.error.alternative }
+    const nodeId = binding?.nodeId ?? (await ctx.get('seatEngine')?.nodeStatus())?.nodeId
+    if (nodeId === undefined) return { kind: 'deny', reason: 'Seat node evidence is unavailable.' }
     const cwd = ctx.get('workingDirectory')?.get(exec.agent.session) ?? exec.agent.session.header.cwd
     const args = jsonRecord(exec.arguments)
     const listed = await seats.list({})
-    const view = listed.status === 'listed' ? listed.sessions.find(item => item.sessionId === exec.agent!.session.id) : undefined
+    const sessionId = exec.agent.session.id
+    const view = listed.status === 'listed' ? listed.sessions.find(item => item.sessionId === sessionId) : undefined
     const base = {
       callId: `tool:${exec.agent.session.id}:${exec.callId}` as GateContext['callId'],
       operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId,
-      sessionId: exec.agent.session.id, nodeId: binding.nodeId, seat: binding.kind === 'seat' ? binding.seat : null,
+      sessionId: exec.agent.session.id, nodeId, seat: binding?.kind === 'seat' ? binding.seat : null,
       observedAt: new Date().toISOString(), ...cwd === undefined ? {} : { cwd },
     }
     const decisions = [...await gates.evaluate({ ...base, hook: 'before-tool-call', toolName: exec.name, arguments: args,
@@ -48,7 +50,11 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
     } else if (['bash', 'Bash', 'shell'].includes(exec.name) && typeof args.command === 'string') targets.push(...literalWriteTargets(args.command))
     for (const [index, targetPath] of targets.entries()) {
       decisions.push(...await gates.evaluate({ ...base, callId: `${base.callId}:memory:${index}` as GateContext['callId'], hook: 'before-memory-write', targetPath,
-        authorizedDirectories: binding.kind === 'seat' ? binding.memoryDirectories : [], syntax: 'certain' }))
+        authorizedDirectories: binding?.kind === 'seat' ? binding.memoryDirectories : [], syntax: 'certain' }))
+    }
+    if (targets.length === 0 && ['bash', 'Bash', 'shell'].includes(exec.name) && typeof args.command === 'string') {
+      decisions.push(...await gates.evaluate({ ...base, callId: `${base.callId}:uncertain` as GateContext['callId'],
+        hook: 'before-memory-write', targetPath: '', authorizedDirectories: [], syntax: 'unknown' }))
     }
     const denied = decisions.find(result => result.outcome === 'deny')
     if (denied?.outcome === 'deny') return { kind: 'deny', reason: `${denied.reason.message} ${denied.alternative}${denied.audit === 'unavailable' ? ' Audit unavailable.' : ''}` }
@@ -62,11 +68,22 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
     if (!binding || 'status' in binding || binding.kind !== 'seat') return delegated
     const definition = await seats.resolve(binding.seat)
     if ('status' in definition) throw new Error(definition.error.alternative)
+    const gateResults = await gates.evaluate({ hook: 'after-compaction',
+      callId: `checkpoint:${payload.session.id}:${definition.revision}:${payload.session.seq}` as GateContext['callId'],
+      operationId: `checkpoint:${payload.session.id}` as SeatOperationId, nodeId: binding.nodeId, seat: binding.seat,
+      sessionId: payload.session.id, observedAt: new Date().toISOString(), summary: JSON.stringify(delegated.content),
+      additionalTokenBudget: payload.additionalTokenBudget, seatRevision: definition.revision })
+    const denial = gateResults.find(result => result.outcome === 'deny')
+    if (denial?.outcome === 'deny') throw new Error(denial.alternative)
     const before = payload.estimateTokens(payload.checkpoint.content)
     const contribution = await buildCheckpoint(definition.checkpointFiles, definition.revision, config.checkpointMaxBytes,
       payload.additionalTokenBudget - (payload.estimateTokens(delegated.content) - before), config.ledgerCheckpointReserveTokens,
       text => payload.estimateTokens([...delegated.content, { type: 'text', text }]) - payload.estimateTokens(delegated.content))
-    return { ...delegated, content: [...delegated.content, ...contribution.text ? [{ type: 'text' as const, text: contribution.text }] : []],
+    const content = [...delegated.content, ...contribution.text ? [{ type: 'text' as const, text: contribution.text }] : []]
+    if (payload.estimateTokens(content) - before > payload.additionalTokenBudget) {
+      throw new Error('Seat checkpoint exceeds the strict-shrink allowance.')
+    }
+    return { ...delegated, content,
       retryLimit: Math.min(delegated.retryLimit ?? config.checkpointRetryLimit, config.checkpointRetryLimit),
       validate: async () => {
         if (delegated.validate && !await delegated.validate()) return false

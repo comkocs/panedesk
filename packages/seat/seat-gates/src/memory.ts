@@ -77,5 +77,14 @@ export function literalWriteTargets(command: string): readonly string[] {
       if (match[1] === 'mv' && source !== undefined) result.push(source)
     }
   }
+  const python = /^(?:python(?:3)?|python\d+(?:\.\d+)?)\s+-c\s+(["'])([\s\S]*)\1$/.exec(command.trim())
+  if (python?.[2]) {
+    for (const match of python[2].matchAll(/open\(\s*['"]([^'"]+)['"]\s*,\s*['"][wax][bt+]*['"]\s*\)/g)) {
+      if (match[1]) result.push(match[1])
+    }
+    for (const match of python[2].matchAll(/Path\(\s*['"]([^'"]+)['"]\s*\)\.write_(?:text|bytes)\(/g)) {
+      if (match[1]) result.push(match[1])
+    }
+  }
   return [...new Set(result)]
 }

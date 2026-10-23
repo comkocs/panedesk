@@ -40,6 +40,8 @@ declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
     seatEngine: SeatEngineService
+    seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
+    seatReminderHost: import('./gates.ts').SeatReminderHost
     seatGates: SeatGateService
     seatDirectories: SeatDirectoryService
   }
@@ -307,6 +309,11 @@ export abstract class SeatGateService extends Service {
    * @returns affected trees and safe alternatives.
    */
   abstract onTaskEnded(request: T.SeatTaskEndedRequest): Promise<T.SeatWorktreeResult>
+  /** Emit one durable next-step handoff reminder per child context epoch and threshold revision.
+   * @param request - child-owned context evidence and bounded handoff summary.
+   * @returns observable delivery or evidence status; never changes notice semantics.
+   */
+  abstract remindChild(request: import('./gates.ts').SeatChildThresholdRequest): Promise<'sent' | 'below' | 'unknown' | 'unavailable'>
 }
 
 /** Additional-root tools retain filesystem permission checks and do not widen shell write policy. */

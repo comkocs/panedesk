@@ -24,3 +24,21 @@ export function checkContinuation(
   }
   return null
 }
+
+/** Emit a steer reminder through an idempotent durable message owner.
+ * @param host - optional delivery adapter; missing delivery is never reported as sent.
+ * @param request - trusted child measurement and handoff data.
+ * @returns delivery status without cancelling or replacing the current step.
+ */
+export async function remindChild(
+  host: import('@panedesk/dsh-seat').SeatReminderHost | undefined,
+  request: import('@panedesk/dsh-seat').SeatChildThresholdRequest,
+): Promise<'sent' | 'below' | 'unknown' | 'unavailable'> {
+  if (request.context.status === 'unknown') return 'unknown'
+  if (request.context.tokens < request.thresholdTokens) return 'below'
+  if (!host) return 'unavailable'
+  const id = `seat-child:${request.sessionId}:${request.thresholdRevision}:${request.context.contextEpoch}`
+  const accepted = await host.send({ sessionId: request.sessionId, id, kind: 'steer',
+    content: `The child context reached its limit. Prepare a handoff summary for a new subagent.\n${request.handoff}` })
+  return accepted === 'accepted' ? 'sent' : 'unavailable'
+}

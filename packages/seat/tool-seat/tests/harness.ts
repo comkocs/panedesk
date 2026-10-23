@@ -24,7 +24,7 @@ export async function harness() {
   }
   await ctx.agents.register(agent)
   let counter = 0
-  return { ctx, agent, execute(name: string, args: unknown) {
+  return { ctx, agent, execute: (name: string, args: unknown) => {
     return ctx.agents.withInitiator(agent, () => ctx.tools.execute({ name, arguments: args, agent,
       callId: ToolCallId(`call-${++counter}`), signal: new AbortController().signal }))
   } }

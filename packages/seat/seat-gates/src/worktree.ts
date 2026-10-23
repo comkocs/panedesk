@@ -53,7 +53,8 @@ export class WorktreePolicy {
     const trees: SeatWorktreeRegistration[] = []
     for (const tree of registered) {
       const evidence = await this.inspect(tree)
-      if (evidence.verified && evidence.merged && evidence.trackedClean && evidence.lastChangedAt !== null && now - evidence.lastChangedAt >= this.policy.staleHours * 3_600_000) trees.push(tree)
+      if (evidence.verified && evidence.merged && evidence.trackedClean && evidence.lastChangedAt !== null
+        && now - evidence.lastChangedAt >= this.policy.staleHours * 3_600_000) trees.push(tree)
     }
     return { status: 'observed', trees, alternatives: trees.map(tree => `Review git -C ${shellQuote(tree.path)} status --short; this merged tree is eligible for manual recycling.`) }
   }

@@ -36,12 +36,50 @@ export interface GateContextBase {
   observedAt: SeatTimestamp
   /** Canonical executor directory; absent means relative targets cannot be classified. */
   cwd?: string
+  /** Trusted worktree observations supplied by the operation owner, never tool JSON. */
+  worktreeFacts?: {
+    event: 'register' | 'task-ended' | 'mature'
+    clientTreeCount: number
+    clientTreeLimit: number
+    requestedKind: 'light' | 'client'
+    authorizedForce: boolean
+    alternative: string
+    mature: boolean
+  }
   /** Child-owned evidence supplied by the actual continuation executor, never model arguments. */
   continuationEvidence?: {
     cache: import('./types.ts').SeatCacheEvidence
     context: import('./types.ts').SeatContextUsage
     thresholdTokens: number
   }
+}
+/** Threshold notification facts come from the child context meter. */
+export interface SeatChildThresholdRequest {
+  sessionId: SessionId
+  thresholdRevision: number
+  thresholdTokens: number
+  context: import('./types.ts').SeatContextUsage
+  handoff: string
+}
+/** Message delivery owns durable idempotency and maps steer to the existing next-step lane. */
+export interface SeatReminderHost {
+  send(request: { sessionId: SessionId; id: string; kind: 'steer'; content: string }): Promise<'accepted' | 'rejected'>
+}
+/** Durable worktree owner supplies authoritative records and authorization to policy. */
+export interface SeatWorktreeHost {
+  /** Read one complete revision; partial catalogs must reject. */
+  read(): Promise<{ revision: number; trees: readonly import('./types.ts').SeatWorktreeRegistration[] }>
+  /** Atomically persist registration plus force audit before acknowledging success. */
+  commit(request: import('./types.ts').RegisterSeatWorktreeRequest, expectedRevision: number): Promise<'committed' | 'conflict'>
+  /** Resolve repository identity and read-only Git evidence, including recorded activity. */
+  inspect(tree: import('./types.ts').SeatWorktreeRegistration): Promise<{
+    verified: boolean
+    merged: boolean
+    trackedClean: boolean
+    lastChangedAt: number | null
+  }>
+  /** Validate the authorization reference against the caller, never model prose. */
+  authorize(request: import('./types.ts').RegisterSeatWorktreeRequest): Promise<boolean>
 }
 /** Each hook carries facts from its actual execution point rather than model claims. */
 export type GateContext = GateContextBase & (
