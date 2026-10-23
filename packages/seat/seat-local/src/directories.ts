@@ -8,6 +8,7 @@ import type { SeatDefinition, SeatDirectoryEditRequest, SeatDirectoryReadRequest
 import { canonicalPath, checkMemoryWrite } from './identity.ts'
 import { digest } from './store.ts'
 import { rejected } from './errors.ts'
+import { validateLocalDefinition } from './paths.ts'
 
 /** Runtime authorization is derived from the caller's session, never request-supplied roots. */
 export interface DirectoryAccessContext {
@@ -29,7 +30,7 @@ export class SeatDirectoryAccess {
   async roots(sessionId: SessionId): Promise<SeatDirectoryRoot[]> {
     const context = await this.context(sessionId)
     const definition = context.definitions.find(item => item.seat === context.seat)
-    if (definition === undefined) return []
+    if (definition === undefined || validateLocalDefinition(definition) !== null) return []
     const roots: SeatDirectoryRoot[] = []
     for (const directory of definition.directories) roots.push({ rootId: String(digest(directory.path)) as SeatDirectoryRoot['rootId'],
       path: await canonicalPath(directory.path), kind: directory.startup ? 'startup' : 'additional', writable: context.policy.mode !== 'read-only' })
@@ -39,6 +40,10 @@ export class SeatDirectoryAccess {
   }
 
   private async target(request: SeatDirectoryReadRequest | SeatDirectoryWriteRequest | SeatDirectoryEditRequest) {
+    const context = await this.context(request.sessionId)
+    const definition = context.definitions.find(item => item.seat === context.seat)
+    const refusal = definition === undefined ? null : validateLocalDefinition(definition)
+    if (refusal !== null) return refusal
     const root = (await this.roots(request.sessionId)).find(item => item.rootId === request.rootId)
     if (root === undefined || path.isAbsolute(request.relativePath)) return rejected('unauthorized', 'Select a registered root and relative path.', 'List the available seat directories first.')
     const base = await this.fs.resolve(root.path)

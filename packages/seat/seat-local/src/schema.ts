@@ -1,5 +1,5 @@
 /** File-boundary validation and explicit default resolution for node-local definitions. */
-import path from 'node:path'
+import { pathKey, pathStyle, validateLocalDefinition } from './paths.ts'
 import { z } from 'zod'
 import type { SeatDefinition, SeatNodeId, SeatRejected } from '@panedesk/dsh-seat'
 import { rejected } from './errors.ts'
@@ -9,7 +9,7 @@ const text = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string().min(1) }),
   z.object({ kind: z.literal('file'), path: z.string().min(1), section: z.string().optional() }),
 ])
-const absolute = z.string().refine(value => path.isAbsolute(value), 'Expected an absolute path')
+const absolute = z.string().refine(value => pathStyle(value) !== null, 'Expected an absolute path')
 const json: z.ZodType<import('@panedesk/dsh-seat').SeatJson> = z.lazy(() => z.union([
   z.null(), z.boolean(), z.number(), z.string(), z.array(json), z.record(z.string(), json),
 ]))
@@ -69,7 +69,7 @@ export function parseDefinition(value: unknown): SeatDefinition | SeatRejected {
   if (!parsed.success) return rejected('invalid-definition', parsed.error.issues.map(x => `${x.path.join('.')}: ${x.message}`).join('; '), 'Correct the definition and preview again.')
   const validated: unknown = parsed.data
   const definition = validated as SeatDefinition
-  const paths = definition.directories.map(directory => path.normalize(directory.path))
+  const paths = definition.directories.map(directory => pathKey(directory.path))
   if (definition.directories.filter(directory => directory.startup).length !== 1 || new Set(paths).size !== paths.length) {
     return rejected('invalid-definition', 'Select exactly one startup directory and distinct directory paths.', 'Correct the directory list.')
   }
@@ -80,11 +80,24 @@ export function parseDefinition(value: unknown): SeatDefinition | SeatRejected {
     return rejected('rule-self-loop', 'An unconditional seat self-trigger is not allowed.', 'Select another target seat.')
   }
   for (const pointer of [definition.opening, definition.wakeTemplate]) {
-    if (pointer?.kind === 'file' && !path.isAbsolute(pointer.path)) {
+    if (pointer?.kind === 'file' && pathStyle(pointer.path) === null) {
       return rejected('invalid-definition', 'Text references require absolute paths.', 'Provide an absolute reference path.')
     }
   }
   return definition
+}
+
+/** Resolve catalog defaults without requiring execution on the importing host.
+ * @param input - imported or edited fields.
+ * @param catalogs - explicit definition defaults.
+ * @returns a platform-neutral definition or parser diagnostics.
+ */
+export function resolveCatalogDefinition(input: Partial<SeatDefinition>, catalogs: DefinitionCatalogs): SeatDefinition | SeatRejected {
+  return parseDefinition({
+    schemaVersion: 1, revision: 1, memoryDirectories: [], openingInstructionFiles: [], subscriptions: [],
+    checkpointFiles: [], maxOpenSessions: 1, maxActiveSubagents: 4, subagentContextThresholdTokens: 400000,
+    rules: [], ...catalogs.defaults, ...input,
+  })
 }
 
 /** Resolve defaults once before validation and freeze the selected runtime options.
@@ -93,15 +106,13 @@ export function parseDefinition(value: unknown): SeatDefinition | SeatRejected {
  * @returns fully resolved definition or a refusal before side effects.
  */
 export async function resolveSeat(input: Partial<SeatDefinition>, catalogs: DefinitionCatalogs): Promise<SeatDefinition | SeatRejected> {
-  const definition = parseDefinition({
-    schemaVersion: 1, revision: 1, memoryDirectories: [], openingInstructionFiles: [], subscriptions: [],
-    checkpointFiles: [], maxOpenSessions: 1, maxActiveSubagents: 4, subagentContextThresholdTokens: 400000,
-    rules: [], ...catalogs.defaults, ...input,
-  })
+  const definition = resolveCatalogDefinition(input, catalogs)
   if ('status' in definition) return definition
   if (catalogs.nodeAliases[definition.node] !== catalogs.nodeId) {
     return rejected('cross-node-unsupported', 'The definition does not belong to this node.', 'Run the operation on its configured node.')
   }
+  const paths = validateLocalDefinition(definition)
+  if (paths !== null) return paths
   const error = await catalogs.validateOptions(definition)
   return error ?? definition
 }

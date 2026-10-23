@@ -46,6 +46,15 @@ describe('directory admission', () => {
     expect(await admission.resolve({ cwd: owned, confirmation, interactive: true }, principal, [definition(owned, { revision: 2 })])).toMatchObject({ status: 'rejected' })
   })
 
+  it.skipIf(process.platform === 'win32')('refuses foreign requested paths without treating foreign catalog roots as local owners', async () => {
+    const root = await setup(), admission = new DirectoryAdmission(10)
+    const definitions = [definition('C:\\work\\seat-a')]
+    expect(await admission.resolve({ cwd: root, interactive: false }, principal, definitions)).toEqual({ status: 'allowed', identity: 'free' })
+    expect(await admission.resolve({ cwd: 'C:\\work\\seat-a', interactive: false }, principal, definitions)).toMatchObject({
+      status: 'rejected', error: { code: 'invalid-definition', effectState: 'none' },
+    })
+  })
+
   it('deduplicates discovered, opening and configured subscriptions per session', async () => {
     const root = await setup()
     const rule = join(root, 'rule.md'), extra = join(root, 'extra.md')

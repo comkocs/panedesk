@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SeatName } from '@panedesk/dsh-seat'
-import { canonicalPath, checkMemoryWrite, containsPath } from '../src/identity.ts'
+import { canonicalPath, checkMemoryWrite, containsPath, directoryOwners } from '../src/identity.ts'
 import { definition, seat } from './fixtures.ts'
 
 const roots: string[] = []
@@ -25,6 +25,21 @@ describe('memory identity', () => {
     await symlink(other, join(root, 'alias'))
     expect(await canonicalPath(join(root, 'alias', 'new', 'file'))).toBe(join(other, 'new', 'file'))
     expect((await checkMemoryWrite(join(root, 'alias', 'new'), seat, definitions))?.error.code).toBe('memory-seat-mismatch')
+  })
+
+  it.skipIf(process.platform === 'win32')('ignores foreign catalog roots and refuses incompatible own memory before filesystem access', async () => {
+    const root = await mkdtemp(join(process.cwd(), '.seat-identity-')); roots.push(root)
+    const foreign = definition('C:\\work\\seat-b', { seat: 'seat-b' as SeatName, node: 'node-b',
+      memoryDirectories: ['\\\\host-a\\share-a\\memory'] })
+    const definitions = [definition(root), foreign]
+    expect(await directoryOwners(root, definitions)).toEqual([definitions[0]])
+    expect(await directoryOwners(root, [foreign])).toEqual([])
+    expect(await checkMemoryWrite(join(root, 'file'), seat, definitions)).toBeNull()
+    expect(await checkMemoryWrite(join(root, 'file'), null, [foreign])).toBeNull()
+    expect(await checkMemoryWrite(join(root, 'file'), foreign.seat, definitions)).toMatchObject({
+      status: 'rejected', error: { code: 'invalid-definition', effectState: 'none' },
+    })
+    expect(await checkMemoryWrite('C:\\work\\seat-a', seat, definitions)).toMatchObject({ status: 'rejected' })
   })
 
   it('uses path segments and explicit Windows case and volume rules', () => {

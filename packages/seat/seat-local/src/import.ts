@@ -8,7 +8,7 @@ import { gfmFromMarkdown } from 'mdast-util-gfm'
 import type { Nodes } from 'mdast'
 import type { CommitSeatImportRequest, CommitSeatImportResult, PreviewSeatImportRequest,
   SeatDefinition, SeatDigest, SeatImportPlan, SeatImportPlanId, SeatImportRow, SeatJson, SeatName } from '@panedesk/dsh-seat'
-import { resolveSeat, type DefinitionCatalogs } from './schema.ts'
+import { resolveCatalogDefinition, type DefinitionCatalogs } from './schema.ts'
 import { digest, SeatStore } from './store.ts'
 import { refuse, SeatLocalError } from './errors.ts'
 
@@ -88,8 +88,12 @@ export class SeatImporter {
             } else values[field] = structuredFields.has(field) ? JSON.parse(value) : numericFields.has(field) ? Number(value) : value
           }
         }
-        const resolved = await resolveSeat(values, this.catalogs)
+        const resolved = resolveCatalogDefinition(values, this.catalogs)
         if ('status' in resolved) throw new SeatLocalError(resolved.error)
+        if (this.catalogs.nodeAliases[resolved.node] === this.catalogs.nodeId) {
+          const error = await this.catalogs.validateOptions(resolved)
+          if (error !== null) throw new SeatLocalError(error.error)
+        }
         const normalized = fields(resolved)
         const rowHash = digest(normalized)
         const columnHashes = Object.fromEntries(Object.entries(normalized).map(([key, value]) => [key, digest(value)]))
