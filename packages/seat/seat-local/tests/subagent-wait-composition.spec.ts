@@ -83,7 +83,7 @@ it('waits on the tool-visible child session, denies another parent, deduplicates
       { signal: new AbortController().signal })
     await model.entered.promise
     const latest = (await f.state.read()).effects.findLast(effect => effect.kind === 'job/observed'
-      && effect.data.phase === 'running' && effect.data.observation.object.id === childId)
+      && effect.data.phase === 'running' && String(effect.data.observation.object.id) === childId)
     if (latest?.kind !== 'job/observed') throw new Error('Missing continuation start')
     expect(latest.data.ownerEpoch).not.toBe(runId)
     expect(await f.runtime.snapshot({ kind: 'subagent', id: runId })).toMatchObject({ outcome: 'completed' })

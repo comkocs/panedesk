@@ -21,8 +21,9 @@ export class SubagentWaitModel extends CreationAdapter {
     this.requests.push(options)
     const stage = this.stage++
     if (stage === 1) {
-      this.childId = /started subagent ([^"\\\s]+)/.exec(JSON.stringify(options.messages))?.[1]
-      if (!this.childId) throw new Error('The model did not receive a child session id')
+      const childId = /started subagent ([^"\\\s]+)/.exec(JSON.stringify(options.messages))?.[1]
+      if (!childId) throw new Error('The model did not receive a child session id')
+      this.childId = childId
     }
     yield { type: 'block-start', index: 0, blockType: 'tool-call' }
     yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId(`delegate-${stage}`),
