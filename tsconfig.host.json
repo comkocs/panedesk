@@ -237,6 +237,13 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/seat/seat" },
+    { "path": "./packages/seat/seat-local" },
+    { "path": "./packages/seat/seat-engine" },
+    { "path": "./packages/seat/seat-gates" },
+    { "path": "./packages/seat/tool-seat" },
+    { "path": "./packages/seat/seat-remote" },
+    { "path": "./packages/seat/seat-app" },
     { "path": "./packages/session/message-delivery" },
     { "path": "./packages/session/message-delivery-local" },
     { "path": "./packages/context/instruction-subscriptions" },

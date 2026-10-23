@@ -12744,6 +12744,60 @@ importers:
         specifier: workspace:*
         version: link:../../session/working-directory
 
+  packages/seat/seat:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-schedule':
+        specifier: workspace:*
+        version: link:../../schedule/schedule
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-title':
+        specifier: workspace:*
+        version: link:../../session/session-title
+
+  packages/seat/seat-app:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/seat/seat-engine:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/seat/seat-gates:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/seat/seat-local:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/seat/seat-remote:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
+  packages/seat/tool-seat:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+
   packages/session-query/session-log-export:
     dependencies:
       '@panedesk/dsh-brand':

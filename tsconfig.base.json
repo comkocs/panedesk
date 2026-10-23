@@ -28,6 +28,13 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@panedesk/dsh-seat": ["./packages/seat/seat/src/index.ts"],
+      "@panedesk/dsh-seat-local": ["./packages/seat/seat-local/src/index.ts"],
+      "@panedesk/dsh-seat-engine": ["./packages/seat/seat-engine/src/index.ts"],
+      "@panedesk/dsh-seat-gates": ["./packages/seat/seat-gates/src/index.ts"],
+      "@panedesk/dsh-tool-seat": ["./packages/seat/tool-seat/src/index.ts"],
+      "@panedesk/dsh-seat-remote": ["./packages/seat/seat-remote/src/index.ts"],
+      "@panedesk/dsh-seat-app": ["./packages/seat/seat-app/src/index.ts"],
       "@panedesk/dsh-experimental-session-search": ["./packages/experimental/session-search/src/index.ts"],
       "@panedesk/dsh-experimental-ralph-bundle": ["./packages/experimental/ralph-bundle/src/index.ts"],
       "@panedesk/dsh-experimental-terminal-bundle": ["./packages/experimental/terminal-bundle/src/index.ts"],
