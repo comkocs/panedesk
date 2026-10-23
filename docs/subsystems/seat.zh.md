@@ -362,6 +362,31 @@ abstract list(request: T.ListSeatGatesRequest): Promise<import('./gates.ts').Sea
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
 
+<a id="ctxseatlocalcreation--localseatcreation"></a>
+
+### `ctx.seatLocalCreation` — `LocalSeatCreation`
+
+Trusted adapters scope one confirmed traditional creation, never wire-provided identity.
+
+```ts cordis-catalog
+/** Retain a single-use choice for the authenticated caller.
+ * @param cwd - requested directory.
+ * @param authority - adapter-authenticated caller.
+ * @returns one-use traditional confirmation.
+ */
+confirmTraditional(cwd: string, authority: T.SeatCallContext): Promise<T.DirectoryConfirmation>
+
+/** Execute a traditional create using a previously confirmed choice.
+ * @param confirmation - retained single-use capability.
+ * @param authority - authenticated adapter caller.
+ * @param create - upstream creation operation.
+ * @returns upstream result unchanged.
+ */
+run<R>(confirmation: T.DirectoryConfirmation, authority: T.SeatCallContext, create: () => Promise<R>): Promise<R>
+```
+
+Source: [`packages/seat/seat-local/src/create-admission.ts`](../../packages/seat/seat-local/src/create-admission.ts)
+
 <a id="ctxseatlocalread--seatlocalreadaccess"></a>
 
 ### `ctx.seatLocalRead` — `SeatLocalReadAccess`

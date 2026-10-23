@@ -3089,7 +3089,7 @@ export interface Config {
 
 - `inject`: `storageDomain`
 - `refs`: [`T`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-local/src/index.ts:24`](../packages/seat/seat-local/src/index.ts)
+- `source`: [`packages/seat/seat-local/src/index.ts:26`](../packages/seat/seat-local/src/index.ts)
 
 ```ts config-catalog
 /** Deployment supplies every limit explicitly. */

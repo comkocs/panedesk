@@ -1125,6 +1125,23 @@ Types: [LlmFailure](llm-streaming.zh.md) · [ResolvedRetryPolicy](llm-streaming.
 
 Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
 
+<a id="agentresume-admitting--waterfall"></a>
+
+#### `agent/resume-admitting` — waterfall
+
+Optional resume policy runs before persistence or residency accounting.
+
+```ts cordis-catalog
+/** Optional resume policy runs before persistence or residency accounting.
+ * @mode waterfall
+ * @param payload - original options and settlement cleanup registration.
+ * @param next - remaining admission policies; absent listeners allow unchanged.
+ */
+'agent/resume-admitting'(payload: { options: ResumeAgentOptions; onSettled(cleanup: () => void): void }, next: () => Promise<CreateAdmissionDecision>): Promise<CreateAdmissionDecision>
+```
+
+Source: [`packages/core/agent/src/index.ts`](../../packages/core/agent/src/index.ts)
+
 <a id="agentstatus--emit"></a>
 
 #### `agent/status` — emit

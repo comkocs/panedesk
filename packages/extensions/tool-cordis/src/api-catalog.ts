@@ -2605,6 +2605,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatLocalCreation',
+    summary: 'Trusted adapters scope one confirmed traditional creation, never wire-provided identity.',
+    description: 'Trusted adapters scope one confirmed traditional creation, never wire-provided identity.',
+    methods: [
+      {
+        signature: 'confirmTraditional(cwd: string, authority: T.SeatCallContext): Promise<T.DirectoryConfirmation>',
+        description: 'Retain a single-use choice for the authenticated caller.',
+        parameters: [{ name: 'cwd', description: 'requested directory.' }, { name: 'authority', description: 'adapter-authenticated caller.' }],
+        returns: 'one-use traditional confirmation.',
+      },
+      {
+        signature: 'run<R>(confirmation: T.DirectoryConfirmation, authority: T.SeatCallContext, create: () => Promise<R>): Promise<R>',
+        description: 'Execute a traditional create using a previously confirmed choice.',
+        parameters: [{ name: 'confirmation', description: 'retained single-use capability.' }, { name: 'authority', description: 'authenticated adapter caller.' }, { name: 'create', description: 'upstream creation operation.' }],
+        returns: 'upstream result unchanged.',
+      },
+    ],
+  },
+  {
     key: 'seatLocalRead',
     summary: 'Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters.',
     description: 'Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters. External SeatService calls still require explicit authority; no mutation facade is exposed.',
@@ -5260,6 +5279,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.signal - the turn abort signal. Scope-filtered dispatch (`@panedesk/dsh-scope`): agent-scoped listeners receive only that agent.' }],
   },
   {
+    name: 'agent/resume-admitting',
+    mode: 'waterfall',
+    signature: '\'agent/resume-admitting\'(payload: { options: ResumeAgentOptions; onSettled(cleanup: () => void): void }, next: () => Promise<CreateAdmissionDecision>): Promise<CreateAdmissionDecision>',
+    summary: 'Optional resume policy runs before persistence or residency accounting.',
+    description: 'Optional resume policy runs before persistence or residency accounting.',
+    parameters: [{ name: 'payload', description: 'original options and settlement cleanup registration.' }, { name: 'next', description: 'remaining admission policies; absent listeners allow unchanged.' }],
+  },
+  {
     name: 'agent/status',
     mode: 'emit',
     signature: '\'agent/status\'(this: Scoped<Agent>, payload: { agent: Agent; status: AgentStatus }): void',
@@ -6661,7 +6688,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CreateAgentOptions',
-    declaration: 'export interface CreateAgentOptions {\n    readonly sessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n    };\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly seed?: readonly SessionEvent[];\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n    readonly releasePreparation?: () => void;\n}',
+    declaration: 'export interface CreateAgentOptions {\n    readonly sessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n    };\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly seed?: readonly SessionEvent[];\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n    readonly releasePreparation?: () => void;\n    readonly onAdmissionFailure?: (cleanup: () => void) => void;\n}',
   },
   {
     name: 'CreatedWorktree',
@@ -9281,7 +9308,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatEngineLocalAccess',
-    declaration: 'export interface SeatEngineLocalAccess {\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n}',
+    declaration: 'export interface SeatEngineLocalAccess {\n    preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>;\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n}',
   },
   {
     name: 'SeatEngineStatus',
