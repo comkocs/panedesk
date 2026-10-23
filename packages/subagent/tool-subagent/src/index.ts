@@ -276,11 +276,14 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             type: 'object',
             additionalProperties: false,
             properties: {
-              kind: { type: 'string', required: true, const: 'activation' },
-              subagentId: { type: 'string', required: true },
+              kind: { type: 'string', required: true, enum: ['activation', 'queued'] },
+              subagentId: { type: 'string' },
+              ticketId: { type: 'string' },
             },
           },
-          render: (_args, value) => [{ type: 'text', text: `started subagent ${value.subagentId}` }],
+          render: (_args, value) => [{ type: 'text', text: value.kind === 'queued'
+            ? `queued subagent ${value.ticketId}; register a wait for this ticket and end the turn instead of retrying`
+            : `started subagent ${value.subagentId}` }],
         },
         isConcurrencySafe: () => true,
         async execute(args, exec) {
@@ -353,13 +356,14 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             ...maxDepth !== undefined ? { maxDepth } : {},
           }
 
-          const started = await runtimeCtx.subagents.startActivation({
+          const started = await runtimeCtx.subagents.requestActivation({
             provider: config.provider,
             label: args.description,
             request,
             signal: exec.signal,
             delivery: 'parent',
           })
+          if ('status' in started) return { kind: 'queued' as const, ticketId: started.ticketId }
           return { kind: 'activation' as const, subagentId: started.childId }
         },
       })

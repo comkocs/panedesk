@@ -277,6 +277,9 @@ export function apply(ctx: Context, config: Config): void {
     if (event.type !== 'settled') return
     const delivered = killedByModel.delete(event.job.id) || event.awaited
     if (delivered || event.cause === 'teardown' || event.job.owner === undefined) return
+    // Ownership is captured at start, not inferred from current plugin presence or
+    // write success: uncertain durable acceptance must not trigger a second delivery.
+    if (event.notificationOwner === 'durable') return
     // The destination is the agent registered for the owner session now. An
     // owned job needed the agent registry to start, so the registry is only
     // absent here when it left before settlement — and then no inbox is left.

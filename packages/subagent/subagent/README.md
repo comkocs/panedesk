@@ -56,6 +56,12 @@ The current `maxActiveSubagents` value is sampled before every new or cold-resum
 
 At capacity, creation or cold resume rejects with `ACTIVATION_LIMIT_REACHED` (browser prompts receive `subagent/delivery-unavailable`): wait for a child to finish or continue using the existing agents. Admission does not queue, because a parent waiting for descendants must not wait for its own occupied slot. Slots are process-local and do not constrain cumulative Session history or token usage.
 
+### Optional admission and completion delivery
+
+A `subagentAdmission` provider reserves before new local/external execution and cold restoration, and checks child-specific continuation evidence before inbox delivery, including direct manager calls. It owns durable per-parent FIFO, tickets, cancellation, and replay; the existing activation-tree limit remains independent. `requestActivation()` returns a queued ticket immediately instead of waiting for capacity; `startActivation()` reports the same ticket through `SubagentQueuedError`. Reservations release after startup rollback or terminal cleanup. Without a provider, legacy admission remains unchanged.
+
+A `subagentNotifications` provider accepts the original completion message with the execution's stable run id and handoff/steer metadata before the result settles. It owns durable deduplication and wake delivery; uncertain acceptance rejects the result rather than falling back to a duplicate parent message. Without it, the existing parent notification path remains in use.
+
 ### Local and external children
 
 `startActivation({ provider, label, request, signal, delivery })` returns `{ childId, messageId?, result, dispose }`. Supplying `childId` selects a local backend and guarantees `messageId`. Local children accept later messages and can cold-resume; external children expose one execution and reject continuation. `request.agentOptions` overrides supported child model settings. `delivery: 'parent'` supplies the model-facing completion notice; `delivery: 'caller'` lets workflows await the result without a parent notice or initial return guidance. Local parent delivery requires persistence; caller delivery can use an ephemeral local session. Cold resume requires persistence and Session query.

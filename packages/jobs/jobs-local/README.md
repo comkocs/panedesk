@@ -62,6 +62,10 @@ Owned jobs record registration and settlement in their original Session, indepen
 
 Lifecycle facts are appended synchronously at the registration or settlement commit, before live hub subscribers and completion waiters react. Append failures warn without abandoning execution or blocking cleanup; consumers must retain incomplete histories as incomplete.
 
+### Durable completion notifications
+
+An optional `jobNotifications` provider synchronously persists intent before producer effects without changing `start()` into a promise. Intent failure prevents execution; running or terminal write failure keeps the job controllable and reports `notificationState: unavailable`, without changing its producer outcome or replaying work. The provider must durably accept the terminal outbox entry before scheduling handoff/steer delivery, deduplicate by job id, and recover unresolved intents as unknown/owner-lost. Its execution-bound writer survives provider removal. Settled events remain observable with their real `awaited` value; `notificationOwner: durable` prevents `dsh-tool-jobs` from delivering the same completion again, including after uncertain acceptance. Without a provider, notification state is best-effort and legacy delivery is unchanged.
+
 ### What can go wrong
 
 Starting work fails without a controller that serves the owner — loading `dsh-tool-jobs` attaches one, and `start()` otherwise refuses with a message naming it. A producer cancel that returns without settling `done` stays indistinguishable from a slow stop and can stall teardown while holding one capacity slot. Live registry records disappear when the harness process exits; persisted lifecycle events remain.

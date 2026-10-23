@@ -8,6 +8,9 @@ import { delegationDepthOf } from '@panedesk/dsh-subagent'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { SessionActivity } from '@panedesk/dsh-workspace'
 import { ScheduleRuntime } from './runtime.ts'
+import { ScheduleActions } from './actions.ts'
+import type { ScheduleActionHandler, ScheduleActionRequest, ScheduleId as ScheduleIdType } from './types.ts'
+import type { ScheduleActionTask } from './action-storage.ts'
 import { scheduleDomain } from './storage.ts'
 import { deliveryHistoryPage } from './delivery-history.ts'
 import { resolveScheduleUpdate } from './update.ts'
@@ -80,6 +83,8 @@ export interface Config {
    * cap and the window wins, and the newest records survive.
    */
   deliveryHistoryRecords?: number
+  /** Retry delay for unacknowledged actions only; omission defaults to 1000 milliseconds. */
+  actionRetryMs?: number
 }
 
 /** Retained delivery-history window applied when the deployment states none. */
@@ -102,6 +107,7 @@ export class ScheduleService extends TypertRemoteService {
   static Config: z<Config> = z.object({
     deliveryHistoryDays: z.number().step(1).min(1).max(3650).default(DEFAULT_DELIVERY_HISTORY_DAYS),
     deliveryHistoryRecords: z.number().step(1).min(1).max(10_000).default(DEFAULT_DELIVERY_HISTORY_RECORDS),
+    actionRetryMs: z.number().step(1).min(1).max(2_147_483_647).default(1000),
   })
 
   /** Resolved retention bounds shared with the runtime that appends acknowledgments. */
@@ -110,6 +116,7 @@ export class ScheduleService extends TypertRemoteService {
   private readonly initialized: PromiseLike<unknown>
   private chain: Promise<unknown> = Promise.resolve()
   private runtime: ScheduleRuntime | undefined
+  private readonly actions: ScheduleActions
   private stopping = false
 
   /**
@@ -118,6 +125,7 @@ export class ScheduleService extends TypertRemoteService {
    */
   constructor(ctx: Context, config: Config) {
     super(ctx, 'schedule')
+    this.actions = new ScheduleActions(ctx, config.actionRetryMs ?? 1000)
     this.retention = {
       days: config.deliveryHistoryDays ?? DEFAULT_DELIVERY_HISTORY_DAYS,
       records: config.deliveryHistoryRecords ?? DEFAULT_DELIVERY_HISTORY_RECORDS,
@@ -144,6 +152,7 @@ export class ScheduleService extends TypertRemoteService {
           this.stopping = true
           await this.runtime?.dispose()
           await this.chain // The chain contains failures after returning them to their callers.
+          await this.actions.close()
           await domain.close()
         })
       } catch (error) {
@@ -159,7 +168,7 @@ export class ScheduleService extends TypertRemoteService {
           await tasks.put(task.record.id, task)
           this.emitChanged()
         },
-        this.retention)
+        this.retention, this.actions)
       this.runtime.requestDrive()
       return cleanup
     })
@@ -204,6 +213,47 @@ export class ScheduleService extends TypertRemoteService {
         activity()
       }
     }, 'schedule.archiveAdmission()')
+  }
+
+  /**
+   * @param actionId - Installed action name, such as seat.open or seat.wait.
+   * @param handler - Durable acceptor; unavailable handlers retain pending tasks.
+   * @returns Effect-owned removal of the handler.
+   */
+  registerAction(actionId: string, handler: ScheduleActionHandler): () => Promise<void> {
+    return this.actions.register(actionId, handler, () => this.runtime?.requestDrive(), this.ctx)
+  }
+
+  /**
+   * @param request - Existing schedule record and independently stored action data.
+   * @returns Durable task without creating or resuming a Session.
+   */
+  async scheduleAction(request: ScheduleActionRequest): Promise<ScheduleActionTask> {
+    await this.initialized
+    return this.serialize(async () => {
+      const task = await this.actions.create(request)
+      this.runtime?.requestDrive()
+      return task
+    })
+  }
+
+  /** @returns Action tasks with current handler availability. */
+  async listActions(): Promise<(ScheduleActionTask & { available: boolean })[]> {
+    await this.initialized
+    return this.actions.list()
+  }
+
+  /**
+   * @param id - Exact action task identity.
+   * @returns Whether a task was removed; accepted downstream work is not cancelled.
+   */
+  async deleteAction(id: ScheduleIdType): Promise<boolean> {
+    await this.initialized
+    return this.serialize(async () => {
+      const deleted = await this.actions.delete(id)
+      this.runtime?.requestDrive()
+      return deleted
+    })
   }
 
   async [Service.init](): Promise<void> {

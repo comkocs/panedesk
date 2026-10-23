@@ -54,6 +54,10 @@ cron 输入携带 `expression` 和 `time_zone`。表达式是标准五字段 Vix
 
 每次更新都是与创建、删除共用同一 FIFO 的完整记录 compare-and-set，并保留任务 id、原会话绑定、状态、最近一次回执和全部已保存历史。任务不存在或绑定不符返回 `schedule_not_found`；未运行任务返回 `schedule_ended`。若投递、目标推进或其他编辑改变了预期记录，更新返回 `schedule_conflict`，不覆盖该记录。名称、指令和时间校验错误保留各自的错误码；存储失败会拒绝，而非报告持久化成功。冲突后应刷新目录并重新捕获预期记录，再尝试修改。分阶段表单的保存和取消行为见[任务页面](../../client/ui-schedule/README.zh.md)。
 
+### 注册动作
+
+`registerAction()` 安装由 effect 作用域管理的持久接纳器。`scheduleAction()` 将已有递归规则记录和 JSON 载荷保存到独立的 `schedule_actions` 第 1 版持久域，不绑定或解析 Session。共用 Host 定时器在派发前冻结发生事件号；接纳或明确的禁用回执推进目标，拒绝则保留同一事件号，经过 `actionRetryMs`（默认 1000）后重试。处理器必须按该号去重，确认持久接纳而非下游执行完成。处理器不可用时任务保留至注册；注册方 fiber 卸载会移除处理器。`listActions()` 与 `deleteAction()` 查看或移除这组独立任务。旧提醒及其存储不变。
+
 <a id="understand-the-implementation"></a>
 ## 理解实现
 

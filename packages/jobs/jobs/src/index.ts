@@ -12,7 +12,7 @@
 import { Context, Service } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session'
 import { installJobArchiveAdmission } from './archive-admission.ts'
-import type { JobEvents, JobId, JobOutputRead, JobRead, JobSpec, JobView } from './types.ts'
+import type { JobEvents, JobId, JobNotifications, JobNotificationState, JobOutputRead, JobRead, JobSpec, JobView } from './types.ts'
 
 export { JobId } from './types.ts'
 export type {
@@ -27,6 +27,10 @@ export type {
   JobHooks,
   JobKind,
   JobKindMap,
+  JobIntent,
+  JobNotifications,
+  JobNotificationReservation,
+  JobNotificationState,
   JobOutcome,
   JobOutputRead,
   JobOutputSource,
@@ -44,6 +48,7 @@ export type {
 declare module '@panedesk/cordis' {
   interface Context {
     jobs: JobRegistry
+    jobNotifications: JobNotifications
   }
 }
 
@@ -111,6 +116,17 @@ export abstract class JobRegistry extends Service {
    * @returns the registry-issued `<kind>-<short-uuid>` id.
    */
   abstract start(spec: JobSpec): JobId
+
+  /**
+   * Inspect notification durability separately from producer completion.
+   * @param id - Registered job identity.
+   * @param caller - Session checked with the same authorization as get.
+   * @returns Best-effort for implementations without a durable outbox.
+   */
+  notificationState(id: JobId, caller?: SessionId): JobNotificationState {
+    this.get(id, caller)
+    return 'best-effort'
+  }
 
   /**
    * List caller-owned and unowned jobs in registration order.
