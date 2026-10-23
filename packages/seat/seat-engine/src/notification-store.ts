@@ -19,6 +19,7 @@ export interface NotificationRecord {
 
 /** One engine owner holds this store under its existing node lock. */
 export class NotificationStore {
+  /** Recovered and committed notification states keyed by immutable execution identity. */
   readonly records = new Map<string, NotificationRecord>()
   private failed = false
   constructor(private readonly root: string, private readonly maxBytes: number) {

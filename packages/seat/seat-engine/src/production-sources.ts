@@ -10,13 +10,42 @@ import type { SeatEngine } from './engine.ts'
 
 /** Explicit observer destinations; repository paths never come from untrusted trigger data. */
 export interface ProductionSource {
+  /** Stable ingress identity, unique among configured sources; required with no default. */
   sourceId: SeatSourceId
+  /** Destination seat for accepted triggers; required with no default. */
   seat: SeatName
+  /** Project identity attached to accepted triggers; required with no default. */
   projectId: SeatProjectId
-  trigger: { kind: 'schedule'; record: ScheduleRecord }
-    | { kind: 'git'; repository: string; repositoryId: string; ref: string; fallbackMs: number }
-    | { kind: 'window-ended'; seat: SeatName; on: 'closed' | 'can-close' }
-    | { kind: 'handoff-timeout'; timeoutMinutes: number }
+  /** Trusted observer policy; required with no default or inferred trigger kind. */
+  trigger: {
+    /** Selects durable scheduled actions; required with no default. */
+    kind: 'schedule'
+    /** Schedule identity and timing registered for the seat.open action; required with no default. */
+    record: ScheduleRecord
+  } | {
+    /** Selects read-only Git ref observation; required with no default. */
+    kind: 'git'
+    /** Trusted local repository directory used for Git commands; required with no default. */
+    repository: string
+    /** Stable repository identity in trigger evidence and checkpoints; required with no default. */
+    repositoryId: string
+    /** Fully qualified ref beginning with refs/ to observe; required with no default. */
+    ref: string
+    /** Fallback observation interval in positive integer milliseconds; required with no default. */
+    fallbackMs: number
+  } | {
+    /** Selects durable window closure or close-report observation; required with no default. */
+    kind: 'window-ended'
+    /** Source seat whose windows are observed, distinct from the destination; required with no default. */
+    seat: SeatName
+    /** Whether closure or a report permitting closure triggers ingress; required with no default. */
+    on: 'closed' | 'can-close'
+  } | {
+    /** Selects unanswered handoffs from the destination seat; required with no default. */
+    kind: 'handoff-timeout'
+    /** Positive unanswered age threshold in minutes, including fractions; required with no default. */
+    timeoutMinutes: number
+  }
 }
 
 /** Register observers under the Loader owner, with recovery through stable event identities.

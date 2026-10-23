@@ -19,6 +19,7 @@ export class CompletionProviders {
   constructor(private readonly ctx: Context, private readonly engine: SeatEngine) {
     this.store = new NotificationStore(join(engine.journal.root, 'notifications'), engine.options.config.maxDecisionBytes)
   }
+  /** Execution-bound job writers persist intent before work and retain settlement for delivery. */
   readonly jobs: JobNotifications = {
     prepare: (intent) => {
       if (this.stopped) throw new EngineError('unavailable', 'Notification provider is stopping')
@@ -46,6 +47,7 @@ export class CompletionProviders {
       }
     },
   }
+  /** Idempotent subagent settlements retain parent notifications until durable delivery succeeds. */
   readonly subagents: SubagentNotifications = {
     accept: async (request) => {
       if (this.stopped) throw new EngineError('unavailable', 'Notification provider is stopping')

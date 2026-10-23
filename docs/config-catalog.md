@@ -2995,14 +2995,56 @@ export interface JsonRpcConfig {
 
 ## `@panedesk/dsh-seat-engine`
 
-- `refs`: [`SeatEngineConfig`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-engine/src/index.ts:18`](../packages/seat/seat-engine/src/index.ts)
+- `refs`: [`ScheduleRecord`](subsystems/schedule.md) · [`SeatEngineConfig`](../packages/seat/seat/src/index.ts) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
+- `source`: [`packages/seat/seat-engine/src/index.ts:21`](../packages/seat/seat-engine/src/index.ts)
 
 ```ts config-catalog
 /** Deployment policy has no implicit budget or capacity defaults. */
 export interface Config extends SeatEngineConfig {
   /** Harness home containing the node journal; omitted uses the standard home resolver. */
   home?: string
+  /** Explicit trusted trigger observers; omitted leaves only separately registered manual and external ingress. */
+  sources?: readonly ProductionSource[]
+}
+
+/** Explicit observer destinations; repository paths never come from untrusted trigger data. */
+export interface ProductionSource {
+  /** Stable ingress identity, unique among configured sources; required with no default. */
+  sourceId: SeatSourceId
+  /** Destination seat for accepted triggers; required with no default. */
+  seat: SeatName
+  /** Project identity attached to accepted triggers; required with no default. */
+  projectId: SeatProjectId
+  /** Trusted observer policy; required with no default or inferred trigger kind. */
+  trigger: {
+    /** Selects durable scheduled actions; required with no default. */
+    kind: 'schedule'
+    /** Schedule identity and timing registered for the seat.open action; required with no default. */
+    record: ScheduleRecord
+  } | {
+    /** Selects read-only Git ref observation; required with no default. */
+    kind: 'git'
+    /** Trusted local repository directory used for Git commands; required with no default. */
+    repository: string
+    /** Stable repository identity in trigger evidence and checkpoints; required with no default. */
+    repositoryId: string
+    /** Fully qualified ref beginning with refs/ to observe; required with no default. */
+    ref: string
+    /** Fallback observation interval in positive integer milliseconds; required with no default. */
+    fallbackMs: number
+  } | {
+    /** Selects durable window closure or close-report observation; required with no default. */
+    kind: 'window-ended'
+    /** Source seat whose windows are observed, distinct from the destination; required with no default. */
+    seat: SeatName
+    /** Whether closure or a report permitting closure triggers ingress; required with no default. */
+    on: 'closed' | 'can-close'
+  } | {
+    /** Selects unanswered handoffs from the destination seat; required with no default. */
+    kind: 'handoff-timeout'
+    /** Positive unanswered age threshold in minutes, including fractions; required with no default. */
+    timeoutMinutes: number
+  }
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-seat-engine -->
@@ -3013,7 +3055,7 @@ export interface Config extends SeatEngineConfig {
 ## `@panedesk/dsh-seat-gates`
 
 - `refs`: [`GateDefinition`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-gates/src/index.ts:28`](../packages/seat/seat-gates/src/index.ts)
+- `source`: [`packages/seat/seat-gates/src/index.ts:29`](../packages/seat/seat-gates/src/index.ts)
 
 ```ts config-catalog
 /** Deployment-owned policy settings, resolved once at activation. */
@@ -3047,7 +3089,7 @@ export interface Config {
 
 - `inject`: `storageDomain`
 - `refs`: [`T`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-local/src/index.ts:22`](../packages/seat/seat-local/src/index.ts)
+- `source`: [`packages/seat/seat-local/src/index.ts:24`](../packages/seat/seat-local/src/index.ts)
 
 ```ts config-catalog
 /** Deployment supplies every limit explicitly. */
