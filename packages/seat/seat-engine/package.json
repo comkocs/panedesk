@@ -31,5 +31,12 @@
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~"
+  },
+  "dependencies": {
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/node-addon-system": "workspace:~"
   }
 }

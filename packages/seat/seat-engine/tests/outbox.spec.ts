@@ -1,0 +1,39 @@
+import { afterEach, expect, it } from 'vitest'
+import type * as T from '@panedesk/dsh-seat'
+import { auto, harness, seat, trigger } from './fixtures.ts'
+import { fact } from '../src/triggers.ts'
+import { digest } from '../src/journal.ts'
+
+const cleanups: (() => Promise<void>)[] = []
+afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup() })
+it('A10 publishes complete opened payload before first-turn completion and retries the same callback', async () => {
+  const h = await harness(); cleanups.push(h.close); await auto(h.engine)
+  h.state.opening = 'pending'; h.state.callbackFailures = 1
+  await h.engine.accept({ ...trigger('external', 'event-a'), taskId: 'task-a' as T.SeatTaskId })
+  await h.engine.accept({ ...trigger('external', 'event-b'), taskId: 'task-b' as T.SeatTaskId })
+  await h.engine.drive()
+  const first = h.callbacks[0]!
+  expect(first).toMatchObject({ kind: 'opened', seat, sessionId: h.creates[0], nodeId: 'node-a', nodeName: 'node-a', budget: {}, taskId: 'task-a', relatedTaskIds: ['task-a', 'task-b'] })
+  expect(first.title).toMatch(/^seat-a \d\d-\d\d$/)
+  expect(first.callbackId).toBeTruthy()
+  expect(h.engine.journal.projection.opens.get(h.creates[0]!)?.phase).toBe('opening-pending')
+  await new Promise(resolve => setTimeout(resolve, 5)); await h.engine.drive()
+  const retries = h.callbacks.filter(payload => payload.triggerId === first.triggerId)
+  expect(retries).toHaveLength(2); expect(retries[1]).toEqual(first)
+  expect(new Set(h.callbacks.map(payload => payload.callbackId)).size).toBe(2)
+  expect(h.engine.journal.projection.opens.get(h.creates[0]!)?.binding).toMatchObject({ taskId: 'task-a', relatedTaskIds: ['task-a', 'task-b'] })
+})
+it('A10 preserves ended reason and all report fields after an earlier failed callback', async () => {
+  const h = await harness(); cleanups.push(h.close); await auto(h.engine)
+  h.state.callbackFailures = 1
+  await h.engine.accept(trigger()); await h.engine.drive()
+  const opened = h.callbacks[0]!
+  const report: T.CloseSelfReport = { reportId: 'report-a' as T.CloseReportId, sessionId: h.creates[0]!, canClose: true,
+    waitingFor: [], nextOpen: { when: { kind: 'condition', description: 'After review' }, prerequisites: [] }, stateVersion: 1, submittedAt: new Date().toISOString() }
+  const payload: T.SeatCallbackPayload = { ...opened, kind: 'window-ended', callbackId: 'ended-a' as T.CallbackId,
+    stateVersion: opened.stateVersion + 1, reason: 'manual', endedAt: new Date().toISOString(), selfReport: report, selfReportStatus: 'submitted' }
+  await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: { payload, payloadDigest: digest(payload), attempt: 0, phase: 'pending', nextDue: null, responseClass: null } })])
+  await new Promise(resolve => setTimeout(resolve, 5)); await h.engine.drive()
+  expect(h.callbacks.map(payload => payload.kind)).toEqual(['opened', 'opened', 'window-ended'])
+  expect(h.callbacks.at(-1)).toMatchObject({ reason: 'manual', selfReport: { canClose: true, waitingFor: [], nextOpen: report.nextOpen } })
+})

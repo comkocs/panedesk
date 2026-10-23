@@ -764,5 +764,29 @@ export interface SeatAccountUsageResult {
 export interface SeatBindingRequest { sessionId: SessionId; nodeId?: SeatNodeId }
 /** Callback observation never redelivers a payload or creates a new window. */
 export interface SeatOperationQuery { operationId: SeatOperationId }
+/** Local executor owns Session side effects; the engine owns identities and recovery stages. */
+export interface SeatOpenExecutor {
+  /** Deliver a durable next-turn warning; operationId deduplicates recovery retries in M5. */
+  notifyBudget?(request: { sessionId: SessionId; operationId: SeatOperationId; messageClass: 'handoff'; mode: 'steer'; budget: SeatBudgetSnapshot }): Promise<void>
+  /** Inspect persistent identity without creating or resuming model execution. */
+  observe(open: import('./events.ts').EngineOpenData): Promise<'absent' | 'matching' | 'conflict' | 'unknown'>
+  /** Bind trusted M4 identity and enforce never-mint creation before returning the flushed Session ID. */
+  create(open: import('./events.ts').EngineOpenData): Promise<SessionId>
+  /** Reconcile one stage using the intent identity; reject conflicting later user changes. */
+  configure(open: import('./events.ts').EngineOpenData, stage: OpenConfigurationStage): Promise<void>
+  /** Query or send the same durable M5 opening operation; never rerun an uncertain model turn. */
+  opening(open: import('./events.ts').EngineOpenData): Promise<{ messageId: Branded<'MessageId'>; state: 'pending' | 'completed' | 'failed' }>
+  /** Recheck the original message before waking only its sender with the fixed operation identity. */
+  wakeSender(timeout: SeatHandoffTimeout): Promise<'sent' | 'cancelled' | 'unavailable'>
+  /** Unknown owners retain resources; death must already have a durable terminal observation. */
+  owner(owner: ResourceOwner): Promise<'alive' | 'dead' | 'unknown'>
+}
+/** Child admission allocates no running slot until the journal commits its ticket. */
+export interface AdmitSeatChildRequest {
+  ticket: ChildAdmissionTicket
+  maxActive: number
+}
+/** Turn admission leaves queued input untouched when policy defers a new turn. */
+export type SeatTurnAdmission = { status: 'allow' } | { status: 'defer'; reason: 'budget-stopped' | 'budget-unverifiable' | 'configuring' | 'owner-unknown' }
 /** An uncertain operation remains unknown until recovery establishes a committed fact. */
 export type SeatOperationResult = { status: 'missing' } | { status: 'pending'; phase: OpenPhase | ClosePhase | ReplacePhase; stateVersion: number } | { status: 'settled'; result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult }

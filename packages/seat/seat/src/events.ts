@@ -22,6 +22,10 @@ export type EngineDecisionId = Branded<'SeatEngineDecisionId'>
 export type EngineEventId = Branded<'SeatEngineEventId'>
 /** Open facts retain the fixed Session identity and each committed configuration stage. */
 export interface EngineOpenData {
+  /** Frozen configuration and source associations survive catalog edits and queue removal. */
+  definition?: import('./types.ts').SeatDefinition
+  sources?: readonly TriggerEnvelope[]
+  title?: string
   intentId: OpenIntentId
   sessionId: SessionId
   seatRevision: number
