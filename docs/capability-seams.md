@@ -7,6 +7,31 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_instruction_subscriptions["instruction-subscriptions"]
+  svc_instructionSubscriptions["ctx.instructionSubscriptions<br/>Persisted instruction subscriptions"]
+  pkg_seat_local["seat-local"]
+  pkg_seat["seat"]
+  svc_seats["ctx.seats<br/>Seat definitions and window operations"]
+  pkg_seat_app["seat-app"]
+  pkg_seat_remote["seat-remote"]
+  pkg_tool_seat["tool-seat"]
+  pkg_seat_engine["seat-engine"]
+  svc_seatEngine["ctx.seatEngine<br/>Durable seat orchestration"]
+  pkg_seat_gates["seat-gates"]
+  pkg_ledger_query["ledger-query"]
+  svc_seatEngineQuery["ctx.seatEngineQuery<br/>Read-only engine history"]
+  svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
+  svc_seatDirectories["ctx.seatDirectories<br/>Authorized seat directories"]
+  svc_seatWorktreeHost["ctx.seatWorktreeHost<br/>Worktree records and authority"]
+  svc_seatReminderHost["ctx.seatReminderHost<br/>Idempotent seat reminders"]
+  svc_seatRemote["ctx.seatRemote<br/>Authenticated seat operations"]
+  pkg_api_session_controller["api-session-controller"]
+  svc_sessionCreation["ctx.sessionCreation<br/>Exact Session creation"]
+  pkg_jobs["jobs"]
+  svc_jobNotifications["ctx.jobNotifications<br/>Durable job notifications"]
+  pkg_subagent["subagent"]
+  svc_subagentAdmission["ctx.subagentAdmission<br/>Optional child admission"]
+  svc_subagentNotifications["ctx.subagentNotifications<br/>Durable child settlement"]
   pkg_experimental_client_ui_cot_translation["experimental-client-ui-cot-translation"]
   svc_cotTranslation["ctx.cotTranslation<br/>Reasoning translation Remote"]
   pkg_experimental_translator["experimental-translator"]
@@ -36,7 +61,6 @@ flowchart LR
   pkg_tool_fs["tool-fs"]
   pkg_tool_bash["tool-bash"]
   pkg_tool_pwsh["tool-pwsh"]
-  pkg_subagent["subagent"]
   pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   pkg_mcp_resources["mcp-resources"]
   svc_mcpResources["ctx.mcpResources<br/>Scoped MCP resource access"]
@@ -56,7 +80,6 @@ flowchart LR
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
-  pkg_api_session_controller["api-session-controller"]
   pkg_llm_pi_ai["llm-pi-ai"]
   pkg_llm_deepseek["llm-deepseek"]
   pkg_client_file_upload["client-file-upload"]
@@ -141,7 +164,6 @@ flowchart LR
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
   pkg_message_delivery_local["message-delivery-local"]
-  pkg_ledger_query["ledger-query"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
   pkg_session_telemetry["session-telemetry"]
   svc_sessionTelemetry["ctx.sessionTelemetry<br/>Session telemetry seam"]
@@ -265,7 +287,6 @@ flowchart LR
   svc_claudeCodeMods["ctx.claudeCodeMods<br/>Claude Code mods bridge"]
   pkg_inspector["inspector"]
   svc_inspector["ctx.inspector<br/>Cross-realm runtime inspection"]
-  pkg_jobs["jobs"]
   svc_jobs["ctx.jobs<br/>Background job registry"]
   pkg_jobs_local["jobs-local"]
   pkg_tool_jobs["tool-jobs"]
@@ -312,6 +333,7 @@ flowchart LR
   pkg_api_job_controller --> svc_jobController
   pkg_api_remote_access --> svc_remoteAccess
   pkg_api_session_controller --> svc_sessionController
+  pkg_api_session_controller --> svc_sessionCreation
   pkg_api_session_controller --> svc_sessionFileReferences
   pkg_api_session_controller --> svc_sessionSkillCatalog
   pkg_api_settings_controller --> svc_credentialsController
@@ -374,6 +396,8 @@ flowchart LR
   pkg_host_product_telemetry_otel --> svc_productTelemetry
   pkg_host_webserver --> svc_webServer
   pkg_inspector --> svc_inspector
+  pkg_instruction_subscriptions --> svc_instructionSubscriptions
+  pkg_jobs --> svc_jobNotifications
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
   pkg_ledger_query --> svc_ledgerQuery
@@ -404,6 +428,21 @@ flowchart LR
   pkg_sandbox_ssh --> svc_sandbox
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
+  pkg_seat --> svc_seatDirectories
+  pkg_seat --> svc_seatEngine
+  pkg_seat --> svc_seatEngineQuery
+  pkg_seat --> svc_seatGates
+  pkg_seat --> svc_seatReminderHost
+  pkg_seat --> svc_seatWorktreeHost
+  pkg_seat --> svc_seats
+  pkg_seat_engine --> svc_seatEngine
+  pkg_seat_engine --> svc_seatEngineQuery
+  pkg_seat_gates --> svc_seatGates
+  pkg_seat_local --> svc_jobNotifications
+  pkg_seat_local --> svc_seats
+  pkg_seat_local --> svc_subagentAdmission
+  pkg_seat_local --> svc_subagentNotifications
+  pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
   pkg_session_ledger --> svc_messageLedger
   pkg_session_ledger --> svc_sessionLedger
@@ -434,6 +473,8 @@ flowchart LR
   pkg_storage_domain --> svc_storageDomain
   pkg_storage_json --> svc_storage
   pkg_storage_sqlite --> svc_storage
+  pkg_subagent --> svc_subagentAdmission
+  pkg_subagent --> svc_subagentNotifications
   pkg_subagent --> svc_subagents
   pkg_subagent_acp --> svc_subagents
   pkg_subagent_claude_code --> svc_subagents
@@ -506,6 +547,8 @@ flowchart LR
   svc_fileUploads --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
   svc_hmr --> pkg_app_boot
+  svc_instructionSubscriptions --> pkg_seat_local
+  svc_jobNotifications --> pkg_jobs
   svc_jobs --> pkg_api_job_controller
   svc_jobs --> pkg_tool_bash
   svc_jobs --> pkg_tool_jobs
@@ -535,6 +578,25 @@ flowchart LR
   svc_sandboxPolicy --> pkg_bash_sandbox
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
+  svc_seatDirectories --> pkg_tool_seat
+  svc_seatEngine --> pkg_ledger_query
+  svc_seatEngine --> pkg_seat_app
+  svc_seatEngine --> pkg_seat_gates
+  svc_seatEngine --> pkg_seat_local
+  svc_seatEngine --> pkg_seat_remote
+  svc_seatEngine --> pkg_tool_seat
+  svc_seatEngineQuery --> pkg_ledger_query
+  svc_seatGates --> pkg_ledger_query
+  svc_seatGates --> pkg_seat_local
+  svc_seatGates --> pkg_seat_remote
+  svc_seatGates --> pkg_tool_seat
+  svc_seatReminderHost --> pkg_seat_gates
+  svc_seatWorktreeHost --> pkg_seat_gates
+  svc_seats --> pkg_seat_app
+  svc_seats --> pkg_seat_engine
+  svc_seats --> pkg_seat_remote
+  svc_seats --> pkg_tool_seat
+  svc_sessionCreation --> pkg_seat_local
   svc_sessionPersistence --> pkg_agent_loop
   svc_sessionPersistence --> pkg_hooks_claude_code
   svc_sessionPersistence --> pkg_hooks_codex
@@ -572,7 +634,9 @@ flowchart LR
   svc_ssh --> pkg_subprocess_ssh
   svc_storage --> pkg_storage_domain
   svc_storageDomain --> pkg_workspace
+  svc_subagentAdmission --> pkg_subagent
   svc_subagentModelSelection --> pkg_tool_subagent
+  svc_subagentNotifications --> pkg_subagent
   svc_subagents --> pkg_tool_ralph
   svc_subagents --> pkg_tool_subagent
   svc_subagents --> pkg_tool_subagent_control
@@ -627,6 +691,19 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.instructionSubscriptions` | `service` | [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | - | [`seat-local`](../packages/seat/seat-local) | - | Retains selected instruction identities for later prompt assembly without activating a Session. |
+| `ctx.seats` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-app`](../packages/seat/seat-app), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`seat-engine`](../packages/seat/seat-engine) | - | Optional local providers own authorized definitions and window operations without changing upstream behavior when absent. |
+| `ctx.seatEngine` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`seat-gates`](../packages/seat/seat-gates), [`seat-remote`](../packages/seat/seat-remote), [`seat-app`](../packages/seat/seat-app), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | One node writer commits decisions before publishing queue, admission, callback and budget state. |
+| `ctx.seatEngineQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`ledger-query`](../packages/session/ledger-query) | - | Reads verified existing journal prefixes without creating files or acquiring writer ownership. |
+| `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | Evaluates trusted operation facts and commits hit counters through the engine. |
+| `ctx.seatDirectories` | `seam` | [`seat`](../packages/seat/seat) | - | [`tool-seat`](../packages/seat/tool-seat) | - | Provides bounded directory reads and edits under seat authorization. |
+| `ctx.seatWorktreeHost` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-gates`](../packages/seat/seat-gates) | - | Supplies complete revisioned records and independent force authorization. |
+| `ctx.seatReminderHost` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-gates`](../packages/seat/seat-gates) | - | Accepts durable reminder delivery through the existing next-step lane. |
+| `ctx.seatRemote` | `service` | [`seat-remote`](../packages/seat/seat-remote) | - | - | - | Projects owner-authorized requests onto optional seat providers without starting a replacement runtime. |
+| `ctx.sessionCreation` | `service` | [`api-session-controller`](../packages/api/session-controller) | - | [`seat-local`](../packages/seat/seat-local) | - | Preserves reserved identities and admission ownership during Session creation. |
+| `ctx.jobNotifications` | `seam` | [`jobs`](../packages/jobs/jobs) | [`seat-local`](../packages/seat/seat-local) | [`jobs`](../packages/jobs/jobs) | - | Reserves durable notification ownership before job execution and accepts settlement once. |
+| `ctx.subagentAdmission` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-local`](../packages/seat/seat-local) | [`subagent`](../packages/subagent/subagent) | - | Reserves child capacity or returns a durable queue ticket before activation. |
+| `ctx.subagentNotifications` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-local`](../packages/seat/seat-local) | [`subagent`](../packages/subagent/subagent) | - | Accepts original settlement messages through the durable outbox without duplicate delivery. |
 | `ctx.cotTranslation` | `service` | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | - | - | Serves reasoning translations, reuses saved results, and joins ordinary Session activation for uncached inactive Sessions. |
 | `ctx.translator` | `service` | [`experimental-translator`](../packages/experimental/translator) | - | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | Resolves Google or Bing requests and retains shared experimental records through the active Session writer. |
 | `ctx.hmr` | `core` | [`hmr`](../packages/boot/hmr) | - | [`app-boot`](../packages/boot/app-boot) | - | Owns module and exact configuration watchers; application mutations share its queue and automatic reloads await the application file lock. |

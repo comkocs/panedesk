@@ -11,12 +11,18 @@
 /panedesk-dsh-seat-local/summary:
   en: a8f2650ab1959055
   zh: 7b62b3ccec752e28
+/panedesk-dsh-seat-local/table-of-contents:
+  en: cc10d61d6426707c
+  zh: 08f9978b39203e3c
 /panedesk-dsh-seat-local/configuration-and-ownership:
   en: d6d201b0464006c4
-  zh: bcbf1452c87b66d6
+  zh: d30253443f8691ab
 /panedesk-dsh-seat-local/window-transactions:
   en: 45816be4fe285d76
-  zh: f15575ed689496cc
+  zh: f06b0d795f68dec3
+/panedesk-dsh-seat-local/dev-note:
+  en: 25e9799cecaf5f3e
+  zh: afe691e9678e8de6
 /panedesk-dsh-seat-local/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -43,7 +49,7 @@
   zh: 78be63f0d8537b8f
 /panedesk-dsh-seat-local/model-experience/context-budget-and-wait-reminders/kv-cache-effect:
   en: 54285341045dbccd
-  zh: 9c71e0a76a09bf4f
+  zh: e5ca776705b4e424
 /panedesk-dsh-seat-local/known-limitations-and-deferred-work:
   en: aa56106b8b8895f2
   zh: 68a4ede48a2c7785

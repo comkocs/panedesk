@@ -2318,6 +2318,36 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Engine owns the journal, queues, resources and outbox; local providers depend only on this definition.',
     methods: [
       {
+        signature: 'openWindow?: (request: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>',
+        description: 'Admit a manual opening through the same resource transaction as automatic triggers.',
+        parameters: [{ name: 'request', description: 'authenticated operation and already frozen opening data.' }],
+        returns: 'durable opening outcome; absence means this provider cannot admit local openings.',
+      },
+      {
+        signature: 'registerCloseExecutor?: (executor: T.SeatCloseExecutor) => () => Promise<void>',
+        description: 'Register close effects; the engine owns barriers, version checks and resource release.',
+        parameters: [{ name: 'executor', description: 'public archive and title adapter.' }],
+        returns: 'disposer that drains in-flight closes before unregistering.',
+      },
+      {
+        signature: 'replaceWindow?: (request: T.ReplaceSeatRequest) => Promise<T.ReplaceSeatResult>',
+        description: 'Admit and recover a replacement, counting both windows and retaining old tags until close.',
+        parameters: [{ name: 'request', description: 'old-window operation.' }],
+        returns: 'FIFO admission or durable replacement state; absence never permits a local capacity bypass.',
+      },
+      {
+        signature: 'closeWindow?: (request: T.CloseSeatRequest & { reason: T.WindowEndReason reportId?: T.CloseReportId expectedReportVersion?: number }) => Promise<T.CloseSeatResult>',
+        description: 'Serialize archive admission with new work, report revocation and resource release.',
+        parameters: [{ name: 'request', description: 'state-version checked operation and optional current report identity.' }],
+        returns: 'close result after the registered executor flushes its effects.',
+      },
+      {
+        signature: 'recordRenewal?: (request: { request: T.RenewSeatRequest; source: \'manual\' | \'auto\'; result: T.RenewSeatResult }) => Promise<void>',
+        description: 'Record renewal source beside the upstream maintenance call, never as conversation text.',
+        parameters: [{ name: 'request', description: 'retained operation, source and observed result.' }],
+        returns: 'after the source attribution is durable.',
+      },
+      {
         signature: 'abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>',
         description: 'Commit ingress before acknowledging acceptance.',
         parameters: [{ name: 'envelope', description: 'authenticated bounded source event.' }],
@@ -6817,7 +6847,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'EngineCloseData',
-    declaration: 'export interface EngineCloseData {\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
+    declaration: 'export interface EngineCloseData {\n    operationId?: SeatOperationId;\n    barrierReleased?: boolean;\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
   },
   {
     name: 'EngineCursor',
@@ -6877,7 +6907,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'EngineOpenData',
-    declaration: 'export interface EngineOpenData {\n    definition?: import(\'./types.ts\').SeatDefinition;\n    sources?: readonly TriggerEnvelope[];\n    title?: string;\n    intentId: OpenIntentId;\n    sessionId: SessionId;\n    seatRevision: number;\n    phase: OpenPhase;\n    completedStages: readonly OpenConfigurationStage[];\n    binding: SeatBinding;\n    openingOperationId: SeatOperationId;\n    openingMessageId: Branded<\'MessageId\'> | null;\n    openingDigest: SeatDigest;\n    budget: SeatBudgetSnapshot;\n    failure: SeatFailure | null;\n}',
+    declaration: 'export interface EngineOpenData {\n    definition?: import(\'./types.ts\').SeatDefinition;\n    sources?: readonly TriggerEnvelope[];\n    title?: string;\n    frozenOpening?: {\n        text: string;\n        digest: SeatDigest;\n        variables: {\n            seat: SeatName;\n            date: string;\n            taskId: SeatTaskId | null;\n        };\n    };\n    openingMode?: \'auto\' | \'prefill\';\n    intentId: OpenIntentId;\n    sessionId: SessionId;\n    seatRevision: number;\n    phase: OpenPhase;\n    completedStages: readonly OpenConfigurationStage[];\n    binding: SeatBinding;\n    openingOperationId: SeatOperationId;\n    openingMessageId: Branded<\'MessageId\'> | null;\n    openingDigest: SeatDigest;\n    budget: SeatBudgetSnapshot;\n    failure: SeatFailure | null;\n}',
   },
   {
     name: 'EngineQueryRequest',
@@ -8297,7 +8327,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'OpenSeatResult',
-    declaration: 'export type OpenSeatResult = ({\n    status: \'opened\';\n} & OpenedSeatWindow) | ({\n    status: \'prefilled\';\n    draft: string;\n} & OpenedSeatWindow) | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n    choices: readonly [\n        \'switch\',\n        \'replace\',\n        \'cancel\'\n    ];\n    defaultChoice: \'switch\';\n} | {\n    status: \'switched\';\n    window: SeatWindowCandidate;\n} | {\n    status: \'cancelled\';\n} | SeatQueued | SeatRejected;',
+    declaration: 'export type OpenSeatResult = ({\n    status: \'opened\';\n} & OpenedSeatWindow) | ({\n    status: \'prefilled\';\n    draft: string;\n} & OpenedSeatWindow) | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n    choices: readonly [\n        \'switch\',\n        \'replace\',\n        \'cancel\'\n    ];\n    defaultChoice: \'switch\';\n} | {\n    status: \'switched\';\n    window: SeatWindowCandidate;\n} | {\n    status: \'replacement\';\n    result: ReplaceSeatResult;\n} | {\n    status: \'cancelled\';\n} | SeatQueued | SeatRejected;',
   },
   {
     name: 'OperationId',
@@ -8797,7 +8827,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RenewSeatRequest',
-    declaration: 'export interface RenewSeatRequest {\n    sessionId: SessionId;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n}',
+    declaration: 'export interface RenewSeatRequest {\n    sessionId: SessionId;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n    source?: \'manual\' | \'auto\';\n}',
   },
   {
     name: 'RenewSeatResult',
@@ -9164,6 +9194,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatChildThresholdRequest {\n    sessionId: SessionId;\n    thresholdRevision: number;\n    thresholdTokens: number;\n    context: import(\'./types.ts\').SeatContextUsage;\n    handoff: string;\n}',
   },
   {
+    name: 'SeatCloseExecutor',
+    declaration: 'export interface SeatCloseExecutor {\n    evidence(sessionId: SessionId): Promise<{\n        stateVersion: number;\n        busyReasons: readonly SeatBusyReason[];\n    }>;\n    archive(request: {\n        sessionId: SessionId;\n        operationId: SeatOperationId;\n    }): Promise<void>;\n}',
+  },
+  {
     name: 'SeatContextUsage',
     declaration: 'export type SeatContextUsage = {\n    status: \'known\';\n    source: \'last-call-usage\' | \'compaction-surface\';\n    tokens: number;\n    observedAt: SeatTimestamp;\n    estimated: true;\n    contextEpoch: number;\n} | {\n    status: \'unknown\';\n    observedAt: SeatTimestamp;\n};',
   },
@@ -9246,6 +9280,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatJson',
     declaration: 'export type SeatJson = null | boolean | number | string | readonly SeatJson[] | {\n    readonly [key: string]: SeatJson;\n};',
+  },
+  {
+    name: 'SeatLocalOpenRequest',
+    declaration: 'export interface SeatLocalOpenRequest {\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n}',
   },
   {
     name: 'SeatName',
@@ -11057,7 +11095,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WakeSeatResult',
-    declaration: 'export type WakeSeatResult = {\n    status: \'sent\' | \'stored-budget-stopped\';\n    sessionId: SessionId;\n    messageId: Branded<\'MessageId\'>;\n    operationId: SeatOperationId;\n} | {\n    status: \'opened\';\n    result: OpenSeatResult;\n} | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n} | SeatRejected;',
+    declaration: 'export type WakeSeatResult = {\n    status: \'sent\' | \'stored-budget-stopped\';\n    sessionId: SessionId;\n    messageId: Branded<\'MessageId\'>;\n    operationId: SeatOperationId;\n    title?: string;\n} | {\n    status: \'opened\';\n    result: OpenSeatResult;\n} | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n} | SeatRejected;',
   },
   {
     name: 'WebBootBatch',

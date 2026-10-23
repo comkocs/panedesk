@@ -113,6 +113,26 @@ interface AssembledContext {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxinstructionsubscriptions--instructionsubscriptionservice"></a>
+
+### `ctx.instructionSubscriptions` — `InstructionSubscriptionService`
+
+Session-local registration; callers restore their durable path list during creation setup.
+
+```ts cordis-catalog
+/**
+ * Register paths on an exact agent, including an unpublished creation setup.
+ * @param agent - owner of path resolution and subscription lifetime.
+ * @param files - paths resolved relative to the session working directory.
+ * @returns owner-scoped disposer; repeated paths share the existing subscription.
+ */
+register(agent: Agent, files: readonly string[]): Promise<() => Promise<void>>
+```
+
+Types: [Agent](core.zh.md)
+
+Source: [`packages/context/instruction-subscriptions/src/index.ts`](../../packages/context/instruction-subscriptions/src/index.ts)
+
 <a id="ctxsystemprompt--systemprompt"></a>
 
 ### `ctx.systemPrompt` — `SystemPrompt`

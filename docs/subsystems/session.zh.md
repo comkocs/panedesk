@@ -1003,6 +1003,40 @@ Types: [SessionId](core.zh.md) · [SessionInspection](persistence.zh.md) · [Ses
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
 
+<a id="ctxsessioncreation--sessioncreationscope"></a>
+
+### `ctx.sessionCreation` — `SessionCreationScope`
+
+Optional process-local scope for callers that own a reserved session identity.
+
+```ts cordis-catalog
+/**
+ * Create exactly the reserved identity with unpublished composition and local model selection.
+ * @param request - trusted creation capability and explicit placement.
+ * @returns the newly published Agent; existing identities are never adopted.
+ */
+async create(request: ExactSessionCreation & { readonly cwd: string; readonly agentPreset?: string }): Promise<ApiSessionCreated>
+
+/**
+ * Invoke the existing creation API without permitting identity substitution or reuse.
+ * @param request - reserved identity and trusted unpublished setup.
+ * @param operation - one awaited invocation of the existing creation API.
+ * @returns the operation's result; detached and repeated invocations are rejected.
+ */
+async withExactIdentity<T>(request: ExactSessionCreation, operation: () => Promise<T>): Promise<T>
+
+/**
+ * Consume this invocation's creation capability, if present.
+ * @param sessionId - identity supplied to the ordinary creation API.
+ * @returns the trusted setup, or undefined outside a controlled invocation.
+ */
+claim(sessionId: SessionId | undefined): ExactSessionCreation | undefined
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/api/session-controller/src/agent.ts`](../../packages/api/session-controller/src/agent.ts)
+
 <a id="ctxsessions--sessionstore"></a>
 
 ### `ctx.sessions` — `SessionStore`

@@ -11,6 +11,14 @@ English | [中文](README.zh.md)
 
 The opt-in provider implements the [seat services](../seat/src/index.ts) with private catalog storage, authenticated operation scopes and the installed seat engine. It does not launch a client or select a node implicitly. Missing engine or runtime evidence produces an explicit unavailable result rather than an empty-window or idle claim.
 
+## Table of Contents
+
+- [Configuration and ownership](#configuration-and-ownership)
+- [Window transactions](#window-transactions)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Configuration and ownership
 
 The function plugin exports `apply`, `inject` and its configuration type. Supply `LocalSeatOptions`: the catalog directory, node identity and aliases, resolved definition defaults, positive input and transaction limits, and the closed-title suffix. `storageDomain` is required; the engine and Session capabilities attach through optional service lookup. Controlled opening requires public Session creation, Agents, ledger, title, permission and subscription providers.
@@ -24,6 +32,10 @@ Manual opening freezes rendered text and the request in durable ingress. The exe
 Manual renewal uses the engine maintenance path. Close blocks new turns, rechecks evidence, archives the Session, pins the closed title and flushes persistence before recording terminal accounting. A failure before archive releases the barrier; a failure after archive retains it for replay. Rename receipts retain the original result, so replaying an earlier rename cannot overwrite a later title. Ambiguous intermediate title history is rejected rather than reported as success.
 
 Waits retain authorized object identities and terminal observations. Job reads target the owning Session rather than scanning all Sessions. Schedule delivery is complete only after its consuming model turn completes; deletion is cancellation, not completion. The provider drains accepted observation work on unload and reconstructs unfinished waits from engine facts on reload.
+
+## Dev Note
+
+[`index.ts`](src/index.ts) owns plugin activation and disposal. [`service-options.ts`](src/service-options.ts) separates deployment configuration from trusted runtime capabilities; the owning [seat subsystem](../../../docs/subsystems/seat.md) defines the shared service semantics.
 
 ## Model Experience
 
