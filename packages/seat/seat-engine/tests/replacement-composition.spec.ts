@@ -1,6 +1,7 @@
 /** Replacement capacity uses real Loader, local service, journal and persisted first turns. */
 import { expect, it } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { StreamChunk } from '@panedesk/dsh-llm'
 import type * as T from '@panedesk/dsh-seat'
@@ -9,7 +10,7 @@ import { operation } from '../../seat-local/tests/fixtures.ts'
 import { commitsEffect, completesIdleTurn, completesTurn, inputContains } from '../../seat/tests/completion.ts'
 
 it('continues a handover after host restart using the persisted opening turn', async () => {
-  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests/.replacement-'))
+  const home = await mkdtemp(join(tmpdir(), '.replacement-'))
   let host: Awaited<ReturnType<typeof admissionHost>> | undefined
   try {
     const f = await admissionHost(home); host = f
