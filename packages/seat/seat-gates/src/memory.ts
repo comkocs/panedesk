@@ -37,17 +37,18 @@ export function containsPath(root: string, target: string): boolean {
  * @param target - canonical destination.
  * @param seat - trusted binding, null for a free window.
  * @param registrations - all registered memory roots and their authorized seats.
- * @returns refusal with real authorized directories, or null for unrestricted writes.
+ * @returns refusal naming the owning seats with real authorized directories, or null for unrestricted writes.
  */
 export function checkMemoryWrite(
   target: string, seat: SeatName | null, registrations: readonly { path: string; seats: readonly SeatName[] }[],
 ): SeatFailure | null {
   const matches = registrations.filter(root => containsPath(root.path, target))
   if (matches.length === 0 || (seat !== null && matches.every(root => root.seats.includes(seat)))) return null
+  const owners = [...new Set(matches.flatMap(root => root.seats))]
   const authorized = seat === null ? [] : registrations.filter(root => root.seats.includes(seat)).map(root => root.path)
   return {
-    code: 'memory-seat-mismatch', message: 'This memory directory is not authorized for the current seat.',
-    alternative: authorized.length ? `Use seat_write with an authorized memory directory: ${authorized.join(', ')}.` : 'Open the owning seat before writing its memory directory.',
+    code: 'memory-seat-mismatch', message: `This memory directory is not authorized for the current seat; its owning seat is ${owners.join(', ')}.`,
+    alternative: authorized.length ? `Use seat_write with an authorized memory directory: ${authorized.join(', ')}.` : `Open the owning seat (${owners.join(', ')}) before writing its memory directory.`,
     retryable: false, effectState: 'none',
   }
 }

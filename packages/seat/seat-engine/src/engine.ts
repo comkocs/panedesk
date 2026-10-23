@@ -80,6 +80,7 @@ export class SeatEngine extends SeatEngineService {
   async shutdown(): Promise<void> {
     this.stopped = true
     if (this.timer) clearTimeout(this.timer)
+    await this.localOpenChain
     await this.activeDrive
     await this.outbox.close()
     await this.activeCallbacks
@@ -97,7 +98,13 @@ export class SeatEngine extends SeatEngineService {
     this.localAccess = access
     return async () => { if (this.localAccess === access) this.localAccess = undefined; await this.activeDrive }
   }
-  override openWindow = async (input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> => {
+  private localOpenChain: Promise<void> = Promise.resolve()
+  override openWindow = (input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> => {
+    const result = this.localOpenChain.then(() => this.openLocal(input))
+    this.localOpenChain = result.then(() => undefined, () => undefined)
+    return result
+  }
+  private async openLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
     await this.ready()
     return openLocalWindow(this, input, async (envelope) => {
       if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
