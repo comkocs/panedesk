@@ -390,7 +390,8 @@ export class SubagentManager {
    * @param spec - provider, delegation request, and caller cancellation.
    * @returns the durable child id and accepted initial prompt message id.
    */
-  async startLocal(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
+  startLocal(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
+    if (this.ctx.get('subagentAdmission') === undefined) return this.startLocalAdmitted(spec)
     return this.admitStart(spec, () => this.startLocalAdmitted(spec))
   }
 
@@ -558,7 +559,8 @@ export class SubagentManager {
    * @param spec - task, provider, cancellation, and delivery policy.
    * @returns the accepted activation and its result/disposal capabilities.
    */
-  async startExternal(spec: SubagentActivationSpec): Promise<SubagentActivation> {
+  startExternal(spec: SubagentActivationSpec): Promise<SubagentActivation> {
+    if (this.ctx.get('subagentAdmission') === undefined) return this.startExternalAdmitted(spec)
     return this.admitStart(spec, () => this.startExternalAdmitted(spec))
   }
 
@@ -1282,7 +1284,8 @@ export class SubagentManager {
     activation.releaseSlot()
     const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
     try {
-      await this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
+      const notification = this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
+      if (notification !== undefined) await notification
     } catch (error: unknown) {
       resultFailure = { error }
       failure ??= new SubagentError('Subagent settlement notification was not durably accepted', 'ACTIVATION_TEARDOWN_FAILED', { cause: error })
@@ -1295,18 +1298,17 @@ export class SubagentManager {
   }
 
   /** Deliver the captured execution result to the durable direct parent after cleanup. */
-  private async notifySettlement(activation: Activation, terminal: SubagentResult): Promise<void> {
+  private notifySettlement(activation: Activation, terminal: SubagentResult): void | Promise<void> {
     if (!activation.announced || activation.delivery === 'caller') return
     const notifications = this.ctx.get('subagentNotifications')
     if (notifications !== undefined) {
       // The bridge owns durable delivery even when the original parent is no longer resident.
       // Failure must reach activation.result; falling back would duplicate an uncertain acceptance.
-      await notifications.accept({
+      return notifications.accept({
         parent: activation.parent, childId: activation.childId, runId: activation.observer.runId, result: terminal,
         message: createSettlementMessage(activation.childId, terminal, activation.kind === 'local'),
         eventKind: 'subagent', messageClass: 'handoff', delivery: 'steer',
       })
-      return
     }
     try {
       const parent = this.ctx.agents.get(activation.parent.id)
@@ -1360,8 +1362,8 @@ export class SubagentManager {
     if (admission !== undefined) {
       await admission.continue(parent, childId)
       this.assertAdmitting(parent)
+      options.signal.throwIfAborted()
     }
-    options.signal.throwIfAborted()
     const releaseHold = this.holdOwnership(parent, childId)
     try {
       return await this.deliverFollowup(parent, childId, content, options)
@@ -1519,7 +1521,7 @@ export class SubagentManager {
         signal: options.signal,
       })
     } catch (error: unknown) {
-      await admission?.release()
+      if (admission !== undefined) await admission.release()
       options.signal.throwIfAborted()
       if (error instanceof SubagentError) throw error
       throw new SubagentError(`subagent "${childId}" is unavailable`, 'NOT_RESUMABLE', { cause: error })
