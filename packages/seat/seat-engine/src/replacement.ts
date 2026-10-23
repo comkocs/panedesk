@@ -78,9 +78,13 @@ export class ReplacementDriver {
         await this.publish(current)
       } else if (!current.failure && current.permit?.state !== 'expired-success') {
         const firstTurn = await executor.replacementFirstTurn?.(open)
-        if (!firstTurn?.completed || !firstTurn.hasAssistantReply || firstTurn.messageId !== open.openingMessageId) continue
-        current = { ...current, phase: 'awaiting-old-idle', firstTurn, openingMessageId: open.openingMessageId,
-          permit: { ...initial.permit, state: 'expired-success', expiredAt: new Date().toISOString() } }
+        if (!firstTurn || firstTurn.messageId !== open.openingMessageId) continue
+        const succeeded = firstTurn.completed && firstTurn.hasAssistantReply
+        current = { ...current, phase: succeeded ? 'awaiting-old-idle' : 'closing-new', firstTurn,
+          openingMessageId: open.openingMessageId,
+          failure: succeeded ? null : rejected('replacement-first-turn-failed',
+            firstTurn.completed ? 'Replacement first turn completed without an assistant reply' : 'Replacement first turn did not complete').error,
+          permit: { ...initial.permit, state: succeeded ? 'expired-success' : 'expired-failure', expiredAt: new Date().toISOString() } }
         await this.publish(current)
       }
       if (current.failure && await executor.observe(open) === 'absent') {

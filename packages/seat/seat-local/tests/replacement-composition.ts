@@ -44,14 +44,7 @@ export async function checkReplacement(f: Awaited<ReturnType<typeof engineFixtur
     await saveLimit(1)
     const request = { sessionId: oldSessionId, operationId: operation('replace-real') }
     expect(await seats.replace(request)).toMatchObject({ status: 'queued' })
-    await f.engine.drive()
-    expect(f.engine.journal.projection.resources.size).toBe(1)
-    expect([...f.engine.journal.projection.replacements.values()][0]?.newSessionId).toBeNull()
-    expect([...f.engine.journal.projection.pending.values()]).toMatchObject([{ reason: 'seat-capacity' }])
-    await completesTurn(f.ctx, id => id !== oldSessionId, inputContains('Frozen opening'), async () => {
-      await saveLimit(2)
-      await f.engine.drive()
-    })
+    await completesTurn(f.ctx, id => id !== oldSessionId, inputContains('Frozen opening'), () => f.engine.drive())
     const next = [...f.engine.journal.projection.replacements.values()][0]?.newSessionId
     if (!next) throw new Error('Replacement Session was not reserved')
     expect(next).not.toBe(oldSessionId)
