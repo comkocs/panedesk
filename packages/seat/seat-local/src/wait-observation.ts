@@ -77,8 +77,14 @@ Pick<LocalSeatRuntime, 'authorizeWait' | 'snapshot' | 'subscribe' | 'drainObserv
     }
     if (object.kind === 'subagent') {
       const facts = (await state.read()).effects
-      const terminal = facts.findLast(effect => effect.kind === 'job/observed' && effect.data.phase === 'settled'
+      // A child session follows its latest started run, not a previous run's terminal result.
+      // Exact run ids retain their original epoch; replayed settlements cannot replace a newer start.
+      const started = facts.findLast(effect => effect.kind === 'job/observed' && effect.data.phase === 'running'
         && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === object.id)
+      const terminal = facts.findLast(effect => effect.kind === 'job/observed' && effect.data.phase === 'settled'
+        && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === object.id
+        && (started?.kind !== 'job/observed' || (effect.data.ownerEpoch === started.data.ownerEpoch
+          && effect.data.sessionId === started.data.sessionId)))
       if (terminal?.kind === 'job/observed') return terminal.data.observation
     }
     return null
