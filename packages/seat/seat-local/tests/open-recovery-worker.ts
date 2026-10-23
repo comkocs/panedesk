@@ -50,7 +50,7 @@ if (stage !== 'recover') {
       sessions: (await f.ctx.sessionPersistence.list()).length,
       messages: snapshot?.events.filter(event => event.type === 'user/message'
         && event.data.source.kind === 'message-delivery'
-        && event.data.source.operationId === digest(open.openingOperationId)).length,
+        && String(event.data.source.operationId) === String(digest(open.openingOperationId))).length,
       userMessages: snapshot?.events.filter(event => event.type === 'user/message').length,
       accepted: f.engine.journal.projection.decisions.flatMap(decision => decision.effects)
         .filter(effect => effect.kind === 'trigger/accepted').length,
