@@ -62,7 +62,7 @@ A `subagentAdmission` provider reserves before new local/external execution and 
 
 A `subagentNotifications` provider accepts the original completion message with the execution's stable run id and handoff/steer metadata before the result settles. It owns durable deduplication and wake delivery; uncertain acceptance rejects the result rather than falling back to a duplicate parent message. Without it, the existing parent notification path remains in use.
 
-`subagentDispatch` 是独立可选策略能力：manager 在本地或外部创建前调用 `start`，在子级收件箱交付前调用 `continue`，在清理及名额释放后调用 `returned`。交回观察异常仅记录警告，不替换执行结果或阻止资源释放。它不占用容量准入及完成投递能力；未安装时保留既有路径。
+`subagentDispatch` is an independent optional policy capability: the manager calls `start` before local or external creation, `continue` before child inbox delivery, and `returned` after cleanup and capacity release. Return-observation failures log warnings without replacing the execution result or preventing resource release. This capability remains separate from capacity admission and completion delivery; without it, existing paths remain unchanged.
 
 ### Local and external children
 

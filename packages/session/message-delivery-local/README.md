@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. The plugin registers already-leased Agents, publishes runtime busy/idle/closing observations, and removes their registrations after disposal. Session write leases remain authoritative; registration never acquires or steals a lease. See [Session persistence](../../../docs/subsystems/persistence.md).
 
-With `pagination: true`, unanswered message pages continue from a provider-issued cursor even when an earlier item becomes terminal between requests, without returning that earlier page again. Continue with unchanged filters; unavailable cursors and limits other than positive safe integers are rejected. Without this opt-in, `cursor` is ignored, `limit` retains JavaScript `slice(0, limit)` semantics, `complete` compares the matching count with the limit, and no continuation cursor is returned.
+With `pagination: true`, provider-issued cursors page unanswered messages without repeating pages when earlier items become terminal. Keep filters unchanged; unavailable cursors and non-positive or unsafe integer limits are rejected. Otherwise, `cursor` is ignored, `limit` uses JavaScript `slice(0, limit)`, `complete` compares matching count with limit, and no cursor is returned.
 
 ## Table of Contents
 

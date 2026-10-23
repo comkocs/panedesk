@@ -25,7 +25,7 @@ Configure policy definitions, polling and sleep limits, checkpoint bounds and re
 
 Tool admission delegates to upstream policy first. Memory checks retain filesystem permissions and distinguish canonical ownership from uncertain shell syntax. Compaction appends bounded quoted sections, preserves the outer ledger allowance, and revalidates source bytes and seat revision before commit. Required missing, ambiguous, changed, or oversized content rejects the checkpoint rather than being silently omitted.
 
-`subagentDispatch` 在真实 manager 的本地与外部新派出、子级续派前执行策略；拒绝不会启动子级。交回检查在清理与名额释放之后运行，拒绝降为观察，不替换原结果。续派只读取该子级的账本与会话压缩事实；缺失、不可读或过期证据拒绝续派。工具闸审计使用独立操作标识，不占用等待或自报事务标识。
+`subagentDispatch` applies policy before the manager starts local or external children or continues a child; denial prevents startup. Return checks run after cleanup and capacity release; denial is observe-only and does not replace the original result. Continuation reads only that child's ledger and Session compaction facts; missing, unreadable, or stale evidence rejects continuation. Tool admission audits use independent operation identities rather than wait or report transaction identities.
 
 Worktree registration requires `seatWorktreeHost` for revision-checked persistence and independent force authorization. Settlement returns cleanup suggestions; it never deletes trees or creates commits. Child threshold notices require `seatReminderHost` and retain their original notice semantics.
 

@@ -346,6 +346,48 @@ abstract remindChild(request: import('./gates.ts').SeatChildThresholdRequest): P
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
 
+<a id="ctxseatgatesquery--seatgatesqueryservice-abstract-seam"></a>
+
+### `ctx.seatGatesQuery` — `SeatGatesQueryService` (abstract seam)
+
+Offline gate observations never evaluate policies or acquire engine ownership.
+
+```ts cordis-catalog
+/** Rebuild recorded gate revisions without inventing unrecorded policies or limits.
+ * @param request - bounded gate filters and snapshot-relative cursor.
+ * @returns recorded counters, expiry and limit evidence, or a structured refusal.
+ */
+abstract list(request: T.ListSeatGatesRequest): Promise<import('./gates.ts').SeatGatesQueryResult | T.SeatRejected>
+```
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
+<a id="ctxseatlocalread--seatlocalreadaccess"></a>
+
+### `ctx.seatLocalRead` — `SeatLocalReadAccess`
+
+Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters. External SeatService calls still require explicit authority; no mutation facade is exposed.
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
+<a id="ctxseatlocalsession--seatlocalsessionaccess"></a>
+
+### `ctx.seatLocalSession` — `SeatLocalSessionAccess`
+
+Provider-owned authorization for tools; read capabilities never grant mutation authority.
+
+```ts cordis-catalog
+/** Capture the live Session object supplied by the tool executor.
+ * @param session - registered calling Session, not a model-supplied identifier.
+ * @returns four operations that reject targets outside this Session.
+ */
+forSession(session: import('@panedesk/dsh-session').Session): SeatSessionOperations
+```
+
+Types: [Session](session.md)
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
 <a id="ctxseatreminderhost--seatreminderhost"></a>
 
 ### `ctx.seatReminderHost` — `SeatReminderHost`

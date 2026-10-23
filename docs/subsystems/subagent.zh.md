@@ -441,6 +441,37 @@ Types: [Agent](core.zh.md) · [SessionId](core.zh.md)
 
 Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)
 
+<a id="ctxsubagentdispatch--subagentdispatch"></a>
+
+### `ctx.subagentDispatch` — `SubagentDispatch`
+
+Optional dispatch policy is independent of capacity and notification ownership.
+
+```ts cordis-catalog
+/** Check a fresh request before reserving or creating the child.
+ * @param spec - validated request with its live parent.
+ */
+start(spec: SubagentActivationSpec): Promise<void>
+
+/** Check child-owned evidence before admitting another message.
+ * @param parent - live requesting parent.
+ * @param childId - target child.
+ */
+continue(parent: Agent, childId: SessionId): Promise<void>
+
+/** Observe cleanup without replacing settlement or preventing resource release.
+ * @param parent - delegating parent.
+ * @param childId - settled child.
+ * @param runId - stable activation identity.
+ * @param result - captured terminal result.
+ */
+returned(parent: Agent, childId: SessionId, runId: SubagentRunId, result: SubagentResult): Promise<void>
+```
+
+Types: [Agent](core.zh.md) · [SessionId](core.zh.md)
+
+Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)
+
 <a id="ctxsubagentmodelselection--subagentmodelselectionconfig"></a>
 
 ### `ctx.subagentModelSelection` — `SubagentModelSelectionConfig`

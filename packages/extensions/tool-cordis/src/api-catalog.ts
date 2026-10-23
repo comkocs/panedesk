@@ -2592,6 +2592,38 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatGatesQuery',
+    summary: 'Offline gate observations never evaluate policies or acquire engine ownership.',
+    description: 'Offline gate observations never evaluate policies or acquire engine ownership.',
+    methods: [
+      {
+        signature: 'abstract list(request: T.ListSeatGatesRequest): Promise<import(\'./gates.ts\').SeatGatesQueryResult | T.SeatRejected>',
+        description: 'Rebuild recorded gate revisions without inventing unrecorded policies or limits.',
+        parameters: [{ name: 'request', description: 'bounded gate filters and snapshot-relative cursor.' }],
+        returns: 'recorded counters, expiry and limit evidence, or a structured refusal.',
+      },
+    ],
+  },
+  {
+    key: 'seatLocalRead',
+    summary: 'Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters.',
+    description: 'Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters. External SeatService calls still require explicit authority; no mutation facade is exposed.',
+    methods: [],
+  },
+  {
+    key: 'seatLocalSession',
+    summary: 'Provider-owned authorization for tools; read capabilities never grant mutation authority.',
+    description: 'Provider-owned authorization for tools; read capabilities never grant mutation authority.',
+    methods: [
+      {
+        signature: 'forSession(session: import(\'@panedesk/dsh-session\').Session): SeatSessionOperations',
+        description: 'Capture the live Session object supplied by the tool executor.',
+        parameters: [{ name: 'session', description: 'registered calling Session, not a model-supplied identifier.' }],
+        returns: 'four operations that reject targets outside this Session.',
+      },
+    ],
+  },
+  {
     key: 'seatReminderHost',
     summary: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
     description: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
@@ -4045,6 +4077,28 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Reserve capacity for a cold activation after durable lineage validation.',
         parameters: [{ name: 'parent', description: 'Authorized direct parent.' }, { name: 'childId', description: 'Existing child; never create another identity on replay.' }],
         returns: 'A reservation or a durable nonblocking ticket.',
+      },
+    ],
+  },
+  {
+    key: 'subagentDispatch',
+    summary: 'Optional dispatch policy is independent of capacity and notification ownership.',
+    description: 'Optional dispatch policy is independent of capacity and notification ownership.',
+    methods: [
+      {
+        signature: 'start(spec: SubagentActivationSpec): Promise<void>',
+        description: 'Check a fresh request before reserving or creating the child.',
+        parameters: [{ name: 'spec', description: 'validated request with its live parent.' }],
+      },
+      {
+        signature: 'continue(parent: Agent, childId: SessionId): Promise<void>',
+        description: 'Check child-owned evidence before admitting another message.',
+        parameters: [{ name: 'parent', description: 'live requesting parent.' }, { name: 'childId', description: 'target child.' }],
+      },
+      {
+        signature: 'returned(parent: Agent, childId: SessionId, runId: SubagentRunId, result: SubagentResult): Promise<void>',
+        description: 'Observe cleanup without replacing settlement or preventing resource release.',
+        parameters: [{ name: 'parent', description: 'delegating parent.' }, { name: 'childId', description: 'settled child.' }, { name: 'runId', description: 'stable activation identity.' }, { name: 'result', description: 'captured terminal result.' }],
       },
     ],
   },
@@ -6291,7 +6345,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ChildAdmissionTicket',
-    declaration: 'export interface ChildAdmissionTicket {\n    ticketId: ChildTicketId;\n    parentSessionId: SessionId;\n    sequence: number;\n    requestDigest: SeatDigest;\n    agentPreset: string;\n    permissionRevision: number;\n    phase: \'queued\' | \'admitted\' | \'released\' | \'cancelled\';\n    childSessionId: SessionId | null;\n    ownerEpoch: OwnerEpoch;\n    stateVersion: number;\n}',
+    declaration: 'export interface ChildAdmissionTicket {\n    ticketId: ChildTicketId;\n    parentSessionId: SessionId;\n    sequence: number;\n    requestDigest: SeatDigest;\n    agentPreset: string;\n    permissionRevision: number;\n    activation?: SeatJson;\n    phase: \'queued\' | \'admitted\' | \'released\' | \'cancelled\';\n    childSessionId: SessionId | null;\n    ownerEpoch: OwnerEpoch;\n    stateVersion: number;\n}',
   },
   {
     name: 'ChildTicketId',
@@ -8115,7 +8169,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MessageQuery',
-    declaration: 'export interface MessageQuery {\n    readonly sessionId?: SessionId;\n    readonly senderSessionId?: SessionId;\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly states?: readonly MessageState[];\n    readonly messageClasses?: readonly MessageClass[];\n    readonly unansweredOlderThanMinutes?: number;\n    readonly includeTerminal?: boolean;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
+    declaration: 'export interface MessageQuery {\n    readonly sessionId?: SessionId;\n    readonly senderSessionId?: SessionId;\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly states?: readonly MessageState[];\n    readonly messageClasses?: readonly MessageClass[];\n    readonly unansweredOlderThanMinutes?: number;\n    readonly includeTerminal?: boolean;\n    readonly pagination?: boolean;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
   },
   {
     name: 'MessageReason',
@@ -9246,6 +9300,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatFrozenOpen {\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n}',
   },
   {
+    name: 'SeatGateQuerySnapshot',
+    declaration: 'export interface SeatGateQuerySnapshot extends GateSnapshot {\n    limit: {\n        status: \'unknown\' | \'below\' | \'reached\';\n        value: number | null;\n        observed: number | null;\n    };\n}',
+  },
+  {
+    name: 'SeatGatesQueryResult',
+    declaration: 'export interface SeatGatesQueryResult {\n    gates: readonly SeatGateQuerySnapshot[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: import(\'./types.ts\').EngineCursor;\n}',
+  },
+  {
     name: 'SeatHandoffTimeout',
     declaration: 'export interface SeatHandoffTimeout {\n    messageId: Branded<\'MessageId\'>;\n    senderSessionId: SessionId;\n    deadlineVersion: number;\n    deadlineAt: SeatTimestamp;\n    timeoutMinutes: number;\n    wakeOperationId: SeatOperationId;\n}',
   },
@@ -9344,6 +9406,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatService',
     declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult>;\n    abstract wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult>;\n    abstract binding(request: T.SeatBindingRequest): Promise<T.SeatBinding | null | T.SeatRejected>;\n    abstract  /* …truncated — full shape in source */',
+  },
+  {
+    name: 'SeatSessionOperations',
+    declaration: 'export interface SeatSessionOperations extends Pick<SeatService, \'registerWait\' | \'cancelWait\' | \'submitReport\' | \'revokeReport\'> {\n}',
   },
   {
     name: 'SeatSourceId',

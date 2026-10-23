@@ -20,6 +20,9 @@ flowchart LR
   pkg_seat_gates["seat-gates"]
   pkg_ledger_query["ledger-query"]
   svc_seatEngineQuery["ctx.seatEngineQuery<br/>Read-only engine history"]
+  svc_seatLocalRead["ctx.seatLocalRead<br/>Provider-owned seat reads"]
+  svc_seatLocalSession["ctx.seatLocalSession<br/>Current-Session seat writes"]
+  svc_seatGatesQuery["ctx.seatGatesQuery<br/>Read-only seat policy queries"]
   svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
   svc_seatDirectories["ctx.seatDirectories<br/>Authorized seat directories"]
   svc_seatWorktreeHost["ctx.seatWorktreeHost<br/>Worktree records and authority"]
@@ -32,6 +35,7 @@ flowchart LR
   pkg_subagent["subagent"]
   svc_subagentAdmission["ctx.subagentAdmission<br/>Optional child admission"]
   svc_subagentNotifications["ctx.subagentNotifications<br/>Durable child settlement"]
+  svc_subagentDispatch["ctx.subagentDispatch<br/>Optional child dispatch policy"]
   pkg_experimental_client_ui_cot_translation["experimental-client-ui-cot-translation"]
   svc_cotTranslation["ctx.cotTranslation<br/>Reasoning translation Remote"]
   pkg_experimental_translator["experimental-translator"]
@@ -432,16 +436,23 @@ flowchart LR
   pkg_seat --> svc_seatEngine
   pkg_seat --> svc_seatEngineQuery
   pkg_seat --> svc_seatGates
+  pkg_seat --> svc_seatGatesQuery
+  pkg_seat --> svc_seatLocalRead
+  pkg_seat --> svc_seatLocalSession
   pkg_seat --> svc_seatReminderHost
   pkg_seat --> svc_seatWorktreeHost
   pkg_seat --> svc_seats
+  pkg_seat_engine --> svc_jobNotifications
   pkg_seat_engine --> svc_seatEngine
   pkg_seat_engine --> svc_seatEngineQuery
+  pkg_seat_engine --> svc_subagentAdmission
+  pkg_seat_engine --> svc_subagentNotifications
   pkg_seat_gates --> svc_seatGates
-  pkg_seat_local --> svc_jobNotifications
+  pkg_seat_gates --> svc_seatGatesQuery
+  pkg_seat_gates --> svc_subagentDispatch
+  pkg_seat_local --> svc_seatLocalRead
+  pkg_seat_local --> svc_seatLocalSession
   pkg_seat_local --> svc_seats
-  pkg_seat_local --> svc_subagentAdmission
-  pkg_seat_local --> svc_subagentNotifications
   pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
   pkg_session_ledger --> svc_messageLedger
@@ -474,6 +485,7 @@ flowchart LR
   pkg_storage_json --> svc_storage
   pkg_storage_sqlite --> svc_storage
   pkg_subagent --> svc_subagentAdmission
+  pkg_subagent --> svc_subagentDispatch
   pkg_subagent --> svc_subagentNotifications
   pkg_subagent --> svc_subagents
   pkg_subagent_acp --> svc_subagents
@@ -590,6 +602,10 @@ flowchart LR
   svc_seatGates --> pkg_seat_local
   svc_seatGates --> pkg_seat_remote
   svc_seatGates --> pkg_tool_seat
+  svc_seatGatesQuery --> pkg_ledger_query
+  svc_seatLocalRead --> pkg_seat_gates
+  svc_seatLocalRead --> pkg_tool_seat
+  svc_seatLocalSession --> pkg_tool_seat
   svc_seatReminderHost --> pkg_seat_gates
   svc_seatWorktreeHost --> pkg_seat_gates
   svc_seats --> pkg_seat_app
@@ -635,6 +651,7 @@ flowchart LR
   svc_storage --> pkg_storage_domain
   svc_storageDomain --> pkg_workspace
   svc_subagentAdmission --> pkg_subagent
+  svc_subagentDispatch --> pkg_subagent
   svc_subagentModelSelection --> pkg_tool_subagent
   svc_subagentNotifications --> pkg_subagent
   svc_subagents --> pkg_tool_ralph
@@ -695,15 +712,19 @@ flowchart LR
 | `ctx.seats` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-app`](../packages/seat/seat-app), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`seat-engine`](../packages/seat/seat-engine) | - | Optional local providers own authorized definitions and window operations without changing upstream behavior when absent. |
 | `ctx.seatEngine` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`seat-gates`](../packages/seat/seat-gates), [`seat-remote`](../packages/seat/seat-remote), [`seat-app`](../packages/seat/seat-app), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | One node writer commits decisions before publishing queue, admission, callback and budget state. |
 | `ctx.seatEngineQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`ledger-query`](../packages/session/ledger-query) | - | Reads verified existing journal prefixes without creating files or acquiring writer ownership. |
+| `ctx.seatLocalRead` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-gates`](../packages/seat/seat-gates), [`tool-seat`](../packages/seat/tool-seat) | - | Reads definitions, bindings, and windows without granting write authority. |
+| `ctx.seatLocalSession` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | Authorizes waits and reports only for the exact live calling Session. |
+| `ctx.seatGatesQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`ledger-query`](../packages/session/ledger-query) | - | Reads policy definitions and recorded hits without mounting runtime gate consumers. |
 | `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | Evaluates trusted operation facts and commits hit counters through the engine. |
 | `ctx.seatDirectories` | `seam` | [`seat`](../packages/seat/seat) | - | [`tool-seat`](../packages/seat/tool-seat) | - | Provides bounded directory reads and edits under seat authorization. |
 | `ctx.seatWorktreeHost` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-gates`](../packages/seat/seat-gates) | - | Supplies complete revisioned records and independent force authorization. |
 | `ctx.seatReminderHost` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-gates`](../packages/seat/seat-gates) | - | Accepts durable reminder delivery through the existing next-step lane. |
 | `ctx.seatRemote` | `service` | [`seat-remote`](../packages/seat/seat-remote) | - | - | - | Projects owner-authorized requests onto optional seat providers without starting a replacement runtime. |
 | `ctx.sessionCreation` | `service` | [`api-session-controller`](../packages/api/session-controller) | - | [`seat-local`](../packages/seat/seat-local) | - | Preserves reserved identities and admission ownership during Session creation. |
-| `ctx.jobNotifications` | `seam` | [`jobs`](../packages/jobs/jobs) | [`seat-local`](../packages/seat/seat-local) | [`jobs`](../packages/jobs/jobs) | - | Reserves durable notification ownership before job execution and accepts settlement once. |
-| `ctx.subagentAdmission` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-local`](../packages/seat/seat-local) | [`subagent`](../packages/subagent/subagent) | - | Reserves child capacity or returns a durable queue ticket before activation. |
-| `ctx.subagentNotifications` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-local`](../packages/seat/seat-local) | [`subagent`](../packages/subagent/subagent) | - | Accepts original settlement messages through the durable outbox without duplicate delivery. |
+| `ctx.jobNotifications` | `seam` | [`jobs`](../packages/jobs/jobs) | [`seat-engine`](../packages/seat/seat-engine) | [`jobs`](../packages/jobs/jobs) | - | Reserves durable notification ownership before job execution and accepts settlement once. |
+| `ctx.subagentAdmission` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-engine`](../packages/seat/seat-engine) | [`subagent`](../packages/subagent/subagent) | - | Reserves child capacity or returns a durable queue ticket before activation. |
+| `ctx.subagentNotifications` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-engine`](../packages/seat/seat-engine) | [`subagent`](../packages/subagent/subagent) | - | Accepts original settlement messages through the durable outbox without duplicate delivery. |
+| `ctx.subagentDispatch` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-gates`](../packages/seat/seat-gates) | [`subagent`](../packages/subagent/subagent) | - | Checks child starts and continuations before execution and observes returns after cleanup. |
 | `ctx.cotTranslation` | `service` | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | - | - | Serves reasoning translations, reuses saved results, and joins ordinary Session activation for uncached inactive Sessions. |
 | `ctx.translator` | `service` | [`experimental-translator`](../packages/experimental/translator) | - | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | Resolves Google or Bing requests and retains shared experimental records through the active Session writer. |
 | `ctx.hmr` | `core` | [`hmr`](../packages/boot/hmr) | - | [`app-boot`](../packages/boot/app-boot) | - | Owns module and exact configuration watchers; application mutations share its queue and automatic reloads await the application file lock. |

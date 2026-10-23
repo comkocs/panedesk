@@ -128,6 +128,21 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads verified existing journal prefixes without creating files or acquiring writer ownership.',
   },
   {
+    key: 'seatLocalRead', pkg: 'seat', title: 'Provider-owned seat reads', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['seat-gates', 'tool-seat'],
+    note: 'Reads definitions, bindings, and windows without granting write authority.',
+  },
+  {
+    key: 'seatLocalSession', pkg: 'seat', title: 'Current-Session seat writes', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['tool-seat'],
+    note: 'Authorizes waits and reports only for the exact live calling Session.',
+  },
+  {
+    key: 'seatGatesQuery', pkg: 'seat', title: 'Read-only seat policy queries', mode: 'seam',
+    implementations: ['seat-gates'], consumers: ['ledger-query'],
+    note: 'Reads policy definitions and recorded hits without mounting runtime gate consumers.',
+  },
+  {
     key: 'seatGates', pkg: 'seat', title: 'Seat policy evaluation', mode: 'seam',
     implementations: ['seat-gates'], consumers: ['seat-local', 'seat-remote', 'tool-seat', 'ledger-query'],
     note: 'Evaluates trusted operation facts and commits hit counters through the engine.',
@@ -154,18 +169,23 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'jobNotifications', pkg: 'jobs', title: 'Durable job notifications', mode: 'seam',
-    implementations: ['seat-local'], consumers: ['jobs'],
+    implementations: ['seat-engine'], consumers: ['jobs'],
     note: 'Reserves durable notification ownership before job execution and accepts settlement once.',
   },
   {
     key: 'subagentAdmission', pkg: 'subagent', title: 'Optional child admission', mode: 'seam',
-    implementations: ['seat-local'], consumers: ['subagent'],
+    implementations: ['seat-engine'], consumers: ['subagent'],
     note: 'Reserves child capacity or returns a durable queue ticket before activation.',
   },
   {
     key: 'subagentNotifications', pkg: 'subagent', title: 'Durable child settlement', mode: 'seam',
-    implementations: ['seat-local'], consumers: ['subagent'],
+    implementations: ['seat-engine'], consumers: ['subagent'],
     note: 'Accepts original settlement messages through the durable outbox without duplicate delivery.',
+  },
+  {
+    key: 'subagentDispatch', pkg: 'subagent', title: 'Optional child dispatch policy', mode: 'seam',
+    implementations: ['seat-gates'], consumers: ['subagent'],
+    note: 'Checks child starts and continuations before execution and observes returns after cleanup.',
   },
   {
     key: 'cotTranslation',
