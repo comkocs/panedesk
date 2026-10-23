@@ -10,6 +10,12 @@
   "references": [
     {
       "path": "../../../vendor/cordis"
-    }
+    },
+    { "path": "../seat" },
+    { "path": "../../core/tools" },
+    { "path": "../../core/session" },
+    { "path": "../../compaction/compaction" },
+    { "path": "../../session/working-directory" },
+    { "path": "../../../vendor/schemastery" }
   ]
 }

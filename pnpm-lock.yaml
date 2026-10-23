@@ -12794,6 +12794,28 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/seat/seat-gates:
+    dependencies:
+      '@panedesk/dsh-compaction':
+        specifier: workspace:*
+        version: link:../../compaction/compaction
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -12864,6 +12886,16 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/seat/tool-seat:
+    dependencies:
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~

@@ -40,6 +40,8 @@ declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
     seatEngine: SeatEngineService
+    seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
+    seatReminderHost: import('./gates.ts').SeatReminderHost
     seatGates: SeatGateService
     seatDirectories: SeatDirectoryService
   }
@@ -214,6 +216,11 @@ export abstract class SeatEngineService extends Service {
    * @returns durable frame or a sequence conflict.
    */
   abstract transact(request: T.EngineTransactionRequest): Promise<T.EngineTransactionResult>
+  /** Frame and commit effects under engine-owned canonical encoding and sequence CAS.
+   * @param request - stable decision identity, observed facts and expected committed watermark.
+   * @returns committed frame, current watermark conflict or explicit refusal.
+   */
+  abstract appendEffects(request: { decisionId: import('./events.ts').EngineDecisionId; expectedSequence: number; observedAt: T.SeatTimestamp; policyRevision: number; effects: readonly import('./events.ts').EngineEffect[] }): Promise<T.EngineTransactionResult>
   /** Reconcile original identities without replaying uncertain model side effects.
    * @returns only after recovery barriers and projections are ready.
    */
@@ -326,6 +333,11 @@ export abstract class SeatGateService extends Service {
    * @returns affected trees and safe alternatives.
    */
   abstract onTaskEnded(request: T.SeatTaskEndedRequest): Promise<T.SeatWorktreeResult>
+  /** Emit one durable next-step handoff reminder per child context epoch and threshold revision.
+   * @param request - child-owned context evidence and bounded handoff summary.
+   * @returns observable delivery or evidence status; never changes notice semantics.
+   */
+  abstract remindChild(request: import('./gates.ts').SeatChildThresholdRequest): Promise<'sent' | 'below' | 'unknown' | 'unavailable'>
 }
 
 /** Additional-root tools retain filesystem permission checks and do not widen shell write policy. */
