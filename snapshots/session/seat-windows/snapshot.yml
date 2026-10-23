@@ -1,0 +1,8 @@
+version: 1
+scenario: seat-windows
+profile: headless
+composition: seat-windows
+recording: authored
+header:
+  class: seat
+  pin: true

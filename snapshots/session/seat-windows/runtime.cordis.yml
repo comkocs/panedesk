@@ -1,0 +1,5 @@
+- insert:
+    - id: seat-snapshot-catalog
+      name: './catalog.mjs'
+    - id: seat-snapshot-clock
+      name: './clock.mjs'
