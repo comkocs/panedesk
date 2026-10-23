@@ -239,6 +239,24 @@ it('A07 refuses occupied remote and engine seats and keeps concurrent openings w
   const remote = f.ctx.seats.withAuthority({ principalId: 'owner' as never, origin: 'remote', nodeId: f.nodeId })
   expect(await settlesOpening(f.ctx, remote, { seat: seatName('seat-a'), origin: 'remote', operationId: operation() }))
     .toMatchObject({ status: 'rejected', error: { code: 'seat-already-open' } })
+  await mkdir(join(f.home, 'workspace-c'))
+  await f.save(f.definition('seat-c', { maxOpenSessions: 2, directories: [{ path: join(f.home, 'workspace-c'), startup: true }] }))
+  const beforeSequential = new Set((await f.ctx.sessionPersistence.list()).map(item => item.header.id))
+  const first = await settlesOpening(f.ctx, remote,
+    { seat: seatName('seat-c'), origin: 'remote', operationId: operation() })
+  expect(first).toMatchObject({ status: 'opened' })
+  const second = await settlesOpening(f.ctx, remote,
+    { seat: seatName('seat-c'), origin: 'remote', operationId: operation() })
+  expect(second).toMatchObject({ status: 'opened' })
+  if (first.status !== 'opened' || second.status !== 'opened') throw new Error(JSON.stringify([first, second]))
+  expect(second.sessionId).not.toBe(first.sessionId)
+  const third = await settlesOpening(f.ctx, remote,
+    { seat: seatName('seat-c'), origin: 'remote', operationId: operation() })
+  expect(third).toMatchObject({ status: 'rejected', error: { code: 'seat-already-open' } })
+  const sequentialPhysical = (await f.ctx.sessionPersistence.list()).map(item => item.header.id)
+    .filter(id => !beforeSequential.has(id)).sort()
+  expect(sequentialPhysical).toHaveLength(2)
+  expect(sequentialPhysical).toEqual([first.sessionId, second.sessionId].sort())
   await f.save(f.definition('seat-b', { maxOpenSessions: 2, directories: [{ path: join(f.home, 'workspace-b'), startup: true }] }))
   const before = new Set((await f.ctx.sessionPersistence.list()).map(item => item.header.id))
   const results = await Promise.all(Array.from({ length: 3 }, () => settlesOpening(f.ctx, remote,
@@ -263,9 +281,6 @@ it('A07 refuses occupied remote and engine seats and keeps concurrent openings w
     if (result.status === 'opened') expect(physical).toContain(result.sessionId)
     if (result.status === 'rejected') expect(result.error.code).toBe('seat-already-open')
   }
-  process.stdout.write(JSON.stringify({ name: 'A07 physical evidence', results, physical, live,
-    opens: opens.map(open => ({ sessionId: open.sessionId, phase: open.phase })),
-    resources: reserved.map(effect => effect.data), node: await f.engine.nodeStatus() }) + '\n')
 }, 20000)
 
 it.each(['open/intent', 'open/created', 'open/configured'])('A09 recovers a real Loader child after SIGKILL at %s', async (stage) => {
