@@ -41,6 +41,7 @@ declare module '@panedesk/cordis' {
     seats: SeatService
     seatLocalRead: SeatLocalReadAccess
     seatLocalSession: SeatLocalSessionAccess
+    seatLocalWindows: SeatLocalWindowsAccess
     seatEngine: SeatEngineService
     seatEngineQuery: SeatEngineQueryService
     seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
@@ -66,6 +67,28 @@ export interface SeatLocalSessionAccess {
    * @returns four operations that reject targets outside this Session.
    */
   forSession(session: import('@panedesk/dsh-session').Session): SeatSessionOperations
+}
+
+/** Explicit window mutations retain all provider admission and state-version checks. */
+export interface SeatWindowOperations extends Pick<SeatService, 'open' | 'renew' | 'replace' | 'close' | 'rename' | 'wake'> {}
+
+/** In-process model tool authority; never accepted from model arguments or remote requests. */
+export interface SeatModelToolAuthority extends T.SeatCallContext {
+  kind: 'model-tool-call'
+  sessionId: SessionId
+  callId: import('@panedesk/dsh-brand').Branded<'ToolCallId'>
+}
+
+/** Provider-owned authorization for explicitly selected windows on this node. */
+export interface SeatLocalWindowsAccess {
+  /** Capture the executor's live Session and tool call, not a target window identity.
+   * @param invocation - trusted executor context; the Session must remain registered.
+   * @returns six operations stamped with this invocation's stable operation identity.
+   */
+  forInvocation(invocation: {
+    session: import('@panedesk/dsh-session').Session
+    callId: import('@panedesk/dsh-brand').Branded<'ToolCallId'>
+  }): SeatWindowOperations
 }
 
 /** Unified node-local operations; provider derives authority from authenticated context, never wire tags. */

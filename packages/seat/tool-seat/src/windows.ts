@@ -23,7 +23,9 @@ export function registerWindowTools(ctx: Context): void {
     parameters: { seat: { type: 'string', required: true } },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = ctx.get('seats')
+      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
+        session: exec.agent.session, callId: exec.callId,
+      })
       if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
       return JSON.stringify(await seats.open({ seat: args.seat as SeatName, origin: 'manual', openingMode: 'auto',
         operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))
@@ -38,7 +40,9 @@ export function registerWindowTools(ctx: Context): void {
       },
       output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
       async execute(args, exec) {
-        const seats = ctx.get('seats')
+        const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
+          session: exec.agent.session, callId: exec.callId,
+        })
         if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
         const request = { sessionId: args.sessionId as SessionId,
           operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }
@@ -59,7 +63,9 @@ export function registerWindowTools(ctx: Context): void {
     parameters: { seat: { type: 'string', required: true }, sessionId: { type: 'string' } },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = ctx.get('seats')
+      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
+        session: exec.agent.session, callId: exec.callId,
+      })
       if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
       return JSON.stringify(await seats.wake({ seat: args.seat as SeatName,
         ...args.sessionId === undefined ? {} : { sessionId: args.sessionId as SessionId },

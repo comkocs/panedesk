@@ -8,7 +8,7 @@ import { createOpenExecutor } from './executor.ts'
 import { installCreateAdmission } from './create-admission.ts'
 import { engineOpeningGate } from './open-gates.ts'
 import { installPolicyHosts } from './policy-hosts.ts'
-import { createEngineAccess, registerLocalReadAccess, registerLocalSessionAccess } from './engine-access.ts'
+import { createEngineAccess, registerLocalReadAccess, registerLocalSessionAccess, registerLocalWindowsAccess } from './engine-access.ts'
 import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
 import { closingState } from './closing-service.ts'
@@ -59,6 +59,7 @@ export function apply(ctx: Context, config: Config): void {
       const installed = service
       registerLocalReadAccess(ctx, installed, config)
       registerLocalSessionAccess(ctx, installed, config)
+      registerLocalWindowsAccess(ctx, installed, config)
       installCreateAdmission(ctx, installed, store)
       closeHosts = await installPolicyHosts(ctx, facility)
       const catalog = store
