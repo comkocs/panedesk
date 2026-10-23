@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { SessionLedger } from '@panedesk/dsh-session-ledger'
-import { SeatEngineService, type SeatService } from '@panedesk/dsh-seat'
+import { SEAT_ENGINE_NAMESPACE, SeatEngineService, type SeatService } from '@panedesk/dsh-seat'
 import type * as T from '@panedesk/dsh-seat'
-import { EngineJournal, EngineError, digest, decodeFrame, canonical } from './journal.ts'
+import { EngineJournal, EngineError, digest, decodeFrame, canonical, frame } from './journal.ts'
 import { SourceRegistry } from './sources.ts'
 import { TriggerRegistry, rejected, fact } from './triggers.ts'
 import { CallbackOutbox } from './outbox.ts'
@@ -132,15 +132,32 @@ export class SeatEngine extends SeatEngineService {
     await this.ready()
     const decision = decodeFrame(canonical(request.decision), this.options.config.maxDecisionBytes)
     let conflict: number | undefined
+    let replay: T.EngineDecision | undefined
     const committed = await this.journal.commit((view) => {
+      replay = view.decisions.find(item => item.decisionId === decision.decisionId)
+      if (replay) return []
       if (view.sequence !== request.expectedSequence) { conflict = view.sequence; return [] }
       if (decision.nodeId !== this.options.nodeId || decision.sequence !== view.sequence + 1) throw new EngineError('invalid-request',
         'Decision does not target the current node sequence')
       return decision.effects
-    }, decision.policyRevision)
+    }, decision.policyRevision, { decisionId: decision.decisionId, observedAt: decision.observedAt })
     await this.publish()
+    const result = replay ?? committed
     return conflict !== undefined ? { status: 'conflict', actualSequence: conflict }
-      : committed ? { status: 'committed', decision: committed } : rejected('invalid-request', 'Decision must contain effects')
+      : result ? { status: 'committed', decision: result } : rejected('invalid-request', 'Decision must contain effects')
+  }
+  async appendEffects(request: Parameters<SeatEngineService['appendEffects']>[0]): Promise<T.EngineTransactionResult> {
+    let decision: T.EngineDecision
+    try {
+      decision = decodeFrame(canonical(frame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
+        decisionId: request.decisionId, sequence: request.expectedSequence + 1, nodeId: this.options.nodeId,
+        observedAt: request.observedAt, policyRevision: request.policyRevision, effects: request.effects,
+      })), this.options.config.maxDecisionBytes)
+    } catch (error) {
+      if (!(error instanceof EngineError || error instanceof TypeError || error instanceof RangeError)) throw error
+      return rejected('invalid-request', 'Decision effects cannot be encoded or validated')
+    }
+    return this.transact({ expectedSequence: request.expectedSequence, decision })
   }
   async projectPolicy(projectId: T.SeatProjectId): Promise<T.SeatProjectPolicy> {
     await this.ready()
