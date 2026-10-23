@@ -1,13 +1,37 @@
 /** Bounded, per-agent instruction subscriptions checked before input claim. */
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, constants, fstatSync, openSync, readSync } from 'node:fs'
-import type { Context } from '@panedesk/cordis'
+import { Service, type Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { agentEvents, type Agent } from '@panedesk/dsh-agent'
 import { brandString } from '@panedesk/dsh-brand'
 import type { FileSystem } from '@panedesk/dsh-fs'
 import type { OperationId } from '@panedesk/dsh-message-delivery'
 import type {} from '@panedesk/dsh-agent-instructions/events'
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    instructionSubscriptions: InstructionSubscriptionService
+  }
+}
+
+/** Session-local registration; callers restore their durable path list during creation setup. */
+export class InstructionSubscriptionService extends Service {
+  constructor(ctx: Context,
+    private readonly registerFiles: (agent: Agent, files: readonly string[]) => Promise<() => Promise<void>>) {
+    super(ctx, 'instructionSubscriptions')
+  }
+
+  /**
+   * Register paths on an exact agent, including an unpublished creation setup.
+   * @param agent - owner of path resolution and subscription lifetime.
+   * @param files - paths resolved relative to the session working directory.
+   * @returns owner-scoped disposer; repeated paths share the existing subscription.
+   */
+  register(agent: Agent, files: readonly string[]): Promise<() => Promise<void>> {
+    return this.registerFiles(agent, files)
+  }
+}
 
 /** Stable plugin identity. */
 export const name = 'instruction-subscriptions'
@@ -34,6 +58,8 @@ interface Subscription {
   path: string
   snapshot: Snapshot
   dirty: boolean
+  permanent: boolean
+  owners: number
   close?: () => Promise<void>
 }
 interface AgentState {
@@ -158,7 +184,9 @@ export function apply(ctx: Context, config: Config): void {
     })
     return task
   }
-  const initialize = async (agent: Agent, state: AgentState, path: string, initialHash?: string): Promise<void> => {
+  const initialize = async (
+    agent: Agent, state: AgentState, path: string, initialHash?: string, permanent = true,
+  ): Promise<Subscription | undefined> => {
     const fs = ctx.get('fs')
     if (fs === undefined) return
     state.lifecycle.signal.throwIfAborted()
@@ -167,12 +195,16 @@ export function apply(ctx: Context, config: Config): void {
       signal: state.lifecycle.signal,
     })
     const canonical = fs.processPath(target)
-    if (state.files.has(canonical)) return
-    const subscription: Subscription = { path: canonical, dirty: false, snapshot: { status: 'unreadable', hash: null } }
-    state.files.set(canonical, subscription)
+    const existing = state.files.get(canonical)
+    if (existing !== undefined) {
+      if (permanent) existing.permanent = true
+      return existing
+    }
+    const subscription: Subscription = { path: canonical, dirty: false, permanent, owners: 0, snapshot: { status: 'unreadable', hash: null } }
     const snapshot = fs.processPathFromHostPath(canonical) === canonical
       ? scanLocal(canonical, config.maxBytes, state.lifecycle.signal)
       : await scan(fs, canonical, config.maxBytes, state.lifecycle.signal)
+    state.files.set(canonical, subscription)
     retain(state, subscription, initialHash !== undefined && snapshot.hash !== initialHash
       ? { status: 'present', hash: initialHash } : snapshot)
     if (watch) {
@@ -184,7 +216,43 @@ export function apply(ctx: Context, config: Config): void {
         if (!state.lifecycle.signal.aborted) ctx.logger.warn('Instruction subscription watcher unavailable; boundary scans remain active: %o', error)
       }
     }
+    return subscription
   }
+  new InstructionSubscriptionService(ctx, async (agent, requested) => {
+    if (ctx.get('messageDelivery') === undefined || ctx.get('fs') === undefined) {
+      throw new Error('Instruction subscriptions require filesystem and message delivery services')
+    }
+    const state = stateFor(agent)
+    const owned = new Set<Subscription>()
+    const release = async () => {
+      await enqueue(state, async () => {
+        for (const subscription of owned) {
+          subscription.owners--
+          if (subscription.owners === 0 && !subscription.permanent && state.files.get(subscription.path) === subscription) {
+            state.files.delete(subscription.path)
+            await subscription.close?.()
+          }
+        }
+        owned.clear()
+      })
+    }
+    const dispose = agent.ctx.effect(() => release, 'instruction-subscriptions.register()')
+    try {
+      await enqueue(state, async () => {
+        for (const path of requested) {
+          const subscription = await initialize(agent, state, path, undefined, false)
+          if (subscription !== undefined && !owned.has(subscription)) {
+            owned.add(subscription)
+            subscription.owners++
+          }
+        }
+      })
+    } catch (error: unknown) {
+      await dispose()
+      throw error
+    }
+    return async () => { await dispose() }
+  })
   ctx.on('agent/created', async ({ agent }) => {
     if (ctx.get('messageDelivery') === undefined || ctx.get('fs') === undefined) return
     const state = stateFor(agent)

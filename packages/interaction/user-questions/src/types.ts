@@ -125,6 +125,13 @@ declare module '@panedesk/dsh-session-projection/types' {
   }
 }
 
+/** Read-only live blocking requests alongside durable timed-question state. */
+export interface SessionPendingQuestions {
+  readonly available: boolean
+  readonly blocking: readonly { readonly questions: readonly AskUserQuestionItem[] }[]
+  readonly timed: readonly PendingUserQuestion[]
+}
+
 /** Client-safe payload declared for the user-question answerer waterfall. */
 export interface AskUserQuestionRequestEvent {
   /** Questions to display. */
@@ -147,6 +154,12 @@ export interface AskUserQuestionRequestEvent {
 
 declare module '@panedesk/cordis' {
   interface Events {
+    /**
+     * A live blocking request was established or settled; consumers re-read its snapshot.
+     * @param payload.sessionId - session whose pending requests changed.
+     * @mode emit
+     */
+    'user-questions/pending-changed'(payload: { sessionId: import('@panedesk/dsh-session/types').SessionId }): void
     /**
      * Ask composed answerers for structured user input. Return an answer to
      * claim the request or call `next()` to delegate. Scope-filtered dispatch

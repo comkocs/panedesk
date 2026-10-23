@@ -1,5 +1,5 @@
 /** Session cache policy, durable model-call accounting, and process-local admission. */
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { assembleContextFor } from '@panedesk/dsh-agent'
@@ -18,7 +18,7 @@ import { fingerprintPrefix, orderedTools } from './fingerprint.ts'
 import { resolveCachePolicy } from './policy.ts'
 import type { CacheRoute } from './policy.ts'
 import { cacheRemaining, foldCacheState } from './state.ts'
-import type { CacheRemaining } from './types.ts'
+import type { CacheRemaining, CacheRenewRequest, CacheRenewResult } from './types.ts'
 import { scheduleKeepalive } from './keepalive.ts'
 import { callWaits } from './waits.ts'
 export type * from './types.ts'
@@ -52,7 +52,8 @@ declare module '@panedesk/cordis' {
 export class CacheService extends Service {
   constructor(ctx: Context,
     private readonly updateSession: (update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }) => Promise<void>,
-    private readonly remainingFor: (agent: Agent) => Promise<CacheRemaining>) {
+    private readonly remainingFor: (agent: Agent) => Promise<CacheRemaining>,
+    private readonly renewSession?: (request: CacheRenewRequest) => Promise<CacheRenewResult>) {
     super(ctx, 'llmCache')
   }
 
@@ -70,6 +71,15 @@ export class CacheService extends Service {
    */
   remaining(agent: Agent): Promise<CacheRemaining> {
     return this.remainingFor(agent)
+  }
+
+  /**
+   * Request at most one maintenance call under a durable operation identity.
+   * @param request - live session and caller-retained operation identity.
+   * @returns refusal, confirmed evidence, or uncertainty without replaying an attempted call.
+   */
+  renewOnce(request: CacheRenewRequest): Promise<CacheRenewResult> {
+    return this.renewSession?.(request) ?? Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' })
   }
 }
 /** Configuration defaults never enable keepalive implicitly. */
@@ -214,7 +224,7 @@ export function apply(ctx: Context, config: Config): void {
     state.timer.unref()
   }
 
-  async function maintain(id: string, state: SessionState): Promise<void> {
+  async function maintain(id: string, state: SessionState, beforeDispatch?: () => Promise<boolean>): Promise<void> {
     state.lastAttempt = Date.now()
     const agent = ctx.agents.list().find(candidate => candidate.id === id)
     const request = state.request
@@ -237,6 +247,7 @@ export function apply(ctx: Context, config: Config): void {
           state.evidence = undefined
           return
         }
+        if (beforeDispatch !== undefined && !await beforeDispatch()) return
         const refresh: GenerateOptions = {
           provider: request.provider, model: request.model,
           system: requestSystem(request), tools: structuredClone(tools),
@@ -276,6 +287,66 @@ export function apply(ctx: Context, config: Config): void {
       await state.pending
       arm(id, state)
     }
+  }
+
+  const renewals = new Map<string, Promise<CacheRenewResult>>()
+  function renewOnce(request: CacheRenewRequest): Promise<CacheRenewResult> {
+    const key = JSON.stringify([request.sessionId, request.operationId])
+    const existing = renewals.get(key)
+    if (existing !== undefined) return existing
+    const operation = renew(request).finally(() => { renewals.delete(key) })
+    renewals.set(key, operation)
+    const settled = operation.then(() => {}, () => {}).finally(() => { operations.delete(settled) })
+    operations.add(settled)
+    return operation
+  }
+
+  async function renew(request: CacheRenewRequest): Promise<CacheRenewResult> {
+    const agent = ctx.agents.get(request.sessionId)
+    if (agent === undefined) return { kind: 'rejected', reason: 'session-unavailable' }
+    const state = states.get(agent.id)
+    if (state === undefined || state.request === undefined || state.stopped) return { kind: 'rejected', reason: 'cache-evidence-unavailable' }
+    const service = ledger()
+    if (service === undefined || state.failure !== undefined) return { kind: 'rejected', reason: 'ledger-unavailable' }
+    const eligible = (): CacheRenewResult | undefined => {
+      if (agent.status !== 'idle' || state.inFlight !== 0 || state.active.size !== 0) return { kind: 'rejected', reason: 'busy' }
+      const remaining = cacheRemaining(state.evidence, Date.now())
+      if (remaining.kind !== 'estimated' || remaining.evidenceAt > Date.now()) return { kind: 'rejected', reason: 'cache-evidence-unavailable' }
+      if (remaining.seconds <= 0) return { kind: 'rejected', reason: 'cache-expired' }
+      if (state.reasons.size !== 0) return { kind: 'rejected', reason: 'prefix-changed' }
+      return undefined
+    }
+    const rejected = eligible()
+    if (rejected !== undefined) return rejected
+    const eventId = `cache-renew:${createHash('sha256').update(JSON.stringify([request.sessionId, request.operationId])).digest('hex')}` as LedgerEventId
+    const snapshot = await service.snapshot({ sessionId: request.sessionId })
+    if (!snapshot.complete) return { kind: 'rejected', reason: 'ledger-unavailable' }
+    if (snapshot.rows.some(row => row.kind === 'event' && row.event.eventId === eventId)) return { kind: 'uncertain', reason: 'prior-attempt' }
+    const start = state.lastStart
+    if (start === undefined) return { kind: 'rejected', reason: 'cache-evidence-unavailable' }
+    const attempt: { refusal?: CacheRenewResult; dispatched: boolean } = { dispatched: false }
+    const previousEvidence = state.evidence?.lastCacheEvidenceAt
+    await maintain(agent.id, state, async () => {
+      // runMaintenance owns the idle phase while this durable claim is committed.
+      const refusal = eligible()
+      if (refusal !== undefined) { attempt.refusal = refusal; return false }
+      // A failed acknowledgement cannot establish whether the durable claim committed.
+      attempt.refusal = { kind: 'uncertain', reason: 'prior-attempt' }
+      const claim = await service.appendEvent({ schemaVersion: 1, eventId, nodeId: start.nodeId,
+        sessionId: request.sessionId, runId: start.runId, observedAt: Date.now(), kind: 'alert',
+        alert: { code: 'cache-renew-once-attempt', message: 'Explicit cache maintenance attempt reserved', redacted: true } })
+      if (claim.kind !== 'appended') return false
+      delete attempt.refusal
+      attempt.dispatched = true
+      return true
+    })
+    if (attempt.refusal !== undefined) return attempt.refusal
+    if (!attempt.dispatched) return { kind: 'rejected', reason: state.evidence === undefined ? 'prefix-changed' : 'busy' }
+    const current = states.get(agent.id)
+    const evidenceAt = current?.evidence?.lastCacheEvidenceAt
+    return evidenceAt !== undefined && evidenceAt !== previousEvidence && current?.failure === undefined
+      ? { kind: 'renewed', evidenceAt }
+      : { kind: 'uncertain', reason: 'maintenance-unconfirmed' }
   }
 
   ctx.on('agent/created', async ({ agent }) => {
@@ -351,7 +422,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     await state.pending
     arm(agent.id, state)
-  }, agent => Promise.resolve(cacheRemaining(states.get(agent.id)?.evidence, Date.now())))
+  }, agent => Promise.resolve(cacheRemaining(states.get(agent.id)?.evidence, Date.now())), renewOnce)
   ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
     const assembly = await next()
     if (context.agent === undefined || ledger() === undefined) return assembly

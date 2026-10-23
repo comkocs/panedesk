@@ -55,6 +55,7 @@
     "@panedesk/dsh-session-projection": "workspace:*"
   },
   "devDependencies": {
+    "@panedesk/dsh-agent-loop-testkit": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",

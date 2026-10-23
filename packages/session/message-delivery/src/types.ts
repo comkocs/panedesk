@@ -176,7 +176,9 @@ export interface MessageQuery {
   readonly messageClasses?: readonly MessageClass[]
   readonly unansweredOlderThanMinutes?: number
   readonly includeTerminal?: boolean
+  /** Provider-issued exclusive continuation; retain the same filters when continuing a live scan. */
   readonly cursor?: MessageCursor
+  /** Positive page size; omission uses the provider's configured limit. */
   readonly limit?: number
 }
 /** Incomplete storage scans are visible and never masquerade as an empty complete result. */

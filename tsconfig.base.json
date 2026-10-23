@@ -370,6 +370,7 @@
       "@panedesk/dsh-compaction-image-offload/projection": ["./packages/compaction/compaction-image-offload/src/projection.ts"],
       "@panedesk/dsh-session-format-catalog/message-projections": ["./packages/session/session-format-catalog/src/message-projections.ts"],
       "@panedesk/dsh-session-ledger/messages": ["./packages/session/session-ledger/src/messages.ts"],
+      "@panedesk/dsh-agent-instructions/events": ["./packages/context/agent-instructions/src/events.ts"],
       "@panedesk/dsh-native-command/types": ["./packages/util/native-command/src/types.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@panedesk/dsh-acp": ["./packages/acp/acp/src"],

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import z from '@panedesk/schemastery'
 import { reconcileRuns, startWatching } from './watch.ts'
 import type { ReconcileReport } from './watch.ts'
-import type { LedgerWatchOptions } from './types.ts'
+import type { LedgerWatchOptions, LedgerOwnerSettled } from './types.ts'
 export type * from './types.ts'
 
 /** Loader plugin identity. */
@@ -49,7 +49,18 @@ function attachWatcher(ctx: Context, config: Config): void {
     await rename(path, config.healthPath)
   }
   const options = { nodeId: config.nodeId as LedgerNodeId, intervalMs: config.intervalMs, settlementBudgetMs: config.settlementBudgetMs,
-    onAlert: (code: string) => { console.error(`Ledger watcher alert: ${code}`) } }
+    onAlert: (code: string) => { console.error(`Ledger watcher alert: ${code}`) },
+    onOwnerSettled: (payload: LedgerOwnerSettled) => {
+      const args: unknown[] = ['ledger-watch/owner-settled', payload]
+      for (const callback of ctx.events.dispatch('emit', args)) {
+        try {
+          const returned: unknown = callback(...args)
+          void Promise.resolve(returned).catch(() => { ctx.logger.warn('Ledger owner settlement listener rejected') })
+        } catch (_error) {
+          ctx.logger.warn('Ledger owner settlement listener threw')
+        }
+      }
+    } }
   let stopped = false, running: Promise<unknown> = Promise.resolve(), stop: (() => Promise<void>) | undefined
   const start = () => {
     if (stopped) return

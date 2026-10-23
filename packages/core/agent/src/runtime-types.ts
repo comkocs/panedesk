@@ -145,6 +145,16 @@ export interface Inbox {
  */
 export type AgentStatus = 'idle' | 'running'
 
+/** Creation policy evaluated before the factory acquires or publishes a session. */
+export type CreateAdmissionDecision =
+  | { readonly kind: 'allow' }
+  | { readonly kind: 'reject'; readonly reason: string }
+
+/** A deferred turn retains its input and waits for an explicit wake. */
+export type TurnAdmissionDecision =
+  | { readonly kind: 'allow' }
+  | { readonly kind: 'defer'; readonly reason: string }
+
 /** Whether and with which messages the loop enters a proposed step. */
 export type PreStepDecision =
   | { kind: 'reject' }
@@ -258,6 +268,9 @@ declare module './types.ts' {
    */
     followup(message: UserMessage): void
 
+    /** Retry pending work after an admission policy changes, without inserting a message. */
+    wake?(): void
+
     /**
    * Submit steering for the nearest step. An idle driver starts a turn;
    * a running driver consumes it at its next step boundary.
@@ -281,6 +294,22 @@ declare module './types.ts' {
 
 declare module '@panedesk/cordis' {
   interface Events {
+    /**
+     * Admit a fresh factory request before any session is acquired. Resume bypasses this hook.
+     * @param payload.options - caller-owned creation request, including explicit parent identity.
+     * @param next - delegate to remaining policies; the default allows creation.
+     * @mode waterfall
+     */
+    'agent/create-admitting'(payload: { options: import('./index.ts').CreateAgentOptions }, next: () => Promise<CreateAdmissionDecision>): Promise<CreateAdmissionDecision>
+    /**
+     * Admit a new turn before its boundary or first input claim. Existing steps are unaffected.
+     * @param payload.agent - agent proposing a new turn.
+     * @param payload.turn - proposed turn number.
+     * @param payload.signal - cancellation signal for this proposal.
+     * @param next - delegate to remaining policies; the default allows the turn.
+     * @mode waterfall
+     */
+    'agent/turn-admitting'(this: Scoped<Agent>, payload: { agent: Agent; turn: number; signal: AbortSignal }, next: () => TurnAdmissionDecision | Promise<TurnAdmissionDecision>): TurnAdmissionDecision | Promise<TurnAdmissionDecision>
     // ---- lifecycle ----
     /**
      * An entered agent is ready for per-agent initialization after factory setup.

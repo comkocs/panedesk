@@ -26,13 +26,13 @@ declare module '@panedesk/cordis' {
 }
 
 import type {
-  AskUserQuestionAnswer, AskUserQuestionRequestEvent, PendingUserQuestion,
+  AskUserQuestionAnswer, AskUserQuestionRequestEvent, PendingUserQuestion, SessionPendingQuestions,
 } from './types.ts'
 
 export type {
   AskUserQuestionAnswer, AskUserQuestionAnswerItem, AskUserQuestionIntent, AskUserQuestionItem,
   AskUserQuestionOption, PendingUserQuestion, SettledUserQuestion, UserQuestionProjectionView,
-  UserQuestionState,
+  UserQuestionState, SessionPendingQuestions,
 } from './types.ts'
 export { isTimedAskUserQuestionSchema, TIMED_WAIT_PARAMETER } from './projection.ts'
 
@@ -78,6 +78,7 @@ type QueuedReply = { messageId: MessageId; claimedTurn?: number }
 /** `ctx.userQuestions`: validation plus the scoped answerer waterfall. */
 export class UserQuestionService extends TypertRemoteService {
   static Config = z.object({})
+  private readonly blocking = new WeakMap<Session, Set<AskUserQuestionRequest>>()
   private readonly waits = new Map<Agent, Map<ToolCallId, TimedQuestionWait>>()
   private readonly queuedReplies = new WeakMap<Session, Map<ToolCallId, QueuedReply>>()
 
@@ -140,6 +141,32 @@ export class UserQuestionService extends TypertRemoteService {
         'human interaction is unavailable while the calling agent is owned by another live agent; '
         + "include the unresolved question or decision in the child agent's final result",
         'DELEGATED_CALLER')
+    }
+  }
+
+  /**
+   * Read pending questions without creating a human interaction or resuming an agent.
+   * @param session - exact attached session whose projection and live waits are requested.
+   * @returns detached snapshot; unavailable projection is never reported as known empty.
+   */
+  pendingForSession(session: Session): SessionPendingQuestions {
+    const state = this.ctx.get('sessionProjections')?.stateOf(session, 'userQuestions')
+    return structuredClone({
+      available: state !== undefined,
+      blocking: [...this.blocking.get(session) ?? []].map(request => ({ questions: request.questions })),
+      timed: state?.questions.active ?? [],
+    })
+  }
+
+  private notifyPending(session: Session): void {
+    const args: unknown[] = ['user-questions/pending-changed', { sessionId: session.id }]
+    for (const callback of this.ctx.events.dispatch('emit', args)) {
+      try {
+        const returned: unknown = callback(...args)
+        void Promise.resolve(returned).catch(() => { this.ctx.logger.warn('Pending question listener rejected') })
+      } catch (_error) {
+        this.ctx.logger.warn('Pending question listener threw')
+      }
     }
   }
 
@@ -319,6 +346,12 @@ export class UserQuestionService extends TypertRemoteService {
       'no user-questions answerer accepted the request',
       'NO_PROVIDER',
     ))
+    const pending = agent === undefined ? undefined : this.blocking.get(agent.session) ?? new Set<AskUserQuestionRequest>()
+    if (agent !== undefined && pending !== undefined) {
+      pending.add(request)
+      this.blocking.set(agent.session, pending)
+      this.notifyPending(agent.session)
+    }
     try {
       return await (agent === undefined
         ? this.ctx.waterfall('user-questions/request', request, noAnswerer)
@@ -335,6 +368,11 @@ export class UserQuestionService extends TypertRemoteService {
         throw abortedQuestion(error)
       }
       throw restored
+    } finally {
+      if (agent !== undefined && pending !== undefined) {
+        pending.delete(request)
+        this.notifyPending(agent.session)
+      }
     }
   }
 }

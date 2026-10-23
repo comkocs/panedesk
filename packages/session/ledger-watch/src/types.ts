@@ -1,3 +1,25 @@
+import type { LedgerRunStart, LedgerRunFinish } from '@panedesk/dsh-session-ledger'
+
+/** Confirmed durable owner death, published before repairing its unfinished calls. */
+export interface LedgerOwnerSettled {
+  readonly start: LedgerRunStart
+  readonly finish: LedgerRunFinish
+  readonly deathObservedAt: number
+  readonly persistedAt: number
+  readonly latencyMs: number
+}
+
+declare module '@panedesk/cordis' {
+  interface Events {
+    /**
+     * A killed run has a durable terminal acknowledgement; consumers must fence by run identity.
+     * @param payload - exact owner and acknowledged terminal evidence; repeat delivery is possible.
+     * @mode emit
+     */
+    'ledger-watch/owner-settled'(payload: LedgerOwnerSettled): void
+  }
+}
+
 /** Process-observation settings for independent ledger reconciliation. */
 export interface LedgerWatchOptions {
   /** Milliseconds between scans; the operational target is two seconds. */
