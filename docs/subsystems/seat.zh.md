@@ -413,6 +413,24 @@ Types: [Session](session.zh.md)
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
 
+<a id="ctxseatlocalwindows--seatlocalwindowsaccess"></a>
+
+### `ctx.seatLocalWindows` — `SeatLocalWindowsAccess`
+
+Provider-owned authorization for explicitly selected windows on this node.
+
+```ts cordis-catalog
+/** Capture the executor's live Session and tool call, not a target window identity.
+ * @param invocation - trusted executor context; the Session must remain registered.
+ * @returns six operations stamped with this invocation's stable operation identity.
+ */
+forInvocation(invocation: { session: import('@panedesk/dsh-session').Session callId: import('@panedesk/dsh-brand').Branded<'ToolCallId'> }): SeatWindowOperations
+```
+
+Types: [Session](session.zh.md) · [ToolCallId](core.zh.md)
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
 <a id="ctxseatreminderhost--seatreminderhost"></a>
 
 ### `ctx.seatReminderHost` — `SeatReminderHost`

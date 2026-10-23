@@ -138,6 +138,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Authorizes waits and reports only for the exact live calling Session.',
   },
   {
+    key: 'seatLocalWindows', pkg: 'seat', title: 'Invocation-scoped window operations', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['tool-seat'],
+    note: 'Authorizes window operations only for the live calling Session and tool call.',
+  },
+  {
     key: 'seatLocalCreation', pkg: 'seat-local', title: 'Confirmed traditional creation', mode: 'service',
     note: 'Scopes single-use authenticated directory choices and releases temporary creation ownership.',
   },

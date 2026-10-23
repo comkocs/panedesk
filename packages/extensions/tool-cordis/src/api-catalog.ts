@@ -2643,6 +2643,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatLocalWindows',
+    summary: 'Provider-owned authorization for explicitly selected windows on this node.',
+    description: 'Provider-owned authorization for explicitly selected windows on this node.',
+    methods: [
+      {
+        signature: 'forInvocation(invocation: { session: import(\'@panedesk/dsh-session\').Session callId: import(\'@panedesk/dsh-brand\').Branded<\'ToolCallId\'> }): SeatWindowOperations',
+        description: 'Capture the executor\'s live Session and tool call, not a target window identity.',
+        parameters: [{ name: 'invocation', description: 'trusted executor context; the Session must remain registered.' }],
+        returns: 'six operations stamped with this invocation\'s stable operation identity.',
+      },
+    ],
+  },
+  {
     key: 'seatReminderHost',
     summary: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
     description: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
@@ -9485,6 +9498,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatWindowCandidate',
     declaration: 'export interface SeatWindowCandidate {\n    seat: SeatName;\n    sessionId: SessionId;\n    title: string;\n    nodeId: SeatNodeId;\n}',
+  },
+  {
+    name: 'SeatWindowOperations',
+    declaration: 'export interface SeatWindowOperations extends Pick<SeatService, \'open\' | \'renew\' | \'replace\' | \'close\' | \'rename\' | \'wake\'> {\n}',
   },
   {
     name: 'SeatWindowStatus',
