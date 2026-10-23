@@ -13105,6 +13105,9 @@ importers:
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../seat-engine
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
