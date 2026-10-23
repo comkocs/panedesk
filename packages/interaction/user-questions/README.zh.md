@@ -11,6 +11,8 @@ kind: "package-reference"
 
 当工具或权限流程需要用户提供结构化答案时，使用 `ctx.userQuestions`。`ask()` 会等待回答；`askTimed()` 可以放行 agent 继续独立工作，而问题仍留在会话中供用户回答。
 
+`pending` 提供精确会话的只读视图，包含计划评审问题，不激活 Session。投影证据不可用时保持不可用，不伪装为空的待答集合；结算后移除待处理项。
+
 ## 目录
 
 - [提出问题](#service-userquestionservice-ctx-key-userquestions)

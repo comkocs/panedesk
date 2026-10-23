@@ -1,5 +1,5 @@
 ---
-description: "Independent ledger process watcher plugin scaffold."
+description: "Optional ledger owner reconciliation and process watching."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Independent ledger process watcher plugin scaffold. The package exposes validated configuration and an inert function plugin. Loading it registers no hooks, timers, commands, or services.
+Optional ledger owner reconciliation and process watching. With a Session ledger provider, the plugin reconciles the configured local node at startup or polls continuously when explicitly enabled. Disposal stops watching and waits for the current round; without a ledger provider it stays inactive.
 
 ## Table of Contents
 
@@ -21,12 +21,14 @@ Independent ledger process watcher plugin scaffold. The package exposes validate
 <a id="use-this-package"></a>
 ## Use this package
 
+After durably identifying a dead owner, the watcher emits `ledger-watch/owner-settled` for that exact identity before slow call repair. Unknown owner evidence or a racing normal terminal does not authorize release. Notification failures are contained without skipping existing repair; consumers own their resource release.
+
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Owner reconciliation
 
 #### What the model sees
 
@@ -34,17 +36,17 @@ Import public types from the package entry. The package is Host-only and does no
 
 #### Token effect
 
-The scaffold dispatches no model requests and adds no input or output tokens.
+The watcher dispatches no model requests and adds no input or output tokens.
 
 #### KV Cache effect
 
-The scaffold neither modifies request prefixes nor creates or refreshes cache entries.
+The watcher neither modifies request prefixes nor creates or refreshes cache entries.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This package supplies declarations and a scaffold only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
+- Reconciliation requires authoritative evidence for the configured local node; unknown process evidence does not authorize owner release. Consumers handle resource release after the durable settlement notification.
 
 <a id="dev-note"></a>
 ### Dev Note

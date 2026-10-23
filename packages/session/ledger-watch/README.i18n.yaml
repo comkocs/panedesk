@@ -3,38 +3,38 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/session/ledger-watch/README.md
 /:
-  en: 152a0f2eacb83ffc
-  zh: 8b1eca134642ba25
+  en: 9939d40dfd268306
+  zh: 2dd869122a7db59d
 /panedesk-dsh-ledger-watch:
   en: 5f6dde31c0fc1bb6
   zh: 9a366912c3b1d37d
 /panedesk-dsh-ledger-watch/summary:
-  en: 3e031c7045c14b81
-  zh: 3dbac4a53c651b15
+  en: b2dee4c4561f7d01
+  zh: d7aed2dd0ab2e43d
 /panedesk-dsh-ledger-watch/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 65e6e399d6b474c7
 /panedesk-dsh-ledger-watch/use-this-package:
-  en: 03a2708a9ed3df63
-  zh: d37fed8e112c9df3
+  en: f2186f21880b86c4
+  zh: 1ea29fdcd3cdb155
 /panedesk-dsh-ledger-watch/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-ledger-watch/model-experience/inactive-scaffold:
-  en: e62c1383726153d5
-  zh: 3bb528512c369e35
-/panedesk-dsh-ledger-watch/model-experience/inactive-scaffold/what-the-model-sees:
+/panedesk-dsh-ledger-watch/model-experience/owner-reconciliation:
+  en: 873843cac012bf31
+  zh: 43b801bafe3ee6e4
+/panedesk-dsh-ledger-watch/model-experience/owner-reconciliation/what-the-model-sees:
   en: 6a86a8f8b101145f
   zh: 20d268b66e850187
-/panedesk-dsh-ledger-watch/model-experience/inactive-scaffold/token-effect:
-  en: 0ff46621086b65e2
-  zh: e718a12e119a30f0
-/panedesk-dsh-ledger-watch/model-experience/inactive-scaffold/kv-cache-effect:
-  en: 49cbbefffbad012b
-  zh: 895288b7bc5c4987
+/panedesk-dsh-ledger-watch/model-experience/owner-reconciliation/token-effect:
+  en: 5dd2484d01dfbce7
+  zh: a5ce522214c711ce
+/panedesk-dsh-ledger-watch/model-experience/owner-reconciliation/kv-cache-effect:
+  en: f16b4b6b8e2df45e
+  zh: 56274183f1e7afdd
 /panedesk-dsh-ledger-watch/known-limitations-and-deferred-work:
-  en: 89cea0d221c02e86
-  zh: d7e0d57c062fac72
+  en: 9fdcd86c002923f0
+  zh: 95c8e6a617e7ea3e
 /panedesk-dsh-ledger-watch/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

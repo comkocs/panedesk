@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Use `ctx.userQuestions` when a tool or permission flow needs a structured answer from the user. `ask()` waits for that answer; `askTimed()` may release the agent to continue independent work while the question remains answerable in the Session.
 
+`pending` exposes an exact-session read-only view, including plan-review questions, without activating a Session. Unavailable projection evidence remains unavailable rather than an empty answerable set; settlement removes the pending item.
+
 ## Table of Contents
 
 - [Ask a question](#service-userquestionservice-ctx-key-userquestions)

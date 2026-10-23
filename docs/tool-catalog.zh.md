@@ -40,6 +40,7 @@
 | `@panedesk/dsh-tool-schedule` | `schedule_create`、`schedule_delete`、`schedule_list`、`schedule_update` | `ctx.tools`、`ctx.schedule` | `tool/call`、Schedule storage domain 创建、更新或删除、`tool/result` | - | preset 或 Agent scope 挂载本包；由 preset 决定哪些 agent 获得这四个管理工具。每次调用都作用于调用方 Agent 的 Session。接受 after_seconds、显式绝对 at、有界固定速率 every_seconds、带显式 IANA 时区的每日与每周本地时间，以及作为五字段表达式的 cron。管理使用宿主 storage domain；到期消息会恢复原 Session。 |
 | `@panedesk/dsh-tool-lsp` | `lsp` | `ctx.workingDirectory`、`ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@panedesk/dsh-lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
 | `@panedesk/dsh-tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
+| `@panedesk/dsh-tool-seat` | `seat_cancel_wait`, `seat_close`, `seat_directories`, `seat_edit`, `seat_open`, `seat_read`, `seat_rename`, `seat_renew`, `seat_replace`, `seat_report`, `seat_revoke_report`, `seat_wait`, `seat_wake`, `seat_windows`, `seat_write` | `ctx.tools`, `ctx.seats`, `ctx.seatDirectories`, `a calling Agent` | `tool/call`, `tool/result`, `seat engine records through providers` | - | 仅用于显式席位组合。等待登记结束本轮而不轮询；目录工具保留提供方权限。 |
 | `@panedesk/dsh-tool-skill` | `skill` | `ctx.workingDirectory`、`ctx.tools`、`ctx.agents`、`ctx.skills` | `tool/call`、`tool/result`、`user/message replacement catalogs via agent.inject()` | - | - |
 | `@panedesk/dsh-tool-session-query` | `session_event_read`、`session_event_search`、`session_event_trace`、`session_search`、`session_trace` | `ctx.tools`、`ctx.systemPrompt`、`ctx.sessionQuery`、`a calling Agent for workspace authority` | `tool/call`、`tool/result` | - | 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。 |
 | `@panedesk/dsh-tool-subagent` | `list_subagent_models`、`subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt`、`用于模型发现和所选路由校验的 ctx.llm` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `provider` 选择后端，通过 `modelSelectionSettings` 读取模型选择设置。每次委派都会立即返回子代理 id；本地子代理接受后续消息，外部后端自动汇报单次执行结果。 |
@@ -1807,6 +1808,493 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 来源：[`packages/experimental/tool-ralph/src/index.ts`](../packages/experimental/tool-ralph/src/index.ts)
 
 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。
+
+<a id="panedeskdsh-tool-seat"></a>
+
+## `@panedesk/dsh-tool-seat`
+
+### `seat_cancel_wait`
+
+取消自己的等待登记，不取消底层任务。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "waitId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "waitId",
+    "expectedStateVersion"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_close`
+
+关闭显式选择的本地窗口。忙碌窗口拒绝关闭；替换先开新窗，再关旧窗。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_directories`
+
+列出已登记的目录根及有效写权限。这些权限不改变 shell 访问权限。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_edit`
+
+在已登记根目录内替换精确文本，权限与 seat_write 相同。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "relativePath": {
+      "type": "string"
+    },
+    "oldText": {
+      "type": "string"
+    },
+    "newText": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "rootId",
+    "relativePath",
+    "oldText",
+    "newText"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_open`
+
+打开一个显式点名的本地席位。既有窗口与准入限制仍然生效。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seat": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "seat"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_read`
+
+读取已登记根目录内的相对路径。发生截断时明确报告。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "relativePath": {
+      "type": "string"
+    },
+    "maxBytes": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "rootId",
+    "relativePath",
+    "maxBytes"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_rename`
+
+重命名显式选择的本地窗口。忙碌窗口拒绝关闭；替换先开新窗，再关旧窗。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_renew`
+
+续开显式选择的本地窗口。忙碌窗口拒绝关闭；替换先开新窗，再关旧窗。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_replace`
+
+替换显式选择的本地窗口。忙碌窗口拒绝关闭；替换先开新窗，再关旧窗。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_report`
+
+报告是否可以关闭、正在等待什么以及下次何时打开。报告不会关闭忙碌窗口。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "canClose": {
+      "type": "boolean"
+    },
+    "waitingFor": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "subagent",
+              "job",
+              "schedule",
+              "message",
+              "other"
+            ]
+          },
+          "objectId": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "summary"
+        ]
+      }
+    },
+    "nextOpen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "at"
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "at"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "condition"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "description"
+              ]
+            }
+          ]
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "when",
+        "prerequisites"
+      ]
+    },
+    "stateVersion": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "canClose",
+    "waitingFor",
+    "nextOpen",
+    "stateVersion"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_revoke_report`
+
+凭当前状态版本撤销此前的关闭报告。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "reportId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "reportId",
+    "expectedStateVersion"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_wait`
+
+等待具名待处理对象中的任一项或全部。登记立即返回并结束本轮；完成时唤醒。等待期间不要休眠或轮询。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": [
+        "any",
+        "all"
+      ]
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "subagent",
+              "job",
+              "schedule",
+              "message"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ]
+      }
+    }
+  },
+  "required": [
+    "mode",
+    "objects"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_wake`
+
+向席位发送配置的唤醒文本；尚未打开时则打开。有多个窗口时必须显式选择。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seat": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "seat"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_windows`
+
+列出本地窗口、运行时忙碌原因、状态版本以及尚未打开的席位。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_write`
+
+在已登记根目录内写入。记忆归属、文件系统权限和审批仍然生效。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "relativePath": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "rootId",
+    "relativePath",
+    "content"
+  ]
+}
+```
+
+来源：[`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+仅用于显式席位组合。等待登记结束本轮而不轮询；目录工具保留提供方权限。
 
 <a id="panedeskdsh-tool-skill"></a>
 

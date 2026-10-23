@@ -1,0 +1,30 @@
+# Seat execution is opt-in; supply deployment policy before enabling the engine.
+- id: hmr
+  disabled: true
+
+- insert:
+    - id: seat-session-ledger
+      name: '@panedesk/dsh-session-ledger'
+    - id: seat-connection
+      name: '@panedesk/dsh-client-connection'
+    - id: seat-file-upload
+      name: '@panedesk/dsh-client-file-upload'
+    - id: seat-workspace
+      name: '@panedesk/dsh-workspace'
+    - id: seat-session-controller
+      name: '@panedesk/dsh-api-session-controller'
+    - id: seat-schedule
+      name: '@panedesk/dsh-schedule'
+    - id: seat-engine
+      name: '@panedesk/dsh-seat-engine'
+      disabled: true
+    - id: seat-local
+      name: '@panedesk/dsh-seat-local'
+    - id: seat-gates
+      name: '@panedesk/dsh-seat-gates'
+    - id: tool-seat
+      name: '@panedesk/dsh-tool-seat'
+    - id: seat-remote
+      name: '@panedesk/dsh-seat-remote'
+    - id: seat-app
+      name: '@panedesk/dsh-seat-app'

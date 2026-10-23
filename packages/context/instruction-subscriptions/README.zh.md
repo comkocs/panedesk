@@ -11,6 +11,8 @@ kind: "package-reference"
 
 此可选插件在输入认领前的 `agent/input-preparing` 通过 `MessageDelivery.send` 发送仅含元数据的规矩变更提醒。每个代理独立订阅实际加载的启动文件和显式配置的路径。缺少文件系统或投递服务时，上游行为不变。参见[会话持久化](../../../docs/subsystems/persistence.zh.md)。
 
+精确会话登记共享路径所有权，并返回异步释放器。释放一份登记时，仍由其他登记拥有的路径会保留。变更投递携带 steer 元数据，不携带文件内容，也不把订阅扩展到其他 Session。
+
 ## 目录
 
 - [开发备注](#dev-note)

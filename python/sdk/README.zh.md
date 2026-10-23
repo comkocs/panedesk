@@ -58,6 +58,11 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/saved-home") as harness:
     result = session.run("Continue the task.")
 ```
 
+<a id="seat-operations"></a>
+## 席位操作
+
+`HarnessClient.seats` 提供经校验的席位请求与嵌套结果。所选运行时组合必须提供席位服务；远程开窗使用自动模式。失败请求不会重试或转成普通提示词，绑定元数据不改变 Session 事件。
+
 ## 消息
 
 `HarnessClient.messages`、`DeepSeekHarness.messages` 和 `Session.messages` 提供 `send`、`withdraw`、`edit`、`reprioritize`、`invalidate`、`status`、`operation_status`、`list`、`resolve`、`send_batch`、`configure` 与 `subscribe`。请求模型与字典使用协议的 camelCase 字段；`MessageQuery.from_` 编码为 `from`。响应是类型化模型，明确区分已应用、待宿主裁决、被拒与未找到。传输失败而结果不确定时，应保留原 `operationId` 并查询 `operation_status`；离线控制已存储不等于撤回已确认。

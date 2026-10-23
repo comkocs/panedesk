@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/seat/seat-remote/README.md
+/:
+  en: 640d48530fbf5613
+  zh: f4503d85a0126ee2
+/panedesk-dsh-seat-remote:
+  en: 5686f77ddce66ba8
+  zh: c323a6610ccfafbc
+/panedesk-dsh-seat-remote/summary:
+  en: b608853b98244178
+  zh: 0ec2c629c96f8195
+/panedesk-dsh-seat-remote/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: eb58ef0ae27de817
+/panedesk-dsh-seat-remote/use-this-package:
+  en: 5208ef8817908ffd
+  zh: dacb23c23a06a3ef
+/panedesk-dsh-seat-remote/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-seat-remote/model-experience/remote-requests:
+  en: 7a2505582e0fdb20
+  zh: 5e263a4203f56547
+/panedesk-dsh-seat-remote/model-experience/remote-requests/what-the-model-sees:
+  en: 840679adcb362672
+  zh: a3a95c64396f9b8e
+/panedesk-dsh-seat-remote/model-experience/remote-requests/token-effect:
+  en: 8e96bdb85272a258
+  zh: 8b1130a2a63bac64
+/panedesk-dsh-seat-remote/model-experience/remote-requests/kv-cache-effect:
+  en: de2177a568787251
+  zh: 540732956a827bad
+/panedesk-dsh-seat-remote/known-limitations-and-deferred-work:
+  en: b34e86760e6797b2
+  zh: 19538a48f09f802d
+/panedesk-dsh-seat-remote/known-limitations-and-deferred-work/dev-note:
+  en: dd8ed939ecc29826
+  zh: 0bde6a2266f41512

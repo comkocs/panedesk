@@ -44,6 +44,7 @@ packages/    @panedesk/dsh-<pkg> workspaces at packages/<group>/<pkg>/
   plan/                 logged planning
   goal/                 session goals
   schedule/             scheduled follow-ups
+  seat/                 opt-in seat orchestration
   preset/               agent composition
   guard/                loop/tool guards
   extensions/           runtime self-modification

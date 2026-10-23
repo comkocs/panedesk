@@ -27,6 +27,8 @@ kind: "package-reference"
 
 在存在实时 agent 的任何地方挂载 `dsh-agent`：它提供 `ctx.agents` 以及插件、UI、钩子和编排器所面向编程的 `Agent` 句柄。在没有驱动器注册工厂之前，该服务保持惰性——随附驱动器是 `dsh-agent-loop`，因此最小的可用组合需要同时加载两者。
 
+可选的 `agent/create-admitting` 监听器在工厂、setup 或发布副作用前决定准入。拒绝保留结构化策略选项；没有监听器时保持原有委托。提供准备资源的调用方必须提供幂等、不抛错的 `releasePreparation` 回调；创建失败时释放准备资源。
+
 ### 创建或恢复 agent
 
 `ctx.agents.create()` 在一个身份下构建全新 agent 与会话；`ctx.agents.resume()` 加载持久化会话并在此基础上重建 agent。两者都委托给已注册工厂，并返回 `AgentHandle`——唯一能拆除该 agent 的对象。在任一操作的 options 中设置 `parentAgent`，可使结果成为运行时子级；省略它则得到运行时根级。`get(id)`、`list()` 与 `roots()` 用于查找实时 agent；`isOwnedBy(id, parent)` 用于检验这项确切的实时所有权关系。

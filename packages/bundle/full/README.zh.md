@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `@panedesk/full` 承载上游 DSH 的 headless 组合、web/ACP/SDK 应用、可选 bundle 和插件管理器。需要默认 slim 预设之外这些能力的用户，将它安装在 `panedesk` 启动器旁，即可启用 `full`、`web`、`acp` 和 `sdk` profile。它补充启动器，而不提供独立命令；运行 `panedesk full` 选择完整 headless 预设。
 
+可选的 `seat` profile 通过本承载包和[席位应用组合包](../../seat/seat-app/README.zh.md)解析席位包。安装承载包既不选择该 profile，也不启用自动开窗；引擎需要显式部署配置。
+
 ## 目录
 
 - [模型体验](#model-experience)

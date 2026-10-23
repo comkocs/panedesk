@@ -36,6 +36,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@panedesk/dsh-tool-schedule` | `schedule_create`, `schedule_delete`, `schedule_list`, `schedule_update` | `ctx.tools`, `ctx.schedule` | `tool/call`, `Schedule storage domain create, update, or delete`, `tool/result` | - | A preset or Agent scope mounts this package; the preset decides which agents receive the four management tools. Each call acts on the calling Agent's Session. Accepts after_seconds, explicit absolute at, bounded fixed-rate every_seconds, daily and weekly local times in an explicit IANA zone, and cron as a five-field expression. Management uses the Host storage domain; due messages resume the original Session. |
 | `@panedesk/dsh-tool-lsp` | `lsp` | `ctx.workingDirectory`, `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@panedesk/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
 | `@panedesk/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
+| `@panedesk/dsh-tool-seat` | `seat_cancel_wait`, `seat_close`, `seat_directories`, `seat_edit`, `seat_open`, `seat_read`, `seat_rename`, `seat_renew`, `seat_replace`, `seat_report`, `seat_revoke_report`, `seat_wait`, `seat_wake`, `seat_windows`, `seat_write` | `ctx.tools`, `ctx.seats`, `ctx.seatDirectories`, `a calling Agent` | `tool/call`, `tool/result`, `seat engine records through providers` | - | Explicit seat composition only. Wait registration concludes the turn without polling; directory tools preserve provider permissions. |
 | `@panedesk/dsh-tool-skill` | `skill` | `ctx.workingDirectory`, `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
 | `@panedesk/dsh-tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
 | `@panedesk/dsh-tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance selects its backend through `provider` and reads model-selection settings through `modelSelectionSettings`. Every delegation returns a child id promptly; local children accept follow-ups, while external backends report their single execution automatically. |
@@ -1801,6 +1802,493 @@ Run a foreground fresh-agent Ralph loop toward one immutable objective. Use only
 Source: [`packages/experimental/tool-ralph/src/index.ts`](../packages/experimental/tool-ralph/src/index.ts)
 
 A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap.
+
+<a id="panedeskdsh-tool-seat"></a>
+
+## `@panedesk/dsh-tool-seat`
+
+### `seat_cancel_wait`
+
+Cancel your wait registration without cancelling the underlying tasks.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "waitId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "waitId",
+    "expectedStateVersion"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_close`
+
+close an explicitly selected local window. Closing refuses busy windows; replacement opens new before closing old.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_directories`
+
+List your registered directory roots and their effective write permissions. These permissions do not change shell access.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_edit`
+
+Replace exact text within a registered root under the same permissions as seat_write.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "relativePath": {
+      "type": "string"
+    },
+    "oldText": {
+      "type": "string"
+    },
+    "newText": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "rootId",
+    "relativePath",
+    "oldText",
+    "newText"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_open`
+
+Open one explicitly named local seat. Existing windows and admission limits remain enforced.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seat": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "seat"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_read`
+
+Read a relative path within one of your registered roots. Truncation is reported explicitly.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "relativePath": {
+      "type": "string"
+    },
+    "maxBytes": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "rootId",
+    "relativePath",
+    "maxBytes"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_rename`
+
+rename an explicitly selected local window. Closing refuses busy windows; replacement opens new before closing old.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_renew`
+
+renew an explicitly selected local window. Closing refuses busy windows; replacement opens new before closing old.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_replace`
+
+replace an explicitly selected local window. Closing refuses busy windows; replacement opens new before closing old.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_report`
+
+Report whether you can close, what you are waiting for, and when to open next. A report does not close a busy window.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "canClose": {
+      "type": "boolean"
+    },
+    "waitingFor": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "subagent",
+              "job",
+              "schedule",
+              "message",
+              "other"
+            ]
+          },
+          "objectId": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "summary"
+        ]
+      }
+    },
+    "nextOpen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "unspecified"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "at"
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "at"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "condition"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "description"
+              ]
+            }
+          ]
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "when",
+        "prerequisites"
+      ]
+    },
+    "stateVersion": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "canClose",
+    "waitingFor",
+    "nextOpen",
+    "stateVersion"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_revoke_report`
+
+Revoke your earlier close report by its current state version.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "reportId": {
+      "type": "string"
+    },
+    "expectedStateVersion": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "reportId",
+    "expectedStateVersion"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_wait`
+
+Wait for any or all named pending objects. Registration returns immediately and ends this turn; completion wakes you. Do not sleep or poll while waiting.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": [
+        "any",
+        "all"
+      ]
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "subagent",
+              "job",
+              "schedule",
+              "message"
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id"
+        ]
+      }
+    }
+  },
+  "required": [
+    "mode",
+    "objects"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_wake`
+
+Send the configured wake text to a seat, or open it if unopened. Select a window explicitly when several exist.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seat": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "seat"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_windows`
+
+List local windows, their runtime busy reasons and state versions, plus unopened seats.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+### `seat_write`
+
+Write within a registered root. Memory ownership, filesystem permissions and approvals still apply.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "relativePath": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "rootId",
+    "relativePath",
+    "content"
+  ]
+}
+```
+
+Source: [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts)
+
+Explicit seat composition only. Wait registration concludes the turn without polling; directory tools preserve provider permissions.
 
 <a id="panedeskdsh-tool-skill"></a>
 

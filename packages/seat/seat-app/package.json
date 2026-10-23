@@ -23,8 +23,26 @@
   },
   "files": [
     "lib/index.js",
+    "cordis.patch.yml",
     "lib/types/**/*.d.ts"
   ],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  },
+  "dependencies": {
+    "@panedesk/dsh-api-session-controller": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
+    "@panedesk/dsh-client-file-upload": "workspace:*",
+    "@panedesk/dsh-workspace": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-schedule": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-seat-engine": "workspace:*",
+    "@panedesk/dsh-seat-gates": "workspace:*",
+    "@panedesk/dsh-seat-local": "workspace:*",
+    "@panedesk/dsh-seat-remote": "workspace:*",
+    "@panedesk/dsh-tool-seat": "workspace:*"
+  },
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",

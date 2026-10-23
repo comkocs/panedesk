@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. The plugin registers already-leased Agents, publishes runtime busy/idle/closing observations, and removes their registrations after disposal. Session write leases remain authoritative; registration never acquires or steals a lease. See [Session persistence](../../../docs/subsystems/persistence.md).
 
+Unanswered message pages continue from a provider-issued cursor even when an earlier item becomes terminal between requests, without returning that earlier page again. Continue with unchanged filters; an unavailable cursor or nonpositive limit is rejected rather than silently restarting the scan.
+
 ## Table of Contents
 
 - [Dev Note](#dev-note)

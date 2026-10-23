@@ -2667,6 +2667,24 @@ importers:
       '@panedesk/dsh-sdk-minimal':
         specifier: workspace:*
         version: link:../sdk-minimal
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-seat-app':
+        specifier: workspace:*
+        version: link:../../seat/seat-app
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../../seat/seat-engine
+      '@panedesk/dsh-seat-gates':
+        specifier: workspace:*
+        version: link:../../seat/seat-gates
+      '@panedesk/dsh-seat-local':
+        specifier: workspace:*
+        version: link:../../seat/seat-local
+      '@panedesk/dsh-seat-remote':
+        specifier: workspace:*
+        version: link:../../seat/seat-remote
       '@panedesk/dsh-session-ledger':
         specifier: workspace:*
         version: link:../../session/session-ledger
@@ -2736,6 +2754,9 @@ importers:
       '@panedesk/dsh-tool-schedule':
         specifier: workspace:*
         version: link:../../schedule/tool-schedule
+      '@panedesk/dsh-tool-seat':
+        specifier: workspace:*
+        version: link:../../seat/tool-seat
       '@panedesk/dsh-tool-skill':
         specifier: workspace:*
         version: link:../../skill/tool-skill
@@ -12769,6 +12790,43 @@ importers:
         version: link:../../session/session-title
 
   packages/seat/seat-app:
+    dependencies:
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
+      '@panedesk/dsh-client-file-upload':
+        specifier: workspace:*
+        version: link:../../client/file-upload
+      '@panedesk/dsh-schedule':
+        specifier: workspace:*
+        version: link:../../schedule/schedule
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../seat-engine
+      '@panedesk/dsh-seat-gates':
+        specifier: workspace:*
+        version: link:../seat-gates
+      '@panedesk/dsh-seat-local':
+        specifier: workspace:*
+        version: link:../seat-local
+      '@panedesk/dsh-seat-remote':
+        specifier: workspace:*
+        version: link:../seat-remote
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-tool-seat':
+        specifier: workspace:*
+        version: link:../tool-seat
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -12779,9 +12837,6 @@ importers:
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../../sdk/protocol
-      '@panedesk/dsh-seat':
-        specifier: workspace:*
-        version: link:../seat
 
   packages/seat/seat-engine:
     dependencies:

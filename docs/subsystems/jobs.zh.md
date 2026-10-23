@@ -357,6 +357,8 @@ type JobEvent =
      * aborted before the settlement does not count.
      */
     readonly awaited: boolean
+    /** Execution-bound durable bridge owns delivery, including uncertain-write recovery. */
+    readonly notificationOwner?: 'durable'
   }
   | {
     readonly type: 'output'

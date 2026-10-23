@@ -50,6 +50,13 @@ export { REGION_BEGIN, REGION_END }
  * errors, so the partition can never silently drift from the service API.
  */
 export const SERVICE_PAGE: Record<string, string> = {
+  seats: 'seat.md',
+  seatEngine: 'seat.md',
+  seatGates: 'seat.md',
+  seatDirectories: 'seat.md',
+  seatWorktreeHost: 'seat.md',
+  seatReminderHost: 'seat.md',
+  seatRemote: 'seat.md',
   translator: 'translation.md',
   cotTranslation: 'translation.md',
   speechToText: 'voice-input.md',
@@ -225,6 +232,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
  * {@link EVENT_WALK_EXEMPTIONS} names each one with its documentation owner.
  */
 export const EVENT_SCOPE_PAGE: Record<string, string> = {
+  seat: 'seat.md',
   message: 'persistence.md',
   instructions: 'system-prompt.md',
   'app-boot': 'boot.md',
@@ -292,6 +300,10 @@ export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
  * appear on more than one page.
  */
 export const LINK_MAP: Readonly<Record<string, string>> = {
+  CreateAdmissionDecision: 'core.md',
+  TurnAdmissionDecision: 'core.md',
+  LedgerOwnerSettled: 'session-telemetry.md',
+  EngineDecision: 'seat.md',
   Principal: 'typert.md',
   PrincipalMap: 'typert.md',
   RemoteAccessResource: 'typert.md',

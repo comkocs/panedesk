@@ -120,6 +120,9 @@ interface Agent {
    */
   followup(message: UserMessage): void
 
+  /** Retry pending work after an admission policy changes, without inserting a message. */
+  wake?(): void
+
   /**
    * Submit steering for the nearest step. An idle driver starts a turn;
    * a running driver consumes it at its next step boundary.

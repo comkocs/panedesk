@@ -57,6 +57,8 @@ import TerminalSessionService from '@panedesk/dsh-terminal'
 import * as ToolPty from '@panedesk/dsh-tool-terminal'
 import * as ToolGoal from '@panedesk/dsh-tool-goal'
 import * as ToolSchedule from '@panedesk/dsh-tool-schedule'
+import * as ToolSeat from '@panedesk/dsh-tool-seat'
+import type { SeatService, SeatDirectoryService } from '@panedesk/dsh-seat'
 import type ScheduleService from '@panedesk/dsh-schedule'
 import Lsp from '@panedesk/dsh-lsp'
 import * as ToolLsp from '@panedesk/dsh-tool-lsp'
@@ -487,6 +489,20 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-seat',
+    dir: 'tool-seat',
+    source: 'packages/seat/tool-seat/src/index.ts',
+    requires: ['ctx.tools', 'ctx.seats', 'ctx.seatDirectories', 'a calling Agent'],
+    writes: ['tool/call', 'tool/result', 'seat engine records through providers'],
+    async mount(ctx) {
+      // Schema collection never invokes seat operations or directory IO.
+      ctx.provide('seats', {} as SeatService)
+      ctx.provide('seatDirectories', {} as SeatDirectoryService)
+      await ctx.plugin(ToolSeat)
+    },
+    note: 'Explicit seat composition only. Wait registration concludes the turn without polling; directory tools preserve provider permissions.',
   },
   {
     pkg: '@panedesk/dsh-tool-skill',

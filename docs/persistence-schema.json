@@ -24117,7 +24117,7 @@
         "packages/schedule/schedule/src/types.ts#ScheduleDeleteChange"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:230"
+        "packages/schedule/schedule/src/types.ts:252"
       ]
     },
     {
@@ -24501,7 +24501,7 @@
         "packages/schedule/schedule/src/types.ts#ScheduleChange"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:256"
+        "packages/schedule/schedule/src/types.ts:278"
       ]
     },
     {
@@ -24785,7 +24785,7 @@
         "packages/schedule/schedule/src/types.ts#LegacyAfterScheduleRecord"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:161"
+        "packages/schedule/schedule/src/types.ts:183"
       ]
     },
     {
@@ -24927,7 +24927,7 @@
         "packages/schedule/schedule/src/types.ts#LegacyScheduleRecord"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:185"
+        "packages/schedule/schedule/src/types.ts:207"
       ]
     },
     {
@@ -25004,7 +25004,7 @@
         "packages/llm/llm/src/brand.ts:31",
         "packages/llm/llm/src/brand.ts:43",
         "packages/llm/llm/src/brand.ts:67",
-        "packages/schedule/schedule/src/types.ts:14",
+        "packages/schedule/schedule/src/types.ts:36",
         "packages/session/message-delivery/src/types.ts:10",
         "packages/session/session-title/src/index.ts:42",
         "packages/session/session-title/src/types.ts:17",
@@ -25698,7 +25698,7 @@
         "packages/jobs/jobs/src/types.ts#JobSettleCause"
       ],
       "sources": [
-        "packages/jobs/jobs/src/types.ts:247"
+        "packages/jobs/jobs/src/types.ts:292"
       ]
     },
     {
@@ -26107,7 +26107,7 @@
         "packages/schedule/schedule/src/types.ts#OneShotScheduleDispatchChange"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:237"
+        "packages/schedule/schedule/src/types.ts:259"
       ]
     },
     {
@@ -26546,7 +26546,7 @@
         "packages/schedule/schedule/src/types.ts#LegacyEveryScheduleRecord"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:173"
+        "packages/schedule/schedule/src/types.ts:195"
       ]
     },
     {
@@ -26821,7 +26821,7 @@
         "packages/schedule/schedule/src/types.ts#LegacyAtScheduleRecord"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:167"
+        "packages/schedule/schedule/src/types.ts:189"
       ]
     },
     {
@@ -27497,7 +27497,7 @@
         "packages/schedule/schedule/src/types.ts#EveryScheduleDispatchChange"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:244"
+        "packages/schedule/schedule/src/types.ts:266"
       ]
     },
     {
@@ -27599,7 +27599,7 @@
         "packages/schedule/schedule/src/types.ts#ScheduleCreateChange"
       ],
       "sources": [
-        "packages/schedule/schedule/src/types.ts:223"
+        "packages/schedule/schedule/src/types.ts:245"
       ]
     },
     {

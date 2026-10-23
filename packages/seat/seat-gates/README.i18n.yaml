@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/seat/seat-gates/README.md
+/:
+  en: f8f0f6f8e62f703e
+  zh: f45037af1be3bc5f
+/panedesk-dsh-seat-gates:
+  en: ff1194045c30263e
+  zh: 517ab6d3e0560dc2
+/panedesk-dsh-seat-gates/summary:
+  en: 8f41dbd90c11f205
+  zh: 35885a73d3f931c8
+/panedesk-dsh-seat-gates/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: eb58ef0ae27de817
+/panedesk-dsh-seat-gates/use-this-package:
+  en: 3548f40639f88f8e
+  zh: 1862e528841dc52b
+/panedesk-dsh-seat-gates/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-seat-gates/model-experience/tool-decisions-and-clock-data:
+  en: d90befec4912cffc
+  zh: 8ac2d99eb7c11977
+/panedesk-dsh-seat-gates/model-experience/tool-decisions-and-clock-data/what-the-model-sees:
+  en: 05ba500f4157a192
+  zh: 6c4a444390ad2f85
+/panedesk-dsh-seat-gates/model-experience/tool-decisions-and-clock-data/token-effect:
+  en: eb1b7f94a3e3f8df
+  zh: e9ffef7b92ca435a
+/panedesk-dsh-seat-gates/model-experience/tool-decisions-and-clock-data/kv-cache-effect:
+  en: 02c049764bfd87b4
+  zh: 3753a6d05592783a
+/panedesk-dsh-seat-gates/model-experience/compaction-checkpoint-data:
+  en: 94af196e20f0b0f2
+  zh: 3125629f99d3f6e9
+/panedesk-dsh-seat-gates/model-experience/compaction-checkpoint-data/what-the-model-sees:
+  en: bc45468501c3bb3e
+  zh: 1237796e77a79023
+/panedesk-dsh-seat-gates/model-experience/compaction-checkpoint-data/token-effect:
+  en: ff60c20ee30d619e
+  zh: e7d04ac004ed5430
+/panedesk-dsh-seat-gates/model-experience/compaction-checkpoint-data/kv-cache-effect:
+  en: 548f31ccb5732291
+  zh: d7414157237bee00
+/panedesk-dsh-seat-gates/known-limitations-and-deferred-work:
+  en: 7d3c58fe9c949e6f
+  zh: 3732091be3989d2c
+/panedesk-dsh-seat-gates/known-limitations-and-deferred-work/dev-note:
+  en: 0bdc30b82b414460
+  zh: 7bcefe18417b0921

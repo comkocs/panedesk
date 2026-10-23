@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/seat/seat-engine/README.md
+/:
+  en: 54780d317d364126
+  zh: cf668f4629698e6f
+/panedesk-dsh-seat-engine:
+  en: b8a5bd6b07a67408
+  zh: fcbf7d29540c6ea5
+/panedesk-dsh-seat-engine/summary:
+  en: d4418e4a3fbd594a
+  zh: 00f4259accf280ac
+/panedesk-dsh-seat-engine/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: eb58ef0ae27de817
+/panedesk-dsh-seat-engine/use-this-package:
+  en: 04c5b9190077808d
+  zh: 0b6b0c37d19940ef
+/panedesk-dsh-seat-engine/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-seat-engine/model-experience/executor-owned-work:
+  en: b5fc4a9f46f263cf
+  zh: c309ecaabc347faa
+/panedesk-dsh-seat-engine/model-experience/executor-owned-work/what-the-model-sees:
+  en: 400d155bc6b68355
+  zh: cadbf5fb88cfbd0a
+/panedesk-dsh-seat-engine/model-experience/executor-owned-work/token-effect:
+  en: db5a80e9005ff7eb
+  zh: c2ce76a3556dc24c
+/panedesk-dsh-seat-engine/model-experience/executor-owned-work/kv-cache-effect:
+  en: db4a8e694be67b9a
+  zh: 4d8fd4969dbf0328
+/panedesk-dsh-seat-engine/known-limitations-and-deferred-work:
+  en: 6b962d3a61fad454
+  zh: cc7d50fad8dda8c8
+/panedesk-dsh-seat-engine/known-limitations-and-deferred-work/dev-note:
+  en: 7b6ac4ff507df28c
+  zh: 9e489f8247ec86f3

@@ -1,5 +1,5 @@
 ---
-description: "Session cache policy and concurrency plugin scaffold."
+description: "Session cache policy, maintenance, and model-family concurrency."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Session cache policy and concurrency plugin scaffold. The package exposes validated configuration and an inert function plugin. Loading it registers no hooks, timers, commands, or services.
+Session cache policy, maintenance, and model-family concurrency. The optional plugin provides `llmCache` for policy updates, evidence queries, and explicit renewal. Keepalive is disabled by default.
 
 ## Table of Contents
 
@@ -21,6 +21,8 @@ Session cache policy and concurrency plugin scaffold. The package exposes valida
 <a id="use-this-package"></a>
 ## Use this package
 
+`renewOnce` performs one explicitly requested, operation-identified keepalive at an idle maintenance point. It records ledger usage without adding a conversation body; missing evidence, an expired cache, changed prefixes, or competing maintenance can refuse renewal. Uncertain execution is not reported as successful renewal.
+
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
 An active inbox insertion retains the existing `interjection` cache breakpoint. An `interjection` abort settles the interrupted call as `cancelled` with `upstreamStopReason: 'interjection'`, preserves partial-response artifacts, and records the breakpoint on the interrupted call and its continuation. Ordinary user cancellation remains distinct. Upstream prefix reconstruction is not suppressed: committed history replacement retains `history-edit`, and changed request headers retain `request-config-change`; each call records its actual prefix fingerprint.
@@ -28,25 +30,25 @@ An active inbox insertion retains the existing `interjection` cache breakpoint. 
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Cache maintenance
 
 #### What the model sees
 
-`src/index.ts` registers no tools, prompts, or messages, so the model receives no content from this package.
+`renewOnce` can reuse an idle Session's request prefix for a maintenance call without adding its output to the conversation. The plugin contributes no user-facing tool.
 
 #### Token effect
 
-The scaffold dispatches no model requests and adds no input or output tokens.
+Admitted maintenance consumes provider input and bounded output tokens, recorded in the ledger. Evidence queries do not dispatch model calls.
 
 #### KV Cache effect
 
-The scaffold neither modifies request prefixes nor creates or refreshes cache entries.
+Renewal can refresh supported provider cache evidence; expired or changed prefixes are not silently treated as reusable. Ordinary prefix reconstruction and interruption breakpoints remain active.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This package supplies declarations and a scaffold only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
+- Renewal needs live idle-session evidence and a supported provider route. An uncertain attempted call is not replayed as a fresh renewal under the same operation identity.
 
 <a id="dev-note"></a>
 ### Dev Note

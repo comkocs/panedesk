@@ -378,6 +378,227 @@
         ],
         "test": "delivers steer at the next real tool boundary and rejects withdrawal after dispatch"
       }
+    },
+    {
+      "id": "seat-create-admission",
+      "description": "Reject optional creation admission before factory effects and release preparation.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent/tests/seat-admission.spec.ts"
+        ],
+        "test": "rejects before factory, setup or publication and releases the preparation"
+      }
+    },
+    {
+      "id": "seat-exact-create",
+      "description": "Publish a reserved identity and local model selection without changing saved defaults.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/api/session-controller/tests/seat-exact-create.spec.ts"
+        ],
+        "test": "publishes the reserved identity with local model selection before observers and never saves the default"
+      }
+    },
+    {
+      "id": "seat-turn-admission",
+      "description": "Defer the next turn without losing queued input and resume on an explicit wake.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent-loop/tests/seat-turn-admission.spec.ts"
+        ],
+        "test": "finishes the current turn, defers the next without losing inbox work, and resumes on wake"
+      }
+    },
+    {
+      "id": "seat-schedule-actions",
+      "description": "Persist action occurrences separately from Session-bound reminders.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/schedule/schedule/tests/actions.spec.ts"
+        ],
+        "test": "replays the frozen occurrence after restart and advances disabled occurrences without backlog"
+      }
+    },
+    {
+      "id": "seat-subagent-admission",
+      "description": "Return a durable admission ticket instead of blocking on child capacity.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/subagent/subagent/tests/seat-admission.spec.ts"
+        ],
+        "test": "queues the fifth child immediately and delegates FIFO release before later starts"
+      }
+    },
+    {
+      "id": "seat-job-notification",
+      "description": "Persist intent before producer effects and terminal notification before waking.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/jobs/jobs-local/tests/seat-notification.spec.ts"
+        ],
+        "test": "commits intent before synchronous producer effects and terminal outbox before waking within five seconds"
+      }
+    },
+    {
+      "id": "seat-cache-renew",
+      "description": "Expose one bounded ledger-accounted renewal without adding conversation content.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-cache/tests/renew-once.spec.ts"
+        ],
+        "test": "refreshes a thirty-minute idle session once, marks keepalive in the ledger and adds no conversation body"
+      }
+    },
+    {
+      "id": "seat-session-subscriptions",
+      "description": "Register exact-session instruction paths and deliver metadata without file bodies.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/context/instruction-subscriptions/tests/session-registration.spec.ts"
+        ],
+        "test": "registers only the exact session, shares path ownership and sends steer metadata without file contents"
+      }
+    },
+    {
+      "id": "seat-owner-release",
+      "description": "Notify the exact dead durable owner before slow call repair.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/ledger-watch/tests/seat-release.spec.ts"
+        ],
+        "test": "notifies the exact durable dead owner within five seconds before slow call repair"
+      }
+    },
+    {
+      "id": "seat-interface-projection",
+      "description": "Project authenticated remote seat operations with automatic opening.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-remote/tests/interface.spec.ts"
+        ],
+        "test": "forces automatic opening through SeatService with invocation-derived authority"
+      }
+    },
+    {
+      "id": "seat-message-pagination",
+      "description": "Page unanswered handoffs while terminal rows leave previous pages.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/message-delivery-local/tests/unanswered-page.spec.ts"
+        ],
+        "test": "pages unanswered handoffs without duplicates when a previous page becomes terminal"
+      }
+    },
+    {
+      "id": "seat-pending-questions",
+      "description": "Expose exact-session pending questions including plan review.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/interaction/user-questions/tests/pending-view.spec.ts"
+        ],
+        "test": "reports exact-session pending questions including plan review and clears them after settlement"
+      }
+    },
+    {
+      "id": "seat-typescript-projection",
+      "description": "Project seat operations and binding through the TypeScript SDK.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/sdk/client/tests/seat.spec.ts"
+        ],
+        "test": "projects seat operations and binding without changing session events"
+      }
+    },
+    {
+      "id": "seat-python-projection",
+      "description": "Project seat operations and binding through the Python SDK.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "python/sdk/tests/test_seat.py"
+        ],
+        "test": "test_projects_seat_operations_and_binding_without_changing_session_events"
+      }
+    },
+    {
+      "id": "seat-preparation-release",
+      "description": "Release independent ledger prebinding before publication and use a fresh run on resume.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent-loop/tests/preparation-release.spec.ts"
+        ],
+        "test": "releases the independent prebinding before publication and resumes with a fresh run identity"
+      }
+    },
+    {
+      "id": "seat-job-consumer-deduplication",
+      "description": "Avoid legacy redelivery when durable notification acceptance is uncertain.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/jobs/tool-jobs/tests/seat-notification-dedupe.spec.ts"
+        ],
+        "test": "does not redeliver through legacy consumers after uncertain durable acceptance"
+      }
+    },
+    {
+      "id": "seat-subagent-settlement",
+      "description": "Delegate one waking child settlement to the installed notification owner.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Explicit seat providers require this extension while absent providers preserve upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/subagent/subagent/tests/seat-admission.spec.ts"
+        ],
+        "test": "delegates exactly one waking settlement with event kind and child id within five seconds"
+      }
     }
   ]
 }

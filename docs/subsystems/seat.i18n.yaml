@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for seat.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/seat.md
+/seat-orchestration:
+  en: 7ac3048e896f3e20
+  zh: 87352c230a9547b7
+/seat-orchestration/identity-and-authority:
+  en: a40d9b026fa9b7dc
+  zh: d915190b2dd1a1eb
+/seat-orchestration/definitions-and-admission:
+  en: eb7fd9ef01e671b1
+  zh: 12e06616bc54a88f
+/seat-orchestration/window-operations:
+  en: 8586c52471dd3f7c
+  zh: 1425349c64f19b8c
+/seat-orchestration/engine-records-and-queries:
+  en: 7653449a3dffdae3
+  zh: bbda4ce816597142
+/seat-orchestration/waits-reports-and-policies:
+  en: 406274ec8a119bb8
+  zh: c8e96b1520cdc7d6
+/seat-orchestration/cordis-api:
+  en: fada7691badd06af
+  zh: fada7691badd06af

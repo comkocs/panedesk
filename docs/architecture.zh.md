@@ -14,7 +14,7 @@
 
 运行中的 `dsh` 是一棵插件树，由启动时按序叠加的各层组合而成。
 
-**profile** 是存放在 Harness home 中的具名组装。它列出自己叠放的组合包，存放自己安装的树外插件，并保存用户自己的 `cordis.patch.yml`。`web`、`headless`、`sdk`、`sdk-minimal` 和 `acp` 作为模板随发行版交付。
+**profile** 是 Harness home 中的具名组合，拥有有序组合包、已安装的外部插件及 `cordis.patch.yml`。
 
 **组合包**是 Cordis 配置项及其挂载代码的分发格式，因此它插入的内容始终可被其上各层 patch。
 
@@ -40,11 +40,13 @@ dsh --profile web --dump-config
 
 ## 应用启动
 
-受支持的 Node 应用通过具名 `dsh` profile 启动。随附 profile 为 `web`、`headless`、`sdk`、`sdk-minimal` 和 `acp`，可通过 `dsh --profile <name>` 或 `dsh <name>` 选择。`plugin` 表示管理命令；同名 profile 必须用 `--profile plugin` 选择。TypeScript SDK 会解析其同版本 `dsh` 依赖并选择 `sdk`；自定义插件组合继续由 profile 与有序 patch 文件表达，而不是另一个可执行文件或内联应用树。`sdk-minimal` 是位于同一 launcher 后的仓库自有独立组合包，而不是由调用方提供的 Cordis 配置树。
+受支持的 Node 应用通过具名 `dsh` profile 启动，以 `dsh --profile <name>` 或 `dsh <name>` 选择；模板见 [app-boot](../packages/boot/app-boot/README.zh.md#profiles)。`plugin` 是管理命令，同名 profile 须使用 `--profile plugin`。TypeScript SDK 解析同版本 `dsh` 并选择 `sdk`；自定义组合使用 profile 与有序 patch，不使用独立可执行文件或内联树。`sdk-minimal` 是仓库自有独立组合包。
 
 Vendored CLI、仅用于构建和测试的可执行文件、进程内直接挂载插件以及私有浏览器 WebWorker 预览都不属于 Harness 应用启动器。[`verify-application-entrypoints`](../scripts/verify-application-entrypoints.ts)将每个包 bin、可执行源码、根 demo 以及根脚本 `start:web` 与 `dev:web` 归入显式类别，并拒绝任何绕过 `dsh` 的 Node 应用路径。
 
 Python SDK 遵循相同的应用架构。其运行时 wheel 把普通 `dsh` CLI 打包为 `deepseek-harness-sdk-runtime-<platform>-<arch>`，客户端默认以显式 Harness home 启动 `dsh --profile sdk`。极简示例选择随附的 `sdk-minimal` profile。Python 暴露 profile 选择与有序 patch 文件，而不是完整 Cordis 树；持久外部插件通过 `dsh plugin` 安装。已删除的私有直读配置载体没有兼容 bin 或回退 parser。
+
+显式选择的 `seat` profile 增加编排能力，不改变其他 profile，也不安装后台服务。参见[包组](../packages/seat/README.zh.md)与[子系统语义](subsystems/seat.zh.md)。
 
 ## 桌面应用
 
@@ -74,7 +76,7 @@ Electron 使用 Electron Node 模式启动私有 Desktop Host。Host 调用共�
 - **Agent 事件**（`agent/*`）携带活跃 `Agent`：inbox、步骤、状态、请求、验证、续跑。要观察或拦截进行中的工作时，使用它。
 - **能力事件**无需导入循环即可向某个 seam（`fs/*`、`tools/*`、`telemetry/*`）附加策略和适配器。
 
-AgentLoop 在启动已排队工作前等待串行 `agent/created`，初始化失败则回滚。卸载在 Agent teardown 期间保留所需资源；[agent-loop](../packages/core/agent-loop/README.zh.md#understand-the-implementation)定义顺序。
+`agent/create-admitting` 先于工厂副作用；准备失败时释放资源。`agent/turn-admitting` 可推迟排队工作，直到 `wake()`。AgentLoop 在工作前等待串行 `agent/created`，接管准备资源的所有权，初始化失败则回滚。卸载在拆卸期间保留资源；[agent-loop](../packages/core/agent-loop/README.zh.md#understand-the-implementation)定义顺序。
 
 [事件映射](event-producer-consumer.zh.md)列出每个事件的生产方与消费方。
 

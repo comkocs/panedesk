@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `@panedesk/full` carries the upstream DSH headless composition, web/ACP/SDK apps, optional bundles, and plugin manager. Users who need these beyond the default slim preset install it beside the `panedesk` launcher to enable the `full`, `web`, `acp`, and `sdk` profiles. It supplements the launcher rather than providing a separate command; run `panedesk full` to select the full headless preset.
 
+The optional `seat` profile resolves its seat packages through this carrier and the [seat application bundle](../../seat/seat-app/README.md). Installing the carrier neither selects that profile nor enables automatic opening; the engine requires explicit deployment configuration.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

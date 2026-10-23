@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to give an agent a named tool that delegates work to a configured backend. Every call starts a managed activation and returns a child id; the runtime owns completion notices and cleanup. Local children support messages and restoration, while external backends execute one task and return their final answer through the completion notice. Supported backends can expose approved child LLM routes. Each instance can select a child preset and depth limit.
+Use this package to give an agent a named tool that delegates work to a configured backend. An admitted call starts a managed activation and returns a child id; a queued call returns an admission ticket instead. The runtime owns completion notices and cleanup. Local children support messages and restoration, while external backends execute one task and return their final answer through the completion notice. Supported backends can expose approved child LLM routes. Each instance can select a child preset and depth limit.
 
 ## Table of Contents
 
@@ -56,7 +56,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 ### Managed delegation
 
-Every call returns `started subagent <childId>` after the runtime accepts the child. It does not wait for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
+An admitted call returns `started subagent <childId>` after the runtime accepts the child. A queued call instead returns its admission ticket without creating a child or waiting for capacity; register a wait for that ticket rather than retrying. Neither result waits for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
 
 Every backend’s completion notice carries its final answer. Local Spawn and Fork children can also send messages, accept more work through `send_message` while active, or resume after settling. Codex, Claude Code, ACP, and DSH SDK backends do not accept follow-up messages.
 

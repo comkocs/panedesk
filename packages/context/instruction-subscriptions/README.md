@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 This optional plugin sends metadata-only instruction change reminders through `MessageDelivery.send` at `agent/input-preparing`, before input claim. It subscribes each agent independently to its actually loaded startup files and explicitly configured paths. Missing filesystem or delivery services leave upstream behavior unchanged. See [Session persistence](../../../docs/subsystems/persistence.md).
 
+Exact-session registrations share path ownership and return an asynchronous disposer. Releasing one registration preserves paths still owned by another. Change delivery carries steer metadata, not file contents; it does not broaden the subscription to other Sessions.
+
 ## Table of Contents
 
 - [Dev Note](#dev-note)

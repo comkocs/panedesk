@@ -58,6 +58,10 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/saved-home") as harness:
     result = session.run("Continue the task.")
 ```
 
+## Seat operations
+
+`HarnessClient.seats` exposes validated seat requests and nested results. The selected runtime composition must provide seat services; remote opening uses automatic mode. Failed requests are not retried or converted to ordinary prompts, and binding metadata does not change Session events.
+
 ## Messages
 
 `HarnessClient.messages`, `DeepSeekHarness.messages`, and `Session.messages` expose `send`, `withdraw`, `edit`, `reprioritize`, `invalidate`, `status`, `operation_status`, `list`, `resolve`, `send_batch`, `configure`, and `subscribe`. Request models and dictionaries use camelCase wire fields; `MessageQuery.from_` encodes as `from`. Responses are typed models, including distinct applied, pending-owner, rejected, and not-found outcomes. Retain each `operationId` across uncertain transport failures and query `operation_status`; a stored offline control is not a confirmed withdrawal.

@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 939c5f1b79c2ab9e
-  zh: 6e61c8fd13d3d124
+  en: 34a6b3a843d95d48
+  zh: 96269377776954ba
 /tool-schema-catalog/panedesk-dsh-plugin-manager:
   en: 9c2a64c2528dbed9
   zh: 9c2a64c2528dbed9
@@ -201,8 +201,56 @@
   en: 02fb7ffa1169a156
   zh: 02fb7ffa1169a156
 /tool-schema-catalog/panedesk-dsh-tool-ralph/ralph:
-  en: 0e0fa2d4dda1f6ba
-  zh: b52c25696018690b
+  en: 71b5a56d6a403273
+  zh: cee8155ea5c3518c
+/tool-schema-catalog/panedesk-dsh-tool-seat:
+  en: 5ea1134b2abef61b
+  zh: 5ea1134b2abef61b
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-cancel-wait:
+  en: 468ea4a7fb45d751
+  zh: 96203f57df10fb5c
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-close:
+  en: 4679ce63b33ab55b
+  zh: a432042730e109e2
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-directories:
+  en: d5b96871bc34946b
+  zh: 3bcf8354c0401613
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-edit:
+  en: e9e833b1bbba43e6
+  zh: 3a9e98fd43e499f3
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-open:
+  en: 7a8c2f0129ccb4d1
+  zh: 8cf708ba90ef65a3
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-read:
+  en: 9efa1c3a46b94d64
+  zh: d1762202c0b11912
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-rename:
+  en: e03a20906f9dc98f
+  zh: 2aab054f9e80bbf4
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-renew:
+  en: 22ab03772b04d415
+  zh: 7fadd99fb68260c4
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-replace:
+  en: 955e3d87f8ad8bc8
+  zh: 338cedb38f4abf0f
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-report:
+  en: 850db0b86b016f6d
+  zh: faea894b7dfd7289
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-revoke-report:
+  en: 301a3153a4931c06
+  zh: 838359084208d640
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-wait:
+  en: fe005daff6fbf337
+  zh: 42cae5f524dc4050
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-wake:
+  en: 1af4e84777f87590
+  zh: 5f5da7d34e8114a7
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-windows:
+  en: b65abfc4146d5193
+  zh: c8a7790893740e17
+/tool-schema-catalog/panedesk-dsh-tool-seat/seat-write:
+  en: dc1dbb9cd6a5d161
+  zh: e24e9480fc99c7c0
 /tool-schema-catalog/panedesk-dsh-tool-skill:
   en: 295c128bc23f4370
   zh: 295c128bc23f4370

@@ -35,6 +35,7 @@ const GROUP_ORDER = [
   'skill',
   'compact',
   'subagent',
+  'seat',
   'web',
   'spill',
   'timeout',

@@ -203,6 +203,9 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
   'sdk-minimal': {
     bundles: ['@panedesk/dsh-sdk-minimal'],
   },
+  seat: {
+    bundles: ['@panedesk/dsh-base', '@panedesk/dsh-seat-app'],
+  },
   ledger: {
     bundles: ['@panedesk/dsh-ledger-app'],
   },

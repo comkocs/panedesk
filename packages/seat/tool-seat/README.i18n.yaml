@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/seat/tool-seat/README.md
+/:
+  en: b77ec6c3e368f257
+  zh: 99733705f8b7fd0c
+/panedesk-dsh-tool-seat:
+  en: 21638a86d7133bac
+  zh: 655903e828c83e42
+/panedesk-dsh-tool-seat/summary:
+  en: 3080874e6507dcdb
+  zh: c141b557354f5add
+/panedesk-dsh-tool-seat/table-of-contents:
+  en: 2e89ddb1e73218cb
+  zh: eb58ef0ae27de817
+/panedesk-dsh-tool-seat/use-this-package:
+  en: 081bc799f2905b44
+  zh: 3de9bb6fe64a129a
+/panedesk-dsh-tool-seat/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-tool-seat/model-experience/optional-tool-schemas:
+  en: 49b4523c10f50102
+  zh: dd3f26c65a44b4bf
+/panedesk-dsh-tool-seat/model-experience/optional-tool-schemas/what-the-model-sees:
+  en: e967c961547c772d
+  zh: 96ee69536a5b4c2e
+/panedesk-dsh-tool-seat/model-experience/optional-tool-schemas/token-effect:
+  en: c876da63b466d941
+  zh: 27a384bc9f52128b
+/panedesk-dsh-tool-seat/model-experience/optional-tool-schemas/kv-cache-effect:
+  en: d57ceb36e6feebc4
+  zh: 16cc6e185fcddc39
+/panedesk-dsh-tool-seat/model-experience/structured-tool-results:
+  en: a40b4aef58a52e3d
+  zh: 93ee5fa53cd37320
+/panedesk-dsh-tool-seat/model-experience/structured-tool-results/what-the-model-sees:
+  en: 0cbd4c3fc5b20ef6
+  zh: e4ea7a07244030b5
+/panedesk-dsh-tool-seat/model-experience/structured-tool-results/token-effect:
+  en: ba7052c25719c38e
+  zh: 3a1820bcd0f313fa
+/panedesk-dsh-tool-seat/model-experience/structured-tool-results/kv-cache-effect:
+  en: e55d5525356e3fd5
+  zh: 28fdeef0b68bbd7a
+/panedesk-dsh-tool-seat/known-limitations-and-deferred-work:
+  en: 5308bcfa79a6e763
+  zh: fc12bf8b2e03d1d5
+/panedesk-dsh-tool-seat/known-limitations-and-deferred-work/dev-note:
+  en: 6c75c76e03a52660
+  zh: 3c00b11468621c90
