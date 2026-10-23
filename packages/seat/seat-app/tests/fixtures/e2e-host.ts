@@ -53,7 +53,7 @@ import { deployment } from './e2e-config.ts'
 import { SeatModel } from './e2e-model.ts'
 import * as Shell from './e2e-shell.ts'
 
-export async function createHost(existingRoot?: string) {
+export async function createHost(existingRoot?: string, headless = false) {
   const parent = process.env.PANEDESK_HOME ?? process.cwd()
   await mkdir(parent, { recursive: true })
   const root = existingRoot ?? await mkdtemp(join(parent, 'seat-e2e-'))
@@ -84,6 +84,8 @@ export async function createHost(existingRoot?: string) {
       commands: Commands, sandbox: Sandbox, questions: Questions, jobs: Jobs, connection: Connection, credentials: Credentials,
       uploads: Uploads, subscriptions: Subscriptions, engine: Engine, local: Local, gates: Gates, tools: Tools,
       remote: Remote, app: App, shell: Shell, schedule: Schedule,
+      '@panedesk/dsh-client-connection': Connection, '@panedesk/dsh-client-file-upload': Uploads,
+      '@panedesk/dsh-workspace': Workspace, '@panedesk/dsh-api-session-controller': Controller,
       '@panedesk/dsh-seat-engine': Engine, '@panedesk/dsh-seat-local': Local,
       '@panedesk/dsh-seat-gates': Gates, '@panedesk/dsh-tool-seat': Tools,
       '@panedesk/dsh-seat-remote': Remote, '@panedesk/dsh-seat-app': App })
@@ -109,7 +111,14 @@ export async function createHost(existingRoot?: string) {
       { name: 'cordis:permissions', config: { defaultPreset: 'permission-a',
         presets: { 'permission-a': { sandbox: 'workspace-write', approval: 'ask' } } } },
       { name: 'cordis:controller', config: { nativeOpen: false } }, { name: 'cordis:schedule' },
-    ])
+    ].filter(row => !headless || !['cordis:workspace', 'cordis:connection', 'cordis:uploads', 'cordis:controller'].includes(row.name)))
+    if (headless) {
+      assert.equal(ctx.get('sessionCreation'), undefined)
+      const patch = loadYaml(await readFile(new URL('../../headless.cordis.patch.yml', import.meta.url), 'utf8')) as
+        { insert?: { id: string; name: string }[] }[]
+      await load('headless-seat.yml', patch.flatMap(row => row.insert ?? [])
+        .map(row => ({ ...row, name: `cordis:${row.name}` })))
+    }
     const nodeId = await ctx.sessionLedger.nodeId()
     const config = deployment(root, nodeId)
     await load('delivery.yml', [{ name: 'cordis:delivery', config: { dshHome: root, nodeId,

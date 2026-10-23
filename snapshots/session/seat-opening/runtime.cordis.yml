@@ -1,3 +1,11 @@
+- id: agent-default-model
+  config:
+    provider: !!js process.env.DSH_SNAPSHOT_PROVIDER
+    model: !!js process.env.DSH_SNAPSHOT_MODEL
+    reasoningEffort: low
+
 - insert:
+    - id: seat-snapshot-clock
+      name: './clock.mjs'
     - id: seat-snapshot-catalog
       name: './catalog.mjs'

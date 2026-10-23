@@ -37,12 +37,26 @@
             name: DeepSeek
             models:
               - id: deepseek-v4-flash
+                reasoningEfforts: [low]
               - id: deepseek-v4-pro
           - id: deepseek-messages
             name: DeepSeek Messages
             models:
               - id: deepseek-v4-flash
               - id: deepseek-v4-pro
+
+- id: credentials
+  disabled: false
+
+- insert:
+    - id: seat-connection
+      name: '@panedesk/dsh-client-connection'
+    - id: seat-file-upload
+      name: '@panedesk/dsh-client-file-upload'
+    - id: seat-workspace
+      name: '@panedesk/dsh-workspace'
+    - id: seat-session-controller
+      name: '@panedesk/dsh-api-session-controller'
 
 - insert:
     - id: seat-ledger

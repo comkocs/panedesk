@@ -18,16 +18,18 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./headless.cordis.patch.yml": "./headless.cordis.patch.yml",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
     "cordis.patch.yml",
+    "headless.cordis.patch.yml",
     "lib/types/**/*.d.ts"
   ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" }
+    "bundle": { "patch": ["./headless.cordis.patch.yml", "./cordis.patch.yml"] }
   },
   "dependencies": {
     "@panedesk/dsh-api-session-controller": "workspace:*",

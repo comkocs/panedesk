@@ -24,4 +24,30 @@ export function apply(ctx) {
     const task = ready
     return async () => { await task }
   })
+  ctx.on('tools/execute', async (exec, next) => {
+    if (exec.name !== 'seat_open') return next()
+    const completed = Promise.withResolvers()
+    const responded = new Set()
+    let sessionId
+    const settle = () => {
+      if (sessionId && responded.has(sessionId)) completed.resolve()
+    }
+    const off = ctx.on('message/state', event => {
+      if (event.data.state === 'responded') responded.add(event.data.targetSessionId)
+      settle()
+    })
+    const timer = setTimeout(() => completed.reject(new Error('Seat opening did not complete')), 10000)
+    try {
+      const [result] = await Promise.all([next().then(result => {
+        if (result.isError) throw new Error('Seat opening failed')
+        const opened = JSON.parse(result.value)
+        if (opened.status !== 'opened') throw new Error('Seat opening failed')
+        sessionId = opened.sessionId
+        settle()
+        return result
+      }), completed.promise])
+      await ctx.get('seatEngine').drive()
+      return result
+    } finally { clearTimeout(timer); off() }
+  })
 }
