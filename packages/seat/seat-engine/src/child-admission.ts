@@ -54,7 +54,7 @@ export class ChildAdmissionProvider implements SubagentAdmission {
     const open = this.engine.journal.projection.opens.get(parent.id)
     if (open?.definition) return open.definition
     const seats = this.ctx.get('seats')
-    const binding = await seats?.binding({ sessionId: parent.id })
+    const binding = await this.ctx.get('seatLocalRead')?.binding({ sessionId: parent.id })
     if (!binding || 'status' in binding || binding.kind !== 'seat') return undefined
     const definition = await seats?.resolve(binding.seat)
     return definition && !('status' in definition) ? definition : undefined
