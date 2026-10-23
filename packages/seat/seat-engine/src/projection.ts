@@ -135,6 +135,7 @@ export class EngineProjection {
           break
         case 'git/checkpoint': this.git.set(JSON.stringify([effect.data.repositoryId, effect.data.ref]), effect.data); break
         // These facts are queried directly; they own no second mutable index here.
+        case 'queue/reminded':
         case 'open/rejected': case 'source/rejected': case 'seat/binding':
         case 'gate/hit': case 'gate/expired':
         case 'wait/registered': case 'wait/satisfied': case 'wait/woken': case 'wait/cancelled':

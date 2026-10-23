@@ -154,6 +154,8 @@ const keepalive = fields({ sessionId: id, operationId: id, source: one('auto', '
   dueAt: nullable(number), observedAt: timestamp })
 const checks: Record<EngineEventKind, Check> = {
   'trigger/accepted': triggerData, 'trigger/coalesced': triggerData, 'trigger/deduplicated': triggerData,
+  'queue/reminded': fields({ queueItemId: id, seat: id, projectId: id, triggerKind, reason: one('approval'),
+    triggerId: id, sequence: positive, stateVersion: positive, remindedAt: timestamp }),
   'queue/pending': pending, 'queue/approved': queueChange, 'queue/cancelled': queueChange,
   'open/intent': open, 'open/created': open, 'open/configured': open, 'open/opening-failed': open,
   'open/rejected': fields({ error: failure, candidates: array(fields({ seat: id, sessionId: id, title: text, nodeId: id })) }),
@@ -206,6 +208,7 @@ function consistent(effect: EngineEffect): boolean {
         && (effect.kind !== 'open/created' || data.phase === 'created')
         && (effect.kind !== 'open/opening-failed' || (data.phase === 'opening-failed' && data.failure !== null))
     }
+    case 'queue/reminded': return true
     case 'queue/pending': return pendingConsistent(effect.data)
     case 'queue/approved': case 'queue/cancelled':
       return pendingConsistent(effect.data.pending) && effect.data.revision === effect.data.previousRevision + 1

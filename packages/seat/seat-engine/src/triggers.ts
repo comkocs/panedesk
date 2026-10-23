@@ -21,6 +21,20 @@ export function rejected(code: SeatErrorCode, message: string): SeatRejected {
 export function fact(effect: EngineEffect extends infer E ? E extends EngineEffect ? Omit<E, 'eventId'> : never : never): EngineEffect {
   return { ...effect, eventId: randomUUID() as EngineEventId }
 }
+/** Reminders share the approval-entry commit and retain its queue revision as their identity.
+ * @param pending - queue state being committed.
+ * @param previous - prior queue state, or undefined for a new item.
+ * @returns one reminder only when entering approval.
+ */
+export function reminderEffects(pending: PendingSeatItem, previous: PendingSeatItem | undefined): EngineEffect[] {
+  if (pending.reason !== 'approval' || previous?.reason === 'approval') return []
+  const source = pending.sources[0]
+  if (!source) throw new EngineError('invalid-request', 'Approval reminder requires its first trigger')
+  return [{ kind: 'queue/reminded', eventId: digest(['queue/reminded', pending.queueItemId, pending.stateVersion]) as string as EngineEventId,
+    seat: pending.seat, triggerId: source.triggerId, data: { queueItemId: pending.queueItemId, seat: pending.seat,
+      projectId: pending.projectId, triggerKind: pending.triggerKind, reason: 'approval', triggerId: source.triggerId,
+      sequence: pending.sequence, stateVersion: pending.stateVersion, remindedAt: new Date().toISOString() } }]
+}
 /** Authenticated ingress acknowledges only the complete synchronized decision. */
 export class TriggerRegistry {
   constructor(private readonly journal: EngineJournal, private readonly sources: SourceRegistry,
@@ -93,7 +107,7 @@ export class TriggerRegistry {
           result = { status: previous ? 'coalesced' : 'accepted', triggerId: trigger.triggerId,
             queueItemId: pending.queueItemId, sequence: pending.sequence }
           return [...checkpoint, fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
-            seat: trigger.seat, data })]
+            seat: trigger.seat, data }), ...reminderEffects(pending, previous)]
         })
         return result
       })

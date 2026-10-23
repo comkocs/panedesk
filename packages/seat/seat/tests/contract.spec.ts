@@ -36,6 +36,7 @@ const errorCodes = [
 ] as const satisfies readonly SeatErrorCode[]
 
 const eventNames = [
+  'queue/reminded',
   'trigger/accepted', 'trigger/deduplicated', 'trigger/coalesced',
   'queue/pending', 'queue/approved', 'queue/cancelled', 'open/intent',
   'open/created', 'open/configured', 'open/opening-failed', 'open/rejected',

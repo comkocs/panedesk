@@ -370,6 +370,7 @@ it('A11 defaults to remind, prevents rule widening and preserves paused work', a
   expect(await f.ctx.sessionPersistence.list()).toHaveLength(0)
   const pending = (await f.engine.pending({ limit: 10 })).items[0]!
   expect(pending.reason).toBe('approval')
+  expect((await f.engine.query({ kinds: ['queue/reminded'], limit: 10 })).effects).toHaveLength(1)
   expect(await f.engine.approve({ queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion,
     operationId: operation() })).toMatchObject({ status: 'approved' })
   await f.engine.setProjectMode({ projectId: def.projectId, mode: 'off', expectedRevision: 0, operationId: operation() })
