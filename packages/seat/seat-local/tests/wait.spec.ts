@@ -14,9 +14,11 @@ describe('event-driven waits and wake', () => {
     let state: SeatWait = { waitId: 'wait-a' as WaitId, sessionId, mode: 'any', objects: [object], observations: [], phase: 'registered',
       operationId: operation('wait-a'), wakeOperationId: operation('wake-a'), stateVersion: 1, durability: 'durable' }
     let settled = false
+    let registered = false
     const dispose = vi.fn(async () => {})
     const runtime = {
-      authorize: async () => null, register: async () => state, read: async () => state,
+      authorize: async () => null, register: async () => { registered = true; return state },
+      read: async () => registered ? state : null,
       snapshot: async () => settled ? observation : null,
       subscribe: () => { settled = true; return dispose },
       observe: async (_waitId, item) => { if (state.phase === 'registered') state = { ...state, observations: [item], phase: 'satisfied', stateVersion: 2 }; return state },
@@ -31,6 +33,27 @@ describe('event-driven waits and wake', () => {
     expect(dispose).toHaveBeenCalledOnce()
     await coordinator.dispose()
   })
+
+  it.each(['registered', 'satisfied', 'woken', 'cancelled'] as const)(
+    'replays a committed %s wait without authorizing, subscribing or waking again', async (phase) => {
+      const state: SeatWait = { waitId: 'wait-a' as WaitId, sessionId, mode: 'any', objects: [object], observations: [], phase,
+        operationId: operation('wait-a'), wakeOperationId: operation('wake-a'), stateVersion: 1, durability: 'durable' }
+      const runtime = {
+        authorize: vi.fn(async () => null), register: vi.fn(async () => state), read: async () => state,
+        snapshot: vi.fn(async () => null), subscribe: vi.fn(() => async () => {}),
+        observe: vi.fn(async () => state), wake: vi.fn(async () => {}),
+        cancel: async () => ({ status: 'already-settled', wait: state }),
+      } satisfies WaitRuntime
+      const coordinator = new WaitCoordinator(runtime)
+      try {
+        expect(await coordinator.register({ waitId: state.waitId, sessionId, mode: state.mode,
+          objects: state.objects, operationId: state.operationId })).toEqual({ status: 'registered', wait: state })
+        expect(runtime.authorize).not.toHaveBeenCalled()
+        expect(runtime.snapshot).not.toHaveBeenCalled()
+        expect(runtime.subscribe).not.toHaveBeenCalled()
+        expect(runtime.wake).not.toHaveBeenCalled()
+      } finally { await coordinator.dispose() }
+    })
 
   it('uses handoff to wake an active seat and delegates unopened seats to the same open function', async () => {
     const def = definition(process.cwd(), { wakeTemplate: { kind: 'text', text: 'Resume {{seat}}.' } })

@@ -34,7 +34,7 @@ import { operation } from './fixtures.ts'
 import * as Local from '../src/index.ts'
 import { completesTurn, inputContains, insertsInput, seatsReady } from '../../seat/tests/completion.ts'
 
-it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
+it.each(['budget', 'opening', 'prefill', 'wait-replay'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
   const f = await engineFixture(true)
   try {
     f.definition.contextThresholdTokens = 60
@@ -111,7 +111,7 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
         await next(); return { kind: 'defer', reason: 'Inspect budget revision during original opening.' }
       }) : () => {}
     const openWindow = () => seats ? seats.open(openingRequest) : f.open()
-    const opened = scenario === 'opening'
+    const opened = scenario === 'opening' || scenario === 'wait-replay'
       ? await completesTurn(f.ctx, () => true, inputContains('Frozen opening'), openWindow)
       : await openWindow()
     if (opened.status !== 'opened') throw new Error('Controlled opening did not create a window')
@@ -124,6 +124,11 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
     const open = (await f.state.read()).effects.findLast(effect => effect.kind === 'open/configured')
     if (open?.kind !== 'open/configured') throw new Error('Open facts are missing')
     expect(open.data.sessionId).toBe(opened.sessionId)
+    if (scenario === 'wait-replay') {
+      await f.ctx.agents.get(opened.sessionId)?.whenIdle()
+      await checkScheduleDeletion(f, opened.sessionId, adapter)
+      return
+    }
     if (scenario === 'opening') {
       expect(adapter.requests).toHaveLength(1)
       const openingAgent = f.ctx.agents.get(opened.sessionId)

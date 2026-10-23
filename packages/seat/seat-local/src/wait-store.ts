@@ -38,6 +38,7 @@ export class WaitStore {
       const previous = projectedWaits(effects).get(request.waitId)
       if (previous !== undefined) return { effects: [], result: previous.sessionId === request.sessionId
         && previous.operationId === request.operationId && previous.mode === request.mode
+        && previous.toolCallId === request.toolCallId && previous.rootCallId === request.rootCallId
         && digest(previous.objects) === digest(request.objects) ? previous
         : rejected('wait-id-conflict', 'The wait identity has different contents.', 'Retain the original registration.') }
       if (effects.some(effect => effect.operationId === request.operationId)) return { effects: [],

@@ -24,12 +24,16 @@ export class WaitCoordinator {
   private disposed = false
   constructor(private readonly runtime: WaitRuntime) {}
 
-  /** Commit registration without waiting for the observed tasks to finish.
+  /** Replay committed waits without reauthorization or subscriptions; authorize only new registrations.
    * @param request - authenticated objects and stable wait identity.
    * @returns persisted registration; callers can immediately conclude their tool turn.
    */
   async register(request: RegisterSeatWaitRequest): Promise<RegisterSeatWaitResult> {
     if (this.disposed) return rejected('unavailable', 'Wait observation is stopping.', 'Retry when the provider is ready.')
+    if (await this.runtime.read(request.waitId) !== null) {
+      const wait = await this.runtime.register(request)
+      return 'status' in wait ? wait : { status: 'registered', wait }
+    }
     if (!request.objects.length || new Set(request.objects.map(digest)).size !== request.objects.length) {
       return rejected('invalid-request', 'Wait objects must be nonempty and distinct.', 'List each pending object once.')
     }

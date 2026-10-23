@@ -40,18 +40,43 @@ export async function checkScheduleDeletion(f: Awaited<ReturnType<typeof engineF
     expect(await schedule.delete({ sessionId, id: first.id })).toMatchObject({ deleted: true })
   })
   expect((await seats.wait(wait.waitId))?.observations).toHaveLength(1)
+  const registered = await seats.wait(wait.waitId)
+  expect(await seats.registerWait(wait)).toEqual({ status: 'registered', wait: registered })
   expect((await seats.wait(wait.waitId))?.phase).toBe('registered')
   expect(adapter.requests).toHaveLength(before)
   expect(await schedule.delete({ sessionId, id: first.id })).toMatchObject({ deleted: false, code: 'schedule_not_found' })
+  const started = performance.now()
   await commitsEffect(f.ctx, effect => effect.kind === 'wait/woken' && effect.data.waitId === wait.waitId,
     () => completesTurn(f.ctx, sessionId, inputContains(`Wait ${wait.waitId}:`), async () => {
       expect(await schedule.delete({ sessionId, id: second.id })).toMatchObject({ deleted: true })
     }))
+  const elapsedMs = performance.now() - started
+  expect(elapsedMs).toBeLessThanOrEqual(5000)
+  console.info(JSON.stringify({ scheduleWaitWakeMs: elapsedMs }))
   expect((await seats.wait(wait.waitId))?.phase).toBe('woken')
   expect(adapter.requests).toHaveLength(before + 1)
   expect((await seats.wait(wait.waitId))?.observations.every(item => item.outcome === 'cancelled')).toBe(true)
   await f.ctx.agents.get(sessionId)?.whenIdle()
   expect(await schedule.catalog()).toEqual([])
+  const original = await seats.wait(wait.waitId)
+  const watermark = (await f.state.read()).watermark
+  expect(await seats.registerWait(wait)).toEqual({ status: 'registered', wait: original })
+  for (const change of [
+    { mode: 'any' as const }, { objects: [] }, { sessionId: 'other-session' as SessionId },
+    { operationId: operation('changed-wait') },
+    { toolCallId: 'changed-call' as NonNullable<T.RegisterSeatWaitRequest['toolCallId']> },
+    { rootCallId: 'changed-root' as NonNullable<T.RegisterSeatWaitRequest['rootCallId']> },
+  ]) {
+    expect(await seats.registerWait({ ...wait, ...change }))
+      .toMatchObject({ status: 'rejected', error: { code: 'wait-id-conflict' } })
+  }
+  expect(await seats.registerWait({ ...wait, waitId: 'unauthorized-wait' as T.WaitId,
+    operationId: operation('unauthorized-wait') }))
+    .toMatchObject({ status: 'rejected', error: { code: 'wait-object-unauthorized' } })
+  const facts = await f.state.read()
+  expect(facts.watermark).toBe(watermark)
+  expect(facts.effects.filter(effect => effect.kind === 'wait/woken' && effect.data.waitId === wait.waitId)).toHaveLength(1)
+  expect(adapter.requests).toHaveLength(before + 1)
   const due = await schedule.create(sessionId, { title: 'Due check', prompt: 'Consume the due check', after_seconds: 1 })
   const dueWait: T.RegisterSeatWaitRequest = { sessionId, waitId: 'schedule-due' as T.WaitId, mode: 'all',
     objects: [{ kind: 'schedule', id: due.id }], operationId: operation('schedule-due') }
