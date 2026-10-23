@@ -24,8 +24,8 @@ import { createLocalRuntime } from '../src/runtime.ts'
 import type { LocalSeatOptions } from '../src/service-options.ts'
 
 /** Boot an actual engine through a test-only Loader profile. */
-export async function engineFixture(withArchive = false) {
-  const root = await mkdtemp(join(process.cwd(), '.seat-engine-local-'))
+export async function engineFixture(withArchive = false, retainedRoot?: string) {
+  const root = retainedRoot ?? await mkdtemp(join(process.cwd(), '.seat-engine-local-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
   const facility = new DomainFacility(ctx, { backend: 'json' })
@@ -112,12 +112,12 @@ export async function engineFixture(withArchive = false) {
       executor, unregister, unregisterSource, open,
       async close() { for (const engine of engines) await engine.shutdown(); await ctx.fiber.dispose()
         await facility.closeAll(); await backend.close()
-        await rm(root, { recursive: true, force: true }) } }
+        if (retainedRoot === undefined) await rm(root, { recursive: true, force: true }) } }
   } catch (error) {
     for (const engine of engines) await engine.shutdown()
     await ctx.fiber.dispose()
     await facility.closeAll(); await backend.close()
-    await rm(root, { recursive: true, force: true })
+    if (retainedRoot === undefined) await rm(root, { recursive: true, force: true })
     throw error
   }
 }

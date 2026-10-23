@@ -27,6 +27,8 @@ Project policy defaults to `remind` with `modeChosen: false`. Approval removes o
 
 Accepted openings retain their definition, title and rendered text through queueing and recovery; current project and rule mode restrictions still apply. Manual prefill configures the original Session without sending a model request. Opening progress cannot roll back a committed budget revision. Local providers register engine-only list and close capabilities without relaxing external authority checks. Close barriers retain their operation identity, and conflicting replacement terminal summaries fail with `state-conflict` before append.
 
+A local provider may register `preAdmit` with its engine access. Manual `openWindow`, including each opening dispatched by a local batch, awaits this hook before trigger acceptance. A refusal is returned unchanged without engine acceptance, resource or Session effects; policy audit belongs to the hook provider. Without the hook, the original admission path is unchanged.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>

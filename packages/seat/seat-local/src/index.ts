@@ -6,6 +6,7 @@ import { LocalSeatService } from './service.ts'
 import { createLocalRuntime } from './runtime.ts'
 import { createOpenExecutor } from './executor.ts'
 import { installCreateAdmission } from './create-admission.ts'
+import { engineOpeningGate } from './open-gates.ts'
 import { installPolicyHosts } from './policy-hosts.ts'
 import { createEngineAccess, registerLocalReadAccess } from './engine-access.ts'
 import { LocalSeatDirectoryService } from './directory-service.ts'
@@ -75,7 +76,8 @@ export function apply(ctx: Context, config: Config): void {
           const unregisterSource = engine.registerSource({ sourceId: localSourceId, kinds: ['manual'], maxRedeliveryMs: null,
             callback: () => Promise.resolve() })
           const unregister = engine.registerExecutor(createOpenExecutor(child, runtime, config))
-          const unregisterAccess = engine.registerLocalAccess?.(createEngineAccess(installed, config))
+          const unregisterAccess = engine.registerLocalAccess?.({ ...createEngineAccess(installed, config),
+            preAdmit: input => engineOpeningGate(child, installed, input) })
           const recovery = engine.ready().then(() => installed.recover())
           void recovery.catch((error: unknown) => { child.logger.warn('Seat recovery failed', error) })
           return async () => {

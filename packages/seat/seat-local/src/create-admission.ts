@@ -115,7 +115,28 @@ export function installCreateAdmission(ctx: Context, service: LocalSeatService, 
       retained?.releases.delete(release)
     }
     preparations.set(options.sessionId, release)
+    options.onAdmissionFailure?.(release)
     retained?.releases.add(release)
+    return upstream
+  })
+  ctx.on('agent/resume-admitting', async (payload, next) => {
+    const { options } = payload
+    const upstream = await next()
+    if (upstream.kind !== 'allow') return upstream
+    if (!ctx.get('seatEngine')) return { kind: 'reject', reason: 'Seat identity storage is unavailable. Restore the seat engine before resuming.' }
+    const ledger = ctx.get('sessionLedger')
+    if (!ledger || ledger.contextFor(options.resumeSessionId)) return upstream
+    const facts = (await service.state.read()).effects
+    const fact = facts.findLast(effect => (effect.kind === 'seat/binding' || effect.kind === 'open/created'
+      || effect.kind === 'open/configured') && effect.data.sessionId === options.resumeSessionId)
+    const binding = fact?.kind === 'seat/binding' ? fact.data
+      : fact?.kind === 'open/created' || fact?.kind === 'open/configured' ? fact.data.binding : undefined
+    // Free resumes retain the loop's launch-label resolution instead of minting a free override.
+    if (binding?.kind !== 'seat') return upstream
+    payload.onSettled(ledger.bindContext({ sessionId: options.resumeSessionId, rootSessionId: options.resumeSessionId,
+      runId: randomUUID() as LedgerRunId, nodeId: binding.nodeId, seat: binding.seat, window: options.resumeSessionId,
+      identitySource: binding.identitySource, accountLabel: 'unknown',
+      ...(binding.taskId === undefined ? {} : { taskId: binding.taskId }) }))
     return upstream
   })
   ctx.on('agent/created', async ({ agent, source }) => {
