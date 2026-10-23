@@ -4,7 +4,6 @@ import type { ChildAdmissionTicket, EngineEffect, GateDefinition, SeatTrigger } 
 import { openingFacts, recordCost } from './fixtures/ledger.ts'
 import { LocalSeatService } from '@panedesk/dsh-seat-local'
 import { digest } from '@panedesk/dsh-seat-local/src/store.ts'
-import { commitsEffect } from '../../seat/tests/completion.ts'
 import { clock, measured } from './fixtures/clock.ts'
 import { createUserMessage, ToolCallId } from '@panedesk/dsh-llm'
 import { join } from 'node:path'
@@ -135,7 +134,7 @@ it('A03 assembles CLI, SDK, remote and engine openings with one durable first me
     const session = f.ctx.agents.get(window.sessionId)!.session
     const open = openingFacts(await f.effects()).find(item => item.sessionId === window.sessionId)
     if (open?.openingMessageId == null) throw new Error(JSON.stringify(open))
-    const delivered = session.snapshotEvents().flatMap(event => {
+    const delivered = session.snapshotEvents().flatMap((event) => {
       if (event.type !== 'user/message' || event.data.source.kind !== 'message-delivery') return []
       return String(event.data.source.operationId) === String(digest(open.openingOperationId)) ? [event] : []
     })
@@ -492,14 +491,45 @@ it('A15 queues outside a cross-midnight window and keeps FIFO waiters free of re
 }, 20000)
 
 it('A17 accounts durable costs and defers only new turns after the full budget is spent', async () => {
-  const f = await setup()
+  const f = await setup({ onBase: async (ctx) => {
+    const price: import('@panedesk/dsh-session-ledger').LedgerPriceEntry = {
+      version: 'test-v1', sourceUrls: ['https://example.invalid/test-prices'], retrievedOn: '2026-01-01', reference: true,
+      modelFamily: 'model-a', modelKey: 'model-a', currency: 'USD', holidaysUnmodeled: true,
+      prices: { input: '0.1', cacheRead: '0.1', cacheWrite: { '5m': '0.1', '1h': '0.1' }, output: '0.2' },
+    }
+    const resolve = ctx.sessionLedger.resolveCallContext.bind(ctx.sessionLedger)
+    ctx.sessionLedger.resolveCallContext = async (request) => {
+      const resolved = await resolve(request)
+      return { ...resolved, price, priceTable: { ...price, entries: [price] } }
+    }
+  } })
+  const stream = f.model.stream.bind(f.model)
+  f.model.stream = async function* (options) {
+    for await (const chunk of stream(options)) {
+      yield chunk.type === 'usage' ? { ...chunk, usage: { ...chunk.usage, cacheWriteLongTokens: 0 } } : chunk
+    }
+  }
   await f.save(f.definition())
   const opened = await f.open()
+  await f.settle()
+  expect(f.model.requests).toHaveLength(1)
   expect(await f.engine.configureBudget({ sessionId: opened.sessionId, limits: { windowBudgetUsd: '100' as never }, expectedRevision: 0,
     authorizationRef: 'owner' as never, operationId: operation() })).toMatchObject({ status: 'configured' })
-  await commitsEffect(f.ctx, effect => effect.kind === 'budget/warning' && effect.sessionId === opened.sessionId, () =>
-    recordCost(f.ctx, opened.sessionId, 'cost-a', '0.00008').then(() => f.engine.drive()))
-  expect(await f.engine.budget(opened.sessionId)).toMatchObject({ windowCost: '80' })
+  await recordCost(f.ctx, opened.sessionId, 'cost-a', '0.00008')
+  await f.settle()
+  await expect.poll(async () => {
+    const ledger = await f.ctx.sessionLedger.snapshot({ sessionId: opened.sessionId })
+    const calls = ledger.rows.filter(row => row.kind === 'call')
+    return ledger.complete && calls.length === 3 && calls.every(row => row.finish?.costUsd !== undefined)
+  }).toBe(true)
+  expect(f.model.requests).toHaveLength(2)
+  const calls = (await f.ctx.sessionLedger.snapshot({ sessionId: opened.sessionId })).rows.filter(row => row.kind === 'call')
+  expect(calls.filter(row => row.start.callId !== 'cost-a').map(row => row.finish)).toEqual([
+    expect.objectContaining({ pricingState: 'priced', priceVersion: 'test-v1', costUsd: '0.000004' }),
+    expect.objectContaining({ pricingState: 'priced', priceVersion: 'test-v1', costUsd: '0.000004' }),
+  ])
+  // Opening and warning each cost 10 * 0.1 + 20 * 0.1 + 5 * 0.2 = 4 micro-USD; 80 + 2 * 4 = 88.
+  expect(await f.engine.budget(opened.sessionId)).toMatchObject({ windowCost: '88' })
   expect((await f.effects()).filter(effect => effect.kind === 'budget/warning')).toHaveLength(1)
   await f.engine.drive()
   expect((await f.effects()).filter(effect => effect.kind === 'budget/warning')).toHaveLength(1)
@@ -840,8 +870,8 @@ it.each(['authorized-idle', 'not-authorized', 'running', 'child', 'job'] as cons
         const records = await readdir(join(f.home, 'messages'), { recursive: true })
         const bodies: string[] = []
         for (const name of records) {
-          if (!String(name).endsWith('.json')) continue
-          const envelope = JSON.parse(await readFile(join(f.home, 'messages', String(name)), 'utf8')) as { payload?: string }
+          if (!name.endsWith('.json')) continue
+          const envelope = JSON.parse(await readFile(join(f.home, 'messages', name), 'utf8')) as { payload?: string }
           const value = JSON.parse(envelope.payload ?? '{}') as { value?: { message?: { content?: string } }; message?: { content?: string } }
           const content = value.value?.message?.content ?? value.message?.content
           if (typeof content === 'string') bodies.push(content)
