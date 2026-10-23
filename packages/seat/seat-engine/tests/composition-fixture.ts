@@ -21,7 +21,11 @@ import { config } from './fixtures.ts'
 import { CompositionSeats, BarrierAdapter } from './composition-provider.ts'
 
 /** Boot a private test-only YAML profile; release persistence after its live owners. */
-export async function composition(cache = false) {
+export async function composition(cache = false, additions: {
+  builtins?: Record<string, unknown>
+  entries?: { name: string; config?: object }[]
+  sources?: EnginePlugin.Config['sources']
+} = {}) {
   const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.composition-'))
   const ctx = new Context()
   try {
@@ -30,7 +34,7 @@ export async function composition(cache = false) {
     Object.assign(ctx.loader.builtins, { include: Include, agents: AgentRegistry, loop: AgentLoop, llm: LlmRuntime,
       session: SessionStore, projections: SessionProjectionRegistry, prompt: SystemPrompt, tools: ToolRuntime,
       persistence: Persistence, ledger: JournalSessionLedger, delivery: LocalMessageDelivery,
-      seats: CompositionSeats, engine: EnginePlugin, cache: Cache })
+      seats: CompositionSeats, engine: EnginePlugin, cache: Cache, ...additions.builtins })
     const entries = [
       { name: 'cordis:llm' }, { name: 'cordis:session' }, { name: 'cordis:projections' },
       { name: 'cordis:prompt', config: {} }, { name: 'cordis:tools', config: {} }, { name: 'cordis:agents' },
@@ -40,6 +44,7 @@ export async function composition(cache = false) {
       { name: 'cordis:delivery', config: { dshHome: home, maxRecordBytes: 1048576, maxContentBytes: 4096,
         maxBatchSize: 100, lockTimeoutMs: 5000, lockRetryMs: 1, scanIntervalMs: 100, watch: false } },
       { name: 'cordis:seats' },
+      ...(additions.entries ?? []),
       ...(cache ? [{ name: 'cordis:cache', config: { policy: { retention: 'default' },
         keepalive: { enabled: false, leadSeconds: 240, minimumIntervalSeconds: 60, maxOutputTokens: 1 },
         concurrency: [{ modelFamily: 'mock', maxInFlight: 1 }],
@@ -52,15 +57,15 @@ export async function composition(cache = false) {
     const nodeId = await ctx.sessionLedger.nodeId()
     const engineProfile = join(home, 'engine.yml')
     await writeFile(engineProfile, JSON.stringify([{ name: 'cordis:engine',
-      config: { ...config, home, nodeAliases: { local: nodeId } } }]))
-    await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(engineProfile).href } })
+      config: { ...config, home, nodeAliases: { local: nodeId }, sources: additions.sources } }]))
+    const engineEntry = await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(engineProfile).href } })
     await ctx.loader.await()
     const adapter = new BarrierAdapter()
     ctx.llm.registerAdapter(['mock'], adapter)
     return { ctx, adapter, home, async close() {
       adapter.finish()
-      await ctx.seatEngine.shutdown()
       for (const agent of ctx.agents.list()) await agent.whenIdle()
+      await ctx.loader.resolve(engineEntry).fiber?.dispose()
       await ctx.fiber.dispose()
       await rm(home, { recursive: true, force: true })
     } }

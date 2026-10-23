@@ -482,6 +482,8 @@ export interface ChildAdmissionTicket {
   requestDigest: SeatDigest
   agentPreset: string
   permissionRevision: number
+  /** Frozen provider input retained for FIFO replay; never contains a live Agent or signal. */
+  activation?: SeatJson
   phase: 'queued' | 'admitted' | 'released' | 'cancelled'
   childSessionId: SessionId | null
   ownerEpoch: OwnerEpoch

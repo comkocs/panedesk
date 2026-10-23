@@ -144,16 +144,24 @@ export function registerWebhook(ctx: Context, options: WebhookOptions): void {
     || !Number.isSafeInteger(options.maxClockSkewMs) || options.maxClockSkewMs < 0
     || !Number.isSafeInteger(options.bodyTimeoutMs) || options.bodyTimeoutMs <= 0) throw new Error('Invalid external source bounds')
   if (new Set(options.sources.map(source => source.sourceId)).size !== options.sources.length) throw new Error('Duplicate external source')
-  const web = ctx.get('webServer')
-  if (!web) return
-  ctx.effect(() => {
-    const running = new Set<Promise<void>>()
-    const controller = new AbortController()
-    const remove = web.register({ kind: 'exact', path: options.path, handler(req, res) {
-      const task = handleWebhook(ctx, options, req, res, controller.signal)
-      running.add(task)
-      return task.finally(() => { running.delete(task) })
-    } })
-    return async () => { remove(); controller.abort(); await Promise.all(running) }
-  })
+  const install = (owner: Context) => {
+    const engine = owner.get('seatEngine'), web = owner.get('webServer')
+    if (!engine || !web) return
+    for (const source of options.sources) owner.effect(() => engine.registerSource({
+      sourceId: source.sourceId, kinds: ['external'], maxRedeliveryMs: null,
+      callback: async () => {},
+    }))
+    owner.effect(() => {
+      const running = new Set<Promise<void>>()
+      const controller = new AbortController()
+      const remove = web.register({ kind: 'exact', path: options.path, handler(req, res) {
+        const task = handleWebhook(ctx, options, req, res, controller.signal)
+        running.add(task)
+        return task.finally(() => { running.delete(task) })
+      } })
+      return async () => { remove(); controller.abort(); await Promise.all(running) }
+    })
+  }
+  if (ctx.get('seatEngine') && ctx.get('webServer')) install(ctx)
+  else ctx.inject(['seatEngine', 'webServer'], install)
 }
