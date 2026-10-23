@@ -198,9 +198,15 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
     if (modelSelectionPolicy !== undefined) registerListSubagentModels(runtimeCtx, modelSelectionPolicy)
     // Load order and HMR replacement can change provider availability while
     // this fiber remains active.
-    let mounted: { subagentProvider: SubagentProvider; definition: ToolDefinition; disposeTool: () => void } | undefined
+    let mounted: {
+      subagentProvider: SubagentProvider
+      definition: ToolDefinition
+      disposeTool: () => void
+      admissionEnabled: boolean
+    } | undefined
     const mount = (subagentProvider: SubagentProvider): void => {
       assertSubagentProviderConfiguration(subagentProvider)
+      const admissionEnabled = runtimeCtx.get('subagentAdmission') !== undefined
       const wording = providerWording(subagentProvider.inheritsParentContext)
       const providerRouteDefaults = subagentProvider.agentRouteDefaults
       const selectionDescription = providerRouteDefaults !== undefined
@@ -275,10 +281,13 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
           schema: {
             type: 'object',
             additionalProperties: false,
-            properties: {
+            properties: admissionEnabled ? {
               kind: { type: 'string', required: true, enum: ['activation', 'queued'] },
               subagentId: { type: 'string' },
               ticketId: { type: 'string' },
+            } : {
+              kind: { type: 'string', required: true, const: 'activation' },
+              subagentId: { type: 'string', required: true },
             },
           },
           render: (_args, value) => [{ type: 'text', text: value.kind === 'queued'
@@ -356,13 +365,16 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             ...maxDepth !== undefined ? { maxDepth } : {},
           }
 
-          const started = await runtimeCtx.subagents.requestActivation({
+          const spec = {
             provider: config.provider,
             label: args.description,
             request,
             signal: exec.signal,
-            delivery: 'parent',
-          })
+            delivery: 'parent' as const,
+          }
+          const started = await (runtimeCtx.get('subagentAdmission') === undefined
+            ? runtimeCtx.subagents.startActivation(spec)
+            : runtimeCtx.subagents.requestActivation(spec))
           if ('status' in started) return { kind: 'queued' as const, ticketId: started.ticketId }
           return { kind: 'activation' as const, subagentId: started.childId }
         },
@@ -376,8 +388,17 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
         }
       })
       // oxlint-disable-next-line typescript/no-misused-promises -- Tool and guidance disposal are synchronous.
-      mounted = { subagentProvider, definition, disposeTool }
+      mounted = { subagentProvider, definition, disposeTool, admissionEnabled }
     }
+
+    runtimeCtx.on('internal/service', (name) => {
+      if (name !== 'subagentAdmission' || mounted === undefined
+        || mounted.admissionEnabled === (runtimeCtx.get('subagentAdmission') !== undefined)) return
+      const { subagentProvider } = mounted
+      mounted.disposeTool()
+      mounted = undefined
+      mount(subagentProvider)
+    })
 
     // Register listeners before checking presence so no synchronous change is missed.
     runtimeCtx.on('subagent/provider-added', (subagentProvider) => {
