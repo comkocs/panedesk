@@ -27,7 +27,9 @@ Use `dsh-agent` to create or resume live agents, send follow-up or steering inpu
 
 Mount `dsh-agent` wherever live agents exist: it provides `ctx.agents` and the `Agent` handle that plugins, UI, hooks, and orchestrators work against. The service is inert until a driver registers a factory — the shipped driver is `dsh-agent-loop`, so the smallest useful composition loads both.
 
-Optional `agent/create-admitting` listeners decide before factory, setup, or publication effects. Rejections preserve structured policy choices; missing listeners delegate unchanged. A caller supplying prepared resources must provide an idempotent, non-throwing `releasePreparation` callback; creation releases preparation on failure.
+Optional `agent/create-admitting` listeners decide before factory, setup, or publication effects. Rejections preserve structured policy choices; missing listeners delegate unchanged. A caller supplying prepared resources must provide an idempotent, non-throwing `releasePreparation` callback. Admission listeners can register failure cleanup through `options.onAdmissionFailure`; failed creation runs the caller's release first, then every registered cleanup. Cleanup errors are aggregated with the creation error without skipping later callbacks. Successful creation retains the existing preparation handover.
+
+Optional `agent/resume-admitting` listeners run before persistence loading and the first residency ledger entry. They can refuse resume or register temporary attribution cleanup through `onSettled`; cleanup runs after factory success or failure. Missing listeners preserve factory options and ledger attribution unchanged. These process-local hooks add no Session fields.
 
 ### Create or resume an agent
 

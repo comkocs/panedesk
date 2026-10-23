@@ -30,6 +30,15 @@ declare module '@panedesk/cordis' {
   interface Context {
     agents: AgentRegistry
   }
+  interface Events {
+    /** Optional resume policy runs before persistence or residency accounting.
+     * @mode waterfall
+     * @param payload - original options and settlement cleanup registration.
+     * @param next - remaining admission policies; absent listeners allow unchanged.
+     */
+    'agent/resume-admitting'(payload: { options: ResumeAgentOptions; onSettled(cleanup: () => void): void },
+      next: () => Promise<CreateAdmissionDecision>): Promise<CreateAdmissionDecision>
+  }
 }
 
 /**
@@ -120,6 +129,8 @@ export interface CreateAgentOptions {
   readonly setup?: AgentSetup
   /** Release temporary attribution after residency takeover or any creation failure; must be idempotent. */
   readonly releasePreparation?: () => void
+  /** Admission listeners register failure cleanup here; absent outside registry admission. */
+  readonly onAdmissionFailure?: (cleanup: () => void) => void
 }
 
 /**
@@ -405,16 +416,30 @@ export class AgentRegistry extends Service {
    * @returns the handle after setup, rollback-covered publication, and loop start complete.
    */
   async create(options: CreateAgentOptions): Promise<AgentHandle> {
+    const cleanups: (() => void)[] = []
+    const failures: unknown[] = []
+    let failed = false
     try {
-      return await this.createAdmitted(options)
+      return await this.createAdmitted(options, (cleanup) => { cleanups.push(cleanup) })
+    } catch (error) {
+      failed = true
+      failures.push(error)
+      throw error
     } finally {
-      options.releasePreparation?.()
+      if (!failed || cleanups.length === 0) options.releasePreparation?.()
+      else {
+        try { options.releasePreparation?.() } catch (error) { failures.push(error) }
+        for (const cleanup of cleanups) {
+          try { cleanup() } catch (error) { failures.push(error) }
+        }
+        if (failures.length > 1) throw new AggregateError(failures, 'Agent creation and preparation cleanup failed')
+      }
     }
   }
 
-  private async createAdmitted(options: CreateAgentOptions): Promise<AgentHandle> {
+  private async createAdmitted(options: CreateAgentOptions, onAdmissionFailure: (cleanup: () => void) => void): Promise<AgentHandle> {
     const ownerCtx = this.ctx
-    const decision = await ownerCtx.waterfall('agent/create-admitting', { options },
+    const decision = await ownerCtx.waterfall('agent/create-admitting', { options: { ...options, onAdmissionFailure } },
       () => Promise.resolve<CreateAdmissionDecision>({ kind: 'allow' }))
     if (decision.kind === 'reject') throw new AgentCreateAdmissionError(decision.reason)
     // Re-trace a Service-backed factory through the accessing context
@@ -438,8 +463,25 @@ export class AgentRegistry extends Service {
     const ownerCtx = this.ctx
     const { target } = this.requireFactory()
     const receiver = getTraceable(ownerCtx, target)
-    // oxlint-disable-next-line typescript/unbound-method -- Reflect.apply intentionally supplies the caller-traced receiver
-    return Reflect.apply(target.resume, receiver, [ownerCtx, options])
+    const cleanups: (() => void)[] = []
+    const failures: unknown[] = []
+    try {
+      const decision = await ownerCtx.waterfall('agent/resume-admitting', {
+        options, onSettled: (cleanup) => { cleanups.push(cleanup) },
+      }, () => Promise.resolve<CreateAdmissionDecision>({ kind: 'allow' }))
+      if (decision.kind === 'reject') throw new AgentCreateAdmissionError(decision.reason)
+      // oxlint-disable-next-line typescript/unbound-method -- Reflect.apply intentionally supplies the caller-traced receiver
+      return await Reflect.apply(target.resume, receiver, [ownerCtx, options])
+    } catch (error) {
+      failures.push(error)
+      throw error
+    } finally {
+      const primaryFailures = failures.length
+      for (const cleanup of cleanups) {
+        try { cleanup() } catch (error) { failures.push(error) }
+      }
+      if (failures.length > primaryFailures) throw new AggregateError(failures, 'Agent resume preparation cleanup failed')
+    }
   }
 
   /**

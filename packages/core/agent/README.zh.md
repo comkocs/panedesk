@@ -27,7 +27,9 @@ kind: "package-reference"
 
 在存在实时 agent 的任何地方挂载 `dsh-agent`：它提供 `ctx.agents` 以及插件、UI、钩子和编排器所面向编程的 `Agent` 句柄。在没有驱动器注册工厂之前，该服务保持惰性——随附驱动器是 `dsh-agent-loop`，因此最小的可用组合需要同时加载两者。
 
-可选的 `agent/create-admitting` 监听器在工厂、setup 或发布副作用前决定准入。拒绝保留结构化策略选项；没有监听器时保持原有委托。提供准备资源的调用方必须提供幂等、不抛错的 `releasePreparation` 回调；创建失败时释放准备资源。
+可选的 `agent/create-admitting` 监听器在工厂、setup 或发布副作用前决定准入。拒绝保留结构化策略选项；没有监听器时保持原有委托。提供准备资源的调用方必须提供幂等、不抛错的 `releasePreparation` 回调。准入监听器可通过 `options.onAdmissionFailure` 注册失败清理；创建失败先执行调用方释放，再执行所有已注册清理。清理异常与创建异常一并聚合，不跳过后续回调。成功创建保持既有准备资源交接。
+
+可选的 `agent/resume-admitting` 监听器在加载持久化及首笔驻留账本前执行，可拒绝恢复或通过 `onSettled` 注册临时归属清理；工厂成功或失败后都会清理。没有监听器时保持工厂参数和账本归属不变。这些进程内钩子不新增 Session 字段。
 
 ### 创建或恢复 agent
 

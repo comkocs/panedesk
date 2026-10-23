@@ -31,6 +31,8 @@ The Loader installs `subagentAdmission`, `subagentNotifications`, and `jobNotifi
 
 Explicit `sources` configure schedule records, registered Git paths/refs, window-ended observations, and unanswered handoff deadlines. Schedule uses the existing `seat.open` action; Git only reads registered repositories. Manual ingress remains with the local provider and signed external ingress with the remote provider. Source callbacks for these observers are local acknowledgements, not outbound HTTP callbacks.
 
+A local provider may register `preAdmit` with its engine access. Manual `openWindow`, including each opening dispatched by a local batch, awaits this hook before trigger acceptance. A refusal is returned unchanged without engine acceptance, resource or Session effects; policy audit belongs to the hook provider. Without the hook, the original admission path is unchanged.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>
