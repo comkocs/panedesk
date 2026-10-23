@@ -26,6 +26,11 @@
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
+  "dependencies": {
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-tools": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*"
+  },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~"
   },

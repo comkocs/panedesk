@@ -34,6 +34,14 @@ export interface GateContextBase {
   seat: SeatName | null
   sessionId: SessionId | null
   observedAt: SeatTimestamp
+  /** Canonical executor directory; absent means relative targets cannot be classified. */
+  cwd?: string
+  /** Child-owned evidence supplied by the actual continuation executor, never model arguments. */
+  continuationEvidence?: {
+    cache: import('./types.ts').SeatCacheEvidence
+    context: import('./types.ts').SeatContextUsage
+    thresholdTokens: number
+  }
 }
 /** Each hook carries facts from its actual execution point rather than model claims. */
 export type GateContext = GateContextBase & (

@@ -190,6 +190,11 @@ export abstract class SeatEngineService extends Service {
    * @returns durable frame or a sequence conflict.
    */
   abstract transact(request: T.EngineTransactionRequest): Promise<T.EngineTransactionResult>
+  /** Frame and commit effects under engine-owned canonical encoding and sequence CAS.
+   * @param request - stable decision identity, observed facts and expected committed watermark.
+   * @returns committed frame, current watermark conflict or explicit refusal.
+   */
+  abstract appendEffects(request: { decisionId: import('./events.ts').EngineDecisionId; expectedSequence: number; observedAt: T.SeatTimestamp; policyRevision: number; effects: readonly import('./events.ts').EngineEffect[] }): Promise<T.EngineTransactionResult>
   /** Reconcile original identities without replaying uncertain model side effects.
    * @returns only after recovery barriers and projections are ready.
    */
