@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 Service Definition for same-node messages, receive settings, durable controls, and runtime-owned receipts. The abstract `MessageDelivery` service exposes `ctx.messageDelivery`; it does not implement storage or delivery. See [Session persistence](../../../docs/subsystems/persistence.md).
 
-`list` accepts a positive `limit` and a provider-issued exclusive `cursor`; keep the same filters when continuing a live scan. Unanswered queries select handoff/reply messages without a response and exclude terminal outcomes by default. Read `complete` and `nextCursor` rather than treating an incomplete scan as an empty complete result.
+`list` opts into strict pagination with `pagination: true`, a positive safe-integer `limit`, and a provider-issued exclusive `cursor`; keep the same filters when continuing a live scan. Omitting or disabling pagination preserves the provider's legacy query behavior; see the [local provider](../message-delivery-local/README.md). Unanswered queries select handoff/reply messages without a response and exclude terminal outcomes by default. Read `complete` and `nextCursor` rather than treating an incomplete scan as an empty complete result.
 
 ## Table of Contents
 

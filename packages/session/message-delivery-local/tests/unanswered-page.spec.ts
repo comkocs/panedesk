@@ -16,7 +16,7 @@ describe('unanswered message pages', () => {
       await f.service.send({ target: { sessionId: f.session.id }, content: 'notice',
         messageClass: 'notice', operationId: 'notice' as OperationId })
       await f.drain()
-      const query = { targetSessionId: f.session.id, unansweredOlderThanMinutes: 0, limit: 1 }
+      const query = { targetSessionId: f.session.id, unansweredOlderThanMinutes: 0, limit: 1, pagination: true }
       const first = await f.service.list(query)
       expect(first.items).toHaveLength(1)
       expect(first.complete).toBe(false)
@@ -39,11 +39,41 @@ describe('unanswered message pages', () => {
     } finally { await f.dispose() }
   })
 
-  it('rejects unavailable cursors and nonpositive limits without changing delivery', async () => {
+  it('preserves legacy slice and completeness semantics without pagination', async () => {
     const f = await wakeupFixture(false)
     try {
-      await expect(f.service.list({ cursor: 'missing' as MessageCursor })).rejects.toThrow('cursor is unavailable')
-      await expect(f.service.list({ limit: 0 })).rejects.toThrow('positive integer')
+      const query = { targetSessionId: f.session.id }
+      expect(await f.service.list({ ...query, limit: 0 })).toEqual({ items: [], complete: true })
+      expect(await f.service.list({ ...query, limit: -1 })).toEqual({ items: [], complete: false })
+      for (const operationId of ['first', 'second', 'third']) {
+        await f.service.send({ target: { sessionId: f.session.id }, content: operationId,
+          messageClass: 'notice', operationId: operationId as OperationId })
+      }
+      await f.drain()
+      const all = await f.service.list(query)
+      expect(all.items).toHaveLength(3)
+      expect(all).toEqual({ items: all.items, complete: true })
+      for (const pagination of [undefined, false]) {
+        const legacy = { ...query, ...(pagination === undefined ? {} : { pagination }) }
+        expect(await f.service.list({ ...legacy, limit: 0 })).toEqual({ items: [], complete: false })
+        expect(await f.service.list({ ...legacy, limit: -1 })).toEqual({ items: all.items.slice(0, 2), complete: false })
+        expect(await f.service.list({ ...legacy, limit: 1.5 })).toEqual({ items: all.items.slice(0, 1), complete: false })
+        expect(await f.service.list({ ...legacy, limit: 1, cursor: 'missing' as MessageCursor }))
+          .toEqual({ items: all.items.slice(0, 1), complete: false })
+      }
+    } finally { await f.dispose() }
+  })
+
+  it('rejects unavailable cursors and invalid limits only with strict pagination', async () => {
+    const f = await wakeupFixture(false)
+    try {
+      for (const cursor of ['missing', 'message-list:missing']) {
+        await expect(f.service.list({ pagination: true, cursor: cursor as MessageCursor })).rejects.toThrow('cursor is unavailable')
+      }
+      for (const limit of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+        await expect(f.service.list({ pagination: true, limit })).rejects.toThrow('positive integer')
+      }
+      expect(await f.service.list({ pagination: true })).toEqual({ items: [], complete: true })
       expect(await f.service.list({})).toEqual({ items: [], complete: true })
     } finally { await f.dispose() }
   })
