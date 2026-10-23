@@ -108,12 +108,12 @@ class GateProvider extends SeatGateService {
   }
 }
 
-/** Install policy only when the seat service and durable engine are both present.
+/** Install policy only while local reads, the seat service and durable engine are present.
  * @param ctx - reversible plugin owner.
  * @param config - validated policy and checkpoint limits.
  */
 export function apply(ctx: Context, config: Config): void {
-  ctx.inject(['seats', 'seatEngine'], (scope) => {
+  ctx.inject(['seats', 'seatEngine', 'seatLocalRead'], (scope) => {
     const provider = new GateProvider(scope, config)
     installConsumers(scope, config, provider)
     installLifecycle(scope, config)

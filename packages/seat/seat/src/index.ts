@@ -39,6 +39,7 @@ export const SEAT_ERROR_CODES = {
 declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
+    seatLocalRead: SeatLocalReadAccess
     seatEngine: SeatEngineService
     seatEngineQuery: SeatEngineQueryService
     seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
@@ -47,6 +48,11 @@ declare module '@panedesk/cordis' {
     seatDirectories: SeatDirectoryService
   }
 }
+
+/** Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters.
+ * External SeatService calls still require explicit authority; no mutation facade is exposed.
+ */
+export interface SeatLocalReadAccess extends Pick<SeatService, 'definitions' | 'binding' | 'list'> {}
 
 /** Unified node-local operations; provider derives authority from authenticated context, never wire tags. */
 export abstract class SeatService extends Service {

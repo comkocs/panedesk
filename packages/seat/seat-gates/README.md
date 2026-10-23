@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Provides the [seat policy registry](../../../docs/subsystems/seat.md) while both `seats` and `seatEngine` exist. Contributions are reversible; absent providers leave existing tool and compaction behavior unchanged.
+Provides the [seat policy registry](../../../docs/subsystems/seat.md) while `seats`, `seatEngine`, and the provider-owned `seatLocalRead` capability exist. Gates read definitions, bindings, and windows through that internal read-only capability; external seat calls still require explicit authority. Contributions are reversible; absent providers leave existing tool and compaction behavior unchanged.
 
 ## Table of Contents
 

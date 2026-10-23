@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在 `seats` 和 `seatEngine` 同时存在时提供[席位策略注册表](../../../docs/subsystems/seat.zh.md)。贡献可撤销；提供方缺席时不改变既有工具与压缩（compaction）行为。
+在 `seats`、`seatEngine` 和提供方拥有的 `seatLocalRead` 能力同时存在时提供[席位策略注册表](../../../docs/subsystems/seat.zh.md)。闸通过该内部只读能力读取定义、绑定与窗口；外部席位调用仍须显式授权。贡献可撤销；提供方缺席时不改变既有工具与压缩（compaction）行为。
 
 ## 目录
 

@@ -25,7 +25,9 @@ describe('executor policy consumers', () => {
     const { ctx, execute } = await harness()
     const journal = engineStub()
     ctx.provide('seatEngine', journal.engine as SeatEngineService)
-    ctx.provide('seats', seatStub({ ...profile, memoryDirectories: [join(home, 'memory')] }) as SeatService)
+    const seats = seatStub({ ...profile, memoryDirectories: [join(home, 'memory')] })
+    ctx.provide('seats', seats as SeatService)
+    ctx.provide('seatLocalRead', seats)
     const definition = { id: 'memory' as import('@panedesk/dsh-seat').GateId, name: 'memory', hook: 'before-memory-write' as const,
       criterion: { type: 'memory' as import('@panedesk/dsh-seat').GateCriterionId, parameters: {} },
       alternative: 'Use the owning seat.', expiresAt: null, enabled: true, revision: 1, order: 0 }
@@ -54,7 +56,9 @@ describe('executor policy consumers', () => {
     const { ctx, agent, execute } = await harness()
     const journal = engineStub()
     ctx.provide('seatEngine', journal.engine as SeatEngineService)
-    ctx.provide('seats', seatStub({ ...profile, memoryDirectories: [join(home, 'memory')] }) as SeatService)
+    const seats = seatStub({ ...profile, memoryDirectories: [join(home, 'memory')] })
+    ctx.provide('seats', seats as SeatService)
+    ctx.provide('seatLocalRead', seats)
     installLifecycle(ctx, config)
     ctx.effect(() => ctx.tools.register(defineTool({ name: 'probe', description: 'Read data.', parameters: {},
       output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },

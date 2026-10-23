@@ -21,7 +21,7 @@ Exposes model-facing consumers of the [seat services](../../../docs/subsystems/s
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the plugin beside authorized providers. Operation identities derive from the calling Session and tool call. Window operations name exact seats or Sessions; closing requires the observed state version and refuses busy windows. Directory operations use registered root identities and retain provider permissions rather than accepting arbitrary authorized paths.
+Mount the plugin beside authorized providers. `seat_windows` reads through the provider-owned, read-only `seatLocalRead` capability; mutation tools still require an authorized seat service. Operation identities derive from the calling Session and tool call. Window operations name exact seats or Sessions; closing requires the observed state version and refuses busy windows. Directory operations use registered root identities and retain provider permissions rather than accepting arbitrary authorized paths.
 
 `seat_wait` registers explicit objects and concludes the current turn after registration. It does not sleep, poll, or await task completion. Cancelling a wait cancels observation only. Reports retain the three required fields without claiming that the runtime is idle or closed.
 
