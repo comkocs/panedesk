@@ -192,8 +192,9 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
       const latest = facts.findLast(effect => (effect.kind === 'open/intent' || effect.kind === 'open/created'
         || effect.kind === 'open/configured' || effect.kind === 'open/opening-failed') && effect.data.sessionId === owner.sessionId)
       if (latest && (latest.kind === 'open/intent' || latest.kind === 'open/created' || latest.kind === 'open/configured')
-        && latest.data.phase !== 'active' && latest.data.phase !== 'opening-failed') {
-        // An unfinished opening retains its reservation until the original Session can continue.
+        && latest.data.phase !== 'active' && latest.data.phase !== 'opening-failed'
+        && !latest.data.completedStages.includes('opening')) {
+        // Resume interrupted creation, not an owner whose opening delivery was acknowledged.
         const persistence = ctx.get('sessionPersistence')
         if (persistence === undefined || await persistence.stat(owner.sessionId) === undefined) return 'unknown'
         await agentFor(latest.data)

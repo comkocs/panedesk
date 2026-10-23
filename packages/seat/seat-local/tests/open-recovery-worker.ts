@@ -16,7 +16,9 @@ const readyAt = performance.now()
 if (stage !== 'recover') {
   f.ctx.on('seat/decision', (decision) => {
     if (!decision.effects.some(effect => effect.kind === stage)) return
-    process.send?.({ kind: 'barrier', pid: process.pid })
+    const open = [...f.engine.journal.projection.opens.values()][0]
+    process.send?.({ kind: 'barrier', pid: process.pid, phase: open?.phase,
+      openingMessageId: open?.openingMessageId, completedStages: open?.completedStages })
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
   })
   await f.seats.open({ seat: f.definition.seat, origin: 'manual', operationId: operation('opening') })
