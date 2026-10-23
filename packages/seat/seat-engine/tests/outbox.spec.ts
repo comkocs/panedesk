@@ -14,7 +14,7 @@ async function deliverRetry(h: Awaited<ReturnType<typeof harness>>, callbackId: 
   expect(delivery.phase).toBe('retry-due')
   if (delivery.nextDue === null) throw new Error('Missing callback retry deadline')
   vi.setSystemTime(Date.parse(delivery.nextDue))
-  await commitsEffect(h.engine.ctx, effect => effect.kind === 'callback/delivered'
+  await commitsEffect(h.ctx, effect => effect.kind === 'callback/delivered'
     && effect.data.payload.callbackId === callbackId, () => h.engine.drive())
   expect(h.engine.journal.projection.callbacks.get(callbackId)?.phase).toBe('delivered')
 }
@@ -24,7 +24,7 @@ it('A10 publishes complete opened payload before first-turn completion and retri
   h.state.opening = 'pending'; h.state.callbackFailures = 1
   await h.engine.accept({ ...trigger('external', 'event-a'), taskId: 'task-a' as T.SeatTaskId })
   await h.engine.accept({ ...trigger('external', 'event-b'), taskId: 'task-b' as T.SeatTaskId })
-  await commitsEffect(h.engine.ctx, effect => effect.kind === 'callback/attempted'
+  await commitsEffect(h.ctx, effect => effect.kind === 'callback/attempted'
     && effect.data.phase === 'retry-due', () => h.engine.drive())
   const first = h.callbacks[0]!
   expect(first).toEqual({ kind: 'opened', seat, sessionId: h.creates[0], nodeId: 'node-a', nodeName: 'node-a',
@@ -47,7 +47,7 @@ it('A10 preserves ended reason and all report fields after an earlier failed cal
   const h = await harness(); cleanups.push(h.close); await auto(h.engine)
   h.state.callbackFailures = 1
   await h.engine.accept(trigger())
-  await commitsEffect(h.engine.ctx, effect => effect.kind === 'callback/attempted'
+  await commitsEffect(h.ctx, effect => effect.kind === 'callback/attempted'
     && effect.data.phase === 'retry-due', () => h.engine.drive())
   const opened = h.callbacks[0]!
   const report: T.CloseSelfReport = { reportId: 'report-a' as T.CloseReportId, sessionId: h.creates[0]!, canClose: true,
@@ -59,7 +59,7 @@ it('A10 preserves ended reason and all report fields after an earlier failed cal
   const closeFrame = h.engine.journal.projection.decisions.at(-1)!
   expect(closeFrame.effects.map(effect => effect.kind)).toEqual(['window/closed', 'resource/released', 'callback/pending'])
   expect([...h.engine.journal.projection.callbacks.values()].some(item => item.phase === 'retry-due')).toBe(true)
-  await commitsEffect(h.engine.ctx, effect => effect.kind === 'callback/delivered'
+  await commitsEffect(h.ctx, effect => effect.kind === 'callback/delivered'
     && effect.data.payload.kind === 'window-ended', () => deliverRetry(h, opened.callbackId))
   expect(h.callbacks.map(payload => payload.kind)).toEqual(['opened', 'opened', 'window-ended'])
   const ended = h.callbacks.at(-1)!

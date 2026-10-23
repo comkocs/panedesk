@@ -66,7 +66,7 @@ it.each(['absent', 'first-turn'] as const)('cleans failed replacement %s without
   const h = await setup()
   if (failure === 'absent') h.executor.create = () => Promise.reject(new EngineError('open-create-failed', 'Create failed'))
   else h.state.opening = 'failed'
-  await commitsEffect(h.engine.ctx, effect => effect.kind === 'callback/delivered'
+  await commitsEffect(h.ctx, effect => effect.kind === 'callback/delivered'
     && effect.data.payload.kind === 'replacement-failed' && effect.data.payload.oldSessionId === h.old,
   async () => { await h.engine.replace(h.request); await h.engine.drive() })
   const replacement = [...h.engine.journal.projection.replacements.values()][0]
