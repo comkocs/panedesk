@@ -29,7 +29,7 @@ export function registerReportTools(ctx: Context): void {
     },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = ctx.get('seats')
+      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalSession')?.forSession(exec.agent.session)
       if (seats === undefined || exec.agent === undefined) throw new Error('Seat reporting is unavailable.')
       if (args.nextOpen.when.kind === 'at' && !Number.isFinite(Date.parse(args.nextOpen.when.at))) throw new Error('Supply a valid next-open timestamp.')
       return JSON.stringify(await seats.submitReport({
@@ -45,7 +45,7 @@ export function registerReportTools(ctx: Context): void {
     parameters: { reportId: { type: 'string', required: true }, expectedStateVersion: { type: 'integer', required: true } },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = ctx.get('seats')
+      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalSession')?.forSession(exec.agent.session)
       if (seats === undefined || exec.agent === undefined) throw new Error('Seat reporting is unavailable.')
       return JSON.stringify(await seats.revokeReport({ ...args, reportId: args.reportId as CloseReportId,
         sessionId: exec.agent.session.id, operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))

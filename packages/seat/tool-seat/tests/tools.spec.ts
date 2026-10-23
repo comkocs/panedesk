@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SeatService } from '@panedesk/dsh-seat'
+import type { SeatService, SeatSessionOperations } from '@panedesk/dsh-seat'
 import { registerWaitTools } from '../src/wait.ts'
 import { registerReportTools } from '../src/report.ts'
 import { registerWindowTools } from '../src/windows.ts'
@@ -15,7 +15,7 @@ describe('seat model tools', () => {
         wakeOperationId: request.operationId, durability: 'durable',
       },
     }))
-    ctx.provide('seats', { registerWait } as Partial<SeatService> as SeatService)
+    ctx.provide('seatLocalSession', { forSession: () => ({ registerWait } as Partial<SeatSessionOperations> as SeatSessionOperations) })
     registerWaitTools(ctx)
     try {
       const result = await execute('seat_wait', { mode: 'all', objects: [{ kind: 'subagent', id: 'child-a' }, { kind: 'job', id: 'job-a' }] })
@@ -35,7 +35,7 @@ describe('seat model tools', () => {
     const submitReport = vi.fn<SeatService['submitReport']>(async request => ({
       status: 'recorded', reportId: request.report.reportId, stateVersion: request.report.stateVersion,
     }))
-    ctx.provide('seats', { submitReport } as Partial<SeatService> as SeatService)
+    ctx.provide('seatLocalSession', { forSession: () => ({ submitReport } as Partial<SeatSessionOperations> as SeatSessionOperations) })
     registerReportTools(ctx)
     try {
       const fields = { canClose: true, waitingFor: [], nextOpen: { when: { kind: 'unspecified' }, prerequisites: [] }, stateVersion: 2 }

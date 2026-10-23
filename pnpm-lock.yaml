@@ -12871,6 +12871,9 @@ importers:
 
   packages/seat/seat-gates:
     dependencies:
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-compaction':
         specifier: workspace:*
         version: link:../../compaction/compaction
@@ -12883,6 +12886,15 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-session-query':
+        specifier: workspace:*
+        version: link:../../session-query/session-query
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools

@@ -5,6 +5,33 @@ import { localSourceId } from './open-admission.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions } from './service-options.ts'
+import { rejected } from './errors.ts'
+
+/** Register only self-owned wait and report operations for live tool callers.
+ * @param ctx - provider lifecycle and live agent registry.
+ * @param service - unscoped local provider, which remains unauthorized.
+ * @param options - verified local node identity.
+ */
+export function registerLocalSessionAccess(ctx: Context, service: T.SeatService, options: LocalSeatOptions): void {
+  let active = true
+  ctx.effect(() => () => { active = false })
+  ctx.provide('seatLocalSession', Object.freeze({
+    forSession(session: import('@panedesk/dsh-session').Session): T.SeatSessionOperations {
+      const sessionId = session.id
+      const internal = service.withAuthority({ principalId: `session:${sessionId}` as T.SeatPrincipalId,
+        origin: 'manual', nodeId: options.nodeId })
+      const authorize = (target: import('@panedesk/dsh-session').SessionId) =>
+        active && target === sessionId && ctx.get('agents')?.get(sessionId)?.session === session ? null
+          : rejected('unauthorized', 'Only the calling live session may change its waits and reports.', 'Use your own session.')
+      return Object.freeze({
+        registerWait: async (request: T.RegisterSeatWaitRequest) => authorize(request.sessionId) ?? internal.registerWait(request),
+        cancelWait: async (request: T.CancelSeatWaitRequest) => authorize(request.sessionId) ?? internal.cancelWait(request),
+        submitReport: async (request: T.SubmitCloseReportRequest) => authorize(request.report.sessionId) ?? internal.submitReport(request),
+        revokeReport: async (request: T.RevokeCloseReportRequest) => authorize(request.sessionId) ?? internal.revokeReport(request),
+      })
+    },
+  }))
+}
 
 /** Register read-only closures for local policy consumers under provider-owned authority.
  * @param ctx - provider lifecycle owning the registration.

@@ -28,6 +28,9 @@ import * as Engine from '@panedesk/dsh-seat-engine'
 import * as Local from '@panedesk/dsh-seat-local'
 import * as Gates from '../src/index.ts'
 import * as Tools from '@panedesk/dsh-tool-seat'
+import Subagents from '@panedesk/dsh-subagent'
+import * as Spawn from '@panedesk/dsh-subagent-spawn-in-process'
+import * as Cache from '@panedesk/dsh-llm-cache'
 import type * as T from '@panedesk/dsh-seat'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -36,12 +39,11 @@ import { expect } from 'vitest'
 import { definition } from '../../seat-local/tests/fixtures.ts'
 import { CreationAdapter, UnusedFileUploads, UnusedShell } from '../../seat-local/tests/creation-provider.ts'
 
-export async function localHost() {
+export async function localHost(model = new CreationAdapter(), gateConfig: Partial<Gates.Config> = {}, subagents = false) {
   const root = await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? process.cwd(), 'seat-gates-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
   const facility = new DomainFacility(ctx, { backend: 'json' })
-  const model = new CreationAdapter()
   const close = async () => {
     await ctx.fiber.dispose()
     await facility.closeAll()
@@ -59,7 +61,8 @@ export async function localHost() {
       query: Query, defaults: DefaultModel, attachments: Attachments, access: Access, typert: Typert,
       controller: Controller, ledger: Ledger, delivery: Delivery, permissions: Permissions, approval: Approval,
       commands: Commands, sandbox: Sandbox, questions: Questions, jobs: Jobs, uploads: UnusedFileUploads,
-      subscriptions: Subscriptions, engine: Engine, local: Local, gates: Gates, tools: Tools, shell: UnusedShell })
+      subscriptions: Subscriptions, engine: Engine, local: Local, gates: Gates, tools: Tools, shell: UnusedShell,
+      subagents: Subagents, spawn: Spawn, cache: Cache })
     ctx.baseUrl = `${pathToFileURL(root).href}/`
     const load = async (file: string, rows: object[]) => {
       const path = join(root, file)
@@ -99,8 +102,9 @@ export async function localHost() {
       budgetTimeZone: 'UTC', callbackTimeoutMs: 1000, callbackMaxResponseBytes: 1000,
       callbackRetryInitialMs: 1, callbackRetryMaxMs: 100, ownerObserveIntervalMs: 1000,
       ownerReleaseBudgetMs: 2000, queueWakeBudgetMs: 1000 } }])
+    if (subagents) await load('subagents.yml', [{ name: 'cordis:cache' }, { name: 'cordis:subagents' }, { name: 'cordis:spawn' }])
     const entry = await load('seat.yml', [{ name: 'cordis:local', config: local },
-      { name: 'cordis:gates', config: {} }, { name: 'cordis:tools', config: {} }])
+      { name: 'cordis:gates', config: gateConfig }, { name: 'cordis:tools', config: {} }])
     await expect.poll(() => !!ctx.get('seatGates') && !!ctx.get('seatLocalRead')).toBe(true)
     await ctx.get('seatEngine')!.ready()
     const seats = ctx.get('seats')!.withAuthority({ principalId: 'user-a' as T.SeatPrincipalId, origin: 'manual', nodeId })

@@ -83,6 +83,26 @@ export interface SubagentAdmission {
   resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>
 }
 
+/** Optional dispatch policy is independent of capacity and notification ownership. */
+export interface SubagentDispatch {
+  /** Check a fresh request before reserving or creating the child.
+   * @param spec - validated request with its live parent.
+   */
+  start(spec: SubagentActivationSpec): Promise<void>
+  /** Check child-owned evidence before admitting another message.
+   * @param parent - live requesting parent.
+   * @param childId - target child.
+   */
+  continue(parent: Agent, childId: SessionId): Promise<void>
+  /** Observe cleanup without replacing settlement or preventing resource release.
+   * @param parent - delegating parent.
+   * @param childId - settled child.
+   * @param runId - stable activation identity.
+   * @param result - captured terminal result.
+   */
+  returned(parent: Agent, childId: SessionId, runId: SubagentRunId, result: SubagentResult): Promise<void>
+}
+
 /** A policy reservation is released after startup rollback or final cleanup. */
 export interface SubagentReservation {
   readonly status: 'reserved'
@@ -116,6 +136,7 @@ declare module '@panedesk/cordis' {
   interface Context {
     subagentAdmission: SubagentAdmission
     subagentNotifications: SubagentNotifications
+    subagentDispatch: SubagentDispatch
   }
 }
 

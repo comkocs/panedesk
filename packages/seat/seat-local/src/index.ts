@@ -5,7 +5,7 @@ import { SeatStore } from './store.ts'
 import { LocalSeatService } from './service.ts'
 import { createLocalRuntime } from './runtime.ts'
 import { createOpenExecutor } from './executor.ts'
-import { createEngineAccess, registerLocalReadAccess } from './engine-access.ts'
+import { createEngineAccess, registerLocalReadAccess, registerLocalSessionAccess } from './engine-access.ts'
 import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
 import { closingState } from './closing-service.ts'
@@ -53,6 +53,7 @@ export function apply(ctx: Context, config: Config): void {
       service = new LocalSeatService(ctx, store, config, runtime)
       const installed = service
       registerLocalReadAccess(ctx, installed, config)
+      registerLocalSessionAccess(ctx, installed, config)
       const catalog = store
       ctx.on('agent/turn-admitting', async ({ agent }, next) => {
         const upstream = await next()

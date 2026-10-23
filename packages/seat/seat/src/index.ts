@@ -40,6 +40,7 @@ declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
     seatLocalRead: SeatLocalReadAccess
+    seatLocalSession: SeatLocalSessionAccess
     seatEngine: SeatEngineService
     seatEngineQuery: SeatEngineQueryService
     seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
@@ -53,6 +54,18 @@ declare module '@panedesk/cordis' {
  * External SeatService calls still require explicit authority; no mutation facade is exposed.
  */
 export interface SeatLocalReadAccess extends Pick<SeatService, 'definitions' | 'binding' | 'list'> {}
+
+/** Local model mutations are limited to the live calling Session, never remote request identities. */
+export interface SeatSessionOperations extends Pick<SeatService, 'registerWait' | 'cancelWait' | 'submitReport' | 'revokeReport'> {}
+
+/** Provider-owned authorization for tools; read capabilities never grant mutation authority. */
+export interface SeatLocalSessionAccess {
+  /** Capture the live Session object supplied by the tool executor.
+   * @param session - registered calling Session, not a model-supplied identifier.
+   * @returns four operations that reject targets outside this Session.
+   */
+  forSession(session: import('@panedesk/dsh-session').Session): SeatSessionOperations
+}
 
 /** Unified node-local operations; provider derives authority from authenticated context, never wire tags. */
 export abstract class SeatService extends Service {

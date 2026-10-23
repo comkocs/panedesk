@@ -62,6 +62,8 @@ kind: "package-reference"
 
 `subagentNotifications` 提供方在结果完成之前，接纳带稳定执行 run id 与 handoff/steer 元数据的原始完成消息。它负责持久去重与唤醒投递；接纳不确定使结果拒绝，不回退为重复父级消息。未安装时沿用既有父级通知路径。
 
+`subagentDispatch` 是独立可选策略能力：manager 在本地或外部创建前调用 `start`，在子级收件箱交付前调用 `continue`，在清理及名额释放后调用 `returned`。交回观察异常仅记录警告，不替换执行结果或阻止资源释放。它不占用容量准入及完成投递能力；未安装时保留既有路径。
+
 ### 本地与外部子级
 
 `startActivation({ provider, label, request, signal, delivery })` 返回 `{ childId, messageId?, result, dispose }`。提供 `childId` 会选择本地后端，并保证返回 `messageId`。本地子级接受后续消息并支持冷恢复；外部子级只暴露一次执行，拒绝继续输入。`request.agentOptions` 覆盖后端支持的子级模型设置。`delivery: 'parent'` 提供面向模型的完成通知；`delivery: 'caller'` 让工作流等待结果，不发送父级通知，也不附加初始返回指导。本地父级投递需要持久化，调用方投递可以使用临时本地会话；冷恢复需要持久化与 Session 查询服务。
