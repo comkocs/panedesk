@@ -151,7 +151,9 @@ export class SeatEngine extends SeatEngineService {
     }
     const receivedAt = new Date().toISOString()
     const frozenOpen = await this.localAccess?.freeze(definition, { ...envelope, receivedAt }) ?? {
-      definition, title: `${envelope.seat} ${receivedAt.slice(5, 10)}`, openingMode: 'auto' as const }
+      definition, title: `${envelope.seat} ${new Intl.DateTimeFormat('en-US', {
+        timeZone: this.ctx.get('seatGates')?.getTimeZone() ?? 'UTC', month: '2-digit', day: '2-digit',
+      }).format(new Date(receivedAt)).replace('/', '-')}`, openingMode: 'auto' as const }
     const rule = frozenOpen.definition.rules.find(rule => rule.enabled && rule.trigger.kind === envelope.kind)
     const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen)
     await this.publish()
