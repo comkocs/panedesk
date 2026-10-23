@@ -8,13 +8,16 @@ import { admissionHost } from './admission-host.ts'
 import { operation } from './fixtures.ts'
 import { engineFixture } from './engine-fixture.ts'
 
-it('dates automatic and manual opening titles alike across node midnight', async () => {
+it.each([
+  { zone: 'Asia/Shanghai', date: '2026-10-24', suffix: '10-24' },
+  { zone: undefined, date: '2026-10-23', suffix: '10-23' },
+])('dates automatic and manual opening text and titles in the node zone: $zone', async ({ zone, date, suffix }) => {
   const f = await admissionHost()
   const envelope = trigger()
   let unregister: (() => Promise<void>) | undefined
   try {
     f.ctx.loader.builtins.gates = Gates
-    await f.load('timezone-gates.yml', [{ name: 'cordis:gates', config: { timeZone: 'Asia/Shanghai' } }])
+    if (zone) await f.load('timezone-gates.yml', [{ name: 'cordis:gates', config: { timeZone: zone } }])
     expect(await f.seats.save({ definition: { ...f.definition, maxOpenSessions: 2, rules: [{
       id: 'rule-a' as T.SeatRuleId, enabled: true, trigger: { kind: 'external', sourceId: envelope.sourceId },
       mode: 'auto', timeWindows: [], exclusiveTags: [],
@@ -24,11 +27,11 @@ it('dates automatic and manual opening titles alike across node midnight', async
     unregister = f.engine.registerSource({ sourceId: envelope.sourceId, kinds: ['external'], maxRedeliveryMs: null,
       callback: async () => {} })
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-10-23T16:00:00.000Z'))
+    vi.setSystemTime(new Date('2026-10-23T22:30:00.000Z'))
     const manual = await completesTurn(f.ctx, () => true, inputContains('Open seat-a'), () => f.seats.open({
       seat: f.definition.seat, origin: 'manual', operationId: operation('manual-auto-timezone'),
     }))
-    expect(manual).toMatchObject({ status: 'opened', title: 'seat-a 10-24' })
+    expect(manual).toMatchObject({ status: 'opened', title: `seat-a ${suffix}` })
     if (manual.status !== 'opened') throw new Error('Manual window did not open')
     await completesTurn(f.ctx, id => id !== manual.sessionId, inputContains('Open seat-a'), async () => {
       expect(await f.engine.accept(envelope)).toMatchObject({ status: 'accepted' })
@@ -38,7 +41,9 @@ it('dates automatic and manual opening titles alike across node midnight', async
     expect(automatic).toMatchObject({ title: manual.title })
     if (!automatic) throw new Error('Automatic window did not open')
     expect(f.ctx.sessionTitle.get(f.ctx.sessions.get(automatic.sessionId)!)).toMatchObject({ title: manual.title })
-    expect(automatic.frozenOpening?.text).toContain('2026-10-23')
+    for (const open of [automatic, f.engine.journal.projection.opens.get(manual.sessionId)]) {
+      expect(open?.frozenOpening).toMatchObject({ variables: { date }, text: `Open seat-a on ${date} for .` })
+    }
   } finally {
     vi.useRealTimers()
     await unregister?.()

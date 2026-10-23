@@ -21,7 +21,7 @@ import { admitLocalOpen, localSourceId } from './open-admission.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { readContextUsage, remindContext } from './context-runtime.ts'
 import { readWindowStatus, renewalRefusal } from './status.ts'
-import { readSeatText, renderOpening } from './template.ts'
+import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 
 const reminderSchema = z.object({ sessionId: z.string(), operationId: z.string(), text: z.string(), sent: z.boolean() })
@@ -273,9 +273,8 @@ export class LocalSeatService extends SeatService {
     const gate = await openingGate(this.runtime.context, { ...openingContext(this.options.nodeId, request.operationId, request.seat),
       hook: 'before-open', cwd: startup.path, candidateSeats: [request.seat] })
     if (gate !== null) return gate
-    const date = new Date().toISOString().slice(0, 10)
-    const titleDate = new Intl.DateTimeFormat('en-US', { timeZone: this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC',
-      month: '2-digit', day: '2-digit' }).format(new Date()).replace('/', '-')
+    const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
+    const titleDate = date.slice(5)
     const opening = renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: request.taskId ?? null }, this.options.maxOpeningBytes)
     const input = { request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' as const },
@@ -343,8 +342,9 @@ export class LocalSeatService extends SeatService {
     if (target === undefined) return { status: 'choice-required', candidates: candidates.map(({ open, binding }) => ({
       seat: binding.seat, sessionId: open.sessionId, nodeId: binding.nodeId, title: open.title ?? binding.seat })) }
     if (definition.wakeTemplate === undefined) return rejected('wake-template-missing', 'This seat has no wake template.', 'Configure a wake template.')
+    const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
     const text = renderOpening(await readSeatText(definition.wakeTemplate, this.options.maxOpeningBytes),
-      { seat: definition.seat, date: new Date().toISOString().slice(0, 10), taskId: null }, this.options.maxOpeningBytes).text
+      { seat: definition.seat, date, taskId: null }, this.options.maxOpeningBytes).text
     const admission = await this.engine()?.admitTurn(target.open.sessionId)
     const sent = await this.runtime.send({ sessionId: target.open.sessionId, operationId: request.operationId, text, mode: 'queue' })
     return { status: admission?.status === 'defer' && admission.reason === 'budget-stopped' ? 'stored-budget-stopped' : 'sent',

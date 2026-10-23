@@ -3,7 +3,7 @@ import type { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import { localSourceId } from './open-admission.ts'
 import { readLocalOpenInput } from './open-input.ts'
-import { readSeatText, renderOpening } from './template.ts'
+import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions } from './service-options.ts'
 import { rejected, refuse } from './errors.ts'
 
@@ -116,9 +116,8 @@ export function createEngineAccess(service: T.SeatService, options: LocalSeatOpt
         return { definition: input.definition, title: input.title, frozenOpening: input.opening,
           openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto' }
       }
-      const date = trigger.receivedAt.slice(0, 10)
-      const titleDate = new Intl.DateTimeFormat('en-US', { timeZone: service['ctx'].get('seatGates')?.getTimeZone() ?? 'UTC',
-        month: '2-digit', day: '2-digit' }).format(new Date(trigger.receivedAt)).replace('/', '-')
+      const date = formatTemplateDate(new Date(trigger.receivedAt), service['ctx'].get('seatGates')?.getTimeZone() ?? 'UTC')
+      const titleDate = date.slice(5)
       const frozenOpening = renderOpening(await readSeatText(definition.opening, options.maxOpeningBytes),
         { seat: definition.seat, date, taskId: trigger.taskId ?? null }, options.maxOpeningBytes)
       return { definition, title: `${definition.seat} ${titleDate}`, frozenOpening, openingMode: 'auto' }

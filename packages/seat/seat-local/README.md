@@ -33,7 +33,7 @@ Local single opening invokes optional `before-open` before initial admission; ba
 
 Policy hosts persist worktree registrations and operation identities through the existing storage facility and verify repositories and branches with read-only Git queries. `repositoryId` is the canonical Git common directory. Reminders use existing durable steer delivery; acceptance does not imply model completion.
 
-Manual opening freezes the definition, date title, rendered text and request in durable ingress. Prefill returns the frozen draft after configuration without sending input or starting a turn. The provider privately registers trusted engine list and close capabilities; the public unscoped service still rejects calls without authority. The executor uses the reserved Session identity, binds ledger attribution during creation or resume, configures the window, and sends the opening through durable message delivery. Replacement completion requires the original opening message, a completed containing turn and an assistant reply; a later unrelated reply does not qualify.
+Manual opening freezes the definition, date title, rendered text and request in durable ingress. Window titles and the template variable `date` use the local calendar date in the node's configured time zone, defaulting to UTC; `date` retains the `YYYY-MM-DD` format. Prefill returns the frozen draft after configuration without sending input or starting a turn. The provider privately registers trusted engine list and close capabilities; the public unscoped service still rejects calls without authority. The executor uses the reserved Session identity, binds ledger attribution during creation or resume, configures the window, and sends the opening through durable message delivery. Replacement completion requires the original opening message, a completed containing turn and an assistant reply; a later unrelated reply does not qualify.
 
 Manual renewal uses the engine maintenance path. Close blocks new turns, rechecks evidence, archives the Session, pins the closed title and flushes persistence before recording terminal accounting. A failure before archive releases the barrier; a failure after archive retains it for replay. Rename receipts retain the original result, so replaying an earlier rename cannot overwrite a later title. Ambiguous intermediate title history is rejected rather than reported as success.
 
@@ -49,7 +49,7 @@ Waits retain authorized object identities and terminal observations. Job reads t
 
 #### What the model sees
 
-The model receives rendered opening or wake text from the configured seat definition. Templates resolve the seat, date and optional task identifier before admission; replay reuses the retained opening text. Subscription contents are supplied by the installed instruction-subscription provider.
+The model receives rendered opening or wake text from the configured seat definition. Templates resolve the seat, date and optional task identifier before admission; replay reuses the retained opening text. Window titles and the template variable `date` use the local calendar date in the node's configured time zone, defaulting to UTC. Subscription contents are supplied by the installed instruction-subscription provider.
 
 #### Token effect
 
