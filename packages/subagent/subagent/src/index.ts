@@ -82,7 +82,7 @@ export * from './out-of-process.ts'
 export { recordExternalRun, type ExternalLedgerSpec } from './external-ledger.ts'
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
 export { SubagentRunId } from './types.ts'
-export type { SubagentAdmission, SubagentReservation, SubagentQueued, SubagentNotifications } from './types.ts'
+export type { SubagentAdmission, SubagentReservation, SubagentQueued, SubagentNotifications, SubagentDispatch } from './types.ts'
 export { SubagentQueuedError } from './manager.ts'
 export type {
   ContinuableCreateRequest,

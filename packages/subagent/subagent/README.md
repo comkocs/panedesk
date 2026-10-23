@@ -62,6 +62,8 @@ A `subagentAdmission` provider reserves before new local/external execution and 
 
 A `subagentNotifications` provider accepts the original completion message with the execution's stable run id and handoff/steer metadata before the result settles. It owns durable deduplication and wake delivery; uncertain acceptance rejects the result rather than falling back to a duplicate parent message. Without it, the existing parent notification path remains in use.
 
+`subagentDispatch` 是独立可选策略能力：manager 在本地或外部创建前调用 `start`，在子级收件箱交付前调用 `continue`，在清理及名额释放后调用 `returned`。交回观察异常仅记录警告，不替换执行结果或阻止资源释放。它不占用容量准入及完成投递能力；未安装时保留既有路径。
+
 ### Local and external children
 
 `startActivation({ provider, label, request, signal, delivery })` returns `{ childId, messageId?, result, dispose }`. Supplying `childId` selects a local backend and guarantees `messageId`. Local children accept later messages and can cold-resume; external children expose one execution and reject continuation. `request.agentOptions` overrides supported child model settings. `delivery: 'parent'` supplies the model-facing completion notice; `delivery: 'caller'` lets workflows await the result without a parent notice or initial return guidance. Local parent delivery requires persistence; caller delivery can use an ephemeral local session. Cold resume requires persistence and Session query.

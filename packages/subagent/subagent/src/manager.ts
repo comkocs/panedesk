@@ -391,12 +391,14 @@ export class SubagentManager {
    * @returns the durable child id and accepted initial prompt message id.
    */
   startLocal(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
-    if (this.ctx.get('subagentAdmission') === undefined) return this.startLocalAdmitted(spec)
+    if (this.ctx.get('subagentAdmission') === undefined && this.ctx.get('subagentDispatch') === undefined) return this.startLocalAdmitted(spec)
     return this.admitStart(spec, () => this.startLocalAdmitted(spec))
   }
 
   private async admitStart<T extends SubagentActivation>(spec: SubagentActivationSpec, start: () => Promise<T>): Promise<T> {
     this.assertAdmitting(spec.request.parent)
+    const dispatch = this.ctx.get('subagentDispatch')
+    if (dispatch !== undefined) await dispatch.start(spec)
     const policy = this.ctx.get('subagentAdmission')
     if (policy === undefined) return start()
     const admission = await policy.acquire(spec)
@@ -560,7 +562,7 @@ export class SubagentManager {
    * @returns the accepted activation and its result/disposal capabilities.
    */
   startExternal(spec: SubagentActivationSpec): Promise<SubagentActivation> {
-    if (this.ctx.get('subagentAdmission') === undefined) return this.startExternalAdmitted(spec)
+    if (this.ctx.get('subagentAdmission') === undefined && this.ctx.get('subagentDispatch') === undefined) return this.startExternalAdmitted(spec)
     return this.admitStart(spec, () => this.startExternalAdmitted(spec))
   }
 
@@ -1282,6 +1284,11 @@ export class SubagentManager {
     }
     this.resident.delete(childId)
     activation.releaseSlot()
+    const dispatch = this.ctx.get('subagentDispatch')
+    if (dispatch !== undefined) {
+      try { await dispatch.returned(activation.parent, childId, activation.observer.runId, result) }
+      catch (error: unknown) { this.ctx.logger.warn(`Subagent return observation failed: ${failureMessage(error)}`) }
+    }
     const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
     try {
       const notification = this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
@@ -1358,6 +1365,8 @@ export class SubagentManager {
     options: ChildDeliveryOptions,
   ): Promise<MessageId> {
     this.assertAdmitting(parent)
+    const dispatch = this.ctx.get('subagentDispatch')
+    if (dispatch !== undefined) await dispatch.continue(parent, childId)
     const admission = this.ctx.get('subagentAdmission')
     if (admission !== undefined) {
       await admission.continue(parent, childId)

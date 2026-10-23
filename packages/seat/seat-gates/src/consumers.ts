@@ -30,7 +30,7 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
     const view = listed.status === 'listed' ? listed.sessions.find(item => item.sessionId === sessionId) : undefined
     const base = {
       callId: `tool:${exec.agent.session.id}:${exec.callId}` as GateContext['callId'],
-      operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId,
+      operationId: `gate:tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId,
       sessionId: exec.agent.session.id, nodeId, seat: binding?.kind === 'seat' ? binding.seat : null,
       observedAt: new Date().toISOString(), ...cwd === undefined ? {} : { cwd },
     }

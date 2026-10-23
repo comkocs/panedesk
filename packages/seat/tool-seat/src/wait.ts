@@ -21,7 +21,7 @@ export function registerWaitTools(ctx: Context): void {
     },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = ctx.get('seats')
+      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalSession')?.forSession(exec.agent.session)
       if (seats === undefined || exec.agent === undefined) throw new Error('Seat waiting requires an available seat service and a calling Session.')
       if (args.objects.length === 0 || args.objects.some(object => object.id.length === 0)) throw new Error('Name at least one pending object.')
       const result = await seats.registerWait({
@@ -42,7 +42,7 @@ export function registerWaitTools(ctx: Context): void {
     },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = ctx.get('seats')
+      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalSession')?.forSession(exec.agent.session)
       if (seats === undefined || exec.agent === undefined) throw new Error('Seat waiting is unavailable.')
       return JSON.stringify(await seats.cancelWait({ ...args, waitId: args.waitId as WaitId,
         sessionId: exec.agent.session.id, operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))

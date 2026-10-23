@@ -12,6 +12,10 @@
       "path": "../../../vendor/cordis"
     },
     { "path": "../seat" },
+    { "path": "../../core/agent" },
+    { "path": "../../subagent/subagent" },
+    { "path": "../../session/session-ledger" },
+    { "path": "../../session-query/session-query" },
     { "path": "../../core/tools" },
     { "path": "../../core/session" },
     { "path": "../../compaction/compaction" },

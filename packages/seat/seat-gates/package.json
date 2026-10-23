@@ -33,6 +33,10 @@
   "license": "MIT",
   "dependencies": {
     "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-subagent": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-session-query": "workspace:*",
     "@panedesk/dsh-compaction": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",

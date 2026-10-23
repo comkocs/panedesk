@@ -6,6 +6,7 @@ import type {} from '@panedesk/dsh-tools'
 import type {} from '@panedesk/dsh-compaction'
 import { GateRegistry } from './registry.ts'
 import { installConsumers } from './consumers.ts'
+import { installSubagentConsumers } from './subagent-consumers.ts'
 import { builtinCriterion, validateDefinitions } from './policies.ts'
 import { registerWorktree, taskEnded } from './worktree-service.ts'
 import { installLifecycle } from './lifecycle.ts'
@@ -116,6 +117,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.inject(['seats', 'seatEngine', 'seatLocalRead'], (scope) => {
     const provider = new GateProvider(scope, config)
     installConsumers(scope, config, provider)
+    installSubagentConsumers(scope, provider)
     installLifecycle(scope, config)
   })
 }
