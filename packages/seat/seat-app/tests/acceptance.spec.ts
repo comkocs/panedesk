@@ -1,10 +1,15 @@
 import { afterEach, expect, it } from 'vitest'
-import { readFile, writeFile, mkdtemp, rm, readdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdtemp, rm, readdir, mkdir } from 'node:fs/promises'
 import type { ChildAdmissionTicket, EngineEffect, GateDefinition, SeatTrigger } from '@panedesk/dsh-seat'
 import { openingFacts, recordCost } from './fixtures/ledger.ts'
+import { LocalSeatService } from '@panedesk/dsh-seat-local'
+import { digest } from '@panedesk/dsh-seat-local/src/store.ts'
+import { commitsEffect } from '../../seat/tests/completion.ts'
 import { clock, measured } from './fixtures/clock.ts'
 import { createUserMessage, ToolCallId } from '@panedesk/dsh-llm'
 import { join } from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
 import { fixture, operation, seatName, childFixture, type Fixture } from './fixtures/source.ts'
 
@@ -128,7 +133,15 @@ it('A03 assembles CLI, SDK, remote and engine openings with one durable first me
       directories: def.directories, memoryDirectories: def.memoryDirectories, subscriptions: def.subscriptions })
     expect((await f.ctx.sessionPersistence.stat(window.sessionId))?.header.cwd).toBe(def.directories[0]?.path)
     const session = f.ctx.agents.get(window.sessionId)!.session
-    expect(session.snapshotEvents().filter(event => event.type === 'user/message')).toHaveLength(1)
+    const open = openingFacts(await f.effects()).find(item => item.sessionId === window.sessionId)
+    if (open?.openingMessageId == null) throw new Error(JSON.stringify(open))
+    const delivered = session.snapshotEvents().flatMap(event => {
+      if (event.type !== 'user/message' || event.data.source.kind !== 'message-delivery') return []
+      return String(event.data.source.operationId) === String(digest(open.openingOperationId)) ? [event] : []
+    })
+    expect(delivered).toHaveLength(1)
+    expect(delivered[0]?.data.id).toBe(open.openingMessageId)
+    expect(JSON.stringify(delivered[0]?.data.content)).toContain('Open seat-a')
     expect(session.snapshotEvents()).toContainEqual(expect.objectContaining({ type: 'permission/preset', data: { preset: def.permissionPreset } }))
     const runs = (await f.ctx.sessionLedger.query({ sessionId: window.sessionId })).rows.filter(row => row.kind === 'run')
     expect(runs).toHaveLength(1)
@@ -392,11 +405,25 @@ it('A12 reports idle and running windows alongside unopened seats and rejects bu
   await f.save(f.definition('seat-b'))
   const opened = await f.open()
   await f.settle()
-  expect(await f.seats.list({})).toMatchObject({ sessions: [{ sessionId: opened.sessionId, status: 'idle' }], unopenedSeats: ['seat-b'] })
+  expect(await f.seats.list({})).toMatchObject({ sessions: [{ sessionId: opened.sessionId, status: 'completed' }], unopenedSeats: ['seat-b'] })
+  const prefilled = await f.seats.open({ seat: seatName('seat-b'), origin: 'manual', openingMode: 'prefill', operationId: operation() })
+  expect(prefilled, JSON.stringify(prefilled)).toMatchObject({ status: 'prefilled' })
+  if (prefilled.status !== 'prefilled') throw new Error(JSON.stringify(prefilled))
+  await f.settle()
+  const settled = await f.seats.list({})
+  if (settled.status !== 'listed') throw new Error(JSON.stringify(settled))
+  expect(settled.sessions.find(item => item.sessionId === opened.sessionId)).toMatchObject({ status: 'completed' })
+  expect(settled.sessions.find(item => item.sessionId === prefilled.sessionId)).toMatchObject({ status: 'idle' })
+  expect(settled.unopenedSeats).toEqual([])
   f.model.hold()
   await f.seats.wake({ seat: seatName('seat-a'), sessionId: opened.sessionId, operationId: operation() })
-  await expect.poll(async () => (await f.seats.list({})).status).toBe('listed')
-  expect(await f.seats.list({})).toMatchObject({ sessions: [{ status: 'running', canRenew: false }] })
+  await expect.poll(async () => {
+    const listing = await f.seats.list({})
+    return listing.status === 'listed' && listing.sessions.find(item => item.sessionId === opened.sessionId)?.status
+  }).toBe('running')
+  const running = await f.seats.list({})
+  if (running.status !== 'listed') throw new Error(JSON.stringify(running))
+  expect(running.sessions.find(item => item.sessionId === opened.sessionId)).toMatchObject({ status: 'running', canRenew: false })
   expect(await f.seats.renew({ sessionId: opened.sessionId, operationId: operation() })).toMatchObject({ status: 'rejected' })
 }, 20000)
 
@@ -470,8 +497,8 @@ it('A17 accounts durable costs and defers only new turns after the full budget i
   const opened = await f.open()
   expect(await f.engine.configureBudget({ sessionId: opened.sessionId, limits: { windowBudgetUsd: '100' as never }, expectedRevision: 0,
     authorizationRef: 'owner' as never, operationId: operation() })).toMatchObject({ status: 'configured' })
-  await recordCost(f.ctx, opened.sessionId, 'cost-a', '0.00008')
-  await f.engine.drive()
+  await commitsEffect(f.ctx, effect => effect.kind === 'budget/warning' && effect.sessionId === opened.sessionId, () =>
+    recordCost(f.ctx, opened.sessionId, 'cost-a', '0.00008').then(() => f.engine.drive()))
   expect(await f.engine.budget(opened.sessionId)).toMatchObject({ windowCost: '80' })
   expect((await f.effects()).filter(effect => effect.kind === 'budget/warning')).toHaveLength(1)
   await f.engine.drive()
@@ -675,6 +702,50 @@ it('A24 paginates an independent engine namespace and verifies redacted JSONL wi
   expect(await f.ctx.sessionQuery.readSession(opened.sessionId)).toEqual(before)
 }, 20000)
 
+it('A24 keeps legacy readers stable beside an engine namespace and rejects a misfiled engine frame', async () => {
+  const f = await setup()
+  const recipient = await f.ctx.sessionCreation.create({ sessionId: 'legacy-reader' as never, cwd: join(f.home, 'workspace-b') })
+  await f.ctx.messageDelivery.send({ target: { sessionId: recipient.agent.id }, operationId: operation() as never,
+    messageClass: 'handoff', priority: 'queue', content: 'Legacy message.' })
+  await expect.poll(async () => (await f.ctx.sessionLedger.queryMessages({ targetSessionId: recipient.agent.id })).items
+    .some(item => item.state === 'responded'), { timeout: 5000 }).toBe(true)
+  await expect.poll(async () => (await f.ctx.sessionLedger.query({ sessionId: recipient.agent.id })).rows
+    .some(row => row.kind === 'call' && row.finish !== undefined), { timeout: 5000 }).toBe(true)
+  const callsBefore = await f.ctx.sessionLedger.query({ sessionId: recipient.agent.id })
+  const ledgerIdentity = (page: { items: readonly { messageId: string; data: { messageClass: string } }[] }) =>
+    page.items.map(item => [item.messageId, item.data.messageClass])
+  const listedIdentity = (page: { items: readonly { messageId: string; transitions: readonly { data: { messageClass: string } }[] }[] }) =>
+    page.items.map(item => [item.messageId, item.transitions.at(-1)?.data.messageClass])
+  const messagesBefore = ledgerIdentity(await f.ctx.sessionLedger.queryMessages({ targetSessionId: recipient.agent.id }))
+  const listedBefore = listedIdentity(await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id }))
+  expect(messagesBefore).toEqual([[expect.any(String), 'handoff']])
+  expect(listedBefore).toEqual(messagesBefore)
+  await f.save(f.definition())
+  const opened = await f.open()
+  await f.settle()
+  const engineFrames = (await f.engine.query({ limit: 10000 })).effects
+  expect(engineFrames.length).toBeGreaterThan(0)
+  const callsAfter = await f.ctx.sessionLedger.query({ sessionId: recipient.agent.id })
+  expect(callsAfter.rows).toEqual(callsBefore.rows)
+  expect(callsAfter.complete).toBe(true)
+  expect(Object.keys(callsAfter.watermarks)).toEqual(Object.keys(callsBefore.watermarks))
+  const messagesAfter = await f.ctx.sessionLedger.queryMessages({ targetSessionId: recipient.agent.id })
+  expect(ledgerIdentity(messagesAfter)).toEqual(messagesBefore)
+  expect(listedIdentity(await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id }))).toEqual(listedBefore)
+  expect(JSON.stringify(messagesAfter).includes('ledger/engine/v1')).toBe(false)
+  const session = await f.ctx.sessionQuery.readSession(opened.sessionId)
+  expect(session?.events.some(event => event.type === 'user/message')).toBe(true)
+  expect(session?.events.some(event => event.type === 'turn/end' && event.data.reason.kind === 'completed')).toBe(true)
+  const nodeId = await f.ctx.sessionLedger.nodeId()
+  const planted = join(f.home, 'ledger', 'v1', nodeId, 'events', '2099-01-01')
+  await mkdir(planted, { recursive: true })
+  await writeFile(join(planted, 'engine-frame.jsonl'), JSON.stringify({ schemaVersion: 1, eventId: 'engine-frame',
+    nodeId, runId: 'run-a', sessionId: recipient.agent.id, kind: 'open/created', observedAt: Date.now() }) + '\n')
+  const rejected = await f.ctx.sessionLedger.query({ sessionId: recipient.agent.id })
+  expect(rejected.complete).toBe(false)
+  expect(rejected.rows).toEqual(callsBefore.rows)
+}, 20000)
+
 it('A15 queues the real fifth child immediately and starts it after a capacity release', async () => {
   const f = await setup()
   await f.save(f.definition())
@@ -764,6 +835,33 @@ it.each(['authorized-idle', 'not-authorized', 'running', 'child', 'job'] as cons
         expect(facts.filter(effect => effect.kind === 'window/closed')).toHaveLength(0)
         await expect.poll(async () => (await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })).items.length,
           { timeout: 5000 }).toBe(messagesBefore.items.length + 1)
+        const reminder = (await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })).items.at(-1)
+        expect(reminder?.data).toMatchObject({ messageClass: 'handoff', priority: 'steer' })
+        const records = await readdir(join(f.home, 'messages'), { recursive: true })
+        const bodies: string[] = []
+        for (const name of records) {
+          if (!String(name).endsWith('.json')) continue
+          const envelope = JSON.parse(await readFile(join(f.home, 'messages', String(name)), 'utf8')) as { payload?: string }
+          const value = JSON.parse(envelope.payload ?? '{}') as { value?: { message?: { content?: string } }; message?: { content?: string } }
+          const content = value.value?.message?.content ?? value.message?.content
+          if (typeof content === 'string') bodies.push(content)
+        }
+        const delivered = bodies.filter(body => body.includes('This window still has pending work:'))
+        expect(delivered.length, JSON.stringify(delivered)).toBeGreaterThan(0)
+        console.log(JSON.stringify({ name: `A18 reminder ${scenario}`, copies: delivered.length }))
+        const listed = await f.seats.list({})
+        if (listed.status !== 'listed') throw new Error(JSON.stringify(listed))
+        const reasons = listed.sessions.find(item => item.sessionId === parent.id)?.busyReasons ?? []
+        expect(reasons.length).toBeGreaterThan(0)
+        const summaries = reasons.map(reason => reason.summary)
+        const cited = delivered[0]?.split(': ').slice(1).join(': ').split('; ') ?? []
+        expect(cited.length, JSON.stringify(delivered)).toBeGreaterThan(0)
+        expect(cited.every(summary => summaries.includes(summary)), JSON.stringify({ cited, summaries })).toBe(true)
+        const beforeRepeat = (await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })).items.length
+        if (!(f.seats instanceof LocalSeatService)) throw new Error('seat service is not local')
+        await f.seats.reevaluateReport(parent.id)
+        const afterRepeat = (await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })).items.length
+        expect(afterRepeat, `reminder copies grew from ${beforeRepeat} to ${afterRepeat}`).toBe(beforeRepeat)
       }
     } finally {
       finishJob?.()
@@ -820,6 +918,50 @@ it.each(['register', 'task-ended', 'mature'] as const)('A21 enforces the %s work
   expect(decisions).toContainEqual(expect.objectContaining({ outcome: event === 'register' ? 'deny' : 'observe', hitCount: 1 }))
   expect(JSON.stringify(await f.effects())).toContain(policy)
   expect(await readFile(path, 'utf8')).toBe('Retained work.')
+}, 20000)
+
+it('A21 keeps a real worktree through registration, use and task settlement', async () => {
+  const f = await setup()
+  await f.save(f.definition())
+  const root = join(f.home, 'repository')
+  await mkdir(root, { recursive: true })
+  const git = promisify(execFile)
+  await git('git', ['init', '--initial-branch=main', root])
+  const retained = join(root, 'retained.txt')
+  await writeFile(retained, 'Retained work.')
+  await git('git', ['-C', root, 'add', 'retained.txt'])
+  await git('git', ['-C', root, '-c', 'user.email=seat@example.test', '-c', 'user.name=seat', 'commit', '-m', 'Retain work'])
+  const { registerWorktree, taskEnded } = await import('../../seat-gates/src/worktree-service.ts')
+  const registration = { repositoryId: join(root, '.git'), path: root, seat: seatName('seat-a'),
+    taskId: 'task-a' as never, kind: 'client' as const, branch: 'main', registeredAt: new Date().toISOString() }
+  const registered = await registerWorktree(f.ctx, { registration, operationId: operation() })
+  expect(registered, JSON.stringify(registered)).toMatchObject({ status: 'registered' })
+  expect(JSON.stringify(await f.effects())).not.toContain('worktree-client')
+  const used = join(root, 'used.txt')
+  await writeFile(used, 'Used work.')
+  const extra = join(f.home, 'repository-b')
+  await mkdir(extra, { recursive: true })
+  await git('git', ['init', '--initial-branch=main', extra])
+  const kept = join(extra, 'kept.txt')
+  await writeFile(kept, 'Kept work.')
+  await git('git', ['-C', extra, 'add', 'kept.txt'])
+  await git('git', ['-C', extra, '-c', 'user.email=seat@example.test', '-c', 'user.name=seat', 'commit', '-m', 'Keep work'])
+  const second = await registerWorktree(f.ctx, { registration: { ...registration, repositoryId: join(extra, '.git'),
+    path: extra, taskId: 'task-b' as never }, operationId: operation() })
+  expect(second, JSON.stringify(second)).toMatchObject({ status: 'rejected', error: { code: 'worktree-client-limit' } })
+  expect(JSON.stringify(await f.effects())).toContain('worktree-client')
+  const settled = await taskEnded(f.ctx, { taskId: registration.taskId, kind: 'settle', sourceId: f.sourceId,
+    operationId: operation() })
+  expect(settled, JSON.stringify(settled)).toMatchObject({ status: 'observed' })
+  const facts = await f.effects()
+  const encoded = JSON.stringify(facts)
+  expect(encoded).toContain('worktree-settle')
+  const mature = facts.filter(item => item.kind === 'gate/hit' && item.data.definition.id === 'worktree-mature')
+  expect(mature).toHaveLength(0)
+  expect(encoded).toContain('"event":"mature","mature":false')
+  expect(await readFile(retained, 'utf8')).toBe('Retained work.')
+  expect(await readFile(used, 'utf8')).toBe('Used work.')
+  expect(await readFile(kept, 'utf8')).toBe('Kept work.')
 }, 20000)
 
 it('A23 reports a symbolic node name and rejects a foreign CLI target before side effects', async () => {
