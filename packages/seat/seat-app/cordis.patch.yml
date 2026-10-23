@@ -20,6 +20,8 @@
       disabled: true
     - id: seat-local
       name: '@panedesk/dsh-seat-local'
+      # Help only prints application usage; operational invocations still require explicit deployment configuration.
+      disabled: !!js "ctx.get('cmdlineArgs')?.get().length === 1 && ['--help', '-h'].includes(ctx.get('cmdlineArgs')?.get()[0])"
     - id: seat-gates
       name: '@panedesk/dsh-seat-gates'
     - id: tool-seat

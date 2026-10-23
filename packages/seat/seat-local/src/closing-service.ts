@@ -9,7 +9,11 @@ import { readWindowStatus } from './status.ts'
 import { rejected } from './errors.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 
-/** Last committed close state, including a released pre-archive barrier. */
+/** Last committed close state, including a released pre-archive barrier.
+ * @param effects - committed engine facts in journal order.
+ * @param sessionId - window whose close state is requested.
+ * @returns latest close state, or undefined when no close was committed.
+ */
 export function closingState(effects: readonly T.EngineEffect[], sessionId: SessionId): T.EngineCloseData | undefined {
   const last = effects.findLast(effect => (effect.kind === 'window/closing' || effect.kind === 'window/closed')
     && effect.data.sessionId === sessionId)

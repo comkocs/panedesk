@@ -24,7 +24,9 @@ import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 /** One provider owns catalog writes and recoverable observation subscriptions. */
 export class LocalSeatService extends SeatService {
   private authority?: T.SeatCallContext
+  /** Journal-backed state shared by this provider's recoverable operations. */
   readonly state: LocalEngineState
+  /** Durable wait records used to restore observation subscriptions. */
   readonly waits: WaitStore
   private readonly importer: SeatImporter
   private readonly reports: ReportStore

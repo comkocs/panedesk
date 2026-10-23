@@ -362,6 +362,17 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@panedesk/dsh-sdk-jsonrpc-server` | yes | Stdio JSON-RPC server plugin for out-of-process DeepSeek Harness SDK clients |
 
+## seat
+
+| Package | Config | Description |
+|---|---|---|
+| `@panedesk/dsh-seat-app` | no | Seat application consumer scaffold |
+| `@panedesk/dsh-seat-engine` | yes | Seat engine provider scaffold |
+| `@panedesk/dsh-seat-gates` | yes | Seat policy plugin scaffold |
+| `@panedesk/dsh-seat-local` | yes | Local seat provider scaffold |
+| `@panedesk/dsh-seat-remote` | yes | Seat remote consumer scaffold |
+| `@panedesk/dsh-tool-seat` | no | Seat model tools scaffold |
+
 ## session
 
 | Package | Config | Description |

@@ -2324,28 +2324,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'durable opening outcome; absence means this provider cannot admit local openings.',
       },
       {
-        signature: 'registerCloseExecutor?: (executor: T.SeatCloseExecutor) => () => Promise<void>',
-        description: 'Register close effects; the engine owns barriers, version checks and resource release.',
-        parameters: [{ name: 'executor', description: 'public archive and title adapter.' }],
-        returns: 'disposer that drains in-flight closes before unregistering.',
+        signature: 'registerLocalAccess?: (access: T.SeatEngineLocalAccess) => () => Promise<void>',
+        description: 'Register trusted local capabilities for engine-only calls; external seats still require authority.',
+        parameters: [{ name: 'access', description: 'provider-owned closures, captured under internal authority.' }],
+        returns: 'disposer draining the current engine drive before detaching.',
       },
       {
         signature: 'replaceWindow?: (request: T.ReplaceSeatRequest) => Promise<T.ReplaceSeatResult>',
         description: 'Admit and recover a replacement, counting both windows and retaining old tags until close.',
         parameters: [{ name: 'request', description: 'old-window operation.' }],
         returns: 'FIFO admission or durable replacement state; absence never permits a local capacity bypass.',
-      },
-      {
-        signature: 'closeWindow?: (request: T.CloseSeatRequest & { reason: T.WindowEndReason reportId?: T.CloseReportId expectedReportVersion?: number }) => Promise<T.CloseSeatResult>',
-        description: 'Serialize archive admission with new work, report revocation and resource release.',
-        parameters: [{ name: 'request', description: 'state-version checked operation and optional current report identity.' }],
-        returns: 'close result after the registered executor flushes its effects.',
-      },
-      {
-        signature: 'recordRenewal?: (request: { request: T.RenewSeatRequest; source: \'manual\' | \'auto\'; result: T.RenewSeatResult }) => Promise<void>',
-        description: 'Record renewal source beside the upstream maintenance call, never as conversation text.',
-        parameters: [{ name: 'request', description: 'retained operation, source and observed result.' }],
-        returns: 'after the source attribution is durable.',
       },
       {
         signature: 'abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>',
@@ -8395,7 +8383,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PendingSeatItem',
-    declaration: 'export interface PendingSeatItem {\n    queueItemId: QueueItemId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    triggerKind: SeatTrigger[\'kind\'];\n    action: \'open\' | \'wake-sender\' | \'replace\';\n    replacementId?: ReplacementId;\n    handoffTimeout?: SeatHandoffTimeout;\n    sequence: number;\n    effectiveMode: EngineMode;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n    sources: readonly TriggerEnvelope[];\n    relatedTaskIds: readonly SeatTaskId[];\n    queuedAt: SeatTimestamp;\n    stateVersion: number;\n}',
+    declaration: 'export interface PendingSeatItem {\n    frozenOpen?: SeatFrozenOpen;\n    queueItemId: QueueItemId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    triggerKind: SeatTrigger[\'kind\'];\n    action: \'open\' | \'wake-sender\' | \'replace\';\n    replacementId?: ReplacementId;\n    handoffTimeout?: SeatHandoffTimeout;\n    sequence: number;\n    effectiveMode: EngineMode;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n    sources: readonly TriggerEnvelope[];\n    relatedTaskIds: readonly SeatTaskId[];\n    queuedAt: SeatTimestamp;\n    stateVersion: number;\n}',
   },
   {
     name: 'PendingSeatMutationResult',
@@ -9194,10 +9182,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatChildThresholdRequest {\n    sessionId: SessionId;\n    thresholdRevision: number;\n    thresholdTokens: number;\n    context: import(\'./types.ts\').SeatContextUsage;\n    handoff: string;\n}',
   },
   {
-    name: 'SeatCloseExecutor',
-    declaration: 'export interface SeatCloseExecutor {\n    evidence(sessionId: SessionId): Promise<{\n        stateVersion: number;\n        busyReasons: readonly SeatBusyReason[];\n    }>;\n    archive(request: {\n        sessionId: SessionId;\n        operationId: SeatOperationId;\n    }): Promise<void>;\n}',
-  },
-  {
     name: 'SeatContextUsage',
     declaration: 'export type SeatContextUsage = {\n    status: \'known\';\n    source: \'last-call-usage\' | \'compaction-surface\';\n    tokens: number;\n    observedAt: SeatTimestamp;\n    estimated: true;\n    contextEpoch: number;\n} | {\n    status: \'unknown\';\n    observedAt: SeatTimestamp;\n};',
   },
@@ -9242,6 +9226,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SeatDirectoryWriteResult = {\n    status: \'written\';\n    path: string;\n} | SeatRejected;',
   },
   {
+    name: 'SeatEngineLocalAccess',
+    declaration: 'export interface SeatEngineLocalAccess {\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n}',
+  },
+  {
     name: 'SeatEngineStatus',
     declaration: 'export type SeatEngineStatus = \'active\' | \'prefilled\' | \'budget-stopped\' | \'configuring\' | \'closing\' | \'unknown\';',
   },
@@ -9252,6 +9240,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatFailure',
     declaration: 'export interface SeatFailure {\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+  },
+  {
+    name: 'SeatFrozenOpen',
+    declaration: 'export interface SeatFrozenOpen {\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n}',
   },
   {
     name: 'SeatHandoffTimeout',

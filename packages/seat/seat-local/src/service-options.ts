@@ -8,18 +8,31 @@ import type { WaitRuntime } from './wait.ts'
 
 /** Explicit node-local limits; none are inferred from a model or account name. */
 export interface LocalSeatOptions {
+  /** Private directory containing the node-local definition catalog. */
   directory: string
+  /** Stable identity of the node that owns local seat operations. */
   nodeId: T.SeatNodeId
+  /** Display name used when reporting the owning node. */
   nodeName: string
+  /** Explicit aliases resolving imported node names to stable identities. */
   nodeAliases: Readonly<Record<string, T.SeatNodeId>>
+  /** Deployment-supplied definition fields applied during import resolution. */
   defaults: Partial<T.SeatDefinition>
+  /** Maximum UTF-8 byte length of an imported source. */
   maxSourceBytes: number
+  /** Maximum number of retained import preview plans. */
   maxPlans: number
+  /** Maximum UTF-8 byte length of opening and wake text. */
   maxOpeningBytes: number
+  /** Maximum number of explicitly named seats in one batch. */
   maxBatchSeats: number
+  /** Maximum entries per catalog, window or engine-fact page. */
   pageSize: number
+  /** Maximum attempts for journal compare-and-set transactions. */
   transactionRetries: number
+  /** Maximum retained directory-choice confirmations. */
   maxConfirmations: number
+  /** Deployment-supplied suffix pinned to archived window titles. */
   closedSuffix: string
 }
 

@@ -13,6 +13,7 @@ import type { SessionId } from '@panedesk/dsh-session'
 
 /** Build task snapshot and registration capabilities without polling model turns.
  * @param ctx - owner of all installed subscriptions.
+ * @param state - committed engine facts used to resolve task ownership and settlement.
  * @returns authorized observations with awaited per-wait disposal.
  */
 export function createWaitObservation(ctx: Context, state: LocalEngineState):

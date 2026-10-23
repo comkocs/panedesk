@@ -3038,6 +3038,51 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-seat-gates -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-local -->
+<a id="panedeskdsh-seat-local"></a>
+
+## `@panedesk/dsh-seat-local`
+
+- `inject`: `storageDomain`
+- `refs`: [`T`](../packages/seat/seat/src/index.ts)
+- `source`: [`packages/seat/seat-local/src/index.ts:22`](../packages/seat/seat-local/src/index.ts)
+
+```ts config-catalog
+/** Deployment supplies every limit explicitly. */
+export interface Config extends LocalSeatOptions {}
+
+/** Explicit node-local limits; none are inferred from a model or account name. */
+export interface LocalSeatOptions {
+  /** Private directory containing the node-local definition catalog. */
+  directory: string
+  /** Stable identity of the node that owns local seat operations. */
+  nodeId: T.SeatNodeId
+  /** Display name used when reporting the owning node. */
+  nodeName: string
+  /** Explicit aliases resolving imported node names to stable identities. */
+  nodeAliases: Readonly<Record<string, T.SeatNodeId>>
+  /** Deployment-supplied definition fields applied during import resolution. */
+  defaults: Partial<T.SeatDefinition>
+  /** Maximum UTF-8 byte length of an imported source. */
+  maxSourceBytes: number
+  /** Maximum number of retained import preview plans. */
+  maxPlans: number
+  /** Maximum UTF-8 byte length of opening and wake text. */
+  maxOpeningBytes: number
+  /** Maximum number of explicitly named seats in one batch. */
+  maxBatchSeats: number
+  /** Maximum entries per catalog, window or engine-fact page. */
+  pageSize: number
+  /** Maximum attempts for journal compare-and-set transactions. */
+  transactionRetries: number
+  /** Maximum retained directory-choice confirmations. */
+  maxConfirmations: number
+  /** Deployment-supplied suffix pinned to archived window titles. */
+  closedSuffix: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-seat-local -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-remote -->
 <a id="panedeskdsh-seat-remote"></a>
 
@@ -5042,7 +5087,6 @@ export interface Config {
 | `@panedesk/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |
 | `@panedesk/dsh-sandbox-ssh` | `ssh` | [`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts) |
 | `@panedesk/dsh-seat-app` | `cmdlineArgs` · `appReady` · `appExit` | [`packages/seat/seat-app/src/index.ts`](../packages/seat/seat-app/src/index.ts) |
-| `@panedesk/dsh-seat-local` | — | [`packages/seat/seat-local/src/index.ts`](../packages/seat/seat-local/src/index.ts) |
 | `@panedesk/dsh-session` | — | [`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts) |
 | `@panedesk/dsh-session-checkpoint-policy` | `llm` · `sessionPersistence` · `sessions` · `tools` | [`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts) |
 | `@panedesk/dsh-session-projection` | — | [`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts) |

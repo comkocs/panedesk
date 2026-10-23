@@ -9,6 +9,31 @@
 
 ```mermaid
 flowchart LR
+  pkg_instruction_subscriptions["instruction-subscriptions"]
+  svc_instructionSubscriptions["ctx.instructionSubscriptions<br/>Persisted instruction subscriptions"]
+  pkg_seat_local["seat-local"]
+  pkg_seat["seat"]
+  svc_seats["ctx.seats<br/>Seat definitions and window operations"]
+  pkg_seat_app["seat-app"]
+  pkg_seat_remote["seat-remote"]
+  pkg_tool_seat["tool-seat"]
+  pkg_seat_engine["seat-engine"]
+  svc_seatEngine["ctx.seatEngine<br/>Durable seat orchestration"]
+  pkg_seat_gates["seat-gates"]
+  pkg_ledger_query["ledger-query"]
+  svc_seatEngineQuery["ctx.seatEngineQuery<br/>Read-only engine history"]
+  svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
+  svc_seatDirectories["ctx.seatDirectories<br/>Authorized seat directories"]
+  svc_seatWorktreeHost["ctx.seatWorktreeHost<br/>Worktree records and authority"]
+  svc_seatReminderHost["ctx.seatReminderHost<br/>Idempotent seat reminders"]
+  svc_seatRemote["ctx.seatRemote<br/>Authenticated seat operations"]
+  pkg_api_session_controller["api-session-controller"]
+  svc_sessionCreation["ctx.sessionCreation<br/>Exact Session creation"]
+  pkg_jobs["jobs"]
+  svc_jobNotifications["ctx.jobNotifications<br/>Durable job notifications"]
+  pkg_subagent["subagent"]
+  svc_subagentAdmission["ctx.subagentAdmission<br/>Optional child admission"]
+  svc_subagentNotifications["ctx.subagentNotifications<br/>Durable child settlement"]
   pkg_experimental_client_ui_cot_translation["experimental-client-ui-cot-translation"]
   svc_cotTranslation["ctx.cotTranslation<br/>Reasoning translation Remote"]
   pkg_experimental_translator["experimental-translator"]
@@ -38,7 +63,6 @@ flowchart LR
   pkg_tool_fs["tool-fs"]
   pkg_tool_bash["tool-bash"]
   pkg_tool_pwsh["tool-pwsh"]
-  pkg_subagent["subagent"]
   pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   pkg_mcp_resources["mcp-resources"]
   svc_mcpResources["ctx.mcpResources<br/>Scoped MCP resource access"]
@@ -58,7 +82,6 @@ flowchart LR
   pkg_attachment["attachment"]
   svc_attachments["ctx.attachments<br/>Durable binary attachment storage"]
   pkg_attachment_local["attachment-local"]
-  pkg_api_session_controller["api-session-controller"]
   pkg_llm_pi_ai["llm-pi-ai"]
   pkg_llm_deepseek["llm-deepseek"]
   pkg_client_file_upload["client-file-upload"]
@@ -143,7 +166,6 @@ flowchart LR
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
   pkg_message_delivery_local["message-delivery-local"]
-  pkg_ledger_query["ledger-query"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
   pkg_session_telemetry["session-telemetry"]
   svc_sessionTelemetry["ctx.sessionTelemetry<br/>Session telemetry seam"]
@@ -267,7 +289,6 @@ flowchart LR
   svc_claudeCodeMods["ctx.claudeCodeMods<br/>Claude Code mods bridge"]
   pkg_inspector["inspector"]
   svc_inspector["ctx.inspector<br/>Cross-realm runtime inspection"]
-  pkg_jobs["jobs"]
   svc_jobs["ctx.jobs<br/>Background job registry"]
   pkg_jobs_local["jobs-local"]
   pkg_tool_jobs["tool-jobs"]
@@ -314,6 +335,7 @@ flowchart LR
   pkg_api_job_controller --> svc_jobController
   pkg_api_remote_access --> svc_remoteAccess
   pkg_api_session_controller --> svc_sessionController
+  pkg_api_session_controller --> svc_sessionCreation
   pkg_api_session_controller --> svc_sessionFileReferences
   pkg_api_session_controller --> svc_sessionSkillCatalog
   pkg_api_settings_controller --> svc_credentialsController
@@ -376,6 +398,8 @@ flowchart LR
   pkg_host_product_telemetry_otel --> svc_productTelemetry
   pkg_host_webserver --> svc_webServer
   pkg_inspector --> svc_inspector
+  pkg_instruction_subscriptions --> svc_instructionSubscriptions
+  pkg_jobs --> svc_jobNotifications
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
   pkg_ledger_query --> svc_ledgerQuery
@@ -406,6 +430,21 @@ flowchart LR
   pkg_sandbox_ssh --> svc_sandbox
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
+  pkg_seat --> svc_seatDirectories
+  pkg_seat --> svc_seatEngine
+  pkg_seat --> svc_seatEngineQuery
+  pkg_seat --> svc_seatGates
+  pkg_seat --> svc_seatReminderHost
+  pkg_seat --> svc_seatWorktreeHost
+  pkg_seat --> svc_seats
+  pkg_seat_engine --> svc_seatEngine
+  pkg_seat_engine --> svc_seatEngineQuery
+  pkg_seat_gates --> svc_seatGates
+  pkg_seat_local --> svc_jobNotifications
+  pkg_seat_local --> svc_seats
+  pkg_seat_local --> svc_subagentAdmission
+  pkg_seat_local --> svc_subagentNotifications
+  pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
   pkg_session_ledger --> svc_messageLedger
   pkg_session_ledger --> svc_sessionLedger
@@ -436,6 +475,8 @@ flowchart LR
   pkg_storage_domain --> svc_storageDomain
   pkg_storage_json --> svc_storage
   pkg_storage_sqlite --> svc_storage
+  pkg_subagent --> svc_subagentAdmission
+  pkg_subagent --> svc_subagentNotifications
   pkg_subagent --> svc_subagents
   pkg_subagent_acp --> svc_subagents
   pkg_subagent_claude_code --> svc_subagents
@@ -508,6 +549,8 @@ flowchart LR
   svc_fileUploads --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
   svc_hmr --> pkg_app_boot
+  svc_instructionSubscriptions --> pkg_seat_local
+  svc_jobNotifications --> pkg_jobs
   svc_jobs --> pkg_api_job_controller
   svc_jobs --> pkg_tool_bash
   svc_jobs --> pkg_tool_jobs
@@ -537,6 +580,25 @@ flowchart LR
   svc_sandboxPolicy --> pkg_bash_sandbox
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
+  svc_seatDirectories --> pkg_tool_seat
+  svc_seatEngine --> pkg_ledger_query
+  svc_seatEngine --> pkg_seat_app
+  svc_seatEngine --> pkg_seat_gates
+  svc_seatEngine --> pkg_seat_local
+  svc_seatEngine --> pkg_seat_remote
+  svc_seatEngine --> pkg_tool_seat
+  svc_seatEngineQuery --> pkg_ledger_query
+  svc_seatGates --> pkg_ledger_query
+  svc_seatGates --> pkg_seat_local
+  svc_seatGates --> pkg_seat_remote
+  svc_seatGates --> pkg_tool_seat
+  svc_seatReminderHost --> pkg_seat_gates
+  svc_seatWorktreeHost --> pkg_seat_gates
+  svc_seats --> pkg_seat_app
+  svc_seats --> pkg_seat_engine
+  svc_seats --> pkg_seat_remote
+  svc_seats --> pkg_tool_seat
+  svc_sessionCreation --> pkg_seat_local
   svc_sessionPersistence --> pkg_agent_loop
   svc_sessionPersistence --> pkg_hooks_claude_code
   svc_sessionPersistence --> pkg_hooks_codex
@@ -574,7 +636,9 @@ flowchart LR
   svc_ssh --> pkg_subprocess_ssh
   svc_storage --> pkg_storage_domain
   svc_storageDomain --> pkg_workspace
+  svc_subagentAdmission --> pkg_subagent
   svc_subagentModelSelection --> pkg_tool_subagent
+  svc_subagentNotifications --> pkg_subagent
   svc_subagents --> pkg_tool_ralph
   svc_subagents --> pkg_tool_subagent
   svc_subagents --> pkg_tool_subagent_control
@@ -629,8 +693,21 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `ctx.cotTranslation` | `service` | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | - | - | 为展开的思考内容提供有界的 Session 翻译请求，不改变模型可见历史。 |
-| `ctx.translator` | `service` | [`experimental-translator`](../packages/experimental/translator) | - | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | 解析 Google 或 Bing 请求，并可选保留统一的实验性 Session 记录。 |
+| `ctx.instructionSubscriptions` | `service` | [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | - | [`seat-local`](../packages/seat/seat-local) | - | 保留选定的指令身份，供后续提示词组装使用，不激活会话。 |
+| `ctx.seats` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-app`](../packages/seat/seat-app), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`seat-engine`](../packages/seat/seat-engine) | - | 可选的本地提供者拥有经过授权的定义与窗口操作；缺席时不改变上游行为。 |
+| `ctx.seatEngine` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`seat-gates`](../packages/seat/seat-gates), [`seat-remote`](../packages/seat/seat-remote), [`seat-app`](../packages/seat/seat-app), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | 节点的唯一写入者先提交决策，再发布队列、接纳、回调及预算状态。 |
+| `ctx.seatEngineQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`ledger-query`](../packages/session/ledger-query) | - | 读取已验证的既有日志前缀，不创建文件，也不获取写入者所有权。 |
+| `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | 评估可信操作事实，并通过引擎提交命中计数。 |
+| `ctx.seatDirectories` | `seam` | [`seat`](../packages/seat/seat) | - | [`tool-seat`](../packages/seat/tool-seat) | - | 在工位授权下提供有界的目录读取与编辑。 |
+| `ctx.seatWorktreeHost` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-gates`](../packages/seat/seat-gates) | - | 提供完整且带修订版本的记录，以及独立的强制操作授权。 |
+| `ctx.seatReminderHost` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-gates`](../packages/seat/seat-gates) | - | 通过既有的下一步骤投递通道接纳持久提醒。 |
+| `ctx.seatRemote` | `service` | [`seat-remote`](../packages/seat/seat-remote) | - | - | - | 将所有者授权的请求投影到可选工位提供者，不启动替代运行时。 |
+| `ctx.sessionCreation` | `service` | [`api-session-controller`](../packages/api/session-controller) | - | [`seat-local`](../packages/seat/seat-local) | - | 创建会话时保留已预留的身份与接纳所有权。 |
+| `ctx.jobNotifications` | `seam` | [`jobs`](../packages/jobs/jobs) | [`seat-local`](../packages/seat/seat-local) | [`jobs`](../packages/jobs/jobs) | - | 在任务执行前预留持久通知所有权，并只接纳一次结算。 |
+| `ctx.subagentAdmission` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-local`](../packages/seat/seat-local) | [`subagent`](../packages/subagent/subagent) | - | 在激活前预留子级容量，或返回持久队列票据。 |
+| `ctx.subagentNotifications` | `seam` | [`subagent`](../packages/subagent/subagent) | [`seat-local`](../packages/seat/seat-local) | [`subagent`](../packages/subagent/subagent) | - | 通过持久发件箱接纳原始结算消息，不重复投递。 |
+| `ctx.cotTranslation` | `service` | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | - | - | 提供思考内容翻译并复用已保存的结果；未缓存且未激活的会话通过普通会话激活流程处理。 |
+| `ctx.translator` | `service` | [`experimental-translator`](../packages/experimental/translator) | - | [`experimental-client-ui-cot-translation`](../packages/experimental/client-ui-cot-translation) | - | 解析 Google 或 Bing 请求，并通过活动会话写入者保留共享的实验性记录。 |
 | `ctx.hmr` | `core` | [`hmr`](../packages/boot/hmr) | - | [`app-boot`](../packages/boot/app-boot) | - | 负责模块和精确配置监听；应用修改共用其队列，自动重载等待应用文件锁。 |
 | `ctx.pluginRegistryProbe` | `core` | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | [`client-ui-plugin-manager`](../packages/client/ui-plugin-manager) | - | 在 Host 上并发比较公共安装源响应；初始安装源推荐由 Client 负责。 |
 | `ctx.pluginManager` | `core` | [`plugin-manager`](../packages/boot/plugin-manager) | - | [`plugin-manager`](../packages/boot/plugin-manager), `ui-settings-plugin-inventory` | - | 与 CLI 共享 profile 包操作，并向 Web 和 Agent 调用方分别报告持久状态与运行状态。 |
