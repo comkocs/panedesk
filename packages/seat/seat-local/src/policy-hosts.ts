@@ -1,7 +1,8 @@
 /** Policy hosts reuse durable storage, Workspace identity and Session message delivery. */
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { realpath } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import { defineDomain, type DomainFacility } from '@panedesk/dsh-storage-domain'
 import type * as T from '@panedesk/dsh-seat'
@@ -18,9 +19,30 @@ const schema = z.object({ revision: z.number().int().nonnegative(), trees: z.arr
 const spec = defineDomain({ name: 'seat_worktrees', version: 1, layout: 'single', tables: {},
   global: { schema, initial: schema.parse({ revision: 0, trees: [], operations: {}, forceAudit: [] }) } })
 
-async function git(cwd: string, args: string[]): Promise<string> {
+async function git(cwd: string, args: string[], trim = true): Promise<string> {
   const result = await execute('git', ['--no-optional-locks', '-C', cwd, ...args], { encoding: 'utf8' })
-  return result.stdout.trim()
+  return trim ? result.stdout.trim() : result.stdout
+}
+
+async function maturity(path: string): Promise<{ merged: boolean; lastChangedAt: number }> {
+  // The branch upstream is the repository's explicit merge target; never guess main or HEAD.
+  const target = await git(path, ['rev-parse', '--verify', '@{upstream}^{commit}'])
+  const head = await git(path, ['rev-parse', '--verify', 'HEAD^{commit}'])
+  const base = await git(path, ['merge-base', head, target])
+  const committedAt = Number(await git(path, ['log', '-1', '--format=%ct', head])) * 1000
+  const files = (await git(path, ['ls-files', '-z'], false)).split('\0').filter(Boolean)
+  const metadata = await Promise.all(['HEAD', 'index', 'logs/HEAD'].map(async name =>
+    git(path, ['rev-parse', '--path-format=absolute', '--git-path', name])))
+  let lastChangedAt = committedAt
+  for (const file of [...metadata, ...files.map(file => join(path, file))]) {
+    const info = await stat(file)
+    lastChangedAt = Math.max(lastChangedAt, info.mtimeMs, info.ctimeMs)
+  }
+  if (!Number.isFinite(lastChangedAt) || committedAt <= 0) throw new Error('Worktree activity time is unavailable')
+  const unchanged = head === await git(path, ['rev-parse', '--verify', 'HEAD^{commit}'])
+    && target === await git(path, ['rev-parse', '--verify', '@{upstream}^{commit}'])
+    && (await git(path, ['status', '--porcelain', '--untracked-files=no'])).length === 0
+  return { merged: unchanged && base === head, lastChangedAt }
 }
 
 /** Install hosts under the catalog owner's lifecycle; teardown drains committed writes.
@@ -75,9 +97,15 @@ export async function installPolicyHosts(ctx: Context, facility: DomainFacility)
         const verified = await realpath(common) === repository && branch === tree.branch
           && listed.split('\n').includes(`worktree ${path}`)
         const trackedClean = (await git(path, ['status', '--porcelain', '--untracked-files=no'])).length === 0
-        // No configured merge target or durable file-activity observer exists in Workspace.
-        // Unknown evidence must not become an automatic mature-tree recommendation.
-        return { verified, trackedClean, merged: false, lastChangedAt: null }
+        let evidence: { merged: boolean; lastChangedAt: number | null }
+        try { evidence = await maturity(path) }
+        catch (error) {
+          // Missing upstream, history or activity metadata cannot establish maturity.
+          ctx.logger.debug('Worktree maturity refused: Git upstream, ancestry or activity evidence is unavailable',
+            error instanceof Error ? error.name : 'Error')
+          evidence = { merged: false, lastChangedAt: null }
+        }
+        return { verified, trackedClean, ...evidence }
       } catch (error) {
         ctx.logger.debug('Worktree evidence is unavailable', error instanceof Error ? error.name : 'Error')
         return { verified: false, trackedClean: false, merged: false, lastChangedAt: null }
