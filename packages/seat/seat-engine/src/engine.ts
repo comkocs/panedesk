@@ -14,17 +14,27 @@ import { effectiveMode, reserveOpen } from './admission.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
 import { queryEngine, exportEngine, verifyEngine } from './query.ts'
 import { reconcileOpen } from './open-recovery.ts'
+import { closeEffects } from './closing.ts'
+import { queueReplacement, ReplacementDriver } from './replacement.ts'
+import { KeepAliveScheduler, type KeepAliveRuntime } from './keepalive.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
 /** Runtime providers are resolved on use, permitting optional composition and HMR. */
-export interface EngineDependencies { seats(): SeatService | undefined; ledger(): SessionLedger | undefined }
+export interface EngineDependencies {
+  seats(): Pick<SeatService, 'resolve' | 'list' | 'close'> | undefined
+  ledger(): Pick<SessionLedger, 'snapshot'> | undefined
+  /** Omitted runtime reports unavailable cache evidence and never dispatches maintenance. */
+  keepalive?: KeepAliveRuntime
+}
 /** All durable engine operations share one native node owner and synchronized sequence. */
 export class SeatEngine extends SeatEngineService {
   readonly journal: EngineJournal
   private readonly sources = new SourceRegistry()
   private readonly triggers: TriggerRegistry
   private readonly outbox: CallbackOutbox
+  private readonly replacements: ReplacementDriver
+  private readonly keepalive: KeepAliveScheduler
   private executor: T.SeatOpenExecutor | undefined
   private activeDrive: Promise<void> | undefined
   private started: Promise<void> | undefined
@@ -39,6 +49,11 @@ export class SeatEngine extends SeatEngineService {
       options.nodeId, options.config.maxDecisionBytes)
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
     this.outbox = new CallbackOutbox(this.journal, this.sources, options.config)
+    this.replacements = new ReplacementDriver(this.journal, () => dependencies.seats(), options.config.nodeName)
+    this.keepalive = new KeepAliveScheduler(this.journal, () => dependencies.seats(), dependencies.keepalive ?? {
+      remaining: () => Promise.resolve({ kind: 'unknown' }),
+      renew: () => Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' }),
+    }, async sessionId => (await this.admitTurn(sessionId)).status !== 'allow')
   }
   async ready(): Promise<void> {
     this.started ??= this.start()
@@ -273,6 +288,42 @@ export class SeatEngine extends SeatEngineService {
     })
     await this.publish(); return result
   }
+  async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
+    await this.ready()
+    if (request.nodeId && request.nodeId !== this.options.nodeId) return rejected('cross-node-unsupported', 'Replacement is node-local')
+    const result = await queueReplacement(this.journal, request)
+    await this.publish()
+    return result
+  }
+  async renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult> {
+    await this.ready()
+    const evidence = await this.dependencies.keepalive?.remaining(request.sessionId)
+    const cacheEvidence: T.SeatCacheEvidence = { lastActivityAt: evidence?.kind === 'estimated'
+      ? new Date(evidence.evidenceAt).toISOString() : null, cacheTtlMs: evidence?.kind === 'estimated'
+      ? evidence.ttlSeconds * 1000 : null, prefixDigest: null, observedAt: new Date().toISOString(),
+    reusableRequest: evidence?.kind === 'estimated' }
+    if (request.nodeId && request.nodeId !== this.options.nodeId) return {
+      ...rejected('cross-node-unsupported', 'Maintenance is node-local'), cacheEvidence }
+    if (!this.journal.projection.resources.has(request.sessionId)) return {
+      ...rejected('session-not-found', 'Maintenance window is not active'), cacheEvidence }
+    if ((await this.admitTurn(request.sessionId)).status !== 'allow') return {
+      ...rejected('budget-stopped', 'Maintenance is blocked by window admission'), cacheEvidence }
+    const result = await this.keepalive.renew(request.sessionId, request.operationId, 'manual',
+      evidence?.kind === 'estimated' ? evidence.evidenceAt : null, null)
+    await this.publish()
+    if (result.phase === 'renewed') return { status: 'renewed', sessionId: request.sessionId,
+      cacheEvidence: { ...cacheEvidence, lastActivityAt: result.evidenceAt === null ? null : new Date(result.evidenceAt).toISOString() } }
+    if (result.phase === 'uncertain') return { status: 'uncertain',
+      error: rejected('renewal-uncertain', 'Maintenance outcome is unconfirmed').error, cacheEvidence }
+    const code: T.SeatErrorCode = result.reason === 'busy' ? 'maintenance-busy' : result.reason === 'cache-expired'
+      ? 'cache-expired' : result.reason === 'prefix-changed' ? 'cache-prefix-changed' : 'cache-evidence-unavailable'
+    return { ...rejected(code, 'Maintenance was not dispatched'), cacheEvidence }
+  }
+  async recordClosed(closed: T.EngineCloseData): Promise<void> {
+    await this.ready()
+    await this.journal.commit(view => closeEffects(view, closed, this.options.config.nodeName))
+    await this.publish()
+  }
   drive(): Promise<void> {
     if (this.activeDrive) return this.activeDrive
     this.activeDrive = this.run().finally(() => { this.activeDrive = undefined })
@@ -288,11 +339,20 @@ export class SeatEngine extends SeatEngineService {
         executor)
       for (const open of [...this.journal.projection.opens.values()]) {
         if (!this.journal.projection.resources.has(open.sessionId)) continue
-        const recovered = await reconcileOpen(this.journal, open, executor, current => this.callbacks(current, 'opened'))
+        let recovered: T.EngineOpenData
+        try { recovered = await reconcileOpen(this.journal, open, executor, current => this.callbacks(current, 'opened')) }
+        catch (error) {
+          const replacement = [...this.journal.projection.replacements.values()].find(item => item.newSessionId === open.sessionId)
+          if (!replacement || !(error instanceof EngineError) || !['open-create-failed', 'open-configuration-failed'].includes(error.code)) throw error
+          recovered = { ...open, phase: 'opening-failed', failure: rejected('replacement-open-failed', 'Replacement creation failed').error }
+          await this.journal.commit(() => [fact({ kind: 'open/opening-failed', sessionId: open.sessionId, data: recovered })])
+        }
         if (recovered.phase === 'opening-failed') await this.recordCallbacks(recovered, 'opening-failed')
         await this.refreshBudget(recovered, executor)
       }
+      await this.replacements.drive(executor)
     }
+    await this.keepalive.drive()
     await this.outbox.deliver()
     await this.publish()
   }
@@ -335,9 +395,20 @@ export class SeatEngine extends SeatEngineService {
       if (mode === 'off') return pending('project-off')
       if (mode === 'remind' && !view.approved.has(item.queueItemId)) return pending('approval')
       if (item.action === 'wake-sender') { action.wake = true; return [] }
+      const replacement = item.replacementId ? view.replacements.get(item.replacementId) : undefined
+      const oldResource = replacement ? view.resources.get(replacement.oldSessionId) : undefined
+      if (item.action === 'replace' && (!replacement || !oldResource)) return pending('provider-unavailable')
+      const permit: T.HandoverPermit | undefined = replacement && oldResource ? {
+        permitId: randomUUID() as T.HandoverPermitId, replacementId: replacement.replacementId,
+        oldSessionId: replacement.oldSessionId, newSessionId: sessionId, state: 'issued',
+        issuedAt: new Date().toISOString(), expiredAt: null, ownerEpoch: oldResource.owner.ownerEpoch,
+      } : undefined
+      const engineWindow = oldResource ? oldResource.engineWindowUnits > 0 : item.triggerKind !== 'manual'
       const admission = reserveOpen({ projection: view, definition, ...(rule ? { rule } : {}),
+        ...(permit ? { replacement: permit } : {}),
         nodeId: this.options.nodeId, aliases: this.options.config.nodeAliases,
-        engine: item.triggerKind !== 'manual', now: Date.now(), ...(this.options.config.nodeEngineWindowLimit !== undefined ? { nodeLimit: this.options.config.nodeEngineWindowLimit } : {}),
+        engine: engineWindow, now: Date.now(),
+        ...(this.options.config.nodeEngineWindowLimit !== undefined ? { nodeLimit: this.options.config.nodeEngineWindowLimit } : {}),
         budget, sessionId })
       if (admission.status === 'pending') return pending(admission.reason, admission.blockedBy)
       if (admission.status === 'rejected') return [fact({ kind: 'open/rejected', seat: item.seat,
@@ -357,12 +428,17 @@ export class SeatEngine extends SeatEngineService {
         phase: 'intent', completedStages: [], binding,
         openingOperationId: operationId, openingMessageId: null, openingDigest: binding.openingDigest, budget, failure: null, definition,
         sources: current.sources, title: `${item.seat} ${date}` }
-      return [fact({ kind: 'open/intent', seat: item.seat, sessionId, ...(item.sources[0] ? { triggerId: item.sources[0].triggerId } : {}),
-        data: open }),
-      fact({ kind: 'resource/reserved', seat: item.seat, sessionId, data: { owner: { sessionId,
-        intentId, ownerEpoch: randomUUID() as T.OwnerEpoch, resourceRevision: 1 },
-      nodeId: this.options.nodeId, seat: item.seat, exclusiveTags: admission.tags, engineWindowUnits: item.triggerKind === 'manual' ? 0 : 1,
-      seatWindowUnits: 1 } })]
+      return [
+        ...(replacement && permit ? [fact({ kind: 'window/replacement', data: { ...replacement,
+          newSessionId: sessionId, phase: 'opening', permit, pending: null } })] : []),
+        fact({ kind: 'queue/cancelled', data: { pending: current, principalId: 'engine-policy' as T.SeatPrincipalId,
+          previousRevision: current.stateVersion, revision: current.stateVersion + 1 } }),
+        fact({ kind: 'open/intent', seat: item.seat, sessionId, ...(item.sources[0] ? { triggerId: item.sources[0].triggerId } : {}),
+          data: open }),
+        fact({ kind: 'resource/reserved', seat: item.seat, sessionId, data: { owner: { sessionId,
+          intentId, ownerEpoch: randomUUID() as T.OwnerEpoch, resourceRevision: 1 },
+        nodeId: this.options.nodeId, seat: item.seat, exclusiveTags: admission.tags, engineWindowUnits: engineWindow ? 1 : 0,
+        seatWindowUnits: 1 } })]
     })
     if (action.wake && item.handoffTimeout && await executor.wakeSender(item.handoffTimeout) !== 'unavailable') {
       const current = this.journal.projection.pending.get(item.queueItemId)
@@ -409,8 +485,8 @@ export class SeatEngine extends SeatEngineService {
     })
     const warning = this.journal.projection.decisions.flatMap(decision => decision.effects).find(effect => effect.kind === 'budget/warning'
       && effect.data.sessionId === open.sessionId && effect.data.budgetRevision === snapshot.budgetRevision)
-    if (warning && executor.notifyBudget) await executor.notifyBudget({ sessionId: open.sessionId,
-      operationId: `budget:${warning.eventId}` as T.SeatOperationId, messageClass: 'handoff', mode: 'steer', budget: snapshot })
+    if (warning?.kind === 'budget/warning' && executor.notifyBudget) await executor.notifyBudget({ sessionId: open.sessionId,
+      operationId: `budget:${warning.eventId}` as T.SeatOperationId, messageClass: 'handoff', mode: 'steer', budget: warning.data })
     if (level === 'stopped') await this.recordCallbacks(open, 'budget-stopped', snapshot)
   }
   private readonly recoveredOwners = new Set<T.OwnerEpoch>()

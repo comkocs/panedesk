@@ -46,6 +46,7 @@ const eventNames = [
   'child/queued', 'child/admitted', 'child/released', 'job/observed',
   'resource/reserved', 'resource/released', 'mode/changed', 'memory/audit',
   'report/submitted', 'report/revoked',
+  'cache/keepalive', 'cache/keepalive-skipped', 'git/checkpoint',
 ] as const satisfies readonly EngineEventKind[]
 
 function isRejected(result: OpenSeatResult): result is Extract<OpenSeatResult, { status: 'rejected' }> {

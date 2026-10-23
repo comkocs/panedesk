@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { tryLockExclusive } from '@panedesk/node-addon-system/flock'
 import { SEAT_ENGINE_NAMESPACE, SEAT_ENGINE_EVENT_NAMES, type EngineDecision, type EngineEffect, type EngineDecisionId, type SeatDigest, type SeatNodeId, type SeatErrorCode } from '@panedesk/dsh-seat'
 import { EngineProjection } from './projection.ts'
+import { validEffect } from './validation.ts'
 
 /** Storage errors stop dispatch; ambiguous writes require reopening and replaying the journal. */
 export class EngineError extends Error {
@@ -51,12 +52,29 @@ export function decodeFrame(text: string, maxBytes: number): EngineDecision {
   if (!record(parsed) || parsed.namespace !== SEAT_ENGINE_NAMESPACE || parsed.schemaVersion !== 1
     || typeof parsed.decisionId !== 'string' || typeof parsed.nodeId !== 'string'
     || !Number.isSafeInteger(parsed.sequence) || Number(parsed.sequence) < 1
-    || !Number.isSafeInteger(parsed.policyRevision) || typeof parsed.observedAt !== 'string'
+    || !parsed.decisionId || !parsed.nodeId || !Number.isSafeInteger(parsed.policyRevision) || Number(parsed.policyRevision) < 0
+    || typeof parsed.observedAt !== 'string'
     || !Number.isFinite(Date.parse(parsed.observedAt)) || !Array.isArray(parsed.effects) || parsed.effects.length === 0
     || typeof parsed.digest !== 'string' || typeof parsed.byteLength !== 'number') throw new EngineError('engine-store-corrupt', 'Invalid engine frame header')
+  const eventIds = new Set<string>()
   for (const effect of parsed.effects) {
     if (!record(effect) || typeof effect.eventId !== 'string' || typeof effect.kind !== 'string'
-      || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !record(effect.data)) throw new EngineError('engine-store-corrupt', 'Invalid engine effect')
+      || !effect.eventId || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !record(effect.data)
+      || !validEffect(effect.kind as EngineEffect['kind'], effect.data)
+      || ['seat', 'sessionId', 'taskId', 'triggerId', 'operationId', 'causedBy'].some(key => effect[key] !== undefined
+        && (typeof effect[key] !== 'string' || !effect[key]))) throw new EngineError('engine-store-corrupt',
+      `Invalid engine effect ${record(effect) && typeof effect.kind === 'string' ? effect.kind : 'unknown'}: missing, mistyped or inconsistent fields`)
+    if (eventIds.has(effect.eventId)) throw new EngineError('engine-store-corrupt', 'Duplicate engine event identity')
+    eventIds.add(effect.eventId)
+    const data = effect.data
+    for (const key of ['sessionId', 'seat', 'operationId'] as const) {
+      if (effect[key] !== undefined && data[key] !== undefined && effect[key] !== data[key]) {
+        throw new EngineError('engine-store-corrupt', `Inconsistent engine effect ${effect.kind}: ${key}`)
+      }
+    }
+    if ('payload' in data && record(data.payload) && digest(data.payload) !== data.payloadDigest) {
+      throw new EngineError('engine-store-corrupt', `Inconsistent engine effect ${effect.kind}: payloadDigest`)
+    }
   }
   const { digest: checksum, byteLength, ...body } = parsed
   if (digest(body) !== checksum || Buffer.byteLength(canonical(body)) !== byteLength) throw new EngineError('engine-store-corrupt', 'Engine checksum mismatch')

@@ -33,6 +33,8 @@
     "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
