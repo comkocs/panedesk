@@ -28,7 +28,9 @@ describe('checkpoint data contribution', () => {
       openOperationId: 'open-a' as import('@panedesk/dsh-seat').SeatOperationId, seatRevision: 1,
       relatedTaskIds: [], directories: [], memoryDirectories: [], subscriptions: [],
       openingDigest: 'digest-a' as import('@panedesk/dsh-seat').SeatDigest }
-    ctx.provide('seats', seatStub(definition, binding) as SeatService)
+    const seats = seatStub(definition, binding)
+    ctx.provide('seats', seats as SeatService)
+    ctx.provide('seatLocalRead', seats)
     const gates = { evaluate: async () => [] } as Partial<SeatGateService> as SeatGateService
     const order: string[] = []
     ctx.on('compaction/checkpoint', async (_payload, next) => {

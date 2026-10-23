@@ -16,7 +16,7 @@ export function installLifecycle(ctx: Context, config: Config): void {
   const pending = new Set<Promise<void>>()
   ctx.on('agent/input-preparing', async ({ agent, turn }) => {
     if (turns.has(agent.session.id)) return
-    const seats = ctx.get('seats')
+    const seats = ctx.get('seatLocalRead')
     if (!seats) return
     const roots: string[] = []
     let cursor: string | undefined

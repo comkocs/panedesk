@@ -13,7 +13,7 @@ export function registerWindowTools(ctx: Context): void {
     parameters: {},
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute() {
-      const seats = ctx.get('seats')
+      const seats = ctx.get('seatLocalRead')
       if (seats === undefined) throw new Error('Seat windows are unavailable.')
       return JSON.stringify(await seats.list({}))
     },

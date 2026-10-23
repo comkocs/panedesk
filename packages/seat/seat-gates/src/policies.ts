@@ -48,7 +48,7 @@ export function builtinCriterion(ctx: Context, config: Config, id: string): Gate
       }
       failure = checkPolling(context, state, pollingThreshold, maxSleepSeconds).failure
     } else if (id === 'memory' && context.hook === 'before-memory-write' && context.syntax === 'certain') {
-      const seats = ctx.get('seats')
+      const seats = ctx.get('seatLocalRead')
       if (!seats) throw new Error('Memory ownership catalog is unavailable.')
       const roots: { path: string; seats: import('@panedesk/dsh-seat').SeatName[] }[] = []
       let cursor: string | undefined

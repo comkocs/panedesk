@@ -17,7 +17,7 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
   ctx.on('tools/pre-execute', async (exec, next) => {
     const upstream = await next()
     if (upstream.kind !== 'allow' || exec.agent === undefined) return upstream
-    const seats = ctx.get('seats')
+    const seats = ctx.get('seatLocalRead')
     if (!seats) return upstream
     const binding = await seats.binding({ sessionId: exec.agent.session.id })
     if (binding !== null && 'status' in binding) return { kind: 'deny', reason: binding.error.alternative }
@@ -63,8 +63,9 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
   ctx.on('compaction/checkpoint', async (payload, next) => {
     const delegated = await next()
     const seats = ctx.get('seats')
-    if (!seats) return delegated
-    const binding = await seats.binding({ sessionId: payload.session.id })
+    const reads = ctx.get('seatLocalRead')
+    if (!seats || !reads) return delegated
+    const binding = await reads.binding({ sessionId: payload.session.id })
     if (!binding || 'status' in binding || binding.kind !== 'seat') return delegated
     const definition = await seats.resolve(binding.seat)
     if ('status' in definition) throw new Error(definition.error.alternative)
