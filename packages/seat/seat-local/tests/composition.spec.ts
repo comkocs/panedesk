@@ -11,6 +11,7 @@ import { JsonStorageBackend } from '@panedesk/dsh-storage-json'
 import type { SeatPrincipalId } from '@panedesk/dsh-seat'
 import * as Local from '../src/index.ts'
 import { definition, nodeId } from './fixtures.ts'
+import { seatsReady } from '../../seat/tests/completion.ts'
 
 it('loads the catalog through Loader, rejects operations without an engine and releases the service and lock on unload', async () => {
   const root = await mkdtemp(join(process.cwd(), '.seat-composition-'))
@@ -32,14 +33,15 @@ it('loads the catalog through Loader, rejects operations without an engine and r
     await writeFile(path, JSON.stringify([{ name: 'cordis:local', config }]))
     const entry = await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
     await ctx.loader.await()
-    await expect.poll(() => ctx.get('seats') !== undefined).toBe(true)
+    await seatsReady(ctx)
+    expect(ctx.get('seats')).toBeDefined()
     const seats = ctx.get('seats')
     if (seats === undefined) throw new Error('Seat provider was not installed')
     const scoped = seats.withAuthority({ principalId: 'user-a' as SeatPrincipalId, nodeId, origin: 'manual' })
     expect(await scoped.definitions({})).toEqual({ definitions: [], revision: 0, complete: true })
     expect(await scoped.list({})).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
     await ctx.loader.resolve(entry).fiber?.dispose()
-    await expect.poll(() => ctx.get('seats') === undefined).toBe(true)
+    expect(ctx.get('seats')).toBeUndefined()
     const reopened = await import('../src/store.ts').then(module => module.SeatStore.open(facility, root))
     await reopened.close()
   } finally {

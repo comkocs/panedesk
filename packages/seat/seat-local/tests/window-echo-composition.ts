@@ -5,6 +5,7 @@ import type * as T from '@panedesk/dsh-seat'
 import type { engineFixture } from './engine-fixture.ts'
 import type { CreationAdapter } from './creation-provider.ts'
 import { operation } from './fixtures.ts'
+import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
 
 /** Check title echoes and original manual source replay without a second model request.
  * @param f - installed real local service and engine.
@@ -21,9 +22,9 @@ export async function checkWindowEcho(f: Awaited<ReturnType<typeof engineFixture
   expect(await seats.list({})).toMatchObject({ status: 'listed', sessions: [{ sessionId, title: 'Pinned window' }] })
   const before = adapter.requests.length
   const wake = { seat: f.definition.seat, sessionId, operationId: operation('echo-wake') }
-  const sent = await seats.wake(wake)
+  const sent = await completesTurn(f.ctx, sessionId, inputContains(`Continue ${f.definition.seat}`), () => seats.wake(wake))
   expect(sent).toMatchObject({ status: 'sent', sessionId, title: 'Pinned window' })
-  await expect.poll(() => adapter.requests.length).toBe(before + 1)
+  expect(adapter.requests).toHaveLength(before + 1)
   await f.ctx.agents.get(sessionId)?.whenIdle()
   expect(await seats.wake(wake)).toEqual(sent)
   expect(adapter.requests).toHaveLength(before + 1)

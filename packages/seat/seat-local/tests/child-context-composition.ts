@@ -7,6 +7,7 @@ import type { SessionId } from '@panedesk/dsh-session'
 import type { engineFixture } from './engine-fixture.ts'
 import { recordCost } from './ledger-call.ts'
 import { LocalSeatService } from '../src/service.ts'
+import { insertsInput, inputContains } from '../../seat/tests/completion.ts'
 
 /** Check child-owned steer delivery and replay using real admission and Session creation.
  * @param f - real engine, ledger, creation and delivery providers.
@@ -32,17 +33,19 @@ export async function checkChildContext(f: Awaited<ReturnType<typeof engineFixtu
     const result = await creation.create({ sessionId, cwd: f.options.directory, agentPreset: f.definition.agentPreset,
       selection: { provider: f.definition.provider, model: f.definition.model,
         reasoningEffort: ReasoningEffortId(f.definition.reasoningEffort) }, releasePreparation: releaseBinding })
-    await f.ctx.sessions.flush(result.agent.session)
+    await expect(f.ctx.sessions.flush(result.agent.session)).resolves.toBe(true)
     await recordCost(f.ctx, sessionId, 'child-context-low', '0', { inputTokens: 61, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 })
     await service.reevaluateReport(sessionId)
     const messages = () => result.agent.session.snapshotEvents().filter(event => event.type === 'agent/inbox/spliced'
       && JSON.stringify(event.data).includes('The child context reached its limit.'))
     expect(messages()).toHaveLength(0)
     await recordCost(f.ctx, sessionId, 'child-context-high', '0', { inputTokens: 90, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 })
-    await service.reevaluateReport(sessionId)
-    await service.reevaluateReport(sessionId)
-    await expect.poll(() => messages().length).toBe(1)
-    await f.ctx.sessions.flush(result.agent.session)
+    await insertsInput(f.ctx, sessionId, inputContains('The child context reached its limit.'), async () => {
+      await service.reevaluateReport(sessionId)
+      await service.reevaluateReport(sessionId)
+    })
+    expect(messages()).toHaveLength(1)
+    await expect(f.ctx.sessions.flush(result.agent.session)).resolves.toBe(true)
     expect(JSON.stringify((await f.ctx.sessionQuery.readSession(sessionId))?.events)).toContain('Prepare a handoff summary')
     await f.engine.releaseChild(admitted.ticket.ticketId)
     await service.reevaluateReport(sessionId)

@@ -11,6 +11,7 @@ import type { CreationAdapter } from './creation-provider.ts'
 import { recordCost } from './ledger-call.ts'
 import { readContextUsage } from '../src/context-runtime.ts'
 import { LocalSeatService } from '../src/service.ts'
+import { insertsInput, inputContains } from '../../seat/tests/completion.ts'
 
 /** Check real delivery and reconstruct epochs exclusively from persisted evidence.
  * @param f - installed local service and real ledger.
@@ -34,24 +35,29 @@ export async function checkContextEpoch(f: Awaited<ReturnType<typeof engineFixtu
     await recordCost(f.ctx, sessionId, 'context-first', '0', usage)
     expect(await readContextUsage(f.ctx, sessionId)).toMatchObject({ status: 'known', tokens: 80, contextEpoch: 0 })
     const before = adapter.requests.length
-    await service.reevaluateReport(sessionId)
-    await service.reevaluateReport(sessionId)
+    await insertsInput(f.ctx, sessionId, inputContains('Context threshold reached.'), async () => {
+      await service.reevaluateReport(sessionId)
+      await service.reevaluateReport(sessionId)
+    })
     const messages = () => agent.session.snapshotEvents().filter(event => event.type === 'agent/inbox/spliced'
       && JSON.stringify(event.data).includes('Context threshold reached.'))
-    await expect.poll(() => messages().length).toBe(1)
+    expect(messages()).toHaveLength(1)
+    await agent.whenIdle()
     const compact = await f.ctx.compaction.compactNow(agent, new AbortController().signal)
     expect(compact).not.toBeNull()
-    await f.ctx.sessions.flush(agent.session)
+    await expect(f.ctx.sessions.flush(agent.session)).resolves.toBe(true)
     expect(await readContextUsage(f.ctx, sessionId)).toMatchObject({ status: 'unknown' })
     await service.reevaluateReport(sessionId)
     expect(messages()).toHaveLength(1)
     await recordCost(f.ctx, sessionId, 'context-second', '0', usage)
     expect(await readContextUsage(f.ctx, sessionId)).toMatchObject({ status: 'known', tokens: 80, contextEpoch: 1 })
-    await service.reevaluateReport(sessionId)
-    await service.reevaluateReport(sessionId)
-    await expect.poll(() => messages().length).toBe(2)
+    await insertsInput(f.ctx, sessionId, inputContains('Context threshold reached.'), async () => {
+      await service.reevaluateReport(sessionId)
+      await service.reevaluateReport(sessionId)
+    })
+    expect(messages()).toHaveLength(2)
     expect(adapter.requests).toHaveLength(before + 1)
-    await f.ctx.sessions.flush(agent.session)
+    await expect(f.ctx.sessions.flush(agent.session)).resolves.toBe(true)
     const saved = await f.ctx.sessionQuery.readSession(sessionId)
     expect(saved?.events.filter(event => event.type === 'compaction/end')).toHaveLength(1)
   } finally { release() }

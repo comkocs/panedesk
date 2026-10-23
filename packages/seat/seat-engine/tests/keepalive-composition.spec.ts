@@ -5,6 +5,7 @@ import type { CacheRenewOperationId } from '@panedesk/dsh-llm-cache'
 import type { SeatOperationId } from '@panedesk/dsh-seat'
 import { composition } from './composition-fixture.ts'
 import { auto, harness, trigger } from './fixtures.ts'
+import { completesTurn } from '../../seat/tests/completion.ts'
 
 it('A28 routes automatic and manual renewal through real cache maintenance without conversation text', async () => {
   const f = await composition(true)
@@ -23,8 +24,8 @@ it('A28 routes automatic and manual renewal through real cache maintenance witho
     const sessionId = h.creates[0]
     if (!sessionId) throw new Error('Missing engine window')
     const { agent } = await f.ctx.agents.create({ sessionId, agentOptions: { provider: 'mock', model: 'model-a' } })
-    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Begin the assigned task.' }], source: { kind: 'user' } }))
-    await agent.whenIdle()
+    const input = createUserMessage({ content: [{ type: 'text', text: 'Begin the assigned task.' }], source: { kind: 'user' } })
+    await completesTurn(f.ctx, agent.id, message => message.id === input.id, async () => { agent.followup(input) })
     expect(f.adapter.requests).toHaveLength(1)
     await h.engine.drive()
     const before = agent.session.snapshotEvents()

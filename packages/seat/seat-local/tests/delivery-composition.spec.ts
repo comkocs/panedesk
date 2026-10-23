@@ -15,6 +15,7 @@ import { expect, it, vi } from 'vitest'
 import { registerSubscriptions } from '../src/subscriptions.ts'
 import { createLocalRuntime } from '../src/runtime.ts'
 import { definition, nodeId, operation } from './fixtures.ts'
+import { insertsInput, inputContains } from '../../seat/tests/completion.ts'
 
 it('deduplicates durable delivery and sends Session subscription reminders until disposal', async () => {
   const root = await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? process.cwd(), 'seat-delivery-'))
@@ -48,7 +49,7 @@ it('deduplicates durable delivery and sends Session subscription reminders until
       defaults: definition(root), maxSourceBytes: 65536, maxPlans: 20, maxOpeningBytes: 65536,
       maxBatchSeats: 10, pageSize: 100, transactionRetries: 10, maxConfirmations: 10, closedSuffix: ' closed' })
     const request = { sessionId: agent.id, operationId: operation('wake-a'), text: 'Resume the assigned work.', mode: 'steer' as const }
-    const first = await runtime.send(request)
+    const first = await insertsInput(ctx, agent.id, inputContains(request.text), () => runtime.send(request))
     expect(await runtime.send(request)).toEqual(first)
     const delivery = ctx.get('messageDelivery')
     if (delivery === undefined) throw new Error('Delivery composition is unavailable')
@@ -59,13 +60,15 @@ it('deduplicates durable delivery and sends Session subscription reminders until
     await boundary()
     expect(agent.inbox.nextStep.filter(item => item.id === first.messageId)).toHaveLength(1)
     const sent = vi.spyOn(delivery, 'send')
-    await writeFile(file, 'rule two\n')
-    await boundary()
+    await insertsInput(ctx, agent.id, inputContains('instruction-change'), async () => {
+      await writeFile(file, 'rule two\n')
+      await boundary()
+    })
     const reminderRequest = sent.mock.calls.find(([request]) => request.content.includes('instruction-change'))?.[0]
     expect(reminderRequest?.messageClass).toBe('handoff')
     expect(reminderRequest?.priority).toBe('steer')
     await boundary()
-    await expect.poll(() => agent.inbox.nextStep.filter(item => JSON.stringify(item).includes('instruction-change')).length).toBe(1)
+    expect(agent.inbox.nextStep.filter(item => JSON.stringify(item).includes('instruction-change'))).toHaveLength(1)
     const reminders = agent.inbox.nextStep.filter(item => JSON.stringify(item).includes('instruction-change'))
     expect(reminders).toHaveLength(1)
     expect(JSON.stringify(reminders)).not.toContain('rule two')
