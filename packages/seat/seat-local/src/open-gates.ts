@@ -2,6 +2,8 @@
 import type { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import type { LocalSeatService } from './service.ts'
+import { validateLocalDefinition } from './paths.ts'
+import { rejected } from './errors.ts'
 
 /** Apply the local opening policy to direct engine ingress, retaining accepted replays.
  * @param ctx - local provider context.
@@ -11,6 +13,11 @@ import type { LocalSeatService } from './service.ts'
  */
 export async function engineOpeningGate(ctx: Context, service: LocalSeatService,
   input: T.SeatLocalOpenRequest): Promise<T.SeatRejected | null> {
+  if (service.options.nodeAliases[input.definition.node] !== service.options.nodeId) {
+    return rejected('cross-node-unsupported', 'The definition does not belong to this node.', 'Run the operation on its configured node.')
+  }
+  const refusal = validateLocalDefinition(input.definition)
+  if (refusal !== null) return refusal
   const facts = (await service.state.read()).effects
   const accepted = facts.some(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
     && effect.data.trigger.evidence.kind === 'manual'

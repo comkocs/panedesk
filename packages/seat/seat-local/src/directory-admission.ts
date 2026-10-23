@@ -4,6 +4,7 @@ import type { DirectoryChoiceResult, DirectoryConfirmation, ResolveDirectoryChoi
 import { canonicalPath, directoryOwners } from './identity.ts'
 import { digest } from './store.ts'
 import { rejected } from './errors.ts'
+import { validateLocalPaths } from './paths.ts'
 
 /** Owns confirmation capabilities for one node provider lifetime. */
 export class DirectoryAdmission {
@@ -35,6 +36,8 @@ export class DirectoryAdmission {
    */
   async resolve(request: ResolveDirectoryChoiceRequest, principalId: SeatPrincipalId,
     definitions: readonly SeatDefinition[]): Promise<DirectoryChoiceResult> {
+    const refusal = validateLocalPaths([request.cwd])
+    if (refusal !== null) return refusal
     const cwd = await canonicalPath(request.cwd)
     const owners = await directoryOwners(cwd, definitions)
     const candidates = owners.map(({ seat, revision }) => ({ seat, revision }))

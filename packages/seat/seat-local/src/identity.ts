@@ -3,6 +3,7 @@ import path from 'node:path'
 import { realpath } from 'node:fs/promises'
 import type { SeatDefinition, SeatName, SeatRejected } from '@panedesk/dsh-seat'
 import { rejected } from './errors.ts'
+import { isNativePath, validateLocalPaths } from './paths.ts'
 
 /** Resolve symlinks through the nearest existing ancestor, including not-yet-created files.
  * @param target - absolute target path.
@@ -46,6 +47,7 @@ export async function directoryOwners(cwd: string, definitions: readonly SeatDef
   const owners: SeatDefinition[] = []
   for (const definition of definitions) {
     for (const directory of definition.directories) {
+      if (!isNativePath(directory.path)) continue
       if (containsPath(await canonicalPath(directory.path), target, process.platform === 'win32' ? 'win32' : 'posix')) {
         owners.push(definition)
         break
@@ -63,12 +65,15 @@ export async function directoryOwners(cwd: string, definitions: readonly SeatDef
  */
 export async function checkMemoryWrite(target: string, seat: SeatName | null,
   definitions: readonly SeatDefinition[]): Promise<SeatRejected | null> {
+  const own = definitions.find(definition => definition.seat === seat)?.memoryDirectories ?? []
+  const refusal = validateLocalPaths([target, ...own])
+  if (refusal !== null) return refusal
   const canonical = await canonicalPath(target)
   const platform = process.platform === 'win32' ? 'win32' : 'posix'
-  const own = definitions.find(definition => definition.seat === seat)?.memoryDirectories ?? []
   const registered = new Set(definitions.flatMap(definition => [...definition.memoryDirectories]))
   let protectedPath = false
   for (const root of registered) {
+    if (!isNativePath(root)) continue
     if (containsPath(await canonicalPath(root), canonical, platform)) { protectedPath = true; break }
   }
   if (!protectedPath) return null
