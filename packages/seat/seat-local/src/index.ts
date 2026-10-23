@@ -120,22 +120,28 @@ export function apply(ctx: Context, config: Config): void {
         })
         child.on('subagent/before-start', async ({ parent, info }) => {
           await installed.state.mutate((effects) => {
-            const exists = effects.some(effect => effect.kind === 'job/observed'
-              && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === info.runId)
-            return { result: undefined, effects: exists ? [] : [localFact({ kind: 'job/observed', sessionId: parent.id,
-              data: { sessionId: parent.id, ownerEpoch: String(info.runId) as OwnerEpoch, phase: 'running', observation: {
-                object: { kind: 'subagent', id: info.runId }, outcome: 'unknown', watermark: 1,
-                observedAt: new Date().toISOString(), durability: 'durable' } } })] }
+            // Keep the visible child identity paired with its exact run in the same durable decision.
+            const ids = [...new Set([String(info.runId), String(info.id)])]
+            return { result: undefined, effects: ids.filter(id => !effects.some(effect => effect.kind === 'job/observed'
+              && effect.data.sessionId === parent.id && effect.data.ownerEpoch === String(info.runId)
+              && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === id))
+              .map(id => localFact({ kind: 'job/observed', sessionId: parent.id,
+                data: { sessionId: parent.id, ownerEpoch: String(info.runId) as OwnerEpoch, phase: 'running', observation: {
+                  object: { kind: 'subagent', id: id as typeof info.runId }, outcome: 'unknown', watermark: effects.length + 1,
+                  observedAt: new Date().toISOString(), durability: 'durable' } } })) }
           })
         })
         child.on('subagent/after-settle', async ({ parent, info }) => {
           await installed.state.mutate((effects) => {
-            const exists = effects.some(effect => effect.kind === 'job/observed' && effect.data.phase === 'settled'
-              && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === info.runId)
-            return { result: undefined, effects: exists ? [] : [localFact({ kind: 'job/observed', sessionId: parent.id,
-              data: { sessionId: parent.id, ownerEpoch: String(info.runId) as OwnerEpoch, phase: 'settled', observation: {
-                object: { kind: 'subagent', id: info.runId }, watermark: 2, observedAt: new Date().toISOString(), durability: 'durable',
-                outcome: info.stopReason === 'completed' ? 'completed' : info.stopReason === 'aborted' ? 'cancelled' : 'failed' } } })] }
+            const ids = [...new Set([String(info.runId), String(info.id)])]
+            return { result: undefined, effects: ids.filter(id => !effects.some(effect => effect.kind === 'job/observed'
+              && effect.data.sessionId === parent.id && effect.data.ownerEpoch === String(info.runId) && effect.data.phase === 'settled'
+              && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === id))
+              .map(id => localFact({ kind: 'job/observed', sessionId: parent.id,
+                data: { sessionId: parent.id, ownerEpoch: String(info.runId) as OwnerEpoch, phase: 'settled', observation: {
+                  object: { kind: 'subagent', id: id as typeof info.runId }, watermark: effects.length + 1,
+                  observedAt: new Date().toISOString(), durability: 'durable',
+                  outcome: info.stopReason === 'completed' ? 'completed' : info.stopReason === 'aborted' ? 'cancelled' : 'failed' } } })) }
           })
         })
       })

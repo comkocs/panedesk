@@ -7,6 +7,9 @@ import { operation } from './fixtures.ts'
 import { WaitStore } from '../src/wait-store.ts'
 import { WaitCoordinator } from '../src/wait.ts'
 import { commitsEffect } from '../../seat/tests/completion.ts'
+import { localFact } from '../src/engine-state.ts'
+import type { OwnerEpoch } from '@panedesk/dsh-seat'
+import { SubagentRunId } from '@panedesk/dsh-subagent'
 
 it('authorizes a durable job and observes settlement within five seconds without listing unrelated sessions', async () => {
   const f = await engineFixture(true)
@@ -53,4 +56,24 @@ it('authorizes a durable job and observes settlement within five seconds without
       expect(read.mock.calls).toHaveLength(count)
     } finally { await coordinator.dispose(); await f.runtime.drainObservations?.() }
   } finally { vi.restoreAllMocks(); await f.close() }
+})
+
+it('keeps the latest child run pending when an earlier settlement is replayed', async () => {
+  const f = await engineFixture(true)
+  try {
+    const opened = await f.open()
+    if (opened.status !== 'opened') throw new Error('Missing parent window')
+    const object: WaitObject = { kind: 'subagent', id: SubagentRunId('child-session') }
+    const observe = (epoch: string, phase: 'running' | 'settled', watermark: number) => localFact({
+      kind: 'job/observed', sessionId: opened.sessionId,
+      data: { sessionId: opened.sessionId, ownerEpoch: epoch as OwnerEpoch, phase, observation: { object,
+        outcome: phase === 'running' ? 'unknown' : 'completed', watermark,
+        observedAt: new Date().toISOString(), durability: 'durable' } },
+    })
+    await f.state.mutate(() => ({ result: undefined, effects: [observe('run-a', 'running', 1),
+      observe('run-a', 'settled', 2), observe('run-b', 'running', 3), observe('run-a', 'settled', 4)] }))
+    expect(await f.runtime.snapshot(object)).toBeNull()
+    await f.state.mutate(() => ({ result: undefined, effects: [observe('run-b', 'settled', 5)] }))
+    expect(await f.runtime.snapshot(object)).toMatchObject({ object, outcome: 'completed', watermark: 5 })
+  } finally { await f.close() }
 })
