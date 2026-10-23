@@ -22,6 +22,7 @@ flowchart LR
   svc_seatEngineQuery["ctx.seatEngineQuery<br/>Read-only engine history"]
   svc_seatLocalRead["ctx.seatLocalRead<br/>Provider-owned seat reads"]
   svc_seatLocalSession["ctx.seatLocalSession<br/>Current-Session seat writes"]
+  svc_seatLocalWindows["ctx.seatLocalWindows<br/>Invocation-scoped window operations"]
   svc_seatLocalCreation["ctx.seatLocalCreation<br/>Confirmed traditional creation"]
   svc_seatGatesQuery["ctx.seatGatesQuery<br/>Read-only seat policy queries"]
   svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
@@ -440,6 +441,7 @@ flowchart LR
   pkg_seat --> svc_seatGatesQuery
   pkg_seat --> svc_seatLocalRead
   pkg_seat --> svc_seatLocalSession
+  pkg_seat --> svc_seatLocalWindows
   pkg_seat --> svc_seatReminderHost
   pkg_seat --> svc_seatWorktreeHost
   pkg_seat --> svc_seats
@@ -454,6 +456,7 @@ flowchart LR
   pkg_seat_local --> svc_seatLocalCreation
   pkg_seat_local --> svc_seatLocalRead
   pkg_seat_local --> svc_seatLocalSession
+  pkg_seat_local --> svc_seatLocalWindows
   pkg_seat_local --> svc_seats
   pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
@@ -608,6 +611,7 @@ flowchart LR
   svc_seatLocalRead --> pkg_seat_gates
   svc_seatLocalRead --> pkg_tool_seat
   svc_seatLocalSession --> pkg_tool_seat
+  svc_seatLocalWindows --> pkg_tool_seat
   svc_seatReminderHost --> pkg_seat_gates
   svc_seatWorktreeHost --> pkg_seat_gates
   svc_seats --> pkg_seat_app
@@ -716,6 +720,7 @@ flowchart LR
 | `ctx.seatEngineQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`ledger-query`](../packages/session/ledger-query) | - | Reads verified existing journal prefixes without creating files or acquiring writer ownership. |
 | `ctx.seatLocalRead` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-gates`](../packages/seat/seat-gates), [`tool-seat`](../packages/seat/tool-seat) | - | Reads definitions, bindings, and windows without granting write authority. |
 | `ctx.seatLocalSession` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | Authorizes waits and reports only for the exact live calling Session. |
+| `ctx.seatLocalWindows` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | Authorizes window operations only for the live calling Session and tool call. |
 | `ctx.seatLocalCreation` | `service` | [`seat-local`](../packages/seat/seat-local) | - | - | - | Scopes single-use authenticated directory choices and releases temporary creation ownership. |
 | `ctx.seatGatesQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`ledger-query`](../packages/session/ledger-query) | - | Reads policy definitions and recorded hits without mounting runtime gate consumers. |
 | `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | Evaluates trusted operation facts and commits hit counters through the engine. |

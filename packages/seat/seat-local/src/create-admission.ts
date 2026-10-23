@@ -53,7 +53,7 @@ export function installCreateAdmission(ctx: Context, service: LocalSeatService, 
     releases: Set<() => void>
   }>()
   let active = true
-  const preparations = new Map<CreateAgentOptions['sessionId'], () => void>()
+  const preparations = new Map<CreateAgentOptions['sessionId'], { binding: T.SeatBinding; release: () => void }>()
   ctx.provide('seatLocalCreation', {
     confirmTraditional: async (cwd, authority) => {
       if (!active || authority.nodeId !== service.options.nodeId) throw new Error('Traditional creation is unavailable for this node')
@@ -69,7 +69,7 @@ export function installCreateAdmission(ctx: Context, service: LocalSeatService, 
   ctx.effect(() => () => {
     active = false
     choices.dispose(); scope.disable()
-    for (const release of preparations.values()) release()
+    for (const preparation of preparations.values()) preparation.release()
     preparations.clear()
   })
   ctx.on('agent/create-admitting', async ({ options }, next) => {
@@ -103,18 +103,21 @@ export function installCreateAdmission(ctx: Context, service: LocalSeatService, 
       sessionId: options.sessionId, hook: 'before-open', cwd: await canonicalPath(cwd),
       candidateSeats: selection.identity === 'free' ? [] : seat === null ? [] : [seat] })
     if (gate) return { kind: 'reject', reason: `${gate.error.message} ${gate.error.alternative}` }
-    if (controlled || (inherited !== undefined && selection.identity === 'seat')) return upstream
-    preparations.get(options.sessionId)?.()
+    if (controlled) return upstream
+    preparations.get(options.sessionId)?.release()
+    const childBinding: T.SeatBinding = binding?.kind === 'seat' && selection.identity === 'seat'
+      ? { ...binding, sessionId: options.sessionId, identitySource: 'inherited' }
+      : { kind: 'free', sessionId: options.sessionId, nodeId: service.options.nodeId, identitySource: 'free' }
     const ledger = ctx.get('sessionLedger')
-    const unbind = ledger?.bindContext({ sessionId: options.sessionId, rootSessionId: options.sessionId,
+    const unbind = childBinding.kind === 'free' ? ledger?.bindContext({ sessionId: options.sessionId, rootSessionId: options.sessionId,
       runId: randomUUID() as LedgerRunId, nodeId: service.options.nodeId, seat: 'free', window: 'free',
-      identitySource: 'free', accountLabel: 'unknown' })
+      identitySource: 'free', accountLabel: 'unknown' }) : undefined
     const release = () => {
       unbind?.()
       preparations.delete(options.sessionId)
       retained?.releases.delete(release)
     }
-    preparations.set(options.sessionId, release)
+    preparations.set(options.sessionId, { binding: childBinding, release })
     options.onAdmissionFailure?.(release)
     retained?.releases.add(release)
     return upstream
@@ -140,12 +143,12 @@ export function installCreateAdmission(ctx: Context, service: LocalSeatService, 
     return upstream
   })
   ctx.on('agent/created', async ({ agent, source }) => {
-    if (source !== 'startup' || !preparations.has(agent.id)) return
+    const preparation = preparations.get(agent.id)
+    if (source !== 'startup' || !preparation) return
     try {
       await service.state.mutate(effects => ({ result: undefined,
         effects: effects.some(effect => effect.kind === 'seat/binding' && effect.data.sessionId === agent.id) ? []
-          : [localFact({ kind: 'seat/binding', sessionId: agent.id,
-            data: { kind: 'free', sessionId: agent.id, nodeId: service.options.nodeId, identitySource: 'free' } })] }))
-    } finally { preparations.get(agent.id)?.(); preparations.delete(agent.id) }
+          : [localFact({ kind: 'seat/binding', sessionId: agent.id, data: preparation.binding })] }))
+    } finally { preparation.release() }
   })
 }
