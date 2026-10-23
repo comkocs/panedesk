@@ -13,7 +13,7 @@ import { completesIdleTurn, completesTurn, inputContains } from '../../seat/test
 
 class WindowModel extends CreationAdapter {
   caller?: SessionId
-  call?: { name: string; arguments: object }
+  call: { name: string; arguments: object } | undefined
   count = 0
   readonly entered = Promise.withResolvers<undefined>()
   readonly release = Promise.withResolvers<undefined>()
