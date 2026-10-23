@@ -1,0 +1,4 @@
+seat,model,keep
+seat-a,"model,a
+line",true
+seat-b,model-a,false
