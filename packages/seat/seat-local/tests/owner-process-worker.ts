@@ -29,7 +29,16 @@ const engine = new SeatEngine(ctx, { home, nodeId, config }, { ledger: () => led
     close: async () => { throw new Error('Unexpected close') } }) })
 const local = createOpenExecutor(ctx, createLocalRuntime(ctx, options), options)
 const physical = new Set<string>()
+const unknownObserved = Promise.withResolvers<undefined>()
+let observeUnknownSince: number | undefined
 const executor: T.SeatOpenExecutor = { ...local,
+  owner: async (owner) => {
+    const result = await local.owner(owner)
+    if (observeUnknownSince !== undefined && performance.now() - observeUnknownSince >= 5200 && result === 'unknown') {
+      unknownObserved.resolve(undefined)
+    }
+    return result
+  },
   observe: async open => phase === 'recover' || physical.has(open.sessionId) ? 'matching' : 'absent', configure: async () => {},
   create: async (open) => {
     physical.add(open.sessionId)
@@ -71,8 +80,14 @@ if (phase === 'seed') {
     pending: engine.journal.projection.pending.size })
 }
 process.on('message', (message: unknown) => {
-  if (message === 'status') process.send?.({ kind: 'status', resources: engine.journal.projection.resources.size,
-    pending: engine.journal.projection.pending.size })
+  if (message === 'observe-unknown') {
+    observeUnknownSince = performance.now()
+    void unknownObserved.promise.then(async () => {
+      await engine.drive()
+      process.send?.({ kind: 'unknown-observed', resources: engine.journal.projection.resources.size,
+        pending: engine.journal.projection.pending.size })
+    }).catch((error: unknown) => { console.error(error); process.exitCode = 1; process.disconnect?.() })
+  }
   if (message === 'stop') {
     finishCallback()
     void engine.shutdown().then(() => ctx.fiber.dispose()).then(() => { process.disconnect?.() })

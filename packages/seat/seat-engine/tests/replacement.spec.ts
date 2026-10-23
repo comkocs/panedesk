@@ -1,4 +1,5 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
+import { commitsEffect } from '../../seat/tests/completion.ts'
 import type * as T from '@panedesk/dsh-seat'
 import { EngineError } from '../src/journal.ts'
 import { auto, harness, seat, trigger } from './fixtures.ts'
@@ -65,15 +66,17 @@ it.each(['absent', 'first-turn'] as const)('cleans failed replacement %s without
   const h = await setup()
   if (failure === 'absent') h.executor.create = () => Promise.reject(new EngineError('open-create-failed', 'Create failed'))
   else h.state.opening = 'failed'
-  await h.engine.replace(h.request); await h.engine.drive()
+  await commitsEffect(h.engine.ctx, effect => effect.kind === 'callback/delivered'
+    && effect.data.payload.kind === 'replacement-failed' && effect.data.payload.oldSessionId === h.old,
+  async () => { await h.engine.replace(h.request); await h.engine.drive() })
   const replacement = [...h.engine.journal.projection.replacements.values()][0]
   expect(replacement).toMatchObject({ phase: 'failed', cleanup: failure === 'absent' ? 'not-created' : 'closed',
     permit: { state: 'expired-failure' } })
   expect(h.engine.journal.projection.resources.get(h.old)?.exclusiveTags).toEqual(['tag-a'])
   expect(h.closed).not.toContain(h.old)
   expect(h.engine.journal.projection.resources.size).toBe(1)
-  await vi.waitFor(() => { expect(h.callbacks.find(item => item.kind === 'replacement-failed')).toMatchObject({
+  expect(h.callbacks.find(item => item.kind === 'replacement-failed')).toMatchObject({
     oldSessionId: h.old, cleanup: failure === 'absent' ? 'not-created' : 'closed',
     reason: failure === 'absent' ? 'replacement-open-failed' : 'replacement-first-turn-failed',
-  }) })
+  })
 })

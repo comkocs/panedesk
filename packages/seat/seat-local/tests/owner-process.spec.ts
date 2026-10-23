@@ -68,9 +68,11 @@ async function scenario(mode: string, restart = false) {
       observedAt = performance.now() - (Date.now() - Date.parse(ready.message.readyAt))
     }
     if (mode === 'unknown') {
-      await new Promise(resolve => setTimeout(resolve, 5200))
-      running.child.send('status')
-      expect((await running.wait('status')).message).toMatchObject({ resources: 1, pending: 1 })
+      const observed = running.wait('unknown-observed')
+      running.child.send('observe-unknown')
+      const retained = await observed
+      expect(retained.at - observedAt).toBeGreaterThanOrEqual(5200)
+      expect(retained.message).toMatchObject({ resources: 1, pending: 1 })
       expect(running.messages.some(item => item.message.kind === 'released')).toBe(false)
       return { releaseMs: 0, admissionMs: 0 }
     }
