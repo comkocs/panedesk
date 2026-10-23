@@ -11,7 +11,7 @@ kind: "package-reference"
 
 同节点消息、收件设置、持久控制和运行时回执的服务定义。抽象服务 `MessageDelivery` 暴露 `ctx.messageDelivery`，不实现存储或投递。参见[会话持久化](../../../docs/subsystems/persistence.zh.md)。
 
-`list` 接受正数 `limit` 和提供方签发的排他续页 `cursor`；继续实时扫描时须保持筛选条件相同。未答查询选择没有回复的 handoff/reply 消息，默认排除终态。应读取 `complete` 与 `nextCursor`，不能把未完成扫描当作完整的空结果。
+`list` 通过 `pagination: true` 显式启用严格分页，使用正安全整数 `limit` 和提供方签发的排他续页 `cursor`；继续实时扫描时须保持筛选条件相同。省略或禁用分页时保留提供方的既有查询行为，参见[本地提供方](../message-delivery-local/README.zh.md)。未答查询选择没有回复的 handoff/reply 消息，默认排除终态。应读取 `complete` 与 `nextCursor`，不能把未完成扫描当作完整的空结果。
 
 ## 目录
 

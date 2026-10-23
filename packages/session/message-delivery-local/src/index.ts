@@ -434,9 +434,9 @@ export default class LocalMessageDelivery extends MessageDelivery {
       }
     }
     const limit = query.limit ?? this.config.maxBatchSize
-    if (!Number.isSafeInteger(limit) || limit < 1) throw new MailboxUnavailableError('Message query limit must be a positive integer')
-    const after = query.cursor === undefined ? undefined : query.cursor.slice('message-list:'.length)
-    if (query.cursor !== undefined && (!query.cursor.startsWith('message-list:')
+    if (query.pagination && (!Number.isSafeInteger(limit) || limit < 1)) throw new MailboxUnavailableError('Message query limit must be a positive integer')
+    const after = !query.pagination || query.cursor === undefined ? undefined : query.cursor.slice('message-list:'.length)
+    if (query.pagination && query.cursor !== undefined && (!query.cursor.startsWith('message-list:')
       || ![...ids].some(id => id === after))) throw new MailboxUnavailableError('Message query cursor is unavailable')
     const items: MessageStatus[] = []
     for (const id of [...ids].sort()) {
@@ -450,7 +450,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
     const page = items.slice(0, limit)
     const last = page.at(-1)
     return { items: page, complete: items.length <= limit,
-      ...items.length > limit && last !== undefined
+      ...query.pagination && items.length > limit && last !== undefined
         ? { nextCursor: `message-list:${last.messageId}` as MessageCursor } : {} }
   }
 
