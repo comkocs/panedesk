@@ -17,6 +17,25 @@ import { operation } from './fixtures.ts'
  */
 export async function checkScheduleDeletion(f: Awaited<ReturnType<typeof engineFixture>>, sessionId: SessionId,
   adapter: CreationAdapter): Promise<void> {
+  const committed = (waitId: T.WaitId, matches: (wait: T.SeatWait) => boolean) => {
+    const completed = Promise.withResolvers<T.SeatWait>()
+    const timer = setTimeout(() => {
+      off()
+      completed.reject(new Error(`Wait ${waitId} did not commit the expected state within five seconds`))
+    }, 5000)
+    const off = f.ctx.on('seat/decision', (decision) => {
+      for (const effect of decision.effects) {
+        if ((effect.kind === 'wait/registered' || effect.kind === 'wait/woken')
+          && effect.data.waitId === waitId && matches(effect.data)) {
+          clearTimeout(timer)
+          off()
+          completed.resolve(effect.data)
+        }
+      }
+    })
+    onTestFinished(() => { clearTimeout(timer); off() })
+    return completed.promise
+  }
   const wakeCompleted = (waitId: T.WaitId) => {
     const completed = Promise.withResolvers<undefined>()
     let turn: number | undefined
@@ -51,28 +70,54 @@ export async function checkScheduleDeletion(f: Awaited<ReturnType<typeof engineF
     objects: [{ kind: 'schedule', id: first.id }, { kind: 'schedule', id: second.id }], operationId: operation('schedule-wait') }
   expect(await seats.registerWait(wait)).toMatchObject({ status: 'registered', wait: { phase: 'registered' } })
   const before = adapter.requests.length
+  const firstObserved = committed(wait.waitId, value => value.observations.length === 1)
   expect(await schedule.delete({ sessionId, id: first.id })).toMatchObject({ deleted: true })
-  await expect.poll(async () => (await seats.wait(wait.waitId))?.observations.length).toBe(1)
+  await firstObserved
+  const registered = await seats.wait(wait.waitId)
+  expect(await seats.registerWait(wait)).toEqual({ status: 'registered', wait: registered })
   expect((await seats.wait(wait.waitId))?.phase).toBe('registered')
   expect(adapter.requests).toHaveLength(before)
   expect(await schedule.delete({ sessionId, id: first.id })).toMatchObject({ deleted: false, code: 'schedule_not_found' })
   const cancelledWake = wakeCompleted(wait.waitId)
-  await Promise.all([cancelledWake, (async () => {
+  const woken = committed(wait.waitId, value => value.phase === 'woken')
+  const started = performance.now()
+  await Promise.all([cancelledWake, woken, (async () => {
     expect(await schedule.delete({ sessionId, id: second.id })).toMatchObject({ deleted: true })
-    await expect.poll(async () => (await seats.wait(wait.waitId))?.phase).toBe('woken')
   })()])
+  const elapsedMs = performance.now() - started
+  expect(elapsedMs).toBeLessThanOrEqual(5000)
+  console.info(JSON.stringify({ scheduleWaitWakeMs: elapsedMs }))
   expect(adapter.requests).toHaveLength(before + 1)
   expect((await seats.wait(wait.waitId))?.observations.every(item => item.outcome === 'cancelled')).toBe(true)
   await f.ctx.agents.get(sessionId)?.whenIdle()
   expect(await schedule.catalog()).toEqual([])
+  const original = await woken
+  const watermark = (await f.state.read()).watermark
+  expect(await seats.registerWait(wait)).toEqual({ status: 'registered', wait: original })
+  for (const change of [
+    { mode: 'any' as const }, { objects: [] }, { sessionId: 'other-session' as SessionId },
+    { operationId: operation('changed-wait') },
+    { toolCallId: 'changed-call' as NonNullable<T.RegisterSeatWaitRequest['toolCallId']> },
+    { rootCallId: 'changed-root' as NonNullable<T.RegisterSeatWaitRequest['rootCallId']> },
+  ]) {
+    expect(await seats.registerWait({ ...wait, ...change }))
+      .toMatchObject({ status: 'rejected', error: { code: 'wait-id-conflict' } })
+  }
+  expect(await seats.registerWait({ ...wait, waitId: 'unauthorized-wait' as T.WaitId,
+    operationId: operation('unauthorized-wait') }))
+    .toMatchObject({ status: 'rejected', error: { code: 'wait-object-unauthorized' } })
+  const facts = await f.state.read()
+  expect(facts.watermark).toBe(watermark)
+  expect(facts.effects.filter(effect => effect.kind === 'wait/woken' && effect.data.waitId === wait.waitId)).toHaveLength(1)
+  expect(adapter.requests).toHaveLength(before + 1)
   const due = await schedule.create(sessionId, { title: 'Due check', prompt: 'Consume the due check', after_seconds: 1 })
   const dueWait: T.RegisterSeatWaitRequest = { sessionId, waitId: 'schedule-due' as T.WaitId, mode: 'all',
     objects: [{ kind: 'schedule', id: due.id }], operationId: operation('schedule-due') }
   const dueBefore = adapter.requests.length
   const dueWake = wakeCompleted(dueWait.waitId)
-  await Promise.all([dueWake, (async () => {
+  const dueWoken = committed(dueWait.waitId, value => value.phase === 'woken')
+  await Promise.all([dueWake, dueWoken, (async () => {
     expect(await seats.registerWait(dueWait)).toMatchObject({ status: 'registered' })
-    await expect.poll(async () => (await seats.wait(dueWait.waitId))?.phase, { timeout: 4000 }).toBe('woken')
   })()])
   expect((await seats.wait(dueWait.waitId))?.observations).toMatchObject([{ outcome: 'completed' }])
   expect(adapter.requests).toHaveLength(dueBefore + 2)

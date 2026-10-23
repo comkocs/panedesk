@@ -1,5 +1,5 @@
 /** Public controlled creation is composed through Loader, never a private controller import. */
-import { expect, it } from 'vitest'
+import { expect, it, onTestFinished } from 'vitest'
 import type { Context } from '@panedesk/cordis'
 import DefaultModel from '@panedesk/dsh-agent-default-model'
 import Attachments from '@panedesk/dsh-attachment-local'
@@ -33,7 +33,7 @@ import type * as T from '@panedesk/dsh-seat'
 import { operation } from './fixtures.ts'
 import * as Local from '../src/index.ts'
 
-it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
+it.each(['budget', 'opening', 'prefill', 'wait-replay'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
   const f = await engineFixture(true)
   try {
     f.definition.contextThresholdTokens = 60
@@ -109,6 +109,16 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
       ? f.ctx.on('agent/turn-admitting', async (_request, next) => {
         await next(); return { kind: 'defer', reason: 'Inspect budget revision during original opening.' }
       }) : () => {}
+    const openingCompleted = Promise.withResolvers<undefined>()
+    if (scenario === 'wait-replay') {
+      const off = f.ctx.on('session/event', (_session, event) => {
+        if (event.type === 'turn/end' && event.data.reason.kind === 'completed') {
+          off()
+          openingCompleted.resolve(undefined)
+        }
+      })
+      onTestFinished(() => { off() })
+    }
     const opened = seats ? await seats.open(openingRequest) : await f.open()
     if (opened.status !== 'opened') throw new Error('Controlled opening did not create a window')
     expect(f.ctx.agents.get(opened.sessionId)?.id).toBe(opened.sessionId)
@@ -120,6 +130,12 @@ it.each(['budget', 'opening', 'prefill'] as const)('creates and restores the sam
     const open = (await f.state.read()).effects.findLast(effect => effect.kind === 'open/configured')
     if (open?.kind !== 'open/configured') throw new Error('Open facts are missing')
     expect(open.data.sessionId).toBe(opened.sessionId)
+    if (scenario === 'wait-replay') {
+      await openingCompleted.promise
+      await f.ctx.agents.get(opened.sessionId)?.whenIdle()
+      await checkScheduleDeletion(f, opened.sessionId, adapter)
+      return
+    }
     if (scenario === 'opening') {
       await expect.poll(() => adapter.requests.length).toBe(1)
       await f.ctx.agents.get(opened.sessionId)?.whenIdle()
