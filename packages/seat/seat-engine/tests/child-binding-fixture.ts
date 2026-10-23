@@ -8,7 +8,7 @@ import { operation } from '../../seat-local/tests/fixtures.ts'
 import { completesIdleTurn } from '../../seat/tests/completion.ts'
 import { ChildAdmissionProvider } from '../src/child-admission.ts'
 
-export async function childBindingHost(root?: string) {
+export async function childBindingHost(root?: string): Promise<Awaited<ReturnType<typeof admissionHost>>> {
   const f = await admissionHost(root)
   try {
     Object.assign(f.ctx.loader.builtins, { subagents: Subagents, spawn: Spawn })
