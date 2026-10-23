@@ -67,8 +67,11 @@ export const Config = z.object({
 
 class GateProvider extends SeatGateService {
   readonly registry: GateRegistry
+  private readonly nodeTimeZone: string
+  override getTimeZone(): string { return this.nodeTimeZone }
   constructor(ctx: Context, config: Config) {
     super(ctx)
+    this.nodeTimeZone = config.timeZone
     const engine = ctx.get('seatEngine')
     if (!engine) throw new Error('Seat engine is required during provider activation.')
     validateDefinitions(config.definitions)

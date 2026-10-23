@@ -449,6 +449,10 @@ export abstract class SeatGatesQueryService extends Service {
 /** Registry provider owns deterministic evaluation, durable hit counts and expiration. */
 export abstract class SeatGateService extends Service {
   constructor(ctx: Context) { super(ctx, 'seatGates') }
+  /** Read the node policy clock's IANA time zone, independently of rule and budget zones.
+   * @returns configured node time zone, or UTC when no override is supplied.
+   */
+  getTimeZone(): string { return 'UTC' }
   /** Register installed code, never source-provided expressions.
    * @param criterion - typed evaluator with validated parameter ownership.
    * @returns disposer that removes the contribution.
