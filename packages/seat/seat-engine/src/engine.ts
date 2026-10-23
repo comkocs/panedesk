@@ -112,6 +112,13 @@ export class SeatEngine extends SeatEngineService {
     await this.publish()
     return result
   }
+  async auditSourceRejection(request: Parameters<SeatEngineService['auditSourceRejection']>[0]): Promise<void> {
+    await this.ready()
+    await this.journal.commit(() => [fact({ kind: 'source/rejected', data: {
+      sourceId: request.sourceId, sourceEventId: null, digest: request.digest, error: request.error,
+    } })], 0, { observedAt: request.observedAt })
+    await this.publish()
+  }
   private published = 0
   private async publish(): Promise<void> {
     const decisions = this.journal.projection.decisions.filter(decision => decision.sequence > this.published)

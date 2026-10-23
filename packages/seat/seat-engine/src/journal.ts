@@ -122,16 +122,22 @@ export class EngineJournal {
 
   /** Serialize a synchronous decision builder; no business awaits hold the journal transaction.
    * @param build - evaluates latest committed state and returns all effects or no mutation.
+   * @param policyRevision - policy revision recorded with the decision.
+   * @param metadata - optional caller identity and observation time; supplied frames use replay validation before writing.
    * @returns committed frame, or null when the decision has no effects.
    */
-  async commit(build: (view: EngineProjection) => readonly EngineEffect[], policyRevision = 0): Promise<EngineDecision | null> {
+  async commit(build: (view: EngineProjection) => readonly EngineEffect[], policyRevision = 0,
+    metadata?: Partial<Pick<EngineDecision, 'decisionId' | 'observedAt'>>): Promise<EngineDecision | null> {
     if (this.closing) throw new EngineError('unavailable', 'Engine journal is closing')
     const result = this.chain.then(async () => {
       if (!this.owner || this.failed) throw new EngineError('unavailable', 'Engine journal is not writable')
       const effects = build(this.projection)
       if (!effects.length) return null
-      const decision = frame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1, decisionId: randomUUID() as EngineDecisionId,
-        sequence: this.projection.sequence + 1, observedAt: new Date().toISOString(), nodeId: this.nodeId, policyRevision, effects })
+      const decision = frame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
+        decisionId: metadata?.decisionId ?? randomUUID() as EngineDecisionId,
+        sequence: this.projection.sequence + 1, observedAt: metadata?.observedAt ?? new Date().toISOString(),
+        nodeId: this.nodeId, policyRevision, effects })
+      if (metadata) decodeFrame(canonical(decision), this.maxBytes)
       await this.append(decision)
       return decision
     })
