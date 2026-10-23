@@ -8,6 +8,7 @@ import type { OperationId } from '@panedesk/dsh-message-delivery'
 import type { CloseReportId, WaitId } from '@panedesk/dsh-seat'
 import { CreationAdapter } from '../../seat-local/tests/creation-provider.ts'
 import { operation } from '../../seat-local/tests/fixtures.ts'
+import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
 import { localHost } from './local-host.ts'
 
 class ToolModel extends CreationAdapter {
@@ -67,9 +68,12 @@ it('authorizes model waits and reports only for the calling session and refuses 
     if (!waited || !('waitId' in waited.data)) throw new Error('Missing own wait')
     model.calls.push({ name: 'seat_cancel_wait', arguments: { waitId: waited.data.waitId, expectedStateVersion: waited.data.stateVersion } },
       { name: 'seat_revoke_report', arguments: { reportId: recorded.data.report.reportId, expectedStateVersion: 1 } })
-    await f.ctx.get('messageDelivery')!.send({ target: { sessionId: agent.id }, priority: 'queue', messageClass: 'handoff',
-      operationId: 'message-revoke' as OperationId, content: 'Cancel the wait and revoke the report.' })
-    await expect.poll(async () => (await f.ctx.get('seatEngine')!.query({ limit: 1000 })).effects.some(effect => effect.kind === 'report/revoked')).toBe(true)
+    await completesTurn(f.ctx, agent.id, inputContains('Cancel the wait and revoke the report.'), async () => {
+      await f.ctx.get('messageDelivery')!.send({ target: { sessionId: agent.id }, priority: 'queue', messageClass: 'handoff',
+        operationId: 'message-revoke' as OperationId, content: 'Cancel the wait and revoke the report.' })
+    })
+    expect((await f.ctx.get('seatEngine')!.query({ limit: 1000 })).effects
+      .some(effect => effect.kind === 'report/revoked')).toBe(true)
     await agent.whenIdle()
     await f.ctx.sessions.flush(agent.session)
     expect(JSON.stringify((await f.ctx.sessionQuery.readSession(agent.id)).events)).toMatch(/already-settled|cancelled/)
