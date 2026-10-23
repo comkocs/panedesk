@@ -1,0 +1,3 @@
+- insert:
+    - id: seat-snapshot-catalog
+      name: './catalog.mjs'

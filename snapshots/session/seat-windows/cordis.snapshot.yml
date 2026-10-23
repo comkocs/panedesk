@@ -54,7 +54,8 @@
       config:
         home: !!js "process.cwd() + '/.panedesk/seat-home'"
         nodeName: node-a
-        nodeAliases: {}
+        nodeAliases:
+          node-a: 00000000-0000-4000-8000-000000000001
         dedupWindowMs: 1000
         maxDecisionBytes: 200000
         maxSourceBytes: 65536
@@ -74,7 +75,8 @@
         directory: !!js "process.cwd() + '/.panedesk/seat-catalog'"
         nodeId: 00000000-0000-4000-8000-000000000001
         nodeName: node-a
-        nodeAliases: {}
+        nodeAliases:
+          node-a: 00000000-0000-4000-8000-000000000001
         defaults: {}
         maxSourceBytes: 65536
         maxPlans: 8
