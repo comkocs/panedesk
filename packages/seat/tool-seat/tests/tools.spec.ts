@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { SeatService, SeatSessionOperations } from '@panedesk/dsh-seat'
+import type { SeatService, SeatSessionOperations, SeatWindowOperations } from '@panedesk/dsh-seat'
 import { registerWaitTools } from '../src/wait.ts'
 import { registerReportTools } from '../src/report.ts'
 import { registerWindowTools } from '../src/windows.ts'
@@ -51,7 +51,7 @@ describe('seat model tools', () => {
     const close = vi.fn<SeatService['close']>(async request => ({
       status: 'busy', sessionId: request.sessionId, busyReasons: [{ kind: 'job', objectId: 'job-a', summary: 'A job is running.' }],
     }))
-    ctx.provide('seats', { close } as Partial<SeatService> as SeatService)
+    ctx.provide('seatLocalWindows', { forInvocation: () => ({ close } as Partial<SeatWindowOperations> as SeatWindowOperations) })
     registerWindowTools(ctx)
     try {
       expect((await execute('seat_close', { sessionId: 'session-b' })).isError).toBe(true)
@@ -59,6 +59,29 @@ describe('seat model tools', () => {
       const result = await execute('seat_close', { sessionId: 'session-b', expectedStateVersion: 3 })
       expect(JSON.stringify(result.content)).toContain('job-a')
       expect(close).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'session-b', expectedStateVersion: 3 }))
+    } finally { await ctx.fiber.dispose() }
+  })
+  it('derives all six window tools from executor identity rather than the external service', async () => {
+    const { ctx, agent, execute } = await harness()
+    const operations = {
+      open: vi.fn(async () => ({ status: 'cancelled' as const })),
+      renew: vi.fn(), replace: vi.fn(), close: vi.fn(), rename: vi.fn(), wake: vi.fn(),
+    }
+    const forInvocation = vi.fn((): SeatWindowOperations => operations)
+    ctx.provide('seatLocalWindows', { forInvocation })
+    registerWindowTools(ctx)
+    try {
+      for (const [index, [action, args]] of ([
+        ['open', { seat: 'seat-a' }], ['renew', { sessionId: 'session-b' }],
+        ['replace', { sessionId: 'session-b' }], ['close', { sessionId: 'session-b', expectedStateVersion: 3 }],
+        ['rename', { sessionId: 'session-b', title: 'window-a' }], ['wake', { seat: 'seat-a', sessionId: 'session-b' }],
+      ] as const).entries()) {
+        await execute(`seat_${action}`, args)
+        expect(forInvocation).toHaveBeenLastCalledWith({ session: agent.session, callId: `call-${index + 1}` })
+        expect(operations[action]).toHaveBeenCalledWith(expect.objectContaining({ ...args,
+          operationId: `tool:session-a:call-${index + 1}` }))
+      }
+      expect(ctx.get('seats')).toBeUndefined()
     } finally { await ctx.fiber.dispose() }
   })
   it('contributes no tools when seat providers are absent and unloads cleanly', async () => {

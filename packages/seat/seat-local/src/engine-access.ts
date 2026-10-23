@@ -5,7 +5,7 @@ import { localSourceId } from './open-admission.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions } from './service-options.ts'
-import { rejected } from './errors.ts'
+import { rejected, refuse } from './errors.ts'
 
 /** Register only self-owned wait and report operations for live tool callers.
  * @param ctx - provider lifecycle and live agent registry.
@@ -28,6 +28,57 @@ export function registerLocalSessionAccess(ctx: Context, service: T.SeatService,
         cancelWait: async (request: T.CancelSeatWaitRequest) => authorize(request.sessionId) ?? internal.cancelWait(request),
         submitReport: async (request: T.SubmitCloseReportRequest) => authorize(request.report.sessionId) ?? internal.submitReport(request),
         revokeReport: async (request: T.RevokeCloseReportRequest) => authorize(request.sessionId) ?? internal.revokeReport(request),
+      })
+    },
+  }))
+}
+
+/** Register explicit window operations under live, invocation-local model tool authority.
+ * @param ctx - provider lifecycle and live agent registry.
+ * @param service - unscoped local provider, which remains unauthorized.
+ * @param options - verified local node identity.
+ */
+export function registerLocalWindowsAccess(ctx: Context, service: T.SeatService, options: LocalSeatOptions): void {
+  let active = true
+  ctx.effect(() => () => { active = false })
+  ctx.provide('seatLocalWindows', Object.freeze({
+    forInvocation({ session, callId }: Parameters<T.SeatLocalWindowsAccess['forInvocation']>[0]): T.SeatWindowOperations {
+      const sessionId = session.id
+      const operationId = `tool:${sessionId}:${callId}` as T.SeatOperationId
+      const authority: T.SeatModelToolAuthority = { kind: 'model-tool-call', sessionId, callId,
+        principalId: `model-tool-call:${sessionId}:${callId}` as T.SeatPrincipalId,
+        origin: 'manual', nodeId: options.nodeId }
+      const internal = service.withAuthority(authority)
+      const authorize = () => {
+        if (!active || ctx.get('agents')?.get(sessionId)?.session !== session) {
+          refuse('unauthorized', 'Only the calling live session may invoke window tools.', 'Use the current tool invocation.')
+        }
+      }
+      return Object.freeze({
+        open: async (request: T.OpenSeatRequest) => {
+          authorize()
+          return internal.open({ ...request, operationId, origin: 'manual' })
+        },
+        renew: async (request: T.RenewSeatRequest) => {
+          authorize()
+          return internal.renew({ ...request, operationId })
+        },
+        replace: async (request: T.ReplaceSeatRequest) => {
+          authorize()
+          return internal.replace({ ...request, operationId })
+        },
+        close: async (request: T.CloseSeatRequest) => {
+          authorize()
+          return internal.close({ ...request, operationId })
+        },
+        rename: async (request: T.RenameSeatRequest) => {
+          authorize()
+          return internal.rename({ ...request, operationId })
+        },
+        wake: async (request: T.WakeSeatRequest) => {
+          authorize()
+          return internal.wake({ ...request, operationId })
+        },
       })
     },
   }))
