@@ -23,19 +23,39 @@ describe('self-report and context reminders', () => {
     const coordinator = new CloseCoordinator(runtime)
     expect(await coordinator.evaluate(sessionId)).toMatchObject({ status: 'busy' })
     expect(runtime.closeIfCurrent).not.toHaveBeenCalled()
-    expect(runtime.remind).toHaveBeenCalledWith(sessionId, expect.stringMatching(/^report-a:1:busy:/), expect.stringContaining('child-a'), 'steer')
+    expect(runtime.remind).toHaveBeenCalledWith(sessionId, expect.stringMatching(/^session-a:report-a:1:busy$/), expect.stringContaining('child-a'), 'steer')
     const original = runtime.remind.mock.calls[0]?.[1]
     await coordinator.evaluate(sessionId)
     expect(runtime.remind.mock.calls[1]?.[1]).toBe(original)
     runtime.evidence.mockResolvedValue({ ...idle, subagents: ['child-b'] })
     await coordinator.evaluate(sessionId)
-    expect(runtime.remind.mock.calls[2]?.[1]).not.toBe(original)
+    expect(runtime.remind.mock.calls[2]?.[1]).toBe(original)
     vi.mocked(runtime.evidence).mockResolvedValue(idle)
     expect(await coordinator.evaluate(sessionId)).toMatchObject({ status: 'closed' })
     expect(runtime.closeIfCurrent).toHaveBeenCalledWith(report, 1)
     vi.mocked(runtime.latest).mockResolvedValue({ ...report, canClose: false, stateVersion: 2 })
     expect(await coordinator.evaluate(sessionId)).toBeNull()
     expect(runtime.closeIfCurrent).toHaveBeenCalledTimes(1)
+  })
+
+  it('includes every busy reason and keeps its identity across runtime changes and distinct windows', async () => {
+    const evidence = { ...idle, complete: false, running: true, approvals: ['approval-a'], planReviews: ['review-a'],
+      answers: ['answer-a'], subagents: ['child-a'], jobs: ['job-a'], waits: ['wait-a'], tickets: ['ticket-a'], inbox: ['input-a'] }
+    const runtime = { latest: async () => report, evidence: async () => evidence,
+      remind: vi.fn<ReportRuntime['remind']>(async () => {}),
+      closeIfCurrent: vi.fn<ReportRuntime['closeIfCurrent']>() } satisfies ReportRuntime
+    const coordinator = new CloseCoordinator(runtime)
+    await coordinator.evaluate(sessionId)
+    expect(runtime.remind.mock.calls[0]?.[2]).toBe('This window still has pending work: Runtime ownership is unavailable.; '
+      + 'A turn is running.; approval: approval-a; plan-review: review-a; answer: answer-a; subagent: child-a; '
+      + 'job: job-a; wait: wait-a; ticket: ticket-a; inbox: input-a')
+    const original = runtime.remind.mock.calls[0]?.[1]
+    evidence.inbox = ['input-b']
+    await coordinator.evaluate(sessionId)
+    expect(runtime.remind.mock.calls[1]?.[1]).toBe(original)
+    await coordinator.evaluate('session-b' as SessionId)
+    expect(runtime.remind.mock.calls[2]?.[1]).not.toBe(original)
+    expect(runtime.closeIfCurrent).not.toHaveBeenCalled()
   })
 
   it('delivers threshold reminders as handoff steer once per revision and compaction epoch without replacing windows', async () => {

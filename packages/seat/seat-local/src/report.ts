@@ -2,7 +2,6 @@
 import type { SessionId } from '@panedesk/dsh-session'
 import type { CloseSeatResult, CloseSelfReport, SeatOperationId } from '@panedesk/dsh-seat'
 import { readWindowStatus, type WindowEvidence } from './status.ts'
-import { digest } from './store.ts'
 
 /** Engine capabilities keep report revision checks inside the actual close transaction. */
 export interface ReportRuntime {
@@ -27,7 +26,7 @@ export class CloseCoordinator {
     const { busyReasons } = readWindowStatus(evidence)
     if (busyReasons.length) {
       const text = `This window still has pending work: ${busyReasons.map(item => item.summary).join('; ')}`
-      await this.runtime.remind(sessionId, `${report.reportId}:${report.stateVersion}:busy:${digest(text)}` as SeatOperationId,
+      await this.runtime.remind(sessionId, `${sessionId}:${report.reportId}:${report.stateVersion}:busy` as SeatOperationId,
         text, 'steer')
       return { status: 'busy', sessionId, busyReasons }
     }

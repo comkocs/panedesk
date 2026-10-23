@@ -1,5 +1,7 @@
 /** SeatService orchestrates catalog policy and public engine operations under captured authority. */
 import type { Context } from '@panedesk/cordis'
+import { defineDomain, domainTable, type Domain } from '@panedesk/dsh-storage-domain'
+import { z } from 'zod'
 import { SeatService, type SeatEngineService } from '@panedesk/dsh-seat'
 import type * as T from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
@@ -22,6 +24,10 @@ import { readWindowStatus, renewalRefusal } from './status.ts'
 import { readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 
+const reminderSchema = z.object({ sessionId: z.string(), operationId: z.string(), text: z.string(), sent: z.boolean() })
+const reminderSpec = defineDomain({ name: 'seat_close_reminders', version: 1, layout: 'per-record',
+  tables: { reminders: domainTable(reminderSchema) } })
+
 /** One provider owns catalog writes and recoverable observation subscriptions. */
 export class LocalSeatService extends SeatService {
   private authority?: T.SeatCallContext
@@ -35,6 +41,8 @@ export class LocalSeatService extends SeatService {
   private readonly coordinator: WaitCoordinator
   private readonly closer: CloseCoordinator
   private readonly windowCloser: LocalCloser
+  private reminderDomain?: Promise<Domain<typeof reminderSpec>>
+  private reminderWork: Promise<void> = Promise.resolve()
   constructor(ctx: Context, private readonly store: SeatStore, readonly options: LocalSeatOptions,
     private readonly runtime: LocalSeatRuntime) {
     super(ctx)
@@ -54,10 +62,32 @@ export class LocalSeatService extends SeatService {
     this.windowCloser = new LocalCloser(ctx, this.state, runtime, options)
     this.closer = new CloseCoordinator({ latest: async id => latestReport((await this.state.read()).effects, id),
       evidence: id => runtime.evidence(id),
-      remind: async (sessionId, operationId, text) => { await runtime.send({ sessionId, operationId, text, mode: 'steer' }) },
+      remind: (sessionId, operationId, text) => this.sendCloseReminder(sessionId, operationId, text),
       closeIfCurrent: (report, stateVersion) => this.windowCloser.close({ sessionId: report.sessionId,
         operationId: `${report.reportId}:close:${report.stateVersion}` as T.SeatOperationId,
         expectedStateVersion: stateVersion }, report) })
+  }
+  private sendCloseReminder(sessionId: SessionId, operationId: T.SeatOperationId, text: string): Promise<void> {
+    const work = this.reminderWork.then(async () => {
+      this.reminderDomain ??= (() => {
+        const facility = this.runtime.context.get('storageDomain')
+        if (!facility) throw new Error('Close reminder storage is unavailable')
+        return facility.open(reminderSpec)
+      })()
+      const reminders = (await this.reminderDomain).table('reminders')
+      const key = digest(operationId)
+      let reminder = reminders.get(key)
+      if (reminder?.sent) return
+      if (!reminder) {
+        reminder = { sessionId, operationId, text, sent: false }
+        await reminders.put(key, reminder)
+      }
+      await this.runtime.send({ sessionId: reminder.sessionId as SessionId,
+        operationId: reminder.operationId as T.SeatOperationId, text: reminder.text, mode: 'steer' })
+      await reminders.put(key, { ...reminder, sent: true })
+    })
+    this.reminderWork = work.catch(() => {})
+    return work
   }
   private engine(): SeatEngineService | undefined { return this.runtime.context.get('seatEngine') }
   private caller(): T.SeatCallContext {
@@ -396,11 +426,16 @@ export class LocalSeatService extends SeatService {
     await this.coordinator.dispose()
     await this.runtime.drainObservations?.()
     await this.windowCloser.drain()
+    await this.reminderWork
+    await (await this.reminderDomain)?.close()
+    delete this.reminderDomain
   }
   /** Pause observation on engine unload while retaining recovery capability.
    * @returns after current subscriptions and callbacks drain.
    */
-  async pause(): Promise<void> { await this.coordinator.pause(); await this.runtime.drainObservations?.(); await this.windowCloser.drain() }
+  async pause(): Promise<void> {
+    await this.coordinator.pause(); await this.runtime.drainObservations?.(); await this.windowCloser.drain(); await this.reminderWork
+  }
   async setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult> {
     return this.result(async () => {
       const refusal = await this.guard(undefined, request.operationId)
