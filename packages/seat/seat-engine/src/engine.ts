@@ -8,7 +8,7 @@ import { SEAT_ENGINE_NAMESPACE, SeatEngineService, type SeatService } from '@pan
 import type * as T from '@panedesk/dsh-seat'
 import { EngineJournal, EngineError, digest, decodeFrame, canonical, frame } from './journal.ts'
 import { SourceRegistry } from './sources.ts'
-import { TriggerRegistry, rejected, fact } from './triggers.ts'
+import { TriggerRegistry, rejected, fact, reminderEffects } from './triggers.ts'
 import { CallbackOutbox } from './outbox.ts'
 import { effectiveMode, reserveOpen } from './admission.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
@@ -470,8 +470,8 @@ export class SeatEngine extends SeatEngineService {
       const mode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
       const pending = (reason: T.PendingReason, blockedBy: readonly string[] = []): T.EngineEffect[] => {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
-        return [fact({ kind: 'queue/pending', seat: item.seat, data: { ...current, effectiveMode: mode,
-          reason, blockedBy, stateVersion: current.stateVersion + 1 } })]
+        const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }
+        return [fact({ kind: 'queue/pending', seat: item.seat, data: next }), ...reminderEffects(next, current)]
       }
       if (mode === 'off') return pending('project-off')
       if (mode === 'remind' && !view.approved.has(item.queueItemId)) return pending('approval')

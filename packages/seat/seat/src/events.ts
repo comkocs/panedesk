@@ -80,6 +80,19 @@ export interface EngineTriggerData {
   pending: PendingSeatItem
   originalTriggerId: TriggerId | null
 }
+/** Approval reminders identify one queue transition without retaining opening text. */
+export interface EngineReminderData {
+  queueItemId: PendingSeatItem['queueItemId']
+  seat: SeatName
+  projectId: PendingSeatItem['projectId']
+  triggerKind: PendingSeatItem['triggerKind']
+  reason: 'approval'
+  triggerId: TriggerId
+  sequence: number
+  /** Queue revision at entry into approval, not later coalescing revisions. */
+  stateVersion: number
+  remindedAt: SeatTimestamp
+}
 /** Gate facts have a stable invocation identity, count and expiration revision. */
 export interface EngineGateData { definition: GateDefinition; context: GateContext; result: GateResult }
 /** Job recovery distinguishes owner loss from a successfully completed external side effect. */
@@ -112,6 +125,7 @@ export interface EngineEventDataMap {
   'trigger/accepted': EngineTriggerData
   'trigger/deduplicated': EngineTriggerData
   'trigger/coalesced': EngineTriggerData
+  'queue/reminded': EngineReminderData
   'queue/pending': PendingSeatItem
   'queue/approved': { pending: PendingSeatItem; principalId: SeatPrincipalId; previousRevision: number; revision: number }
   'queue/cancelled': { pending: PendingSeatItem; principalId: SeatPrincipalId; previousRevision: number; revision: number }
@@ -180,6 +194,7 @@ export interface EngineDecision {
 export const SEAT_ENGINE_EVENT_NAMES = {
   'cache/keepalive': true, 'cache/keepalive-skipped': true, 'git/checkpoint': true,
   'trigger/accepted': true, 'trigger/deduplicated': true, 'trigger/coalesced': true,
+  'queue/reminded': true,
   'queue/pending': true, 'queue/approved': true, 'queue/cancelled': true,
   'open/intent': true, 'open/created': true, 'open/configured': true,
   'open/opening-failed': true, 'open/rejected': true, 'source/rejected': true,

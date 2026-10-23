@@ -34,6 +34,8 @@ const keepalive = { sessionId: 'window-a', operationId: 'operation-a', source: '
   evidenceAt: 1, dueAt: 2, observedAt: at }
 export const examples: Record<EngineEventKind, Record<string, unknown>> = {
   'trigger/accepted': triggerData, 'trigger/coalesced': triggerData, 'trigger/deduplicated': triggerData,
+  'queue/reminded': { queueItemId: pending.queueItemId, seat, projectId, triggerKind: 'external', reason: 'approval',
+    triggerId: source.triggerId, sequence: 1, stateVersion: 1, remindedAt: at },
   'queue/pending': pending,
   'queue/approved': { pending, principalId: 'principal-a', previousRevision: 0, revision: 1 },
   'queue/cancelled': { pending, principalId: 'principal-a', previousRevision: 0, revision: 1 },
