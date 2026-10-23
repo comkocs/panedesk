@@ -47,5 +47,5 @@
   {"name":"cordis:fileTools"},
   {"name":"cordis:seatTools"},
   {"name":"cordis:web"},
-  {"name":"cordis:remote","config":{"webhook":{"path":"/seat-events","maxBodyBytes":65536,"bodyTimeoutMs":1000,"maxClockSkewMs":5000,"sources":[{"sourceId":"source-a","seat":"seat-a","projectId":"project-a","credentialRefs":{"v1":"ACCEPTANCE_SIGNING"}}]}}}
+  {"name":"cordis:remote","config":{"webhook":{"path":"/seat-events","maxBodyBytes":65536,"bodyTimeoutMs":1000,"maxClockSkewMs":5000,"sources":[{"sourceId":"source-http","seat":"seat-a","projectId":"project-a","credentialRefs":{"v1":"ACCEPTANCE_SIGNING"}}]}}}
 ]

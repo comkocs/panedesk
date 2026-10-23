@@ -40,7 +40,7 @@ import Subprocess from '@panedesk/dsh-subprocess-local'
 import Shell from '@panedesk/dsh-bash-sandbox'
 import SandboxLocal from '@panedesk/dsh-sandbox-local'
 import Questions from '@panedesk/dsh-user-questions'
-import Jobs from '@panedesk/dsh-jobs'
+import Jobs from '@panedesk/dsh-jobs-local'
 import Schedule from '@panedesk/dsh-schedule'
 import * as Gates from '@panedesk/dsh-seat-gates'
 import Remote from '@panedesk/dsh-seat-remote'
@@ -176,7 +176,7 @@ export async function fixture(options: {
       const timestamp = String(Date.now())
       const signature = createHmac('sha256', signing).update(`${timestamp}.`).update(body).digest('hex')
       const response = await fetch(`http://${loopback}:${port}/seat-events`, { method: 'POST', body,
-        headers: { 'content-type': 'application/json', 'x-seat-source': sourceId, 'x-seat-timestamp': timestamp,
+        headers: { 'content-type': 'application/json', 'x-seat-source': 'source-http', 'x-seat-timestamp': timestamp,
           'x-seat-key-version': 'v1', 'x-seat-signature': valid ? signature : '0'.repeat(64) } })
       const text = await response.text()
       return { status: response.status, body: text ? JSON.parse(text) as object : null }
@@ -229,7 +229,13 @@ export async function fixture(options: {
         const facts = (await engine.query({ limit: 10000 })).effects
         const latest = new Map<string, T.EngineOpenData>()
         for (const effect of facts) if (effect.kind === 'open/configured' || effect.kind === 'open/created') latest.set(effect.data.sessionId, effect.data)
-        return [...latest.values()].every(open => open.phase === 'active')
+        if (![...latest.values()].every(open => open.phase === 'active')) return false
+        for (const agent of ctx.agents.list()) {
+          await ctx.sessions.flush(agent.session)
+          const messages = await ctx.sessionLedger.queryMessages({ targetSessionId: agent.id, includeTerminal: true })
+          if (messages.items.some(message => message.state === 'queued' || message.state === 'injected')) return false
+        }
+        return true
       })
     }
     const effects = async () => (await engine.query({ limit: 10000 })).effects

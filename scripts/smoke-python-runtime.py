@@ -803,7 +803,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--scenario",
-        choices=("all", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
+        choices=("all", "seat", "sdk-default", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-mcp", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-profile-plugin", "sdk-office", "sdk-authoring", "sdk-live", "runner", "direct"),
         default="all",
     )
     parser.add_argument("--exe", type=Path)
@@ -822,10 +822,10 @@ def main() -> None:
         parser.error("--scenario sdk-profile-plugin requires --installed-wheel")
     if args.installed_wheel:
         args.exe = assert_installed_wheel_environment()
-    if args.scenario in {"all", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
-        parser.error("--exe is required for custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, runner, and direct scenarios")
-    if args.update_snapshots and args.scenario not in {"all", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
-        parser.error("--update-snapshots requires --scenario sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-restart, sdk-authoring, or all")
+    if args.scenario in {"all", "seat", "sdk-custom", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-fs-search", "sdk-spawn-node", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-office", "sdk-authoring", "runner", "direct"} and args.exe is None:
+        parser.error("--exe is required for seat, custom, minimal, dynamic-tools, fs-search, spawn-node, snapshot, recovery, restart, office, runner, and direct scenarios")
+    if args.update_snapshots and args.scenario not in {"all", "seat", "sdk-minimal", "sdk-minimal-in-history", "sdk-dynamic-tools", "sdk-snapshot", "sdk-message-delivery", "sdk-recovery", "sdk-restart", "sdk-authoring"}:
+        parser.error("--update-snapshots requires --scenario seat, sdk-minimal, sdk-minimal-in-history, sdk-dynamic-tools, sdk-snapshot, sdk-recovery, sdk-restart, sdk-authoring, or all")
     if args.exe is not None and not args.exe.is_file():
         parser.error(f"runtime executable does not exist: {args.exe}")
 
@@ -849,6 +849,9 @@ def main() -> None:
         return
 
     with MockModel() as model:
+        if args.scenario == "seat":
+            assert args.exe is not None
+            smoke_sdk_seat(model.url, args.exe.resolve(), args.update_snapshots)
         if args.scenario in {"all", "sdk-authoring"}:
             assert args.exe is not None
             smoke_sdk_authoring(model.url, args.exe.resolve(), args.update_snapshots)
@@ -1269,6 +1272,66 @@ def smoke_sdk_default(base_url: str) -> None:
             f"turn_end={safe_turn_end(next((event.get('data', event) for event in reversed(result.events) if event.get('type') == 'turn/end'), {}))!r}"
         )
         assert_zstd_session_log(sessions)
+
+
+def smoke_sdk_seat(base_url: str, executable: Path, update_snapshots: bool) -> None:
+    """Exercise opt-in seat queries and explicit refusal through the packaged SDK."""
+    from deepseek_harness import DeepSeekHarness
+
+    with tempfile.TemporaryDirectory(prefix="dsh-sdk-seat-") as temporary:
+        root = Path(temporary).resolve()
+        home = root / "home"
+        node_id = "00000000-0000-4000-8000-000000000001"
+        ledger = home / "ledger" / "v1"
+        ledger.mkdir(parents=True)
+        (ledger / "node-id").write_text(node_id)
+        local = {
+            "directory": str(home), "nodeId": node_id, "nodeName": "node-a",
+            "nodeAliases": {"node-a": node_id}, "defaults": {},
+            "maxSourceBytes": 65536, "maxPlans": 8, "maxOpeningBytes": 4096,
+            "maxBatchSeats": 4, "pageSize": 50, "transactionRetries": 5,
+            "maxConfirmations": 8, "closedSuffix": " closed",
+        }
+        engine = {
+            "home": str(home), "nodeName": "node-a", "nodeAliases": {"node-a": node_id},
+            "dedupWindowMs": 1000, "maxDecisionBytes": 200000, "maxSourceBytes": 65536,
+            "maxBatchSeats": 4, "maxCauseDepth": 8, "budgetTimeZone": "UTC",
+            "callbackTimeoutMs": 1000, "callbackMaxResponseBytes": 4096,
+            "callbackRetryInitialMs": 10, "callbackRetryMaxMs": 100,
+            "ownerObserveIntervalMs": 1000, "ownerReleaseBudgetMs": 2000, "queueWakeBudgetMs": 1000,
+        }
+        patch = write_profile_patch(root, "seat.patch.yml", home / "sessions", [{"insert": [
+            {"id": "seat-ledger", "name": "@panedesk/dsh-session-ledger", "config": {"dshHome": str(home)}},
+            {"id": "seat-engine", "name": "@panedesk/dsh-seat-engine", "config": engine},
+            {"id": "seat-local", "name": "@panedesk/dsh-seat-local", "config": local},
+            {"id": "seat-gates", "name": "@panedesk/dsh-seat-gates"},
+            {"id": "seat-remote", "name": "@panedesk/dsh-seat-remote"},
+        ]}])
+        with DeepSeekHarness(provider="deepseek-official", model="smoke-model", cwd=str(root),
+                            dsh_bin=str(executable), dsh_home=str(home), patches=(str(patch),),
+                            api_key="sk-keyless-smoke", base_url=base_url,
+                            request_timeout_seconds=60) as harness:
+            result = harness.run("reply with the smoke text", session_id="seat-reader-a")
+            assert result.final_response == EXPECTED_TEXT, result.final_response
+            listing = harness.client.seats.list()
+            assert listing is not None and listing["status"] == "listed", listing
+            assert listing["sessions"] == [] and listing["unopenedSeats"] == [], listing
+            status = harness.client.seats.node_status()
+            assert status is not None and status["nodeName"] == "node-a", status
+            assert status["openEngineWindows"] == 0, status
+            denied = harness.client.seats.open({"seat": "seat-missing", "origin": "remote",
+                                               "operationId": "seat-missing-a"})
+            assert denied is not None and denied["status"] == "rejected", denied
+            assert denied["error"]["code"] == "seat-not-found", denied
+            pending = harness.client.seats.pending({"limit": 1})
+            assert pending is not None and pending["items"] == [], pending
+        files = {"result.json": json.dumps({
+            "response": result.final_response, "nodeName": status["nodeName"],
+            "sessions": listing["sessions"], "unopenedSeats": listing["unopenedSeats"],
+            "missingSeat": denied["error"]["code"], "pending": pending["items"],
+        }, indent=2) + "\n"}
+        compare_snapshot_files(files, update_snapshots,
+                               ADVANCED_SNAPSHOT_ROOT / "seat", ("result.json",))
 
 
 def smoke_sdk_custom(base_url: str, executable: Path) -> None:

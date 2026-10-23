@@ -1,0 +1,43 @@
+
+- insert:
+    - id: seat-ledger
+      name: '@panedesk/dsh-session-ledger'
+      config:
+        dshHome: !!js "process.cwd() + '/.panedesk/seat-home'"
+    - id: seat-engine
+      name: '@panedesk/dsh-seat-engine'
+      config:
+        home: !!js "process.cwd() + '/.panedesk/seat-home'"
+        nodeName: node-a
+        nodeAliases: {}
+        dedupWindowMs: 1000
+        maxDecisionBytes: 200000
+        maxSourceBytes: 65536
+        maxBatchSeats: 4
+        maxCauseDepth: 8
+        budgetTimeZone: UTC
+        callbackTimeoutMs: 1000
+        callbackMaxResponseBytes: 4096
+        callbackRetryInitialMs: 10
+        callbackRetryMaxMs: 100
+        ownerObserveIntervalMs: 1000
+        ownerReleaseBudgetMs: 2000
+        queueWakeBudgetMs: 1000
+    - id: seat-local
+      name: '@panedesk/dsh-seat-local'
+      config:
+        directory: !!js "process.cwd() + '/.panedesk/seat-catalog'"
+        nodeId: 00000000-0000-4000-8000-000000000001
+        nodeName: node-a
+        nodeAliases: {}
+        defaults: {}
+        maxSourceBytes: 65536
+        maxPlans: 8
+        maxOpeningBytes: 4096
+        maxBatchSeats: 4
+        pageSize: 50
+        transactionRetries: 5
+        maxConfirmations: 8
+        closedSuffix: ' closed'
+    - id: tool-seat
+      name: '@panedesk/dsh-tool-seat'

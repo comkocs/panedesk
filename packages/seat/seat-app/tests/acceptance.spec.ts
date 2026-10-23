@@ -38,6 +38,34 @@ it('A01 imports selected neutral rows with exact source hashes and diagnostics',
   expect(invalid.rows.map(row => [row.action, row.selected])).toEqual([['invalid', false], ['invalid', false], ['tombstone', false]])
 }, 20000)
 
+it('A01 recomputes every normalized row and column digest independently from neutral input', async () => {
+  const f = await setup()
+  const sourcePath = join(f.home, 'neutral-import.csv')
+  const content = 'seat,model,keep\nseat-a,model-a,true\nseat-b,model-b,false\n'
+  await writeFile(sourcePath, content)
+  const plan = await f.seats.previewImport({ sourcePath, format: 'csv',
+    columnMap: { seat: 'seat', model: 'model', keep: 'autoKeepAlive' }, defaults: {} })
+  if (!('planId' in plan)) throw new Error(JSON.stringify(plan))
+  const canonical = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+    if (value !== null && typeof value === 'object') return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(',')}}`
+    return JSON.stringify(value)
+  }
+  const hash = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex')
+  expect(plan.rows).toHaveLength(2)
+  expect(plan.sourceFileHash).toBe(createHash('sha256').update(content).digest('hex'))
+  for (const row of plan.rows) {
+    const baseline = row.definition?.source?.baseline
+    expect(baseline).toBeDefined()
+    expect(row.rowHash).toBe(hash(baseline))
+    expect(row.columnHashes).toEqual(Object.fromEntries(Object.entries(baseline!).map(([key, value]) => [key, hash(value)])))
+    expect(row.diagnostics).toEqual([])
+  }
+  expect(plan.rows.map(row => row.definition?.autoKeepAlive)).toEqual([true, false])
+  expect(await f.ctx.sessionPersistence.list()).toHaveLength(0)
+}, 20000)
+
 it('A02 preserves whole-seat conflicts, stale previews and exclusive source authority', async () => {
   const f = await setup()
   const sourcePath = join(f.home, 'source.csv')
@@ -379,6 +407,7 @@ it('A13 refuses busy close and archives idle windows before persisting the close
   await f.settle()
   f.model.hold()
   await f.seats.wake({ seat: seatName('seat-a'), sessionId: opened.sessionId, operationId: operation() })
+  await expect.poll(() => f.model.requests.length).toBe(2)
   const listing = await f.seats.list({})
   if (listing.status !== 'listed') throw new Error(JSON.stringify(listing))
   expect(await f.seats.close({ sessionId: opened.sessionId,
@@ -646,6 +675,211 @@ it('A24 paginates an independent engine namespace and verifies redacted JSONL wi
   expect(await f.ctx.sessionQuery.readSession(opened.sessionId)).toEqual(before)
 }, 20000)
 
+it('A15 queues the real fifth child immediately and starts it after a capacity release', async () => {
+  const f = await setup()
+  await f.save(f.definition())
+  const opened = await f.open()
+  await f.settle()
+  const parent = f.ctx.agents.get(opened.sessionId)!
+  f.model.hold()
+  const activations: import('@panedesk/dsh-subagent').SubagentActivation[] = []
+  try {
+    for (let index = 0; index < 4; index++) activations.push(await f.ctx.subagents.startActivation({ provider: 'spawn',
+      label: `child-${index}`, request: { parent, maxDepth: 8, prompt: [{ type: 'text', text: `Task ${index}.` }] },
+      signal: new AbortController().signal, delivery: 'caller' }))
+    const fifth = await measured('A15 real fifth child', () => f.ctx.subagents.requestActivation({ provider: 'spawn',
+      label: 'child-4', request: { parent, maxDepth: 8, prompt: [{ type: 'text', text: 'Task 4.' }] },
+      signal: new AbortController().signal, delivery: 'caller' }))
+    expect(fifth.milliseconds).toBeLessThan(5000)
+    expect(fifth.value).toMatchObject({ status: 'queued', parentSessionId: parent.id })
+    if (!('status' in fifth.value)) { activations.push(fifth.value); throw new Error('The fifth child bypassed admission') }
+    const ticket = fifth.value.ticketId
+    expect(await f.engine.ticket(ticket)).toMatchObject({ phase: 'queued', childSessionId: null })
+    expect(f.ctx.agents.list()).toHaveLength(5)
+    f.model.finish()
+    await Promise.all(activations.map(child => child.result))
+    await expect.poll(async () => (await f.engine.ticket(ticket))?.phase, { timeout: 5000 }).toBe('released')
+    expect(f.model.requests.some(request => JSON.stringify(request).includes('Task 4.'))).toBe(true)
+  } finally { f.model.finish(); for (const child of activations) await child.dispose() }
+}, 30000)
+
+it('A15 preserves an eight-level real parent chain and rejects the ninth child', async () => {
+  const f = await setup()
+  await f.save(f.definition())
+  const opened = await f.open()
+  await f.settle()
+  let parent = f.ctx.agents.get(opened.sessionId)!
+  const activations: import('@panedesk/dsh-subagent').SubagentActivation[] = []
+  const { delegationDepthOf } = await import('@panedesk/dsh-subagent')
+  f.model.hold()
+  try {
+    for (let depth = 1; depth <= 8; depth++) {
+      const child = await f.ctx.subagents.startActivation({ provider: 'spawn', label: `level-${depth}`,
+        request: { parent, maxDepth: 8, prompt: [{ type: 'text', text: 'Neutral nested task.' }] },
+        signal: new AbortController().signal, delivery: 'caller' })
+      activations.push(child)
+      const descendant = f.ctx.agents.get(child.childId)!
+      expect(descendant.session.header.parentSession).toBe(parent.id)
+      expect(delegationDepthOf(descendant)).toBe(depth)
+      parent = descendant
+    }
+    const before = (await f.ctx.sessionPersistence.list()).length
+    await expect(f.ctx.subagents.startActivation({ provider: 'spawn', label: 'level-9', request: { parent, maxDepth: 8,
+      prompt: [{ type: 'text', text: 'Must not start.' }] }, signal: new AbortController().signal, delivery: 'caller' })).rejects.toThrow(/depth/i)
+    expect(await f.ctx.sessionPersistence.list()).toHaveLength(before)
+  } finally { f.model.finish(); for (const child of activations.reverse()) { await child.result; await child.dispose() } }
+}, 30000)
+
+it.each(['authorized-idle', 'not-authorized', 'running', 'child', 'job'] as const)(
+  'A18 requires all three automatic close conditions for %s', async (scenario) => {
+    const f = await setup()
+    await f.save(f.definition())
+    const opened = await f.open()
+    await f.settle()
+    const parent = f.ctx.agents.get(opened.sessionId)!
+    let child: import('@panedesk/dsh-subagent').SubagentActivation | undefined
+    if (scenario === 'running' || scenario === 'child') {
+      f.model.hold()
+      if (scenario === 'running') await f.seats.wake({ seat: seatName('seat-a'), sessionId: parent.id, operationId: operation() })
+      else child = await f.ctx.subagents.startActivation({ provider: 'spawn', label: 'held-child', request: { parent,
+        prompt: [{ type: 'text', text: 'Pending child work.' }] }, signal: new AbortController().signal, delivery: 'caller' })
+      await expect.poll(() => f.model.requests.length).toBe(2)
+    }
+    let finishJob: (() => void) | undefined
+    let detachJobs: (() => void) | undefined
+    if (scenario === 'job') {
+      detachJobs = f.ctx.jobs.attachController('acceptance-jobs')
+      const done = new Promise<{ status: 'completed' }>((resolve) => { finishJob = () => { resolve({ status: 'completed' }) } })
+      f.ctx.jobs.start({ kind: 'bash', label: 'Pending work.', owner: parent.id,
+        run: () => ({ done, cancel: () => { finishJob?.() } }) })
+    }
+    const messagesBefore = await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })
+    try {
+      expect(await f.seats.submitReport({ report: { reportId: 'automatic-a' as never, sessionId: parent.id,
+        canClose: scenario !== 'not-authorized', waitingFor: [], nextOpen: { when: { kind: 'unspecified' }, prerequisites: [] },
+        submittedAt: new Date().toISOString(), stateVersion: 1 }, operationId: operation() })).toMatchObject({ status: 'recorded' })
+      expect(f.ctx.workspaceRegistry.archivedSessionIds.includes(parent.id)).toBe(scenario === 'authorized-idle')
+      if (scenario === 'running' || scenario === 'child' || scenario === 'job') {
+        const facts = await f.effects()
+        expect(facts.filter(effect => effect.kind === 'window/closed')).toHaveLength(0)
+        const messages = await f.ctx.sessionLedger.queryMessages({ sessionId: parent.id, limit: 100 })
+        expect(messages.items).toHaveLength(messagesBefore.items.length + 1)
+      }
+    } finally {
+      finishJob?.()
+      detachJobs?.()
+      f.model.finish()
+      if (child) { await child.result; await child.dispose() }
+    }
+  }, 30000)
+
+it('A14 applies CLI batch validation and the independent batch gate before any Session exists', async () => {
+  const gate: GateDefinition = { id: 'batch-a' as never, name: 'Batch approval', hook: 'before-batch-open',
+    criterion: { type: 'batch-a' as never, parameters: {} }, alternative: 'Approve this batch.',
+    expiresAt: null, enabled: true, revision: 1, order: 0 }
+  const f = await setup({ gates: [gate] })
+  for (const name of ['seat-a', 'seat-b', 'seat-c']) await f.save(f.definition(name))
+  const { executeSeatCommand } = await import('../src/cli.ts')
+  for (const name of ['all', '*', String.fromCodePoint(0x5168, 0x90e8)]) {
+    expect(await executeSeatCommand(f.ctx, ['open', '--seats', name])).toMatchObject({ code: 2 })
+    expect(await f.ctx.sessionPersistence.list()).toHaveLength(0)
+  }
+  let approved = false
+  let batches = 0
+  const dispose = f.ctx.seatGates.register({ id: gate.criterion.type, async evaluate() {
+    batches++
+    return approved ? { outcome: 'allow', gateId: gate.id, revision: 1, expiresAt: null, hitCount: 0, audit: 'recorded' }
+      : { outcome: 'deny', gateId: gate.id, revision: 1, expiresAt: null, hitCount: 0, audit: 'recorded',
+        alternative: gate.alternative, reason: { code: 'gate-denied', message: 'Batch approval is required.',
+          alternative: gate.alternative, retryable: false, effectState: 'none' } }
+  } })
+  try {
+    expect(await executeSeatCommand(f.ctx, ['open', '--seats', 'seat-a,seat-b,seat-c'])).toMatchObject({ code: 2 })
+    expect(batches).toBe(1)
+    expect(await f.ctx.sessionPersistence.list()).toHaveLength(0)
+    expect(f.model.requests).toHaveLength(0)
+    approved = true
+    expect(await executeSeatCommand(f.ctx, ['open', '--seats', 'seat-a,seat-b,seat-c', '--opening', 'auto'])).toMatchObject({ code: 0,
+      output: { status: 'processed', results: ['seat-a', 'seat-b', 'seat-c'].map(seat => ({ seat, result: { status: 'opened' } })) } })
+    expect(batches).toBe(2)
+    expect(await f.ctx.sessionPersistence.list()).toHaveLength(3)
+  } finally { dispose() }
+}, 20000)
+
+it.each(['register', 'task-ended', 'mature'] as const)('A21 enforces the %s worktree policy without deleting files', async (event) => {
+  const f = await setup()
+  const path = join(f.home, 'workspace-a', 'retained.txt')
+  await writeFile(path, 'Retained work.')
+  const decisions = await f.ctx.seatGates.evaluate({ callId: `tree-${event}` as never, operationId: operation(),
+    nodeId: f.nodeId, seat: null, sessionId: null, observedAt: new Date().toISOString(),
+    ...(event === 'register' ? { hook: 'before-open' as const, cwd: f.home, candidateSeats: [] }
+      : { hook: 'before-tool-call' as const, toolName: 'worktree-observation', arguments: {}, hasPendingWork: false }),
+    worktreeFacts: { event, clientTreeCount: 1, clientTreeLimit: 1, requestedKind: 'client', authorizedForce: false,
+      alternative: 'Review the registered tree without deleting it.', mature: true } })
+  const policy = event === 'register' ? 'worktree-client' : event === 'task-ended' ? 'worktree-settle' : 'worktree-mature'
+  expect(decisions).toContainEqual(expect.objectContaining({ outcome: event === 'register' ? 'deny' : 'observe', hitCount: 1 }))
+  expect(JSON.stringify(await f.effects())).toContain(policy)
+  expect(await readFile(path, 'utf8')).toBe('Retained work.')
+}, 20000)
+
+it('A23 reports a symbolic node name and rejects a foreign CLI target before side effects', async () => {
+  const f = await setup({ aliases: { 'node-b': 'foreign-node' as never } })
+  await f.save(f.definition())
+  const { executeSeatCommand } = await import('../src/cli.ts')
+  expect(await executeSeatCommand(f.ctx, ['nodeStatus'])).toMatchObject({ code: 0,
+    output: { nodeName: 'node-a', nodeId: f.nodeId, openEngineWindows: 0 } })
+  expect(await executeSeatCommand(f.ctx, ['open', '--seat', 'seat-a', '--node', 'foreign-node']))
+    .toMatchObject({ code: 2, output: { error: { code: 'cross-node-unsupported' } } })
+  expect(await f.ctx.sessionPersistence.list()).toHaveLength(0)
+  expect(f.model.requests).toHaveLength(0)
+  expect((await f.effects()).filter(effect => effect.kind === 'open/rejected')).toHaveLength(1)
+}, 20000)
+
+it('A24 filters seats, kinds, pending rows and gates while retaining legacy message pagination', async () => {
+  const f = await setup()
+  for (const name of ['seat-a', 'seat-b']) await f.save(f.definition(name))
+  for (const name of ['seat-a', 'seat-b']) await f.engine.accept(f.trigger('external', name, name))
+  await f.engine.drive()
+  const pending = await f.engine.pending({ seat: seatName('seat-a'), limit: 1 })
+  expect(pending.items).toHaveLength(1)
+  expect(pending.items[0]?.seat).toBe('seat-a')
+  const all = await f.effects()
+  const selected = await f.engine.query({ seat: seatName('seat-a'), kinds: ['trigger/accepted'], limit: 100 })
+  expect(selected.effects).toEqual(all.filter(effect => effect.seat === 'seat-a' && effect.kind === 'trigger/accepted'))
+  expect(selected.effects).toHaveLength(1)
+  const base = { operationId: operation(), nodeId: f.nodeId, seat: null, sessionId: null,
+    observedAt: new Date().toISOString(), hook: 'before-tool-call' as const, toolName: 'bash',
+    arguments: { command: 'sleep 900' }, hasPendingWork: false }
+  await f.ctx.seatGates.evaluate({ ...base, callId: 'filter-gate' as never })
+  const gates = await f.ctx.seatGates.list({ gateId: 'polling', limit: 1 })
+  expect(gates.gates).toHaveLength(1)
+  expect(gates.gates[0]?.hitCount).toBe(1)
+  const recipient = await f.ctx.sessionCreation.create({ sessionId: 'legacy-recipient' as never, cwd: join(f.home, 'workspace-b') })
+  const defer = f.ctx.on('agent/turn-admitting', ({ agent }, next) => agent.id === recipient.agent.id
+    ? { kind: 'defer', reason: 'Retain pagination evidence.' } : next())
+  try {
+    for (let index = 0; index < 3; index++) await f.ctx.messageDelivery.send({ target: { sessionId: recipient.agent.id },
+      operationId: operation() as never, messageClass: 'handoff', priority: 'queue', content: `Message ${index}.` })
+    const legacy = await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id })
+    expect(legacy.items).toHaveLength(3)
+    expect(await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id, limit: 1 }))
+      .toEqual({ items: legacy.items.slice(0, 1), complete: false })
+    const ids: string[] = []
+    let cursor: import('@panedesk/dsh-message-delivery').MessageCursor | undefined
+    do {
+      const page = await f.ctx.messageDelivery.list({ targetSessionId: recipient.agent.id, pagination: true, limit: 1,
+        ...(cursor ? { cursor } : {}) })
+      expect(page.items).toHaveLength(1)
+      ids.push(...page.items.map(item => item.messageId))
+      cursor = page.nextCursor
+    } while (cursor)
+    expect(ids).toEqual(legacy.items.map(item => item.messageId))
+    expect(new Set(ids).size).toBe(3)
+    expect((await f.ctx.sessionLedger.query({ sessionId: recipient.agent.id })).rows.filter(row => row.kind === 'call')).toHaveLength(0)
+    expect((await f.ctx.sessionLedger.queryMessages({ targetSessionId: recipient.agent.id })).items).toHaveLength(3)
+  } finally { defer() }
+}, 20000)
+
 it('A25 runs the default Session loop before the optional seat plugins are installed', async () => {
   await setup({ onBase: async (ctx) => {
     expect(ctx.get('seats')).toBeUndefined()
@@ -699,6 +933,7 @@ it.each(['idle', 'disabled', 'busy', 'title', 'short'] as const)('A28 handles %s
       expect(await f.seats.list({})).toMatchObject({ sessions: [{ title: 'Renamed seat-a' }] })
       expect(await f.seats.wake({ seat: seatName('seat-a'), sessionId: agent.id, operationId: operation() }))
         .toMatchObject({ status: 'sent', title: 'Renamed seat-a' })
+      await expect.poll(() => f.model.requests.length).toBe(2)
       await f.settle()
     }
     if (scenario === 'busy') {

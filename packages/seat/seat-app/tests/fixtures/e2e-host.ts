@@ -1,7 +1,7 @@
 /** Loader-owned seat providers over real Session, storage, delivery and agent services. */
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
-import Include from '@panedesk/cordis-plugin-include'
+import Include, { entryListSchema } from '@panedesk/cordis-plugin-include'
 import Storage from '@panedesk/dsh-storage'
 import { DomainFacility } from '@panedesk/dsh-storage-domain'
 import { JsonStorageBackend } from '@panedesk/dsh-storage-json'
@@ -122,7 +122,7 @@ export async function createHost(existingRoot?: string) {
     await until(() => !!ctx.get('sessionCreation'))
     let entry: string | undefined
     const mount = async () => {
-      const patch = loadYaml(await readFile(new URL('../../cordis.patch.yml', import.meta.url), 'utf8')) as
+      const patch = loadYaml(await readFile(new URL('../../cordis.patch.yml', import.meta.url), 'utf8'), { schema: entryListSchema }) as
         { insert?: { id: string; name: string; disabled?: boolean }[] }[]
       const names = ['seat-engine', 'seat-local', 'seat-gates', 'tool-seat', 'seat-remote', 'seat-app']
       const rows = patch.flatMap(row => row.insert ?? []).filter(row => names.includes(row.id))

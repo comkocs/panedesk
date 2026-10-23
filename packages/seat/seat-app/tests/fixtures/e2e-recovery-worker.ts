@@ -52,7 +52,7 @@ try {
     await writeFile(join(root, 'accepted.json'), JSON.stringify(sent))
     accepted.resolve(undefined)
     if (stage === 'm5-accepted') await barrier(stage)
-    await agent.whenIdle()
+    await new Promise<void>(() => {})
   } else {
     const accepted = JSON.parse(await readFile(join(root, 'accepted.json'), 'utf8')) as { messageId: string }
     const duplicate = await host.ctx.messageDelivery.send({ target: { sessionId }, operationId: messageOperation,
