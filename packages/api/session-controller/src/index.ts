@@ -19,6 +19,7 @@ import { assertNever } from '@panedesk/dsh-util-values'
 import type {} from '@panedesk/dsh-api-remote-access'
 import {
   ApiSessionAgentController,
+  SessionCreationScope,
   inspectApiSession,
   type ApiSessionAgentResult,
 } from './agent.ts'
@@ -69,7 +70,8 @@ import type {
 } from './types.ts'
 
 export type * from './types.ts'
-export { ApiSessionNotFound } from './agent.ts'
+export { ApiSessionNotFound, ApiSessionExactCreateConflict, SessionCreationScope } from './agent.ts'
+export type { ExactSessionCreation, ApiSessionCreated } from './agent.ts'
 export { SessionFileReferences } from './file-references.ts'
 export { SessionSkillCatalog } from './skill-catalog.ts'
 
@@ -160,6 +162,7 @@ export class SessionController extends TypertRemoteService {
     const resolved = SessionController.Config(config)
     installModelSelectionProjection(ctx)
     this.agents = new ApiSessionAgentController(ctx)
+    new SessionCreationScope(ctx, request => this.agents.createSession(request))
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
     ctx.effect(() => ctx.fileUploads.registerAgentResolver(async (sessionId) => {
       const result = await this.agents.resolveAgent(sessionId)

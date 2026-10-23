@@ -1,5 +1,20 @@
 /** Session cache policy and process-local model-family admission settings. */
 import type { CacheRetention, LlmCacheControl } from '@panedesk/dsh-llm'
+import type { Branded } from '@panedesk/dsh-brand'
+import type { SessionId } from '@panedesk/dsh-session'
+
+/** Caller-retained identity for one explicit cache refresh. */
+export type CacheRenewOperationId = Branded<'CacheRenewOperationId'>
+/** One explicit refresh; callers retain the operation identity across retries. */
+export interface CacheRenewRequest {
+  readonly sessionId: SessionId
+  readonly operationId: CacheRenewOperationId
+}
+/** A dispatched request without confirmed cache evidence is never reported as renewed. */
+export type CacheRenewResult =
+  | { readonly kind: 'renewed'; readonly evidenceAt: number }
+  | { readonly kind: 'uncertain'; readonly reason: 'prior-attempt' | 'maintenance-unconfirmed' }
+  | { readonly kind: 'rejected'; readonly reason: 'session-unavailable' | 'busy' | 'cache-evidence-unavailable' | 'cache-expired' | 'prefix-changed' | 'ledger-unavailable' }
 
 /** Session-scoped retention selection; omitted requests resolve through the explicit default policy. */
 export interface CachePolicy {

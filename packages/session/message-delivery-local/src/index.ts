@@ -11,7 +11,7 @@ import { createUserMessage, isAgentLoopRequest, type MessageId } from '@panedesk
 import type { SessionId } from '@panedesk/dsh-session'
 import MessageDelivery, { type ConfigureMessagesRequest, type ControlResult, type EditMessageRequest,
   type InvalidateMessageRequest, type MessageAddress, type MessageControlRequest, type MessagePage,
-  type MessageQuery, type MessageSettings, type MessageStateEvent, type MessageStatus,
+  type MessageQuery, type MessageCursor, type MessageSettings, type MessageStateEvent, type MessageStatus,
   type MessageSubscriptionRequest, type NodeId, type OperationId, type OperationStatus,
   type ReprioritizeMessageRequest, type ResolvedRecipient, type SendBatchRequest, type SendBatchResult,
   type SendMessageRequest, type SendMessageResult, type MessageSender, type DeliveryMessage,
@@ -433,16 +433,25 @@ export default class LocalMessageDelivery extends MessageDelivery {
         ids.add(message.messageId)
       }
     }
+    const limit = query.limit ?? this.config.maxBatchSize
+    if (!Number.isSafeInteger(limit) || limit < 1) throw new MailboxUnavailableError('Message query limit must be a positive integer')
+    const after = query.cursor === undefined ? undefined : query.cursor.slice('message-list:'.length)
+    if (query.cursor !== undefined && (!query.cursor.startsWith('message-list:')
+      || ![...ids].some(id => id === after))) throw new MailboxUnavailableError('Message query cursor is unavailable')
     const items: MessageStatus[] = []
     for (const id of [...ids].sort()) {
+      if (after !== undefined && id <= after) continue
       const status = await this.status(id)
       if (query.states && !query.states.includes(status.state)) continue
       if (query.unansweredOlderThanMinutes !== undefined && (status.transitions.some(event => event.data.transition === 'responded')
         || (!query.includeTerminal && ['withdrawn', 'invalidated', 'rejected'].includes(status.state)))) continue
       items.push(status)
     }
-    const limit = query.limit ?? this.config.maxBatchSize
-    return { items: items.slice(0, limit), complete: items.length <= limit }
+    const page = items.slice(0, limit)
+    const last = page.at(-1)
+    return { items: page, complete: items.length <= limit,
+      ...items.length > limit && last !== undefined
+        ? { nextCursor: `message-list:${last.messageId}` as MessageCursor } : {} }
   }
 
   async sendBatch(request: SendBatchRequest): Promise<SendBatchResult> {

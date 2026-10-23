@@ -206,6 +206,10 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
     return true
   }
 
+  wake(): void {
+    if (this.inbox.hasRunnable) this.wakeDriver()
+  }
+
   followup(input: UserMessage): void {
     this.send(input, 'next-turn', true)
   }
@@ -355,6 +359,11 @@ export class ReactLoopAgent implements Agent, AgentInputScheduler {
     signal.throwIfAborted()
     const turn = phase.turn + 1
     try {
+      const proposal = this.dispatch.waterfall('agent/turn-admitting', { turn, signal },
+        () => ({ kind: 'allow' }))
+      const admission = 'then' in proposal ? await proposal : proposal
+      signal.throwIfAborted()
+      if (admission.kind === 'defer') return false
       this.session.append('turn/start', { turn })
     } catch (error: unknown) {
       this.throwError(error)

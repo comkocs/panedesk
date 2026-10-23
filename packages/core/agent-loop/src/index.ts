@@ -220,7 +220,7 @@ interface PreparedAgent {
   /** Aborts when the factory unloads, the caller cancels, or teardown begins — ends any setup await. */
   signal: AbortSignal
   /** Enter both registries and await creation listeners. */
-  publish(source: SessionStartSource): Promise<AgentHandle>
+  publish(source: SessionStartSource, releasePreparation?: () => void): Promise<AgentHandle>
   /** Reverse teardown: stop the machine, unregister, unwind the scope. Memoized. */
   dispose(): Promise<void>
 }
@@ -670,12 +670,13 @@ export class AgentLoop extends Service implements AgentFactory {
       return {
         agent,
         signal: abort.signal,
-        publish: async (source) => {
+        publish: async (source, releasePreparation) => {
           publication = Promise.withResolvers<void>()
           try {
             assertLive()
             // Managed children have their own residency accounting owner.
             if (parentAgent === undefined) finishRun = await beginAgentRun(loopCtx, id, this.config.ledgerIdentity)
+            releasePreparation?.()
             assertLive()
             detachSession = agent.ctx.sessions.enter(session)
             // The mounted backend routes announced live events into the active
@@ -809,6 +810,7 @@ export class AgentLoop extends Service implements AgentFactory {
         'startup',
         stored,
         options.parentAgent,
+        options.releasePreparation,
       )
     })()
     this.ownership.trackWrapper(published)
@@ -826,6 +828,7 @@ export class AgentLoop extends Service implements AgentFactory {
     source: SessionStartSource,
     stored?: StoredSession,
     parentAgent?: Agent,
+    releasePreparation?: () => void,
   ): Promise<AgentHandle> {
     using ownedPreparation = preparation
     const session = ownedPreparation.session
@@ -840,7 +843,7 @@ export class AgentLoop extends Service implements AgentFactory {
       const setupCommit = await raceAbort(setup?.(prepared.agent.ctx, prepared.agent), prepared.signal, id)
       setupCommit?.commit()
       await this.appendUnstoredSuffix(stored, session)
-      return await prepared.publish(source)
+      return await prepared.publish(source, releasePreparation)
     })
   }
 

@@ -14,7 +14,7 @@ import type { Scoped } from '@panedesk/dsh-scope'
 import type { SessionEvent, SessionId, SessionLogOffset } from '@panedesk/dsh-session'
 import { installTurnArchiveAdmission } from './archive-admission.ts'
 import type { Agent } from './types.ts'
-import type { AgentOptions, SessionStartSource } from './runtime-types.ts'
+import type { AgentOptions, CreateAdmissionDecision, SessionStartSource } from './runtime-types.ts'
 
 export * from './runtime-types.ts'
 export * from './types.ts'
@@ -118,6 +118,8 @@ export interface CreateAgentOptions {
    * than a runtime restriction. Drive the agent only after creation resolves.
    */
   readonly setup?: AgentSetup
+  /** Release temporary attribution after residency takeover or any creation failure; must be idempotent. */
+  readonly releasePreparation?: () => void
 }
 
 /**
@@ -202,6 +204,15 @@ export interface AgentFactory {
    * @returns the owned handle after setup, both announcements, and loop start complete.
    */
   resume(ownerCtx: Context, options: ResumeAgentOptions): Promise<AgentHandle>
+}
+
+/** Fresh creation was refused before the factory acquired its session identity. */
+export class AgentCreateAdmissionError extends Error {
+  /** @param reason - policy-owned explanation preserved for the caller. */
+  constructor(readonly reason: string) {
+    super(`agent creation rejected: ${reason}`)
+    this.name = 'AgentCreateAdmissionError'
+  }
 }
 
 /** Thrown when create/resume is called before an agent factory is registered. */
@@ -394,7 +405,18 @@ export class AgentRegistry extends Service {
    * @returns the handle after setup, rollback-covered publication, and loop start complete.
    */
   async create(options: CreateAgentOptions): Promise<AgentHandle> {
+    try {
+      return await this.createAdmitted(options)
+    } finally {
+      options.releasePreparation?.()
+    }
+  }
+
+  private async createAdmitted(options: CreateAgentOptions): Promise<AgentHandle> {
     const ownerCtx = this.ctx
+    const decision = await ownerCtx.waterfall('agent/create-admitting', { options },
+      () => Promise.resolve<CreateAdmissionDecision>({ kind: 'allow' }))
+    if (decision.kind === 'reject') throw new AgentCreateAdmissionError(decision.reason)
     // Re-trace a Service-backed factory through the accessing context
     // explicitly. This preserves AgentLoop's dependency origin while binding
     // its effects to ownerCtx; plain factories receive ownerCtx as an explicit

@@ -2,7 +2,8 @@
 
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
-import type { Context } from '@panedesk/cordis'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { Service, type Context } from '@panedesk/cordis'
 import { installModelSelection } from '@panedesk/dsh-agent'
 import type {
   Agent, AgentOptions, AgentSetup, ModelSelection as AgentModelSelection, ModelSelectionRef,
@@ -17,6 +18,95 @@ import { SessionQueryError, type SessionObservation } from '@panedesk/dsh-sessio
 import { RemoteError, remoteErrorOf } from '@panedesk/dsh-typert-protocol'
 import type {} from '@panedesk/dsh-typert-registry'
 import type { ModelSelection } from './types.ts'
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    sessionCreation: SessionCreationScope
+  }
+}
+
+/** Trusted creation capability; it is never accepted from a remote request. */
+export interface ExactSessionCreation {
+  readonly sessionId: SessionId
+  /** Composition awaited before publication and before any queued work. */
+  readonly setup?: AgentSetup
+  /** Validated Session-local selection; never changes the global default. */
+  readonly selection?: AgentModelSelection
+  /** Idempotent release of temporary attribution on takeover or any failure. */
+  readonly releasePreparation?: () => void
+}
+
+type ExactCreationRun = { readonly request: ExactSessionCreation; active: boolean; claimed: boolean }
+
+/** Optional process-local scope for callers that own a reserved session identity. */
+export class SessionCreationScope extends Service {
+  private readonly runs = new AsyncLocalStorage<ExactCreationRun>()
+
+  constructor(ctx: Context, private readonly createSession?: (request: ApiSessionCreateRequest) => Promise<ApiSessionCreated>) {
+    super(ctx, 'sessionCreation')
+    ctx.effect(() => () => { this.runs.disable() })
+  }
+
+  /**
+   * Create exactly the reserved identity with unpublished composition and local model selection.
+   * @param request - trusted creation capability and explicit placement.
+   * @returns the newly published Agent; existing identities are never adopted.
+   */
+  async create(request: ExactSessionCreation & { readonly cwd: string; readonly agentPreset?: string }): Promise<ApiSessionCreated> {
+    try {
+      const createSession = this.createSession
+      if (createSession === undefined) throw new Error('Controlled session creation is not installed')
+      return await this.withExactIdentity(request, () => createSession({
+        sessionId: request.sessionId, cwd: request.cwd,
+        ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
+        reusable: () => false,
+      }))
+    } finally {
+      request.releasePreparation?.()
+    }
+  }
+
+  /**
+   * Invoke the existing creation API without permitting identity substitution or reuse.
+   * @param request - reserved identity and trusted unpublished setup.
+   * @param operation - one awaited invocation of the existing creation API.
+   * @returns the operation's result; detached and repeated invocations are rejected.
+   */
+  async withExactIdentity<T>(request: ExactSessionCreation, operation: () => Promise<T>): Promise<T> {
+    const run: ExactCreationRun = { request, active: true, claimed: false }
+    return this.runs.run(run, async () => {
+      try {
+        return await operation()
+      } finally {
+        run.active = false
+      }
+    })
+  }
+
+  /**
+   * Consume this invocation's creation capability, if present.
+   * @param sessionId - identity supplied to the ordinary creation API.
+   * @returns the trusted setup, or undefined outside a controlled invocation.
+   */
+  claim(sessionId: SessionId | undefined): ExactSessionCreation | undefined {
+    const run = this.runs.getStore()
+    if (run === undefined) return undefined
+    if (!run.active || run.claimed || sessionId !== run.request.sessionId) {
+      throw new ApiSessionExactCreateConflict(run.request.sessionId)
+    }
+    run.claimed = true
+    return run.request
+  }
+}
+
+/** A controlled creation cannot adopt an existing identity or mint a replacement. */
+export class ApiSessionExactCreateConflict extends Error {
+  /** @param sessionId - identity that must remain reserved to its owner. */
+  constructor(readonly sessionId: SessionId) {
+    super(`session "${sessionId}" cannot be created under its reserved identity`)
+    this.name = 'ApiSessionExactCreateConflict'
+  }
+}
 
 /** Cold Session identity absent from persistence. */
 export class ApiSessionNotFound extends Error {}
@@ -277,6 +367,35 @@ export class ApiSessionAgentController {
    */
   async createSession(request: ApiSessionCreateRequest): Promise<ApiSessionCreated> {
     const named = request.sessionId
+    const exact = this.ctx.get('sessionCreation')?.claim(named)
+    if (exact !== undefined) {
+      return this.inOrder(exact.sessionId, async () => {
+        if (this.ctx.agents.get(exact.sessionId) !== undefined || this.ctx.sessions.get(exact.sessionId) !== undefined) {
+          throw new ApiSessionExactCreateConflict(exact.sessionId)
+        }
+        try {
+          using observation = await this.ctx.sessionQuery.observeSession(exact.sessionId)
+          throw new ApiSessionExactCreateConflict(observation.header.id)
+        } catch (error: unknown) {
+          if (!(error instanceof SessionQueryError) || error.code !== 'SESSION_QUERY_SESSION_NOT_FOUND') throw error
+        }
+        const composition = await this.composeAgent(request.agentPreset)
+        const setup: AgentSetup = async (agentCtx, agent) => {
+          await mkdir(request.cwd, { recursive: true })
+          const base = await composition.setup(agentCtx, agent)
+          if (exact.selection !== undefined) this.selectForNextRequest(agent, exact.selection)
+          const controlled = await exact.setup?.(agentCtx, agent)
+          return { commit: () => { base?.commit(); controlled?.commit() } }
+        }
+        return this.created((await this.ctx.agents.create({
+          sessionId: exact.sessionId,
+          agentOptions: exact.selection ?? this.agentOptions(),
+          meta: { cwd: request.cwd, ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }) },
+          setup,
+          ...(exact.releasePreparation === undefined ? {} : { releasePreparation: exact.releasePreparation }),
+        })).agent)
+      })
+    }
     if (named === undefined) return this.created(await this.createMinted(request.cwd, await this.composeAgent(request.agentPreset)))
     return this.inOrder(named, async () => this.created(await this.claim(named, request)))
   }

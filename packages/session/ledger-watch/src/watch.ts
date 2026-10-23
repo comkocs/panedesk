@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { LedgerEvent, LedgerEventId, LedgerLifecycle, LedgerNodeId, SessionLedger } from '@panedesk/dsh-session-ledger'
 import { inspectProcessIdentity } from './process.ts'
 import type { ProcessObservation } from './process.ts'
+import type { LedgerOwnerSettled } from './types.ts'
 
 /** Public-service subset needed by the independent watcher. */
 export type WatchLedger = Pick<SessionLedger, 'snapshot' | 'finishRun' | 'finishCall' | 'appendEvent'>
@@ -33,6 +34,8 @@ export interface ReconcileOptions {
   monotonic?: () => number
   inspect?: typeof inspectProcessIdentity
   onAlert?: (code: string) => void
+  /** Nonblocking notification after terminal acknowledgement, before call repair; repeats require consumer deduplication. */
+  onOwnerSettled?: (payload: LedgerOwnerSettled) => void
 }
 function eventFor(run: LedgerLifecycle, observedAt: number): Pick<LedgerEvent, 'schemaVersion' | 'eventId' | 'nodeId' | 'observedAt' | 'runId' | 'sessionId'> {
   return { schemaVersion: 1, eventId: randomUUID() as LedgerEventId, nodeId: run.start.nodeId,
@@ -87,6 +90,13 @@ export async function reconcileRuns(ledger: WatchLedger, options: ReconcileOptio
             deliveryState: run.start.deliveryPaths.length ? 'uncheckable' : 'not-requested' })
           if (terminal.kind !== 'conflict' && terminal.event.kind === 'run/end'
             && terminal.event.data.endReason === 'killed' && terminal.event.data.recovered) {
+            try {
+              options.onOwnerSettled?.({ start: run.start, finish: terminal.event.data,
+                deathObservedAt: observedAt, persistedAt: now(), latencyMs: monotonic() - observedTick })
+            } catch (_error) {
+              report.alerts.push('watch-owner-notification-failed')
+              options.onAlert?.('watch-owner-notification-failed')
+            }
             // Re-read after the run CAS: normal call endings committed meanwhile are authoritative.
             const current = await ledger.snapshot({ nodeId: options.nodeId })
             if (!current.complete) throw new Error('Watcher requires a complete call snapshot')

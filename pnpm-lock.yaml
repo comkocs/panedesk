@@ -11453,6 +11453,9 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-agent-loop-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/agent-loop-testkit
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
