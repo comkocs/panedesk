@@ -455,6 +455,33 @@ Shared management service; reads, deletion, and timing edits never activate a Se
 
 ```ts cordis-catalog
 /**
+ * Register a reversible acceptor for scheduled actions.
+ * @param actionId - Installed action name, such as seat.open or seat.wait.
+ * @param handler - Durable acceptor; unavailable handlers retain pending tasks.
+ * @returns Effect-owned removal of the handler.
+ */
+registerAction(actionId: string, handler: ScheduleActionHandler): () => Promise<void>
+
+/**
+ * Persist an action and notify the shared timer without activating a Session.
+ * @param request - Existing schedule record and independently stored action data.
+ * @returns Durable task without creating or resuming a Session.
+ */
+async scheduleAction(request: ScheduleActionRequest): Promise<ScheduleActionTask>
+
+/** Read action tasks without activating Sessions.
+ * @returns Action tasks with current handler availability.
+ */
+async listActions(): Promise<(ScheduleActionTask & { available: boolean })[]>
+
+/**
+ * Remove a stored action while preserving already accepted work.
+ * @param id - Exact action task identity.
+ * @returns Whether a task was removed; accepted downstream work is not cancelled.
+ */
+async deleteAction(id: ScheduleIdType): Promise<boolean>
+
+/**
  * Create a reminder bound to the caller-selected Session without activating it.
  *
  * The request must supply a title; a missing, blank-after-trim, or over-long

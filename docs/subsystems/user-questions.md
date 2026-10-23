@@ -220,6 +220,13 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ```ts cordis-catalog
 /**
+ * Read pending questions without creating a human interaction or resuming an agent.
+ * @param session - exact attached session whose projection and live waits are requested.
+ * @returns detached snapshot; unavailable projection is never reported as known empty.
+ */
+pendingForSession(session: Session): SessionPendingQuestions
+
+/**
  * Answer a continued question. The reply is steered into the agent as a
  * user message whose source names the call; that message is also the
  * record that closes the question in the projection.
@@ -276,13 +283,32 @@ async askTimed( request: AskUserQuestionRequest & { agent: Agent }, callId: Tool
 async ask(request: AskUserQuestionRequest): Promise<AskUserQuestionAnswer>
 ```
 
-Types: [Agent](core.md) · [ToolCallId](core.md)
+Types: [Agent](core.md) · [Session](session.md) · [ToolCallId](core.md)
 
 Source: [`packages/interaction/user-questions/src/index.ts`](../../packages/interaction/user-questions/src/index.ts)
 
 <a id="user-questions-events"></a>
 
 ### `user-questions/*` events
+
+<a id="user-questionspending-changed--emit"></a>
+
+#### `user-questions/pending-changed` — emit
+
+A live blocking request was established or settled; consumers re-read its snapshot.
+
+```ts cordis-catalog
+/**
+ * A live blocking request was established or settled; consumers re-read its snapshot.
+ * @param payload.sessionId - session whose pending requests changed.
+ * @mode emit
+ */
+'user-questions/pending-changed'(payload: { sessionId: import('@panedesk/dsh-session/types').SessionId }): void
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/interaction/user-questions/src/types.ts`](../../packages/interaction/user-questions/src/types.ts)
 
 <a id="user-questionsrequest--waterfall"></a>
 

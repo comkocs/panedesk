@@ -232,7 +232,7 @@ export interface Config {
 ## `@panedesk/dsh-api-session-controller`
 
 - `inject`: `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `remoteAccess` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
-- `source`: [`packages/api/session-controller/src/index.ts:94`](../packages/api/session-controller/src/index.ts)
+- `source`: [`packages/api/session-controller/src/index.ts:96`](../packages/api/session-controller/src/index.ts)
 
 ```ts config-catalog
 /** Session Controller deployment policy. */
@@ -1735,7 +1735,7 @@ export interface TlsConfig {
 
 ## `@panedesk/dsh-instruction-subscriptions`
 
-- `source`: [`packages/context/instruction-subscriptions/src/index.ts:16`](../packages/context/instruction-subscriptions/src/index.ts)
+- `source`: [`packages/context/instruction-subscriptions/src/index.ts:40`](../packages/context/instruction-subscriptions/src/index.ts)
 
 ```ts config-catalog
 /** Deployment-controlled subscription paths and memory/read limits. */
@@ -1755,7 +1755,7 @@ export interface Config {
 
 ## `@panedesk/dsh-jobs-local`
 
-- `source`: [`packages/jobs/jobs-local/src/index.ts:46`](../packages/jobs/jobs-local/src/index.ts)
+- `source`: [`packages/jobs/jobs-local/src/index.ts:47`](../packages/jobs/jobs-local/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the process-local job registry. */
@@ -1808,7 +1808,7 @@ export interface LedgerAppOptions {
 
 ## `@panedesk/dsh-ledger-query`
 
-- `source`: [`packages/session/ledger-query/src/index.ts:19`](../packages/session/ledger-query/src/index.ts)
+- `source`: [`packages/session/ledger-query/src/index.ts:21`](../packages/session/ledger-query/src/index.ts)
 
 ```ts config-catalog
 /** Read-only ledger observation settings. */
@@ -2924,7 +2924,7 @@ export interface Config {
 ## `@panedesk/dsh-schedule`
 
 - `inject`: `agents` · `sessions` · `storageDomain` · `sessionController` · `sessionPersistence`
-- `source`: [`packages/schedule/schedule/src/index.ts:72`](../packages/schedule/schedule/src/index.ts)
+- `source`: [`packages/schedule/schedule/src/index.ts:75`](../packages/schedule/schedule/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the Host Schedule domain. */
@@ -2939,6 +2939,8 @@ export interface Config {
    * cap and the window wins, and the newest records survive.
    */
   deliveryHistoryRecords?: number
+  /** Retry delay for unacknowledged actions only; omission defaults to 1000 milliseconds. */
+  actionRetryMs?: number
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-schedule -->
@@ -2983,6 +2985,110 @@ export interface JsonRpcConfig {
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-sdk-jsonrpc-server -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-engine -->
+<a id="panedeskdsh-seat-engine"></a>
+
+## `@panedesk/dsh-seat-engine`
+
+- `refs`: [`SeatEngineConfig`](../packages/seat/seat/src/index.ts)
+- `source`: [`packages/seat/seat-engine/src/index.ts:18`](../packages/seat/seat-engine/src/index.ts)
+
+```ts config-catalog
+/** Deployment policy has no implicit budget or capacity defaults. */
+export interface Config extends SeatEngineConfig {
+  /** Harness home containing the node journal; omitted uses the standard home resolver. */
+  home?: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-seat-engine -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-gates -->
+<a id="panedeskdsh-seat-gates"></a>
+
+## `@panedesk/dsh-seat-gates`
+
+- `refs`: [`GateDefinition`](../packages/seat/seat/src/index.ts)
+- `source`: [`packages/seat/seat-gates/src/index.ts:28`](../packages/seat/seat-gates/src/index.ts)
+
+```ts config-catalog
+/** Deployment-owned policy settings, resolved once at activation. */
+export interface Config {
+  /** Deployment criteria override built-in definitions with matching identities. */
+  definitions: GateDefinition[]
+  /** Repeated identical observations allowed before polling is rejected. */
+  pollingThreshold: number
+  /** Largest recognized shell sleep allowed by the polling criterion. */
+  maxSleepSeconds: number
+  /** Maximum UTF-8 bytes retained in a compaction checkpoint. */
+  checkpointMaxBytes: number
+  /** Maximum checkpoint retries after an oversized result. */
+  checkpointRetryLimit: number
+  /** Tokens reserved for ledger evidence in the checkpoint budget. */
+  ledgerCheckpointReserveTokens: number
+  /** Maximum total memory file bytes read for one audit snapshot. */
+  memoryAuditMaxBytes: number
+  /** Maximum memory files read for one audit snapshot. */
+  memoryAuditMaxFiles: number
+  /** IANA time zone used for policy calendar observations. */
+  timeZone: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-seat-gates -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-remote -->
+<a id="panedeskdsh-seat-remote"></a>
+
+## `@panedesk/dsh-seat-remote`
+
+- `refs`: [`SeatDigest`](../packages/seat/seat/src/index.ts) · [`SeatFailure`](../packages/seat/seat/src/index.ts) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
+- `source`: [`packages/seat/seat-remote/src/index.ts:10`](../packages/seat/seat-remote/src/index.ts)
+
+```ts config-catalog
+/** Optional external ingress is disabled unless explicit source policy is configured. */
+export interface Config {
+  /** Signed external ingress policy; omitted leaves the webhook route unregistered. */
+  webhook?: Omit<WebhookOptions, 'audit'>
+}
+
+/** Explicit deployment bounds; no network address or secret enters audit records. */
+export interface WebhookOptions {
+  /** Exact HTTP route; must start with a slash and have no trailing slash. */
+  path: string
+  /** Maximum raw request bytes retained before rejecting the body. */
+  maxBodyBytes: number
+  /** Maximum absolute timestamp difference from the local clock in milliseconds. */
+  maxClockSkewMs: number
+  /** Milliseconds allowed to receive the complete request body. */
+  bodyTimeoutMs: number
+  /** Unique source identities and their authorized destinations and key references. */
+  sources: readonly WebhookSource[]
+  /** Durable rejection sink; completion precedes the rejection response. */
+  audit: (fact: {
+    /** Registered source identity, or the unregistered-source sentinel. */
+    sourceId: SeatSourceId
+    /** Digest of the bounded raw body prefix without retaining source text. */
+    digest: SeatDigest
+    /** Local ISO timestamp when rejection was observed. */
+    observedAt: string
+    /** Structured refusal without credential values or network addresses. */
+    error: SeatFailure
+  }) => Promise<void>
+}
+
+/** Trusted source configuration never contains credential values. */
+export interface WebhookSource {
+  /** Registered ingress identity matched against the request source header. */
+  sourceId: SeatSourceId
+  /** Exact destination seat allowed for this source. */
+  seat: SeatName
+  /** Project attached to accepted source events. */
+  projectId: SeatProjectId
+  /** Signing key versions mapped to credential references, never secret values. */
+  credentialRefs: Readonly<Record<string, string>>
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-seat-remote -->
 
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-session-ledger -->
 <a id="panedeskdsh-session-ledger"></a>
@@ -3578,7 +3684,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 - `inject`: `workingDirectory`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/subagent/subagent/src/index.ts:187`](../packages/subagent/subagent/src/index.ts)
+- `source`: [`packages/subagent/subagent/src/index.ts:189`](../packages/subagent/subagent/src/index.ts)
 
 ```ts config-catalog
 /** Host configuration for continuable subagent capacity. */
@@ -4933,6 +5039,8 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
 | `@panedesk/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |
 | `@panedesk/dsh-sandbox-ssh` | `ssh` | [`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts) |
+| `@panedesk/dsh-seat-app` | `cmdlineArgs` · `appReady` · `appExit` | [`packages/seat/seat-app/src/index.ts`](../packages/seat/seat-app/src/index.ts) |
+| `@panedesk/dsh-seat-local` | — | [`packages/seat/seat-local/src/index.ts`](../packages/seat/seat-local/src/index.ts) |
 | `@panedesk/dsh-session` | — | [`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts) |
 | `@panedesk/dsh-session-checkpoint-policy` | `llm` · `sessionPersistence` · `sessions` · `tools` | [`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts) |
 | `@panedesk/dsh-session-projection` | — | [`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts) |
@@ -4947,6 +5055,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-tool-call-timeout-policy` | `tools` | [`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts) |
 | `@panedesk/dsh-tool-cordis` | `tools` · `cordisInspect` | [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts) |
 | `@panedesk/dsh-tool-schedule` | `tools` | [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts) |
+| `@panedesk/dsh-tool-seat` | — | [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts) |
 | `@panedesk/dsh-tool-subagent-control` | `tools` · `subagents` | [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts) |
 | `@panedesk/dsh-tool-working-directory` | `tools` · `workingDirectory` | [`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts) |
 | `@panedesk/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
@@ -4972,6 +5081,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 | `@panedesk/dsh-message-delivery` | `MessageDelivery` | — | [`packages/session/message-delivery/src/index.ts`](../packages/session/message-delivery/src/index.ts) |
 | `@panedesk/dsh-ptc-runtime` | `PtcRuntime` | — | [`packages/ptc-runtime/ptc-runtime/src/index.ts`](../packages/ptc-runtime/ptc-runtime/src/index.ts) |
 | `@panedesk/dsh-sandbox` | `SandboxProvider` | — | [`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts) |
+| `@panedesk/dsh-seat` | `SeatService` | — | [`packages/seat/seat/src/index.ts`](../packages/seat/seat/src/index.ts) |
 | `@panedesk/dsh-session-persistence` | `SessionPersistence` | — | [`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts) |
 | `@panedesk/dsh-session-query` | `SessionQueryEngine` | — | [`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts) |
 | `@panedesk/dsh-shell` | `ShellExecutor` | — | [`packages/shell/shell/src/index.ts`](../packages/shell/shell/src/index.ts) |

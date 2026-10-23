@@ -15,7 +15,10 @@ export const name = 'seat-engine'
 /** Optional dependencies are resolved through the service store. */
 export const inject: string[] = []
 /** Deployment policy has no implicit budget or capacity defaults. */
-export interface Config extends SeatEngineConfig { home?: string }
+export interface Config extends SeatEngineConfig {
+  /** Harness home containing the node journal; omitted uses the standard home resolver. */
+  home?: string
+}
 /** Validate deployment policy before acquiring a writer or accepting ingress.
  * @param config - explicit deployment values.
  * @returns the validated configuration.

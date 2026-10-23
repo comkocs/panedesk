@@ -2,6 +2,8 @@ import { Context } from '@panedesk/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { SeatService, SeatEngineService, OpenSeatRequest, OpenSeatBatchRequest, EngineEffect, SeatNodeId, SeatDefinition, SeatBinding, OpenSeatResult } from '@panedesk/dsh-seat'
 import { executeSeatCommand, parseSeatArgs } from '../src/cli.ts'
+import { provideCmdline } from '@panedesk/dsh-cmdline'
+import { apply } from '../src/index.ts'
 
 function fixture() {
   const ctx = new Context()
@@ -27,6 +29,22 @@ function fixture() {
 }
 
 describe('seat command consumer', () => {
+  it('prints help after launcher readiness without requiring seat providers', async () => {
+    const ctx = new Context(), exit = vi.fn()
+    let listener: (() => void) | undefined
+    provideCmdline(ctx, { args: ['--help'], exit,
+      ready: { onReady(callback) { listener = callback; return () => { listener = undefined } } } })
+    const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
+    try {
+      apply(ctx)
+      expect(output).not.toHaveBeenCalled()
+      listener!()
+      expect(output).toHaveBeenCalledExactlyOnceWith('Usage: seat <command> [--seat <name> | --seats <names>] [--request <json>] [options]\n')
+      expect(exit).toHaveBeenCalledExactlyOnceWith(0)
+      await ctx.fiber.dispose()
+      expect(listener).toBeUndefined()
+    } finally { output.mockRestore(); await ctx.fiber.dispose() }
+  })
   it('passes manual opening configuration to the shared SeatService', async () => {
     const f = fixture()
     try {

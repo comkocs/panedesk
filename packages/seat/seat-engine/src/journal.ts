@@ -87,6 +87,7 @@ async function syncDirectory(path: string): Promise<void> {
 }
 /** One node owner serializes local decisions and rejects other process owners. */
 export class EngineJournal {
+  /** Replayed committed decisions; replaced only after successful recovery. */
   projection = new EngineProjection()
   private owner: FileHandle | undefined
   private chain: Promise<void> = Promise.resolve()

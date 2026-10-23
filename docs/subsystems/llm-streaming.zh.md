@@ -1199,6 +1199,13 @@ update(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy
  * @returns the observed estimate, or unknown when no evidence is available.
  */
 remaining(agent: Agent): Promise<CacheRemaining>
+
+/**
+ * Request at most one maintenance call under a durable operation identity.
+ * @param request - live session and caller-retained operation identity.
+ * @returns refusal, confirmed evidence, or uncertainty without replaying an attempted call.
+ */
+renewOnce(request: CacheRenewRequest): Promise<CacheRenewResult>
 ```
 
 Types: [Agent](core.zh.md)

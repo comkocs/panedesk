@@ -7,7 +7,10 @@ import z from '@panedesk/schemastery'
 import { registerWebhook, type WebhookOptions } from './webhook.ts'
 
 /** Optional external ingress is disabled unless explicit source policy is configured. */
-export interface Config { webhook?: Omit<WebhookOptions, 'audit'> }
+export interface Config {
+  /** Signed external ingress policy; omitted leaves the webhook route unregistered. */
+  webhook?: Omit<WebhookOptions, 'audit'>
+}
 
 declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {

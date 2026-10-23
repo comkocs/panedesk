@@ -9,7 +9,7 @@ import type * as T from '@panedesk/dsh-seat'
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup() })
 async function setup() {
-  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests/.journal-'))
+  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.journal-'))
   const journals: EngineJournal[] = []
   const create = async () => { const j = new EngineJournal(root, nodeId, config.maxDecisionBytes)
     journals.push(j); await j.ready(); return j }

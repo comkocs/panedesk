@@ -63,22 +63,38 @@ export interface SeatChildThresholdRequest {
 }
 /** Message delivery owns durable idempotency and maps steer to the existing next-step lane. */
 export interface SeatReminderHost {
+  /** Submit an idempotent reminder to the existing next-step lane.
+   * @param request - Target Session, stable delivery identity and reminder content.
+   * @returns Durable acceptance or refusal without claiming model completion.
+   */
   send(request: { sessionId: SessionId; id: string; kind: 'steer'; content: string }): Promise<'accepted' | 'rejected'>
 }
 /** Durable worktree owner supplies authoritative records and authorization to policy. */
 export interface SeatWorktreeHost {
-  /** Read one complete revision; partial catalogs must reject. */
+  /** Read one complete revision; partial catalogs must reject.
+   * @returns The complete catalog and its comparison revision.
+   */
   read(): Promise<{ revision: number; trees: readonly import('./types.ts').SeatWorktreeRegistration[] }>
-  /** Atomically persist registration plus force audit before acknowledging success. */
+  /** Atomically persist registration plus force audit before acknowledging success.
+   * @param request - Registration and independent force authorization reference.
+   * @param expectedRevision - Catalog revision observed by the caller.
+   * @returns Committed registration or a revision conflict without mutation.
+   */
   commit(request: import('./types.ts').RegisterSeatWorktreeRequest, expectedRevision: number): Promise<'committed' | 'conflict'>
-  /** Resolve repository identity and read-only Git evidence, including recorded activity. */
+  /** Resolve repository identity and read-only Git evidence, including recorded activity.
+   * @param tree - Registered worktree to inspect without changing its contents.
+   * @returns Verified identity, merge and tracked-file state, and last activity time.
+   */
   inspect(tree: import('./types.ts').SeatWorktreeRegistration): Promise<{
     verified: boolean
     merged: boolean
     trackedClean: boolean
     lastChangedAt: number | null
   }>
-  /** Validate the authorization reference against the caller, never model prose. */
+  /** Validate the authorization reference against the caller, never model prose.
+   * @param request - Registration containing the caller authorization reference.
+   * @returns Whether independent authorization permits the request.
+   */
   authorize(request: import('./types.ts').RegisterSeatWorktreeRequest): Promise<boolean>
 }
 /** Each hook carries facts from its actual execution point rather than model claims. */

@@ -216,6 +216,7 @@ export class ScheduleService extends TypertRemoteService {
   }
 
   /**
+   * Register a reversible acceptor for scheduled actions.
    * @param actionId - Installed action name, such as seat.open or seat.wait.
    * @param handler - Durable acceptor; unavailable handlers retain pending tasks.
    * @returns Effect-owned removal of the handler.
@@ -225,6 +226,7 @@ export class ScheduleService extends TypertRemoteService {
   }
 
   /**
+   * Persist an action and notify the shared timer without activating a Session.
    * @param request - Existing schedule record and independently stored action data.
    * @returns Durable task without creating or resuming a Session.
    */
@@ -237,13 +239,16 @@ export class ScheduleService extends TypertRemoteService {
     })
   }
 
-  /** @returns Action tasks with current handler availability. */
+  /** Read action tasks without activating Sessions.
+   * @returns Action tasks with current handler availability.
+   */
   async listActions(): Promise<(ScheduleActionTask & { available: boolean })[]> {
     await this.initialized
     return this.actions.list()
   }
 
   /**
+   * Remove a stored action while preserving already accepted work.
    * @param id - Exact action task identity.
    * @returns Whether a task was removed; accepted downstream work is not cancelled.
    */

@@ -11,7 +11,7 @@ import { SessionSeq } from '@panedesk/dsh-session'
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true }))) })
 async function source() {
-  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests/.checkpoint-'))
+  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.checkpoint-'))
   roots.push(root)
   const path = join(root, 'rules.md')
   await writeFile(path, '# Rules\nKeep complete data.\n# Other\nOmit this section.\n')

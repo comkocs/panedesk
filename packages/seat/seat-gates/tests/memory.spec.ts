@@ -13,7 +13,7 @@ afterEach(async () => { await Promise.all(temporary.splice(0).map(path => rm(pat
 
 describe('memory ownership', () => {
   it('bounds aggregate snapshots and never attributes external changes to the current session', async () => {
-    const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests/.memory-'))
+    const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.memory-'))
     temporary.push(root)
     const path = join(root, 'note.md')
     await writeFile(path, 'before')
@@ -34,7 +34,7 @@ describe('memory ownership', () => {
     expect(checkMemoryWrite('/memory/another/note.md', null, roots)).toBeNull()
   })
   it('resolves a symlink through the nearest existing ancestor before checking a new file', async () => {
-    const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests/.memory-'))
+    const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.memory-'))
     temporary.push(root)
     await mkdir(join(root, 'owned'))
     await symlink(join(root, 'owned'), join(root, 'alias'))

@@ -810,6 +810,24 @@ Types: [Scoped](scope.md)
 
 Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
 
+<a id="agentcreate-admitting--waterfall"></a>
+
+#### `agent/create-admitting` — waterfall
+
+Admit a fresh factory request before any session is acquired. Resume bypasses this hook.
+
+```ts cordis-catalog
+/**
+ * Admit a fresh factory request before any session is acquired. Resume bypasses this hook.
+ * @param payload.options - caller-owned creation request, including explicit parent identity.
+ * @param next - delegate to remaining policies; the default allows creation.
+ * @mode waterfall
+ */
+'agent/create-admitting'(payload: { options: import('./index.ts').CreateAgentOptions }, next: () => Promise<CreateAdmissionDecision>): Promise<CreateAdmissionDecision>
+```
+
+Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
+
 <a id="agentcreated--serial"></a>
 
 #### `agent/created` — serial
@@ -1112,6 +1130,28 @@ Agent status changed (`idle` ⇄ `running`). A waking delivery enters `running` 
  * @mode emit
  */
 'agent/status'(this: Scoped<Agent>, payload: { agent: Agent; status: AgentStatus }): void
+```
+
+Types: [Scoped](scope.md)
+
+Source: [`packages/core/agent/src/runtime-types.ts`](../../packages/core/agent/src/runtime-types.ts)
+
+<a id="agentturn-admitting--waterfall"></a>
+
+#### `agent/turn-admitting` — waterfall
+
+Admit a new turn before its boundary or first input claim. Existing steps are unaffected.
+
+```ts cordis-catalog
+/**
+ * Admit a new turn before its boundary or first input claim. Existing steps are unaffected.
+ * @param payload.agent - agent proposing a new turn.
+ * @param payload.turn - proposed turn number.
+ * @param payload.signal - cancellation signal for this proposal.
+ * @param next - delegate to remaining policies; the default allows the turn.
+ * @mode waterfall
+ */
+'agent/turn-admitting'(this: Scoped<Agent>, payload: { agent: Agent; turn: number; signal: AbortSignal }, next: () => TurnAdmissionDecision | Promise<TurnAdmissionDecision>): TurnAdmissionDecision | Promise<TurnAdmissionDecision>
 ```
 
 Types: [Scoped](scope.md)

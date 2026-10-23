@@ -1346,6 +1346,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'instructionSubscriptions',
+    summary: 'Session-local registration; callers restore their durable path list during creation setup.',
+    description: 'Session-local registration; callers restore their durable path list during creation setup.',
+    methods: [
+      {
+        signature: 'register(agent: Agent, files: readonly string[]): Promise<() => Promise<void>>',
+        description: 'Register paths on an exact agent, including an unpublished creation setup.',
+        parameters: [{ name: 'agent', description: 'owner of path resolution and subscription lifetime.' }, { name: 'files', description: 'paths resolved relative to the session working directory.' }],
+        returns: 'owner-scoped disposer; repeated paths share the existing subscription.',
+      },
+    ],
+  },
+  {
     key: 'jobController',
     summary: 'Host service backing the generated `ctx.remote.job` namespace.',
     description: 'Host service backing the generated `ctx.remote.job` namespace.',
@@ -1371,6 +1384,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'jobNotifications',
+    summary: 'Optional durable outbox provider; absence retains legacy best-effort behavior.',
+    description: 'Optional durable outbox provider; absence retains legacy best-effort behavior.',
+    methods: [
+      {
+        signature: 'prepare(intent: JobIntent): JobNotificationReservation',
+        description: 'Persist intent synchronously before run; a throw prevents producer execution. Unsettled recovered intents report unknown/owner-lost, never success or replay.',
+        parameters: [{ name: 'intent', description: 'Immutable execution identity and owner.' }],
+        returns: 'An execution-bound writer retained across bridge unregistration.',
+      },
+    ],
+  },
+  {
     key: 'jobs',
     summary: 'Abstract background job registry.',
     description: 'Abstract background job registry. Subclass, implement the abstract members, and load the subclass as a plugin — it registers as `ctx.jobs` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- Registrations outlive producer and controller fibers. Owner and service disposal cancel live work and await compliant producers; a throwing teardown cancel force-fails only the record. Such settlements announce `cause: \'teardown\'`, because a job whose owner is being destroyed has no reader left.\n- Owned-job access is fenced by the owner\'s session id. Ids are predictable, so authorization — not secrecy — is the boundary.\n- Settlement is first-wins: one terminal record, released waiters, then one round of contained event delivery, even against a late producer outcome. The `settled` event follows every released waiter and reports whether it released one (`awaited`), so a completion reporter can skip settlements a waiting caller already collected.\n- A settled record stays listed until its owner\'s disposal, service disposal, or an explicit remove by a caller that collected the terminal state itself and never handed the id out.\n- start refuses work while no attached job controller serves the spec\'s owner, so a producer cannot start work that owner cannot collect or stop. One registry serves every composition in the process, so this question — and event delivery under `{ owners: \'scope\' }` — is owner-relative rather than process-wide: registrations made from an unscoped context serve every owner, and registrations made under an agent composition\'s scope serve exactly the agents composed under it.\n- Every job owns one output ring. Pull sources named by the spec are pumped by the registry and drained once more before settlement; pushed appends land whole. The model\'s consuming cursor and observers\' absolute offsets read the same bytes and never disturb each other.\n- Ring retention is bounded. Appends past the live cap drop the oldest retained bytes; a reader below the retained window gets a lossy read, never an error. Settlement trims retention to the settled cap and ends the stream; the ring has no separate lifecycle.',
@@ -1385,6 +1411,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Preflight access, validation, owner cleanup, and implementation-owned admission before starting and atomically registering work. Any preflight rejection leaves no job id or execution resource. A throwing starter leaves nothing registered; after it returns, registration cannot fail.',
         parameters: [{ name: 'spec', description: 'job identity, owner, output sources, and synchronous starter.' }],
         returns: 'the registry-issued `<kind>-<short-uuid>` id.',
+      },
+      {
+        signature: 'notificationState(id: JobId, caller?: SessionId): JobNotificationState',
+        description: 'Inspect notification durability separately from producer completion.',
+        parameters: [{ name: 'id', description: 'Registered job identity.' }, { name: 'caller', description: 'Session checked with the same authorization as get.' }],
+        returns: 'Best-effort for implementations without a durable outbox.',
       },
       {
         signature: 'abstract list(caller?: SessionId): JobView[]',
@@ -1586,6 +1618,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the evidence-based remaining estimate without dispatching a model call.',
         parameters: [{ name: 'agent', description: 'session whose cache evidence is requested.' }],
         returns: 'the observed estimate, or unknown when no evidence is available.',
+      },
+      {
+        signature: 'renewOnce(request: CacheRenewRequest): Promise<CacheRenewResult>',
+        description: 'Request at most one maintenance call under a durable operation identity.',
+        parameters: [{ name: 'request', description: 'live session and caller-retained operation identity.' }],
+        returns: 'refusal, confirmed evidence, or uncertainty without replaying an attempted call.',
       },
     ],
   },
@@ -2181,6 +2219,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Shared management service; reads, deletion, and timing edits never activate a Session.\n\n`sessionPersistence` is a load-order requirement rather than a directly called service: a delivery commits only when `ctx.sessions.flush()` reports that a `session/flush` listener participated, and the persistence backend providing this service is the plugin that registers that listener.',
     methods: [
       {
+        signature: 'registerAction(actionId: string, handler: ScheduleActionHandler): () => Promise<void>',
+        description: 'Register a reversible acceptor for scheduled actions.',
+        parameters: [{ name: 'actionId', description: 'Installed action name, such as seat.open or seat.wait.' }, { name: 'handler', description: 'Durable acceptor; unavailable handlers retain pending tasks.' }],
+        returns: 'Effect-owned removal of the handler.',
+      },
+      {
+        signature: 'async scheduleAction(request: ScheduleActionRequest): Promise<ScheduleActionTask>',
+        description: 'Persist an action and notify the shared timer without activating a Session.',
+        parameters: [{ name: 'request', description: 'Existing schedule record and independently stored action data.' }],
+        returns: 'Durable task without creating or resuming a Session.',
+      },
+      {
+        signature: 'async listActions(): Promise<(ScheduleActionTask & { available: boolean })[]>',
+        description: 'Read action tasks without activating Sessions.',
+        parameters: [],
+        returns: 'Action tasks with current handler availability.',
+      },
+      {
+        signature: 'async deleteAction(id: ScheduleIdType): Promise<boolean>',
+        description: 'Remove a stored action while preserving already accepted work.',
+        parameters: [{ name: 'id', description: 'Exact action task identity.' }],
+        returns: 'Whether a task was removed; accepted downstream work is not cancelled.',
+      },
+      {
         signature: 'async create(sessionId: SessionId, request: ScheduleCreateRequest, signal?: AbortSignal): Promise<ScheduleRecord>',
         description: 'Create a reminder bound to the caller-selected Session without activating it.\n\nThe request must supply a title; a missing, blank-after-trim, or over-long title rejects with `invalid_prompt` instead of deriving one from the prompt. A Session a delegated child owns rejects with `subagent_session`, because delivery can never reach it: the child is one whose delegation depth is above zero. The record is built from the clock reading taken before the request joins the serialized queue, so a create that waits behind a longer operation keeps its request-time anchor and may already be due when the queue reaches it.',
         parameters: [{ name: 'sessionId', description: 'Original Session receiving the reminder.' }, { name: 'request', description: 'Validated tool selector, required title, and reminder content.' }, { name: 'signal', description: 'Optional cancellation checked before persistence begins, including after FIFO waits.' }],
@@ -2216,6 +2278,632 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Update the name, instruction, and timing of an active task within the original Session binding without activating the Session or changing saved deliveries.\n\nEach supplied field replaces its stored value; an omitted field keeps it. A name or instruction change alone does not reset the committed target. A Session a delegated child owns returns the non-mutating `subagent_session` result, so an edit cannot re-arm a task bound to a Session delivery can never reach, and the Web editor can explain the refusal through the ordinary result it already renders.',
         parameters: [{ name: 'request', description: 'Task binding, complete observed record, and any combination of timing, name, and instruction.' }, { name: 'signal', description: 'Cancellation checked after domain readiness and FIFO waits, before persistence begins.' }],
         returns: 'The committed record, unchanged record for a no-op, or a non-mutating input/lookup/conflict/refusal result. Storage and lifecycle failures reject; cancellation after a write starts does not roll it back.',
+      },
+    ],
+  },
+  {
+    key: 'seatDirectories',
+    summary: 'Additional-root tools retain filesystem permission checks and do not widen shell write policy.',
+    description: 'Additional-root tools retain filesystem permission checks and do not widen shell write policy.',
+    methods: [
+      {
+        signature: 'abstract roots(sessionId: SessionId): Promise<readonly T.SeatDirectoryRoot[]>',
+        description: 'Enumerate only roots authorized for this binding.',
+        parameters: [{ name: 'sessionId', description: 'trusted caller Session.' }],
+        returns: 'registered roots and effective writability.',
+      },
+      {
+        signature: 'abstract read(request: T.SeatDirectoryReadRequest): Promise<T.SeatDirectoryReadResult>',
+        description: 'Read within a registered root with explicit truncation.',
+        parameters: [{ name: 'request', description: 'root identity, relative path and byte bound.' }],
+        returns: 'bounded content or a filesystem refusal.',
+      },
+      {
+        signature: 'abstract write(request: T.SeatDirectoryWriteRequest): Promise<T.SeatDirectoryWriteResult>',
+        description: 'Write only after memory ownership and provider permission admission.',
+        parameters: [{ name: 'request', description: 'registered root and attributed content.' }],
+        returns: 'committed write or a refusal without permission escalation.',
+      },
+      {
+        signature: 'abstract edit(request: T.SeatDirectoryEditRequest): Promise<T.SeatDirectoryWriteResult>',
+        description: 'Apply an exact edit under the same policy as write.',
+        parameters: [{ name: 'request', description: 'root identity and old/new content.' }],
+        returns: 'committed edit or a match/permission refusal.',
+      },
+    ],
+  },
+  {
+    key: 'seatEngine',
+    summary: 'Engine owns the journal, queues, resources and outbox; local providers depend only on this definition.',
+    description: 'Engine owns the journal, queues, resources and outbox; local providers depend only on this definition.',
+    methods: [
+      {
+        signature: 'abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>',
+        description: 'Commit ingress before acknowledging acceptance.',
+        parameters: [{ name: 'envelope', description: 'authenticated bounded source event.' }],
+        returns: 'stable accepted, duplicate, coalesced or rejected identity.',
+      },
+      {
+        signature: 'abstract registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void>',
+        description: 'Install the local Session executor without coupling engine storage to its implementation.',
+        parameters: [{ name: 'executor', description: 'trusted local implementation.' }],
+        returns: 'disposer that drains in-flight recovery before detaching.',
+      },
+      {
+        signature: 'abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>',
+        description: 'Queue a replacement without bypassing either window\'s capacity.',
+        parameters: [{ name: 'request', description: 'old window and retained transaction identity.' }],
+        returns: 'the durable replacement state.',
+      },
+      {
+        signature: 'abstract recordClosed(closed: import(\'./events.ts\').EngineCloseData): Promise<void>',
+        description: 'Commit a flushed close together with release and source callbacks.',
+        parameters: [{ name: 'closed', description: 'provider-confirmed archive, title and flush result.' }],
+        returns: 'after all close facts are durable.',
+      },
+      {
+        signature: 'abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>',
+        description: 'Use the same durable maintenance path as automatic renewal, marked as manual.',
+        parameters: [{ name: 'request', description: 'local window and caller-retained operation identity.' }],
+        returns: 'renewed, rejected or uncertain without conversation content.',
+      },
+      {
+        signature: 'abstract drive(): Promise<void>',
+        description: 'Reevaluate pending work and original open identities.',
+        parameters: [],
+        returns: 'after the current reconciliation batch settles.',
+      },
+      {
+        signature: 'abstract admitChild(request: T.AdmitSeatChildRequest): Promise<T.ChildAdmissionResult>',
+        description: 'Admit a child through the parent\'s persistent FIFO capacity.',
+        parameters: [{ name: 'request', description: 'frozen ticket and resolved parent limit.' }],
+        returns: 'durable queued or admitted ticket.',
+      },
+      {
+        signature: 'abstract releaseChild(ticketId: T.ChildTicketId): Promise<void>',
+        description: 'Release a settled child and wake queued admission.',
+        parameters: [{ name: 'ticketId', description: 'original admission identity.' }],
+        returns: 'after release is durable.',
+      },
+      {
+        signature: 'abstract admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission>',
+        description: 'Check a new turn before inbox claim; never interrupts an existing turn.',
+        parameters: [{ name: 'sessionId', description: 'exact window identity.' }],
+        returns: 'allow or a durable-policy deferral.',
+      },
+      {
+        signature: 'abstract auditSourceRejection(request: { sourceId: T.SeatSourceId digest: T.SeatDigest observedAt: T.SeatTimestamp error: T.SeatFailure }): Promise<void>',
+        description: 'Commit a rejected external-source attempt without admitting it to the opening queue.',
+        parameters: [{ name: 'request', description: 'bounded source identity, body digest, observation time and sanitized failure.' }],
+        returns: 'only after the source/rejected audit fact is durable; storage failures reject.',
+      },
+      {
+        signature: 'abstract registerSource(source: T.SeatTriggerSource): () => Promise<void>',
+        description: 'Register a trusted source without persisting callback code or credentials.',
+        parameters: [{ name: 'source', description: 'installed source adapter and redelivery horizon.' }],
+        returns: 'asynchronous disposer that stops ingress and drains accepted calls.',
+      },
+      {
+        signature: 'abstract transact(request: T.EngineTransactionRequest): Promise<T.EngineTransactionResult>',
+        description: 'Write one complete decision under journal ownership and sequence CAS.',
+        parameters: [{ name: 'request', description: 'bounded frame and expected committed sequence.' }],
+        returns: 'durable frame or a sequence conflict.',
+      },
+      {
+        signature: 'abstract appendEffects(request: { decisionId: import(\'./events.ts\').EngineDecisionId; expectedSequence: number; observedAt: T.SeatTimestamp; policyRevision: number; effects: readonly import(\'./events.ts\').EngineEffect[] }): Promise<T.EngineTransactionResult>',
+        description: 'Frame and commit effects under engine-owned canonical encoding and sequence CAS.',
+        parameters: [{ name: 'request', description: 'stable decision identity, observed facts and expected committed watermark.' }],
+        returns: 'committed frame, current watermark conflict or explicit refusal.',
+      },
+      {
+        signature: 'abstract ready(): Promise<void>',
+        description: 'Reconcile original identities without replaying uncertain model side effects.',
+        parameters: [],
+        returns: 'only after recovery barriers and projections are ready.',
+      },
+      {
+        signature: 'abstract shutdown(): Promise<void>',
+        description: 'Stop ingress and drain owned work without deleting persistent queues.',
+        parameters: [],
+        returns: 'only after journal flush and owner-lock release.',
+      },
+      {
+        signature: 'abstract nodeStatus(): Promise<T.SeatNodeStatus>',
+        description: 'Report local capacity and recovery state.',
+        parameters: [],
+        returns: 'node alias, window count and explicit unlimited capacity.',
+      },
+      {
+        signature: 'abstract setProjectMode(request: T.SetProjectModeRequest): Promise<T.SetProjectModeResult>',
+        description: 'Select the project mode explicitly, retaining paused work on tightening.',
+        parameters: [{ name: 'request', description: 'policy revision and new mode.' }],
+        returns: 'committed modeChosen policy.',
+      },
+      {
+        signature: 'abstract projectPolicy(projectId: T.SeatProjectId): Promise<T.SeatProjectPolicy>',
+        description: 'Query project mode without changing the first-choice flag.',
+        parameters: [{ name: 'projectId', description: 'exact policy owner.' }],
+        returns: 'resolved policy, defaulting to remind and modeChosen false.',
+      },
+      {
+        signature: 'abstract pending(request: T.ListPendingSeatsRequest): Promise<T.ListPendingSeatsResult>',
+        description: 'Read durable pending work without exposing source credentials.',
+        parameters: [{ name: 'request', description: 'bounded filters and cursor.' }],
+        returns: 'page, watermark and completeness.',
+      },
+      {
+        signature: 'abstract approve(request: T.ApprovePendingSeatRequest): Promise<T.PendingSeatMutationResult>',
+        description: 'Approve only reminder confirmation; all other admission rules still apply.',
+        parameters: [{ name: 'request', description: 'pending identity and expected version.' }],
+        returns: 'committed approval or conflict.',
+      },
+      {
+        signature: 'abstract cancel(request: T.CancelPendingSeatRequest): Promise<T.PendingSeatMutationResult>',
+        description: 'Cancel unopened work without closing an existing window.',
+        parameters: [{ name: 'request', description: 'pending identity and expected version.' }],
+        returns: 'committed cancellation or conflict.',
+      },
+      {
+        signature: 'abstract configureBudget(request: T.ConfigureSeatBudgetRequest): Promise<T.ConfigureSeatBudgetResult>',
+        description: 'Reconfigure authorized budget limits without erasing cost evidence.',
+        parameters: [{ name: 'request', description: 'expected budget revision and authorization reference.' }],
+        returns: 'reevaluated committed budget.',
+      },
+      {
+        signature: 'abstract budget(sessionId: SessionId): Promise<T.SeatBudgetSnapshot>',
+        description: 'Read reference-price cost, including descendants and maintenance.',
+        parameters: [{ name: 'sessionId', description: 'local window identity.' }],
+        returns: 'known or unknown cost with the committed watermark.',
+      },
+      {
+        signature: 'abstract accountUsage(request: T.SeatAccountUsageRequest): Promise<T.SeatAccountUsageResult>',
+        description: 'Aggregate accounting evidence without imposing an account concurrency default.',
+        parameters: [{ name: 'request', description: 'half-open interval and optional local-node filter.' }],
+        returns: 'rate-limit counts, unique calls, peak concurrency and unknown-account bucket.',
+      },
+      {
+        signature: 'abstract query(request: T.EngineQueryRequest): Promise<T.EngineQueryResult>',
+        description: 'Read committed engine effects with exclusive cursor advancement.',
+        parameters: [{ name: 'request', description: 'bounded filters and half-open time range.' }],
+        returns: 'effects, watermark and explicit completeness.',
+      },
+      {
+        signature: 'abstract export(request: T.EngineExportRequest): Promise<T.EngineExportResult>',
+        description: 'Export stable ordered JSONL; raw authorized data is explicit opt-in.',
+        parameters: [{ name: 'request', description: 'target file and redaction authorization.' }],
+        returns: 'exported count and digest or an actionable failure.',
+      },
+      {
+        signature: 'abstract verify(request: T.EngineVerifyRequest): Promise<T.EngineVerifyResult>',
+        description: 'Verify an offline file without executing its imported operations.',
+        parameters: [{ name: 'request', description: 'explicit input file.' }],
+        returns: 'framing integrity, preserved-tail status and watermark.',
+      },
+      {
+        signature: 'abstract ticket(ticketId: T.ChildTicketId): Promise<T.ChildAdmissionTicket | null>',
+        description: 'Observe admission without blocking the parent tool on capacity.',
+        parameters: [{ name: 'ticketId', description: 'retained admission identity.' }],
+        returns: 'committed ticket or null when absent.',
+      },
+      {
+        signature: 'abstract cancelTicket(request: T.CancelChildTicketRequest): Promise<T.CancelChildTicketResult>',
+        description: 'Cancel an unstarted child request without terminating running work.',
+        parameters: [{ name: 'request', description: 'parent authorization and expected version.' }],
+        returns: 'cancelled or already-admitted state.',
+      },
+      {
+        signature: 'abstract subscribe(cursor?: T.EngineCursor): AsyncIterable<EngineDecision>',
+        description: 'Replay committed decisions then observe new ones; return releases the subscription.',
+        parameters: [{ name: 'cursor', description: 'exclusive durable resume point, absent starts at retained history.' }],
+        returns: 'ordered durable frames; storage errors reject iteration.',
+      },
+    ],
+  },
+  {
+    key: 'seatEngineQuery',
+    summary: 'Offline observations never acquire ownership, repair storage or start runtime drivers.',
+    description: 'Offline observations never acquire ownership, repair storage or start runtime drivers.',
+    methods: [
+      {
+        signature: 'abstract query(request: T.EngineQueryRequest): Promise<T.EngineQueryResult | T.SeatRejected>',
+        description: 'Read verified facts through the last complete frame.',
+        parameters: [{ name: 'request', description: 'bounded filters and exclusive cursor.' }],
+        returns: 'facts and watermark, or a structured storage refusal.',
+      },
+      {
+        signature: 'abstract pending(request: T.ListPendingSeatsRequest): Promise<T.ListPendingSeatsResult | T.SeatRejected>',
+        description: 'Rebuild pending work without activating it.',
+        parameters: [{ name: 'request', description: 'bounded pending filters.' }],
+        returns: 'redacted pending page or a structured storage refusal.',
+      },
+      {
+        signature: 'abstract export(request: T.EngineExportRequest): Promise<(Extract<T.EngineExportResult, { status: \'exported\' }> & { content: string; complete: boolean }) | T.SeatRejected>',
+        description: 'Return JSONL content in memory; the requested output path is never written.',
+        parameters: [{ name: 'request', description: 'selection and explicit raw-data authorization.' }],
+        returns: 'content, digest and coverage, or a structured storage refusal.',
+      },
+      {
+        signature: 'abstract verify(request: T.EngineVerifyRequest): Promise<T.EngineVerifyResult>',
+        description: 'Verify a file without importing or repairing it.',
+        parameters: [{ name: 'request', description: 'explicit input file.' }],
+        returns: 'framing integrity or a structured storage refusal.',
+      },
+    ],
+  },
+  {
+    key: 'seatGates',
+    summary: 'Registry provider owns deterministic evaluation, durable hit counts and expiration.',
+    description: 'Registry provider owns deterministic evaluation, durable hit counts and expiration.',
+    methods: [
+      {
+        signature: 'abstract register(criterion: GateCriterion): () => void',
+        description: 'Register installed code, never source-provided expressions.',
+        parameters: [{ name: 'criterion', description: 'typed evaluator with validated parameter ownership.' }],
+        returns: 'disposer that removes the contribution.',
+      },
+      {
+        signature: 'abstract evaluate(context: GateContext): Promise<readonly GateResult[]>',
+        description: 'Evaluate order/id deterministically and commit each stable call\'s hit once.',
+        parameters: [{ name: 'context', description: 'executor-owned facts and invocation identity.' }],
+        returns: 'ordered decisions; deny may short-circuit subsequent gates.',
+      },
+      {
+        signature: 'abstract list(request: T.ListSeatGatesRequest): Promise<T.ListSeatGatesResult>',
+        description: 'Read hit counts and expiry by revision.',
+        parameters: [{ name: 'request', description: 'bounded gate filters.' }],
+        returns: 'committed counter page.',
+      },
+      {
+        signature: 'abstract registerWorktree(request: T.RegisterSeatWorktreeRequest): Promise<T.SeatWorktreeResult>',
+        description: 'Verify explicit worktree registration without scanning unrelated directories.',
+        parameters: [{ name: 'request', description: 'tree, policy identity and optional authorized force.' }],
+        returns: 'registration or executable alternatives.',
+      },
+      {
+        signature: 'abstract onTaskEnded(request: T.SeatTaskEndedRequest): Promise<T.SeatWorktreeResult>',
+        description: 'Publish cleanup suggestions without deleting or committing any tree.',
+        parameters: [{ name: 'request', description: 'authenticated task settlement fact.' }],
+        returns: 'affected trees and safe alternatives.',
+      },
+      {
+        signature: 'abstract remindChild(request: import(\'./gates.ts\').SeatChildThresholdRequest): Promise<\'sent\' | \'below\' | \'unknown\' | \'unavailable\'>',
+        description: 'Emit one durable next-step handoff reminder per child context epoch and threshold revision.',
+        parameters: [{ name: 'request', description: 'child-owned context evidence and bounded handoff summary.' }],
+        returns: 'observable delivery or evidence status; never changes notice semantics.',
+      },
+    ],
+  },
+  {
+    key: 'seatReminderHost',
+    summary: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
+    description: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
+    methods: [
+      {
+        signature: 'send(request: { sessionId: SessionId; id: string; kind: \'steer\'; content: string }): Promise<\'accepted\' | \'rejected\'>',
+        description: 'Submit an idempotent reminder to the existing next-step lane.',
+        parameters: [{ name: 'request', description: 'Target Session, stable delivery identity and reminder content.' }],
+        returns: 'Durable acceptance or refusal without claiming model completion.',
+      },
+    ],
+  },
+  {
+    key: 'seatRemote',
+    summary: 'Host owner of the seats namespace; absent providers never activate a replacement runtime.',
+    description: 'Host owner of the seats namespace; absent providers never activate a replacement runtime.',
+    methods: [
+      {
+        signature: '@Remote(\'import.preview\') async previewImport(request: SeatRequestMap[\'seats/import.preview\'][\'params\']): Promise<SeatRequestMap[\'seats/import.preview\'][\'result\']>',
+        description: 'Preview source rows without mutating the catalog.',
+        parameters: [{ name: 'request', description: 'source, mapping and defaults.' }],
+        returns: 'revision-bound row comparisons.',
+      },
+      {
+        signature: '@Remote(\'import.commit\') async commitImport(request: SeatRequestMap[\'seats/import.commit\'][\'params\']): Promise<SeatRequestMap[\'seats/import.commit\'][\'result\']>',
+        description: 'Commit selected rows against the original preview revision.',
+        parameters: [{ name: 'request', description: 'preview identity and row selection.' }],
+        returns: 'committed revision and row outcomes.',
+      },
+      {
+        signature: '@Remote async setAuthority(request: SeatRequestMap[\'seats/setAuthority\'][\'params\']): Promise<SeatRequestMap[\'seats/setAuthority\'][\'result\']>',
+        description: 'Transfer editing authority only with independent authorization.',
+        parameters: [{ name: 'request', description: 'observed revision and authorization reference.' }],
+        returns: 'committed revision or refusal.',
+      },
+      {
+        signature: '@Remote(\'report.submit\') async submitReport(request: SeatRequestMap[\'seats/report.submit\'][\'params\']): Promise<SeatRequestMap[\'seats/report.submit\'][\'result\']>',
+        description: 'Record all report fields without asserting runtime idleness.',
+        parameters: [{ name: 'request', description: 'report and stable operation identity.' }],
+        returns: 'committed report version.',
+      },
+      {
+        signature: '@Remote(\'wait.register\') async registerWait(request: SeatRequestMap[\'seats/wait.register\'][\'params\']): Promise<SeatRequestMap[\'seats/wait.register\'][\'result\']>',
+        description: 'Register observations without blocking on task completion.',
+        parameters: [{ name: 'request', description: 'explicit objects and registration identity.' }],
+        returns: 'committed wait state.',
+      },
+      {
+        signature: '@Remote(\'wait.cancel\') async cancelWait(request: SeatRequestMap[\'seats/wait.cancel\'][\'params\']): Promise<SeatRequestMap[\'seats/wait.cancel\'][\'result\']>',
+        description: 'Cancel observation without cancelling underlying tasks.',
+        parameters: [{ name: 'request', description: 'wait identity and observed version.' }],
+        returns: 'committed wait state.',
+      },
+      {
+        signature: '@Remote async list(request: SeatRequestMap[\'seats/list\'][\'params\']): Promise<SeatRequestMap[\'seats/list\'][\'result\']>',
+        description: 'List owner-authorized runtime evidence.',
+        parameters: [{ name: 'request', description: 'local filters.' }],
+        returns: 'window page including unopened seats.',
+      },
+      {
+        signature: '@Remote async open(request: SeatRequestMap[\'seats/open\'][\'params\']): Promise<SeatRequestMap[\'seats/open\'][\'result\']>',
+        description: 'Open through the shared provider, forcing remote automatic opening.',
+        parameters: [{ name: 'request', description: 'seat and retained operation identity.' }],
+        returns: 'provider result without waiting for the first model response.',
+      },
+      {
+        signature: '@Remote async openBatch(request: SeatRequestMap[\'seats/openBatch\'][\'params\']): Promise<SeatRequestMap[\'seats/openBatch\'][\'result\']>',
+        description: 'Open an explicit bounded list without wildcard expansion.',
+        parameters: [{ name: 'request', description: 'names and operation identity.' }],
+        returns: 'independent provider outcomes.',
+      },
+      {
+        signature: '@Remote async renew(request: SeatRequestMap[\'seats/renew\'][\'params\']): Promise<SeatRequestMap[\'seats/renew\'][\'result\']>',
+        description: 'Renew once without conversation text.',
+        parameters: [{ name: 'request', description: 'local session and stable operation.' }],
+        returns: 'maintenance evidence.',
+      },
+      {
+        signature: '@Remote async close(request: SeatRequestMap[\'seats/close\'][\'params\']): Promise<SeatRequestMap[\'seats/close\'][\'result\']>',
+        description: 'Close only at the observed idle version.',
+        parameters: [{ name: 'request', description: 'local session and version.' }],
+        returns: 'closed or busy evidence.',
+      },
+      {
+        signature: '@Remote async replace(request: SeatRequestMap[\'seats/replace\'][\'params\']): Promise<SeatRequestMap[\'seats/replace\'][\'result\']>',
+        description: 'Start a recoverable replacement without closing old first.',
+        parameters: [{ name: 'request', description: 'old session and stable operation.' }],
+        returns: 'replacement progress.',
+      },
+      {
+        signature: '@Remote async rename(request: SeatRequestMap[\'seats/rename\'][\'params\']): Promise<SeatRequestMap[\'seats/rename\'][\'result\']>',
+        description: 'Preserve upstream user-title pinning.',
+        parameters: [{ name: 'request', description: 'explicit title and local session.' }],
+        returns: 'committed title.',
+      },
+      {
+        signature: '@Remote async wake(request: SeatRequestMap[\'seats/wake\'][\'params\']): Promise<SeatRequestMap[\'seats/wake\'][\'result\']>',
+        description: 'Deliver the stored wake text or open an unopened seat.',
+        parameters: [{ name: 'request', description: 'explicit seat and optional session.' }],
+        returns: 'delivery or open outcome.',
+      },
+      {
+        signature: '@Remote async binding(request: SeatRequestMap[\'seats/binding\'][\'params\']): Promise<SeatRequestMap[\'seats/binding\'][\'result\']>',
+        description: 'Read metadata outside the Session log.',
+        parameters: [{ name: 'request', description: 'local session.' }],
+        returns: 'binding or absent metadata.',
+      },
+      {
+        signature: '@Remote async operation(request: SeatRequestMap[\'seats/operation\'][\'params\']): Promise<SeatRequestMap[\'seats/operation\'][\'result\']>',
+        description: 'Observe a pending operation without retrying effects.',
+        parameters: [{ name: 'request', description: 'operation identity.' }],
+        returns: 'durable operation state.',
+      },
+      {
+        signature: '@Remote async setProjectMode(request: SeatRequestMap[\'seats/setProjectMode\'][\'params\']): Promise<SeatRequestMap[\'seats/setProjectMode\'][\'result\']>',
+        description: 'Select project policy with revision comparison.',
+        parameters: [{ name: 'request', description: 'project, mode and observed revision.' }],
+        returns: 'the durably committed policy.',
+      },
+      {
+        signature: '@Remote async pending(request: SeatRequestMap[\'seats/pending\'][\'params\']): Promise<SeatRequestMap[\'seats/pending\'][\'result\']>',
+        description: 'Read pending work without admitting it.',
+        parameters: [{ name: 'request', description: 'page size and filters.' }],
+        returns: 'a committed queue page.',
+      },
+      {
+        signature: '@Remote async approve(request: SeatRequestMap[\'seats/approve\'][\'params\']): Promise<SeatRequestMap[\'seats/approve\'][\'result\']>',
+        description: 'Approve pending work without bypassing admission.',
+        parameters: [{ name: 'request', description: 'queue item and observed version.' }],
+        returns: 'the committed approval result.',
+      },
+      {
+        signature: '@Remote async cancel(request: SeatRequestMap[\'seats/cancel\'][\'params\']): Promise<SeatRequestMap[\'seats/cancel\'][\'result\']>',
+        description: 'Cancel pending work without closing a window.',
+        parameters: [{ name: 'request', description: 'queue item and observed version.' }],
+        returns: 'the committed cancellation result.',
+      },
+      {
+        signature: '@Remote async gates(request: SeatRequestMap[\'seats/gates\'][\'params\']): Promise<SeatRequestMap[\'seats/gates\'][\'result\']>',
+        description: 'Read committed gate state.',
+        parameters: [{ name: 'request', description: 'gate filters and cursor.' }],
+        returns: 'a gate state page.',
+      },
+      {
+        signature: '@Remote async nodeStatus(request: SeatRequestMap[\'seats/nodeStatus\'][\'params\']): Promise<SeatRequestMap[\'seats/nodeStatus\'][\'result\']>',
+        description: 'Read local node state without activating providers.',
+        parameters: [{ name: 'request', description: 'empty parameter object.' }],
+        returns: 'the node alias and capacity.',
+      },
+    ],
+  },
+  {
+    key: 'seats',
+    summary: 'Unified node-local operations; provider derives authority from authenticated context, never wire tags.',
+    description: 'Unified node-local operations; provider derives authority from authenticated context, never wire tags.',
+    methods: [
+      {
+        signature: 'abstract withAuthority(authority: T.SeatCallContext): SeatService',
+        description: 'Derive an operation-local facade from verified server-side authority, never raw request fields.',
+        parameters: [{ name: 'authority', description: 'principal, node and origin already authenticated by the trusted adapter.' }],
+        returns: 'a scoped facade with no process-global current identity.',
+      },
+      {
+        signature: 'abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>',
+        description: 'List authorized definitions without activating Sessions.',
+        parameters: [{ name: 'request', description: 'local catalog filters and pagination.' }],
+        returns: 'revisioned catalog page.',
+      },
+      {
+        signature: 'abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>',
+        description: 'Resolve and freeze all defaults before an operation can produce side effects.',
+        parameters: [{ name: 'seat', description: 'exact local definition key.' }],
+        returns: 'validated definition or an actionable rejection.',
+      },
+      {
+        signature: 'abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>',
+        description: 'Edit only when the catalog is authoritative.',
+        parameters: [{ name: 'request', description: 'replacement definition and expected revision.' }],
+        returns: 'committed revision or a conflict.',
+      },
+      {
+        signature: 'abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>',
+        description: 'Compare source, baseline and local fields without mutating the catalog.',
+        parameters: [{ name: 'request', description: 'selected source table, mapping and explicit defaults.' }],
+        returns: 'per-row preview or a source failure.',
+      },
+      {
+        signature: 'abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>',
+        description: 'Recheck source bytes and revision before applying selected rows.',
+        parameters: [{ name: 'request', description: 'original preview identity and explicit row selection.' }],
+        returns: 'committed rows and retained conflicts.',
+      },
+      {
+        signature: 'abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>',
+        description: 'Change the sole editing authority only with external authorization.',
+        parameters: [{ name: 'request', description: 'authorized compare-and-swap request.' }],
+        returns: 'committed catalog revision.',
+      },
+      {
+        signature: 'abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>',
+        description: 'List runtime-derived states, including unavailable evidence.',
+        parameters: [{ name: 'request', description: 'authorized local filters and cursor.' }],
+        returns: 'windows and unopened definitions with completeness.',
+      },
+      {
+        signature: 'abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>',
+        description: 'Create through one durable intent; bind ledger identity before the first run starts.',
+        parameters: [{ name: 'request', description: 'caller-stable identity and exact definition.' }],
+        returns: 'created, prefilled, pending, choice or rejected outcome.',
+      },
+      {
+        signature: 'abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>',
+        description: 'Validate the entire explicit name list before opening any window.',
+        parameters: [{ name: 'request', description: 'bounded names without wildcard expansion.' }],
+        returns: 'independent per-seat outcomes.',
+      },
+      {
+        signature: 'abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>',
+        description: 'Perform one cache maintenance request without adding conversation text.',
+        parameters: [{ name: 'request', description: 'retained operation identity and local Session.' }],
+        returns: 'renewed, rejected or uncertain with cache evidence.',
+      },
+      {
+        signature: 'abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>',
+        description: 'Close only after an admission barrier and a second complete idle check.',
+        parameters: [{ name: 'request', description: 'observed state version and operation identity.' }],
+        returns: 'closed, busy or conflicting state without force-stopping work.',
+      },
+      {
+        signature: 'abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>',
+        description: 'Open new before closing old; queue until both windows fit all capacity limits.',
+        parameters: [{ name: 'request', description: 'old Session and replacement operation identity.' }],
+        returns: 'durable replacement phase, including failed-new cleanup.',
+      },
+      {
+        signature: 'abstract rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult>',
+        description: 'Preserve upstream user-title pinning.',
+        parameters: [{ name: 'request', description: 'title and retained operation identity.' }],
+        returns: 'the committed upstream title snapshot.',
+      },
+      {
+        signature: 'abstract wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult>',
+        description: 'Send the definition\'s wake text or delegate an unopened seat to open.',
+        parameters: [{ name: 'request', description: 'explicit target when multiple windows exist.' }],
+        returns: 'mail acknowledgement, open result or candidate choices.',
+      },
+      {
+        signature: 'abstract binding(request: T.SeatBindingRequest): Promise<T.SeatBinding | null | T.SeatRejected>',
+        description: 'Inspect metadata held outside the Session log.',
+        parameters: [{ name: 'request', description: 'local Session identity.' }],
+        returns: 'binding, null for absent metadata, or a node refusal.',
+      },
+      {
+        signature: 'abstract resolveDirectoryChoice(request: T.ResolveDirectoryChoiceRequest): Promise<T.DirectoryChoiceResult>',
+        description: 'Resolve traditional creation before any Session or directory side effect.',
+        parameters: [{ name: 'request', description: 'canonical path and optional single-use confirmation.' }],
+        returns: 'free admission, seat admission or candidate choices.',
+      },
+      {
+        signature: 'abstract submitReport(request: T.SubmitCloseReportRequest): Promise<T.CloseReportResult>',
+        description: 'Record three report fields without treating model claims as runtime state.',
+        parameters: [{ name: 'request', description: 'bounded report and optional trusted tool attribution.' }],
+        returns: 'committed report revision.',
+      },
+      {
+        signature: 'abstract revokeReport(request: T.RevokeCloseReportRequest): Promise<T.CloseReportResult>',
+        description: 'Invalidate an older automatic-close candidate atomically.',
+        parameters: [{ name: 'request', description: 'report identity and expected state version.' }],
+        returns: 'committed revocation or conflict.',
+      },
+      {
+        signature: 'abstract registerWait(request: T.RegisterSeatWaitRequest): Promise<T.RegisterSeatWaitResult>',
+        description: 'Register observations without awaiting task completion; tools then conclude the turn.',
+        parameters: [{ name: 'request', description: 'authorized objects, stable wait and operation identities.' }],
+        returns: 'durable registration, including already-visible terminal observations.',
+      },
+      {
+        signature: 'abstract cancelWait(request: T.CancelSeatWaitRequest): Promise<T.CancelSeatWaitResult>',
+        description: 'Cancel only observation, never the underlying tasks.',
+        parameters: [{ name: 'request', description: 'expected wait state and operation identity.' }],
+        returns: 'cancelled or already settled wait.',
+      },
+      {
+        signature: 'abstract wait(waitId: T.WaitId): Promise<T.SeatWait | null>',
+        description: 'Observe a wait without causing a second wake.',
+        parameters: [{ name: 'waitId', description: 'retained registration identity.' }],
+        returns: 'committed state or null if absent.',
+      },
+      {
+        signature: 'abstract operation(request: T.SeatOperationQuery): Promise<T.SeatOperationResult>',
+        description: 'Observe replacement or opening recovery without resubmitting side effects.',
+        parameters: [{ name: 'request', description: 'caller-retained operation identity.' }],
+        returns: 'missing, pending or settled state.',
+      },
+      {
+        signature: 'abstract contextUsage(sessionId: SessionId): Promise<T.SeatContextUsage>',
+        description: 'Read current-context estimates rather than accumulated ledger tokens.',
+        parameters: [{ name: 'sessionId', description: 'authorized local Session.' }],
+        returns: 'dated evidence or explicit unknown state.',
+      },
+    ],
+  },
+  {
+    key: 'seatWorktreeHost',
+    summary: 'Durable worktree owner supplies authoritative records and authorization to policy.',
+    description: 'Durable worktree owner supplies authoritative records and authorization to policy.',
+    methods: [
+      {
+        signature: 'read(): Promise<{ revision: number; trees: readonly import(\'./types.ts\').SeatWorktreeRegistration[] }>',
+        description: 'Read one complete revision; partial catalogs must reject.',
+        parameters: [],
+        returns: 'The complete catalog and its comparison revision.',
+      },
+      {
+        signature: 'commit(request: import(\'./types.ts\').RegisterSeatWorktreeRequest, expectedRevision: number): Promise<\'committed\' | \'conflict\'>',
+        description: 'Atomically persist registration plus force audit before acknowledging success.',
+        parameters: [{ name: 'request', description: 'Registration and independent force authorization reference.' }, { name: 'expectedRevision', description: 'Catalog revision observed by the caller.' }],
+        returns: 'Committed registration or a revision conflict without mutation.',
+      },
+      {
+        signature: 'inspect(tree: import(\'./types.ts\').SeatWorktreeRegistration): Promise<{ verified: boolean merged: boolean trackedClean: boolean lastChangedAt: number | null }>',
+        description: 'Resolve repository identity and read-only Git evidence, including recorded activity.',
+        parameters: [{ name: 'tree', description: 'Registered worktree to inspect without changing its contents.' }],
+        returns: 'Verified identity, merge and tracked-file state, and last activity time.',
+      },
+      {
+        signature: 'authorize(request: import(\'./types.ts\').RegisterSeatWorktreeRequest): Promise<boolean>',
+        description: 'Validate the authorization reference against the caller, never model prose.',
+        parameters: [{ name: 'request', description: 'Registration containing the caller authorization reference.' }],
+        returns: 'Whether independent authorization permits the request.',
       },
     ],
   },
@@ -2357,6 +3045,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Stream a complete live-control baseline followed by replacement frames.',
         parameters: [{ name: 'signal', description: 'cancellation owned by the Remote stream carrier.' }],
         returns: 'one complete baseline followed by live replacement frames.',
+      },
+    ],
+  },
+  {
+    key: 'sessionCreation',
+    summary: 'Optional process-local scope for callers that own a reserved session identity.',
+    description: 'Optional process-local scope for callers that own a reserved session identity.',
+    methods: [
+      {
+        signature: 'async create(request: ExactSessionCreation & { readonly cwd: string; readonly agentPreset?: string }): Promise<ApiSessionCreated>',
+        description: 'Create exactly the reserved identity with unpublished composition and local model selection.',
+        parameters: [{ name: 'request', description: 'trusted creation capability and explicit placement.' }],
+        returns: 'the newly published Agent; existing identities are never adopted.',
+      },
+      {
+        signature: 'async withExactIdentity<T>(request: ExactSessionCreation, operation: () => Promise<T>): Promise<T>',
+        description: 'Invoke the existing creation API without permitting identity substitution or reuse.',
+        parameters: [{ name: 'request', description: 'reserved identity and trusted unpublished setup.' }, { name: 'operation', description: 'one awaited invocation of the existing creation API.' }],
+        returns: 'the operation\'s result; detached and repeated invocations are rejected.',
+      },
+      {
+        signature: 'claim(sessionId: SessionId | undefined): ExactSessionCreation | undefined',
+        description: 'Consume this invocation\'s creation capability, if present.',
+        parameters: [{ name: 'sessionId', description: 'identity supplied to the ordinary creation API.' }],
+        returns: 'the trusted setup, or undefined outside a controlled invocation.',
       },
     ],
   },
@@ -3293,6 +4006,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'subagentAdmission',
+    summary: 'Optional policy reserves capacity before the original parent-chain pool.',
+    description: 'Optional policy reserves capacity before the original parent-chain pool.',
+    methods: [
+      {
+        signature: 'acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>',
+        description: 'Reserve capacity before starting an activation.',
+        parameters: [{ name: 'spec', description: 'Validated start request; the provider owns durable FIFO and replay.' }],
+        returns: 'A reservation or a nonblocking queue ticket.',
+      },
+      {
+        signature: 'continue(parent: Agent, childId: SessionId): Promise<void>',
+        description: 'Authorize continuation using the existing child evidence.',
+        parameters: [{ name: 'parent', description: 'Authorized parent requesting another child turn.' }, { name: 'childId', description: 'Child whose own cache/context evidence must be checked.' }],
+        returns: 'Only after continuation policy permits input; rejection must include an alternative.',
+      },
+      {
+        signature: 'resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>',
+        description: 'Reserve capacity for a cold activation after durable lineage validation.',
+        parameters: [{ name: 'parent', description: 'Authorized direct parent.' }, { name: 'childId', description: 'Existing child; never create another identity on replay.' }],
+        returns: 'A reservation or a durable nonblocking ticket.',
+      },
+    ],
+  },
+  {
     key: 'subagentModelSelection',
     summary: 'Singleton settings owner read when delegation tools are composed for a Session.',
     description: 'Singleton settings owner read when delegation tools are composed for a Session.',
@@ -3302,6 +4040,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read a detached selection preference for the next eligible Session composition.',
         parameters: [],
         returns: 'the enabled state and exact allowed routes.',
+      },
+    ],
+  },
+  {
+    key: 'subagentNotifications',
+    summary: 'Optional bridge accepts the original settlement message instead of duplicating it.',
+    description: 'Optional bridge accepts the original settlement message instead of duplicating it.',
+    methods: [
+      {
+        signature: 'accept(request: { parent: Agent childId: SessionId runId: SubagentRunId result: SubagentResult message: import(\'@panedesk/dsh-llm\').UserMessage eventKind: \'subagent\' messageClass: \'handoff\' delivery: \'steer\' }): Promise<void>',
+        description: 'Accept settlement through the durable notification outbox.',
+        parameters: [{ name: 'request', description: 'Original parent, child, result and model-visible message.' }],
+        returns: 'After durable outbox acceptance; retries must deduplicate the run identity.',
       },
     ],
   },
@@ -3327,6 +4078,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Start a local or external child.',
         parameters: [{ name: 'spec', description: 'task, backend, and result recipient.' }],
         returns: 'activation with a message id only for local children.',
+      },
+      {
+        signature: 'async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>',
+        description: 'Request activation while preserving durable queue admission outcomes.',
+        parameters: [{ name: 'spec', description: 'Task, backend, and result recipient.' }],
+        returns: 'An activation or a durable queued ticket without waiting for capacity.',
       },
       {
         signature: 'async waitForChildren(parent: Agent): Promise<boolean>',
@@ -3883,6 +4640,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: '`ctx.userQuestions`: validation plus the scoped answerer waterfall.',
     methods: [
       {
+        signature: 'pendingForSession(session: Session): SessionPendingQuestions',
+        description: 'Read pending questions without creating a human interaction or resuming an agent.',
+        parameters: [{ name: 'session', description: 'exact attached session whose projection and live waits are requested.' }],
+        returns: 'detached snapshot; unavailable projection is never reported as known empty.',
+      },
+      {
         signature: '@Remote answer(agent: Agent, callId: ToolCallId, answer: AskUserQuestionAnswer): boolean',
         description: 'Answer a continued question. The reply is steered into the agent as a user message whose source names the call; that message is also the record that closes the question in the projection.',
         parameters: [{ name: 'agent', description: 'Live root agent for the owning Session.' }, { name: 'callId', description: 'Continued question identity.' }, { name: 'answer', description: 'Complete structured answer batch, one item per question of the call.' }],
@@ -4321,6 +5084,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.frame - one ordered start, chunk, or end publication. Scope-filtered dispatch (`@panedesk/dsh-scope`): agent-scoped listeners receive only that agent.' }],
   },
   {
+    name: 'agent/create-admitting',
+    mode: 'waterfall',
+    signature: '\'agent/create-admitting\'(payload: { options: import(\'./index.ts\').CreateAgentOptions }, next: () => Promise<CreateAdmissionDecision>): Promise<CreateAdmissionDecision>',
+    summary: 'Admit a fresh factory request before any session is acquired.',
+    description: 'Admit a fresh factory request before any session is acquired. Resume bypasses this hook.',
+    parameters: [{ name: 'payload', description: '.options - caller-owned creation request, including explicit parent identity.' }, { name: 'next', description: 'delegate to remaining policies; the default allows creation.' }],
+  },
+  {
     name: 'agent/created',
     mode: 'serial',
     signature: '\'agent/created\'(this: Scoped<Agent>, payload: { agent: Agent; source: SessionStartSource; signal?: AbortSignal }): undefined | Promise<undefined>',
@@ -4423,6 +5194,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Agent status changed (`idle` ⇄ `running`).',
     description: 'Agent status changed (`idle` ⇄ `running`). A waking delivery enters `running` synchronously after reserving cancellation; `idle` means no driver remains scheduled or active.',
     parameters: [{ name: 'payload', description: '.status - the status just entered (the transition\'s destination). Scope-filtered dispatch (`@panedesk/dsh-scope`): agent-scoped listeners receive only that agent.' }],
+  },
+  {
+    name: 'agent/turn-admitting',
+    mode: 'waterfall',
+    signature: '\'agent/turn-admitting\'(this: Scoped<Agent>, payload: { agent: Agent; turn: number; signal: AbortSignal }, next: () => TurnAdmissionDecision | Promise<TurnAdmissionDecision>): TurnAdmissionDecision | Promise<TurnAdmissionDecision>',
+    summary: 'Admit a new turn before its boundary or first input claim.',
+    description: 'Admit a new turn before its boundary or first input claim. Existing steps are unaffected.',
+    parameters: [{ name: 'payload', description: '.signal - cancellation signal for this proposal.' }, { name: 'next', description: 'delegate to remaining policies; the default allows the turn.' }],
   },
   {
     name: 'agent/turn-stopping',
@@ -4721,6 +5500,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'payload', description: '.file - written path and post-write hash used for exact self-write suppression.' }],
   },
   {
+    name: 'ledger-watch/owner-settled',
+    mode: 'emit',
+    signature: '\'ledger-watch/owner-settled\'(payload: LedgerOwnerSettled): void',
+    summary: 'A killed run has a durable terminal acknowledgement; consumers must fence by run identity.',
+    description: 'A killed run has a durable terminal acknowledgement; consumers must fence by run identity.',
+    parameters: [{ name: 'payload', description: 'exact owner and acknowledged terminal evidence; repeat delivery is possible.' }],
+  },
+  {
     name: 'llm/adapters-updated',
     mode: 'emit',
     signature: '\'llm/adapters-updated\'(): void',
@@ -4799,6 +5586,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     description: 'Durable task set changed; clients refetch global task and Session-active catalogs.',
     parameters: [],
+  },
+  {
+    name: 'seat/decision',
+    mode: 'parallel',
+    signature: '\'seat/decision\'(decision: EngineDecision): void',
+    summary: 'Published only after a decision is durable; observer failure cannot undo the commit.',
+    description: 'Published only after a decision is durable; observer failure cannot undo the commit.',
+    parameters: [{ name: 'decision', description: 'committed frame and its complete effects.' }],
+  },
+  {
+    name: 'seat/ready',
+    mode: 'parallel',
+    signature: '\'seat/ready\'(status: import(\'./types.ts\').SeatNodeStatus): void',
+    summary: 'Runtime readiness starts the host-recovery resource-release timing interval.',
+    description: 'Runtime readiness starts the host-recovery resource-release timing interval.',
+    parameters: [{ name: 'status', description: 'local node state, including the ready timestamp.' }],
   },
   {
     name: 'session-telemetry/record',
@@ -4969,6 +5772,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'exec', description: 'the execution object that traversed the pipeline.' }, { name: 'result', description: 'a deep-frozen snapshot of the final returned result.' }],
   },
   {
+    name: 'user-questions/pending-changed',
+    mode: 'emit',
+    signature: '\'user-questions/pending-changed\'(payload: { sessionId: import(\'@panedesk/dsh-session/types\').SessionId }): void',
+    summary: 'A live blocking request was established or settled; consumers re-read its snapshot.',
+    description: 'A live blocking request was established or settled; consumers re-read its snapshot.',
+    parameters: [{ name: 'payload', description: '.sessionId - session whose pending requests changed.' }],
+  },
+  {
     name: 'user-questions/request',
     mode: 'waterfall',
     signature: '\'user-questions/request\'( this: Scoped<Agent>, request: AskUserQuestionRequestEvent, next: () => Promise<AskUserQuestionAnswer>, ): Promise<AskUserQuestionAnswer>',
@@ -5053,6 +5864,10 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'AcceptTriggerResult',
+    declaration: 'export type AcceptTriggerResult = {\n    status: \'accepted\' | \'coalesced\';\n    triggerId: TriggerId;\n    queueItemId: QueueItemId;\n    sequence: number;\n} | {\n    status: \'duplicate\';\n    triggerId: TriggerId;\n    originalTriggerId: TriggerId;\n    queueItemId: QueueItemId | null;\n} | SeatRejected;',
+  },
+  {
     name: 'AccountBonusBatch',
     declaration: 'export interface AccountBonusBatch {\n    readonly accountId: AccountUserId;\n    readonly bonuses: readonly AccountBonusNotification[];\n}',
   },
@@ -5095,6 +5910,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
+  },
+  {
+    name: 'AdmitSeatChildRequest',
+    declaration: 'export interface AdmitSeatChildRequest {\n    ticket: ChildAdmissionTicket;\n    maxActive: number;\n}',
   },
   {
     name: 'AdmittedPromptContentPart',
@@ -5189,6 +6008,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
   },
   {
+    name: 'ApiSessionCreated',
+    declaration: 'export interface ApiSessionCreated {\n    readonly agent: Agent;\n    readonly agentPreset: string | undefined;\n}',
+  },
+  {
     name: 'ApprovalOutcome',
     declaration: 'export type ApprovalOutcome = \'allowed-once\' | \'rejected\' | \'cancelled\' | \'unavailable\';',
   },
@@ -5203,6 +6026,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApprovalRequestEvent',
     declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'ApprovePendingSeatRequest',
+    declaration: 'export interface ApprovePendingSeatRequest {\n    queueItemId: QueueItemId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
   },
   {
     name: 'ArchiveSessionOptions',
@@ -5325,6 +6152,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AuthorizationPromptOption {\n    id: string;\n    label: string;\n    description?: string;\n}',
   },
   {
+    name: 'AuthorizationRef',
+    declaration: 'export type AuthorizationRef = Branded<\'SeatAuthorizationRef\'>;',
+  },
+  {
     name: 'AuthorizationRequest',
     declaration: 'export interface AuthorizationRequest {\n    key: CredentialKey;\n    method?: string;\n    interaction: AuthorizationInteraction;\n    signal?: AbortSignal;\n}',
   },
@@ -5393,16 +6224,88 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CacheRemaining = {\n    kind: \'estimated\';\n    seconds: number;\n    evidenceAt: number;\n    ttlSeconds: number;\n} | {\n    kind: \'automatic\' | \'disabled\' | \'unknown\';\n};',
   },
   {
+    name: 'CacheRenewOperationId',
+    declaration: 'export type CacheRenewOperationId = Branded<\'CacheRenewOperationId\'>;',
+  },
+  {
+    name: 'CacheRenewRequest',
+    declaration: 'export interface CacheRenewRequest {\n    readonly sessionId: SessionId;\n    readonly operationId: CacheRenewOperationId;\n}',
+  },
+  {
+    name: 'CacheRenewResult',
+    declaration: 'export type CacheRenewResult = {\n    readonly kind: \'renewed\';\n    readonly evidenceAt: number;\n} | {\n    readonly kind: \'uncertain\';\n    readonly reason: \'prior-attempt\' | \'maintenance-unconfirmed\';\n} | {\n    readonly kind: \'rejected\';\n    readonly reason: \'session-unavailable\' | \'busy\' | \'cache-evidence-unavailable\' | \'cache-expired\' | \'prefix-changed\' | \'ledger-unavailable\';\n};',
+  },
+  {
     name: 'CacheRetention',
     declaration: 'export type CacheRetention = \'default\' | \'none\' | \'5m\' | \'1h\' | \'30m\' | \'12h\' | \'auto\';',
+  },
+  {
+    name: 'CallbackId',
+    declaration: 'export type CallbackId = Branded<\'SeatCallbackId\'>;',
+  },
+  {
+    name: 'CancelChildTicketRequest',
+    declaration: 'export interface CancelChildTicketRequest {\n    ticketId: ChildTicketId;\n    parentSessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'CancelChildTicketResult',
+    declaration: 'export type CancelChildTicketResult = {\n    status: \'cancelled\' | \'already-admitted\';\n    ticket: ChildAdmissionTicket;\n} | SeatRejected;',
+  },
+  {
+    name: 'CancelPendingSeatRequest',
+    declaration: 'export interface CancelPendingSeatRequest {\n    queueItemId: QueueItemId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'CancelSeatWaitRequest',
+    declaration: 'export interface CancelSeatWaitRequest {\n    waitId: WaitId;\n    sessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'CancelSeatWaitResult',
+    declaration: 'export type CancelSeatWaitResult = {\n    status: \'cancelled\' | \'already-settled\';\n    wait: SeatWait;\n} | SeatRejected;',
   },
   {
     name: 'ChangeResult',
     declaration: 'export interface ChangeResult {\n    changed: boolean;\n    application: \'applied\' | \'restart-required\' | \'overridden\' | \'failed\' | \'cancelled\';\n    restartReason?: RestartReason;\n    stage: \'install\' | \'enable\' | \'remove\';\n    target: string;\n    enabled?: boolean;\n    error?: ManagementError;\n    warnings?: string[];\n    packageResult?: PackageResult;\n    bundle?: string;\n    version?: string;\n    pendingBuilds?: string[];\n    approvedBuilds?: string[];\n    registries?: Registry[];\n    failedAt?: \'registry\' | \'spec-host\';\n}',
   },
   {
+    name: 'ChildAdmissionResult',
+    declaration: 'export type ChildAdmissionResult = {\n    status: \'queued\';\n    ticket: ChildAdmissionTicket;\n} | {\n    status: \'admitted\';\n    ticket: ChildAdmissionTicket;\n    childSessionId: SessionId;\n} | SeatRejected;',
+  },
+  {
+    name: 'ChildAdmissionTicket',
+    declaration: 'export interface ChildAdmissionTicket {\n    ticketId: ChildTicketId;\n    parentSessionId: SessionId;\n    sequence: number;\n    requestDigest: SeatDigest;\n    agentPreset: string;\n    permissionRevision: number;\n    phase: \'queued\' | \'admitted\' | \'released\' | \'cancelled\';\n    childSessionId: SessionId | null;\n    ownerEpoch: OwnerEpoch;\n    stateVersion: number;\n}',
+  },
+  {
+    name: 'ChildTicketId',
+    declaration: 'export type ChildTicketId = Branded<\'SeatChildTicketId\'>;',
+  },
+  {
     name: 'ClientArtifactBaseline',
     declaration: 'export interface ClientArtifactBaseline {\n    readonly path: string;\n    readonly mtimeMs: number;\n    readonly ctimeMs: number;\n    readonly size: number;\n}',
+  },
+  {
+    name: 'ClosePhase',
+    declaration: 'export type ClosePhase = \'admission\' | \'rechecking\' | \'archiving\' | \'renaming\' | \'flushing\' | \'closed\';',
+  },
+  {
+    name: 'CloseReportId',
+    declaration: 'export type CloseReportId = Branded<\'SeatCloseReportId\'>;',
+  },
+  {
+    name: 'CloseReportResult',
+    declaration: 'export type CloseReportResult = {\n    status: \'recorded\' | \'revoked\';\n    reportId: CloseReportId;\n    stateVersion: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'CloseSeatRequest',
+    declaration: 'export interface CloseSeatRequest {\n    sessionId: SessionId;\n    operationId: SeatOperationId;\n    expectedStateVersion: number;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'CloseSeatResult',
+    declaration: 'export type CloseSeatResult = {\n    status: \'closed\';\n    sessionId: SessionId;\n    phase: \'closed\';\n    endedAt: SeatTimestamp;\n    stateVersion: number;\n} | {\n    status: \'busy\';\n    sessionId: SessionId;\n    busyReasons: readonly SeatBusyReason[];\n} | {\n    status: \'conflict\';\n    expectedStateVersion: number;\n    actualStateVersion: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'CloseSelfReport',
+    declaration: 'export interface CloseSelfReport {\n    reportId: CloseReportId;\n    sessionId: SessionId;\n    canClose: boolean;\n    waitingFor: readonly {\n        kind: \'subagent\' | \'job\' | \'schedule\' | \'message\' | \'other\';\n        objectId?: string;\n        summary: string;\n    }[];\n    nextOpen: {\n        when: {\n            kind: \'unspecified\';\n        } | {\n            kind: \'at\';\n            at: SeatTimestamp;\n        } | {\n            kind: \'condition\';\n            description: string;\n        };\n        prerequisites: readonly string[];\n    };\n    submittedAt: SeatTimestamp;\n    stateVersion: number;\n}',
   },
   {
     name: 'CollectedOutput',
@@ -5465,6 +6368,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CommandSubmitAttachment = ({\n    readonly type: \'image\';\n} & EncodedImageAttachment) | {\n    readonly type: \'file\';\n    readonly receiptId: string;\n};',
   },
   {
+    name: 'CommitSeatImportRequest',
+    declaration: 'export interface CommitSeatImportRequest {\n    planId: SeatImportPlanId;\n    selectedRows: readonly number[];\n    expectedRevision: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'CommitSeatImportResult',
+    declaration: 'export type CommitSeatImportResult = {\n    status: \'committed\';\n    revision: number;\n    rows: readonly SeatImportRow[];\n} | SeatRejected;',
+  },
+  {
     name: 'CompactionAgentContext',
     declaration: 'export interface CompactionAgentContext {\n    session: Session;\n    options: {\n        provider?: string;\n        model?: string;\n    };\n}',
   },
@@ -5499,6 +6410,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConfigureMessagesRequest',
     declaration: 'export interface ConfigureMessagesRequest {\n    readonly sessionId: SessionId;\n    readonly settings: MessageSettings;\n}',
+  },
+  {
+    name: 'ConfigureSeatBudgetRequest',
+    declaration: 'export interface ConfigureSeatBudgetRequest {\n    sessionId: SessionId;\n    limits: SeatBudgetLimits;\n    expectedRevision: number;\n    authorizationRef: AuthorizationRef;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'ConfigureSeatBudgetResult',
+    declaration: 'export type ConfigureSeatBudgetResult = {\n    status: \'configured\';\n    budget: SeatBudgetSnapshot;\n} | SeatRejected;',
   },
   {
     name: 'ConfinedArgv',
@@ -5665,8 +6584,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CotTranslationSnapshot {\n    maxTextChars: number;\n    preferences: CotTranslationPreferences;\n    availableProviders: readonly TranslationProvider[];\n}',
   },
   {
+    name: 'CreateAdmissionDecision',
+    declaration: 'export type CreateAdmissionDecision = {\n    readonly kind: \'allow\';\n} | {\n    readonly kind: \'reject\';\n    readonly reason: string;\n};',
+  },
+  {
     name: 'CreateAgentOptions',
-    declaration: 'export interface CreateAgentOptions {\n    readonly sessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n    };\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly seed?: readonly SessionEvent[];\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
+    declaration: 'export interface CreateAgentOptions {\n    readonly sessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n    };\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly seed?: readonly SessionEvent[];\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n    readonly releasePreparation?: () => void;\n}',
   },
   {
     name: 'CreatedWorktree',
@@ -5767,6 +6690,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DiffResultView',
     declaration: 'export interface DiffResultView {\n    card: \'diff\';\n    title?: string;\n    diffs: FileDiff[];\n}',
+  },
+  {
+    name: 'DirectoryChoiceResult',
+    declaration: 'export type DirectoryChoiceResult = {\n    status: \'allowed\';\n    identity: \'free\' | \'seat\';\n    seat?: SeatName;\n} | {\n    status: \'choice-required\';\n    candidates: readonly SeatName[];\n    choices: readonly [\n        \'open-seat\',\n        \'traditional\',\n        \'cancel\'\n    ];\n    alternative: string;\n} | SeatRejected;',
+  },
+  {
+    name: 'DirectoryConfirmation',
+    declaration: 'export interface DirectoryConfirmation {\n    token: Branded<\'SeatDirectoryConfirmation\'>;\n    cwd: string;\n    principalId: SeatPrincipalId;\n    candidates: readonly {\n        seat: SeatName;\n        revision: number;\n    }[];\n    choice: {\n        kind: \'open-seat\';\n        seat: SeatName;\n    } | {\n        kind: \'traditional\';\n    };\n}',
   },
   {
     name: 'DirectoryEntry',
@@ -5885,6 +6816,102 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EncodedImageAttachment {\n    mediaType: ImageMediaType;\n    data: string;\n    name?: string;\n}',
   },
   {
+    name: 'EngineCloseData',
+    declaration: 'export interface EngineCloseData {\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
+  },
+  {
+    name: 'EngineCursor',
+    declaration: 'export interface EngineCursor {\n    nodeId: SeatNodeId;\n    sequence: number;\n    effectIndex: number;\n}',
+  },
+  {
+    name: 'EngineDecision',
+    declaration: 'export interface EngineDecision {\n    namespace: typeof SEAT_ENGINE_NAMESPACE;\n    schemaVersion: 1;\n    decisionId: EngineDecisionId;\n    sequence: number;\n    observedAt: SeatTimestamp;\n    nodeId: SeatNodeId;\n    policyRevision: number;\n    effects: readonly EngineEffect[];\n    digest: SeatDigest;\n    byteLength: number;\n}',
+  },
+  {
+    name: 'EngineDecisionId',
+    declaration: 'export type EngineDecisionId = Branded<\'SeatEngineDecisionId\'>;',
+  },
+  {
+    name: 'EngineEffect',
+    declaration: 'export type EngineEffect = {\n    [K in EngineEventKind]: EngineEffectBase & {\n        kind: K;\n        data: EngineEventDataMap[K];\n    };\n}[EngineEventKind];',
+  },
+  {
+    name: 'EngineEffectBase',
+    declaration: 'export interface EngineEffectBase {\n    eventId: EngineEventId;\n    seat?: SeatName;\n    sessionId?: SessionId;\n    taskId?: SeatTaskId;\n    triggerId?: TriggerId;\n    operationId?: SeatOperationId;\n    causedBy?: EngineEventId;\n}',
+  },
+  {
+    name: 'EngineEventDataMap',
+    declaration: 'export interface EngineEventDataMap {\n    \'cache/keepalive\': EngineKeepAliveData;\n    \'cache/keepalive-skipped\': EngineKeepAliveData;\n    \'git/checkpoint\': EngineGitCheckpoint;\n    \'trigger/accepted\': EngineTriggerData;\n    \'trigger/deduplicated\': EngineTriggerData;\n    \'trigger/coalesced\': EngineTriggerData;\n    \'queue/pending\': PendingSeatItem;\n    \'queue/approved\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'queue/cancelled\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'open/intent\': EngineOpenData;\n    \'open/created\': EngineOpenData;\n    \'open/configured\': EngineOpenData;\n    \'open/opening-failed\': EngineOpenData;\n    \'open/rejected\': {\n        error: SeatFailure;\n        candidates: readonly import(\'./types.ts\').SeatWindowCandidate[];\n    };\n    \'source/rejected\': {\n        sourceId: SeatSourceId;\n        sourceEventId: SourceEventId | null;\n        digest: SeatDigest;\n        error: SeatFailure;\n    };\n    \'seat/binding\': SeatBinding;\n    \'window/closing\': EngineCloseData;\n    \'window/closed\': EngineCloseData;\n    \'window/replacement\': EngineReplacementData;\n    \'callback/pending\': SeatCallbackDelivery;\n    \'callback/attempted\': SeatCallbackDelivery;\n    \'callback/delivered\': SeatCallbackDelivery;\n    \'gate/hit\': EngineGateData;\n    \'gate/expired\': {\n        definition:  /* …truncated — full shape in source */',
+  },
+  {
+    name: 'EngineEventId',
+    declaration: 'export type EngineEventId = Branded<\'SeatEngineEventId\'>;',
+  },
+  {
+    name: 'EngineEventKind',
+    declaration: 'export type EngineEventKind = keyof EngineEventDataMap;',
+  },
+  {
+    name: 'EngineExportRequest',
+    declaration: 'export interface EngineExportRequest {\n    query: EngineQueryRequest;\n    format: \'jsonl\';\n    output: string;\n    authorizationRef?: AuthorizationRef;\n}',
+  },
+  {
+    name: 'EngineExportResult',
+    declaration: 'export type EngineExportResult = {\n    status: \'exported\';\n    count: number;\n    digest: SeatDigest;\n    watermark: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'EngineGateData',
+    declaration: 'export interface EngineGateData {\n    definition: GateDefinition;\n    context: GateContext;\n    result: GateResult;\n}',
+  },
+  {
+    name: 'EngineGitCheckpoint',
+    declaration: 'export interface EngineGitCheckpoint {\n    repositoryId: string;\n    ref: string;\n    objectId: string | null;\n    sequence: number;\n}',
+  },
+  {
+    name: 'EngineKeepAliveData',
+    declaration: 'export interface EngineKeepAliveData {\n    sessionId: SessionId;\n    operationId: SeatOperationId;\n    source: \'auto\' | \'manual\';\n    phase: \'attempted\' | \'renewed\' | \'uncertain\' | \'skipped\';\n    reason: string | null;\n    evidenceAt: number | null;\n    dueAt: number | null;\n    observedAt: SeatTimestamp;\n}',
+  },
+  {
+    name: 'EngineMode',
+    declaration: 'export type EngineMode = \'off\' | \'remind\' | \'auto\';',
+  },
+  {
+    name: 'EngineOpenData',
+    declaration: 'export interface EngineOpenData {\n    definition?: import(\'./types.ts\').SeatDefinition;\n    sources?: readonly TriggerEnvelope[];\n    title?: string;\n    intentId: OpenIntentId;\n    sessionId: SessionId;\n    seatRevision: number;\n    phase: OpenPhase;\n    completedStages: readonly OpenConfigurationStage[];\n    binding: SeatBinding;\n    openingOperationId: SeatOperationId;\n    openingMessageId: Branded<\'MessageId\'> | null;\n    openingDigest: SeatDigest;\n    budget: SeatBudgetSnapshot;\n    failure: SeatFailure | null;\n}',
+  },
+  {
+    name: 'EngineQueryRequest',
+    declaration: 'export interface EngineQueryRequest {\n    nodeId?: SeatNodeId;\n    seat?: SeatName;\n    kinds?: readonly EngineEventKind[];\n    from?: SeatTimestamp;\n    to?: SeatTimestamp;\n    cursor?: EngineCursor;\n    limit: number;\n}',
+  },
+  {
+    name: 'EngineQueryResult',
+    declaration: 'export interface EngineQueryResult {\n    effects: readonly EngineEffect[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n}',
+  },
+  {
+    name: 'EngineReplacementData',
+    declaration: 'export interface EngineReplacementData {\n    operationId?: SeatOperationId;\n    cleanup?: \'not-created\' | \'closed\' | \'pending\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    phase: ReplacePhase;\n    permit: HandoverPermit | null;\n    openingMessageId: Branded<\'MessageId\'> | null;\n    firstTurn: {\n        messageId: Branded<\'MessageId\'>;\n        turnId: string;\n        completed: boolean;\n        hasAssistantReply: boolean;\n    } | null;\n    pending: PendingSeatItem | null;\n    failure: SeatFailure | null;\n}',
+  },
+  {
+    name: 'EngineTransactionRequest',
+    declaration: 'export interface EngineTransactionRequest {\n    expectedSequence: number;\n    decision: EngineDecision;\n}',
+  },
+  {
+    name: 'EngineTransactionResult',
+    declaration: 'export type EngineTransactionResult = {\n    status: \'committed\';\n    decision: EngineDecision;\n} | {\n    status: \'conflict\';\n    actualSequence: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'EngineTriggerData',
+    declaration: 'export interface EngineTriggerData {\n    trigger: TriggerEnvelope;\n    deduplication: TriggerDeduplication;\n    pending: PendingSeatItem;\n    originalTriggerId: TriggerId | null;\n}',
+  },
+  {
+    name: 'EngineVerifyRequest',
+    declaration: 'export interface EngineVerifyRequest {\n    input: string;\n}',
+  },
+  {
+    name: 'EngineVerifyResult',
+    declaration: 'export type EngineVerifyResult = {\n    status: \'verified\';\n    decisions: number;\n    watermark: number;\n    tail: \'complete\' | \'fragment-preserved\';\n} | SeatRejected;',
+  },
+  {
     name: 'EpochHeader',
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    tools?: ToolSchema[];\n    system?: never;\n}',
   },
@@ -5899,6 +6926,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EveryScheduleRecord',
     declaration: 'export interface EveryScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'every\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly everySeconds: number;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'ExactSessionCreation',
+    declaration: 'export interface ExactSessionCreation {\n    readonly sessionId: SessionId;\n    readonly setup?: AgentSetup;\n    readonly selection?: AgentModelSelection;\n    readonly releasePreparation?: () => void;\n}',
+  },
+  {
+    name: 'ExistingSeatChoice',
+    declaration: 'export type ExistingSeatChoice = {\n    kind: \'switch\';\n    sessionId: SessionId;\n} | {\n    kind: \'replace\';\n    sessionId: SessionId;\n} | {\n    kind: \'cancel\';\n};',
   },
   {
     name: 'FeedbackCategory',
@@ -5993,6 +7028,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
   },
   {
+    name: 'GateContext',
+    declaration: 'export type GateContext = GateContextBase & ({\n    hook: \'before-open\';\n    cwd: string;\n    candidateSeats: readonly SeatName[];\n} | {\n    hook: \'before-batch-open\';\n    seats: readonly SeatName[];\n} | {\n    hook: \'before-memory-write\';\n    targetPath: string;\n    authorizedDirectories: readonly string[];\n    syntax: \'certain\' | \'unknown\';\n} | {\n    hook: \'before-tool-call\';\n    toolName: string;\n    arguments: Readonly<Record<string, SeatJson>>;\n    hasPendingWork: boolean;\n} | {\n    hook: \'before-subagent-dispatch\';\n    parentSessionId: SessionId;\n    kind: \'start\' | \'continue\';\n    childSessionId: SessionId | null;\n    request: Readonly<Record<string, SeatJson>>;\n} | {\n    hook: \'after-subagent-return\';\n    parentSessionId: SessionId;\n    childSessionId: SessionId;\n    result: SeatJson;\n} | {\n    hook: \'after-compaction\';\n    summary: string;\n    additionalTokenBudget: number;\n    seatRevision: number;\n});',
+  },
+  {
+    name: 'GateContextBase',
+    declaration: 'export interface GateContextBase {\n    callId: Branded<\'SeatGateCallId\'>;\n    operationId: SeatOperationId;\n    nodeId: SeatNodeId;\n    seat: SeatName | null;\n    sessionId: SessionId | null;\n    observedAt: SeatTimestamp;\n    cwd?: string;\n    worktreeFacts?: {\n        event: \'register\' | \'task-ended\' | \'mature\';\n        clientTreeCount: number;\n        clientTreeLimit: number;\n        requestedKind: \'light\' | \'client\';\n        authorizedForce: boolean;\n        alternative: string;\n        mature: boolean;\n    };\n    continuationEvidence?: {\n        cache: import(\'./types.ts\').SeatCacheEvidence;\n        context: import(\'./types.ts\').SeatContextUsage;\n        thresholdTokens: number;\n    };\n}',
+  },
+  {
+    name: 'GateCriterion',
+    declaration: 'export interface GateCriterion {\n    id: GateCriterionId;\n    evaluate(context: GateContext, definition: GateDefinition): Promise<GateResult>;\n}',
+  },
+  {
+    name: 'GateCriterionId',
+    declaration: 'export type GateCriterionId = Branded<\'SeatGateCriterionId\'>;',
+  },
+  {
+    name: 'GateDefinition',
+    declaration: 'export interface GateDefinition {\n    id: GateId;\n    name: string;\n    hook: GateHook;\n    criterion: {\n        type: GateCriterionId;\n        parameters: Readonly<Record<string, SeatJson>>;\n    };\n    alternative: string;\n    expiresAt: SeatTimestamp | null;\n    enabled: boolean;\n    revision: number;\n    order: number;\n}',
+  },
+  {
+    name: 'GateHook',
+    declaration: 'export type GateHook = typeof SEAT_GATE_HOOKS[number];',
+  },
+  {
+    name: 'GateId',
+    declaration: 'export type GateId = Branded<\'SeatGateId\'>;',
+  },
+  {
+    name: 'GateResult',
+    declaration: 'export type GateResult = ({\n    outcome: \'allow\';\n} & GateResultFacts) | ({\n    outcome: \'deny\';\n    reason: SeatFailure;\n    alternative: string;\n} & GateResultFacts) | ({\n    outcome: \'observe\';\n    reason: string;\n    alternative: string;\n} & GateResultFacts);',
+  },
+  {
+    name: 'GateResultFacts',
+    declaration: 'export interface GateResultFacts {\n    gateId: GateId;\n    revision: number;\n    hitCount: number;\n    expiresAt: SeatTimestamp | null;\n    audit: \'recorded\' | \'unavailable\';\n}',
+  },
+  {
+    name: 'GateSnapshot',
+    declaration: 'export interface GateSnapshot {\n    definition: GateDefinition;\n    hitCount: number;\n    expired: boolean;\n    lastHitAt: SeatTimestamp | null;\n    watermark: number;\n}',
+  },
+  {
     name: 'GenerateOptions',
     declaration: 'export interface GenerateOptions {\n    provider: string;\n    model: string;\n    reasoningEffort?: ReasoningEffortId;\n    messages: RequestMessage[];\n    system?: string;\n    tools?: ToolSchema[];\n    toolHistory?: ToolHistory;\n    temperature?: number;\n    maxTokens?: number;\n    stop?: string[];\n    signal?: AbortSignal;\n    sessionId?: Branded<\'SessionId\'>;\n    purpose?: \'compaction\' | \'session-title\' | \'keepalive\';\n    cache?: LlmCacheControl;\n}',
   },
@@ -6047,6 +7122,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
+  },
+  {
+    name: 'HandoverPermit',
+    declaration: 'export interface HandoverPermit {\n    permitId: HandoverPermitId;\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId;\n    state: HandoverPermitState;\n    issuedAt: SeatTimestamp;\n    expiredAt: SeatTimestamp | null;\n    ownerEpoch: OwnerEpoch;\n}',
+  },
+  {
+    name: 'HandoverPermitId',
+    declaration: 'export type HandoverPermitId = Branded<\'SeatHandoverPermitId\'>;',
+  },
+  {
+    name: 'HandoverPermitState',
+    declaration: 'export type HandoverPermitState = \'issued\' | \'first-turn-running\' | \'expired-success\' | \'expired-failure\';',
   },
   {
     name: 'HookBudget',
@@ -6218,7 +7305,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'JobEvent',
-    declaration: 'export type JobEvent = {\n    readonly type: \'registered\' | \'progress\' | \'stopping\' | \'removed\';\n    readonly job: JobView;\n} | {\n    readonly type: \'settled\';\n    readonly job: JobView;\n    readonly cause: JobSettleCause;\n    readonly awaited: boolean;\n} | {\n    readonly type: \'output\';\n    readonly id: JobId;\n    readonly owner?: SessionId;\n    readonly total: number;\n};',
+    declaration: 'export type JobEvent = {\n    readonly type: \'registered\' | \'progress\' | \'stopping\' | \'removed\';\n    readonly job: JobView;\n} | {\n    readonly type: \'settled\';\n    readonly job: JobView;\n    readonly cause: JobSettleCause;\n    readonly awaited: boolean;\n    readonly notificationOwner?: \'durable\';\n} | {\n    readonly type: \'output\';\n    readonly id: JobId;\n    readonly owner?: SessionId;\n    readonly total: number;\n};',
   },
   {
     name: 'JobEventFilter',
@@ -6253,6 +7340,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type JobId = Branded<\'JobId\'>;',
   },
   {
+    name: 'JobIntent',
+    declaration: 'export interface JobIntent {\n    readonly jobId: JobId;\n    readonly owner?: SessionId;\n    readonly kind: JobKind;\n    readonly label: string;\n    readonly startedAt: number;\n    readonly toolCall?: JobToolCall;\n}',
+  },
+  {
     name: 'JobKillRequest',
     declaration: 'export interface JobKillRequest {\n    readonly sessionId: SessionId;\n    readonly jobId: JobId;\n}',
   },
@@ -6275,6 +7366,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'JobListRequest',
     declaration: 'export interface JobListRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'JobNotificationReservation',
+    declaration: 'export interface JobNotificationReservation {\n    running(): void;\n    settled(observation: {\n        readonly outcome: JobOutcome;\n        readonly finishedAt: number;\n        readonly cause: JobSettleCause;\n        readonly producerReported: boolean;\n        readonly eventKind: \'job\';\n        readonly messageClass: \'handoff\';\n        readonly delivery: \'steer\';\n    }): void;\n}',
+  },
+  {
+    name: 'JobNotificationState',
+    declaration: 'export type JobNotificationState = \'best-effort\' | \'pending\' | \'accepted\' | \'unavailable\';',
   },
   {
     name: 'JobOutcome',
@@ -6481,6 +7580,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type LedgerNodeId = Branded<\'LedgerNodeId\'>;',
   },
   {
+    name: 'LedgerOwnerSettled',
+    declaration: 'export interface LedgerOwnerSettled {\n    readonly start: LedgerRunStart;\n    readonly finish: LedgerRunFinish;\n    readonly deathObservedAt: number;\n    readonly persistedAt: number;\n    readonly latencyMs: number;\n}',
+  },
+  {
     name: 'LedgerPriceEntry',
     declaration: 'export interface LedgerPriceEntry extends LedgerPriceMetadata {\n    modelFamily: string;\n    modelKey: string;\n    currency: \'USD\';\n    prices: LedgerUnitPrices;\n    contextRule?: LedgerContextPriceRule;\n    timeRules?: readonly LedgerTimePriceRule[];\n    holidaysUnmodeled: boolean;\n}',
   },
@@ -6595,6 +7698,38 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LedgerWatermark',
     declaration: 'export type LedgerWatermark = Branded<\'LedgerWatermark\'>;',
+  },
+  {
+    name: 'ListPendingSeatsRequest',
+    declaration: 'export interface ListPendingSeatsRequest {\n    projectId?: SeatProjectId;\n    seat?: SeatName;\n    cursor?: EngineCursor;\n    limit: number;\n}',
+  },
+  {
+    name: 'ListPendingSeatsResult',
+    declaration: 'export interface ListPendingSeatsResult {\n    items: readonly PendingSeatItem[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n}',
+  },
+  {
+    name: 'ListSeatDefinitionsRequest',
+    declaration: 'export interface ListSeatDefinitionsRequest {\n    nodeId?: SeatNodeId;\n    projectId?: SeatProjectId;\n    cursor?: string;\n}',
+  },
+  {
+    name: 'ListSeatDefinitionsResult',
+    declaration: 'export interface ListSeatDefinitionsResult {\n    definitions: readonly SeatDefinition[];\n    revision: number;\n    complete: boolean;\n    nextCursor?: string;\n}',
+  },
+  {
+    name: 'ListSeatGatesRequest',
+    declaration: 'export interface ListSeatGatesRequest {\n    gateId?: string;\n    hook?: GateHook;\n    cursor?: EngineCursor;\n    limit: number;\n}',
+  },
+  {
+    name: 'ListSeatGatesResult',
+    declaration: 'export interface ListSeatGatesResult {\n    gates: readonly GateSnapshot[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n}',
+  },
+  {
+    name: 'ListSeatWindowsRequest',
+    declaration: 'export interface ListSeatWindowsRequest {\n    nodeId?: SeatNodeId;\n    projectId?: SeatProjectId;\n    cursor?: string;\n}',
+  },
+  {
+    name: 'ListSeatWindowsResult',
+    declaration: 'export type ListSeatWindowsResult = {\n    status: \'listed\';\n    sessions: readonly SeatWindowView[];\n    unopenedSeats: readonly SeatName[];\n    snapshotAt: SeatTimestamp;\n    complete: boolean;\n    nextCursor?: string;\n} | SeatRejected;',
   },
   {
     name: 'LlmAdapter',
@@ -7009,8 +8144,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MessageTransition = \'accepted\' | \'rejected\' | \'claimed\' | \'appended\' | \'rolled-back\' | \'injected\' | \'responded\' | \'withdrawn\' | \'edited\' | \'reprioritized\' | \'invalidated\' | \'delivery-uncertain\';',
   },
   {
+    name: 'MicroUsd',
+    declaration: 'export type MicroUsd = Branded<\'SeatMicroUsd\'>;',
+  },
+  {
     name: 'ModDefinition',
     declaration: 'export interface ModDefinition {\n    readonly name: string;\n    readonly version?: string;\n    readonly root?: string;\n    readonly options?: PluginOptions;\n    readonly register: ModRegister;\n}',
+  },
+  {
+    name: 'ModelAccountConcurrency',
+    declaration: 'export interface ModelAccountConcurrency {\n    accountLabel: string;\n    limit: number;\n}',
   },
   {
     name: 'ModelCatalog',
@@ -7125,6 +8268,38 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OneShotScheduleRecord = AfterScheduleRecord | AtScheduleRecord;',
   },
   {
+    name: 'OpenConfigurationStage',
+    declaration: 'export type OpenConfigurationStage = \'workspace\' | \'model\' | \'permission\' | \'subscriptions\' | \'title\' | \'binding\' | \'opening\';',
+  },
+  {
+    name: 'OpenedSeatWindow',
+    declaration: 'export interface OpenedSeatWindow {\n    sessionId: SessionId;\n    seat: SeatName;\n    nodeId: SeatNodeId;\n    nodeName: string;\n    title: string;\n    budget: SeatBudgetLimits;\n    phase: OpenPhase;\n    stateVersion: number;\n    callbackIds: readonly CallbackId[];\n}',
+  },
+  {
+    name: 'OpenIntentId',
+    declaration: 'export type OpenIntentId = Branded<\'SeatOpenIntentId\'>;',
+  },
+  {
+    name: 'OpenPhase',
+    declaration: 'export type OpenPhase = \'intent\' | \'creating\' | \'created\' | \'configuring\' | \'opening-pending\' | \'active\' | \'opening-failed\';',
+  },
+  {
+    name: 'OpenSeatBatchRequest',
+    declaration: 'export interface OpenSeatBatchRequest {\n    seats: readonly SeatName[];\n    operationId: SeatOperationId;\n    origin: \'manual\' | \'remote\';\n    openingMode?: \'auto\' | \'prefill\';\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'OpenSeatBatchResult',
+    declaration: 'export type OpenSeatBatchResult = {\n    status: \'processed\';\n    results: readonly {\n        seat: SeatName;\n        result: OpenSeatResult;\n    }[];\n} | SeatRejected;',
+  },
+  {
+    name: 'OpenSeatRequest',
+    declaration: 'export interface OpenSeatRequest {\n    seat: SeatName;\n    operationId: SeatOperationId;\n    origin: \'manual\' | \'remote\' | \'engine\';\n    nodeId?: SeatNodeId;\n    taskId?: SeatTaskId;\n    openingMode?: \'auto\' | \'prefill\';\n    existingChoice?: ExistingSeatChoice;\n    expectedSeatRevision?: number;\n}',
+  },
+  {
+    name: 'OpenSeatResult',
+    declaration: 'export type OpenSeatResult = ({\n    status: \'opened\';\n} & OpenedSeatWindow) | ({\n    status: \'prefilled\';\n    draft: string;\n} & OpenedSeatWindow) | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n    choices: readonly [\n        \'switch\',\n        \'replace\',\n        \'cancel\'\n    ];\n    defaultChoice: \'switch\';\n} | {\n    status: \'switched\';\n    window: SeatWindowCandidate;\n} | {\n    status: \'cancelled\';\n} | SeatQueued | SeatRejected;',
+  },
+  {
     name: 'OperationId',
     declaration: 'export type OperationId = Branded<\'MessageOperationId\'>;',
   },
@@ -7143,6 +8318,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OTelEventScalar',
     declaration: 'export type OTelEventScalar = string | number | boolean;',
+  },
+  {
+    name: 'OwnerEpoch',
+    declaration: 'export type OwnerEpoch = Branded<\'SeatOwnerEpoch\'>;',
   },
   {
     name: 'PackageResult',
@@ -7179,6 +8358,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PendingModule',
     declaration: 'export interface PendingModule {\n    url: string;\n    reason: \'host-module\' | \'unmanaged-plugin\' | \'module-comparison\';\n}',
+  },
+  {
+    name: 'PendingReason',
+    declaration: 'export type PendingReason = \'approval\' | \'project-off\' | \'time-window\' | \'node-capacity\' | \'seat-capacity\' | \'exclusive-tag\' | \'budget-full\' | \'budget-unverifiable\' | \'provider-unavailable\';',
+  },
+  {
+    name: 'PendingSeatItem',
+    declaration: 'export interface PendingSeatItem {\n    queueItemId: QueueItemId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    triggerKind: SeatTrigger[\'kind\'];\n    action: \'open\' | \'wake-sender\' | \'replace\';\n    replacementId?: ReplacementId;\n    handoffTimeout?: SeatHandoffTimeout;\n    sequence: number;\n    effectiveMode: EngineMode;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n    sources: readonly TriggerEnvelope[];\n    relatedTaskIds: readonly SeatTaskId[];\n    queuedAt: SeatTimestamp;\n    stateVersion: number;\n}',
+  },
+  {
+    name: 'PendingSeatMutationResult',
+    declaration: 'export type PendingSeatMutationResult = {\n    status: \'approved\' | \'cancelled\';\n    queueItemId: QueueItemId;\n    stateVersion: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'PendingUserQuestion',
+    declaration: 'export interface PendingUserQuestion {\n    readonly callId: ToolCallId;\n    readonly questions: readonly AskUserQuestionItem[];\n    readonly state: UserQuestionState;\n}',
   },
   {
     name: 'PermissionCatalog',
@@ -7303,6 +8498,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PreToolDecision',
     declaration: 'export type PreToolDecision = {\n    kind: \'allow\';\n} | {\n    kind: \'deny\';\n    reason: string;\n    info?: ToolErrorInfo;\n} | {\n    kind: \'cancel\';\n} | {\n    kind: \'ask\';\n    reason?: string;\n    displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n};',
+  },
+  {
+    name: 'PreviewSeatImportRequest',
+    declaration: 'export interface PreviewSeatImportRequest {\n    format: \'markdown\' | \'csv\';\n    sourcePath: string;\n    columnMap: Readonly<Record<string, string>>;\n    defaults: Partial<SeatDefinition>;\n    table?: string;\n}',
   },
   {
     name: 'Principal',
@@ -7449,6 +8648,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n} | {\n    readonly kind: \'reprioritize\';\n    readonly priority: \'immediate\' | \'steer\' | \'queue\';\n};',
   },
   {
+    name: 'QueueItemId',
+    declaration: 'export type QueueItemId = Branded<\'SeatQueueItemId\'>;',
+  },
+  {
     name: 'ReadFileLine',
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
@@ -7479,6 +8682,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
+  },
+  {
+    name: 'RegisterSeatWaitRequest',
+    declaration: 'export interface RegisterSeatWaitRequest {\n    waitId: WaitId;\n    sessionId: SessionId;\n    mode: \'any\' | \'all\';\n    objects: readonly WaitObject[];\n    operationId: SeatOperationId;\n    toolCallId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n}',
+  },
+  {
+    name: 'RegisterSeatWaitResult',
+    declaration: 'export type RegisterSeatWaitResult = {\n    status: \'registered\';\n    wait: SeatWait;\n} | SeatRejected;',
+  },
+  {
+    name: 'RegisterSeatWorktreeRequest',
+    declaration: 'export interface RegisterSeatWorktreeRequest {\n    registration: SeatWorktreeRegistration;\n    operationId: SeatOperationId;\n    force?: {\n        reason: string;\n        authorizationRef: AuthorizationRef;\n    };\n}',
   },
   {
     name: 'Registry',
@@ -7569,8 +8784,44 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RemoteUplinkWindow {\n    readonly maxBytes: number;\n    readonly frameOverheadBytes: number;\n}',
   },
   {
+    name: 'RenameSeatRequest',
+    declaration: 'export interface RenameSeatRequest {\n    sessionId: SessionId;\n    title: string;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'RenameSeatResult',
+    declaration: 'export type RenameSeatResult = {\n    status: \'renamed\';\n    sessionId: SessionId;\n    title: import(\'@panedesk/dsh-session-title/types\').SessionTitleSnapshot;\n} | SeatRejected;',
+  },
+  {
     name: 'RenderedDocumentBytes',
     declaration: 'export interface RenderedDocumentBytes extends WorkspaceFileBytes {\n    readonly missingFonts: string[];\n    readonly generation: OfficeToPdfGeneration;\n}',
+  },
+  {
+    name: 'RenewSeatRequest',
+    declaration: 'export interface RenewSeatRequest {\n    sessionId: SessionId;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'RenewSeatResult',
+    declaration: 'export type RenewSeatResult = {\n    status: \'renewed\';\n    sessionId: SessionId;\n    cacheEvidence: SeatCacheEvidence;\n} | {\n    status: \'uncertain\';\n    error: SeatFailure;\n    cacheEvidence: SeatCacheEvidence;\n} | (SeatRejected & {\n    cacheEvidence: SeatCacheEvidence;\n});',
+  },
+  {
+    name: 'ReplacementFailureCode',
+    declaration: 'export type ReplacementFailureCode = \'replacement-open-failed\' | \'replacement-first-turn-failed\' | \'replacement-cleanup-failed\';',
+  },
+  {
+    name: 'ReplacementId',
+    declaration: 'export type ReplacementId = Branded<\'SeatReplacementId\'>;',
+  },
+  {
+    name: 'ReplacePhase',
+    declaration: 'export type ReplacePhase = \'queued\' | \'opening\' | \'created\' | \'configuring\' | \'first-turn-pending\' | \'awaiting-old-idle\' | \'closing-old\' | \'completed\' | \'closing-new\' | \'failed\';',
+  },
+  {
+    name: 'ReplaceSeatRequest',
+    declaration: 'export interface ReplaceSeatRequest {\n    sessionId: SessionId;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'ReplaceSeatResult',
+    declaration: 'export type ReplaceSeatResult = {\n    status: \'queued\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    phase: \'queued\';\n    queueItemId: QueueItemId;\n    sequence: number;\n    reason: PendingReason;\n} | {\n    status: \'replacing\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId;\n    phase: Exclude<ReplacePhase, \'queued\' | \'failed\'>;\n    permit: HandoverPermit;\n} | {\n    status: \'failed\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    phase: \'failed\';\n    reason: ReplacementFailureCode;\n    cause: SeatFailure;\n    cleanup: \'not-created\' | \'closed\' | \'pending\';\n} | SeatRejected;',
   },
   {
     name: 'ReplayEnvelope',
@@ -7617,6 +8868,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedCredential {\n    value: string;\n    source: string;\n}',
   },
   {
+    name: 'ResolveDirectoryChoiceRequest',
+    declaration: 'export interface ResolveDirectoryChoiceRequest {\n    cwd: string;\n    seat?: SeatName;\n    confirmation?: DirectoryConfirmation;\n    interactive: boolean;\n}',
+  },
+  {
     name: 'ResolvedNormalRetryPolicy',
     declaration: 'export interface ResolvedNormalRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'normal\';\n    readonly maxRetries: number;\n    readonly retryableCodes: readonly string[];\n}',
   },
@@ -7637,6 +8892,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedSubagentStartRequest extends SubagentStartRequest {\n    readonly cwd: string;\n}',
   },
   {
+    name: 'ResourceOwner',
+    declaration: 'export interface ResourceOwner {\n    sessionId: SessionId;\n    intentId: OpenIntentId;\n    ownerEpoch: OwnerEpoch;\n    resourceRevision: number;\n}',
+  },
+  {
     name: 'ResponseModelReported',
     declaration: 'export type ResponseModelReported = \'same\' | \'different\' | \'missing\' | \'unobservable\';',
   },
@@ -7655,6 +8914,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RetryId',
     declaration: 'export type RetryId = Branded<\'RetryId\'>;',
+  },
+  {
+    name: 'RevokeCloseReportRequest',
+    declaration: 'export interface RevokeCloseReportRequest {\n    reportId: CloseReportId;\n    sessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
   },
   {
     name: 'RpcId',
@@ -7697,8 +8960,36 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveImageAttachment {\n    data: Uint8Array;\n    mediaType: ImageMediaType;\n    name?: string;\n}',
   },
   {
+    name: 'SaveSeatDefinitionRequest',
+    declaration: 'export interface SaveSeatDefinitionRequest {\n    definition: SeatDefinition;\n    expectedRevision: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
     name: 'SaveTextSpill',
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
+  },
+  {
+    name: 'ScheduleActionDispatch',
+    declaration: 'export interface ScheduleActionDispatch extends ScheduleActionRequest {\n    readonly eventId: string;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'ScheduleActionHandler',
+    declaration: 'export type ScheduleActionHandler = (request: ScheduleActionDispatch) => Promise<ScheduleActionReceipt>;',
+  },
+  {
+    name: 'ScheduleActionPayload',
+    declaration: 'export type ScheduleActionPayload = null | boolean | number | string | ScheduleActionPayload[] | {\n    [key: string]: ScheduleActionPayload;\n};',
+  },
+  {
+    name: 'ScheduleActionReceipt',
+    declaration: 'export type ScheduleActionReceipt = {\n    readonly status: \'accepted\' | \'skipped-disabled\';\n};',
+  },
+  {
+    name: 'ScheduleActionRequest',
+    declaration: 'export interface ScheduleActionRequest {\n    readonly record: ScheduleRecord;\n    readonly actionId: string;\n    readonly payload: ScheduleActionPayload;\n}',
+  },
+  {
+    name: 'ScheduleActionTask',
+    declaration: 'export type ScheduleActionTask = z.infer<typeof scheduleActionTaskSchema>;',
   },
   {
     name: 'ScheduleCatalogEntry',
@@ -7803,6 +9094,294 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SeatAccountUsageBucket',
+    declaration: 'export interface SeatAccountUsageBucket {\n    accountLabel: string | null;\n    attempts429: number;\n    attempts503: number;\n    uniqueCalls429: number;\n    uniqueCalls503: number;\n    concurrencyPeak: number | null;\n    complete: boolean;\n}',
+  },
+  {
+    name: 'SeatAccountUsageRequest',
+    declaration: 'export interface SeatAccountUsageRequest {\n    from: SeatTimestamp;\n    to: SeatTimestamp;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'SeatAccountUsageResult',
+    declaration: 'export interface SeatAccountUsageResult {\n    accounts: readonly SeatAccountUsageBucket[];\n    watermark: number;\n    complete: boolean;\n    queryCommand: string;\n}',
+  },
+  {
+    name: 'SeatAuthority',
+    declaration: 'export type SeatAuthority = \'import-source\' | \'seat-store\';',
+  },
+  {
+    name: 'SeatBinding',
+    declaration: 'export type SeatBinding = {\n    kind: \'free\';\n    sessionId: SessionId;\n    nodeId: SeatNodeId;\n    identitySource: \'free\';\n} | {\n    kind: \'seat\';\n    sessionId: SessionId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    nodeId: SeatNodeId;\n    bindingSource: \'seat-definition\';\n    identitySource: \'settings\' | \'inherited\';\n    openOperationId: SeatOperationId;\n    seatRevision: number;\n    taskId?: SeatTaskId;\n    relatedTaskIds: readonly SeatTaskId[];\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    subscriptions: readonly string[];\n    openingDigest: SeatDigest;\n};',
+  },
+  {
+    name: 'SeatBindingRequest',
+    declaration: 'export interface SeatBindingRequest {\n    sessionId: SessionId;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'SeatBudgetLimits',
+    declaration: 'export interface SeatBudgetLimits {\n    windowBudgetUsd?: MicroUsd;\n    dailyBudgetUsd?: MicroUsd;\n}',
+  },
+  {
+    name: 'SeatBudgetSnapshot',
+    declaration: 'export interface SeatBudgetSnapshot {\n    sessionId: SessionId;\n    seat: SeatName;\n    currency: \'USD\';\n    costState: \'known\' | \'unknown\';\n    windowCost: MicroUsd | null;\n    dailyCost: MicroUsd | null;\n    limits: SeatBudgetLimits;\n    dayKey: string;\n    budgetTimeZone: string;\n    inFlightUnknown: number;\n    watermark: number;\n    budgetRevision: number;\n}',
+  },
+  {
+    name: 'SeatBusyReason',
+    declaration: 'export interface SeatBusyReason {\n    kind: \'turn\' | \'subagent\' | \'job\' | \'approval\' | \'plan-review\' | \'answer\' | \'wait\' | \'ticket\' | \'inbox\' | \'owner-unknown\';\n    objectId?: string;\n    summary: string;\n}',
+  },
+  {
+    name: 'SeatCacheEvidence',
+    declaration: 'export interface SeatCacheEvidence {\n    lastActivityAt: SeatTimestamp | null;\n    cacheTtlMs: number | null;\n    prefixDigest: SeatDigest | null;\n    observedAt: SeatTimestamp;\n    reusableRequest: boolean;\n}',
+  },
+  {
+    name: 'SeatCallbackBase',
+    declaration: 'export interface SeatCallbackBase {\n    callbackId: CallbackId;\n    sourceId: SeatSourceId;\n    triggerId: TriggerId | null;\n    stateVersion: number;\n    seat: SeatName;\n    title: string | null;\n    sessionId: SessionId | null;\n    nodeId: SeatNodeId;\n    nodeName: string;\n    budget: SeatBudgetLimits;\n    taskId?: SeatTaskId;\n    relatedTaskIds: readonly SeatTaskId[];\n}',
+  },
+  {
+    name: 'SeatCallbackDelivery',
+    declaration: 'export interface SeatCallbackDelivery {\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+  },
+  {
+    name: 'SeatCallbackPayload',
+    declaration: 'export type SeatCallbackPayload = SeatCallbackBase & ({\n    kind: \'opened\';\n    sessionId: SessionId;\n    title: string;\n} | {\n    kind: \'opening-failed\';\n    reason: SeatFailure;\n} | {\n    kind: \'window-ended\';\n    reason: WindowEndReason;\n    endedAt: SeatTimestamp;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n    reportId?: CloseReportId;\n} | {\n    kind: \'budget-stopped\';\n    budgetSnapshot: SeatBudgetSnapshot;\n} | {\n    kind: \'rejected\';\n    reason: SeatFailure;\n} | {\n    kind: \'replacement-failed\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    reason: ReplacementFailureCode;\n    cause: SeatFailure;\n    cleanup: \'not-created\' | \'closed\' | \'pending\';\n});',
+  },
+  {
+    name: 'SeatCallContext',
+    declaration: 'export interface SeatCallContext {\n    principalId: SeatPrincipalId;\n    origin: \'manual\' | \'remote\' | \'engine\';\n    nodeId: SeatNodeId;\n}',
+  },
+  {
+    name: 'SeatCatalogMutationResult',
+    declaration: 'export type SeatCatalogMutationResult = {\n    status: \'saved\';\n    revision: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'SeatCheckpointFile',
+    declaration: 'export interface SeatCheckpointFile {\n    path: string;\n    section: string;\n    maxBytes: number;\n    required: boolean;\n}',
+  },
+  {
+    name: 'SeatChildThresholdRequest',
+    declaration: 'export interface SeatChildThresholdRequest {\n    sessionId: SessionId;\n    thresholdRevision: number;\n    thresholdTokens: number;\n    context: import(\'./types.ts\').SeatContextUsage;\n    handoff: string;\n}',
+  },
+  {
+    name: 'SeatContextUsage',
+    declaration: 'export type SeatContextUsage = {\n    status: \'known\';\n    source: \'last-call-usage\' | \'compaction-surface\';\n    tokens: number;\n    observedAt: SeatTimestamp;\n    estimated: true;\n    contextEpoch: number;\n} | {\n    status: \'unknown\';\n    observedAt: SeatTimestamp;\n};',
+  },
+  {
+    name: 'SeatDefinition',
+    declaration: 'export interface SeatDefinition {\n    schemaVersion: 1;\n    revision: number;\n    seat: SeatName;\n    platform: \'desktop\' | \'vscode\' | \'server\';\n    node: string;\n    projectId: SeatProjectId;\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    opening: SeatText;\n    openingInstructionFiles: readonly string[];\n    agentPreset: string;\n    provider: string;\n    model: string;\n    reasoningEffort: string;\n    permissionPreset: string;\n    subscriptions: readonly string[];\n    checkpointFiles: readonly SeatCheckpointFile[];\n    wakeTemplate?: SeatText;\n    autoKeepAlive?: boolean;\n    maxOpenSessions: number;\n    maxActiveSubagents: number;\n    contextThresholdTokens?: number;\n    subagentContextThresholdTokens: number;\n    rules: readonly SeatRule[];\n    pollingThreshold?: number;\n    maxSleepSeconds?: number;\n    worktree: SeatWorktreePolicy;\n    source?: SeatImportSource;\n}',
+  },
+  {
+    name: 'SeatDigest',
+    declaration: 'export type SeatDigest = Branded<\'SeatDigest\'>;',
+  },
+  {
+    name: 'SeatDirectory',
+    declaration: 'export interface SeatDirectory {\n    path: string;\n    startup: boolean;\n}',
+  },
+  {
+    name: 'SeatDirectoryEditRequest',
+    declaration: 'export interface SeatDirectoryEditRequest extends SeatDirectoryRequest {\n    oldText: string;\n    newText: string;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'SeatDirectoryReadRequest',
+    declaration: 'export interface SeatDirectoryReadRequest extends SeatDirectoryRequest {\n    maxBytes: number;\n}',
+  },
+  {
+    name: 'SeatDirectoryReadResult',
+    declaration: 'export type SeatDirectoryReadResult = {\n    status: \'read\';\n    content: string;\n    complete: boolean;\n} | SeatRejected;',
+  },
+  {
+    name: 'SeatDirectoryRequest',
+    declaration: 'export interface SeatDirectoryRequest {\n    sessionId: SessionId;\n    rootId: SeatDirectoryRoot[\'rootId\'];\n    relativePath: string;\n}',
+  },
+  {
+    name: 'SeatDirectoryRoot',
+    declaration: 'export interface SeatDirectoryRoot {\n    rootId: Branded<\'SeatDirectoryRootId\'>;\n    path: string;\n    kind: \'startup\' | \'additional\' | \'memory\';\n    writable: boolean;\n}',
+  },
+  {
+    name: 'SeatDirectoryWriteRequest',
+    declaration: 'export interface SeatDirectoryWriteRequest extends SeatDirectoryRequest {\n    content: string;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'SeatDirectoryWriteResult',
+    declaration: 'export type SeatDirectoryWriteResult = {\n    status: \'written\';\n    path: string;\n} | SeatRejected;',
+  },
+  {
+    name: 'SeatEngineStatus',
+    declaration: 'export type SeatEngineStatus = \'active\' | \'prefilled\' | \'budget-stopped\' | \'configuring\' | \'closing\' | \'unknown\';',
+  },
+  {
+    name: 'SeatErrorCode',
+    declaration: 'export type SeatErrorCode = \'seat-not-found\' | \'seat-already-open\' | \'seat-choice-required\' | \'cross-node-unsupported\' | \'import-preview-stale\' | \'import-conflict\' | \'import-source-authoritative\' | \'seat-store-authoritative\' | \'invalid-definition\' | \'invalid-request\' | \'unsupported-schema-version\' | \'revision-conflict\' | \'operation-id-conflict\' | \'event-id-conflict\' | \'unauthorized\' | \'unavailable\' | \'disabled\' | \'engine-store-corrupt\' | \'session-not-found\' | \'session-busy\' | \'state-conflict\' | \'owner-unknown\' | \'memory-seat-mismatch\' | \'wake-template-missing\' | \'batch-explicit-seats-required\' | \'batch-limit-exceeded\' | \'cache-evidence-unavailable\' | \'cache-expired\' | \'cache-prefix-changed\' | \'maintenance-busy\' | \'renewal-uncertain\' | \'subagent-renewal-expired\' | \'subagent-context-limit\' | \'evidence-unavailable\' | \'polling\' | \'sleep-limit-exceeded\' | \'gate-denied\' | \'audit-unavailable\' | \'checkpoint-unavailable\' | \'checkpoint-changed\' | \'checkpoint-budget-exceeded\' | \'budget-unverifiable\' | \'budget-full\' | \'budget-stopped\' | \'source-not-found\' | \'source-authentication-failed\' | \'source-payload-too-large\' | \'source-timestamp-invalid\' | \'callback-authentication-failed\' | \'callback-protocol-error\' | \'open-create-failed\' | \'open-configuration-failed\' | \'opening-failed\' | \'session-id-conflict\' | \'replacement-open-failed\' | \'replacement-first-turn-failed\' | \'replacement-cleanup-failed\' | \'wait-id-conflict\' | \'wait-object-not-found\' | \'wait-object-unauthorized\' | \'ticket-not-found\'  /* …truncated — full shape in source */',
+  },
+  {
+    name: 'SeatFailure',
+    declaration: 'export interface SeatFailure {\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+  },
+  {
+    name: 'SeatHandoffTimeout',
+    declaration: 'export interface SeatHandoffTimeout {\n    messageId: Branded<\'MessageId\'>;\n    senderSessionId: SessionId;\n    deadlineVersion: number;\n    deadlineAt: SeatTimestamp;\n    timeoutMinutes: number;\n    wakeOperationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'SeatImportDifference',
+    declaration: 'export interface SeatImportDifference {\n    field: string;\n    baseline: SeatJson;\n    local: SeatJson;\n    source: SeatJson;\n    conflict: boolean;\n}',
+  },
+  {
+    name: 'SeatImportPlan',
+    declaration: 'export interface SeatImportPlan {\n    planId: SeatImportPlanId;\n    sourceFileHash: SeatDigest;\n    mappingHash: SeatDigest;\n    baseRevision: number;\n    rows: readonly SeatImportRow[];\n}',
+  },
+  {
+    name: 'SeatImportPlanId',
+    declaration: 'export type SeatImportPlanId = Branded<\'SeatImportPlanId\'>;',
+  },
+  {
+    name: 'SeatImportRow',
+    declaration: 'export interface SeatImportRow {\n    row: number;\n    seat: SeatName | null;\n    definition: SeatDefinition | null;\n    rowHash: SeatDigest;\n    columnHashes: Readonly<Record<string, SeatDigest>>;\n    action: \'create\' | \'update\' | \'retain\' | \'conflict\' | \'tombstone\' | \'invalid\';\n    selected: boolean;\n    differences: readonly SeatImportDifference[];\n    diagnostics: readonly SeatFailure[];\n}',
+  },
+  {
+    name: 'SeatImportSource',
+    declaration: 'export interface SeatImportSource {\n    sourcePath: string;\n    sourceFileHash: SeatDigest;\n    rowHash: SeatDigest;\n    mappingHash: SeatDigest;\n    columnHashes: Readonly<Record<string, SeatDigest>>;\n    baseline: Readonly<Record<string, SeatJson>>;\n    authority: SeatAuthority;\n}',
+  },
+  {
+    name: 'SeatJson',
+    declaration: 'export type SeatJson = null | boolean | number | string | readonly SeatJson[] | {\n    readonly [key: string]: SeatJson;\n};',
+  },
+  {
+    name: 'SeatName',
+    declaration: 'export type SeatName = Branded<\'SeatName\'>;',
+  },
+  {
+    name: 'SeatNodeId',
+    declaration: 'export type SeatNodeId = Branded<\'LedgerNodeId\'>;',
+  },
+  {
+    name: 'SeatNodeStatus',
+    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n}',
+  },
+  {
+    name: 'SeatOpenExecutor',
+    declaration: 'export interface SeatOpenExecutor {\n    replacementFirstTurn?(open: import(\'./events.ts\').EngineOpenData): Promise<import(\'./events.ts\').EngineReplacementData[\'firstTurn\']>;\n    notifyBudget?(request: {\n        sessionId: SessionId;\n        operationId: SeatOperationId;\n        messageClass: \'handoff\';\n        mode: \'steer\';\n        budget: SeatBudgetSnapshot;\n    }): Promise<void>;\n    observe(open: import(\'./events.ts\').EngineOpenData): Promise<\'absent\' | \'matching\' | \'conflict\' | \'unknown\'>;\n    create(open: import(\'./events.ts\').EngineOpenData): Promise<SessionId>;\n    configure(open: import(\'./events.ts\').EngineOpenData, stage: OpenConfigurationStage): Promise<void>;\n    opening(open: import(\'./events.ts\').EngineOpenData): Promise<{\n        messageId: Branded<\'MessageId\'>;\n        state: \'pending\' | \'completed\' | \'failed\';\n    }>;\n    wakeSender(timeout: SeatHandoffTimeout): Promise<\'sent\' | \'cancelled\' | \'unavailable\'>;\n    owner(owner: ResourceOwner): Promise<\'alive\' | \'dead\' | \'unknown\'>;\n}',
+  },
+  {
+    name: 'SeatOperationId',
+    declaration: 'export type SeatOperationId = Branded<\'SeatOperationId\'>;',
+  },
+  {
+    name: 'SeatOperationQuery',
+    declaration: 'export interface SeatOperationQuery {\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'SeatOperationResult',
+    declaration: 'export type SeatOperationResult = {\n    status: \'missing\';\n} | {\n    status: \'pending\';\n    phase: OpenPhase | ClosePhase | ReplacePhase;\n    stateVersion: number;\n} | {\n    status: \'settled\';\n    result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult;\n};',
+  },
+  {
+    name: 'SeatPrincipalId',
+    declaration: 'export type SeatPrincipalId = Branded<\'SeatPrincipalId\'>;',
+  },
+  {
+    name: 'SeatProjectId',
+    declaration: 'export type SeatProjectId = Branded<\'SeatProjectId\'>;',
+  },
+  {
+    name: 'SeatProjectPolicy',
+    declaration: 'export interface SeatProjectPolicy {\n    projectId: SeatProjectId;\n    mode: EngineMode;\n    modeChosen: boolean;\n    revision: number;\n}',
+  },
+  {
+    name: 'SeatQueued',
+    declaration: 'export interface SeatQueued {\n    status: \'queued\';\n    queueItemId: QueueItemId;\n    sequence: number;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n}',
+  },
+  {
+    name: 'SeatRejected',
+    declaration: 'export interface SeatRejected {\n    status: \'rejected\';\n    error: SeatFailure;\n}',
+  },
+  {
+    name: 'SeatRequestMap',
+    declaration: 'export interface SeatRequestMap {\n    \'seats/import.preview\': {\n        params: Seat.PreviewSeatImportRequest;\n        result: Seat.SeatImportPlan | Seat.SeatRejected;\n    };\n    \'seats/import.commit\': {\n        params: Seat.CommitSeatImportRequest;\n        result: Seat.CommitSeatImportResult;\n    };\n    \'seats/setAuthority\': {\n        params: Seat.SetSeatAuthorityRequest;\n        result: Seat.SeatCatalogMutationResult;\n    };\n    \'seats/report.submit\': {\n        params: Seat.SubmitCloseReportRequest;\n        result: Seat.CloseReportResult;\n    };\n    \'seats/wait.register\': {\n        params: Seat.RegisterSeatWaitRequest;\n        result: Seat.RegisterSeatWaitResult;\n    };\n    \'seats/wait.cancel\': {\n        params: Seat.CancelSeatWaitRequest;\n        result: Seat.CancelSeatWaitResult;\n    };\n    \'seats/list\': {\n        params: Seat.ListSeatWindowsRequest;\n        result: Seat.ListSeatWindowsResult;\n    };\n    \'seats/open\': {\n        params: Seat.OpenSeatRequest;\n        result: Seat.OpenSeatResult;\n    };\n    \'seats/openBatch\': {\n        params: Seat.OpenSeatBatchRequest;\n        result: Seat.OpenSeatBatchResult;\n    };\n    \'seats/renew\': {\n        params: Seat.RenewSeatRequest;\n        result: Seat.RenewSeatResult;\n    };\n    \'seats/close\': {\n        params: Seat.CloseSeatRequest;\n        result: Seat.CloseSeatResult;\n    };\n    \'seats/replace\': {\n        params: Seat.ReplaceSeatRequest;\n        result: Seat.ReplaceSeatResult;\n    };\n    \'seats/rename\': {\n        params: Seat /* …truncated — full shape in source */',
+  },
+  {
+    name: 'SeatRule',
+    declaration: 'export interface SeatRule extends SeatBudgetLimits {\n    id: SeatRuleId;\n    enabled: boolean;\n    trigger: SeatTrigger;\n    mode?: EngineMode;\n    timeWindows: readonly SeatTimeWindow[];\n    exclusiveTags: readonly string[];\n    modelAccountConcurrency?: readonly ModelAccountConcurrency[];\n    timeoutMinutes?: number;\n}',
+  },
+  {
+    name: 'SeatRuleId',
+    declaration: 'export type SeatRuleId = Branded<\'SeatRuleId\'>;',
+  },
+  {
+    name: 'SeatScheduleSelector',
+    declaration: 'export type SeatScheduleSelector = Omit<import(\'@panedesk/dsh-schedule\').ScheduleCreateRequest, \'prompt\' | \'title\'>;',
+  },
+  {
+    name: 'SeatService',
+    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult>;\n    abstract wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult>;\n    abstract binding(request: T.SeatBindingRequest): Promise<T.SeatBinding | null | T.SeatRejected>;\n    abstract  /* …truncated — full shape in source */',
+  },
+  {
+    name: 'SeatSourceId',
+    declaration: 'export type SeatSourceId = Branded<\'SeatSourceId\'>;',
+  },
+  {
+    name: 'SeatTaskEndedRequest',
+    declaration: 'export interface SeatTaskEndedRequest {\n    taskId: SeatTaskId;\n    kind: \'settle\' | \'close\' | \'void\';\n    sourceId: SeatSourceId;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'SeatTaskId',
+    declaration: 'export type SeatTaskId = Branded<\'SeatTaskId\'>;',
+  },
+  {
+    name: 'SeatText',
+    declaration: 'export type SeatText = {\n    kind: \'text\';\n    text: string;\n} | {\n    kind: \'file\';\n    path: string;\n    section?: string;\n};',
+  },
+  {
+    name: 'SeatTimestamp',
+    declaration: 'export type SeatTimestamp = string;',
+  },
+  {
+    name: 'SeatTimeWindow',
+    declaration: 'export interface SeatTimeWindow {\n    timeZone: string;\n    start: string;\n    end: string;\n    weekdays?: readonly number[];\n}',
+  },
+  {
+    name: 'SeatTrigger',
+    declaration: 'export type SeatTrigger = {\n    kind: \'schedule\';\n    selector: SeatScheduleSelector;\n    timeZone: string;\n} | {\n    kind: \'git\';\n    repositoryId: string;\n    ref: string;\n} | {\n    kind: \'external\';\n    sourceId: SeatSourceId;\n    eventType?: string;\n} | {\n    kind: \'window-ended\';\n    seat: SeatName;\n    on: \'closed\' | \'can-close\';\n} | {\n    kind: \'handoff-timeout\';\n    timeoutMinutes: number;\n} | {\n    kind: \'manual\';\n    origin: \'manual\' | \'remote\';\n};',
+  },
+  {
+    name: 'SeatTriggerEvidence',
+    declaration: 'export type SeatTriggerEvidence = {\n    kind: \'schedule\';\n    scheduleId: Branded<\'ScheduleId\'>;\n    scheduledAt: SeatTimestamp;\n} | {\n    kind: \'git\';\n    repositoryId: Branded<\'SeatRepositoryId\'>;\n    ref: string;\n    oldObjectId: string | null;\n    newObjectId: string | null;\n    observationSequence: number;\n} | {\n    kind: \'external\';\n    eventType: string;\n} | {\n    kind: \'window-ended\';\n    sessionId: SessionId;\n    endedEventId: SourceEventId;\n    reportId: CloseReportId | null;\n    origin: \'closed\' | \'can-close\';\n} | ({\n    kind: \'handoff-timeout\';\n} & SeatHandoffTimeout) | {\n    kind: \'manual\';\n    origin: \'manual\' | \'remote\';\n    operationId: SeatOperationId;\n};',
+  },
+  {
+    name: 'SeatTriggerSource',
+    declaration: 'export interface SeatTriggerSource {\n    sourceId: SeatSourceId;\n    kinds: readonly SeatTrigger[\'kind\'][];\n    maxRedeliveryMs: number | null;\n    callback: (payload: SeatCallbackPayload) => Promise<void>;\n}',
+  },
+  {
+    name: 'SeatTurnAdmission',
+    declaration: 'export type SeatTurnAdmission = {\n    status: \'allow\';\n} | {\n    status: \'defer\';\n    reason: \'budget-stopped\' | \'budget-unverifiable\' | \'configuring\' | \'owner-unknown\';\n};',
+  },
+  {
+    name: 'SeatWait',
+    declaration: 'export interface SeatWait {\n    waitId: WaitId;\n    sessionId: SessionId;\n    mode: \'any\' | \'all\';\n    objects: readonly WaitObject[];\n    observations: readonly WaitObservation[];\n    phase: \'registered\' | \'satisfied\' | \'woken\' | \'cancelled\';\n    operationId: SeatOperationId;\n    wakeOperationId: SeatOperationId;\n    toolCallId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n    stateVersion: number;\n    durability: \'durable\' | \'best-effort\';\n}',
+  },
+  {
+    name: 'SeatWindowCandidate',
+    declaration: 'export interface SeatWindowCandidate {\n    seat: SeatName;\n    sessionId: SessionId;\n    title: string;\n    nodeId: SeatNodeId;\n}',
+  },
+  {
+    name: 'SeatWindowStatus',
+    declaration: 'export type SeatWindowStatus = \'running\' | \'idle\' | \'approval-pending\' | \'plan-review-pending\' | \'answer-pending\' | \'completed\';',
+  },
+  {
+    name: 'SeatWindowView',
+    declaration: 'export interface SeatWindowView extends SeatWindowCandidate {\n    status: SeatWindowStatus | null;\n    engineStatus: SeatEngineStatus;\n    evidence: \'complete\' | \'unknown\';\n    idleMinutes: number | null;\n    runningSubagents: number;\n    activeJobs: number;\n    canRenew: boolean;\n    renewRejection: SeatFailure | null;\n    busyReasons: readonly SeatBusyReason[];\n    stateVersion: number;\n    seatBinding: SeatBinding | null;\n}',
+  },
+  {
+    name: 'SeatWorktreePolicy',
+    declaration: 'export interface SeatWorktreePolicy {\n    clientTreesPerSlot: number;\n    staleOnSettle: \'notify\';\n    lightByDefault: boolean;\n    staleHours: number;\n}',
+  },
+  {
+    name: 'SeatWorktreeRegistration',
+    declaration: 'export interface SeatWorktreeRegistration {\n    repositoryId: string;\n    path: string;\n    seat: SeatName;\n    taskId: SeatTaskId;\n    kind: \'light\' | \'client\';\n    branch: string;\n    registeredAt: SeatTimestamp;\n}',
+  },
+  {
+    name: 'SeatWorktreeResult',
+    declaration: 'export type SeatWorktreeResult = {\n    status: \'registered\' | \'observed\';\n    trees: readonly SeatWorktreeRegistration[];\n    alternatives: readonly string[];\n} | SeatRejected;',
   },
   {
     name: 'SendBatchRequest',
@@ -8145,6 +9724,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionPageRequest {\n    readonly address: SessionAddress;\n    readonly throughSeq: number;\n    readonly beforeSeq?: number;\n    readonly maxMessages?: number;\n    readonly turnWindow?: {\n        readonly minMessages: number;\n        readonly minTurns: number;\n    };\n}',
   },
   {
+    name: 'SessionPendingQuestions',
+    declaration: 'export interface SessionPendingQuestions {\n    readonly available: boolean;\n    readonly blocking: readonly {\n        readonly questions: readonly AskUserQuestionItem[];\n    }[];\n    readonly timed: readonly PendingUserQuestion[];\n}',
+  },
+  {
     name: 'SessionPersistenceCreateOptions',
     declaration: 'export interface SessionPersistenceCreateOptions {\n    readonly signal?: AbortSignal;\n    readonly inheritedEventCount?: SessionLogOffset;\n}',
   },
@@ -8397,6 +9980,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SessionWorkspacePathApplication = NativeFileApplication;',
   },
   {
+    name: 'SetProjectModeRequest',
+    declaration: 'export interface SetProjectModeRequest {\n    projectId: SeatProjectId;\n    mode: EngineMode;\n    expectedRevision: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'SetProjectModeResult',
+    declaration: 'export type SetProjectModeResult = {\n    status: \'saved\';\n    policy: SeatProjectPolicy;\n} | SeatRejected;',
+  },
+  {
+    name: 'SetSeatAuthorityRequest',
+    declaration: 'export interface SetSeatAuthorityRequest {\n    expectedRevision: number;\n    authority: SeatAuthority;\n    authorizationRef: AuthorizationRef;\n    operationId: SeatOperationId;\n}',
+  },
+  {
     name: 'SettingsDescribeOptions',
     declaration: 'export interface SettingsDescribeOptions {\n    redactSecrets?: boolean;\n}',
   },
@@ -8547,6 +10142,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillViewOptions',
     declaration: 'export interface SkillViewOptions extends SkillLookupOptions {\n    readonly scope?: ScopeKey | undefined;\n}',
+  },
+  {
+    name: 'SourceEventId',
+    declaration: 'export type SourceEventId = Branded<\'SeatSourceEventId\'>;',
   },
   {
     name: 'SpawnTeammateRequest',
@@ -8717,6 +10316,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentProvider {\n    readonly name: string;\n    readonly capabilities: SubagentCapabilities;\n    readonly inheritsParentContext: boolean;\n    readonly agentRouteDefaults?: Readonly<{\n        provider: string;\n        model: string;\n    }>;\n    start?(request: ResolvedSubagentStartRequest): Promise<SubagentRun>;\n    prepareContinuable?(request: ContinuableCreateRequest): Promise<ContinuableCreateSpec>;\n}',
   },
   {
+    name: 'SubagentQueued',
+    declaration: 'export interface SubagentQueued {\n    readonly status: \'queued\';\n    readonly ticketId: Branded<\'SeatChildTicketId\'>;\n    readonly parentSessionId: SessionId;\n}',
+  },
+  {
+    name: 'SubagentReservation',
+    declaration: 'export interface SubagentReservation {\n    readonly status: \'reserved\';\n    release(childId?: SessionId): Promise<void>;\n}',
+  },
+  {
     name: 'SubagentResult',
     declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly deliveryState?: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    readonly stopReason: SubagentStopReason;\n}',
   },
@@ -8738,7 +10345,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentRuntime',
-    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    static inject;\n    constructor(ctx: Context, private config: Config);\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    startActivation(spec: SubagentActivationSpec & {\n        readonly childId: SessionId;\n    }): Promise<SubagentActivation & {\n        readonly messageId: MessageId;\n    }>;\n    startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async waitForChildren(parent: Agent): Promise<boolean>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'interruptByParent\')\n    interruptByParent(childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\'): SubagentIn /* …truncated — full shape in source */',
+    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    static inject;\n    constructor(ctx: Context, private config: Config);\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    startActivation(spec: SubagentActivationSpec & {\n        readonly childId: SessionId;\n    }): Promise<SubagentActivation & {\n        readonly messageId: MessageId;\n    }>;\n    startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>;\n    async waitForChildren(parent: Agent): Promise<boolean>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'int /* …truncated — full shape in source */',
   },
   {
     name: 'SubagentSendMessageOptions',
@@ -8759,6 +10366,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentStopReasonMap',
     declaration: 'export interface SubagentStopReasonMap {\n    completed: \'completed\';\n    aborted: \'aborted\';\n    error: \'error\';\n    \'max-tokens\': \'max-tokens\';\n    refusal: \'refusal\';\n}',
+  },
+  {
+    name: 'SubmitCloseReportRequest',
+    declaration: 'export interface SubmitCloseReportRequest {\n    report: CloseSelfReport;\n    operationId: SeatOperationId;\n    toolCallId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n}',
   },
   {
     name: 'SubprocessCollect',
@@ -9213,6 +10824,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TranslationSpec = AnonymousTranslationSpec | PaidTranslationSpec;',
   },
   {
+    name: 'TriggerDeduplication',
+    declaration: 'export interface TriggerDeduplication {\n    key: string;\n    digest: SeatDigest;\n    receivedAt: SeatTimestamp;\n    bucket: number | null;\n    sourceId: SeatSourceId;\n    eventId: SourceEventId | null;\n}',
+  },
+  {
+    name: 'TriggerEnvelope',
+    declaration: 'export interface TriggerEnvelope {\n    triggerId: TriggerId;\n    sourceId: SeatSourceId;\n    eventId?: SourceEventId;\n    kind: SeatTrigger[\'kind\'];\n    evidence: SeatTriggerEvidence;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    receivedAt: SeatTimestamp;\n    dataDigest: SeatDigest;\n    data: SeatJson;\n    taskId?: SeatTaskId;\n    callbackRef: SeatSourceId;\n    cause?: {\n        eventId: SourceEventId;\n        depth: number;\n    };\n}',
+  },
+  {
+    name: 'TriggerId',
+    declaration: 'export type TriggerId = Branded<\'SeatTriggerId\'>;',
+  },
+  {
+    name: 'TurnAdmissionDecision',
+    declaration: 'export type TurnAdmissionDecision = {\n    readonly kind: \'allow\';\n} | {\n    readonly kind: \'defer\';\n    readonly reason: string;\n};',
+  },
+  {
     name: 'TurnCompleteInput',
     declaration: 'export interface TurnCompleteInput {\n    turnId: string;\n    answer: string;\n    durationMs: number;\n    isAborted: boolean;\n    reason: \'answer\' | \'aborted\' | \'error\';\n    agentId?: string;\n    usage?: TurnUsage;\n}',
   },
@@ -9405,8 +11032,32 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface UserMessage extends MessageBase {\n    readonly role: \'user\';\n}',
   },
   {
+    name: 'UserQuestionState',
+    declaration: 'export type UserQuestionState = \'open\' | \'continued\';',
+  },
+  {
     name: 'VerifiedWebhookDelivery',
     declaration: 'export interface VerifiedWebhookDelivery<K extends string = string> {\n    readonly kind: K;\n    readonly source: WebhookSourceId;\n    readonly deliveryId: WebhookDeliveryId;\n    readonly event: WebhookEventOf<K>;\n    readonly receivedAt: number;\n}',
+  },
+  {
+    name: 'WaitId',
+    declaration: 'export type WaitId = Branded<\'SeatWaitId\'>;',
+  },
+  {
+    name: 'WaitObject',
+    declaration: 'export type WaitObject = {\n    kind: \'subagent\';\n    id: Branded<\'SubagentRunId\'>;\n} | {\n    kind: \'job\';\n    id: Branded<\'JobId\'>;\n} | {\n    kind: \'schedule\';\n    id: Branded<\'ScheduleId\'>;\n} | {\n    kind: \'message\';\n    id: Branded<\'MessageId\'>;\n};',
+  },
+  {
+    name: 'WaitObservation',
+    declaration: 'export interface WaitObservation {\n    object: WaitObject;\n    outcome: \'completed\' | \'failed\' | \'cancelled\' | \'owner-lost\' | \'unknown\';\n    observedAt: SeatTimestamp;\n    watermark: number;\n    durability: \'durable\' | \'best-effort\';\n}',
+  },
+  {
+    name: 'WakeSeatRequest',
+    declaration: 'export interface WakeSeatRequest {\n    seat: SeatName;\n    sessionId?: SessionId;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n}',
+  },
+  {
+    name: 'WakeSeatResult',
+    declaration: 'export type WakeSeatResult = {\n    status: \'sent\' | \'stored-budget-stopped\';\n    sessionId: SessionId;\n    messageId: Branded<\'MessageId\'>;\n    operationId: SeatOperationId;\n} | {\n    status: \'opened\';\n    result: OpenSeatResult;\n} | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n} | SeatRejected;',
   },
   {
     name: 'WebBootBatch',
@@ -9535,6 +11186,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WeeklyScheduleRecord',
     declaration: 'export interface WeeklyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'weekly\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly weekdays: number[];\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'WindowEndReason',
+    declaration: 'export type WindowEndReason = \'manual\' | \'self-report\' | \'replaced\' | \'owner-dead\' | \'replacement-failed\';',
   },
   {
     name: 'WorkflowAgentEndInfo',

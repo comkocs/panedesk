@@ -13,7 +13,7 @@ import { config, profile, seatStub, engineStub } from './harness.ts'
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true }))) })
 async function root() {
-  const path = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests/.consumer-'))
+  const path = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.consumer-'))
   roots.push(path)
   await mkdir(join(path, 'memory'))
   return path

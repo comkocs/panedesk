@@ -8,19 +8,38 @@ import type { SeatDigest, SeatName, SeatProjectId, SeatSourceId, TriggerEnvelope
 
 /** Trusted source configuration never contains credential values. */
 export interface WebhookSource {
+  /** Registered ingress identity matched against the request source header. */
   sourceId: SeatSourceId
+  /** Exact destination seat allowed for this source. */
   seat: SeatName
+  /** Project attached to accepted source events. */
   projectId: SeatProjectId
+  /** Signing key versions mapped to credential references, never secret values. */
   credentialRefs: Readonly<Record<string, string>>
 }
 /** Explicit deployment bounds; no network address or secret enters audit records. */
 export interface WebhookOptions {
+  /** Exact HTTP route; must start with a slash and have no trailing slash. */
   path: string
+  /** Maximum raw request bytes retained before rejecting the body. */
   maxBodyBytes: number
+  /** Maximum absolute timestamp difference from the local clock in milliseconds. */
   maxClockSkewMs: number
+  /** Milliseconds allowed to receive the complete request body. */
   bodyTimeoutMs: number
+  /** Unique source identities and their authorized destinations and key references. */
   sources: readonly WebhookSource[]
-  audit: (fact: { sourceId: SeatSourceId; digest: SeatDigest; observedAt: string; error: SeatFailure }) => Promise<void>
+  /** Durable rejection sink; completion precedes the rejection response. */
+  audit: (fact: {
+    /** Registered source identity, or the unregistered-source sentinel. */
+    sourceId: SeatSourceId
+    /** Digest of the bounded raw body prefix without retaining source text. */
+    digest: SeatDigest
+    /** Local ISO timestamp when rejection was observed. */
+    observedAt: string
+    /** Structured refusal without credential values or network addresses. */
+    error: SeatFailure
+  }) => Promise<void>
 }
 
 /** Handle one bounded signed request and acknowledge only durable acceptance.

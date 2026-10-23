@@ -372,6 +372,27 @@ abstract shutdown(): Promise<void>
 
 Source: [`packages/session/session-telemetry/src/index.ts`](../../packages/session/session-telemetry/src/index.ts)
 
+<a id="ledger-watch-events"></a>
+
+### `ledger-watch/*` events
+
+<a id="ledger-watchowner-settled--emit"></a>
+
+#### `ledger-watch/owner-settled` — emit
+
+A killed run has a durable terminal acknowledgement; consumers must fence by run identity.
+
+```ts cordis-catalog
+/**
+ * A killed run has a durable terminal acknowledgement; consumers must fence by run identity.
+ * @param payload - exact owner and acknowledged terminal evidence; repeat delivery is possible.
+ * @mode emit
+ */
+'ledger-watch/owner-settled'(payload: LedgerOwnerSettled): void
+```
+
+Source: [`packages/session/ledger-watch/src/types.ts`](../../packages/session/ledger-watch/src/types.ts)
+
 <a id="session-telemetry-events"></a>
 
 ### `session-telemetry/*` events

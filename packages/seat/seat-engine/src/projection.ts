@@ -8,22 +8,39 @@ import type {
 
 /** Replay state is instance-owned and contains no independent durable truth. */
 export class EngineProjection {
+  /** Last contiguous committed decision sequence. */
   sequence = 0
+  /** Verified decisions in replay order for historical queries. */
   readonly decisions: EngineDecision[] = []
+  /** Unopened queue items, removed on cancellation or opening. */
   readonly pending = new Map<QueueItemId, PendingSeatItem>()
+  /** Queue identities with committed reminder approval. */
   readonly approved = new Set<QueueItemId>()
+  /** Accepted trigger data keyed by durable deduplication identity. */
   readonly dedup = new Map<string, EngineTriggerData>()
+  /** Latest committed project mode and revision. */
   readonly policies = new Map<SeatProjectId, SeatProjectPolicy>()
+  /** Latest opening progress for each engine-owned Session. */
   readonly opens = new Map<SessionId, EngineOpenData>()
+  /** Current reservations retained until matching owner release. */
   readonly resources = new Map<SessionId, ResourceReservation>()
+  /** Latest durable delivery state for each callback. */
   readonly callbacks = new Map<CallbackId, SeatCallbackDelivery>()
+  /** Latest admission state for each child ticket. */
   readonly children = new Map<ChildTicketId, ChildAdmissionTicket>()
+  /** Latest committed budget evidence for each Session. */
   readonly budgets = new Map<SessionId, SeatBudgetSnapshot>()
+  /** Released owner epochs that must not regain authority. */
   readonly fenced = new Set<OwnerEpoch>()
+  /** Committed close outcomes indexed by Session. */
   readonly closed = new Map<SessionId, import('@panedesk/dsh-seat').EngineCloseData>()
+  /** Latest replacement progress indexed by replacement identity. */
   readonly replacements = new Map<import('@panedesk/dsh-seat').ReplacementId, import('@panedesk/dsh-seat').EngineReplacementData>()
+  /** Latest repository checkpoint indexed by repository and ref. */
   readonly git = new Map<string, import('@panedesk/dsh-seat').EngineGitCheckpoint>()
+  /** Latest maintenance evidence indexed by Session. */
   readonly keepalive = new Map<SessionId, import('@panedesk/dsh-seat').EngineKeepAliveData>()
+  /** Maintenance outcomes indexed by Session and operation identity. */
   readonly renewals = new Map<string, import('@panedesk/dsh-seat').EngineKeepAliveData>()
 
   /** Apply a contiguous committed frame; gaps invalidate this view.

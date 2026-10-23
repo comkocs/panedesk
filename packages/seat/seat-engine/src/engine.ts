@@ -29,6 +29,7 @@ export interface EngineDependencies {
 }
 /** All durable engine operations share one native node owner and synchronized sequence. */
 export class SeatEngine extends SeatEngineService {
+  /** Single durable decision owner shared by all engine operations. */
   readonly journal: EngineJournal
   private readonly sources = new SourceRegistry()
   private readonly triggers: TriggerRegistry

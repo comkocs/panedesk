@@ -13,6 +13,7 @@
         root: !!js dshHomePath('sessions')
     - id: message-delivery
       name: '@panedesk/dsh-message-delivery-local'
+      disabled: !!js "ctx.get('cmdlineArgs')?.get()[0] === 'engine'"
       inject: [sessionLedger]
       config:
         maxRecordBytes: 1048576
@@ -22,6 +23,11 @@
         lockTimeoutMs: 5000
         lockRetryMs: 10
         watch: false
+    - id: seat-engine-query
+      name: '@panedesk/dsh-seat-engine/reader'
+      disabled: !!js "!process.env.PANEDESK_SEAT_MAX_DECISION_BYTES"
+      config:
+        maxDecisionBytes: !!js Number(process.env.PANEDESK_SEAT_MAX_DECISION_BYTES)
     - id: ledger-query
       name: '@panedesk/dsh-ledger-query'
       inject: [sessionLedger]

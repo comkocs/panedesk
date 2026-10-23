@@ -86,6 +86,7 @@ const GROUP_ORDER = [
   'skill',
   'compact',
   'subagent',
+  'seat',
   'tasks',
   'workflow',
   'web',
@@ -107,6 +108,65 @@ const GROUP_ORDER = [
 ]
 
 const SERVICE_ROLES: ServiceRole[] = [
+  {
+    key: 'instructionSubscriptions', pkg: 'instruction-subscriptions', title: 'Persisted instruction subscriptions', mode: 'service',
+    consumers: ['seat-local'], note: 'Retains selected instruction identities for later prompt assembly without activating a Session.',
+  },
+  {
+    key: 'seats', pkg: 'seat', title: 'Seat definitions and window operations', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['seat-app', 'seat-remote', 'tool-seat', 'seat-engine'],
+    note: 'Optional local providers own authorized definitions and window operations without changing upstream behavior when absent.',
+  },
+  {
+    key: 'seatEngine', pkg: 'seat', title: 'Durable seat orchestration', mode: 'seam',
+    implementations: ['seat-engine'], consumers: ['seat-local', 'seat-gates', 'seat-remote', 'seat-app', 'tool-seat', 'ledger-query'],
+    note: 'One node writer commits decisions before publishing queue, admission, callback and budget state.',
+  },
+  {
+    key: 'seatEngineQuery', pkg: 'seat', title: 'Read-only engine history', mode: 'seam',
+    implementations: ['seat-engine'], consumers: ['ledger-query'],
+    note: 'Reads verified existing journal prefixes without creating files or acquiring writer ownership.',
+  },
+  {
+    key: 'seatGates', pkg: 'seat', title: 'Seat policy evaluation', mode: 'seam',
+    implementations: ['seat-gates'], consumers: ['seat-local', 'seat-remote', 'tool-seat', 'ledger-query'],
+    note: 'Evaluates trusted operation facts and commits hit counters through the engine.',
+  },
+  {
+    key: 'seatDirectories', pkg: 'seat', title: 'Authorized seat directories', mode: 'seam',
+    consumers: ['tool-seat'], note: 'Provides bounded directory reads and edits under seat authorization.',
+  },
+  {
+    key: 'seatWorktreeHost', pkg: 'seat', title: 'Worktree records and authority', mode: 'seam',
+    consumers: ['seat-gates'], note: 'Supplies complete revisioned records and independent force authorization.',
+  },
+  {
+    key: 'seatReminderHost', pkg: 'seat', title: 'Idempotent seat reminders', mode: 'seam',
+    consumers: ['seat-gates'], note: 'Accepts durable reminder delivery through the existing next-step lane.',
+  },
+  {
+    key: 'seatRemote', pkg: 'seat-remote', title: 'Authenticated seat operations', mode: 'service',
+    note: 'Projects owner-authorized requests onto optional seat providers without starting a replacement runtime.',
+  },
+  {
+    key: 'sessionCreation', pkg: 'api-session-controller', title: 'Exact Session creation', mode: 'service',
+    consumers: ['seat-local'], note: 'Preserves reserved identities and admission ownership during Session creation.',
+  },
+  {
+    key: 'jobNotifications', pkg: 'jobs', title: 'Durable job notifications', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['jobs'],
+    note: 'Reserves durable notification ownership before job execution and accepts settlement once.',
+  },
+  {
+    key: 'subagentAdmission', pkg: 'subagent', title: 'Optional child admission', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['subagent'],
+    note: 'Reserves child capacity or returns a durable queue ticket before activation.',
+  },
+  {
+    key: 'subagentNotifications', pkg: 'subagent', title: 'Durable child settlement', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['subagent'],
+    note: 'Accepts original settlement messages through the durable outbox without duplicate delivery.',
+  },
   {
     key: 'cotTranslation',
     pkg: 'experimental-client-ui-cot-translation',

@@ -62,11 +62,13 @@ export interface SubagentQueued {
 /** Optional policy reserves capacity before the original parent-chain pool. */
 export interface SubagentAdmission {
   /**
+   * Reserve capacity before starting an activation.
    * @param spec - Validated start request; the provider owns durable FIFO and replay.
    * @returns A reservation or a nonblocking queue ticket.
    */
   acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>
   /**
+   * Authorize continuation using the existing child evidence.
    * @param parent - Authorized parent requesting another child turn.
    * @param childId - Child whose own cache/context evidence must be checked.
    * @returns Only after continuation policy permits input; rejection must include an alternative.
@@ -94,6 +96,7 @@ export interface SubagentReservation {
 /** Optional bridge accepts the original settlement message instead of duplicating it. */
 export interface SubagentNotifications {
   /**
+   * Accept settlement through the durable notification outbox.
    * @param request - Original parent, child, result and model-visible message.
    * @returns After durable outbox acceptance; retries must deduplicate the run identity.
    */

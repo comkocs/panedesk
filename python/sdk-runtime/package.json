@@ -87,6 +87,7 @@
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-checkpoint-policy": "workspace:*",
     "@panedesk/dsh-session-log-deepseek": "workspace:*",

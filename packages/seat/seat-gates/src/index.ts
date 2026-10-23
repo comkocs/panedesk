@@ -26,14 +26,23 @@ export const name = 'seat-gates'
 export const inject: string[] = []
 /** Deployment-owned policy settings, resolved once at activation. */
 export interface Config {
+  /** Deployment criteria override built-in definitions with matching identities. */
   definitions: GateDefinition[]
+  /** Repeated identical observations allowed before polling is rejected. */
   pollingThreshold: number
+  /** Largest recognized shell sleep allowed by the polling criterion. */
   maxSleepSeconds: number
+  /** Maximum UTF-8 bytes retained in a compaction checkpoint. */
   checkpointMaxBytes: number
+  /** Maximum checkpoint retries after an oversized result. */
   checkpointRetryLimit: number
+  /** Tokens reserved for ledger evidence in the checkpoint budget. */
   ledgerCheckpointReserveTokens: number
+  /** Maximum total memory file bytes read for one audit snapshot. */
   memoryAuditMaxBytes: number
+  /** Maximum memory files read for one audit snapshot. */
   memoryAuditMaxFiles: number
+  /** IANA time zone used for policy calendar observations. */
   timeZone: string
 }
 /** Validated bounded defaults; JSON configuration cannot provide executable criteria. */

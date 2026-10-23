@@ -16,6 +16,7 @@ Run `pnpm run gen-cli-help` to regenerate; run `pnpm run verify-cli-help` to che
 - [`panedesk ledger`](#panedesk-ledger)
 - [`panedesk sdk`](#panedesk-sdk)
 - [`panedesk sdk-minimal`](#panedesk-sdk-minimal)
+- [`panedesk seat`](#panedesk-seat)
 - [`panedesk web`](#panedesk-web)
 
 <a id="panedesk"></a>
@@ -150,7 +151,7 @@ Examples:
 Invocations: `panedesk ledger --help`, `panedesk --profile ledger --help`, `panedesk ledger-watch --help`, `panedesk --profile ledger-watch --help`
 
 ```text
-Usage: ledger [today|query|export|merge|live|cache|verify|messages] [options]
+Usage: ledger [today|query|export|merge|live|cache|verify|messages|engine] [options]
 ```
 
 <a id="panedesk-sdk"></a>
@@ -187,6 +188,15 @@ Options:
 Example:
   panedesk --profile sdk-minimal     serve one SDK runtime until its client disconnects
 
+```
+
+<a id="panedesk-seat"></a>
+## `panedesk seat`
+
+Invocations: `panedesk seat --help`, `panedesk --profile seat --help`
+
+```text
+Usage: seat <command> [--seat <name> | --seats <names>] [--request <json>] [options]
 ```
 
 <a id="panedesk-web"></a>

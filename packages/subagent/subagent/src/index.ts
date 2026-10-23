@@ -287,6 +287,7 @@ export class SubagentRuntime extends TypertRemoteService {
   }
 
   /**
+   * Request activation while preserving durable queue admission outcomes.
    * @param spec - Task, backend, and result recipient.
    * @returns An activation or a durable queued ticket without waiting for capacity.
    */

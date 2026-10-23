@@ -22,7 +22,7 @@ import { CompositionSeats, BarrierAdapter } from './composition-provider.ts'
 
 /** Boot a private test-only YAML profile; release persistence after its live owners. */
 export async function composition(cache = false) {
-  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests/.composition-'))
+  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.composition-'))
   const ctx = new Context()
   try {
     ctx.baseUrl = `${pathToFileURL(home).href}/`

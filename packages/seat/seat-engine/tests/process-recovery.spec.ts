@@ -33,7 +33,7 @@ async function stop(child: ChildProcess): Promise<void> {
   await exited
 }
 it.each(stages)('A09 recovers the original durable identity after SIGKILL at %s', async (stage) => {
-  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests/.process-'))
+  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.process-'))
   const children: ChildProcess[] = []
   try {
     const first = start(home, stage); children.push(first.child)

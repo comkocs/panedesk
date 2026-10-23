@@ -14,6 +14,13 @@ export const inject = ['cmdlineArgs', 'appReady', 'appExit']
 export function apply(ctx: Context): void {
   const args = ctx.get('cmdlineArgs'), ready = ctx.get('appReady'), exit = ctx.get('appExit')
   if (!args || !ready || !exit) throw new Error('Seat app requires launcher services')
+  if (args.get().length === 1 && ['--help', '-h'].includes(args.get()[0] ?? '')) {
+    ctx.effect(() => ready.onReady(() => {
+      process.stdout.write('Usage: seat <command> [--seat <name> | --seats <names>] [--request <json>] [options]\n')
+      exit(0)
+    }))
+    return
+  }
   let running = Promise.resolve()
   ctx.effect(() => {
     const remove = ready.onReady(() => {

@@ -404,6 +404,41 @@ type SubagentDescendantListEntry = SubagentListEntry & {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxsubagentadmission--subagentadmission"></a>
+
+### `ctx.subagentAdmission` — `SubagentAdmission`
+
+Optional policy reserves capacity before the original parent-chain pool.
+
+```ts cordis-catalog
+/**
+ * Reserve capacity before starting an activation.
+ * @param spec - Validated start request; the provider owns durable FIFO and replay.
+ * @returns A reservation or a nonblocking queue ticket.
+ */
+acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>
+
+/**
+ * Authorize continuation using the existing child evidence.
+ * @param parent - Authorized parent requesting another child turn.
+ * @param childId - Child whose own cache/context evidence must be checked.
+ * @returns Only after continuation policy permits input; rejection must include an alternative.
+ */
+continue(parent: Agent, childId: SessionId): Promise<void>
+
+/**
+ * Reserve capacity for a cold activation after durable lineage validation.
+ * @param parent - Authorized direct parent.
+ * @param childId - Existing child; never create another identity on replay.
+ * @returns A reservation or a durable nonblocking ticket.
+ */
+resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>
+```
+
+Types: [Agent](core.md) · [SessionId](core.md)
+
+Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)
+
 <a id="ctxsubagentmodelselection--subagentmodelselectionconfig"></a>
 
 ### `ctx.subagentModelSelection` — `SubagentModelSelectionConfig`
@@ -419,6 +454,25 @@ current(): SubagentModelSelectionSettings
 ```
 
 Source: [`packages/subagent/tool-subagent/src/model-selection-settings.ts`](../../packages/subagent/tool-subagent/src/model-selection-settings.ts)
+
+<a id="ctxsubagentnotifications--subagentnotifications"></a>
+
+### `ctx.subagentNotifications` — `SubagentNotifications`
+
+Optional bridge accepts the original settlement message instead of duplicating it.
+
+```ts cordis-catalog
+/**
+ * Accept settlement through the durable notification outbox.
+ * @param request - Original parent, child, result and model-visible message.
+ * @returns After durable outbox acceptance; retries must deduplicate the run identity.
+ */
+accept(request: { parent: Agent childId: SessionId runId: SubagentRunId result: SubagentResult message: import('@panedesk/dsh-llm').UserMessage eventKind: 'subagent' messageClass: 'handoff' delivery: 'steer' }): Promise<void>
+```
+
+Types: [Agent](core.md) · [SessionId](core.md) · [UserMessage](session.md)
+
+Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/subagent/src/types.ts)
 
 <a id="ctxsubagents--subagentruntime"></a>
 
@@ -447,6 +501,13 @@ startActivation(spec: SubagentActivationSpec & { readonly childId: SessionId }):
  * @returns activation with a message id only for local children.
  */
 startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>
+
+/**
+ * Request activation while preserving durable queue admission outcomes.
+ * @param spec - Task, backend, and result recipient.
+ * @returns An activation or a durable queued ticket without waiting for capacity.
+ */
+async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import('./types.ts').SubagentQueued>
 
 /**
  * Join progressing descendants without cancelling them. Idle descendants whose

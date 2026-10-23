@@ -45,6 +45,7 @@
     "@panedesk/dsh-cmdline": "workspace:*"
   },
   "dependencies": {
+    "@panedesk/dsh-seat-engine": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",

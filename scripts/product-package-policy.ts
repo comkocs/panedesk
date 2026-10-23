@@ -16,7 +16,6 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
-  'packages/seat/seat-engine': { category: 'optional', reason: 'Durable seat orchestration requires explicit deployment policy.' },
   'packages/llm/llm-cache': { category: 'optional', reason: 'Explicit session cache and model-family admission policy.' },
   'packages/compaction/compaction-ledger': { category: 'optional', reason: 'Optional bounded ledger facts in compaction checkpoints.' },
   'packages/bundle/full': { category: 'optional', reason: 'Published dependency carrier installed beside the launcher for explicitly selected full, Web, ACP, and SDK profiles.' },

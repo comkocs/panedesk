@@ -440,6 +440,24 @@ Host service backing the generated `ctx.remote.job` namespace.
 
 Source: [`packages/api/job-controller/src/index.ts`](../../packages/api/job-controller/src/index.ts)
 
+<a id="ctxjobnotifications--jobnotifications"></a>
+
+### `ctx.jobNotifications` — `JobNotifications`
+
+Optional durable outbox provider; absence retains legacy best-effort behavior.
+
+```ts cordis-catalog
+/**
+ * Persist intent synchronously before run; a throw prevents producer execution.
+ * Unsettled recovered intents report unknown/owner-lost, never success or replay.
+ * @param intent - Immutable execution identity and owner.
+ * @returns An execution-bound writer retained across bridge unregistration.
+ */
+prepare(intent: JobIntent): JobNotificationReservation
+```
+
+Source: [`packages/jobs/jobs/src/types.ts`](../../packages/jobs/jobs/src/types.ts)
+
 <a id="ctxjobs--jobregistry-abstract-seam"></a>
 
 ### `ctx.jobs` — `JobRegistry` (abstract seam)
@@ -466,6 +484,14 @@ Implementations must honor these semantics:
  * @returns the registry-issued `<kind>-<short-uuid>` id.
  */
 abstract start(spec: JobSpec): JobId
+
+/**
+ * Inspect notification durability separately from producer completion.
+ * @param id - Registered job identity.
+ * @param caller - Session checked with the same authorization as get.
+ * @returns Best-effort for implementations without a durable outbox.
+ */
+notificationState(id: JobId, caller?: SessionId): JobNotificationState
 
 /**
  * List caller-owned and unowned jobs in registration order.

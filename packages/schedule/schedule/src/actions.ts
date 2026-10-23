@@ -14,6 +14,7 @@ export class ScheduleActions {
   constructor(private readonly ctx: Context, private readonly retryMs: number) {}
 
   /**
+   * Register a handler whose lifetime follows the caller scope.
    * @param id - Installed action name.
    * @param handler - Durable acceptor; must not await downstream execution.
    * @param changed - Requests the shared Host timer to recompute.
@@ -30,6 +31,7 @@ export class ScheduleActions {
   }
 
   /**
+   * Persist an action without starting its downstream work.
    * @param request - Existing recurrence record plus opaque JSON action data.
    * @returns Persisted active task; duplicate identities reject without overwriting.
    */
@@ -42,6 +44,7 @@ export class ScheduleActions {
   }
 
   /**
+   * Read stored actions without activating their Sessions.
    * @returns Stored tasks and live handler availability without activating Sessions.
    */
   async list(): Promise<(ScheduleActionTask & { available: boolean })[]> {
@@ -51,6 +54,7 @@ export class ScheduleActions {
   }
 
   /**
+   * Delete the stored task without cancelling accepted downstream work.
    * @param id - Exact task identity.
    * @returns Whether a stored action was deleted.
    */
@@ -62,6 +66,7 @@ export class ScheduleActions {
   }
 
   /**
+   * Dispatch due actions through the shared Host timer.
    * @param stopping - Disposal observed between durable operations.
    * @returns Nearest action obligation for the existing Host timer.
    */

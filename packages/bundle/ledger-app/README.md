@@ -23,6 +23,8 @@ Offline ledger application bundle. Its patch mounts the session ledger, query se
 
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
+Set `PANEDESK_SEAT_MAX_DECISION_BYTES` to the target writer's `maxDecisionBytes` to enable the `seat-engine-query` reader, or override that row with explicit `home`, `nodeId`, and `maxDecisionBytes` in a profile patch. No frame limit is inferred from a test fixture. Without the setting, ordinary ledger commands remain available and engine queries report unavailable. Engine commands disable local message delivery so loading them cannot initialize mailboxes. The reader supports `engine events`, `pending`, `export`, and `verify` without mounting the writer; export returns JSONL in `content` and never writes its output path. `engine gates` reports unavailable because no mutable gate provider is mounted; historical gate facts remain queryable through events.
+
 <a id="model-experience"></a>
 ## Model Experience
 
