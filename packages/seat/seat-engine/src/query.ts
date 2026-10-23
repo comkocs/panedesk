@@ -52,6 +52,16 @@ function redact(effect: EngineEffect): EngineEffect {
  * @returns exported effect count and content digest.
  */
 export async function exportEngine(decisions: readonly EngineDecision[], request: EngineExportRequest): Promise<EngineExportResult> {
+  const { content, ...result } = serializeEngine(decisions, request)
+  await writeFile(request.output, content, { flag: 'wx', mode: 0o600 })
+  return result
+}
+/** Serialize selected facts without writing any file.
+ * @param decisions - verified ordered history.
+ * @param request - selection and explicit raw-data authorization.
+ * @returns stable JSONL content, count, digest and watermark.
+ */
+export function serializeEngine(decisions: readonly EngineDecision[], request: EngineExportRequest): Extract<EngineExportResult, { status: 'exported' }> & { content: string } {
   const selected = new Set(queryEngine(decisions, request.query).effects.map(effect => effect.eventId))
   const seen = new Map<string, string>()
   let count = 0
@@ -68,8 +78,7 @@ export async function exportEngine(decisions: readonly EngineDecision[], request
     output.push(canonical(frame({ ...body, effects })))
   }
   const text = output.length ? `${output.join('\n')}\n` : ''
-  await writeFile(request.output, text, { flag: 'wx', mode: 0o600 })
-  return { status: 'exported', count, digest: digest(text), watermark: decisions.at(-1)?.sequence ?? 0 }
+  return { status: 'exported', content: text, count, digest: digest(text), watermark: decisions.at(-1)?.sequence ?? 0 }
 }
 /** Verify an offline export without publishing its resources or Sessions.
  * @param input - explicit file path.

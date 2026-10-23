@@ -40,6 +40,7 @@ declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
     seatEngine: SeatEngineService
+    seatEngineQuery: SeatEngineQueryService
     seatWorktreeHost: import('./gates.ts').SeatWorktreeHost
     seatReminderHost: import('./gates.ts').SeatReminderHost
     seatGates: SeatGateService
@@ -328,6 +329,31 @@ export abstract class SeatEngineService extends Service {
    * @returns ordered durable frames; storage errors reject iteration.
    */
   abstract subscribe(cursor?: T.EngineCursor): AsyncIterable<EngineDecision>
+}
+
+/** Offline observations never acquire ownership, repair storage or start runtime drivers. */
+export abstract class SeatEngineQueryService extends Service {
+  constructor(ctx: Context) { super(ctx, 'seatEngineQuery') }
+  /** Read verified facts through the last complete frame.
+   * @param request - bounded filters and exclusive cursor.
+   * @returns facts and watermark, or a structured storage refusal.
+   */
+  abstract query(request: T.EngineQueryRequest): Promise<T.EngineQueryResult | T.SeatRejected>
+  /** Rebuild pending work without activating it.
+   * @param request - bounded pending filters.
+   * @returns redacted pending page or a structured storage refusal.
+   */
+  abstract pending(request: T.ListPendingSeatsRequest): Promise<T.ListPendingSeatsResult | T.SeatRejected>
+  /** Return JSONL content in memory; the requested output path is never written.
+   * @param request - selection and explicit raw-data authorization.
+   * @returns content, digest and coverage, or a structured storage refusal.
+   */
+  abstract export(request: T.EngineExportRequest): Promise<(Extract<T.EngineExportResult, { status: 'exported' }> & { content: string; complete: boolean }) | T.SeatRejected>
+  /** Verify a file without importing or repairing it.
+   * @param request - explicit input file.
+   * @returns framing integrity or a structured storage refusal.
+   */
+  abstract verify(request: T.EngineVerifyRequest): Promise<T.EngineVerifyResult>
 }
 
 /** Registry provider owns deterministic evaluation, durable hit counts and expiration. */
