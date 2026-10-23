@@ -599,6 +599,28 @@
         ],
         "test": "delegates exactly one waking settlement with event kind and child id within five seconds"
       }
+    },
+    {
+      "id": "host-typecheck-heap-budget",
+      "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "Under the 4096 MiB budget the last full garbage collection left the host aggregate check at 3936.8 MB on the upstream baseline and 4039.6 MB on this tree (Types 1212896 vs 1247872). The check sits on the abort threshold, so the host old-space budget is larger while the gate logic stays unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "scripts/compile-referenced-projects.ts"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "  return face === 'host' ? ['--max-old-space-size=4096'] : []"
+            ],
+            "fork": [
+              "  return face === 'host' ? ['--max-old-space-size=6144'] : []"
+            ]
+          }
+        ]
+      }
     }
   ]
 }
