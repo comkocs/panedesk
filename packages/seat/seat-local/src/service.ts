@@ -111,6 +111,12 @@ export class LocalSeatService extends SeatService {
       throw error
     }
   }
+  override async nodeStatus(): Promise<T.SeatNodeStatus> {
+    const engine = this.engine()
+    if (engine !== undefined) { await engine.ready(); return engine.nodeStatus() }
+    return { nodeId: this.options.nodeId, nodeName: this.options.nodeName, engine: 'unavailable',
+      openEngineWindows: 0, limit: null, readyAt: null }
+  }
   withAuthority(authority: T.SeatCallContext): SeatService {
     const scoped = Object.create(this) as LocalSeatService
     scoped.authority = Object.freeze({ ...authority })

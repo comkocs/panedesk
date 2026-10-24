@@ -52,6 +52,9 @@ export function validateConfig(config: Config): Config {
     'transactionRetries', 'maxConfirmations'] as const) {
     if (!Number.isSafeInteger(config[key]) || config[key] < 1) throw new Error(`Invalid seat setting: ${key}`)
   }
+  if (config.importPlanTtlMs !== undefined && (!Number.isSafeInteger(config.importPlanTtlMs) || config.importPlanTtlMs < 1)) {
+    throw new Error('Invalid seat setting: importPlanTtlMs')
+  }
   if (!config.directory || !config.nodeId || !config.nodeName || !config.closedSuffix) throw new Error('Seat placement is incomplete')
   return config
 }
