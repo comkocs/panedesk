@@ -867,6 +867,17 @@
       }
     },
     {
+      "id": "F03-persisted-admin-operations",
+      "description": "Serve durable approval progress and independently paginated authorization kinds over authenticated host administration.",
+      "origin": "Optional host integration",
+      "reason": "Approval registration is distinct from real opening progress; restart retains both progress and issued attribution without exposing instruction bodies.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/persisted-operations.spec.ts"],
+        "test": "queries approval registration, real creation and issued kinds after restart without exposing bodies"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
