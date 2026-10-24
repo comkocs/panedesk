@@ -100,7 +100,7 @@ export interface SeatWorktreeHost {
 /** Each hook carries facts from its actual execution point rather than model claims. */
 export type GateContext = GateContextBase & (
   | { hook: 'before-open'; cwd: string; candidateSeats: readonly SeatName[] }
-  | { hook: 'before-batch-open'; seats: readonly SeatName[] }
+  | { hook: 'before-batch-open'; seats: readonly SeatName[]; tasks?: readonly import('./types.ts').SeatTaskScopeContext[] }
   | { hook: 'before-memory-write'; targetPath: string; authorizedDirectories: readonly string[]; syntax: 'certain' | 'unknown' }
   | { hook: 'before-tool-call'; toolName: string; arguments: Readonly<Record<string, SeatJson>>; hasPendingWork: boolean }
   | { hook: 'before-subagent-dispatch'; parentSessionId: SessionId; kind: 'start' | 'continue'; childSessionId: SessionId | null; request: Readonly<Record<string, SeatJson>> }

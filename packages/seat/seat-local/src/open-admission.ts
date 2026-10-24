@@ -28,6 +28,7 @@ export async function admitLocalOpen(engine: T.SeatEngineService, state: LocalEn
   if (request.openingMode === 'prefill') return rejected('unavailable',
     'This engine does not support durable prefill admission.', 'Use automatic opening or install prefill admission.')
   const triggerId = digest(request.operationId) as string as T.TriggerId
+  if (input.openingContext) return rejected('unavailable', 'This engine does not support opening contexts.', 'Install compatible opening admission.')
   const data = json.parse(JSON.parse(JSON.stringify({ request, opening: input.opening, title: input.title, definition })))
   const result = await engine.accept({ triggerId, sourceId: localSourceId, eventId: triggerId as string as T.SourceEventId,
     kind: 'manual', evidence: { kind: 'manual', origin: request.origin, operationId: request.operationId },

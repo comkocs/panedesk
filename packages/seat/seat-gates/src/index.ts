@@ -11,6 +11,7 @@ import { builtinCriterion, validateDefinitions } from './policies.ts'
 import { registerWorktree, taskEnded } from './worktree-service.ts'
 import { installLifecycle } from './lifecycle.ts'
 import { remindChild } from './continuation.ts'
+import { checkTaskScopes } from './task-scopes.ts'
 export { GateRegistry } from './registry.ts'
 export { checkContinuation } from './continuation.ts'
 export { checkPolling, recognizeSleeps } from './polling.ts'
@@ -94,6 +95,7 @@ class GateProvider extends SeatGateService {
   }
   register(criterion: GateCriterion): () => void { return this.registry.register(criterion) }
   evaluate(context: GateContext): Promise<readonly GateResult[]> { return this.registry.evaluate(context) }
+  override evaluateTaskScopes = (context: import('@panedesk/dsh-seat').TaskScopeBatchGateContext) => Promise.resolve(checkTaskScopes(context))
   async list(request: ListSeatGatesRequest) {
     const snapshots = (await this.registry.snapshots()).filter(row =>
       (request.gateId === undefined || row.definition.id === request.gateId)

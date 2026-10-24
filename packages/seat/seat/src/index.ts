@@ -468,6 +468,11 @@ export abstract class SeatGateService extends Service {
    * @returns ordered decisions; deny may short-circuit subsequent gates.
    */
   abstract evaluate(context: GateContext): Promise<readonly GateResult[]>
+  /** 可选整批改面预检；缺席时任务批次不得降级为无证据并发。
+   * @param context - 完整任务、节点、位和改面证据。
+   * @returns 保守交集判定及串行替代。
+   */
+  evaluateTaskScopes?(context: import('./gates.ts').TaskScopeBatchGateContext): Promise<import('./gates.ts').TaskScopeGateDecision>
   /** Read hit counts and expiry by revision.
    * @param request - bounded gate filters.
    * @returns committed counter page.

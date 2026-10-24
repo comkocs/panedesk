@@ -220,6 +220,25 @@ export class LocalSeatService extends SeatService {
       ...(complete ? {} : { nextCursor: `${fingerprint}:${offset + sessions.length}` }) }
   }
   async open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult> {
+    return this.openResolved(request)
+  }
+  /** 受信来源入口仍复用完整的本地开窗策略与持久接纳。
+   * @param request - 来源引用和原开窗参数。
+   * @param authority - 宿主验证身份。
+   * @param resolve - 注册表拥有的冻结器。
+   * @returns 原开窗结果。
+   */
+  openWithContext(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext,
+    resolve: (request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext) => Promise<T.OpeningContextSnapshot | T.SeatRejected>,
+  ): Promise<T.OpenSeatResult> {
+    const scoped = this.withAuthority(authority) as LocalSeatService
+    const { openingContext: _reference, relatedTaskIds: _tasks, ...base } = request
+    return scoped.openResolved(base, { request, resolve })
+  }
+  private async openResolved(request: T.OpenSeatRequest, context?: {
+    request: T.OpenSeatWithContextRequest
+    resolve: (request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext) => Promise<T.OpeningContextSnapshot | T.SeatRejected>
+  }): Promise<T.OpenSeatResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const authority = this.caller()
@@ -234,7 +253,10 @@ export class LocalSeatService extends SeatService {
       const canonical = (value: T.OpenSeatRequest) => ({ seat: value.seat, origin: value.origin, taskId: value.taskId,
         nodeId: value.nodeId, openingMode: value.origin === 'manual' ? value.openingMode ?? 'auto' : 'auto',
         expectedSeatRevision: value.expectedSeatRevision })
-      if (digest(canonical(request)) !== digest(canonical(retained.request))) {
+      if (digest(canonical(request)) !== digest(canonical(retained.request))
+        || digest(context ? { reference: context.request.openingContext, taskIds: [...context.request.relatedTaskIds].sort() } : null)
+          !== digest(retained.openingContext ? { reference: retained.openingContext.reference,
+            taskIds: [...retained.openingContext.taskIds].sort() } : null)) {
         return rejected('operation-id-conflict', 'Opening replay changed its original input.', 'Use the original request.')
       }
       const engine = this.engine()
@@ -281,13 +303,30 @@ export class LocalSeatService extends SeatService {
     if (gate !== null) return gate
     const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
     const titleDate = date.slice(5)
-    const opening = renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes),
-      { seat: definition.seat, date, taskId: request.taskId ?? null }, this.options.maxOpeningBytes)
-    const input = { request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' as const },
-      authority, definition, opening, title: `${definition.seat} ${titleDate}` }
+    const snapshot = context ? await context.resolve(context.request, authority) : undefined
+    if (snapshot && 'status' in snapshot) return snapshot
+    const variables = { seat: definition.seat, date, taskId: request.taskId ?? null }
+    const opening = snapshot ? { text: snapshot.text, digest: snapshot.digest, variables }
+      : renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes), variables, this.options.maxOpeningBytes)
+    const input: T.SeatLocalOpenRequest = { request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
+      authority, definition, opening, title: `${definition.seat} ${titleDate}`,
+      ...(snapshot ? { openingContext: snapshot } : {}) }
     return engine.openWindow ? engine.openWindow(input) : admitLocalOpen(engine, this.state, input, this.options.nodeName)
   }
+  /** 在任何成员开窗前检查整批任务改面。
+   * @param request - 所有任务的真源证据。
+   * @param authority - 原调用者宿主身份。
+   * @returns 整批拒绝或逐位结果。
+   */
+  openBatchWithScope(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult> {
+    const { tasks, ...base } = request
+    return (this.withAuthority(authority) as LocalSeatService).openBatchResolved(base, tasks)
+  }
   async openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
+    return this.openBatchResolved(request)
+  }
+  private async openBatchResolved(request: T.OpenSeatBatchRequest,
+    tasks?: readonly T.SeatTaskScopeContext[]): Promise<T.OpenSeatBatchResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     if (!request.seats.length || request.seats.some(seat => !seat.trim() || /[*?]/.test(seat))
@@ -296,8 +335,15 @@ export class LocalSeatService extends SeatService {
     }
     if (request.seats.length > this.options.maxBatchSeats) return rejected('batch-limit-exceeded', 'Batch exceeds the configured limit.', 'Split the explicit list.')
     for (const seat of request.seats) { const definition = await this.resolve(seat); if ('status' in definition) return definition }
-    const gate = await openingGate(this.runtime.context, { ...openingContext(this.options.nodeId, request.operationId, null),
-      hook: 'before-batch-open', seats: request.seats })
+    const batchContext: Extract<T.GateContext, { hook: 'before-batch-open' }> = {
+      ...openingContext(this.options.nodeId, request.operationId, null), hook: 'before-batch-open', seats: request.seats,
+      ...(tasks === undefined ? {} : { tasks }) }
+    if (tasks !== undefined) {
+      const scopes = await this.runtime.context.get('seatGates')?.evaluateTaskScopes?.({ ...batchContext, tasks })
+      if (!scopes || scopes.outcome === 'deny') return rejected('gate-denied',
+        scopes?.outcome === 'deny' ? scopes.reason : 'scope-unknown', 'serial')
+    }
+    const gate = await openingGate(this.runtime.context, batchContext)
     if (gate !== null) return gate
     const results: { seat: T.SeatName; result: T.OpenSeatResult }[] = []
     for (const seat of request.seats) results.push({ seat, result: await this.open({ ...request, seat,

@@ -6,6 +6,7 @@ import { readLocalOpenInput } from './open-input.ts'
 import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions } from './service-options.ts'
 import { rejected, refuse } from './errors.ts'
+import type { OpeningContexts } from './opening-contexts.ts'
 
 /** Register only self-owned wait and report operations for live tool callers.
  * @param ctx - provider lifecycle and live agent registry.
@@ -102,19 +103,32 @@ export function registerLocalReadAccess(ctx: Context, service: T.SeatService, op
 /** Capture the internal caller once and expose only engine-required operations.
  * @param service - unscoped local provider.
  * @param options - explicit node identity and template bound.
+ * @param contexts - 可选来源注册表，与手工入口共用冻结器。
  * @returns engine-only capabilities; the unscoped provider stays unauthorized.
  */
-export function createEngineAccess(service: T.SeatService, options: LocalSeatOptions): T.SeatEngineLocalAccess {
-  const internal = service.withAuthority({ principalId: 'seat-engine' as T.SeatPrincipalId,
-    origin: 'engine', nodeId: options.nodeId })
+export function createEngineAccess(service: T.SeatService, options: LocalSeatOptions, contexts?: OpeningContexts): T.SeatEngineLocalAccess {
+  const authority: T.SeatCallContext = { principalId: 'seat-engine' as T.SeatPrincipalId,
+    origin: 'engine', nodeId: options.nodeId }
+  const internal = service.withAuthority(authority)
   return {
     list: request => internal.list(request),
     close: request => internal.close(request),
+    freezeContext: async (definition, trigger) => {
+      if (!contexts || !trigger.openingContext || !trigger.relatedTaskIds) return rejected('unavailable',
+        'Opening context is unavailable.', 'Restore the provider and task associations.')
+      const snapshot = await contexts.resolve({ openingContext: trigger.openingContext, relatedTaskIds: trigger.relatedTaskIds }, authority)
+      if ('status' in snapshot) return snapshot
+      const date = formatTemplateDate(new Date(trigger.receivedAt), service['ctx'].get('seatGates')?.getTimeZone() ?? 'UTC')
+      return { definition, title: `${definition.seat} ${date.slice(5)}`, openingMode: 'auto', openingContext: snapshot,
+        frozenOpening: { text: snapshot.text, digest: snapshot.digest,
+          variables: { seat: definition.seat, date, taskId: trigger.taskId ?? null } } }
+    },
     freeze: async (definition, trigger) => {
       if (trigger.sourceId === localSourceId) {
         const input = readLocalOpenInput(trigger.data)
         return { definition: input.definition, title: input.title, frozenOpening: input.opening,
-          openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto' }
+          openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto',
+          ...(input.openingContext ? { openingContext: input.openingContext } : {}) }
       }
       const date = formatTemplateDate(new Date(trigger.receivedAt), service['ctx'].get('seatGates')?.getTimeZone() ?? 'UTC')
       const titleDate = date.slice(5)
