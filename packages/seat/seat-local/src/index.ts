@@ -103,7 +103,7 @@ export function apply(ctx: Context, config: Config): void {
           const engine = child.get('seatEngine')
           if (engine === undefined) throw new Error('Injected seat engine is unavailable')
           const unregisterSource = engine.registerSource({ sourceId: localSourceId, kinds: ['manual'], maxRedeliveryMs: null,
-            callback: () => Promise.resolve() })
+            callback: payload => openingContexts.deliver(payload) })
           const unregister = engine.registerExecutor(createOpenExecutor(child, runtime, config))
           const unregisterAccess = engine.registerLocalAccess?.({ ...createEngineAccess(installed, config, openingContexts),
             preAdmit: input => engineOpeningGate(child, installed, input) })

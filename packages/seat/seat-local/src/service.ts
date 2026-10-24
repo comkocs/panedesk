@@ -416,12 +416,26 @@ export class LocalSeatService extends SeatService {
     if (this.caller().authorization) return rejected('unavailable', 'Atomic title authorization is unavailable.', 'Use a supported local entry.')
     return await this.guard(request.nodeId, request.operationId) ?? this.runtime.rename(request)
   }
+  /** Keep context fallback inside the existing wake admission and window selection.
+   * @param request - Original wake target.
+   * @param authority - Host-authenticated identity.
+   * @param open - Registry-owned fallback for a missing window.
+   * @returns Existing wake result or trusted opening result.
+   */
+  wakeWithContext(request: T.WakeSeatRequest, authority: T.SeatCallContext,
+    open: (request: T.OpenSeatRequest) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
+    return (this.withAuthority(authority) as LocalSeatService).wakeResolved(request, open)
+  }
   async wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
     const selected = this.runtime.context.get('nodeRouter')
       ? this.store.snapshot().definitions.find(item => item.seat === request.seat) : undefined
     const targetNode = request.nodeId ?? (selected ? this.options.nodeAliases[selected.node] : undefined)
     const routed = await routeSeat(this.runtime.context, this.options.nodeId, targetNode, this.caller(), 'seat.wake', request)
     if (routed !== undefined) return routed
+    return this.wakeResolved(request, input => this.open(input))
+  }
+  private async wakeResolved(request: T.WakeSeatRequest,
+    open: (request: T.OpenSeatRequest) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const definition = await this.resolve(request.seat)
@@ -429,7 +443,7 @@ export class LocalSeatService extends SeatService {
     const candidates = (await this.windows()).filter(item => item.binding.seat === request.seat)
     if (!candidates.length) {
       if (request.sessionId !== undefined) return rejected('session-not-found', 'Selected window is no longer active.', 'List windows again.')
-      return { status: 'opened', result: await this.open({ ...request, origin: this.caller().origin, openingMode: 'auto' }) }
+      return { status: 'opened', result: await open({ ...request, origin: this.caller().origin, openingMode: 'auto' }) }
     }
     const target = request.sessionId === undefined ? candidates.length === 1 ? candidates[0] : undefined
       : candidates.find(item => item.open.sessionId === request.sessionId)

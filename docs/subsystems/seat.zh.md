@@ -780,6 +780,13 @@ register(provider: T.OpeningContextProvider): () => Promise<void>
  */
 open(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.OpenSeatResult>
 
+/** Wake an existing window or open through the same trusted context when none exists.
+ * @param request - Wake target and revisioned fallback opening reference.
+ * @param authority - Authenticated host identity.
+ * @returns Original wake outcome without a new opening callback for existing windows.
+ */
+wake?(request: T.WakeSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.WakeSeatResult>
+
 /** Preflight complete scope evidence before any batch member executes.
  * @param request - Explicit seats and every associated task.
  * @param authority - Authenticated caller.
