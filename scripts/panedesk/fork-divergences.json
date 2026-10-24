@@ -889,6 +889,28 @@
       }
     },
     {
+      "id": "trusted-manual-opening-callbacks",
+      "description": "Route trusted manual opening callbacks through the registered opening provider while preserving the empty default callback.",
+      "origin": "Trusted manual opening callbacks",
+      "reason": "Private opening providers receive durable opened and opening-failed writebacks without changing unreferenced manual openings.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/manual-callback-composition.spec.ts"],
+        "test": "retains undelivered callbacks across provider disposal and reload"
+      }
+    },
+    {
+      "id": "trusted-missing-window-wake",
+      "description": "Route a missing-window wake through its trusted opening provider without creating callbacks for an existing window.",
+      "origin": "Trusted manual opening callbacks",
+      "reason": "Bound wake requests share the trusted opening snapshot and callback route.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/manual-wake-composition.spec.ts"],
+        "test": "routes a missing-window wake through its trusted provider exactly once"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
