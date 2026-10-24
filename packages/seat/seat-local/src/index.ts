@@ -3,6 +3,7 @@ import type { Context } from '@panedesk/cordis'
 import type { LocalSeatOptions } from './service-options.ts'
 import { SeatStore } from './store.ts'
 import { LocalSeatService } from './service.ts'
+import { createLocalNodeAdmission } from './node-admission.ts'
 import { createLocalRuntime } from './runtime.ts'
 import { createOpenExecutor } from './executor.ts'
 import { installCreateAdmission } from './create-admission.ts'
@@ -35,6 +36,7 @@ function observeSubagent(service: LocalSeatService, sessionId: SessionId, info: 
 }
 
 export { LocalSeatService } from './service.ts'
+export { createLocalNodeAdmission } from './node-admission.ts'
 export type { LocalSeatCreation } from './create-admission.ts'
 export type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 /** Plugin loader identifier. */
@@ -79,6 +81,7 @@ export function apply(ctx: Context, config: Config): void {
       const runtime = createLocalRuntime(ctx, config)
       service = new LocalSeatService(ctx, store, config, runtime)
       const installed = service
+      ctx.provide('nodeAuthorizedLocalAdmission', createLocalNodeAdmission(installed, config.nodeId))
       const openingContexts = installOpeningContexts(ctx, installed)
       registerLocalReadAccess(ctx, installed, config)
       registerLocalSessionAccess(ctx, installed, config)

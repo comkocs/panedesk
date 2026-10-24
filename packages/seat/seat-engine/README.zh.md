@@ -37,7 +37,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 可信宿主通过 `seatAuthorizationIssuers` 注册捕获的身份与实时策略检查；调用方取得实例拥有的凭证，不从请求字段推导权限。`seatAuthorizationTransactions.transact` 将授权与匹配意图写入同一同步日志帧。每条提交的效果必须携带签发的操作标识。`approve` 在同帧提交队列变化，不调用旧批准方法；被拒批准重试时保留原拒绝结果，重新获得授权的尝试需要新的操作标识。撤销、外来、过期或不匹配的凭证均被拒绝。追加失败不接纳投影动作；同步结果不确定时，重试前必须恢复。
 
-授权帧要求 `seat-authorization/v1`；旧解码器拒绝新判别值。支持该能力的恢复与只读快照在既有日志中保留事实。新查询包含 `plugin`；旧 `seatAuthorizationQueries.query` 跳过该种类并推进物理游标，绝不重标种类。查询按单、位、节点、种类及时间过滤，返回已提交水位、排他扫描游标与完整性。无归属的历史决策仍为 `legacy-unknown`。引擎效果查询与导出保留旧词表，不包含授权事实。
+授权帧要求 `seat-authorization/v1`；旧解码器拒绝新判别值。支持该能力的恢复与只读快照在既有日志中保留事实。新查询包含 `plugin`；旧 `seatAuthorizationQueries.query` 跳过该种类并推进物理游标，绝不重标种类。查询按单、位、节点、种类及时间过滤，返回已提交水位、排他扫描游标与完整性。无归属的历史决策仍为 `legacy-unknown`。引擎效果查询与导出保留旧词表，不包含授权事实。独立 `seatAuthorizationExports.export` 服务序列化有限的 `seat-authorization/v1` JSON 分页，包含游标、水位、完整性和插件归属；在线引擎与离线读取器均提供此服务。
 
 已提交决策更新投影与发件箱交付。来源回调以稳定标识提供至少一次交付；凭据由来源注册提供，不存入引擎记录。dispose（资源释放）停止入口、排空自有工作、刷新日志并释放写入所有权。
 
@@ -61,7 +61,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
-- 授权签发注册不会安装管理或命令行适配器，也不会为既有自动入口添加归属。消费方必须显式使用原子事务服务。
+- `seatAuthorizedEngineActions` 将续期尝试及换窗队列与签发凭证同次提交；未携凭证时保留旧方法。准入前复核当前权限，历史回执不能派发另一动作。仅注册签发器不会接通命令行或全部自动入口；这些消费方仍需显式适配。
 - 开窗和恢复需要注册本地执行器；证据缺失时工作保持待处理，不能虚构窗口。
 - 活跃提供方拥有写入器和协调计时器；它不是离线只读查询提供方。
 - 账户并发统计用于诊断，不是强制执行的账户限流器。

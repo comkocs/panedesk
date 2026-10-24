@@ -15,6 +15,13 @@ export interface NodeAuthorizedLocalAdmission {
 }
 import type { NodeAuthenticatedPeer, NodeDelegationReceivingPolicy } from './delegation.ts'
 
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Local journal-owning admission, installed only by the seat provider. */
+    nodeAuthorizedLocalAdmission: NodeAuthorizedLocalAdmission
+  }
+}
+
 /** The host supplies local-only capabilities; no router is available through this interface. */
 export interface NodeLinkExecutionDependencies {
   readonly nodeId: Seat.SeatNodeId

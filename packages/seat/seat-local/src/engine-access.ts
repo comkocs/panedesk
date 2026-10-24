@@ -56,6 +56,24 @@ export function registerLocalWindowsAccess(ctx: Context, service: T.SeatService,
           refuse('unauthorized', 'Only the calling live session may invoke window tools.', 'Use the current tool invocation.')
         }
       }
+      const invoke = async <R>(request: { operationId: T.SeatOperationId; sessionId?: import('@panedesk/dsh-session').SessionId; seat?: T.SeatName },
+        run: (scoped: T.SeatService) => Promise<R>): Promise<R | T.SeatRejected> => {
+        const issuers = ctx.get('seatAuthorizationIssuers')
+        if (!issuers) return run(internal)
+        const binding = request.sessionId ? await internal.binding({ sessionId: request.sessionId }) : null
+        if (binding && 'status' in binding) return binding
+        const registration = issuers.register({ identity: { kind: 'model-tool-call', principalId: authority.principalId,
+          origin: authority.origin, nodeId: authority.nodeId, sessionId, callId,
+          ...(request.seat ? { seat: request.seat } : binding?.kind === 'seat' ? { seat: binding.seat } : {}),
+          taskIds: binding?.kind === 'seat' ? binding.relatedTaskIds : [], policyRevision: 0 },
+        current: () => active && ctx.get('agents')?.get(sessionId)?.session === session
+          ? { decision: 'allowed', reasonCode: 'live-model-invocation', policyRevision: 0 } : null })
+        try {
+          const grant = await registration.issuer.check({ operationId, requestDigest: digest(request), callId })
+          if ('status' in grant) return grant
+          return await run(service.withAuthority({ ...authority, authorization: grant }))
+        } finally { registration.dispose() }
+      }
       return Object.freeze({
         open: async (request: T.OpenSeatRequest) => {
           authorize()
@@ -75,15 +93,21 @@ export function registerLocalWindowsAccess(ctx: Context, service: T.SeatService,
         },
         renew: async (request: T.RenewSeatRequest) => {
           authorize()
-          return internal.renew({ ...request, operationId })
+          const input = { ...request, operationId }
+          const result = await invoke(input, scoped => scoped.renew(input))
+          return result.status === 'rejected' && !('cacheEvidence' in result)
+            ? { ...result, cacheEvidence: { lastActivityAt: null, cacheTtlMs: null, prefixDigest: null,
+              observedAt: new Date().toISOString(), reusableRequest: false } } : result
         },
         replace: async (request: T.ReplaceSeatRequest) => {
           authorize()
-          return internal.replace({ ...request, operationId })
+          const input = { ...request, operationId }
+          return invoke(input, scoped => scoped.replace(input))
         },
         close: async (request: T.CloseSeatRequest) => {
           authorize()
-          return internal.close({ ...request, operationId })
+          const input = { ...request, operationId }
+          return invoke(input, scoped => scoped.close(input))
         },
         rename: async (request: T.RenameSeatRequest) => {
           authorize()
@@ -125,7 +149,21 @@ export function createEngineAccess(service: T.SeatService, options: LocalSeatOpt
   const internal = service.withAuthority(authority)
   return {
     list: request => internal.list(request),
-    close: request => internal.close(request),
+    close: async (request) => {
+      const issuers = service['ctx'].get('seatAuthorizationIssuers')
+      if (!issuers) return internal.close(request)
+      const binding = await internal.binding({ sessionId: request.sessionId })
+      if (!binding || 'status' in binding || binding.kind !== 'seat') return rejected('unauthorized',
+        'Engine close requires a current seat binding.', 'Reconcile the target window.')
+      const registration = issuers.register({ identity: { kind: 'engine', principalId: authority.principalId,
+        origin: 'engine', nodeId: options.nodeId, seat: binding.seat, taskIds: binding.relatedTaskIds, policyRevision: 0 },
+      current: () => service['ctx'].get('seatAuthorizationIssuers') === issuers
+        ? { decision: 'allowed', reasonCode: 'local-engine-owner', policyRevision: 0 } : null })
+      try {
+        const grant = await registration.issuer.check({ operationId: request.operationId, requestDigest: digest(request) })
+        return 'status' in grant ? grant : await service.withAuthority({ ...authority, authorization: grant }).close(request)
+      } finally { registration.dispose() }
+    },
     freezeContext: async (definition, trigger) => {
       if (!contexts || !trigger.openingContext || !trigger.relatedTaskIds) return rejected('unavailable',
         'Opening context is unavailable.', 'Restore the provider and task associations.')

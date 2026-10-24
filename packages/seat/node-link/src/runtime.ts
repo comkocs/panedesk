@@ -8,6 +8,7 @@ import { NodeReceiver } from './receiver.ts'
 import { NodeRouter } from './router.ts'
 import { decodeRequest } from './codec.ts'
 import { SshTunnel } from './tunnel.ts'
+import { createNodeLinkExecutor } from './executor.ts'
 
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
  * @param ctx - Lifecycle and optional local execution/subprocess services.
@@ -25,7 +26,18 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
   const files = privateFiles(options.directory)
   const store = new OperationStore(privateFiles(join(options.directory, 'received')), options.maxStoreBytes, options.maxOperations)
   const outgoing = new OperationStore(privateFiles(join(options.directory, 'sent')), options.maxStoreBytes, options.maxOperations)
-  const receiver = new NodeReceiver(options.nodeId, options.peerNodeId, store, () => ctx.get('nodeLinkExecutor'))
+  const localExecutor = () => {
+    const explicit = ctx.get('nodeLinkExecutor')
+    if (explicit) return explicit
+    const policy = ctx.get('nodeDelegationReceivingPolicy'), authorization = ctx.get('seatAuthorizationTransactions')
+    const localSeats = ctx.get('seats'), localAdmission = ctx.get('nodeAuthorizedLocalAdmission')
+    if (!policy || !authorization || !localSeats || !localAdmission) return undefined
+    return createNodeLinkExecutor({ nodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
+      peer: { sourceNodeId: options.peerNodeId as import('@panedesk/dsh-seat').SeatNodeId,
+        targetNodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
+        authenticatedAt: new Date().toISOString() }, policy, authorization, localSeats, localAdmission })
+  }
+  const receiver = new NodeReceiver(options.nodeId, options.peerNodeId, store, localExecutor)
   let listener: LoopbackListener | undefined, tunnel: SshTunnel | undefined, router: NodeRouter | undefined
   let unlock: (() => Promise<void>) | undefined
   let stopped = false
@@ -47,14 +59,14 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
       if (object(value) && value.type === 'hello') {
         if (value.version !== NODE_LINK_VERSION || value.sourceNodeId !== options.peerNodeId
           || value.targetNodeId !== options.nodeId || !identifier(value.nonce)) throw new Error('Node handshake rejected')
-        const executor = ctx.get('nodeLinkExecutor')
+        const executor = localExecutor()
         if (executor === undefined) throw new Error('Local node provider unavailable')
         return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: authenticatedEpoch,
           nonce: value.nonce, status: await executor.status() }
       }
       if (object(value) && value.type === 'receipt') {
         const request = decodeRequest(value.request)
-        const executor = ctx.get('nodeLinkExecutor')
+        const executor = localExecutor()
         if (request.sourceNodeId !== options.peerNodeId || request.targetNodeId !== options.nodeId
           || Date.parse(request.delegation.expiresAt) <= Date.now() || executor === undefined || !await executor.authorize(request)) {
           throw new Error('Receipt authority rejected')

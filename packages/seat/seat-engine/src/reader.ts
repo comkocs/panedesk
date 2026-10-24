@@ -9,7 +9,8 @@ import { EngineError } from './journal.ts'
 import { EngineProjection } from './projection.ts'
 import { queryEngine, serializeEngine, verifyEngine, redactPending } from './query.ts'
 import { decodeAuthorizationFrame } from './authorization-storage.ts'
-import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
+import { queryAuthorizations, queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
+import { exportAuthorizations } from './authorization-export.ts'
 
 /** Node selection never initializes the accounting ledger identity. */
 export interface Config {
@@ -44,6 +45,13 @@ export class SeatEngineReader extends SeatEngineQueryService {
       throw new EngineError('invalid-request', 'Invalid engine reader configuration')
     }
     this.home = resolveDshHome(config.home)
+    ctx.provide('seatAuthorizationExports', {
+      export: request => observe(async () => {
+        const { projection, complete } = await this.snapshot()
+        const page = queryAuthorizations(projection.authorizationDecisions, request)
+        return exportAuthorizations({ ...page, complete: complete && page.complete })
+      }),
+    })
     ctx.provide('seatAuthorizationQueries', {
       query: request => observe(async () => {
         const { projection, complete } = await this.snapshot()

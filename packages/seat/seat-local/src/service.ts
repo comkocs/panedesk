@@ -313,9 +313,10 @@ export class LocalSeatService extends SeatService {
     const variables = { seat: definition.seat, date, taskId: request.taskId ?? null }
     const opening = snapshot ? { text: snapshot.text, digest: snapshot.digest, variables }
       : renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes), variables, this.options.maxOpeningBytes)
-    const input: T.SeatLocalOpenRequest = { request: { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
-      authority, definition, opening, title: `${definition.seat} ${titleDate}`,
-      ...(snapshot ? { openingContext: snapshot } : {}) }
+    const input: T.SeatLocalOpenRequest = { request: authority.authorization ? request
+      : { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
+    authority, definition, opening, title: `${definition.seat} ${titleDate}`,
+    ...(snapshot ? { openingContext: snapshot } : {}) }
     return engine.openWindow ? engine.openWindow(input) : admitLocalOpen(engine, this.state, input, this.options.nodeName)
   }
   /** Check all task scopes before opening any batch member.
@@ -388,6 +389,9 @@ export class LocalSeatService extends SeatService {
     if (renewalError !== null) return { status: 'rejected', error: renewalError, cacheEvidence }
     const engine = this.engine()
     if (engine === undefined) return { ...rejected('unavailable', 'Renewal accounting is unavailable.', 'Restore the engine before renewing.'), cacheEvidence }
+    const grant = this.caller().authorization
+    if (grant) return this.runtime.context.get('seatAuthorizedEngineActions')?.renew(request, grant)
+      ?? { ...rejected('unavailable', 'Audited renewal is unavailable.', 'Restore authorization admission.'), cacheEvidence }
     return engine.renew({ ...request, source: 'manual' })
   }
   async close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult> {
@@ -395,17 +399,21 @@ export class LocalSeatService extends SeatService {
     if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
-    return this.windowCloser.close(request)
+    return this.result(() => this.windowCloser.close(request, undefined, this.caller().authorization))
   }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
     const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.replace', request)
     if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
+    const grant = this.caller().authorization
+    if (grant) return this.runtime.context.get('seatAuthorizedEngineActions')?.replace(request, grant)
+      ?? rejected('unavailable', 'Audited replacement is unavailable.', 'Restore authorization admission.')
     return this.engine()?.replace(request)
       ?? rejected('unavailable', 'Replacement admission is unavailable.', 'Restore the engine before replacing.')
   }
   async rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult> {
+    if (this.caller().authorization) return rejected('unavailable', 'Atomic title authorization is unavailable.', 'Use a supported local entry.')
     return await this.guard(request.nodeId, request.operationId) ?? this.runtime.rename(request)
   }
   async wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
@@ -434,6 +442,7 @@ export class LocalSeatService extends SeatService {
     const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
     const text = renderOpening(await readSeatText(definition.wakeTemplate, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: null }, this.options.maxOpeningBytes).text
+    if (this.caller().authorization) return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
     const admission = await this.engine()?.admitTurn(target.open.sessionId)
     const sent = await this.runtime.send({ sessionId: target.open.sessionId, operationId: request.operationId, text, mode: 'queue' })
     return { status: admission?.status === 'defer' && admission.reason === 'budget-stopped' ? 'stored-budget-stopped' : 'sent',

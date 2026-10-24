@@ -34,7 +34,7 @@ Only `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, and 
 
 The host creates `credential` and `endpoint.json` and deletes both on exit; each start uses an independent process epoch. Credentials travel only through private files and authentication headers, never arguments, addresses, environment variables, or operation records. `callAdmin` connects only to an already running host; missing endpoints reject without automatically starting a service.
 
-`hostAdminExecutor` receives transport-derived identity and must durably record authorization facts before accepting approval while retaining the original engine checks. Request fields cannot grant authority. Without an executor, only status and pending-approval queries against the existing engine are available; other methods explicitly reject.
+`hostAdminExecutor` receives transport-derived identity and must durably record authorization facts before accepting approval while retaining the original engine checks. Request fields cannot grant authority. Without an executor, status and pending queries use the existing engine. Authenticated listener approvals additionally require the engine issuer and transactions: the listener-owned identity issues `local-operator` attribution and commits it with the original queue approval. A self-declared dispatch authority cannot enter that path or read its cached receipt; missing capabilities reject. Other methods remain unavailable.
 
 <a id="persistence-and-recovery"></a>
 ## Persistence and Recovery

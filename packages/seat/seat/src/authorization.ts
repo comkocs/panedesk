@@ -68,6 +68,13 @@ export interface SeatIssuedAuthorizationQueryResult extends Omit<SeatAuthorizati
 }
 /** Installed only with a compatible journal writer, replay validator and query projection. */
 export interface SeatAuthorizationTransactions {
+  /** Revalidate current ownership before resuming an already admitted external action.
+   * This check is not a commit receipt and cannot replace transactional intent admission.
+   * @param request - Exact original operation and causal evidence.
+   * @param authorization - Live entry-owned grant, never a historical fact.
+   * @returns Null for current allowed authority, otherwise a structured refusal.
+   */
+  validate?(request: SeatAuthorizationCheck, authorization: SeatAuthorizationGrant): Promise<SeatRejected | null>
   /** Commit authorization and action effects in one engine decision, never a second audit store.
    * The synchronous builder runs under existing journal serialization after the sequence CAS.
    * Validate grant ownership/current policy and exact operation/digest/call correlation before commit.
@@ -93,6 +100,20 @@ export interface SeatAuthorizationTransactions {
    * @returns Matching facts once each, scanned watermark and explicit completeness or refusal.
    */
   query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>
+}
+
+/** Separate JSON export includes issued kinds without widening legacy engine effects. */
+export interface SeatAuthorizationExports {
+  /** Export one bounded page with its physical cursor and committed watermark.
+   * @param request - Issued attribution filters and page bound.
+   * @returns Versioned JSON page or a structured refusal; grants are never exported.
+   */
+  export(request: SeatIssuedAuthorizationQueryRequest): Promise<{
+    format: 'seat-authorization/v1'
+    content: string
+    complete: boolean
+    watermark: number
+  } | SeatRejected>
 }
 
 /** Host-only registration captures authenticated attribution and a synchronous live-policy check. */
@@ -122,10 +143,30 @@ declare module './types.ts' {
   }
 }
 
+/** Optional engine actions preserve their original admission builders and attach issued authority. */
+export interface SeatAuthorizedEngineActions {
+  /** Renew only after the attempt and authorization commit together.
+   * @param request - Original renewal input.
+   * @param authorization - Entry-issued grant for the exact input.
+   * @returns Original maintenance result or admission refusal.
+   */
+  renew(request: import('./types.ts').RenewSeatRequest, authorization: SeatAuthorizationGrant): Promise<import('./types.ts').RenewSeatResult>
+  /** Queue replacement and authorization in one decision without acquiring a second owner.
+   * @param request - Original replacement input.
+   * @param authorization - Entry-issued grant for the exact input.
+   * @returns Original replacement result or admission refusal.
+   */
+  replace(request: import('./types.ts').ReplaceSeatRequest, authorization: SeatAuthorizationGrant): Promise<import('./types.ts').ReplaceSeatResult>
+}
+
 declare module '@panedesk/cordis' {
   interface Context {
     /** Missing capability rejects new audited actions; legacy local entry points remain unchanged. */
     seatAuthorizationTransactions: SeatAuthorizationTransactions
+    /** Independent issued-fact export; legacy engine exports retain their closed effect vocabulary. */
+    seatAuthorizationExports: SeatAuthorizationExports
+    /** Optional audited engine actions; absence refuses requests carrying grants. */
+    seatAuthorizedEngineActions: SeatAuthorizedEngineActions
     /** Host-only issuer registration; never forward registration arguments from request JSON. */
     seatAuthorizationIssuers: SeatAuthorizationIssuers
   }

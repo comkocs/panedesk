@@ -79,8 +79,8 @@ Reminders append input without cancelling the current step or replacing prior hi
 
 ## Known Limitations and Deferred Work
 
-- Renewal, replacement, close, rename, and wake do not yet carry authorization grants to their durable action builders.
-- The complete remote opening chain still lacks composition evidence.
+- Renewal, replacement and close carry issued grants into their original journal admission. Live model invocations issue `model-tool-call` grants for these actions, and engine-owned close issues `engine` grants. Close revalidates authority before archive; audited retries of existing barriers require local reconciliation rather than replaying external work. Legacy calls without grants retain their prior path.
+- The provider installs `nodeAuthorizedLocalAdmission` for opening, renewal, replacement and close. Audited rename and wake remain unavailable; batches cannot split one grant across member operations. Extended opening contexts and task-aware batches still lack remote wire evidence. CLI authority remains unwired.
 - Worktree maturity requires an explicit upstream, verified merge ancestry, and commit, Git metadata and tracked-file activity timestamps. Missing evidence or a changed HEAD, upstream or tracked working tree prevents a maturity claim. Forced registration still requires independent authorization.
 - Durable prefill admission is unavailable with engines that do not expose the optional opening transaction. The local ingress rejects it rather than sending an unintended first turn.
 - Rename recovery refuses a staged receipt whose title event is absent from the restored Session. It does not infer an outcome or append a speculative replacement event.
