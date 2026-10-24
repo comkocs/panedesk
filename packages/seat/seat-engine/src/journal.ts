@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { mkdir, open, readdir, readFile, stat, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'
-import { tryLockExclusive } from '@panedesk/node-addon-system/flock'
+import { acquireExclusiveLockFile, tryLockExclusive } from '@panedesk/node-addon-system/flock'
 import { SEAT_ENGINE_NAMESPACE, SEAT_ENGINE_EVENT_NAMES, type EngineDecision, type EngineEffect, type EngineDecisionId, type SeatDigest, type SeatNodeId, type SeatErrorCode } from '@panedesk/dsh-seat'
 import { EngineProjection } from './projection.ts'
 import { validEffect } from './validation.ts'
@@ -100,9 +100,11 @@ export class EngineJournal {
   async ready(): Promise<void> {
     if (this.owner) return
     await mkdir(this.root, { recursive: true, mode: 0o700 })
-    const owner = await open(join(this.root, 'owner.lock'), constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
+    const owner = process.platform === 'win32'
+      ? await acquireExclusiveLockFile(join(this.root, 'owner.lock'))
+      : await open(join(this.root, 'owner.lock'), constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
     try {
-      await tryLockExclusive(owner.fd)
+      if (process.platform !== 'win32') await tryLockExclusive(owner.fd)
       const named = await stat(join(this.root, 'owner.lock')), held = await owner.stat()
       if (named.ino !== held.ino || named.dev !== held.dev) throw new EngineError('unavailable', 'Engine owner inode changed')
       await mkdir(join(this.root, 'events'), { mode: 0o700, recursive: true })

@@ -1,6 +1,7 @@
 /** Sequenced per-target files with native short locks and recoverable publication watermarks. */
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
+import { acquireExclusiveLockFile } from '@panedesk/node-addon-system/flock'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout } from 'node:timers/promises'
@@ -58,15 +59,14 @@ export class FileMailbox {
    */
   async locked<T>(path: string, task: () => Promise<T>): Promise<T> {
     if (process.platform === 'win32') {
-      const { tryWindowsLock } = await import('./windows-storage.ts')
-      const deadline = performance.now() + this.options.lockTimeoutMs
-      let release: (() => void) | undefined
-      while (!(release = tryWindowsLock(path))) {
-        const remaining = deadline - performance.now()
-        if (remaining <= 0) throw new MailboxUnavailableError('Mailbox lock timed out')
-        await setTimeout(Math.min(remaining, this.options.lockRetryMs))
+      let handle
+      try {
+        handle = await acquireExclusiveLockFile(path, { timeoutMs: this.options.lockTimeoutMs, retryMs: this.options.lockRetryMs })
+      } catch (error) {
+        if (object(error) && error.code === 'EAGAIN') throw new MailboxUnavailableError('Mailbox lock timed out', { cause: error })
+        throw error
       }
-      try { return await task() } finally { release() }
+      try { return await task() } finally { await handle.close() }
     }
     const { tryLockExclusive } = await import('@panedesk/node-addon-system/flock')
     const handle = await open(path, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)

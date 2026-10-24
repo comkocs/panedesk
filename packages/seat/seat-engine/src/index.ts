@@ -105,7 +105,15 @@ export function apply(ctx: Context, config: Config): void {
         completions.start()
         stopSources = registerProductionSources(child, engine, config.sources ?? [])
       })
-      void starting.catch(() => { console.error('Seat engine startup failed; ingress is unavailable') })
+      void starting.catch((error: unknown) => {
+        const codes: string[] = []
+        const seen = new Set<Error>()
+        for (let current = error; current instanceof Error && !seen.has(current); current = current.cause) {
+          seen.add(current)
+          if ('code' in current && typeof current.code === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(current.code)) codes.push(current.code)
+        }
+        console.error('Seat engine startup failed; ingress is unavailable', { codes })
+      })
       return async () => {
         stopped = true
         try { await starting } finally {
