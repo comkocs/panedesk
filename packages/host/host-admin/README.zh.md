@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="purpose"></a>
 ## 用途
 
-仅提供 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
+五个管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
 
 <a id="configuration-and-identity"></a>
 ## 配置与身份
@@ -35,6 +35,8 @@ kind: "package-reference"
 宿主创建 `credential` 与 `endpoint.json`，退出删除两者；每次启动生成独立进程代次。凭据仅通过私有文件和认证头传递，不进入参数、地址、环境变量或操作记录。`callAdmin` 只连接已运行宿主，缺少端点时拒绝，不自动启动服务。
 
 `hostAdminExecutor` 接收传输导出的身份，必须在批准受理前完成授权事实的耐久记录，并继续应用原引擎闸门；请求字段不能赋予权限。缺少执行适配时，状态及待批准查询使用既有引擎。已认证监听批准还要求引擎签发器与事务：监听器持有的身份签发 `local-operator` 归属，并与原队列批准同次提交。自报 dispatch 身份不能进入此路径或读取其缓存回执；能力缺失时拒绝。其余方法仍不可用。
+
+`hostSessionCredentials` 在会话专属权限目录中签发独立且绑定进程代次的凭据。受信创建方提供会话与位，已有核验员工号时可一并提供；请求字段不提供身份。替换或撤销绑定会删除凭据并取消其调用信号。运维 SDK 调用没有位，命名空间授权必须拒绝无位写入。会话凭据不能调用五个运维方法。`callHostSdk` 读取显式端点与凭据路径，只发送一次，不重试未知结果。
 
 <a id="persistence-and-recovery"></a>
 ## 持久化与恢复
@@ -67,6 +69,8 @@ kind: "package-reference"
 - `createHostAdminExecutor` 组合宿主策略、受信授权签发器与授权事务。批准只调用事务适配，不再调用旧批准路径。已配置运行时可将已认证的本地批准直接绑定到已安装的签发器与事务服务；缺少服务时拒绝批准。查询效果载荷复用引擎校验器。集成方仍须验证任务过滤与默认脱正文查询。冻结引擎接口没有操作投影，操作查询保持不可用；本地组合测试不能证明生产接线。
 
 - Windows ACL 实跑、真实 SSH 与多进程崩溃注入不在本包 Linux 替身测试覆盖内。执行提供器必须保证自身调用可终止；卸载会等待已接纳调用，不能强制取消任意提供器内部副作用。nonce 集合和操作记录有显式容量限制，满额后需受控重启或运维处理。
+
+撤销会删除凭据文件，但保留空的属主私有会话目录。长期运行的部署需在宿主停机维护期间清理空目录；私有文件策略目前不负责目录回收。
 
 <a id="dev-note"></a>
 ### 开发备注

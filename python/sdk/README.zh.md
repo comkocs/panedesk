@@ -116,6 +116,8 @@ with DeepSeekHarness(
 
 随附的 `sdk-minimal` profile 是独立显式配置树，而不是 `dsh-base` 上的 overlay。使用 `profile="sdk-minimal"` 选择它；普通 `model` 参数是唯一运行时模型选择，也适用于不在适配器建议目录中的模型 ID。它提供按平台选择的持久 shell、`read_image`、`working_directory`、本地执行、JSONL 会话和自动压缩。文本文件工具、设置、托管凭据、遥测、Web 工具与完整默认工具清单仍由独立的完整 `sdk` 与 `web` profile 提供。SDK 提示词文本不会执行 `/compact`。
 
+调用既有宿主的已注册命名空间时，使用 `HarnessClient(HarnessConfig(running_host=RunningHostConfig(endpoint_path=..., credential_path=..., max_frame_bytes=..., request_timeout_seconds=...)))`，再调用 `request("namespace/method", params, response_model=...)`。这些类型从 `deepseek_harness` 导入。路径必须指向绝对路径的属主专用 POSIX 文件；会话工具通过 `DSH_HOST_ENDPOINT_PATH` 与 `DSH_HOST_CREDENTIAL_PATH` 接收路径，不接收凭据值。此模式仅支持命名空间调用，不启动或关闭运行时，不支持初始化或通知流。缺少凭据或传输失败直接拒绝，不回退或重试。Windows 尚需账号范围的文件策略。默认子进程模式与 `DeepSeekHarness` 保持不变。
+
 ## 结果与通知
 
 `Session.run()` 的活动区间从提示词被持久 inbox 接收时开始，到整个 agent 下一次进入空闲状态时结束，并返回 `RunResult(session_id, final_response, finish_reason, events, notifications)`。`final_response` 是该区间内根会话最后提交的助手文本。`finish_reason` 是最后一个根会话 `turn/end` 的 `kind`，例如 `completed`、`max-tokens` 或 `error`；没有轮次结束时为 `None`。缺少字符串 `data.reason.kind` 的 `turn/end` 违反协议，并会抛出 `SdkProtocolError`。

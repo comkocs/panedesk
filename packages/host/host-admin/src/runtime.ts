@@ -5,7 +5,11 @@ import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION } from './index.ts'
 import type { Config, HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse, HostAdminService } from './index.ts'
 import { PosixPrivateFiles } from './private-files.ts'
 import { OperationStore } from './operation-store.ts'
-import { listenLoopback, type LoopbackListener } from './loopback.ts'
+import { listenAuthenticatedLoopback, type LoopbackListener } from './loopback.ts'
+import { SessionCredentials } from './session-credentials.ts'
+import { decodeSdkRequest, type HostSdkResponse } from './sdk-codec.ts'
+import type { HostSdkIdentity } from './sdk.ts'
+import { object } from './json.ts'
 import { decodeRequest, decodeResponse } from './codec.ts'
 import { digest } from './json.ts'
 
@@ -21,6 +25,11 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
     ?? new PosixPrivateFiles(options.directory, process.getuid?.() ?? -1)
   const epoch = randomUUID() as HostAdminEndpoint['processEpoch']
   const credential = randomBytes(32).toString('hex')
+  const sdkAbort = new AbortController()
+  const operatorIdentity: HostSdkIdentity = Object.freeze({ principalId: options.principalId as HostSdkIdentity['principalId'],
+    authorizationRef: `admin:${epoch}` as HostSdkIdentity['authorizationRef'], signal: sdkAbort.signal })
+  const sessions = new SessionCredentials(options.directory, epoch, directory => ctx.get('hostAdminFiles')?.(directory)
+    ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
   const store = new OperationStore(files, options.maxStoreBytes, options.maxOperations)
   const authority: HostAdminAuthority = { principalId: options.principalId as HostAdminAuthority['principalId'],
     authorizationRef: `admin:${epoch}` as HostAdminAuthority['authorizationRef'], kind: 'local-operator', methods: HOST_ADMIN_METHODS }
@@ -91,26 +100,48 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
     unlock = await files.lock()
     await store.load()
     await files.write('credential', credential)
-    listener = await listenLoopback(options.port, options, () => ({ credential, epoch }), async (value) => {
-      const request = decodeRequest(value)
-      if (nonces.has(request.nonce) || nonces.size >= options.maxOperations) return failure(request, 'admin-unauthorized')
-      nonces.add(request.nonce)
-      return service.dispatch(request, authority)
-    })
+    listener = await listenAuthenticatedLoopback(options.port, options,
+      () => ({ credential, epoch, identity: operatorIdentity, alternatives: sessions.authentication() }),
+      async (value, _epoch, identity) => {
+        if (object(value) && value.method === 'sdk.invoke') {
+          const request = decodeSdkRequest(value)
+          const response = (result: HostSdkResponse['result']): HostSdkResponse => ({ version: HOST_ADMIN_VERSION,
+            requestId: request.requestId, method: 'sdk.invoke', result })
+          const caller = identity === operatorIdentity ? operatorIdentity : sessions.identity(identity)
+          if (stopped || request.processEpoch !== epoch || caller === undefined || caller.signal.aborted
+            || nonces.has(request.nonce) || nonces.size >= options.maxOperations) {
+            return response({ status: 'rejected', code: 'unauthorized' })
+          }
+          nonces.add(request.nonce)
+          const invoker = ctx.get('hostSdkInvoker')
+          if (invoker === undefined) return response({ status: 'rejected', code: 'method-unavailable' })
+          return response(await invoker.invoke(request.params, caller))
+        }
+        const request = decodeRequest(value)
+        if (identity !== operatorIdentity) return failure(request, 'admin-unauthorized')
+        if (nonces.has(request.nonce) || nonces.size >= options.maxOperations) return failure(request, 'admin-unauthorized')
+        nonces.add(request.nonce)
+        return service.dispatch(request, authority)
+      })
     const endpoint: HostAdminEndpoint & { port: number } = { version: HOST_ADMIN_VERSION,
       nodeId: options.nodeId as HostAdminEndpoint['nodeId'], pid: process.pid, processEpoch: epoch,
       credentialRef: 'credential' as HostAdminEndpoint['credentialRef'], port: listener.port }
     await files.write('endpoint.json', JSON.stringify(endpoint))
+    ctx.provide('hostSessionCredentials', sessions)
   })()
   const dispose = async (): Promise<void> => {
     stopped = true
-    await ready.catch((error: unknown) => { void error })
-    await listener?.close()
-    await store.close()
-    if (unlock !== undefined) {
-      await files.remove('credential')
-      await files.remove('endpoint.json')
-      await unlock()
+    sdkAbort.abort()
+    try { await sessions.close() }
+    finally {
+      await ready.catch((error: unknown) => { void error })
+      await listener?.close()
+      await store.close()
+      if (unlock !== undefined) {
+        await files.remove('credential')
+        await files.remove('endpoint.json')
+        await unlock()
+      }
     }
   }
   try { await ready }

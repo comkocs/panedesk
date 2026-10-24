@@ -53,6 +53,8 @@ The [CLI behavior reference](reference/README.md) owns exact layer precedence, f
 
 `config/examples/` ships opt-in overlays for GitHub review webhooks, memory MCP servers, and runtime Cordis tools. They are never part of a default profile; the [user guides](../../docs/user/guide/index.md) and [developer practice guides](../../docs/user/develop/practice/index.md) own setup and safety instructions.
 
+Plugin commands can import `requestRunningHost` and `RunningHostOptions` from `panedesk/profile-boot` to call `namespace/method` through the existing host's authenticated administration channel. The hook accepts explicit endpoint and credential file paths plus transport bounds; it does not boot a profile, start a second engine, or accept credential values in command arguments. Namespace registration and authorization remain host-owned. Missing endpoints fail without launching a fallback host.
+
 ## Development
 
 Production runs require built package and frontend artifacts. From the repository root, run `pnpm run build` separately, then use `pnpm dsh <args...>` to run the TypeScript entry and forward every argument; the [source-execution reference](reference/README.md#source-execution) owns the module-resolution contract.

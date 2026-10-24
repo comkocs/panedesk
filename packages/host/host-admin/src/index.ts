@@ -13,6 +13,9 @@ export { listenLoopback, callLoopback, listenAuthenticatedLoopback } from './loo
 export type { RpcLimits, RpcAuthentication, LoopbackListener } from './loopback.ts'
 export { canonical, digest, object, identifier, parseJson } from './json.ts'
 export { callAdmin } from './client.ts'
+export type * from './sdk.ts'
+export { callHostSdk } from './sdk-client.ts'
+export type { RunningHostOptions } from './sdk-client.ts'
 
 /** Administration framing never reuses browser launch credentials or Core operation numbers. */
 export const HOST_ADMIN_VERSION = 'host-admin/v1' as const

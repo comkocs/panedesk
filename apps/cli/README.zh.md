@@ -53,6 +53,8 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 
 `config/examples/` 交付 GitHub 评审 webhook、记忆 MCP 服务器与运行时 Cordis 工具的可选覆盖层。它们绝不属于默认 profile；设置与安全说明由[用户指南](../../docs/user/guide/index.zh.md)和[开发实战指南](../../docs/user/develop/practice/index.zh.md)负责。
 
+插件命令可从 `panedesk/profile-boot` 导入 `requestRunningHost` 与 `RunningHostOptions`，通过既有宿主的受信管理通道调用 `namespace/method`。此钩子接收显式端点与凭据文件路径以及传输上限，不启动 profile、不另开引擎，也不接受命令参数中的凭据值。命名空间注册与授权仍归宿主所有。端点缺失直接失败，不启动后备宿主。
+
 ## 开发
 
 生产运行需要已构建的包与前端产物。请在仓库根目录单独运行 `pnpm run build`，然后使用 `pnpm dsh <args...>` 运行 TypeScript 入口并转发所有参数；模块解析约定以[源码执行参考](reference/README.zh.md#source-execution)为准。

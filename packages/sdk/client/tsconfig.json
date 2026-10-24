@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../host/host-admin" },
     { "path": "../server" },
     {
       "path": "../../../vendor/cosmokit"

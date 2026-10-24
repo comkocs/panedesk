@@ -17,6 +17,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from . import models as message_models
 
 from .host import HostClient
+from .running_host import RunningHostConfig, request_host
 from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
 from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, JsonValue, LlmCacheControl, Notification
 
@@ -38,6 +39,7 @@ class HarnessConfig:
     request_timeout_seconds: float | None = None
     shutdown_timeout_seconds: float | None = 1.0
     enable_messages: bool = False
+    running_host: RunningHostConfig | None = None
 
 
 class HarnessClient:
@@ -77,6 +79,8 @@ class HarnessClient:
         self.close()
 
     def start(self) -> None:
+        if self.config.running_host is not None:
+            return
         if self._proc is not None:
             return
         with self._lock:
@@ -340,6 +344,8 @@ class HarnessClient:
         notification_filter: NotificationFilter | None = None,
         notification_subscription: "NotificationSubscription | None" = None,
     ) -> JsonValue:
+        if self.config.running_host is not None:
+            return request_host(self.config.running_host, method, params, timeout_seconds)
         request_id = str(uuid.uuid4())
         waiter: queue.Queue[JsonValue | BaseException] = queue.Queue(maxsize=1)
         temp_subscription: NotificationSubscription | None = None

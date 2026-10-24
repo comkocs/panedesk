@@ -91,6 +91,8 @@ console.log(result.finalResponse)
 
 一次运行会订阅会话树、把提示词排入队列，等待提示词的消息 id 出现在持久的 `agent/inbox/spliced` 回执中，然后持续收集通知，直到整个 agent 报告 `idle`。`finalResponse` 从收集到的事件中最后一条 `assistant/message` 派生。传输丢失、超时与协议违例会使本次运行被拒绝；模型结果仍可在事件流中观察，但不会归属于某一输入。
 
+调用既有宿主的已注册命名空间时，以 `runningHost: { endpointPath, credentialPath, maxFrameBytes, requestTimeoutMs, maxPending }` 构造 `HarnessClient`，再调用 `request('namespace/method', params)`。路径必须为绝对路径并仅属主可读；会话工具可读取 `DSH_HOST_ENDPOINT_PATH` 与 `DSH_HOST_CREDENTIAL_PATH`。此模式不解析或启动运行时，`close()` 也不关闭宿主。它仅支持命名空间请求，不支持 `initialize`、创建会话或通知流；高层 `DeepSeekHarness` API 与默认子进程模式保持不变。传输失败不重试，请求身份字段不能覆盖文件对应的宿主绑定。
+
 ### 错误与关闭
 
 每种失败模式都映射到一个导出的错误类——协议错误响应、请求时限已到、响应超出文档化协议、运行时死亡——调用方可以按失败类型分支处理；这四个类从 [src/index.ts](src/index.ts) 导出。关闭采用私有的幂等阶梯（stdin EOF → SIGTERM → SIGKILL），位于 [src/dispose.ts](src/dispose.ts)，只在进程真正退出时结束。

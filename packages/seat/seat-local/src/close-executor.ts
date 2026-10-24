@@ -1,5 +1,6 @@
 /** Public archive, title and flush effects run under the engine close barrier. */
 import type { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-host-admin'
 import type { SeatCloseExecutor } from '@panedesk/dsh-seat'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { readWindowStatus } from './status.ts'
@@ -29,6 +30,7 @@ export function createCloseExecutor(ctx: Context, runtime: LocalSeatRuntime, opt
         if (readWindowStatus(evidence).busyReasons.length) throw new Error('Window is not idle')
         await workspace.archiveSession(request.sessionId)
       }
+      await ctx.get('hostSessionCredentials')?.revoke(request.sessionId)
       const title = titles.get(session)?.title
       if (title === undefined) throw new Error('Window title is unavailable')
       if (!title.endsWith(options.closedSuffix)) titles.rename(session, `${title}${options.closedSuffix}`)

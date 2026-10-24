@@ -22,6 +22,8 @@ export type NotificationFilter = (notification: HarnessNotification) => boolean
 
 /** Launch and timeout options for {@link HarnessClient}. */
 export interface HarnessClientOptions {
+  /** Connect only namespace requests to an existing host; absent preserves subprocess mode. */
+  runningHost?: import('@panedesk/dsh-host-admin').RunningHostOptions
   /** Absolute or caller-relative dsh CLI module; omitted resolves this package's same-version dependency. */
   dshBin?: string
   /** Named profile serving the SDK protocol (default `sdk`). */

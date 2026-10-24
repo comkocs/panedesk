@@ -23,7 +23,7 @@ Optional administration channel for a running host. Importing the package or omi
 <a id="purpose"></a>
 ## Purpose
 
-Only `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, and `engine.query` are available. The transport uses local loopback only and rejects browser origins, request cookies, unexpected paths or Host headers, old process epochs, and invalid authentication headers. Complete request and response frames obey the byte limit.
+The five administrative methods are `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, and `engine.query`. The additive `sdk.invoke` method dispatches only registered SDK namespaces through their decode, authorize, invoke, and encode functions; absent or unloaded namespaces return `method-unavailable`. The transport uses local loopback only and rejects browser origins, request cookies, unexpected paths or Host headers, old process epochs, and invalid authentication headers. Complete request and response frames obey the byte limit.
 
 <a id="configuration-and-identity"></a>
 ## Configuration and Identity
@@ -35,6 +35,8 @@ Only `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, and 
 The host creates `credential` and `endpoint.json` and deletes both on exit; each start uses an independent process epoch. Credentials travel only through private files and authentication headers, never arguments, addresses, environment variables, or operation records. `callAdmin` connects only to an already running host; missing endpoints reject without automatically starting a service.
 
 `hostAdminExecutor` receives transport-derived identity and must durably record authorization facts before accepting approval while retaining the original engine checks. Request fields cannot grant authority. Without an executor, status and pending queries use the existing engine. Authenticated listener approvals additionally require the engine issuer and transactions: the listener-owned identity issues `local-operator` attribution and commits it with the original queue approval. A self-declared dispatch authority cannot enter that path or read its cached receipt; missing capabilities reject. Other methods remain unavailable.
+
+`hostSessionCredentials` issues separate, epoch-bound credentials into owner-only session directories. Trusted creation supplies the session and seat, plus a verified employee ID when available; request fields never supply identity. Replacing or revoking a binding removes its credential and aborts its invocation signal. Operator SDK calls have no seat; namespace authorization must reject writes without a seat. Session credentials cannot invoke the five operator methods. `callHostSdk` reads explicit endpoint and credential paths, sends one request, and never retries unknown outcomes.
 
 <a id="persistence-and-recovery"></a>
 ## Persistence and Recovery
@@ -66,6 +68,8 @@ Existing session history and cache prefixes remain unchanged.
 
 - `createHostAdminExecutor` composes host policy, a trusted authorization issuer, and authorization transactions. Approval calls the transaction adapter, never a second legacy approval path. The configured runtime can bind authenticated local approval directly to installed issuer and transaction services; missing services refuse approval. Queries validate effect payloads using the engine validator. Integrators must verify task filtering and body-text omission. Operation lookup remains unavailable because the frozen engine interface exposes no operation projection; local composition tests do not establish production integration.
 - Linux tests with doubles do not cover Windows ACL execution, real SSH, or multi-process crash injection. Executors must ensure their own calls terminate; unloading waits for accepted calls and cannot forcibly cancel arbitrary provider side effects. Nonce sets and operation records have explicit capacity limits; exhaustion requires controlled restart or operational recovery.
+
+Revocation deletes credential files but leaves their empty owner-only session directories. Long-running deployments must remove empty directories during stopped-host maintenance; directory reclamation is not part of the private-file policy yet.
 
 <a id="dev-note"></a>
 ### Dev Note

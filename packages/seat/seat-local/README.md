@@ -77,6 +77,8 @@ Reminders consume input tokens on their next admitted turn. Context estimates us
 
 Reminders append input without cancelling the current step or replacing prior history. Stable operation identities suppress repeat delivery within the same definition revision and compaction epoch. Compaction itself is owned by the installed compaction provider.
 
+Controlled creation and resume optionally obtain session-bound credentials from `hostSessionCredentials` before publishing the agent. The shell environment registry contributes only `DSH_HOST_ENDPOINT_PATH` and `DSH_HOST_CREDENTIAL_PATH` for the calling session, never credential bytes. Archive, replacement, and agent disposal revoke the old binding. Without the administration issuer, creation remains unchanged. The current persistent seat binding has no employee field, so this provider issues seat-only identities and never guesses an employee ID.
+
 ## Known Limitations and Deferred Work
 
 - Renewal, replacement and close carry issued grants into their original journal admission. Live model invocations issue `model-tool-call` grants for these actions, and engine-owned close issues `engine` grants. Close revalidates authority before archive; audited retries of existing barriers require local reconciliation rather than replaying external work. Legacy calls without grants retain their prior path.

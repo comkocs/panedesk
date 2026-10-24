@@ -1,5 +1,7 @@
 /** Effect-scoped SDK namespaces with authorization and quiescent removal. */
 import { Service, type Context } from '@panedesk/cordis'
+import { brandString } from '@panedesk/dsh-brand'
+import type { HostSdkInvoker } from '@panedesk/dsh-host-admin'
 import { isMessagesMethod, isSeatMethod, JsonRpcResponseError } from '@panedesk/dsh-sdk-protocol'
 import type {
   SdkExtensionJson, SdkMethodContext, SdkMethodRegistry, SdkNamespaceCapability, SdkNamespaceRegistration,
@@ -23,7 +25,31 @@ function reserved(namespace: string): boolean {
 export default class SdkMethodRegistryProvider extends Service implements SdkMethodRegistry {
   private readonly entries = new Map<string, Entry>()
 
-  constructor(ctx: Context) { super(ctx, 'sdkMethods') }
+  constructor(ctx: Context) {
+    super(ctx, 'sdkMethods')
+    const invoker: HostSdkInvoker = { invoke: async (request, identity) => {
+      if (identity.signal.aborted) return { status: 'rejected', code: 'unauthorized' }
+      try {
+        const value = await this.dispatch(`${request.namespace}/${request.method}`, request.params, {
+          principalId: brandString<SdkMethodContext['principalId']>(identity.principalId),
+          authorizationRef: brandString<SdkMethodContext['authorizationRef']>(identity.authorizationRef),
+          signal: identity.signal,
+          ...(identity.sessionId === undefined ? {} : { sessionId: identity.sessionId }),
+          ...(identity.seat === undefined ? {} : { seat: identity.seat }),
+          ...(identity.staffId === undefined ? {} : { staffId: identity.staffId }),
+        })
+        return { status: 'ok', value }
+      } catch (error) {
+        if (error instanceof JsonRpcResponseError) {
+          if (error.code === -32601) return { status: 'rejected', code: 'method-unavailable' }
+          if (error.code === -32602) return { status: 'rejected', code: 'invalid-params' }
+          return { status: 'rejected', code: 'unauthorized' }
+        }
+        return { status: 'rejected', code: 'unavailable' }
+      }
+    } }
+    ctx.provide('hostSdkInvoker', invoker)
+  }
 
   register<Methods extends { [K in keyof Methods]: { request: unknown; result: unknown } }>(
     registration: SdkNamespaceRegistration<Methods>,
@@ -48,6 +74,7 @@ export default class SdkMethodRegistryProvider extends Service implements SdkMet
         const definition = methods[key]
         const request = definition.decodeRequest(params)
         const admission = await authorize(context, key, request)
+        if (context.signal.aborted) throw new JsonRpcResponseError(-32603, 'SDK caller was revoked', { reason: 'unauthorized' })
         if (admission.status === 'rejected') {
           throw new JsonRpcResponseError(admission.code === 'unauthorized' ? -32603 : -32601,
             'SDK method authorization rejected', { reason: admission.code })

@@ -131,6 +131,8 @@ Append-only; newly visible content follows the reusable request prefix and does 
 <a id="known-limitations-and-deferred-work"></a>
 
 
+`SdkMethodRegistryProvider` also supplies the optional `hostSdkInvoker` adapter for authenticated `sdk.invoke` calls on an existing host. It forwards host-issued principal, session, seat, optional employee ID, and revocation signal through the same registered namespace codecs and authorization. Request parameters cannot set these fields. Providers must reject seat-required writes for the unbound operator identity. Installing this registry starts neither stdio nor an engine; removing a namespace makes subsequent calls `method-unavailable`.
+
 These limits define when the plugin needs special operational care. They are current package constraints, not a comparison with other serving approaches or a task backlog.
 
 - **The wire has no per-session close or prompt-cancel method** — SDK-created agents remain live until process shutdown.

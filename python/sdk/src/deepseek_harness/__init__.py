@@ -1,3 +1,4 @@
+from .running_host import RunningHostConfig
 from .host import HostClient, AuthorizationQuery, AuthorizationPage, AuthorizationFact, NodeStatus
 from .models import SdkNamespaceCapability
 from .api import DeepSeekHarness, DeepSeekHarnessConfig, RunResult, Session
@@ -23,6 +24,7 @@ from .models import (
 from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, LlmCacheControl, Notification, ServerInfo
 
 __all__ = [
+    "RunningHostConfig",
     "HostClient", "AuthorizationQuery", "AuthorizationPage", "AuthorizationFact", "NodeStatus", "SdkNamespaceCapability",
     "DeepSeekHarness",
     "DeepSeekHarnessConfig",

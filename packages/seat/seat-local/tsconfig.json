@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../../host/host-admin" },
+    { "path": "../../shell/shell-env" },
     { "path": "../../../vendor/cordis" },
     { "path": "../seat" },
     { "path": "../node-link" },
