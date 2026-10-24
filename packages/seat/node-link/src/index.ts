@@ -124,32 +124,57 @@ export const name = 'node-link'
 export const inject: string[] = []
 /** Explicit paired ports use preprovisioned independent inbound/outbound credential files. */
 export interface NodeLinkRuntimeConfig {
+  /** Identity of the local node. */
   nodeId: string
+  /** Expected authenticated identity of the paired node. */
   peerNodeId: string
+  /** Display name retained with peer health evidence. */
   peerName: string
+  /** Exclusive absolute directory for directional credentials and operation records. */
   directory: string
+  /** Local loopback listener port; zero allocates an ephemeral port. */
   listenPort: number
+  /** Local loopback port reaching the paired node through the supervised forward. */
   peerPort: number
+  /** Maximum bytes in a complete request or response frame. */
   maxFrameBytes: number
+  /** Maximum time in milliseconds to wait for a transport response. */
   requestTimeoutMs: number
+  /** Maximum number of concurrent transport requests. */
   maxPending: number
+  /** Maximum bytes in each durable operation store. */
   maxStoreBytes: number
+  /** Maximum retained operation records before new operations reject. */
   maxOperations: number
+  /** Milliseconds after the last successful health probe before status becomes stale. */
   staleMs: number
+  /** Optional supervised OpenSSH forwarding through an existing reviewed host alias. */
   ssh?: {
+    /** Existing simple SSH host alias, never a command or arbitrary option. */
     alias: string
+    /** Working directory of the supervised SSH child process. */
     cwd: string
+    /** Remote loopback port forwarding back to the local listener. */
     remotePort: number
+    /** Remote loopback listener reached by the local forward. */
     remoteTargetPort: number
+    /** Milliseconds allowed for graceful child termination before escalation. */
     graceMs: number
+    /** SSH server-alive interval in seconds. */
     keepAliveSeconds: number
+    /** Maximum unanswered SSH server-alive probes. */
     keepAliveCount: number
+    /** Milliseconds between supervised connection attempts. */
     retryMs: number
+    /** Maximum reconnection attempts after the initial attempt. */
     maxRetries: number
   } | undefined
 }
 /** Omission preserves the empty plugin's no-I/O behavior. */
-export interface Config { runtime?: NodeLinkRuntimeConfig | undefined }
+export interface Config {
+  /** Explicit activation, node identities and transport resource bounds. */
+  runtime?: NodeLinkRuntimeConfig | undefined
+}
 /** All listener, persistence and supervision limits are explicit deployment choices. */
 export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Schema.const(undefined), Schema.object({
   nodeId: Schema.string().required(), peerNodeId: Schema.string().required(), peerName: Schema.string().required(),

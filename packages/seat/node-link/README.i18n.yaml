@@ -2,18 +2,27 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/seat/node-link/README.md
+/:
+  en: 609025bad4eeaea4
+  zh: 609025bad4eeaea4
 /panedesk-dsh-node-link:
-  en: e49b3364379d4559
-  zh: 80b65fd076958c2b
+  en: a4a5dbb14f5fa8bf
+  zh: 28a4286a87f5000c
+/panedesk-dsh-node-link/summary:
+  en: 5ab9f830cb129a10
+  zh: df23720ff35295fd
+/panedesk-dsh-node-link/table-of-contents:
+  en: f9b9e406d3d4ce7f
+  zh: 4b62b07791f9b55e
 /panedesk-dsh-node-link/purpose:
-  en: 44e6bc29d9d215ac
-  zh: e02e0f1d3239811d
+  en: 8c118cd69a03142a
+  zh: 5fd41254883b96a1
 /panedesk-dsh-node-link/configuration-and-identity:
-  en: f45d53c206f2ca5f
-  zh: 342f9cc71391d2bf
+  en: fdf367b3250c3bc7
+  zh: 17c5c12596b9fe42
 /panedesk-dsh-node-link/persistence-and-disconnection:
-  en: 0f69aa57d03122e7
-  zh: b6ad8192b8fc7296
+  en: 2949da161a5cb5c4
+  zh: e14cefc04306ab78
 /panedesk-dsh-node-link/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -27,8 +36,11 @@
   en: 00eb395be3921209
   zh: 733ccb56679971ac
 /panedesk-dsh-node-link/model-experience/node-requests/kv-cache-effect:
-  en: 626d00287408634a
-  zh: 0a48b5997af6bc68
+  en: 040756093192d7b6
+  zh: 43186dd98b114d41
 /panedesk-dsh-node-link/known-limitations-and-deferred-work:
-  en: 1217eed7443b659d
-  zh: 0432b6d280ad89c9
+  en: f91354ae6bb34edc
+  zh: 41cfea32e16308d5
+/panedesk-dsh-node-link/known-limitations-and-deferred-work/dev-note:
+  en: cb8b42147891aa40
+  zh: d56d9c2bdf67e4af

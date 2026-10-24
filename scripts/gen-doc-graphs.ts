@@ -109,6 +109,36 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'hostAdmin', pkg: 'host-admin', title: 'Opt-in loopback host administration', mode: 'service',
+    note: 'Dispatches fixed authenticated requests against an existing host without starting another engine.',
+  },
+  {
+    key: 'hostAdminExecutor', pkg: 'host-admin', title: 'Authorized host administration execution', mode: 'seam',
+    consumers: ['host-admin'], note: 'Deployment providers own authorization journaling and local execution; absent providers reject writes.',
+  },
+  {
+    key: 'nodeLinkExecutor', pkg: 'node-link', title: 'Authorized local node execution', mode: 'seam',
+    consumers: ['node-link'], note: 'Deployment providers authenticate delegation and execute locally without forwarding again.',
+  },
+  {
+    key: 'nodeRouter', pkg: 'node-link', title: 'Configured paired-node routing', mode: 'service',
+    consumers: ['sdk-jsonrpc-server'], note: 'Provides bounded transport and dated health evidence without granting execution authority.',
+  },
+  {
+    key: 'sdkMethods', pkg: 'sdk-jsonrpc-server', title: 'Unloadable SDK namespace registration', mode: 'seam',
+    implementations: ['sdk-jsonrpc-server'], consumers: ['sdk-jsonrpc-server'],
+    note: 'Registers exclusive optional namespaces with contributor-owned decoding, authorization and disposal.',
+  },
+  {
+    key: 'seatAuthorizationQueries', pkg: 'seat', title: 'Provider-owned authorization queries', mode: 'seam',
+    consumers: ['seat-app', 'sdk-jsonrpc-server', 'acp'], note: 'Projects bounded authorization evidence when a trusted provider is available.',
+  },
+  {
+    key: 'seatOpeningContexts', pkg: 'seat', title: 'Trusted opening source registration', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['seat-local'],
+    note: 'Freezes source text and task associations once and drains active resolutions during disposal.',
+  },
+  {
     key: 'instructionSubscriptions', pkg: 'instruction-subscriptions', title: 'Persisted instruction subscriptions', mode: 'service',
     consumers: ['seat-local'], note: 'Retains selected instruction identities for later prompt assembly without activating a Session.',
   },

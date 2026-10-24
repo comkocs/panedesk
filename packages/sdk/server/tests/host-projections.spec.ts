@@ -6,7 +6,7 @@ import { HarnessSdkJsonRpcServer } from '../src/server.ts'
 
 async function fixture() {
   const ctx = new Context()
-  ctx.provide('llm', { listProviders: () => [{ id: 'fixture' }], resolveCallConfig: async () => ({}) } as Partial<LlmRuntime> as LlmRuntime)
+  ctx.provide('llm', { listProviders: () => [{ id: 'fixture' }] as ReturnType<LlmRuntime['listProviders']>, resolveCallConfig: async () => ({} as Awaited<ReturnType<LlmRuntime['resolveCallConfig']>>) } as Partial<LlmRuntime> as LlmRuntime)
   const initiator = vi.fn<AgentRegistry['currentInitiator']>(() => undefined)
   ctx.provide('agents', { currentInitiator: initiator } as Partial<AgentRegistry> as AgentRegistry)
   const server = new HarnessSdkJsonRpcServer(ctx, { notify() {}, request: async () => ({}) })

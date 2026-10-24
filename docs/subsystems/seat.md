@@ -42,6 +42,110 @@ This page owns the types and service semantics declared by the [seat package gro
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxhostadmin--hostadminservice"></a>
+
+### `ctx.hostAdmin` — `HostAdminService`
+
+Administration is optional and never starts a second engine to answer a query.
+
+```ts cordis-catalog
+/** Dispatch a fixed method after transport authentication and epoch validation.
+ * @param request - Bounded validated request without caller-defined authority.
+ * @param authority - Authenticated operator role narrowed to permitted methods.
+ * @returns Provider evidence; approval records authorization before engine admission.
+ */
+dispatch(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
+```
+
+Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin/src/index.ts)
+
+<a id="ctxhostadminexecutor--hostadminexecutor"></a>
+
+### `ctx.hostAdminExecutor` — `HostAdminExecutor`
+
+Local executors own authorization facts and must durably record approval before admission.
+
+```ts cordis-catalog
+/** Invoke only a locally authenticated capability, never another router.
+ * @param request - Validated fixed-method request.
+ * @param authority - Transport-derived narrowed authority.
+ * @returns Provider evidence after required authorization persistence.
+ */
+execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
+```
+
+Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin/src/index.ts)
+
+<a id="ctxnodelinkexecutor--nodelinkexecutor"></a>
+
+### `ctx.nodeLinkExecutor` — `NodeLinkExecutor`
+
+Local provider narrows authenticated node delegations and never calls a router again.
+
+```ts cordis-catalog
+/** Check the current binding, principal, target and method rights on the receiving node.
+ * @param request - Validated request authenticated to its configured source node.
+ * @returns Whether current local policy permits this exact delegation.
+ */
+authorize(request: NodeWireRequest): Promise<boolean>
+
+/** Execute through the original local provider after durable transport admission.
+ * @param request - Authorized fixed-method operation.
+ * @returns Correlated local provider result.
+ */
+execute(request: NodeWireRequest): Promise<NodeWireResponse>
+
+/** Observe current local capacity without starting an engine.
+ * @returns Local node self-report.
+ */
+status(): Promise<Seat.SeatNodeStatus>
+```
+
+Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
+
+<a id="ctxnoderouter--noderouterservice"></a>
+
+### `ctx.nodeRouter` — `NodeRouterService`
+
+Receiver invokes local providers only; delegation is authenticated again and cannot add hops.
+
+```ts cordis-catalog
+/** Route one bounded authenticated request without offline user-operation queues.
+ * @param request - Fixed method, digest, deadline and narrowed delegation.
+ * @returns Target result or explicit unknown outcome retaining operation identity.
+ */
+route(request: NodeWireRequest): Promise<NodeWireResponse>
+
+/** Read dated health without initiating a model or opening a window.
+ * @returns Node aliases and explicit stale/unreachable evidence.
+ */
+status(): Promise<readonly NodeLinkStatus[]>
+```
+
+Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
+
+<a id="ctxseatauthorizationqueries--seatauthorizationqueries"></a>
+
+### `ctx.seatAuthorizationQueries` — `SeatAuthorizationQueries`
+
+Read-only authorization projection definition; it does not enable a new ledger writer.
+
+```ts cordis-catalog
+/** Read committed authorization facts without treating them as reusable capabilities.
+ * @param request - Authorized task, seat and time filters.
+ * @returns Redacted facts with watermark or a structured refusal.
+ */
+query(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>
+
+/** Read engine facts by task without changing the legacy query method.
+ * @param request - Task filter and existing pagination fields.
+ * @returns Committed matching effects or a structured refusal.
+ */
+tasks(request: T.SeatTaskQueryRequest): Promise<T.EngineQueryResult | T.SeatRejected>
+```
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
 <a id="ctxseatdirectories--seatdirectoryservice-abstract-seam"></a>
 
 ### `ctx.seatDirectories` — `SeatDirectoryService` (abstract seam)
@@ -324,6 +428,12 @@ abstract register(criterion: GateCriterion): () => void
  */
 abstract evaluate(context: GateContext): Promise<readonly GateResult[]>
 
+/** Optional batch scope preflight; absence must not downgrade task batches to concurrency without evidence.
+ * @param context - Complete task, node, seat and scope evidence.
+ * @returns Conservative intersection decision and serial alternative.
+ */
+evaluateTaskScopes?(context: import('./gates.ts').TaskScopeBatchGateContext): Promise<import('./gates.ts').TaskScopeGateDecision>
+
 /** Read hit counts and expiry by revision.
  * @param request - bounded gate filters.
  * @returns committed counter page.
@@ -433,6 +543,36 @@ forInvocation(invocation: { session: import('@panedesk/dsh-session').Session cal
 ```
 
 Types: [Session](session.md) · [ToolCallId](core.md)
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
+<a id="ctxseatopeningcontexts--seatopeningcontexts"></a>
+
+### `ctx.seatOpeningContexts` — `SeatOpeningContexts`
+
+Optional opening service definition; no provider is installed by this module.
+
+```ts cordis-catalog
+/** Register trusted resolver code through a Cordis effect.
+ * @param provider - Installed resolver with an exclusive provider identity.
+ * @returns Disposer that drains resolutions before removing the provider.
+ */
+register(provider: T.OpeningContextProvider): () => Promise<void>
+
+/** Open through the existing admission path with a frozen provider reference.
+ * @param request - Explicit revision and task associations.
+ * @param authority - Authenticated host identity, never wire fields.
+ * @returns Existing opening outcomes without bypassing gates or budgets.
+ */
+open(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.OpenSeatResult>
+
+/** Preflight complete scope evidence before any batch member executes.
+ * @param request - Explicit seats and every associated task.
+ * @param authority - Authenticated caller.
+ * @returns Independent outcomes or a whole-batch preflight refusal.
+ */
+openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult>
+```
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
 

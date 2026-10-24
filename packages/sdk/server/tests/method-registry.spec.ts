@@ -31,7 +31,7 @@ const authority: SdkMethodContext = {
 async function fixture() {
   const ctx = new Context()
   await ctx.plugin(Registry)
-  ctx.provide('llm', { listProviders: () => [{ id: 'fixture' }], resolveCallConfig: async () => ({}) } as Partial<LlmRuntime> as LlmRuntime)
+  ctx.provide('llm', { listProviders: () => [{ id: 'fixture' }] as ReturnType<LlmRuntime['listProviders']>, resolveCallConfig: async () => ({} as Awaited<ReturnType<LlmRuntime['resolveCallConfig']>>) } as Partial<LlmRuntime> as LlmRuntime)
   ctx.provide('agents', { currentInitiator: () => undefined } as Partial<AgentRegistry> as AgentRegistry)
   const server = new HarnessSdkJsonRpcServer(ctx, { notify() {}, request: async () => ({}) })
   return { ctx, server, registry: ctx.sdkMethods }

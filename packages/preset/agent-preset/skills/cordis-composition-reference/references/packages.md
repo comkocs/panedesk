@@ -267,6 +267,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@panedesk/dsh-host-admin` | yes | Optional authenticated running-host administration definitions |
 | `@panedesk/dsh-host-directory-picker-auto` | no | Adaptive chooser of the directory-picker seam: resolves the host situation at boot and mounts the native or browse backend for the DeepSeek Harness web GUI host |
 | `@panedesk/dsh-host-directory-picker-browse` | yes | In-app browsing backend of the directory-picker seam (listing/creation primitives over the host filesystem) |
 | `@panedesk/dsh-host-directory-picker-native` | no | Native-OS-chooser backend of the directory-picker seam for the DeepSeek Harness web GUI host |
@@ -366,6 +367,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@panedesk/dsh-node-link` | yes | Optional authenticated node routing definitions |
 | `@panedesk/dsh-seat-app` | no | Seat application consumer scaffold |
 | `@panedesk/dsh-seat-engine` | yes | Seat engine provider scaffold |
 | `@panedesk/dsh-seat-gates` | yes | Seat policy plugin scaffold |

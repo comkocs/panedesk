@@ -276,6 +276,35 @@ publish(topic: string, payload: InspectorJsonValue, monotonicMs?: number): void
 
 Source: [`packages/experimental/inspector/src/index.ts`](../../packages/experimental/inspector/src/index.ts)
 
+<a id="ctxsdkmethods--sdkmethodregistry"></a>
+
+### `ctx.sdkMethods` — `SdkMethodRegistry`
+
+Optional provider definition; declaring it does not enable third-party dispatch.
+
+```ts cordis-catalog
+/** Install one namespace through the caller's Cordis effect scope.
+ * @param registration - Exclusive namespace and bounded codecs.
+ * @returns Disposer that drains admitted work and makes later calls method-unavailable.
+ */
+register<Methods extends { [K in keyof Methods]: { request: unknown; result: unknown } }>( registration: SdkNamespaceRegistration<Methods>, ): () => Promise<void>
+
+/** Report currently callable namespace versions after initialization.
+ * @returns An immutable capability snapshot, excluding disposed registrations.
+ */
+capabilities(): readonly SdkNamespaceCapability[]
+
+/** Dispatch a registered method without allowing a built-in override.
+ * @param method - Fully qualified namespace/method wire name.
+ * @param params - Untrusted parameters decoded by the registered method.
+ * @param context - Host-resolved caller, never request-supplied authority.
+ * @returns Encoded JSON or an explicit unavailable/authorization error.
+ */
+dispatch(method: string, params: unknown, context: SdkMethodContext): Promise<SdkExtensionJson>
+```
+
+Source: [`packages/sdk/server/src/method-registry.ts`](../../packages/sdk/server/src/method-registry.ts)
+
 <a id="cordis-events"></a>
 
 ### `cordis/*` events

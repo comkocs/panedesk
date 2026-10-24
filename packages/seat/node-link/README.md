@@ -1,13 +1,31 @@
+---
+description: "Explicit authenticated transport between one configured node pair."
+kind: "package-reference"
+---
+
 # `@panedesk/dsh-node-link`
 
 English | [Chinese](README.zh.md)
 
+## Summary
+
 Optional node transport establishes bidirectional loopback forwarding through a supervised OpenSSH child process, reusing existing host aliases and strict host-key verification without creating SSH keys or remote commands. Omitting `runtime` creates no listener, process, or routing service.
 
+## Table of Contents
+
+- [Purpose](#purpose)
+- [Configuration and Identity](#configuration-and-identity)
+- [Persistence and Disconnection](#persistence-and-disconnection)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="purpose"></a>
 ## Purpose
 
 The fixed methods are `seat.open`, `seat.openBatch`, `seat.renew`, `seat.close`, `seat.replace`, `seat.wake`, `messages.send`, and `seat.operation`. Requests validate the version, source, target, operation ID, deadline, digest, and single-hop delegation; responses validate every correlated identity. Receivers invoke only a local executor and never forward again.
 
+<a id="configuration-and-identity"></a>
 ## Configuration and Identity
 
 `runtime` requires `nodeId`, `peerNodeId`, `peerName`, `directory`, `listenPort`, `peerPort`, `maxFrameBytes`, `requestTimeoutMs`, `maxPending`, `maxStoreBytes`, `maxOperations`, and `staleMs`. Tests use `listenPort: 0` for temporary random ports; `peerPort` points to a locally supervised forward or a test peer.
@@ -20,12 +38,14 @@ The POSIX target directory must be an absolute path owned by the current user wi
 
 `nodeLinkExecutor` must validate the real principal, current binding, target, and method permissions, invoke the original local provider, and provide node status. A delegation string or SSH login alone grants no authority. Missing executors reject incoming requests; routing cannot substitute for authorization.
 
+<a id="persistence-and-disconnection"></a>
 ## Persistence and Disconnection
 
 `received/operations.json` durably records pending operations before execution; `sent/operations.json` retains sending identities and results. Identical operation IDs and arguments do not execute twice; changed arguments reject. Lost responses remain unknown and recover through authenticated read-only receipts, never blind retries. Unresolved sends block new writes; full capacity rejects rather than evicts. A root `owner.lock` excludes concurrent instances; stale locks require manual confirmation before recovery.
 
 Disconnected links reject new requests; a sent request without a response cannot be reported as unexecuted. Health probes validate process epochs and self-reported node identities. After `staleMs`, status becomes stale while retaining the last window count rather than inventing zero. A live SSH process does not imply a successful application handshake.
 
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Node Requests
@@ -42,8 +62,14 @@ The transport makes no additional model calls; token usage depends on the origin
 
 Session history and cache prefixes remain unchanged.
 
+<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
 - Integrators must supply real local execution and authorization-audit adapters. Test doubles do not establish that real opening, messaging, or authorization journals are connected. Windows execution and real SSH acceptance have not been tested. Only one configured node pair is supported, without multi-node route registration or hot configuration rotation.
 
 - Execution adapters must ensure their calls settle; unloading waits for accepted operations. Durable storage uses bounded whole files without compaction, automatic cleanup, or automatic stale-lock takeover. Credential files and transport records are not an engine authorization authority.
+
+<a id="dev-note"></a>
+### Dev Note
+
+Keep transport separate from execution authority; missing local executors must reject incoming operations.

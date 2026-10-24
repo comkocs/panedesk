@@ -1,13 +1,31 @@
+---
+description: "Explicit authenticated transport between one configured node pair."
+kind: "package-reference"
+---
+
 # `@panedesk/dsh-node-link`
 
 [English](README.md) | 中文
 
+## 概述
+
 可选节点传输，通过受监管 OpenSSH 子进程建立双向回环转发，复用既有主机别名与严格主机钥匙校验，不创建 SSH 密钥或远程命令。省略 `runtime` 时不创建监听、进程或路由服务。
 
+## 目录
+
+- [用途](#purpose)
+- [配置与身份](#configuration-and-identity)
+- [持久化与断链](#persistence-and-disconnection)
+- [模型体验](#model-experience)
+- [已知限制与待完成项](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="purpose"></a>
 ## 用途
 
 固定方法为 `seat.open`、`seat.openBatch`、`seat.renew`、`seat.close`、`seat.replace`、`seat.wake`、`messages.send`、`seat.operation`。完整请求校验版本、来源、目标、操作号、期限、摘要与单跳委托；回包校验所有关联身份。接收端只能调用本地执行适配，不再转发。
 
+<a id="configuration-and-identity"></a>
 ## 配置与身份
 
 `runtime` 必须填写 `nodeId`、`peerNodeId`、`peerName`、`directory`、`listenPort`、`peerPort`、`maxFrameBytes`、`requestTimeoutMs`、`maxPending`、`maxStoreBytes`、`maxOperations`、`staleMs`。`listenPort: 0` 供临时随机端口测试，`peerPort` 指向本机受监管转发或替身对端。
@@ -20,12 +38,14 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 `nodeLinkExecutor` 必须验证真实主体、当前绑定、目标及方法权限，执行原本地提供器并提供节点状态。委托字符串或 SSH 登录本身不赋予权限。缺少适配时拒绝接收，不能绕回路由获取权限。
 
+<a id="persistence-and-disconnection"></a>
 ## 持久化与断链
 
 `received/operations.json` 在执行前耐久记录待决，`sent/operations.json` 保留发送身份与结果。同号同参不重复执行，同号异参拒绝；丢回包标未知，通过认证只读回执恢复，不盲重发。存在未决发送时阻止新的写操作，容量满时拒绝而不淘汰。根目录 `owner.lock` 排斥双实例，遗留锁需人工确认后恢复。
 
 断链拒绝新请求，已发送但无回包不能声称未执行。健康探测校验代次与节点自报身份；超 `staleMs` 标为过期，保留上次窗数，不伪造零窗。SSH 进程存活不等于应用握手成功。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 节点请求
@@ -42,8 +62,14 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 不改变会话历史或缓存前缀。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与待完成项
 
 - 真实本地执行与授权审计适配由并线方提供；本包的替身测试不证明真实开窗、消息或授权账本已接通。Windows 实跑与真实 SSH 验收未执行。只支持一对配置节点，未提供多节点路由注册与热配置轮换。
 
 - 业务执行适配须保证调用可收敛；卸载等待已接纳操作。持久存储为有限容量完整文件，未实现日志压缩、自动清理或遗留锁自动接管。凭据文件与发送接收记录不能作为引擎授权真源。
+
+<a id="dev-note"></a>
+### 开发备注
+
+Keep transport separate from execution authority; missing local executors must reject incoming operations.

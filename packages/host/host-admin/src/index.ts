@@ -104,15 +104,25 @@ export const name = 'host-admin'
 export const inject: string[] = []
 /** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
 export interface Config {
+  /** Explicit activation and limits for administration of the existing host. */
   runtime?: {
+    /** Exclusive absolute directory for owner-only credentials and operation records. */
     directory: string
+    /** Identity reported by the local node. */
     nodeId: string
+    /** Authenticated principal assigned to local administration calls. */
     principalId: string
+    /** Loopback listener port; zero allocates an ephemeral port. */
     port: number
+    /** Maximum bytes in a complete request or response frame. */
     maxFrameBytes: number
+    /** Maximum time in milliseconds to wait for a transport response. */
     requestTimeoutMs: number
+    /** Maximum number of concurrent transport requests. */
     maxPending: number
+    /** Maximum bytes in the durable operation store. */
     maxStoreBytes: number
+    /** Maximum retained operation records before new operations reject. */
     maxOperations: number
   } | undefined
 }

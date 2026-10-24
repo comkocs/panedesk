@@ -1329,6 +1329,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'hostAdmin',
+    summary: 'Administration is optional and never starts a second engine to answer a query.',
+    description: 'Administration is optional and never starts a second engine to answer a query.',
+    methods: [
+      {
+        signature: 'dispatch(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>',
+        description: 'Dispatch a fixed method after transport authentication and epoch validation.',
+        parameters: [{ name: 'request', description: 'Bounded validated request without caller-defined authority.' }, { name: 'authority', description: 'Authenticated operator role narrowed to permitted methods.' }],
+        returns: 'Provider evidence; approval records authorization before engine admission.',
+      },
+    ],
+  },
+  {
+    key: 'hostAdminExecutor',
+    summary: 'Local executors own authorization facts and must durably record approval before admission.',
+    description: 'Local executors own authorization facts and must durably record approval before admission.',
+    methods: [
+      {
+        signature: 'execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>',
+        description: 'Invoke only a locally authenticated capability, never another router.',
+        parameters: [{ name: 'request', description: 'Validated fixed-method request.' }, { name: 'authority', description: 'Transport-derived narrowed authority.' }],
+        returns: 'Provider evidence after required authorization persistence.',
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -1785,6 +1811,50 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read only the message namespace with explicit completeness.',
         parameters: [{ name: 'query', description: 'filters and exclusive cursor.' }],
         returns: 'retained facts and scan completeness.',
+      },
+    ],
+  },
+  {
+    key: 'nodeLinkExecutor',
+    summary: 'Local provider narrows authenticated node delegations and never calls a router again.',
+    description: 'Local provider narrows authenticated node delegations and never calls a router again.',
+    methods: [
+      {
+        signature: 'authorize(request: NodeWireRequest): Promise<boolean>',
+        description: 'Check the current binding, principal, target and method rights on the receiving node.',
+        parameters: [{ name: 'request', description: 'Validated request authenticated to its configured source node.' }],
+        returns: 'Whether current local policy permits this exact delegation.',
+      },
+      {
+        signature: 'execute(request: NodeWireRequest): Promise<NodeWireResponse>',
+        description: 'Execute through the original local provider after durable transport admission.',
+        parameters: [{ name: 'request', description: 'Authorized fixed-method operation.' }],
+        returns: 'Correlated local provider result.',
+      },
+      {
+        signature: 'status(): Promise<Seat.SeatNodeStatus>',
+        description: 'Observe current local capacity without starting an engine.',
+        parameters: [],
+        returns: 'Local node self-report.',
+      },
+    ],
+  },
+  {
+    key: 'nodeRouter',
+    summary: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
+    description: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
+    methods: [
+      {
+        signature: 'route(request: NodeWireRequest): Promise<NodeWireResponse>',
+        description: 'Route one bounded authenticated request without offline user-operation queues.',
+        parameters: [{ name: 'request', description: 'Fixed method, digest, deadline and narrowed delegation.' }],
+        returns: 'Target result or explicit unknown outcome retaining operation identity.',
+      },
+      {
+        signature: 'status(): Promise<readonly NodeLinkStatus[]>',
+        description: 'Read dated health without initiating a model or opening a window.',
+        parameters: [],
+        returns: 'Node aliases and explicit stale/unreachable evidence.',
       },
     ],
   },
@@ -2282,6 +2352,50 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sdkMethods',
+    summary: 'Optional provider definition; declaring it does not enable third-party dispatch.',
+    description: 'Optional provider definition; declaring it does not enable third-party dispatch.',
+    methods: [
+      {
+        signature: 'register<Methods extends { [K in keyof Methods]: { request: unknown; result: unknown } }>( registration: SdkNamespaceRegistration<Methods>, ): () => Promise<void>',
+        description: 'Install one namespace through the caller\'s Cordis effect scope.',
+        parameters: [{ name: 'registration', description: 'Exclusive namespace and bounded codecs.' }],
+        returns: 'Disposer that drains admitted work and makes later calls method-unavailable.',
+      },
+      {
+        signature: 'capabilities(): readonly SdkNamespaceCapability[]',
+        description: 'Report currently callable namespace versions after initialization.',
+        parameters: [],
+        returns: 'An immutable capability snapshot, excluding disposed registrations.',
+      },
+      {
+        signature: 'dispatch(method: string, params: unknown, context: SdkMethodContext): Promise<SdkExtensionJson>',
+        description: 'Dispatch a registered method without allowing a built-in override.',
+        parameters: [{ name: 'method', description: 'Fully qualified namespace/method wire name.' }, { name: 'params', description: 'Untrusted parameters decoded by the registered method.' }, { name: 'context', description: 'Host-resolved caller, never request-supplied authority.' }],
+        returns: 'Encoded JSON or an explicit unavailable/authorization error.',
+      },
+    ],
+  },
+  {
+    key: 'seatAuthorizationQueries',
+    summary: 'Read-only authorization projection definition; it does not enable a new ledger writer.',
+    description: 'Read-only authorization projection definition; it does not enable a new ledger writer.',
+    methods: [
+      {
+        signature: 'query(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>',
+        description: 'Read committed authorization facts without treating them as reusable capabilities.',
+        parameters: [{ name: 'request', description: 'Authorized task, seat and time filters.' }],
+        returns: 'Redacted facts with watermark or a structured refusal.',
+      },
+      {
+        signature: 'tasks(request: T.SeatTaskQueryRequest): Promise<T.EngineQueryResult | T.SeatRejected>',
+        description: 'Read engine facts by task without changing the legacy query method.',
+        parameters: [{ name: 'request', description: 'Task filter and existing pagination fields.' }],
+        returns: 'Committed matching effects or a structured refusal.',
+      },
+    ],
+  },
+  {
     key: 'seatDirectories',
     summary: 'Additional-root tools retain filesystem permission checks and do not widen shell write policy.',
     description: 'Additional-root tools retain filesystem permission checks and do not widen shell write policy.',
@@ -2572,6 +2686,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'ordered decisions; deny may short-circuit subsequent gates.',
       },
       {
+        signature: 'evaluateTaskScopes?(context: import(\'./gates.ts\').TaskScopeBatchGateContext): Promise<import(\'./gates.ts\').TaskScopeGateDecision>',
+        description: 'Optional batch scope preflight; absence must not downgrade task batches to concurrency without evidence.',
+        parameters: [{ name: 'context', description: 'Complete task, node, seat and scope evidence.' }],
+        returns: 'Conservative intersection decision and serial alternative.',
+      },
+      {
         signature: 'abstract list(request: T.ListSeatGatesRequest): Promise<T.ListSeatGatesResult>',
         description: 'Read hit counts and expiry by revision.',
         parameters: [{ name: 'request', description: 'bounded gate filters.' }],
@@ -2658,6 +2778,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Capture the executor\'s live Session and tool call, not a target window identity.',
         parameters: [{ name: 'invocation', description: 'trusted executor context; the Session must remain registered.' }],
         returns: 'six operations stamped with this invocation\'s stable operation identity.',
+      },
+    ],
+  },
+  {
+    key: 'seatOpeningContexts',
+    summary: 'Optional opening service definition; no provider is installed by this module.',
+    description: 'Optional opening service definition; no provider is installed by this module.',
+    methods: [
+      {
+        signature: 'register(provider: T.OpeningContextProvider): () => Promise<void>',
+        description: 'Register trusted resolver code through a Cordis effect.',
+        parameters: [{ name: 'provider', description: 'Installed resolver with an exclusive provider identity.' }],
+        returns: 'Disposer that drains resolutions before removing the provider.',
+      },
+      {
+        signature: 'open(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.OpenSeatResult>',
+        description: 'Open through the existing admission path with a frozen provider reference.',
+        parameters: [{ name: 'request', description: 'Explicit revision and task associations.' }, { name: 'authority', description: 'Authenticated host identity, never wire fields.' }],
+        returns: 'Existing opening outcomes without bypassing gates or budgets.',
+      },
+      {
+        signature: 'openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult>',
+        description: 'Preflight complete scope evidence before any batch member executes.',
+        parameters: [{ name: 'request', description: 'Explicit seats and every associated task.' }, { name: 'authority', description: 'Authenticated caller.' }],
+        returns: 'Independent outcomes or a whole-batch preflight refusal.',
       },
     ],
   },
@@ -7157,7 +7302,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GateContext',
-    declaration: 'export type GateContext = GateContextBase & ({\n    hook: \'before-open\';\n    cwd: string;\n    candidateSeats: readonly SeatName[];\n} | {\n    hook: \'before-batch-open\';\n    seats: readonly SeatName[];\n} | {\n    hook: \'before-memory-write\';\n    targetPath: string;\n    authorizedDirectories: readonly string[];\n    syntax: \'certain\' | \'unknown\';\n} | {\n    hook: \'before-tool-call\';\n    toolName: string;\n    arguments: Readonly<Record<string, SeatJson>>;\n    hasPendingWork: boolean;\n} | {\n    hook: \'before-subagent-dispatch\';\n    parentSessionId: SessionId;\n    kind: \'start\' | \'continue\';\n    childSessionId: SessionId | null;\n    request: Readonly<Record<string, SeatJson>>;\n} | {\n    hook: \'after-subagent-return\';\n    parentSessionId: SessionId;\n    childSessionId: SessionId;\n    result: SeatJson;\n} | {\n    hook: \'after-compaction\';\n    summary: string;\n    additionalTokenBudget: number;\n    seatRevision: number;\n});',
+    declaration: 'export type GateContext = GateContextBase & ({\n    hook: \'before-open\';\n    cwd: string;\n    candidateSeats: readonly SeatName[];\n} | {\n    hook: \'before-batch-open\';\n    seats: readonly SeatName[];\n    tasks?: readonly import(\'./types.ts\').SeatTaskScopeContext[];\n} | {\n    hook: \'before-memory-write\';\n    targetPath: string;\n    authorizedDirectories: readonly string[];\n    syntax: \'certain\' | \'unknown\';\n} | {\n    hook: \'before-tool-call\';\n    toolName: string;\n    arguments: Readonly<Record<string, SeatJson>>;\n    hasPendingWork: boolean;\n} | {\n    hook: \'before-subagent-dispatch\';\n    parentSessionId: SessionId;\n    kind: \'start\' | \'continue\';\n    childSessionId: SessionId | null;\n    request: Readonly<Record<string, SeatJson>>;\n} | {\n    hook: \'after-subagent-return\';\n    parentSessionId: SessionId;\n    childSessionId: SessionId;\n    result: SeatJson;\n} | {\n    hook: \'after-compaction\';\n    summary: string;\n    additionalTokenBudget: number;\n    seatRevision: number;\n});',
   },
   {
     name: 'GateContextBase',
@@ -7286,6 +7431,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'HookRegistration',
     declaration: 'export interface HookRegistration {\n    catch(handler: AnyHook): void;\n}',
+  },
+  {
+    name: 'HostAdminAuthority',
+    declaration: 'export interface HostAdminAuthority {\n    principalId: Seat.SeatPrincipalId;\n    authorizationRef: Seat.AuthorizationRef;\n    kind: \'local-operator\' | \'node-delegation\';\n    methods: readonly (keyof HostAdminMethods)[];\n}',
+  },
+  {
+    name: 'HostAdminEndpoint',
+    declaration: 'export interface HostAdminEndpoint {\n    nodeId: Seat.SeatNodeId;\n    pid: number;\n    processEpoch: Branded<\'HostProcessEpoch\'>;\n    version: typeof HOST_ADMIN_VERSION;\n    credentialRef: Branded<\'HostAdminCredentialRef\'>;\n}',
+  },
+  {
+    name: 'HostAdminMethods',
+    declaration: 'export interface HostAdminMethods {\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatOperationResult;\n    };\n    \'engine.query\': {\n        request: Seat.SeatTaskQueryRequest;\n        result: Seat.EngineQueryResult | Seat.SeatRejected;\n    };\n}',
+  },
+  {
+    name: 'HostAdminRequest',
+    declaration: 'export type HostAdminRequest = {\n    [K in keyof HostAdminMethods]: {\n        version: typeof HOST_ADMIN_VERSION;\n        requestId: Branded<\'HostAdminRequestId\'>;\n        processEpoch: HostAdminEndpoint[\'processEpoch\'];\n        nonce: Branded<\'HostAdminNonce\'>;\n        method: K;\n        params: HostAdminMethods[K][\'request\'];\n    };\n}[keyof HostAdminMethods];',
+  },
+  {
+    name: 'HostAdminResponse',
+    declaration: 'export type HostAdminResponse = {\n    [K in keyof HostAdminMethods]: {\n        version: typeof HOST_ADMIN_VERSION;\n        requestId: Branded<\'HostAdminRequestId\'>;\n        method: K;\n    } & ({\n        status: \'ok\';\n        result: HostAdminMethods[K][\'result\'];\n    } | {\n        status: \'rejected\' | \'unavailable\' | \'uncertain\';\n        code: typeof HOST_ADMIN_ERROR_CODES[number];\n        reason: string;\n        operationId?: Seat.SeatOperationId;\n    });\n}[keyof HostAdminMethods];',
   },
   {
     name: 'HostConnectionFetch',
@@ -8352,6 +8517,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type NodeId = Branded<\'LedgerNodeId\'>;',
   },
   {
+    name: 'NodeLinkErrorCode',
+    declaration: 'export type NodeLinkErrorCode = keyof typeof NODE_LINK_ERROR_CODES;',
+  },
+  {
+    name: 'NodeLinkFailure',
+    declaration: 'export interface NodeLinkFailure {\n    code: NodeLinkErrorCode;\n    reason: string;\n    retryable: boolean;\n    effectState: \'none\' | \'unknown\';\n    operationId: Seat.SeatOperationId;\n    targetNodeId: Seat.SeatNodeId;\n}',
+  },
+  {
+    name: 'NodeLinkStatus',
+    declaration: 'export interface NodeLinkStatus {\n    nodeId: Seat.SeatNodeId;\n    nodeName: string;\n    reachable: boolean;\n    linkState: \'connected\' | \'disconnected\' | \'connecting\' | \'stale\';\n    observedAt: Seat.SeatTimestamp;\n    status: Seat.SeatNodeStatus | null;\n    capabilities: readonly string[];\n    safeReason: string | null;\n}',
+  },
+  {
+    name: 'NodeRouteMethods',
+    declaration: 'export interface NodeRouteMethods {\n    \'seat.open\': {\n        request: Seat.OpenSeatRequest;\n        result: Seat.OpenSeatResult;\n    };\n    \'seat.openBatch\': {\n        request: Seat.OpenSeatBatchRequest;\n        result: Seat.OpenSeatBatchResult;\n    };\n    \'seat.renew\': {\n        request: Seat.RenewSeatRequest;\n        result: Seat.RenewSeatResult;\n    };\n    \'seat.close\': {\n        request: Seat.CloseSeatRequest;\n        result: Seat.CloseSeatResult;\n    };\n    \'seat.replace\': {\n        request: Seat.ReplaceSeatRequest;\n        result: Seat.ReplaceSeatResult;\n    };\n    \'seat.wake\': {\n        request: Seat.WakeSeatRequest;\n        result: Seat.WakeSeatResult;\n    };\n    \'messages.send\': {\n        request: SendMessageRequest;\n        result: SendMessageResult;\n    };\n    \'seat.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatOperationResult;\n    };\n}',
+  },
+  {
+    name: 'NodeWireRequest',
+    declaration: 'export type NodeWireRequest = {\n    [K in keyof NodeRouteMethods]: {\n        version: typeof NODE_LINK_VERSION;\n        requestId: Branded<\'NodeRequestId\'>;\n        sourceNodeId: Seat.SeatNodeId;\n        targetNodeId: Seat.SeatNodeId;\n        operationId: Seat.SeatOperationId;\n        deadline: Seat.SeatTimestamp;\n        hop: 1;\n        method: K;\n        payload: NodeRouteMethods[K][\'request\'];\n        payloadDigest: Seat.SeatDigest;\n        delegation: Seat.SeatNodeDelegation;\n    };\n}[keyof NodeRouteMethods];',
+  },
+  {
+    name: 'NodeWireResponse',
+    declaration: 'export type NodeWireResponse = {\n    [K in keyof NodeRouteMethods]: {\n        version: typeof NODE_LINK_VERSION;\n        requestId: Branded<\'NodeRequestId\'>;\n        operationId: Seat.SeatOperationId;\n        sourceNodeId: Seat.SeatNodeId;\n        targetNodeId: Seat.SeatNodeId;\n        method: K;\n    } & ({\n        status: \'ok\';\n        result: NodeRouteMethods[K][\'result\'];\n    } | {\n        status: \'unavailable\' | \'rejected\' | \'uncertain\';\n        error: NodeLinkFailure;\n    });\n}[keyof NodeRouteMethods];',
+  },
+  {
     name: 'NotFutureError',
     declaration: 'export interface NotFutureError {\n    readonly code: \'not_future\';\n    readonly message: string;\n}',
   },
@@ -8404,6 +8593,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface OpenedSeatWindow {\n    sessionId: SessionId;\n    seat: SeatName;\n    nodeId: SeatNodeId;\n    nodeName: string;\n    title: string;\n    budget: SeatBudgetLimits;\n    phase: OpenPhase;\n    stateVersion: number;\n    callbackIds: readonly CallbackId[];\n}',
   },
   {
+    name: 'OpeningContextProvider',
+    declaration: 'export interface OpeningContextProvider {\n    providerId: OpeningProviderId;\n    resolve(reference: OpeningContextReference, authority: SeatCallContext): Promise<OpeningContextSnapshot | SeatRejected>;\n}',
+  },
+  {
+    name: 'OpeningContextReference',
+    declaration: 'export interface OpeningContextReference {\n    providerId: OpeningProviderId;\n    reference: Branded<\'OpeningContextReference\'>;\n    revision: string;\n}',
+  },
+  {
+    name: 'OpeningContextSnapshot',
+    declaration: 'export interface OpeningContextSnapshot {\n    reference: OpeningContextReference;\n    text: string;\n    digest: SeatDigest;\n    revision: string;\n    taskIds: readonly SeatTaskId[];\n    scopeEvidence: readonly TaskScopeEvidence[];\n}',
+  },
+  {
+    name: 'OpeningProviderId',
+    declaration: 'export type OpeningProviderId = Branded<\'OpeningProviderId\'>;',
+  },
+  {
     name: 'OpenIntentId',
     declaration: 'export type OpenIntentId = Branded<\'SeatOpenIntentId\'>;',
   },
@@ -8420,12 +8625,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OpenSeatBatchResult = {\n    status: \'processed\';\n    results: readonly {\n        seat: SeatName;\n        result: OpenSeatResult;\n    }[];\n} | SeatRejected;',
   },
   {
+    name: 'OpenSeatBatchWithScopeRequest',
+    declaration: 'export interface OpenSeatBatchWithScopeRequest extends OpenSeatBatchRequest {\n    tasks: readonly SeatTaskScopeContext[];\n}',
+  },
+  {
     name: 'OpenSeatRequest',
     declaration: 'export interface OpenSeatRequest {\n    seat: SeatName;\n    operationId: SeatOperationId;\n    origin: \'manual\' | \'remote\' | \'engine\';\n    nodeId?: SeatNodeId;\n    taskId?: SeatTaskId;\n    openingMode?: \'auto\' | \'prefill\';\n    existingChoice?: ExistingSeatChoice;\n    expectedSeatRevision?: number;\n}',
   },
   {
     name: 'OpenSeatResult',
     declaration: 'export type OpenSeatResult = ({\n    status: \'opened\';\n} & OpenedSeatWindow) | ({\n    status: \'prefilled\';\n    draft: string;\n} & OpenedSeatWindow) | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n    choices: readonly [\n        \'switch\',\n        \'replace\',\n        \'cancel\'\n    ];\n    defaultChoice: \'switch\';\n} | {\n    status: \'switched\';\n    window: SeatWindowCandidate;\n} | {\n    status: \'replacement\';\n    result: ReplaceSeatResult;\n} | {\n    status: \'cancelled\';\n} | SeatQueued | SeatRejected;',
+  },
+  {
+    name: 'OpenSeatWithContextRequest',
+    declaration: 'export interface OpenSeatWithContextRequest extends OpenSeatRequest {\n    openingContext: OpeningContextReference;\n    relatedTaskIds: readonly SeatTaskId[];\n}',
   },
   {
     name: 'OperationId',
@@ -9204,6 +9417,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ScopeKey = object;',
   },
   {
+    name: 'SdkExtensionJson',
+    declaration: 'export type SdkExtensionJson = null | boolean | number | string | readonly SdkExtensionJson[] | {\n    readonly [key: string]: SdkExtensionJson;\n};',
+  },
+  {
+    name: 'SdkMethodAuthorization',
+    declaration: 'export type SdkMethodAuthorization = {\n    status: \'allowed\';\n} | {\n    status: \'rejected\';\n    code: \'unauthorized\' | \'method-unavailable\';\n    reason: string;\n};',
+  },
+  {
+    name: 'SdkMethodContext',
+    declaration: 'export interface SdkMethodContext {\n    principalId: Branded<\'SdkPrincipalId\'>;\n    sessionId?: SessionId;\n    authorizationRef: Branded<\'SdkAuthorizationRef\'>;\n    signal: AbortSignal;\n}',
+  },
+  {
+    name: 'SdkMethodDefinition',
+    declaration: 'export interface SdkMethodDefinition<Request, Result> {\n    decodeRequest(value: unknown): Request;\n    encodeResult(value: Result): SdkExtensionJson;\n    invoke(request: Request, context: SdkMethodContext): Promise<Result>;\n}',
+  },
+  {
+    name: 'SdkMethodDefinitions',
+    declaration: 'export type SdkMethodDefinitions<Methods extends {\n    [K in keyof Methods]: {\n        request: unknown;\n        result: unknown;\n    };\n}> = {\n    readonly [K in keyof Methods]: SdkMethodDefinition<Methods[K][\'request\'], Methods[K][\'result\']>;\n};',
+  },
+  {
+    name: 'SdkNamespaceRegistration',
+    declaration: 'export interface SdkNamespaceRegistration<Methods extends {\n    [K in keyof Methods]: {\n        request: unknown;\n        result: unknown;\n    };\n}> {\n    namespace: string;\n    version: string;\n    methods: SdkMethodDefinitions<Methods>;\n    authorize<K extends keyof Methods & string>(context: SdkMethodContext, method: K, request: Methods[K][\'request\']): Promise<SdkMethodAuthorization>;\n}',
+  },
+  {
     name: 'SearchFileMatches',
     declaration: 'export interface SearchFileMatches {\n    path: string;\n    matches: SearchLineMatch[];\n}',
   },
@@ -9238,6 +9475,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatAuthority',
     declaration: 'export type SeatAuthority = \'import-source\' | \'seat-store\';',
+  },
+  {
+    name: 'SeatAuthorizationFact',
+    declaration: 'export interface SeatAuthorizationFact {\n    authorizationId: AuthorizationRef;\n    kind: SeatAuthorizationKind;\n    principalId: SeatPrincipalId;\n    origin: SeatCallContext[\'origin\'];\n    nodeId: SeatNodeId;\n    sessionId?: SessionId;\n    seat?: SeatName;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    callId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n    policyRevision: number;\n    decision: \'allowed\' | \'denied\';\n    reasonCode: string;\n    requestDigest: SeatDigest;\n    delegatedBy?: AuthorizationRef;\n    checkedAt: SeatTimestamp;\n}',
+  },
+  {
+    name: 'SeatAuthorizationKind',
+    declaration: 'export type SeatAuthorizationKind = \'model-tool-call\' | \'human\' | \'engine\' | \'local-operator\' | \'node-delegation\';',
+  },
+  {
+    name: 'SeatAuthorizationQueryRequest',
+    declaration: 'export interface SeatAuthorizationQueryRequest {\n    taskId?: SeatTaskId;\n    seat?: SeatName;\n    nodeId?: SeatNodeId;\n    kind?: SeatAuthorizationKind;\n    from?: SeatTimestamp;\n    to?: SeatTimestamp;\n    cursor?: EngineCursor;\n    limit: number;\n}',
+  },
+  {
+    name: 'SeatAuthorizationQueryResult',
+    declaration: 'export interface SeatAuthorizationQueryResult {\n    facts: readonly SeatAuthorizationFact[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n    legacyAttribution: \'legacy-unknown\' | \'none\';\n}',
   },
   {
     name: 'SeatBinding',
@@ -9337,7 +9590,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatEngineLocalAccess',
-    declaration: 'export interface SeatEngineLocalAccess {\n    preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>;\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n}',
+    declaration: 'export interface SeatEngineLocalAccess {\n    preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>;\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n    freezeContext?(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen | SeatRejected>;\n}',
   },
   {
     name: 'SeatEngineStatus',
@@ -9353,7 +9606,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatFrozenOpen',
-    declaration: 'export interface SeatFrozenOpen {\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n}',
+    declaration: 'export interface SeatFrozenOpen {\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
     name: 'SeatGateQuerySnapshot',
@@ -9393,11 +9646,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatLocalOpenRequest',
-    declaration: 'export interface SeatLocalOpenRequest {\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n}',
+    declaration: 'export interface SeatLocalOpenRequest {\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
     name: 'SeatName',
     declaration: 'export type SeatName = Branded<\'SeatName\'>;',
+  },
+  {
+    name: 'SeatNodeDelegation',
+    declaration: 'export interface SeatNodeDelegation {\n    authorizationRef: AuthorizationRef;\n    principalId: SeatPrincipalId;\n    sourceNodeId: SeatNodeId;\n    targetNodeId: SeatNodeId;\n    sessionId?: SessionId;\n    seat?: SeatName;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    requestDigest: SeatDigest;\n    expiresAt: SeatTimestamp;\n    hop: 1;\n    kind: \'node-delegation\';\n}',
   },
   {
     name: 'SeatNodeId',
@@ -9478,6 +9735,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatTaskId',
     declaration: 'export type SeatTaskId = Branded<\'SeatTaskId\'>;',
+  },
+  {
+    name: 'SeatTaskQueryRequest',
+    declaration: 'export interface SeatTaskQueryRequest extends EngineQueryRequest {\n    taskId?: SeatTaskId;\n}',
+  },
+  {
+    name: 'SeatTaskScopeContext',
+    declaration: 'export interface SeatTaskScopeContext {\n    taskId: SeatTaskId;\n    seat: SeatName;\n    nodeId: SeatNodeId;\n    scopeEvidence: TaskScopeEvidence;\n    scopeEvidenceRef: Branded<\'TaskScopeEvidenceRef\'>;\n}',
   },
   {
     name: 'SeatText',
@@ -10640,6 +10905,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
   },
   {
+    name: 'TaskRepositoryId',
+    declaration: 'export type TaskRepositoryId = Branded<\'TaskRepositoryId\'>;',
+  },
+  {
+    name: 'TaskScopeBatchGateContext',
+    declaration: 'export type TaskScopeBatchGateContext = Extract<GateContext, {\n    hook: \'before-batch-open\';\n}> & {\n    tasks: readonly import(\'./types.ts\').SeatTaskScopeContext[];\n};',
+  },
+  {
+    name: 'TaskScopeEntry',
+    declaration: 'export interface TaskScopeEntry {\n    kind: \'file\' | \'directory\' | \'pattern\';\n    path: string;\n    access: \'read\' | \'write\';\n}',
+  },
+  {
+    name: 'TaskScopeEvidence',
+    declaration: 'export type TaskScopeEvidence = {\n    status: \'known\';\n    taskId: SeatTaskId;\n    revision: string;\n    repositoryId: TaskRepositoryId;\n    baseRevision: string;\n    entries: readonly TaskScopeEntry[];\n    patternSyntax: \'literal\' | \'glob-v1\';\n    caseSensitive: boolean;\n} | {\n    status: \'unknown\';\n    taskId: SeatTaskId;\n    reason: string;\n    alternative: \'serial\';\n};',
+  },
+  {
+    name: 'TaskScopeGateDecision',
+    declaration: 'export type TaskScopeGateDecision = {\n    outcome: \'allow\';\n    revisions: readonly {\n        taskId: import(\'./types.ts\').SeatTaskId;\n        revision: string;\n    }[];\n} | {\n    outcome: \'deny\';\n    reason: \'scope-unknown\' | \'scope-conflict\' | \'scope-stale\';\n    alternative: \'serial\';\n    conflicts: readonly {\n        tasks: readonly import(\'./types.ts\').SeatTaskId[];\n        repositoryId?: import(\'./types.ts\').TaskRepositoryId;\n        paths: readonly string[];\n    }[];\n};',
+  },
+  {
     name: 'TeamId',
     declaration: 'export type TeamId = Branded<\'TeamId\'>;',
   },
@@ -10985,7 +11270,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'TriggerEnvelope',
-    declaration: 'export interface TriggerEnvelope {\n    triggerId: TriggerId;\n    sourceId: SeatSourceId;\n    eventId?: SourceEventId;\n    kind: SeatTrigger[\'kind\'];\n    evidence: SeatTriggerEvidence;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    receivedAt: SeatTimestamp;\n    dataDigest: SeatDigest;\n    data: SeatJson;\n    taskId?: SeatTaskId;\n    callbackRef: SeatSourceId;\n    cause?: {\n        eventId: SourceEventId;\n        depth: number;\n    };\n}',
+    declaration: 'export interface TriggerEnvelope {\n    triggerId: TriggerId;\n    sourceId: SeatSourceId;\n    eventId?: SourceEventId;\n    kind: SeatTrigger[\'kind\'];\n    evidence: SeatTriggerEvidence;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    receivedAt: SeatTimestamp;\n    dataDigest: SeatDigest;\n    data: SeatJson;\n    taskId?: SeatTaskId;\n    callbackRef: SeatSourceId;\n    cause?: {\n        eventId: SourceEventId;\n        depth: number;\n    };\n    openingContext?: OpeningContextReference;\n    relatedTaskIds?: readonly SeatTaskId[];\n}',
   },
   {
     name: 'TriggerId',

@@ -7,12 +7,23 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_host_admin["host-admin"]
+  svc_hostAdmin["ctx.hostAdmin<br/>Opt-in loopback host administration"]
+  svc_hostAdminExecutor["ctx.hostAdminExecutor<br/>Authorized host administration execution"]
+  pkg_node_link["node-link"]
+  svc_nodeLinkExecutor["ctx.nodeLinkExecutor<br/>Authorized local node execution"]
+  svc_nodeRouter["ctx.nodeRouter<br/>Configured paired-node routing"]
+  pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
+  svc_sdkMethods["ctx.sdkMethods<br/>Unloadable SDK namespace registration"]
+  pkg_seat["seat"]
+  svc_seatAuthorizationQueries["ctx.seatAuthorizationQueries<br/>Provider-owned authorization queries"]
+  pkg_seat_app["seat-app"]
+  pkg_acp["acp"]
+  svc_seatOpeningContexts["ctx.seatOpeningContexts<br/>Trusted opening source registration"]
+  pkg_seat_local["seat-local"]
   pkg_instruction_subscriptions["instruction-subscriptions"]
   svc_instructionSubscriptions["ctx.instructionSubscriptions<br/>Persisted instruction subscriptions"]
-  pkg_seat_local["seat-local"]
-  pkg_seat["seat"]
   svc_seats["ctx.seats<br/>Seat definitions and window operations"]
-  pkg_seat_app["seat-app"]
   pkg_seat_remote["seat-remote"]
   pkg_tool_seat["tool-seat"]
   pkg_seat_engine["seat-engine"]
@@ -67,7 +78,6 @@ flowchart LR
   pkg_tool_fs["tool-fs"]
   pkg_tool_bash["tool-bash"]
   pkg_tool_pwsh["tool-pwsh"]
-  pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   pkg_mcp_resources["mcp-resources"]
   svc_mcpResources["ctx.mcpResources<br/>Scoped MCP resource access"]
   pkg_mcp_client["mcp-client"]
@@ -224,7 +234,6 @@ flowchart LR
   pkg_skill_filesystem["skill-filesystem"]
   pkg_skill_office["skill-office"]
   svc_agents["ctx.agents<br/>Agent service"]
-  pkg_acp["acp"]
   svc_agentDefaultModel["ctx.agentDefaultModel<br/>Default Agent model selection"]
   pkg_headless["headless"]
   svc_agentLoop["ctx.agentLoop<br/>Concrete loop driver"]
@@ -396,6 +405,8 @@ flowchart LR
   pkg_fs_ssh --> svc_fs
   pkg_goal --> svc_goals
   pkg_hmr --> svc_hmr
+  pkg_host_admin --> svc_hostAdmin
+  pkg_host_admin --> svc_hostAdminExecutor
   pkg_host_directory_picker --> svc_directoryPicker
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
@@ -418,6 +429,8 @@ flowchart LR
   pkg_mcp_resources --> svc_mcpResources
   pkg_message_delivery --> svc_messageDelivery
   pkg_message_feedback --> svc_messageFeedback
+  pkg_node_link --> svc_nodeLinkExecutor
+  pkg_node_link --> svc_nodeRouter
   pkg_office_to_pdf --> svc_officeToPdf
   pkg_otel --> svc_otel
   pkg_permission_presets --> svc_permissionPresets
@@ -434,6 +447,8 @@ flowchart LR
   pkg_sandbox_ssh --> svc_sandbox
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
+  pkg_sdk_jsonrpc_server --> svc_sdkMethods
+  pkg_seat --> svc_seatAuthorizationQueries
   pkg_seat --> svc_seatDirectories
   pkg_seat --> svc_seatEngine
   pkg_seat --> svc_seatEngineQuery
@@ -442,6 +457,7 @@ flowchart LR
   pkg_seat --> svc_seatLocalRead
   pkg_seat --> svc_seatLocalSession
   pkg_seat --> svc_seatLocalWindows
+  pkg_seat --> svc_seatOpeningContexts
   pkg_seat --> svc_seatReminderHost
   pkg_seat --> svc_seatWorktreeHost
   pkg_seat --> svc_seats
@@ -457,6 +473,7 @@ flowchart LR
   pkg_seat_local --> svc_seatLocalRead
   pkg_seat_local --> svc_seatLocalSession
   pkg_seat_local --> svc_seatLocalWindows
+  pkg_seat_local --> svc_seatOpeningContexts
   pkg_seat_local --> svc_seats
   pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
@@ -564,6 +581,7 @@ flowchart LR
   svc_fileUploads --> pkg_api_session_controller
   svc_fs --> pkg_tool_fs
   svc_hmr --> pkg_app_boot
+  svc_hostAdminExecutor --> pkg_host_admin
   svc_instructionSubscriptions --> pkg_seat_local
   svc_jobNotifications --> pkg_jobs
   svc_jobs --> pkg_api_job_controller
@@ -576,6 +594,8 @@ flowchart LR
   svc_lsp --> pkg_tool_lsp
   svc_mcpResources --> pkg_mcp_resources
   svc_messageLedger --> pkg_message_delivery_local
+  svc_nodeLinkExecutor --> pkg_node_link
+  svc_nodeRouter --> pkg_sdk_jsonrpc_server
   svc_officeToPdf --> pkg_client_ui_sidebar_documentpreview
   svc_otel --> pkg_host_product_telemetry_otel
   svc_otel --> pkg_session_telemetry_otel
@@ -595,6 +615,10 @@ flowchart LR
   svc_sandboxPolicy --> pkg_bash_sandbox
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
+  svc_sdkMethods --> pkg_sdk_jsonrpc_server
+  svc_seatAuthorizationQueries --> pkg_acp
+  svc_seatAuthorizationQueries --> pkg_sdk_jsonrpc_server
+  svc_seatAuthorizationQueries --> pkg_seat_app
   svc_seatDirectories --> pkg_tool_seat
   svc_seatEngine --> pkg_ledger_query
   svc_seatEngine --> pkg_seat_app
@@ -612,6 +636,7 @@ flowchart LR
   svc_seatLocalRead --> pkg_tool_seat
   svc_seatLocalSession --> pkg_tool_seat
   svc_seatLocalWindows --> pkg_tool_seat
+  svc_seatOpeningContexts --> pkg_seat_local
   svc_seatReminderHost --> pkg_seat_gates
   svc_seatWorktreeHost --> pkg_seat_gates
   svc_seats --> pkg_seat_app
@@ -714,6 +739,13 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.hostAdmin` | `service` | [`host-admin`](../packages/host/host-admin) | - | - | - | Dispatches fixed authenticated requests against an existing host without starting another engine. |
+| `ctx.hostAdminExecutor` | `seam` | [`host-admin`](../packages/host/host-admin) | - | [`host-admin`](../packages/host/host-admin) | - | Deployment providers own authorization journaling and local execution; absent providers reject writes. |
+| `ctx.nodeLinkExecutor` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Deployment providers authenticate delegation and execute locally without forwarding again. |
+| `ctx.nodeRouter` | `service` | [`node-link`](../packages/seat/node-link) | - | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Provides bounded transport and dated health evidence without granting execution authority. |
+| `ctx.sdkMethods` | `seam` | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Registers exclusive optional namespaces with contributor-owned decoding, authorization and disposal. |
+| `ctx.seatAuthorizationQueries` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-app`](../packages/seat/seat-app), [`sdk-jsonrpc-server`](../packages/sdk/server), [`acp`](../packages/acp/acp) | - | Projects bounded authorization evidence when a trusted provider is available. |
+| `ctx.seatOpeningContexts` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-local`](../packages/seat/seat-local) | - | Freezes source text and task associations once and drains active resolutions during disposal. |
 | `ctx.instructionSubscriptions` | `service` | [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | - | [`seat-local`](../packages/seat/seat-local) | - | Retains selected instruction identities for later prompt assembly without activating a Session. |
 | `ctx.seats` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-app`](../packages/seat/seat-app), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`seat-engine`](../packages/seat/seat-engine) | - | Optional local providers own authorized definitions and window operations without changing upstream behavior when absent. |
 | `ctx.seatEngine` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`seat-gates`](../packages/seat/seat-gates), [`seat-remote`](../packages/seat/seat-remote), [`seat-app`](../packages/seat/seat-app), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | One node writer commits decisions before publishing queue, admission, callback and budget state. |

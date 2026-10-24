@@ -2,18 +2,27 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/host/host-admin/README.md
+/:
+  en: 272538b47b37cc47
+  zh: 272538b47b37cc47
 /panedesk-dsh-host-admin:
-  en: 0429535356a2b9db
-  zh: 07c045b2847e7cfd
+  en: 564c17a27d90b048
+  zh: 7f79898bb7395776
+/panedesk-dsh-host-admin/summary:
+  en: 475fe64ebaceb099
+  zh: 62a6c9b45969ce64
+/panedesk-dsh-host-admin/table-of-contents:
+  en: f5cd15e4b28b8249
+  zh: 1cf77c414f6d552f
 /panedesk-dsh-host-admin/purpose:
-  en: 42621e53119655aa
-  zh: b343649ae9ddc4c5
+  en: b042b073924634b3
+  zh: 44eb96ad8c5ee11b
 /panedesk-dsh-host-admin/configuration-and-identity:
-  en: a10b2f7a3a7bc4e2
-  zh: 5f357259452d69bd
+  en: 1e889e1b49fb92f5
+  zh: e482fa9e613b92bb
 /panedesk-dsh-host-admin/persistence-and-recovery:
-  en: 2b095bdf7130c17a
-  zh: 09157da498b1510b
+  en: b310a66b6d8b31ed
+  zh: 18b9ba582264e6d5
 /panedesk-dsh-host-admin/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -27,8 +36,11 @@
   en: 62aff2b02b491c81
   zh: 5963907d0668cd98
 /panedesk-dsh-host-admin/model-experience/administration-requests/kv-cache-effect:
-  en: eca03e5816500f14
-  zh: 4c008a5821a1de94
+  en: e40ea68484214276
+  zh: 498f4ad4aea6ae4b
 /panedesk-dsh-host-admin/known-limitations-and-deferred-work:
-  en: 5558480d26886ddb
-  zh: 238f1d98291ccb57
+  en: 6d1f6c417176b594
+  zh: c694f9799c206a7a
+/panedesk-dsh-host-admin/known-limitations-and-deferred-work/dev-note:
+  en: 6144f5ca4c99be8e
+  zh: ae82984551c9c001

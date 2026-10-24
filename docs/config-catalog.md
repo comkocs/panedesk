@@ -16,7 +16,7 @@ Each package entry labels its data with three identifiers: `inject` lists the se
 
 - `inject`: `agents` · `llm` · `sessionPersistence` · `sessions`
 - `refs`: `Stream` (`@agentclientprotocol/sdk`)
-- `source`: [`packages/acp/acp/src/index.ts:81`](../packages/acp/acp/src/index.ts)
+- `source`: [`packages/acp/acp/src/index.ts:82`](../packages/acp/acp/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the provider/model selection used for each ACP-created agent. */
@@ -1575,6 +1575,41 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-hooks-codex -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-host-admin -->
+<a id="panedeskdsh-host-admin"></a>
+
+## `@panedesk/dsh-host-admin`
+
+- `source`: [`packages/host/host-admin/src/index.ts:106`](../packages/host/host-admin/src/index.ts)
+
+```ts config-catalog
+/** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
+export interface Config {
+  /** Explicit activation and limits for administration of the existing host. */
+  runtime?: {
+    /** Exclusive absolute directory for owner-only credentials and operation records. */
+    directory: string
+    /** Identity reported by the local node. */
+    nodeId: string
+    /** Authenticated principal assigned to local administration calls. */
+    principalId: string
+    /** Loopback listener port; zero allocates an ephemeral port. */
+    port: number
+    /** Maximum bytes in a complete request or response frame. */
+    maxFrameBytes: number
+    /** Maximum time in milliseconds to wait for a transport response. */
+    requestTimeoutMs: number
+    /** Maximum number of concurrent transport requests. */
+    maxPending: number
+    /** Maximum bytes in the durable operation store. */
+    maxStoreBytes: number
+    /** Maximum retained operation records before new operations reject. */
+    maxOperations: number
+  } | undefined
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-host-admin -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-host-directory-picker-browse -->
 <a id="panedeskdsh-host-directory-picker-browse"></a>
 
@@ -2503,6 +2538,71 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-message-feedback -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-node-link -->
+<a id="panedeskdsh-node-link"></a>
+
+## `@panedesk/dsh-node-link`
+
+- `source`: [`packages/seat/node-link/src/index.ts:174`](../packages/seat/node-link/src/index.ts)
+
+```ts config-catalog
+/** Omission preserves the empty plugin's no-I/O behavior. */
+export interface Config {
+  /** Explicit activation, node identities and transport resource bounds. */
+  runtime?: NodeLinkRuntimeConfig | undefined
+}
+
+/** Explicit paired ports use preprovisioned independent inbound/outbound credential files. */
+export interface NodeLinkRuntimeConfig {
+  /** Identity of the local node. */
+  nodeId: string
+  /** Expected authenticated identity of the paired node. */
+  peerNodeId: string
+  /** Display name retained with peer health evidence. */
+  peerName: string
+  /** Exclusive absolute directory for directional credentials and operation records. */
+  directory: string
+  /** Local loopback listener port; zero allocates an ephemeral port. */
+  listenPort: number
+  /** Local loopback port reaching the paired node through the supervised forward. */
+  peerPort: number
+  /** Maximum bytes in a complete request or response frame. */
+  maxFrameBytes: number
+  /** Maximum time in milliseconds to wait for a transport response. */
+  requestTimeoutMs: number
+  /** Maximum number of concurrent transport requests. */
+  maxPending: number
+  /** Maximum bytes in each durable operation store. */
+  maxStoreBytes: number
+  /** Maximum retained operation records before new operations reject. */
+  maxOperations: number
+  /** Milliseconds after the last successful health probe before status becomes stale. */
+  staleMs: number
+  /** Optional supervised OpenSSH forwarding through an existing reviewed host alias. */
+  ssh?: {
+    /** Existing simple SSH host alias, never a command or arbitrary option. */
+    alias: string
+    /** Working directory of the supervised SSH child process. */
+    cwd: string
+    /** Remote loopback port forwarding back to the local listener. */
+    remotePort: number
+    /** Remote loopback listener reached by the local forward. */
+    remoteTargetPort: number
+    /** Milliseconds allowed for graceful child termination before escalation. */
+    graceMs: number
+    /** SSH server-alive interval in seconds. */
+    keepAliveSeconds: number
+    /** Maximum unanswered SSH server-alive probes. */
+    keepAliveCount: number
+    /** Milliseconds between supervised connection attempts. */
+    retryMs: number
+    /** Maximum reconnection attempts after the initial attempt. */
+    maxRetries: number
+  } | undefined
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-node-link -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-office-to-pdf -->
 <a id="panedeskdsh-office-to-pdf"></a>
 
@@ -2973,7 +3073,7 @@ export interface Config {
 
 - `inject`: `agents` · `workingDirectory`
 - `refs`: `Readable` (`node:stream`) · `Writable` (`node:stream`)
-- `source`: [`packages/sdk/server/src/index.ts:24`](../packages/sdk/server/src/index.ts)
+- `source`: [`packages/sdk/server/src/index.ts:29`](../packages/sdk/server/src/index.ts)
 
 ```ts config-catalog
 /** JSON-RPC deployment config plus runtime-only test hooks. */
@@ -3055,7 +3155,7 @@ export interface ProductionSource {
 ## `@panedesk/dsh-seat-gates`
 
 - `refs`: [`GateDefinition`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-gates/src/index.ts:29`](../packages/seat/seat-gates/src/index.ts)
+- `source`: [`packages/seat/seat-gates/src/index.ts:30`](../packages/seat/seat-gates/src/index.ts)
 
 ```ts config-catalog
 /** Deployment-owned policy settings, resolved once at activation. */
@@ -3089,7 +3189,7 @@ export interface Config {
 
 - `inject`: `storageDomain`
 - `refs`: [`T`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-local/src/index.ts:44`](../packages/seat/seat-local/src/index.ts)
+- `source`: [`packages/seat/seat-local/src/index.ts:45`](../packages/seat/seat-local/src/index.ts)
 
 ```ts config-catalog
 /** Deployment supplies every limit explicitly. */
