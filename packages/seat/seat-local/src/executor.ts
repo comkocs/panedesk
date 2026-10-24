@@ -160,6 +160,16 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
       const sent = open.openingMessageId === null ? await runtime.send({ sessionId: open.sessionId,
         operationId: open.openingOperationId, text: frozenOpening.text, mode: 'queue' }) : { messageId: open.openingMessageId }
       const status = await delivery.status(sent.messageId)
+      if (status.state === 'injected') {
+        const snapshot = await ctx.get('sessionQuery')?.readSession(open.sessionId)
+        let turn: number | undefined, openingTurn: number | undefined
+        for (const event of snapshot?.events ?? []) {
+          if (event.type === 'turn/start') turn = event.data.turn
+          if (event.type === 'user/message' && event.data.id === sent.messageId) openingTurn = turn
+          if (event.type === 'turn/end' && openingTurn !== undefined && event.data.turn === openingTurn
+            && event.data.reason.kind === 'error') return { messageId: sent.messageId, state: 'failed' }
+        }
+      }
       return { messageId: sent.messageId, state: status.state === 'responded' ? 'completed'
         : ['rejected', 'withdrawn', 'invalidated'].includes(status.state) ? 'failed' : 'pending' }
     },
