@@ -1,6 +1,7 @@
 /** Node doubles exercise durable retries, lost responses and identity checks without real SSH connections. */
 import { afterEach, expect, test } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { OperationStore, PosixPrivateFiles, digest, listenLoopback, object } from '@panedesk/dsh-host-admin'
@@ -13,7 +14,7 @@ const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 8, maxStoreBytes: 65536, maxOperations: 100 }
 async function store() {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'node-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'node-test-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const value = new OperationStore(new PosixPrivateFiles(root, process.getuid!()), limits.maxStoreBytes, limits.maxOperations)
   await value.load()

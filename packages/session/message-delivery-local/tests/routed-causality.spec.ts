@@ -2,13 +2,14 @@
 import { expect, test, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SendMessageRequest } from '@panedesk/dsh-message-delivery'
 import { FileMailbox } from '../src/mailbox.ts'
 import { sendRoutedMessage } from '../src/routed-sender.ts'
 
 test.each(['callId', 'rootCallId', 'causedByDeliveryId', 'delivery'])('rejects self-declared %s without route dispatch', async (key) => {
-  const home = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'causality-refusal-'))
+  const home = await mkdtemp(join(tmpdir(), 'causality-refusal-'))
   const ctx = new Context()
   try {
     const mailbox = new FileMailbox({ home, nodeId: 'node-a', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })

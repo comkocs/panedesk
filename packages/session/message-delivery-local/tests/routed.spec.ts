@@ -1,6 +1,7 @@
 /** Routed admission preserves complete identity and acknowledges only durable mailbox records. */
 import { expect, test } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { digest } from '@panedesk/dsh-host-admin'
 import type { RoutedDeliveryAuthority, MessageRecipient } from '@panedesk/dsh-message-delivery'
@@ -18,7 +19,7 @@ function request(content = 'handoff', operationId = 'operation-a', messageId = '
 }
 
 test('retains causal identity, returns the original ack after restart and rejects every reused identity with another digest', async () => {
-  const home = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'routed-mailbox-'))
+  const home = await mkdtemp(join(tmpdir(), 'routed-mailbox-'))
   try {
     const mailbox = new FileMailbox({ home, nodeId: 'node-b', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
     await mailbox.initialize()

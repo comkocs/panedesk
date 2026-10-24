@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { callLoopback, listenAuthenticatedLoopback, PosixPrivateFiles } from '@panedesk/dsh-host-admin'
 import { loadCredential } from '../src/credentials.ts'
@@ -24,7 +25,7 @@ test('accepts both epochs during overlap and rejects the expired epoch without r
 })
 
 test('refuses unconfigured or excessive overlap and validates directional files on every reload', async () => {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'rotation-'))
+  const root = await mkdtemp(join(tmpdir(), 'rotation-'))
   cleanup.push(() => rm(root, { recursive: true, force: true }))
   const files = new PosixPrivateFiles(root, process.getuid!())
   const credential = { sourceNodeId: 'node-a', targetNodeId: 'node-b', epoch: 'new-epoch',

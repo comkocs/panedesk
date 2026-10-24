@@ -542,7 +542,8 @@
   margin-left: auto;
   min-width: 16px;
   padding: 0 4px;
-  border-radius: var(--dsw-radius-full, 999px);
+  border-radius: 999px;
+  corner-shape: round;
   background: var(--dsw-alias-state-business-primary);
   color: var(--dsw-static-neutral-0, #fff);
   font-size: 11px;

@@ -13,7 +13,7 @@ import { callLoopback, listenLoopback } from '../src/loopback.ts'
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 async function directory() {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT ?? tmpdir(), 'admin-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'admin-test-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   return root
 }
