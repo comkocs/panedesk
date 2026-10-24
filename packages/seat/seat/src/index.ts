@@ -101,6 +101,11 @@ export abstract class SeatService extends Service {
    */
   abstract withAuthority(authority: T.SeatCallContext): SeatService
 
+  /** Report local placement even when the optional engine is absent.
+   * @returns node identity and available engine evidence.
+   */
+  nodeStatus?(): Promise<T.SeatNodeStatus>
+
   /** List authorized definitions without activating Sessions.
    * @param request - local catalog filters and pagination.
    * @returns revisioned catalog page.

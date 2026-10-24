@@ -47,7 +47,7 @@ CLI（命令行界面）输出不是模型上下文。`prefill`（预填）返�
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
-- 管理命令需要已配置引擎和可用本地提供方；提供方禁用或缺席时返回不可用结果。
+- 需要可用的本地提供方。没有引擎时，`nodeStatus` 返回配置身份、`engine: 'unavailable'`、零个引擎窗口以及空的上限和就绪时间；`list` 与引擎管理仍返回不可用。`import.preview` 与 `import.commit --request` 可在使用相同家目录的不同进程中通过保留的 `planId` 执行；源件或档案变化后须重新预览。
 - 本组合包不安装操作系统服务，也不提供跨节点实时执行。
 
 <a id="dev-note"></a>

@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SeatName } from '@panedesk/dsh-seat'
 import { SeatImporter } from '../src/import.ts'
 import { catalogs, operation, storeFixture } from './fixtures.ts'
@@ -75,6 +75,23 @@ describe('seat import previews', () => {
     expect(plan.rows[0]).toMatchObject({ action: 'conflict', selected: false })
     await importer.commit({ planId: plan.planId, selectedRows: [plan.rows[0]!.row], expectedRevision: 2, operationId: operation('second') })
     expect(store.snapshot().definitions[0]).toMatchObject({ model: 'model-a', permissionPreset: 'permission-manual' })
+  })
+
+  it('expires persisted previews and reclaims their capacity without changing catalog revision', async () => {
+    const { store, root, sourcePath } = await setup()
+    const importer = new SeatImporter(store, catalogs(root), { maxSourceBytes: 65536, maxPlans: 1, importPlanTtlMs: 100 })
+    await writeFile(sourcePath, 'seat\nseat-a\n')
+    const request = { format: 'csv' as const, sourcePath, columnMap: { seat: 'seat' }, defaults: {} }
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    try {
+      const plan = await importer.preview(request)
+      await expect(importer.preview(request)).rejects.toMatchObject({ failure: { code: 'unavailable' } })
+      clock.mockReturnValue(1100)
+      await expect(importer.commit({ planId: plan.planId, selectedRows: [2], expectedRevision: 0, operationId: operation('expired') }))
+        .rejects.toMatchObject({ failure: { code: 'import-preview-stale' } })
+      expect((await importer.preview(request)).planId).not.toBe(plan.planId)
+      expect(store.snapshot().revision).toBe(0)
+    } finally { clock.mockRestore() }
   })
 
   it('rejects stale source bytes and leaves invalid duplicate names unselected', async () => {

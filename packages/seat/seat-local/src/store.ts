@@ -9,6 +9,7 @@ import { defineDomain, type Domain, type DomainFacility } from '@panedesk/dsh-st
 import type { SeatAuthority, SeatDefinition, SeatDigest, SeatOperationId } from '@panedesk/dsh-seat'
 import { parseDefinition } from './schema.ts'
 import { refuse } from './errors.ts'
+import { importPlansSpec, retainedPlanSchema } from './import-plan.ts'
 
 const definitionSchema = z.unknown().transform((value, context) => {
   const result = parseDefinition(value)
@@ -50,7 +51,8 @@ export class SeatStore {
   private tail: Promise<void> = Promise.resolve()
   private closing = false
   private closeTask?: Promise<void>
-  private constructor(private readonly domain: Domain<typeof spec>, private readonly lock: FileHandle) {}
+  private constructor(private readonly domain: Domain<typeof spec>, private readonly lock: FileHandle,
+    private readonly plans: Domain<typeof importPlansSpec>) {}
 
   /** Acquire ownership before opening the storage domain; contention never steals a writer.
    * @param facility - storage-domain routed to the node's private JSON backend.
@@ -66,7 +68,9 @@ export class SeatStore {
       const held = await handle.stat({ bigint: true })
       const named = await stat(lockPath, { bigint: true })
       if (held.ino !== named.ino || held.dev !== named.dev) refuse('unavailable', 'Catalog writer ownership changed.', 'Retry after verifying the catalog directory.')
-      return new SeatStore(await facility.open(spec), handle)
+      const catalog = await facility.open(spec)
+      try { return new SeatStore(catalog, handle, await facility.open(importPlansSpec)) }
+      catch (error) { await catalog.close(); throw error }
     } catch (error) { await handle.close(); throw error }
   }
 
@@ -75,15 +79,42 @@ export class SeatStore {
    */
   snapshot(): SeatCatalog { return structuredClone(this.domain.global.get()) }
 
+  /** Read a persisted preview; expired identities never authorize a selection.
+   * @param planId - opaque preview identity, never a filesystem path.
+   * @returns retained plan or undefined after expiry or absence.
+   */
+  importPlan(planId: string): z.infer<typeof retainedPlanSchema> | undefined {
+    const retained = this.plans.global.get()[planId]
+    return retained && retained.expiresAt > Date.now() ? structuredClone(retained) : undefined
+  }
+
+  /** Retain a preview under the catalog writer lease and reclaim expired capacity.
+   * @param retained - validated preview and expiry.
+   * @param maxPlans - maximum live previews for this node.
+   * @returns after the atomic document write is durable.
+   */
+  retainImportPlan(retained: z.infer<typeof retainedPlanSchema>, maxPlans: number): Promise<void> {
+    if (this.closing) return Promise.reject(new Error('Catalog is closing'))
+    const run = this.tail.then(async () => {
+      const current = Object.fromEntries(Object.entries(this.plans.global.get()).filter(([, value]) => value.expiresAt > Date.now()))
+      if (Object.keys(current).length >= maxPlans) refuse('unavailable', 'Import preview capacity reached.', 'Wait for preview expiry before creating another plan.')
+      current[retained.plan.planId] = retainedPlanSchema.parse(retained)
+      await this.plans.global.set(current)
+    })
+    this.tail = run.then(() => {}, () => {})
+    return run
+  }
+
   /** Commit catalog edits, baselines, authority and operation receipt together.
    * @param expectedRevision - observed catalog revision.
    * @param operationId - stable caller identity.
    * @param request - request used for idempotency comparison.
    * @param update - pure transform, evaluated only after CAS succeeds.
+   * @param conflictCode - import callers invalidate selections rather than allowing revision-only retries.
    * @returns the revision committed by this operation, including on replay.
    */
   mutate(expectedRevision: number, operationId: SeatOperationId, request: unknown,
-    update: (catalog: SeatCatalog) => void): Promise<number> {
+    update: (catalog: SeatCatalog) => void, conflictCode: 'revision-conflict' | 'import-preview-stale' = 'revision-conflict'): Promise<number> {
     if (this.closing) return Promise.reject(new Error('Catalog is closing'))
     const run = this.tail.then(async () => {
       const current = this.snapshot()
@@ -93,7 +124,8 @@ export class SeatStore {
         if (previous.digest !== requestDigest) refuse('operation-id-conflict', 'Operation identity has different contents.', 'Use the original request or a new operation identity.')
         return previous.revision
       }
-      if (current.revision !== expectedRevision) refuse('revision-conflict', 'Catalog revision changed.', 'Read the catalog and retry with its revision.')
+      if (current.revision !== expectedRevision) refuse(conflictCode, 'Catalog revision changed.',
+        conflictCode === 'import-preview-stale' ? 'Preview the source again.' : 'Read the catalog and retry with its revision.')
       update(current)
       current.revision += 1
       current.operations[operationId] = { digest: requestDigest, revision: current.revision }
@@ -110,7 +142,8 @@ export class SeatStore {
   close(): Promise<void> {
     this.closing = true
     this.closeTask ??= this.tail.then(async () => {
-      try { await this.domain.close() } finally { await this.lock.close() }
+      try { await this.plans.close() }
+      finally { try { await this.domain.close() } finally { await this.lock.close() } }
     })
     return this.closeTask
   }

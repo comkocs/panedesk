@@ -53,13 +53,12 @@ const structuredFields = new Set(['directories', 'memoryDirectories', 'opening',
 const numericFields = new Set(['revision', 'schemaVersion', 'maxOpenSessions', 'maxActiveSubagents',
   'contextThresholdTokens', 'subagentContextThresholdTokens', 'pollingThreshold', 'maxSleepSeconds'])
 
-/** Owns previews until commit; restarted callers must preview again rather than replay stale selections. */
+/** Persists preview selections across callers while source bytes and revision remain current. */
 export class SeatImporter {
-  private readonly plans = new Map<SeatImportPlanId, { plan: SeatImportPlan; request: PreviewSeatImportRequest }>()
   constructor(private readonly store: SeatStore, private readonly catalogs: DefinitionCatalogs,
-    private readonly limits: { maxSourceBytes: number; maxPlans: number }) {}
+    private readonly limits: { maxSourceBytes: number; maxPlans: number; importPlanTtlMs?: number }) {}
 
-  private async source(request: PreviewSeatImportRequest): Promise<{ text: string; hash: SeatDigest }> {
+  private async source(request: Pick<PreviewSeatImportRequest, 'sourcePath'>): Promise<{ text: string; hash: SeatDigest }> {
     if ((await stat(request.sourcePath)).size > this.limits.maxSourceBytes) refuse('invalid-definition', 'Import source exceeds the configured byte limit.', 'Select a smaller source.')
     const bytes = await readFile(request.sourcePath)
     if (bytes.byteLength > this.limits.maxSourceBytes) refuse('invalid-definition', 'Import source grew past the configured byte limit.', 'Select a smaller source.')
@@ -132,8 +131,8 @@ export class SeatImporter {
     }
     const plan: SeatImportPlan = { planId: randomUUID() as SeatImportPlanId, sourceFileHash: source.hash,
       mappingHash, baseRevision: catalog.revision, rows }
-    if (this.plans.size >= this.limits.maxPlans) refuse('unavailable', 'Import preview capacity reached.', 'Commit a preview or restart preview ownership.')
-    this.plans.set(plan.planId, { plan: structuredClone(plan), request: structuredClone(request) })
+    await this.store.retainImportPlan({ plan, sourcePath: request.sourcePath,
+      expiresAt: Date.now() + (this.limits.importPlanTtlMs ?? 86400000) }, this.limits.maxPlans)
     return plan
   }
 
@@ -142,10 +141,17 @@ export class SeatImporter {
    * @returns committed revision; conflicting rows and tombstones never overwrite data.
    */
   async commit(request: CommitSeatImportRequest): Promise<CommitSeatImportResult> {
-    const retained = this.plans.get(request.planId)
+    const retained = this.store.importPlan(request.planId)
     if (retained === undefined) refuse('import-preview-stale', 'Import preview is no longer available.', 'Preview the source again.')
     const { plan } = retained
-    const source = await this.source(retained.request)
+    let source: { text: string; hash: SeatDigest }
+    try { source = await this.source(retained) }
+    catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        refuse('import-preview-stale', 'Import source is no longer available.', 'Preview the source again.')
+      }
+      throw error
+    }
     if (source.hash !== plan.sourceFileHash || request.expectedRevision !== plan.baseRevision) {
       refuse('import-preview-stale', 'Source bytes or selected revision changed.', 'Preview the source again.')
     }
@@ -161,7 +167,7 @@ export class SeatImporter {
         if (index < 0) catalog.definitions.push(row.definition)
         else catalog.definitions[index] = row.definition
       }
-    })
+    }, 'import-preview-stale')
     return { status: 'committed', revision, rows: structuredClone(plan.rows) }
   }
 }

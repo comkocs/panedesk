@@ -46,7 +46,7 @@ The application does not rewrite model prefixes or refresh caches itself. Reques
 
 ## Known Limitations and Deferred Work
 
-- A configured engine and working local provider are required for management commands; a disabled or absent provider produces an unavailable result.
+- A working local provider is required. Without the engine, `nodeStatus` reports configured identity, `engine: 'unavailable'`, zero open engine windows and null limit/readiness; `list` and engine management remain unavailable. `import.preview` and `import.commit --request` can run in separate processes using the same home and retained `planId`; source or catalog changes require another preview.
 - This bundle does not install an operating-system service or offer cross-node live execution.
 
 <a id="dev-note"></a>

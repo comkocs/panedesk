@@ -3113,6 +3113,8 @@ export interface LocalSeatOptions {
   maxSourceBytes: number
   /** Maximum number of retained import preview plans. */
   maxPlans: number
+  /** Preview lifetime in milliseconds; omitted retains plans for 24 hours. */
+  importPlanTtlMs?: number
   /** Maximum UTF-8 byte length of opening and wake text. */
   maxOpeningBytes: number
   /** Maximum number of explicitly named seats in one batch. */

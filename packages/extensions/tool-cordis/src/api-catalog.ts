@@ -2825,6 +2825,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'a scoped facade with no process-global current identity.',
       },
       {
+        signature: 'nodeStatus?(): Promise<T.SeatNodeStatus>',
+        description: 'Report local placement even when the optional engine is absent.',
+        parameters: [],
+        returns: 'node identity and available engine evidence.',
+      },
+      {
         signature: 'abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>',
         description: 'List authorized definitions without activating Sessions.',
         parameters: [{ name: 'request', description: 'local catalog filters and pagination.' }],
@@ -9455,7 +9461,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatService',
-    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult>;\n    abstract wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult>;\n    abstract binding(request: T.SeatBindingRequest): Promise<T.SeatBinding | null | T.SeatRejected>;\n    abstract  /* …truncated — full shape in source */',
+    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    nodeStatus?(): Promise<T.SeatNodeStatus>;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult>;\n    abstract wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult>;\n    abstract binding(request: T.SeatBindingRequest): Promise<T.SeatB /* …truncated — full shape in source */',
   },
   {
     name: 'SeatSessionOperations',

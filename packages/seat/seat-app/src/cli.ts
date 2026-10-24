@@ -63,8 +63,10 @@ export async function executeSeatCommand(ctx: Context, args: readonly string[]):
     return { code: 2, output: { status: 'rejected', error: { code: 'invalid-request', message: 'Invalid seat command; provide explicit targets and required versions.' } } }
   }
   const seats = ctx.get('seats'), engine = ctx.get('seatEngine')
-  if (!seats || !engine) return { code: 2, output: { status: 'rejected', error: { code: 'unavailable' } } }
-  const status = await engine.nodeStatus()
+  const unavailable = { status: 'rejected', error: { code: 'unavailable' } }
+  if (!seats) return { code: 2, output: unavailable }
+  const status = await (seats.nodeStatus?.() ?? engine?.nodeStatus())
+  if (!status) return { code: 2, output: unavailable }
   const authority: SeatCallContext = { principalId: 'owner' as SeatCallContext['principalId'], origin: 'manual', nodeId: status.nodeId }
   const service = seats.withAuthority(authority)
   let output: unknown
@@ -85,10 +87,10 @@ export async function executeSeatCommand(ctx: Context, args: readonly string[]):
     case 'seats/wake': output = await service.wake(command.request); break
     case 'seats/binding': output = await service.binding(command.request); break
     case 'seats/operation': output = await service.operation(command.request); break
-    case 'seats/setProjectMode': output = await engine.setProjectMode(command.request); break
-    case 'seats/pending': output = await engine.pending(command.request); break
-    case 'seats/approve': output = await engine.approve(command.request); break
-    case 'seats/cancel': output = await engine.cancel(command.request); break
+    case 'seats/setProjectMode': output = await engine?.setProjectMode(command.request) ?? unavailable; break
+    case 'seats/pending': output = await engine?.pending(command.request) ?? unavailable; break
+    case 'seats/approve': output = await engine?.approve(command.request) ?? unavailable; break
+    case 'seats/cancel': output = await engine?.cancel(command.request) ?? unavailable; break
     case 'seats/nodeStatus': output = status; break
     case 'seats/gates': {
       const gates = ctx.get('seatGates')
