@@ -144,7 +144,8 @@ export class SeatEngine extends SeatEngineService {
         const refusal = await this.localAccess.preAdmit(input)
         if (refusal) return refusal
       }
-      const frozenOpen: T.SeatFrozenOpen = { definition: input.definition, title: input.title,
+      const frozenOpen: T.SeatFrozenOpen = { ...(this.localAccess?.requiresRecheck?.() ? { recheckRequired: true as const } : {}),
+        definition: input.definition, title: input.title,
         frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto',
         ...(input.openingContext ? { openingContext: input.openingContext } : {}) }
       const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')
@@ -216,6 +217,7 @@ export class SeatEngine extends SeatEngineService {
       await this.publish()
       return frozenOpen
     }
+    if (this.localAccess?.requiresRecheck?.()) frozenOpen = { ...frozenOpen, recheckRequired: true }
     const rule = triggerRule(frozenOpen.definition, envelope)
     const result = await this.triggers.accept(envelope,
       externalRuleMiss(frozenOpen.definition, envelope) ? 'off' : rule?.mode, frozenOpen)
@@ -524,6 +526,28 @@ export class SeatEngine extends SeatEngineService {
       }
       for (const open of [...this.journal.projection.opens.values()]) {
         if (!this.journal.projection.resources.has(open.sessionId)) continue
+        if (open.phase !== 'active' && open.phase !== 'opening-failed') {
+          const queued = this.journal.projection.decisions.flatMap(decision => decision.effects).find(effect =>
+            effect.kind === 'queue/cancelled' && canonical(effect.data.pending.sources) === canonical(open.sources))
+          if (queued?.kind === 'queue/cancelled') {
+            const refusal = await this.recheck(queued.data.pending)
+            if (refusal) {
+              if (refusal.error.effectState === 'none' && (open.phase === 'intent' || open.phase === 'creating')
+                && await executor.observe(open) === 'absent') {
+                await this.journal.commit((view) => {
+                  const resource = view.resources.get(open.sessionId)
+                  if (!resource || view.opens.get(open.sessionId)?.phase !== open.phase) return []
+                  return [fact({ kind: 'open/opening-failed', sessionId: open.sessionId,
+                    data: { ...open, phase: 'opening-failed', failure: refusal.error } }),
+                  fact({ kind: 'resource/released', sessionId: open.sessionId, data: { owner: resource.owner,
+                    reason: 'open-aborted', observedAt: new Date().toISOString(), releasedAt: new Date().toISOString(),
+                    engineReadyAt: this.readyAt, fenced: true } })]
+                })
+              }
+              continue
+            }
+          }
+        }
         let recovered: T.EngineOpenData
         try { recovered = await reconcileOpen(this.journal, open, recoveryExecutor, current => this.callbacks(current, 'opened')) }
         catch (error) {
@@ -559,6 +583,17 @@ export class SeatEngine extends SeatEngineService {
         'Owner release exceeded its configured time budget')
     }
   }
+  private async recheck(item: T.PendingSeatItem): Promise<T.SeatRejected | null> {
+    const access = this.localAccess
+    try {
+      if (access?.recheck) {
+        const result = await access.recheck(structuredClone(item))
+        if (this.localAccess === access) return result
+      } else if (!item.frozenOpen?.recheckRequired) return null
+    } catch (_error) { /* An unavailable execution policy cannot grant permission. */ }
+    return { status: 'rejected', error: { code: 'unavailable', message: 'Execution permission is unconfirmed.',
+      alternative: 'Restore the execution policy and recheck.', retryable: true, effectState: 'unknown' } }
+  }
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
     const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
@@ -572,16 +607,23 @@ export class SeatEngine extends SeatEngineService {
     const budget = await this.readBudget(sessionId, item.seat, {
       ...(rule?.windowBudgetUsd !== undefined ? { windowBudgetUsd: rule.windowBudgetUsd } : {}),
       ...(rule?.dailyBudgetUsd !== undefined ? { dailyBudgetUsd: rule.dailyBudgetUsd } : {}) })
+    const refusal = item.action === 'wake-sender' ? null : await this.recheck(item)
     const action = { wake: false }
     await this.journal.commit((view) => {
       const current = view.pending.get(item.queueItemId)
-      if (!current) return []
+      if (!current || canonical(current) !== canonical(item)) return []
       const policy = view.policies.get(item.projectId)
       const mode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
       const pending = (reason: T.PendingReason, blockedBy: readonly string[] = []): T.EngineEffect[] => {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }
         return [fact({ kind: 'queue/pending', seat: item.seat, data: next }), ...reminderEffects(next, current)]
+      }
+      if (refusal) {
+        if (refusal.error.effectState !== 'none') return pending('provider-unavailable', [refusal.error.message])
+        return [fact({ kind: 'open/rejected', seat: item.seat, data: { error: refusal.error, candidates: [] } }),
+          fact({ kind: 'queue/cancelled', data: { pending: current, principalId: 'engine-policy' as T.SeatPrincipalId,
+            previousRevision: current.stateVersion, revision: current.stateVersion + 1 } })]
       }
       if (mode === 'off') return pending('project-off')
       if (mode === 'remind' && !view.approved.has(item.queueItemId)) return pending('approval')

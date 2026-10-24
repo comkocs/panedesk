@@ -29,7 +29,7 @@ Catalogs initially belong to their import source. A recorded authority change pe
 
 ## Window transactions
 
-`seatOpeningContexts.registerScopeAdmission` optionally installs one trusted owner for serialized source opening and batch acceptance. Its evaluator replaces only the task-scope check; existing opening policies still run. The owner retains durable reservations before execution and drains on disposal. Without registration, task-aware batches keep the existing evaluator lookup and `scope-unknown` refusal when it is absent; seats-only calls are unchanged.
+`seatOpeningContexts.registerScopeAdmission` optionally installs one trusted owner for serialized source opening and batch acceptance. Its evaluator replaces only the task-scope check; existing opening policies still run. The owner retains durable reservations before execution and drains on disposal. Its optional `recheck` confirms frozen permission again before queued dispatch and unfinished opening recovery, outside any admission chain awaiting the engine; required but missing or closing policies retain occupancy rather than allowing execution. Without registration, task-aware batches keep the existing evaluator lookup and `scope-unknown` refusal when it is absent; seats-only calls are unchanged.
 
 Model tool opening captures the live Session and invocation identifiers, signs `model-tool-call` attribution through the optional engine issuer, and commits it with trigger acceptance. Request fields cannot select the authorization kind. Without the issuer, existing opening behavior is unchanged.
 

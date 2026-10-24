@@ -8860,7 +8860,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'OpeningScopeAdmission',
-    declaration: 'export interface OpeningScopeAdmission {\n    evaluateTaskScopes(context: import(\'./gates.ts\').TaskScopeBatchGateContext): Promise<import(\'./gates.ts\').TaskScopeGateDecision>;\n    batch(request: OpenSeatBatchWithScopeRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatBatchResult>): Promise<OpenSeatBatchResult>;\n    open(request: OpenSeatWithContextRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatResult>): Promise<OpenSeatResult>;\n}',
+    declaration: 'export interface OpeningScopeAdmission {\n    recheck?(item: PendingSeatItem, nodeId: SeatNodeId): Promise<SeatRejected | null>;\n    evaluateTaskScopes(context: import(\'./gates.ts\').TaskScopeBatchGateContext): Promise<import(\'./gates.ts\').TaskScopeGateDecision>;\n    batch(request: OpenSeatBatchWithScopeRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatBatchResult>): Promise<OpenSeatBatchResult>;\n    open(request: OpenSeatWithContextRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatResult>): Promise<OpenSeatResult>;\n}',
   },
   {
     name: 'OpenIntentId',
@@ -9892,7 +9892,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatEngineLocalAccess',
-    declaration: 'export interface SeatEngineLocalAccess {\n    preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>;\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n    freezeContext?(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen | SeatRejected>;\n}',
+    declaration: 'export interface SeatEngineLocalAccess {\n    requiresRecheck?(): boolean;\n    recheck?(item: PendingSeatItem): Promise<SeatRejected | null>;\n    preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>;\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n    freezeContext?(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen | SeatRejected>;\n}',
   },
   {
     name: 'SeatEngineOperationResult',
@@ -9912,7 +9912,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatFrozenOpen',
-    declaration: 'export interface SeatFrozenOpen {\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    openingContext?: OpeningContextSnapshot;\n}',
+    declaration: 'export interface SeatFrozenOpen {\n    recheckRequired?: true;\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
     name: 'SeatGateQuerySnapshot',
