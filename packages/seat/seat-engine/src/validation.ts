@@ -60,7 +60,7 @@ const trigger = fields({ openingContext: optional(openingReference), relatedTask
   cause: optional(fields({ eventId: id, depth: integer })) })
 const frozenOpening = fields({ text, digest: id, variables: fields({ seat: id,
   date: value => typeof value === 'string' && /^\d{4}-\d\d-\d\d$/.test(value), taskId: nullable(id) }) })
-const frozenOpen: Check = value => fields({ definition, title: text,
+const frozenOpen: Check = value => fields({ recheckRequired: optional(one(true)), definition, title: text,
   openingMode: one('auto', 'prefill'), frozenOpening: optional(frozenOpening), openingContext: optional(openingSnapshot) })(value)
 const pending = fields({ frozenOpen: optional(frozenOpen), queueItemId: id, seat: id, projectId: id,
   triggerKind, action: one('open', 'wake-sender', 'replace'),

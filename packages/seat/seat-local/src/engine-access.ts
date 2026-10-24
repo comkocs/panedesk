@@ -148,6 +148,8 @@ export function createEngineAccess(service: T.SeatService, options: LocalSeatOpt
     origin: 'engine', nodeId: options.nodeId }
   const internal = service.withAuthority(authority)
   return {
+    requiresRecheck: () => contexts?.requiresRecheck() ?? false,
+    ...(contexts ? { recheck: (item: T.PendingSeatItem) => contexts.recheck(item) } : {}),
     list: request => internal.list(request),
     close: async (request) => {
       const issuers = service['ctx'].get('seatAuthorizationIssuers')

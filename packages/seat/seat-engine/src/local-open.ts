@@ -31,6 +31,7 @@ export async function openLocalWindow(engine: SeatEngine, input: T.SeatLocalOpen
   const view = engine.journal.projection
   const open = [...view.opens.values()].find(item => item.sources?.some(source => source.triggerId === triggerId))
   if (open) {
+    if (open.phase === 'opening-failed' && open.failure?.effectState === 'none') return { status: 'rejected', error: open.failure }
     const window: T.OpenedSeatWindow = { sessionId: open.sessionId, seat: request.seat, nodeId: authority.nodeId,
       nodeName: engine.options.config.nodeName, title: open.title ?? input.title,
       budget: view.budgets.get(open.sessionId)?.limits ?? open.budget.limits,

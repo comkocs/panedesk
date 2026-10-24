@@ -816,6 +816,8 @@ export interface SeatCloseExecutor {
 }
 /** Accepted configuration and title remain fixed while resource admission is queued. */
 export interface SeatFrozenOpen {
+  /** A registered execution policy must confirm this item again; absence never grants permission. */
+  recheckRequired?: true
   definition: SeatDefinition
   title: string
   openingMode: 'auto' | 'prefill'
@@ -825,6 +827,10 @@ export interface SeatFrozenOpen {
 }
 /** Trusted provider capabilities are registered privately with the engine, never exposed as external authority. */
 export interface SeatEngineLocalAccess {
+  /** Whether newly accepted items require the registered execution policy after restart. */
+  requiresRecheck?(): boolean
+  /** Recheck before dispatch or recovered creation; unknown refusals retain the queue and reservations. */
+  recheck?(item: PendingSeatItem): Promise<SeatRejected | null>
   /** Refuse a manual opening before acceptance; omitted preserves admission unchanged. */
   preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>
   list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>
@@ -902,6 +908,12 @@ export interface WakeSeatWithContextRequest extends WakeSeatRequest {
 export interface OpenSeatBatchWithScopeRequest extends OpenSeatBatchRequest { tasks: readonly SeatTaskScopeContext[] }
 /** Trusted scope owner serializes preflight and acceptance; disposal drains admitted operations. */
 export interface OpeningScopeAdmission {
+  /** Revalidate frozen permission without entering an admission chain that may await engine dispatch.
+   * @param item - Durable queue identity, sources and frozen input.
+   * @param nodeId - Actual executing node.
+   * @returns Null when confirmed; no-effect refusals require fresh preflight, unknown refusals retain occupancy.
+   */
+  recheck?(item: PendingSeatItem, nodeId: SeatNodeId): Promise<SeatRejected | null>
   /** Evaluate frozen task evidence against the authoritative source and retained reservations.
    * @param context - Complete local batch.
    * @returns Whole-batch scope decision.

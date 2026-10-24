@@ -33,6 +33,24 @@ export class OpeningContexts implements T.SeatOpeningContexts {
     entry?.pending.add(work)
     return work.finally(() => entry?.pending.delete(work))
   }
+  /** Whether acceptance must retain an execution-policy requirement.
+   * @returns True while the scope owner provides execution checks, including disposal.
+   */
+  requiresRecheck(): boolean { return this.scope?.admission.recheck !== undefined }
+  /** Check durable permission without reentering the batch admission chain.
+   * @param item - Original accepted queue input.
+   * @returns Confirmed permission or an explicit refusal; missing required providers retain occupancy.
+   */
+  recheck(item: T.PendingSeatItem): Promise<T.SeatRejected | null> {
+    const entry = this.scope
+    const unavailable: T.SeatRejected = { status: 'rejected', error: { code: 'unavailable',
+      message: 'Execution policy is unavailable.', alternative: 'Restore the execution policy.',
+      retryable: true, effectState: 'unknown' } }
+    if (!this.active || entry?.closing) return Promise.resolve(unavailable)
+    return this.scoped(async admission => admission?.recheck
+      ? admission.recheck(item, this.service.options.nodeId) : item.frozenOpen?.recheckRequired ? unavailable : null)
+      .then(result => !this.active || entry?.closing || entry !== this.scope ? unavailable : result)
+  }
   constructor(private readonly service: LocalSeatService) {}
   register(provider: T.OpeningContextProvider): () => Promise<void> {
     if (!this.active) throw new Error('Opening registry is unavailable.')
