@@ -139,3 +139,4 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  * @param _config - Explicit activation and resource bounds, or inert empty configuration.
  */
 export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountAdmin(_ctx, _config)) }
+export type * from './execution.ts'
