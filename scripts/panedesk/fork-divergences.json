@@ -601,6 +601,19 @@
       }
     },
     {
+      "id": "seat-shipped-tool-catalog",
+      "description": "Include the fifteen seat tools in the shipped tool catalog expectation.",
+      "origin": "Opt-in seat orchestration",
+      "reason": "The catalog covers every on-disk tool package, including opt-in seat tools, without changing default runtime composition.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/tools/tests/gen-tool-catalog.spec.ts"
+        ],
+        "test": "boots every shipped tool package and harvests its model-facing schemas"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
