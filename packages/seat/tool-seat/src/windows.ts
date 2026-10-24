@@ -1,8 +1,16 @@
 /** Window tools call the node-local seat provider rather than creating Sessions directly. */
 import type { Context } from '@panedesk/cordis'
-import { defineTool } from '@panedesk/dsh-tools'
+import { defineTool, type ToolRunContext } from '@panedesk/dsh-tools'
 import type { SeatName, SeatOperationId } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
+
+function windowInvocation(ctx: Context, exec: ToolRunContext) {
+  const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
+    session: exec.agent.session, callId: exec.callId,
+  })
+  if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
+  return { seats, operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }
+}
 
 /** Register explicit window operations with stable tool operation IDs.
  * @param ctx - registry owner and optional seat provider.
@@ -23,12 +31,9 @@ export function registerWindowTools(ctx: Context): void {
     parameters: { seat: { type: 'string', required: true } },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
-        session: exec.agent.session, callId: exec.callId,
-      })
-      if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
+      const { seats, operationId } = windowInvocation(ctx, exec)
       return JSON.stringify(await seats.open({ seat: args.seat as SeatName, origin: 'manual', openingMode: 'auto',
-        operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))
+        operationId }))
     },
   }))
   for (const action of ['renew', 'replace', 'close', 'rename'] as const) {
@@ -40,12 +45,9 @@ export function registerWindowTools(ctx: Context): void {
       },
       output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
       async execute(args, exec) {
-        const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
-          session: exec.agent.session, callId: exec.callId,
-        })
-        if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
+        const { seats, operationId } = windowInvocation(ctx, exec)
         const request = { sessionId: args.sessionId as SessionId,
-          operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }
+          operationId }
         if (action === 'close') {
           if (args.expectedStateVersion === undefined) throw new Error('Closing requires expectedStateVersion from seat_windows.')
           return JSON.stringify(await seats.close({ ...request, expectedStateVersion: args.expectedStateVersion }))
@@ -63,13 +65,10 @@ export function registerWindowTools(ctx: Context): void {
     parameters: { seat: { type: 'string', required: true }, sessionId: { type: 'string' } },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const seats = exec.agent === undefined ? undefined : ctx.get('seatLocalWindows')?.forInvocation({
-        session: exec.agent.session, callId: exec.callId,
-      })
-      if (seats === undefined || exec.agent === undefined) throw new Error('Seat windows are unavailable.')
+      const { seats, operationId } = windowInvocation(ctx, exec)
       return JSON.stringify(await seats.wake({ seat: args.seat as SeatName,
         ...args.sessionId === undefined ? {} : { sessionId: args.sessionId as SessionId },
-        operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))
+        operationId }))
     },
   }))
 }
