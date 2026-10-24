@@ -53,6 +53,8 @@ The subprocess starts lazily on first use and stays owned by the instance across
 
 `DeepSeekHarness.seats` exposes the transport-neutral `SeatsClient` facade. Window opening is always remote/automatic; explicit batches retain independent outcomes. Import preview/commit, authority transfer, report submission, and wait registration/cancellation preserve caller-owned operation IDs and revisions. Requests and nested results are decoded before use; failures never fall back to ordinary prompts or automatic retries. These methods require optional seat providers in the runtime.
 
+`DeepSeekHarness.host` and `HarnessClient.host` expose `listNodes()`, `nodeStatus(nodeId)`, and `queryAuthorizations(request)` over the existing request transport. They preserve stale or missing node evidence and authorization pagination without retries. Initialization optionally returns active `namespaces` and versions; extension callers use public `request('namespace/method', params)`, not private client properties.
+
 ### Lower-level control with HarnessClient
 
 `HarnessClient` is the protocol client under the run API: explicit `start()`, `initialize()`, `prompt()`, `request()`, and `close()`, plus notification subscriptions. `prompt()` returns the queued message id as soon as the runtime accepts it and never waits for agent activity. `subscribe(filter?)` returns a `NotificationSubscription` (awaitable `next()`, non-blocking `tryNext()`, async iteration); `subscribeSessionTree(id)` scopes to one session and the descendants discovered from `subagent.started` lineage edges — the runtime notifies for every session in its context, and scoping is client-side, exactly like the Python SDK.

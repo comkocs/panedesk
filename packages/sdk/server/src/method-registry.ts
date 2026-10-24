@@ -65,6 +65,13 @@ export interface SdkMethodRegistry {
    * @returns An immutable capability snapshot, excluding disposed registrations.
    */
   capabilities(): readonly SdkNamespaceCapability[]
+  /** Dispatch a registered method without allowing a built-in override.
+   * @param method - Fully qualified namespace/method wire name.
+   * @param params - Untrusted parameters decoded by the registered method.
+   * @param context - Host-resolved caller, never request-supplied authority.
+   * @returns Encoded JSON or an explicit unavailable/authorization error.
+   */
+  dispatch(method: string, params: unknown, context: SdkMethodContext): Promise<SdkExtensionJson>
 }
 
 declare module '@panedesk/cordis' {

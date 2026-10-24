@@ -25,6 +25,8 @@ kind: "package-bundle"
 
 命令默认 `list`。手动 `open` 默认 `prefill`；自动开窗需要明确选择。批次须明确列出每个席位。结构化操作接受 `--request` JSON，不能与字段选项混用；修改操作调用方可保留 `--operation` 标识。非法输入、提供方不可用及操作被拒返回状态码 2；成功返回 0。stdout 输出 JSON 结果。
 
+`nodes list` 与 `nodes status --node <alias>` 读取带时间的路由健康状态，不为不可达节点虚构容量。`authorizations query` 接受 `--task`、`--seat`、`--node`、`--kind`、`--from`、`--to`、`--limit` 与 JSON `--cursor`，或独占的 `--request` JSON 对象。结果保留 `watermark`、`nextCursor` 与 `complete`；缺少提供方时绝不启动另一宿主。
+
 命令等待 `appReady`。dispose（资源释放）移除就绪监听并排空正在执行的命令。本包不拥有引擎日志，也不绕过提供方就绪条件。
 
 <a id="model-experience"></a>

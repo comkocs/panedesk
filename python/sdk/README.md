@@ -58,6 +58,8 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/saved-home") as harness:
     result = session.run("Continue the task.")
 ```
 
+`HarnessClient.host` and `DeepSeekHarness.host` provide `list_nodes()`, `node_status(node_id)`, and `query_authorizations(request)` over public `request()`. Results retain stale or absent nodes and authorization `watermark`, `nextCursor`, and `complete`, including empty advancing pages. Initialization optionally exposes `namespaces` with versions. Third-party methods use `client.request("namespace/method", params)` without a response model to return JSON; existing typed response models remain supported. No private business properties or automatic retries are required.
+
 ## Seat operations
 
 `HarnessClient.seats` exposes validated seat requests and nested results. The selected runtime composition must provide seat services; remote opening uses automatic mode. Failed requests are not retried or converted to ordinary prompts, and binding metadata does not change Session events.

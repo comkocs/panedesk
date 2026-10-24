@@ -8,6 +8,9 @@
     "src"
   ],
   "references": [
+    { "path": "../../sdk/server" },
+    { "path": "../../sdk/protocol" },
+    { "path": "../../seat/seat" },
     {
       "path": "../../../vendor/cosmokit"
     },

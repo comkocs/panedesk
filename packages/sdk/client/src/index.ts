@@ -11,6 +11,8 @@
 
 export { DeepSeekHarness, HarnessSession, validatedSessionEvent } from './api.ts'
 export { SeatsClient } from './seats.ts'
+export { HostClient } from './host.ts'
+export type { HostQueryMethods, SdkNamespaceCapability } from './host.ts'
 export type { SeatRequestMap } from '@panedesk/dsh-sdk-protocol'
 export type { RunOptions, SessionSendMessageRequest } from './api.ts'
 export type {

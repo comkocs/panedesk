@@ -2,7 +2,7 @@ import { MESSAGES_RESPONSE } from './messages-response.ts'
 import { mountWorkingDirectoryFixture } from '../../../subagent/subagent/tests/working-directory-fixture.ts'
 import { createServer } from 'node:http'
 import type { IncomingMessage, Server, ServerResponse } from 'node:http'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PassThrough, Writable } from 'node:stream'
@@ -188,6 +188,46 @@ describe('dsh-sdk-jsonrpc-server plugin apply', () => {
       await harness.dispose()
       await rm(storageDir, { recursive: true, force: true })
     }
+  })
+
+  it('loads an opt-in namespace composition and serves its capability and disposal over stdio', async () => {
+    const storageDir = await mkdtemp(join(tmpdir(), 'dsh-sdk-registry-'))
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test-key')
+    let contribution: string | undefined
+    const harness = await mountPlugin(storageDir, { beforeServer: async (ctx) => {
+      await ctx.plugin(Loader)
+      ctx.loader.builtins['sdk-registry'] = jsonrpc.SdkMethodRegistryProvider
+      ctx.loader.builtins['sdk-example'] = {
+        apply(entryCtx: Context) {
+          entryCtx.get('sdkMethods')?.register<{ echo: { request: string; result: string } }>({
+            namespace: 'example', version: '1', authorize: async () => ({ status: 'allowed' }),
+            methods: { echo: { decodeRequest(value) {
+              if (typeof value !== 'object' || value === null || !('text' in value) || typeof value.text !== 'string') throw new TypeError('text required')
+              return value.text
+            }, encodeResult: text => ({ text }), invoke: async text => text } },
+          })
+        },
+      }
+      const entries = JSON.parse(await readFile(new URL('./registry.cordis.yml', import.meta.url), 'utf8')) as { name: string }[]
+      for (const entry of entries) contribution = await ctx.loader.create(entry)
+      await ctx.loader.await()
+    } })
+    try {
+      harness.send({ jsonrpc: '2.0', id: 'init-registry', method: 'initialize',
+        params: { cwd: storageDir, provider: 'deepseek-official', model: 'apply-model' } })
+      expect(await harness.waitForFrame(frame => frame.id === 'init-registry', 'registry handshake')).toMatchObject({
+        result: { namespaces: [{ namespace: 'example', version: '1' }] },
+      })
+      harness.send({ jsonrpc: '2.0', id: 'echo-registry', method: 'example/echo', params: { text: 'hello' } })
+      expect(await harness.waitForFrame(frame => frame.id === 'echo-registry', 'registry result')).toMatchObject({ result: { text: 'hello' } })
+      if (contribution === undefined) throw new Error('Missing contribution')
+      harness.ctx.loader.remove(contribution)
+      await vi.waitFor(() => { expect(harness.ctx.get('sdkMethods')?.capabilities()).toEqual([]) })
+      harness.send({ jsonrpc: '2.0', id: 'late-registry', method: 'example/echo', params: { text: 'late' } })
+      expect(await harness.waitForFrame(frame => frame.id === 'late-registry', 'unloaded result')).toMatchObject({
+        error: { code: -32601, data: { reason: 'method-unavailable' } },
+      })
+    } finally { await harness.dispose(); await rm(storageDir, { recursive: true, force: true }) }
   })
 
   it('waits for Loader-owned adapter registration before initialize', async () => {

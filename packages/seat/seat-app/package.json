@@ -50,6 +50,7 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
     "@panedesk/dsh-cmdline": "workspace:*"
   },
   "devDependencies": {
@@ -82,6 +83,7 @@
     "@panedesk/dsh-sandbox-local": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",

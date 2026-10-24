@@ -8,6 +8,8 @@
     "src"
   ],
   "references": [
+    { "path": "../../seat/node-link" },
+    { "path": "../../seat/seat" },
     {
       "path": "../../../vendor/cordis"
     },

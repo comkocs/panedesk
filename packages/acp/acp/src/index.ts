@@ -60,6 +60,7 @@ import { supportsAcpImagePrompts } from './content.ts'
 import { AcpMcpConfigError } from './mcp.ts'
 import { AcpModelConfigError } from './model-control.ts'
 import { AcpSession } from './session.ts'
+import { ACP_HOST_METHODS, acpHostProjection } from './seat-projection.ts'
 
 const DEFAULT_SESSION_LIST_PAGE_SIZE = 100
 
@@ -114,6 +115,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
   const messagePrefix = '_panedesk/messages/'
   const messageStateMethod = `${messagePrefix}state`
   const messageErrorMethod = `${messagePrefix}error`
+  let negotiatedHost: ReadonlySet<string> = new Set()
   let negotiatedMessages: ReadonlySet<string> = new Set()
   let messageNotifications = false
   let messageErrors = false
@@ -281,8 +283,21 @@ export function apply(ctx: Context, config: AcpConfig): void {
       // the latest supported" both resolve to this server's one version.
       imagePromptEnabled = await supportsAcpImagePrompts(ctx, config.provider, config.model)
       const messageMeta = await negotiateMessages(params)
+      const offer = params._meta?.['panedesk/host']
+      negotiatedHost = new Set()
+      if (isMessageObject(offer) && offer.version === 1 && Array.isArray(offer.methods)) {
+        const offered = offer.methods
+        negotiatedHost = new Set(ACP_HOST_METHODS.filter((method) => {
+          const available = method.startsWith('nodes/') ? ctx.get('nodeRouter') !== undefined
+            : method === 'authorizations/query' ? ctx.get('seatAuthorizationQueries') !== undefined
+              : ctx.get('seats') !== undefined && ctx.get('seatEngine') !== undefined
+          return available && offered.includes(`_panedesk/${method}`)
+        }))
+      }
+      const hostMeta = isMessageObject(offer) && offer.version === 1 && Array.isArray(offer.methods) ? { 'panedesk/host': { version: 1,
+        methods: [...negotiatedHost].map(method => `_panedesk/${method}`) } } : undefined
       return {
-        ...messageMeta === undefined ? {} : { _meta: messageMeta },
+        ...messageMeta === undefined && hostMeta === undefined ? {} : { _meta: { ...messageMeta, ...hostMeta } },
         protocolVersion: PROTOCOL_VERSION,
         agentInfo: { name: 'panedesk-acp', version: '0.0.1' },
         agentCapabilities: {
@@ -517,6 +532,16 @@ export function apply(ctx: Context, config: AcpConfig): void {
       addresses: messageArray(messageObject(value).addresses, 'addresses').map(parseMessageAddress),
     }), ({ params }) => requireMessages('resolve').resolve(params.addresses))
     .onRequest(`${messagePrefix}sendBatch`, parseMessageBatch, ({ params }) => requireMessages('sendBatch').sendBatch(params))
+  for (const method of ACP_HOST_METHODS) {
+    app.onRequest(`_panedesk/${method}`, value => value, async ({ params }) => {
+      assertOpen()
+      if (!negotiatedHost.has(method)) throw new RequestError(-32601, 'Host extension was not negotiated', { reason: 'unsupported' })
+      try { return await acpHostProjection(ctx, method, params) } catch (error) {
+        if (error instanceof TypeError) throw invalidParams('Invalid host extension parameters')
+        throw new RequestError(-32603, 'Host operation failed', { reason: 'unavailable' })
+      }
+    })
+  }
   const connection = app.connect(stream)
   const conn: AgentContext = connection.client
 

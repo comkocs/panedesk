@@ -58,6 +58,8 @@ with DeepSeekHarness(dsh_home="/absolute/path/to/saved-home") as harness:
     result = session.run("Continue the task.")
 ```
 
+`HarnessClient.host` 与 `DeepSeekHarness.host` 经公开的 `request()` 提供 `list_nodes()`、`node_status(node_id)` 与 `query_authorizations(request)`。结果保留过期或缺失节点，以及授权 `watermark`、`nextCursor` 与 `complete`，包括游标前进但结果为空的页。初始化可选公开带版本的 `namespaces`。第三方方法使用不带响应模型的 `client.request("namespace/method", params)` 返回 JSON；既有类型化响应模型仍受支持。无需私有业务属性，也不自动重试。
+
 <a id="seat-operations"></a>
 ## 席位操作
 

@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../sdk/server" },
     { "path": "../seat" },
     { "path": "../../sdk/protocol" },
     { "path": "../../boot/cmdline" },

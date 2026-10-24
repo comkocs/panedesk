@@ -61,9 +61,22 @@ class LlmCacheControl(BaseModel):
     key: str | None = None
 
 
+class SdkNamespaceCapability(BaseModel):
+    model_config = ConfigDict(strict=True)
+    namespace: Annotated[str, Field(min_length=1)]
+    version: Annotated[str, Field(min_length=1)]
+
+
 class InitializeResponse(BaseModel):
     serverInfo: ServerInfo | None = None
     messagesVersion: Annotated[int, Field(strict=True, gt=0, le=9007199254740991)] | None = None
+    namespaces: list[SdkNamespaceCapability] | None = None
+
+    @model_validator(mode="after")
+    def _unique_namespaces(self) -> "InitializeResponse":
+        if self.namespaces is not None and len({item.namespace for item in self.namespaces}) != len(self.namespaces):
+            raise ValueError("duplicate SDK namespace")
+        return self
 
 
 MessagePriority: TypeAlias = Literal["immediate", "steer", "queue"]

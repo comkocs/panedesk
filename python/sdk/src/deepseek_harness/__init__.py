@@ -1,3 +1,5 @@
+from .host import HostClient, AuthorizationQuery, AuthorizationPage, AuthorizationFact, NodeStatus
+from .models import SdkNamespaceCapability
 from .api import DeepSeekHarness, DeepSeekHarnessConfig, RunResult, Session
 from .client import HarnessClient, HarnessConfig, MessagesClient, MessageSubscription, SeatsClient
 from .models import (OpenSeatRequest, OpenSeatBatchRequest, SeatSessionRequest, CloseSeatRequest,
@@ -21,6 +23,7 @@ from .models import (
 from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, LlmCacheControl, Notification, ServerInfo
 
 __all__ = [
+    "HostClient", "AuthorizationQuery", "AuthorizationPage", "AuthorizationFact", "NodeStatus", "SdkNamespaceCapability",
     "DeepSeekHarness",
     "DeepSeekHarnessConfig",
     "Session",
