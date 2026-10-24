@@ -4,12 +4,19 @@ import { EngineJournal, EngineError, digest } from './journal.ts'
 import { AuthorizationIssuers, authorizationEffect } from './authorization-issuer.ts'
 import type { AuthorizationDecision } from './authorization-storage.ts'
 import { queryAuthorizations } from './authorization-query.ts'
+import { queryOperation } from './operation.ts'
 import { fact, rejected } from './triggers.ts'
 
 /** One provider owns issuer validation, atomic admission and historical receipts. */
 export class AuthorizationTransactions implements T.SeatAuthorizationTransactions {
   constructor(private readonly journal: EngineJournal, private readonly issuers: AuthorizationIssuers,
-    private readonly ready: () => Promise<void>, private readonly publish: () => Promise<void>) {}
+    private readonly ready: () => Promise<void>, private readonly publish: () => Promise<void>,
+    private readonly nodeName: string = journal.nodeId) {}
+
+  async operation(request: T.SeatOperationQuery): Promise<T.SeatEngineOperationResult> {
+    await this.ready()
+    return queryOperation(this.journal.projection, request, this.nodeName)
+  }
 
   async validate(request: T.SeatAuthorizationCheck, authorization: T.SeatAuthorizationGrant): Promise<T.SeatRejected | null> {
     await this.ready()

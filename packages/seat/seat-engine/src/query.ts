@@ -24,7 +24,10 @@ export function queryEngine(decisions: readonly EngineDecision[], request: Engin
       const effect = decision.effects[effectIndex]
       if (!effect) throw new EngineError('engine-store-corrupt', 'Missing engine effect')
       if (request.nodeId !== undefined && request.nodeId !== decision.nodeId) continue
-      if (request.seat !== undefined && request.seat !== effect.seat) continue
+      const data = effect.data
+      const seat = effect.seat ?? ('seat' in data ? data.seat : 'pending' in data ? data.pending?.seat
+        : 'binding' in data && data.binding.kind === 'seat' ? data.binding.seat : undefined)
+      if (request.seat !== undefined && request.seat !== seat) continue
       if (request.kinds && !request.kinds.includes(effect.kind)) continue
       if (request.from && decision.observedAt < request.from) continue
       if (request.to && decision.observedAt >= request.to) continue
@@ -41,7 +44,11 @@ export function redactPending(item: import('@panedesk/dsh-seat').PendingSeatItem
   const { frozenOpen: _frozenOpen, ...metadata } = item
   return { ...metadata, sources: item.sources.map(source => ({ ...source, data: null })) }
 }
-function redact(effect: EngineEffect): EngineEffect {
+/** Remove instruction bodies and raw source data from a public effect.
+ * @param effect - Committed effect.
+ * @returns Metadata-only effect with the original identity.
+ */
+export function redact(effect: EngineEffect): EngineEffect {
   if (effect.kind === 'open/intent' || effect.kind === 'open/created' || effect.kind === 'open/configured' || effect.kind === 'open/opening-failed') {
     const { definition: _definition, frozenOpening: _frozenOpening, ...data } = effect.data
     return { ...effect, data: { ...data, ...(data.sources ? { sources: data.sources.map(source => ({ ...source, data: null })) } : {}) } }
@@ -51,6 +58,8 @@ function redact(effect: EngineEffect): EngineEffect {
       pending: redactPending(effect.data.pending) } }
   }
   if (effect.kind === 'queue/pending') return { ...effect, data: redactPending(effect.data) }
+  if (effect.kind === 'window/replacement' && effect.data.pending) return { ...effect,
+    data: { ...effect.data, pending: redactPending(effect.data.pending) } }
   if (effect.kind === 'queue/approved' || effect.kind === 'queue/cancelled') return { ...effect, data: { ...effect.data, pending: redactPending(effect.data.pending) } }
   return effect
 }

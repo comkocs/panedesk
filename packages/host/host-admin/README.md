@@ -34,7 +34,7 @@ The five administrative methods are `node.status`, `engine.pending`, `engine.app
 
 The host creates `credential` and `endpoint.json` and deletes both on exit; each start uses an independent process epoch. Credentials travel only through private files and authentication headers, never arguments, addresses, environment variables, or operation records. `callAdmin` connects only to an already running host; missing endpoints reject without automatically starting a service.
 
-`hostAdminExecutor` receives transport-derived identity and must durably record authorization facts before accepting approval while retaining the original engine checks. Request fields cannot grant authority. Without an executor, status and pending queries use the existing engine. Authenticated listener approvals additionally require the engine issuer and transactions: the listener-owned identity issues `local-operator` attribution and commits it with the original queue approval. A self-declared dispatch authority cannot enter that path or read its cached receipt; missing capabilities reject. Other methods remain unavailable.
+`hostAdminExecutor` receives transport-derived identity and retains the original engine checks. Without a custom executor, the runtime assembles `createHostAdminExecutor` from the running engine's issuers, transactions and queries. Listener-owned identity issues `local-operator` attribution and commits it atomically with queue approval. Self-declared dispatch authority cannot enter this path or read cached receipts; missing capabilities refuse the method. Status and pending retain their read-only engine fallback.
 
 `hostSessionCredentials` issues separate, epoch-bound credentials into owner-only session directories. Trusted creation supplies the session and seat, plus a verified employee ID when available; request fields never supply identity. Replacing or revoking a binding removes its credential and aborts its invocation signal. Operator SDK calls have no seat; namespace authorization must reject writes without a seat. Session credentials cannot invoke the five operator methods. `callHostSdk` reads explicit endpoint and credential paths, sends one request, and never retries unknown outcomes.
 
@@ -42,6 +42,10 @@ The host creates `credential` and `endpoint.json` and deletes both on exit; each
 ## Persistence and Recovery
 
 `operations.json` retains the digest, pending state, or original receipt by principal and operation ID. Pending state is durable before execution; results are durable before publication. Identical IDs and arguments return the original result; changed arguments reject. Lost responses remain unknown without automatic replay. Exhausted capacity rejects new operations rather than evicting unknown records. This transport record does not replace the engine authorization journal.
+
+`engine.operation({ operationId })` reads the engine journal rather than the transport receipt: `approval` records queue registration, while `progress` distinguishes pending reasons and blockers, correlated opening phases, and cancellation. Created windows and first-turn failures remain distinct after restart. Queries do not drive or replay work.
+
+`engine.query({ limit, taskId?, seat?, kind?, cursor?, authorizationCursor? })` returns redacted `effects` and an independent `authorizations` page from the issued-fact projection, including `plugin` and `local-operator` kinds. Each page has its own `complete`, `watermark` and `nextCursor`; continue effects with `cursor` and facts with `authorizationCursor`. The bound applies to each page and the complete response byte limit still applies. Frozen instructions and raw source data are omitted; queries offer no raw-body opt-in.
 
 `owner.lock` permits only one running instance per directory. A lock left after abnormal exit requires explicit recovery after operators confirm the old instance has exited; the plugin never guesses ownership from a PID.
 
@@ -66,7 +70,7 @@ Existing session history and cache prefixes remain unchanged.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- `createHostAdminExecutor` composes host policy, a trusted authorization issuer, and authorization transactions. Approval calls the transaction adapter, never a second legacy approval path. The configured runtime can bind authenticated local approval directly to installed issuer and transaction services; missing services refuse approval. Queries validate effect payloads using the engine validator. Integrators must verify task filtering and body-text omission. Operation lookup remains unavailable because the frozen engine interface exposes no operation projection; local composition tests do not establish production integration.
+- `engine.operation` requires the engine's optional operation projection; older providers without it remain unavailable. An admitted intent with no committed creation or failure remains pending, not successful. Legacy custom executors may omit the authorization page; callers must not interpret an absent page as empty authorization history.
 - Linux tests with doubles do not cover Windows ACL execution, real SSH, or multi-process crash injection. Executors must ensure their own calls terminate; unloading waits for accepted calls and cannot forcibly cancel arbitrary provider side effects. Nonce sets and operation records have explicit capacity limits; exhaustion requires controlled restart or operational recovery.
 
 Revocation deletes credential files but leaves their empty owner-only session directories. Long-running deployments must remove empty directories during stopped-host maintenance; directory reclamation is not part of the private-file policy yet.

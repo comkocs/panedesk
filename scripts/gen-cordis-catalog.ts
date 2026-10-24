@@ -350,6 +350,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   'HostSessionCredential': 'seat.md',
   'ApprovePendingSeatRequest': 'seat.md',
   'PendingSeatMutationResult': 'seat.md',
+  'SeatEngineOperationResult': 'seat.md',
   'NodeAuthenticatedPeer': 'seat.md',
   'NodeDelegationRequest': 'seat.md',
   'NodeDelegationResult': 'seat.md',

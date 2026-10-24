@@ -39,6 +39,8 @@ Trusted hosts register captured identities and live policy checks through `seatA
 
 Authorization frames require `seat-authorization/v1`; older decoders refuse the new discriminator. Capability-aware recovery and read-only snapshots retain facts in the existing journal. New queries include `plugin`; legacy `seatAuthorizationQueries.query` skips that kind while advancing the physical cursor, never relabeling it. Queries filter by task, seat, node, kind, and time, and return the committed watermark, exclusive scan cursor, and completeness. Historical decisions without attribution remain `legacy-unknown`. Engine-effect queries and exports retain their legacy vocabulary and omit authorization facts. The independent `seatAuthorizationExports.export` service serializes a bounded `seat-authorization/v1` JSON page with its cursor, watermark and completeness, including plugin attribution; both the live engine and offline reader provide it.
 
+`seatAuthorizationTransactions.operation` rebuilds approval registration and correlated opening progress from the committed queue and trigger facts. Pending reasons, created phases, cancellations and recorded failures remain queryable after restart without executing work or exposing frozen instructions. Approval does not imply creation or first-turn success.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>

@@ -25,6 +25,8 @@ kind: "package-reference"
 
 提供方实现 `SeatService`、`SeatEngineService`、`SeatGateService` 与 `SeatDirectoryService`。消费方通过 `ctx.get` 获取可选服务；提供方缺席不构成操作授权，也不会激活替代实现。`withAuthority` 接收经过认证的服务端权限，不能直接使用请求中的身份声明。
 
+可选 `seatAuthorizationTransactions.operation` 返回 `SeatEngineOperationResult`：既有操作结果附加批准登记及关联进度元数据。它只读取已提交事实，不接纳动作；旧提供方可省略此能力。
+
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 
 <a id="model-experience"></a>

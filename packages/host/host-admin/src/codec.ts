@@ -5,6 +5,7 @@ import type { HostAdminRequest, HostAdminResponse } from './index.ts'
 import { object, identifier, digest } from './json.ts'
 import { SEAT_ENGINE_EVENT_NAMES, type EngineEventKind } from '@panedesk/dsh-seat'
 import { validEffect } from '@panedesk/dsh-seat-engine/src/validation.ts'
+import { validAuthorization } from '@panedesk/dsh-seat-engine/src/authorization-storage.ts'
 
 /** Decode only the frozen administrative method set.
  * @param value - Bounded JSON request.
@@ -25,15 +26,15 @@ export function decodeRequest(value: unknown): HostAdminRequest {
     case 'engine.query': {
       const params = value.params
       if (!object(params) || !Number.isSafeInteger(params.limit) || Number(params.limit) < 1
-        || Object.keys(params).some(key => !['limit', 'cursor', 'nodeId', 'seat', 'kinds', 'from', 'to', 'taskId'].includes(key))
-        || Object.entries(params).some(([key, entry]) => !['limit', 'cursor', 'kinds'].includes(key) && !identifier(entry))
+        || Object.keys(params).some(key => !['limit', 'cursor', 'authorizationCursor', 'kind', 'nodeId', 'seat', 'kinds', 'from', 'to', 'taskId'].includes(key))
+        || Object.entries(params).some(([key, entry]) => !['limit', 'cursor', 'authorizationCursor', 'kinds'].includes(key) && !identifier(entry))
+        || params.kind !== undefined && (typeof params.kind !== 'string'
+          || !['human', 'engine', 'model-tool-call', 'local-operator', 'node-delegation', 'plugin'].includes(params.kind))
         || (params.kinds !== undefined && (!Array.isArray(params.kinds) || !params.kinds.every(identifier)))) {
         throw new Error('Administration query rejected')
       }
-      if (params.cursor !== undefined && (!object(params.cursor) || !identifier(params.cursor.nodeId)
-        || !Number.isSafeInteger(params.cursor.sequence) || Number(params.cursor.sequence) < 0
-        || !Number.isSafeInteger(params.cursor.effectIndex) || Number(params.cursor.effectIndex) < 0)) {
-        throw new Error('Administration cursor rejected')
+      for (const cursor of [params.cursor, params.authorizationCursor]) {
+        if (cursor !== undefined && !validCursor(cursor)) throw new Error('Administration cursor rejected')
       }
       break
     }
@@ -64,7 +65,10 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       else decodeSeatResult('seats/pending', value.result)
       break
     case 'engine.approve': decodeSeatResult('seats/approve', value.result); break
-    case 'engine.operation': decodeSeatResult('seats/operation', value.result); break
+    case 'engine.operation':
+      decodeSeatResult('seats/operation', value.result)
+      if (object(value.result)) validateProgress(value.result)
+      break
     case 'engine.query':
       if (object(value.result) && value.result.status === 'rejected') {
         decodeSeatResult('seats/approve', value.result)
@@ -73,6 +77,18 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       if (!object(value.result) || !Array.isArray(value.result.effects) || typeof value.result.complete !== 'boolean'
         || !Number.isSafeInteger(value.result.watermark) || Number(value.result.watermark) < 0
         || value.result.effects.length > request.params.limit) throw new Error('Administration query result rejected')
+      if (value.result.authorizations !== undefined) {
+        const page = value.result.authorizations
+        if (!object(page) || !Array.isArray(page.facts) || page.facts.length > request.params.limit
+          || !page.facts.every(validAuthorization) || typeof page.complete !== 'boolean'
+          || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0
+          || !['none', 'legacy-unknown'].includes(String(page.legacyAttribution))
+          || page.nextCursor !== undefined && (!validCursor(page.nextCursor)
+            || Number(page.nextCursor.sequence) > Number(page.watermark)
+            || request.params.nodeId !== undefined && page.nextCursor.nodeId !== request.params.nodeId)) {
+          throw new Error('Administration authorization page rejected')
+        }
+      }
       for (const effect of value.result.effects) {
         if (!object(effect) || !identifier(effect.eventId) || typeof effect.kind !== 'string'
           || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !object(effect.data)
@@ -96,4 +112,25 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       break
   }
   return value as HostAdminResponse
+}
+function validCursor(value: unknown): value is Record<string, unknown> {
+  return object(value) && identifier(value.nodeId) && Number.isSafeInteger(value.sequence) && Number(value.sequence) >= 0
+    && Number.isSafeInteger(value.effectIndex) && Number(value.effectIndex) >= 0
+    && Object.keys(value).every(key => ['nodeId', 'sequence', 'effectIndex'].includes(key))
+}
+function validateProgress(result: Record<string, unknown>): void {
+  const approval = result.approval, progress = result.progress
+  if (approval !== undefined && (!object(approval) || !identifier(approval.queueItemId)
+    || !Number.isSafeInteger(approval.stateVersion) || Number(approval.stateVersion) < 0)) {
+    throw new Error('Administration approval projection rejected')
+  }
+  if (progress === undefined) return
+  if (!object(progress)) throw new Error('Administration progress rejected')
+  if (progress.kind === 'cancelled') return
+  if (progress.kind === 'open' && identifier(progress.sessionId)
+    && ['intent', 'creating', 'created', 'configuring', 'opening-pending', 'active', 'opening-failed'].includes(String(progress.phase))) return
+  if (progress.kind === 'pending' && ['approval', 'project-off', 'time-window', 'node-capacity', 'seat-capacity', 'exclusive-tag',
+    'budget-full', 'budget-unverifiable', 'provider-unavailable'].includes(String(progress.reason))
+    && Array.isArray(progress.blockedBy) && progress.blockedBy.every(identifier)) return
+  throw new Error('Administration progress rejected')
 }

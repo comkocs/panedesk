@@ -2,6 +2,7 @@
 import type { HostAdminExecutionAdapter, HostAdminExecutionDependencies } from './execution.ts'
 import { HOST_ADMIN_VERSION, type HostAdminExecutor, type HostAdminRequest, type HostAdminResponse } from './index.ts'
 import { digest } from './json.ts'
+import { queryAdmin } from './query.ts'
 
 /** Construct an explicit adapter without installing services or starting another engine.
  * @param dependencies - Running engine and trusted local authorization capabilities.
@@ -22,9 +23,11 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
       case 'engine.pending': return { ...base, method: request.method, result: await dependencies.engine.pending(request.params) }
       case 'engine.query':
         if (request.params.nodeId !== undefined && request.params.nodeId !== dependencies.nodeId) return refuse(request)
-        return { ...base, method: request.method, result: await dependencies.queries.tasks(request.params) }
+        return { ...base, method: request.method,
+          result: await queryAdmin(dependencies.queries, dependencies.authorization, request.params) }
       case 'engine.operation':
-        // The frozen engine API has no operation projection; do not guess settlement from arbitrary effects.
+        if (dependencies.authorization.operation) return { ...base, method: request.method,
+          result: await dependencies.authorization.operation(request.params) }
         return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
           status: 'unavailable', code: 'admin-method-unavailable', reason: 'Local operation projection is unavailable' }
       case 'engine.approve': {
