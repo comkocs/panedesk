@@ -2,7 +2,9 @@
 import { decodeSeatRequest, decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
 import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, HOST_ADMIN_ERROR_CODES } from './index.ts'
 import type { HostAdminRequest, HostAdminResponse } from './index.ts'
-import { object, identifier } from './json.ts'
+import { object, identifier, digest } from './json.ts'
+import { SEAT_ENGINE_EVENT_NAMES, type EngineEventKind } from '@panedesk/dsh-seat'
+import { validEffect } from '@panedesk/dsh-seat-engine/src/validation.ts'
 
 /** Decode only the frozen administrative method set.
  * @param value - Bounded JSON request.
@@ -69,7 +71,28 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
         break
       }
       if (!object(value.result) || !Array.isArray(value.result.effects) || typeof value.result.complete !== 'boolean'
-        || !Number.isSafeInteger(value.result.watermark)) throw new Error('Administration query result rejected')
+        || !Number.isSafeInteger(value.result.watermark) || Number(value.result.watermark) < 0
+        || value.result.effects.length > request.params.limit) throw new Error('Administration query result rejected')
+      for (const effect of value.result.effects) {
+        if (!object(effect) || !identifier(effect.eventId) || typeof effect.kind !== 'string'
+          || !Object.hasOwn(SEAT_ENGINE_EVENT_NAMES, effect.kind) || !object(effect.data)
+          || !validEffect(effect.kind as EngineEventKind, effect.data)
+          || ['seat', 'sessionId', 'taskId', 'triggerId', 'operationId', 'causedBy'].some(key =>
+            effect[key] !== undefined && !identifier(effect[key]))) throw new Error('Administration query effect rejected')
+        const data = effect.data
+        if (['sessionId', 'seat', 'operationId'].some(key => effect[key] !== undefined
+          && data[key] !== undefined && effect[key] !== data[key])
+          || (object(data.payload) && digest(data.payload) !== data.payloadDigest)) throw new Error('Administration query effect mismatch')
+      }
+      if (value.result.nextCursor !== undefined) {
+        const cursor = value.result.nextCursor
+        if (!object(cursor) || !identifier(cursor.nodeId) || !Number.isSafeInteger(cursor.sequence)
+          || Number(cursor.sequence) < 0 || Number(cursor.sequence) > Number(value.result.watermark)
+          || !Number.isSafeInteger(cursor.effectIndex) || Number(cursor.effectIndex) < 0
+          || (request.params.nodeId !== undefined && cursor.nodeId !== request.params.nodeId)) {
+          throw new Error('Administration result cursor rejected')
+        }
+      }
       break
   }
   return value as HostAdminResponse

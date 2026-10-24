@@ -74,6 +74,7 @@
     "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-node-link": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-storage-domain": "workspace:*",

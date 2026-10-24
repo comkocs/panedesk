@@ -7,6 +7,7 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../util/brand" },
     { "path": "../../seat/seat" },
+    { "path": "../../seat/seat-engine" },
     { "path": "../../sdk/protocol" }
   ]
 }

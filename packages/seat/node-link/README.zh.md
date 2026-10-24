@@ -34,9 +34,9 @@ kind: "package-reference"
 
 每节点预置 `inbound.json` 与 `outbound.json`，均含方向节点标识、`epoch` 与随机凭据；两个方向值必须独立。`provisionInbound` 可生成入向私有文件但不打印或返回秘密值。将一端入向文件安全配置为另一端出向文件，禁止通过参数、地址或环境变量传播。
 
-POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单硬链接普通文件，路径不得含符号链接；运维须保证祖先目录不受非受信账号替换。Windows 必须提供 `nodeLinkFiles` 实现等效 ACL 与耐久写入。运行中凭据保存在内存快照，轮换须协调两端卸载、重新配置并装载；本版不实现热轮换或短重叠。
+POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单硬链接普通文件，路径不得含符号链接；运维须保证祖先目录不受非受信账号替换。Windows 必须提供 `nodeLinkFiles` 实现等效 ACL 与耐久写入。每次健康探测重新读取两个方向的已校验私有文件。`credentialOverlapMs` 显式限制唯一旧代次的剩余有效期，省略则禁用重叠。发布新凭据时附带具有固定 `expiresAt` 的旧条目，再安全更新对端出向文件；重叠期两个代次均可认证，到期后拒绝旧代次。重载失败会断开出向路由；发布须与探测周期协调。
 
-`nodeLinkExecutor` 必须验证真实主体、当前绑定、目标及方法权限，执行原本地提供器并提供节点状态。委托字符串或 SSH 登录本身不赋予权限。缺少适配时拒绝接收，不能绕回路由获取权限。
+`createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。缺少适配时拒绝接收，接收端不再转发。
 
 <a id="persistence-and-disconnection"></a>
 ## 持久化与断链
@@ -62,8 +62,9 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 不改变会话历史或缓存前缀。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与待完成项
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - 真实本地执行与授权审计适配由并线方提供；本包的替身测试不证明真实开窗、消息或授权账本已接通。Windows 实跑与真实 SSH 验收未执行。只支持一对配置节点，未提供多节点路由注册与热配置轮换。
 

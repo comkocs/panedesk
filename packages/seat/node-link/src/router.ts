@@ -13,11 +13,18 @@ export class NodeRouter implements NodeRouterService {
   private connected = false
   private pending = 0
   private statusValue: NodeLinkStatus
-  constructor(private readonly options: NodeLinkRuntimeConfig, private readonly credential: ChannelCredential,
+  constructor(private readonly options: NodeLinkRuntimeConfig, private credential: ChannelCredential,
     private readonly outgoing: OperationStore, private readonly available: () => boolean) {
     this.statusValue = { nodeId: options.peerNodeId as NodeLinkStatus['nodeId'], nodeName: options.peerName,
       reachable: false, linkState: 'disconnected', observedAt: new Date().toISOString(),
       status: null, capabilities: [], safeReason: 'node-tunnel-disconnected' }
+  }
+  /** Replace outbound authentication only after a checked private-file reload.
+   * @param credential - Newly loaded directional credential.
+   */
+  rotate(credential: ChannelCredential): void {
+    if (credential.epoch !== this.credential.epoch || credential.credential !== this.credential.credential) this.disconnect()
+    this.credential = credential
   }
   /** Mark only transport state; retained self-reported counts are never rewritten to zero. */
   disconnect(): void { this.connected = false; this.statusValue = { ...this.statusValue, reachable: false,
@@ -28,11 +35,11 @@ export class NodeRouter implements NodeRouterService {
   async handshake(): Promise<boolean> {
     if (!this.available()) { this.disconnect(); return false }
     try {
-      const nonce = randomUUID()
-      const value = await callLoopback(this.options.peerPort, this.credential, { type: 'hello', version: NODE_LINK_VERSION,
+      const nonce = randomUUID(), credential = this.credential
+      const value = await callLoopback(this.options.peerPort, credential, { type: 'hello', version: NODE_LINK_VERSION,
         sourceNodeId: this.options.nodeId, targetNodeId: this.options.peerNodeId, nonce }, this.options)
       if (!object(value) || value.version !== NODE_LINK_VERSION || value.nonce !== nonce || value.nodeId !== this.options.peerNodeId
-        || value.epoch !== this.credential.epoch) throw new Error('Node handshake rejected')
+        || value.epoch !== credential.epoch || this.credential !== credential) throw new Error('Node handshake rejected')
       const status = decodeSeatResult('seats/nodeStatus', value.status)
       if (status.nodeId !== this.options.peerNodeId) throw new Error('Node status identity rejected')
       this.statusValue = { ...this.statusValue, reachable: true, linkState: 'connected', status,
@@ -41,6 +48,10 @@ export class NodeRouter implements NodeRouterService {
       return true
     } catch (error) { void error; this.disconnect(); return false }
   }
+  /** Route an exact operation or reconcile its retained unknown outcome.
+   * @param input - Prepared request with entry-issued single-hop delegation.
+   * @returns Correlated peer result or explicit non-execution/unknown failure.
+   */
   async route(input: NodeWireRequest): Promise<NodeWireResponse> {
     const request = decodeRequest(input)
     if (request.sourceNodeId !== this.options.nodeId || request.targetNodeId !== this.options.peerNodeId) {

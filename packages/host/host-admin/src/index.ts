@@ -9,7 +9,7 @@ import type { PrivateFiles } from './private-files.ts'
 export { PosixPrivateFiles } from './private-files.ts'
 export type { PrivateFiles } from './private-files.ts'
 export { OperationStore } from './operation-store.ts'
-export { listenLoopback, callLoopback } from './loopback.ts'
+export { listenLoopback, callLoopback, listenAuthenticatedLoopback } from './loopback.ts'
 export type { RpcLimits, RpcAuthentication, LoopbackListener } from './loopback.ts'
 export { canonical, digest, object, identifier, parseJson } from './json.ts'
 export { callAdmin } from './client.ts'
@@ -140,3 +140,4 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  */
 export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountAdmin(_ctx, _config)) }
 export type * from './execution.ts'
+export { createHostAdminExecutor, hostAdminExecutionAdapter } from './executor.ts'

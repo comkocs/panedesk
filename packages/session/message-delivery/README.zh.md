@@ -25,6 +25,8 @@ kind: "package-reference"
 
 `send`、`withdraw`、`edit`、`reprioritize`、`invalidate`、`status`、`operationStatus`、`list`、`resolve`、`sendBatch`、`configure` 和 `subscribe` 声明于 `src/index.ts`。公开输入和结果从 `src/types.ts` 导出。已关闭收件方可以拒绝即时投递，同时保留排队消息；离线控制只确认持久意图，不代表裁决完成。订阅迭代返回或服务销毁时释放资源。
 
+`RoutedSendMessageRequest` 在旧发送输入上增加冻结的发送身份、消息号、投递号、摘要及可选调用／因果引用。可选 `routedDeliveryVerifier` 验证宿主持有的精确载荷能力；线上字段不赋予权限。接收端保留这些身份，仅在耐久入箱后确认。
+
 `message/settings` 是读取时必需的持久事件。`message/state` 只在持久回执提交后发出。消息生命周期记录归独立消息账本命名空间，不进入调用日志。
 
 <a id="dev-note"></a>

@@ -54,9 +54,21 @@ export interface RoutedMessageReceiver {
   receive(request: RoutedSendMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>
 }
 
+/** The authority owner verifies identity rather than trusting a structurally similar object. */
+export interface RoutedDeliveryVerifier {
+  /** Recheck an exact envelope against the host's process-local capability registry.
+   * @param authority - Previously issued host capability.
+   * @param envelope - Exact sender-frozen delivery and causal evidence.
+   * @returns Whether the capability belongs to this live host and envelope.
+   */
+  verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope): Promise<boolean>
+}
+
 declare module '@panedesk/cordis' {
   interface Context {
     /** Missing capability retains cross-node-unsupported; ordinary local send remains unchanged. */
     routedMessageReceiver: RoutedMessageReceiver
+    /** Optional exact-envelope verifier; missing ownership keeps routed ingress disabled. */
+    routedDeliveryVerifier: RoutedDeliveryVerifier
   }
 }

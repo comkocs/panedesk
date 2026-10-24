@@ -5,7 +5,7 @@ kind: "package-reference"
 
 # `@panedesk/dsh-node-link`
 
-English | [Chinese](README.zh.md)
+English | [中文](README.zh.md)
 
 ## Summary
 
@@ -34,9 +34,9 @@ Optional `ssh` requires `alias`, `cwd`, `remotePort`, `remoteTargetPort`, `grace
 
 Each node provisions `inbound.json` and `outbound.json`, containing directional node IDs, an `epoch`, and random credentials; the two directions require independent values. `provisionInbound` can create the inbound private file without printing or returning its secret. Securely provision one endpoint's inbound file as the other's outbound file; never propagate credentials through arguments, addresses, or environment variables.
 
-The POSIX target directory must be an absolute path owned by the current user with mode `0700`; files must be regular, single-link files with mode `0600`, and paths must contain no symbolic links. Operators must prevent untrusted accounts from replacing ancestor directories. Windows requires `nodeLinkFiles` with equivalent ACL checks and durable writes. Running credentials use an in-memory snapshot; rotation requires coordinated unloading, reprovisioning, and reloading at both endpoints. Hot rotation and overlap periods are not implemented.
+The POSIX target directory must be an absolute path owned by the current user with mode `0700`; files must be regular, single-link files with mode `0600`, and paths must contain no symbolic links. Operators must prevent untrusted accounts from replacing ancestor directories. Windows requires `nodeLinkFiles` with equivalent ACL checks and durable writes. Each health probe reloads both checked directional files. `credentialOverlapMs` explicitly bounds one previous epoch's remaining lifetime; omission disables overlap. Publish the new credential with a previous entry containing its fixed `expiresAt`, then securely update the peer's outbound file. Both epochs authenticate during that interval, and the old epoch is rejected after expiry. Invalid reloads disconnect outgoing routing; coordinate publication with the probe interval.
 
-`nodeLinkExecutor` must validate the real principal, current binding, target, and method permissions, invoke the original local provider, and provide node status. A delegation string or SSH login alone grants no authority. Missing executors reject incoming requests; routing cannot substitute for authorization.
+`createDelegationIssuer` captures trusted issuer evidence and limits expiry to the original authority and request deadline. `createDelegationReceivingPolicy` verifies retained evidence and narrows it against the authenticated peer's local permission allowlist. `createNodeLinkExecutor` rechecks authorization before execution; seat writes require `localAdmission` to commit authorization and intent together, and routed messages require a host-owned exact-envelope authority. A delegation string or SSH login alone grants no authority. Missing adapters reject incoming requests; receivers never route again.
 
 <a id="persistence-and-disconnection"></a>
 ## Persistence and Disconnection
@@ -62,8 +62,9 @@ The transport makes no additional model calls; token usage depends on the origin
 
 Session history and cache prefixes remain unchanged.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - Integrators must supply real local execution and authorization-audit adapters. Test doubles do not establish that real opening, messaging, or authorization journals are connected. Windows execution and real SSH acceptance have not been tested. Only one configured node pair is supported, without multi-node route registration or hot configuration rotation.
 

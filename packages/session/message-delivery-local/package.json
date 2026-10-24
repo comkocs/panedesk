@@ -37,6 +37,8 @@
   "dependencies": {
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-host-admin": "workspace:*",
+    "@panedesk/dsh-node-link": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",

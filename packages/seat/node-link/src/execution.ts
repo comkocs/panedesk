@@ -1,7 +1,18 @@
 /** Receiving adapters compose local providers with trusted attribution and atomic admission. */
 import type * as Seat from '@panedesk/dsh-seat'
 import type { RoutedDeliveryAuthorizer, RoutedMessageReceiver } from '@panedesk/dsh-message-delivery'
-import type { NodeLinkExecutor } from './index.ts'
+import type { NodeLinkExecutor, NodeWireResponse } from './index.ts'
+import type { NodePreparedRequest } from './delegation.ts'
+
+/** Local admission is explicitly supplied by the journal-owning provider, never synthesized by transport. */
+export interface NodeAuthorizedLocalAdmission {
+  /** Commit the exact grant with the original action intent before dispatching local effects.
+   * @param request - Single-hop operation already checked against the local target.
+   * @param authorization - Entry-issued, process-local grant with exact operation evidence.
+   * @returns Correlated local result after atomic admission; no rerouting is permitted.
+   */
+  execute(request: NodePreparedRequest, authorization: Seat.SeatAuthorizationGrant): Promise<NodeWireResponse>
+}
 import type { NodeAuthenticatedPeer, NodeDelegationReceivingPolicy } from './delegation.ts'
 
 /** The host supplies local-only capabilities; no router is available through this interface. */
@@ -13,6 +24,8 @@ export interface NodeLinkExecutionDependencies {
   readonly localSeats: Seat.SeatService
   readonly messages?: RoutedMessageReceiver
   readonly messageAuthority?: RoutedDeliveryAuthorizer
+  /** Optional local admission owner that commits the grant and action together; absence refuses seat writes. */
+  readonly localAdmission?: NodeAuthorizedLocalAdmission
 }
 /** Implementations are installed explicitly as nodeLinkExecutor, never by importing declarations. */
 export interface NodeLinkExecutionAdapter {

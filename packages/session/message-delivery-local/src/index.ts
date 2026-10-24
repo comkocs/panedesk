@@ -33,6 +33,8 @@ import { component, MailboxUnavailableError, object, privateDirectory, publish, 
 import { RecipientPolicy } from './policy.ts'
 import { broadcast } from './broadcast.ts'
 import { ReceiptStore } from './receipts.ts'
+import { createRoutedMailboxReceiver } from './routed-receiver.ts'
+import { sendRoutedMessage } from './routed-sender.ts'
 import { inspectWindowsAcl } from './windows-permissions.ts'
 import { policyReason, resolveRecipients } from './recipients.ts'
 import type { Config, ControlCommand, RecipientMetadata } from './types.ts'
@@ -198,6 +200,19 @@ export default class LocalMessageDelivery extends MessageDelivery {
       return
     }
     this.policy = new RecipientPolicy(this.ctx)
+    this.ctx.effect(() => this.ctx.provide('routedMessageReceiver', createRoutedMailboxReceiver({ mailbox: this.mailbox,
+      maxContentBytes: this.config.maxContentBytes,
+      authorize: async (authority, request) => await this.ctx.get('routedDeliveryVerifier')?.verify(authority, request.delivery) ?? false,
+      resolve: async (request) => {
+        const [resolution] = await this.resolve([request.target])
+        if (!resolution) return 'unavailable'
+        if (resolution.kind === 'rejected') return resolution.reason
+        if (request.messageClass === 'reply' && !await this.findMessage(request.replyTo)) return 'invalid-reply'
+        const metadata = (await this.metadata()).find(item => item.sessionId === resolution.recipient.sessionId)
+        return metadata ? policyReason(metadata.settings, request.messageClass) ?? resolution.recipient : 'unavailable'
+      },
+      notify: (recipient) => { const owner = this.owners.get(recipient.sessionId); if (owner) this.track(owner.arbitrator.drain()) },
+    })))
     this.activate()
   }
 
@@ -286,6 +301,10 @@ export default class LocalMessageDelivery extends MessageDelivery {
   async send(request: SendMessageRequest): Promise<SendMessageResult> {
     await this.ready
     const sender = this.sender()
+    if (request.target.nodeId !== undefined && request.target.nodeId !== this.nodeId
+      && this.ctx.get('nodeRouter') && this.ctx.get('nodeDelegationIssuer')) {
+      return sendRoutedMessage(this.ctx, this.mailbox, request, sender)
+    }
     const digest = createHash('sha256').update(JSON.stringify({ sender, request })).digest('hex')
     const key = component(request.operationId)
     return this.mailbox.locked(join(this.mailbox.root, 'operations', `${key}.lock`), async () => {

@@ -10,6 +10,7 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../seat" },
+    { "path": "../node-link" },
     { "path": "../../fs/fs" },
     { "path": "../../sandbox/sandbox" },
     { "path": "../../sandbox/sandbox-policy" },
