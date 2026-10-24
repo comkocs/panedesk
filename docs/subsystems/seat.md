@@ -34,6 +34,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `HostSdkInvocation` identifies a registered namespace method and its untrusted parameters. `HostSdkIdentity` carries only host-issued principal, optional Session and seat attribution, and a revocation signal; request fields cannot supply that identity. `HostSdkResult` separates an encoded JSON value from a safe rejection. `HostSessionBinding` supplies trusted Session and seat facts to the credential issuer; `HostSessionCredential` returns owner-only endpoint and credential paths with awaited revocation. These services remain absent when their optional providers are not installed.
 
+`SeatEngineOperationResult` preserves the existing operation status while adding optional approval registration and correlated pending/open/cancelled progress. `HostAdminQueryRequest` uses separate effect and authorization cursors; `HostAdminQueryResult` carries redacted effects and an independently bounded issued-authorization page. Neither historical facts nor queries grant execution authority.
+
 ## Waits, reports, and policies
 
 `SeatWait` registers any/all observations of explicit subagent, job, schedule, or message objects, returning before completion. Cancellation affects observation only. `CloseSelfReport` records close intent, outstanding work, and next-open prerequisites without changing runtime status.
@@ -324,6 +326,12 @@ approve(request: ApprovePendingSeatRequest, authorization: SeatAuthorizationGran
  * @returns Matching facts once each, scanned watermark and explicit completeness or refusal.
  */
 query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>
+
+/** Read durable operation progress without admitting or retrying any action.
+ * @param request - Stable operation identity.
+ * @returns Registration and latest correlated progress, or missing when no fact exists.
+ */
+operation?(request: import('./types.ts').SeatOperationQuery): Promise<SeatEngineOperationResult>
 ```
 
 Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)

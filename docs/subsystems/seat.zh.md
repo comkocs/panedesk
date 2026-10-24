@@ -34,6 +34,8 @@
 
 `HostSdkInvocation` 标识已登记的命名空间方法及其不可信参数。`HostSdkIdentity` 仅携带宿主签发的主体、可选会话与席位归属以及撤销信号；请求字段不能提供该身份。`HostSdkResult` 区分已编码的 JSON 值与安全拒绝。`HostSessionBinding` 向凭据签发器提供可信的会话与席位事实；`HostSessionCredential` 返回仅所有者可读的端点及凭据路径，并提供须等待完成的撤销操作。未安装相应可选提供方时，这些服务保持缺席。
 
+`SeatEngineOperationResult` 保留既有操作状态，增加可选批准登记及关联的待决、开窗或取消进度。`HostAdminQueryRequest` 分别使用效果与授权游标；`HostAdminQueryResult` 携带脱正文效果及独立限额的已签发授权分页。历史事实与查询均不授予执行权限。
+
 ## 等待、报告与策略
 
 `SeatWait` 对明确的 subagent、后台任务、调度或消息对象注册任一或全部观察，在完成前返回。取消只影响观察。`CloseSelfReport` 记录关闭意向、未完工作及下次开窗前置条件，不改变运行时状态。
@@ -324,6 +326,12 @@ approve(request: ApprovePendingSeatRequest, authorization: SeatAuthorizationGran
  * @returns Matching facts once each, scanned watermark and explicit completeness or refusal.
  */
 query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>
+
+/** Read durable operation progress without admitting or retrying any action.
+ * @param request - Stable operation identity.
+ * @returns Registration and latest correlated progress, or missing when no fact exists.
+ */
+operation?(request: import('./types.ts').SeatOperationQuery): Promise<SeatEngineOperationResult>
 ```
 
 Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)

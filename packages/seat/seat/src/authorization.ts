@@ -66,6 +66,13 @@ export interface SeatIssuedAuthorizationQueryRequest extends Omit<SeatAuthorizat
 export interface SeatIssuedAuthorizationQueryResult extends Omit<SeatAuthorizationQueryResult, 'facts'> {
   facts: readonly SeatIssuedAuthorizationFact[]
 }
+/** Approval registration and subsequent admission are separate durable observations. */
+export type SeatEngineOperationResult = import('./types.ts').SeatOperationResult & {
+  approval?: { queueItemId: import('./types.ts').QueueItemId; stateVersion: number }
+  progress?: { kind: 'pending'; reason: import('./types.ts').PendingReason; blockedBy: readonly string[] }
+    | { kind: 'open'; phase: import('./types.ts').OpenPhase; sessionId: import('@panedesk/dsh-session').SessionId }
+    | { kind: 'cancelled' }
+}
 /** Installed only with a compatible journal writer, replay validator and query projection. */
 export interface SeatAuthorizationTransactions {
   /** Revalidate current ownership before resuming an already admitted external action.
@@ -100,6 +107,11 @@ export interface SeatAuthorizationTransactions {
    * @returns Matching facts once each, scanned watermark and explicit completeness or refusal.
    */
   query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>
+  /** Read durable operation progress without admitting or retrying any action.
+   * @param request - Stable operation identity.
+   * @returns Registration and latest correlated progress, or missing when no fact exists.
+   */
+  operation?(request: import('./types.ts').SeatOperationQuery): Promise<SeatEngineOperationResult>
 }
 
 /** Separate JSON export includes issued kinds without widening legacy engine effects. */

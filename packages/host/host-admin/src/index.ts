@@ -26,8 +26,17 @@ export interface HostAdminMethods {
   'node.status': { request: Record<string, never>; result: Seat.SeatNodeStatus }
   'engine.pending': { request: Seat.ListPendingSeatsRequest; result: Seat.ListPendingSeatsResult | Seat.SeatRejected }
   'engine.approve': { request: Seat.ApprovePendingSeatRequest; result: Seat.PendingSeatMutationResult }
-  'engine.operation': { request: Seat.SeatOperationQuery; result: Seat.SeatOperationResult }
-  'engine.query': { request: Seat.SeatTaskQueryRequest; result: Seat.EngineQueryResult | Seat.SeatRejected }
+  'engine.operation': { request: Seat.SeatOperationQuery; result: Seat.SeatEngineOperationResult }
+  'engine.query': { request: HostAdminQueryRequest; result: HostAdminQueryResult | Seat.SeatRejected }
+}
+/** Effect and authorization scans have independent exclusive cursors. */
+export interface HostAdminQueryRequest extends Seat.SeatTaskQueryRequest {
+  authorizationCursor?: Seat.EngineCursor
+  kind?: Seat.SeatIssuedAuthorizationKind
+}
+/** Legacy executors may omit authorization pages; the installed engine adapter always supplies one. */
+export interface HostAdminQueryResult extends Seat.EngineQueryResult {
+  authorizations?: Seat.SeatIssuedAuthorizationQueryResult
 }
 /** A process epoch rejects stale metadata and PID reuse; it is not a credential. */
 export interface HostAdminEndpoint {

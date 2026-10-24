@@ -2546,6 +2546,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'Authorized task, seat, kind and time filters with an exclusive cursor.' }],
         returns: 'Matching facts once each, scanned watermark and explicit completeness or refusal.',
       },
+      {
+        signature: 'operation?(request: import(\'./types.ts\').SeatOperationQuery): Promise<SeatEngineOperationResult>',
+        description: 'Read durable operation progress without admitting or retrying any action.',
+        parameters: [{ name: 'request', description: 'Stable operation identity.' }],
+        returns: 'Registration and latest correlated progress, or missing when no fact exists.',
+      },
     ],
   },
   {
@@ -7618,7 +7624,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostAdminMethods',
-    declaration: 'export interface HostAdminMethods {\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatOperationResult;\n    };\n    \'engine.query\': {\n        request: Seat.SeatTaskQueryRequest;\n        result: Seat.EngineQueryResult | Seat.SeatRejected;\n    };\n}',
+    declaration: 'export interface HostAdminMethods {\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
+  },
+  {
+    name: 'HostAdminQueryRequest',
+    declaration: 'export interface HostAdminQueryRequest extends Seat.SeatTaskQueryRequest {\n    authorizationCursor?: Seat.EngineCursor;\n    kind?: Seat.SeatIssuedAuthorizationKind;\n}',
+  },
+  {
+    name: 'HostAdminQueryResult',
+    declaration: 'export interface HostAdminQueryResult extends Seat.EngineQueryResult {\n    authorizations?: Seat.SeatIssuedAuthorizationQueryResult;\n}',
   },
   {
     name: 'HostAdminRequest',
@@ -9863,6 +9877,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatEngineLocalAccess',
     declaration: 'export interface SeatEngineLocalAccess {\n    preAdmit?(input: SeatLocalOpenRequest): Promise<SeatRejected | null>;\n    list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>;\n    close(request: CloseSeatRequest): Promise<CloseSeatResult>;\n    freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>;\n    freezeContext?(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen | SeatRejected>;\n}',
+  },
+  {
+    name: 'SeatEngineOperationResult',
+    declaration: 'export type SeatEngineOperationResult = import(\'./types.ts\').SeatOperationResult & {\n    approval?: {\n        queueItemId: import(\'./types.ts\').QueueItemId;\n        stateVersion: number;\n    };\n    progress?: {\n        kind: \'pending\';\n        reason: import(\'./types.ts\').PendingReason;\n        blockedBy: readonly string[];\n    } | {\n        kind: \'open\';\n        phase: import(\'./types.ts\').OpenPhase;\n        sessionId: import(\'@panedesk/dsh-session\').SessionId;\n    } | {\n        kind: \'cancelled\';\n    };\n};',
   },
   {
     name: 'SeatEngineStatus',

@@ -62,7 +62,7 @@ export class SeatEngine extends SeatEngineService {
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
     this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
-      () => this.ready(), () => this.publish())
+      () => this.ready(), () => this.publish(), options.config.nodeName)
     ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
     ctx.provide('seatAuthorizationTransactions', this.authorizations)
     ctx.provide('seatAuthorizationExports', {

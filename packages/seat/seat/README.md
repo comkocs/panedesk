@@ -25,6 +25,8 @@ Optional opening snapshots and trigger references preserve provider revision and
 
 Providers implement `SeatService`, `SeatEngineService`, `SeatGateService`, and `SeatDirectoryService`. Consumers resolve optional services with `ctx.get`; missing providers do not authorize operations or activate replacements. `withAuthority` accepts authenticated server-side authority, never identity claims copied from a request.
 
+Optional `seatAuthorizationTransactions.operation` returns `SeatEngineOperationResult`: the existing operation result plus approval registration and correlated progress metadata. It reads committed facts without admitting actions; older providers may omit it.
+
 Stable operation identities, revision comparisons, explicit incomplete pages, and typed refusals preserve observable outcomes across retries. Engine decisions live outside the Session event union. Configuration and execution belong to providers; the declarations supply no deployment defaults.
 
 <a id="model-experience"></a>

@@ -481,6 +481,11 @@ export class LocalSeatService extends SeatService {
   wait(waitId: T.WaitId): Promise<T.SeatWait | null> { this.caller(); return this.waits.read(waitId) }
   async operation(request: T.SeatOperationQuery): Promise<T.SeatOperationResult> {
     this.caller()
+    const transactions = this.ctx.get('seatAuthorizationTransactions')
+    if (transactions?.operation) {
+      const result = await transactions.operation(request)
+      if (result.status !== 'missing') return result
+    }
     const effects = (await this.state.read()).effects.filter(effect => effect.operationId === request.operationId)
     const last = effects.at(-1)
     if (last === undefined) return { status: 'missing' }
