@@ -123,6 +123,15 @@ describe('ACP message extensions', () => {
     expect(h.adapter.requests).toEqual([])
   })
 
+  it('preserves a remote target, operation identity and explicit priority without local fallback', async () => {
+    const h = await start()
+    await h.client.initialize(offer())
+    const request = { ...send, target: { nodeId: 'node-b', sessionId: 'child-a' }, priority: 'immediate' }
+    await expect(h.requestExtension(`${prefix}send`, request)).resolves.toMatchObject({ messageId, operationId })
+    expect(delivery.send).toHaveBeenCalledExactlyOnceWith(request)
+    expect(h.adapter.requests).toEqual([])
+  })
+
   it.each([
     ['withdraw', control], ['edit', { ...control, content: 'Updated request' }],
     ['reprioritize', { ...control, priority: 'immediate' }], ['invalidate', { ...control, reason: 'Superseded' }],

@@ -55,6 +55,10 @@ Stdout carries only JSON-RPC frames, so clients can parse every byte; diagnostic
 
 `seats/*` requests require initialization and optional `seats`/`seatEngine` providers. The server captures local-owner authority, rejects delegated connections, validates requests, and routes operations through the scoped service rather than a private Session controller. Remote opening forces `origin: 'remote'` and `openingMode: 'auto'`. Management requests include import preview/commit, authority transfer, reports, and waits; missing providers report unsupported without starting a replacement runtime.
 
+The optional `SdkMethodRegistryProvider` admits exclusive `namespace/method` registrations through the contributor's effect scope. Fixed methods cannot be replaced. Decoding precedes host-context authorization and invocation; unloading removes advertised capabilities immediately and drains admitted work. Initialization advertises active `{ namespace, version }` entries in `namespaces`; unavailable registrations return `method-unavailable`.
+
+Local-owner `nodes/list`, `nodes/status`, and `authorizations/query` requests use optional node-router and authorization-query providers. Queries preserve stale health, missing aliases, and `watermark` / `nextCursor` / `complete`, including empty advancing pages. Authorization facts are historical evidence, not reusable credentials; caller-supplied attribution grants no authority.
+
 ### Shutdown and exit
 
 The plugin answers `shutdown`, flushes the response, disposes the root context so SDK-owned agents, subscriptions, and persistence reach quiescence, then exits 0. EOF and signal exits belong to the app bin, which also disposes the root context. Unloading only this plugin stops serving without exiting the process.

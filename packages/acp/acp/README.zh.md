@@ -81,6 +81,8 @@ kind: "package-reference"
 
 `subscribe({ sessionId, cursor? })` 还要求协商 `_panedesk/messages/state`。提供游标时响应回显该排他续取游标；后续通知包含提供方的游标、节点 id 和消息状态数据，其中含 `data.messageId`。同一连接每个会话只允许一个活跃订阅，重复订阅被拒绝。重新初始化或断开连接以释放订阅，再从最后收到的游标订阅续取。服务在协商和请求时查取，因此后装的提供方可通过重新初始化启用。流或传输失败会停止该订阅并记录续取诊断，不伪造回执。额外协商 `_panedesk/messages/error` 的客户端会在订阅失败时收到 `{ sessionId, reason: "unavailable" }`；不发送未协商的错误通知。回执不进入 `session/update`、不启动模型工作，也不改变 prompt/cancel/load 语义。
 
+宿主扩展要求 `_meta["panedesk/host"]` 包含 `version: 1` 与完整的 `methods` 名称。响应公布提供方支持的交集：`_panedesk/seats/open`、`openBatch`、`renew`、`close`、`replace`、`wake`、`_panedesk/nodes/list`、`_panedesk/nodes/status` 与 `_panedesk/authorizations/query`。席位请求在传输持有的权限下保留目标 `nodeId` 与操作标识；查询页保留游标与水位。消息投递保持独立的消息协商、标识与优先级。未协商的宿主方法返回不支持；已协商操作的提供方变为不可用时返回不可用错误。不启动替代宿主。
+
 会话配置从实时 LLM（大语言模型）服务目录提供不透明的提供方／模型选项，并在确切模型声明推理选项时提供 `reasoning_effort`。提示词会在异步图片准入前快照该选择，并在该轮次的每个模型步骤中固定它；并发选项变更从下一轮次开始生效。ACP 客户端是受信控制器：stdio MCP 条目授权其绝对命令与环境，HTTP 条目授权其绝对 HTTP(S) URL 与 header；初始连接或发现失败会回滚尚未发布的 Agent。不支持的界面会被省略或拒绝：`session/load`、删除、fork、附加目录、SSE（Server-Sent Events）或 ACP 传输 MCP、mode、命令、计划、终端、客户端文件系统操作与 elicitation。
 
 -----

@@ -55,6 +55,10 @@ Stdout 只承载 JSON-RPC 帧，客户端可以逐字节解析；诊断信息应
 
 `seats/*` 请求要求已初始化并装配可选的 `seats`／`seatEngine` 提供方。服务器捕获本地所有者权限、拒绝委派连接、校验请求，并经带权限作用域的服务调用，而非私有 Session 控制器。远程开窗强制 `origin: 'remote'` 与 `openingMode: 'auto'`。管理请求包含导入预览与提交、权限接替、自报与等待；缺少提供方时返回不支持，不启动替代运行时。
 
+可选的 `SdkMethodRegistryProvider` 经贡献者的 effect 作用域接纳独占的 `namespace/method` 注册。固定方法不可替换。解码先于宿主上下文鉴权与调用；卸载立即移除已发布能力，并等待已接纳工作结束。初始化通过 `namespaces` 发布活动的 `{ namespace, version }` 项；不可用的注册返回 `method-unavailable`。
+
+本地所有者的 `nodes/list`、`nodes/status` 与 `authorizations/query` 请求使用可选的节点路由和授权查询提供方。查询保留过期健康状态、缺失别名与 `watermark` / `nextCursor` / `complete`，包括游标前进但结果为空的页。授权事实只是历史证据，不是可复用凭据；调用者自报归因不会授予权限。
+
 ### 关闭与退出
 
 插件应答 `shutdown`，刷新响应并 dispose 根上下文，使 SDK 持有的 agent、订阅与持久化达到完全停稳，然后以 0 退出。EOF 与信号退出归 app bin 负责，后者也会 dispose 根上下文。仅卸载此插件会停止服务，但不会退出进程。

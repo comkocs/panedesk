@@ -25,6 +25,8 @@ The profile layers the base bundle and this bundle. Its patch declares the ledge
 
 Commands default to `list`. Manual `open` defaults to `prefill`; automatic opening requires an explicit choice. Batches name each seat explicitly. Structured operations accept `--request` JSON, mutually exclusive with field options; mutation callers can retain `--operation` identities. Invalid input, unavailable providers, and refused operations return status 2; success returns 0. stdout carries a JSON result.
 
+`nodes list` and `nodes status --node <alias>` read dated router health without synthesizing capacity for unreachable nodes. `authorizations query` accepts `--task`, `--seat`, `--node`, `--kind`, `--from`, `--to`, `--limit`, and a JSON `--cursor`, or an exclusive `--request` JSON object. Results retain `watermark`, `nextCursor`, and `complete`; missing providers never start another host.
+
 The command waits for `appReady`. Disposal removes the readiness listener and drains the running command. It does not own the engine journal or bypass provider readiness.
 
 <a id="model-experience"></a>

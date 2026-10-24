@@ -32,12 +32,14 @@
   "peerDependencies": {
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-experimental-translator": "workspace:*"

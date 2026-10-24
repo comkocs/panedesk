@@ -53,6 +53,8 @@ console.log(result.finalResponse)
 
 `DeepSeekHarness.seats` 提供与传输无关的 `SeatsClient` 门面。开窗始终使用远程／自动模式；显式批量保留各位独立结果。导入预览与提交、权限接替、自报提交、等待登记与取消均保留调用方持有的操作号及修订号。请求及嵌套结果先解码再使用；失败不会回退为普通提示词，也不会自动重试。这些方法要求运行时装配可选的 seat 提供方。
 
+`DeepSeekHarness.host` 与 `HarnessClient.host` 经现有请求传输提供 `listNodes()`、`nodeStatus(nodeId)` 与 `queryAuthorizations(request)`。它们保留过期或缺失的节点证据及授权分页，不自动重试。初始化可选返回活动的 `namespaces` 及其版本；扩展调用方使用公开的 `request('namespace/method', params)`，而非客户端私有属性。
+
 ### 用 HarnessClient 做低层控制
 
 `HarnessClient` 是运行 API 之下的协议客户端：显式 `start()`、`initialize()`、`prompt()`、`request()` 与 `close()`，外加通知订阅。`prompt()` 在运行时接受排队消息后立即返回该消息的 id，绝不等待 agent 活动。`subscribe(filter?)` 返回 `NotificationSubscription`（可等待的 `next()`、非阻塞 `tryNext()`、异步迭代）；`subscribeSessionTree(id)` 把范围限定到一个会话及从 `subagent.started` 血缘边发现的后代——运行时对上下文内每个会话都发通知，范围限定在客户端完成，与 Python SDK 完全一致。

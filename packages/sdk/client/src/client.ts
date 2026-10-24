@@ -31,6 +31,7 @@ import {
 } from '@panedesk/dsh-sdk-protocol'
 import { readProcessIdentity, type SubprocessIdentity, type SubprocessOutcome } from '@panedesk/dsh-subprocess'
 import { disposeRuntimeProcess } from './dispose.ts'
+import { HostClient, decodeNamespaces, type SdkNamespaceCapability } from './host.ts'
 import { resolveDshLaunch, type RuntimeProcessOptions } from './launch.ts'
 import type { HarnessClientOptions, HarnessNotification, NotificationFilter } from './types.ts'
 
@@ -194,6 +195,8 @@ class NotificationSubscriptionImpl implements NotificationSubscription {
 export class HarnessClient {
   /** Original public dsh launch and timeout options for this client. */
   readonly options: HarnessClientOptions
+  /** Read-only host queries reuse this client's authenticated request transport. */
+  readonly host = new HostClient((method, params) => this.request(method, params))
   private messagesVersion: number | undefined
   /** Message operations require a successful version negotiation; prompt remains queued. */
   readonly messages = {
@@ -344,7 +347,7 @@ export class HarnessClient {
    * @param params - workspace cwd plus the provider/model route.
    * @returns the runtime's wire identity.
    */
-  async initialize(params: InitializeParams): Promise<InitializeResult> {
+  async initialize(params: InitializeParams): Promise<InitializeResult & { namespaces?: readonly SdkNamespaceCapability[] }> {
     this.messagesVersion = undefined
     const { messagesVersion, ...legacyParams } = params
     const requestedVersion = this.options.enableMessages === true ? messagesVersion ?? MESSAGES_VERSION : undefined
@@ -361,7 +364,9 @@ export class HarnessClient {
     }
     this.messagesVersion = requestedVersion === MESSAGES_VERSION && result.messagesVersion === MESSAGES_VERSION
       ? MESSAGES_VERSION : undefined
+    const namespaces = decodeNamespaces(result.namespaces)
     return { serverInfo: { name: result.serverInfo.name, version: result.serverInfo.version },
+      ...namespaces === undefined ? {} : { namespaces },
       ...this.messagesVersion === undefined ? {} : { messagesVersion: this.messagesVersion } }
   }
 

@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import Callable
 
 from .client import HarnessClient, HarnessConfig, MessagesClient, SeatsClient
+from .host import HostClient
 from .errors import SdkProtocolError
-from .models import InitializeExecutionPolicy, InitializeLedgerContext, JsonObject, LlmCacheControl, Notification
+from .models import InitializeExecutionPolicy, InitializeLedgerContext, JsonObject, JsonValue, LlmCacheControl, Notification
 
 
 @dataclass(slots=True)
@@ -96,6 +97,11 @@ class DeepSeekHarness:
         self._initialized = False
         self.messages = MessagesClient(self._client, _before_request=self.start)
         self.seats = SeatsClient(self._client, _before_request=self.start)
+        self.host = HostClient(self._host_request)
+
+    def _host_request(self, method: str, params: JsonObject) -> JsonValue:
+        self.start()
+        return self._client.request(method, params)
 
     def __enter__(self) -> "DeepSeekHarness":
         self.start()

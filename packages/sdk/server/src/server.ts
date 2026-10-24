@@ -7,6 +7,8 @@
 
 import type { Context } from '@panedesk/cordis'
 import { executionPolicyDigest, validateHandshake } from './handshake.ts'
+import type { SdkMethodContext, SdkNamespaceCapability } from './method-registry.ts'
+import { hostProjection, isHostProjection } from './projections.ts'
 import { resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { brandString } from '@panedesk/dsh-brand'
@@ -102,6 +104,9 @@ export class HarnessSdkJsonRpcServer {
   private shuttingDown = false
   private messagesEnabled = false
   private readonly messageStreams = new Map<string, { stop: () => Promise<void> }>()
+  private readonly extensionAbort = new AbortController()
+  private readonly extensionCalls = new Set<Promise<unknown>>()
+  private readonly extensionPrincipal = brandString<SdkMethodContext['principalId']>(randomUUID())
   private initialized = false
   private initializing = false
   private handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'> = {}
@@ -164,7 +169,7 @@ export class HarnessSdkJsonRpcServer {
    * @param params - SDK handshake parameters.
    * @returns server identity for the handshake.
    */
-  async initialize(params: InitializeParams): Promise<InitializeResult> {
+  async initialize(params: InitializeParams): Promise<InitializeResult & { namespaces?: readonly SdkNamespaceCapability[] }> {
     if (this.initialized || this.initializing || this.shuttingDown) throw new Error('SDK server cannot reinitialize')
     validateHandshake(params)
     this.initializing = true
@@ -175,7 +180,7 @@ export class HarnessSdkJsonRpcServer {
     }
   }
 
-  private async initializeOnce(params: InitializeParams): Promise<InitializeResult> {
+  private async initializeOnce(params: InitializeParams): Promise<InitializeResult & { namespaces?: readonly SdkNamespaceCapability[] }> {
     await this.resolvePreset(params)
     if (params.reasoningEffort !== undefined
       && (typeof params.reasoningEffort !== 'string' || params.reasoningEffort.length === 0)) {
@@ -211,7 +216,9 @@ export class HarnessSdkJsonRpcServer {
     this.handshake = params
     this.initialized = true
     this.messagesEnabled = params.messagesVersion === MESSAGES_VERSION && this.ctx.get('messageDelivery') !== undefined
+    const namespaces = this.ctx.get('sdkMethods')?.capabilities()
     return { serverInfo: { name: 'panedesk-sdk-runtime', version: '0.0.1' },
+      ...namespaces === undefined || namespaces.length === 0 ? {} : { namespaces },
       ...this.messagesEnabled ? { messagesVersion: MESSAGES_VERSION } : {} }
   }
 
@@ -329,6 +336,8 @@ export class HarnessSdkJsonRpcServer {
 
   private async performShutdown(): Promise<Record<string, never>> {
     this.shuttingDown = true
+    this.extensionAbort.abort()
+    await Promise.allSettled([...this.extensionCalls])
     const pendingCreations = [...this.sessionCreations.values()]
     await Promise.allSettled(pendingCreations)
     this.sessionCreations.clear()
@@ -371,6 +380,13 @@ export class HarnessSdkJsonRpcServer {
    * @returns the handler's result, to be serialized as the response.
    */
   async handleRequest(method: string, params: Record<string, unknown> | undefined): Promise<unknown> {
+    if (isHostProjection(method)) {
+      if (!this.initialized || this.shuttingDown) throw new JsonRpcResponseError(-32601, 'Host projections are unavailable')
+      if (this.handshake.ledgerContext !== undefined || this.ctx.agents.currentInitiator() !== undefined) {
+        throw new JsonRpcResponseError(-32603, 'Host queries require the local owner', { reason: 'unauthorized' })
+      }
+      return hostProjection(this.ctx, method, params)
+    }
     if (isSeatMethod(method)) return this.seatRequest(method, params)
     if (isMessagesMethod(method)) return this.messageRequest(method, params)
     switch (method) {
@@ -404,8 +420,30 @@ export class HarnessSdkJsonRpcServer {
       case 'shutdown':
         return this.shutdown()
       default:
+        if (this.ctx.get('sdkMethods') !== undefined) return this.extensionRequest(method, params)
         throw new Error(`unknown Panedesk SDK runtime method: ${method}`)
     }
+  }
+
+  private async extensionRequest(method: string, params: unknown): Promise<unknown> {
+    const registry = this.ctx.get('sdkMethods')
+    if (!this.initialized || this.shuttingDown || registry === undefined) {
+      throw new JsonRpcResponseError(-32601, 'SDK method is unavailable', { reason: 'method-unavailable' })
+    }
+    // A client-provided ledger linkage is attribution, not an authenticated binding.
+    if (this.handshake.ledgerContext !== undefined) {
+      throw new JsonRpcResponseError(-32603, 'SDK extension requires a trusted binding', { reason: 'unauthorized' })
+    }
+    const initiator = this.ctx.agents.currentInitiator()
+    const context: SdkMethodContext = {
+      principalId: this.extensionPrincipal,
+      ...initiator === undefined ? {} : { sessionId: initiator.session.id },
+      authorizationRef: brandString<SdkMethodContext['authorizationRef']>(randomUUID()),
+      signal: this.extensionAbort.signal,
+    }
+    const call = registry.dispatch(method, params, context)
+    this.extensionCalls.add(call)
+    try { return await call } finally { this.extensionCalls.delete(call) }
   }
 
   private async seatRequest(method: keyof SeatRequestMap, params: unknown): Promise<unknown> {

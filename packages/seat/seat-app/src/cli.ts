@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import { decodeSeatRequest, isSeatMethod, type SeatRequestMap } from '@panedesk/dsh-sdk-protocol'
 import type { SeatCallContext } from '@panedesk/dsh-seat'
+import { executeHostCommand } from './host-cli.ts'
 
 /** A parsed operation retains its validated wire fields. */
 export type SeatCommand = { [M in keyof SeatRequestMap]: { method: M; request: SeatRequestMap[M]['params'] } }[keyof SeatRequestMap]
@@ -57,6 +58,8 @@ export function parseSeatArgs(args: readonly string[]): SeatCommand {
  * @returns printable result and process status.
  */
 export async function executeSeatCommand(ctx: Context, args: readonly string[]): Promise<{ code: number; output: unknown }> {
+  const projection = await executeHostCommand(ctx, args)
+  if (projection !== undefined) return projection
   let command: SeatCommand
   try { command = parseSeatArgs(args) } catch (error) {
     void error

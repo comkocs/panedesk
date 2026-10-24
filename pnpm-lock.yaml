@@ -1200,6 +1200,15 @@ importers:
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../../session/message-delivery
+      '@panedesk/dsh-sdk-jsonrpc-server':
+        specifier: workspace:*
+        version: link:../../sdk/server
+      '@panedesk/dsh-sdk-protocol':
+        specifier: workspace:*
+        version: link:../../sdk/protocol
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -12701,6 +12710,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-sdk-jsonrpc-server':
+        specifier: workspace:*
+        version: link:../server
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -12765,12 +12777,18 @@ importers:
       '@panedesk/dsh-llm-deepseek-api-key':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek-api-key
+      '@panedesk/dsh-node-link':
+        specifier: workspace:*
+        version: link:../../seat/node-link
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -12953,6 +12971,9 @@ importers:
       '@panedesk/dsh-sandbox-policy':
         specifier: workspace:*
         version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-sdk-jsonrpc-server':
+        specifier: workspace:*
+        version: link:../../sdk/server
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../../sdk/protocol

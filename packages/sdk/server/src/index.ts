@@ -18,6 +18,9 @@ import { HarnessSdkJsonRpcServer } from './server.ts'
 export * from './server.ts'
 /** Optional namespace registration definitions; importing them does not change dispatch. */
 export type * from './method-registry.ts'
+export { default as SdkMethodRegistryProvider } from './registry-provider.ts'
+export { hostProjection, isHostProjection, decodeAuthorizationQuery } from './projections.ts'
+export type { HostProjectionMethods } from './projections.ts'
 
 export const name = 'sdk-jsonrpc-server'
 export const inject = ['agents', 'workingDirectory']

@@ -39,6 +39,8 @@
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-node-link": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
@@ -46,6 +48,8 @@
     "@panedesk/dsh-working-directory": "workspace:*"
   },
   "peerDependenciesMeta": {
+    "@panedesk/dsh-node-link": { "optional": true },
+    "@panedesk/dsh-seat": { "optional": true },
     "@panedesk/dsh-session-ledger": {
       "optional": true
     }
@@ -62,6 +66,8 @@
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
+    "@panedesk/dsh-node-link": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",

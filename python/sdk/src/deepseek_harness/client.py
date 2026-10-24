@@ -10,12 +10,13 @@ import uuid
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, TypeAlias, TypeVar
+from typing import Callable, Iterator, TypeAlias, TypeVar, overload
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from . import models as message_models
 
+from .host import HostClient
 from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
 from .models import IncomingRequest, InitializeExecutionPolicy, InitializeLedgerContext, InitializeResponse, JsonObject, JsonValue, LlmCacheControl, Notification
 
@@ -66,6 +67,7 @@ class HarnessClient:
         self._messages_version: int | None = None
         self.messages = MessagesClient(self)
         self.seats = SeatsClient(self)
+        self.host = HostClient(self.request)
 
     def __enter__(self) -> "HarnessClient":
         self.start()
@@ -239,17 +241,33 @@ class HarnessClient:
         )
         return response.cwd
 
+    @overload
+    def request(
+        self, method: str, params: JsonObject | None, *, response_model: type[ModelT],
+        timeout_seconds: float | None = None, on_notification: Callable[[Notification], None] | None = None,
+        notification_filter: NotificationFilter | None = None,
+        notification_subscription: "NotificationSubscription | None" = None,
+    ) -> ModelT: ...
+
+    @overload
+    def request(
+        self, method: str, params: JsonObject | None, *, response_model: None = None,
+        timeout_seconds: float | None = None, on_notification: Callable[[Notification], None] | None = None,
+        notification_filter: NotificationFilter | None = None,
+        notification_subscription: "NotificationSubscription | None" = None,
+    ) -> JsonValue: ...
+
     def request(
         self,
         method: str,
         params: JsonObject | None,
         *,
-        response_model: type[ModelT],
+        response_model: type[ModelT] | None = None,
         timeout_seconds: float | None = None,
         on_notification: Callable[[Notification], None] | None = None,
         notification_filter: NotificationFilter | None = None,
         notification_subscription: "NotificationSubscription | None" = None,
-    ) -> ModelT:
+    ) -> ModelT | JsonValue:
         result = self._request_raw(
             method,
             params,
@@ -258,6 +276,8 @@ class HarnessClient:
             notification_filter=notification_filter,
             notification_subscription=notification_subscription,
         )
+        if response_model is None:
+            return result
         if not isinstance(result, dict):
             raise TypeError(f"{method} response must be a JSON object")
         return response_model.model_validate(result)
