@@ -17,7 +17,7 @@ import { en, zh, type SidebarKey } from './locales.ts'
 
 export type {
   SidebarBrandMarkOwnerProps, SidebarBrandNameOwnerProps, SidebarFooterActionOwnerProps,
-  SidebarPanelIconOwnerProps, SidebarPanelMetadata,
+  SidebarPanelBadge, SidebarPanelIconOwnerProps, SidebarPanelMetadata, SidebarPanelRegistrationOptions,
   SidebarRootComponentProps, SidebarRootInjected, SidebarSectionOwnerProps, SidebarSettingsOwnerProps,
 } from './contract/slots.ts'
 export type { SidebarKey } from './locales.ts'
@@ -31,6 +31,21 @@ declare module '@panedesk/dsh-client-ui-slots' {
 
 /** Dictionary namespace owned by this plugin. */
 const NS = 'sidebar'
+
+/** List registration fields this shell reads; `badge` is stored only when supplied. */
+interface SidebarPanelRegistration {
+  id?: string
+  order?: number
+  label?: Parameters<typeof resolveSlotLabel>[0]
+  badge?: { getSnapshot(): SidebarPanelMetadata['badge']; subscribe(fn: () => void): () => void }
+}
+
+/** Whether two projected badge values are the same display fact. */
+function sameBadge(left: SidebarPanelMetadata['badge'], right: SidebarPanelMetadata['badge']): boolean {
+  if (left === right) return true
+  if (left == null || right == null) return left == null && right == null
+  return left.count === right.count && left.stale === right.stale && left.label === right.label
+}
 
 interface WorkspaceNavigation {
   startSession(workspaceId?: Parameters<SidebarRootInjected['startSession']>[0]): void
@@ -46,20 +61,49 @@ export function apply(ctx: ClientContext): void {
   const workspaceNavigation = ctx.get('uiWorkspace') as unknown as WorkspaceNavigation
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar: dictionaries')
   const panels = createSnapshotStore<readonly SidebarPanelMetadata[]>([])
+  /** Disposer of the live badge source per panel id; absent means the row registered none. */
+  const badgeStops = new Map<MainPanelId, { source: NonNullable<SidebarPanelRegistration['badge']>; stop: () => void }>()
   const syncPanels = (): void => {
+    const live = new Set<MainPanelId>()
     const next = ctx.slots.entriesOfSlot('sidebar.panellist').map(({ options }) => {
+      const panel = options as SidebarPanelRegistration
       // The list registration requires an id; StoredEntry erases the slot kind.
-      const id = options.id as MainPanelId
-      return { id, order: options.order ?? 0, label: resolveSlotLabel(options.label) ?? id }
+      const id = panel.id as MainPanelId
+      live.add(id)
+      const source = panel.badge
+      const current = badgeStops.get(id)
+      if (source === undefined) {
+        current?.stop()
+        badgeStops.delete(id)
+      } else if (current?.source !== source) {
+        current?.stop()
+        badgeStops.set(id, { source, stop: source.subscribe(syncPanels) })
+      }
+      const row: SidebarPanelMetadata = { id, order: panel.order ?? 0, label: resolveSlotLabel(panel.label) ?? id }
+      if (source !== undefined) row.badge = source.getSnapshot() ?? null
+      return row
     }).sort((a, b) => a.order - b.order)
+    for (const [id, current] of badgeStops) {
+      if (live.has(id)) continue
+      current.stop()
+      badgeStops.delete(id)
+    }
     const previous = panels.getSnapshot()
     if (previous.length === next.length && previous.every((panel, index) => {
       const candidate = next[index] as SidebarPanelMetadata
       return panel.id === candidate.id && panel.order === candidate.order && panel.label === candidate.label
+        && sameBadge(panel.badge, candidate.badge)
     })) return
     panels.set(next)
   }
-  ctx.effect(() => ctx.slots.subscribe('sidebar.panellist', syncPanels), 'ui-sidebar: panel entries')
+  ctx.effect(() => {
+    const stopEntries = ctx.slots.subscribe('sidebar.panellist', syncPanels)
+    return () => {
+      stopEntries()
+      for (const current of badgeStops.values()) current.stop()
+      badgeStops.clear()
+    }
+  }, 'ui-sidebar: panel entries')
   ctx.effect(() => ctx.locale.subscribe(syncPanels), 'ui-sidebar: panel labels')
 
   const injectProps = (): SidebarRootInjected => ({

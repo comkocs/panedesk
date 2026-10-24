@@ -37,6 +37,8 @@ The expanded brand row renders `sidebar.brand.mark` and `sidebar.brand.name` as 
 
 Plugins add an icon component to the root-scoped `sidebar.panellist` list with an `id`, optional `order`, and a string or locale-aware `label`. The same id addresses the component registered in the layout's root-scoped `main` keyed slot; selecting a missing main entry throws without changing the current selection. The label supplies plain visible text, the accessible name, and the collapsed tooltip. Each row reads its own selected state through `usePanelInfo`; moving DOM focus to search or a directory picker does not change the displayed panel or its selected row. With no registrations, neither the list nor spacing for it is rendered. The shipped composition registers no example panel.
 
+A registration may also pass an optional `badge` snapshot of `{ count, stale, label }`. Omitting it leaves the row's DOM and styles unchanged. The shell subscribes to the snapshot and republishes the value on the panel metadata. It renders digits only for a positive finite count: `0`, a missing count (`null`), and a non-finite count render nothing and are not shown as zero; a count above 99 renders `99+`. `stale: true` keeps the last digits and marks them stale. `label` is the registrant's already-localized accessible name; the shell does not invent badge copy. The mark sits at the row's end while expanded and on the icon's corner while collapsed.
+
 ### Collapse behavior
 
 The sidebar and conversation-header toggles show the effective shortcut from the command catalog in their hover and keyboard-focus tooltips and `aria-keyshortcuts`. An unbound command shows only the action label.
