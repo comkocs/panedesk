@@ -53,6 +53,20 @@ export class LocalCloser {
     }, authorization) : null
     const refusal = await validate()
     if (refusal) return refusal
+    if (!this.ctx.get('agents')?.get(request.sessionId)) {
+      const effects = (await this.state.read()).effects
+      const opened = effects.findLast(effect => (effect.kind === 'open/created' || effect.kind === 'open/configured'
+        || effect.kind === 'open/opening-failed') && effect.data.sessionId === request.sessionId)
+      const released = effects.some(effect => effect.kind === 'resource/released'
+        && effect.data.owner.sessionId === request.sessionId
+        && (effect.data.reason === 'holder-death' || effect.data.reason === 'host-restart-recovery'))
+      if (opened && released && closingState(effects, request.sessionId)?.phase !== 'closed') {
+        const controller = this.ctx.get('sessionController')
+        if (!controller) return rejected('unavailable', 'Session recovery is unavailable.', 'Restore the session controller.')
+        const resumed = await controller.resolveAgent(request.sessionId)
+        if ('error' in resumed) return rejected('owner-unknown', 'Session ownership could not be acquired.', 'Inspect the existing Session owner before retrying.')
+      }
+    }
     const initial = await this.runtime.evidence(request.sessionId)
     const admitted = await this.state.mutate<T.EngineCloseData | T.CloseSeatResult>((effects) => {
       if (authorization) {

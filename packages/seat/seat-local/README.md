@@ -43,6 +43,10 @@ Manual opening freezes the definition, date title, rendered text and request in 
 
 Authenticated `operation` reads the optional engine operation projection first, including approval registration and correlated opening progress. Missing capabilities or missing operation facts retain the existing local effect lookup; querying never starts an engine or executes an action.
 
+A persisted error ending the turn containing the original opening message settles opening as failed even when its delivery receipt remains injected. Interrupted or still-running turns are not treated as provider failures.
+
+Authenticated close can resume a persisted window through the Session controller only after the engine records its previous owner's death and fenced resource release, acquiring Session ownership to inspect current busy evidence. Resume does not restore a fenced engine resource or authorize another model turn. A changed Session watermark requires a fresh list and close request; unknown ownership and outstanding work still block archive.
+
 Manual renewal uses the engine maintenance path. Close blocks new turns, rechecks evidence, archives the Session, pins the closed title and flushes persistence before recording terminal accounting. A failure before archive releases the barrier; a failure after archive retains it for replay. Rename receipts retain the original result, so replaying an earlier rename cannot overwrite a later title. Ambiguous intermediate title history is rejected rather than reported as success.
 
 Waits retain authorized object identities and terminal observations. Job reads target the owning Session rather than scanning all Sessions. Schedule delivery is complete only after its consuming model turn completes; deletion is cancellation, not completion. The provider drains accepted observation work on unload and reconstructs unfinished waits from engine facts on reload.
