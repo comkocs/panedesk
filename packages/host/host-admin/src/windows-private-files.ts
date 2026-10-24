@@ -129,11 +129,17 @@ export class WindowsPrivateFiles implements PrivateFiles {
     const handle = await this.checked(path, maxBytes)
     if (handle === null) { await this.inspect(this.root, true); return null }
     try {
-      const stat = await handle.stat()
-      const bytes = Buffer.alloc(Math.min(stat.size, maxBytes) + 1)
-      const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0)
-      if (bytesRead > maxBytes) throw new Error('Private file exceeds limit')
-      return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, bytesRead))
+      const chunks: Buffer[] = []
+      let total = 0
+      for (;;) {
+        const chunk = Buffer.alloc(64 * 1024)
+        const { bytesRead } = await handle.read(chunk, 0, chunk.length, null)
+        if (bytesRead === 0) break
+        total += bytesRead
+        if (total > maxBytes) throw new Error('Private file exceeds limit')
+        chunks.push(bytesRead === chunk.length ? chunk : chunk.subarray(0, bytesRead))
+      }
+      return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))
     } finally { await handle.close() }
   }
   private async create(path: string, content: string): Promise<fs.FileHandle> {
