@@ -1,7 +1,13 @@
 /** Additional-root tools delegate permission and memory ownership to the directory provider. */
 import type { Context } from '@panedesk/cordis'
-import { defineTool } from '@panedesk/dsh-tools'
+import { defineTool, type ToolRunContext } from '@panedesk/dsh-tools'
 import type { SeatDirectoryRoot, SeatOperationId } from '@panedesk/dsh-seat'
+
+function directoryInvocation(ctx: Context, exec: ToolRunContext) {
+  const directories = ctx.get('seatDirectories')
+  if (directories === undefined || exec.agent === undefined) throw new Error('Seat directories are unavailable.')
+  return { directories, sessionId: exec.agent.session.id }
+}
 
 /** Register root-selected reads and writes without widening shell permissions.
  * @param ctx - registry owner and optional directory provider.
@@ -12,9 +18,8 @@ export function registerDirectoryTools(ctx: Context): void {
     parameters: {},
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(_args, exec) {
-      const directories = ctx.get('seatDirectories')
-      if (directories === undefined || exec.agent === undefined) throw new Error('Seat directories are unavailable.')
-      return JSON.stringify(await directories.roots(exec.agent.session.id))
+      const { directories, sessionId } = directoryInvocation(ctx, exec)
+      return JSON.stringify(await directories.roots(sessionId))
     },
   }))
   ctx.tools.register(defineTool({
@@ -25,10 +30,9 @@ export function registerDirectoryTools(ctx: Context): void {
     },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const directories = ctx.get('seatDirectories')
-      if (directories === undefined || exec.agent === undefined) throw new Error('Seat directories are unavailable.')
+      const { directories, sessionId } = directoryInvocation(ctx, exec)
       if (args.maxBytes <= 0) throw new Error('maxBytes must be positive.')
-      return JSON.stringify(await directories.read({ ...args, sessionId: exec.agent.session.id,
+      return JSON.stringify(await directories.read({ ...args, sessionId,
         rootId: args.rootId as SeatDirectoryRoot['rootId'] }))
     },
   }))
@@ -40,11 +44,10 @@ export function registerDirectoryTools(ctx: Context): void {
     },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const directories = ctx.get('seatDirectories')
-      if (directories === undefined || exec.agent === undefined) throw new Error('Seat directories are unavailable.')
-      return JSON.stringify(await directories.write({ ...args, sessionId: exec.agent.session.id,
+      const { directories, sessionId } = directoryInvocation(ctx, exec)
+      return JSON.stringify(await directories.write({ ...args, sessionId,
         rootId: args.rootId as SeatDirectoryRoot['rootId'],
-        operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))
+        operationId: `tool:${sessionId}:${exec.callId}` as SeatOperationId }))
     },
   }))
   ctx.tools.register(defineTool({
@@ -55,11 +58,10 @@ export function registerDirectoryTools(ctx: Context): void {
     },
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args, exec) {
-      const directories = ctx.get('seatDirectories')
-      if (directories === undefined || exec.agent === undefined) throw new Error('Seat directories are unavailable.')
-      return JSON.stringify(await directories.edit({ ...args, sessionId: exec.agent.session.id,
+      const { directories, sessionId } = directoryInvocation(ctx, exec)
+      return JSON.stringify(await directories.edit({ ...args, sessionId,
         rootId: args.rootId as SeatDirectoryRoot['rootId'],
-        operationId: `tool:${exec.agent.session.id}:${exec.callId}` as SeatOperationId }))
+        operationId: `tool:${sessionId}:${exec.callId}` as SeatOperationId }))
     },
   }))
 }

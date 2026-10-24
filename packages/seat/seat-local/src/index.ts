@@ -13,7 +13,25 @@ import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
 import { closingState } from './closing-service.ts'
 import { localSourceId } from './open-admission.ts'
-import type { OwnerEpoch } from '@panedesk/dsh-seat'
+import type { EngineJobData, OwnerEpoch } from '@panedesk/dsh-seat'
+import type { SessionId } from '@panedesk/dsh-session'
+import type { SubagentRunInfo } from '@panedesk/dsh-subagent'
+
+function observeSubagent(service: LocalSeatService, sessionId: SessionId, info: SubagentRunInfo,
+  phase: 'running' | 'settled', outcome: EngineJobData['observation']['outcome']): Promise<void> {
+  return service.state.mutate((effects) => {
+    // Keep the visible child identity paired with its exact run in the same durable decision.
+    const ids = [...new Set([String(info.runId), String(info.id)])]
+    return { result: undefined, effects: ids.filter(id => !effects.some(effect => effect.kind === 'job/observed'
+      && effect.data.sessionId === sessionId && effect.data.ownerEpoch === String(info.runId)
+      && (phase === 'running' || effect.data.phase === 'settled')
+      && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === id))
+      .map(id => localFact({ kind: 'job/observed', sessionId,
+        data: { sessionId, ownerEpoch: String(info.runId) as OwnerEpoch, phase, observation: {
+          object: { kind: 'subagent', id: id as typeof info.runId }, outcome, watermark: effects.length + 1,
+          observedAt: new Date().toISOString(), durability: 'durable' } } })) }
+  })
+}
 
 export { LocalSeatService } from './service.ts'
 export type { LocalSeatCreation } from './create-admission.ts'
@@ -119,30 +137,11 @@ export function apply(ctx: Context, config: Config): void {
           return async () => { observing.abort(); offStatus(); offEvent(); offDecision(); await running }
         })
         child.on('subagent/before-start', async ({ parent, info }) => {
-          await installed.state.mutate((effects) => {
-            // Keep the visible child identity paired with its exact run in the same durable decision.
-            const ids = [...new Set([String(info.runId), String(info.id)])]
-            return { result: undefined, effects: ids.filter(id => !effects.some(effect => effect.kind === 'job/observed'
-              && effect.data.sessionId === parent.id && effect.data.ownerEpoch === String(info.runId)
-              && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === id))
-              .map(id => localFact({ kind: 'job/observed', sessionId: parent.id,
-                data: { sessionId: parent.id, ownerEpoch: String(info.runId) as OwnerEpoch, phase: 'running', observation: {
-                  object: { kind: 'subagent', id: id as typeof info.runId }, outcome: 'unknown', watermark: effects.length + 1,
-                  observedAt: new Date().toISOString(), durability: 'durable' } } })) }
-          })
+          await observeSubagent(installed, parent.id, info, 'running', 'unknown')
         })
         child.on('subagent/after-settle', async ({ parent, info }) => {
-          await installed.state.mutate((effects) => {
-            const ids = [...new Set([String(info.runId), String(info.id)])]
-            return { result: undefined, effects: ids.filter(id => !effects.some(effect => effect.kind === 'job/observed'
-              && effect.data.sessionId === parent.id && effect.data.ownerEpoch === String(info.runId) && effect.data.phase === 'settled'
-              && effect.data.observation.object.kind === 'subagent' && effect.data.observation.object.id === id))
-              .map(id => localFact({ kind: 'job/observed', sessionId: parent.id,
-                data: { sessionId: parent.id, ownerEpoch: String(info.runId) as OwnerEpoch, phase: 'settled', observation: {
-                  object: { kind: 'subagent', id: id as typeof info.runId }, watermark: effects.length + 1,
-                  observedAt: new Date().toISOString(), durability: 'durable',
-                  outcome: info.stopReason === 'completed' ? 'completed' : info.stopReason === 'aborted' ? 'cancelled' : 'failed' } } })) }
-          })
+          await observeSubagent(installed, parent.id, info, 'settled',
+            info.stopReason === 'completed' ? 'completed' : info.stopReason === 'aborted' ? 'cancelled' : 'failed')
         })
       })
     })()

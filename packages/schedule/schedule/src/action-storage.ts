@@ -1,21 +1,12 @@
 /** Action occurrences never enter the legacy Session-bound task table. */
 import { z } from 'zod'
 import { defineDomain, domainTable } from '@panedesk/dsh-storage-domain'
-import { decodeScheduleRecord } from './domain.ts'
-import type { ScheduleId, ScheduleRecord } from './types.ts'
-
-const recordSchema = z.unknown().transform((value, context): ScheduleRecord => {
-  try {
-    return decodeScheduleRecord(value)
-  } catch (error: unknown) {
-    context.addIssue({ code: 'custom', message: String(error) })
-  }
-  return z.NEVER
-})
+import { scheduleTaskSchema } from './storage.ts'
+import type { ScheduleId } from './types.ts'
 
 /** A pending occurrence is frozen before dispatch, including its next target. */
 export const scheduleActionTaskSchema = z.object({
-  record: recordSchema,
+  record: scheduleTaskSchema.shape.record,
   actionId: z.string().trim().min(1),
   payload: z.json(),
   status: z.enum(['active', 'inactive']),
