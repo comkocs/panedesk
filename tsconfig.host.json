@@ -238,6 +238,8 @@
   ],
   "references": [
     { "path": "./packages/seat/seat" },
+    { "path": "./packages/seat/node-link" },
+    { "path": "./packages/host/host-admin" },
     { "path": "./packages/seat/seat-local" },
     { "path": "./packages/seat/seat-engine" },
     { "path": "./packages/seat/seat-gates" },

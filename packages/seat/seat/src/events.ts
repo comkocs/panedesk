@@ -209,6 +209,22 @@ export const SEAT_ENGINE_EVENT_NAMES = {
   'report/submitted': true, 'report/revoked': true,
 } as const satisfies Record<EngineEventKind, true>
 
+/** Separate capability name; legacy engine frames never silently acquire this event. */
+export const SEAT_AUTHORIZATION_EVENT_NAME = 'authorization/checked' as const
+/** Readers must negotiate this capability before a provider persists authorization facts. */
+export const SEAT_AUTHORIZATION_CAPABILITY = 'seat-authorization/v1' as const
+/** Closed attribution names shared by future authenticated writers and projections. */
+export const SEAT_AUTHORIZATION_KINDS = ['model-tool-call', 'human', 'engine', 'local-operator', 'node-delegation'] as const satisfies readonly import('./types.ts').SeatAuthorizationKind[]
+/** Detached declaration only: not a member of the existing EngineEffect or Session event unions.
+ * A writer must atomically commit intent and authorization with a compatible reader;
+ * unsupported readers must refuse rather than skip authorization facts.
+ */
+export interface SeatAuthorizationEvent extends EngineEffectBase {
+  kind: typeof SEAT_AUTHORIZATION_EVENT_NAME
+  capability: typeof SEAT_AUTHORIZATION_CAPABILITY
+  data: import('./types.ts').SeatAuthorizationFact
+}
+
 declare module '@panedesk/cordis' {
   interface Events {
     /** Published only after a decision is durable; observer failure cannot undo the commit.

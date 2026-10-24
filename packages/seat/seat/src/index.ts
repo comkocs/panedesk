@@ -515,4 +515,47 @@ export abstract class SeatDirectoryService extends Service {
   abstract edit(request: T.SeatDirectoryEditRequest): Promise<T.SeatDirectoryWriteResult>
 }
 
+/** Optional opening service definition; no provider is installed by this module. */
+export interface SeatOpeningContexts {
+  /** Register trusted resolver code through a Cordis effect.
+   * @param provider - Installed resolver with an exclusive provider identity.
+   * @returns Disposer that drains resolutions before removing the provider.
+   */
+  register(provider: T.OpeningContextProvider): () => Promise<void>
+  /** Open through the existing admission path with a frozen provider reference.
+   * @param request - Explicit revision and task associations.
+   * @param authority - Authenticated host identity, never wire fields.
+   * @returns Existing opening outcomes without bypassing gates or budgets.
+   */
+  open(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.OpenSeatResult>
+  /** Preflight complete scope evidence before any batch member executes.
+   * @param request - Explicit seats and every associated task.
+   * @param authority - Authenticated caller.
+   * @returns Independent outcomes or a whole-batch preflight refusal.
+   */
+  openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult>
+}
+/** Read-only authorization projection definition; it does not enable a new ledger writer. */
+export interface SeatAuthorizationQueries {
+  /** Read committed authorization facts without treating them as reusable capabilities.
+   * @param request - Authorized task, seat and time filters.
+   * @returns Redacted facts with watermark or a structured refusal.
+   */
+  query(request: T.SeatAuthorizationQueryRequest): Promise<T.SeatAuthorizationQueryResult | T.SeatRejected>
+  /** Read engine facts by task without changing the legacy query method.
+   * @param request - Task filter and existing pagination fields.
+   * @returns Committed matching effects or a structured refusal.
+   */
+  tasks(request: T.SeatTaskQueryRequest): Promise<T.EngineQueryResult | T.SeatRejected>
+}
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Optional provider; missing service preserves the existing opening path. */
+    seatOpeningContexts: SeatOpeningContexts
+    /** Optional projection; callers report unavailable when no compatible reader is installed. */
+    seatAuthorizationQueries: SeatAuthorizationQueries
+  }
+}
+
 export default SeatService

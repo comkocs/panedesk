@@ -74,8 +74,28 @@ export interface SidebarPanelIconOwnerProps {
   active: boolean
 }
 
+/** Data-only badge state; unknown counts stay null rather than being displayed as zero. */
+export interface SidebarPanelBadge {
+  count: number | null
+  stale: boolean
+  /** Registrants supply localized accessible text; the shell does not interpret business state. */
+  label: string
+}
+
+/** Panel registration metadata; badge transport and rendering require an optional sidebar provider. */
+export interface SidebarPanelRegistrationOptions {
+  name: 'sidebar.panellist'
+  id: MainPanelId
+  order?: number
+  label?: import('@panedesk/dsh-client-ui-slots').SlotLabel
+  /** Omission preserves the existing row; this definition alone installs no subscription. */
+  badge?: ObservableSnapshot<SidebarPanelBadge | null>
+}
+
 /** Serializable metadata for one active global panel list registration. */
 export interface SidebarPanelMetadata {
+  /** Optional projected badge; omission preserves existing metadata consumers and rendering. */
+  badge?: SidebarPanelBadge | null
   /** List id and matching main panel key. */
   id: MainPanelId
   /** Ascending row order; ties retain registration order. */

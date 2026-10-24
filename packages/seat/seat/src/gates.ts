@@ -107,6 +107,15 @@ export type GateContext = GateContextBase & (
   | { hook: 'after-subagent-return'; parentSessionId: SessionId; childSessionId: SessionId; result: SeatJson }
   | { hook: 'after-compaction'; summary: string; additionalTokenBudget: number; seatRevision: number }
 )
+/** Opt-in task-aware batch input; absence of a provider preserves legacy seats-only evaluation. */
+export type TaskScopeBatchGateContext = Extract<GateContext, { hook: 'before-batch-open' }> & {
+  tasks: readonly import('./types.ts').SeatTaskScopeContext[]
+}
+/** Unknown scope denies concurrent admission and offers serial completion instead. */
+export type TaskScopeGateDecision =
+  | { outcome: 'allow'; revisions: readonly { taskId: import('./types.ts').SeatTaskId; revision: string }[] }
+  | { outcome: 'deny'; reason: 'scope-unknown' | 'scope-conflict' | 'scope-stale'; alternative: 'serial'; conflicts: readonly { tasks: readonly import('./types.ts').SeatTaskId[]; repositoryId?: import('./types.ts').TaskRepositoryId; paths: readonly string[] }[] }
+
 /** Recorded decision metadata, with explicit audit failure independent of deny behavior. */
 export interface GateResultFacts {
   gateId: GateId

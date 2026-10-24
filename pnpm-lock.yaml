@@ -11214,6 +11214,22 @@ importers:
         specifier: workspace:*
         version: link:../webserver
 
+  packages/host/host-admin:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+
   packages/host/open-in-app:
     dependencies:
       '@panedesk/dsh-launch-environment':
@@ -12776,6 +12792,25 @@ importers:
       '@panedesk/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
+
+  packages/seat/node-link:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../../session/message-delivery
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../seat
 
   packages/seat/seat:
     devDependencies:

@@ -29,6 +29,8 @@
     // under its own tsconfig boundary.
     "paths": {
       "@panedesk/dsh-seat": ["./packages/seat/seat/src/index.ts"],
+      "@panedesk/dsh-node-link": ["./packages/seat/node-link/src/index.ts"],
+      "@panedesk/dsh-host-admin": ["./packages/host/host-admin/src/index.ts"],
       "@panedesk/dsh-seat-local": ["./packages/seat/seat-local/src/index.ts"],
       "@panedesk/dsh-seat-engine": ["./packages/seat/seat-engine/src/index.ts"],
       "@panedesk/dsh-seat-engine/reader": ["./packages/seat/seat-engine/src/reader.ts"],

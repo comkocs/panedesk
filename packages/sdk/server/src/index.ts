@@ -16,6 +16,8 @@ import { JsonRpcLineTransport } from '@panedesk/dsh-sdk-protocol'
 import { HarnessSdkJsonRpcServer } from './server.ts'
 
 export * from './server.ts'
+/** Optional namespace registration definitions; importing them does not change dispatch. */
+export type * from './method-registry.ts'
 
 export const name = 'sdk-jsonrpc-server'
 export const inject = ['agents', 'workingDirectory']

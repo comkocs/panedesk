@@ -841,5 +841,108 @@ export interface AdmitSeatChildRequest {
 }
 /** Turn admission leaves queued input untouched when policy defers a new turn. */
 export type SeatTurnAdmission = { status: 'allow' } | { status: 'defer'; reason: 'budget-stopped' | 'budget-unverifiable' | 'configuring' | 'owner-unknown' }
+/** Registered opening provider identity is not an authorization capability. */
+export type OpeningProviderId = Branded<'OpeningProviderId'>
+/** An opaque provider-owned reference resolves to one frozen revision. */
+export interface OpeningContextReference { providerId: OpeningProviderId; reference: Branded<'OpeningContextReference'>; revision: string }
+/** Repository identity is stable across worktrees and node-local path aliases. */
+export type TaskRepositoryId = Branded<'TaskRepositoryId'>
+/** Scope evidence uses repository-relative paths; unresolved aliases remain unknown. */
+export interface TaskScopeEntry { kind: 'file' | 'directory' | 'pattern'; path: string; access: 'read' | 'write' }
+/** Patterns are declarative and never executable; unsupported syntax cannot establish disjointness. */
+export type TaskScopeEvidence =
+  | { status: 'known'; taskId: SeatTaskId; revision: string; repositoryId: TaskRepositoryId; baseRevision: string; entries: readonly TaskScopeEntry[]; patternSyntax: 'literal' | 'glob-v1'; caseSensitive: boolean }
+  | { status: 'unknown'; taskId: SeatTaskId; reason: string; alternative: 'serial' }
+/** Frozen task associations retain scope evidence for the complete batch. */
+export interface SeatTaskScopeContext { taskId: SeatTaskId; seat: SeatName; nodeId: SeatNodeId; scopeEvidence: TaskScopeEvidence; scopeEvidenceRef: Branded<'TaskScopeEvidenceRef'> }
+/** Opening text is frozen once; recovery must not reread a mutable provider reference. */
+export interface OpeningContextSnapshot {
+  reference: OpeningContextReference
+  text: string
+  digest: SeatDigest
+  revision: string
+  taskIds: readonly SeatTaskId[]
+  scopeEvidence: readonly TaskScopeEvidence[]
+}
+/** Only authenticated local services resolve opening references. */
+export interface OpeningContextProvider {
+  providerId: OpeningProviderId
+  /** Freeze a revision under the original caller's authority.
+   * @param reference - Provider-owned revisioned reference, never executable text.
+   * @param authority - Host-resolved identity; the reference does not grant access.
+   * @returns Immutable opening input or a refusal before session creation.
+   */
+  resolve(reference: OpeningContextReference, authority: SeatCallContext): Promise<OpeningContextSnapshot | SeatRejected>
+}
+/** An opt-in request does not alter the existing OpenSeatRequest or its replay digest. */
+export interface OpenSeatWithContextRequest extends OpenSeatRequest {
+  openingContext: OpeningContextReference
+  relatedTaskIds: readonly SeatTaskId[]
+}
+/** Whole-batch evidence must be admitted before any individual opening. */
+export interface OpenSeatBatchWithScopeRequest extends OpenSeatBatchRequest { tasks: readonly SeatTaskScopeContext[] }
+/** Source identity matches exactly; an omitted event type accepts any type from that source only. */
+export interface ExternalRuleMatch { sourceId: SeatSourceId; eventType?: string }
+/** Verified external evidence supplies both operands without changing legacy trigger records. */
+export interface ExternalEventMatch { sourceId: SeatSourceId; eventType: string }
+/** Closed attribution classes come from trusted entry points, never request JSON. */
+export type SeatAuthorizationKind = 'model-tool-call' | 'human' | 'engine' | 'local-operator' | 'node-delegation'
+/** Authorization facts explain past decisions but confer no replay authority. */
+export interface SeatAuthorizationFact {
+  authorizationId: AuthorizationRef
+  kind: SeatAuthorizationKind
+  principalId: SeatPrincipalId
+  origin: SeatCallContext['origin']
+  nodeId: SeatNodeId
+  sessionId?: SessionId
+  seat?: SeatName
+  taskIds: readonly SeatTaskId[]
+  operationId: SeatOperationId
+  callId?: Branded<'ToolCallId'>
+  rootCallId?: Branded<'ToolCallId'>
+  policyRevision: number
+  decision: 'allowed' | 'denied'
+  reasonCode: string
+  requestDigest: SeatDigest
+  delegatedBy?: AuthorizationRef
+  checkedAt: SeatTimestamp
+}
+/** Filtered scans advance exclusive cursors even when no task or seat matches. */
+export interface SeatAuthorizationQueryRequest {
+  taskId?: SeatTaskId
+  seat?: SeatName
+  nodeId?: SeatNodeId
+  kind?: SeatAuthorizationKind
+  from?: SeatTimestamp
+  to?: SeatTimestamp
+  cursor?: EngineCursor
+  limit: number
+}
+/** Old facts lacking attribution remain legacy-unknown and are never backfilled by inference. */
+export interface SeatAuthorizationQueryResult {
+  facts: readonly SeatAuthorizationFact[]
+  complete: boolean
+  watermark: number
+  nextCursor?: EngineCursor
+  legacyAttribution: 'legacy-unknown' | 'none'
+}
+/** Task filtering is a separate projection request until providers explicitly support it. */
+export interface SeatTaskQueryRequest extends EngineQueryRequest { taskId?: SeatTaskId }
+/** Node entry delegation is narrowed again at the receiving node and cannot authorize another hop. */
+export interface SeatNodeDelegation {
+  authorizationRef: AuthorizationRef
+  principalId: SeatPrincipalId
+  sourceNodeId: SeatNodeId
+  targetNodeId: SeatNodeId
+  sessionId?: SessionId
+  seat?: SeatName
+  taskIds: readonly SeatTaskId[]
+  operationId: SeatOperationId
+  requestDigest: SeatDigest
+  expiresAt: SeatTimestamp
+  hop: 1
+  kind: 'node-delegation'
+}
+
 /** An uncertain operation remains unknown until recovery establishes a committed fact. */
 export type SeatOperationResult = { status: 'missing' } | { status: 'pending'; phase: OpenPhase | ClosePhase | ReplacePhase; stateVersion: number } | { status: 'settled'; result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult }

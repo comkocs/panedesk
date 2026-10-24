@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
   SEAT_ENGINE_EVENT_NAMES, SEAT_ENGINE_NAMESPACE, SEAT_ENGINE_SCHEMA_VERSION,
   SEAT_ERROR_CODES, SEAT_GATE_HOOKS,
+  SEAT_AUTHORIZATION_EVENT_NAME, SEAT_AUTHORIZATION_CAPABILITY, SEAT_AUTHORIZATION_KINDS,
 } from '../src/index.ts'
 import type {
   EngineEffect, EngineEventKind, GateContext, GateHook, GateResult, OpenSeatResult,
@@ -64,6 +65,13 @@ function isRelease(effect: EngineEffect): effect is Extract<EngineEffect, { kind
 }
 
 describe('seat declarations', () => {
+  it('pins the opt-in authorization vocabulary without widening the existing ledger', () => {
+    expect(SEAT_AUTHORIZATION_EVENT_NAME).toBe('authorization/checked')
+    expect(SEAT_AUTHORIZATION_CAPABILITY).toBe('seat-authorization/v1')
+    expect(SEAT_AUTHORIZATION_KINDS).toEqual(['model-tool-call', 'human', 'engine', 'local-operator', 'node-delegation'])
+    expect(Object.keys(SEAT_ENGINE_EVENT_NAMES)).not.toContain(SEAT_AUTHORIZATION_EVENT_NAME)
+  })
+
   it('pins every machine error code including the shared cross-node refusal', () => {
     expect(Object.keys(SEAT_ERROR_CODES).sort()).toEqual([...errorCodes].sort())
     expect(new Set(errorCodes).size).toBe(errorCodes.length)
