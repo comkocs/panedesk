@@ -7,6 +7,7 @@ import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions } from './service-options.ts'
 import { rejected, refuse } from './errors.ts'
 import type { OpeningContexts } from './opening-contexts.ts'
+import { digest } from './store.ts'
 
 /** Register only self-owned wait and report operations for live tool callers.
  * @param ctx - provider lifecycle and live agent registry.
@@ -58,7 +59,19 @@ export function registerLocalWindowsAccess(ctx: Context, service: T.SeatService,
       return Object.freeze({
         open: async (request: T.OpenSeatRequest) => {
           authorize()
-          return internal.open({ ...request, operationId, origin: 'manual' })
+          const issuers = ctx.get('seatAuthorizationIssuers')
+          if (!issuers) return internal.open({ ...request, operationId, origin: 'manual' })
+          const input: T.OpenSeatRequest = { ...request, operationId, origin: 'manual', openingMode: request.openingMode ?? 'auto' }
+          const registration = issuers.register({ identity: { kind: 'model-tool-call', principalId: authority.principalId,
+            origin: authority.origin, nodeId: authority.nodeId, sessionId, callId, seat: request.seat,
+            taskIds: request.taskId ? [request.taskId] : [], policyRevision: 0 },
+          current: () => active && ctx.get('agents')?.get(sessionId)?.session === session
+            ? { decision: 'allowed', reasonCode: 'live-model-invocation', policyRevision: 0 } : null })
+          try {
+            const grant = await registration.issuer.check({ operationId, requestDigest: digest(input), callId })
+            if ('status' in grant) return grant
+            return await service.withAuthority({ ...authority, authorization: grant }).open(input)
+          } finally { registration.dispose() }
         },
         renew: async (request: T.RenewSeatRequest) => {
           authorize()

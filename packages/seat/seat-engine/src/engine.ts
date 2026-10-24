@@ -19,6 +19,9 @@ import { openLocalWindow } from './local-open.ts'
 import { closeEffects } from './closing.ts'
 import { queueReplacement, ReplacementDriver } from './replacement.ts'
 import { KeepAliveScheduler, type KeepAliveRuntime } from './keepalive.ts'
+import { AuthorizationIssuers, authorizationEffect } from './authorization-issuer.ts'
+import { AuthorizationTransactions } from './authorization-transactions.ts'
+import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -33,6 +36,10 @@ export interface EngineDependencies {
 export class SeatEngine extends SeatEngineService {
   /** Single durable decision owner shared by all engine operations. */
   readonly journal: EngineJournal
+  /** Host-only entry registration is scoped to this engine lifecycle. */
+  readonly authorizationIssuers = new AuthorizationIssuers()
+  /** Required-capability admission shares the legacy journal owner. */
+  readonly authorizations: AuthorizationTransactions
   private readonly sources = new SourceRegistry()
   private readonly triggers: TriggerRegistry
   private readonly outbox: CallbackOutbox
@@ -52,6 +59,17 @@ export class SeatEngine extends SeatEngineService {
     super(ctx)
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
+    this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
+      () => this.ready(), () => this.publish())
+    ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
+    ctx.provide('seatAuthorizationTransactions', this.authorizations)
+    ctx.provide('seatAuthorizationQueries', {
+      query: async (request) => {
+        await this.ready()
+        return queryLegacyAuthorizations(this.journal.projection.authorizationDecisions, request)
+      },
+      tasks: async (request) => { await this.ready(); return queryTasks(this.journal.projection.decisions, request) },
+    })
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
     this.outbox = new CallbackOutbox(this.journal, this.sources, options.config)
     this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName)
@@ -80,6 +98,7 @@ export class SeatEngine extends SeatEngineService {
   }
   async shutdown(): Promise<void> {
     this.stopped = true
+    this.authorizationIssuers.close()
     if (this.timer) clearTimeout(this.timer)
     await this.localOpenChain
     await this.activeDrive
@@ -120,7 +139,17 @@ export class SeatEngine extends SeatEngineService {
         frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto',
         ...(input.openingContext ? { openingContext: input.openingContext } : {}) }
       const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')
-      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen)
+      const grant = input.authority.authorization
+      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen, grant ? (effects) => {
+        const data = this.authorizationIssuers.verify(grant, { operationId: input.request.operationId,
+          requestDigest: digest(input.request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+          ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
+        if (data.decision !== 'allowed' || data.seat !== input.request.seat
+          || input.request.taskId && !data.taskIds.includes(input.request.taskId)) {
+          throw new EngineError('unauthorized', 'Opening attribution does not authorize this seat and task')
+        }
+        return [...effects, authorizationEffect(data)]
+      } : undefined)
       await this.publish()
       return result
     })

@@ -47,7 +47,8 @@ export class TriggerRegistry {
    * @returns stable acceptance or explicit refusal.
    */
   async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode,
-    frozenOpen?: import('@panedesk/dsh-seat').SeatFrozenOpen): Promise<AcceptTriggerResult> {
+    frozenOpen?: import('@panedesk/dsh-seat').SeatFrozenOpen,
+    authorize?: (effects: readonly EngineEffect[]) => import('./authorization-storage.ts').AuthorizationDecision['effects']): Promise<AcceptTriggerResult> {
     try {
       const result = await this.sources.use<AcceptTriggerResult>(envelope.sourceId, async (source): Promise<AcceptTriggerResult> => {
         if (!source.kinds.includes(envelope.kind) || envelope.evidence.kind !== envelope.kind || envelope.callbackRef !== envelope.sourceId) return rejected('unauthorized',
@@ -64,7 +65,7 @@ export class TriggerRegistry {
           ...(trigger.openingContext ? { openingContext: trigger.openingContext, relatedTaskIds: trigger.relatedTaskIds } : {}) })
         const key = canonical([trigger.sourceId, trigger.eventId ?? contentDigest, bucket])
         let result: AcceptTriggerResult = rejected('unavailable', 'Ingress did not commit')
-        await this.journal.commit((view) => {
+        const build = (view: import('./projection.ts').EngineProjection): readonly EngineEffect[] => {
           const checkpoint = trigger.evidence.kind === 'git' ? [fact({ kind: 'git/checkpoint', data: {
             repositoryId: trigger.evidence.repositoryId, ref: trigger.evidence.ref,
             objectId: trigger.evidence.newObjectId, sequence: trigger.evidence.observationSequence,
@@ -113,9 +114,15 @@ export class TriggerRegistry {
               eventId: trigger.eventId ?? null } }
           result = { status: previous ? 'coalesced' : 'accepted', triggerId: trigger.triggerId,
             queueItemId: pending.queueItemId, sequence: pending.sequence }
-          return [...checkpoint, fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
+          const effects = [...checkpoint, fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
             seat: trigger.seat, data }), ...reminderEffects(pending, previous)]
+          return effects
+        }
+        if (authorize) await this.journal.commitAuthorization((view) => {
+          const effects = build(view)
+          return result.status === 'accepted' || result.status === 'coalesced' ? authorize(effects) : effects
         })
+        else await this.journal.commit(build)
         return result
       })
       if (result.status === 'rejected' && result.error.code !== 'disabled') await this.auditRejection(envelope, result)

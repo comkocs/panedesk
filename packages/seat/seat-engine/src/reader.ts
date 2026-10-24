@@ -5,9 +5,11 @@ import { join } from 'node:path'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { SeatEngineQueryService, type SeatNodeId, type SeatRejected } from '@panedesk/dsh-seat'
 import type * as T from '@panedesk/dsh-seat'
-import { decodeFrame, EngineError } from './journal.ts'
+import { EngineError } from './journal.ts'
 import { EngineProjection } from './projection.ts'
 import { queryEngine, serializeEngine, verifyEngine, redactPending } from './query.ts'
+import { decodeAuthorizationFrame } from './authorization-storage.ts'
+import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
 
 /** Node selection never initializes the accounting ledger identity. */
 export interface Config {
@@ -42,6 +44,18 @@ export class SeatEngineReader extends SeatEngineQueryService {
       throw new EngineError('invalid-request', 'Invalid engine reader configuration')
     }
     this.home = resolveDshHome(config.home)
+    ctx.provide('seatAuthorizationQueries', {
+      query: request => observe(async () => {
+        const { projection, complete } = await this.snapshot()
+        const result = queryLegacyAuthorizations(projection.authorizationDecisions, request)
+        return { ...result, complete: complete && result.complete }
+      }),
+      tasks: request => observe(async () => {
+        const { projection, complete } = await this.snapshot()
+        const result = queryTasks(projection.decisions, request)
+        return { ...result, complete: complete && result.complete }
+      }),
+    })
   }
   private async snapshot() {
     const nodeId = this.config.nodeId ?? await readFile(join(this.home, 'ledger/v1/node-id'), 'utf8') as SeatNodeId
@@ -55,11 +69,11 @@ export class SeatEngineReader extends SeatEngineQueryService {
       const text = await readFile(join(root, name), 'utf8')
       const lines = text.split('\n'), tail = lines.pop()
       for (const line of lines) {
-        const decision = decodeFrame(line, this.config.maxDecisionBytes)
+        const decision = decodeAuthorizationFrame(line, this.config.maxDecisionBytes)
         if (decision.nodeId !== nodeId || decision.sequence !== projection.sequence + 1) {
           throw new EngineError('engine-store-corrupt', 'Engine node or sequence mismatch')
         }
-        projection.apply(decision)
+        projection.applyAuthorization(decision)
       }
       if (tail || !text.length) { complete = false; break }
     }

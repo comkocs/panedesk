@@ -27,6 +27,8 @@ Catalogs initially belong to their import source. A recorded authority change pe
 
 ## Window transactions
 
+Model tool opening captures the live Session and invocation identifiers, signs `model-tool-call` attribution through the optional engine issuer, and commits it with trigger acceptance. Request fields cannot select the authorization kind. Without the issuer, existing opening behavior is unchanged.
+
 `seatOpeningContexts` accepts trusted in-process providers. Manual and registered engine ingress freeze the same revisioned text without template expansion; accepted retries reuse the retained snapshot even after provider removal. References do not grant authority. Registration disposal rejects new resolutions and drains active ones. Task-aware batches require an installed scope evaluator and complete evidence before any member opens; refusal offers serial execution. Existing requests without these additions retain their original path.
 
 Traditional creation checks directory ownership before the factory runs. Mismatched or ambiguous ownership returns candidates and opening commands without selecting a seat. Trusted adapters consume one-use traditional confirmations through `seatLocalCreation.confirmTraditional/run`. Free identity is stored beside Session data in the engine journal, not in Session headers or the seat roster. Parent identity comes from durable opening or binding facts. Free creation registers failure cleanup, so even an unconfirmed factory failure releases temporary ledger attribution before returning. Resume checks admission before residency accounting: durable seat bindings supply attribution, while free or unbound resumes retain the loop's launch-label resolution. Temporary resume bindings are released after factory settlement; the loop owns successful residency attribution. Neither path changes Session headers.
@@ -77,6 +79,7 @@ Reminders append input without cancelling the current step or replacing prior hi
 
 ## Known Limitations and Deferred Work
 
+- Renewal, replacement, close, rename, and wake do not yet carry authorization grants to their durable action builders.
 - The complete remote opening chain still lacks composition evidence.
 - Worktree maturity requires an explicit upstream, verified merge ancestry, and commit, Git metadata and tracked-file activity timestamps. Missing evidence or a changed HEAD, upstream or tracked working tree prevents a maturity claim. Forced registration still requires independent authorization.
 - Durable prefill admission is unavailable with engines that do not expose the optional opening transaction. The local ingress rejects it rather than sending an unintended first turn.

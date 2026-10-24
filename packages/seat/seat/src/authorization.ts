@@ -95,6 +95,23 @@ export interface SeatAuthorizationTransactions {
   query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>
 }
 
+/** Host-only registration captures authenticated attribution and a synchronous live-policy check. */
+export interface SeatAuthorizationEntry {
+  readonly identity: Omit<SeatIssuedAuthorizationFact, 'authorizationId' | 'operationId' | 'requestDigest' | 'checkedAt' | 'decision' | 'reasonCode'>
+  /** Recheck the captured entry without asynchronous work inside the journal builder.
+   * @returns Current policy outcome; null revokes the entry.
+   */
+  current(): { decision: 'allowed' | 'denied'; reasonCode: string; policyRevision: number } | null
+}
+/** Available only to trusted in-process adapters, never exposed as a wire method. */
+export interface SeatAuthorizationIssuers {
+  /** Capture one authenticated entry; request JSON must never supply this registration.
+   * @param entry - Host-owned identity and live-policy closure.
+   * @returns Issuer and revocation disposer.
+   */
+  register(entry: SeatAuthorizationEntry): { issuer: SeatAuthorizationIssuer; dispose(): void }
+}
+
 declare module './types.ts' {
   interface SeatCallContext {
     /** Entry-issued attribution for atomic local admission; omission preserves the legacy path.
@@ -109,5 +126,7 @@ declare module '@panedesk/cordis' {
   interface Context {
     /** Missing capability rejects new audited actions; legacy local entry points remain unchanged. */
     seatAuthorizationTransactions: SeatAuthorizationTransactions
+    /** Host-only issuer registration; never forward registration arguments from request JSON. */
+    seatAuthorizationIssuers: SeatAuthorizationIssuers
   }
 }
