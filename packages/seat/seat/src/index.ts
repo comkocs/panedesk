@@ -522,6 +522,11 @@ export abstract class SeatDirectoryService extends Service {
 
 /** Optional opening service definition; no provider is installed by this module. */
 export interface SeatOpeningContexts {
+  /** Install one trusted scope owner; omission retains the existing scope evaluation.
+   * @param admission - Owner of serialized checks and durable reservations.
+   * @returns Disposer that stops new calls and drains active admissions.
+   */
+  registerScopeAdmission?(admission: T.OpeningScopeAdmission): () => Promise<void>
   /** Register trusted resolver code through a Cordis effect.
    * @param provider - Installed resolver with an exclusive provider identity.
    * @returns Disposer that drains resolutions before removing the provider.

@@ -900,6 +900,29 @@ export interface WakeSeatWithContextRequest extends WakeSeatRequest {
 }
 /** Whole-batch evidence must be admitted before any individual opening. */
 export interface OpenSeatBatchWithScopeRequest extends OpenSeatBatchRequest { tasks: readonly SeatTaskScopeContext[] }
+/** Trusted scope owner serializes preflight and acceptance; disposal drains admitted operations. */
+export interface OpeningScopeAdmission {
+  /** Evaluate frozen task evidence against the authoritative source and retained reservations.
+   * @param context - Complete local batch.
+   * @returns Whole-batch scope decision.
+   */
+  evaluateTaskScopes(context: import('./gates.ts').TaskScopeBatchGateContext): Promise<import('./gates.ts').TaskScopeGateDecision>
+  /** Retain reservations before invoking the existing batch executor.
+   * @param request - Frozen task associations.
+   * @param authority - Authenticated local caller.
+   * @param execute - Existing local batch operation, invoked at most once.
+   * @returns Original batch result or a preflight rejection.
+   */
+  batch(request: OpenSeatBatchWithScopeRequest, authority: SeatCallContext,
+    execute: () => Promise<OpenSeatBatchResult>): Promise<OpenSeatBatchResult>
+  /** Apply the same reservation policy to individual source-backed openings.
+   * @param request - Source reference and task associations.
+   * @param authority - Authenticated local caller.
+   * @param execute - Existing source-backed opening operation.
+   * @returns Original opening result or a scope refusal.
+   */
+  open(request: OpenSeatWithContextRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatResult>): Promise<OpenSeatResult>
+}
 /** Source identity matches exactly; an omitted event type accepts any type from that source only. */
 export interface ExternalRuleMatch { sourceId: SeatSourceId; eventType?: string }
 /** Verified external evidence supplies both operands without changing legacy trigger records. */
