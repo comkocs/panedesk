@@ -32,6 +32,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `NodePreparedRequest` retains method/result correlation and sender-frozen message identity. `NodeDelegationRequest` omits delegation until a trusted issuer creates a `NodeDelegationResult`. `NodeAuthenticatedPeer` comes from transport authentication; receiving policy intersects retained original authority, configured peer permissions, expiry, and current local admission. `NodeLinkFailure` preserves safe refusals. `ApprovePendingSeatRequest`, `PendingSeatMutationResult`, and `SeatRejected` retain the original approval and refusal semantics. Missing services do not grant authority or enable another routing hop.
 
+`HostSdkInvocation` identifies a registered namespace method and its untrusted parameters. `HostSdkIdentity` carries only host-issued principal, optional Session and seat attribution, and a revocation signal; request fields cannot supply that identity. `HostSdkResult` separates an encoded JSON value from a safe rejection. `HostSessionBinding` supplies trusted Session and seat facts to the credential issuer; `HostSessionCredential` returns owner-only endpoint and credential paths with awaited revocation. These services remain absent when their optional providers are not installed.
+
 ## Waits, reports, and policies
 
 `SeatWait` registers any/all observations of explicit subagent, job, schedule, or message objects, returning before completion. Cancellation affects observation only. `CloseSelfReport` records close intent, outstanding work, and next-open prerequisites without changing runtime status.
@@ -81,6 +83,44 @@ execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostA
 ```
 
 Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin/src/index.ts)
+
+<a id="ctxhostsdkinvoker--hostsdkinvoker"></a>
+
+### `ctx.hostSdkInvoker` — `HostSdkInvoker`
+
+The SDK registry provider supplies this optional adapter without starting stdio.
+
+```ts cordis-catalog
+/** Decode, authorize, invoke and encode through the registered namespace.
+ * @param request - Validated namespace and method with untrusted method parameters.
+ * @param identity - Host-issued caller identity and revocation signal.
+ * @returns Encoded result or safe rejection without provider diagnostics.
+ */
+invoke(request: HostSdkInvocation, identity: HostSdkIdentity): Promise<HostSdkResult>
+```
+
+Source: [`packages/host/host-admin/src/sdk.ts`](../../packages/host/host-admin/src/sdk.ts)
+
+<a id="ctxhostsessioncredentials--hostsessioncredentials"></a>
+
+### `ctx.hostSessionCredentials` — `HostSessionCredentials`
+
+Optional host-owned issuance; callers supply trusted creation facts, never wire fields.
+
+```ts cordis-catalog
+/** Replace any earlier credential for this session and publish owner-only files.
+ * @param binding - Trusted session creation binding.
+ * @returns Paths and an idempotent awaited revocation capability.
+ */
+issue(binding: HostSessionBinding): Promise<HostSessionCredential>
+
+/** Revoke a closed or replaced session before acknowledging closure.
+ * @param sessionId - Host-owned session identity.
+ */
+revoke(sessionId: HostSessionBinding['sessionId']): Promise<void>
+```
+
+Source: [`packages/host/host-admin/src/sdk.ts`](../../packages/host/host-admin/src/sdk.ts)
 
 <a id="ctxnodeauthorizedlocaladmission--nodeauthorizedlocaladmission"></a>
 

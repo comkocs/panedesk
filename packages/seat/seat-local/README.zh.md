@@ -45,6 +45,8 @@ kind: "package-reference"
 
 等待保留已授权对象身份和终态观察。任务读取定向访问所属会话，不扫描全部会话。调度投递只有在消费它的模型回合完成后才算完成；删除表示取消，不表示完成。提供者卸载时排空已接纳的观察工作，重新加载时从引擎事实恢复未完成等待。
 
+受控创建与恢复会在发布 agent 前，可选地从 `hostSessionCredentials` 获取会话绑定凭据。shell 环境注册表仅为调用会话提供 `DSH_HOST_ENDPOINT_PATH` 与 `DSH_HOST_CREDENTIAL_PATH`，不提供凭据值。归档、替换与 agent 释放会撤销旧绑定。缺少管理签发器时，创建行为不变。当前持久位绑定没有员工字段，因此本提供者仅签发位身份，绝不猜测员工号。
+
 <a id="dev-note"></a>
 ## 开发备注
 
@@ -80,8 +82,6 @@ kind: "package-reference"
 #### KV 缓存影响
 
 提醒追加输入，不取消当前步骤，也不替换既有历史。稳定操作身份抑制同一定义修订和压缩周期内的重复投递。压缩本身由已安装的压缩提供者负责。
-
-受控创建与恢复会在发布 agent 前，可选地从 `hostSessionCredentials` 获取会话绑定凭据。shell 环境注册表仅为调用会话提供 `DSH_HOST_ENDPOINT_PATH` 与 `DSH_HOST_CREDENTIAL_PATH`，不提供凭据值。归档、替换与 agent 释放会撤销旧绑定。缺少管理签发器时，创建行为不变。当前持久位绑定没有员工字段，因此本提供者仅签发位身份，绝不猜测员工号。
 
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与待办

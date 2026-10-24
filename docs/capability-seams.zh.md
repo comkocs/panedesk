@@ -27,9 +27,11 @@ flowchart LR
   svc_routedDeliveryVerifier["ctx.routedDeliveryVerifier<br/>Exact routed delivery verification"]
   svc_hostAdmin["ctx.hostAdmin<br/>Opt-in loopback host administration"]
   svc_hostAdminExecutor["ctx.hostAdminExecutor<br/>Authorized host administration execution"]
+  svc_hostSdkInvoker["ctx.hostSdkInvoker<br/>Running-host SDK namespace invocation"]
+  pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
+  svc_hostSessionCredentials["ctx.hostSessionCredentials<br/>Session-bound host credential issuance"]
   svc_nodeLinkExecutor["ctx.nodeLinkExecutor<br/>Authorized local node execution"]
   svc_nodeRouter["ctx.nodeRouter<br/>Configured paired-node routing"]
-  pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   svc_sdkMethods["ctx.sdkMethods<br/>Unloadable SDK namespace registration"]
   svc_seatAuthorizationQueries["ctx.seatAuthorizationQueries<br/>Provider-owned authorization queries"]
   pkg_seat_app["seat-app"]
@@ -418,6 +420,8 @@ flowchart LR
   pkg_hmr --> svc_hmr
   pkg_host_admin --> svc_hostAdmin
   pkg_host_admin --> svc_hostAdminExecutor
+  pkg_host_admin --> svc_hostSdkInvoker
+  pkg_host_admin --> svc_hostSessionCredentials
   pkg_host_directory_picker --> svc_directoryPicker
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
@@ -464,6 +468,7 @@ flowchart LR
   pkg_sandbox_ssh --> svc_sandbox
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
+  pkg_sdk_jsonrpc_server --> svc_hostSdkInvoker
   pkg_sdk_jsonrpc_server --> svc_sdkMethods
   pkg_seat --> svc_seatAuthorizationExports
   pkg_seat --> svc_seatAuthorizationIssuers
@@ -608,6 +613,8 @@ flowchart LR
   svc_fs --> pkg_tool_fs
   svc_hmr --> pkg_app_boot
   svc_hostAdminExecutor --> pkg_host_admin
+  svc_hostSdkInvoker --> pkg_host_admin
+  svc_hostSessionCredentials --> pkg_seat_local
   svc_instructionSubscriptions --> pkg_seat_local
   svc_jobNotifications --> pkg_jobs
   svc_jobs --> pkg_api_job_controller
@@ -787,6 +794,8 @@ flowchart LR
 | `ctx.routedDeliveryVerifier` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | Checks host-owned envelope capabilities rather than wire authority claims. |
 | `ctx.hostAdmin` | `service` | [`host-admin`](../packages/host/host-admin) | - | - | - | Dispatches fixed authenticated requests against an existing host without starting another engine. |
 | `ctx.hostAdminExecutor` | `seam` | [`host-admin`](../packages/host/host-admin) | - | [`host-admin`](../packages/host/host-admin) | - | Deployment providers own authorization journaling and local execution; absent providers reject writes. |
+| `ctx.hostSdkInvoker` | `seam` | [`host-admin`](../packages/host/host-admin) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`host-admin`](../packages/host/host-admin) | - | Invokes registered namespaces with host-issued identity and revocation signals without starting stdio. |
+| `ctx.hostSessionCredentials` | `service` | [`host-admin`](../packages/host/host-admin) | - | [`seat-local`](../packages/seat/seat-local) | - | Publishes owner-only credential paths and revokes bindings on replacement, archive and disposal. |
 | `ctx.nodeLinkExecutor` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Deployment providers authenticate delegation and execute locally without forwarding again. |
 | `ctx.nodeRouter` | `service` | [`node-link`](../packages/seat/node-link) | - | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Provides bounded transport and dated health evidence without granting execution authority. |
 | `ctx.sdkMethods` | `seam` | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Registers exclusive optional namespaces with contributor-owned decoding, authorization and disposal. |

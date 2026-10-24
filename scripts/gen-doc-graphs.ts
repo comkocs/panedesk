@@ -158,6 +158,16 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['host-admin'], note: 'Deployment providers own authorization journaling and local execution; absent providers reject writes.',
   },
   {
+    key: 'hostSdkInvoker', pkg: 'host-admin', title: 'Running-host SDK namespace invocation', mode: 'seam',
+    implementations: ['sdk-jsonrpc-server'], consumers: ['host-admin'],
+    note: 'Invokes registered namespaces with host-issued identity and revocation signals without starting stdio.',
+  },
+  {
+    key: 'hostSessionCredentials', pkg: 'host-admin', title: 'Session-bound host credential issuance', mode: 'service',
+    consumers: ['seat-local'],
+    note: 'Publishes owner-only credential paths and revokes bindings on replacement, archive and disposal.',
+  },
+  {
     key: 'nodeLinkExecutor', pkg: 'node-link', title: 'Authorized local node execution', mode: 'seam',
     consumers: ['node-link'], note: 'Deployment providers authenticate delegation and execute locally without forwarding again.',
   },
