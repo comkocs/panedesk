@@ -107,7 +107,10 @@ export type GateContext = GateContextBase & (
   | { hook: 'after-subagent-return'; parentSessionId: SessionId; childSessionId: SessionId; result: SeatJson }
   | { hook: 'after-compaction'; summary: string; additionalTokenBudget: number; seatRevision: number }
 )
-/** Opt-in task-aware batch input; absence of a provider preserves legacy seats-only evaluation. */
+/** Opt-in task-aware batch input; absence of a provider preserves legacy seats-only evaluation.
+ * A provider's missing or empty scope field is unknown evidence, never an empty write set.
+ * Unknown evidence denies the complete concurrent batch and offers the serial alternative.
+ */
 export type TaskScopeBatchGateContext = Extract<GateContext, { hook: 'before-batch-open' }> & {
   tasks: readonly import('./types.ts').SeatTaskScopeContext[]
 }

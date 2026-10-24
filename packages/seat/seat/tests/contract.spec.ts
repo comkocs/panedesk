@@ -8,6 +8,7 @@ import {
 import type {
   EngineEffect, EngineEventKind, GateContext, GateHook, GateResult, OpenSeatResult,
   ReplaceSeatResult, ResourceReleaseReason, SeatCallbackPayload, SeatErrorCode,
+  TaskScopeBatchGateContext, TaskScopeGateDecision,
 } from '../src/index.ts'
 
 const errorCodes = [
@@ -65,6 +66,16 @@ function isRelease(effect: EngineEffect): effect is Extract<EngineEffect, { kind
 }
 
 describe('seat declarations', () => {
+  it('carries unknown scope into whole-batch refusal with a serial alternative', () => {
+    type Evidence = TaskScopeBatchGateContext['tasks'][number]['scopeEvidence']
+    expectTypeOf<Extract<Evidence, { status: 'unknown' }>['alternative']>().toEqualTypeOf<'serial'>()
+    const decision: TaskScopeGateDecision = {
+      outcome: 'deny', reason: 'scope-unknown', alternative: 'serial', conflicts: [],
+    }
+    expect(decision).toEqual({ outcome: 'deny', reason: 'scope-unknown', alternative: 'serial', conflicts: [] })
+    expectTypeOf<Extract<TaskScopeGateDecision, { outcome: 'deny' }>['alternative']>().toEqualTypeOf<'serial'>()
+  })
+
   it('pins the opt-in authorization vocabulary without widening the existing ledger', () => {
     expect(SEAT_AUTHORIZATION_EVENT_NAME).toBe('authorization/checked')
     expect(SEAT_AUTHORIZATION_CAPABILITY).toBe('seat-authorization/v1')
