@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/seat/node-link/README.md
+/panedesk-dsh-node-link:
+  en: bbad7e6a0b60c46e
+  zh: bbad7e6a0b60c46e
+/panedesk-dsh-node-link/section:
+  en: e02e0f1d3239811d
+  zh: e02e0f1d3239811d
+/panedesk-dsh-node-link/section~2:
+  en: 342f9cc71391d2bf
+  zh: 342f9cc71391d2bf
+/panedesk-dsh-node-link/section~3:
+  en: b6ad8192b8fc7296
+  zh: b6ad8192b8fc7296
+/panedesk-dsh-node-link/section~4:
+  en: a311da3843709f90
+  zh: a311da3843709f90
+/panedesk-dsh-node-link/section/section:
+  en: 02ca1db572532e51
+  zh: 02ca1db572532e51
+/panedesk-dsh-node-link/section/section/section:
+  en: 1bc6e1e638106ba6
+  zh: 1bc6e1e638106ba6
+/panedesk-dsh-node-link/section/section/section~2:
+  en: 733ccb56679971ac
+  zh: 733ccb56679971ac
+/panedesk-dsh-node-link/section/section/kv:
+  en: 0a48b5997af6bc68
+  zh: 0a48b5997af6bc68
+/panedesk-dsh-node-link/section~5:
+  en: 684de7b946d359be
+  zh: 684de7b946d359be

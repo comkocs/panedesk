@@ -18,9 +18,11 @@
   },
   "files": ["lib/index.js", "lib/types/**/*.d.ts"],
   "license": "MIT",
-  "dependencies": { "@panedesk/schemastery": "workspace:~" },
+  "dependencies": { "@panedesk/schemastery": "workspace:~", "@panedesk/dsh-sdk-protocol": "workspace:*", "@panedesk/dsh-host-admin": "workspace:*", "@panedesk/dsh-subprocess": "workspace:*" },
   "peerDependencies": { "@panedesk/cordis": "workspace:~" },
   "devDependencies": {
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",
