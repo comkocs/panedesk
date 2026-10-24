@@ -1,5 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import { mkdtemp, readdir, readFile, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EngineJournal, canonical, decodeFrame, frame } from '../src/journal.ts'
 import { fact } from '../src/triggers.ts'
@@ -9,7 +10,7 @@ import type * as T from '@panedesk/dsh-seat'
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup() })
 async function setup() {
-  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.journal-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-engine-journal-'))
   const journals: EngineJournal[] = []
   const create = async () => { const j = new EngineJournal(root, nodeId, config.maxDecisionBytes)
     journals.push(j); await j.ready(); return j }

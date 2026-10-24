@@ -2,12 +2,13 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 it('keeps first-residency resume labels after two real process restarts', async () => {
-  const root = await mkdtemp(join(process.cwd(), '.seat-resume-process-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-resume-process-'))
   const children: ChildProcess[] = []
   const pids: number[] = []
   try {

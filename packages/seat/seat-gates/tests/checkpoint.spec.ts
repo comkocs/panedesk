@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildCheckpoint, selectSection } from '../src/checkpoint.ts'
 import { installConsumers } from '../src/consumers.ts'
@@ -11,7 +12,7 @@ import { SessionSeq } from '@panedesk/dsh-session'
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(path => rm(path, { recursive: true, force: true }))) })
 async function source() {
-  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.checkpoint-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-gates-checkpoint-'))
   roots.push(root)
   const path = join(root, 'rules.md')
   await writeFile(path, '# Rules\nKeep complete data.\n# Other\nOmit this section.\n')

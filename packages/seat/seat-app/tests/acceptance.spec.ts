@@ -6,6 +6,7 @@ import { LocalSeatService } from '@panedesk/dsh-seat-local'
 import { digest } from '@panedesk/dsh-seat-local/src/store.ts'
 import { clock, measured } from './fixtures/clock.ts'
 import { createUserMessage, ToolCallId } from '@panedesk/dsh-llm'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -284,7 +285,7 @@ it('A07 refuses occupied remote and engine seats and keeps concurrent openings w
 }, 20000)
 
 it.each(['open/intent', 'open/created', 'open/configured'])('A09 recovers a real Loader child after SIGKILL at %s', async (stage) => {
-  const home = await mkdtemp(join(process.cwd(), '.acceptance-recovery-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-acceptance-recovery-'))
   const children: ReturnType<typeof childFixture>[] = []
   try {
     const first = childFixture(home, stage); children.push(first)
@@ -309,7 +310,7 @@ it.each(['open/intent', 'open/created', 'open/configured'])('A09 recovers a real
 }, 30000)
 
 it('A09 preserves a torn journal tail and refuses a corrupt complete middle frame on real Loader restart', async () => {
-  const home = await mkdtemp(join(process.cwd(), '.acceptance-journal-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-acceptance-journal-'))
   let current: Fixture | undefined
   try {
     current = await fixture({ home, preserve: true })
@@ -706,7 +707,7 @@ it('A23 rejects cross-node opening before Session creation and records the rejec
 }, 20000)
 
 it('A16 releases a killed host owner and admits its exclusive waiter within five seconds of ready', async () => {
-  const home = await mkdtemp(join(process.cwd(), '.acceptance-owner-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-acceptance-owner-'))
   const children: ReturnType<typeof childFixture>[] = []
   try {
     const owner = childFixture(home, 'owner-held'); children.push(owner)

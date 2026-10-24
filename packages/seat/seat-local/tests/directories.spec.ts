@@ -1,4 +1,5 @@
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SeatName, SeatPrincipalId } from '@panedesk/dsh-seat'
@@ -9,7 +10,7 @@ import { definition, seat } from './fixtures.ts'
 const roots: string[] = []
 const principal = 'principal-a' as SeatPrincipalId
 afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }) })
-async function setup() { const root = await mkdtemp(join(process.cwd(), '.seat-directories-')); roots.push(root); return root }
+async function setup() { const root = await mkdtemp(join(tmpdir(), 'seat-directories-')); roots.push(root); return root }
 
 describe('directory admission', () => {
   it('returns all three choices before create and returns a usable command for headless callers', async () => {

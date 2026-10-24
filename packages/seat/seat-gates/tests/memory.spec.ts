@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { snapshotMemory, compareMemory } from '../src/memory-audit.ts'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SeatName } from '@panedesk/dsh-seat'
 import { canonicalWritePath, checkMemoryWrite, literalWriteTargets } from '../src/memory.ts'
@@ -13,7 +14,7 @@ afterEach(async () => { await Promise.all(temporary.splice(0).map(path => rm(pat
 
 describe('memory ownership', () => {
   it('bounds aggregate snapshots and never attributes external changes to the current session', async () => {
-    const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.memory-'))
+    const root = await mkdtemp(join(tmpdir(), 'seat-gates-memory-'))
     temporary.push(root)
     const path = join(root, 'note.md')
     await writeFile(path, 'before')
@@ -38,7 +39,7 @@ describe('memory ownership', () => {
     expect(checkMemoryWrite('/memory/another/note.md', null, roots)).toBeNull()
   })
   it('resolves a symlink through the nearest existing ancestor before checking a new file', async () => {
-    const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-gates/tests', '.memory-'))
+    const root = await mkdtemp(join(tmpdir(), 'seat-gates-memory-'))
     temporary.push(root)
     await mkdir(join(root, 'owned'))
     await symlink(join(root, 'owned'), join(root, 'alias'))

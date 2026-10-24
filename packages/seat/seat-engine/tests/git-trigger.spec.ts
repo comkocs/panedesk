@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { GitTrigger } from '../src/git-trigger.ts'
 import type * as T from '@panedesk/dsh-seat'
@@ -9,7 +10,7 @@ import { harness, trigger } from './fixtures.ts'
 
 const execute = promisify(execFile)
 it('A08 observes loose and packed refs, deletion and recreation without triggering its baseline', async () => {
-  const root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.git-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-engine-git-'))
   const events: T.SeatTriggerEvidence[] = []
   const git = (...args: string[]) => execute('git', args, { cwd: root })
   const h = await harness()
@@ -50,7 +51,7 @@ it('A08 observes loose and packed refs, deletion and recreation without triggeri
   } finally { await watcher.stop(); await h.close(); await rm(root, { recursive: true, force: true }) }
 })
 it.each([7, -1])('migrates a valid legacy checkpoint once and rejects negative sequence %s', async (sequence) => {
-  const h = await harness(), root = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.git-'))
+  const h = await harness(), root = await mkdtemp(join(tmpdir(), 'seat-engine-git-'))
   const checkpoint = join(root, 'observer.json')
   const bytes = JSON.stringify({ schemaVersion: 1, repositoryId: 'repo-a', ref: 'refs/heads/main', objectId: null, sequence })
   const watcher = new GitTrigger({ repository: root, repositoryId: 'repo-a' as never, ref: 'refs/heads/main',

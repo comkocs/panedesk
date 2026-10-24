@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -33,7 +34,7 @@ async function stop(child: ChildProcess): Promise<void> {
   await exited
 }
 it.each(stages)('A09 recovers the original durable identity after SIGKILL at %s', async (stage) => {
-  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.process-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-engine-process-'))
   const children: ChildProcess[] = []
   try {
     const first = start(home, stage); children.push(first.child)

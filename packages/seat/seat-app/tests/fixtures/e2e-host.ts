@@ -36,7 +36,8 @@ import * as App from '../../src/index.ts'
 import Schedule from '@panedesk/dsh-schedule'
 import { load as loadYaml } from 'js-yaml'
 import type * as T from '@panedesk/dsh-seat'
-import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import assert from 'node:assert/strict'
@@ -54,9 +55,7 @@ import { SeatModel } from './e2e-model.ts'
 import * as Shell from './e2e-shell.ts'
 
 export async function createHost(existingRoot?: string, headless = false) {
-  const parent = process.env.PANEDESK_HOME ?? process.cwd()
-  await mkdir(parent, { recursive: true })
-  const root = existingRoot ?? await mkdtemp(join(parent, 'seat-e2e-'))
+  const root = existingRoot ?? await mkdtemp(join(tmpdir(), 'seat-e2e-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
   const facility = new DomainFacility(ctx, { backend: 'json' })

@@ -3,6 +3,7 @@ import { expect, it } from 'vitest'
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -30,7 +31,7 @@ async function kill(child: ChildProcess, pid: number | undefined) {
   await exited
 }
 it('A16 releases an acknowledged opening after host SIGKILL and completes its exclusive waiter within five seconds', async () => {
-  const root = await mkdtemp(join(process.cwd(), '.seat-dead-owner-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-dead-owner-'))
   const children: ReturnType<typeof host>[] = []
   try {
     const first = host(root, 'held'); children.push(first)
