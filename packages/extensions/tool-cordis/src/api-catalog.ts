@@ -2965,6 +2965,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Optional opening service definition; no provider is installed by this module.',
     methods: [
       {
+        signature: 'registerScopeAdmission?(admission: T.OpeningScopeAdmission): () => Promise<void>',
+        description: 'Install one trusted scope owner; omission retains the existing scope evaluation.',
+        parameters: [{ name: 'admission', description: 'Owner of serialized checks and durable reservations.' }],
+        returns: 'Disposer that stops new calls and drains active admissions.',
+      },
+      {
         signature: 'register(provider: T.OpeningContextProvider): () => Promise<void>',
         description: 'Register trusted resolver code through a Cordis effect.',
         parameters: [{ name: 'provider', description: 'Installed resolver with an exclusive provider identity.' }],
@@ -8851,6 +8857,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OpeningProviderId',
     declaration: 'export type OpeningProviderId = Branded<\'OpeningProviderId\'>;',
+  },
+  {
+    name: 'OpeningScopeAdmission',
+    declaration: 'export interface OpeningScopeAdmission {\n    evaluateTaskScopes(context: import(\'./gates.ts\').TaskScopeBatchGateContext): Promise<import(\'./gates.ts\').TaskScopeGateDecision>;\n    batch(request: OpenSeatBatchWithScopeRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatBatchResult>): Promise<OpenSeatBatchResult>;\n    open(request: OpenSeatWithContextRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatResult>): Promise<OpenSeatResult>;\n}',
   },
   {
     name: 'OpenIntentId',
