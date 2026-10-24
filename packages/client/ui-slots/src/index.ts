@@ -15,7 +15,7 @@
  * The rule fires on the empty-map view, not on real redundancy. */
 import type { ReactNode } from 'react'
 import type {
-  BoundActions, HandleOf, PropsStore, SnapshotSelectorHook, StoreDecl,
+  BoundActions, HandleOf, ObservableSnapshot, PropsStore, SnapshotSelectorHook, StoreDecl,
 } from '@panedesk/dsh-client-store'
 import type { HostObservable, KeyedStandardSource } from './renderer.ts'
 
@@ -779,6 +779,12 @@ export type KindOptions<
       id: string
       order?: number
       label?: SlotLabel
+      /**
+       * Optional snapshot kept beside the list entry and omitted from the
+       * stored options when absent, so a registration without it is unchanged.
+       * The value stays unbound: the registrant and the projecting shell agree on it.
+       */
+      badge?: ObservableSnapshot<unknown>
       /** Cell shadowing rank (ascending, default 0, lowest renders; same id + same priority throws — see {@link SlotCore.register}). */
       priority?: number
     }
@@ -844,7 +850,15 @@ type BaseOptions<
  */
 export interface StoredEntry {
   component: unknown
-  options: { key?: string; id?: string; order?: number; label?: SlotLabel; priority?: number }
+  options: {
+    key?: string
+    id?: string
+    order?: number
+    label?: SlotLabel
+    priority?: number
+    /** Present only when the list registration passed `badge`. */
+    badge?: ObservableSnapshot<unknown>
+  }
   /** Chain routing selector (type-erased like `inject`; present exactly on chain-slot entries). */
   select?: ((owner: never) => unknown) | undefined
   /** Registrant business face; positional params derive from the declaration (sessionId?, actions?). */
@@ -882,6 +896,7 @@ interface ErasedOptions {
   id?: string | undefined
   order?: number | undefined
   label?: SlotLabel | undefined
+  badge?: ObservableSnapshot<unknown> | undefined
   select?: ((owner: never) => unknown) | undefined
   priority?: number | undefined
   children?: Record<string, SlotSpec<SlotEntryDef>> | undefined
@@ -1270,6 +1285,7 @@ export class SlotCore {
         ...(options.order !== undefined ? { order: options.order } : {}),
         ...(options.label !== undefined ? { label: options.label } : {}),
         ...(options.priority !== undefined ? { priority: options.priority } : {}),
+        ...(options.badge !== undefined ? { badge: options.badge } : {}),
       },
       ...(options.select !== undefined ? { select: options.select } : {}),
       ...(options.inject !== undefined ? { inject: options.inject } : {}),

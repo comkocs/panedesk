@@ -49,15 +49,27 @@ function localBuildVersion(): string | undefined {
 }
 
 type PanelRowProps =
-  Pick<SidebarPanelMetadata, 'id' | 'label'>
+  Pick<SidebarPanelMetadata, 'id' | 'label' | 'badge'>
   & Pick<SidebarSectionOwnerProps, 'wide'>
   & Pick<PropsRuntime<'sidebar'>, 'usePanelInfo'>
   & Pick<InjectFace<SidebarRootInjected>, 'selectPanel'>
   & PropsRenderSlots<'sidebar.panellist'>
 
+/** Visible digits for a positive count; zero, empty, and unknown render nothing. */
+function panelBadgeText(count: number | null): string | undefined {
+  if (count === null || !Number.isFinite(count) || count <= 0) return undefined
+  const whole = Math.floor(count)
+  return whole > 99 ? '99+' : String(whole)
+}
+
 /** Each panel row subscribes only to its own selection state. */
-function PanelRow({ id, label, wide, usePanelInfo, selectPanel, renderSlot }: PanelRowProps) {
+function PanelRow({ id, label, badge, wide, usePanelInfo, selectPanel, renderSlot }: PanelRowProps) {
   const active = usePanelInfo(info => info.activePanelId === id)
+  const published = badge
+  const shown = published == null ? undefined : panelBadgeText(published.count)
+  const badgeText = shown === undefined || published == null
+    ? undefined
+    : { text: shown, stale: published.stale, label: published.label }
   return (
     <Tooltip label={label} delayMs={500} disabled={wide}>
       <button
@@ -69,10 +81,21 @@ function PanelRow({ id, label, wide, usePanelInfo, selectPanel, renderSlot }: Pa
       >
         <span className={css.panelGlyph} aria-hidden="true">
           {renderSlot('sidebar.panellist', { size: wide ? 16 : 18, active }, { only: id })}
+          {badgeText !== undefined && !wide && (
+            <span
+              className={clsx(css.panelBadge, css.panelBadgeRail, badgeText.stale && css.panelBadgeStale)}
+              aria-label={badgeText.label}
+            >{badgeText.text}</span>
+          )}
         </span>
         {wide && (
           <span className={clsx(css.panelTitle, css.wide)}>
             {label}
+          </span>
+        )}
+        {badgeText !== undefined && wide && (
+          <span className={clsx(css.panelBadge, badgeText.stale && css.panelBadgeStale)} aria-label={badgeText.label}>
+            {badgeText.text}
           </span>
         )}
       </button>
@@ -278,11 +301,12 @@ export function SidebarRoot({
 
       {panels.length > 0 && (
         <nav className={css.panelList} aria-label={t('panels.label')}>
-          {panels.map(({ id, label }) => (
+          {panels.map(panel => (
             <PanelRow
-              key={id}
-              id={id}
-              label={label}
+              key={panel.id}
+              id={panel.id}
+              label={panel.label}
+              {...(panel.badge !== undefined ? { badge: panel.badge } : {})}
               wide={wide}
               usePanelInfo={usePanelInfo}
               selectPanel={selectPanel}

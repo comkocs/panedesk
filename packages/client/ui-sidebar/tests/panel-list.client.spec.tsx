@@ -12,6 +12,7 @@ import { IconGlobeOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
 import type { ILayout, MainPanelId } from '@panedesk/dsh-client-ui-layout/client'
 import type { PropsRenderSlots, PropsRuntime, SlotLabel } from '@panedesk/dsh-client-ui-slots'
 import { apply, inject } from '../src/client/index.ts'
+import type { SidebarPanelBadge } from '../src/client/contract/slots.ts'
 
 declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -85,6 +86,7 @@ interface TestPanel {
   heading: string
   order?: number
   label?: SlotLabel
+  badge?: ReturnType<typeof createSnapshotStore<SidebarPanelBadge | null>>
 }
 
 async function mountPanel(runtime: SlotTestRuntime, { heading, ...metadata }: TestPanel) {
@@ -181,6 +183,32 @@ describe('sidebar global panels', () => {
     await mountPanels(runtime, locale, 20)
     const navigation = await view.findByRole('navigation', { name: 'Global panels' })
     expect(within(navigation).getAllByRole('button').map(row => row.textContent)).toEqual(['Alpha panel', 'Beta panel'])
+  })
+
+  it.each([false, true])('renders a subscribed count and hides zero, empty, and unknown values with collapsed=%s', async (collapsed) => {
+    const { runtime, locale, view } = await bench(collapsed)
+    const badge = createSnapshotStore<SidebarPanelBadge | null>(null)
+    await mountPanels(runtime, locale)
+    await mountPanel(runtime, {
+      id: 'sidebar-test-gamma' as MainPanelId, heading: 'Gamma content', label: 'Gamma panel', order: 30, badge,
+    })
+    const navigation = await view.findByRole('navigation', { name: 'Global panels' })
+    const plain = within(navigation).getByRole('button', { name: 'Alpha panel' })
+    expect(plain.querySelector('[aria-label="Gamma unread"]')).toBeNull()
+    expect(plain.textContent).toBe(collapsed ? '' : 'Alpha panel')
+
+    act(() => { badge.set({ count: 0, stale: false, label: 'Gamma unread' }) })
+    expect(within(navigation).getByRole('button', { name: 'Gamma panel' }).textContent).toBe(collapsed ? '' : 'Gamma panel')
+    act(() => { badge.set({ count: null, stale: false, label: 'Gamma unread' }) })
+    expect(within(navigation).queryByLabelText('Gamma unread')).toBeNull()
+
+    act(() => { badge.set({ count: 7, stale: false, label: 'Gamma unread' }) })
+    const row = within(navigation).getByRole('button', { name: 'Gamma panel' })
+    expect(within(row).getByLabelText('Gamma unread').textContent).toBe('7')
+    act(() => { badge.set({ count: 240, stale: true, label: 'Gamma unread' }) })
+    const stale = within(navigation).getByLabelText('Gamma unread')
+    expect(stale.textContent).toBe('99+')
+    expect(stale.className).toContain('Stale')
   })
 
   it('selects registered main content and keeps a repeated selection active', async () => {
