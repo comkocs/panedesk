@@ -78,13 +78,14 @@ async function checkCreation(scenario: 'budget' | 'opening' | 'prefill' | 'wait-
       f.ctx.loader.builtins.local = Local
       const localPath = join(f.options.directory, 'local.yml')
       await writeFile(localPath, JSON.stringify([{ name: 'cordis:local', config: f.options }]))
-      const entry = await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(localPath).href } })
+      let entry = await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(localPath).href } })
       await f.ctx.loader.await()
       await seatsReady(f.ctx)
       unloadLocal = async () => {
         await f.ctx.loader.resolve(entry).fiber?.dispose()
+        expect(f.ctx.get('seats')).toBeUndefined()
         return async () => {
-          await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(localPath).href } })
+          entry = await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(localPath).href } })
           await f.ctx.loader.await()
           await seatsReady(f.ctx)
         }
