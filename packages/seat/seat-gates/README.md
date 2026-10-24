@@ -21,6 +21,8 @@ Provides the [seat policy registry](../../../docs/subsystems/seat.md) while `sea
 <a id="use-this-package"></a>
 ## Use this package
 
+Optional `evaluateTaskScopes` checks the complete batch before opening: every seat needs task evidence bound to the executing node, repository identity and nonempty scope. Empty, unknown, malformed or inconsistent-version evidence rejects concurrency with `serial`. File equality and directory ancestry conflict when either side writes; read/read overlap is allowed. Unproven pattern intersections are conservatively conflicting. Evidence is supplied by the authoritative provider, never reconstructed from a second local catalog; this evaluator cannot refresh upstream revisions.
+
 Configure policy definitions, polling and sleep limits, checkpoint bounds and retry limits, reserved ledger tokens, memory audit bounds, and display time zone. The [configuration catalog](../../../docs/config-catalog.md) owns defaults. Installed criteria evaluate executor-owned facts in order and retain durable hit counts; configuration cannot supply executable criterion code.
 
 Tool admission delegates to upstream policy first. Memory checks retain filesystem permissions and distinguish canonical ownership from uncertain shell syntax. Compaction appends bounded quoted sections, preserves the outer ledger allowance, and revalidates source bytes and seat revision before commit. Required missing, ambiguous, changed, or oversized content rejects the checkpoint rather than being silently omitted.

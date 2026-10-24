@@ -20,7 +20,8 @@ export async function openLocalWindow(engine: SeatEngine, input: T.SeatLocalOpen
   if (definition.seat !== request.seat) return rejected('invalid-request', 'Frozen definition targets another seat')
   const sourceId = 'seat-local-manual' as T.SeatSourceId
   const triggerId = digest(request.operationId) as string as T.TriggerId
-  const data = JSON.parse(JSON.stringify({ request, opening: input.opening, title: input.title, definition })) as T.SeatJson
+  const data = JSON.parse(JSON.stringify({ request, opening: input.opening, title: input.title, definition,
+    ...(input.openingContext ? { openingContext: input.openingContext } : {}) })) as T.SeatJson
   const result = await accept({ triggerId, sourceId, eventId: triggerId as string as T.SourceEventId,
     kind: 'manual', evidence: { kind: 'manual', origin: request.origin, operationId: request.operationId },
     seat: request.seat, projectId: definition.projectId, receivedAt: new Date().toISOString(), data, dataDigest: digest(data),

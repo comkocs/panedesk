@@ -11,6 +11,7 @@ import { SourceRegistry } from './sources.ts'
 import { TriggerRegistry, rejected, fact, reminderEffects } from './triggers.ts'
 import { CallbackOutbox } from './outbox.ts'
 import { effectiveMode, reserveOpen } from './admission.ts'
+import { externalRuleMiss, triggerRule } from './rules.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
 import { queryEngine, exportEngine, verifyEngine, redactPending } from './query.ts'
 import { reconcileOpen } from './open-recovery.ts'
@@ -116,7 +117,8 @@ export class SeatEngine extends SeatEngineService {
         if (refusal) return refusal
       }
       const frozenOpen: T.SeatFrozenOpen = { definition: input.definition, title: input.title,
-        frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto' }
+        frozenOpening: input.opening, openingMode: input.request.origin === 'manual' ? input.request.openingMode ?? 'auto' : 'auto',
+        ...(input.openingContext ? { openingContext: input.openingContext } : {}) }
       const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')
       const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen)
       await this.publish()
@@ -150,12 +152,35 @@ export class SeatEngine extends SeatEngineService {
       return result
     }
     const receivedAt = new Date().toISOString()
-    const frozenOpen = await this.localAccess?.freeze(definition, { ...envelope, receivedAt }) ?? {
-      definition, title: `${envelope.seat} ${new Intl.DateTimeFormat('en-US', {
-        timeZone: this.ctx.get('seatGates')?.getTimeZone() ?? 'UTC', month: '2-digit', day: '2-digit',
-      }).format(new Date(receivedAt)).replace('/', '-')}`, openingMode: 'auto' as const }
-    const rule = frozenOpen.definition.rules.find(rule => rule.enabled && rule.trigger.kind === envelope.kind)
-    const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen)
+    let frozenOpen: T.SeatFrozenOpen | T.SeatRejected
+    try {
+      frozenOpen = await this.sources.use(envelope.sourceId, async (source) => {
+        if (!source.kinds.includes(envelope.kind) || envelope.callbackRef !== envelope.sourceId
+          || envelope.evidence.kind !== envelope.kind) return rejected('unauthorized', 'Source is not authorized for this trigger')
+        const retained = envelope.eventId ? [...this.journal.projection.dedup.values()].find(item =>
+          item.trigger.sourceId === envelope.sourceId && item.trigger.eventId === envelope.eventId)?.pending.frozenOpen : undefined
+        if (retained) return retained
+        if (envelope.openingContext) return this.localAccess?.freezeContext?.(definition, { ...envelope, receivedAt })
+          ?? rejected('unavailable', 'Opening context provider is unavailable')
+        return await this.localAccess?.freeze(definition, { ...envelope, receivedAt }) ?? {
+          definition, title: `${envelope.seat} ${new Intl.DateTimeFormat('en-US', {
+            timeZone: this.ctx.get('seatGates')?.getTimeZone() ?? 'UTC', month: '2-digit', day: '2-digit',
+          }).format(new Date(receivedAt)).replace('/', '-')}`, openingMode: 'auto' as const }
+      })
+    } catch (error) {
+      if (!(error instanceof EngineError)) throw error
+      frozenOpen = rejected(error.code, error.message)
+    }
+    if ('status' in frozenOpen) {
+      const error = frozenOpen.error
+      await this.journal.commit(() => [fact({ kind: 'source/rejected', seat: envelope.seat, data: {
+        sourceId: envelope.sourceId, sourceEventId: envelope.eventId ?? null, digest: digest(envelope.data), error } })])
+      await this.publish()
+      return frozenOpen
+    }
+    const rule = triggerRule(frozenOpen.definition, envelope)
+    const result = await this.triggers.accept(envelope,
+      externalRuleMiss(frozenOpen.definition, envelope) ? 'off' : rule?.mode, frozenOpen)
     await this.publish()
     return result
   }
@@ -454,10 +479,12 @@ export class SeatEngine extends SeatEngineService {
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
     const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
-    const rule = definition.rules.find(rule => rule.enabled && rule.trigger.kind === item.triggerKind)
+    const source = item.sources[0]
+    const rule = source ? triggerRule(definition, source) : undefined
     const livePolicy = item.triggerKind === 'manual' ? undefined : await this.dependencies.seats()?.resolve(item.seat)
-    const ruleMode = livePolicy && !('status' in livePolicy)
-      ? livePolicy.rules.find(rule => rule.enabled && rule.trigger.kind === item.triggerKind)?.mode : rule?.mode
+    const currentDefinition = livePolicy && !('status' in livePolicy) ? livePolicy : definition
+    const ruleMode = source && externalRuleMiss(currentDefinition, source) ? 'off'
+      : source ? triggerRule(currentDefinition, source)?.mode : rule?.mode
     const sessionId = randomUUID() as SessionId
     const budget = await this.readBudget(sessionId, item.seat, {
       ...(rule?.windowBudgetUsd !== undefined ? { windowBudgetUsd: rule.windowBudgetUsd } : {}),

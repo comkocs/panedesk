@@ -44,13 +44,24 @@ const evidence = discriminated('kind', {
   'window-ended': fields({ sessionId: id, endedEventId: id, reportId: nullable(id), origin: one('closed', 'can-close') }),
   'handoff-timeout': timeout, manual: fields({ origin: one('manual', 'remote'), operationId: id }),
 })
-const trigger = fields({ triggerId: id, sourceId: id, eventId: optional(id), kind: triggerKind, evidence,
+const openingReference = fields({ providerId: id, reference: id, revision: id })
+const scopeEvidence = discriminated('status', {
+  unknown: fields({ taskId: id, reason: text, alternative: one('serial') }),
+  known: fields({ taskId: id, revision: id, repositoryId: id, baseRevision: id,
+    entries: array(fields({ kind: one('file', 'directory', 'pattern'), path: id, access: one('read', 'write') })),
+    patternSyntax: one('literal', 'glob-v1'), caseSensitive: boolean }),
+})
+const openingSnapshot = fields({ reference: openingReference, text, digest: id, revision: id,
+  taskIds: array(id), scopeEvidence: array(scopeEvidence) })
+const taskScope = fields({ taskId: id, seat: id, nodeId: id, scopeEvidence, scopeEvidenceRef: id })
+const trigger = fields({ openingContext: optional(openingReference), relatedTaskIds: optional(array(id)),
+  triggerId: id, sourceId: id, eventId: optional(id), kind: triggerKind, evidence,
   seat: id, projectId: id, receivedAt: timestamp, dataDigest: id, data: json, taskId: optional(id), callbackRef: id,
   cause: optional(fields({ eventId: id, depth: integer })) })
 const frozenOpening = fields({ text, digest: id, variables: fields({ seat: id,
   date: value => typeof value === 'string' && /^\d{4}-\d\d-\d\d$/.test(value), taskId: nullable(id) }) })
 const frozenOpen: Check = value => fields({ definition, title: text,
-  openingMode: one('auto', 'prefill'), frozenOpening: optional(frozenOpening) })(value)
+  openingMode: one('auto', 'prefill'), frozenOpening: optional(frozenOpening), openingContext: optional(openingSnapshot) })(value)
 const pending = fields({ frozenOpen: optional(frozenOpen), queueItemId: id, seat: id, projectId: id,
   triggerKind, action: one('open', 'wake-sender', 'replace'),
   replacementId: optional(id), handoffTimeout: optional(timeout), sequence: positive, effectiveMode: mode,
@@ -136,7 +147,7 @@ const gate = fields({ id, name: text, hook, criterion: fields({ type: id, parame
   alternative: text, expiresAt: nullable(timestamp), enabled: boolean, revision: integer, order: number })
 const gateContext = fields({ callId: id, operationId: id, nodeId: id, seat: nullable(id), sessionId: nullable(id), observedAt: timestamp })
 const gateHook = discriminated('hook', {
-  'before-open': fields({ cwd: text, candidateSeats: array(id) }), 'before-batch-open': fields({ seats: array(id) }),
+  'before-open': fields({ cwd: text, candidateSeats: array(id) }), 'before-batch-open': fields({ seats: array(id), tasks: optional(array(taskScope)) }),
   'before-memory-write': fields({ targetPath: text, authorizedDirectories: array(text), syntax: one('certain', 'unknown') }),
   'before-tool-call': fields({ toolName: id, arguments: dictionary(json), hasPendingWork: boolean }),
   'before-subagent-dispatch': fields({ parentSessionId: id, kind: one('start', 'continue'), childSessionId: nullable(id), request: dictionary(json) }),

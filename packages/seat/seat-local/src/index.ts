@@ -13,6 +13,7 @@ import { LocalSeatDirectoryService } from './directory-service.ts'
 import { localFact } from './engine-state.ts'
 import { closingState } from './closing-service.ts'
 import { localSourceId } from './open-admission.ts'
+import { installOpeningContexts } from './opening-contexts.ts'
 import type { EngineJobData, OwnerEpoch } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { SubagentRunInfo } from '@panedesk/dsh-subagent'
@@ -78,6 +79,7 @@ export function apply(ctx: Context, config: Config): void {
       const runtime = createLocalRuntime(ctx, config)
       service = new LocalSeatService(ctx, store, config, runtime)
       const installed = service
+      const openingContexts = installOpeningContexts(ctx, installed)
       registerLocalReadAccess(ctx, installed, config)
       registerLocalSessionAccess(ctx, installed, config)
       registerLocalWindowsAccess(ctx, installed, config)
@@ -100,7 +102,7 @@ export function apply(ctx: Context, config: Config): void {
           const unregisterSource = engine.registerSource({ sourceId: localSourceId, kinds: ['manual'], maxRedeliveryMs: null,
             callback: () => Promise.resolve() })
           const unregister = engine.registerExecutor(createOpenExecutor(child, runtime, config))
-          const unregisterAccess = engine.registerLocalAccess?.({ ...createEngineAccess(installed, config),
+          const unregisterAccess = engine.registerLocalAccess?.({ ...createEngineAccess(installed, config, openingContexts),
             preAdmit: input => engineOpeningGate(child, installed, input) })
           const recovery = engine.ready().then(() => installed.recover())
           void recovery.catch((error: unknown) => { child.logger.warn('Seat recovery failed', error) })

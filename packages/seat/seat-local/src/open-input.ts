@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type * as T from '@panedesk/dsh-seat'
 import { parseDefinition } from './schema.ts'
 import { digest } from './store.ts'
+import { openingSnapshotSchema } from './opening-schema.ts'
 
 const schema = z.object({
   request: z.object({ seat: z.string().min(1), operationId: z.string().min(1), origin: z.enum(['manual', 'remote', 'engine']),
@@ -10,7 +11,7 @@ const schema = z.object({
     expectedSeatRevision: z.number().int().optional() }),
   opening: z.object({ text: z.string(), digest: z.string().min(1), variables: z.object({
     seat: z.string().min(1), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), taskId: z.string().nullable() }) }),
-  title: z.string(), definition: z.unknown(),
+  title: z.string(), definition: z.unknown(), openingContext: openingSnapshotSchema.optional(),
 })
 
 /** Decode local source data before reusing it from an engine journal.
@@ -25,7 +26,11 @@ export function readLocalOpenInput(value: unknown): Omit<T.SeatLocalOpenRequest,
     throw new Error('Retained local opening input is inconsistent')
   }
   const { nodeId, taskId, openingMode, expectedSeatRevision, ...request } = parsed.request
+  if (parsed.openingContext && (digest(parsed.openingContext.text) !== parsed.openingContext.digest
+    || parsed.openingContext.text !== parsed.opening.text
+    || parsed.openingContext.revision !== parsed.openingContext.reference.revision)) throw new Error('Retained context is inconsistent')
   return { definition, title: parsed.title,
+    ...(parsed.openingContext ? { openingContext: parsed.openingContext } : {}),
     request: { ...request, seat: request.seat as T.SeatName, operationId: request.operationId as T.SeatOperationId,
       ...(nodeId === undefined ? {} : { nodeId: nodeId as T.SeatNodeId }),
       ...(taskId === undefined ? {} : { taskId: taskId as T.SeatTaskId }),

@@ -21,6 +21,8 @@ Defines the seat services and shared request, result, event, and policy types. I
 <a id="use-this-package"></a>
 ## Use this package
 
+Optional opening snapshots and trigger references preserve provider revision and task evidence without changing legacy opening requests. `SeatGateService.evaluateTaskScopes` is an optional preflight capability; task-aware callers must refuse rather than bypass an absent evaluator. Authorization events remain detached declarations: no authorization writer, query provider or node-delegation issuer is installed by these additions.
+
 Providers implement `SeatService`, `SeatEngineService`, `SeatGateService`, and `SeatDirectoryService`. Consumers resolve optional services with `ctx.get`; missing providers do not authorize operations or activate replacements. `withAuthority` accepts authenticated server-side authority, never identity claims copied from a request.
 
 Stable operation identities, revision comparisons, explicit incomplete pages, and typed refusals preserve observable outcomes across retries. Engine decisions live outside the Session event union. Configuration and execution belong to providers; the declarations supply no deployment defaults.

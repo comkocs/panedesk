@@ -60,7 +60,8 @@ export class TriggerRegistry {
         const trigger = { ...envelope, receivedAt }
         const bucket = envelope.eventId ? null : Math.floor(now / this.config.dedupWindowMs)
         const contentDigest = digest({ kind: trigger.kind, evidence: trigger.evidence, seat: trigger.seat,
-          projectId: trigger.projectId, data: trigger.data, taskId: trigger.taskId, callbackRef: trigger.callbackRef })
+          projectId: trigger.projectId, data: trigger.data, taskId: trigger.taskId, callbackRef: trigger.callbackRef,
+          ...(trigger.openingContext ? { openingContext: trigger.openingContext, relatedTaskIds: trigger.relatedTaskIds } : {}) })
         const key = canonical([trigger.sourceId, trigger.eventId ?? contentDigest, bucket])
         let result: AcceptTriggerResult = rejected('unavailable', 'Ingress did not commit')
         await this.journal.commit((view) => {
@@ -87,6 +88,11 @@ export class TriggerRegistry {
           }
           const previous = [...view.pending.values()].find(item => item.seat === trigger.seat
             && item.projectId === trigger.projectId && item.triggerKind === trigger.kind
+            && (trigger.kind !== 'external' || !frozenOpen?.definition.rules.some(rule => rule.trigger.kind === 'external')
+              || item.sources[0]?.sourceId === trigger.sourceId
+              && item.sources[0].evidence.kind === 'external' && trigger.evidence.kind === 'external'
+              && item.sources[0].evidence.eventType === trigger.evidence.eventType)
+            && canonical(item.frozenOpen?.openingContext?.reference ?? null) === canonical(frozenOpen?.openingContext?.reference ?? null)
             && (trigger.evidence.kind !== 'handoff-timeout' || item.handoffTimeout?.messageId === trigger.evidence.messageId))
           const sources = [...(previous?.sources ?? []), trigger]
           const retainedOpen = previous?.frozenOpen ?? frozenOpen
@@ -98,7 +104,8 @@ export class TriggerRegistry {
             ...(trigger.evidence.kind === 'handoff-timeout' ? { handoffTimeout: trigger.evidence } : {}),
             sequence: previous?.sequence ?? view.sequence + 1, effectiveMode: mode,
             reason: mode === 'remind' ? 'approval' : 'provider-unavailable', blockedBy: [], sources,
-            relatedTaskIds: [...new Set(sources.flatMap(source => source.taskId ? [source.taskId] : []))],
+            relatedTaskIds: [...new Set([...sources.flatMap(source => source.taskId ? [source.taskId] : []),
+              ...(retainedOpen?.openingContext?.taskIds ?? [])])],
             queuedAt: previous?.queuedAt ?? receivedAt, stateVersion: (previous?.stateVersion ?? 0) + 1,
           }
           const data: EngineTriggerData = { trigger, pending, originalTriggerId: previous?.sources[0]?.triggerId ?? null,
