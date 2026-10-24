@@ -614,6 +614,138 @@
       }
     },
     {
+      "id": "F01-sdk-namespace-registry",
+      "description": "Register unloadable SDK namespaces without replacing fixed methods or changing legacy initialization.",
+      "origin": "Optional host integration",
+      "reason": "Contributors own decoding, authorization and disposal; absent registrations leave built-in SDK behavior unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sdk/server/tests/plugin-apply.spec.ts"],
+        "test": "loads an opt-in namespace composition and serves its capability and disposal over stdio"
+      }
+    },
+    {
+      "id": "F01-sdk-namespace-exclusivity",
+      "description": "Reject duplicate and reserved SDK namespaces without replacing active methods.",
+      "origin": "Optional host integration",
+      "reason": "Extension registrations cannot override built-in protocol methods.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sdk/server/tests/method-registry.spec.ts"],
+        "test": "rejects duplicate and reserved namespaces without replacing active methods"
+      }
+    },
+    {
+      "id": "F01-sdk-python-extension-request",
+      "description": "Expose generic extension JSON requests through the public Python SDK.",
+      "origin": "Optional host integration",
+      "reason": "Optional response models retain existing typed request behavior while allowing registered extension results.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["python/sdk/tests/test_host.py"],
+        "test": "test_public_request_accepts_extension_json_without_a_response_model"
+      }
+    },
+    {
+      "id": "F02-seat-opening-context",
+      "description": "Freeze trusted opening-provider text and task associations once and retain them during replay.",
+      "origin": "Optional host integration",
+      "reason": "Registered providers supply optional context; requests without context retain the existing template path.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/opening-contexts.spec.ts"],
+        "test": "freezes source text, prefills without starting a turn and replays after reload or disposal without rereading"
+      }
+    },
+    {
+      "id": "F02-seat-external-rule",
+      "description": "Match configured external sources and event types exactly without project-mode fallback.",
+      "origin": "Optional host integration",
+      "reason": "Explicit external restrictions apply only where configured; older definitions retain their existing rules.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/external-context.spec.ts"],
+        "test": "matches configured external sources and event types exactly without fallback to project automatic mode"
+      }
+    },
+    {
+      "id": "F02-seat-task-scopes",
+      "description": "Preflight complete task scopes before any batch member opens and offer serial execution on rejection.",
+      "origin": "Optional host integration",
+      "reason": "Unknown scopes and unproven disjointness cannot authorize concurrent task batches.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-gates/tests/task-scopes.spec.ts"],
+        "test": "conservatively rejects directory ancestors, case-insensitive overlap and undecidable patterns"
+      }
+    },
+    {
+      "id": "F03-node-link-transport",
+      "description": "Provide explicitly configured authenticated node transport with durable operation receipts.",
+      "origin": "Optional host integration",
+      "reason": "Transport does not grant authority; omitted configuration creates no service and missing executors reject.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/transport.spec.ts"],
+        "test": "executes identical operations once, rejects changed arguments and retains results after restart"
+      }
+    },
+    {
+      "id": "F03-host-admin-rpc",
+      "description": "Expose fixed administration methods over authenticated loopback without starting a second engine.",
+      "origin": "Optional host integration",
+      "reason": "Administration requires explicit runtime configuration and rejects browser requests and stale process identities.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/security.spec.ts"],
+        "test": "accepts authenticated loopback JSON and refuses stale epochs and browser headers"
+      }
+    },
+    {
+      "id": "F04-sidebar-panel-badge",
+      "description": "Render optional subscribed panel badges while retaining unbadged registration and layout behavior.",
+      "origin": "Optional host integration",
+      "reason": "Panel registrants may supply count evidence; missing badges leave existing rows unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/client/ui-sidebar/tests/panel-list.client.spec.tsx"],
+        "test": "renders a subscribed count and hides zero, empty, and unknown values with collapsed=%s"
+      }
+    },
+    {
+      "id": "F05-seat-host-cli",
+      "description": "Project provider-owned node health and authorization pages through the Seat CLI.",
+      "origin": "Optional host integration",
+      "reason": "Queries consume existing optional providers without activating a replacement host.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-app/tests/host-cli.spec.ts"],
+        "test": "prints provider health and preserves an advancing empty authorization page"
+      }
+    },
+    {
+      "id": "F05-acp-host-projection",
+      "description": "Negotiate optional seat, node and authorization projections without changing legacy ACP initialization.",
+      "origin": "Optional host integration",
+      "reason": "Missing negotiation or providers rejects explicitly while existing local request semantics remain unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/acp/acp/tests/host-extensions.spec.ts"],
+        "test": "leaves legacy initialization unchanged and rejects unnegotiated or absent providers"
+      }
+    },
+    {
+      "id": "F05-sdk-host-query",
+      "description": "Expose provider-owned node and authorization queries through SDK projections without accepting caller authority.",
+      "origin": "Optional host integration",
+      "reason": "Absent providers remain unsupported and delegated attribution cannot be self-reported by callers.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sdk/server/tests/host-projections.spec.ts"],
+        "test": "reports unsupported without providers and denies self-reported delegated attribution"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
