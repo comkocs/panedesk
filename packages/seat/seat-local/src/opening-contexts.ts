@@ -4,6 +4,8 @@ import type * as T from '@panedesk/dsh-seat'
 import type { LocalSeatService } from './service.ts'
 import { digest } from './store.ts'
 import { rejected } from './errors.ts'
+import { readLocalOpenInput } from './open-input.ts'
+import { localSourceId } from './open-admission.ts'
 
 /** The opening source registry does not retain a second business authority. */
 export class OpeningContexts implements T.SeatOpeningContexts {
@@ -50,10 +52,41 @@ export class OpeningContexts implements T.SeatOpeningContexts {
       return snapshot
     } finally { entry.pending.delete(pending) }
   }
+  /** Route only journal-authenticated manual references; absent providers leave delivery retryable.
+   * @param payload - Original callback retained by the engine outbox.
+   */
+  async deliver(payload: T.SeatCallbackPayload): Promise<void> {
+    if (payload.sourceId !== localSourceId || payload.triggerId === null) return
+    const { effects } = await this.service.state.read()
+    const accepted = effects.find(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
+      && effect.data.trigger.sourceId === localSourceId && effect.data.trigger.triggerId === payload.triggerId)
+    if (!accepted || (accepted.kind !== 'trigger/accepted' && accepted.kind !== 'trigger/coalesced')) {
+      throw new Error('Manual callback has no retained admission.')
+    }
+    const input = readLocalOpenInput(accepted.data.trigger.data)
+    if (!input.openingContext) return
+    const reference = input.openingContext.reference
+    const entry = this.entries.get(reference.providerId)
+    if (!this.active || !entry || entry.closing) throw new Error('Opening callback provider is unavailable.')
+    if (!entry.provider.callback) return
+    const callback = entry.provider.callback.bind(entry.provider)
+    const pending = Promise.resolve().then(() => callback(structuredClone(payload), {
+      reference: structuredClone(reference), operationId: input.request.operationId,
+    }))
+    entry.pending.add(pending)
+    try { await pending } finally { entry.pending.delete(pending) }
+  }
   open(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.OpenSeatResult> {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))
     return this.service.openWithContext(structuredClone(request), Object.freeze({ ...authority }),
       (input, caller) => this.resolve(input, caller))
+  }
+  wake(request: T.WakeSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.WakeSeatResult> {
+    if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))
+    const { openingContext, relatedTaskIds, ...base } = structuredClone(request)
+    const caller = Object.freeze({ ...authority })
+    return this.service.wakeWithContext(base, caller, input => this.open({ ...input,
+      openingContext, relatedTaskIds }, caller))
   }
   openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult> {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))

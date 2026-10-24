@@ -21,7 +21,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-可选开窗快照与触发引用保留提供方版本及任务证据，不改变旧开窗请求。`SeatGateService.evaluateTaskScopes` 是可选预检能力；任务批次调用者必须拒绝缺席的评估器，不能绕过。授权声明提供宿主拥有的签发注册、进程内凭证、原子动作事务与历史查询。可选 `validate` 在恢复外部工作前复核存活凭证，但不替代事务准入。`seatAuthorizedEngineActions` 为续期和换窗携带凭证；`seatAuthorizationExports` 提供独立版本化 JSON 分页，不扩宽旧效果。导入定义不安装任何提供方；`seat-engine` 提供持久化与查询。
+可选开窗快照与触发引用保留提供方版本及任务证据，不改变旧开窗请求。`OpeningContextProvider.callback` 可选接收持久手动结果，附冻结引用及原操作身份；调用者不能提供回调目的地。本地提供方拥有路由与投递生命周期。`SeatGateService.evaluateTaskScopes` 是可选预检能力；任务批次调用者必须拒绝缺席的评估器，不能绕过。授权声明提供宿主拥有的签发注册、进程内凭证、原子动作事务与历史查询。可选 `validate` 在恢复外部工作前复核存活凭证，但不替代事务准入。`seatAuthorizedEngineActions` 为续期和换窗携带凭证；`seatAuthorizationExports` 提供独立版本化 JSON 分页，不扩宽旧效果。导入定义不安装任何提供方；`seat-engine` 提供持久化与查询。
 
 提供方实现 `SeatService`、`SeatEngineService`、`SeatGateService` 与 `SeatDirectoryService`。消费方通过 `ctx.get` 获取可选服务；提供方缺席不构成操作授权，也不会激活替代实现。`withAuthority` 接收经过认证的服务端权限，不能直接使用请求中的身份声明。
 

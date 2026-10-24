@@ -2977,6 +2977,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Existing opening outcomes without bypassing gates or budgets.',
       },
       {
+        signature: 'wake?(request: T.WakeSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.WakeSeatResult>',
+        description: 'Wake an existing window or open through the same trusted context when none exists.',
+        parameters: [{ name: 'request', description: 'Wake target and revisioned fallback opening reference.' }, { name: 'authority', description: 'Authenticated host identity.' }],
+        returns: 'Original wake outcome without a new opening callback for existing windows.',
+      },
+      {
         signature: 'openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult>',
         description: 'Preflight complete scope evidence before any batch member executes.',
         parameters: [{ name: 'request', description: 'Explicit seats and every associated task.' }, { name: 'authority', description: 'Authenticated caller.' }],
@@ -8832,7 +8838,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'OpeningContextProvider',
-    declaration: 'export interface OpeningContextProvider {\n    providerId: OpeningProviderId;\n    resolve(reference: OpeningContextReference, authority: SeatCallContext): Promise<OpeningContextSnapshot | SeatRejected>;\n}',
+    declaration: 'export interface OpeningContextProvider {\n    providerId: OpeningProviderId;\n    callback?(payload: SeatCallbackPayload, context: {\n        reference: OpeningContextReference;\n        operationId: SeatOperationId;\n    }): Promise<void>;\n    resolve(reference: OpeningContextReference, authority: SeatCallContext): Promise<OpeningContextSnapshot | SeatRejected>;\n}',
   },
   {
     name: 'OpeningContextReference',
@@ -11805,6 +11811,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WakeSeatResult',
     declaration: 'export type WakeSeatResult = {\n    status: \'sent\' | \'stored-budget-stopped\';\n    sessionId: SessionId;\n    messageId: Branded<\'MessageId\'>;\n    operationId: SeatOperationId;\n    title?: string;\n} | {\n    status: \'opened\';\n    result: OpenSeatResult;\n} | {\n    status: \'choice-required\';\n    candidates: readonly SeatWindowCandidate[];\n} | SeatRejected;',
+  },
+  {
+    name: 'WakeSeatWithContextRequest',
+    declaration: 'export interface WakeSeatWithContextRequest extends WakeSeatRequest {\n    openingContext: OpeningContextReference;\n    relatedTaskIds: readonly SeatTaskId[];\n}',
   },
   {
     name: 'WebBootBatch',

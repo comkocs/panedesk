@@ -876,6 +876,11 @@ export interface OpeningContextSnapshot {
 /** Only authenticated local services resolve opening references. */
 export interface OpeningContextProvider {
   providerId: OpeningProviderId
+  /** Receive durable manual-opening callbacks; retries retain the payload and original operation identity.
+   * @param payload - Engine-owned callback, never supplied by the opening caller.
+   * @param context - Frozen provider reference and original manual operation.
+   */
+  callback?(payload: SeatCallbackPayload, context: { reference: OpeningContextReference; operationId: SeatOperationId }): Promise<void>
   /** Freeze a revision under the original caller's authority.
    * @param reference - Provider-owned revisioned reference, never executable text.
    * @param authority - Host-resolved identity; the reference does not grant access.
@@ -885,6 +890,11 @@ export interface OpeningContextProvider {
 }
 /** An opt-in request does not alter the existing OpenSeatRequest or its replay digest. */
 export interface OpenSeatWithContextRequest extends OpenSeatRequest {
+  openingContext: OpeningContextReference
+  relatedTaskIds: readonly SeatTaskId[]
+}
+/** A trusted wake reference is used only when no existing window can receive the wake. */
+export interface WakeSeatWithContextRequest extends WakeSeatRequest {
   openingContext: OpeningContextReference
   relatedTaskIds: readonly SeatTaskId[]
 }
