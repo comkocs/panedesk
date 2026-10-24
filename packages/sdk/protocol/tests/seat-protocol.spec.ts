@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { SeatDefinition } from '@panedesk/dsh-seat'
 import { decodeSeatRequest, decodeSeatResult, isSeatMethod } from '../src/seat.ts'
 
 describe('seat protocol extension', () => {
@@ -40,6 +41,37 @@ describe('seat protocol extension', () => {
     expect(() => decodeSeatRequest('seats/report.submit', { report: { ...report, canClose: 'yes' }, operationId: 'operation-a' })).toThrow()
     expect(() => decodeSeatResult('seats/wait.register', { status: 'registered', wait: { ...wait, observations: [{ outcome: 'completed' }] } })).toThrow()
     expect(() => decodeSeatResult('seats/import.commit', { status: 'committed', revision: 1, rows: [{ row: 1 }] })).toThrow()
+  })
+  it.each([true, false, undefined])('accepts autoKeepAlive=%s in import defaults and definitions', (autoKeepAlive) => {
+    const definition = {
+      schemaVersion: 1, revision: 1, seat: 'seat-a' as SeatDefinition['seat'], platform: 'server', node: 'node-a',
+      projectId: 'project-a' as SeatDefinition['projectId'], directories: [{ path: '/workspace', startup: true }],
+      memoryDirectories: [], opening: { kind: 'text', text: 'Start' }, openingInstructionFiles: [],
+      agentPreset: 'default', provider: 'provider-a', model: 'model-a', reasoningEffort: 'high', permissionPreset: 'default',
+      subscriptions: [], checkpointFiles: [], maxOpenSessions: 1, maxActiveSubagents: 1, subagentContextThresholdTokens: 1000,
+      rules: [], worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 24 },
+      ...(autoKeepAlive === undefined ? {} : { autoKeepAlive }),
+    } satisfies SeatDefinition
+    const request = { format: 'csv', sourcePath: 'seats.csv', columnMap: { Name: 'seat' }, defaults: definition }
+    const row = { row: 1, seat: definition.seat, definition, rowHash: 'digest-a', columnHashes: {},
+      action: 'create', selected: true, differences: [], diagnostics: [] }
+    const results = [
+      ['seats/import.preview', { planId: 'plan-a', sourceFileHash: 'digest-a', mappingHash: 'digest-b', baseRevision: 0, rows: [row] }],
+      ['seats/import.commit', { status: 'committed', revision: 1, rows: [row] }],
+    ] as const
+    expect(decodeSeatRequest('seats/import.preview', request)).toEqual(request)
+    for (const [method, result] of results) {
+      expect(decodeSeatResult(method, result)).toEqual(result)
+      expect(() => decodeSeatResult(method, { ...result, rows: [{ ...row, definition: { ...definition, unknownField: true } }] })).toThrow()
+    }
+    expect(() => decodeSeatRequest('seats/import.preview', { ...request, defaults: { ...definition, unknownField: true } })).toThrow()
+    for (const invalid of ['false', 0, null, {}, []]) {
+      const malformed = { ...definition, autoKeepAlive: invalid }
+      expect(() => decodeSeatRequest('seats/import.preview', { ...request, defaults: malformed })).toThrow()
+      for (const [method, result] of results) {
+        expect(() => decodeSeatResult(method, { ...result, rows: [{ ...row, definition: malformed }] })).toThrow()
+      }
+    }
   })
   it('rejects malformed nested evidence across every window and engine result family', () => {
     const opened = { status: 'opened', sessionId: 'session-a', seat: 'seat-a', nodeId: 'node-a', nodeName: 'node-a', title: '',

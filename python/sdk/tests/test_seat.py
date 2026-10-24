@@ -91,6 +91,49 @@ def test_projects_all_management_methods_and_rejects_nested_corruption() -> None
         seats.register_wait(cases[4][2])
 
 
+@pytest.mark.parametrize("auto_keep_alive", [True, False, None])
+def test_accepts_auto_keep_alive_in_import_defaults_and_definitions(auto_keep_alive: bool | None) -> None:
+    transport = Mock(spec=HarnessClient)
+    seats = SeatsClient(transport)
+    definition = {
+        "schemaVersion": 1, "revision": 1, "seat": "seat-a", "platform": "server", "node": "node-a",
+        "projectId": "project-a", "directories": [{"path": "/workspace", "startup": True}],
+        "memoryDirectories": [], "opening": {"kind": "text", "text": "Start"}, "openingInstructionFiles": [],
+        "agentPreset": "default", "provider": "provider-a", "model": "model-a", "reasoningEffort": "high",
+        "permissionPreset": "default", "subscriptions": [], "checkpointFiles": [], "maxOpenSessions": 1,
+        "maxActiveSubagents": 1, "subagentContextThresholdTokens": 1000, "rules": [],
+        "worktree": {"clientTreesPerSlot": 1, "staleOnSettle": "notify", "lightByDefault": True, "staleHours": 24},
+    }
+    if auto_keep_alive is not None:
+        definition["autoKeepAlive"] = auto_keep_alive
+    preview_request = {"format": "csv", "sourcePath": "seats.csv", "columnMap": {"Name": "seat"}, "defaults": definition}
+    row = {"row": 1, "seat": "seat-a", "definition": definition, "rowHash": "digest-a", "columnHashes": {},
+           "action": "create", "selected": True, "differences": [], "diagnostics": []}
+    cases = [
+        (seats.preview_import, "import.preview", preview_request,
+         {"planId": "plan-a", "sourceFileHash": "digest-a", "mappingHash": "digest-b", "baseRevision": 0, "rows": [row]}),
+        (seats.commit_import, "import.commit",
+         {"planId": "plan-a", "selectedRows": [1], "expectedRevision": 0, "operationId": "operation-a"},
+         {"status": "committed", "revision": 1, "rows": [row]}),
+    ]
+    malformed_definitions = [{**definition, "unknownField": True}] + [
+        {**definition, "autoKeepAlive": invalid} for invalid in ["false", 0, None, {}, []]]
+    for invoke, method, request, result in cases:
+        transport.reset_mock()
+        transport._request_raw.return_value = result
+        assert invoke(request) == result
+        transport._request_raw.assert_called_once_with("seats/" + method, request)
+        for malformed in malformed_definitions:
+            transport._request_raw.return_value = {**result, "rows": [{**row, "definition": malformed}]}
+            with pytest.raises(SdkProtocolError):
+                invoke(request)
+    for malformed in malformed_definitions:
+        transport.reset_mock()
+        with pytest.raises(ValidationError):
+            seats.preview_import({**preview_request, "defaults": malformed})
+        transport._request_raw.assert_not_called()
+
+
 def test_preserves_opened_fields_and_rejects_nested_window_and_engine_evidence() -> None:
     transport = Mock(spec=HarnessClient)
     seats = SeatsClient(transport)

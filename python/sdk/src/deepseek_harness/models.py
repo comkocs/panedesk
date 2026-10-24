@@ -465,7 +465,7 @@ _SEAT_DEFINITION: dict[str, _SeatCheck] = {
     "checkpointFiles": _seat_array(_seat_fields({"path": _seat_text, "section": _seat_text, "maxBytes": _seat_integer, "required": _SEAT_BOOL})),
     "wakeTemplate": _seat_optional(_SEAT_TEXT), "maxOpenSessions": _seat_integer, "maxActiveSubagents": _seat_integer,
     "contextThresholdTokens": _seat_optional(_seat_integer), "subagentContextThresholdTokens": _seat_integer,
-    "pollingThreshold": _seat_optional(_seat_integer), "maxSleepSeconds": _seat_optional(_seat_integer),
+    "pollingThreshold": _seat_optional(_seat_integer), "maxSleepSeconds": _seat_optional(_seat_integer), "autoKeepAlive": _seat_optional(_SEAT_BOOL),
     "worktree": _seat_fields({"clientTreesPerSlot": _seat_integer, "staleOnSettle": _seat_choice("notify"), "lightByDefault": _SEAT_BOOL, "staleHours": _seat_integer}),
     "rules": _seat_array(_seat_fields({"id": _seat_text, "enabled": _SEAT_BOOL, "trigger": _SEAT_TRIGGER, "mode": _seat_optional(_seat_choice("off", "remind", "auto")),
         "timeWindows": _seat_array(_seat_fields({"timeZone": _seat_text, "start": _seat_text, "end": _seat_text, "weekdays": _seat_optional(_seat_array(_seat_integer))})),
