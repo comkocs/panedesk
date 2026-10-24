@@ -7,6 +7,9 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../../util/brand" },
     { "path": "../../session/message-delivery" },
-    { "path": "../seat" }
+    { "path": "../seat" },
+    { "path": "../../sdk/protocol" },
+    { "path": "../../host/host-admin" },
+    { "path": "../../subprocess/subprocess" }
   ]
 }

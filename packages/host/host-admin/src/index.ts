@@ -1,8 +1,18 @@
-/** Independent authenticated host administration definitions; no listener is installed. */
+/** 可选宿主管理定义与运行时；只有显式配置才创建监听。 */
 import type { Context } from '@panedesk/cordis'
 import Schema from '@panedesk/schemastery'
 import type { Branded } from '@panedesk/dsh-brand'
 import type * as Seat from '@panedesk/dsh-seat'
+import { mountAdmin } from './runtime.ts'
+import type { PrivateFiles } from './private-files.ts'
+
+export { PosixPrivateFiles } from './private-files.ts'
+export type { PrivateFiles } from './private-files.ts'
+export { OperationStore } from './operation-store.ts'
+export { listenLoopback, callLoopback } from './loopback.ts'
+export type { RpcLimits, RpcAuthentication, LoopbackListener } from './loopback.ts'
+export { canonical, digest, object, identifier, parseJson } from './json.ts'
+export { callAdmin } from './client.ts'
 
 /** Administration framing never reuses browser launch credentials or Core operation numbers. */
 export const HOST_ADMIN_VERSION = 'host-admin/v1' as const
@@ -69,16 +79,53 @@ declare module '@panedesk/cordis' {
     hostAdmin: HostAdminService
   }
 }
+/** Local executors own authorization facts and must durably record approval before admission. */
+export interface HostAdminExecutor {
+  /** Invoke only a locally authenticated capability, never another router.
+   * @param request - Validated fixed-method request.
+   * @param authority - Transport-derived narrowed authority.
+   * @returns Provider evidence after required authorization persistence.
+   */
+  execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostAdminResponse>
+}
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Optional executor supplied by the local orchestration provider; missing methods fail closed. */
+    hostAdminExecutor: HostAdminExecutor
+    /** Optional Windows ACL/path implementation; POSIX uses checked owner-only files when absent. */
+    hostAdminFiles: (directory: string) => PrivateFiles
+  }
+}
+
 /** Loader identity keeps administration opt-in. */
 export const name = 'host-admin'
 /** Inert skeleton has no mandatory service dependencies. */
 export const inject: string[] = []
-/** No listener or credential options are accepted by the empty plugin. */
-export interface Config { }
-/** No network defaults are introduced by mounting this skeleton. */
-export const Config: Schema<Config> = Schema.object({})
-/** Mount an inert administration plugin.
+/** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
+export interface Config {
+  runtime?: {
+    directory: string
+    nodeId: string
+    principalId: string
+    port: number
+    maxFrameBytes: number
+    requestTimeoutMs: number
+    maxPending: number
+    maxStoreBytes: number
+    maxOperations: number
+  } | undefined
+}
+/** Deployment bounds have no implicit active-listener defaults. */
+export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Schema.const(undefined), Schema.object({
+  directory: Schema.string().required(), nodeId: Schema.string().required(), principalId: Schema.string().required(),
+  port: Schema.number().min(0).max(65535).step(1).required(),
+  maxFrameBytes: Schema.number().min(1).step(1).required(), requestTimeoutMs: Schema.number().min(1).max(2147483647).step(1).required(),
+  maxPending: Schema.number().min(1).step(1).required(), maxStoreBytes: Schema.number().min(1).step(1).required(),
+  maxOperations: Schema.number().min(1).step(1).required(),
+})]) })
+/** Mount optional administration without starting an engine.
  * @param _ctx - Owning plugin context.
- * @param _config - Empty skeleton configuration.
+ * @param _config - Explicit activation and resource bounds, or inert empty configuration.
  */
-export function apply(_ctx: Context, _config: Config): void {}
+export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountAdmin(_ctx, _config)) }

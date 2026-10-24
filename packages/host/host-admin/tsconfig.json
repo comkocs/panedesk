@@ -6,6 +6,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../util/brand" },
-    { "path": "../../seat/seat" }
+    { "path": "../../seat/seat" },
+    { "path": "../../sdk/protocol" }
   ]
 }

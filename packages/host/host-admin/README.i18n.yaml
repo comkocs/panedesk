@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/host/host-admin/README.md
+/panedesk-dsh-host-admin:
+  en: 105af349c4b82881
+  zh: 105af349c4b82881
+/panedesk-dsh-host-admin/section:
+  en: b343649ae9ddc4c5
+  zh: b343649ae9ddc4c5
+/panedesk-dsh-host-admin/section~2:
+  en: 5f357259452d69bd
+  zh: 5f357259452d69bd
+/panedesk-dsh-host-admin/section~3:
+  en: 09157da498b1510b
+  zh: 09157da498b1510b
+/panedesk-dsh-host-admin/section~4:
+  en: a311da3843709f90
+  zh: a311da3843709f90
+/panedesk-dsh-host-admin/section/section:
+  en: a2301f1494f24f32
+  zh: a2301f1494f24f32
+/panedesk-dsh-host-admin/section/section/section:
+  en: 0def4704b1bdbf18
+  zh: 0def4704b1bdbf18
+/panedesk-dsh-host-admin/section/section/section~2:
+  en: 5963907d0668cd98
+  zh: 5963907d0668cd98
+/panedesk-dsh-host-admin/section/section/kv:
+  en: 4c008a5821a1de94
+  zh: 4c008a5821a1de94
+/panedesk-dsh-host-admin/section~5:
+  en: 15c4353bcc1d46e0
+  zh: 15c4353bcc1d46e0

@@ -1,9 +1,11 @@
-/** Optional node transport definitions; this plugin opens no links or listeners. */
+/** 可选节点传输定义与运行时；只有显式配置才创建链路。 */
 import type { Context } from '@panedesk/cordis'
 import Schema from '@panedesk/schemastery'
 import type { Branded } from '@panedesk/dsh-brand'
 import type * as Seat from '@panedesk/dsh-seat'
 import type { SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
+import type { PrivateFiles } from '@panedesk/dsh-host-admin'
+import { mountNode } from './runtime.ts'
 
 /** Wire framing is independent of Core protocol operation numbers. */
 export const NODE_LINK_VERSION = 'node-link/v1' as const
@@ -89,16 +91,83 @@ declare module '@panedesk/cordis' {
     nodeRouter: NodeRouterService
   }
 }
+/** Local provider narrows authenticated node delegations and never calls a router again. */
+export interface NodeLinkExecutor {
+  /** Check the current binding, principal, target and method rights on the receiving node.
+   * @param request - Validated request authenticated to its configured source node.
+   * @returns Whether current local policy permits this exact delegation.
+   */
+  authorize(request: NodeWireRequest): Promise<boolean>
+  /** Execute through the original local provider after durable transport admission.
+   * @param request - Authorized fixed-method operation.
+   * @returns Correlated local provider result.
+   */
+  execute(request: NodeWireRequest): Promise<NodeWireResponse>
+  /** Observe current local capacity without starting an engine.
+   * @returns Local node self-report.
+   */
+  status(): Promise<Seat.SeatNodeStatus>
+}
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Missing executor rejects ingress rather than bypassing authorization or routing again. */
+    nodeLinkExecutor: NodeLinkExecutor
+    /** Windows deployments must supply account-scoped ACL and path verification. */
+    nodeLinkFiles: (directory: string) => PrivateFiles
+  }
+}
+
 /** Loader identity does not activate transport by import. */
 export const name = 'node-link'
 /** Empty skeleton has no mandatory services. */
 export const inject: string[] = []
-/** The skeleton accepts no deployment options and performs no I/O. */
-export interface Config { }
-/** Empty configuration avoids introducing implicit network defaults. */
-export const Config: Schema<Config> = Schema.object({})
-/** Mount an inert plugin; implementations are installed separately.
+/** Explicit paired ports use preprovisioned independent inbound/outbound credential files. */
+export interface NodeLinkRuntimeConfig {
+  nodeId: string
+  peerNodeId: string
+  peerName: string
+  directory: string
+  listenPort: number
+  peerPort: number
+  maxFrameBytes: number
+  requestTimeoutMs: number
+  maxPending: number
+  maxStoreBytes: number
+  maxOperations: number
+  staleMs: number
+  ssh?: {
+    alias: string
+    cwd: string
+    remotePort: number
+    remoteTargetPort: number
+    graceMs: number
+    keepAliveSeconds: number
+    keepAliveCount: number
+    retryMs: number
+    maxRetries: number
+  } | undefined
+}
+/** Omission preserves the empty plugin's no-I/O behavior. */
+export interface Config { runtime?: NodeLinkRuntimeConfig | undefined }
+/** All listener, persistence and supervision limits are explicit deployment choices. */
+export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Schema.const(undefined), Schema.object({
+  nodeId: Schema.string().required(), peerNodeId: Schema.string().required(), peerName: Schema.string().required(),
+  directory: Schema.string().required(), listenPort: Schema.number().min(0).max(65535).step(1).required(),
+  peerPort: Schema.number().min(1).max(65535).step(1).required(),
+  maxFrameBytes: Schema.number().min(1).step(1).required(), requestTimeoutMs: Schema.number().min(1).max(2147483647).step(1).required(),
+  maxPending: Schema.number().min(1).step(1).required(), maxStoreBytes: Schema.number().min(1).step(1).required(),
+  maxOperations: Schema.number().min(1).step(1).required(), staleMs: Schema.number().min(1).step(1).required(),
+  ssh: Schema.union([Schema.const(undefined), Schema.object({ alias: Schema.string().required(), cwd: Schema.string().required(),
+    remotePort: Schema.number().min(1).max(65535).step(1).required(),
+    remoteTargetPort: Schema.number().min(1).max(65535).step(1).required(),
+    graceMs: Schema.number().min(1).step(1).required(), keepAliveSeconds: Schema.number().min(1).step(1).required(),
+    keepAliveCount: Schema.number().min(1).step(1).required(), retryMs: Schema.number().min(1).step(1).required(),
+    maxRetries: Schema.number().min(0).step(1).required(),
+  })]),
+})]) })
+/** Mount only explicitly configured transport; absent options remain inert.
  * @param _ctx - Owning plugin context.
- * @param _config - Empty skeleton configuration.
+ * @param _config - Optional runtime activation and resource bounds.
  */
-export function apply(_ctx: Context, _config: Config): void {}
+export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountNode(_ctx, _config)) }
