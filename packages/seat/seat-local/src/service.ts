@@ -8,6 +8,7 @@ import type { SessionId } from '@panedesk/dsh-session'
 import { SeatStore, setCatalogAuthority, digest } from './store.ts'
 import { SeatImporter } from './import.ts'
 import { resolveSeat } from './schema.ts'
+import { routeSeat } from './node-routing.ts'
 import { DirectoryAdmission } from './directory-admission.ts'
 import { openingContext, openingGate } from './open-gates.ts'
 import { rejected, SeatLocalError, refuse } from './errors.ts'
@@ -220,7 +221,11 @@ export class LocalSeatService extends SeatService {
       ...(complete ? {} : { nextCursor: `${fingerprint}:${offset + sessions.length}` }) }
   }
   async open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult> {
-    return this.openResolved(request)
+    const definition = this.runtime.context.get('nodeRouter')
+      ? this.store.snapshot().definitions.find(item => item.seat === request.seat) : undefined
+    const target = request.nodeId ?? (definition ? this.options.nodeAliases[definition.node] : undefined)
+    const routed = await routeSeat(this.runtime.context, this.options.nodeId, target, this.caller(), 'seat.open', request)
+    return routed ?? this.openResolved(request)
   }
   /** Trusted source entries retain the complete local opening policy and durable admission.
    * @param request - Source reference and original opening parameters.
@@ -323,7 +328,26 @@ export class LocalSeatService extends SeatService {
     return (this.withAuthority(authority) as LocalSeatService).openBatchResolved(base, tasks)
   }
   async openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
-    return this.openBatchResolved(request)
+    let target = request.nodeId
+    if (this.runtime.context.get('nodeRouter') && this.runtime.context.get('nodeDelegationIssuer')) {
+      if (!request.seats.length || request.seats.some(seat => !seat.trim() || /[*?]/.test(seat))
+        || new Set(request.seats).size !== request.seats.length) {
+        return rejected('batch-explicit-seats-required', 'List distinct seat names explicitly.', 'Use an explicit batch.')
+      }
+      if (request.seats.length > this.options.maxBatchSeats) {
+        return rejected('batch-limit-exceeded', 'Batch exceeds the configured limit.', 'Split the explicit list.')
+      }
+      const nodes = new Set(request.seats.map((seat) => {
+        const definition = this.store.snapshot().definitions.find(item => item.seat === seat)
+        return definition ? this.options.nodeAliases[definition.node] : target
+      }))
+      if (nodes.size > 1 || (target !== undefined && [...nodes].some(node => node !== target))) {
+        return rejected('cross-node-unsupported', 'Batch spans different node owners.', 'Submit one explicit batch per node.')
+      }
+      target ??= [...nodes][0]
+    }
+    const routed = await routeSeat(this.runtime.context, this.options.nodeId, target, this.caller(), 'seat.openBatch', request)
+    return routed ?? this.openBatchResolved(request)
   }
   private async openBatchResolved(request: T.OpenSeatBatchRequest,
     tasks?: readonly T.SeatTaskScopeContext[]): Promise<T.OpenSeatBatchResult> {
@@ -351,6 +375,10 @@ export class LocalSeatService extends SeatService {
     return { status: 'processed', results }
   }
   async renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult> {
+    const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.renew', request)
+    if (routed !== undefined) return routed.status === 'rejected' && !('cacheEvidence' in routed)
+      ? { ...routed, cacheEvidence: { lastActivityAt: null, cacheTtlMs: null, prefixDigest: null,
+        observedAt: new Date().toISOString(), reusableRequest: false } } : routed
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return { ...refusal, cacheEvidence: { lastActivityAt: null, cacheTtlMs: null,
       prefixDigest: null, observedAt: new Date().toISOString(), reusableRequest: false } }
@@ -363,11 +391,15 @@ export class LocalSeatService extends SeatService {
     return engine.renew({ ...request, source: 'manual' })
   }
   async close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult> {
+    const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.close', request)
+    if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     return this.windowCloser.close(request)
   }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
+    const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.replace', request)
+    if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     return this.engine()?.replace(request)
@@ -377,6 +409,11 @@ export class LocalSeatService extends SeatService {
     return await this.guard(request.nodeId, request.operationId) ?? this.runtime.rename(request)
   }
   async wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
+    const selected = this.runtime.context.get('nodeRouter')
+      ? this.store.snapshot().definitions.find(item => item.seat === request.seat) : undefined
+    const targetNode = request.nodeId ?? (selected ? this.options.nodeAliases[selected.node] : undefined)
+    const routed = await routeSeat(this.runtime.context, this.options.nodeId, targetNode, this.caller(), 'seat.wake', request)
+    if (routed !== undefined) return routed
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const definition = await this.resolve(request.seat)

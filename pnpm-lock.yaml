@@ -11228,6 +11228,12 @@ importers:
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../../sdk/protocol
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../../seat/seat-engine
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -11244,9 +11250,6 @@ importers:
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
-      '@panedesk/dsh-seat':
-        specifier: workspace:*
-        version: link:../../seat/seat
 
   packages/host/open-in-app:
     dependencies:
@@ -13183,6 +13186,9 @@ importers:
       '@panedesk/dsh-message-delivery':
         specifier: workspace:*
         version: link:../../session/message-delivery
+      '@panedesk/dsh-node-link':
+        specifier: workspace:*
+        version: link:../node-link
       '@panedesk/dsh-permission-presets':
         specifier: workspace:*
         version: link:../../interaction/permission-presets
@@ -13550,9 +13556,15 @@ importers:
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@panedesk/dsh-host-admin':
+        specifier: workspace:*
+        version: link:../../host/host-admin
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-node-link':
+        specifier: workspace:*
+        version: link:../../seat/node-link
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session

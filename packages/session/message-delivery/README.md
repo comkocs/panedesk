@@ -25,6 +25,8 @@ Service Definition for same-node messages, receive settings, durable controls, a
 
 `send`, `withdraw`, `edit`, `reprioritize`, `invalidate`, `status`, `operationStatus`, `list`, `resolve`, `sendBatch`, `configure`, and `subscribe` are declared in `src/index.ts`. Public inputs and results are exported from `src/types.ts`. A closed recipient can reject delivery while retaining a queued message; an offline control acknowledges durable intent, not completed arbitration. Subscription iteration releases resources on return or service disposal.
 
+`RoutedSendMessageRequest` extends the legacy send input with a frozen sender identity, message ID, delivery ID, digest and optional call/causal references. The optional `routedDeliveryVerifier` validates a host-owned exact-envelope capability; wire fields never grant authority. Receivers preserve these identities and acknowledge only after durable admission.
+
 `message/settings` is a required persistent event. `message/state` is emitted only after a durable receipt commits. Message lifecycle records belong to the separate message ledger namespace, not the call journal.
 
 <a id="dev-note"></a>

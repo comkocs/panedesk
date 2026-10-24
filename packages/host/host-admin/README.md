@@ -5,7 +5,7 @@ kind: "package-reference"
 
 # `@panedesk/dsh-host-admin`
 
-English | [Chinese](README.zh.md)
+English | [中文](README.zh.md)
 
 ## Summary
 
@@ -60,10 +60,11 @@ The channel itself makes no model requests and consumes no model tokens.
 
 Existing session history and cache prefixes remain unchanged.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-- A real engine authorization executor is not included. Integrators must implement `hostAdminExecutor` and verify authorization-journal transactions, task filtering, and queries that omit body text by default. Test adapters are doubles, not evidence that these integrations are connected.
+<a id="known-limitations-and-deferred-work"></a>
+
+- `createHostAdminExecutor` composes host policy, a trusted authorization issuer, and authorization transactions. Approval calls the transaction adapter, never a second legacy approval path. Queries validate effect payloads using the engine validator. Integrators must supply the real authorization services and verify task filtering and body-text omission. Operation lookup remains unavailable because the frozen engine interface exposes no operation projection; test doubles do not establish production integration.
 - Linux tests with doubles do not cover Windows ACL execution, real SSH, or multi-process crash injection. Executors must ensure their own calls terminate; unloading waits for accepted calls and cannot forcibly cancel arbitrary provider side effects. Nonce sets and operation records have explicit capacity limits; exhaustion requires controlled restart or operational recovery.
 
 <a id="dev-note"></a>

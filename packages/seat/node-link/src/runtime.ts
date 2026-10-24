@@ -1,7 +1,7 @@
 /** Paired optional transport owns every listener, child, epoch and operation store. */
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
-import { PosixPrivateFiles, OperationStore, listenLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
+import { PosixPrivateFiles, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
 import { NODE_LINK_VERSION, type Config } from './index.ts'
 import { loadCredential } from './credentials.ts'
 import { NodeReceiver } from './receiver.ts'
@@ -12,6 +12,7 @@ import { SshTunnel } from './tunnel.ts'
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
  * @param ctx - Lifecycle and optional local execution/subprocess services.
  * @param config - Paired endpoint and resource options.
+ * @returns Disposer after accepted requests and owned resources have drained.
  */
 export async function mountNode(ctx: Context, config: Config): Promise<() => Promise<void>> {
   const options = config.runtime
@@ -33,17 +34,22 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
   const ready = (async () => {
     await files.prepare()
     unlock = await files.lock()
-    const inbound = await loadCredential(files, 'inbound', options.peerNodeId, options.nodeId)
-    const outbound = await loadCredential(files, 'outbound', options.nodeId, options.peerNodeId)
-    if (inbound.credential === outbound.credential) throw new Error('Directional credentials must differ')
+    let inbound = await loadCredential(files, 'inbound', options.peerNodeId, options.nodeId, options.credentialOverlapMs)
+    const outbound = await loadCredential(files, 'outbound', options.nodeId, options.peerNodeId, options.credentialOverlapMs)
+    if ([inbound, ...(inbound.previous ?? [])].some(receiving =>
+      [outbound, ...(outbound.previous ?? [])].some(sending => receiving.credential === sending.credential))) {
+      throw new Error('Directional credentials must differ')
+    }
     await store.load(); await outgoing.load()
-    listener = await listenLoopback(options.listenPort, options, () => inbound, async (value) => {
+    let credentialsReady = true
+    listener = await listenAuthenticatedLoopback(options.listenPort, options, () => inbound, async (value, authenticatedEpoch) => {
+      if (!credentialsReady) throw new Error('Directional credentials unavailable')
       if (object(value) && value.type === 'hello') {
         if (value.version !== NODE_LINK_VERSION || value.sourceNodeId !== options.peerNodeId
           || value.targetNodeId !== options.nodeId || !identifier(value.nonce)) throw new Error('Node handshake rejected')
         const executor = ctx.get('nodeLinkExecutor')
         if (executor === undefined) throw new Error('Local node provider unavailable')
-        return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: inbound.epoch,
+        return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: authenticatedEpoch,
           nonce: value.nonce, status: await executor.status() }
       }
       if (object(value) && value.type === 'receipt') {
@@ -70,7 +76,21 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
     await router.handshake()
     const poll = (): void => {
       if (stopped || router === undefined) return
-      probing = router.handshake()
+      const activeRouter = router
+      probing = (async () => {
+        try {
+          const nextInbound = await loadCredential(files, 'inbound', options.peerNodeId, options.nodeId, options.credentialOverlapMs)
+          const nextOutbound = await loadCredential(files, 'outbound', options.nodeId, options.peerNodeId, options.credentialOverlapMs)
+          if ([nextInbound, ...(nextInbound.previous ?? [])].some(receiving =>
+            [nextOutbound, ...(nextOutbound.previous ?? [])].some(sending => receiving.credential === sending.credential))) {
+            throw new Error('Directional credentials must differ')
+          }
+          inbound = nextInbound
+          credentialsReady = true
+          activeRouter.rotate(nextOutbound)
+          return await activeRouter.handshake()
+        } catch (error) { void error; credentialsReady = false; activeRouter.disconnect(); return false }
+      })()
       void probing.finally(() => { if (!stopped) probe = setTimeout(poll, options.staleMs) })
     }
     probe = setTimeout(poll, options.staleMs)

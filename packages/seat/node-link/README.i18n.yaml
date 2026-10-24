@@ -6,7 +6,7 @@
   en: 609025bad4eeaea4
   zh: 609025bad4eeaea4
 /panedesk-dsh-node-link:
-  en: a4a5dbb14f5fa8bf
+  en: 5c2e706c6ebe8539
   zh: 28a4286a87f5000c
 /panedesk-dsh-node-link/summary:
   en: 5ab9f830cb129a10
@@ -18,8 +18,8 @@
   en: 8c118cd69a03142a
   zh: 5fd41254883b96a1
 /panedesk-dsh-node-link/configuration-and-identity:
-  en: fdf367b3250c3bc7
-  zh: 17c5c12596b9fe42
+  en: 23066963eeb08cd6
+  zh: cff8c6c7996e6ef7
 /panedesk-dsh-node-link/persistence-and-disconnection:
   en: 2949da161a5cb5c4
   zh: e14cefc04306ab78
@@ -36,11 +36,11 @@
   en: 00eb395be3921209
   zh: 733ccb56679971ac
 /panedesk-dsh-node-link/model-experience/node-requests/kv-cache-effect:
-  en: 040756093192d7b6
-  zh: 43186dd98b114d41
+  en: 626d00287408634a
+  zh: 0a48b5997af6bc68
 /panedesk-dsh-node-link/known-limitations-and-deferred-work:
-  en: f91354ae6bb34edc
-  zh: 41cfea32e16308d5
+  en: 7e98585fd27b735f
+  zh: 03f1f415b3f0f573
 /panedesk-dsh-node-link/known-limitations-and-deferred-work/dev-note:
   en: cb8b42147891aa40
   zh: d56d9c2bdf67e4af

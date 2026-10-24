@@ -34,6 +34,7 @@ export class OperationStore {
   }
   /** Observe retained results without replaying a pending effect.
    * @param identity - Principal-scoped stable operation identity.
+   * @param fingerprint - Optional expected digest to detect conflicting identity reuse.
    * @returns Durable result or explicit missing/pending state.
    */
   query(identity: string, fingerprint?: string): StoredOutcome {

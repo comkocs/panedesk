@@ -7,7 +7,12 @@ const loopback = '127.0.0.1'
 /** Explicit transport bounds apply to complete frames, sockets and concurrent calls. */
 export interface RpcLimits { maxFrameBytes: number; requestTimeoutMs: number; maxPending: number }
 /** Credential values remain in memory and private files, never endpoint URLs. */
-export interface RpcAuthentication { credential: string; epoch: string }
+export interface RpcAuthentication {
+  credential: string
+  epoch: string
+  /** Optional prior epochs accepted only until their explicit overlap deadline. */
+  previous?: readonly { credential: string; epoch: string; expiresAt: number }[]
+}
 /** Listener lifetime includes all accepted dispatches. */
 export interface LoopbackListener { port: number; close(): Promise<void> }
 
@@ -42,21 +47,36 @@ async function body(message: IncomingMessage, maxBytes: number): Promise<unknown
  * @param dispatch - Authenticated JSON dispatcher.
  * @returns Owned listener and awaited teardown.
  */
-export async function listenLoopback(port: number, limits: RpcLimits, authentication: () => RpcAuthentication,
+export function listenLoopback(port: number, limits: RpcLimits, authentication: () => RpcAuthentication,
   dispatch: (value: unknown) => Promise<unknown>): Promise<LoopbackListener> {
+  return listenAuthenticatedLoopback(port, limits, authentication, dispatch)
+}
+
+/** Open a loopback listener whose dispatcher receives the actual authenticated epoch.
+ * @param port - Configured loopback port, or zero for an allocated port.
+ * @param limits - Complete frame, concurrency and deadline bounds.
+ * @param authentication - Current credentials and explicitly bounded prior epochs.
+ * @param dispatch - JSON dispatcher with transport-derived epoch evidence.
+ * @returns Owned listener and awaited teardown.
+ */
+export async function listenAuthenticatedLoopback(port: number, limits: RpcLimits, authentication: () => RpcAuthentication,
+  dispatch: (value: unknown, authenticatedEpoch: string) => Promise<unknown>): Promise<LoopbackListener> {
   const pending = new Set<Promise<void>>()
   let closing = false
   const server: Server = createServer((req, res) => {
     const current = authentication()
+    const accepted = [current, ...(current.previous ?? []).filter(item => item.expiresAt > Date.now())]
+      .find(item => req.headers['x-rpc-epoch'] === item.epoch && authenticated(req.headers.authorization, item.credential))
     const forbidden = closing || req.headers.origin !== undefined || req.headers.cookie !== undefined
       || req.method !== 'POST' || req.url !== '/rpc' || req.headers.host !== `${loopback}:${actualPort}`
-      || req.headers['content-type'] !== 'application/json' || !authenticated(req.headers.authorization, current.credential)
-      || req.headers['x-rpc-epoch'] !== current.epoch || pending.size >= limits.maxPending
+      || req.headers['content-type'] !== 'application/json'
+      || accepted === undefined
+      || pending.size >= limits.maxPending
     res.setHeader('Connection', 'close')
     if (forbidden) { res.writeHead(403); res.end(); req.resume(); return }
     const work = (async () => {
       try {
-        const result = await dispatch(await body(req, limits.maxFrameBytes))
+        const result = await dispatch(await body(req, limits.maxFrameBytes), accepted.epoch)
         const text = JSON.stringify(result)
         if (Buffer.byteLength(text) > limits.maxFrameBytes) throw new Error('RPC response exceeds limit')
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(text)

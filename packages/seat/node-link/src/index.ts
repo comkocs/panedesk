@@ -148,6 +148,8 @@ export interface NodeLinkRuntimeConfig {
   maxOperations: number
   /** Milliseconds after the last successful health probe before status becomes stale. */
   staleMs: number
+  /** Maximum prior-epoch overlap in milliseconds; omission disables overlap. */
+  credentialOverlapMs?: number | undefined
   /** Optional supervised OpenSSH forwarding through an existing reviewed host alias. */
   ssh?: {
     /** Existing simple SSH host alias, never a command or arbitrary option. */
@@ -183,6 +185,7 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
   maxFrameBytes: Schema.number().min(1).step(1).required(), requestTimeoutMs: Schema.number().min(1).max(2147483647).step(1).required(),
   maxPending: Schema.number().min(1).step(1).required(), maxStoreBytes: Schema.number().min(1).step(1).required(),
   maxOperations: Schema.number().min(1).step(1).required(), staleMs: Schema.number().min(1).step(1).required(),
+  credentialOverlapMs: Schema.union([Schema.const(undefined), Schema.number().min(0).max(2147483647).step(1)]),
   ssh: Schema.union([Schema.const(undefined), Schema.object({ alias: Schema.string().required(), cwd: Schema.string().required(),
     remotePort: Schema.number().min(1).max(65535).step(1).required(),
     remoteTargetPort: Schema.number().min(1).max(65535).step(1).required(),
@@ -198,3 +201,7 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
 export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountNode(_ctx, _config)) }
 export type * from './delegation.ts'
 export type * from './execution.ts'
+export { createDelegationIssuer, createDelegationReceivingPolicy } from './delegation-policy.ts'
+export type { DelegationEvidence, DelegationIssuanceOptions, DelegationReceivingOptions } from './delegation-policy.ts'
+export { createNodeLinkExecutor, nodeLinkExecutionAdapter } from './executor.ts'
+export { decodeRoutedSend } from './routed-codec.ts'

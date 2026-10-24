@@ -1,8 +1,10 @@
 /** Wire validation binds payloads, delegations and replies to one target operation. */
-import { decodeSeatRequest, decodeSeatResult, decodeMessagesRequest, decodeMessagesResult } from '@panedesk/dsh-sdk-protocol'
+import { decodeSeatRequest, decodeSeatResult, decodeMessagesResult } from '@panedesk/dsh-sdk-protocol'
 import { digest, object, identifier } from '@panedesk/dsh-host-admin'
 import { NODE_LINK_VERSION, NODE_LINK_ERROR_CODES } from './index.ts'
 import type { NodeWireRequest, NodeWireResponse, NodeRouteMethods } from './index.ts'
+import type { NodePreparedRequest } from './delegation.ts'
+import { decodeRoutedSend } from './routed-codec.ts'
 
 const methods = { 'seat.open': 'seats/open', 'seat.openBatch': 'seats/openBatch', 'seat.renew': 'seats/renew',
   'seat.close': 'seats/close', 'seat.replace': 'seats/replace', 'seat.wake': 'seats/wake', 'seat.operation': 'seats/operation' } as const
@@ -11,7 +13,7 @@ const methods = { 'seat.open': 'seats/open', 'seat.openBatch': 'seats/openBatch'
  * @param value - Parsed bounded JSON.
  * @returns Validated request without granting authority from its strings.
  */
-export function decodeRequest(value: unknown): NodeWireRequest {
+export function decodeRequest(value: unknown): NodePreparedRequest {
   if (!object(value) || value.version !== NODE_LINK_VERSION || !identifier(value.requestId)
     || !identifier(value.sourceNodeId) || !identifier(value.targetNodeId) || value.sourceNodeId === value.targetNodeId
     || !identifier(value.operationId) || value.hop !== 1 || typeof value.deadline !== 'string'
@@ -20,7 +22,7 @@ export function decodeRequest(value: unknown): NodeWireRequest {
     || typeof value.payloadDigest !== 'string' || value.payloadDigest !== digest(value.payload)
     || Object.keys(value).some(key => !['version', 'requestId', 'sourceNodeId', 'targetNodeId', 'operationId',
       'deadline', 'hop', 'method', 'payload', 'payloadDigest', 'delegation'].includes(key))) throw new Error('Node frame rejected')
-  if (value.method === 'messages.send') decodeMessagesRequest('messages/send', value.payload)
+  if (value.method === 'messages.send') decodeRoutedSend(value.payload)
   else decodeSeatRequest(methods[value.method as keyof typeof methods], value.payload)
   const delegation = value.delegation
   if (!object(delegation) || delegation.kind !== 'node-delegation' || delegation.hop !== 1
@@ -35,7 +37,9 @@ export function decodeRequest(value: unknown): NodeWireRequest {
       'operationId', 'requestDigest', 'expiresAt', 'taskIds', 'seat', 'sessionId'].includes(key))) throw new Error('Node delegation rejected')
   if (!object(value.payload) || (value.method !== 'seat.operation' && value.payload.operationId !== value.operationId)
     || (value.payload.nodeId !== undefined && value.payload.nodeId !== value.targetNodeId)) throw new Error('Node payload identity rejected')
-  return value as NodeWireRequest
+  if (value.method === 'messages.send' && object(value.payload.delivery)
+    && value.payload.delivery.sourceNodeId !== value.sourceNodeId) throw new Error('Message source identity rejected')
+  return value as NodePreparedRequest
 }
 
 /** Validate result semantics with the existing provider codec.

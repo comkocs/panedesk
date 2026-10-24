@@ -12,6 +12,7 @@ import { digest } from './json.ts'
 /** Install only under explicit runtime configuration.
  * @param ctx - Lifecycle and optional local executor.
  * @param config - Explicit listener and durable store bounds.
+ * @returns Disposer that drains accepted calls and releases owned resources.
  */
 export async function mountAdmin(ctx: Context, config: Config): Promise<() => Promise<void>> {
   const options = config.runtime
