@@ -7,7 +7,7 @@ import * as Admin from '../src/index.ts'
 import { SdkMethodRegistryProvider } from '@panedesk/dsh-sdk-jsonrpc-server'
 import { JsonRpcResponseError } from '@panedesk/dsh-sdk-protocol'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtemp, rm, chmod, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -39,7 +39,77 @@ async function peer(command: string, args: string[], env: NodeJS.ProcessEnv): Pr
   try { await exited; return JSON.parse(output) } finally { clearTimeout(timer) }
 }
 
-test('dispatches registered namespaces across TS and Python processes with host binding and revocation', async () => {
+type SdkPeer = (path: string, method: string) => Promise<unknown>
+const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url))
+
+/** Interpreter that can import the Python SDK, or null. Python SDK environment required; runs in the Python SDK job. */
+function pythonSdkInterpreter(): string | null {
+  const pythonExecutable = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'
+  const pythonEnvironment = process.env.UV_PROJECT_ENVIRONMENT ?? join(repositoryRoot, 'tmp/py-sdk-venv')
+  const python = process.env.PYTHON ?? [join(pythonEnvironment, pythonExecutable),
+    join(repositoryRoot, 'python/sdk/.venv', pythonExecutable)].find(path => existsSync(path)) ?? 'python3'
+  const probe = spawnSync(python, ['-B', '-c', 'import deepseek_harness'], {
+    env: { ...process.env, PYTHONPATH: join(repositoryRoot, 'python/sdk/src') },
+    stdio: 'ignore',
+  })
+  return probe.status === 0 ? python : null
+}
+
+async function assertRegisteredNamespaceDispatch(
+  directory: string,
+  ctx: Context,
+  clients: readonly SdkPeer[],
+): Promise<void> {
+  const definition = {
+    decodeRequest: (_value: unknown) => ({}),
+    encodeResult: (value: { sessionId: string | null; seat: string | null }) => value,
+    invoke: async (_params: object, context: import('@panedesk/dsh-sdk-jsonrpc-server').SdkMethodContext) =>
+      ({ sessionId: context.sessionId ?? null, seat: context.seat ?? null }),
+  }
+  const unregister = ctx.get('sdkMethods')!.register({ namespace: 'example', version: '1',
+    methods: { read: definition, write: definition,
+      invalid: { ...definition, decodeRequest: () => { throw new JsonRpcResponseError(-32602, 'Invalid test request') } } },
+    authorize: async (identity, method) => method === 'write' && identity.seat === undefined
+      ? { status: 'rejected', code: 'unauthorized', reason: 'Seat binding required' } : { status: 'allowed' } })
+  const endpointPath = join(directory, 'endpoint.json'), operatorPath = join(directory, 'credential')
+  const binding: HostSessionBinding = { sessionId: 'session-a' as HostSessionBinding['sessionId'], seat: 'seat-a' as HostSessionBinding['seat'] }
+  const bound = await ctx.get('hostSessionCredentials')!.issue(binding)
+  for (const call of clients) {
+    expect(await call(operatorPath, 'example/read')).toEqual({ status: 'ok', result: { sessionId: null, seat: null } })
+    expect(await call(operatorPath, 'example/write')).toEqual({ status: 'rejected', data: { reason: 'unauthorized' } })
+    expect(await call(bound.credentialPath, 'example/write')).toEqual({ status: 'ok', result: { sessionId: 'session-a', seat: 'seat-a' } })
+    expect(await call(operatorPath, 'absent/read')).toEqual({ status: 'rejected', data: { reason: 'method-unavailable' } })
+    expect(await call(operatorPath, 'example/invalid')).toEqual({ status: 'rejected', data: { reason: 'invalid-params' } })
+  }
+  const files = new PosixPrivateFiles(directory, process.getuid!())
+  const oldCredential = await new PosixPrivateFiles(resolve(bound.credentialPath, '..'), process.getuid!()).read('credential', 64)
+  await files.write('old-credential', oldCredential!)
+  const replacement = await ctx.get('hostSessionCredentials')!.issue(binding)
+  for (const call of clients) expect(await call(join(directory, 'old-credential'), 'example/write')).toMatchObject({ status: 'rejected' })
+  await replacement.revoke()
+  await files.write('forged-credential', randomBytes(32).toString('hex'))
+  for (const call of clients) expect(await call(join(directory, 'forged-credential'), 'example/read')).toMatchObject({ status: 'rejected' })
+  const endpoint = JSON.parse((await files.read('endpoint.json', 4096))!) as { port: number; processEpoch: string }
+  const credential = (await files.read('credential', 64))!
+  for (const headers of [{ origin: 'https://example.invalid' }, { cookie: 'ambient=1' }, { 'x-rpc-epoch': randomUUID() }]) {
+    const status = await new Promise<number | undefined>((resolveStatus, reject) => {
+      const request = httpRequest({ host: '127.0.0.1', port: endpoint.port, path: '/rpc', method: 'POST',
+        headers: { authorization: credential, 'content-type': 'application/json', 'x-rpc-epoch': endpoint.processEpoch, ...headers } }, (response) => {
+        response.resume(); response.on('end', () => { resolveStatus(response.statusCode) })
+      })
+      request.on('error', reject); request.end('{}')
+    })
+    expect(status).toBe(403)
+  }
+  await unregister()
+  expect(await callHostSdk({ ...limits, endpointPath, credentialPath: operatorPath }, 'example/read', {}))
+    .toEqual({ status: 'rejected', code: 'method-unavailable' })
+  await chmod(operatorPath, 0o644)
+  await expect(callHostSdk({ ...limits, endpointPath, credentialPath: operatorPath }, 'example/read', {})).rejects.toThrow('permissions')
+  await chmod(operatorPath, 0o600)
+}
+
+test('dispatches registered namespaces across a TS process with host binding and revocation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'host-sdk-'))
   const ctx = new Context()
   try {
@@ -53,63 +123,35 @@ test('dispatches registered namespaces across TS and Python processes with host 
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(profile).href } })
     await ctx.loader.await()
     await expect.poll(() => ctx.get('hostSessionCredentials')).toBeDefined()
-    const definition = {
-      decodeRequest: (_value: unknown) => ({}),
-      encodeResult: (value: { sessionId: string | null; seat: string | null }) => value,
-      invoke: async (_params: object, context: import('@panedesk/dsh-sdk-jsonrpc-server').SdkMethodContext) =>
-        ({ sessionId: context.sessionId ?? null, seat: context.seat ?? null }),
-    }
-    const unregister = ctx.get('sdkMethods')!.register({ namespace: 'example', version: '1',
-      methods: { read: definition, write: definition,
-        invalid: { ...definition, decodeRequest: () => { throw new JsonRpcResponseError(-32602, 'Invalid test request') } } },
-      authorize: async (identity, method) => method === 'write' && identity.seat === undefined
-        ? { status: 'rejected', code: 'unauthorized', reason: 'Seat binding required' } : { status: 'allowed' } })
-    const endpointPath = join(directory, 'endpoint.json'), operatorPath = join(directory, 'credential')
-    const binding: HostSessionBinding = { sessionId: 'session-a' as HostSessionBinding['sessionId'], seat: 'seat-a' as HostSessionBinding['seat'] }
-    const bound = await ctx.get('hostSessionCredentials')!.issue(binding)
-    const root = fileURLToPath(new URL('../../../../', import.meta.url))
-    const pythonEnvironment = process.env.UV_PROJECT_ENVIRONMENT ?? join(root, 'tmp/py-sdk-venv')
-    const pythonExecutable = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'
-    const python = process.env.PYTHON ?? [join(pythonEnvironment, pythonExecutable),
-      join(root, 'python/sdk/.venv', pythonExecutable)].find(path => existsSync(path)) ?? 'python3'
-    const env = { ...process.env, PYTHONPATH: join(root, 'python/sdk/src'), TSX_TSCONFIG_PATH: join(root, 'tsconfig.base.json') }
-    const clients = [
-      (path: string, method: string) => peer(process.execPath, ['--import', 'tsx/esm', join(root, 'packages/sdk/client/tests/running-host-peer.ts'), endpointPath, path, method], env),
-      (path: string, method: string) => peer(python, ['-B', join(root, 'python/sdk/tests/running_host_peer.py'), endpointPath, path, method], env),
-    ]
-    for (const call of clients) {
-      expect(await call(operatorPath, 'example/read')).toEqual({ status: 'ok', result: { sessionId: null, seat: null } })
-      expect(await call(operatorPath, 'example/write')).toEqual({ status: 'rejected', data: { reason: 'unauthorized' } })
-      expect(await call(bound.credentialPath, 'example/write')).toEqual({ status: 'ok', result: { sessionId: 'session-a', seat: 'seat-a' } })
-      expect(await call(operatorPath, 'absent/read')).toEqual({ status: 'rejected', data: { reason: 'method-unavailable' } })
-      expect(await call(operatorPath, 'example/invalid')).toEqual({ status: 'rejected', data: { reason: 'invalid-params' } })
-    }
-    const files = new PosixPrivateFiles(directory, process.getuid!())
-    const oldCredential = await new PosixPrivateFiles(resolve(bound.credentialPath, '..'), process.getuid!()).read('credential', 64)
-    await files.write('old-credential', oldCredential!)
-    const replacement = await ctx.get('hostSessionCredentials')!.issue(binding)
-    for (const call of clients) expect(await call(join(directory, 'old-credential'), 'example/write')).toMatchObject({ status: 'rejected' })
-    await replacement.revoke()
-    await files.write('forged-credential', randomBytes(32).toString('hex'))
-    for (const call of clients) expect(await call(join(directory, 'forged-credential'), 'example/read')).toMatchObject({ status: 'rejected' })
-    const endpoint = JSON.parse((await files.read('endpoint.json', 4096))!) as { port: number; processEpoch: string }
-    const credential = (await files.read('credential', 64))!
-    for (const headers of [{ origin: 'https://example.invalid' }, { cookie: 'ambient=1' }, { 'x-rpc-epoch': randomUUID() }]) {
-      const status = await new Promise<number | undefined>((resolveStatus, reject) => {
-        const request = httpRequest({ host: '127.0.0.1', port: endpoint.port, path: '/rpc', method: 'POST',
-          headers: { authorization: credential, 'content-type': 'application/json', 'x-rpc-epoch': endpoint.processEpoch, ...headers } }, (response) => {
-          response.resume(); response.on('end', () => { resolveStatus(response.statusCode) })
-        })
-        request.on('error', reject); request.end('{}')
-      })
-      expect(status).toBe(403)
-    }
-    await unregister()
-    expect(await callHostSdk({ ...limits, endpointPath, credentialPath: operatorPath }, 'example/read', {}))
-      .toEqual({ status: 'rejected', code: 'method-unavailable' })
-    await chmod(operatorPath, 0o644)
-    await expect(callHostSdk({ ...limits, endpointPath, credentialPath: operatorPath }, 'example/read', {})).rejects.toThrow('permissions')
-    await chmod(operatorPath, 0o600)
+    const env = { ...process.env, PYTHONPATH: join(repositoryRoot, 'python/sdk/src'), TSX_TSCONFIG_PATH: join(repositoryRoot, 'tsconfig.base.json') }
+    const endpointPath = join(directory, 'endpoint.json')
+    await assertRegisteredNamespaceDispatch(directory, ctx, [
+      (path, method) => peer(process.execPath, ['--import', 'tsx/esm', join(repositoryRoot, 'packages/sdk/client/tests/running-host-peer.ts'), endpointPath, path, method], env),
+    ])
+  } finally { await ctx.fiber.dispose(); await rm(directory, { recursive: true, force: true }) }
+}, 60000)
+
+// Python SDK environment required; runs in the Python SDK job.
+const pythonSdk = pythonSdkInterpreter()
+test.runIf(pythonSdk !== null)('dispatches registered namespaces across a Python process with host binding and revocation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'host-sdk-'))
+  const ctx = new Context()
+  try {
+    ctx.baseUrl = `${pathToFileURL(directory).href}/`
+    await ctx.plugin(Loader)
+    Object.assign(ctx.loader.builtins, { include: Include, admin: Admin, registry: SdkMethodRegistryProvider })
+    const profile = join(directory, 'cordis.yml')
+    await writeFile(profile, JSON.stringify([{ name: 'cordis:registry' }, { name: 'cordis:admin',
+      config: { runtime: { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
+        port: 0, maxStoreBytes: 1048576, maxOperations: 100 } } }]))
+    await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(profile).href } })
+    await ctx.loader.await()
+    await expect.poll(() => ctx.get('hostSessionCredentials')).toBeDefined()
+    const env = { ...process.env, PYTHONPATH: join(repositoryRoot, 'python/sdk/src'), TSX_TSCONFIG_PATH: join(repositoryRoot, 'tsconfig.base.json') }
+    const endpointPath = join(directory, 'endpoint.json')
+    await assertRegisteredNamespaceDispatch(directory, ctx, [
+      (path, method) => peer(pythonSdk!, ['-B', join(repositoryRoot, 'python/sdk/tests/running_host_peer.py'), endpointPath, path, method], env),
+    ])
   } finally { await ctx.fiber.dispose(); await rm(directory, { recursive: true, force: true }) }
 }, 60000)
 
