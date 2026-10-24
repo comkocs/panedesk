@@ -911,6 +911,17 @@
       }
     },
     {
+      "id": "trusted-task-scope-admission",
+      "description": "Inject trusted owner scope admission before any batch member opens while preserving default gates.",
+      "origin": "Opt-in task scope admission",
+      "reason": "Private platform owners retain frozen scope reservations across restart without adding platform rules to public services.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/scope-admission-composition.spec.ts"],
+        "test": "injects conflict, unknown and disjoint decisions before creating any batch member and drains disposal"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
