@@ -23,7 +23,7 @@ test('refuses missing atomic admission and passes exact grants only to the local
   const grant = { fact: { authorizationId: 'local-grant', kind: 'node-delegation', principalId: input.delegation.principalId,
     origin: 'remote', nodeId: input.targetNodeId, operationId: input.operationId, requestDigest: input.payloadDigest,
     delegatedBy: input.delegation.authorizationRef, taskIds: [], policyRevision: 1, decision: 'allowed',
-    reasonCode: 'allowed', checkedAt: new Date().toISOString() } } as Seat.SeatAuthorizationGrant
+    reasonCode: 'allowed', checkedAt: new Date().toISOString() } } as unknown as Seat.SeatAuthorizationGrant
   const check = vi.fn(async () => grant)
   const dependencies: NodeLinkExecutionDependencies = { nodeId: input.targetNodeId,
     peer: { sourceNodeId: input.sourceNodeId, targetNodeId: input.targetNodeId, authenticatedAt: new Date().toISOString() },

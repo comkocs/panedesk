@@ -23,7 +23,7 @@ test('limits expiry, checks retained evidence and rejects widened methods or mis
   // The authorization owner is a double; these tests do not establish journal integration.
   const grant = { fact: { authorizationId: frame.delegation.authorizationRef, kind: 'human', principalId: frame.delegation.principalId,
     origin: 'manual', nodeId: frame.sourceNodeId, taskIds: [], operationId: frame.operationId, policyRevision: 1,
-    decision: 'allowed', reasonCode: 'allowed', requestDigest: frame.payloadDigest, checkedAt: new Date().toISOString() } } as SeatAuthorizationGrant
+    decision: 'allowed', reasonCode: 'allowed', requestDigest: frame.payloadDigest, checkedAt: new Date().toISOString() } } as unknown as SeatAuthorizationGrant
   const issuer: SeatAuthorizationIssuer = { check: async () => grant }
   const authorityExpiresAt = new Date(Date.now() + 30000).toISOString()
   const entry = createDelegationIssuer({ issuer, expiry, sourceNodeId: frame.sourceNodeId, methods: ['seat.wake'],

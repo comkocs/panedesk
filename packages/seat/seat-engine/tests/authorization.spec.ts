@@ -159,7 +159,7 @@ describe('atomic issued authorization', () => {
     await expect(h.engine.authorizations.transact(input, () => { throw new Error('Action failed') })).rejects.toThrow('Action failed')
     expect(await h.engine.authorizations.transact(input, () => ({ authorization, effects: [] }))).toMatchObject({ status: 'rejected' })
     expect(await h.engine.authorizations.transact(input, () => ({ authorization, effects: effects(request('other')) }))).toMatchObject({ status: 'rejected' })
-    const unrelated = { ...effects(request('unrelated'))[0]!, operationId: undefined }
+    const { operationId: _operationId, ...unrelated } = effects(request('unrelated'))[0]!
     expect(await h.engine.authorizations.transact(input, () => ({ authorization, effects: [...effects(input), unrelated] })))
       .toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
     expect(await h.engine.authorizations.query({ limit: 10 })).toMatchObject({ facts: [], watermark: 0 })
