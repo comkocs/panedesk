@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { SEAT_ENGINE_NAMESPACE, type EngineDecision, type EngineEffect, type EngineEventId,
   type SeatEngineService, type SeatNodeId } from '@panedesk/dsh-seat'
 import { digest } from './store.ts'
+import type { SeatAuthorizationGrant, SeatAuthorizationTransactions } from '@panedesk/dsh-seat'
+import { SeatLocalError } from './errors.ts'
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
@@ -43,15 +45,33 @@ export class LocalEngineState {
 
   /** Atomically derive and append facts without publishing speculative state.
    * @param update - pure operation evaluated against each fresh committed snapshot.
+   * @param admission - Optional issued authority; omission preserves legacy transactions.
    * @returns result associated with the successful decision or an unchanged snapshot.
    */
-  async mutate<T>(update: (effects: readonly EngineEffect[]) => { result: T; effects: readonly EngineEffect[] }): Promise<T> {
+  async mutate<T>(update: (effects: readonly EngineEffect[]) => { result: T; effects: readonly EngineEffect[] },
+    admission?: { transactions: SeatAuthorizationTransactions; grant: SeatAuthorizationGrant; request: { operationId: import('@panedesk/dsh-seat').SeatOperationId } }): Promise<T> {
     const engine = this.engine()
     if (engine === undefined) throw new Error('Seat engine is unavailable')
     for (let attempt = 0; attempt < this.retries; attempt++) {
       const snapshot = await this.read()
       const next = update(snapshot.effects)
       if (!next.effects.length) return next.result
+      if (admission) {
+        const { grant, request, transactions } = admission
+        const commit = { built: false }
+        const receipt = await transactions.transact({ operationId: request.operationId, requestDigest: digest(request),
+          expectedSequence: snapshot.watermark, decisionId: `authorization:${request.operationId}` as EngineDecision['decisionId'],
+          ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+          ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) },
+        () => { commit.built = true; return { authorization: grant, effects: next.effects } })
+        if (receipt.status === 'committed') {
+          if (!commit.built) throw new Error('Historical authorization cannot dispatch another local action')
+          if (receipt.sequence !== snapshot.watermark + 1) throw new Error('Historical authorization cannot dispatch another local action')
+          return next.result
+        }
+        if (receipt.status === 'rejected') throw new SeatLocalError(receipt.error)
+        continue
+      }
       const body: Omit<EngineDecision, 'digest' | 'byteLength'> = { namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
         decisionId: randomUUID() as EngineDecision['decisionId'], sequence: snapshot.watermark + 1,
         observedAt: new Date().toISOString(), nodeId: this.nodeId, policyRevision: 0, effects: next.effects }

@@ -11,6 +11,14 @@ export class AuthorizationTransactions implements T.SeatAuthorizationTransaction
   constructor(private readonly journal: EngineJournal, private readonly issuers: AuthorizationIssuers,
     private readonly ready: () => Promise<void>, private readonly publish: () => Promise<void>) {}
 
+  async validate(request: T.SeatAuthorizationCheck, authorization: T.SeatAuthorizationGrant): Promise<T.SeatRejected | null> {
+    await this.ready()
+    try {
+      const data = this.issuers.verify(authorization, request, this.journal.nodeId)
+      return data.decision === 'allowed' ? null : rejected('unauthorized', 'Action policy denied the operation')
+    } catch (error) { if (!(error instanceof EngineError)) throw error; return failure(error) }
+  }
+
   async transact(request: T.SeatAuthorizationTransactionRequest,
     build: () => T.SeatAuthorizedAction): Promise<T.SeatAuthorizationTransactionResult> {
     await this.ready()

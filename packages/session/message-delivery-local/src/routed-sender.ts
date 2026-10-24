@@ -30,6 +30,7 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
       messageId: id, operationId: request.operationId, deliveryOutcome: 'rejected', messageState: 'rejected', pending: false, reason, candidates: [] })
     const router = ctx.get('nodeRouter'), issuer = ctx.get('nodeDelegationIssuer')
     if (!router || !issuer || request.target.sessionId === undefined || request.target.nodeId === undefined) return refuse('cross-node-unsupported')
+    if (['callId', 'rootCallId', 'causedByDeliveryId', 'delivery'].some(key => key in request)) return refuse('unauthorized')
     const envelope = { deliveryId: randomUUID(), sourceNodeId: mailbox.options.nodeId,
       message: { messageId, sender, senderSessionId: sender.sessionId,
         target: { nodeId: request.target.nodeId, sessionId: request.target.sessionId },

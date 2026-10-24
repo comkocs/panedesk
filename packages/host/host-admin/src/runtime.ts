@@ -45,11 +45,36 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
         requestId: request.requestId, method: request.method, status: 'ok', result: await engine.nodeStatus() }
       if (request.method === 'engine.pending' && engine !== undefined) return { version: HOST_ADMIN_VERSION,
         requestId: request.requestId, method: request.method, status: 'ok', result: await engine.pending(request.params) }
-      // Approval cannot fall back to an unaudited engine call; task filtering also needs the owning executor.
+      if (request.method === 'engine.approve' && engine && authenticatedAuthority === authority) {
+        const issuers = ctx.get('seatAuthorizationIssuers'), transactions = ctx.get('seatAuthorizationTransactions')
+        if (!issuers || !transactions) return failure(request, 'admin-method-unavailable')
+        let cursor: import('@panedesk/dsh-seat').EngineCursor | undefined
+        let pending: import('@panedesk/dsh-seat').PendingSeatItem | undefined
+        do {
+          const page = await engine.pending({ limit: options.maxOperations, ...(cursor ? { cursor } : {}) })
+          pending = page.items.find(item => item.queueItemId === request.params.queueItemId)
+          if (pending || page.complete) break
+          if (!page.nextCursor) return failure(request, 'admin-unavailable')
+          cursor = page.nextCursor
+        } while (!stopped)
+        if (!pending) return failure(request, 'admin-unauthorized')
+        const registration = issuers.register({ identity: { kind: 'local-operator', principalId: authority.principalId,
+          origin: 'manual', nodeId: options.nodeId as HostAdminEndpoint['nodeId'], seat: pending.seat,
+          taskIds: pending.relatedTaskIds, policyRevision: 0 },
+        current: () => stopped ? null : { decision: 'allowed', reasonCode: 'authenticated-local-operator', policyRevision: 0 } })
+        try {
+          const grant = await registration.issuer.check({ operationId: request.params.operationId,
+            requestDigest: digest(request.params) as import('@panedesk/dsh-seat').SeatDigest })
+          if ('status' in grant) return failure(request, 'admin-unauthorized')
+          return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method, status: 'ok',
+            result: await transactions.approve(request.params, grant) }
+        } finally { registration.dispose() }
+      }
       return failure(request, 'admin-method-unavailable')
     }
     if (request.method !== 'engine.approve') return execute()
-    if (authenticatedAuthority.kind !== 'local-operator') return failure(request, 'admin-unauthorized')
+    if (authenticatedAuthority.kind !== 'local-operator'
+      || !ctx.get('hostAdminExecutor') && authenticatedAuthority !== authority) return failure(request, 'admin-unauthorized')
     try {
       const outcome = await store.run(`${authenticatedAuthority.principalId}:${request.params.operationId}`,
         digest({ method: request.method, params: request.params, principalId: authenticatedAuthority.principalId }), execute)

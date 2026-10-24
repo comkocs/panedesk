@@ -22,6 +22,8 @@ import { KeepAliveScheduler, type KeepAliveRuntime } from './keepalive.ts'
 import { AuthorizationIssuers, authorizationEffect } from './authorization-issuer.ts'
 import { AuthorizationTransactions } from './authorization-transactions.ts'
 import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
+import { authorizedCommit, type ActionCommit } from './authorized-commit.ts'
+import { exportAuthorizations } from './authorization-export.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -63,6 +65,13 @@ export class SeatEngine extends SeatEngineService {
       () => this.ready(), () => this.publish())
     ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
     ctx.provide('seatAuthorizationTransactions', this.authorizations)
+    ctx.provide('seatAuthorizationExports', {
+      export: async request => exportAuthorizations(await this.authorizations.query(request)),
+    })
+    ctx.provide('seatAuthorizedEngineActions', {
+      renew: (request, grant) => this.renewAuthorized(request, grant),
+      replace: (request, grant) => this.replaceAuthorized(request, grant),
+    })
     ctx.provide('seatAuthorizationQueries', {
       query: async (request) => {
         await this.ready()
@@ -413,14 +422,54 @@ export class SeatEngine extends SeatEngineService {
     })
     await this.publish(); return result
   }
+  private actionCommit(request: T.RenewSeatRequest | T.ReplaceSeatRequest, grant: T.SeatAuthorizationGrant): ActionCommit {
+    return authorizedCommit(this.journal, this.authorizations, { operationId: request.operationId,
+      requestDigest: digest(request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
+  }
+  private async replaceAuthorized(request: T.ReplaceSeatRequest, grant: T.SeatAuthorizationGrant): Promise<T.ReplaceSeatResult> {
+    try {
+      await this.checkActionTarget(request, grant)
+      return await this.replaceAction(request, this.actionCommit(request, grant))
+    }
+    catch (error) { if (!(error instanceof EngineError)) throw error; return rejected(error.code, error.message) }
+  }
+  private async checkActionTarget(request: T.RenewSeatRequest | T.ReplaceSeatRequest, grant: T.SeatAuthorizationGrant): Promise<void> {
+    await this.ready()
+    const data = this.authorizationIssuers.verify(grant, { operationId: request.operationId, requestDigest: digest(request),
+      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
+    if (data.decision !== 'allowed') throw new EngineError('unauthorized', 'Action policy denied the operation')
+    const binding = this.journal.projection.opens.get(request.sessionId)?.binding
+    if (binding?.kind !== 'seat' || grant.fact.seat !== binding.seat
+      || binding.relatedTaskIds.some(task => !grant.fact.taskIds.includes(task))) {
+      throw new EngineError('unauthorized', 'Action attribution does not cover the target seat and tasks')
+    }
+  }
+  private async renewAuthorized(request: T.RenewSeatRequest, grant: T.SeatAuthorizationGrant): Promise<T.RenewSeatResult> {
+    try {
+      await this.checkActionTarget(request, grant)
+      return await this.renewAction(request, this.actionCommit(request, grant))
+    } catch (error) {
+      if (!(error instanceof EngineError)) throw error
+      return { ...rejected(error.code, error.message), cacheEvidence: { lastActivityAt: null, cacheTtlMs: null,
+        prefixDigest: null, observedAt: new Date().toISOString(), reusableRequest: false } }
+    }
+  }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
+    return this.replaceAction(request)
+  }
+  private async replaceAction(request: T.ReplaceSeatRequest, commit?: ActionCommit): Promise<T.ReplaceSeatResult> {
     await this.ready()
     if (request.nodeId && request.nodeId !== this.options.nodeId) return rejected('cross-node-unsupported', 'Replacement is node-local')
-    const result = await queueReplacement(this.journal, request)
+    const result = await queueReplacement(this.journal, request, commit)
     await this.publish()
     return result
   }
   async renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult> {
+    return this.renewAction(request)
+  }
+  private async renewAction(request: T.RenewSeatRequest, commit?: ActionCommit): Promise<T.RenewSeatResult> {
     await this.ready()
     const evidence = await this.dependencies.keepalive?.remaining(request.sessionId)
     const cacheEvidence: T.SeatCacheEvidence = { lastActivityAt: evidence?.kind === 'estimated'
@@ -433,8 +482,13 @@ export class SeatEngine extends SeatEngineService {
       ...rejected('session-not-found', 'Maintenance window is not active'), cacheEvidence }
     if ((await this.admitTurn(request.sessionId)).status !== 'allow') return {
       ...rejected('budget-stopped', 'Maintenance is blocked by window admission'), cacheEvidence }
-    const result = await this.keepalive.renew(request.sessionId, request.operationId, 'manual',
-      evidence?.kind === 'estimated' ? evidence.evidenceAt : null, null)
+    let result: T.EngineKeepAliveData
+    try { result = await this.keepalive.renew(request.sessionId, request.operationId, 'manual',
+      evidence?.kind === 'estimated' ? evidence.evidenceAt : null, null, Date.now(), commit) }
+    catch (error) {
+      if (!(error instanceof EngineError)) throw error
+      return { ...rejected(error.code, error.message), cacheEvidence }
+    }
     await this.publish()
     if (result.phase === 'renewed') return { status: 'renewed', sessionId: request.sessionId,
       cacheEvidence: { ...cacheEvidence, lastActivityAt: result.evidenceAt === null ? null : new Date(result.evidenceAt).toISOString() } }

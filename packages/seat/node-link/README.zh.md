@@ -36,7 +36,7 @@ kind: "package-reference"
 
 POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单硬链接普通文件，路径不得含符号链接；运维须保证祖先目录不受非受信账号替换。Windows 必须提供 `nodeLinkFiles` 实现等效 ACL 与耐久写入。每次健康探测重新读取两个方向的已校验私有文件。`credentialOverlapMs` 显式限制唯一旧代次的剩余有效期，省略则禁用重叠。发布新凭据时附带具有固定 `expiresAt` 的旧条目，再安全更新对端出向文件；重叠期两个代次均可认证，到期后拒绝旧代次。重载失败会断开出向路由；发布须与探测周期协调。
 
-`createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。缺少适配时拒绝接收，接收端不再转发。
+`createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。未显式提供执行器时，已配置传输仅在接收策略、授权事务、本地席位及 `nodeAuthorizedLocalAdmission` 服务全部安装后组合它们。缺少服务时拒绝接收，接收端不再转发。此后备装配不安装消息授权。
 
 <a id="persistence-and-disconnection"></a>
 ## 持久化与断链
