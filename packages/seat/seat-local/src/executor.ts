@@ -17,6 +17,7 @@ import { readSeatText, renderOpening } from './template.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { localSourceId } from './open-admission.ts'
 import { observeOwner } from './owner-observation.ts'
+import { sessionCredentialSetup } from './session-credentials.ts'
 
 /** Create an identity-preserving executor whose caller owns registration and disposal.
  * @param ctx - local plugin context.
@@ -51,6 +52,7 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
     })
   }
   const subscribed = new WeakSet<Agent>()
+  const bindCredentials = sessionCredentialSetup(ctx)
   const definition = (open: EngineOpenData) => {
     if (open.definition === undefined || open.binding.kind !== 'seat') throw new Error('Opening definition is unavailable')
     return open.definition
@@ -71,7 +73,8 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
       const handle = await agents.resume({ resumeSessionId: open.sessionId,
         agentOptions: { provider: def.provider, model: def.model,
           reasoningEffort: ReasoningEffortId(def.reasoningEffort) },
-        setup: (_agentCtx, agent) => {
+        setup: async (_agentCtx, agent) => {
+          await bindCredentials(agent, open)
           // Completed permission stages retain their durable selection on resume.
           if (open.completedStages.includes('permission')) return
           const permissions = ctx.get('permissionPresets')
@@ -116,7 +119,7 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
         const result = await creation.create({ sessionId: open.sessionId, cwd: startup.path,
           agentPreset: def.agentPreset, selection: { provider: def.provider, model: def.model,
             reasoningEffort: ReasoningEffortId(def.reasoningEffort) }, releasePreparation,
-          setup: async (_agentCtx, agent) => { await subscribe(agent, open) } })
+          setup: async (_agentCtx, agent) => { await subscribe(agent, open); await bindCredentials(agent, open) } })
         if (result.agent.id !== open.sessionId) throw new Error('Controlled creation changed the session identity')
         await ctx.get('sessions')?.flush(result.agent.session)
         return result.agent.id

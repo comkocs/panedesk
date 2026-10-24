@@ -12,6 +12,10 @@ export interface RpcAuthentication {
   epoch: string
   /** Optional prior epochs accepted only until their explicit overlap deadline. */
   previous?: readonly { credential: string; epoch: string; expiresAt: number }[]
+  /** Host-owned alternative credentials share this listener without sharing authority. */
+  alternatives?: readonly { credential: string; epoch: string; identity: object }[]
+  /** Opaque host-owned identity returned only to the authenticated dispatcher. */
+  identity?: object
 }
 /** Listener lifetime includes all accepted dispatches. */
 export interface LoopbackListener { port: number; close(): Promise<void> }
@@ -60,13 +64,14 @@ export function listenLoopback(port: number, limits: RpcLimits, authentication: 
  * @returns Owned listener and awaited teardown.
  */
 export async function listenAuthenticatedLoopback(port: number, limits: RpcLimits, authentication: () => RpcAuthentication,
-  dispatch: (value: unknown, authenticatedEpoch: string) => Promise<unknown>): Promise<LoopbackListener> {
+  dispatch: (value: unknown, authenticatedEpoch: string, identity?: object) => Promise<unknown>): Promise<LoopbackListener> {
   const pending = new Set<Promise<void>>()
   let closing = false
   const server: Server = createServer((req, res) => {
     const current = authentication()
-    const accepted = [current, ...(current.previous ?? []).filter(item => item.expiresAt > Date.now())]
-      .find(item => req.headers['x-rpc-epoch'] === item.epoch && authenticated(req.headers.authorization, item.credential))
+    const accepted: { credential: string; epoch: string; identity?: object } | undefined =
+      [current, ...(current.alternatives ?? []), ...(current.previous ?? []).filter(item => item.expiresAt > Date.now())]
+        .find(item => req.headers['x-rpc-epoch'] === item.epoch && authenticated(req.headers.authorization, item.credential))
     const forbidden = closing || req.headers.origin !== undefined || req.headers.cookie !== undefined
       || req.method !== 'POST' || req.url !== '/rpc' || req.headers.host !== `${loopback}:${actualPort}`
       || req.headers['content-type'] !== 'application/json'
@@ -76,7 +81,7 @@ export async function listenAuthenticatedLoopback(port: number, limits: RpcLimit
     if (forbidden) { res.writeHead(403); res.end(); req.resume(); return }
     const work = (async () => {
       try {
-        const result = await dispatch(await body(req, limits.maxFrameBytes), accepted.epoch)
+        const result = await dispatch(await body(req, limits.maxFrameBytes), accepted.epoch, accepted.identity)
         const text = JSON.stringify(result)
         if (Buffer.byteLength(text) > limits.maxFrameBytes) throw new Error('RPC response exceeds limit')
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(text)

@@ -38,6 +38,10 @@ import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@pan
 import { provideCmdline, type AppReady } from '@panedesk/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
 
+/** Plugin commands may call a running host without booting an engine in their profile. */
+export { callHostSdk as requestRunningHost } from '@panedesk/dsh-host-admin'
+export type { RunningHostOptions } from '@panedesk/dsh-host-admin'
+
 const NAME = 'panedesk'
 
 /** Launcher-owned readiness signal committed only after boot and host setup succeed. */

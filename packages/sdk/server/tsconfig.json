@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../host/host-admin" },
     { "path": "../../seat/node-link" },
     { "path": "../../seat/seat" },
     {

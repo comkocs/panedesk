@@ -27,6 +27,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@panedesk/dsh-host-admin": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/schemastery": "workspace:~"
   },

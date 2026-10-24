@@ -91,6 +91,8 @@ The client is two layers over one wire: `DeepSeekHarness` (owned runs) over `Har
 
 A run subscribes to the session tree, queues the prompt, waits until the prompt's message id appears in a durable `agent/inbox/spliced` receipt, then collects notifications until the whole agent reports `idle`. `finalResponse` is derived from the last `assistant/message` in the collected events. Transport loss, timeout, and protocol violations reject the run; model outcomes remain observable in the event stream without being attributed to one input.
 
+For registered namespaces on an existing host, construct `HarnessClient` with `runningHost: { endpointPath, credentialPath, maxFrameBytes, requestTimeoutMs, maxPending }` and call `request('namespace/method', params)`. Paths must be absolute and owner-only; a session tool can read `DSH_HOST_ENDPOINT_PATH` and `DSH_HOST_CREDENTIAL_PATH`. This mode neither resolves nor launches a runtime, and `close()` never shuts down the host. It supports namespace requests only, not `initialize`, session creation, or notification streams; the high-level `DeepSeekHarness` API and default subprocess mode remain unchanged. Transport failures do not retry, and request identity fields never override the file's host binding.
+
 ### Errors and teardown
 
 Every failure mode maps to one exported error class — a wire error response, an elapsed request bound, a response outside the documented protocol, or a dead runtime — so callers branch on failure type; the four classes are exported from [src/index.ts](src/index.ts). Teardown is a private, idempotent escalation (stdin EOF → SIGTERM → SIGKILL) in [src/dispose.ts](src/dispose.ts) that ends only at actual process exit.

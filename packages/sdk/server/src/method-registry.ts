@@ -11,6 +11,10 @@ export interface SdkMethodContext {
   sessionId?: SessionId
   authorizationRef: Branded<'SdkAuthorizationRef'>
   signal: AbortSignal
+  /** Present only for an authenticated host-issued seat binding. */
+  seat?: import('@panedesk/dsh-seat').SeatName
+  /** Optional employee identity already verified by the host binding owner. */
+  staffId?: string
 }
 /** A rejected authorization produces no invocation or side effect. */
 export type SdkMethodAuthorization = { status: 'allowed' } | { status: 'rejected'; code: 'unauthorized' | 'method-unavailable'; reason: string }

@@ -13,6 +13,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { callHostSdk } from '@panedesk/dsh-host-admin'
 import {
   JsonRpcLineTransport,
   JsonRpcResponseError,
@@ -267,6 +268,7 @@ export class HarnessClient {
    */
   start(): void {
     if (this.closeTask !== undefined) throw new TransportClosedError('DeepSeek Harness runtime client is closed')
+    if (this.options.runningHost !== undefined) return
     if (this.child !== undefined) return
     const child = spawn(this.runtime.command, this.runtime.args, {
       cwd: this.runtime.cwd,
@@ -472,6 +474,13 @@ export class HarnessClient {
    */
   async request(method: string, params?: object, timeoutMs?: number): Promise<unknown> {
     this.start()
+    if (this.options.runningHost !== undefined) {
+      const result = await callHostSdk({ ...this.options.runningHost,
+        requestTimeoutMs: timeoutMs ?? this.options.requestTimeoutMs ?? this.options.runningHost.requestTimeoutMs }, method, params ?? {})
+      if (result.status === 'rejected') throw new JsonRpcResponseError(result.code === 'method-unavailable' ? -32601 : -32603,
+        'Running host request rejected', { reason: result.code })
+      return result.value
+    }
     if (method !== 'shutdown') {
       try { await this.spawnReady } catch (error) {
         if (this.spawnError === undefined) throw error

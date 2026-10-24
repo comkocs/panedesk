@@ -129,6 +129,10 @@ export function resolveDshLaunch(
   options: HarnessClientOptions = {},
   callerCwd: string = process.cwd(),
 ): RuntimeProcessOptions {
+  if (options.runningHost !== undefined) return {
+    command: process.execPath, args: [], environment: () => ({}), description: 'running host',
+    initializeTimeoutMs: options.initializeTimeoutMs ?? DEFAULT_INITIALIZE_TIMEOUT_MS,
+  }
   const profile = options.profile ?? 'sdk'
   const dshLaunch = options.dshBin === undefined
     ? installedDshNodeLaunch()
