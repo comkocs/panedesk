@@ -171,3 +171,5 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  * @param _config - Optional runtime activation and resource bounds.
  */
 export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountNode(_ctx, _config)) }
+export type * from './delegation.ts'
+export type * from './execution.ts'

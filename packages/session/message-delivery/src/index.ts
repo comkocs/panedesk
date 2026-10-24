@@ -100,3 +100,4 @@ export abstract class MessageDelivery extends Service {
 }
 
 export default MessageDelivery
+export type * from './routed.ts'

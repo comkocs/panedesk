@@ -564,3 +564,4 @@ declare module '@panedesk/cordis' {
 }
 
 export default SeatService
+export type * from './authorization.ts'
