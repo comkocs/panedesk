@@ -44,6 +44,7 @@ export class TriggerRegistry {
    * @param envelope - adapter-authenticated bounded payload.
    * @param ruleMode - current rule restriction resolved by the engine.
    * @param frozenOpen - configuration and text resolved at acceptance.
+   * @param authorize - optional synchronous builder binding issued authorization to accepted effects.
    * @returns stable acceptance or explicit refusal.
    */
   async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode,

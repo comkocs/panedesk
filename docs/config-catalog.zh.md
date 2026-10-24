@@ -2545,7 +2545,7 @@ export interface Config {
 
 ## `@panedesk/dsh-node-link`
 
-- `source`: [`packages/seat/node-link/src/index.ts:174`](../packages/seat/node-link/src/index.ts)
+- `source`: [`packages/seat/node-link/src/index.ts:176`](../packages/seat/node-link/src/index.ts)
 
 ```ts config-catalog
 /** Omission preserves the empty plugin's no-I/O behavior. */
@@ -2580,6 +2580,8 @@ export interface NodeLinkRuntimeConfig {
   maxOperations: number
   /** Milliseconds after the last successful health probe before status becomes stale. */
   staleMs: number
+  /** Maximum prior-epoch overlap in milliseconds; omission disables overlap. */
+  credentialOverlapMs?: number | undefined
   /** Optional supervised OpenSSH forwarding through an existing reviewed host alias. */
   ssh?: {
     /** Existing simple SSH host alias, never a command or arbitrary option. */
@@ -3191,7 +3193,7 @@ export interface Config {
 
 - `inject`: `storageDomain`
 - `refs`: [`T`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-local/src/index.ts:45`](../packages/seat/seat-local/src/index.ts)
+- `source`: [`packages/seat/seat-local/src/index.ts:47`](../packages/seat/seat-local/src/index.ts)
 
 ```ts config-catalog
 /** Deployment supplies every limit explicitly. */

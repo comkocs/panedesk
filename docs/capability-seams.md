@@ -7,26 +7,37 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_seat["seat"]
+  svc_seatAuthorizationTransactions["ctx.seatAuthorizationTransactions<br/>Atomic authorization admission"]
+  pkg_seat_engine["seat-engine"]
+  pkg_seat_local["seat-local"]
   pkg_host_admin["host-admin"]
+  pkg_node_link["node-link"]
+  svc_seatAuthorizationExports["ctx.seatAuthorizationExports<br/>Issued authorization export"]
+  svc_seatAuthorizationIssuers["ctx.seatAuthorizationIssuers<br/>Trusted authorization entry registration"]
+  svc_seatAuthorizedEngineActions["ctx.seatAuthorizedEngineActions<br/>Audited engine maintenance"]
+  svc_nodeAuthorizedLocalAdmission["ctx.nodeAuthorizedLocalAdmission<br/>Authorized local node admission"]
+  svc_nodeDelegationIssuer["ctx.nodeDelegationIssuer<br/>Entry-owned node delegation"]
+  svc_nodeDelegationReceivingPolicy["ctx.nodeDelegationReceivingPolicy<br/>Receiving node permission ceiling"]
+  pkg_message_delivery["message-delivery"]
+  svc_routedMessageReceiver["ctx.routedMessageReceiver<br/>Durable routed message admission"]
+  pkg_message_delivery_local["message-delivery-local"]
+  svc_routedDeliveryVerifier["ctx.routedDeliveryVerifier<br/>Exact routed delivery verification"]
   svc_hostAdmin["ctx.hostAdmin<br/>Opt-in loopback host administration"]
   svc_hostAdminExecutor["ctx.hostAdminExecutor<br/>Authorized host administration execution"]
-  pkg_node_link["node-link"]
   svc_nodeLinkExecutor["ctx.nodeLinkExecutor<br/>Authorized local node execution"]
   svc_nodeRouter["ctx.nodeRouter<br/>Configured paired-node routing"]
   pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   svc_sdkMethods["ctx.sdkMethods<br/>Unloadable SDK namespace registration"]
-  pkg_seat["seat"]
   svc_seatAuthorizationQueries["ctx.seatAuthorizationQueries<br/>Provider-owned authorization queries"]
   pkg_seat_app["seat-app"]
   pkg_acp["acp"]
   svc_seatOpeningContexts["ctx.seatOpeningContexts<br/>Trusted opening source registration"]
-  pkg_seat_local["seat-local"]
   pkg_instruction_subscriptions["instruction-subscriptions"]
   svc_instructionSubscriptions["ctx.instructionSubscriptions<br/>Persisted instruction subscriptions"]
   svc_seats["ctx.seats<br/>Seat definitions and window operations"]
   pkg_seat_remote["seat-remote"]
   pkg_tool_seat["tool-seat"]
-  pkg_seat_engine["seat-engine"]
   svc_seatEngine["ctx.seatEngine<br/>Durable seat orchestration"]
   pkg_seat_gates["seat-gates"]
   pkg_ledger_query["ledger-query"]
@@ -174,12 +185,10 @@ flowchart LR
   pkg_host_product_telemetry_otel["host-product-telemetry-otel"]
   pkg_session_telemetry_otel["session-telemetry-otel"]
   svc_productTelemetry["ctx.productTelemetry<br/>Product usage event sender"]
-  pkg_message_delivery["message-delivery"]
   svc_messageDelivery["ctx.messageDelivery<br/>Same-node message delivery"]
   pkg_session_ledger["session-ledger"]
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
-  pkg_message_delivery_local["message-delivery-local"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
   pkg_session_telemetry["session-telemetry"]
   svc_sessionTelemetry["ctx.sessionTelemetry<br/>Session telemetry seam"]
@@ -428,7 +437,13 @@ flowchart LR
   pkg_mcp_client --> svc_mcpResources
   pkg_mcp_resources --> svc_mcpResources
   pkg_message_delivery --> svc_messageDelivery
+  pkg_message_delivery --> svc_routedDeliveryVerifier
+  pkg_message_delivery --> svc_routedMessageReceiver
+  pkg_message_delivery_local --> svc_routedMessageReceiver
   pkg_message_feedback --> svc_messageFeedback
+  pkg_node_link --> svc_nodeAuthorizedLocalAdmission
+  pkg_node_link --> svc_nodeDelegationIssuer
+  pkg_node_link --> svc_nodeDelegationReceivingPolicy
   pkg_node_link --> svc_nodeLinkExecutor
   pkg_node_link --> svc_nodeRouter
   pkg_office_to_pdf --> svc_officeToPdf
@@ -448,7 +463,11 @@ flowchart LR
   pkg_sandbox_windows_acl --> svc_skills
   pkg_schedule --> svc_schedule
   pkg_sdk_jsonrpc_server --> svc_sdkMethods
+  pkg_seat --> svc_seatAuthorizationExports
+  pkg_seat --> svc_seatAuthorizationIssuers
   pkg_seat --> svc_seatAuthorizationQueries
+  pkg_seat --> svc_seatAuthorizationTransactions
+  pkg_seat --> svc_seatAuthorizedEngineActions
   pkg_seat --> svc_seatDirectories
   pkg_seat --> svc_seatEngine
   pkg_seat --> svc_seatEngineQuery
@@ -462,6 +481,10 @@ flowchart LR
   pkg_seat --> svc_seatWorktreeHost
   pkg_seat --> svc_seats
   pkg_seat_engine --> svc_jobNotifications
+  pkg_seat_engine --> svc_seatAuthorizationExports
+  pkg_seat_engine --> svc_seatAuthorizationIssuers
+  pkg_seat_engine --> svc_seatAuthorizationTransactions
+  pkg_seat_engine --> svc_seatAuthorizedEngineActions
   pkg_seat_engine --> svc_seatEngine
   pkg_seat_engine --> svc_seatEngineQuery
   pkg_seat_engine --> svc_subagentAdmission
@@ -469,6 +492,7 @@ flowchart LR
   pkg_seat_gates --> svc_seatGates
   pkg_seat_gates --> svc_seatGatesQuery
   pkg_seat_gates --> svc_subagentDispatch
+  pkg_seat_local --> svc_nodeAuthorizedLocalAdmission
   pkg_seat_local --> svc_seatLocalCreation
   pkg_seat_local --> svc_seatLocalRead
   pkg_seat_local --> svc_seatLocalSession
@@ -594,6 +618,9 @@ flowchart LR
   svc_lsp --> pkg_tool_lsp
   svc_mcpResources --> pkg_mcp_resources
   svc_messageLedger --> pkg_message_delivery_local
+  svc_nodeAuthorizedLocalAdmission --> pkg_node_link
+  svc_nodeDelegationIssuer --> pkg_seat_local
+  svc_nodeDelegationReceivingPolicy --> pkg_node_link
   svc_nodeLinkExecutor --> pkg_node_link
   svc_nodeRouter --> pkg_sdk_jsonrpc_server
   svc_officeToPdf --> pkg_client_ui_sidebar_documentpreview
@@ -610,15 +637,23 @@ flowchart LR
   svc_remoteAccess --> pkg_api_gateway
   svc_remoteAccess --> pkg_api_session_controller
   svc_remoteAccess --> pkg_api_workspace_controller
+  svc_routedDeliveryVerifier --> pkg_message_delivery_local
+  svc_routedMessageReceiver --> pkg_seat_local
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
   svc_sandboxPolicy --> pkg_fs_sandbox
   svc_sandboxPolicy --> pkg_terminal_bash
   svc_sdkMethods --> pkg_sdk_jsonrpc_server
+  svc_seatAuthorizationIssuers --> pkg_host_admin
+  svc_seatAuthorizationIssuers --> pkg_seat_local
   svc_seatAuthorizationQueries --> pkg_acp
   svc_seatAuthorizationQueries --> pkg_sdk_jsonrpc_server
   svc_seatAuthorizationQueries --> pkg_seat_app
+  svc_seatAuthorizationTransactions --> pkg_host_admin
+  svc_seatAuthorizationTransactions --> pkg_node_link
+  svc_seatAuthorizationTransactions --> pkg_seat_local
+  svc_seatAuthorizedEngineActions --> pkg_seat_local
   svc_seatDirectories --> pkg_tool_seat
   svc_seatEngine --> pkg_ledger_query
   svc_seatEngine --> pkg_seat_app
@@ -739,6 +774,15 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.seatAuthorizationTransactions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`host-admin`](../packages/host/host-admin), [`node-link`](../packages/seat/node-link) | - | Commits issued facts and action effects together; missing admission rejects audited actions. |
+| `ctx.seatAuthorizationExports` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | - | - | Exports bounded redacted facts without serializing process-local grants. |
+| `ctx.seatAuthorizationIssuers` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`host-admin`](../packages/host/host-admin) | - | Captures authenticated in-process entries and revokes issuers on disposal. |
+| `ctx.seatAuthorizedEngineActions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local) | - | Binds renewal and replacement admission to the original action transaction. |
+| `ctx.nodeAuthorizedLocalAdmission` | `seam` | [`node-link`](../packages/seat/node-link) | [`seat-local`](../packages/seat/seat-local) | [`node-link`](../packages/seat/node-link) | - | Consumes exact received grants locally without another routing hop. |
+| `ctx.nodeDelegationIssuer` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`seat-local`](../packages/seat/seat-local) | - | Retains exact operation evidence and limits delegation lifetime and methods. |
+| `ctx.nodeDelegationReceivingPolicy` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Intersects authenticated peer permissions with retained original authority. |
+| `ctx.routedMessageReceiver` | `seam` | [`message-delivery`](../packages/session/message-delivery) | [`message-delivery-local`](../packages/session/message-delivery-local) | [`seat-local`](../packages/seat/seat-local) | - | Retains sender identity and original durable acknowledgements without ordinary-send fallback. |
+| `ctx.routedDeliveryVerifier` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | Checks host-owned envelope capabilities rather than wire authority claims. |
 | `ctx.hostAdmin` | `service` | [`host-admin`](../packages/host/host-admin) | - | - | - | Dispatches fixed authenticated requests against an existing host without starting another engine. |
 | `ctx.hostAdminExecutor` | `seam` | [`host-admin`](../packages/host/host-admin) | - | [`host-admin`](../packages/host/host-admin) | - | Deployment providers own authorization journaling and local execution; absent providers reject writes. |
 | `ctx.nodeLinkExecutor` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Deployment providers authenticate delegation and execute locally without forwarding again. |

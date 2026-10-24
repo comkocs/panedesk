@@ -26,6 +26,12 @@
 
 `EngineCursor` 按节点、序列和副作用索引排他推进。查询时间范围左闭右开；结果公开完整性与已提交水位。导出默认脱敏，除非另获独立授权。验证不执行导入操作。`SeatBudgetSnapshot` 保留未知成本，不将其视为零；`MicroUsd` 使用十进制整数微美元。
 
+## Issued authorization and node admission
+
+`SeatAuthorizationEntry` captures host-authenticated attribution and current policy. `SeatAuthorizationIssuer` returns process-local `SeatAuthorizationGrant` values bound to `SeatAuthorizationCheck`; wire data cannot recreate them. `SeatAuthorizedAction` combines the grant with matching intent effects. `SeatAuthorizationTransactionRequest` adds the expected sequence and decision identity; `SeatAuthorizationTransactionResult` reports a durable commit, sequence conflict, or refusal. `SeatIssuedAuthorizationQueryRequest` and `SeatIssuedAuthorizationQueryResult` include plugin facts without widening legacy engine effects. Exported facts are evidence, not executable authority; historical records without attribution remain unknown.
+
+`NodePreparedRequest` retains method/result correlation and sender-frozen message identity. `NodeDelegationRequest` omits delegation until a trusted issuer creates a `NodeDelegationResult`. `NodeAuthenticatedPeer` comes from transport authentication; receiving policy intersects retained original authority, configured peer permissions, expiry, and current local admission. `NodeLinkFailure` preserves safe refusals. `ApprovePendingSeatRequest`, `PendingSeatMutationResult`, and `SeatRejected` retain the original approval and refusal semantics. Missing services do not grant authority or enable another routing hop.
+
 ## 等待、报告与策略
 
 `SeatWait` 对明确的 subagent、后台任务、调度或消息对象注册任一或全部观察，在完成前返回。取消只影响观察。`CloseSelfReport` 记录关闭意向、未完工作及下次开窗前置条件，不改变运行时状态。
@@ -76,6 +82,64 @@ execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostA
 
 Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin/src/index.ts)
 
+<a id="ctxnodeauthorizedlocaladmission--nodeauthorizedlocaladmission"></a>
+
+### `ctx.nodeAuthorizedLocalAdmission` — `NodeAuthorizedLocalAdmission`
+
+Local admission is explicitly supplied by the journal-owning provider, never synthesized by transport.
+
+```ts cordis-catalog
+/** Commit the exact grant with the original action intent before dispatching local effects.
+ * @param request - Single-hop operation already checked against the local target.
+ * @param authorization - Entry-issued, process-local grant with exact operation evidence.
+ * @returns Correlated local result after atomic admission; no rerouting is permitted.
+ */
+execute(request: NodePreparedRequest, authorization: Seat.SeatAuthorizationGrant): Promise<NodeWireResponse>
+```
+
+Source: [`packages/seat/node-link/src/execution.ts`](../../packages/seat/node-link/src/execution.ts)
+
+<a id="ctxnodedelegationissuer--nodedelegationissuer"></a>
+
+### `ctx.nodeDelegationIssuer` — `NodeDelegationIssuer`
+
+Host entry captures original authority and signs or retains evidence bound to the exact method.
+
+```ts cordis-catalog
+/** Verify live entry authority, binding, method and target before issuing a single-hop delegation.
+ * Capture original kind through its trusted issuer, never principalId/origin string inference.
+ * Bind method, payload digest, operation, source/target and call causality to retained evidence.
+ * Expiry cannot exceed request.deadline, original authority expiry or configured lifetime;
+ * skew never extends the signed deadline. Retry keeps identity/digest, not expired authority.
+ * Missing issuer retains cross-node-unsupported or a safe authorization refusal before route().
+ * @param request - Prepared request without caller-supplied delegation or role.
+ * @returns Narrow delegation or refusal; authorizationRef is an audit reference, not a bearer.
+ */
+issue(request: NodeDelegationRequest): Promise<NodeDelegationResult>
+```
+
+Source: [`packages/seat/node-link/src/delegation.ts`](../../packages/seat/node-link/src/delegation.ts)
+
+<a id="ctxnodedelegationreceivingpolicy--nodedelegationreceivingpolicy"></a>
+
+### `ctx.nodeDelegationReceivingPolicy` — `NodeDelegationReceivingPolicy`
+
+Receiving policy intersects original rights, peer allowlist and current local target permissions.
+
+```ts cordis-catalog
+/** Validate authenticated peer, hop=1, local target, expiry, digest and retained issuer evidence.
+ * Reject missing mappings and privilege amplification, including free-session write escalation.
+ * Returned issuer is bound to this operation and locally records node-delegation attribution;
+ * delegatedBy retains the sender's original authorization reference, not its local operator role.
+ * @param request - Fully decoded request, including sender-frozen message identity when sending.
+ * @param peer - Transport-owned node evidence; matching request strings are insufficient.
+ * @returns Local exact-operation issuer or refusal, never permission for another routing hop.
+ */
+authorize(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<Seat.SeatAuthorizationIssuer | NodeLinkFailure>
+```
+
+Source: [`packages/seat/node-link/src/delegation.ts`](../../packages/seat/node-link/src/delegation.ts)
+
 <a id="ctxnodelinkexecutor--nodelinkexecutor"></a>
 
 ### `ctx.nodeLinkExecutor` — `NodeLinkExecutor`
@@ -124,6 +188,38 @@ status(): Promise<readonly NodeLinkStatus[]>
 
 Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
 
+<a id="ctxseatauthorizationexports--seatauthorizationexports"></a>
+
+### `ctx.seatAuthorizationExports` — `SeatAuthorizationExports`
+
+Separate JSON export includes issued kinds without widening legacy engine effects.
+
+```ts cordis-catalog
+/** Export one bounded page with its physical cursor and committed watermark.
+ * @param request - Issued attribution filters and page bound.
+ * @returns Versioned JSON page or a structured refusal; grants are never exported.
+ */
+export(request: SeatIssuedAuthorizationQueryRequest): Promise<{ format: 'seat-authorization/v1' content: string complete: boolean watermark: number } | SeatRejected>
+```
+
+Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)
+
+<a id="ctxseatauthorizationissuers--seatauthorizationissuers"></a>
+
+### `ctx.seatAuthorizationIssuers` — `SeatAuthorizationIssuers`
+
+Available only to trusted in-process adapters, never exposed as a wire method.
+
+```ts cordis-catalog
+/** Capture one authenticated entry; request JSON must never supply this registration.
+ * @param entry - Host-owned identity and live-policy closure.
+ * @returns Issuer and revocation disposer.
+ */
+register(entry: SeatAuthorizationEntry): { issuer: SeatAuthorizationIssuer; dispose(): void }
+```
+
+Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)
+
 <a id="ctxseatauthorizationqueries--seatauthorizationqueries"></a>
 
 ### `ctx.seatAuthorizationQueries` — `SeatAuthorizationQueries`
@@ -145,6 +241,76 @@ tasks(request: T.SeatTaskQueryRequest): Promise<T.EngineQueryResult | T.SeatReje
 ```
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
+<a id="ctxseatauthorizationtransactions--seatauthorizationtransactions"></a>
+
+### `ctx.seatAuthorizationTransactions` — `SeatAuthorizationTransactions`
+
+Installed only with a compatible journal writer, replay validator and query projection.
+
+```ts cordis-catalog
+/** Revalidate current ownership before resuming an already admitted external action.
+ * This check is not a commit receipt and cannot replace transactional intent admission.
+ * @param request - Exact original operation and causal evidence.
+ * @param authorization - Live entry-owned grant, never a historical fact.
+ * @returns Null for current allowed authority, otherwise a structured refusal.
+ */
+validate?(request: SeatAuthorizationCheck, authorization: SeatAuthorizationGrant): Promise<SeatRejected | null>
+
+/** Commit authorization and action effects in one engine decision, never a second audit store.
+ * The synchronous builder runs under existing journal serialization after the sequence CAS.
+ * Validate grant ownership/current policy and exact operation/digest/call correlation before commit.
+ * Allowed actions require matching intent effects; denied facts must not admit action effects.
+ * Same decision/operation/call identity and digest returns the original receipt; mismatch rejects.
+ * Fsync failure prevents dispatch; ambiguous writes require recovery, never blind resubmission.
+ * Reader capability must be negotiated before writing; legacy readers must refuse unknown facts.
+ * @param request - Stable decision and action identity with the expected committed sequence.
+ * @param build - Synchronous preparation of one issued fact and its corresponding action effects.
+ * @returns Durable receipt, sequence conflict or refusal; no result authorizes a second execution.
+ */
+transact(request: SeatAuthorizationTransactionRequest, build: () => SeatAuthorizedAction): Promise<SeatAuthorizationTransactionResult>
+
+/** Use the original approval transition, committing its issued fact in the same decision.
+ * Recheck queue revision and grant policy under journal serialization; do not call legacy
+ * approve() after a separate audit commit. Missing capability refuses rather than bypassing it.
+ * @param request - Original pending identity, expected version and operation identity.
+ * @param authorization - Entry-issued exact-operation grant; attribution is never inferred.
+ * @returns Original approval/conflict/refusal after the combined decision is durable.
+ */
+approve(request: ApprovePendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>
+
+/** Rebuild the same redacted projection on restart, without reading process-local grant objects.
+ * @param request - Authorized task, seat, kind and time filters with an exclusive cursor.
+ * @returns Matching facts once each, scanned watermark and explicit completeness or refusal.
+ */
+query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>
+```
+
+Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)
+
+<a id="ctxseatauthorizedengineactions--seatauthorizedengineactions"></a>
+
+### `ctx.seatAuthorizedEngineActions` — `SeatAuthorizedEngineActions`
+
+Optional engine actions preserve their original admission builders and attach issued authority.
+
+```ts cordis-catalog
+/** Renew only after the attempt and authorization commit together.
+ * @param request - Original renewal input.
+ * @param authorization - Entry-issued grant for the exact input.
+ * @returns Original maintenance result or admission refusal.
+ */
+renew(request: import('./types.ts').RenewSeatRequest, authorization: SeatAuthorizationGrant): Promise<import('./types.ts').RenewSeatResult>
+
+/** Queue replacement and authorization in one decision without acquiring a second owner.
+ * @param request - Original replacement input.
+ * @param authorization - Entry-issued grant for the exact input.
+ * @returns Original replacement result or admission refusal.
+ */
+replace(request: import('./types.ts').ReplaceSeatRequest, authorization: SeatAuthorizationGrant): Promise<import('./types.ts').ReplaceSeatResult>
+```
+
+Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)
 
 <a id="ctxseatdirectories--seatdirectoryservice-abstract-seam"></a>
 

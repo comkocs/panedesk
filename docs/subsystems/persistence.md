@@ -324,6 +324,10 @@ interface SessionPersistenceSnapshot {
 
 The optional `eventCount`/`sizeBytes` fields remain cheap backend observations for consumers that explicitly need them. Session listing does not use either field to open cold logs: it reads headers plus identity-checked projection-cache hints only, so a cache or Session-format upgrade never turns startup into a body scan.
 
+## Routed message identity
+
+`RoutedDeliveryEnvelope` freezes the original message, delivery identity, source node, digest, and available causal identifiers before transport. `RoutedSendMessageRequest` requires its legacy fields to match that envelope. `RoutedDeliveryAuthority` is a host-owned process-local capability, not a wire credential. The receiver verifies exact authority and commits the original message plus deduplication result before acknowledgement. Identical retained identity and digest returns the original durable acknowledgement; conflicting content is refused. Missing verification or admission never falls back to ordinary send, invents causal evidence, or forwards another hop.
+
 ## The backend
 
 The shipped provider implements the abstract `SessionPersistence` contract (`create`/`open`/`stat`/`list`, with per-session `SessionHandle`s carrying `read`/`append`/`flush`/`close` and optional cancellation throughout) and passes the shared persistence contract suite:
@@ -434,6 +438,47 @@ abstract subscribe(request: MessageSubscriptionRequest): AsyncIterable<MessageSt
 Types: [MessageId](llm-streaming.md)
 
 Source: [`packages/session/message-delivery/src/index.ts`](../../packages/session/message-delivery/src/index.ts)
+
+<a id="ctxrouteddeliveryverifier--routeddeliveryverifier"></a>
+
+### `ctx.routedDeliveryVerifier` — `RoutedDeliveryVerifier`
+
+The authority owner verifies identity rather than trusting a structurally similar object.
+
+```ts cordis-catalog
+/** Recheck an exact envelope against the host's process-local capability registry.
+ * @param authority - Previously issued host capability.
+ * @param envelope - Exact sender-frozen delivery and causal evidence.
+ * @returns Whether the capability belongs to this live host and envelope.
+ */
+verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope): Promise<boolean>
+```
+
+Source: [`packages/session/message-delivery/src/routed.ts`](../../packages/session/message-delivery/src/routed.ts)
+
+<a id="ctxroutedmessagereceiver--routedmessagereceiver"></a>
+
+### `ctx.routedMessageReceiver` — `RoutedMessageReceiver`
+
+This optional receiver never mints a replacement message, delivery, operation or causal identity.
+
+```ts cordis-catalog
+/** Recheck authority and durably commit the original message plus deduplication result before ack.
+ * Compare all request fields with delivery.message and verify the canonical envelope digest.
+ * Same source/message/delivery/operation identity and digest returns the original durable ack;
+ * reusing any retained identity with different content or causal evidence rejects operation-conflict.
+ * Preserve sender, priority, replyTo and timestamps; only target-owned mailbox/state sequences
+ * may advance during local admission. Accepted does not imply injection or a model response.
+ * Call only the local mailbox provider, never send(), a router or another node. Hop is one.
+ * Storage failure cannot yield accepted; unknown durability requires reconciliation before retry.
+ * @param request - Sender-frozen message, transport identity, digest and matching legacy fields.
+ * @param authority - Host-issued exact-envelope permission, never deserialized request data.
+ * @returns Original correlated acknowledgement after durable admission, or the existing refusal.
+ */
+receive(request: RoutedSendMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>
+```
+
+Source: [`packages/session/message-delivery/src/routed.ts`](../../packages/session/message-delivery/src/routed.ts)
 
 <a id="ctxsessionpersistence--sessionpersistence-abstract-seam"></a>
 

@@ -1815,6 +1815,45 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'nodeAuthorizedLocalAdmission',
+    summary: 'Local admission is explicitly supplied by the journal-owning provider, never synthesized by transport.',
+    description: 'Local admission is explicitly supplied by the journal-owning provider, never synthesized by transport.',
+    methods: [
+      {
+        signature: 'execute(request: NodePreparedRequest, authorization: Seat.SeatAuthorizationGrant): Promise<NodeWireResponse>',
+        description: 'Commit the exact grant with the original action intent before dispatching local effects.',
+        parameters: [{ name: 'request', description: 'Single-hop operation already checked against the local target.' }, { name: 'authorization', description: 'Entry-issued, process-local grant with exact operation evidence.' }],
+        returns: 'Correlated local result after atomic admission; no rerouting is permitted.',
+      },
+    ],
+  },
+  {
+    key: 'nodeDelegationIssuer',
+    summary: 'Host entry captures original authority and signs or retains evidence bound to the exact method.',
+    description: 'Host entry captures original authority and signs or retains evidence bound to the exact method.',
+    methods: [
+      {
+        signature: 'issue(request: NodeDelegationRequest): Promise<NodeDelegationResult>',
+        description: 'Verify live entry authority, binding, method and target before issuing a single-hop delegation. Capture original kind through its trusted issuer, never principalId/origin string inference. Bind method, payload digest, operation, source/target and call causality to retained evidence. Expiry cannot exceed request.deadline, original authority expiry or configured lifetime; skew never extends the signed deadline. Retry keeps identity/digest, not expired authority. Missing issuer retains cross-node-unsupported or a safe authorization refusal before route().',
+        parameters: [{ name: 'request', description: 'Prepared request without caller-supplied delegation or role.' }],
+        returns: 'Narrow delegation or refusal; authorizationRef is an audit reference, not a bearer.',
+      },
+    ],
+  },
+  {
+    key: 'nodeDelegationReceivingPolicy',
+    summary: 'Receiving policy intersects original rights, peer allowlist and current local target permissions.',
+    description: 'Receiving policy intersects original rights, peer allowlist and current local target permissions.',
+    methods: [
+      {
+        signature: 'authorize(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<Seat.SeatAuthorizationIssuer | NodeLinkFailure>',
+        description: 'Validate authenticated peer, hop=1, local target, expiry, digest and retained issuer evidence. Reject missing mappings and privilege amplification, including free-session write escalation. Returned issuer is bound to this operation and locally records node-delegation attribution; delegatedBy retains the sender\'s original authorization reference, not its local operator role.',
+        parameters: [{ name: 'request', description: 'Fully decoded request, including sender-frozen message identity when sending.' }, { name: 'peer', description: 'Transport-owned node evidence; matching request strings are insufficient.' }],
+        returns: 'Local exact-operation issuer or refusal, never permission for another routing hop.',
+      },
+    ],
+  },
+  {
     key: 'nodeLinkExecutor',
     summary: 'Local provider narrows authenticated node delegations and never calls a router again.',
     description: 'Local provider narrows authenticated node delegations and never calls a router again.',
@@ -2242,6 +2281,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'routedDeliveryVerifier',
+    summary: 'The authority owner verifies identity rather than trusting a structurally similar object.',
+    description: 'The authority owner verifies identity rather than trusting a structurally similar object.',
+    methods: [
+      {
+        signature: 'verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope): Promise<boolean>',
+        description: 'Recheck an exact envelope against the host\'s process-local capability registry.',
+        parameters: [{ name: 'authority', description: 'Previously issued host capability.' }, { name: 'envelope', description: 'Exact sender-frozen delivery and causal evidence.' }],
+        returns: 'Whether the capability belongs to this live host and envelope.',
+      },
+    ],
+  },
+  {
+    key: 'routedMessageReceiver',
+    summary: 'This optional receiver never mints a replacement message, delivery, operation or causal identity.',
+    description: 'This optional receiver never mints a replacement message, delivery, operation or causal identity.',
+    methods: [
+      {
+        signature: 'receive(request: RoutedSendMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>',
+        description: 'Recheck authority and durably commit the original message plus deduplication result before ack. Compare all request fields with delivery.message and verify the canonical envelope digest. Same source/message/delivery/operation identity and digest returns the original durable ack; reusing any retained identity with different content or causal evidence rejects operation-conflict. Preserve sender, priority, replyTo and timestamps; only target-owned mailbox/state sequences may advance during local admission. Accepted does not imply injection or a model response. Call only the local mailbox provider, never send(), a router or another node. Hop is one. Storage failure cannot yield accepted; unknown durability requires reconciliation before retry.',
+        parameters: [{ name: 'request', description: 'Sender-frozen message, transport identity, digest and matching legacy fields.' }, { name: 'authority', description: 'Host-issued exact-envelope permission, never deserialized request data.' }],
+        returns: 'Original correlated acknowledgement after durable admission, or the existing refusal.',
+      },
+    ],
+  },
+  {
     key: 'sandbox',
     summary: 'Abstract process-sandbox service.',
     description: 'Abstract process-sandbox service. confine must return enforcing argv or fail closed at wrap or runner-execution time; silent unconfined passthrough is forbidden. Functional probes arbitrate multi-runner chains and may be skipped for a sole candidate, whose own refusal remains the fail-closed end.',
@@ -2377,6 +2442,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatAuthorizationExports',
+    summary: 'Separate JSON export includes issued kinds without widening legacy engine effects.',
+    description: 'Separate JSON export includes issued kinds without widening legacy engine effects.',
+    methods: [
+      {
+        signature: 'export(request: SeatIssuedAuthorizationQueryRequest): Promise<{ format: \'seat-authorization/v1\' content: string complete: boolean watermark: number } | SeatRejected>',
+        description: 'Export one bounded page with its physical cursor and committed watermark.',
+        parameters: [{ name: 'request', description: 'Issued attribution filters and page bound.' }],
+        returns: 'Versioned JSON page or a structured refusal; grants are never exported.',
+      },
+    ],
+  },
+  {
+    key: 'seatAuthorizationIssuers',
+    summary: 'Available only to trusted in-process adapters, never exposed as a wire method.',
+    description: 'Available only to trusted in-process adapters, never exposed as a wire method.',
+    methods: [
+      {
+        signature: 'register(entry: SeatAuthorizationEntry): { issuer: SeatAuthorizationIssuer; dispose(): void }',
+        description: 'Capture one authenticated entry; request JSON must never supply this registration.',
+        parameters: [{ name: 'entry', description: 'Host-owned identity and live-policy closure.' }],
+        returns: 'Issuer and revocation disposer.',
+      },
+    ],
+  },
+  {
     key: 'seatAuthorizationQueries',
     summary: 'Read-only authorization projection definition; it does not enable a new ledger writer.',
     description: 'Read-only authorization projection definition; it does not enable a new ledger writer.',
@@ -2392,6 +2483,56 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read engine facts by task without changing the legacy query method.',
         parameters: [{ name: 'request', description: 'Task filter and existing pagination fields.' }],
         returns: 'Committed matching effects or a structured refusal.',
+      },
+    ],
+  },
+  {
+    key: 'seatAuthorizationTransactions',
+    summary: 'Installed only with a compatible journal writer, replay validator and query projection.',
+    description: 'Installed only with a compatible journal writer, replay validator and query projection.',
+    methods: [
+      {
+        signature: 'validate?(request: SeatAuthorizationCheck, authorization: SeatAuthorizationGrant): Promise<SeatRejected | null>',
+        description: 'Revalidate current ownership before resuming an already admitted external action. This check is not a commit receipt and cannot replace transactional intent admission.',
+        parameters: [{ name: 'request', description: 'Exact original operation and causal evidence.' }, { name: 'authorization', description: 'Live entry-owned grant, never a historical fact.' }],
+        returns: 'Null for current allowed authority, otherwise a structured refusal.',
+      },
+      {
+        signature: 'transact(request: SeatAuthorizationTransactionRequest, build: () => SeatAuthorizedAction): Promise<SeatAuthorizationTransactionResult>',
+        description: 'Commit authorization and action effects in one engine decision, never a second audit store. The synchronous builder runs under existing journal serialization after the sequence CAS. Validate grant ownership/current policy and exact operation/digest/call correlation before commit. Allowed actions require matching intent effects; denied facts must not admit action effects. Same decision/operation/call identity and digest returns the original receipt; mismatch rejects. Fsync failure prevents dispatch; ambiguous writes require recovery, never blind resubmission. Reader capability must be negotiated before writing; legacy readers must refuse unknown facts.',
+        parameters: [{ name: 'request', description: 'Stable decision and action identity with the expected committed sequence.' }, { name: 'build', description: 'Synchronous preparation of one issued fact and its corresponding action effects.' }],
+        returns: 'Durable receipt, sequence conflict or refusal; no result authorizes a second execution.',
+      },
+      {
+        signature: 'approve(request: ApprovePendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>',
+        description: 'Use the original approval transition, committing its issued fact in the same decision. Recheck queue revision and grant policy under journal serialization; do not call legacy approve() after a separate audit commit. Missing capability refuses rather than bypassing it.',
+        parameters: [{ name: 'request', description: 'Original pending identity, expected version and operation identity.' }, { name: 'authorization', description: 'Entry-issued exact-operation grant; attribution is never inferred.' }],
+        returns: 'Original approval/conflict/refusal after the combined decision is durable.',
+      },
+      {
+        signature: 'query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>',
+        description: 'Rebuild the same redacted projection on restart, without reading process-local grant objects.',
+        parameters: [{ name: 'request', description: 'Authorized task, seat, kind and time filters with an exclusive cursor.' }],
+        returns: 'Matching facts once each, scanned watermark and explicit completeness or refusal.',
+      },
+    ],
+  },
+  {
+    key: 'seatAuthorizedEngineActions',
+    summary: 'Optional engine actions preserve their original admission builders and attach issued authority.',
+    description: 'Optional engine actions preserve their original admission builders and attach issued authority.',
+    methods: [
+      {
+        signature: 'renew(request: import(\'./types.ts\').RenewSeatRequest, authorization: SeatAuthorizationGrant): Promise<import(\'./types.ts\').RenewSeatResult>',
+        description: 'Renew only after the attempt and authorization commit together.',
+        parameters: [{ name: 'request', description: 'Original renewal input.' }, { name: 'authorization', description: 'Entry-issued grant for the exact input.' }],
+        returns: 'Original maintenance result or admission refusal.',
+      },
+      {
+        signature: 'replace(request: import(\'./types.ts\').ReplaceSeatRequest, authorization: SeatAuthorizationGrant): Promise<import(\'./types.ts\').ReplaceSeatResult>',
+        description: 'Queue replacement and authorization in one decision without acquiring a second owner.',
+        parameters: [{ name: 'request', description: 'Original replacement input.' }, { name: 'authorization', description: 'Entry-issued grant for the exact input.' }],
+        returns: 'Original replacement result or admission refusal.',
       },
     ],
   },
@@ -6941,6 +7082,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type DeepSeekLlmApiJson = null | boolean | number | string | DeepSeekLlmApiJson[] | {\n    [key: string]: DeepSeekLlmApiJson;\n};',
   },
   {
+    name: 'DeliveryMessage',
+    declaration: 'export type DeliveryMessage = MessageClassification & {\n    readonly messageId: MessageId;\n    readonly sender: MessageSender;\n    readonly senderSessionId: SessionId | null;\n    readonly target: {\n        readonly nodeId: NodeId;\n        readonly sessionId: SessionId;\n    };\n    readonly priority: MessagePriority;\n    readonly content: string;\n    readonly createdAt: number;\n    readonly revision: number;\n    readonly operationId: OperationId;\n    readonly mailboxSequence: number;\n    readonly stateVersion: number;\n};',
+  },
+  {
     name: 'DeliveryOutcome',
     declaration: 'export type DeliveryOutcome = \'accepted\' | \'rejected\';',
   },
@@ -8405,6 +8550,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MessageRoleMap {\n    system: SystemMessage;\n    developer: DeveloperMessage;\n    user: UserMessage;\n    assistant: AssistantMessage;\n    tool: ToolResultMessage;\n}',
   },
   {
+    name: 'MessageSender',
+    declaration: 'export type MessageSender = {\n    readonly kind: \'session\';\n    readonly sessionId: SessionId;\n} | {\n    readonly kind: \'human\';\n    readonly sessionId: null;\n};',
+  },
+  {
     name: 'MessageSettings',
     declaration: 'export interface MessageSettings {\n    readonly receiveMode: \'all\' | \'handoff-only\' | \'none\';\n    readonly wakeOnHandoff: boolean;\n}',
   },
@@ -8513,6 +8662,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
   },
   {
+    name: 'NodeAuthenticatedPeer',
+    declaration: 'export interface NodeAuthenticatedPeer {\n    readonly sourceNodeId: Seat.SeatNodeId;\n    readonly targetNodeId: Seat.SeatNodeId;\n    readonly authenticatedAt: Seat.SeatTimestamp;\n}',
+  },
+  {
+    name: 'NodeDelegationRequest',
+    declaration: 'export type NodeDelegationRequest = NodePreparedRequest extends infer Request ? Request extends NodePreparedRequest ? Omit<Request, \'delegation\'> : never : never;',
+  },
+  {
+    name: 'NodeDelegationResult',
+    declaration: 'export type NodeDelegationResult = {\n    readonly status: \'issued\';\n    readonly delegation: Seat.SeatNodeDelegation;\n} | {\n    readonly status: \'rejected\';\n    readonly error: NodeLinkFailure;\n};',
+  },
+  {
     name: 'NodeId',
     declaration: 'export type NodeId = Branded<\'LedgerNodeId\'>;',
   },
@@ -8527,6 +8688,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'NodeLinkStatus',
     declaration: 'export interface NodeLinkStatus {\n    nodeId: Seat.SeatNodeId;\n    nodeName: string;\n    reachable: boolean;\n    linkState: \'connected\' | \'disconnected\' | \'connecting\' | \'stale\';\n    observedAt: Seat.SeatTimestamp;\n    status: Seat.SeatNodeStatus | null;\n    capabilities: readonly string[];\n    safeReason: string | null;\n}',
+  },
+  {
+    name: 'NodePreparedRequest',
+    declaration: 'export type NodePreparedRequest = Exclude<NodeWireRequest, {\n    method: \'messages.send\';\n}> | NodeRoutedMessageRequest;',
+  },
+  {
+    name: 'NodeRoutedMessageRequest',
+    declaration: 'export type NodeRoutedMessageRequest = Omit<Extract<NodeWireRequest, {\n    method: \'messages.send\';\n}>, \'payload\'> & {\n    payload: RoutedSendMessageRequest;\n};',
   },
   {
     name: 'NodeRouteMethods',
@@ -9261,6 +9430,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RevokeCloseReportRequest {\n    reportId: CloseReportId;\n    sessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
   },
   {
+    name: 'RoutedDeliveryAuthority',
+    declaration: 'export interface RoutedDeliveryAuthority {\n    readonly [trustedDeliveryAuthority]: true;\n    readonly sourceNodeId: NodeId;\n    readonly targetNodeId: NodeId;\n}',
+  },
+  {
+    name: 'RoutedDeliveryDigest',
+    declaration: 'export type RoutedDeliveryDigest = Branded<\'RoutedDeliveryDigest\'>;',
+  },
+  {
+    name: 'RoutedDeliveryEnvelope',
+    declaration: 'export interface RoutedDeliveryEnvelope {\n    readonly message: DeliveryMessage;\n    readonly deliveryId: RoutedDeliveryId;\n    readonly sourceNodeId: NodeId;\n    readonly digest: RoutedDeliveryDigest;\n    readonly callId?: Branded<\'ToolCallId\'>;\n    readonly rootCallId?: Branded<\'ToolCallId\'>;\n    readonly causedByDeliveryId?: RoutedDeliveryId;\n}',
+  },
+  {
+    name: 'RoutedDeliveryId',
+    declaration: 'export type RoutedDeliveryId = Branded<\'RoutedDeliveryId\'>;',
+  },
+  {
+    name: 'RoutedSendMessageRequest',
+    declaration: 'export type RoutedSendMessageRequest = SendMessageRequest & {\n    readonly delivery: RoutedDeliveryEnvelope;\n};',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
   },
@@ -9477,8 +9666,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SeatAuthority = \'import-source\' | \'seat-store\';',
   },
   {
+    name: 'SeatAuthorizationCheck',
+    declaration: 'export interface SeatAuthorizationCheck {\n    readonly operationId: SeatOperationId;\n    readonly requestDigest: SeatDigest;\n    readonly callId?: Branded<\'ToolCallId\'>;\n    readonly rootCallId?: Branded<\'ToolCallId\'>;\n}',
+  },
+  {
+    name: 'SeatAuthorizationEntry',
+    declaration: 'export interface SeatAuthorizationEntry {\n    readonly identity: Omit<SeatIssuedAuthorizationFact, \'authorizationId\' | \'operationId\' | \'requestDigest\' | \'checkedAt\' | \'decision\' | \'reasonCode\'>;\n    current(): {\n        decision: \'allowed\' | \'denied\';\n        reasonCode: string;\n        policyRevision: number;\n    } | null;\n}',
+  },
+  {
     name: 'SeatAuthorizationFact',
     declaration: 'export interface SeatAuthorizationFact {\n    authorizationId: AuthorizationRef;\n    kind: SeatAuthorizationKind;\n    principalId: SeatPrincipalId;\n    origin: SeatCallContext[\'origin\'];\n    nodeId: SeatNodeId;\n    sessionId?: SessionId;\n    seat?: SeatName;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    callId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n    policyRevision: number;\n    decision: \'allowed\' | \'denied\';\n    reasonCode: string;\n    requestDigest: SeatDigest;\n    delegatedBy?: AuthorizationRef;\n    checkedAt: SeatTimestamp;\n}',
+  },
+  {
+    name: 'SeatAuthorizationGrant',
+    declaration: 'export interface SeatAuthorizationGrant {\n    readonly [issuedAuthorization]: true;\n    readonly fact: Readonly<SeatIssuedAuthorizationFact>;\n}',
+  },
+  {
+    name: 'SeatAuthorizationIssuer',
+    declaration: 'export interface SeatAuthorizationIssuer {\n    check(request: SeatAuthorizationCheck): Promise<SeatAuthorizationGrant | SeatRejected>;\n}',
   },
   {
     name: 'SeatAuthorizationKind',
@@ -9491,6 +9696,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatAuthorizationQueryResult',
     declaration: 'export interface SeatAuthorizationQueryResult {\n    facts: readonly SeatAuthorizationFact[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n    legacyAttribution: \'legacy-unknown\' | \'none\';\n}',
+  },
+  {
+    name: 'SeatAuthorizationTransactionRequest',
+    declaration: 'export interface SeatAuthorizationTransactionRequest extends SeatAuthorizationCheck {\n    readonly decisionId: EngineDecisionId;\n    readonly expectedSequence: number;\n}',
+  },
+  {
+    name: 'SeatAuthorizationTransactionResult',
+    declaration: 'export type SeatAuthorizationTransactionResult = {\n    readonly status: \'committed\';\n    readonly decisionId: EngineDecisionId;\n    readonly sequence: number;\n    readonly authorizationId: AuthorizationRef;\n    readonly operationId: SeatOperationId;\n} | {\n    readonly status: \'conflict\';\n    readonly sequence: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'SeatAuthorizedAction',
+    declaration: 'export interface SeatAuthorizedAction {\n    readonly authorization: SeatAuthorizationGrant;\n    readonly effects: readonly EngineEffect[];\n}',
   },
   {
     name: 'SeatBinding',
@@ -9639,6 +9856,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatImportSource',
     declaration: 'export interface SeatImportSource {\n    sourcePath: string;\n    sourceFileHash: SeatDigest;\n    rowHash: SeatDigest;\n    mappingHash: SeatDigest;\n    columnHashes: Readonly<Record<string, SeatDigest>>;\n    baseline: Readonly<Record<string, SeatJson>>;\n    authority: SeatAuthority;\n}',
+  },
+  {
+    name: 'SeatIssuedAuthorizationFact',
+    declaration: 'export interface SeatIssuedAuthorizationFact extends Omit<SeatAuthorizationFact, \'kind\'> {\n    kind: SeatIssuedAuthorizationKind;\n}',
+  },
+  {
+    name: 'SeatIssuedAuthorizationKind',
+    declaration: 'export type SeatIssuedAuthorizationKind = SeatAuthorizationKind | \'plugin\';',
+  },
+  {
+    name: 'SeatIssuedAuthorizationQueryRequest',
+    declaration: 'export interface SeatIssuedAuthorizationQueryRequest extends Omit<SeatAuthorizationQueryRequest, \'kind\'> {\n    kind?: SeatIssuedAuthorizationKind;\n}',
+  },
+  {
+    name: 'SeatIssuedAuthorizationQueryResult',
+    declaration: 'export interface SeatIssuedAuthorizationQueryResult extends Omit<SeatAuthorizationQueryResult, \'facts\'> {\n    facts: readonly SeatIssuedAuthorizationFact[];\n}',
   },
   {
     name: 'SeatJson',

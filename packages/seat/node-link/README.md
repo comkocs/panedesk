@@ -66,7 +66,7 @@ Session history and cache prefixes remain unchanged.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- Integrators must supply real local execution and authorization-audit adapters. Test doubles do not establish that real opening, messaging, or authorization journals are connected. Windows execution and real SSH acceptance have not been tested. Only one configured node pair is supported, without multi-node route registration or hot configuration rotation.
+- Explicit `nodeLinkExecutor` providers take precedence. Otherwise the configured runtime composes receiving policy, authorization transactions, local seats, and `nodeAuthorizedLocalAdmission`; missing services refuse ingress. The local provider supports audited opening, renewal, replacement, and close, while audited rename and wake remain unavailable. Loader composition tests establish successful opening and replacement, not all six methods or production message delivery. Windows execution and real SSH acceptance have not been tested. Only one configured node pair is supported, without multi-node route registration or hot configuration rotation.
 
 - Execution adapters must ensure their calls settle; unloading waits for accepted operations. Durable storage uses bounded whole files without compaction, automatic cleanup, or automatic stale-lock takeover. Credential files and transport records are not an engine authorization authority.
 

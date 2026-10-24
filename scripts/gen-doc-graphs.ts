@@ -109,6 +109,47 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'seatAuthorizationTransactions', pkg: 'seat', title: 'Atomic authorization admission', mode: 'seam',
+    implementations: ['seat-engine'], consumers: ['seat-local', 'host-admin', 'node-link'],
+    note: 'Commits issued facts and action effects together; missing admission rejects audited actions.',
+  },
+  {
+    key: 'seatAuthorizationExports', pkg: 'seat', title: 'Issued authorization export', mode: 'seam',
+    implementations: ['seat-engine'], note: 'Exports bounded redacted facts without serializing process-local grants.',
+  },
+  {
+    key: 'seatAuthorizationIssuers', pkg: 'seat', title: 'Trusted authorization entry registration', mode: 'seam',
+    implementations: ['seat-engine'], consumers: ['seat-local', 'host-admin'],
+    note: 'Captures authenticated in-process entries and revokes issuers on disposal.',
+  },
+  {
+    key: 'seatAuthorizedEngineActions', pkg: 'seat', title: 'Audited engine maintenance', mode: 'seam',
+    implementations: ['seat-engine'], consumers: ['seat-local'],
+    note: 'Binds renewal and replacement admission to the original action transaction.',
+  },
+  {
+    key: 'nodeAuthorizedLocalAdmission', pkg: 'node-link', title: 'Authorized local node admission', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['node-link'],
+    note: 'Consumes exact received grants locally without another routing hop.',
+  },
+  {
+    key: 'nodeDelegationIssuer', pkg: 'node-link', title: 'Entry-owned node delegation', mode: 'seam',
+    consumers: ['seat-local'], note: 'Retains exact operation evidence and limits delegation lifetime and methods.',
+  },
+  {
+    key: 'nodeDelegationReceivingPolicy', pkg: 'node-link', title: 'Receiving node permission ceiling', mode: 'seam',
+    consumers: ['node-link'], note: 'Intersects authenticated peer permissions with retained original authority.',
+  },
+  {
+    key: 'routedMessageReceiver', pkg: 'message-delivery', title: 'Durable routed message admission', mode: 'seam',
+    implementations: ['message-delivery-local'], consumers: ['seat-local'],
+    note: 'Retains sender identity and original durable acknowledgements without ordinary-send fallback.',
+  },
+  {
+    key: 'routedDeliveryVerifier', pkg: 'message-delivery', title: 'Exact routed delivery verification', mode: 'seam',
+    consumers: ['message-delivery-local'], note: 'Checks host-owned envelope capabilities rather than wire authority claims.',
+  },
+  {
     key: 'hostAdmin', pkg: 'host-admin', title: 'Opt-in loopback host administration', mode: 'service',
     note: 'Dispatches fixed authenticated requests against an existing host without starting another engine.',
   },
