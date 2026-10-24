@@ -4,7 +4,7 @@ import { constants } from 'node:fs'
 import { mkdir, open, stat, type FileHandle } from 'node:fs/promises'
 import { join } from 'node:path'
 import { z } from 'zod'
-import { tryLockExclusive } from '@panedesk/node-addon-system/flock'
+import { acquireExclusiveLockFile, tryLockExclusive } from '@panedesk/node-addon-system/flock'
 import { defineDomain, type Domain, type DomainFacility } from '@panedesk/dsh-storage-domain'
 import type { SeatAuthority, SeatDefinition, SeatDigest, SeatOperationId } from '@panedesk/dsh-seat'
 import { parseDefinition } from './schema.ts'
@@ -62,9 +62,11 @@ export class SeatStore {
   static async open(facility: DomainFacility, directory: string): Promise<SeatStore> {
     await mkdir(directory, { recursive: true, mode: 0o700 })
     const lockPath = join(directory, 'catalog.lock')
-    const handle = await open(lockPath, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
+    const handle = process.platform === 'win32'
+      ? await acquireExclusiveLockFile(lockPath)
+      : await open(lockPath, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
     try {
-      await tryLockExclusive(handle.fd)
+      if (process.platform !== 'win32') await tryLockExclusive(handle.fd)
       const held = await handle.stat({ bigint: true })
       const named = await stat(lockPath, { bigint: true })
       if (held.ino !== named.ino || held.dev !== named.dev) refuse('unavailable', 'Catalog writer ownership changed.', 'Retry after verifying the catalog directory.')

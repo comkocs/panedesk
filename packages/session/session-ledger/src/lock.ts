@@ -3,7 +3,7 @@ import { constants } from 'node:fs'
 import { open, stat } from 'node:fs/promises'
 import { performance } from 'node:perf_hooks'
 import { setTimeout } from 'node:timers/promises'
-import { tryLockExclusive } from '@panedesk/node-addon-system/flock'
+import { acquireExclusiveLockFile, tryLockExclusive } from '@panedesk/node-addon-system/flock'
 
 /** Bounded contention policy; the timeout never authorizes lock theft. */
 export interface WriterLockOptions {
@@ -28,6 +28,16 @@ export class LedgerUnavailableError extends Error {
  * @returns The operation result; unsupported platforms, contention expiry, and I/O failures reject.
  */
 export async function withWriterLock<T>(path: string, options: WriterLockOptions, operation: () => Promise<T>): Promise<T> {
+  if (process.platform === 'win32') {
+    let handle
+    try {
+      handle = await acquireExclusiveLockFile(path, { timeoutMs: options.lockTimeoutMs, retryMs: options.lockRetryMs })
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'EAGAIN') throw new LedgerUnavailableError(error)
+      throw error
+    }
+    try { return await operation() } finally { await handle.close() }
+  }
   const handle = await open(path, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
   try {
     const deadline = performance.now() + options.lockTimeoutMs

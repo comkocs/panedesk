@@ -9,7 +9,7 @@ import { createFlockEntryLoader } from '../scripts/flock-entry.ts'
 
 type Entry = Awaited<ReturnType<ReturnType<typeof createFlockEntryLoader>>>
 
-const entry = { tryLockExclusive: vi.fn() } as Entry
+const entry: Entry = { tryLockExclusive: vi.fn(), acquireExclusiveLockFile: vi.fn() }
 const BUILD_TEXT = 'pnpm run build:native-system && pnpm --dir native/system run build:ts'
 
 function notFound(): NodeJS.ErrnoException {

@@ -856,6 +856,17 @@
       }
     },
     {
+      "id": "windows-exclusive-ownership-locks",
+      "description": "Preserve POSIX lock objects and retry semantics; use dedicated exclusive-share lock files only on win32 with bounded retry backoff.",
+      "origin": "Windows exclusive ownership locks",
+      "reason": "Seat engine, catalog, ledger and mailbox ownership must exclude other writers on Windows without locking readable data files or changing Linux and macOS flock behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["native/system/test/lock-file.test.js"],
+        "test": "Windows exclusive sharing opens only the dedicated lock file and never its data"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
