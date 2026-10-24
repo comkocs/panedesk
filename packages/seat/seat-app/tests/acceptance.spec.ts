@@ -115,16 +115,29 @@ it('A03 assembles CLI, SDK, remote and engine openings with one durable first me
   const def = f.definition('seat-a', { maxOpenSessions: 4, rules: [{ id: 'rule-a' as never, enabled: true,
     trigger: { kind: 'external', sourceId: f.sourceId }, timeWindows: [], exclusiveTags: [] }] })
   await f.save(def)
+  const firstMessage = <T>(action: () => Promise<T>) => {
+    const existing = new Set(f.ctx.agents.list().map(agent => agent.id))
+    return completesTurn(f.ctx, id => !existing.has(id), inputContains('Open seat-a'), action)
+  }
   const { executeSeatCommand } = await import('../src/cli.ts')
-  const cli = await executeSeatCommand(f.ctx, ['open', '--seat', 'seat-a', '--opening', 'auto', '--operation', 'cli-a'])
+  const cliArgs = ['open', '--seat', 'seat-a', '--opening', 'auto', '--operation', 'cli-a']
+  let cli = await firstMessage(() => executeSeatCommand(f.ctx, cliArgs))
+  if (cli.output !== null && typeof cli.output === 'object' && 'status' in cli.output && cli.output.status === 'queued') {
+    cli = await executeSeatCommand(f.ctx, cliArgs)
+  }
   expect(cli, JSON.stringify(cli)).toMatchObject({ code: 0, output: { status: 'opened' } })
-  await f.open()
+  expect(await firstMessage(() => settlesOpening(f.ctx, f.seats,
+    { seat: seatName('seat-a'), origin: 'manual', openingMode: 'auto', operationId: operation() })))
+    .toMatchObject({ status: 'opened' })
   const remote = f.ctx.seats.withAuthority({ principalId: 'owner' as never, origin: 'remote', nodeId: f.nodeId })
-  expect(await remote.open({ seat: seatName('seat-a'), origin: 'remote', operationId: operation() })).toMatchObject({ status: 'opened' })
+  expect(await firstMessage(() => settlesOpening(f.ctx, remote,
+    { seat: seatName('seat-a'), origin: 'remote', operationId: operation() })))
+    .toMatchObject({ status: 'opened' })
   expect(await f.engine.setProjectMode({ projectId: def.projectId, mode: 'auto', expectedRevision: 0, operationId: operation() })).toMatchObject({ status: 'saved' })
-  expect(await f.engine.accept(f.trigger())).toMatchObject({ status: 'accepted' })
-  await f.engine.drive()
-  await f.settle()
+  await firstMessage(async () => {
+    expect(await f.engine.accept(f.trigger())).toMatchObject({ status: 'accepted' })
+    await f.engine.drive()
+  })
   const list = await f.seats.list({})
   if (list.status !== 'listed') throw new Error(JSON.stringify(list))
   expect(list.sessions).toHaveLength(4)
