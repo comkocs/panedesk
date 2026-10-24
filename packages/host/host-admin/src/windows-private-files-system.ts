@@ -23,11 +23,12 @@ function literal(path: string): string {
   return `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(path).toString('base64')}'))`
 }
 
-/** Generate a metadata-only inspection of the target and every parent, including the volume root.
+/** Inspect target and optional private directory ACLs with one complete ancestor traversal.
  * @param path - Absolute target path.
- * @returns PowerShell source; ACL identities are emitted as SIDs.
+ * @param directory - Private directory containing the target, when checking a file.
+ * @returns One metadata-only JSON object; ACL identities are emitted as SIDs.
  */
-export function inspectWindowsPrivatePath(path: string): string {
+export function inspectWindowsPrivatePath(path: string, directory?: string): string {
   return `$p = ${literal(path)};
 $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User;
 $reparse = $false; $parents = $true; $cursor = $p;
@@ -39,13 +40,18 @@ while ($null -ne $cursor) {
   if ($null -eq $parent) { $cursor = $null } else { $cursor = $parent.FullName }
 }
 if ($reparse) { @{ reparse = $true } | ConvertTo-Json -Compress; exit }
-$acl = Get-Acl -LiteralPath $p;
-$rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object {
-  @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow);
-     rights = [int]$_.FileSystemRights; propagation = [int]$_.PropagationFlags }
-});
-@{ reparse = $false; parents = $parents; sid = $sid.Value; owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value;
-   protected = $acl.AreAccessRulesProtected; rules = $rules } | ConvertTo-Json -Depth 4 -Compress`
+function Read-PrivateAcl([string]$target) {
+  $acl = Get-Acl -LiteralPath $target;
+  $rules = @($acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | ForEach-Object {
+    @{ sid = $_.IdentityReference.Value; inherited = $_.IsInherited; allow = ($_.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow);
+       rights = [int]$_.FileSystemRights; propagation = [int]$_.PropagationFlags }
+  });
+  return @{ reparse = $false; parents = $parents; sid = $sid.Value; owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value;
+     protected = $acl.AreAccessRulesProtected; rules = $rules }
+}
+$result = Read-PrivateAcl $p;
+${directory === undefined ? '' : `$result.directory = Read-PrivateAcl (${literal(directory)});`}
+$result | ConvertTo-Json -Depth 5 -Compress`
 }
 
 /** Generate an owner-only DACL for a newly created empty object; never use on existing data.

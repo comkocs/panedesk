@@ -29,7 +29,15 @@ async function fixture() {
       return ''
     }
     events.push(`inspect:${win32.basename(path)}`)
-    return JSON.stringify(values.get(path) ?? metadata())
+    let cursor = path
+    for (;;) {
+      if (values.get(cursor)?.reparse) return JSON.stringify({ reparse: true })
+      const parent = win32.dirname(cursor)
+      if (parent === cursor) break
+      cursor = parent
+    }
+    return JSON.stringify({ ...(values.get(path) ?? metadata()),
+      ...(script.includes('$result.directory') ? { directory: values.get(root) ?? metadata() } : {}) })
   })
   const filesystem = {
     lstat: vi.fn((path: string) => fs.lstat(mapped(path))),
@@ -97,6 +105,52 @@ test('rechecks file ACLs and parent reparse points on every read, write and remo
   expect(f.execute.mock.calls.every(([script]) => !script.includes('Set-Acl'))).toBe(true)
   f.values.set('C:\\', { ...metadata(), reparse: true })
   await expect(f.files.prepare()).rejects.toThrow('reparse')
+})
+
+test('combines file and directory ACLs in one fresh inspection before reading bytes', async () => {
+  const f = await fixture(), path = win32.join(root, 'credential')
+  await f.files.write('credential', 'content')
+  f.execute.mockClear()
+  expect(await f.files.read('credential', 64)).toBe('content')
+  expect(f.execute).toHaveBeenCalledTimes(1)
+  expect(f.execute.mock.calls[0]![0]).toContain('$result.directory')
+  f.values.set(root, { ...metadata(), owner: 'S-1-5-18' })
+  await expect(f.files.read('credential', 64)).rejects.toThrow('owner')
+  await expect(f.files.read('absent', 64)).rejects.toThrow('owner')
+  f.values.set(root, metadata())
+  f.values.set(path, { ...metadata(), protected: false })
+  await expect(f.files.read('credential', 64)).rejects.toThrow('inheritance')
+  f.values.set(path, metadata())
+  f.values.set('C:\\', { ...metadata(), reparse: true })
+  await expect(f.files.read('credential', 64)).rejects.toThrow('reparse')
+})
+
+test('closes without reading when combined metadata or the named identity changes', async () => {
+  const f = await fixture(), path = win32.join(root, 'credential')
+  await f.files.write('credential', 'content')
+  const open = f.filesystem.open.getMockImplementation()!
+  const reads: Array<ReturnType<typeof vi.spyOn>> = []
+  const closes: Array<ReturnType<typeof vi.spyOn>> = []
+  f.filesystem.open.mockImplementation(async (path, flags) => {
+    const handle = await open(path, flags)
+    reads.push(vi.spyOn(handle, 'read'))
+    closes.push(vi.spyOn(handle, 'close'))
+    return handle
+  })
+  const execute = f.execute.getMockImplementation()!
+  for (const value of ['{}', '{', JSON.stringify(metadata())]) {
+    f.execute.mockResolvedValueOnce(value)
+    await expect(f.files.read('credential', 64)).rejects.toThrow()
+  }
+  f.execute.mockImplementation(async (script) => {
+    const value = await execute(script)
+    await fs.rename(f.mapped(path), f.mapped(win32.join(root, 'old')))
+    await fs.writeFile(f.mapped(path), 'replacement')
+    return value
+  })
+  await expect(f.files.read('credential', 64)).rejects.toThrow('identity')
+  for (const read of reads) expect(read).not.toHaveBeenCalled()
+  for (const close of closes) expect(close).toHaveBeenCalledTimes(1)
 })
 
 test.each(['EPERM', 'EBUSY'])('retries %s with bounded backoff and cleans failed temporary files', async (code) => {
