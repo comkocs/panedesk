@@ -153,3 +153,6 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
 export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountAdmin(_ctx, _config)) }
 export type * from './execution.ts'
 export { createHostAdminExecutor, hostAdminExecutionAdapter } from './executor.ts'
+export { WindowsPrivateFiles } from './windows-private-files.ts'
+export type { WindowsPrivateFilesOptions } from './windows-private-files.ts'
+export type { WindowsPrivateFilesExecutor } from './windows-private-files-system.ts'
