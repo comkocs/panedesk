@@ -1,11 +1,11 @@
 /** Configured production observers all enter the engine's durable trigger queue. */
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
-import type { ScheduleRecord } from '@panedesk/dsh-schedule'
+import { decodeScheduleRecord, isRecurringScheduleRecord, resolveRecurringOccurrence, type ScheduleRecord } from '@panedesk/dsh-schedule'
 import type { SeatName, SeatProjectId, SeatSourceId, SeatTriggerEvidence, SourceEventId, TriggerId, SeatOperationId } from '@panedesk/dsh-seat'
 import type {} from '@panedesk/dsh-message-delivery'
 import { GitTrigger } from './git-trigger.ts'
-import { digest, EngineError } from './journal.ts'
+import { canonical, digest, EngineError } from './journal.ts'
 import type { SeatEngine } from './engine.ts'
 
 /** Explicit observer destinations; repository paths never come from untrusted trigger data. */
@@ -48,14 +48,19 @@ export interface ProductionSource {
   }
 }
 
+function normalizedRecord(record: ScheduleRecord): string {
+  return canonical('timeZone' in record
+    ? { ...record, timeZone: new Intl.DateTimeFormat('en-US', { timeZone: record.timeZone }).resolvedOptions().timeZone }
+    : record)
+}
+
 /** Register observers under the Loader owner, with recovery through stable event identities.
  * @param ctx - plugin lifetime.
  * @param engine - ready journal owner.
- * @param sources - explicit configured source policies; omission installs no observers.
+ * @param sources - explicit configured source policies; an empty list removes obsolete owned schedule actions.
  * @returns disposer that joins all observer work before the journal closes.
  */
 export function registerProductionSources(ctx: Context, engine: SeatEngine, sources: readonly ProductionSource[]): () => Promise<void> {
-  if (!sources.length) return async () => {}
   const owner = ctx.plugin({ name: 'seat-production-sources', apply(child: Context) { install(child, engine, sources) } })
   return async () => { await owner.dispose() }
 }
@@ -72,7 +77,7 @@ function install(ctx: Context, engine: SeatEngine, sources: readonly ProductionS
   ctx.inject(['schedule'], (owner) => {
     const schedule = owner.get('schedule')
     if (!schedule) return
-    owner.effect(() => schedule.registerAction('seat.open', async (request) => {
+    const register = () => schedule.registerAction('seat.open', async (request) => {
       const source = sources.find(item => item.trigger.kind === 'schedule' && item.trigger.record.id === request.record.id)
       if (!source) throw new EngineError('source-not-found', 'Scheduled seat source is unavailable')
       const result = await accept(source, { kind: 'schedule', scheduleId: request.record.id,
@@ -82,23 +87,48 @@ function install(ctx: Context, engine: SeatEngine, sources: readonly ProductionS
         throw new EngineError(result.error.code, result.error.message)
       }
       return { status: 'accepted' }
-    }))
+    })
     owner.effect(() => {
-      let stopped = false
+      const lifetime = new AbortController()
+      let unregister: (() => Promise<void>) | undefined
       const starting = (async () => {
         const existing = await schedule.listActions()
+        const sourceIds = new Set<string>(sources.map(source => source.sourceId))
+        const removed = new Set<string>()
+        for (const item of existing) {
+          if (lifetime.signal.aborted) return
+          const payload = item.payload
+          if (item.actionId !== 'seat.open' || !payload || typeof payload !== 'object' || Array.isArray(payload)
+            || typeof payload['sourceId'] !== 'string' || sourceIds.has(payload['sourceId'])) continue
+          await schedule.deleteAction(item.record.id)
+          removed.add(item.record.id)
+          owner.logger.info('Seat schedule source removed', { scheduleId: item.record.id, sourceId: payload['sourceId'] })
+        }
         for (const source of sources) {
           if (source.trigger.kind !== 'schedule') continue
-          // Disposal may run while a preceding persisted action is being created.
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (stopped) return
-          const record = source.trigger.record
-          if (!existing.some(item => item.record.id === record.id)) await schedule.scheduleAction({
-            record, actionId: 'seat.open', payload: { sourceId: source.sourceId } })
+          if (lifetime.signal.aborted) return
+          const record = decodeScheduleRecord(source.trigger.record)
+          const previous = existing.find(item => item.record.id === record.id)
+          if (previous && previous.actionId !== 'seat.open') continue
+          if (previous && !removed.has(record.id)) {
+            // Recurring dispatch advances scheduledAt; compare the configured anchor at the last receipt.
+            const expected = isRecurringScheduleRecord(record) && previous.lastReceipt
+              && previous.record.kind === record.kind && record.scheduledAt <= previous.lastReceipt.scheduledAt
+              ? { ...record, scheduledAt: resolveRecurringOccurrence(record,
+                Date.parse(previous.lastReceipt.scheduledAt)).nextScheduledAt ?? previous.lastReceipt.scheduledAt }
+              : record
+            if (normalizedRecord(previous.record) === normalizedRecord(expected)
+              && canonical(previous.payload) === canonical({ sourceId: source.sourceId })) continue
+            await schedule.deleteAction(record.id)
+            // oxlint-disable-next-line typescript/no-unnecessary-condition -- Disposal can abort while deletion is awaited.
+            if (lifetime.signal.aborted) return
+          }
+          await schedule.scheduleAction({ record, actionId: 'seat.open', payload: { sourceId: source.sourceId } })
+          if (previous) owner.logger.info('Seat schedule source reconciled', { scheduleId: record.id, sourceId: source.sourceId })
         }
-      })()
-      void starting.catch((error: unknown) => { owner.logger.warn('Seat schedule registration failed', error) })
-      return async () => { stopped = true; await starting }
+        if (!lifetime.signal.aborted) unregister = register()
+      })().catch((error: unknown) => { owner.logger.warn('Seat schedule registration failed', error) })
+      return async () => { lifetime.abort(); await starting; await unregister?.() }
     })
   })
   for (const source of sources) {

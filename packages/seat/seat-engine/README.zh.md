@@ -29,7 +29,7 @@ kind: "package-reference"
 
 Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotifications`。绑定席位的父会话使用定义中的子代理容量和子自身的缓存、上下文证据。完成记录位于节点日志的 `notifications` 目录；job 意图在生产副作用前同步写入，待交付的 handoff/steer 消息复用稳定操作标识。恢复中的未结算 job 报告所有者丢失、结果未知，绝不重放外部工作。
 
-显式 `sources` 配置调度记录、登记的 Git 路径与引用、窗口结束观察及未答复交接期限。调度使用既有 `seat.open` 动作；Git 只读取登记仓库。人工入口仍归本地提供方，签名外部入口归远端提供方。这些观察源的回调是本地确认，不是出站 HTTP 回调。
+显式 `sources` 配置调度记录、登记的 Git 路径与引用、窗口结束观察及未答复交接期限。启动在启用 `seat.open` 处理器前对账持久动作与配置来源：记录变化时删除再创建，记录不变时保留下次触发时刻，payload 指向已删除来源的动作会被删除，即使 `sources` 为空。比较使用规范化后的记录字段，并计入上次回执后的周期推进。其他动作名不受影响。替换和删除分别记录 `Seat schedule source reconciled` 与 `Seat schedule source removed`；失败通过 `Seat schedule registration failed` 告警，不阻断宿主，但处理器保持不可用，直到重启对账成功。替换不是原子的；删除后失败会使动作缺席，直到下次对账。Git 只读取登记仓库。人工入口仍归本地提供方，签名外部入口归远端提供方。这些观察源的回调是本地确认，不是出站 HTTP 回调。
 
 本地提供方可在引擎访问能力中注册 `preAdmit`。人工 `openWindow`（包括本地批量逐个发出的开窗）在触发接纳前等待此钩子。拒绝结果原样返回，不产生引擎接纳、资源或会话副作用；策略审计由钩子提供方负责。未注册钩子时原准入路径不变。
 
