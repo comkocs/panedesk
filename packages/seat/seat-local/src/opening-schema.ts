@@ -1,9 +1,9 @@
-/** 来源快照是持久输入，读取时验证完整版本、任务和改面字段。 */
+/** Source snapshots are durable input; reads validate complete revisions, tasks and scope fields. */
 import { z } from 'zod'
 import type * as T from '@panedesk/dsh-seat'
 
 const id = z.string().min(1)
-/** 持久来源快照校验器，不用于重授授权。 */
+/** Durable source snapshot validator; it does not regrant authority. */
 export const openingSnapshotSchema = z.object({
   reference: z.object({ providerId: id, reference: id, revision: id }),
   text: z.string(), digest: id, revision: id, taskIds: z.array(id),

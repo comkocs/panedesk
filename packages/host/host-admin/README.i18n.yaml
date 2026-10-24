@@ -3,32 +3,32 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/host/host-admin/README.md
 /panedesk-dsh-host-admin:
-  en: 105af349c4b82881
-  zh: 105af349c4b82881
-/panedesk-dsh-host-admin/section:
-  en: b343649ae9ddc4c5
+  en: 0429535356a2b9db
+  zh: 07c045b2847e7cfd
+/panedesk-dsh-host-admin/purpose:
+  en: 42621e53119655aa
   zh: b343649ae9ddc4c5
-/panedesk-dsh-host-admin/section~2:
-  en: 5f357259452d69bd
+/panedesk-dsh-host-admin/configuration-and-identity:
+  en: a10b2f7a3a7bc4e2
   zh: 5f357259452d69bd
-/panedesk-dsh-host-admin/section~3:
-  en: 09157da498b1510b
+/panedesk-dsh-host-admin/persistence-and-recovery:
+  en: 2b095bdf7130c17a
   zh: 09157da498b1510b
-/panedesk-dsh-host-admin/section~4:
-  en: a311da3843709f90
+/panedesk-dsh-host-admin/model-experience:
+  en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-host-admin/section/section:
-  en: a2301f1494f24f32
+/panedesk-dsh-host-admin/model-experience/administration-requests:
+  en: d2f49acedcb0bad4
   zh: a2301f1494f24f32
-/panedesk-dsh-host-admin/section/section/section:
-  en: 0def4704b1bdbf18
-  zh: 0def4704b1bdbf18
-/panedesk-dsh-host-admin/section/section/section~2:
-  en: 5963907d0668cd98
+/panedesk-dsh-host-admin/model-experience/administration-requests/what-the-model-sees:
+  en: 0c1997ae564c575c
+  zh: 75e5960cae59be81
+/panedesk-dsh-host-admin/model-experience/administration-requests/token-effect:
+  en: 62aff2b02b491c81
   zh: 5963907d0668cd98
-/panedesk-dsh-host-admin/section/section/kv:
-  en: 4c008a5821a1de94
+/panedesk-dsh-host-admin/model-experience/administration-requests/kv-cache-effect:
+  en: eca03e5816500f14
   zh: 4c008a5821a1de94
-/panedesk-dsh-host-admin/section~5:
-  en: 15c4353bcc1d46e0
-  zh: 15c4353bcc1d46e0
+/panedesk-dsh-host-admin/known-limitations-and-deferred-work:
+  en: 5558480d26886ddb
+  zh: 238f1d98291ccb57

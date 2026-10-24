@@ -1,4 +1,4 @@
-/** 可选节点传输定义与运行时；只有显式配置才创建链路。 */
+/** Optional node transport definitions and runtime; links require explicit configuration. */
 import type { Context } from '@panedesk/cordis'
 import Schema from '@panedesk/schemastery'
 import type { Branded } from '@panedesk/dsh-brand'

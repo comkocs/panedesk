@@ -1,4 +1,4 @@
-/** SSH 替身仅核 argv 与生命周期，不执行外部命令。 */
+/** SSH doubles inspect arguments and lifecycle without executing external commands. */
 import { expect, test, vi } from 'vitest'
 import type { SubprocessHandle, SubprocessOutcome, SubprocessRuntime } from '@panedesk/dsh-subprocess'
 import { SshTunnel } from '../src/tunnel.ts'
@@ -6,7 +6,7 @@ import type { NodeLinkRuntimeConfig } from '../src/index.ts'
 import { listenLoopback } from '@panedesk/dsh-host-admin'
 import { randomBytes } from 'node:crypto'
 
-test('独立回环双向转发、严格主机校验与自有子进程清理', async () => {
+test('uses independent bidirectional loopback forwards, strict host checks and owned child cleanup', async () => {
   const limits = { maxFrameBytes: 4096, requestTimeoutMs: 1000, maxPending: 2 }
   const listener = await listenLoopback(0, limits, () => ({ credential: randomBytes(32).toString('hex'), epoch: 'test' }), async () => ({}))
   const done = Promise.withResolvers<SubprocessOutcome>()

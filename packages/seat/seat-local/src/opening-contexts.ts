@@ -1,11 +1,11 @@
-/** 来源解析只在受信进程内注册；注销拒绝新调用并等待已有解析结束。 */
+/** Source resolvers register only in the trusted process; disposal rejects new calls and drains active resolutions. */
 import type { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import type { LocalSeatService } from './service.ts'
 import { digest } from './store.ts'
 import { rejected } from './errors.ts'
 
-/** 开窗来源注册表不保存第二份业务真源。 */
+/** The opening source registry does not retain a second business authority. */
 export class OpeningContexts implements T.SeatOpeningContexts {
   private readonly entries = new Map<T.OpeningProviderId, {
     provider: T.OpeningContextProvider
@@ -25,10 +25,10 @@ export class OpeningContexts implements T.SeatOpeningContexts {
       if (this.entries.get(provider.providerId) === entry) this.entries.delete(provider.providerId)
     }
   }
-  /** 解析一次并核版本、摘要和完整任务关联，不解释或拼接来源正文。
-   * @param request - 引用及显式任务集合。
-   * @param authority - 原调用者的宿主身份。
-   * @returns 独立冻结快照或创建前拒绝。
+  /** Resolve once and verify revision, digest and complete task associations without interpreting or concatenating source text.
+   * @param request - Reference and explicit task set.
+   * @param authority - Original caller identity authenticated by the host.
+   * @returns Independent frozen snapshot, or rejection before creation.
    */
   async resolve(request: Pick<T.OpenSeatWithContextRequest, 'openingContext' | 'relatedTaskIds'>,
     authority: T.SeatCallContext): Promise<T.OpeningContextSnapshot | T.SeatRejected> {
@@ -59,7 +59,7 @@ export class OpeningContexts implements T.SeatOpeningContexts {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))
     return this.service.openBatchWithScope(structuredClone(request), Object.freeze({ ...authority }))
   }
-  /** 停止全部来源并排空在途解析。 */
+  /** Stop all sources and drain active resolutions. */
   async close(): Promise<void> {
     this.active = false
     for (const entry of this.entries.values()) entry.closing = true
@@ -68,10 +68,10 @@ export class OpeningContexts implements T.SeatOpeningContexts {
   }
 }
 
-/** 注册可选服务，生命周期由本地插件负责。
- * @param ctx - 可撤销插件作用域。
- * @param service - 既有本地执行入口。
- * @returns 供引擎冻结器使用的同一注册表。
+/** Register optional services whose lifecycle belongs to the local plugin.
+ * @param ctx - Revocable plugin scope.
+ * @param service - Existing local execution entry.
+ * @returns The same registry used by the engine freezer.
  */
 export function installOpeningContexts(ctx: Context, service: LocalSeatService): OpeningContexts {
   const contexts = new OpeningContexts(service)

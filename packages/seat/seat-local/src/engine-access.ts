@@ -103,7 +103,7 @@ export function registerLocalReadAccess(ctx: Context, service: T.SeatService, op
 /** Capture the internal caller once and expose only engine-required operations.
  * @param service - unscoped local provider.
  * @param options - explicit node identity and template bound.
- * @param contexts - 可选来源注册表，与手工入口共用冻结器。
+ * @param contexts - Optional source registry sharing the manual entry freezer.
  * @returns engine-only capabilities; the unscoped provider stays unauthorized.
  */
 export function createEngineAccess(service: T.SeatService, options: LocalSeatOptions, contexts?: OpeningContexts): T.SeatEngineLocalAccess {

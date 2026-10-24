@@ -3,32 +3,32 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/seat/node-link/README.md
 /panedesk-dsh-node-link:
-  en: bbad7e6a0b60c46e
-  zh: bbad7e6a0b60c46e
-/panedesk-dsh-node-link/section:
-  en: e02e0f1d3239811d
+  en: e49b3364379d4559
+  zh: 80b65fd076958c2b
+/panedesk-dsh-node-link/purpose:
+  en: 44e6bc29d9d215ac
   zh: e02e0f1d3239811d
-/panedesk-dsh-node-link/section~2:
-  en: 342f9cc71391d2bf
+/panedesk-dsh-node-link/configuration-and-identity:
+  en: f45d53c206f2ca5f
   zh: 342f9cc71391d2bf
-/panedesk-dsh-node-link/section~3:
-  en: b6ad8192b8fc7296
+/panedesk-dsh-node-link/persistence-and-disconnection:
+  en: 0f69aa57d03122e7
   zh: b6ad8192b8fc7296
-/panedesk-dsh-node-link/section~4:
-  en: a311da3843709f90
+/panedesk-dsh-node-link/model-experience:
+  en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-node-link/section/section:
-  en: 02ca1db572532e51
+/panedesk-dsh-node-link/model-experience/node-requests:
+  en: 06c51991d9af601c
   zh: 02ca1db572532e51
-/panedesk-dsh-node-link/section/section/section:
-  en: 1bc6e1e638106ba6
-  zh: 1bc6e1e638106ba6
-/panedesk-dsh-node-link/section/section/section~2:
-  en: 733ccb56679971ac
+/panedesk-dsh-node-link/model-experience/node-requests/what-the-model-sees:
+  en: 98702aa280073638
+  zh: 3701cf76c656f4f2
+/panedesk-dsh-node-link/model-experience/node-requests/token-effect:
+  en: 00eb395be3921209
   zh: 733ccb56679971ac
-/panedesk-dsh-node-link/section/section/kv:
-  en: 0a48b5997af6bc68
+/panedesk-dsh-node-link/model-experience/node-requests/kv-cache-effect:
+  en: 626d00287408634a
   zh: 0a48b5997af6bc68
-/panedesk-dsh-node-link/section~5:
-  en: 684de7b946d359be
-  zh: 684de7b946d359be
+/panedesk-dsh-node-link/known-limitations-and-deferred-work:
+  en: 1217eed7443b659d
+  zh: 0432b6d280ad89c9

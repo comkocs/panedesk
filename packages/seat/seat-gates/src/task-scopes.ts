@@ -1,4 +1,4 @@
-/** 仅比较真源提供的完整改面；不以本地文件扫描补猜缺失证据。 */
+/** Compare only complete scopes supplied by the authority; local file scans never fill missing evidence. */
 import type { TaskScopeBatchGateContext, TaskScopeGateDecision, TaskScopeEntry } from '@panedesk/dsh-seat'
 
 function safePath(path: string): boolean {
@@ -7,7 +7,7 @@ function safePath(path: string): boolean {
 }
 function overlaps(left: TaskScopeEntry, right: TaskScopeEntry, sensitive: boolean): boolean {
   if (left.access === 'read' && right.access === 'read') return false
-  // 未证明 glob 的交集为空时必须保守冲突，不能用文本不等代替集合不相交。
+  // Treat unproven glob disjointness as a conflict; unequal text does not establish disjoint sets.
   if (left.kind === 'pattern' || right.kind === 'pattern') return true
   const a = sensitive ? left.path : left.path.toLowerCase()
   const b = sensitive ? right.path : right.path.toLowerCase()
@@ -15,9 +15,9 @@ function overlaps(left: TaskScopeEntry, right: TaskScopeEntry, sensitive: boolea
     || (right.kind === 'directory' && a.startsWith(`${b}/`))
 }
 
-/** 全批预检仓身份、版本、节点、位、路径与读写交集。
- * @param context - 执行入口捕获的完整任务证据。
- * @returns 允许及证据版本，或整批拒绝并提供串行替代。
+/** Preflight repository identities, revisions, nodes, seats, paths and read/write intersections for the entire batch.
+ * @param context - Complete task evidence captured at the execution entry.
+ * @returns Approval with evidence revisions, or batch rejection with a serial alternative.
  */
 export function checkTaskScopes(context: TaskScopeBatchGateContext): TaskScopeGateDecision {
   const deny = (reason: 'scope-unknown' | 'scope-conflict' | 'scope-stale', conflicts: Extract<TaskScopeGateDecision, { outcome: 'deny' }>['conflicts'] = []): TaskScopeGateDecision =>

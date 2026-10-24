@@ -1,4 +1,4 @@
-/** 两个 Loader 节点通过临时回环替身双向握手并卸载。 */
+/** Two Loader nodes handshake bidirectionally through temporary loopback peers and unload. */
 import { afterEach, expect, test } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
@@ -16,7 +16,7 @@ const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 8, maxStoreBytes: 65536, maxOperations: 100, staleMs: 20 }
 
-test('Loader 双向独立认证、自报聚合及服务卸载', async () => {
+test('authenticates each Loader direction independently, aggregates reported status and unloads services', async () => {
   const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'node-runtime-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const auth = () => ({ credential: randomBytes(32).toString('hex'), epoch: randomUUID() })
@@ -57,7 +57,7 @@ test('Loader 双向独立认证、自报聚合及服务卸载', async () => {
   expect((await contexts[1]!.get('nodeRouter')?.status())?.[0]?.status?.openEngineWindows).toBe(1)
 })
 
-test('无配置不注册节点服务', async () => {
+test('leaves node services unregistered without configuration', async () => {
   const ctx = new Context()
   cleanups.push(() => ctx.fiber.dispose())
   await ctx.plugin(NodeLink, {})

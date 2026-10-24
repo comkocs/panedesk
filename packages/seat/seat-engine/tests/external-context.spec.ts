@@ -1,4 +1,4 @@
-/** 精确规则与来源快照经实际引擎日志提交、去重及重启读取。 */
+/** Exact rules and source snapshots use the engine journal for commits, deduplication and restart reads. */
 import { expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { auto, harness, seat, sourceId, trigger } from './fixtures.ts'
@@ -8,7 +8,7 @@ function rule(source = sourceId, eventType?: string): T.SeatRule {
   return { id: 'exact' as T.SeatRuleId, enabled: true, trigger: { kind: 'external', sourceId: source,
     ...(eventType === undefined ? {} : { eventType }) }, mode: 'auto', timeWindows: [], exclusiveTags: [] }
 }
-it('配置的外部来源及事件类型精确匹配，未匹配不得回退项目自动模式', async () => {
+it('matches configured external sources and event types exactly without fallback to project automatic mode', async () => {
   const h = await harness()
   try {
     await auto(h.engine)
@@ -27,13 +27,13 @@ it('配置的外部来源及事件类型精确匹配，未匹配不得回退项�
     expect(h.creates).toHaveLength(1)
   } finally { await h.close() }
 })
-it('有来源引用的事件冻结一次，重投及重启复用原文并拒绝异参同号', async () => {
+it('freezes referenced context once, reuses it on retry and restart and rejects changed arguments for the same ID', async () => {
   const h = await harness()
   try {
     const reference: T.OpeningContextReference = { providerId: 'provider-a' as T.OpeningProviderId,
       reference: 'reference-a' as T.OpeningContextReference['reference'], revision: '1' }
     const taskId = 'task-a' as T.SeatTaskId
-    const context: T.OpeningContextSnapshot = { reference, text: '来源原文\n', digest: digest('来源原文\n'),
+    const context: T.OpeningContextSnapshot = { reference, text: 'Original source text\n', digest: digest('Original source text\n'),
       revision: '1', taskIds: [taskId], scopeEvidence: [] }
     const freeze = vi.fn(async (definition: T.SeatDefinition): Promise<T.SeatFrozenOpen> => ({ definition,
       title: 'frozen', openingMode: 'auto', openingContext: context,
@@ -53,7 +53,7 @@ it('有来源引用的事件冻结一次，重投及重启复用原文并拒绝�
     expect([...restarted.journal.projection.pending.values()][0]).toMatchObject({ frozenOpen: { openingContext: context } })
   } finally { await h.close() }
 })
-it('未注册来源不能调用冻结器，缺冻结器不能忽略引用走默认模板', async () => {
+it('rejects unregistered sources and missing freezers instead of ignoring references and using default templates', async () => {
   const h = await harness()
   try {
     const input: T.TriggerEnvelope = { ...trigger(), openingContext: { providerId: 'p' as T.OpeningProviderId,

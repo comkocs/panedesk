@@ -1,4 +1,4 @@
-/** 来源冻结与拒绝通过真实 Loader、引擎和本地执行链验证。 */
+/** Source freezing and rejection use the real Loader, engine and local execution chain. */
 import { expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import * as Gates from '../../seat-gates/src/index.ts'
@@ -9,10 +9,10 @@ import { digest } from '../src/store.ts'
 const reference: T.OpeningContextReference = { providerId: 'desk' as T.OpeningProviderId,
   reference: 'task-a' as T.OpeningContextReference['reference'], revision: '1' }
 const taskId = 'task-a' as T.SeatTaskId
-function snapshot(text = '原行一\n{{seat}} 原样保留\n'): T.OpeningContextSnapshot {
+function snapshot(text = 'Original first line\n{{seat}} retained verbatim\n'): T.OpeningContextSnapshot {
   return { reference, text, digest: digest(text), revision: '1', taskIds: [taskId], scopeEvidence: [] }
 }
-it('冻结来源原文、预填不启动首轮、重载与注销后重放不重读来源', async () => {
+it('freezes source text, prefills without starting a turn and replays after reload or disposal without rereading', async () => {
   const f = await admissionHost()
   try {
     const contexts = f.ctx.get('seatOpeningContexts')!
@@ -39,7 +39,7 @@ it('冻结来源原文、预填不启动首轮、重载与注销后重放不重�
     expect(resolve).toHaveBeenCalledTimes(1)
   } finally { await f.close() }
 })
-it('无来源或摘要不符在持久接纳和创建之前拒绝', async () => {
+it('rejects missing sources or mismatched digests before durable admission and creation', async () => {
   const f = await admissionHost()
   try {
     const contexts = f.ctx.get('seatOpeningContexts')!
@@ -48,20 +48,20 @@ it('无来源或摘要不符在持久接纳和创建之前拒绝', async () => {
     const before = (await f.state.read()).watermark
     expect(await contexts.open(request, f.authority)).toMatchObject({ error: { code: 'unavailable' } })
     const release = contexts.register({ providerId: reference.providerId,
-      resolve: async () => ({ ...snapshot(), digest: digest('不同正文') }) })
+      resolve: async () => ({ ...snapshot(), digest: digest('Different body text') }) })
     expect(await contexts.open(request, f.authority)).toMatchObject({ error: { code: 'invalid-request' } })
     expect((await f.state.read()).watermark).toBe(before)
     expect(f.adapter.requests).toHaveLength(0)
     await release()
   } finally { await f.close() }
 })
-it('整批改面未知或闸缺席均拒绝，串行替代且不创建任何成员', async () => {
+it('rejects unknown batch scopes or missing checks with a serial alternative and no member creation', async () => {
   const f = await admissionHost()
   try {
     const contexts = f.ctx.get('seatOpeningContexts')!
     const tasks: T.SeatTaskScopeContext[] = [{ taskId, seat: f.definition.seat, nodeId: f.options.nodeId,
       scopeEvidenceRef: 'scope-a' as T.SeatTaskScopeContext['scopeEvidenceRef'],
-      scopeEvidence: { status: 'unknown', taskId, reason: '真源缺字段', alternative: 'serial' } }]
+      scopeEvidence: { status: 'unknown', taskId, reason: 'Authority omitted required fields', alternative: 'serial' } }]
     const request: T.OpenSeatBatchWithScopeRequest = { seats: [f.definition.seat], origin: 'manual',
       operationId: operation('scope-batch'), tasks }
     const before = (await f.state.read()).watermark
@@ -75,7 +75,7 @@ it('整批改面未知或闸缺席均拒绝，串行替代且不创建任何成�
     expect(f.adapter.requests).toHaveLength(0)
   } finally { await f.close() }
 })
-it('来源注销等待在途解析并立即拒绝新的解析', async () => {
+it('drains active resolutions during source disposal and immediately rejects new resolutions', async () => {
   const f = await admissionHost()
   try {
     const contexts = f.ctx.get('seatOpeningContexts')!

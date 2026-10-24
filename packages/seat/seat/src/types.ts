@@ -555,7 +555,7 @@ export interface TriggerEnvelope {
   taskId?: SeatTaskId
   callbackRef: SeatSourceId
   cause?: { eventId: SourceEventId; depth: number }
-  /** 可选来源引用仅由已注册适配器提供，由宿主冻结器解析。 */
+  /** Optional source references come only from registered adapters and are resolved by the host freezer. */
   openingContext?: OpeningContextReference
   relatedTaskIds?: readonly SeatTaskId[]
 }
@@ -820,7 +820,7 @@ export interface SeatFrozenOpen {
   title: string
   openingMode: 'auto' | 'prefill'
   frozenOpening?: NonNullable<import('./events.ts').EngineOpenData['frozenOpening']>
-  /** 来源引用、版本及改面随接纳快照冻结，不在恢复时重新解析。 */
+  /** Source references, revisions and scopes freeze with admission snapshots and are not resolved again during recovery. */
   openingContext?: OpeningContextSnapshot
 }
 /** Trusted provider capabilities are registered privately with the engine, never exposed as external authority. */
@@ -830,7 +830,7 @@ export interface SeatEngineLocalAccess {
   list(request: ListSeatWindowsRequest): Promise<ListSeatWindowsResult>
   close(request: CloseSeatRequest): Promise<CloseSeatResult>
   freeze(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen>
-  /** 可选来源冻结器支持显式拒绝；缺席时不接纳带来源引用的事件。 */
+  /** The optional context freezer may explicitly reject; without it, events carrying source references are not accepted. */
   freezeContext?(definition: SeatDefinition, trigger: TriggerEnvelope): Promise<SeatFrozenOpen | SeatRejected>
 }
 /** Frozen manual-open input; the engine allocates Session identity and owns resource admission. */
@@ -840,7 +840,7 @@ export interface SeatLocalOpenRequest {
   definition: SeatDefinition
   opening: NonNullable<import('./events.ts').EngineOpenData['frozenOpening']>
   title: string
-  /** 可选受信来源快照；旧请求与其摘要不变。 */
+  /** Optional trusted source snapshot; existing requests and their digests remain unchanged. */
   openingContext?: OpeningContextSnapshot
 }
 /** Child admission allocates no running slot until the journal commits its ticket. */

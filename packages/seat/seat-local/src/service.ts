@@ -222,11 +222,11 @@ export class LocalSeatService extends SeatService {
   async open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult> {
     return this.openResolved(request)
   }
-  /** 受信来源入口仍复用完整的本地开窗策略与持久接纳。
-   * @param request - 来源引用和原开窗参数。
-   * @param authority - 宿主验证身份。
-   * @param resolve - 注册表拥有的冻结器。
-   * @returns 原开窗结果。
+  /** Trusted source entries retain the complete local opening policy and durable admission.
+   * @param request - Source reference and original opening parameters.
+   * @param authority - Host-authenticated identity.
+   * @param resolve - Registry-owned freezer.
+   * @returns Original opening result.
    */
   openWithContext(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext,
     resolve: (request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext) => Promise<T.OpeningContextSnapshot | T.SeatRejected>,
@@ -313,10 +313,10 @@ export class LocalSeatService extends SeatService {
       ...(snapshot ? { openingContext: snapshot } : {}) }
     return engine.openWindow ? engine.openWindow(input) : admitLocalOpen(engine, this.state, input, this.options.nodeName)
   }
-  /** 在任何成员开窗前检查整批任务改面。
-   * @param request - 所有任务的真源证据。
-   * @param authority - 原调用者宿主身份。
-   * @returns 整批拒绝或逐位结果。
+  /** Check all task scopes before opening any batch member.
+   * @param request - Authoritative evidence for every task.
+   * @param authority - Original caller identity authenticated by the host.
+   * @returns Batch rejection or per-seat results.
    */
   openBatchWithScope(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult> {
     const { tasks, ...base } = request

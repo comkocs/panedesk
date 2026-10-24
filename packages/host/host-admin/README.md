@@ -1,45 +1,46 @@
 # `@panedesk/dsh-host-admin`
 
-运行中宿主的可选管理通道。导入或省略 `runtime` 不创建监听、凭据或第二个引擎。
+English | [Chinese](README.zh.md)
 
-## 用途
+Optional administration channel for a running host. Importing the package or omitting `runtime` creates no listener, credentials, or second engine.
 
-仅提供 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
+## Purpose
 
-## 配置与身份
+Only `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, and `engine.query` are available. The transport uses local loopback only and rejects browser origins, request cookies, unexpected paths or Host headers, old process epochs, and invalid authentication headers. Complete request and response frames obey the byte limit.
 
-`runtime` 必须显式填写 `directory`、`nodeId`、`principalId`、`port`、`maxFrameBytes`、`requestTimeoutMs`、`maxPending`、`maxStoreBytes`、`maxOperations`。测试使用 `port: 0` 分配临时端口；部署端口由配置决定。配置经 Loader 装配，入口无命令行启动能力。
+## Configuration and Identity
 
-`directory` 为独占绝对路径，POSIX 目录权限必须为 `0700`，文件必须为当前属主的单硬链接普通文件且权限为 `0600`。祖先路径不得含符号链接；部署者还须保证祖先目录不可被非受信账号替换。Windows 必须提供 `hostAdminFiles`，负责等效 ACL、路径及原子耐久写入校验。
+`runtime` requires explicit `directory`, `nodeId`, `principalId`, `port`, `maxFrameBytes`, `requestTimeoutMs`, `maxPending`, `maxStoreBytes`, and `maxOperations`. Tests use `port: 0` to allocate temporary ports; deployments configure their ports. Loader assembles the configuration; the entry point does not launch through command-line arguments.
 
-宿主创建 `credential` 与 `endpoint.json`，退出删除两者；每次启动生成独立进程代次。凭据仅通过私有文件和认证头传递，不进入参数、地址、环境变量或操作记录。`callAdmin` 只连接已运行宿主，缺少端点时拒绝，不自动启动服务。
+`directory` must be an exclusive absolute path with POSIX mode `0700`. Files must be regular, single-link files owned by the current user with mode `0600`. Ancestor paths must contain no symbolic links, and operators must prevent untrusted accounts from replacing ancestor directories. Windows requires `hostAdminFiles` for equivalent ACL, path, and atomic durable-write checks.
 
-`hostAdminExecutor` 接收传输导出的身份，必须在批准受理前完成授权事实的耐久记录，并继续应用原引擎闸门；请求字段不能赋予权限。缺少执行适配时，仅可调用已存在引擎的状态和待批准查询，其余方法明确拒绝。
+The host creates `credential` and `endpoint.json` and deletes both on exit; each start uses an independent process epoch. Credentials travel only through private files and authentication headers, never arguments, addresses, environment variables, or operation records. `callAdmin` connects only to an already running host; missing endpoints reject without automatically starting a service.
 
-## 持久化与恢复
+`hostAdminExecutor` receives transport-derived identity and must durably record authorization facts before accepting approval while retaining the original engine checks. Request fields cannot grant authority. Without an executor, only status and pending-approval queries against the existing engine are available; other methods explicitly reject.
 
-`operations.json` 按主体与操作号保留摘要、待决状态或原始回执。先耐久写待决再执行，结果落盘后才公开；同号同参返回原结果，异参拒绝，丢回包保持未知，不自动重放。容量耗尽拒绝新操作，不淘汰未知记录。此接收记录不替代引擎授权账本。
+## Persistence and Recovery
 
-`owner.lock` 保证单个目录仅有一个运行实例；进程异常退出后的遗留锁需运维确认旧实例已退出后显式恢复，插件不凭 PID 猜测接管。
+`operations.json` retains the digest, pending state, or original receipt by principal and operation ID. Pending state is durable before execution; results are durable before publication. Identical IDs and arguments return the original result; changed arguments reject. Lost responses remain unknown without automatic replay. Exhausted capacity rejects new operations rather than evicting unknown records. This transport record does not replace the engine authorization journal.
 
-## 模型体验
+`owner.lock` permits only one running instance per directory. A lock left after abnormal exit requires explicit recovery after operators confirm the old instance has exited; the plugin never guesses ownership from a PID.
 
-### 管理请求
+## Model Experience
 
-#### 模型可见内容
+### Administration Requests
 
-不注入工具、提示词或会话内容；管理结果由调用方接收。批准回执不等于开窗完成。
+#### What the model sees
 
-#### 词元影响
+`hostAdminExecutor` injects no tools, prompts, or session content; callers receive administration results. An approval receipt does not mean a window has finished opening.
 
-通道本身不产生模型请求或词元消耗。
+#### Token effect
 
-#### KV 缓存影响
+The channel itself makes no model requests and consumes no model tokens.
 
-不修改历史会话及缓存前缀。
+#### KV Cache effect
 
-## 已知限制与待完成项
+Existing session history and cache prefixes remain unchanged.
 
-本包未提供真实引擎授权执行适配；并线方须实现 `hostAdminExecutor` 并验证授权账本事务、任务过滤及默认脱正文查询。现有测试中的适配为替身，不是上述链路的验收证据。
+## Known Limitations and Deferred Work
 
-Windows ACL 实跑、真实 SSH 与多进程崩溃注入不在本包 Linux 替身测试覆盖内。执行提供器必须保证自身调用可终止；卸载会等待已接纳调用，不能强制取消任意提供器内部副作用。nonce 集合和操作记录有显式容量限制，满额后需受控重启或运维处理。
+- A real engine authorization executor is not included. Integrators must implement `hostAdminExecutor` and verify authorization-journal transactions, task filtering, and queries that omit body text by default. Test adapters are doubles, not evidence that these integrations are connected.
+- Linux tests with doubles do not cover Windows ACL execution, real SSH, or multi-process crash injection. Executors must ensure their own calls terminate; unloading waits for accepted calls and cannot forcibly cancel arbitrary provider side effects. Nonce sets and operation records have explicit capacity limits; exhaustion requires controlled restart or operational recovery.

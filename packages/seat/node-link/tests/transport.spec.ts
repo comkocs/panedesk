@@ -1,4 +1,4 @@
-/** 节点替身验证持久重投、丢回包及身份校验，不连接真实 SSH。 */
+/** Node doubles exercise durable retries, lost responses and identity checks without real SSH connections. */
 import { afterEach, expect, test } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -32,7 +32,7 @@ function provider(execute: NodeLinkExecutor['execute']): NodeLinkExecutor {
     engine: 'running', openEngineWindows: 3, limit: 4, readyAt: null }) }
 }
 
-test('同号同参只执行一次，异参拒绝，重启保留结果', async () => {
+test('executes identical operations once, rejects changed arguments and retains results after restart', async () => {
   const durable = await store()
   let calls = 0
   const executor = provider(async (request) => { calls++; return failure(request, 'cross-node-unsupported') })
@@ -49,7 +49,7 @@ test('同号同参只执行一次，异参拒绝，重启保留结果', async ()
     .toMatchObject({ error: { code: 'node-authentication-failed', effectState: 'none' } })
 })
 
-test('丢回包只查询回执，不重放；断链无副作用，过期保留窗数', async () => {
+test('queries receipts without replay after response loss, rejects disconnected calls and retains stale window counts', async () => {
   const received = await store(), sent = await store()
   let calls = 0, drop = true
   const executor = provider(async (request) => { calls++; return failure(request, 'cross-node-unsupported') })
@@ -60,7 +60,7 @@ test('丢回包只查询回执，不重放；断链无副作用，过期保留�
       nonce: value.nonce, status: await executor.status() }
     if (object(value) && value.type === 'receipt') return received.query(JSON.stringify(['node-a', 'principal-a', 'operation-a']))
     const result = await receiver.receive(decodeRequest(value))
-    if (drop) { drop = false; throw new Error('回包丢失替身') }
+    if (drop) { drop = false; throw new Error('Simulated response loss') }
     return result
   })
   cleanups.push(() => listener.close())
@@ -79,7 +79,7 @@ test('丢回包只查询回执，不重放；断链无副作用，过期保留�
   expect(await router.route(frame('operation-c'))).toMatchObject({ error: { effectState: 'none' } })
 })
 
-test('帧拒绝身份、摘要、多跳和回包关联错配', () => {
+test('rejects mismatched identities, digests, multiple hops and response correlation', () => {
   const valid = frame()
   expect(() => decodeRequest({ ...valid, hop: 2 })).toThrow()
   expect(() => decodeRequest({ ...valid, payloadDigest: digest({}) })).toThrow()

@@ -1,4 +1,4 @@
-/** 可选宿主管理定义与运行时；只有显式配置才创建监听。 */
+/** Optional host administration definitions and runtime; listeners require explicit configuration. */
 import type { Context } from '@panedesk/cordis'
 import Schema from '@panedesk/schemastery'
 import type { Branded } from '@panedesk/dsh-brand'
