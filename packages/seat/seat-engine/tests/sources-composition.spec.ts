@@ -8,6 +8,7 @@ import * as Domain from '@panedesk/dsh-storage-domain'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { composition } from './composition-fixture.ts'
 import { SeatEngine } from '../src/engine.ts'
@@ -66,7 +67,7 @@ const resolver = { apply(ctx: Context) {
 } }
 
 it('registers the production schedule action and enters the engine queue at its due occurrence', async () => {
-  const storageRoot = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.schedule-'))
+  const storageRoot = await mkdtemp(join(tmpdir(), 'seat-engine-schedule-'))
   const source: ProductionSource = { sourceId: 'schedule-source' as never, seat, projectId, trigger: { kind: 'schedule',
     record: { kind: 'at', id: 'schedule-a' as never, title: 'Open seat', prompt: 'Open seat',
       scheduledAt: new Date(Date.now() + 1000).toISOString() } } }
@@ -82,7 +83,7 @@ it('registers the production schedule action and enters the engine queue at its 
 }, 20000)
 
 it('constructs the configured Git observer and queues a registered ref change', async () => {
-  const repository = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.git-'))
+  const repository = await mkdtemp(join(tmpdir(), 'seat-engine-git-'))
   await execute('git', ['init', '--bare', repository])
   const empty = (await execute('git', ['hash-object', '-w', '-t', 'tree', '/dev/null'], { cwd: repository })).stdout.trim()
   const commit = async (message: string) => (await execute('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',

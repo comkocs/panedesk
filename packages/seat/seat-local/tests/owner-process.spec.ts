@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { fork, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -45,7 +46,7 @@ async function kill(child: ChildProcess) {
   const exited = once(child, 'exit'); child.kill('SIGKILL'); await exited
 }
 async function scenario(mode: string, restart = false) {
-  const home = await mkdtemp(join(process.cwd(), '.seat-owner-')), children: ChildProcess[] = []
+  const home = await mkdtemp(join(tmpdir(), 'seat-owner-')), children: ChildProcess[] = []
   try {
     const holder = spawn(process.execPath, ['-e', 'process.stdout.write("ready"); setInterval(() => {}, 1000)'], {
       stdio: ['ignore', 'pipe', 'ignore'], env: environment,

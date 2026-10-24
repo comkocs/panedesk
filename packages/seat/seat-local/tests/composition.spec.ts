@@ -1,4 +1,5 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { expect, it } from 'vitest'
@@ -14,7 +15,7 @@ import { definition, nodeId } from './fixtures.ts'
 import { seatsReady } from '../../seat/tests/completion.ts'
 
 it('loads the catalog through Loader, rejects operations without an engine and releases the service and lock on unload', async () => {
-  const root = await mkdtemp(join(process.cwd(), '.seat-composition-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-composition-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(root)
   const facility = new DomainFacility(ctx, { backend: 'json' })

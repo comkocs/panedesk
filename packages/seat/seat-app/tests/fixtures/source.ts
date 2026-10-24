@@ -58,6 +58,7 @@ import { definition as neutralDefinition } from '../../../seat-local/tests/fixtu
 import { trigger as neutralTrigger } from '../../../seat-engine/tests/fixtures.ts'
 import { readFile, writeFile, mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { writeFileSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { fork, type ChildProcess } from 'node:child_process'
@@ -114,7 +115,7 @@ export async function fixture(options: {
   gates?: T.GateDefinition[]
   onBase?: (ctx: Context) => Promise<void>
 } = {}) {
-  const home = options.home ?? await mkdtemp(join(process.cwd(), '.acceptance-'))
+  const home = options.home ?? await mkdtemp(join(tmpdir(), 'seat-acceptance-'))
   const ctx = new Context()
   let engineReadyAt = 0
   ctx.on('seat/ready', () => { engineReadyAt = performance.now() })

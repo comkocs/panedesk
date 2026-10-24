@@ -3,6 +3,7 @@ import { expect, it } from 'vitest'
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -32,7 +33,7 @@ async function kill(child: ChildProcess, pid: number | undefined) {
 }
 it.each(['open/intent', 'open/created', 'open/configured'])(
   'recovers a Loader opening after SIGKILL at %s without duplicate input or admission', async (stage) => {
-    const root = await mkdtemp(join(process.cwd(), '.seat-open-recovery-'))
+    const root = await mkdtemp(join(tmpdir(), 'seat-open-recovery-'))
     const children: ReturnType<typeof host>[] = []
     try {
       const first = host(root, stage); children.push(first)
@@ -57,7 +58,7 @@ it.each(['open/intent', 'open/created', 'open/configured'])(
   }, 30000)
 
 it('uses the frozen model for the first resumed turn after the catalog model changes', async () => {
-  const root = await mkdtemp(join(process.cwd(), '.seat-open-route-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-open-route-'))
   const children: ReturnType<typeof host>[] = []
   try {
     const first = host(root, 'open/created', 'frozen-route'); children.push(first)

@@ -1,4 +1,5 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@panedesk/cordis'
@@ -18,7 +19,7 @@ import { definition, nodeId, operation } from './fixtures.ts'
 import { insertsInput, inputContains } from '../../seat/tests/completion.ts'
 
 it('deduplicates durable delivery and sends Session subscription reminders until disposal', async () => {
-  const root = await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? process.cwd(), 'seat-delivery-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-delivery-'))
   const ctx = new Context()
   vi.stubEnv('PANEDESK_HOME', root)
   vi.stubEnv('PANEDESK_AGENTS_HOME', join(root, 'agents'))

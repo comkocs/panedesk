@@ -2,6 +2,7 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
@@ -36,7 +37,7 @@ async function stop(child: ChildProcess) {
 }
 
 it.each(['m5-accepted', 'first-turn'])('recovers real delivery after SIGKILL at %s without replaying unknown effects', async (stage) => {
-  const home = await mkdtemp(join(process.env.PANEDESK_HOME ?? process.cwd(), 'seat-recovery-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-recovery-'))
   const children: ChildProcess[] = []
   try {
     const first = start(home, stage); children.push(first.child)
@@ -68,7 +69,7 @@ it.each(['m5-accepted', 'first-turn'])('recovers real delivery after SIGKILL at 
 }, 40000)
 
 it('rejects one simultaneous exact create across processes without minting a second Session', async () => {
-  const home = await mkdtemp(join(process.env.PANEDESK_HOME ?? process.cwd(), 'seat-contention-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-contention-'))
   const first = start(home, 'compete'), second = start(home, 'compete')
   try {
     await Promise.all([first.wait(['ready']), second.wait(['ready'])])

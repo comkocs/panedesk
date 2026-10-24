@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import StorageService from '@panedesk/dsh-storage'
@@ -22,7 +23,7 @@ export function catalogs(root: string): DefinitionCatalogs {
   return { nodeId, nodeAliases: { 'node-a': nodeId }, defaults: definition(root), validateOptions: async () => null }
 }
 export async function storeFixture() {
-  const root = await mkdtemp(join(process.cwd(), '.seat-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-test-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(root)
   const facility = new DomainFacility(ctx, { backend: 'json' })

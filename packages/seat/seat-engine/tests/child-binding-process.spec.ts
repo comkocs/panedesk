@@ -2,12 +2,13 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 it('restores inherited bindings and parent links after two real host process restarts', async () => {
-  const root = await mkdtemp(join(process.cwd(), '.seat-child-binding-process-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-child-binding-process-'))
   const children: ChildProcess[] = []
   const pids: number[] = []
   try {

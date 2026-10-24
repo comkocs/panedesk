@@ -33,6 +33,7 @@ import * as Spawn from '@panedesk/dsh-subagent-spawn-in-process'
 import * as Cache from '@panedesk/dsh-llm-cache'
 import type * as T from '@panedesk/dsh-seat'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { expect } from 'vitest'
@@ -40,7 +41,7 @@ import { definition } from '../../seat-local/tests/fixtures.ts'
 import { CreationAdapter, UnusedFileUploads, UnusedShell } from '../../seat-local/tests/creation-provider.ts'
 
 export async function localHost(model = new CreationAdapter(), gateConfig: Partial<Gates.Config> = {}, subagents = false) {
-  const root = await mkdtemp(join(process.env.PANEDESK_TEST_TEMP_ROOT ?? process.cwd(), 'seat-gates-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-gates-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
   const facility = new DomainFacility(ctx, { backend: 'json' })

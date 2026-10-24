@@ -2,6 +2,7 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
@@ -31,7 +32,7 @@ async function kill(child: ChildProcess, pid: number | undefined) {
   await exited
 }
 it.each(['pending', 'sent'])('recovers one close reminder after SIGKILL at %s', async (phase) => {
-  const root = await mkdtemp(join(process.cwd(), '.seat-reminder-process-'))
+  const root = await mkdtemp(join(tmpdir(), 'seat-reminder-process-'))
   const children: ReturnType<typeof host>[] = []
   try {
     const first = host(root, phase); children.push(first)

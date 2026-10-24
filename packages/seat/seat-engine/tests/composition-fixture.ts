@@ -14,6 +14,7 @@ import * as Cache from '@panedesk/dsh-llm-cache'
 import JournalSessionLedger from '@panedesk/dsh-session-ledger'
 import LocalMessageDelivery from '@panedesk/dsh-message-delivery-local'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as EnginePlugin from '../src/index.ts'
@@ -26,7 +27,7 @@ export async function composition(cache = false, additions: {
   entries?: { name: string; config?: object }[]
   sources?: EnginePlugin.Config['sources']
 } = {}) {
-  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.composition-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-engine-composition-'))
   const ctx = new Context()
   try {
     ctx.baseUrl = `${pathToFileURL(home).href}/`

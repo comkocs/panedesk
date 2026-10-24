@@ -1,6 +1,7 @@
 /** Neutral isolated providers exercise engine ownership without other seat implementations. */
 import { Context } from '@panedesk/cordis'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { LedgerSnapshot } from '@panedesk/dsh-session-ledger'
@@ -44,7 +45,7 @@ export function budget(sessionId = 'window-a' as SessionId): T.SeatBudgetSnapsho
     limits: {}, dayKey: '2026-01-01', budgetTimeZone: 'UTC', inFlightUnknown: 0, watermark: 0, budgetRevision: 0 }
 }
 export async function harness(options: Partial<T.SeatEngineConfig> = {}, keepalive?: KeepAliveRuntime) {
-  const home = await mkdtemp(join(process.cwd(), 'packages/seat/seat-engine/tests', '.home-'))
+  const home = await mkdtemp(join(tmpdir(), 'seat-engine-home-'))
   const definitions = new Map<T.SeatName, T.SeatDefinition>([[seat, definition()]])
   const physical = new Set<SessionId>(), creates: SessionId[] = [], callbacks: T.SeatCallbackPayload[] = []
   const wakes: T.SeatHandoffTimeout[] = [], warnings: Parameters<NonNullable<T.SeatOpenExecutor['notifyBudget']>>[0][] = []

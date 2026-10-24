@@ -1,4 +1,5 @@
 import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SeatName } from '@panedesk/dsh-seat'
@@ -10,7 +11,7 @@ afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { rec
 
 describe('memory identity', () => {
   it('rejects another seat and free writers while allowing own and shared memory', async () => {
-    const root = await mkdtemp(join(process.cwd(), '.seat-identity-')); roots.push(root)
+    const root = await mkdtemp(join(tmpdir(), 'seat-identity-')); roots.push(root)
     const own = join(root, 'own'), other = join(root, 'other'), shared = join(root, 'shared')
     await Promise.all([own, other, shared].map(path => mkdir(path)))
     const definitions = [definition(root, { memoryDirectories: [own, shared] }),
@@ -28,7 +29,7 @@ describe('memory identity', () => {
   })
 
   it.skipIf(process.platform === 'win32')('ignores foreign catalog roots and refuses incompatible own memory before filesystem access', async () => {
-    const root = await mkdtemp(join(process.cwd(), '.seat-identity-')); roots.push(root)
+    const root = await mkdtemp(join(tmpdir(), 'seat-identity-')); roots.push(root)
     const foreign = definition('C:\\work\\seat-b', { seat: 'seat-b' as SeatName, node: 'node-b',
       memoryDirectories: ['\\\\host-a\\share-a\\memory'] })
     const definitions = [definition(root), foreign]

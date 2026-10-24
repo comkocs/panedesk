@@ -13,6 +13,7 @@ import { SeatEngine, type EngineDependencies } from '@panedesk/dsh-seat-engine'
 import type * as T from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { definition, nodeId, operation } from './fixtures.ts'
@@ -25,7 +26,7 @@ import type { LocalSeatOptions } from '../src/service-options.ts'
 
 /** Boot an actual engine through a test-only Loader profile. */
 export async function engineFixture(withArchive = false, retainedRoot?: string) {
-  const root = retainedRoot ?? await mkdtemp(join(process.cwd(), '.seat-engine-local-'))
+  const root = retainedRoot ?? await mkdtemp(join(tmpdir(), 'seat-engine-local-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
   const facility = new DomainFacility(ctx, { backend: 'json' })
