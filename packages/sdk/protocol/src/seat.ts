@@ -55,7 +55,7 @@ const definitionFields: Record<string, Check> = {
   agentPreset: text, provider: text, model: text, reasoningEffort: text, permissionPreset: text, subscriptions: array(text),
   checkpointFiles: array(fields({ path: text, section: text, maxBytes: integer, required: boolean })), wakeTemplate: optional(seatText),
   maxOpenSessions: integer, maxActiveSubagents: integer, contextThresholdTokens: optional(integer), subagentContextThresholdTokens: integer,
-  pollingThreshold: optional(integer), maxSleepSeconds: optional(integer),
+  pollingThreshold: optional(integer), maxSleepSeconds: optional(integer), autoKeepAlive: optional(boolean),
   worktree: fields({ clientTreesPerSlot: integer, staleOnSettle: choice('notify'), lightByDefault: boolean, staleHours: integer }),
   rules: array(fields({ id: text, enabled: boolean, trigger, mode: optional(choice('off', 'remind', 'auto')),
     timeWindows: array(fields({ timeZone: text, start: text, end: text, weekdays: optional(array(integer)) })), exclusiveTags: array(text),
