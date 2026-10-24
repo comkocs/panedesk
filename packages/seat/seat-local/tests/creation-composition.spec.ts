@@ -34,7 +34,7 @@ import { operation } from './fixtures.ts'
 import * as Local from '../src/index.ts'
 import { completesTurn, inputContains, insertsInput, seatsReady } from '../../seat/tests/completion.ts'
 
-it.each(['budget', 'opening', 'prefill', 'wait-replay'] as const)('creates and restores the same Session through public services: %s', async (scenario) => {
+async function checkCreation(scenario: 'budget' | 'opening' | 'prefill' | 'wait-replay'): Promise<void> {
   const f = await engineFixture(true)
   try {
     f.definition.contextThresholdTokens = 60
@@ -176,10 +176,14 @@ it.each(['budget', 'opening', 'prefill', 'wait-replay'] as const)('creates and r
         expect(JSON.stringify((await f.ctx.sessionQuery.readSession(opened.sessionId))?.events)).toContain('budget-warning')
       } finally { releaseTurn(); releaseOpening() }
     }
+    if (!unloadLocal) throw new Error('Local provider lifecycle is unavailable')
+    // Suspend owner observation while deliberately replacing the live residency.
+    const restoreLocal = await unloadLocal()
     await loop.dispose()
     expect(f.ctx.agents.get(opened.sessionId)).toBeUndefined()
     await f.ctx.plugin(loopOwner)
     await executor.configure(open.data, 'workspace')
+    await restoreLocal()
     expect(f.ctx.agents.get(opened.sessionId)?.id).toBe(opened.sessionId)
     const restored = (await f.ctx.sessionLedger.query({ sessionId: opened.sessionId })).rows.filter(row => row.kind === 'run')
     expect(restored).toHaveLength(2)
@@ -188,4 +192,10 @@ it.each(['budget', 'opening', 'prefill', 'wait-replay'] as const)('creates and r
     expect((await f.ctx.sessionPersistence.stat(opened.sessionId))?.header.cwd).toBe(f.options.directory)
     if (scenario === 'opening') await checkReplacement(f, opened.sessionId)
   } finally { await f.close() }
-}, 15000)
+}
+
+it.each(['budget', 'prefill', 'wait-replay'] as const)(
+  'creates and restores the same Session through public services: %s', checkCreation, 15000)
+
+// Serial durable turns, provider reloads and replacement need the same budget as other long composition tests under worker contention.
+it('creates and restores the same Session through public services: opening', () => checkCreation('opening'), 30000)
