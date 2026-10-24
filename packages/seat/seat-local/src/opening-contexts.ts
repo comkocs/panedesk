@@ -15,6 +15,24 @@ export class OpeningContexts implements T.SeatOpeningContexts {
     pending: Set<Promise<unknown>>
   }>()
   private active = true
+  private scope: { admission: T.OpeningScopeAdmission; closing: boolean; pending: Set<Promise<unknown>> } | undefined
+  registerScopeAdmission(admission: T.OpeningScopeAdmission): () => Promise<void> {
+    if (!this.active || this.scope) throw new Error('Scope admission is unavailable or already registered.')
+    const entry = { admission, closing: false, pending: new Set<Promise<unknown>>() }
+    this.scope = entry
+    return async () => {
+      entry.closing = true
+      await Promise.allSettled([...entry.pending])
+      if (this.scope === entry) this.scope = undefined
+    }
+  }
+  private scoped<R>(run: (admission: T.OpeningScopeAdmission | undefined) => Promise<R>): Promise<R | T.SeatRejected> {
+    const entry = this.scope
+    if (entry?.closing) return Promise.resolve(rejected('unavailable', 'Scope admission is closing.', 'Retry after the provider is restored.'))
+    const work = Promise.resolve().then(() => run(entry?.admission))
+    entry?.pending.add(work)
+    return work.finally(() => entry?.pending.delete(work))
+  }
   constructor(private readonly service: LocalSeatService) {}
   register(provider: T.OpeningContextProvider): () => Promise<void> {
     if (!this.active) throw new Error('Opening registry is unavailable.')
@@ -78,8 +96,9 @@ export class OpeningContexts implements T.SeatOpeningContexts {
   }
   open(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.OpenSeatResult> {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))
-    return this.service.openWithContext(structuredClone(request), Object.freeze({ ...authority }),
-      (input, caller) => this.resolve(input, caller))
+    const input = structuredClone(request), caller = Object.freeze({ ...authority })
+    const execute = () => this.service.openWithContext(input, caller, (value, identity) => this.resolve(value, identity))
+    return this.scoped(admission => admission ? admission.open(input, caller, execute) : execute())
   }
   wake(request: T.WakeSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.WakeSeatResult> {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))
@@ -90,11 +109,21 @@ export class OpeningContexts implements T.SeatOpeningContexts {
   }
   openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult> {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))
-    return this.service.openBatchWithScope(structuredClone(request), Object.freeze({ ...authority }))
+    const input = structuredClone(request), caller = Object.freeze({ ...authority })
+    return this.scoped((admission) => {
+      const execute = () => this.service.openBatchWithScope(input, caller,
+        admission ? context => admission.evaluateTaskScopes(context) : undefined)
+      return admission ? admission.batch(input, caller, execute) : execute()
+    })
   }
   /** Stop all sources and drain active resolutions. */
   async close(): Promise<void> {
     this.active = false
+    if (this.scope) {
+      this.scope.closing = true
+      await Promise.allSettled([...this.scope.pending])
+      this.scope = undefined
+    }
     for (const entry of this.entries.values()) entry.closing = true
     await Promise.allSettled([...this.entries.values()].flatMap(entry => [...entry.pending]))
     this.entries.clear()

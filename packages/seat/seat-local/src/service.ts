@@ -322,11 +322,13 @@ export class LocalSeatService extends SeatService {
   /** Check all task scopes before opening any batch member.
    * @param request - Authoritative evidence for every task.
    * @param authority - Original caller identity authenticated by the host.
+   * @param evaluateTaskScopes - Trusted owner evaluator; absent registration preserves the default gate.
    * @returns Batch rejection or per-seat results.
    */
-  openBatchWithScope(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult> {
+  openBatchWithScope(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext,
+    evaluateTaskScopes?: T.OpeningScopeAdmission['evaluateTaskScopes']): Promise<T.OpenSeatBatchResult> {
     const { tasks, ...base } = request
-    return (this.withAuthority(authority) as LocalSeatService).openBatchResolved(base, tasks)
+    return (this.withAuthority(authority) as LocalSeatService).openBatchResolved(base, tasks, evaluateTaskScopes)
   }
   async openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
     let target = request.nodeId
@@ -351,7 +353,8 @@ export class LocalSeatService extends SeatService {
     return routed ?? this.openBatchResolved(request)
   }
   private async openBatchResolved(request: T.OpenSeatBatchRequest,
-    tasks?: readonly T.SeatTaskScopeContext[]): Promise<T.OpenSeatBatchResult> {
+    tasks?: readonly T.SeatTaskScopeContext[],
+    evaluateTaskScopes?: T.OpeningScopeAdmission['evaluateTaskScopes']): Promise<T.OpenSeatBatchResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     if (!request.seats.length || request.seats.some(seat => !seat.trim() || /[*?]/.test(seat))
@@ -364,15 +367,19 @@ export class LocalSeatService extends SeatService {
       ...openingContext(this.options.nodeId, request.operationId, null), hook: 'before-batch-open', seats: request.seats,
       ...(tasks === undefined ? {} : { tasks }) }
     if (tasks !== undefined) {
-      const scopes = await this.runtime.context.get('seatGates')?.evaluateTaskScopes?.({ ...batchContext, tasks })
+      const scopes = evaluateTaskScopes ? await evaluateTaskScopes({ ...batchContext, tasks })
+        : await this.runtime.context.get('seatGates')?.evaluateTaskScopes?.({ ...batchContext, tasks })
       if (!scopes || scopes.outcome === 'deny') return rejected('gate-denied',
         scopes?.outcome === 'deny' ? scopes.reason : 'scope-unknown', 'serial')
     }
     const gate = await openingGate(this.runtime.context, batchContext)
     if (gate !== null) return gate
     const results: { seat: T.SeatName; result: T.OpenSeatResult }[] = []
-    for (const seat of request.seats) results.push({ seat, result: await this.open({ ...request, seat,
-      operationId: `${request.operationId}:${seat}` as T.SeatOperationId }) })
+    for (const seat of request.seats) {
+      const taskId = evaluateTaskScopes ? tasks?.find(task => task.seat === seat)?.taskId : undefined
+      results.push({ seat, result: await this.open({ ...request, seat, ...(taskId === undefined ? {} : { taskId }),
+        operationId: `${request.operationId}:${seat}` as T.SeatOperationId }) })
+    }
     return { status: 'processed', results }
   }
   async renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult> {
