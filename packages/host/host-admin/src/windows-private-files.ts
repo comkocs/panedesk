@@ -60,8 +60,12 @@ export class WindowsPrivateFiles implements PrivateFiles {
       || /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(name)) throw new Error('Private filename rejected')
     return win32.join(this.root, name)
   }
-  private async inspect(path: string, acl: boolean): Promise<void> {
-    const value: unknown = JSON.parse(await this.execute(inspectWindowsPrivatePath(path)))
+  private async inspect(path: string, acl: boolean, directory?: string): Promise<void> {
+    const value: unknown = JSON.parse(await this.execute(inspectWindowsPrivatePath(path, directory)))
+    this.validate(value, acl)
+    if (directory !== undefined) this.validate(object(value) ? value.directory : undefined, true)
+  }
+  private validate(value: unknown, acl: boolean): void {
     if (!object(value) || value.reparse !== false) throw new Error('Private reparse point rejected')
     if (value.parents !== true) throw new Error('Private parent path rejected')
     if (!acl) return
@@ -75,7 +79,15 @@ export class WindowsPrivateFiles implements PrivateFiles {
     if (rule.inherited !== false) throw new Error('Private ACL inheritance rejected')
     if (rule.allow !== true || rule.rights !== 2032127 || rule.propagation !== 0) throw new Error('Private ACL rights rejected')
   }
+  private async existingDirectory(): Promise<boolean> {
+    let stat
+    try { stat = await this.filesystem.lstat(this.root) }
+    catch (error) { if (code(error, 'ENOENT')) return false; throw error }
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Private directory type rejected')
+    return true
+  }
   async prepare(): Promise<void> {
+    if (await this.existingDirectory()) { await this.inspect(this.root, true); return }
     const parent = win32.dirname(this.root)
     await this.inspect(parent, false)
     if (!(await this.filesystem.lstat(parent)).isDirectory()) throw new Error('Private parent path rejected')
@@ -98,23 +110,24 @@ export class WindowsPrivateFiles implements PrivateFiles {
     catch (error) { if (code(error, 'ENOENT')) return null; throw error }
     if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Private file type or links rejected')
     if (stat.size > maxBytes) throw new Error('Private file exceeds limit')
-    await this.inspect(path, true)
     const handle = await this.filesystem.open(path, 'r')
     try {
-      const opened = await handle.stat()
-      if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== stat.dev || opened.ino !== stat.ino) {
+      await this.inspect(path, true, this.root)
+      const opened = await handle.stat(), named = await this.filesystem.lstat(path)
+      if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== stat.dev || opened.ino !== stat.ino
+        || !named.isFile() || named.isSymbolicLink() || named.nlink !== 1
+        || named.dev !== opened.dev || named.ino !== opened.ino) {
         throw new Error('Private file identity rejected')
       }
       if (opened.size > maxBytes) throw new Error('Private file exceeds limit')
-      await this.inspect(path, true)
       return handle
     } catch (error) { await handle.close(); throw error }
   }
   async read(name: string, maxBytes: number): Promise<string | null> {
     const path = this.path(name)
-    await this.prepare()
+    if (!await this.existingDirectory()) await this.prepare()
     const handle = await this.checked(path, maxBytes)
-    if (handle === null) return null
+    if (handle === null) { await this.inspect(this.root, true); return null }
     try {
       const stat = await handle.stat()
       const bytes = Buffer.alloc(Math.min(stat.size, maxBytes) + 1)
