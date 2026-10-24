@@ -746,6 +746,116 @@
       }
     },
     {
+      "id": "F02-issued-authorization-contract",
+      "description": "Keep issued authorization grants separate from wire claims and legacy engine effects.",
+      "origin": "Optional host integration",
+      "reason": "Trusted entry registration and synchronous action builders are opt-in; absent services retain legacy entry behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat/tests/authorization.spec.ts"],
+        "test": "requires issued facts in a synchronous action builder without activating a legacy writer"
+      }
+    },
+    {
+      "id": "F02-atomic-authorization-journal",
+      "description": "Commit issued authorization and its action in one recoverable engine journal frame.",
+      "origin": "Optional host integration",
+      "reason": "Audited actions require instance-owned grants and retain task, seat and kind evidence after restart without changing Session events.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/authorization.spec.ts"],
+        "test": "commits action and attribution in one frame and rebuilds task, seat and kind queries after restart"
+      }
+    },
+    {
+      "id": "F02-issued-authorization-query",
+      "description": "Advance legacy query cursors over plugin facts without relabeling their attribution.",
+      "origin": "Optional host integration",
+      "reason": "Issued authorization queries and exports include plugin facts separately while legacy effects retain their closed vocabulary.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/authorization.spec.ts"],
+        "test": "advances scanned cursors across filtered plugin facts without widening the legacy vocabulary"
+      }
+    },
+    {
+      "id": "F02-audited-engine-maintenance",
+      "description": "Bind renewal and replacement intents to live issued authorization before admission.",
+      "origin": "Optional host integration",
+      "reason": "Historical receipts cannot dispatch a new action; calls without grants retain the original local path.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/authorization-wiring.spec.ts"],
+        "test": "commits renewal and replacement intents with grants and rejects forged or changed replay evidence"
+      }
+    },
+    {
+      "id": "F02-audited-close-admission",
+      "description": "Commit close admission and issued authorization together and export retained facts after restart.",
+      "origin": "Optional host integration",
+      "reason": "Failed admission retains neither a close barrier nor a detached authorization fact; legacy uncredentialed paths remain available.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/authorization-wiring.spec.ts"],
+        "test": "commits close admission and exports issued facts after restarting the writer"
+      }
+    },
+    {
+      "id": "F03-retained-node-delegation",
+      "description": "Issue bounded node delegation from trusted retained evidence and narrow receiving permissions.",
+      "origin": "Optional host integration",
+      "reason": "Authenticated peer evidence, expiry and method ceilings cannot be replaced by caller role strings.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/delegation-policy.spec.ts"],
+        "test": "limits expiry, checks retained evidence and rejects widened methods or mismatched peer identity"
+      }
+    },
+    {
+      "id": "F03-local-node-admission",
+      "description": "Route linked-node methods through exact local authorization admission or explicit unsupported refusals.",
+      "origin": "Optional host integration",
+      "reason": "Explicit executors remain authoritative; missing local services never enable another routing hop or bypass audited admission.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/node-authorization-wiring.spec.ts"],
+        "test": "routes six methods through Loader peers with real admission or explicit unsupported refusal"
+      }
+    },
+    {
+      "id": "F03-transactional-local-approval",
+      "description": "Bind authenticated local administration approval to the original queue transition and issued fact.",
+      "origin": "Optional host integration",
+      "reason": "An authenticated local operator uses installed issuer and transaction services; self-declared operator identity cannot grant approval.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/authorization-wiring.spec.ts"],
+        "test": "authenticates local approval, rejects a self-declared operator and recovers attribution"
+      }
+    },
+    {
+      "id": "F05-routed-delivery-identity",
+      "description": "Preserve sender-frozen message, delivery and causal identity through durable routed admission.",
+      "origin": "Optional host integration",
+      "reason": "Same identity and digest returns the original durable acknowledgement after restart; changed content cannot reuse retained identity.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/message-delivery-local/tests/routed.spec.ts"],
+        "test": "retains causal identity, returns the original ack after restart and rejects every reused identity with another digest"
+      }
+    },
+    {
+      "id": "F05-routed-causality-refusal",
+      "description": "Refuse caller-defined causal fields before issuing authority or dispatching a routed message.",
+      "origin": "Optional host integration",
+      "reason": "Only trusted invocation evidence can establish causal identity; missing evidence must not be fabricated from request fields.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/message-delivery-local/tests/routed-causality.spec.ts"],
+        "test": "rejects self-declared %s without route dispatch"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
