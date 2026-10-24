@@ -878,6 +878,17 @@
       }
     },
     {
+      "id": "windows-private-files",
+      "description": "Reject extra SIDs, inherited entries and reparse points in Windows private storage; secure new files before writing and replace them durably.",
+      "origin": "Windows private file policy",
+      "reason": "Explicitly injected node-link and host administration storage must stay owner-only under the current user SID on Windows while POSIX private files stay unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/windows-private-files.spec.ts"],
+        "test": "secures empty objects before writing and preserves owner-only replacement and locks"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
