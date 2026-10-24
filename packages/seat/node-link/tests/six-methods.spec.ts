@@ -4,6 +4,7 @@ import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -19,7 +20,7 @@ const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 8,
 const methods = ['seat.open', 'seat.openBatch', 'seat.renew', 'seat.close', 'seat.replace', 'seat.wake'] as const
 
 test.each(methods)('reconciles %s after a lost response without executing twice', async (method) => {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'lost-response-'))
+  const root = await mkdtemp(join(tmpdir(), 'lost-response-'))
   const received = new OperationStore(new PosixPrivateFiles(join(root, 'received'), process.getuid!()), 1048576, 100)
   const sent = new OperationStore(new PosixPrivateFiles(join(root, 'sent'), process.getuid!()), 1048576, 100)
   let listener: Awaited<ReturnType<typeof listenLoopback>> | undefined
@@ -63,7 +64,7 @@ function frame(method: typeof methods[number], suffix = '') {
 }
 
 test('routes every fixed seat method once through Loader peers and refuses changed, expired, narrowed or disconnected calls', async () => {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'six-methods-'))
+  const root = await mkdtemp(join(tmpdir(), 'six-methods-'))
   const contexts: Context[] = [], listeners: Awaited<ReturnType<typeof listenLoopback>>[] = []
   const counts = new Map<string, number>()
   let allowed = true

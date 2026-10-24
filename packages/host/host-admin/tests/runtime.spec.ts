@@ -18,7 +18,7 @@ afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) awai
 const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 8 }
 
 test('loads opt-in administration, authenticates five methods and disposes credentials', async () => {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT ?? tmpdir(), 'admin-runtime-'))
+  const root = await mkdtemp(join(tmpdir(), 'admin-runtime-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const ctx = new Context()
   cleanups.push(() => ctx.fiber.dispose())

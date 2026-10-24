@@ -1,6 +1,7 @@
 /** Issued local actions use real journal admission and preserve legacy observations. */
 import { afterEach, expect, test } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type * as T from '@panedesk/dsh-seat'
 import { digest } from '@panedesk/dsh-seat-engine'
@@ -13,7 +14,7 @@ import { operation } from './fixtures.ts'
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const close of cleanups.splice(0).reverse()) await close() })
 async function setup() {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'authorized-actions-'))
+  const root = await mkdtemp(join(tmpdir(), 'authorized-actions-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const f = await engineFixture(true, root)
   cleanups.push(() => f.close())

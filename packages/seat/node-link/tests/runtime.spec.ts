@@ -4,6 +4,7 @@ import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -17,7 +18,7 @@ afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) awai
 const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 8, maxStoreBytes: 65536, maxOperations: 100, staleMs: 20 }
 
 test('authenticates each Loader direction independently, aggregates reported status and unloads services', async () => {
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'node-runtime-'))
+  const root = await mkdtemp(join(tmpdir(), 'node-runtime-'))
   cleanups.push(() => rm(root, { recursive: true, force: true }))
   const auth = () => ({ credential: randomBytes(32).toString('hex'), epoch: randomUUID() })
   const reserveA = await listenLoopback(0, limits, auth, async () => ({}))

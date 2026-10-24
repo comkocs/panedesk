@@ -1,6 +1,7 @@
 /** Missing audit adapters cannot fall back to unaudited approval. */
 import { Context } from '@panedesk/cordis'
 import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, expectTypeOf, test } from 'vitest'
 import * as Admin from '../src/index.ts'
@@ -9,7 +10,7 @@ import { PosixPrivateFiles } from '../src/private-files.ts'
 
 test('refuses approval without an executor instead of calling a legacy engine entry', async () => {
   expectTypeOf<Admin.HostAdminExecutionAdapter['create']>().returns.toEqualTypeOf<Admin.HostAdminExecutor>()
-  const root = await mkdtemp(join(process.env.TEST_RESOURCE_ROOT!, 'admin-seam-'))
+  const root = await mkdtemp(join(tmpdir(), 'admin-seam-'))
   const ctx = new Context()
   const limits = { maxFrameBytes: 65536, requestTimeoutMs: 1000, maxPending: 4 }
   try {
