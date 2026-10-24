@@ -22,7 +22,7 @@ export async function settlesOpening(ctx: Context, seats: SeatService, request: 
     if (queued !== undefined && cancelled.has(queued)) settled.resolve(undefined)
   })
   const { onTestFinished } = await import('vitest')
-  onTestFinished(off)
+  onTestFinished(() => { off() })
   try {
     const result = await seats.open(request)
     if (result.status !== 'queued') return result
