@@ -52,13 +52,13 @@ export function decodeAuthorizationQuery(value: unknown): SeatAuthorizationQuery
     if (input[key] !== undefined) {
       const timestamp = text(input[key])
       if (!Number.isFinite(Date.parse(timestamp))) throw new TypeError('Invalid authorization query timestamp')
-      query[key] = brandString<NonNullable<SeatAuthorizationQueryRequest['from']>>(timestamp)
+      query[key] = timestamp
     }
   }
   if (input.kind !== undefined) {
     const kind = input.kind
     switch (kind) {
-      case 'model-tool-call': case 'human': case 'engine': case 'local-operator': case 'node-delegation': query.kind = kind; break
+      case 'model-tool-call': case 'human': case 'engine': case 'local-operator': case 'node-delegation': query.kind = kind as NonNullable<SeatAuthorizationQueryRequest['kind']>; break
       default: throw new TypeError('Invalid authorization kind filter')
     }
   }
