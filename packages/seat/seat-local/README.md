@@ -43,6 +43,8 @@ Manual renewal uses the engine maintenance path. Close blocks new turns, recheck
 
 Waits retain authorized object identities and terminal observations. Job reads target the owning Session rather than scanning all Sessions. Schedule delivery is complete only after its consuming model turn completes; deletion is cancellation, not completion. The provider drains accepted observation work on unload and reconstructs unfinished waits from engine facts on reload.
 
+Controlled creation and resume optionally obtain session-bound credentials from `hostSessionCredentials` before publishing the agent. The shell environment registry contributes only `DSH_HOST_ENDPOINT_PATH` and `DSH_HOST_CREDENTIAL_PATH` for the calling session, never credential bytes. Archive, replacement, and agent disposal revoke the old binding. Without the administration issuer, creation remains unchanged. The current persistent seat binding has no employee field, so this provider issues seat-only identities and never guesses an employee ID.
+
 ## Dev Note
 
 [`index.ts`](src/index.ts) owns plugin activation and disposal. [`service-options.ts`](src/service-options.ts) separates deployment configuration from trusted runtime capabilities; the owning [seat subsystem](../../../docs/subsystems/seat.md) defines the shared service semantics.
@@ -76,8 +78,6 @@ Reminders consume input tokens on their next admitted turn. Context estimates us
 #### KV Cache effect
 
 Reminders append input without cancelling the current step or replacing prior history. Stable operation identities suppress repeat delivery within the same definition revision and compaction epoch. Compaction itself is owned by the installed compaction provider.
-
-Controlled creation and resume optionally obtain session-bound credentials from `hostSessionCredentials` before publishing the agent. The shell environment registry contributes only `DSH_HOST_ENDPOINT_PATH` and `DSH_HOST_CREDENTIAL_PATH` for the calling session, never credential bytes. Archive, replacement, and agent disposal revoke the old binding. Without the administration issuer, creation remains unchanged. The current persistent seat binding has no employee field, so this provider issues seat-only identities and never guesses an employee ID.
 
 ## Known Limitations and Deferred Work
 

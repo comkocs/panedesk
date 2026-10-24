@@ -1355,6 +1355,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'hostSdkInvoker',
+    summary: 'The SDK registry provider supplies this optional adapter without starting stdio.',
+    description: 'The SDK registry provider supplies this optional adapter without starting stdio.',
+    methods: [
+      {
+        signature: 'invoke(request: HostSdkInvocation, identity: HostSdkIdentity): Promise<HostSdkResult>',
+        description: 'Decode, authorize, invoke and encode through the registered namespace.',
+        parameters: [{ name: 'request', description: 'Validated namespace and method with untrusted method parameters.' }, { name: 'identity', description: 'Host-issued caller identity and revocation signal.' }],
+        returns: 'Encoded result or safe rejection without provider diagnostics.',
+      },
+    ],
+  },
+  {
+    key: 'hostSessionCredentials',
+    summary: 'Optional host-owned issuance; callers supply trusted creation facts, never wire fields.',
+    description: 'Optional host-owned issuance; callers supply trusted creation facts, never wire fields.',
+    methods: [
+      {
+        signature: 'issue(binding: HostSessionBinding): Promise<HostSessionCredential>',
+        description: 'Replace any earlier credential for this session and publish owner-only files.',
+        parameters: [{ name: 'binding', description: 'Trusted session creation binding.' }],
+        returns: 'Paths and an idempotent awaited revocation capability.',
+      },
+      {
+        signature: 'revoke(sessionId: HostSessionBinding[\'sessionId\']): Promise<void>',
+        description: 'Revoke a closed or replaced session before acknowledging closure.',
+        parameters: [{ name: 'sessionId', description: 'Host-owned session identity.' }],
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -7606,6 +7637,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface HostConnectionRpc {\n    handle(channel: string, handler: ConnectionRpcHandler): () => Promise<void>;\n    intercept(channel: \'/api\', matches: ConnectionRpcEndpointMatcher, handler: ConnectionRpcHandler): () => Promise<void>;\n}',
   },
   {
+    name: 'HostSdkIdentity',
+    declaration: 'export interface HostSdkIdentity {\n    principalId: SeatPrincipalId;\n    authorizationRef: Branded<\'HostSdkAuthorizationRef\'>;\n    sessionId?: Branded<\'SessionId\'>;\n    seat?: SeatName;\n    staffId?: string;\n    signal: AbortSignal;\n}',
+  },
+  {
+    name: 'HostSdkInvocation',
+    declaration: 'export interface HostSdkInvocation {\n    namespace: string;\n    method: string;\n    params: unknown;\n}',
+  },
+  {
+    name: 'HostSdkJson',
+    declaration: 'export type HostSdkJson = null | boolean | number | string | readonly HostSdkJson[] | {\n    readonly [key: string]: HostSdkJson;\n};',
+  },
+  {
+    name: 'HostSdkResult',
+    declaration: 'export type HostSdkResult = {\n    status: \'ok\';\n    value: HostSdkJson;\n} | {\n    status: \'rejected\';\n    code: \'method-unavailable\' | \'unauthorized\' | \'invalid-params\' | \'unavailable\';\n};',
+  },
+  {
+    name: 'HostSessionBinding',
+    declaration: 'export interface HostSessionBinding {\n    sessionId: NonNullable<HostSdkIdentity[\'sessionId\']>;\n    seat: SeatName;\n    staffId?: string;\n}',
+  },
+  {
+    name: 'HostSessionCredential',
+    declaration: 'export interface HostSessionCredential {\n    endpointPath: string;\n    credentialPath: string;\n    processEpoch: HostAdminEndpoint[\'processEpoch\'];\n    revoke(): Promise<void>;\n}',
+  },
+  {
     name: 'ImageAttachmentLimits',
     declaration: 'export interface ImageAttachmentLimits {\n    maxImageBytes: number;\n    maxImagesPerMessage: number;\n    maxMessageImageBytes: number;\n    maxImagePixels: number;\n    maxImageDimension: number;\n    mediaTypes: readonly ImageMediaType[];\n}',
   },
@@ -9615,7 +9670,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SdkMethodContext',
-    declaration: 'export interface SdkMethodContext {\n    principalId: Branded<\'SdkPrincipalId\'>;\n    sessionId?: SessionId;\n    authorizationRef: Branded<\'SdkAuthorizationRef\'>;\n    signal: AbortSignal;\n}',
+    declaration: 'export interface SdkMethodContext {\n    principalId: Branded<\'SdkPrincipalId\'>;\n    sessionId?: SessionId;\n    authorizationRef: Branded<\'SdkAuthorizationRef\'>;\n    signal: AbortSignal;\n    seat?: import(\'@panedesk/dsh-seat\').SeatName;\n    staffId?: string;\n}',
   },
   {
     name: 'SdkMethodDefinition',

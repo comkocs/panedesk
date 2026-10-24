@@ -32,6 +32,8 @@
 
 `NodePreparedRequest` retains method/result correlation and sender-frozen message identity. `NodeDelegationRequest` omits delegation until a trusted issuer creates a `NodeDelegationResult`. `NodeAuthenticatedPeer` comes from transport authentication; receiving policy intersects retained original authority, configured peer permissions, expiry, and current local admission. `NodeLinkFailure` preserves safe refusals. `ApprovePendingSeatRequest`, `PendingSeatMutationResult`, and `SeatRejected` retain the original approval and refusal semantics. Missing services do not grant authority or enable another routing hop.
 
+`HostSdkInvocation` 标识已登记的命名空间方法及其不可信参数。`HostSdkIdentity` 仅携带宿主签发的主体、可选会话与席位归属以及撤销信号；请求字段不能提供该身份。`HostSdkResult` 区分已编码的 JSON 值与安全拒绝。`HostSessionBinding` 向凭据签发器提供可信的会话与席位事实；`HostSessionCredential` 返回仅所有者可读的端点及凭据路径，并提供须等待完成的撤销操作。未安装相应可选提供方时，这些服务保持缺席。
+
 ## 等待、报告与策略
 
 `SeatWait` 对明确的 subagent、后台任务、调度或消息对象注册任一或全部观察，在完成前返回。取消只影响观察。`CloseSelfReport` 记录关闭意向、未完工作及下次开窗前置条件，不改变运行时状态。
@@ -81,6 +83,44 @@ execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostA
 ```
 
 Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin/src/index.ts)
+
+<a id="ctxhostsdkinvoker--hostsdkinvoker"></a>
+
+### `ctx.hostSdkInvoker` — `HostSdkInvoker`
+
+The SDK registry provider supplies this optional adapter without starting stdio.
+
+```ts cordis-catalog
+/** Decode, authorize, invoke and encode through the registered namespace.
+ * @param request - Validated namespace and method with untrusted method parameters.
+ * @param identity - Host-issued caller identity and revocation signal.
+ * @returns Encoded result or safe rejection without provider diagnostics.
+ */
+invoke(request: HostSdkInvocation, identity: HostSdkIdentity): Promise<HostSdkResult>
+```
+
+Source: [`packages/host/host-admin/src/sdk.ts`](../../packages/host/host-admin/src/sdk.ts)
+
+<a id="ctxhostsessioncredentials--hostsessioncredentials"></a>
+
+### `ctx.hostSessionCredentials` — `HostSessionCredentials`
+
+Optional host-owned issuance; callers supply trusted creation facts, never wire fields.
+
+```ts cordis-catalog
+/** Replace any earlier credential for this session and publish owner-only files.
+ * @param binding - Trusted session creation binding.
+ * @returns Paths and an idempotent awaited revocation capability.
+ */
+issue(binding: HostSessionBinding): Promise<HostSessionCredential>
+
+/** Revoke a closed or replaced session before acknowledging closure.
+ * @param sessionId - Host-owned session identity.
+ */
+revoke(sessionId: HostSessionBinding['sessionId']): Promise<void>
+```
+
+Source: [`packages/host/host-admin/src/sdk.ts`](../../packages/host/host-admin/src/sdk.ts)
 
 <a id="ctxnodeauthorizedlocaladmission--nodeauthorizedlocaladmission"></a>
 

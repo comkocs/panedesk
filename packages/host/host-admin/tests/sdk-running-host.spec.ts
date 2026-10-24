@@ -2,13 +2,14 @@
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import * as Admin from '../src/index.ts'
 import { SdkMethodRegistryProvider } from '@panedesk/dsh-sdk-jsonrpc-server'
 import { JsonRpcResponseError } from '@panedesk/dsh-sdk-protocol'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { mkdtemp, rm, chmod, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { request as httpRequest } from 'node:http'
@@ -25,10 +26,14 @@ async function peer(command: string, args: string[], env: NodeJS.ProcessEnv): Pr
   const child = spawn(command, args, { env, stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.setEncoding('utf8'); child.stdout.on('data', (chunk: string) => { output += chunk })
-  child.stderr.resume()
+  let errorOutput = ''
+  child.stderr.setEncoding('utf8'); child.stderr.on('data', (chunk: string) => { errorOutput += chunk })
   const exited = new Promise<void>((resolveExit, reject) => {
     child.once('error', reject)
-    child.once('close', (code) => { if (code === 0) resolveExit(); else reject(new Error('SDK test peer failed')) })
+    child.once('close', (code, signal) => {
+      if (code === 0) resolveExit()
+      else reject(new Error(`SDK test peer failed (${command}, code ${code}, signal ${signal}): ${errorOutput}`))
+    })
   })
   const timer = setTimeout(() => { child.kill('SIGKILL') }, 15000)
   try { await exited; return JSON.parse(output) } finally { clearTimeout(timer) }
@@ -62,11 +67,15 @@ test('dispatches registered namespaces across TS and Python processes with host 
     const endpointPath = join(directory, 'endpoint.json'), operatorPath = join(directory, 'credential')
     const binding: HostSessionBinding = { sessionId: 'session-a' as HostSessionBinding['sessionId'], seat: 'seat-a' as HostSessionBinding['seat'] }
     const bound = await ctx.get('hostSessionCredentials')!.issue(binding)
-    const python = process.env.PYTHON ?? 'python3'
-    const env = { ...process.env, PYTHONPATH: resolve('python/sdk/src'), TSX_TSCONFIG_PATH: resolve('tsconfig.base.json') }
+    const root = fileURLToPath(new URL('../../../../', import.meta.url))
+    const pythonEnvironment = process.env.UV_PROJECT_ENVIRONMENT ?? join(root, 'tmp/py-sdk-venv')
+    const pythonExecutable = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'
+    const python = process.env.PYTHON ?? [join(pythonEnvironment, pythonExecutable),
+      join(root, 'python/sdk/.venv', pythonExecutable)].find(path => existsSync(path)) ?? 'python3'
+    const env = { ...process.env, PYTHONPATH: join(root, 'python/sdk/src'), TSX_TSCONFIG_PATH: join(root, 'tsconfig.base.json') }
     const clients = [
-      (path: string, method: string) => peer(process.execPath, ['--import', 'tsx/esm', resolve('packages/sdk/client/tests/running-host-peer.ts'), endpointPath, path, method], env),
-      (path: string, method: string) => peer(python, [resolve('python/sdk/tests/running_host_peer.py'), endpointPath, path, method], env),
+      (path: string, method: string) => peer(process.execPath, ['--import', 'tsx/esm', join(root, 'packages/sdk/client/tests/running-host-peer.ts'), endpointPath, path, method], env),
+      (path: string, method: string) => peer(python, ['-B', join(root, 'python/sdk/tests/running_host_peer.py'), endpointPath, path, method], env),
     ]
     for (const call of clients) {
       expect(await call(operatorPath, 'example/read')).toEqual({ status: 'ok', result: { sessionId: null, seat: null } })
