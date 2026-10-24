@@ -7,6 +7,7 @@ import { tryLockExclusive } from '@panedesk/node-addon-system/flock'
 import { SEAT_ENGINE_NAMESPACE, SEAT_ENGINE_EVENT_NAMES, type EngineDecision, type EngineEffect, type EngineDecisionId, type SeatDigest, type SeatNodeId, type SeatErrorCode } from '@panedesk/dsh-seat'
 import { EngineProjection } from './projection.ts'
 import { validEffect } from './validation.ts'
+import { authorizationFrame, decodeAuthorizationFrame, legacyDecision, type AuthorizationDecision } from './authorization-storage.ts'
 
 /** Storage errors stop dispatch; ambiguous writes require reopening and replaying the journal. */
 export class EngineError extends Error {
@@ -111,9 +112,9 @@ export class EngineJournal {
         const text = await readFile(join(this.root, 'events', name), 'utf8')
         const lines = text.split('\n'); lines.pop()
         for (const line of lines) {
-          const decision = decodeFrame(line, this.maxBytes)
+          const decision = decodeAuthorizationFrame(line, this.maxBytes)
           if (decision.nodeId !== this.nodeId) throw new EngineError('engine-store-corrupt', 'Engine node mismatch')
-          projection.apply(decision)
+          projection.applyAuthorization(decision)
         }
       }
       this.projection = projection
@@ -129,17 +130,31 @@ export class EngineJournal {
    */
   async commit(build: (view: EngineProjection) => readonly EngineEffect[], policyRevision = 0,
     metadata?: Partial<Pick<EngineDecision, 'decisionId' | 'observedAt'>>): Promise<EngineDecision | null> {
+    const decision = await this.commitAuthorization(build, policyRevision, metadata)
+    return decision ? legacyDecision(decision) : null
+  }
+
+  /** Serialize expanded decisions with the same lock, append and fsync as legacy actions.
+   * @param build - Synchronous latest-state builder; no external side effects.
+   * @param policyRevision - Captured policy revision.
+   * @param metadata - Optional stable decision identity and time.
+   * @returns One durable decision or no mutation.
+   */
+  async commitAuthorization(build: (view: EngineProjection) => AuthorizationDecision['effects'], policyRevision = 0,
+    metadata?: Partial<Pick<EngineDecision, 'decisionId' | 'observedAt'>>): Promise<AuthorizationDecision | null> {
     if (this.closing) throw new EngineError('unavailable', 'Engine journal is closing')
     const result = this.chain.then(async () => {
       if (!this.owner || this.failed) throw new EngineError('unavailable', 'Engine journal is not writable')
       const effects = build(this.projection)
       if (!effects.length) return null
-      const decision = frame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
+      const decision = authorizationFrame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
         decisionId: metadata?.decisionId ?? randomUUID() as EngineDecisionId,
         sequence: this.projection.sequence + 1, observedAt: metadata?.observedAt ?? new Date().toISOString(),
         nodeId: this.nodeId, policyRevision, effects })
-      if (metadata) decodeFrame(canonical(decision), this.maxBytes)
-      this.projection.validate(decision)
+      if (metadata || decision.effects.some(effect => effect.kind === 'authorization/checked')) {
+        decodeAuthorizationFrame(canonical(decision), this.maxBytes)
+      }
+      this.projection.validate(legacyDecision(decision))
       await this.append(decision)
       return decision
     })
@@ -147,7 +162,7 @@ export class EngineJournal {
     return result
   }
 
-  private async append(decision: EngineDecision): Promise<void> {
+  private async append(decision: AuthorizationDecision): Promise<void> {
     const text = `${canonical(decision)}\n`
     if (Buffer.byteLength(text) > this.maxBytes) throw new EngineError('source-payload-too-large', 'Complete engine decision exceeds its byte limit')
     const path = join(this.root, 'events', `${String(decision.sequence).padStart(16, '0')}-${randomUUID()}.jsonl`)
@@ -155,7 +170,7 @@ export class EngineJournal {
       const handle = await open(path, 'wx', 0o600)
       try { await handle.writeFile(text); await handle.sync() } finally { await handle.close() }
       await syncDirectory(join(this.root, 'events'))
-      this.projection.apply(decision)
+      this.projection.applyAuthorization(decision)
     } catch (cause) { this.failed = true; throw new EngineError('unavailable', 'Engine commit outcome requires recovery', { cause }) }
   }
 

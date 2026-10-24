@@ -1,5 +1,6 @@
 /** Rebuildable engine views; only synchronized decisions may enter this projection. */
 import { digest, EngineError } from './journal.ts'
+import { legacyDecision, type AuthorizationDecision } from './authorization-storage.ts'
 import type { SessionId } from '@panedesk/dsh-session'
 import type {
   EngineDecision, EngineOpenData, EngineTriggerData, PendingSeatItem, QueueItemId,
@@ -9,6 +10,17 @@ import type {
 
 /** Replay state is instance-owned and contains no independent durable truth. */
 export class EngineProjection {
+  /** Complete required-capability frames retain original cursor positions and checksums. */
+  readonly authorizationDecisions: AuthorizationDecision[] = []
+
+  /** Publish both projections only after validating the complete decision.
+   * @param decision - Verified durable frame from the capability-aware reader.
+   */
+  applyAuthorization(decision: AuthorizationDecision): void {
+    this.apply(legacyDecision(decision))
+    this.authorizationDecisions.push(decision)
+  }
+
   /** Last contiguous committed decision sequence. */
   sequence = 0
   /** Verified decisions in replay order for historical queries. */

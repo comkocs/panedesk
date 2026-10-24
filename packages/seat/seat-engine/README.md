@@ -35,6 +35,10 @@ Explicit `sources` configure schedule records, registered Git paths/refs, window
 
 A local provider may register `preAdmit` with its engine access. Manual `openWindow`, including each opening dispatched by a local batch, awaits this hook before trigger acceptance. A refusal is returned unchanged without engine acceptance, resource or Session effects; policy audit belongs to the hook provider. Without the hook, the original admission path is unchanged.
 
+Trusted hosts register captured identities and live policy checks through `seatAuthorizationIssuers`; callers receive instance-owned grants, not authority derived from request fields. `seatAuthorizationTransactions.transact` commits authorization and matching intent in one synchronized journal frame. Every submitted effect must carry the issued operation identity. `approve` commits the queue transition in that same frame rather than calling the legacy approval method; a denied approval keeps its original refusal on retry, so a newly authorized attempt needs a new operation identity. Revoked, foreign, stale, and mismatched grants are refused. A failed append admits no projected action; an uncertain synchronization outcome requires recovery before retry.
+
+Authorization frames require `seat-authorization/v1`; older decoders refuse the new discriminator. Capability-aware recovery and read-only snapshots retain facts in the existing journal. New queries include `plugin`; legacy `seatAuthorizationQueries.query` skips that kind while advancing the physical cursor, never relabeling it. Queries filter by task, seat, node, kind, and time, and return the committed watermark, exclusive scan cursor, and completeness. Historical decisions without attribution remain `legacy-unknown`. Engine-effect queries and exports retain their legacy vocabulary and omit authorization facts.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>
@@ -56,6 +60,7 @@ Queries and journal commits preserve existing request prefixes. Cache maintenanc
 
 ## Known Limitations and Deferred Work
 
+- Authorization issuer registration does not install management or CLI adapters, or add attribution to existing automatic ingress. Those consumers must explicitly use the atomic transaction services.
 - Opening and recovery require a registered local executor; absent evidence leaves work pending instead of fabricating a window.
 - The active provider owns a writer and reconciliation timer; it is not an offline read-only query provider.
 - Account concurrency statistics are diagnostic, not an enforced account limiter.
