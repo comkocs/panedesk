@@ -55,6 +55,7 @@
     }
   },
   "devDependencies": {
+    "vitest": "^4.1.11",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
