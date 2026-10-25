@@ -46,6 +46,7 @@
     "@panedesk/dsh-jobs-local": "workspace:*",
     "@panedesk/dsh-typert-registry": "workspace:*",
     "@panedesk/dsh-seat-engine": "workspace:*",
+    "@panedesk/dsh-loader-smoke": "workspace:*",
     "@panedesk/dsh-message-delivery-local": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
     "@panedesk/dsh-storage": "workspace:*",
