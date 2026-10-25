@@ -12,6 +12,11 @@ export function queryOperation(view: EngineProjection, request: T.SeatOperationQ
   const effects = view.decisions.flatMap(decision => decision.effects)
   const owned = effects.filter(effect => effect.operationId === request.operationId
     || 'operationId' in effect.data && effect.data.operationId === request.operationId)
+  const cancellation = view.cancellationOperations.get(request.operationId)
+  if (cancellation) return { status: 'settled', result: { status: 'cancelled', cancellation } }
+  const cancelled = owned.find(effect => effect.kind === 'queue/cancelled')
+  if (cancelled?.kind === 'queue/cancelled' && cancelled.data.cancellation) return { status: 'settled',
+    result: { status: 'cancelled', cancellation: cancelled.data.cancellation } }
   const approved = owned.find(effect => effect.kind === 'queue/approved')
   const approval = approved?.kind === 'queue/approved' ? {
     queueItemId: approved.data.pending.queueItemId, stateVersion: approved.data.pending.stateVersion,

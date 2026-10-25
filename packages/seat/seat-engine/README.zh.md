@@ -49,6 +49,10 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 `seatAuthorizationTransactions.operation` 从已提交队列及触发事实重建批准登记与关联开窗进度。待决理由、创建阶段、取消及已记录失败在重启后仍可查询，不执行工作，也不公开冻结指令。批准不等于创建成功或首轮成功。
 
+授权 `cancel` 将 `queue/cancelled` 与签发授权、主体、种类、操作号、队列项、时刻、版本及可选原因同次提交。原因最多 512 个 UTF-8 字节且不能含控制字符。操作查询返回已结算取消回执；脱敏效果只保留原因是否存在。队列及操作索引各保留最近 256 条回执，更早的查询从已提交决策重建。待批和已批未派发项没有预算或资源占位，取消不创建也不改变这些投影。已派发、已开窗和未知目标保留 `revision-conflict` 类别并增加结构化 `cause.reasonCode`；无授权取消保留原字节和归属。取消不释放外部改面占位。
+
+目录同步仅在 Windows 打开或刷新目录句柄时容忍 `EPERM`、`EISDIR` 和 `EINVAL`。文件写入、文件同步、目录关闭失败及全部非 Windows 失败仍向上抛出；这不保证 Windows 上不受支持的目录元数据同步已经完成。
+
 已提交决策更新投影与发件箱交付。来源回调以稳定标识提供至少一次交付；凭据由来源注册提供，不存入引擎记录。dispose（资源释放）停止入口、排空自有工作、刷新日志并释放写入所有权。
 
 <a id="model-experience"></a>

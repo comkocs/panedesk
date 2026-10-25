@@ -39,8 +39,11 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
         if (fact.kind !== 'local-operator' || fact.nodeId !== dependencies.nodeId
           || fact.principalId !== authority.principalId || fact.operationId !== request.params.operationId
           || fact.requestDigest !== digest(request.params)) return refuse(request)
-        if (request.method === 'engine.cancel') return { ...base, method: request.method,
-          result: await dependencies.engine.cancel(request.params) }
+        if (request.method === 'engine.cancel') {
+          if (!dependencies.authorization.cancel) return { ...base, method: request.method, status: 'unavailable',
+            code: 'admin-method-unavailable', reason: 'Authorized cancellation is unavailable' }
+          return { ...base, method: request.method, result: await dependencies.authorization.cancel(request.params, grant) }
+        }
         return { ...base, method: request.method, result: await dependencies.authorization.approve(request.params, grant) }
       }
     }

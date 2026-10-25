@@ -758,8 +758,8 @@ class SeatsClient:
         return self._call("approve", request, message_models.PendingSeatMutationRequest)
 
     def cancel(self, request: message_models.PendingSeatMutationRequest | JsonObject) -> JsonObject | None:
-        """Cancel unopened work without closing windows."""
-        return self._call("cancel", request, message_models.PendingSeatMutationRequest)
+        """Cancel unopened work with an optional reason, without closing windows."""
+        return self._call("cancel", request, message_models.CancelPendingSeatRequest)
 
 
 MessageResultT = TypeVar("MessageResultT")

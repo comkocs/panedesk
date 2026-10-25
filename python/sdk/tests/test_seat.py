@@ -7,6 +7,33 @@ from deepseek_harness import HarnessClient, OpenSeatBatchRequest, SeatsClient
 from deepseek_harness.errors import SdkProtocolError
 
 
+def test_cancel_preserves_legacy_bytes_and_transmits_only_valid_optional_reasons() -> None:
+    transport = Mock(spec=HarnessClient)
+    seats = SeatsClient(transport)
+    request = {"queueItemId": "queue-a", "expectedStateVersion": 1, "operationId": "cancel-a"}
+    result = {"status": "cancelled", "queueItemId": "queue-a", "stateVersion": 2}
+    transport._request_raw.return_value = result
+    assert seats.cancel(request) == result
+    transport._request_raw.assert_called_once_with("seats/cancel", request)
+    for reason in ["", "a" * 512, "é" * 256]:
+        assert seats.cancel({**request, "reason": reason}) == result
+        transport._request_raw.assert_called_with("seats/cancel", {**request, "reason": reason})
+        with pytest.raises(ValidationError):
+            seats.approve({**request, "reason": reason})
+    for reason in ["a" * 513, "é" * 257, "\n", chr(0x85)]:
+        with pytest.raises(ValidationError):
+            seats.cancel({**request, "reason": reason})
+    cancellation = {"authorizationId": "auth-a", "principalId": "operator-a", "kind": "local-operator",
+                    "operationId": "cancel-a", "queueItemId": "queue-a", "cancelledAt": "2026-01-01T00:00:00Z",
+                    "stateVersion": 2, "reasonPresent": True, "reason": "Stopped"}
+    receipt = {"status": "settled", "result": {"status": "cancelled", "cancellation": cancellation}}
+    transport._request_raw.return_value = receipt
+    assert seats.operation({"operationId": "cancel-a"}) == receipt
+    transport._request_raw.return_value = {**receipt, "result": {"status": "cancelled", "cancellation": {**cancellation, "reason": "\n"}}}
+    with pytest.raises(SdkProtocolError):
+        seats.operation({"operationId": "cancel-a"})
+
+
 def test_projects_seat_operations_and_binding_without_changing_session_events() -> None:
     transport = Mock(spec=HarnessClient)
     queued = {"status": "queued", "queueItemId": "queue-a", "sequence": 2,

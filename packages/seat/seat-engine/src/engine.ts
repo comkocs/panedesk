@@ -72,6 +72,7 @@ export class SeatEngine extends SeatEngineService {
       export: async request => exportAuthorizations(await this.authorizations.query(request)),
     })
     ctx.provide('seatAuthorizedEngineActions', {
+      cancel: (request, grant) => this.authorizations.cancel(request, grant),
       renew: (request, grant) => this.renewAuthorized(request, grant),
       replace: (request, grant) => this.replaceAuthorized(request, grant),
     })

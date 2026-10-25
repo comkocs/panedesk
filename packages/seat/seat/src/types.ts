@@ -172,7 +172,7 @@ export type SeatErrorCode =
 /** Safe diagnostic without credentials, signatures, network locations or raw source bodies. */
 export interface SeatFailure {
   /** Sanitized original refusal; the outer compatibility code remains unchanged. */
-  cause?: SeatFailureCause
+  cause?: SeatFailureCause | SeatCancellationCause
   code: SeatErrorCode
   message: string
   alternative: string
@@ -624,7 +624,30 @@ export interface ListPendingSeatsResult {
 /** Approval bypasses only remind confirmation, never capacity, time, node or budget checks. */
 export interface ApprovePendingSeatRequest { queueItemId: QueueItemId; expectedStateVersion: number; operationId: SeatOperationId }
 /** Explicit cancellation retains its audit fact and does not close already created windows. */
-export interface CancelPendingSeatRequest { queueItemId: QueueItemId; expectedStateVersion: number; operationId: SeatOperationId }
+export interface CancelPendingSeatRequest {
+  queueItemId: QueueItemId
+  expectedStateVersion: number
+  operationId: SeatOperationId
+  reason?: string
+}
+/** Authorized cancellation evidence; redacted exports retain only reason presence. */
+export interface SeatCancellationRecord {
+  authorizationId: AuthorizationRef
+  principalId: SeatPrincipalId
+  kind: import('./authorization.ts').SeatIssuedAuthorizationKind
+  operationId: SeatOperationId
+  queueItemId: QueueItemId
+  cancelledAt: SeatTimestamp
+  stateVersion: number
+  reason?: string
+  reasonPresent: boolean
+}
+/** A settled cancellation retains attribution without changing legacy mutation replies. */
+export interface SeatCancellationReceipt { status: 'cancelled'; cancellation: SeatCancellationRecord }
+/** Lifecycle refinements preserve the existing revision-conflict error category. */
+export type SeatCancellationReasonCode = 'queue-item-dispatched' | 'queue-item-opened' | 'queue-item-unknown'
+/** Cancellation diagnostics do not widen node-delegation evidence refusals. */
+export interface SeatCancellationCause extends Omit<SeatFailureCause, 'reasonCode'> { reasonCode: SeatCancellationReasonCode }
 /** Pending mutation is revision-checked and can settle without creating a window. */
 export type PendingSeatMutationResult = { status: 'approved' | 'cancelled'; queueItemId: QueueItemId; stateVersion: number } | SeatRejected
 /** Node name is a configured alias, not a network address. */
@@ -1288,4 +1311,4 @@ export interface NodeWorkChainAcceptedEffect {
 }
 
 /** An uncertain operation remains unknown until recovery establishes a committed fact. */
-export type SeatOperationResult = { status: 'missing' } | { status: 'pending'; phase: OpenPhase | ClosePhase | ReplacePhase; stateVersion: number } | { status: 'settled'; result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult }
+export type SeatOperationResult = { status: 'missing' } | { status: 'pending'; phase: OpenPhase | ClosePhase | ReplacePhase; stateVersion: number } | { status: 'settled'; result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult | SeatCancellationReceipt }

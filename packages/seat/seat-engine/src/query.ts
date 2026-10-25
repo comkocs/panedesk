@@ -60,6 +60,10 @@ export function redact(effect: EngineEffect): EngineEffect {
   if (effect.kind === 'queue/pending') return { ...effect, data: redactPending(effect.data) }
   if (effect.kind === 'window/replacement' && effect.data.pending) return { ...effect,
     data: { ...effect.data, pending: redactPending(effect.data.pending) } }
+  if (effect.kind === 'queue/cancelled' && effect.data.cancellation) {
+    const { reason: _reason, ...cancellation } = effect.data.cancellation
+    return { ...effect, data: { ...effect.data, cancellation, pending: redactPending(effect.data.pending) } }
+  }
   if (effect.kind === 'queue/approved' || effect.kind === 'queue/cancelled') return { ...effect, data: { ...effect.data, pending: redactPending(effect.data.pending) } }
   return effect
 }

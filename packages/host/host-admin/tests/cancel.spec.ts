@@ -31,7 +31,7 @@ test('cancels pending work once and replays the retained receipt after restart',
       maxStoreBytes: 1048576, maxOperations: 100 }
     stop = await mountAdmin(h.ctx, { runtime })
     const files = new PosixPrivateFiles(directory, process.getuid!())
-    const target = { ...params, queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion }
+    const target = { ...params, queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion, reason: 'Operator cancelled queued work' }
     const endpoint = JSON.parse((await files.read('endpoint.json', 4096))!) as { processEpoch: string }
     const fake: HostAdminAuthority = { principalId: 'operator-a' as HostAdminAuthority['principalId'],
       authorizationRef: 'self-declared' as HostAdminAuthority['authorizationRef'], kind: 'local-operator', methods: HOST_ADMIN_METHODS }
@@ -43,6 +43,9 @@ test('cancels pending work once and replays the retained receipt after restart',
     expect(await h.ctx.get('hostAdmin')!.dispatch(forged, fake)).toMatchObject({ code: 'admin-unauthorized' })
     expect((await h.engine.pending({ limit: 10 })).items).toEqual([])
     expect(h.engine.journal.projection.decisions.flatMap(frame => frame.effects).filter(effect => effect.kind === 'queue/cancelled')).toHaveLength(1)
+    const receipt = await callAdmin(files, 'engine.operation', { operationId: target.operationId }, limits)
+    expect(receipt).toMatchObject({ status: 'ok', result: { status: 'settled', result: { status: 'cancelled', cancellation: {
+      principalId: 'operator-a', kind: 'local-operator', reason: target.reason, queueItemId: target.queueItemId } } } })
     await stop(); stop = undefined
     stop = await mountAdmin(restartedContext, { runtime })
     expect(await callAdmin(files, 'engine.cancel', target, limits)).toMatchObject({ status: 'ok', result })
@@ -82,12 +85,15 @@ test('requires a matching local operator grant and never exposes cancellation th
     principalId: authority.principalId, origin: 'manual', nodeId: 'node-a' as Seat.SeatNodeId, taskIds: [],
     operationId: params.operationId as Seat.SeatOperationId, policyRevision: 1, decision: 'allowed', reasonCode: 'allowed',
     requestDigest: digest(params) as Seat.SeatDigest, checkedAt: new Date().toISOString() }
-  const cancel = vi.fn(async () => ({ status: 'cancelled' as const, queueItemId: params.queueItemId as Seat.QueueItemId, stateVersion: 2 }))
+  const cancel = vi.fn(async (_input: Seat.CancelPendingSeatRequest) => ({ status: 'cancelled' as const, queueItemId: params.queueItemId as Seat.QueueItemId, stateVersion: 2 }))
   let current = fact
   const check = vi.fn(async () => ({ fact: current }) as Pick<Seat.SeatAuthorizationGrant, 'fact'> as Seat.SeatAuthorizationGrant)
   const executor = createHostAdminExecutor({ nodeId: fact.nodeId, policy: { authorize: async () => ({ check }) },
     engine: { cancel } as Pick<Seat.SeatEngineService, 'cancel'> as Seat.SeatEngineService,
-    authorization: {} as Seat.SeatAuthorizationTransactions, queries: {} as Seat.SeatAuthorizationQueries })
+    authorization: { cancel: async (input, grant) => {
+      expect(grant.fact).toEqual(fact); return cancel(input)
+    } } as Seat.SeatAuthorizationTransactions,
+    queries: {} as Seat.SeatAuthorizationQueries })
   for (const denied of [{ ...authority, kind: 'node-delegation' as const }, { ...authority, methods: [] }]) {
     expect(await executor.execute(request, denied)).toMatchObject({ code: 'admin-unauthorized' })
   }

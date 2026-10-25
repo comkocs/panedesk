@@ -46,6 +46,10 @@ export class EngineProjection {
   readonly pending = new Map<QueueItemId, PendingSeatItem>()
   /** Queue identities with committed reminder approval. */
   readonly approved = new Set<QueueItemId>()
+  /** Bounded acceleration indexes; evicted receipts remain queryable from committed decisions. */
+  readonly cancellations = new Map<QueueItemId, import('@panedesk/dsh-seat').SeatCancellationRecord>()
+  /** Operation-keyed bounded receipts; historical decisions remain authoritative after eviction. */
+  readonly cancellationOperations = new Map<import('@panedesk/dsh-seat').SeatOperationId, import('@panedesk/dsh-seat').SeatCancellationRecord>()
   /** Accepted trigger data keyed by durable deduplication identity. */
   readonly dedup = new Map<string, EngineTriggerData>()
   /** Latest committed project mode and revision. */
@@ -138,6 +142,19 @@ export class EngineProjection {
         case 'queue/cancelled':
           this.pending.delete(effect.data.pending.queueItemId)
           this.approved.delete(effect.data.pending.queueItemId)
+          if (effect.data.cancellation) {
+            const record = effect.data.cancellation
+            this.cancellations.set(record.queueItemId, record)
+            this.cancellationOperations.set(record.operationId, record)
+            if (this.cancellations.size > 256) {
+              const oldest = this.cancellations.keys().next().value
+              if (oldest) this.cancellations.delete(oldest)
+            }
+            if (this.cancellationOperations.size > 256) {
+              const oldest = this.cancellationOperations.keys().next().value
+              if (oldest) this.cancellationOperations.delete(oldest)
+            }
+          }
           break
         case 'mode/changed': this.policies.set(effect.data.policy.projectId, effect.data.policy); break
         case 'open/intent': case 'open/created': case 'open/configured': case 'open/opening-failed':

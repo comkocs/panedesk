@@ -3,6 +3,27 @@ import type { SeatDefinition } from '@panedesk/dsh-seat'
 import { decodeSeatRequest, decodeSeatResult, isSeatMethod } from '../src/seat.ts'
 
 describe('seat protocol extension', () => {
+  it('preserves legacy cancellation bytes and bounds optional reasons without widening approval', () => {
+    const request = { queueItemId: 'queue-a', expectedStateVersion: 1, operationId: 'cancel-a' }
+    expect(JSON.stringify(decodeSeatRequest('seats/cancel', request))).toBe(JSON.stringify(request))
+    const result = { status: 'cancelled', queueItemId: 'queue-a', stateVersion: 2 }
+    expect(JSON.stringify(decodeSeatResult('seats/cancel', result))).toBe(JSON.stringify(result))
+    for (const reason of ['', 'a'.repeat(512), 'é'.repeat(256)]) {
+      expect(decodeSeatRequest('seats/cancel', { ...request, reason })).toEqual({ ...request, reason })
+      expect(() => decodeSeatRequest('seats/approve', { ...request, reason })).toThrow()
+    }
+    for (const reason of ['a'.repeat(513), 'é'.repeat(257), '\n', String.fromCodePoint(0x85), null]) {
+      expect(() => decodeSeatRequest('seats/cancel', { ...request, reason })).toThrow()
+    }
+    const cancellation = { authorizationId: 'auth-a', principalId: 'operator-a', kind: 'local-operator',
+      operationId: 'cancel-a', queueItemId: 'queue-a', cancelledAt: '2026-01-01T00:00:00Z', stateVersion: 2,
+      reasonPresent: true, reason: 'Stopped' }
+    const settled = { status: 'settled', result: { status: 'cancelled', cancellation } }
+    expect(decodeSeatResult('seats/operation', settled)).toEqual(settled)
+    for (const patch of [{ kind: 'invented' }, { reason: '\n' }, { cancelledAt: 'invalid' }, { authorizationId: '' }]) {
+      expect(() => decodeSeatResult('seats/operation', { ...settled, result: { status: 'cancelled', cancellation: { ...cancellation, ...patch } } })).toThrow()
+    }
+  })
   it('keeps known seat methods additive and rejects inherited names', () => {
     expect(isSeatMethod('seats/open')).toBe(true)
     expect(isSeatMethod('toString')).toBe(false)
