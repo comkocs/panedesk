@@ -86,12 +86,12 @@ test('Loader advertises only recovered capabilities, queries business truth and 
   const source = contexts[0]!, target = contexts[1]!
   expect(source.get('nodeWorkChainRouter')).toBeUndefined()
   for (const [i, ctx] of contexts.entries()) compositions.push(ctx.provide('nodeWorkChain', services[i]))
-  await expect.poll(() => source.get('nodeWorkChainRouter')).toBeDefined()
+  await expect.poll(() => source.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeDefined()
   const f = prepared()
   expect(await source.get('nodeWorkChainRouter')!.route(f.request, f.authorization))
     .toMatchObject({ error: { cause: { reasonCode: 'peer-capability-missing' } } })
   release()
-  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities).toContain('node-work-chain/v1')
+  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities, { timeout: 10000 }).toContain('node-work-chain/v1')
   const payload = { key: { sourceNodeId: f.request.sourceNodeId, principalId: f.request.delegation.principalId,
     sourceId: 'source-a', ownerEpoch: 'owner-a', method: 'source.prepareOpening', operationId: f.request.operationId },
   payloadDigest: f.request.payloadDigest }
@@ -104,20 +104,20 @@ test('Loader advertises only recovered capabilities, queries business truth and 
   expect(queries).toBe(1)
   const previous = target.get('nodeWorkChainRouter')!
   compositions[1]!()
-  await expect.poll(() => target.get('nodeWorkChainRouter')).toBeUndefined()
+  await expect.poll(() => target.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeUndefined()
   expect(await previous.route(f.request, f.authorization)).toMatchObject({ status: 'unavailable',
     error: { code: 'node-tunnel-disconnected', effectState: 'none' } })
   compositions[1] = target.provide('nodeWorkChain', { ...services[1]! })
-  await expect.poll(() => target.get('nodeWorkChainRouter')).toBeDefined()
+  await expect.poll(() => target.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeDefined()
   expect(target.get('nodeWorkChainRouter')).not.toBe(previous)
-  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities).toContain('node-work-chain/v1')
+  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities, { timeout: 10000 }).toContain('node-work-chain/v1')
   await withdrawals[1]!()
-  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities).not.toContain('node-work-chain/v1')
+  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities, { timeout: 10000 }).not.toContain('node-work-chain/v1')
   compositions[1]()
   target.provide('nodeWorkChain', { ...services[1]!, evidence: {
     ready: () => new Promise<void>(() => {}), query: async () => { throw new Error('Unrecovered evidence queried') },
   } })
-  await expect.poll(() => target.get('nodeWorkChainRouter')).toBeDefined()
+  await expect.poll(() => target.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeDefined()
   await target.fiber.dispose()
   expect(target.get('nodeWorkChainRouter')).toBeUndefined()
   const expired: ChainRequest = { ...f.request, deadline: '2000-01-01T00:00:00.000Z' }

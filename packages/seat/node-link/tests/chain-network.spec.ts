@@ -27,6 +27,8 @@ test('isolated peers fetch retained evidence, bound frames, replay once, expire 
   expect(a.pid).not.toBe(b.pid)
   await connected(a); await connected(b)
   const first = request('network-once')
+  // Recovery queries have separate coverage and must not race this exact evidence count.
+  await a.call({ kind: 'fault', value: 'pause-recovery' })
   expect(await a.call(first)).toMatchObject({ status: 'ok', result: { status: 'prepared' } })
   expect(await a.call(first)).toMatchObject({ status: 'ok', result: { status: 'prepared' } })
   expect(await state(b)).toMatchObject({ executions: 1, evidenceChecks: 1 })

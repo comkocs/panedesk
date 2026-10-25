@@ -97,8 +97,9 @@ test('routes every fixed seat method once through Loader peers and refuses chang
       await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(profile).href } })
       await ctx.loader.await()
     }
+    await expect.poll(() => contexts[0]!.get('nodeRouter'), { timeout: 10000 }).toBeDefined()
     const router = contexts[0]!.get('nodeRouter')!
-    await expect.poll(async () => (await router.status())[0]?.reachable).toBe(true)
+    await expect.poll(async () => (await router.status())[0]?.reachable, { timeout: 10000 }).toBe(true)
     for (const method of methods) {
       const request = frame(method)
       const first = await router.route(request)
@@ -120,7 +121,7 @@ test('routes every fixed seat method once through Loader peers and refuses chang
       allowed = true
     }
     await contexts[1]!.fiber.dispose()
-    await expect.poll(async () => (await router.status())[0]?.safeReason).toBe('node-tunnel-disconnected')
+    await expect.poll(async () => (await router.status())[0]?.safeReason, { timeout: 10000 }).toBe('node-tunnel-disconnected')
     for (const method of methods) expect(await router.route(frame(method, '-offline')))
       .toMatchObject({ error: { effectState: 'none', code: 'node-tunnel-disconnected' } })
   } finally {

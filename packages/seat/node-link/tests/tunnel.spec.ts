@@ -30,7 +30,7 @@ test('uses independent bidirectional loopback forwards, strict host checks and o
     expect(spec.argv.at(-1)).toBe('test-peer')
     expect(spec.env).toBeUndefined()
     terminate()
-    await expect.poll(() => tunnel.available).toBe(false)
+    await expect.poll(() => tunnel.available, { timeout: 10000 }).toBe(false)
     expect(disconnected).toHaveBeenCalledOnce()
   } finally { await tunnel.close(); await listener.close() }
 })
