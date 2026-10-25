@@ -17,8 +17,25 @@ export class EngineProjection {
    * @param decision - Verified durable frame from the capability-aware reader.
    */
   applyAuthorization(decision: AuthorizationDecision): void {
+    this.validateAuthorization(decision)
     this.apply(legacyDecision(decision))
     this.authorizationDecisions.push(decision)
+  }
+
+  /** Reject a second admission for any complete remote business identity before publication.
+   * @param decision - Required-capability frame awaiting append or replay.
+   */
+  validateAuthorization(decision: AuthorizationDecision): void {
+    if (!decision.effects.some(effect => effect.kind === 'node-route/accepted')) return
+    const retained = this.authorizationDecisions.flatMap(item => item.effects)
+      .filter(effect => effect.kind === 'node-route/accepted')
+    const keys = new Set(retained.map(effect => digest(effect.data.operationKey)))
+    for (const effect of decision.effects) {
+      if (effect.kind !== 'node-route/accepted') continue
+      const key = digest(effect.data.operationKey)
+      if (keys.has(key)) throw new EngineError('operation-id-conflict', 'Remote business identity is already admitted')
+      keys.add(key)
+    }
   }
 
   /** Last contiguous committed decision sequence. */

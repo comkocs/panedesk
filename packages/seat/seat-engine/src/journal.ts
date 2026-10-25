@@ -152,10 +152,13 @@ export class EngineJournal {
       const decision = authorizationFrame({ namespace: SEAT_ENGINE_NAMESPACE, schemaVersion: 1,
         decisionId: metadata?.decisionId ?? randomUUID() as EngineDecisionId,
         sequence: this.projection.sequence + 1, observedAt: metadata?.observedAt ?? new Date().toISOString(),
-        nodeId: this.nodeId, policyRevision, effects })
-      if (metadata || decision.effects.some(effect => effect.kind === 'authorization/checked')) {
+        nodeId: this.nodeId, policyRevision, effects,
+        ...(effects.some(effect => effect.kind === 'node-route/accepted')
+          ? { requiredCapabilities: ['node-work-chain/v1'] as const } : {}) })
+      if (metadata || decision.effects.some(effect => effect.kind === 'authorization/checked' || effect.kind === 'node-route/accepted')) {
         decodeAuthorizationFrame(canonical(decision), this.maxBytes)
       }
+      this.projection.validateAuthorization(decision)
       this.projection.validate(legacyDecision(decision))
       await this.append(decision)
       return decision

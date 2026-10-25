@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { MessageSender, SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
-import { NODE_LINK_VERSION, decodeRoutedSend, type NodeDelegationRequest } from '@panedesk/dsh-node-link'
+import { NODE_LINK_VERSION, decodeRoutedSend, type NodeDelegationRequest, type NodeLinkFailure } from '@panedesk/dsh-node-link'
 import { digest } from '@panedesk/dsh-host-admin'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import type { FileMailbox } from './mailbox.ts'
@@ -26,8 +26,15 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
     if (previous !== undefined && (!object(previous) || previous.digest !== fingerprint)) throw new MailboxUnavailableError('operation-conflict')
     if (object(previous) && previous.result !== undefined) return decodeSendResult(previous.result)
     const messageId = createUserMessage({ content: [{ type: 'text', text: request.content }], source: { kind: 'user' } }).id
-    const refuse = (reason: 'cross-node-unsupported' | 'unauthorized' | 'unavailable' | 'delivery-uncertain', id = messageId): SendMessageResult => ({
-      messageId: id, operationId: request.operationId, deliveryOutcome: 'rejected', messageState: 'rejected', pending: false, reason, candidates: [] })
+    const refuse = (reason: 'cross-node-unsupported' | 'unauthorized' | 'unavailable' | 'delivery-uncertain',
+      id = messageId, error?: NodeLinkFailure): SendMessageResult => decodeSendResult({
+      messageId: id, operationId: request.operationId, deliveryOutcome: 'rejected', messageState: 'rejected', pending: false, reason, candidates: [],
+      ...(error === undefined ? {} : { cause: {
+        domain: 'node-link', code: error.code, reason: error.reason, effectState: error.effectState,
+        retryable: error.retryable, operationId: String(error.operationId), nodeId: String(error.targetNodeId),
+        ...('reasonCode' in error ? { reasonCode: error.reasonCode } : {}),
+      } }),
+    })
     const router = ctx.get('nodeRouter'), issuer = ctx.get('nodeDelegationIssuer')
     if (!router || !issuer || request.target.sessionId === undefined || request.target.nodeId === undefined) return refuse('cross-node-unsupported')
     if (['callId', 'rootCallId', 'causedByDeliveryId', 'delivery'].some(key => key in request)) return refuse('unauthorized')
@@ -46,11 +53,12 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
       deadline: new Date(Date.now() + issuer.expiry.maxLifetimeMs).toISOString(), hop: 1,
       method: 'messages.send', payload, payloadDigest: digest(payload) } as NodeDelegationRequest
     const issued = await issuer.issue(prepared)
-    if (issued.status === 'rejected') return refuse('unauthorized', payload.delivery.message.messageId)
+    if (issued.status === 'rejected') return refuse('unauthorized', payload.delivery.message.messageId, issued.error)
     if (sender.kind === 'session' && issued.delegation.sessionId !== sender.sessionId) return refuse('unauthorized', payload.delivery.message.messageId)
     const response = await router.route({ ...prepared, delegation: issued.delegation })
     if (response.status !== 'ok' || response.method !== 'messages.send') {
-      return refuse(response.status !== 'ok' && response.error.effectState === 'unknown' ? 'delivery-uncertain' : 'unavailable', payload.delivery.message.messageId)
+      return refuse(response.status !== 'ok' && response.error.effectState === 'unknown' ? 'delivery-uncertain' : 'unavailable',
+        payload.delivery.message.messageId, response.status === 'ok' ? undefined : response.error)
     }
     const result = response.result
     if (result.messageId !== payload.delivery.message.messageId || result.operationId !== request.operationId) {

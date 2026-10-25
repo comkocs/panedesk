@@ -28,6 +28,8 @@ Storage layout: each target uses `mailboxes/<sessionId>/publish.lock`; `operatio
 
 Each record uses exclusive temporary creation, a versioned length/digest envelope, file sync, atomic publication and directory sync on POSIX. Native per-target locks serialize publication and recover watermarks with explicit skipped ranges. Linux mailbox directories and files require owner-only permissions and reject symbolic links. The product home must belong to the current user, must not be a symbolic link, and must not allow other-user writes; group writes are allowed only for the current user's primary group when system name-service enumeration finds no other supplementary or primary members, and admission is diagnosed once during provider initialization. Unavailable membership information refuses mailbox use. Existing permissions are never changed. Windows admission checks inherited DACL grants before storage initialization; foreign read/write grants are refused. Unknown process identity remains unavailable, never authorization to reclaim a Session.
 
+Routed refusals keep the legacy outer reason and optionally retain the original node-link cause through durable acknowledgement decoding. Cause codes are bounded ASCII identifiers; reasons are nonempty, control-free and at most 512 UTF-8 bytes. Producers must remove secrets and addresses before transport. Unknown outcomes remain unknown; missing causes do not acquire defaults. Invalid diagnostics reject instead of being truncated or silently dropped.
+
 <a id="model-experience"></a>
 ## Model Experience
 

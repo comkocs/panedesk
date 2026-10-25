@@ -43,6 +43,8 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 授权帧要求 `seat-authorization/v1`；旧解码器拒绝新判别值。支持该能力的恢复与只读快照在既有日志中保留事实。新查询包含 `plugin`；旧 `seatAuthorizationQueries.query` 跳过该种类并推进物理游标，绝不重标种类。查询按单、位、节点、种类及时间过滤，返回已提交水位、排他扫描游标与完整性。无归属的历史决策仍为 `legacy-unknown`。引擎效果查询与导出保留旧词表，不包含授权事实。独立 `seatAuthorizationExports.export` 服务序列化有限的 `seat-authorization/v1` JSON 分页，包含游标、水位、完整性和插件归属；在线引擎与离线读取器均提供此服务。
 
+远端受理帧要求 `node-work-chain/v1`，并将 `node-route/accepted` 事实与匹配的签发授权、冻结触发意图写在同帧。重放校验完整来源身份、所有者代次、快照、改面占位和原操作；相同业务身份的第二次受理在追加前被拒绝。旧解码器拒绝整帧。这项存储支持不安装远端执行入口，也不通告接收能力。
+
 `seatAuthorizationTransactions.operation` 从已提交队列及触发事实重建批准登记与关联开窗进度。待决理由、创建阶段、取消及已记录失败在重启后仍可查询，不执行工作，也不公开冻结指令。批准不等于创建成功或首轮成功。
 
 已提交决策更新投影与发件箱交付。来源回调以稳定标识提供至少一次交付；凭据由来源注册提供，不存入引擎记录。dispose（资源释放）停止入口、排空自有工作、刷新日志并释放写入所有权。
