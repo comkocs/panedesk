@@ -11,6 +11,7 @@ import { ChildAdmissionProvider } from './child-admission.ts'
 import { registerProductionSources, type ProductionSource } from './production-sources.ts'
 
 export { SeatEngine } from './engine.ts'
+export { batchMemberId, queryBatchMember } from './node-batch.ts'
 export type { EngineOptions, EngineDependencies } from './engine.ts'
 export { EngineJournal, EngineError, frame, digest } from './journal.ts'
 export { validEffect } from './validation.ts'

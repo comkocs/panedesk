@@ -3,6 +3,7 @@ import { SEAT_AUTHORIZATION_CAPABILITY, SEAT_AUTHORIZATION_EVENT_NAME } from '@p
 import type * as T from '@panedesk/dsh-seat'
 import { canonical, decodeFrame, digest, EngineError, frame } from './journal.ts'
 import { validateChainFrame, type ChainAcceptedEffect } from './chain-storage.ts'
+import { validateBatchFrame, type NodeBatchEffect } from './node-batch.ts'
 
 /** A required discriminator makes older readers refuse the complete decision. */
 export interface AuthorizationEffect extends T.EngineEffectBase {
@@ -12,7 +13,7 @@ export interface AuthorizationEffect extends T.EngineEffectBase {
 }
 /** Both effect families occupy one checksummed, synchronized journal frame. */
 export interface AuthorizationDecision extends Omit<T.EngineDecision, 'effects'> {
-  effects: readonly (T.EngineEffect | AuthorizationEffect | ChainAcceptedEffect)[]
+  effects: readonly (T.EngineEffect | AuthorizationEffect | ChainAcceptedEffect | NodeBatchEffect)[]
   requiredCapabilities?: readonly ['node-work-chain/v1']
 }
 /** Validate attribution at the durable JSON boundary, including unknown-field rejection.
@@ -51,7 +52,7 @@ export function authorizationFrame(input: Omit<AuthorizationDecision, 'digest' |
 export function legacyDecision(decision: AuthorizationDecision): T.EngineDecision {
   const { digest: _digest, byteLength: _length, requiredCapabilities: _capabilities, ...body } = decision
   const effects = body.effects.filter((effect): effect is T.EngineEffect => effect.kind !== SEAT_AUTHORIZATION_EVENT_NAME
-    && effect.kind !== 'node-route/accepted')
+    && effect.kind !== 'node-route/accepted' && effect.kind !== 'node-batch/accepted')
   return frame({ ...body, effects })
 }
 /** Decode required authorization events before allowing any projection mutation.
@@ -63,7 +64,8 @@ export function decodeAuthorizationFrame(text: string, maxBytes: number): Author
   const parsed: unknown = JSON.parse(text)
   if (!parsed || typeof parsed !== 'object' || !('effects' in parsed) || !Array.isArray(parsed.effects)
     || !('requiredCapabilities' in parsed) && !parsed.effects.some((effect: unknown) => effect !== null && typeof effect === 'object'
-      && 'kind' in effect && (effect.kind === SEAT_AUTHORIZATION_EVENT_NAME || effect.kind === 'node-route/accepted'))) return decodeFrame(text, maxBytes)
+      && 'kind' in effect && (effect.kind === SEAT_AUTHORIZATION_EVENT_NAME
+        || effect.kind === 'node-route/accepted' || effect.kind === 'node-batch/accepted'))) return decodeFrame(text, maxBytes)
   if (Buffer.byteLength(text) + 1 > maxBytes) throw new EngineError('engine-store-corrupt', 'Authorization frame exceeds its byte limit')
   const decision = parsed as AuthorizationDecision
   const { digest: checksum, byteLength, ...body } = decision
@@ -101,6 +103,7 @@ export function decodeAuthorizationFrame(text: string, maxBytes: number): Author
     }
   }
   validateChainFrame(decision)
+  validateBatchFrame(decision)
   const legacy = legacyDecision(decision)
   // A denied fact has no business effects; a synthetic validation effect checks only the header.
   const { digest: _legacyDigest, byteLength: _legacyLength, ...legacyBody } = legacy

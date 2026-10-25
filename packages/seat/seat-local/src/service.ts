@@ -25,6 +25,8 @@ import { readWindowStatus, renewalRefusal } from './status.ts'
 import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { seatFrozenIdentity, querySeatFrozen } from './frozen-admission.ts'
+import { SeatEngine, batchMemberId, queryBatchMember } from '@panedesk/dsh-seat-engine'
+import { validateLocalDefinition } from './paths.ts'
 
 const reminderSchema = z.object({ sessionId: z.string(), operationId: z.string(), text: z.string(), sent: z.boolean() })
 const reminderSpec = defineDomain({ name: 'seat_close_reminders', version: 1, layout: 'per-record',
@@ -429,6 +431,80 @@ export class LocalSeatService extends SeatService {
       const taskId = evaluateTaskScopes ? tasks?.find(task => task.seat === seat)?.taskId : undefined
       results.push({ seat, result: await this.open({ ...request, seat, ...(taskId === undefined ? {} : { taskId }),
         operationId: `${request.operationId}:${seat}` as T.SeatOperationId }) })
+    }
+    return { status: 'processed', results }
+  }
+  /** Preflight the complete delegated batch before independently committing its members.
+   * @param request - Original explicit wire batch.
+   * @param authority - Captured receiving grant and principal.
+   * @param sourceNodeId - Authenticated node receiver's sender.
+   * @returns Per-member original acknowledgements, retaining partial completion.
+   */
+  async openNodeBatch(request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
+    sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatBatchResult> {
+    const engine = this.engine(), grant = authority.authorization
+    if (!(engine instanceof SeatEngine) || !grant) return rejected('unavailable', 'Batch admission is unavailable.', 'Restore the engine.')
+    await engine.ready()
+    if (request.nodeId !== undefined && request.nodeId !== this.options.nodeId || authority.nodeId !== this.options.nodeId
+      || authority.principalId !== grant.fact.principalId || authority.origin !== request.origin || grant.fact.origin !== request.origin) {
+      return rejected('unauthorized', 'Batch attribution does not match.', 'Use the original delegated batch.')
+    }
+    if (!request.seats.length || request.seats.some(seat => !seat.trim() || /[*?]/.test(seat))
+      || new Set(request.seats).size !== request.seats.length) {
+      return rejected('batch-explicit-seats-required', 'List distinct seat names explicitly.', 'Use an explicit batch.')
+    }
+    if (request.seats.length > this.options.maxBatchSeats) return rejected('batch-limit-exceeded', 'Batch exceeds the configured limit.', 'Split the explicit list.')
+    const retained = request.seats.map(seat =>
+      queryBatchMember(engine.journal.projection, request, sourceNodeId, authority.principalId, seat))
+    const conflict = retained.find(result => result?.status === 'rejected')
+    if (conflict?.status === 'rejected') return conflict
+    if (retained.every(result => result !== undefined)) return { status: 'processed', results: retained.map((result, index) => {
+      const seat = request.seats[index]
+      if (seat === undefined) throw new Error('Batch member identity is missing')
+      return { seat, result }
+    }) }
+    const refusal = await engine.authorizations.validate({ operationId: request.operationId, requestDigest: digest(request),
+      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
+    if (refusal) return refusal
+    if (grant.fact.kind !== 'node-delegation' || grant.fact.seat !== undefined && request.seats.some(seat => seat !== grant.fact.seat)
+      || grant.fact.sourceNodeId !== undefined && grant.fact.sourceNodeId !== sourceNodeId) {
+      return rejected('unauthorized', 'Batch grant does not cover every member.', 'Use authority covering the explicit batch.')
+    }
+    // The legacy wire has no task-scope evidence; a task-bearing grant cannot imply an empty scope.
+    if (grant.fact.taskIds.length) return rejected('gate-denied', 'scope-unknown', 'serial')
+    const definitions: T.SeatDefinition[] = []
+    for (const seat of request.seats) {
+      const definition = await this.resolve(seat)
+      if ('status' in definition) return definition
+      if (this.options.nodeAliases[definition.node] !== this.options.nodeId) {
+        return rejected('cross-node-unsupported', 'Batch member belongs to another node.', 'Submit one batch per node.')
+      }
+      const invalid = validateLocalDefinition(definition)
+      if (invalid) return invalid
+      const startup = definition.directories.find(directory => directory.startup)
+      if (!startup) return rejected('invalid-definition', 'Startup directory is unavailable.', 'Set the seat startup directory.')
+      const gate = await openingGate(this.runtime.context, {
+        ...openingContext(this.options.nodeId, batchMemberId(request, sourceNodeId, authority.principalId, seat), seat),
+        hook: 'before-open', cwd: startup.path, candidateSeats: [seat] })
+      if (gate) return gate
+      definitions.push(definition)
+    }
+    const gate = await openingGate(this.runtime.context, { ...openingContext(this.options.nodeId, request.operationId, null),
+      hook: 'before-batch-open', seats: request.seats })
+    if (gate) return gate
+    const results: { seat: T.SeatName; result: T.OpenSeatResult }[] = []
+    for (const [index, definition] of definitions.entries()) {
+      const seat = definition.seat, previous = retained[index]
+      if (previous) { results.push({ seat, result: previous }); continue }
+      const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
+      const member: T.OpenSeatRequest = { seat, operationId: batchMemberId(request, sourceNodeId, authority.principalId, seat),
+        origin: request.origin, ...(request.openingMode === undefined ? {} : { openingMode: request.openingMode }),
+        ...(request.nodeId === undefined ? {} : { nodeId: request.nodeId }) }
+      const opening = renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes),
+        { seat, date, taskId: null }, this.options.maxOpeningBytes)
+      results.push({ seat, result: await engine.openBatchMember({ request: member, definition, authority, opening,
+        title: `${seat} ${date.slice(5)}` }, request, sourceNodeId) })
     }
     return { status: 'processed', results }
   }

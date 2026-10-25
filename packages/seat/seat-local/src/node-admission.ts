@@ -5,9 +5,13 @@ import { NODE_LINK_VERSION, type NodeAuthorizedLocalAdmission, type NodeWireResp
 /** Capture the local provider without exposing a route-capable caller to the receiver.
  * @param seats - Original local provider with audited action builders.
  * @param nodeId - Journal-owning node.
+ * @param batch - Optional recovered chain admission; omission preserves legacy refusal.
  * @returns Admission adapter; unsupported atomic actions remain explicitly refused.
  */
-export function createLocalNodeAdmission(seats: T.SeatService, nodeId: T.SeatNodeId): NodeAuthorizedLocalAdmission {
+export function createLocalNodeAdmission(seats: T.SeatService, nodeId: T.SeatNodeId,
+  batch?: (request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
+    sourceNodeId: T.SeatNodeId) => Promise<T.OpenSeatBatchResult | undefined>,
+): NodeAuthorizedLocalAdmission {
   return { execute: async (request, authorization): Promise<NodeWireResponse> => {
     const base = { version: NODE_LINK_VERSION, requestId: request.requestId, sourceNodeId: request.sourceNodeId,
       targetNodeId: request.targetNodeId, operationId: request.operationId, method: request.method }
@@ -19,6 +23,11 @@ export function createLocalNodeAdmission(seats: T.SeatService, nodeId: T.SeatNod
     }
     const local = seats.withAuthority({ principalId: authorization.fact.principalId, origin: authorization.fact.origin,
       nodeId, authorization })
+    if (request.method === 'seat.openBatch' && batch) {
+      const result = await batch(request.payload, { principalId: authorization.fact.principalId,
+        origin: authorization.fact.origin, nodeId, authorization }, request.sourceNodeId)
+      if (result !== undefined) return { ...base, method: request.method, status: 'ok', result }
+    }
     switch (request.method) {
       case 'seat.open': return { ...base, method: request.method, status: 'ok', result: await local.open(request.payload) }
       case 'seat.renew': return { ...base, method: request.method, status: 'ok', result: await local.renew(request.payload) }
