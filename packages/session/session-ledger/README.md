@@ -31,6 +31,8 @@ Providers accept `Config.waitTools` and implement `registerWaitTool(name, catego
 
 Storage layout: each ledger root retains `writer.lock` beside its node identity or event directories, never on a data segment. Linux and macOS keep their existing descriptor flock, inode checks and retry loop. Only win32 opens the dedicated file with exclusive sharing; `EBUSY`/`EPERM` retry with backoff from `lockRetryMs` to 40 ms, bounded by `lockTimeoutMs`, then report `EAGAIN` with only the lock filename. Lock contents are never read or written; close or process exit releases ownership. Do not remove or replace lock files.
 
+Directory synchronization tolerates only `EPERM`, `EISDIR` and `EINVAL` from opening or flushing directory handles on Windows. File writes, file synchronization, directory close failures and every non-Windows failure still propagate; Windows does not gain a guarantee that unsupported directory metadata synchronization completed.
+
 `queryMessages` folds all versions before filtering current state, class, source/target Session and half-open creation time; state times preserve the first observation, including first injection after interrupted turns. Unanswered handoffs include replies and closed-target pending messages, exclude any response, and omit terminal outcomes unless explicitly requested. Projection cursors identify the last message; journal cursors identify the last event. `exportMessages` emits a schema-versioned integrity header even for empty results. `querySessions` joins calls and messages by both participating Session IDs, retaining unassigned human-origin messages separately. It combines independently locked reads, not an atomic cross-namespace checkpoint; messages never enter call totals.
 
 <a id="model-experience"></a>

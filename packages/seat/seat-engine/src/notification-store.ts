@@ -17,6 +17,27 @@ export interface NotificationRecord {
   observedAt: string
 }
 
+/** Synchronize directory metadata without suppressing file or close failures.
+ * @param path - Directory containing newly committed notification records.
+ * @param platform - Host platform, defaulting to the current host.
+ * @param openDirectory - Directory-only opener, defaulting to the host filesystem.
+ * @param sync - Directory-only synchronization, defaulting to the host filesystem.
+ * @param close - Directory handle cleanup, defaulting to the host filesystem.
+ */
+export function syncDirectory(path: string, platform: NodeJS.Platform = process.platform,
+  openDirectory: (path: string, flags: string) => number = openSync,
+  sync: (fd: number) => void = fsyncSync, close: (fd: number) => void = closeSync): void {
+  const unsupported = (error: unknown): boolean => platform === 'win32' && error !== null && typeof error === 'object'
+    && 'code' in error && ['EPERM', 'EISDIR', 'EINVAL'].includes(String(error.code))
+  let directory: number
+  try { directory = openDirectory(path, 'r') }
+  catch (error) { if (unsupported(error)) return; throw error }
+  try {
+    try { sync(directory) }
+    catch (error) { if (!unsupported(error)) throw error }
+  } finally { close(directory) }
+}
+
 /** One engine owner holds this store under its existing node lock. */
 export class NotificationStore {
   /** Recovered and committed notification states keyed by immutable execution identity. */
@@ -60,8 +81,7 @@ export class NotificationStore {
       const fd = openSync(temporary, 'wx', 0o600)
       try { writeFileSync(fd, text); fsyncSync(fd) } finally { closeSync(fd) }
       renameSync(temporary, join(this.root, `${digest(record.id)}.json`))
-      const directory = openSync(this.root, 'r')
-      try { fsyncSync(directory) } finally { closeSync(directory) }
+      syncDirectory(this.root)
       this.records.set(record.id, record)
     } catch (cause) {
       this.failed = true
