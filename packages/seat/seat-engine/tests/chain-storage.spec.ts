@@ -8,6 +8,8 @@ import { auto, harness, nodeId, sourceId, trigger } from './fixtures.ts'
 import { TriggerRegistry } from '../src/triggers.ts'
 import { SourceRegistry } from '../src/sources.ts'
 import { config } from './fixtures.ts'
+import { freezeCallbackEvidence } from '../src/callback-evidence.ts'
+import { fact } from '../src/triggers.ts'
 
 async function fixture() {
   const h = await harness()
@@ -38,7 +40,7 @@ async function fixture() {
   const authorization: import('../src/authorization-storage.ts').AuthorizationEffect = {
     kind: 'authorization/checked', capability: 'seat-authorization/v1', eventId: 'authorization-event' as T.EngineEventId,
     operationId, seat: intent.seat!, data: { authorizationId: data.authorizationRef, kind: 'node-delegation',
-      principalId, origin: 'remote', nodeId, operationId, requestDigest: data.payloadDigest, taskIds: [],
+      principalId, sourceNodeId, origin: 'remote', nodeId, operationId, requestDigest: data.payloadDigest, taskIds: [],
       policyRevision: 1, decision: 'allowed', reasonCode: 'allowed', checkedAt: frame.observedAt, seat: intent.seat! } }
   const { digest: _digest, byteLength: _length, ...body } = frame
   const decision = authorizationFrame({ ...body, requiredCapabilities: ['node-work-chain/v1'], effects: [
@@ -58,6 +60,15 @@ test('requires the route capability and matching intent in one frame, refusing l
     for (const effects of [body.effects.filter(effect => effect.kind !== 'authorization/checked'),
       body.effects.filter(effect => effect.kind !== 'trigger/accepted')]) {
       expect(() => decodeAuthorizationFrame(canonical(authorizationFrame({ ...body, effects })), 200000)).toThrow()
+    }
+    for (const sourceNodeId of [undefined, 'other-source' as T.SeatNodeId]) {
+      const effects = structuredClone(body.effects)
+      for (const effect of effects) {
+        if (effect.kind !== 'authorization/checked') continue
+        if (sourceNodeId === undefined) delete effect.data.sourceNodeId
+        else effect.data.sourceNodeId = sourceNodeId
+      }
+      expect(() => decodeAuthorizationFrame(canonical(authorizationFrame({ ...body, effects })), 200000)).toThrow('authorization does not match')
     }
     const { requiredCapabilities: _capability, ...missing } = body
     expect(() => decodeAuthorizationFrame(canonical(authorizationFrame(missing)), 200000)).toThrow('capability')
@@ -102,6 +113,62 @@ test.each(['off', 'remind'] as const)('retains the source %s ceiling across disp
     await restarted.drive()
     expect(h.creates).toEqual([])
     expect([...restarted.journal.projection.pending.values()][0]?.effectiveMode).toBe(mode)
+  } finally { await h.close() }
+})
+
+test('freezes execution evidence once and retains missing across replay and restart', async () => {
+  const { h, decision } = await fixture()
+  try {
+    await h.engine.journal.commitAuthorization(() => decision.effects)
+    await auto(h.engine)
+    const effects = structuredClone(decision.effects)
+    const intent = effects.find(effect => effect.kind === 'trigger/accepted')
+    if (intent?.kind !== 'trigger/accepted') throw new Error('Expected trigger')
+    await h.engine.approve({ queueItemId: intent.data.pending.queueItemId,
+      expectedStateVersion: intent.data.pending.stateVersion, operationId: 'approve' as T.SeatOperationId })
+    await h.engine.drive()
+    const delivery = [...h.engine.journal.projection.callbacks.values()][0]!
+    expect(delivery.nodeWorkChain?.modelEvidence.status).toBe('missing')
+    const changed: T.SeatExecutionModelEvidence = { status: 'present', provider: 'execution-provider', model: 'execution-model',
+      kind: 'request/header', sessionId: delivery.payload.sessionId!, nodeId,
+      recordRef: 'record:1' as Extract<T.SeatExecutionModelEvidence, { status: 'present' }>['recordRef'], observedAt: new Date().toISOString() }
+    let reads = 0
+    const read = async () => { reads++; return changed }
+    expect(await freezeCallbackEvidence(h.engine.journal.projection, [delivery], read)).toEqual([delivery])
+    expect(reads).toBe(0)
+    for (const evidence of [{ ...changed, nodeId: 'other-node' as T.SeatNodeId },
+      { ...changed, sessionId: 'other-session' as typeof changed.sessionId }]) {
+      const candidate = { ...delivery, payload: { ...delivery.payload, callbackId: 'mismatched' as T.CallbackId } }
+      const [missing] = await freezeCallbackEvidence(h.engine.journal.projection, [candidate], async () => evidence)
+      expect(missing?.nodeWorkChain?.modelEvidence).toMatchObject({ status: 'missing', nodeId,
+        sessionId: delivery.payload.sessionId })
+    }
+    const unreadable = { ...delivery, payload: { ...delivery.payload, callbackId: 'unreadable' as T.CallbackId } }
+    const [missing] = await freezeCallbackEvidence(h.engine.journal.projection, [unreadable], async () => { throw new Error('Unreadable record') })
+    expect(missing?.nodeWorkChain?.modelEvidence.status).toBe('missing')
+    const fresh: T.SeatCallbackDelivery = { ...delivery, payload: { ...delivery.payload, callbackId: 'fresh' as T.CallbackId } }
+    fresh.payloadDigest = digest(fresh.payload)
+    const [present] = await freezeCallbackEvidence(h.engine.journal.projection, [fresh], read)
+    expect(present?.nodeWorkChain?.modelEvidence).toEqual(changed)
+    await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: present! })])
+    changed.model = 'later-model'
+    expect(present?.nodeWorkChain?.modelEvidence).toMatchObject({ model: 'execution-model' })
+    const upgraded = structuredClone(delivery)
+    if (!upgraded.nodeWorkChain) throw new Error('Expected routed callback')
+    upgraded.nodeWorkChain.modelEvidence = changed
+    const { payloadDigest: _retainedDigest, ...upgradedBody } = upgraded.nodeWorkChain
+    upgraded.nodeWorkChain.payloadDigest = digest(upgradedBody)
+    await expect(h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: upgraded })]))
+      .rejects.toThrow('Frozen callback evidence cannot change')
+    const corrupted = structuredClone(present!)
+    corrupted.payload.callbackId = 'corrupted' as T.CallbackId
+    corrupted.payloadDigest = digest(corrupted.payload)
+    await expect(h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: corrupted })]))
+      .rejects.toThrow('Frozen callback evidence does not match')
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    expect(restarted.journal.projection.callbacks.get(delivery.payload.callbackId)?.nodeWorkChain).toEqual(delivery.nodeWorkChain)
+    expect(restarted.journal.projection.callbacks.get(fresh.payload.callbackId)?.nodeWorkChain).toEqual(present?.nodeWorkChain)
   } finally { await h.close() }
 })
 

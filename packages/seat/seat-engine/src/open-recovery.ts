@@ -11,7 +11,8 @@ import { fact } from './triggers.ts'
  * @returns latest committed phase; uncertain first turns remain pending.
  */
 export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenData, executor: SeatOpenExecutor,
-  createdCallbacks: (open: EngineOpenData) => readonly SeatCallbackDelivery[]): Promise<EngineOpenData> {
+  createdCallbacks: (open: EngineOpenData) => readonly SeatCallbackDelivery[] | Promise<readonly SeatCallbackDelivery[]>,
+): Promise<EngineOpenData> {
   let current = journal.projection.opens.get(initial.sessionId) ?? initial
   if (current.phase === 'active' || current.phase === 'opening-failed') return current
   const publish = async (kind: 'open/created' | 'open/configured', updated: EngineOpenData, extra: readonly EngineEffect[] = []) => {
@@ -34,7 +35,8 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
       if (id !== current.sessionId) throw new EngineError('session-id-conflict', 'Executor returned a different Session identity; opening is blocked')
     }
     const created: EngineOpenData = { ...current, phase: 'created' }
-    await publish('open/created', created, createdCallbacks(created).map(data => fact({ kind: 'callback/pending', sessionId: created.sessionId, data })))
+    await publish('open/created', created, (await createdCallbacks(created))
+      .map(data => fact({ kind: 'callback/pending', sessionId: created.sessionId, data })))
   }
   for (const stage of ['workspace', 'model', 'permission', 'subscriptions', 'title', 'binding'] as const) {
     if (current.completedStages.includes(stage)) continue

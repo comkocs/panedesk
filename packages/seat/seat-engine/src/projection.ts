@@ -82,6 +82,21 @@ export class EngineProjection {
     const replacements = new Map(this.replacements)
     const closed = new Map(this.closed)
     for (const effect of decision.effects) {
+      if (effect.kind === 'callback/pending' || effect.kind === 'callback/attempted' || effect.kind === 'callback/delivered') {
+        const delivery = effect.data, retained = this.callbacks.get(delivery.payload.callbackId)
+        if (retained?.nodeWorkChain && digest(retained.nodeWorkChain) !== digest(delivery.nodeWorkChain ?? null)) {
+          throw new EngineError('state-conflict', 'Frozen callback evidence cannot change')
+        }
+        if (delivery.nodeWorkChain) {
+          const { payloadDigest, ...body } = delivery.nodeWorkChain
+          if (digest(body) !== payloadDigest || digest(body.callback) !== delivery.payloadDigest
+            || digest(delivery.payload) !== delivery.payloadDigest || body.route.targetNodeId !== delivery.payload.nodeId
+            || body.route.sourceId !== delivery.payload.sourceId || body.modelEvidence.nodeId !== delivery.payload.nodeId
+            || body.modelEvidence.sessionId !== delivery.payload.sessionId) {
+            throw new EngineError('engine-store-corrupt', 'Frozen callback evidence does not match its execution')
+          }
+        }
+      }
       if (effect.kind === 'window/replacement') {
         const previous = replacements.get(effect.data.replacementId)
         if (previous && (previous.phase === 'completed' || previous.phase === 'failed')

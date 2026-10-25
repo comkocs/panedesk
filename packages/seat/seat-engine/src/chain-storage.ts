@@ -109,6 +109,7 @@ export function validateChainFrame(decision: AuthorizationDecision): void {
       || authorization.data.decision !== 'allowed' || authorization.data.requestDigest !== data.payloadDigest
       || authorization.data.operationId !== data.operationKey.operationId
       || authorization.data.principalId !== data.operationKey.principalId
+      || authorization.data.sourceNodeId !== data.operationKey.sourceNodeId
       || authorization.data.nodeId !== decision.nodeId || authorization.data.seat !== effect.seat
       || data.openingContext.snapshot.taskIds.some(task => !authorization.data.taskIds.includes(task))) {
       throw new EngineError('engine-store-corrupt', 'Required route authorization does not match')

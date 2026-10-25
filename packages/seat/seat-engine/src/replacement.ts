@@ -1,7 +1,7 @@
 /** Replacement retains the old owner until a confirmed first reply and flushed close. */
 import { randomUUID } from 'node:crypto'
 import type * as T from '@panedesk/dsh-seat'
-import { EngineJournal, digest } from './journal.ts'
+import { EngineJournal, EngineError, digest } from './journal.ts'
 import { fact, rejected } from './triggers.ts'
 import { closeEffects } from './closing.ts'
 import type { ActionCommit } from './authorized-commit.ts'
@@ -64,7 +64,19 @@ export async function queueReplacement(journal: EngineJournal, request: T.Replac
 /** Reconcile only original replacement Sessions, never minting another on retry. */
 export class ReplacementDriver {
   constructor(private readonly journal: EngineJournal, private readonly seats: () => Pick<T.SeatService, 'list' | 'close'> | undefined,
-    private readonly nodeName: string) {}
+    private readonly nodeName: string,
+    private readonly freezeCallbacks?: (deliveries: readonly T.SeatCallbackDelivery[]) => Promise<T.SeatCallbackDelivery[]>) {}
+
+  private async prepareCallbacks(effects: readonly T.EngineEffect[]): Promise<readonly T.EngineEffect[]> {
+    if (!this.freezeCallbacks) return effects
+    const deliveries = await this.freezeCallbacks(effects.flatMap(effect => effect.kind === 'callback/pending' ? [effect.data] : []))
+    return effects.map((effect) => {
+      if (effect.kind !== 'callback/pending') return effect
+      const data = deliveries.find(item => item.payload.callbackId === effect.data.payload.callbackId)
+      if (!data) throw new EngineError('state-conflict', 'Replacement callback evidence is unavailable')
+      return { ...effect, data }
+    })
+  }
 
   /** Observe first-turn evidence and close only the selected side of the handover.
    * @param executor - installed original-open executor.
@@ -92,14 +104,17 @@ export class ReplacementDriver {
         await this.publish(current)
       }
       if (current.failure && await executor.observe(open) === 'absent') {
+        const failed: T.EngineReplacementData = { ...current, phase: 'failed', cleanup: 'not-created' }
+        const routed = this.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-route/accepted'))
+        const callbacks = routed ? await this.prepareCallbacks(this.failedCallbacks(failed,
+          this.journal.projection.opens.get(current.oldSessionId))) : undefined
         await this.journal.commit((view) => {
           const resource = view.resources.get(open.sessionId)
-          const failed: T.EngineReplacementData = { ...current, phase: 'failed', cleanup: 'not-created' }
           return [fact({ kind: 'window/replacement', data: failed }),
             ...(resource ? [fact({ kind: 'resource/released', sessionId: open.sessionId, data: {
               owner: resource.owner, reason: 'open-aborted', observedAt: new Date().toISOString(),
               releasedAt: new Date().toISOString(), engineReadyAt: null, fenced: true,
-            } })] : []), ...this.failedCallbacks(failed, view.opens.get(current.oldSessionId))]
+            } })] : []), ...(callbacks ?? this.failedCallbacks(failed, view.opens.get(current.oldSessionId)))]
         })
         continue
       }
@@ -129,11 +144,24 @@ export class ReplacementDriver {
         endedAt: result.endedAt, reportId: null, selfReport: null, selfReportStatus: 'not-submitted' }
     }
     const terminal = closed
+    const settled: T.EngineReplacementData = { ...current, phase: current.failure ? 'failed' : 'completed', cleanup: 'closed' }
+    const routed = this.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-route/accepted'))
+    const prepared = routed ? await this.prepareCallbacks([
+      ...closeEffects(this.journal.projection, terminal, this.nodeName),
+      ...(current.failure ? this.failedCallbacks(settled, this.journal.projection.opens.get(current.oldSessionId)) : []),
+    ]) : undefined
     await this.journal.commit((view) => {
-      const effects = closeEffects(view, terminal, this.nodeName)
-      const settled: T.EngineReplacementData = { ...current, phase: current.failure ? 'failed' : 'completed', cleanup: 'closed' }
+      const effects = closeEffects(view, terminal, this.nodeName).map((effect) => {
+        if (!prepared || effect.kind !== 'callback/pending') return effect
+        const retained = prepared.find(item => item.kind === 'callback/pending'
+          && item.data.payload.callbackId === effect.data.payload.callbackId)
+        if (!retained) throw new EngineError('state-conflict', 'Replacement callback changed during evidence capture')
+        return retained
+      })
       effects.push(fact({ kind: 'window/replacement', data: settled }))
-      if (current.failure) effects.push(...this.failedCallbacks(settled, view.opens.get(current.oldSessionId)))
+      if (current.failure) effects.push(...(prepared
+        ? prepared.filter(effect => effect.kind === 'callback/pending' && effect.data.payload.kind === 'replacement-failed')
+        : this.failedCallbacks(settled, view.opens.get(current.oldSessionId))))
       return effects
     })
   }

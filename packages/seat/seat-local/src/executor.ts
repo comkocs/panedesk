@@ -18,6 +18,7 @@ import { readLocalOpenInput } from './open-input.ts'
 import { localSourceId } from './open-admission.ts'
 import { observeOwner } from './owner-observation.ts'
 import { sessionCredentialSetup } from './session-credentials.ts'
+import { readExecutionModel } from './model-evidence.ts'
 
 /** Create an identity-preserving executor whose caller owns registration and disposal.
  * @param ctx - local plugin context.
@@ -25,7 +26,9 @@ import { sessionCredentialSetup } from './session-credentials.ts'
  * @param options - explicit opening and journal limits.
  * @returns executor for engine registration.
  */
-export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, options: LocalSeatOptions): SeatOpenExecutor {
+export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, options: LocalSeatOptions): SeatOpenExecutor & {
+  executionModel(sessionId: import('@panedesk/dsh-session').SessionId | null): Promise<import('@panedesk/dsh-seat').SeatExecutionModelEvidence>
+} {
   const state = new LocalEngineState(() => ctx.get('seatEngine'), options.nodeId, options.pageSize, options.transactionRetries)
   const freeze = async (open: EngineOpenData): Promise<NonNullable<EngineOpenData['frozenOpening']>> => {
     if (open.frozenOpening) return open.frozenOpening
@@ -94,6 +97,7 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
     subscribed.add(agent)
   }
   return {
+    executionModel: sessionId => readExecutionModel(ctx, sessionId, options.nodeId),
     observe: async (open) => {
       const persistence = ctx.get('sessionPersistence')
       if (persistence === undefined) return 'unknown'
