@@ -67,6 +67,26 @@ async function fixture() {
   return { files, mapped, writes }
 }
 
+test('checks startup liveness without retaining effects or accepting an unloading fiber', async () => {
+  const { ctx } = context()
+  const fiber = await ctx.plugin(() => {})
+  const effects = fiber.getEffects()
+  expect(Admin.isPrivateFilesContextActive(fiber.ctx)).toBe(true)
+  expect(fiber.getEffects()).toEqual(effects)
+  let release!: () => void
+  const waiting = new Promise<void>((resolve) => { release = resolve })
+  fiber.effect(() => () => waiting)
+  const restarting = fiber.restart()
+  try {
+    expect(fiber.uid).not.toBeNull()
+    expect(fiber.state).toBe(FiberState.UNLOADING)
+    expect(Admin.isPrivateFilesContextActive(fiber.ctx)).toBe(false)
+  } finally { release(); await restarting }
+  expect(Admin.isPrivateFilesContextActive(fiber.ctx)).toBe(true)
+  await fiber.dispose()
+  expect(Admin.isPrivateFilesContextActive(fiber.ctx)).toBe(false)
+})
+
 test('waits for a late active Windows factory before publishing ACL-protected endpoint and credential', async () => {
   const f = await fixture(), { ctx, logs } = context()
   const fiber = start(ctx)

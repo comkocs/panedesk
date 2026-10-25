@@ -1,7 +1,7 @@
 /** Paired optional transport owns every listener, child, epoch and operation store. */
 import { join } from 'node:path'
-import { FiberState, type Context } from '@panedesk/cordis'
-import { PosixPrivateFiles, waitForPrivateFiles, PrivateFilesWaitCancelled, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
+import type { Context } from '@panedesk/cordis'
+import { PosixPrivateFiles, waitForPrivateFiles, PrivateFilesWaitCancelled, isPrivateFilesContextActive, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
 import { NODE_LINK_VERSION, type Config } from './index.ts'
 import { loadCredential } from './credentials.ts'
 import { NodeReceiver } from './receiver.ts'
@@ -26,7 +26,7 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
   if (!identifier(options.nodeId) || !identifier(options.peerNodeId) || options.nodeId === options.peerNodeId) {
     throw new Error('Node identities rejected')
   }
-  const inactive = () => windows && (ctx.fiber.uid === null || ctx.fiber.state === FiberState.UNLOADING)
+  const inactive = () => windows && !isPrivateFilesContextActive(ctx)
   const windowsFactory = windows
     ? await waitForPrivateFiles(ctx, 'nodeLinkFiles', options.requestTimeoutMs, () => ctx.get('nodeLinkFiles')).catch((error: unknown) => {
       if (error instanceof PrivateFilesWaitCancelled) return undefined
