@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-schedule-wake-opening-turn",
+      "description": "Observe schedule wait completion before an opening turn can start.",
+      "origin": "Optional seat acceptance coverage",
+      "reason": "Steer delivery may join the opening turn; a held input claim exercises that ordering deterministically.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-app/tests/acceptance.spec.ts"],
+        "test": "A19 wakes an all-object schedule wait once within five seconds without polling tools: %s"
+      }
+    },
+    {
       "id": "F03-missing-replay-late-original",
       "description": "Replay only an exact missing business intent and deduplicate its late original across receiver restart.",
       "origin": "Optional host integration",
