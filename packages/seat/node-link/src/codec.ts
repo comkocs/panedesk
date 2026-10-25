@@ -5,6 +5,7 @@ import { NODE_LINK_VERSION, NODE_LINK_ERROR_CODES } from './index.ts'
 import type { NodeWireRequest, NodeWireResponse, NodeRouteMethods } from './index.ts'
 import type { NodePreparedRequest } from './delegation.ts'
 import { decodeRoutedSend } from './routed-codec.ts'
+import { validDelegation } from './delegation-codec.ts'
 
 const methods = { 'seat.open': 'seats/open', 'seat.openBatch': 'seats/openBatch', 'seat.renew': 'seats/renew',
   'seat.close': 'seats/close', 'seat.replace': 'seats/replace', 'seat.wake': 'seats/wake', 'seat.operation': 'seats/operation' } as const
@@ -24,17 +25,7 @@ export function decodeRequest(value: unknown): NodePreparedRequest {
       'deadline', 'hop', 'method', 'payload', 'payloadDigest', 'delegation'].includes(key))) throw new Error('Node frame rejected')
   if (value.method === 'messages.send') decodeRoutedSend(value.payload)
   else decodeSeatRequest(methods[value.method as keyof typeof methods], value.payload)
-  const delegation = value.delegation
-  if (!object(delegation) || delegation.kind !== 'node-delegation' || delegation.hop !== 1
-    || !identifier(delegation.principalId) || !identifier(delegation.authorizationRef)
-    || delegation.sourceNodeId !== value.sourceNodeId || delegation.targetNodeId !== value.targetNodeId
-    || delegation.operationId !== value.operationId || delegation.requestDigest !== value.payloadDigest
-    || typeof delegation.expiresAt !== 'string' || !Number.isFinite(Date.parse(delegation.expiresAt))
-    || !Array.isArray(delegation.taskIds) || !delegation.taskIds.every(identifier)
-    || (delegation.seat !== undefined && !identifier(delegation.seat))
-    || (delegation.sessionId !== undefined && !identifier(delegation.sessionId))
-    || Object.keys(delegation).some(key => !['kind', 'hop', 'principalId', 'authorizationRef', 'sourceNodeId', 'targetNodeId',
-      'operationId', 'requestDigest', 'expiresAt', 'taskIds', 'seat', 'sessionId'].includes(key))) throw new Error('Node delegation rejected')
+  if (!validDelegation(value)) throw new Error('Node delegation rejected')
   if (!object(value.payload) || (value.method !== 'seat.operation' && value.payload.operationId !== value.operationId)
     || (value.payload.nodeId !== undefined && value.payload.nodeId !== value.targetNodeId)) throw new Error('Node payload identity rejected')
   if (value.method === 'messages.send' && object(value.payload.delivery)

@@ -13,18 +13,21 @@ export class ChainStore {
   private entries: Record<string, Entry> = {}
   private serial: Promise<void> = Promise.resolve()
   private failed = false
-  constructor(private readonly files: PrivateFiles, private readonly maxBytes: number, private readonly maxEntries: number) {}
+  private readonly limits: { maxBytes: number; maxEntries: number }
+  constructor(private readonly files: PrivateFiles, maxBytes: number, maxEntries: number) {
+    this.limits = { maxBytes, maxEntries }
+  }
 
   /** Load and validate every retained identity before ingress becomes available.
    * @returns Completion after the independent chain generation is verified.
    */
   async load(): Promise<void> {
     await this.files.prepare()
-    const text = await this.files.read('chain-v1.json', this.maxBytes)
+    const text = await this.files.read('chain-v1.json', this.limits.maxBytes)
     if (text === null) return
-    const value = parseJson(text, this.maxBytes)
+    const value = parseJson(text, this.limits.maxBytes)
     if (!object(value) || value.version !== 'node-work-chain/v1' || !object(value.entries)
-      || Object.keys(value.entries).length > this.maxEntries) throw new Error('Node chain store rejected')
+      || Object.keys(value.entries).length > this.limits.maxEntries) throw new Error('Node chain store rejected')
     const entries: Record<string, Entry> = {}
     for (const [key, item] of Object.entries(value.entries)) {
       if (!object(item) || Object.keys(item).some(field => !['request', 'response'].includes(field))) throw new Error('Node chain entry rejected')
@@ -60,7 +63,7 @@ export class ChainStore {
       if (request.method === 'chain.operation') throw new Error('Node chain query cannot create intent')
       const previous = this.query(chainKey(request), request.payloadDigest)
       if (previous.state !== 'missing') return previous
-      if (Object.keys(this.entries).length >= this.maxEntries) throw new Error('Node chain capacity exceeded')
+      if (Object.keys(this.entries).length >= this.limits.maxEntries) throw new Error('Node chain capacity exceeded')
       await this.publish({ ...this.entries, [digest(chainKeyText(chainKey(request)))]: { request } })
       return { state: 'admitted' as const }
     })
@@ -106,7 +109,7 @@ export class ChainStore {
   }
   private async publish(entries: Record<string, Entry>): Promise<void> {
     const text = JSON.stringify({ version: 'node-work-chain/v1', entries })
-    if (Buffer.byteLength(text) > this.maxBytes) throw new Error('Node chain store exceeds limit')
+    if (Buffer.byteLength(text) > this.limits.maxBytes) throw new Error('Node chain store exceeds limit')
     try { await this.files.write('chain-v1.json', text) }
     catch (error) { this.failed = true; throw error }
     this.entries = entries
