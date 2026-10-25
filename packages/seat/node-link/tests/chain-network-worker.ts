@@ -12,6 +12,10 @@ import { pathToFileURL } from 'node:url'
 import { createInterface } from 'node:readline'
 import { randomUUID } from 'node:crypto'
 import { networkInput, networkPrepared } from './chain-network-fixture.ts'
+import { chainKey } from '../src/chain-identity.ts'
+import { chainDigest, decodeChainRequest } from '../src/chain-codec.ts'
+import { NodeRouter } from '../src/router.ts'
+import { ChainRouter } from '../src/chain-router.ts'
 
 const directory = process.argv[2]!
 const settings = parseJson(await readFile(join(directory, 'worker.json'), 'utf8'), 65536)
@@ -95,6 +99,24 @@ for await (const line of lines) {
   if (command.kind === 'release') { fault = 'none'; release(); reply({ released: true }); continue }
   if (command.kind === 'status') {
     reply({ status: await ctx.get('nodeRouter')!.status(), executions, evidenceChecks, queries, held: held.size > 0 }); continue
+  }
+  if (command.kind === 'handshake') {
+    const router = ctx.get('nodeRouter')
+    if (!(router instanceof NodeRouter)) throw new Error('Node router unavailable')
+    reply({ connected: await router.handshake() }); continue
+  }
+  if (command.kind === 'query') {
+    const original = decodeChainRequest(command.request)
+    const payload = { key: chainKey(original), payloadDigest: original.payloadDigest }
+    const payloadDigest = chainDigest('chain.operation', payload)
+    const request = decodeChainRequest({ ...original, method: 'chain.operation', payload, payloadDigest,
+      requestId: randomUUID(), delegation: { ...original.delegation, authorizationRef: randomUUID(), requestDigest: payloadDigest } })
+    if (request.method !== 'chain.operation') throw new Error('Query method rejected')
+    const fact = command.fact as Seat.SeatIssuedAuthorizationFact
+    const authorization = grant({ ...fact, authorizationId: request.delegation.authorizationRef, requestDigest: payloadDigest })
+    const router = ctx.get('nodeWorkChainRouter')
+    if (!(router instanceof ChainRouter)) throw new Error('Chain router unavailable')
+    reply(await router.reconcile(original, request, authorization)); continue
   }
   if (command.kind === 'route') {
     const request = command.request as NodeLink.ChainRequest
