@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="purpose"></a>
 ## 用途
 
-六个管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
+管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`、`source.operations`、`source.abandon`、`source.resend`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
 
 <a id="configuration-and-identity"></a>
 ## 配置与身份
@@ -38,7 +38,9 @@ Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，�
 
 `hostAdminExecutor` 接收传输导出的身份并保留原引擎检查。没有自定义执行器时，运行时从现有引擎的签发器、事务及查询能力装配 `createHostAdminExecutor`。监听器持有的身份签发 `local-operator` 归属，与队列批准原子提交。自报 dispatch 身份不能进入此路径或读取缓存回执；缺少能力时拒绝该方法。状态及待批准查询保留只读引擎回退。
 
-`hostSessionCredentials` 在会话专属权限目录中签发独立且绑定进程代次的凭据。受信创建方提供会话与位，已有核验员工号时可一并提供；请求字段不提供身份。替换或撤销绑定会删除凭据并取消其调用信号。运维 SDK 调用没有位，命名空间授权必须拒绝无位写入。会话凭据不能调用六个运维方法。`callHostSdk` 读取显式端点与凭据路径，只发送一次，不重试未知结果。
+`hostSessionCredentials` 在会话专属权限目录中签发独立且绑定进程代次的凭据。受信创建方提供会话与位，已有核验员工号时可一并提供；请求字段不提供身份。替换或撤销绑定会删除凭据并取消其调用信号。运维 SDK 调用没有位，命名空间授权必须拒绝无位写入。会话凭据不能调用管理方法。`callHostSdk` 读取显式端点与凭据路径，只发送一次，不重试未知结果。
+
+`source.operations({ limit? })` 读取可选 `hostAdminSourceOperator.list` 提供方，原样返回条目；`limit` 为 1 至 200 的整数。`source.abandon` 和 `source.resend` 接受 `{ operationId, key, reason }`，要求本地操作员身份及签发器允许的授权，并核对节点、主体、操作号和请求摘要。提供方收到原始授权，负责审计、释放和重发语义。`key` 长度为 1–512 个字符，`reason` 为 1–500；未知字段拒绝。结果最多包含 200 条 `awaiting-manual` 或 `parked-none` 项，字符串有界、时刻为 ISO 格式；写结果为 `ok` 或 `rejected`，可带正整数代次。缺少提供方或可选 `resend` 时返回 `unavailable` 和 `admin-method-unavailable`。该服务不列为注入依赖。`callAdmin` 及其 SDK 导出 `callHostAdmin` 只使用操作员通道；`sdk.invoke` 与会话凭据不增加来源方法。
 
 <a id="persistence-and-recovery"></a>
 ## 持久化与恢复

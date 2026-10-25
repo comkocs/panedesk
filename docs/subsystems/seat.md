@@ -86,6 +86,36 @@ execute(request: HostAdminRequest, authority: HostAdminAuthority): Promise<HostA
 
 Source: [`packages/host/host-admin/src/index.ts`](../../packages/host/host-admin/src/index.ts)
 
+<a id="ctxhostadminsourceoperator--hostadminsourceoperator"></a>
+
+### `ctx.hostAdminSourceOperator` — `HostAdminSourceOperator`
+
+Optional local source owner; absence never starts another engine or delivery path.
+
+```ts cordis-catalog
+/** List source work without changing its state.
+ * @param params - Optional page limit from 1 through 200.
+ * @returns At most 200 provider items, preserving their full keys.
+ */
+list(params: { limit?: number }): Promise<{ items: SourceOperatorItem[] }>
+
+/** Delegate abandonment to the source owner after exact-operation authorization.
+ * @param params - Operation identity, original key and bounded reason.
+ * @param grant - Original local-operator grant, including audit attribution.
+ * @returns Provider result after its audit and release decisions.
+ */
+abandon(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>
+
+/** Delegate directed resend when the source owner supplies this capability.
+ * @param params - Operation identity, original key and bounded reason.
+ * @param grant - Original local-operator grant, including audit attribution.
+ * @returns Provider result after its admission and generation decisions.
+ */
+resend?(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>
+```
+
+Source: [`packages/host/host-admin/src/source-operator.ts`](../../packages/host/host-admin/src/source-operator.ts)
+
 <a id="ctxhostsdkinvoker--hostsdkinvoker"></a>
 
 ### `ctx.hostSdkInvoker` — `HostSdkInvoker`

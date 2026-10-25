@@ -8,6 +8,9 @@ import { identifier, object, parseJson } from './json.ts'
 import { decodeSdkRequest, decodeSdkResponse } from './sdk-codec.ts'
 import type { HostSdkResult } from './sdk.ts'
 
+/** Operator-only administration client; session SDK credentials never grant source writes. */
+export { callAdmin as callHostAdmin } from './client.ts'
+
 /** Explicit file paths, never credential values or arbitrary endpoint URLs. */
 export interface RunningHostOptions extends RpcLimits {
   endpointPath: string

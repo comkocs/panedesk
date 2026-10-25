@@ -1,6 +1,6 @@
 /** Administration adapters preserve the existing approval path and its journal transaction. */
 import type * as Seat from '@panedesk/dsh-seat'
-import type { HostAdminAuthority, HostAdminExecutor, HostAdminRequest } from './index.ts'
+import type { HostAdminAuthority, HostAdminExecutor, HostAdminRequest, HostAdminSourceOperator } from './index.ts'
 
 /** An authenticated local entry supplies a scoped issuer, never a role inferred from a name. */
 export interface HostAdminAuthorizationPolicy {
@@ -14,6 +14,8 @@ export interface HostAdminAuthorizationPolicy {
 }
 /** The running engine remains the sole admission owner; queries never start another instance. */
 export interface HostAdminExecutionDependencies {
+  /** Optional source owner; omitted capabilities return method-unavailable. */
+  readonly sourceOperator?: HostAdminSourceOperator
   readonly nodeId: Seat.SeatNodeId
   readonly policy: HostAdminAuthorizationPolicy
   readonly authorization: Seat.SeatAuthorizationTransactions

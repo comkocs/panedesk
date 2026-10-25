@@ -12,13 +12,39 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
   const refuse = (request: HostAdminRequest): HostAdminResponse => ({ version: HOST_ADMIN_VERSION,
     requestId: request.requestId, method: request.method, status: 'rejected',
     code: 'admin-unauthorized', reason: 'Administration authority rejected' })
+  const unavailable = (request: HostAdminRequest): HostAdminResponse => ({ version: HOST_ADMIN_VERSION,
+    requestId: request.requestId, method: request.method, status: 'unavailable',
+    code: 'admin-method-unavailable', reason: 'Source operator capability is unavailable' })
   return { execute: async (request, authority) => {
+    const provider = dependencies.sourceOperator
     if (!authority.methods.includes(request.method)
-      || ((request.method === 'engine.approve' || request.method === 'engine.cancel') && authority.kind !== 'local-operator')) return refuse(request)
+      || ((request.method === 'engine.approve' || request.method === 'engine.cancel'
+        || request.method === 'source.abandon' || request.method === 'source.resend') && authority.kind !== 'local-operator')) return refuse(request)
+    if ((request.method === 'source.operations' || request.method === 'source.abandon' || request.method === 'source.resend')
+      && (!provider || request.method === 'source.resend' && !provider.resend)) return unavailable(request)
     const issuer = await dependencies.policy.authorize(request, authority)
     if ('status' in issuer) return refuse(request)
     const base = { version: HOST_ADMIN_VERSION, requestId: request.requestId, status: 'ok' as const }
     switch (request.method) {
+      case 'source.operations':
+        if (!provider) return unavailable(request)
+        return { ...base, method: request.method, result: await provider.list(request.params) }
+      case 'source.abandon':
+      case 'source.resend': {
+        const requestDigest = digest(request.params) as import('@panedesk/dsh-seat').SeatDigest
+        const grant = await issuer.check({ operationId: request.params.operationId as import('@panedesk/dsh-seat').SeatOperationId,
+          requestDigest })
+        if ('status' in grant) return refuse(request)
+        const { fact } = grant
+        if (fact.decision !== 'allowed' || fact.kind !== 'local-operator'
+          || fact.requestDigest !== requestDigest || fact.operationId !== request.params.operationId
+          || fact.nodeId !== dependencies.nodeId || fact.principalId !== authority.principalId) return refuse(request)
+        if (!provider) return unavailable(request)
+        if (request.method === 'source.abandon') return { ...base, method: request.method,
+          result: await provider.abandon(request.params, grant) }
+        if (!provider.resend) return unavailable(request)
+        return { ...base, method: request.method, result: await provider.resend(request.params, grant) }
+      }
       case 'node.status': return { ...base, method: request.method, result: await dependencies.engine.nodeStatus() }
       case 'engine.pending': return { ...base, method: request.method, result: await dependencies.engine.pending(request.params) }
       case 'engine.query':

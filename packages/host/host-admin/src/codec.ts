@@ -18,6 +18,23 @@ export function decodeRequest(value: unknown): HostAdminRequest {
     throw new Error('Administration frame rejected')
   }
   switch (value.method) {
+    case 'source.operations': {
+      const params = value.params
+      if (!object(params) || Object.keys(params).some(key => key !== 'limit')
+        || params.limit !== undefined && (!Number.isSafeInteger(params.limit) || Number(params.limit) < 1 || Number(params.limit) > 200)) {
+        throw new Error('Source operations request rejected')
+      }
+      break
+    }
+    case 'source.abandon':
+    case 'source.resend': {
+      const params = value.params
+      if (!object(params) || Object.keys(params).some(key => !['operationId', 'key', 'reason'].includes(key))
+        || typeof params.operationId !== 'string' || params.operationId.trim().length === 0
+        || !boundedString(params.key, 512) || params.key.length === 0
+        || !boundedString(params.reason, 500) || params.reason.length === 0) throw new Error('Source write request rejected')
+      break
+    }
     case 'node.status': decodeSeatRequest('seats/nodeStatus', value.params); break
     case 'engine.pending': decodeSeatRequest('seats/pending', value.params); break
     case 'engine.approve': decodeSeatRequest('seats/approve', value.params); break
@@ -51,6 +68,11 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
   if (!object(value) || value.version !== HOST_ADMIN_VERSION || value.requestId !== request.requestId || value.method !== request.method) {
     throw new Error('Administration response identity rejected')
   }
+  if (request.method === 'source.operations' || request.method === 'source.abandon' || request.method === 'source.resend') {
+    const allowed = value.status === 'ok' ? ['version', 'requestId', 'method', 'status', 'result']
+      : ['version', 'requestId', 'method', 'status', 'code', 'reason', 'operationId']
+    if (Object.keys(value).some(key => !allowed.includes(key))) throw new Error('Source response fields rejected')
+  }
   if (value.status !== 'ok') {
     if (!['rejected', 'unavailable', 'uncertain'].includes(String(value.status))
       || !HOST_ADMIN_ERROR_CODES.some(code => code === value.code) || typeof value.reason !== 'string') {
@@ -59,6 +81,24 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
     return value as HostAdminResponse
   }
   switch (request.method) {
+    case 'source.operations': {
+      const result = value.result
+      if (!object(result) || Object.keys(result).some(key => key !== 'items') || !Array.isArray(result.items)
+        || result.items.length > 200 || !result.items.every(validSourceItem)) throw new Error('Source operations result rejected')
+      break
+    }
+    case 'source.abandon':
+    case 'source.resend': {
+      const result = value.result
+      if (!object(result) || Object.keys(result).some(key => !['status', 'code', 'reason', 'generation'].includes(key))
+        || result.status !== 'ok' && result.status !== 'rejected'
+        || result.code !== undefined && !boundedString(result.code, 512)
+        || result.reason !== undefined && !boundedString(result.reason, 512)
+        || result.generation !== undefined && (!Number.isSafeInteger(result.generation) || Number(result.generation) < 1)) {
+        throw new Error('Source write result rejected')
+      }
+      break
+    }
     case 'node.status': decodeSeatResult('seats/nodeStatus', value.result); break
     case 'engine.pending':
       if (object(value.result) && value.result.status === 'rejected') decodeSeatResult('seats/approve', value.result)
@@ -113,6 +153,18 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       break
   }
   return value as HostAdminResponse
+}
+function boundedString(value: unknown, limit: number): value is string {
+  return typeof value === 'string' && value.length <= limit
+}
+function validSourceItem(value: unknown): boolean {
+  return object(value) && Object.keys(value).every(key => ['key', 'state', 'eventId', 'target', 'since', 'ticket', 'detail'].includes(key))
+    && (value.state === 'awaiting-manual' || value.state === 'parked-none')
+    && ['key', 'eventId', 'target', 'since'].every(key => boundedString(value[key], 512))
+    && typeof value.since === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value.since)
+    && Number.isFinite(Date.parse(value.since))
+    && (value.ticket === undefined || boundedString(value.ticket, 512))
+    && (value.detail === undefined || boundedString(value.detail, 2000))
 }
 function validCursor(value: unknown): value is Record<string, unknown> {
   return object(value) && identifier(value.nodeId) && Number.isSafeInteger(value.sequence) && Number(value.sequence) >= 0

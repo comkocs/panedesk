@@ -32,6 +32,10 @@ test('loads opt-in administration, authenticates five methods and disposes crede
     expect(authority.kind).toBe('local-operator')
     const common = { version: Admin.HOST_ADMIN_VERSION, requestId: request.requestId }
     switch (request.method) {
+      case 'source.operations':
+      case 'source.abandon':
+      case 'source.resend': return { ...common, method: request.method, status: 'unavailable',
+        code: 'admin-method-unavailable', reason: 'Source operator unavailable' }
       case 'node.status': return { ...common, method: request.method, status: 'ok', result: {
         nodeId: 'node-a' as Admin.HostAdminEndpoint['nodeId'], nodeName: 'node-a', engine: 'running', openEngineWindows: 2, limit: 4, readyAt: null } }
       case 'engine.pending': return { ...common, method: request.method, status: 'ok', result: { items: [], watermark: 1, complete: true } }

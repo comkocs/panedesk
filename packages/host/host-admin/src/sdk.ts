@@ -3,6 +3,8 @@ import type { Branded } from '@panedesk/dsh-brand'
 import type { SeatName, SeatPrincipalId } from '@panedesk/dsh-seat'
 import type { HostAdminEndpoint } from './index.ts'
 
+export type { HostAdminSourceOperator, HostAdminGrant, SourceOperatorItem, SourceOperatorWriteParams, SourceOperatorResult } from './source-operator.ts'
+
 /** JSON values are the only SDK results admitted onto the administration wire. */
 export type HostSdkJson = null | boolean | number | string | readonly HostSdkJson[] | { readonly [key: string]: HostSdkJson }
 /** In-memory identity issued by the host, never decoded from request parameters. */

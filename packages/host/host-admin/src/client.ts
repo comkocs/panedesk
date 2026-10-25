@@ -31,9 +31,11 @@ export async function callAdmin(files: PrivateFiles, method: HostAdminRequest['m
   catch (error) {
     void error
     return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
-      status: method === 'engine.approve' || method === 'engine.cancel' ? 'uncertain' : 'unavailable',
-      code: method === 'engine.approve' || method === 'engine.cancel' ? 'admin-outcome-unknown' : 'admin-unavailable', reason: 'Administration response unavailable',
+      status: method === 'engine.approve' || method === 'engine.cancel' || method === 'source.abandon' || method === 'source.resend' ? 'uncertain' : 'unavailable',
+      code: method === 'engine.approve' || method === 'engine.cancel' || method === 'source.abandon' || method === 'source.resend' ? 'admin-outcome-unknown' : 'admin-unavailable', reason: 'Administration response unavailable',
       ...(request.method === 'engine.approve' || request.method === 'engine.cancel' ? { operationId: request.params.operationId } : {}),
+      ...(request.method === 'source.abandon' || request.method === 'source.resend'
+        ? { operationId: request.params.operationId as import('@panedesk/dsh-seat').SeatOperationId } : {}),
     }
   }
 }
