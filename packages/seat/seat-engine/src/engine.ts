@@ -24,6 +24,7 @@ import { AuthorizationTransactions } from './authorization-transactions.ts'
 import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
 import { authorizedCommit, type ActionCommit } from './authorized-commit.ts'
 import { exportAuthorizations } from './authorization-export.ts'
+import { freezeCallbackEvidence, type ExecutionModelReader } from './callback-evidence.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -49,7 +50,7 @@ export class SeatEngine extends SeatEngineService {
   private readonly outbox: CallbackOutbox
   private readonly replacements: ReplacementDriver
   private readonly keepalive: KeepAliveScheduler
-  private executor: T.SeatOpenExecutor | undefined
+  private executor: (T.SeatOpenExecutor & { executionModel?: ExecutionModelReader }) | undefined
   private localAccess: T.SeatEngineLocalAccess | undefined
   private activeDrive: Promise<void> | undefined
   private activeCallbacks: Promise<void> | undefined
@@ -83,7 +84,8 @@ export class SeatEngine extends SeatEngineService {
     })
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
     this.outbox = new CallbackOutbox(this.journal, this.sources, options.config, dependencies.deliverCallback)
-    this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName)
+    this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName,
+      deliveries => freezeCallbackEvidence(this.journal.projection, deliveries, this.executor?.executionModel))
     this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {
       remaining: () => Promise.resolve({ kind: 'unknown' }),
       renew: () => Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' }),
@@ -504,7 +506,20 @@ export class SeatEngine extends SeatEngineService {
   }
   async recordClosed(closed: T.EngineCloseData): Promise<void> {
     await this.ready()
-    await this.journal.commit(view => closeEffects(view, closed, this.options.config.nodeName))
+    if (!this.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-route/accepted'))) {
+      await this.journal.commit(view => closeEffects(view, closed, this.options.config.nodeName))
+      await this.publish()
+      return
+    }
+    const prepared = closeEffects(this.journal.projection, closed, this.options.config.nodeName)
+    const deliveries = await freezeCallbackEvidence(this.journal.projection,
+      prepared.flatMap(effect => effect.kind === 'callback/pending' ? [effect.data] : []), this.executor?.executionModel)
+    await this.journal.commit(view => closeEffects(view, closed, this.options.config.nodeName).map((effect) => {
+      if (effect.kind !== 'callback/pending') return effect
+      const data = deliveries.find(item => item.payload.callbackId === effect.data.payload.callbackId)
+      if (!data) throw new EngineError('state-conflict', 'Close callback changed during evidence capture')
+      return { ...effect, data }
+    }))
     await this.publish()
   }
   drive(): Promise<void> {
@@ -685,11 +700,11 @@ export class SeatEngine extends SeatEngineService {
         operationId: item.handoffTimeout.wakeOperationId })
     }
   }
-  private callbacks(open: T.EngineOpenData, kind: 'opened' | 'opening-failed' | 'budget-stopped',
-    snapshot = open.budget): T.SeatCallbackDelivery[] {
+  private async callbacks(open: T.EngineOpenData, kind: 'opened' | 'opening-failed' | 'budget-stopped',
+    snapshot = open.budget): Promise<T.SeatCallbackDelivery[]> {
     if (open.binding.kind !== 'seat') return []
     const binding = open.binding
-    return (open.sources ?? []).map((source) => {
+    const deliveries: T.SeatCallbackDelivery[] = (open.sources ?? []).map((source) => {
       const base: T.SeatCallbackBase = { callbackId: digest([open.intentId, source.triggerId,
         kind, kind === 'budget-stopped' ? snapshot.budgetRevision : 0]) as string as T.CallbackId,
       sourceId: source.sourceId, triggerId: source.triggerId, stateVersion: this.journal.projection.sequence + 1, seat: binding.seat,
@@ -701,9 +716,10 @@ export class SeatEngine extends SeatEngineService {
           : { ...base, kind, budgetSnapshot: snapshot }
       return { payload, payloadDigest: digest(payload), attempt: 0, phase: 'pending', nextDue: null, responseClass: null }
     })
+    return freezeCallbackEvidence(this.journal.projection, deliveries, this.executor?.executionModel)
   }
   private async recordCallbacks(open: T.EngineOpenData, kind: 'opening-failed' | 'budget-stopped', snapshot = open.budget): Promise<void> {
-    const callbacks = this.callbacks(open, kind, snapshot)
+    const callbacks = await this.callbacks(open, kind, snapshot)
     await this.journal.commit(view => callbacks.filter(item => !view.callbacks.has(item.payload.callbackId)).map(data => fact({ kind: 'callback/pending',
       sessionId: open.sessionId, data })))
   }

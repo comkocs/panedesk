@@ -15,6 +15,37 @@ export class OpeningContexts implements T.SeatOpeningContexts {
     pending: Set<Promise<unknown>>
   }>()
   private active = true
+  private sourceOwner: { owner: T.SeatSourceOwner; pending: Set<Promise<unknown>>; closing: boolean } | undefined
+  declare prepare?: T.SeatSourceOwner['prepare']
+  declare checkAdmission?: T.SeatSourceOwner['checkAdmission']
+  declare deliverCallback?: T.SeatSourceOwner['deliverCallback']
+  registerSourceOwner(owner: T.SeatSourceOwner): () => Promise<void> {
+    if (!this.active || this.sourceOwner) throw new Error('Source owner is unavailable or already registered.')
+    const entry = { owner, pending: new Set<Promise<unknown>>(), closing: false }
+    this.sourceOwner = entry
+    const unavailable = () => rejected('unavailable', 'Source owner is unavailable.', 'Restore the source owner.')
+    const run = <R>(call: () => Promise<R>, missing: () => R): Promise<R> => {
+      if (!this.active || entry.closing || this.sourceOwner !== entry) return Promise.resolve(missing())
+      const pending = Promise.resolve().then(call)
+      entry.pending.add(pending)
+      return pending.finally(() => entry.pending.delete(pending))
+    }
+    this.prepare = (request, authority) => run(() => owner.prepare(request, authority), unavailable)
+    this.checkAdmission = (request, authority) => run(() => owner.checkAdmission(request, authority),
+      () => ({ status: 'unknown', policyRevision: null, error: unavailable().error }))
+    this.deliverCallback = (request, authority) => run(() => owner.deliverCallback(request, authority), unavailable)
+    return () => this.closeSourceOwner(entry)
+  }
+  private async closeSourceOwner(entry: NonNullable<OpeningContexts['sourceOwner']>): Promise<void> {
+    entry.closing = true
+    if (this.sourceOwner === entry) {
+      delete this.prepare
+      delete this.checkAdmission
+      delete this.deliverCallback
+    }
+    await Promise.allSettled([...entry.pending])
+    if (this.sourceOwner === entry) this.sourceOwner = undefined
+  }
   private scope: { admission: T.OpeningScopeAdmission; closing: boolean; pending: Set<Promise<unknown>> } | undefined
   registerScopeAdmission(admission: T.OpeningScopeAdmission): () => Promise<void> {
     if (!this.active || this.scope) throw new Error('Scope admission is unavailable or already registered.')
@@ -137,6 +168,7 @@ export class OpeningContexts implements T.SeatOpeningContexts {
   /** Stop all sources and drain active resolutions. */
   async close(): Promise<void> {
     this.active = false
+    if (this.sourceOwner) await this.closeSourceOwner(this.sourceOwner)
     if (this.scope) {
       this.scope.closing = true
       await Promise.allSettled([...this.scope.pending])

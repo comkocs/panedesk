@@ -23,11 +23,12 @@ export function validAuthorization(value: unknown): value is T.SeatIssuedAuthori
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const data = value as Record<string, unknown>
   const required = ['authorizationId', 'principalId', 'nodeId', 'operationId', 'reasonCode', 'requestDigest', 'checkedAt']
-  const optional = ['sessionId', 'seat', 'callId', 'rootCallId', 'delegatedBy']
+  const optional = ['sessionId', 'seat', 'callId', 'rootCallId', 'delegatedBy', 'sourceNodeId']
   return Object.keys(data).every(key => [...required, ...optional, 'kind', 'origin', 'taskIds', 'policyRevision', 'decision'].includes(key))
     && required.every(key => typeof data[key] === 'string' && data[key] !== '')
     && optional.every(key => data[key] === undefined || typeof data[key] === 'string' && data[key] !== '')
     && ['model-tool-call', 'human', 'engine', 'local-operator', 'node-delegation', 'plugin'].includes(String(data.kind))
+    && (data.sourceNodeId === undefined || data.kind === 'node-delegation')
     && ['manual', 'engine', 'remote'].includes(String(data.origin))
     && ['allowed', 'denied'].includes(String(data.decision))
     && Number.isSafeInteger(data.policyRevision) && Number(data.policyRevision) >= 0

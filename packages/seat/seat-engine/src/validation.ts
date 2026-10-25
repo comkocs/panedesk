@@ -129,8 +129,15 @@ const callbackKind = discriminated('kind', {
   'replacement-failed': fields({ replacementId: id, oldSessionId: id, newSessionId: nullable(id),
     reason: replacementFailure, cause: failure, cleanup: one('not-created', 'closed', 'pending') }),
 })
+const modelEvidence = discriminated('status', {
+  present: fields({ provider: id, model: id, kind: one('request/header', 'model/selection'),
+    sessionId: id, nodeId: id, recordRef: id, observedAt: timestamp }),
+  missing: fields({ sessionId: nullable(id), nodeId: id, observedAt: timestamp }),
+})
 const callback = fields({ payload: value => callbackPayload(value) && callbackKind(value), payloadDigest: id,
   attempt: integer, phase: one('pending', 'retry-due', 'paused', 'delivered'), nextDue: nullable(timestamp),
+  nodeWorkChain: optional(fields({ callback: value => callbackPayload(value) && callbackKind(value),
+    route: object, modelEvidence, payloadDigest: id })),
   responseClass: nullable(one('success', 'transient', 'authentication', 'protocol', 'unknown')) })
 const owner = fields({ sessionId: id, intentId: id, ownerEpoch: id, resourceRevision: positive })
 const waitObject = fields({ kind: one('subagent', 'job', 'schedule', 'message'), id })

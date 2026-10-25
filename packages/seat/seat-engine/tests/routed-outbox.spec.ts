@@ -35,7 +35,7 @@ test('retains a routed callback without a sender and never falls back to a same-
   } finally { await outbox.close(); await sources.close(); await h.close() }
 })
 
-test.each(['digest', 'node', 'session'] as const)('pauses inconsistent retained %s evidence before sending', async (changed) => {
+test.each(['digest', 'node', 'session'] as const)('rejects inconsistent retained %s evidence before append or sending', async (changed) => {
   const h = await harness(), sources = new SourceRegistry(), request = callback()
   let calls = 0
   if (changed === 'digest') request.payloadDigest = digest('changed')
@@ -50,12 +50,12 @@ test.each(['digest', 'node', 'session'] as const)('pauses inconsistent retained 
     return { status: 'committed', callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest }
   })
   try {
-    await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: {
+    await expect(h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: {
       payload: request.callback, payloadDigest: digest(request.callback), nodeWorkChain: request,
-      attempt: 0, phase: 'pending', nextDue: null, responseClass: null } })])
+      attempt: 0, phase: 'pending', nextDue: null, responseClass: null } })])).rejects.toThrow('Frozen callback evidence does not match')
     await outbox.deliver(0)
     expect(calls).toBe(0)
-    expect(h.engine.journal.projection.callbacks.get(request.callback.callbackId)?.phase).toBe('paused')
+    expect(h.engine.journal.projection.callbacks.has(request.callback.callbackId)).toBe(false)
   } finally { await outbox.close(); await sources.close(); await h.close() }
 })
 
