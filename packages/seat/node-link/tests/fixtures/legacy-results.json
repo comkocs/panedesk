@@ -1,0 +1,562 @@
+[
+  {
+    "method": "seat.open",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.open",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "nodeId": "node-b",
+        "seat": "seat-a",
+        "origin": "manual"
+      },
+      "payloadDigest": "742c9c92b63f2838e5d5339c8c2fe078dc9e9034c55f08599f69fafc44e4ca75",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "742c9c92b63f2838e5d5339c8c2fe078dc9e9034c55f08599f69fafc44e4ca75",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "742c9c92b63f2838e5d5339c8c2fe078dc9e9034c55f08599f69fafc44e4ca75",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "742c9c92b63f2838e5d5339c8c2fe078dc9e9034c55f08599f69fafc44e4ca75",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"742c9c92b63f2838e5d5339c8c2fe078dc9e9034c55f08599f69fafc44e4ca75\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "opened",
+      "sessionId": "session-a",
+      "seat": "seat-a",
+      "nodeId": "node-b",
+      "nodeName": "peer",
+      "title": "Seat A",
+      "budget": {},
+      "phase": "active",
+      "stateVersion": 1,
+      "callbackIds": [
+        "callback-a"
+      ]
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.open\",\"status\":\"ok\",\"result\":{\"status\":\"opened\",\"sessionId\":\"session-a\",\"seat\":\"seat-a\",\"nodeId\":\"node-b\",\"nodeName\":\"peer\",\"title\":\"Seat A\",\"budget\":{},\"phase\":\"active\",\"stateVersion\":1,\"callbackIds\":[\"callback-a\"]}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.open\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.open\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.open\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "seat.openBatch",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.openBatch",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "nodeId": "node-b",
+        "seats": [
+          "seat-a"
+        ],
+        "origin": "manual"
+      },
+      "payloadDigest": "737ed20816e812c2989197e2ce8d78cb2fa34815de85c66efd8a1a88373df4e0",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "737ed20816e812c2989197e2ce8d78cb2fa34815de85c66efd8a1a88373df4e0",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "737ed20816e812c2989197e2ce8d78cb2fa34815de85c66efd8a1a88373df4e0",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "737ed20816e812c2989197e2ce8d78cb2fa34815de85c66efd8a1a88373df4e0",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"737ed20816e812c2989197e2ce8d78cb2fa34815de85c66efd8a1a88373df4e0\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "processed",
+      "results": [
+        {
+          "seat": "seat-a",
+          "result": {
+            "status": "opened",
+            "sessionId": "session-a",
+            "seat": "seat-a",
+            "nodeId": "node-b",
+            "nodeName": "peer",
+            "title": "Seat A",
+            "budget": {},
+            "phase": "active",
+            "stateVersion": 1,
+            "callbackIds": [
+              "callback-a"
+            ]
+          }
+        }
+      ]
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.openBatch\",\"status\":\"ok\",\"result\":{\"status\":\"processed\",\"results\":[{\"seat\":\"seat-a\",\"result\":{\"status\":\"opened\",\"sessionId\":\"session-a\",\"seat\":\"seat-a\",\"nodeId\":\"node-b\",\"nodeName\":\"peer\",\"title\":\"Seat A\",\"budget\":{},\"phase\":\"active\",\"stateVersion\":1,\"callbackIds\":[\"callback-a\"]}}]}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.openBatch\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.openBatch\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.openBatch\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "seat.renew",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.renew",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "nodeId": "node-b",
+        "sessionId": "session-a"
+      },
+      "payloadDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "renewed",
+      "sessionId": "session-a",
+      "cacheEvidence": {
+        "lastActivityAt": "2026-01-01T00:00:00.000Z",
+        "cacheTtlMs": 60000,
+        "prefixDigest": "prefix-a",
+        "observedAt": "2026-01-01T00:00:00.000Z",
+        "reusableRequest": true
+      }
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.renew\",\"status\":\"ok\",\"result\":{\"status\":\"renewed\",\"sessionId\":\"session-a\",\"cacheEvidence\":{\"lastActivityAt\":\"2026-01-01T00:00:00.000Z\",\"cacheTtlMs\":60000,\"prefixDigest\":\"prefix-a\",\"observedAt\":\"2026-01-01T00:00:00.000Z\",\"reusableRequest\":true}}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.renew\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.renew\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.renew\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "seat.close",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.close",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "nodeId": "node-b",
+        "sessionId": "session-a",
+        "expectedStateVersion": 1
+      },
+      "payloadDigest": "c6a33542c3b14cfbe21a8d9df97b01d9d15ce855b02700bda4a61092be06b15e",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "c6a33542c3b14cfbe21a8d9df97b01d9d15ce855b02700bda4a61092be06b15e",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "c6a33542c3b14cfbe21a8d9df97b01d9d15ce855b02700bda4a61092be06b15e",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "c6a33542c3b14cfbe21a8d9df97b01d9d15ce855b02700bda4a61092be06b15e",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"c6a33542c3b14cfbe21a8d9df97b01d9d15ce855b02700bda4a61092be06b15e\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "closed",
+      "sessionId": "session-a",
+      "phase": "closed",
+      "endedAt": "2026-01-01T00:00:00.000Z",
+      "stateVersion": 2
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.close\",\"status\":\"ok\",\"result\":{\"status\":\"closed\",\"sessionId\":\"session-a\",\"phase\":\"closed\",\"endedAt\":\"2026-01-01T00:00:00.000Z\",\"stateVersion\":2}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.close\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.close\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.close\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "seat.replace",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.replace",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "nodeId": "node-b",
+        "sessionId": "session-a"
+      },
+      "payloadDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"cc46cf8d69a1f34539ffdaae407e5c1436f27180d100f9ac6a3c7687916ae5d5\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "replacing",
+      "replacementId": "replacement-a",
+      "oldSessionId": "session-a",
+      "newSessionId": "session-b",
+      "phase": "completed",
+      "permit": {
+        "permitId": "permit-a",
+        "replacementId": "replacement-a",
+        "oldSessionId": "session-a",
+        "newSessionId": "session-b",
+        "state": "expired-success",
+        "issuedAt": "2026-01-01T00:00:00.000Z",
+        "expiredAt": "2026-01-01T00:00:00.000Z",
+        "ownerEpoch": "owner-a"
+      }
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.replace\",\"status\":\"ok\",\"result\":{\"status\":\"replacing\",\"replacementId\":\"replacement-a\",\"oldSessionId\":\"session-a\",\"newSessionId\":\"session-b\",\"phase\":\"completed\",\"permit\":{\"permitId\":\"permit-a\",\"replacementId\":\"replacement-a\",\"oldSessionId\":\"session-a\",\"newSessionId\":\"session-b\",\"state\":\"expired-success\",\"issuedAt\":\"2026-01-01T00:00:00.000Z\",\"expiredAt\":\"2026-01-01T00:00:00.000Z\",\"ownerEpoch\":\"owner-a\"}}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.replace\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.replace\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.replace\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "seat.wake",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.wake",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "nodeId": "node-b",
+        "seat": "seat-a"
+      },
+      "payloadDigest": "05ee3f8188520a02cce05895fe4c9bd29afb961e621cdbcee0970830194d2db2",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "05ee3f8188520a02cce05895fe4c9bd29afb961e621cdbcee0970830194d2db2",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "05ee3f8188520a02cce05895fe4c9bd29afb961e621cdbcee0970830194d2db2",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "05ee3f8188520a02cce05895fe4c9bd29afb961e621cdbcee0970830194d2db2",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"05ee3f8188520a02cce05895fe4c9bd29afb961e621cdbcee0970830194d2db2\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "sent",
+      "sessionId": "session-a",
+      "messageId": "message-a",
+      "operationId": "operation-a"
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.wake\",\"status\":\"ok\",\"result\":{\"status\":\"sent\",\"sessionId\":\"session-a\",\"messageId\":\"message-a\",\"operationId\":\"operation-a\"}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.wake\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.wake\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.wake\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "seat.operation",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "seat.operation",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a"
+      },
+      "payloadDigest": "c3073f3bab63501339b8d7e93377e8d5b4c3058ca95e137efa642bbf52a5b44f",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "c3073f3bab63501339b8d7e93377e8d5b4c3058ca95e137efa642bbf52a5b44f",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "c3073f3bab63501339b8d7e93377e8d5b4c3058ca95e137efa642bbf52a5b44f",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "c3073f3bab63501339b8d7e93377e8d5b4c3058ca95e137efa642bbf52a5b44f",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"c3073f3bab63501339b8d7e93377e8d5b4c3058ca95e137efa642bbf52a5b44f\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "status": "settled",
+      "result": {
+        "status": "opened",
+        "sessionId": "session-a",
+        "seat": "seat-a",
+        "nodeId": "node-b",
+        "nodeName": "peer",
+        "title": "Seat A",
+        "budget": {},
+        "phase": "active",
+        "stateVersion": 1,
+        "callbackIds": [
+          "callback-a"
+        ]
+      }
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"seat.operation\",\"status\":\"ok\",\"result\":{\"status\":\"settled\",\"result\":{\"status\":\"opened\",\"sessionId\":\"session-a\",\"seat\":\"seat-a\",\"nodeId\":\"node-b\",\"nodeName\":\"peer\",\"title\":\"Seat A\",\"budget\":{},\"phase\":\"active\",\"stateVersion\":1,\"callbackIds\":[\"callback-a\"]}}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.operation\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.operation\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"seat.operation\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  },
+  {
+    "method": "messages.send",
+    "request": {
+      "version": "node-link/v1",
+      "requestId": "request-a",
+      "sourceNodeId": "node-a",
+      "targetNodeId": "node-b",
+      "operationId": "operation-a",
+      "method": "messages.send",
+      "deadline": "2099-01-01T00:00:00.000Z",
+      "hop": 1,
+      "payload": {
+        "operationId": "operation-a",
+        "target": {
+          "nodeId": "node-b",
+          "sessionId": "session-b"
+        },
+        "content": "handoff",
+        "messageClass": "handoff",
+        "delivery": {
+          "deliveryId": "delivery-a",
+          "sourceNodeId": "node-a",
+          "message": {
+            "messageId": "message-a",
+            "operationId": "operation-a",
+            "sender": {
+              "kind": "human",
+              "sessionId": null
+            },
+            "senderSessionId": null,
+            "target": {
+              "nodeId": "node-b",
+              "sessionId": "session-b"
+            },
+            "priority": "steer",
+            "content": "handoff",
+            "createdAt": 123,
+            "revision": 0,
+            "mailboxSequence": 0,
+            "stateVersion": 0,
+            "messageClass": "handoff"
+          },
+          "digest": "e5c2319f8c0bea3d601b474c78878c827b279a7739a745925517640bef74f07a"
+        }
+      },
+      "payloadDigest": "98c9156b21dd09cc448e28b418e3d602970c3fbb90dddc16833c286d369f5af7",
+      "delegation": {
+        "kind": "node-delegation",
+        "hop": 1,
+        "principalId": "principal-a",
+        "authorizationRef": "authorization-a",
+        "sourceNodeId": "node-a",
+        "targetNodeId": "node-b",
+        "operationId": "operation-a",
+        "requestDigest": "98c9156b21dd09cc448e28b418e3d602970c3fbb90dddc16833c286d369f5af7",
+        "taskIds": [],
+        "expiresAt": "2099-01-01T00:00:00.000Z"
+      }
+    },
+    "fact": {
+      "authorizationId": "local-grant",
+      "kind": "node-delegation",
+      "principalId": "principal-a",
+      "origin": "remote",
+      "nodeId": "node-b",
+      "operationId": "operation-a",
+      "requestDigest": "98c9156b21dd09cc448e28b418e3d602970c3fbb90dddc16833c286d369f5af7",
+      "delegatedBy": "authorization-a",
+      "taskIds": [],
+      "policyRevision": 1,
+      "decision": "allowed",
+      "reasonCode": "allowed",
+      "checkedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "payloadDigest": "98c9156b21dd09cc448e28b418e3d602970c3fbb90dddc16833c286d369f5af7",
+    "factBytes": "{\"authorizationId\":\"local-grant\",\"kind\":\"node-delegation\",\"principalId\":\"principal-a\",\"origin\":\"remote\",\"nodeId\":\"node-b\",\"operationId\":\"operation-a\",\"requestDigest\":\"98c9156b21dd09cc448e28b418e3d602970c3fbb90dddc16833c286d369f5af7\",\"delegatedBy\":\"authorization-a\",\"taskIds\":[],\"policyRevision\":1,\"decision\":\"allowed\",\"reasonCode\":\"allowed\",\"checkedAt\":\"2026-01-01T00:00:00.000Z\"}",
+    "result": {
+      "messageId": "message-a",
+      "operationId": "operation-a",
+      "deliveryOutcome": "accepted",
+      "messageState": "queued",
+      "pending": false,
+      "recipient": {
+        "nodeId": "node-b",
+        "sessionId": "session-b",
+        "title": "recipient",
+        "status": "idle",
+        "window": null,
+        "matchedFields": [
+          "sessionId"
+        ],
+        "observedAt": 123
+      }
+    },
+    "successBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"operationId\":\"operation-a\",\"method\":\"messages.send\",\"status\":\"ok\",\"result\":{\"messageId\":\"message-a\",\"operationId\":\"operation-a\",\"deliveryOutcome\":\"accepted\",\"messageState\":\"queued\",\"pending\":false,\"recipient\":{\"nodeId\":\"node-b\",\"sessionId\":\"session-b\",\"title\":\"recipient\",\"status\":\"idle\",\"window\":null,\"matchedFields\":[\"sessionId\"],\"observedAt\":123}}}",
+    "refusalBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"messages.send\",\"status\":\"rejected\",\"error\":{\"code\":\"node-delegation-rejected\",\"reason\":\"node-delegation-rejected\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "absentBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"messages.send\",\"status\":\"unavailable\",\"error\":{\"code\":\"cross-node-unsupported\",\"reason\":\"cross-node-unsupported\",\"retryable\":false,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}",
+    "disconnectedBytes": "{\"version\":\"node-link/v1\",\"requestId\":\"request-a\",\"operationId\":\"operation-a\",\"sourceNodeId\":\"node-a\",\"targetNodeId\":\"node-b\",\"method\":\"messages.send\",\"status\":\"unavailable\",\"error\":{\"code\":\"node-tunnel-disconnected\",\"reason\":\"node-tunnel-disconnected\",\"retryable\":true,\"effectState\":\"none\",\"operationId\":\"operation-a\",\"targetNodeId\":\"node-b\"}}"
+  }
+]

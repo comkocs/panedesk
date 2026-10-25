@@ -47,6 +47,8 @@ test('Loader advertises only recovered capabilities, queries business truth and 
   const ports = reserves.map(item => item.port)
   await Promise.all(reserves.map(item => item.close()))
   const credentials = [auth(), auth()], contexts: Context[] = [], withdrawals: (() => unknown)[] = []
+  const compositions: (() => void)[] = []
+  const services: NodeLink.ChainServices[] = []
   let release!: () => void
   const restored = new Promise<void>((resolve) => { release = resolve })
   let queries = 0
@@ -63,7 +65,7 @@ test('Loader advertises only recovered capabilities, queries business truth and 
     ctx.provide('nodeLinkExecutor', { authorize: async () => true, execute: async request => failure(request, 'cross-node-unsupported'),
       status: async () => decodeSeatResult('seats/nodeStatus', { nodeId, nodeName: nodeId,
         engine: 'running', openEngineWindows: 0, limit: 4, readyAt: null }) })
-    ctx.provide('nodeWorkChain', { maxControlPending: 2,
+    services.push({ maxControlPending: 2,
       policy: { ready: async () => {}, expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 },
         authorize: async (request, peer, evidence) => ({ check: async () => grant({ ...evidence.fact, kind: 'node-delegation',
           nodeId: peer.targetNodeId, sourceNodeId: peer.sourceNodeId, delegatedBy: request.delegation.authorizationRef }) }) },
@@ -82,6 +84,9 @@ test('Loader advertises only recovered capabilities, queries business truth and 
     withdrawals.push(() => fiber.dispose())
   }
   const source = contexts[0]!, target = contexts[1]!
+  expect(source.get('nodeWorkChainRouter')).toBeUndefined()
+  for (const [i, ctx] of contexts.entries()) compositions.push(ctx.provide('nodeWorkChain', services[i]))
+  await expect.poll(() => source.get('nodeWorkChainRouter')).toBeDefined()
   const f = prepared()
   expect(await source.get('nodeWorkChainRouter')!.route(f.request, f.authorization))
     .toMatchObject({ error: { cause: { reasonCode: 'peer-capability-missing' } } })
@@ -97,8 +102,22 @@ test('Loader advertises only recovered capabilities, queries business truth and 
     authorizationId: query.delegation.authorizationRef, requestDigest: query.payloadDigest })
   expect(await source.get('nodeWorkChainRouter')!.route(query, authorization)).toMatchObject({ status: 'ok', result: { status: 'missing' } })
   expect(queries).toBe(1)
+  const previous = target.get('nodeWorkChainRouter')!
+  compositions[1]!()
+  await expect.poll(() => target.get('nodeWorkChainRouter')).toBeUndefined()
+  expect(await previous.route(f.request, f.authorization)).toMatchObject({ status: 'unavailable',
+    error: { code: 'node-tunnel-disconnected', effectState: 'none' } })
+  compositions[1] = target.provide('nodeWorkChain', { ...services[1]! })
+  await expect.poll(() => target.get('nodeWorkChainRouter')).toBeDefined()
+  expect(target.get('nodeWorkChainRouter')).not.toBe(previous)
+  await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities).toContain('node-work-chain/v1')
   await withdrawals[1]!()
   await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities).not.toContain('node-work-chain/v1')
+  compositions[1]()
+  target.provide('nodeWorkChain', { ...services[1]!, evidence: {
+    ready: () => new Promise<void>(() => {}), query: async () => { throw new Error('Unrecovered evidence queried') },
+  } })
+  await expect.poll(() => target.get('nodeWorkChainRouter')).toBeDefined()
   await target.fiber.dispose()
   expect(target.get('nodeWorkChainRouter')).toBeUndefined()
   const expired: ChainRequest = { ...f.request, deadline: '2000-01-01T00:00:00.000Z' }

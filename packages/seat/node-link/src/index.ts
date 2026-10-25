@@ -5,7 +5,7 @@ import type { Branded } from '@panedesk/dsh-brand'
 import type * as Seat from '@panedesk/dsh-seat'
 import type { SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
 import type { PrivateFiles } from '@panedesk/dsh-host-admin'
-import { mountNode } from './runtime.ts'
+import { mountChangingNode } from './chain-attachment.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 
 /** Wire framing is independent of Core protocol operation numbers. */
@@ -201,7 +201,7 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  */
 export function apply(_ctx: Context, _config: Config): void {
   if (_config.runtime !== undefined) _ctx.provide('nodeWorkChainBusiness', new ChainBusinessRegistry())
-  _ctx.effect(() => mountNode(_ctx, _config))
+  _ctx.effect(() => mountChangingNode(_ctx, _config))
 }
 export type * from './delegation.ts'
 export type * from './execution.ts'
