@@ -40,7 +40,7 @@ export class ChainRuntime {
     this.retained = new ChainRetainedEvidence(files(join(options.directory, 'chain-evidence')),
       options.maxStoreBytes, options.maxOperations, options.nodeId, options.peerNodeId)
     const evidence = services.evidence ?? this.retained
-    this.loaded = Promise.all([this.received.load(), this.sent.load(), this.retained.ready(), evidence.ready()]).then(() => {})
+    this.loaded = Promise.all([this.received.load(), this.sent.load(), this.retained.ready()]).then(() => {})
     // The activation owner observes this rejection through ready(), even before the first hello.
     void this.loaded.catch((error: unknown) => { void error })
     this.evidence = new ChainEvidence(options, services.maxControlPending, evidence, credential, () => this.remote)
@@ -55,8 +55,9 @@ export class ChainRuntime {
    * @returns Completion after transport, policy, local admission and business recovery.
    */
   ready(): Promise<void> {
-    return this.preparing ??= Promise.all([this.loaded, this.services.local.ready(), this.services.policy.ready(),
-      this.business.ready(this.services.local.methods)]).then(() => { this.recovered = true }, (error: unknown) => {
+    return this.preparing ??= Promise.all([this.loaded, this.services.evidence?.ready(),
+      this.services.local.ready(), this.services.policy.ready(),
+      this.business.ready(this.services.local.methods)]).then(() => { this.recovered = !this.stopped }, (error: unknown) => {
       this.preparing = undefined
       throw error
     })
