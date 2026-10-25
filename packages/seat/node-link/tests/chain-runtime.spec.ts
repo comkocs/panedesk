@@ -88,6 +88,10 @@ test('Loader advertises only recovered capabilities, queries business truth and 
   for (const [i, ctx] of contexts.entries()) compositions.push(ctx.provide('nodeWorkChain', services[i]))
   await expect.poll(() => source.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeDefined()
   const f = prepared()
+  await expect.poll(async () => {
+    const link = (await source.get('nodeRouter')!.status())[0]
+    return link?.reachable === true && !link.capabilities.includes('node-work-chain/v1')
+  }, { timeout: 10000 }).toBe(true)
   expect(await source.get('nodeWorkChainRouter')!.route(f.request, f.authorization))
     .toMatchObject({ error: { cause: { reasonCode: 'peer-capability-missing' } } })
   release()
