@@ -691,6 +691,72 @@
       }
     },
     {
+      "id": "F03-work-chain-durable-evidence",
+      "description": "Retain exact paired authorization evidence before sending frozen work-chain requests.",
+      "origin": "Optional host integration",
+      "reason": "Restarted evidence storage preserves exact peer access and expires facts without evicting live entries.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-retained.spec.ts"],
+        "test": "restores exact paired evidence, rejects mismatched grants, and expires entries without evicting live facts"
+      }
+    },
+    {
+      "id": "F03-work-chain-recovered-business-query",
+      "description": "Advertise chain methods only after recovered providers and query authenticated business owners.",
+      "origin": "Optional host integration",
+      "reason": "Provider withdrawal removes capabilities and transport receipt absence never implies business absence.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-runtime.spec.ts"],
+        "test": "Loader advertises only recovered capabilities, queries business truth and withdraws on provider disposal"
+      }
+    },
+    {
+      "id": "F03-work-chain-frame-budget",
+      "description": "Bound complete work-chain JSON frames by negotiated UTF-8 byte limits.",
+      "origin": "Optional host integration",
+      "reason": "Delegation and wrapper bytes count toward the frame ceiling without truncation.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-wire.spec.ts"],
+        "test": "measures complete JSON wrappers and multibyte text at the negotiated minimum"
+      }
+    },
+    {
+      "id": "F03-work-chain-pending-intent",
+      "description": "Retain exact pending work-chain intents independently across restart.",
+      "origin": "Optional host integration",
+      "reason": "Transport uncertainty cannot become a terminal result or authorize blind replay.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-store.spec.ts"],
+        "test": "retains complete pending intent across restart and rejects changed payload without replacing it"
+      }
+    },
+    {
+      "id": "F03-work-chain-control-capacity",
+      "description": "Reserve bounded control dispatch capacity independently of business execution.",
+      "origin": "Optional host integration",
+      "reason": "Evidence and exact queries remain dispatchable while business execution awaits them.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-slots.spec.ts"],
+        "test": "reserves bounded control slots while business execution waits for independent evidence"
+      }
+    },
+    {
+      "id": "F03-work-chain-legacy-result-bytes",
+      "description": "Preserve complete legacy refusal bytes and canonical payload digests without work-chain capability.",
+      "origin": "Optional host integration",
+      "reason": "Optional chain declarations do not alter legacy refusal fields or materialize new diagnostics.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/transport.spec.ts"],
+        "test": "preserves complete legacy refusal bytes and payload digest without work-chain capability"
+      }
+    },
+    {
       "id": "F03-host-admin-rpc",
       "description": "Expose fixed administration methods over authenticated loopback without starting a second engine.",
       "origin": "Optional host integration",
@@ -699,6 +765,28 @@
         "type": "test-assertion",
         "paths": ["packages/host/host-admin/tests/security.spec.ts"],
         "test": "accepts authenticated loopback JSON and refuses stale epochs and browser headers"
+      }
+    },
+    {
+      "id": "F03-host-admin-cancellation",
+      "description": "Expose pending engine cancellation through authenticated local host administration with durable receipt replay.",
+      "origin": "Optional host integration",
+      "reason": "Local operators can cancel pending work without extending node delegation or changing existing administrative frames.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/cancel.spec.ts"],
+        "test": "cancels pending work once and replays the retained receipt after restart"
+      }
+    },
+    {
+      "id": "F03-host-admin-cancellation-ledger",
+      "description": "Retain authorized pending cancellation receipts and structured lifecycle refusal reasons.",
+      "origin": "Optional host integration",
+      "reason": "Local operators can inspect durable cancellation attribution without changing legacy cancellation responses.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/cancellation.spec.ts"],
+        "test": "keeps legacy cancellation replies and absent attribution byte-for-byte"
       }
     },
     {
