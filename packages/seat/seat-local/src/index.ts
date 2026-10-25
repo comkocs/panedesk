@@ -86,12 +86,14 @@ export function apply(ctx: Context, config: Config): void {
         async (request, authority, sourceNodeId) => {
           const registry = ctx.get('nodeWorkChainBusiness'), chain = ctx.get('nodeWorkChain')
           if (!registry || !chain) return undefined
-          await Promise.all([registry.ready(['seat.openFrozen', 'seat.wakeFrozen']), chain.local.ready(), chain.policy.ready()])
-          if (lifecycle.signal.aborted || ctx.get('nodeWorkChain') !== chain || ctx.get('nodeWorkChainBusiness') !== registry) {
-            return { status: 'rejected', error: { code: 'unavailable', message: 'Node batch provider was revoked.',
-              alternative: 'Restore the trusted composition.', retryable: true, effectState: 'none' } }
-          }
-          return installed.openNodeBatch(request, authority, sourceNodeId)
+          return installed.frozenWrites.run<import('@panedesk/dsh-seat').OpenSeatBatchResult>(async () => {
+            await Promise.all([registry.ready(['seat.openFrozen', 'seat.wakeFrozen']), chain.local.ready(), chain.policy.ready()])
+            if (lifecycle.signal.aborted || ctx.get('nodeWorkChain') !== chain || ctx.get('nodeWorkChainBusiness') !== registry) {
+              return { status: 'rejected', error: { code: 'unavailable', message: 'Node batch provider was revoked.',
+                alternative: 'Restore the trusted composition.', retryable: true, effectState: 'none' } }
+            }
+            return installed.openNodeBatch(request, authority, sourceNodeId)
+          })
         }))
       const openingContexts = installOpeningContexts(ctx, installed)
       registerLocalReadAccess(ctx, installed, config)
@@ -168,6 +170,7 @@ export function apply(ctx: Context, config: Config): void {
     void starting.catch((error: unknown) => { ctx.logger.warn('Seat provider startup failed', error) })
     return async () => {
       lifecycle.abort()
+      await service?.frozenWrites.close()
       try { await starting } finally { await service?.stop(); await closeHosts?.(); await store?.close() }
     }
   })

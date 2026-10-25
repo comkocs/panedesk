@@ -26,7 +26,7 @@ import { authorizedCommit, type ActionCommit } from './authorized-commit.ts'
 import { exportAuthorizations } from './authorization-export.ts'
 import { freezeCallbackEvidence, type ExecutionModelReader } from './callback-evidence.ts'
 import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen } from './frozen-admission.ts'
-import { installFrozenBusiness } from './frozen-business.ts'
+import { FrozenWriteBarrier, installFrozenBusiness } from './frozen-business.ts'
 import { validChainAccepted } from './chain-storage.ts'
 import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batch.ts'
 
@@ -49,6 +49,8 @@ export class SeatEngine extends SeatEngineService {
   readonly authorizationIssuers = new AuthorizationIssuers()
   /** Required-capability admission shares the legacy journal owner. */
   readonly authorizations: AuthorizationTransactions
+  /** Registration readiness and withdrawal cover complete frozen and batch admissions. */
+  readonly frozenWrites = new FrozenWriteBarrier()
   private readonly sources = new SourceRegistry()
   private readonly triggers: TriggerRegistry
   private readonly outbox: CallbackOutbox
@@ -116,7 +118,9 @@ export class SeatEngine extends SeatEngineService {
     this.timer.unref()
   }
   async shutdown(): Promise<void> {
+    const drained = this.frozenWrites.close()
     this.stopped = true
+    await drained
     this.authorizationIssuers.close()
     if (this.timer) clearTimeout(this.timer)
     await this.localOpenChain
@@ -139,6 +143,9 @@ export class SeatEngine extends SeatEngineService {
   }
   private localOpenChain: Promise<void> = Promise.resolve()
   override openWindow = (input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> => {
+    return input.nodeWorkChain ? this.frozenWrites.run(() => this.enqueueOpen(input)) : this.enqueueOpen(input)
+  }
+  private enqueueOpen(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
     const result = this.localOpenChain.then(() => this.openLocal(input))
     this.localOpenChain = result.then(() => undefined, () => undefined)
     return result
@@ -248,7 +255,11 @@ export class SeatEngine extends SeatEngineService {
    * @param sourceNodeId - Authenticated sender captured by node admission.
    * @returns First committed acknowledgement or refusal; other members remain independent.
    */
-  async openBatchMember(input: T.SeatLocalOpenRequest, request: T.OpenSeatBatchRequest,
+  openBatchMember(input: T.SeatLocalOpenRequest, request: T.OpenSeatBatchRequest,
+    sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatResult> {
+    return this.frozenWrites.run(() => this.openBatchMemberResolved(input, request, sourceNodeId))
+  }
+  private async openBatchMemberResolved(input: T.SeatLocalOpenRequest, request: T.OpenSeatBatchRequest,
     sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatResult> {
     await this.ready()
     const grant = input.authority.authorization
@@ -359,7 +370,11 @@ export class SeatEngine extends SeatEngineService {
     await this.publish()
     return result
   }
-  override async acceptFrozen(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult> {
+  override acceptFrozen(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult> {
+    return this.frozenWrites.run(() => this.acceptFrozenResolved(request, authority))
+  }
+  private async acceptFrozenResolved(request: T.AcceptFrozenTriggerRequest,
+    authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult> {
     await this.ready()
     const input = frozenIdentity(request, authority, 'engine.acceptFrozen')
     if ('status' in input) return input

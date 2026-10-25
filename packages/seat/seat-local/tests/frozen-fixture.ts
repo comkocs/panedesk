@@ -17,6 +17,11 @@ export async function frozenHost(root?: string) {
     return dispose
   }
   h.ctx.provide('nodeWorkChainBusiness', registry)
+  const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'] as const
+  h.ctx.provide('nodeWorkChain', { maxControlPending: 2,
+    local: { methods, seats: h.ctx.get('seats')!, engine: h.engine, ready: () => registry.ready(methods) },
+    policy: { expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 1000 }, ready: () => Promise.resolve(),
+      authorize: async () => { throw new Error('Fixture uses independently captured receiver grants') } } })
   const definition = { ...h.definition, remoteAdmission: { allowOpen: true as const, sourceNodeIds: [sender],
     sourceIds: ['remote-source' as T.SeatSourceId], principalIds: [principalId],
     methods: ['seat.openFrozen', 'seat.wakeFrozen', 'engine.acceptFrozen'] as T.SeatRemoteOpeningMethod[], policyRevision: 1 } }

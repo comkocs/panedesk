@@ -12,10 +12,6 @@ async function batch(root: string, stage: string) {
   const h = await processFixture(root)
   try {
     await h.registry.ready(methods)
-    h.ctx.provide('nodeWorkChain', { maxControlPending: 2,
-      local: { methods, seats: h.ctx.get('seats')!, engine: h.engine, ready: () => h.registry.ready(methods) },
-      policy: { expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 1000 }, ready: () => Promise.resolve(),
-        authorize: async () => { throw new Error('Receiver authorization is captured separately') } } })
     const seats = h.ctx.get('seats')!.withAuthority({ principalId, nodeId: 'node-a' as T.SeatNodeId, origin: 'manual' })
     const catalog = await seats.definitions({}), seat = 'seat-b' as T.SeatName
     if (!catalog.definitions.some(item => item.seat === seat)) {

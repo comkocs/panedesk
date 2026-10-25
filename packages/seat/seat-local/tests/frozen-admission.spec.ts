@@ -14,8 +14,13 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
       return method === 'seat.openFrozen' ? seats.openFrozen!(value as T.OpenFrozenSeatRequest) : seats.wakeFrozen!(value)
     }
     const before = h.engine.journal.projection.sequence
-    expect(await invoke(payload, false)).toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
+    expect(await invoke(payload, false)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
     expect(h.engine.journal.projection.sequence).toBe(before)
+    const queryBeforeReady = { key: { sourceNodeId: sender, principalId, sourceId: payload.route.sourceId,
+      ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
+    expect(await registry.query(queryBeforeReady, await authorize(queryBeforeReady, 'before-ready' as T.SeatOperationId)))
+      .toEqual({ status: 'pending', effectState: 'unknown' })
+    await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
     const first = await invoke()
     expect(first).toMatchObject(method === 'seat.openFrozen' ? { status: 'queued' } : { status: 'opened', result: { status: 'queued' } })
     expect(await invoke()).toEqual(first)
@@ -26,14 +31,12 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
     const query = { key, payloadDigest: digest(payload) }
     await expect.poll(() => ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'].map(method =>
       Boolean(registry.resolve(method as T.NodeWorkChainBusinessMethod)))).toEqual([true, true, true])
-    const queryAuthority = await authorize(query, 'before-ready' as T.SeatOperationId)
-    expect(await registry.query(query, queryAuthority)).toEqual({ status: 'pending', effectState: 'unknown' })
-    await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
+    expect(await invoke(payload, false)).toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
     expect(await registry.query(query, await authorize(query, 'query' as T.SeatOperationId)))
       .toEqual({ status: 'settled', method, result: first })
     await h.reload()
     await expect.poll(() => Boolean(registry.resolve('seat.openFrozen'))).toBe(true)
-    await registry.ready(['seat.openFrozen', 'seat.wakeFrozen'])
+    await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
     expect(await registry.query(query, await authorize(query, 'query-reload' as T.SeatOperationId)))
       .toEqual({ status: 'settled', method, result: first })
     expect(await invoke()).toEqual(first)
@@ -50,6 +53,48 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
     expect(h.adapter.requests).toHaveLength(0)
   } finally { await h.close() }
 })
+
+test.each(['seat.openFrozen', 'seat.wakeFrozen', 'seat.openBatch', 'seat.wake'] as const)(
+  '%s rejects captured writes and drains admitted work during Loader replacement', async (method) => {
+    const { h, registry, request, authorize } = await frozenHost()
+    const entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+    try {
+      const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'] as const
+      await registry.ready(methods)
+      const payload = request(`write-lifecycle:${method}` as T.SeatOperationId)
+      const authority = await authorize(payload, payload.request.operationId)
+      const original = h.ctx.get('seats')!, seats = original.withAuthority(authority)
+      const resolve = original.resolve.bind(original)
+      vi.spyOn(original, 'resolve').mockImplementation(async (...args) => {
+        entered.resolve(undefined)
+        await release.promise
+        return resolve(...args)
+      })
+      const invoke = (target: T.SeatService) => {
+        switch (method) {
+          case 'seat.openFrozen': return target.openFrozen!(payload)
+          case 'seat.wakeFrozen': return target.wakeFrozen!(payload)
+          case 'seat.openBatch': return target.openBatch({ seats: [h.definition.seat], origin: 'remote', operationId: payload.request.operationId })
+          case 'seat.wake': return target.wake({ seat: h.definition.seat, sessionId: 'missing' as import('@panedesk/dsh-session').SessionId,
+            operationId: payload.request.operationId })
+        }
+      }
+      const active = invoke(seats)
+      await entered.promise
+      let drained = false
+      const reload = h.reload().then(() => { drained = true })
+      await expect.poll(() => registry.resolve('seat.openFrozen')).toBeUndefined()
+      expect(await invoke(seats)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+      expect(drained).toBe(false)
+      release.resolve(undefined)
+      await active
+      await reload
+      const replacement = h.ctx.get('seats')!.withAuthority(authority)
+      expect(await invoke(replacement)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+      await registry.ready(methods)
+      expect(await invoke(seats)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+    } finally { release.resolve(undefined); vi.restoreAllMocks(); await h.close() }
+  })
 
 test.each(['engine.acceptFrozen', 'seat.openFrozen'] as const)(
   '%s withdraws captured queries and drains calls before Loader replacement becomes ready', async (method) => {
