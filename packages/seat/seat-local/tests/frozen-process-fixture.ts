@@ -49,6 +49,10 @@ export async function processFixture(root: string) {
     ctx.storage.backend.register('json', backend)
     ctx.provide('storageDomain', facility)
     ctx.provide('nodeWorkChainBusiness', registry)
+    ctx.provide('nodeWorkChain', { maxControlPending: 2,
+      local: { methods, ready: () => registry.ready(methods) },
+      policy: { expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 1000 }, ready: () => Promise.resolve(),
+        authorize: async () => { throw new Error('Fixture uses independently captured receiver grants') } } })
     await ctx.plugin(Loader)
     Object.assign(ctx.loader.builtins, { include: Include, local: Local, engine: {
       name: 'frozen-process-engine', apply(child: Context) {

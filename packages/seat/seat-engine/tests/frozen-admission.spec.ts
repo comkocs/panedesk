@@ -1,5 +1,5 @@
 /** Real ingress commits original business identity and recovers its exact first acknowledgement. */
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type * as T from '@panedesk/dsh-seat'
@@ -68,6 +68,30 @@ test('returns the original frozen acceptance on concurrent retry and after recov
     expect(await restarted.acceptFrozen(input, await authorize(input, restarted))).toEqual(results[0])
     expect(restarted.journal.projection.authorizationDecisions).toHaveLength(1)
   } finally { await h.close() }
+})
+
+test('revokes new frozen writes before shutdown drains an admitted call', async () => {
+  const { h, input, authorize } = await setup()
+  const entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+  try {
+    const authority = await authorize()
+    const resolve = h.seatProvider.resolve.bind(h.seatProvider)
+    vi.spyOn(h.seatProvider, 'resolve').mockImplementation(async (...args) => {
+      entered.resolve(undefined)
+      await release.promise
+      return resolve(...args)
+    })
+    const active = h.engine.acceptFrozen(input, authority)
+    await entered.promise
+    let drained = false
+    const closing = h.engine.shutdown().then(() => { drained = true })
+    expect(await h.engine.acceptFrozen(input, authority)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+    expect(drained).toBe(false)
+    release.resolve(undefined)
+    expect(await active).toMatchObject({ status: 'accepted' })
+    await closing
+    expect(await h.engine.acceptFrozen(input, authority)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+  } finally { release.resolve(undefined); vi.restoreAllMocks(); await h.close() }
 })
 
 test('refuses missing sender, forged grants and denied target policies without admission', async () => {

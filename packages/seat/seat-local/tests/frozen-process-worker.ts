@@ -12,10 +12,6 @@ async function batch(root: string, stage: string) {
   const h = await processFixture(root)
   try {
     await h.registry.ready(methods)
-    h.ctx.provide('nodeWorkChain', { maxControlPending: 2,
-      local: { methods, seats: h.ctx.get('seats')!, engine: h.engine, ready: () => h.registry.ready(methods) },
-      policy: { expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 1000 }, ready: () => Promise.resolve(),
-        authorize: async () => { throw new Error('Receiver authorization is captured separately') } } })
     const seats = h.ctx.get('seats')!.withAuthority({ principalId, nodeId: 'node-a' as T.SeatNodeId, origin: 'manual' })
     const catalog = await seats.definitions({}), seat = 'seat-b' as T.SeatName
     if (!catalog.definitions.some(item => item.seat === seat)) {
@@ -63,6 +59,10 @@ async function batch(root: string, stage: string) {
 
 async function main() {
   const [root, selected, stage] = process.argv.slice(2)
+  if (root && selected === 'seat.wakeDelivery' && stage) {
+    const { wakeProcess } = await import('./frozen-wake-process.ts')
+    return wakeProcess(root, stage)
+  }
   if (root && selected === 'seat.openBatch' && (stage === 'partial' || stage === 'recover')) return batch(root, stage)
   const method = methods.find(value => value === selected)
   if (!root || !method || !['write', 'partial', 'recover'].includes(stage ?? '')) throw new Error('Invalid worker arguments')

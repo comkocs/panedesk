@@ -12,6 +12,7 @@ import { registerProductionSources, type ProductionSource } from './production-s
 
 export { SeatEngine } from './engine.ts'
 export { batchMemberId, queryBatchMember } from './node-batch.ts'
+export { FrozenWriteBarrier } from './frozen-business.ts'
 export type { EngineOptions, EngineDependencies } from './engine.ts'
 export type { SourceProxyInputs, SourceProxyPort, SourceProxySend, SourceProxyOutcome, SourceProxyRecord } from './source-proxy-types.ts'
 export { EngineJournal, EngineError, frame, digest } from './journal.ts'

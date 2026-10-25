@@ -1,4 +1,5 @@
 {
   "cancelled": "{\"status\":\"cancelled\"}",
+  "saved": "{\"status\":\"saved\",\"revision\":3}",
   "missing": "{\"status\":\"rejected\",\"error\":{\"code\":\"seat-not-found\",\"message\":\"No definition for seat missing-seat.\",\"alternative\":\"Import or save the definition first.\",\"retryable\":false,\"effectState\":\"none\"}}"
 }

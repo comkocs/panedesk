@@ -25,7 +25,7 @@ import { readWindowStatus, renewalRefusal } from './status.ts'
 import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { seatFrozenIdentity, querySeatFrozen } from './frozen-admission.ts'
-import { SeatEngine, batchMemberId, queryBatchMember } from '@panedesk/dsh-seat-engine'
+import { SeatEngine, FrozenWriteBarrier, batchMemberId, queryBatchMember } from '@panedesk/dsh-seat-engine'
 import { validateLocalDefinition } from './paths.ts'
 
 const reminderSchema = z.object({ sessionId: z.string(), operationId: z.string(), text: z.string(), sent: z.boolean() })
@@ -47,6 +47,8 @@ export class LocalSeatService extends SeatService {
   private readonly windowCloser: LocalCloser
   private reminderDomain?: Promise<Domain<typeof reminderSpec>>
   private reminderWork: Promise<void> = Promise.resolve()
+  /** Shared by authority scopes; withdrawal drains the complete receiving operation. */
+  readonly frozenWrites = new FrozenWriteBarrier()
   constructor(ctx: Context, private readonly store: SeatStore, readonly options: LocalSeatOptions,
     private readonly runtime: LocalSeatRuntime) {
     super(ctx)
@@ -231,10 +233,11 @@ export class LocalSeatService extends SeatService {
     return routed ?? this.openResolved(request)
   }
   override async openFrozen(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult> {
-    return this.openFrozenResolved(request, 'seat.openFrozen')
+    return this.frozenWrites.run(() => this.openFrozenResolved(request, 'seat.openFrozen'))
   }
   private async openFrozenResolved(request: T.OpenFrozenSeatRequest | T.WakeFrozenSeatRequest,
-    method: 'seat.openFrozen' | 'seat.wakeFrozen'): Promise<T.OpenSeatResult> {
+    method: 'seat.openFrozen' | 'seat.wakeFrozen',
+    open?: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>): Promise<T.OpenSeatResult> {
     const authority = this.caller(), chain = seatFrozenIdentity(request, authority, method)
     if ('status' in chain) return chain
     const original = querySeatFrozen((await this.state.read()).effects,
@@ -260,24 +263,48 @@ export class LocalSeatService extends SeatService {
     const base: T.OpenSeatRequest = 'origin' in request.request ? request.request
       : { seat: request.request.seat, operationId: request.request.operationId, origin: 'remote',
         ...(request.request.nodeId ? { nodeId: request.request.nodeId } : {}) }
-    return engine.openWindow({ request: base, authority, definition, nodeWorkChain: chain,
+    return (open ?? engine.openWindow.bind(engine))({ request: base, authority, definition, nodeWorkChain: chain,
       openingContext: snapshot, title: `${definition.seat} ${date.slice(5)}`,
       opening: { text: snapshot.text, digest: snapshot.digest, variables: { seat: definition.seat, date, taskId: base.taskId ?? null } } })
   }
-  override async wakeFrozen(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult> {
+  override wakeFrozen(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult> {
+    return this.frozenWrites.run(() => this.wakeFrozenResolved(request))
+  }
+  private async wakeFrozenResolved(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult> {
     const authority = this.caller(), chain = seatFrozenIdentity(request, authority, 'seat.wakeFrozen')
     if ('status' in chain) return chain
     const original = querySeatFrozen((await this.state.read()).effects,
       { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
     if (original.status === 'rejected') return original
     if (original.status === 'settled' && original.method === 'seat.wakeFrozen') return structuredClone(original.result)
-    const transactions = this.runtime.context.get('seatAuthorizationTransactions'), grant = authority.authorization
-    if (!transactions?.validate || !grant) return rejected('unavailable', 'Frozen admission is unavailable.', 'Restore admission authority.')
-    const refusal = await transactions.validate({ operationId: grant.fact.operationId, requestDigest: digest(request),
-      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
-      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
-    if (refusal) return refusal
-    return this.wakeResolved(request.request, () => this.openFrozenResolved(request, 'seat.wakeFrozen'))
+    const engine = this.engine()
+    if (!(engine instanceof SeatEngine)) return rejected('unavailable', 'Wake admission is unavailable.', 'Restore the local engine.')
+    return engine.wakeLocal(request.request.operationId, async (open) => {
+      const accepted = querySeatFrozen((await this.state.read()).effects,
+        { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
+      if (accepted.status === 'rejected') return accepted
+      if (accepted.status === 'settled' && accepted.method === 'seat.wakeFrozen') return structuredClone(accepted.result)
+      const retained = engine.wakeDeliveries.find(request, authority)
+      if (retained && 'status' in retained) return retained
+      if (retained) return engine.wakeDeliveries.finish(retained, input => this.runtime.send(input))
+      return this.wakeResolved(request.request, () => this.openFrozenResolved(request, 'seat.wakeFrozen', open), request)
+    })
+  }
+  /** Admit legacy wake only from explicit trusted chain composition; no snapshot means no fallback.
+   * @param request - Original wire payload, never widened or re-signed.
+   * @param authority - Receiving node's captured authorization.
+   * @returns Existing-window acknowledgement or conservative missing-window refusal.
+   */
+  wakeNode(request: T.WakeSeatRequest, authority: T.SeatCallContext): Promise<T.WakeSeatResult> {
+    const scoped = this.withAuthority(authority) as LocalSeatService, engine = this.engine()
+    if (!(engine instanceof SeatEngine)) return Promise.resolve(rejected('unavailable', 'Wake admission is unavailable.', 'Restore the engine.'))
+    return this.frozenWrites.run(() => engine.wakeLocal(request.operationId, async () => {
+      const retained = engine.wakeDeliveries.find(request, authority)
+      if (retained && 'status' in retained) return retained
+      if (retained) return engine.wakeDeliveries.finish(retained, input => this.runtime.send(input))
+      return scoped.wakeResolved(request, () => Promise.resolve(rejected('cross-node-unsupported',
+        'Missing-window wake requires its original frozen snapshot.', 'Use the frozen wake entry.')), request)
+    }))
   }
   /** Trusted source entries retain the complete local opening policy and durable admission.
    * @param request - Source reference and original opening parameters.
@@ -382,9 +409,13 @@ export class LocalSeatService extends SeatService {
   openBatchWithScope(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext,
     evaluateTaskScopes?: T.OpeningScopeAdmission['evaluateTaskScopes']): Promise<T.OpenSeatBatchResult> {
     const { tasks, ...base } = request
-    return (this.withAuthority(authority) as LocalSeatService).openBatchResolved(base, tasks, evaluateTaskScopes)
+    return this.frozenWrites.run(() =>
+      (this.withAuthority(authority) as LocalSeatService).openBatchResolved(base, tasks, evaluateTaskScopes))
   }
-  async openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
+  openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
+    return this.frozenWrites.run(() => this.openBatchRouted(request))
+  }
+  private async openBatchRouted(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult> {
     let target = request.nodeId
     if (this.runtime.context.get('nodeRouter') && this.runtime.context.get('nodeDelegationIssuer')) {
       if (!request.seats.length || request.seats.some(seat => !seat.trim() || /[*?]/.test(seat))
@@ -442,7 +473,11 @@ export class LocalSeatService extends SeatService {
    * @param sourceNodeId - Authenticated node receiver's sender.
    * @returns Per-member original acknowledgements, retaining partial completion.
    */
-  async openNodeBatch(request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
+  openNodeBatch(request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
+    sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatBatchResult> {
+    return this.frozenWrites.run(() => this.openNodeBatchResolved(request, authority, sourceNodeId))
+  }
+  private async openNodeBatchResolved(request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
     sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatBatchResult> {
     const engine = this.engine(), grant = authority.authorization
     if (!(engine instanceof SeatEngine) || !grant) return rejected('unavailable', 'Batch admission is unavailable.', 'Restore the engine.')
@@ -568,9 +603,12 @@ export class LocalSeatService extends SeatService {
    */
   wakeWithContext(request: T.WakeSeatRequest, authority: T.SeatCallContext,
     open: (request: T.OpenSeatRequest) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
-    return (this.withAuthority(authority) as LocalSeatService).wakeResolved(request, open)
+    return this.frozenWrites.run(() => (this.withAuthority(authority) as LocalSeatService).wakeResolved(request, open))
   }
-  async wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
+  wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
+    return this.frozenWrites.run(() => this.wakeRouted(request))
+  }
+  private async wakeRouted(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
     const selected = this.runtime.context.get('nodeRouter')
       ? this.store.snapshot().definitions.find(item => item.seat === request.seat) : undefined
     const targetNode = request.nodeId ?? (selected ? this.options.nodeAliases[selected.node] : undefined)
@@ -579,7 +617,8 @@ export class LocalSeatService extends SeatService {
     return this.wakeResolved(request, input => this.open(input))
   }
   private async wakeResolved(request: T.WakeSeatRequest,
-    open: (request: T.OpenSeatRequest) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
+    open: (request: T.OpenSeatRequest) => Promise<T.OpenSeatResult>,
+    wire?: T.WakeSeatRequest | T.WakeFrozenSeatRequest): Promise<T.WakeSeatResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const definition = await this.resolve(request.seat)
@@ -600,8 +639,18 @@ export class LocalSeatService extends SeatService {
     const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
     const text = renderOpening(await readSeatText(definition.wakeTemplate, this.options.maxOpeningBytes),
       { seat: definition.seat, date, taskId: null }, this.options.maxOpeningBytes).text
-    if (this.caller().authorization) return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
-    const admission = await this.engine()?.admitTurn(target.open.sessionId)
+    const engine = this.engine()
+    if (this.caller().authorization && (!wire || !(engine instanceof SeatEngine))) {
+      return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
+    }
+    const admission = await engine?.admitTurn(target.open.sessionId)
+    if (wire && engine instanceof SeatEngine) {
+      return engine.wakeDeliveries.deliver(wire, this.caller(), definition, target.binding, {
+        sessionId: target.open.sessionId, text,
+        title: await this.runtime.title(target.open.sessionId) ?? target.open.title ?? definition.seat,
+        status: admission?.status === 'defer' && admission.reason === 'budget-stopped' ? 'stored-budget-stopped' : 'sent',
+      }, input => this.runtime.send(input))
+    }
     const sent = await this.runtime.send({ sessionId: target.open.sessionId, operationId: request.operationId, text, mode: 'queue' })
     return { status: admission?.status === 'defer' && admission.reason === 'budget-stopped' ? 'stored-budget-stopped' : 'sent',
       sessionId: target.open.sessionId, messageId: sent.messageId, operationId: request.operationId,
@@ -660,7 +709,9 @@ export class LocalSeatService extends SeatService {
    * @returns after subscriptions and current idle report evaluations are installed.
    */
   async recover(): Promise<void> {
-    if (this.engine() === undefined) return
+    const engine = this.engine()
+    if (engine === undefined) return
+    if (engine instanceof SeatEngine) await engine.wakeDeliveries.recover(input => this.runtime.send(input))
     const effects = (await this.state.read()).effects
     for (const wait of projectedWaits(effects).values()) await this.coordinator.watch(wait)
     const closing = new Set(effects.flatMap(effect => effect.kind === 'window/closing' ? [effect.data.sessionId] : []))
@@ -685,6 +736,7 @@ export class LocalSeatService extends SeatService {
    * @returns after all accepted callbacks settle.
    */
   async stop(): Promise<void> {
+    await this.frozenWrites.close()
     this.directories.dispose()
     await this.coordinator.dispose()
     await this.runtime.drainObservations?.()

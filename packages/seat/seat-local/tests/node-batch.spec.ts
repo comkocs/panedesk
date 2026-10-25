@@ -12,10 +12,6 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'node-batch-'))
   const h = await processFixture(root)
   await h.registry.ready(methods)
-  h.ctx.provide('nodeWorkChain', { maxControlPending: 2,
-    local: { methods, seats: h.ctx.get('seats')!, engine: h.engine, ready: () => h.registry.ready(methods) },
-    policy: { expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 1000 }, ready: () => Promise.resolve(),
-      authorize: async () => { throw new Error('Legacy batch uses its independently captured receiver grant') } } })
   const second = { ...h.definition, seat: 'seat-b' as T.SeatName }
   const local = h.ctx.get('seats')!.withAuthority({ principalId, nodeId: h.definition.node as T.SeatNodeId, origin: 'manual' })
   const catalog = await local.definitions({})

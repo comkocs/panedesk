@@ -11,7 +11,8 @@ import { methods } from './frozen-process-fixture.ts'
 
 function worker(root: string, method: string, stage: string) {
   const script = fileURLToPath(new URL('./frozen-process-worker.ts', import.meta.url))
-  const launch = resolveExampleLaunch({ srcBin: script, libBin: script, mode: 'lib', configArgs: [root, method, stage] })
+  const launch = resolveExampleLaunch({ srcBin: script, libBin: script, mode: method === 'seat.wakeDelivery' ? 'src' : 'lib',
+    tsconfigPath: fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url)), configArgs: [root, method, stage] })
   const env = Object.fromEntries(Object.entries({ ...process.env, ...launch.env })
     .filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
   const child = spawn(launch.command, launch.args, { env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
@@ -70,6 +71,28 @@ test('node batch resumes only uncommitted members after SIGKILL during the secon
     const third = worker(root, 'seat.openBatch', 'recover'); children.push(third.child)
     expect(await third.message).toMatchObject({ ...recovered as object, before: 2 })
     expect(await third.exited, third.diagnostics()).toEqual([0, null])
+  } finally { for (const child of children) await kill(child); await rm(root, { recursive: true, force: true }) }
+}, 20000)
+
+test.each(['intent', 'sent', 'receipt'])('wake delivery survives SIGKILL at %s with one persistent message and the same receipt', async (stage) => {
+  const root = await mkdtemp(join(tmpdir(), 'wake-delivery-process-')), children: ChildProcess[] = []
+  try {
+    const first = worker(root, 'seat.wakeDelivery', stage); children.push(first.child)
+    const barrier = await first.message
+    expect(barrier).toMatchObject({ kind: 'wake-barrier', point: stage, pid: first.child.pid })
+    await kill(first.child)
+    expect(await first.exited).toEqual([null, 'SIGKILL'])
+    const second = worker(root, 'seat.wakeDelivery', 'recover'); children.push(second.child)
+    const recovered = await second.message
+    expect(await second.exited, second.diagnostics()).toEqual([0, null])
+    expect(recovered).toMatchObject({ kind: 'wake-recovered', count: 1, complete: true,
+      result: { status: 'settled', method: 'seat.wakeFrozen', result: { status: 'sent' } }, replay: { status: 'sent' } })
+    if (!recovered || typeof recovered !== 'object' || !('replay' in recovered)) throw new Error('Expected wake receipt')
+    expect(recovered).toMatchObject({ result: { result: recovered.replay } })
+    if (stage !== 'intent' && barrier && typeof barrier === 'object' && 'result' in barrier
+      && barrier.result && typeof barrier.result === 'object' && 'messageId' in barrier.result) {
+      expect(recovered.replay).toMatchObject({ messageId: barrier.result.messageId })
+    }
   } finally { for (const child of children) await kill(child); await rm(root, { recursive: true, force: true }) }
 }, 20000)
 

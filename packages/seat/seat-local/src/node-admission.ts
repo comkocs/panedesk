@@ -6,11 +6,13 @@ import { NODE_LINK_VERSION, type NodeAuthorizedLocalAdmission, type NodeWireResp
  * @param seats - Original local provider with audited action builders.
  * @param nodeId - Journal-owning node.
  * @param batch - Optional recovered chain admission; omission preserves legacy refusal.
+ * @param wake - Optional explicitly assembled existing-window admission.
  * @returns Admission adapter; unsupported atomic actions remain explicitly refused.
  */
 export function createLocalNodeAdmission(seats: T.SeatService, nodeId: T.SeatNodeId,
   batch?: (request: T.OpenSeatBatchRequest, authority: T.SeatCallContext,
     sourceNodeId: T.SeatNodeId) => Promise<T.OpenSeatBatchResult | undefined>,
+  wake?: (request: T.WakeSeatRequest, authority: T.SeatCallContext) => Promise<T.WakeSeatResult | undefined>,
 ): NodeAuthorizedLocalAdmission {
   return { execute: async (request, authorization): Promise<NodeWireResponse> => {
     const base = { version: NODE_LINK_VERSION, requestId: request.requestId, sourceNodeId: request.sourceNodeId,
@@ -26,6 +28,11 @@ export function createLocalNodeAdmission(seats: T.SeatService, nodeId: T.SeatNod
     if (request.method === 'seat.openBatch' && batch) {
       const result = await batch(request.payload, { principalId: authorization.fact.principalId,
         origin: authorization.fact.origin, nodeId, authorization }, request.sourceNodeId)
+      if (result !== undefined) return { ...base, method: request.method, status: 'ok', result }
+    }
+    if (request.method === 'seat.wake' && wake) {
+      const result = await wake(request.payload, { principalId: authorization.fact.principalId,
+        origin: authorization.fact.origin, nodeId, authorization })
       if (result !== undefined) return { ...base, method: request.method, status: 'ok', result }
     }
     switch (request.method) {
