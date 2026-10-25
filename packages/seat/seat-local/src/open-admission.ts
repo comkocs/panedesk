@@ -55,6 +55,14 @@ export async function admitLocalOpen(engine: T.SeatEngineService, state: LocalEn
     }
   }
   if (!pending) return rejected('state-conflict', 'Opening queue no longer owns this request.', 'Read the retained window or queue outcome.')
+  return queuedOpenResult(pending)
+}
+
+/** 投影指定受理记录的排队回执。
+ * @param pending - 调用方选定的持久队列记录。
+ * @returns 不含内部冻结正文的排队回执。
+ */
+export function queuedOpenResult(pending: T.PendingSeatItem): T.SeatQueued {
   return { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
     reason: pending.reason, blockedBy: pending.blockedBy }
 }
