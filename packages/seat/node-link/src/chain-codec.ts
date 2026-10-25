@@ -5,6 +5,7 @@ import { decodeNodeWorkChainRequest, decodeNodeWorkChainResult, decodeSeatFailur
 import type { NodeWorkChainMethod, SeatDigest } from '@panedesk/dsh-seat'
 import type { ChainCapability, ChainRequest, ChainResponse, ChainEvidenceFrame, ChainEvidenceResponse } from './chain-types.ts'
 import { NODE_LINK_ERROR_CODES, NODE_LINK_VERSION } from './index.ts'
+import { validDelegation } from './delegation-codec.ts'
 
 const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen', 'source.prepareOpening',
   'source.checkAdmission', 'source.deliverCallback', 'chain.operation'] as const
@@ -61,17 +62,7 @@ export function decodeChainRequest(value: unknown): ChainRequest {
     || !fields(value, ['version', 'requestId', 'sourceNodeId', 'targetNodeId', 'operationId', 'deadline', 'hop',
       'method', 'payload', 'payloadDigest', 'delegation'])) throw new Error('Node chain frame rejected')
   decodeNodeWorkChainRequest(value.method, value.payload)
-  const delegation = value.delegation
-  if (!object(delegation) || delegation.kind !== 'node-delegation' || delegation.hop !== 1
-    || !identifier(delegation.principalId) || !identifier(delegation.authorizationRef)
-    || delegation.sourceNodeId !== value.sourceNodeId || delegation.targetNodeId !== value.targetNodeId
-    || delegation.operationId !== value.operationId || delegation.requestDigest !== value.payloadDigest
-    || typeof delegation.expiresAt !== 'string' || !Number.isFinite(Date.parse(delegation.expiresAt))
-    || !Array.isArray(delegation.taskIds) || !delegation.taskIds.every(identifier)
-    || (delegation.seat !== undefined && !identifier(delegation.seat))
-    || (delegation.sessionId !== undefined && !identifier(delegation.sessionId))
-    || !fields(delegation, ['kind', 'hop', 'principalId', 'authorizationRef', 'sourceNodeId', 'targetNodeId',
-      'operationId', 'requestDigest', 'expiresAt', 'taskIds', 'seat', 'sessionId'])) throw new Error('Node chain delegation rejected')
+  if (!validDelegation(value)) throw new Error('Node chain delegation rejected')
   const request = value as ChainRequest
   switch (request.method) {
     case 'seat.openFrozen': case 'seat.wakeFrozen':
