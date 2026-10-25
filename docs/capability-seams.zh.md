@@ -10,11 +10,12 @@
 ```mermaid
 flowchart LR
   pkg_seat["seat"]
-  svc_seatAuthorizationTransactions["ctx.seatAuthorizationTransactions<br/>Atomic authorization admission"]
+  svc_nodeWorkChainBusiness["ctx.nodeWorkChainBusiness<br/>Durable chain business queries"]
+  pkg_node_link["node-link"]
   pkg_seat_engine["seat-engine"]
   pkg_seat_local["seat-local"]
+  svc_seatAuthorizationTransactions["ctx.seatAuthorizationTransactions<br/>Atomic authorization admission"]
   pkg_host_admin["host-admin"]
-  pkg_node_link["node-link"]
   svc_seatAuthorizationExports["ctx.seatAuthorizationExports<br/>Issued authorization export"]
   svc_seatAuthorizationIssuers["ctx.seatAuthorizationIssuers<br/>Trusted authorization entry registration"]
   svc_seatAuthorizedEngineActions["ctx.seatAuthorizedEngineActions<br/>Audited engine maintenance"]
@@ -452,6 +453,7 @@ flowchart LR
   pkg_node_link --> svc_nodeDelegationReceivingPolicy
   pkg_node_link --> svc_nodeLinkExecutor
   pkg_node_link --> svc_nodeRouter
+  pkg_node_link --> svc_nodeWorkChainBusiness
   pkg_office_to_pdf --> svc_officeToPdf
   pkg_otel --> svc_otel
   pkg_permission_presets --> svc_permissionPresets
@@ -470,6 +472,7 @@ flowchart LR
   pkg_schedule --> svc_schedule
   pkg_sdk_jsonrpc_server --> svc_hostSdkInvoker
   pkg_sdk_jsonrpc_server --> svc_sdkMethods
+  pkg_seat --> svc_nodeWorkChainBusiness
   pkg_seat --> svc_seatAuthorizationExports
   pkg_seat --> svc_seatAuthorizationIssuers
   pkg_seat --> svc_seatAuthorizationQueries
@@ -632,6 +635,9 @@ flowchart LR
   svc_nodeDelegationReceivingPolicy --> pkg_node_link
   svc_nodeLinkExecutor --> pkg_node_link
   svc_nodeRouter --> pkg_sdk_jsonrpc_server
+  svc_nodeWorkChainBusiness --> pkg_node_link
+  svc_nodeWorkChainBusiness --> pkg_seat_engine
+  svc_nodeWorkChainBusiness --> pkg_seat_local
   svc_officeToPdf --> pkg_client_ui_sidebar_documentpreview
   svc_otel --> pkg_host_product_telemetry_otel
   svc_otel --> pkg_session_telemetry_otel
@@ -783,6 +789,7 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.nodeWorkChainBusiness` | `seam` | [`seat`](../packages/seat/seat) | [`node-link`](../packages/seat/node-link) | [`seat-engine`](../packages/seat/seat-engine), [`seat-local`](../packages/seat/seat-local), [`node-link`](../packages/seat/node-link) | - | 注册唯一业务提供方，并以恢复屏障约束精确键查询与受限续推。 |
 | `ctx.seatAuthorizationTransactions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`host-admin`](../packages/host/host-admin), [`node-link`](../packages/seat/node-link) | - | Commits issued facts and action effects together; missing admission rejects audited actions. |
 | `ctx.seatAuthorizationExports` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | - | - | Exports bounded redacted facts without serializing process-local grants. |
 | `ctx.seatAuthorizationIssuers` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`host-admin`](../packages/host/host-admin) | - | Captures authenticated in-process entries and revokes issuers on disposal. |

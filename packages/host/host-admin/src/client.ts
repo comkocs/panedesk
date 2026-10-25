@@ -31,9 +31,9 @@ export async function callAdmin(files: PrivateFiles, method: HostAdminRequest['m
   catch (error) {
     void error
     return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
-      status: method === 'engine.approve' ? 'uncertain' : 'unavailable',
-      code: method === 'engine.approve' ? 'admin-outcome-unknown' : 'admin-unavailable', reason: 'Administration response unavailable',
-      ...(request.method === 'engine.approve' ? { operationId: request.params.operationId } : {}),
+      status: method === 'engine.approve' || method === 'engine.cancel' ? 'uncertain' : 'unavailable',
+      code: method === 'engine.approve' || method === 'engine.cancel' ? 'admin-outcome-unknown' : 'admin-unavailable', reason: 'Administration response unavailable',
+      ...(request.method === 'engine.approve' || request.method === 'engine.cancel' ? { operationId: request.params.operationId } : {}),
     }
   }
 }

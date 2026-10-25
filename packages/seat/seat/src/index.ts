@@ -1,5 +1,6 @@
 /** Seat Service Definitions; implementations and consumer registrations live in separate packages. */
 import { Context, Service } from '@panedesk/cordis'
+import type { Disposable } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session'
 import type * as T from './types.ts'
 import type { EngineDecision } from './events.ts'
@@ -534,6 +535,33 @@ export abstract class SeatDirectoryService extends Service {
    * @returns committed edit or a match/permission refusal.
    */
   abstract edit(request: T.SeatDirectoryEditRequest): Promise<T.SeatDirectoryWriteResult>
+}
+
+/** Optional node-link registry definition; business providers depend only on this declaration. */
+export interface NodeWorkChainBusinessRegistry {
+  /** Register through a Cordis effect; each business method has one provider globally.
+   * @param provider - Owner of one or more business methods, excluding chain.operation.
+   * @returns Disposer removing the registration.
+   * @throws If any method already has a provider, including registration of the same provider again; no partial registration is allowed.
+   */
+  register(provider: T.NodeWorkChainBusinessProvider): Disposable
+  /** Resolve the business owner, never transport state or the legacy operation query.
+   * @param method - Exact business method excluding chain.operation.
+   * @returns Registered provider, or undefined when absent.
+   */
+  resolve(method: T.NodeWorkChainBusinessMethod): T.NodeWorkChainBusinessProvider | undefined
+  /** Wait for every listed method's provider to finish recovering persisted intents and inboxes.
+   * @param methods - Methods whose receiving capabilities may be advertised only after resolution.
+   * @returns Recovery barrier; provider recovery failure rejects and missing providers cannot satisfy it.
+   */
+  ready(methods: readonly T.NodeWorkChainBusinessMethod[]): Promise<void>
+}
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Optional registry; resolve with ctx.get and skip registration when absent. */
+    nodeWorkChainBusiness: NodeWorkChainBusinessRegistry
+  }
 }
 
 /** Optional opening service definition; no provider is installed by this module. */

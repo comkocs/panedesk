@@ -230,6 +230,35 @@ status(): Promise<readonly NodeLinkStatus[]>
 
 Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
 
+<a id="ctxnodeworkchainbusiness--nodeworkchainbusinessregistry"></a>
+
+### `ctx.nodeWorkChainBusiness` — `NodeWorkChainBusinessRegistry`
+
+Optional node-link registry definition; business providers depend only on this declaration.
+
+```ts cordis-catalog
+/** Register through a Cordis effect; each business method has one provider globally.
+ * @param provider - Owner of one or more business methods, excluding chain.operation.
+ * @returns Disposer removing the registration.
+ * @throws If any method already has a provider, including registration of the same provider again; no partial registration is allowed.
+ */
+register(provider: T.NodeWorkChainBusinessProvider): Disposable
+
+/** Resolve the business owner, never transport state or the legacy operation query.
+ * @param method - Exact business method excluding chain.operation.
+ * @returns Registered provider, or undefined when absent.
+ */
+resolve(method: T.NodeWorkChainBusinessMethod): T.NodeWorkChainBusinessProvider | undefined
+
+/** Wait for every listed method's provider to finish recovering persisted intents and inboxes.
+ * @param methods - Methods whose receiving capabilities may be advertised only after resolution.
+ * @returns Recovery barrier; provider recovery failure rejects and missing providers cannot satisfy it.
+ */
+ready(methods: readonly T.NodeWorkChainBusinessMethod[]): Promise<void>
+```
+
+Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
 <a id="ctxseatauthorizationexports--seatauthorizationexports"></a>
 
 ### `ctx.seatAuthorizationExports` — `SeatAuthorizationExports`

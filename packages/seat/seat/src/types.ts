@@ -1196,6 +1196,31 @@ export type NodeWorkChainSettledResult = {
 }[Exclude<NodeWorkChainMethod, 'chain.operation'>]
 /** Missing is reportable only after recovery; pending is not a terminal cached result. */
 export type NodeWorkChainOperationResult = { status: 'missing' } | { status: 'pending'; effectState: 'none' | 'unknown' } | NodeWorkChainSettledResult | SeatRejected
+/** Provider-owned business methods exclude the query dispatcher itself. */
+export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, 'chain.operation'>
+/** Durable business owner; registration grants no caller authority. */
+export interface NodeWorkChainBusinessProvider {
+  /** Nonempty method domain; each method has exactly one provider across the registry. */
+  readonly methods: readonly NodeWorkChainBusinessMethod[]
+  /** Recover all persisted intents and inbox entries before resolving.
+   * @returns Recovery barrier; rejection forbids advertising these receiving capabilities.
+   */
+  ready(): Promise<void>
+  /** Query the full sourceNodeId/principalId/sourceId/ownerEpoch/method/operationId/callbackId key and digest.
+   * Before ready resolves, return only pending/unknown, never missing;
+   * transport pending and legacy operationId lookup are not business evidence.
+   * @param request - Exact original business key and payload digest.
+   * @param context - Independently authenticated process-local caller.
+   * @returns Durable business outcome; unknown uses pending with effectState unknown.
+   */
+  query(request: NodeWorkChainOperationRequest, context: SeatCallContext): Promise<NodeWorkChainOperationResult>
+  /** Resume only an original intent confirmed missing after recovery, with provider-owned atomic deduplication.
+   * @param request - Original complete key and digest; no identity may be replaced or newly allocated.
+   * @param context - Restricted outbox identity that the provider must reauthorize before resuming.
+   * @returns Original business outcome without blindly repeating an ordinary method call.
+   */
+  resume?(request: NodeWorkChainOperationRequest, context: SeatCallContext): Promise<NodeWorkChainOperationResult>
+}
 /** Shared wire request/result association; no arbitrary namespaces are admitted. */
 export interface NodeWorkChainMethodMap {
   'engine.acceptFrozen': { request: AcceptFrozenTriggerRequest; result: AcceptFrozenTriggerResult }
