@@ -9,9 +9,12 @@
  */
 
 import type { MessagesRequestMap, HarnessSdkNotificationMap } from './types.ts'
+import { decodeSeatFailureCause } from './seat.ts'
 
 export { JsonRpcLineTransport, JsonRpcResponseError } from './transport.ts'
-export { decodeSeatRequest, decodeSeatResult, isSeatMethod } from './seat.ts'
+export { decodeSeatRequest, decodeSeatResult, isSeatMethod, decodeSeatFailureCause,
+  decodeNodeWorkChainRequest, decodeNodeWorkChainResult, encodeNodeWorkChainFrame,
+  decodeNodeDelegationEvidenceRequest, decodeNodeDelegationEvidenceResult } from './seat.ts'
 export type { SeatRequestMap } from './types.ts'
 export type * from '@panedesk/dsh-seat'
 
@@ -58,7 +61,11 @@ const control: Validator = value => fields({ operationId: text, messageId: text 
   && (value.kind === 'applied' ? status(value.status)
     : value.kind === 'accepted-pending-owner' ? value.state === 'queued' && integer(value.revision)
       : value.kind === 'rejected' && reason(value.reason) && nullable(status)(value.status))
-const sent: Validator = value => fields({ messageId: text, operationId: text, pending: boolean })(value) && record(value)
+const routingCause: Validator = (value) => {
+  try { decodeSeatFailureCause(value); return true } catch (error) { void error; return false }
+}
+const sent: Validator = value => fields({ messageId: text, operationId: text, pending: boolean, cause: optional(routingCause) })(value)
+  && record(value)
   && (value.deliveryOutcome === 'accepted' ? value.messageState === 'queued' && recipient(value.recipient)
     : value.deliveryOutcome === 'rejected' && reason(value.reason) && (value.reason === 'target-closed-pending'
       ? value.messageState === 'queued' && value.pending === true && recipient(value.recipient)

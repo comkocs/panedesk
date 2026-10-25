@@ -126,6 +126,8 @@ export interface MessageStatus {
 }
 /** Send result; a closed target is rejected for delivery but retains a queued pending message. */
 export type SendMessageResult = {
+  /** Optional sanitized routing refusal; omission preserves local acknowledgements. */
+  readonly cause?: import('./routed.ts').RoutedDeliveryFailureCause
   readonly messageId: MessageId
   readonly operationId: OperationId
 } & (

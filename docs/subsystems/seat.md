@@ -409,6 +409,13 @@ Engine owns the journal, queues, resources and outbox; local providers depend on
  */
 abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>
 
+/** Commit frozen admission and its live grant together; never route again.
+ * @param request - Frozen source input, route and expected local definition revision.
+ * @param authority - Independently verified process-local authority with the exact grant.
+ * @returns Durable acceptance or refusal without source-side execution resources.
+ */
+acceptFrozen?(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult>
+
 /** Install the local Session executor without coupling engine storage to its implementation.
  * @param executor - trusted local implementation.
  * @returns disposer that drains in-flight recovery before detaching.
@@ -767,6 +774,27 @@ Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.t
 Optional opening service definition; no provider is installed by this module.
 
 ```ts cordis-catalog
+/** Prepare and retain input at the sole source owner without waiting for execution.
+ * @param request - Exact source, epoch, task and operation identities.
+ * @param authority - Authenticated original caller.
+ * @returns Frozen input and reservation or refusal.
+ */
+prepare?(request: T.PrepareSourceOpeningRequest, authority: T.SeatCallContext): Promise<T.PrepareSourceOpeningResult>
+
+/** Recheck an exact retained reservation without reading source text again.
+ * @param request - Original reservation and actual execution node.
+ * @param authority - Authenticated restricted caller.
+ * @returns Current permission; unknown retains occupancy.
+ */
+checkAdmission?(request: T.CheckSourceAdmissionRequest, authority: T.SeatCallContext): Promise<T.CheckSourceAdmissionResult>
+
+/** Retain a callback before performing source-owned writeback steps.
+ * @param request - Original callback, route and frozen runtime evidence.
+ * @param authority - Authenticated execution-node identity.
+ * @returns Committed only after all original steps finish.
+ */
+deliverCallback?(request: T.DeliverSourceCallbackRequest, authority: T.SeatCallContext): Promise<T.DeliverSourceCallbackResult>
+
 /** Install one trusted scope owner; omission retains the existing scope evaluation.
  * @param admission - Owner of serialized checks and durable reservations.
  * @returns Disposer that stops new calls and drains active admissions.
@@ -1028,6 +1056,18 @@ abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResul
  * @returns created, prefilled, pending, choice or rejected outcome.
  */
 abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>
+
+/** Consume an authenticated frozen request locally without resolving its source again.
+ * @param request - Complete frozen input bound to this facade's live authority.
+ * @returns Original opening outcomes; absence denies the negotiated method.
+ */
+openFrozen?(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult>
+
+/** Wake locally, consuming the frozen fallback only when no eligible window exists.
+ * @param request - Original wake identity and frozen fallback.
+ * @returns Original wake outcomes without another routing hop.
+ */
+wakeFrozen?(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult>
 
 /** Validate the entire explicit name list before opening any window.
  * @param request - bounded names without wildcard expansion.

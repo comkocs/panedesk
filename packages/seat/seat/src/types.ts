@@ -106,6 +106,8 @@ export interface SeatDefinition {
   permissionPreset: string
   subscriptions: readonly string[]
   checkpointFiles: readonly SeatCheckpointFile[]
+  /** Explicit remote-opening allowlists; omission denies remote admission. */
+  remoteAdmission?: SeatRemoteAdmission
   wakeTemplate?: SeatText
   /** Omitted enables idle cache maintenance; false disables automatic renewal. */
   autoKeepAlive?: boolean
@@ -169,6 +171,8 @@ export type SeatErrorCode =
   | 'worktree-client-limit' | 'worktree-unverified'
 /** Safe diagnostic without credentials, signatures, network locations or raw source bodies. */
 export interface SeatFailure {
+  /** Sanitized original refusal; the outer compatibility code remains unchanged. */
+  cause?: SeatFailureCause
   code: SeatErrorCode
   message: string
   alternative: string
@@ -394,6 +398,8 @@ export type SeatBinding =
     seat: SeatName
     projectId: SeatProjectId
     nodeId: SeatNodeId
+    /** Verified roster evidence, never inferred from opening text. */
+    staffBinding?: SeatVerifiedStaffBinding
     bindingSource: 'seat-definition'
     identitySource: 'settings' | 'inherited'
     openOperationId: SeatOperationId
@@ -673,7 +679,16 @@ export type SeatCallbackPayload = SeatCallbackBase & (
   | { kind: 'replacement-failed'; replacementId: ReplacementId; oldSessionId: SessionId; newSessionId: SessionId | null; reason: ReplacementFailureCode; cause: SeatFailure; cleanup: 'not-created' | 'closed' | 'pending' }
 )
 /** At-least-once outbox keeps the same payload and callback ID across all retries. */
-export interface SeatCallbackDelivery { payload: SeatCallbackPayload; payloadDigest: SeatDigest; attempt: number; phase: 'pending' | 'retry-due' | 'paused' | 'delivered'; nextDue: SeatTimestamp | null; responseClass: 'success' | 'transient' | 'authentication' | 'protocol' | 'unknown' | null }
+export interface SeatCallbackDelivery {
+  /** Frozen complete remote callback request; replay retains its original digest. */
+  nodeWorkChain?: DeliverSourceCallbackRequest
+  payload: SeatCallbackPayload
+  payloadDigest: SeatDigest
+  attempt: number
+  phase: 'pending' | 'retry-due' | 'paused' | 'delivered'
+  nextDue: SeatTimestamp | null
+  responseClass: 'success' | 'transient' | 'authentication' | 'protocol' | 'unknown' | null
+}
 /** Source registration owns credentials outside the ledger and returns an awaited disposer. */
 export interface SeatTriggerSource { sourceId: SeatSourceId; kinds: readonly SeatTrigger['kind'][]; maxRedeliveryMs: number | null; callback: (payload: SeatCallbackPayload) => Promise<void> }
 /** Effect cursor is exclusive and filters do not prevent its advancement. */
@@ -816,6 +831,8 @@ export interface SeatCloseExecutor {
 }
 /** Accepted configuration and title remain fixed while resource admission is queued. */
 export interface SeatFrozenOpen {
+  /** Required-capability admission retains the full source context and route for rechecks. */
+  nodeWorkChain?: NodeWorkChainAcceptedData
   /** A registered execution policy must confirm this item again; absence never grants permission. */
   recheckRequired?: true
   definition: SeatDefinition
@@ -841,6 +858,8 @@ export interface SeatEngineLocalAccess {
 }
 /** Frozen manual-open input; the engine allocates Session identity and owns resource admission. */
 export interface SeatLocalOpenRequest {
+  /** Committed only through the required-capability admission path. */
+  nodeWorkChain?: NodeWorkChainAcceptedData
   request: OpenSeatRequest
   authority: SeatCallContext
   definition: SeatDefinition
@@ -996,6 +1015,225 @@ export interface SeatNodeDelegation {
   expiresAt: SeatTimestamp
   hop: 1
   kind: 'node-delegation'
+}
+
+/** Remote opening permission never grants renewal or implicit wake permission. */
+export type SeatRemoteOpeningMethod = 'engine.acceptFrozen' | 'seat.openFrozen' | 'seat.wakeFrozen'
+/** Closed method set negotiated separately from the legacy node-link methods. */
+export type NodeWorkChainMethod = SeatRemoteOpeningMethod | 'source.prepareOpening' | 'source.checkAdmission' | 'source.deliverCallback' | 'chain.operation'
+/** Nonempty, unique, wildcard-free lists are validated by the admission provider. */
+export interface SeatRemoteAdmission {
+  allowOpen: true
+  sourceNodeIds: readonly SeatNodeId[]
+  sourceIds: readonly SeatSourceId[]
+  principalIds: readonly SeatPrincipalId[]
+  methods: readonly SeatRemoteOpeningMethod[]
+  policyRevision: number
+}
+/** Safe original diagnostics; code is a bounded ASCII identifier, reason is bounded UTF-8. */
+export interface SeatFailureCause {
+  domain: string
+  code: string
+  reason: string
+  effectState: SeatFailure['effectState']
+  retryable: boolean
+  operationId: SeatOperationId
+  nodeId: SeatNodeId
+  reasonCode?: NodeWorkChainReasonCode
+}
+/** Closed refinements of existing outer refusal categories. */
+export type NodeWorkChainReasonCode =
+  | 'peer-capability-missing' | 'remote-open-not-allowed' | 'principal-mapping-missing'
+  | 'source-mismatch' | 'node-mismatch' | 'principal-mismatch'
+  | 'evidence-missing' | 'evidence-revoked' | 'evidence-digest-mismatch'
+  | 'frame-too-large' | 'hello-policy-not-ready' | 'method-not-allowed'
+  | 'owner-epoch-mismatch' | 'seat-revision-mismatch' | 'scope-reservation-mismatch'
+  | 'operation-payload-conflict' | 'protocol-version-mismatch' | 'authentication-unconfirmed'
+  | 'tunnel-disconnected' | 'outcome-unknown' | 'deadline-exceeded' | 'invalid-diagnostic'
+/** Callback routing is logical, never a URL or executable provider path. */
+export type NodeWorkChainCallbackPath =
+  | { kind: 'source'; sourceId: SeatSourceId }
+  | { kind: 'opening-context'; reference: OpeningContextReference; operationId: SeatOperationId }
+/** Source policy is retained and intersected with current target policy at every dispatch. */
+export interface NodeWorkChainModeCeiling {
+  mode: EngineMode
+  policy: { sourceId: SeatSourceId; projectId: SeatProjectId; revision: number; ruleId?: SeatRuleId }
+}
+/** Immutable admission association retained with the original trigger and authorization. */
+export interface NodeWorkChainRoute {
+  sourceId: SeatSourceId
+  sourceOwnerNodeId: SeatNodeId
+  ownerEpoch: OwnerEpoch
+  triggerId: TriggerId | null
+  originalOperationId: SeatOperationId
+  targetNodeId: SeatNodeId
+  snapshotDigest: SeatDigest
+  callbackPath: NodeWorkChainCallbackPath
+  modeCeiling: NodeWorkChainModeCeiling
+}
+/** Only authenticated roster evidence can supply an employee binding. */
+export interface SeatVerifiedStaffBinding {
+  staffId: Branded<'SeatStaffId'>
+  seat: SeatName
+  taskIds: readonly SeatTaskId[]
+  evidenceRef: Branded<'SeatStaffEvidenceRef'>
+  revision: string
+  verifiedAt: SeatTimestamp
+}
+/** Scope remains owned by the source; unknown outcomes never release this reservation. */
+export interface NodeWorkChainScopeReservation {
+  reservationId: Branded<'SeatScopeReservationId'>
+  sourceId: SeatSourceId
+  sourceOwnerNodeId: SeatNodeId
+  ownerEpoch: OwnerEpoch
+  operationId: SeatOperationId
+  taskIds: readonly SeatTaskId[]
+  snapshotDigest: SeatDigest
+  policyRevision: number
+}
+/** Target consumes frozen text and binding without resolving the source provider again. */
+export interface NodeWorkChainOpeningContext {
+  snapshot: OpeningContextSnapshot
+  staffBinding?: SeatVerifiedStaffBinding
+  scopeReservation: NodeWorkChainScopeReservation
+  openingMode: 'auto' | 'prefill'
+}
+/** Runtime evidence is frozen on first callback construction, including missing evidence. */
+export type SeatExecutionModelEvidence =
+  | { status: 'present'; provider: string; model: string; kind: 'request/header' | 'model/selection'; sessionId: SessionId; nodeId: SeatNodeId; recordRef: Branded<'SeatModelRecordRef'>; observedAt: SeatTimestamp }
+  | { status: 'missing'; sessionId: SessionId | null; nodeId: SeatNodeId; observedAt: SeatTimestamp }
+
+/** Frozen source admission; target configuration is resolved locally at this revision. */
+export interface AcceptFrozenTriggerRequest {
+  envelope: TriggerEnvelope
+  openingContext: NodeWorkChainOpeningContext
+  expectedSeatRevision: number
+  route: NodeWorkChainRoute
+}
+/** Source admission retains the existing result variants. */
+export type AcceptFrozenTriggerResult = AcceptTriggerResult
+/** Manual opening carries the complete frozen input, never a provider lookup instruction. */
+export interface OpenFrozenSeatRequest {
+  request: OpenSeatRequest
+  openingContext: NodeWorkChainOpeningContext
+  expectedSeatRevision: number
+  route: NodeWorkChainRoute
+}
+/** Frozen opening preserves legacy open outcomes. */
+export type OpenFrozenSeatResult = OpenSeatResult
+/** Existing windows use normal wake eligibility; only an absent window consumes the snapshot. */
+export interface WakeFrozenSeatRequest {
+  request: WakeSeatRequest
+  openingContext: NodeWorkChainOpeningContext
+  expectedSeatRevision: number
+  route: NodeWorkChainRoute
+}
+/** Frozen wake preserves legacy wake outcomes. */
+export type WakeFrozenSeatResult = WakeSeatResult
+/** Preparation authorizes and persists a snapshot and reservation at the sole source owner. */
+export interface PrepareSourceOpeningRequest {
+  sourceId: SeatSourceId
+  sourceOwnerNodeId: SeatNodeId
+  ownerEpoch: OwnerEpoch
+  reference: OpeningContextReference
+  seat: SeatName
+  taskIds: readonly SeatTaskId[]
+  operationId: SeatOperationId
+  targetNodeId: SeatNodeId
+  expectedSeatRevision: number
+  openingMode: 'auto' | 'prefill'
+}
+/** Prepared input is durable but does not authorize its subsequent execution. */
+export type PrepareSourceOpeningResult =
+  | { status: 'prepared'; openingContext: NodeWorkChainOpeningContext; route: NodeWorkChainRoute; expectedSeatRevision: number }
+  | SeatRejected
+/** Exact reservation recheck never rereads opening text or approves a reminder queue. */
+export interface CheckSourceAdmissionRequest {
+  scopeReservation: NodeWorkChainScopeReservation
+  route: NodeWorkChainRoute
+  taskIds: readonly SeatTaskId[]
+  operationId: SeatOperationId
+  executionNodeId: SeatNodeId
+}
+/** Unknown authority retains reservations and cannot be interpreted as permission. */
+export type CheckSourceAdmissionResult =
+  | { status: 'allowed'; policyRevision: number }
+  | { status: 'denied' | 'unknown'; policyRevision: number | null; error: SeatFailure }
+/** Original callback and runtime evidence freeze together before the first delivery attempt. */
+export interface DeliverSourceCallbackRequest {
+  callback: SeatCallbackPayload
+  route: NodeWorkChainRoute
+  modelEvidence: SeatExecutionModelEvidence
+  payloadDigest: SeatDigest
+}
+/** Only committed confirms completion of every source-owned callback step. */
+export type DeliverSourceCallbackResult =
+  | { status: 'pending' | 'committed'; callbackId: CallbackId; payloadDigest: SeatDigest }
+  | { status: 'paused'; callbackId: CallbackId; payloadDigest: SeatDigest; error: SeatFailure }
+  | SeatRejected
+/** Full business key is independent of transport request identity and authorization lifetime. */
+export interface NodeWorkChainOperationKey {
+  sourceNodeId: SeatNodeId
+  principalId: SeatPrincipalId
+  sourceId: SeatSourceId
+  ownerEpoch: OwnerEpoch
+  method: NodeWorkChainMethod
+  operationId: SeatOperationId
+  callbackId?: CallbackId
+}
+/** An exact lookup neither enumerates operations nor restarts their execution. */
+export interface NodeWorkChainOperationRequest {
+  key: NodeWorkChainOperationKey
+  payloadDigest: SeatDigest
+}
+/** Settled results remain paired with their original method, excluding recursive queries. */
+export type NodeWorkChainSettledResult = {
+  [M in Exclude<NodeWorkChainMethod, 'chain.operation'>]: {
+    status: 'settled'
+    method: M
+    result: NodeWorkChainMethodMap[M]['result']
+  }
+}[Exclude<NodeWorkChainMethod, 'chain.operation'>]
+/** Missing is reportable only after recovery; pending is not a terminal cached result. */
+export type NodeWorkChainOperationResult = { status: 'missing' } | { status: 'pending'; effectState: 'none' | 'unknown' } | NodeWorkChainSettledResult | SeatRejected
+/** Shared wire request/result association; no arbitrary namespaces are admitted. */
+export interface NodeWorkChainMethodMap {
+  'engine.acceptFrozen': { request: AcceptFrozenTriggerRequest; result: AcceptFrozenTriggerResult }
+  'seat.openFrozen': { request: OpenFrozenSeatRequest; result: OpenFrozenSeatResult }
+  'seat.wakeFrozen': { request: WakeFrozenSeatRequest; result: WakeFrozenSeatResult }
+  'source.prepareOpening': { request: PrepareSourceOpeningRequest; result: PrepareSourceOpeningResult }
+  'source.checkAdmission': { request: CheckSourceAdmissionRequest; result: CheckSourceAdmissionResult }
+  'source.deliverCallback': { request: DeliverSourceCallbackRequest; result: DeliverSourceCallbackResult }
+  'chain.operation': { request: NodeWorkChainOperationRequest; result: NodeWorkChainOperationResult }
+}
+/** Same-channel lookup checks authenticated peer and explicit evidence access, not delegation recursion. */
+export interface NodeDelegationEvidenceRequest {
+  authorizationRef: AuthorizationRef
+  method: NodeWorkChainMethod
+  operationId: SeatOperationId
+  payloadDigest: SeatDigest
+  sourceNodeId: SeatNodeId
+  targetNodeId: SeatNodeId
+}
+/** A retained original fact is independently fetched, never trusted from the execution request. */
+export type NodeDelegationEvidenceResult =
+  | { status: 'retained'; request: NodeDelegationEvidenceRequest; fact: import('./authorization.ts').SeatIssuedAuthorizationFact; expiresAt: SeatTimestamp; revoked: false }
+  | { status: 'rejected'; cause: SeatFailureCause }
+/** Required extension data commits beside the original trigger and issued authorization. */
+export interface NodeWorkChainAcceptedData {
+  capability: 'node-work-chain/v1'
+  route: NodeWorkChainRoute
+  openingContext: NodeWorkChainOpeningContext
+  expectedSeatRevision: number
+  authorizationRef: AuthorizationRef
+  payloadDigest: SeatDigest
+  operationKey: NodeWorkChainOperationKey
+  trigger: TriggerEnvelope | null
+}
+/** Separate required effect, never an ignorable field in the legacy EngineEffect union. */
+export interface NodeWorkChainAcceptedEffect {
+  kind: 'node-route/accepted'
+  data: NodeWorkChainAcceptedData
 }
 
 /** An uncertain operation remains unknown until recovery establishes a committed fact. */
