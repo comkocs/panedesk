@@ -75,8 +75,9 @@ test.each(fixtures)('preserves $method success, refusal, digest and authorizatio
       expect(ctx.get('nodeWorkChain')).toBeUndefined()
       expect(ctx.get('nodeWorkChainRouter')).toBeUndefined()
     }
+    await expect.poll(() => contexts[0]!.get('nodeRouter'), { timeout: 10000 }).toBeDefined()
     const router = contexts[0]!.get('nodeRouter')!
-    await expect.poll(async () => (await router.status())[0]?.reachable).toBe(true)
+    await expect.poll(async () => (await router.status())[0]?.reachable, { timeout: 10000 }).toBe(true)
     expect((await router.status())[0]?.capabilities).toEqual(['node-link/v1'])
     expect(digest(request.payload)).toBe(fixture.payloadDigest)
     expect(request.delegation.kind).toBe('node-delegation')

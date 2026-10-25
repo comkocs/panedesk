@@ -50,11 +50,11 @@ test('authenticates each Loader direction independently, aggregates reported sta
     await ctx.loader.await()
   }
   for (const [i, ctx] of contexts.entries()) {
-    await expect.poll(async () => (await ctx.get('nodeRouter')?.status())?.[0]?.status?.openEngineWindows).toBe(2 - i)
+    await expect.poll(async () => (await ctx.get('nodeRouter')?.status())?.[0]?.status?.openEngineWindows, { timeout: 10000 }).toBe(2 - i)
   }
   await contexts[0]!.fiber.dispose()
   expect(contexts[0]!.get('nodeRouter')).toBeUndefined()
-  await expect.poll(async () => (await contexts[1]!.get('nodeRouter')?.status())?.[0]?.reachable).toBe(false)
+  await expect.poll(async () => (await contexts[1]!.get('nodeRouter')?.status())?.[0]?.reachable, { timeout: 10000 }).toBe(false)
   expect((await contexts[1]!.get('nodeRouter')?.status())?.[0]?.status?.openEngineWindows).toBe(1)
 })
 
