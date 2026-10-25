@@ -7,6 +7,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { request } from 'node:http'
 import * as Admin from '../src/index.ts'
 import { PosixPrivateFiles } from '../src/private-files.ts'
 import { callAdmin } from '../src/client.ts'
@@ -71,6 +72,32 @@ test('loads opt-in administration, authenticates five methods and disposes crede
   await ctx.loader.resolve(entry).fiber?.dispose()
   expect(await files.read('credential', 64)).toBeNull()
   expect(ctx.get('hostAdmin')).toBeUndefined()
+})
+
+test('admin runtime keeps strict Host validation for foreign hosts and other loopback ports', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'admin-host-'))
+  cleanups.push(() => rm(root, { recursive: true, force: true }))
+  const ctx = new Context()
+  cleanups.push(() => ctx.fiber.dispose())
+  await ctx.plugin(Admin, { runtime: { ...limits, directory: root, nodeId: 'node-a', principalId: 'operator-a',
+    port: 0, maxStoreBytes: 65536, maxOperations: 100 } })
+  const files = new PosixPrivateFiles(root, process.getuid!())
+  await expect.poll(() => files.read('endpoint.json', 4096)).not.toBeNull()
+  const endpoint = JSON.parse((await files.read('endpoint.json', 4096))!) as { port: number; processEpoch: string }
+  const credential = (await files.read('credential', 64))!
+  const value = { version: Admin.HOST_ADMIN_VERSION, requestId: 'request-a', nonce: 'nonce-a',
+    processEpoch: endpoint.processEpoch, method: 'node.status', params: {} }
+  const raw = (host: string) => new Promise<number | undefined>((resolve, reject) => {
+    const req = request({ host: '127.0.0.1', port: endpoint.port, method: 'POST', path: '/rpc', agent: false,
+      headers: { host, 'content-type': 'application/json', authorization: credential, 'x-rpc-epoch': endpoint.processEpoch },
+      signal: AbortSignal.timeout(limits.requestTimeoutMs),
+    }, (response) => { response.resume(); resolve(response.statusCode) })
+    req.on('error', reject); req.end(JSON.stringify(value))
+  })
+  expect(await raw(`browser.invalid:${endpoint.port}`)).toBe(403)
+  expect(await raw(`127.0.0.1:${endpoint.port === 65535 ? 65534 : endpoint.port + 1}`)).toBe(403)
+  expect(await raw(`localhost:${endpoint.port}`)).toBe(403)
+  expect(await raw(`127.0.0.1:${endpoint.port}`)).toBe(200)
 })
 
 test('empty configuration registers no service and malformed methods never dispatch', async () => {

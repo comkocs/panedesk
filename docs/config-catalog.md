@@ -2543,7 +2543,7 @@ export interface Config {
 
 ## `@panedesk/dsh-node-link`
 
-- `source`: [`packages/seat/node-link/src/index.ts:177`](../packages/seat/node-link/src/index.ts)
+- `source`: [`packages/seat/node-link/src/index.ts:179`](../packages/seat/node-link/src/index.ts)
 
 ```ts config-catalog
 /** Omission preserves the empty plugin's no-I/O behavior. */
@@ -2566,6 +2566,8 @@ export interface NodeLinkRuntimeConfig {
   listenPort: number
   /** Local loopback port reaching the paired node through the supervised forward. */
   peerPort: number
+  /** Exact additional loopback Host authorities; omission or an empty list accepts only the actual listener authority. */
+  forwardedHosts?: string[] | undefined
   /** Maximum bytes in a complete request or response frame. */
   maxFrameBytes: number
   /** Maximum time in milliseconds to wait for a transport response. */

@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "node-link-forwarded-host",
+      "description": "Accept an explicitly configured loopback forwarding entrance authority for node-link.",
+      "origin": "Optional node transport",
+      "reason": "TCP forwarding preserves Host while entrance and receiving listener ports may differ; admin remains strict.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/forwarded-host.spec.ts"],
+        "test": "negotiates both runtimes through %s"
+      }
+    },
+    {
       "id": "seat-schedule-wake-opening-turn",
       "description": "Observe schedule wait completion before an opening turn can start.",
       "origin": "Optional seat acceptance coverage",
