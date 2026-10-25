@@ -1,10 +1,10 @@
 /** Optional administration owns credentials, epoch, listener and durable replay until disposal. */
 import { randomBytes, randomUUID } from 'node:crypto'
-import type { Context } from '@panedesk/cordis'
+import { FiberState, type Context } from '@panedesk/cordis'
 import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION } from './index.ts'
 import type { Config, HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse, HostAdminService } from './index.ts'
 import { PosixPrivateFiles } from './private-files.ts'
-import { waitForPrivateFiles } from './private-files-ready.ts'
+import { waitForPrivateFiles, PrivateFilesWaitCancelled } from './private-files-ready.ts'
 import { OperationStore } from './operation-store.ts'
 import { listenAuthenticatedLoopback, type LoopbackListener } from './loopback.ts'
 import { SessionCredentials } from './session-credentials.ts'
@@ -23,8 +23,14 @@ import { executeLocal } from './local-executor.ts'
 export async function mountAdmin(ctx: Context, config: Config): Promise<() => Promise<void>> {
   const options = config.runtime
   if (options === undefined) return () => Promise.resolve()
-  const windowsFactory = process.platform === 'win32'
-    ? await waitForPrivateFiles(ctx, 'hostAdminFiles', options.requestTimeoutMs, () => ctx.get('hostAdminFiles')) : undefined
+  const windows = process.platform === 'win32'
+  const inactive = () => windows && (ctx.fiber.uid === null || ctx.fiber.state === FiberState.UNLOADING)
+  const windowsFactory = windows
+    ? await waitForPrivateFiles(ctx, 'hostAdminFiles', options.requestTimeoutMs, () => ctx.get('hostAdminFiles')).catch((error: unknown) => {
+      if (error instanceof PrivateFilesWaitCancelled) return undefined
+      throw error
+    }) : undefined
+  if (inactive()) return async () => {}
   const privateFiles = windowsFactory ?? ((directory: string) => ctx.get('hostAdminFiles')?.(directory)
     ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
   const files = privateFiles(options.directory)
@@ -110,6 +116,7 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
       nodeId: options.nodeId as HostAdminEndpoint['nodeId'], pid: process.pid, processEpoch: epoch,
       credentialRef: 'credential' as HostAdminEndpoint['credentialRef'], port: listener.port }
     await files.write('endpoint.json', JSON.stringify(endpoint))
+    if (inactive()) return
     ctx.provide('hostSessionCredentials', sessions)
   })()
   const dispose = async (): Promise<void> => {

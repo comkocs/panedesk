@@ -155,7 +155,7 @@ export function apply(_ctx: Context, _config: Config): void | Promise<() => Prom
   const startup = _ctx.effect(() => mountAdmin(_ctx, _config))
   if (process.platform === 'win32') return Promise.resolve(startup)
 }
-export { waitForPrivateFiles } from './private-files-ready.ts'
+export { waitForPrivateFiles, PrivateFilesWaitCancelled } from './private-files-ready.ts'
 export type * from './execution.ts'
 export { createHostAdminExecutor, hostAdminExecutionAdapter } from './executor.ts'
 export { WindowsPrivateFiles } from './windows-private-files.ts'
