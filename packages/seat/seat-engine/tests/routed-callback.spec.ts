@@ -7,6 +7,34 @@ import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } fro
 import { harness, seat } from './fixtures.ts'
 import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
 
+test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when its exact query fails by %s', async (mode) => {
+  const h = await harness({ callbackTimeoutMs: 20 })
+  const sources = new SourceRegistry()
+  let outbox: CallbackOutbox | undefined
+  try {
+    h.definitions.set(seat, admittedDefinition())
+    const body = await persistCallback(h.engine), seen: CallbackChainRequest[] = []
+    let queriesFail = false
+    const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
+      kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const router: CallbackRouterPort = { route: async (request) => {
+      seen.push(request)
+      if (request.method === 'chain.operation' && !queriesFail) return { method: request.method, status: 'ok', result: { status: 'missing' } }
+      queriesFail = true
+      if (mode === 'throw') throw new Error('Query unavailable')
+      return new Promise<never>(() => {})
+    } }
+    h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
+    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+    await outbox.deliver(0)
+    await outbox.deliver(100)
+    expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback', 'chain.operation', 'chain.operation'])
+    expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
+    for (const sent of seen) expect(sent.operationId).toBe(body.route.originalOperationId)
+  } finally { await outbox?.close(); await sources.close(); await h.close() }
+})
+
 test.each(['throw', 'timeout'] as const)('queries during the same %s attempt and retains unknown across restart', async (mode) => {
   const h = await harness({ callbackTimeoutMs: 20 })
   const sources = new SourceRegistry()

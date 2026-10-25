@@ -43,6 +43,7 @@ const services: NodeLink.ChainServices = { maxControlPending: 2,
   policy: { ready: async () => {}, expiry: { maxLifetimeMs: 120000, maxClockSkewMs: 0 },
     authorize: async (request, peer, evidence) => {
       evidenceChecks++
+      if (fault === 'late-original' && evidenceChecks === 1) await hold()
       if (fault === 'before-business') await hold()
       return { check: async () => grant({ ...evidence.fact, kind: 'node-delegation', nodeId: peer.targetNodeId,
         sourceNodeId: peer.sourceNodeId, delegatedBy: request.delegation.authorizationRef }) }
