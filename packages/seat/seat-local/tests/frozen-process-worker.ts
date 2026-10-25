@@ -4,9 +4,66 @@ import { join } from 'node:path'
 import { processFixture, methods } from './frozen-process-fixture.ts'
 import { processInput } from './frozen-process-input.ts'
 import type * as T from '@panedesk/dsh-seat'
+import type { NodeWireRequest } from '@panedesk/dsh-node-link'
+import { digest } from '@panedesk/dsh-seat-engine'
+import { sender, principalId } from './frozen-process-fixture.ts'
+
+async function batch(root: string, stage: string) {
+  const h = await processFixture(root)
+  try {
+    await h.registry.ready(methods)
+    h.ctx.provide('nodeWorkChain', { maxControlPending: 2,
+      local: { methods, seats: h.ctx.get('seats')!, engine: h.engine, ready: () => h.registry.ready(methods) },
+      policy: { expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 1000 }, ready: () => Promise.resolve(),
+        authorize: async () => { throw new Error('Receiver authorization is captured separately') } } })
+    const seats = h.ctx.get('seats')!.withAuthority({ principalId, nodeId: 'node-a' as T.SeatNodeId, origin: 'manual' })
+    const catalog = await seats.definitions({}), seat = 'seat-b' as T.SeatName
+    if (!catalog.definitions.some(item => item.seat === seat)) {
+      await seats.save({ definition: { ...h.definition, seat }, expectedRevision: catalog.revision,
+        operationId: 'second-seat' as T.SeatOperationId })
+    }
+    const payload: T.OpenSeatBatchRequest = { seats: [h.definition.seat, seat], origin: 'remote', operationId: 'batch' as T.SeatOperationId }
+    const authority = await h.authorize(payload, payload.operationId, true), grant = authority.authorization
+    const request: Extract<NodeWireRequest, { method: 'seat.openBatch' }> = { version: 'node-link/v1', requestId: 'batch-request' as NodeWireRequest['requestId'],
+      method: 'seat.openBatch', sourceNodeId: sender, targetNodeId: authority.nodeId, operationId: payload.operationId,
+      payload, payloadDigest: digest(payload), deadline: '2099-01-01T00:00:00.000Z', hop: 1,
+      delegation: { kind: 'node-delegation', hop: 1, principalId, authorizationRef: grant.fact.authorizationId,
+        sourceNodeId: sender, targetNodeId: authority.nodeId, operationId: payload.operationId, requestDigest: digest(payload),
+        taskIds: [], expiresAt: '2099-01-01T00:00:00.000Z' } }
+    let first: T.OpenSeatResult | undefined
+    if (stage === 'partial') {
+      const originalMember = h.engine.openBatchMember.bind(h.engine)
+      h.engine.openBatchMember = async (...args) => {
+        const result = await originalMember(...args)
+        first ??= result
+        return result
+      }
+      const probe = await open(join(root, 'batch-probe'), 'wx', 0o600)
+      const prototype = Object.getPrototypeOf(probe) as { writeFile: typeof probe.writeFile }
+      await probe.close()
+      const original = prototype.writeFile
+      let count = 0
+      prototype.writeFile = async function (this: FileHandle, data, options) {
+        if (typeof data === 'string' && data.includes('node-batch/accepted') && ++count === 2) {
+          const bytes = Buffer.from(data)
+          await original.call(this, bytes.subarray(0, Math.floor(bytes.length / 2)), options)
+          await this.sync()
+          process.send?.({ kind: 'partial-batch', first, pid: process.pid })
+          await new Promise<never>(() => {})
+        }
+        return original.call(this, data, options)
+      }
+    }
+    const before = h.engine.journal.projection.authorizationDecisions.filter(frame => frame.effects.some(effect => effect.kind === 'node-batch/accepted')).length
+    const result = await h.ctx.get('nodeAuthorizedLocalAdmission')!.execute(request, grant)
+    process.send?.({ kind: 'batch-recovered', before, result, members: h.engine.journal.projection.authorizationDecisions
+      .filter(frame => frame.effects.some(effect => effect.kind === 'node-batch/accepted')).length })
+  } finally { await h.close(); process.disconnect?.() }
+}
 
 async function main() {
   const [root, selected, stage] = process.argv.slice(2)
+  if (root && selected === 'seat.openBatch' && (stage === 'partial' || stage === 'recover')) return batch(root, stage)
   const method = methods.find(value => value === selected)
   if (!root || !method || !['write', 'partial', 'recover'].includes(stage ?? '')) throw new Error('Invalid worker arguments')
   const h = await processFixture(root), input = processInput(method, h.definition)

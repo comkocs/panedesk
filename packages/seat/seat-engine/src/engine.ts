@@ -28,6 +28,7 @@ import { freezeCallbackEvidence, type ExecutionModelReader } from './callback-ev
 import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen } from './frozen-admission.ts'
 import { installFrozenBusiness } from './frozen-business.ts'
 import { validChainAccepted } from './chain-storage.ts'
+import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batch.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -238,6 +239,57 @@ export class SeatEngine extends SeatEngineService {
     } catch (error) {
       return this.frozenCommitFailure(error)
     }
+    await this.publish()
+    return result
+  }
+  /** Admit one batch member against the original wire grant without issuing broader authority.
+   * @param input - Locally frozen member action.
+   * @param request - Original complete batch payload.
+   * @param sourceNodeId - Authenticated sender captured by node admission.
+   * @returns First committed acknowledgement or refusal; other members remain independent.
+   */
+  async openBatchMember(input: T.SeatLocalOpenRequest, request: T.OpenSeatBatchRequest,
+    sourceNodeId: T.SeatNodeId): Promise<T.OpenSeatResult> {
+    await this.ready()
+    const grant = input.authority.authorization
+    if (!grant || input.authority.nodeId !== this.options.nodeId || input.authority.principalId !== grant.fact.principalId
+      || input.authority.origin !== request.origin || grant.fact.origin !== request.origin
+      || input.request.seat !== input.definition.seat || !request.seats.includes(input.request.seat)
+      || input.request.operationId !== batchMemberId(request, sourceNodeId, input.authority.principalId, input.request.seat)) {
+      return rejected('unauthorized', 'Batch member attribution does not match')
+    }
+    const original = queryBatchMember(this.journal.projection, request, sourceNodeId, input.authority.principalId, input.request.seat)
+    if (original) return original
+    if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
+    if (this.options.config.nodeAliases[input.definition.node] !== this.options.nodeId) {
+      return rejected('cross-node-unsupported', 'Batch member belongs to another node')
+    }
+    if (this.localAccess?.preAdmit) {
+      const refusal = await this.localAccess.preAdmit(input)
+      if (refusal) return refusal
+    }
+    let result: T.OpenSeatResult = rejected('unavailable', 'Batch member did not commit')
+    try {
+      await this.journal.commitAuthorization((view) => {
+        const retained = queryBatchMember(view, request, sourceNodeId, input.authority.principalId, input.request.seat)
+        if (retained) { result = retained; return [] }
+        const data = this.authorizationIssuers.verify(grant, { operationId: request.operationId, requestDigest: digest(request),
+          ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+          ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
+        if (data.kind !== 'node-delegation' || data.decision !== 'allowed'
+          || data.seat !== undefined && data.seat !== input.request.seat
+          || data.sourceNodeId !== undefined && data.sourceNodeId !== sourceNodeId) {
+          throw new EngineError('unauthorized', 'Batch grant does not cover this member')
+        }
+        const effects = batchMemberEffects(view, input, request, sourceNodeId, data, this.localAccess?.requiresRecheck?.() === true)
+        const intent = effects.find(effect => effect.kind === 'trigger/accepted')
+        if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Batch member intent is unavailable')
+        const pending = intent.data.pending
+        result = { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
+          reason: pending.reason, blockedBy: [...pending.blockedBy] }
+        return [...effects, authorizationEffect(data)]
+      })
+    } catch (error) { return this.frozenCommitFailure(error) }
     await this.publish()
     return result
   }

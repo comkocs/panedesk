@@ -13216,6 +13216,9 @@ importers:
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../seat-engine
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -13304,9 +13307,6 @@ importers:
       '@panedesk/dsh-message-delivery-local':
         specifier: workspace:*
         version: link:../../session/message-delivery-local
-      '@panedesk/dsh-seat-engine':
-        specifier: workspace:*
-        version: link:../seat-engine
       '@panedesk/dsh-session-persistence-jsonl':
         specifier: workspace:*
         version: link:../../session/session-persistence-jsonl

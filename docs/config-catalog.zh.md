@@ -3100,7 +3100,7 @@ export interface JsonRpcConfig {
 ## `@panedesk/dsh-seat-engine`
 
 - `refs`: [`ScheduleRecord`](subsystems/schedule.zh.md) · [`SeatEngineConfig`](../packages/seat/seat/src/index.ts) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-engine/src/index.ts:24`](../packages/seat/seat-engine/src/index.ts)
+- `source`: [`packages/seat/seat-engine/src/index.ts:25`](../packages/seat/seat-engine/src/index.ts)
 
 ```ts config-catalog
 /** Deployment policy has no implicit budget or capacity defaults. */

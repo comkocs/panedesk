@@ -53,6 +53,26 @@ test.each(methods)('%s queries the original result after full process SIGKILL an
   } finally { for (const child of children) await kill(child); await rm(root, { recursive: true, force: true }) }
 }, 20000)
 
+test('node batch resumes only uncommitted members after SIGKILL during the second member write', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'batch-torn-')), children: ChildProcess[] = []
+  try {
+    const first = worker(root, 'seat.openBatch', 'partial'); children.push(first.child)
+    const partial = await first.message
+    expect(partial).toMatchObject({ kind: 'partial-batch', first: { status: 'queued' }, pid: first.child.pid })
+    await kill(first.child)
+    expect(await first.exited).toEqual([null, 'SIGKILL'])
+    const second = worker(root, 'seat.openBatch', 'recover'); children.push(second.child)
+    const recovered = await second.message
+    if (!partial || typeof partial !== 'object' || !('first' in partial)) throw new Error('Expected committed first member')
+    expect(recovered).toMatchObject({ kind: 'batch-recovered', before: 1, members: 2, result: { status: 'ok',
+      result: { status: 'processed', results: [{ seat: 'seat-a', result: partial.first }, { seat: 'seat-b', result: { status: 'queued' } }] } } })
+    expect(await second.exited, second.diagnostics()).toEqual([0, null])
+    const third = worker(root, 'seat.openBatch', 'recover'); children.push(third.child)
+    expect(await third.message).toMatchObject({ ...recovered as object, before: 2 })
+    expect(await third.exited, third.diagnostics()).toEqual([0, null])
+  } finally { for (const child of children) await kill(child); await rm(root, { recursive: true, force: true }) }
+}, 20000)
+
 test.each(methods)('%s recovers no partial admission after SIGKILL during the durable write', async (method) => {
   const root = await mkdtemp(join(tmpdir(), 'frozen-torn-')), children: ChildProcess[] = []
   try {

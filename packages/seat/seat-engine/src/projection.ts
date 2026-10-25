@@ -26,6 +26,13 @@ export class EngineProjection {
    * @param decision - Required-capability frame awaiting append or replay.
    */
   validateAuthorization(decision: AuthorizationDecision): void {
+    const members = decision.effects.filter(effect => effect.kind === 'node-batch/accepted')
+    for (const member of members) {
+      if (this.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-batch/accepted'
+        && effect.operationId === member.operationId))) {
+        throw new EngineError('operation-id-conflict', 'Batch member is already admitted')
+      }
+    }
     if (!decision.effects.some(effect => effect.kind === 'node-route/accepted')) return
     const retained = this.authorizationDecisions.flatMap(item => item.effects)
       .filter(effect => effect.kind === 'node-route/accepted')

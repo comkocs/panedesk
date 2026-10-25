@@ -80,9 +80,9 @@ export async function processFixture(root: string) {
       const saved = await seats.save({ definition, expectedRevision: 1, operationId: 'catalog-save' as T.SeatOperationId })
       if (saved.status !== 'saved') throw new Error(JSON.stringify(saved))
     }
-    const authorize = async (payload: object, operationId: T.SeatOperationId) => {
+    const authorize = async (payload: object, operationId: T.SeatOperationId, batch = false) => {
       const entry = current.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId, nodeId,
-        sourceNodeId: sender, origin: 'remote', seat: definition.seat, taskIds: [], policyRevision: 1 },
+        sourceNodeId: sender, origin: 'remote', ...(batch ? {} : { seat: definition.seat }), taskIds: [], policyRevision: 1 },
       current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
       const grant = await entry.issuer.check({ operationId, requestDigest: digest(payload) })
       if ('status' in grant) throw new Error('Expected fresh grant')

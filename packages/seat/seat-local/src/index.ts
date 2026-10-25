@@ -82,7 +82,17 @@ export function apply(ctx: Context, config: Config): void {
       const runtime = createLocalRuntime(ctx, config)
       service = new LocalSeatService(ctx, store, config, runtime)
       const installed = service
-      ctx.provide('nodeAuthorizedLocalAdmission', createLocalNodeAdmission(installed, config.nodeId))
+      ctx.provide('nodeAuthorizedLocalAdmission', createLocalNodeAdmission(installed, config.nodeId,
+        async (request, authority, sourceNodeId) => {
+          const registry = ctx.get('nodeWorkChainBusiness'), chain = ctx.get('nodeWorkChain')
+          if (!registry || !chain) return undefined
+          await Promise.all([registry.ready(['seat.openFrozen', 'seat.wakeFrozen']), chain.local.ready(), chain.policy.ready()])
+          if (lifecycle.signal.aborted || ctx.get('nodeWorkChain') !== chain || ctx.get('nodeWorkChainBusiness') !== registry) {
+            return { status: 'rejected', error: { code: 'unavailable', message: 'Node batch provider was revoked.',
+              alternative: 'Restore the trusted composition.', retryable: true, effectState: 'none' } }
+          }
+          return installed.openNodeBatch(request, authority, sourceNodeId)
+        }))
       const openingContexts = installOpeningContexts(ctx, installed)
       registerLocalReadAccess(ctx, installed, config)
       registerLocalSessionAccess(ctx, installed, config)

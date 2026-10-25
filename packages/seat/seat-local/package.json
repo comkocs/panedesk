@@ -45,7 +45,6 @@
     "@panedesk/dsh-token-meter": "workspace:*",
     "@panedesk/dsh-jobs-local": "workspace:*",
     "@panedesk/dsh-typert-registry": "workspace:*",
-    "@panedesk/dsh-seat-engine": "workspace:*",
     "@panedesk/dsh-loader-smoke": "workspace:*",
     "@panedesk/dsh-message-delivery-local": "workspace:*",
     "@panedesk/dsh-session-persistence-jsonl": "workspace:*",
@@ -55,6 +54,7 @@
     "@types/mdast": "^4.0.4"
   },
   "dependencies": {
+    "@panedesk/dsh-seat-engine": "workspace:*",
     "@panedesk/dsh-host-admin": "workspace:*",
     "@panedesk/dsh-shell-env": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
