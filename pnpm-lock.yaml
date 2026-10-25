@@ -13103,6 +13103,9 @@ importers:
       '@panedesk/dsh-schedule':
         specifier: workspace:*
         version: link:../../schedule/schedule
+      '@panedesk/dsh-sdk-protocol':
+        specifier: workspace:*
+        version: link:../../sdk/protocol
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../seat

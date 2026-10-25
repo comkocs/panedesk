@@ -92,7 +92,7 @@ export function validChainAccepted(value: unknown): value is NodeWorkChainAccept
  */
 export function validateChainFrame(decision: AuthorizationDecision): void {
   const routes = decision.effects.filter((effect): effect is ChainAcceptedEffect => effect.kind === 'node-route/accepted')
-  if (!routes.length && !decision.effects.some(effect => effect.kind === 'node-batch/accepted')) {
+  if (!routes.length && !decision.effects.some(effect => effect.kind === 'node-batch/accepted' || effect.kind === 'node-source/updated')) {
     if (decision.requiredCapabilities !== undefined) throw new EngineError('engine-store-corrupt', 'Unexpected required engine capability')
     return
   }
