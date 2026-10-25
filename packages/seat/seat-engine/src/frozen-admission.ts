@@ -4,7 +4,7 @@ import type * as T from '@panedesk/dsh-seat'
 import type { EngineProjection } from './projection.ts'
 import { digest, EngineError } from './journal.ts'
 import { authorizationEffect, type AuthorizationIssuers } from './authorization-issuer.ts'
-import { validChainAccepted, type ChainAcceptedEffect } from './chain-storage.ts'
+import type { ChainAcceptedEffect } from './chain-storage.ts'
 import type { AuthorizationDecision } from './authorization-storage.ts'
 import { effectiveMode } from './admission.ts'
 import { fact, rejected, reminderEffects } from './triggers.ts'
@@ -56,7 +56,7 @@ export function frozenIdentity(request: T.AcceptFrozenTriggerRequest | T.OpenFro
     operationKey: { sourceNodeId: data.sourceNodeId, principalId: data.principalId, sourceId: request.route.sourceId,
       ownerEpoch: request.route.ownerEpoch, method, operationId: data.operationId },
     trigger: 'envelope' in request ? structuredClone(request.envelope) : null }
-  if (!validChainAccepted(input) || request.route.targetNodeId !== authority.nodeId
+  if (request.route.originalOperationId !== data.operationId || request.route.targetNodeId !== authority.nodeId
     || 'request' in request && (request.request.operationId !== data.operationId
       || request.request.nodeId !== undefined && request.request.nodeId !== authority.nodeId)) {
     return rejected('invalid-request', 'Frozen input does not match its original business identity')
@@ -70,12 +70,10 @@ export function frozenIdentity(request: T.AcceptFrozenTriggerRequest | T.OpenFro
  * @param input - Complete frozen admission.
  * @param definition - Target-local definition, never source configuration.
  * @param nodeId - Executing journal node.
- * @param replay - An existing business record needs live identity checks but no second admission decision.
- * @returns Verified authorization effect.
+ * @returns Verified authorization effect for a previously unaccepted operation.
  */
 export function authorizeFrozen(issuers: AuthorizationIssuers, grant: T.SeatAuthorizationGrant,
-  input: T.NodeWorkChainAcceptedData, definition: T.SeatDefinition, nodeId: T.SeatNodeId,
-  replay = false): ReturnType<typeof authorizationEffect> {
+  input: T.NodeWorkChainAcceptedData, definition: T.SeatDefinition, nodeId: T.SeatNodeId): ReturnType<typeof authorizationEffect> {
   const data = issuers.verify(grant, { operationId: input.operationKey.operationId, requestDigest: input.payloadDigest,
     ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
     ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, nodeId)
@@ -85,7 +83,6 @@ export function authorizeFrozen(issuers: AuthorizationIssuers, grant: T.SeatAuth
     || input.openingContext.snapshot.taskIds.some(task => !data.taskIds.includes(task))) {
     throw new EngineError('unauthorized', 'Frozen operation requires matching live authority')
   }
-  if (replay) return authorizationEffect(data)
   if (!policy?.allowOpen || !policy.sourceNodeIds.includes(input.operationKey.sourceNodeId)
     || !policy.sourceIds.includes(input.route.sourceId) || !policy.principalIds.includes(data.principalId)
     || !policy.methods.includes(input.operationKey.method as T.SeatRemoteOpeningMethod)) {

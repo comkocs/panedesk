@@ -55,6 +55,12 @@ test('returns the original frozen acceptance on concurrent retry and after recov
     const changed = { ...input, envelope: { ...input.envelope, data: 'changed', dataDigest: digest('changed') } }
     expect(await h.engine.acceptFrozen(changed, await authorize(changed))).toMatchObject({ status: 'rejected', error: { code: 'operation-id-conflict' } })
     expect(queryFrozen(h.engine.journal.projection, { ...query, payloadDigest: digest(changed) })).toMatchObject({ status: 'rejected' })
+    h.definitions.clear()
+    h.engine.authorizationIssuers.close()
+    expect(await h.engine.acceptFrozen(input, authority)).toEqual(results[0])
+    expect(await h.engine.acceptFrozen(changed, { ...authority, authorization: {
+      ...authority.authorization, fact: { ...authority.authorization.fact, requestDigest: digest(changed) } } }))
+      .toMatchObject({ status: 'rejected', error: { code: 'operation-id-conflict' } })
     await h.engine.shutdown()
     await writeFile(join(h.engine.journal.root, 'events', '9999999999999999-interrupted.jsonl'), '{"sequence":2')
     const restarted = await h.start()

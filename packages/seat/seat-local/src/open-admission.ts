@@ -58,9 +58,9 @@ export async function admitLocalOpen(engine: T.SeatEngineService, state: LocalEn
   return queuedOpenResult(pending)
 }
 
-/** 投影指定受理记录的排队回执。
- * @param pending - 调用方选定的持久队列记录。
- * @returns 不含内部冻结正文的排队回执。
+/** Project the queued acknowledgement of a retained admission.
+ * @param pending - Durable queue record selected by the caller.
+ * @returns Queued acknowledgement without internal frozen content.
  */
 export function queuedOpenResult(pending: T.PendingSeatItem): T.SeatQueued {
   return { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,

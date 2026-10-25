@@ -176,7 +176,14 @@ export class SeatEngine extends SeatEngineService {
   }
   private async openFrozenLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
     const chain = input.nodeWorkChain, grant = input.authority.authorization
-    if (!chain || !grant || this.stopped) return rejected('unauthorized', 'Frozen opening requires live admission authority')
+    if (!chain || !grant) return rejected('unauthorized', 'Frozen opening requires admission identity')
+    const retained = queryFrozen(this.journal.projection, { key: chain.operationKey, payloadDigest: chain.payloadDigest })
+    if (retained.status === 'rejected') return retained
+    if (retained.status === 'settled') {
+      if (retained.method === 'seat.openFrozen') return structuredClone(retained.result)
+      if (retained.method === 'seat.wakeFrozen' && retained.result.status === 'opened') return structuredClone(retained.result.result)
+    }
+    if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
     const definition = await this.dependencies.seats()?.resolve(input.request.seat)
     if (!definition) return rejected('unavailable', 'Seat provider is unavailable')
     if ('status' in definition) return definition
@@ -212,14 +219,13 @@ export class SeatEngine extends SeatEngineService {
     try {
       await this.journal.commitAuthorization((view) => {
         const original = queryFrozen(view, { key: chain.operationKey, payloadDigest: chain.payloadDigest })
-        const authorization = authorizeFrozen(this.authorizationIssuers, grant, chain, definition, this.options.nodeId,
-          original.status !== 'missing')
         if (original.status === 'rejected') { result = original; return [] }
         if (original.status === 'settled') {
           if (original.method === 'seat.openFrozen') result = original.result
           else if (original.method === 'seat.wakeFrozen' && original.result.status === 'opened') result = original.result.result
           return []
         }
+        const authorization = authorizeFrozen(this.authorizationIssuers, grant, chain, definition, this.options.nodeId)
         const effects = frozenEffects(view, chain, envelope, frozen)
         if ('status' in effects) { result = effects; return [] }
         const intent = effects.find(effect => effect.kind === 'trigger/accepted')
@@ -303,9 +309,13 @@ export class SeatEngine extends SeatEngineService {
   }
   override async acceptFrozen(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult> {
     await this.ready()
-    if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
     const input = frozenIdentity(request, authority, 'engine.acceptFrozen')
     if ('status' in input) return input
+    const retained = queryFrozen(this.journal.projection, { key: input.operationKey, payloadDigest: input.payloadDigest })
+    if (retained.status === 'rejected') return retained
+    if (retained.status === 'settled' && retained.method === 'engine.acceptFrozen') return structuredClone(retained.result)
+    if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
+    if (!validChainAccepted(input)) return rejected('invalid-request', 'Frozen input does not match its original business identity')
     const definition = await this.dependencies.seats()?.resolve(request.envelope.seat)
     if (!definition) return rejected('unavailable', 'Seat provider is unavailable')
     if ('status' in definition) return definition
@@ -336,10 +346,9 @@ export class SeatEngine extends SeatEngineService {
         const grant = authority.authorization
         if (!grant) throw new EngineError('unauthorized', 'Frozen admission requires a live grant')
         const original = queryFrozen(view, { key: input.operationKey, payloadDigest: input.payloadDigest })
-        const authorization = authorizeFrozen(this.authorizationIssuers, grant, input, definition, this.options.nodeId,
-          original.status !== 'missing')
         if (original.status === 'rejected') { result = original; return [] }
-        if (original.status === 'settled' && original.method === 'engine.acceptFrozen') { result = original.result; return [] }
+        if (original.status === 'settled' && original.method === 'engine.acceptFrozen') { result = structuredClone(original.result); return [] }
+        const authorization = authorizeFrozen(this.authorizationIssuers, grant, input, definition, this.options.nodeId)
         const effects = frozenEffects(view, input, envelope, frozen,
           externalRuleMiss(definition, envelope) ? 'off' : triggerRule(definition, envelope)?.mode)
         if ('status' in effects) { result = effects; return [] }

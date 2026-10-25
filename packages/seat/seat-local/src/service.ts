@@ -235,6 +235,13 @@ export class LocalSeatService extends SeatService {
     method: 'seat.openFrozen' | 'seat.wakeFrozen'): Promise<T.OpenSeatResult> {
     const authority = this.caller(), chain = seatFrozenIdentity(request, authority, method)
     if ('status' in chain) return chain
+    const original = querySeatFrozen((await this.state.read()).effects,
+      { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
+    if (original.status === 'rejected') return original
+    if (original.status === 'settled') {
+      if (original.method === 'seat.openFrozen') return structuredClone(original.result)
+      if (original.method === 'seat.wakeFrozen' && original.result.status === 'opened') return structuredClone(original.result.result)
+    }
     if (authority.nodeId !== this.options.nodeId) return rejected('cross-node-unsupported', 'Frozen admission is node-local.', 'Use the target node.')
     const engine = this.engine()
     if (!engine?.openWindow) return rejected('unavailable', 'Frozen admission is unavailable.', 'Restore the local engine.')
@@ -258,16 +265,16 @@ export class LocalSeatService extends SeatService {
   override async wakeFrozen(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult> {
     const authority = this.caller(), chain = seatFrozenIdentity(request, authority, 'seat.wakeFrozen')
     if ('status' in chain) return chain
+    const original = querySeatFrozen((await this.state.read()).effects,
+      { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
+    if (original.status === 'rejected') return original
+    if (original.status === 'settled' && original.method === 'seat.wakeFrozen') return structuredClone(original.result)
     const transactions = this.runtime.context.get('seatAuthorizationTransactions'), grant = authority.authorization
     if (!transactions?.validate || !grant) return rejected('unavailable', 'Frozen admission is unavailable.', 'Restore admission authority.')
     const refusal = await transactions.validate({ operationId: grant.fact.operationId, requestDigest: digest(request),
       ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
       ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
     if (refusal) return refusal
-    const original = querySeatFrozen((await this.state.read()).effects,
-      { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
-    if (original.status === 'rejected') return original
-    if (original.status === 'settled' && original.method === 'seat.wakeFrozen') return original.result
     return this.wakeResolved(request.request, () => this.openFrozenResolved(request, 'seat.wakeFrozen'))
   }
   /** Trusted source entries retain the complete local opening policy and durable admission.

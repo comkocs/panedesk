@@ -1,49 +1,11 @@
 /** Loader-owned local admission preserves frozen acknowledgements and exact business queries. */
 import { expect, test } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
-import { ChainBusinessRegistry } from '@panedesk/dsh-node-link/src/chain-business.ts'
-import { admissionHost } from './admission-host.ts'
+import { frozenHost, sender, principalId } from './frozen-fixture.ts'
 import { digest } from '../src/store.ts'
 
-const sender = 'sending-node' as T.SeatNodeId, principalId = 'remote-principal' as T.SeatPrincipalId
-async function setup() {
-  const h = await admissionHost()
-  const registry = new ChainBusinessRegistry()
-  h.ctx.provide('nodeWorkChainBusiness', registry)
-  const definition = { ...h.definition, remoteAdmission: { allowOpen: true as const, sourceNodeIds: [sender],
-    sourceIds: ['remote-source' as T.SeatSourceId], principalIds: [principalId],
-    methods: ['seat.openFrozen', 'seat.wakeFrozen', 'engine.acceptFrozen'] as T.SeatRemoteOpeningMethod[], policyRevision: 1 } }
-  await h.seats.save({ definition, expectedRevision: 2, operationId: 'save-remote' as T.SeatOperationId })
-  await h.ctx.loader.await()
-  const request = (operationId: T.SeatOperationId): T.OpenFrozenSeatRequest => {
-    const sourceId = definition.remoteAdmission.sourceIds[0]!, ownerEpoch = 'owner-epoch' as T.OwnerEpoch
-    const owner = 'owner-node' as T.SeatNodeId
-    const snapshot: T.OpeningContextSnapshot = { reference: { providerId: 'absent-provider' as T.OpeningProviderId,
-      reference: 'reference' as T.OpeningContextReference['reference'], revision: '1' }, text: 'Frozen source text',
-    digest: digest('Frozen source text'), revision: '1', taskIds: [], scopeEvidence: [] }
-    return { request: { seat: definition.seat, operationId, origin: 'remote' }, expectedSeatRevision: definition.revision,
-      openingContext: { snapshot, openingMode: 'prefill', scopeReservation: {
-        reservationId: 'reservation' as T.NodeWorkChainScopeReservation['reservationId'], sourceId, sourceOwnerNodeId: owner,
-        ownerEpoch, operationId, taskIds: [], snapshotDigest: snapshot.digest, policyRevision: 1 } },
-      route: { sourceId, sourceOwnerNodeId: owner, ownerEpoch, triggerId: null, originalOperationId: operationId,
-        targetNodeId: h.options.nodeId, snapshotDigest: snapshot.digest, callbackPath: {
-          kind: 'opening-context', reference: snapshot.reference, operationId },
-        modeCeiling: { mode: 'remind', policy: { sourceId, projectId: definition.projectId, revision: 1 } } } }
-  }
-  const authorize = async (payload: object, operationId: T.SeatOperationId, withSender = true) => {
-    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
-      nodeId: h.options.nodeId, origin: 'remote', seat: definition.seat, taskIds: [], policyRevision: 1,
-      ...(withSender ? { sourceNodeId: sender } : {}) },
-    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
-    const grant = await entry.issuer.check({ operationId, requestDigest: digest(payload) })
-    if ('status' in grant) throw new Error('Expected grant')
-    return { principalId, nodeId: h.options.nodeId, origin: 'remote' as const, authorization: grant }
-  }
-  return { h, registry, request, authorize }
-}
-
 test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and queries the original result after local reload', async (method) => {
-  const { h, registry, request, authorize } = await setup()
+  const { h, registry, request, authorize } = await frozenHost()
   try {
     const operationId = `frozen:${method}` as T.SeatOperationId, base = request(operationId)
     const payload = method === 'seat.openFrozen' ? base : { ...base, request: { seat: base.request.seat, operationId } }
@@ -75,6 +37,14 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
     expect(await registry.query(query, await authorize(query, 'query-reload' as T.SeatOperationId)))
       .toEqual({ status: 'settled', method, result: first })
     expect(await invoke()).toEqual(first)
+    const retainedAuthority = await authorize(payload, operationId)
+    const restricted = { ...h.definition, revision: 2 }
+    expect(await h.ctx.get('seats')!.withAuthority(h.authority).save({ definition: restricted, expectedRevision: 3,
+      operationId: 'revoke-remote' as T.SeatOperationId })).toMatchObject({ status: 'saved' })
+    h.engine.authorizationIssuers.close()
+    const retry = h.ctx.get('seats')!.withAuthority(retainedAuthority)
+    expect(await (method === 'seat.openFrozen' ? retry.openFrozen!(payload as T.OpenFrozenSeatRequest) : retry.wakeFrozen!(payload)))
+      .toEqual(first)
     expect(h.engine.journal.projection.authorizationDecisions.flatMap(frame => frame.effects)
       .filter(effect => effect.kind === 'node-route/accepted')).toHaveLength(1)
     expect(h.adapter.requests).toHaveLength(0)
