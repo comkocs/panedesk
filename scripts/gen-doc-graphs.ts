@@ -109,6 +109,11 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'nodeWorkChainBusiness', pkg: 'seat', title: 'Durable chain business queries', mode: 'seam',
+    implementations: ['node-link'], consumers: ['seat-engine', 'seat-local', 'node-link'],
+    note: 'Registers unique business providers and gates exact-key queries and restricted resumption on recovery.',
+  },
+  {
     key: 'seatAuthorizationTransactions', pkg: 'seat', title: 'Atomic authorization admission', mode: 'seam',
     implementations: ['seat-engine'], consumers: ['seat-local', 'host-admin', 'node-link'],
     note: 'Commits issued facts and action effects together; missing admission rejects audited actions.',

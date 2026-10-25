@@ -1929,6 +1929,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'nodeWorkChainBusiness',
+    summary: 'Optional node-link registry definition; business providers depend only on this declaration.',
+    description: 'Optional node-link registry definition; business providers depend only on this declaration.',
+    methods: [
+      {
+        signature: 'register(provider: T.NodeWorkChainBusinessProvider): Disposable',
+        description: 'Register through a Cordis effect; each business method has one provider globally.',
+        parameters: [{ name: 'provider', description: 'Owner of one or more business methods, excluding chain.operation.' }],
+        returns: 'Disposer removing the registration.',
+        throws: ['If any method already has a provider, including registration of the same provider again; no partial registration is allowed.'],
+      },
+      {
+        signature: 'resolve(method: T.NodeWorkChainBusinessMethod): T.NodeWorkChainBusinessProvider | undefined',
+        description: 'Resolve the business owner, never transport state or the legacy operation query.',
+        parameters: [{ name: 'method', description: 'Exact business method excluding chain.operation.' }],
+        returns: 'Registered provider, or undefined when absent.',
+      },
+      {
+        signature: 'ready(methods: readonly T.NodeWorkChainBusinessMethod[]): Promise<void>',
+        description: 'Wait for every listed method\'s provider to finish recovering persisted intents and inboxes.',
+        parameters: [{ name: 'methods', description: 'Methods whose receiving capabilities may be advertised only after resolution.' }],
+        returns: 'Recovery barrier; provider recovery failure rejects and missing providers cannot satisfy it.',
+      },
+    ],
+  },
+  {
     key: 'officeToPdf',
     summary: 'A provider lifetime owns all converters, queued calls, and temporary files.',
     description: 'A provider lifetime owns all converters, queued calls, and temporary files.',
@@ -8855,12 +8881,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NodeWorkChainAcceptedData {\n    capability: \'node-work-chain/v1\';\n    route: NodeWorkChainRoute;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    authorizationRef: AuthorizationRef;\n    payloadDigest: SeatDigest;\n    operationKey: NodeWorkChainOperationKey;\n    trigger: TriggerEnvelope | null;\n}',
   },
   {
+    name: 'NodeWorkChainBusinessMethod',
+    declaration: 'export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, \'chain.operation\'>;',
+  },
+  {
+    name: 'NodeWorkChainBusinessProvider',
+    declaration: 'export interface NodeWorkChainBusinessProvider {\n    readonly methods: readonly NodeWorkChainBusinessMethod[];\n    ready(): Promise<void>;\n    query(request: NodeWorkChainOperationRequest, context: SeatCallContext): Promise<NodeWorkChainOperationResult>;\n    resume?(request: NodeWorkChainOperationRequest, context: SeatCallContext): Promise<NodeWorkChainOperationResult>;\n}',
+  },
+  {
     name: 'NodeWorkChainCallbackPath',
     declaration: 'export type NodeWorkChainCallbackPath = {\n    kind: \'source\';\n    sourceId: SeatSourceId;\n} | {\n    kind: \'opening-context\';\n    reference: OpeningContextReference;\n    operationId: SeatOperationId;\n};',
   },
   {
     name: 'NodeWorkChainMethod',
     declaration: 'export type NodeWorkChainMethod = SeatRemoteOpeningMethod | \'source.prepareOpening\' | \'source.checkAdmission\' | \'source.deliverCallback\' | \'chain.operation\';',
+  },
+  {
+    name: 'NodeWorkChainMethodMap',
+    declaration: 'export interface NodeWorkChainMethodMap {\n    \'engine.acceptFrozen\': {\n        request: AcceptFrozenTriggerRequest;\n        result: AcceptFrozenTriggerResult;\n    };\n    \'seat.openFrozen\': {\n        request: OpenFrozenSeatRequest;\n        result: OpenFrozenSeatResult;\n    };\n    \'seat.wakeFrozen\': {\n        request: WakeFrozenSeatRequest;\n        result: WakeFrozenSeatResult;\n    };\n    \'source.prepareOpening\': {\n        request: PrepareSourceOpeningRequest;\n        result: PrepareSourceOpeningResult;\n    };\n    \'source.checkAdmission\': {\n        request: CheckSourceAdmissionRequest;\n        result: CheckSourceAdmissionResult;\n    };\n    \'source.deliverCallback\': {\n        request: DeliverSourceCallbackRequest;\n        result: DeliverSourceCallbackResult;\n    };\n    \'chain.operation\': {\n        request: NodeWorkChainOperationRequest;\n        result: NodeWorkChainOperationResult;\n    };\n}',
   },
   {
     name: 'NodeWorkChainModeCeiling',
@@ -8875,6 +8913,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NodeWorkChainOperationKey {\n    sourceNodeId: SeatNodeId;\n    principalId: SeatPrincipalId;\n    sourceId: SeatSourceId;\n    ownerEpoch: OwnerEpoch;\n    method: NodeWorkChainMethod;\n    operationId: SeatOperationId;\n    callbackId?: CallbackId;\n}',
   },
   {
+    name: 'NodeWorkChainOperationRequest',
+    declaration: 'export interface NodeWorkChainOperationRequest {\n    key: NodeWorkChainOperationKey;\n    payloadDigest: SeatDigest;\n}',
+  },
+  {
+    name: 'NodeWorkChainOperationResult',
+    declaration: 'export type NodeWorkChainOperationResult = {\n    status: \'missing\';\n} | {\n    status: \'pending\';\n    effectState: \'none\' | \'unknown\';\n} | NodeWorkChainSettledResult | SeatRejected;',
+  },
+  {
     name: 'NodeWorkChainReasonCode',
     declaration: 'export type NodeWorkChainReasonCode = \'peer-capability-missing\' | \'remote-open-not-allowed\' | \'principal-mapping-missing\' | \'source-mismatch\' | \'node-mismatch\' | \'principal-mismatch\' | \'evidence-missing\' | \'evidence-revoked\' | \'evidence-digest-mismatch\' | \'frame-too-large\' | \'hello-policy-not-ready\' | \'method-not-allowed\' | \'owner-epoch-mismatch\' | \'seat-revision-mismatch\' | \'scope-reservation-mismatch\' | \'operation-payload-conflict\' | \'protocol-version-mismatch\' | \'authentication-unconfirmed\' | \'tunnel-disconnected\' | \'outcome-unknown\' | \'deadline-exceeded\' | \'invalid-diagnostic\';',
   },
@@ -8885,6 +8931,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'NodeWorkChainScopeReservation',
     declaration: 'export interface NodeWorkChainScopeReservation {\n    reservationId: Branded<\'SeatScopeReservationId\'>;\n    sourceId: SeatSourceId;\n    sourceOwnerNodeId: SeatNodeId;\n    ownerEpoch: OwnerEpoch;\n    operationId: SeatOperationId;\n    taskIds: readonly SeatTaskId[];\n    snapshotDigest: SeatDigest;\n    policyRevision: number;\n}',
+  },
+  {
+    name: 'NodeWorkChainSettledResult',
+    declaration: 'export type NodeWorkChainSettledResult = {\n    [M in Exclude<NodeWorkChainMethod, \'chain.operation\'>]: {\n        status: \'settled\';\n        method: M;\n        result: NodeWorkChainMethodMap[M][\'result\'];\n    };\n}[Exclude<NodeWorkChainMethod, \'chain.operation\'>];',
   },
   {
     name: 'NotFutureError',
