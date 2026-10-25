@@ -37,6 +37,26 @@ async function setup() {
   return { h, input, authorize }
 }
 
+test('admits a missing replay once and returns its result to the late original after restart', async () => {
+  const { h, input, authorize } = await setup()
+  try {
+    const original = structuredClone(input), authority = await authorize()
+    const key: T.NodeWorkChainOperationKey = { sourceNodeId: authority.authorization.fact.sourceNodeId!,
+      principalId: authority.principalId, sourceId: input.route.sourceId, ownerEpoch: input.route.ownerEpoch,
+      method: 'engine.acceptFrozen', operationId: input.route.originalOperationId }
+    const query = { key, payloadDigest: digest(input) }
+    expect(queryFrozen(h.engine.journal.projection, query)).toEqual({ status: 'missing' })
+    const replay = await h.engine.acceptFrozen(input, authority)
+    expect(replay).toMatchObject({ status: 'accepted' })
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    expect(await restarted.acceptFrozen(original, await authorize(original, restarted))).toEqual(replay)
+    expect(queryFrozen(restarted.journal.projection, query)).toEqual({ status: 'settled', method: key.method, result: replay })
+    expect(restarted.journal.projection.authorizationDecisions.flatMap(frame => frame.effects)
+      .filter(effect => effect.kind === 'trigger/accepted')).toHaveLength(1)
+  } finally { await h.close() }
+})
+
 test('returns the original frozen acceptance on concurrent retry and after recovery', async () => {
   const { h, input, authorize } = await setup()
   try {

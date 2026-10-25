@@ -1,6 +1,50 @@
 {
   "divergences": [
     {
+      "id": "F03-missing-replay-late-original",
+      "description": "Replay only an exact missing business intent and deduplicate its late original across receiver restart.",
+      "origin": "Optional host integration",
+      "reason": "Explicit business absence permits one same-key replay while transport uncertainty retains the original intent.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-network.spec.ts"],
+        "test": "replays a missing original once before its late arrival and retains the result after receiver restart"
+      }
+    },
+    {
+      "id": "F02-frozen-missing-replay",
+      "description": "Retain one frozen trigger acceptance when the original arrives after a missing replay and restart.",
+      "origin": "Optional host integration",
+      "reason": "Business admission remains durable independently of transport request identifiers.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "test": "admits a missing replay once and returns its result to the late original after restart"
+      }
+    },
+    {
+      "id": "F02-local-missing-replay",
+      "description": "Deduplicate frozen opening and wake admission after an exact missing query and local recovery.",
+      "origin": "Optional host integration",
+      "reason": "The late original returns the durable first acknowledgement without a second opening admission.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/frozen-admission.spec.ts"],
+        "test": "%s admits a missing replay once before the late original arrives after reload"
+      }
+    },
+    {
+      "id": "F02-callback-query-unavailable",
+      "description": "Keep unknown callbacks query-only when the owner lookup throws or times out.",
+      "origin": "Optional host integration",
+      "reason": "A failed owner lookup cannot authorize another callback business send.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/routed-callback.spec.ts"],
+        "test": "keeps an unknown callback unsent when its exact query fails by %s"
+      }
+    },
+    {
       "id": "harness-identity-opt-in",
       "description": "Omit the harness identity paragraph when includeHarnessIdentity is not enabled.",
       "origin": "Slim launcher, slim/full presets, privacy-off defaults, CLI rename",

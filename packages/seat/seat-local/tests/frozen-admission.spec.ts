@@ -4,6 +4,33 @@ import type * as T from '@panedesk/dsh-seat'
 import { frozenHost, sender, principalId } from './frozen-fixture.ts'
 import { digest } from '../src/store.ts'
 
+test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits a missing replay once before the late original arrives after reload', async (method) => {
+  const { h, registry, request, authorize } = await frozenHost()
+  try {
+    const operationId = `late:${method}` as T.SeatOperationId, base = request(operationId)
+    const payload = method === 'seat.openFrozen' ? base : { ...base, request: { seat: base.request.seat, operationId } }
+    const original = structuredClone(payload)
+    const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId,
+      sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
+    const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'] as const
+    await registry.ready(methods)
+    expect(await registry.query(query, await authorize(query, operationId))).toEqual({ status: 'missing' })
+    const invoke = async (value: typeof payload) => {
+      const seats = h.ctx.get('seats')!.withAuthority(await authorize(value, operationId))
+      return method === 'seat.openFrozen' ? seats.openFrozen!(value as T.OpenFrozenSeatRequest) : seats.wakeFrozen!(value)
+    }
+    const replay = await invoke(payload)
+    expect(replay).toMatchObject(method === 'seat.openFrozen' ? { status: 'queued' } : { status: 'opened', result: { status: 'queued' } })
+    await h.reload()
+    await expect.poll(() => Boolean(registry.resolve(method))).toBe(true)
+    await registry.ready(methods)
+    expect(await invoke(original)).toEqual(replay)
+    expect(await registry.query(query, await authorize(query, operationId))).toEqual({ status: 'settled', method, result: replay })
+    expect(h.engine.journal.projection.authorizationDecisions.flatMap(frame => frame.effects)
+      .filter(effect => effect.kind === 'node-route/accepted')).toHaveLength(1)
+  } finally { await h.close() }
+})
+
 test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and queries the original result after local reload', async (method) => {
   const { h, registry, request, authorize } = await frozenHost()
   try {
