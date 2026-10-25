@@ -922,6 +922,17 @@
       }
     },
     {
+      "id": "F03-frozen-node-chain-projection",
+      "description": "Validate closed frozen-node requests and results while retaining legacy payload bytes.",
+      "origin": "Optional host integration",
+      "reason": "Negotiated methods preserve source snapshots and original bounded refusal diagnostics without granting authority or changing local operation identifiers.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sdk/protocol/tests/node-work-chain.spec.ts"],
+        "test": "preserves legacy payload bytes without materializing optional fields"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",

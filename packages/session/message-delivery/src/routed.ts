@@ -2,6 +2,18 @@
 import type { Branded } from '@panedesk/dsh-brand'
 import type { DeliveryMessage, NodeId, SendMessageRequest, SendMessageResult } from './types.ts'
 
+/** Sanitized original routing refusal; diagnostic codes are bounded ASCII identifiers. */
+export interface RoutedDeliveryFailureCause {
+  readonly domain: string
+  readonly code: string
+  readonly reason: string
+  readonly effectState: 'none' | 'committed' | 'partial' | 'unknown'
+  readonly retryable: boolean
+  readonly operationId: SendMessageRequest['operationId']
+  readonly nodeId: NodeId
+  readonly reasonCode?: string
+}
+
 /** Stable transport identity is distinct from the business message and operation identities. */
 export type RoutedDeliveryId = Branded<'RoutedDeliveryId'>
 /** SHA-256 of the canonical complete envelope, excluding this digest field. */

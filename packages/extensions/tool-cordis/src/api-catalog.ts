@@ -2634,6 +2634,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'stable accepted, duplicate, coalesced or rejected identity.',
       },
       {
+        signature: 'acceptFrozen?(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult>',
+        description: 'Commit frozen admission and its live grant together; never route again.',
+        parameters: [{ name: 'request', description: 'Frozen source input, route and expected local definition revision.' }, { name: 'authority', description: 'Independently verified process-local authority with the exact grant.' }],
+        returns: 'Durable acceptance or refusal without source-side execution resources.',
+      },
+      {
         signature: 'abstract registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void>',
         description: 'Install the local Session executor without coupling engine storage to its implementation.',
         parameters: [{ name: 'executor', description: 'trusted local implementation.' }],
@@ -2965,6 +2971,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Optional opening service definition; no provider is installed by this module.',
     methods: [
       {
+        signature: 'prepare?(request: T.PrepareSourceOpeningRequest, authority: T.SeatCallContext): Promise<T.PrepareSourceOpeningResult>',
+        description: 'Prepare and retain input at the sole source owner without waiting for execution.',
+        parameters: [{ name: 'request', description: 'Exact source, epoch, task and operation identities.' }, { name: 'authority', description: 'Authenticated original caller.' }],
+        returns: 'Frozen input and reservation or refusal.',
+      },
+      {
+        signature: 'checkAdmission?(request: T.CheckSourceAdmissionRequest, authority: T.SeatCallContext): Promise<T.CheckSourceAdmissionResult>',
+        description: 'Recheck an exact retained reservation without reading source text again.',
+        parameters: [{ name: 'request', description: 'Original reservation and actual execution node.' }, { name: 'authority', description: 'Authenticated restricted caller.' }],
+        returns: 'Current permission; unknown retains occupancy.',
+      },
+      {
+        signature: 'deliverCallback?(request: T.DeliverSourceCallbackRequest, authority: T.SeatCallContext): Promise<T.DeliverSourceCallbackResult>',
+        description: 'Retain a callback before performing source-owned writeback steps.',
+        parameters: [{ name: 'request', description: 'Original callback, route and frozen runtime evidence.' }, { name: 'authority', description: 'Authenticated execution-node identity.' }],
+        returns: 'Committed only after all original steps finish.',
+      },
+      {
         signature: 'registerScopeAdmission?(admission: T.OpeningScopeAdmission): () => Promise<void>',
         description: 'Install one trusted scope owner; omission retains the existing scope evaluation.',
         parameters: [{ name: 'admission', description: 'Owner of serialized checks and durable reservations.' }],
@@ -3212,6 +3236,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Create through one durable intent; bind ledger identity before the first run starts.',
         parameters: [{ name: 'request', description: 'caller-stable identity and exact definition.' }],
         returns: 'created, prefilled, pending, choice or rejected outcome.',
+      },
+      {
+        signature: 'openFrozen?(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult>',
+        description: 'Consume an authenticated frozen request locally without resolving its source again.',
+        parameters: [{ name: 'request', description: 'Complete frozen input bound to this facade\'s live authority.' }],
+        returns: 'Original opening outcomes; absence denies the negotiated method.',
+      },
+      {
+        signature: 'wakeFrozen?(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult>',
+        description: 'Wake locally, consuming the frozen fallback only when no eligible window exists.',
+        parameters: [{ name: 'request', description: 'Original wake identity and frozen fallback.' }],
+        returns: 'Original wake outcomes without another routing hop.',
       },
       {
         signature: 'abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>',
@@ -6323,6 +6359,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'AcceptFrozenTriggerRequest',
+    declaration: 'export interface AcceptFrozenTriggerRequest {\n    envelope: TriggerEnvelope;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    route: NodeWorkChainRoute;\n}',
+  },
+  {
+    name: 'AcceptFrozenTriggerResult',
+    declaration: 'export type AcceptFrozenTriggerResult = AcceptTriggerResult;',
+  },
+  {
     name: 'AcceptTriggerResult',
     declaration: 'export type AcceptTriggerResult = {\n    status: \'accepted\' | \'coalesced\';\n    triggerId: TriggerId;\n    queueItemId: QueueItemId;\n    sequence: number;\n} | {\n    status: \'duplicate\';\n    triggerId: TriggerId;\n    originalTriggerId: TriggerId;\n    queueItemId: QueueItemId | null;\n} | SeatRejected;',
   },
@@ -6727,6 +6771,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ChangeResult {\n    changed: boolean;\n    application: \'applied\' | \'restart-required\' | \'overridden\' | \'failed\' | \'cancelled\';\n    restartReason?: RestartReason;\n    stage: \'install\' | \'enable\' | \'remove\';\n    target: string;\n    enabled?: boolean;\n    error?: ManagementError;\n    warnings?: string[];\n    packageResult?: PackageResult;\n    bundle?: string;\n    version?: string;\n    pendingBuilds?: string[];\n    approvedBuilds?: string[];\n    registries?: Registry[];\n    failedAt?: \'registry\' | \'spec-host\';\n}',
   },
   {
+    name: 'CheckSourceAdmissionRequest',
+    declaration: 'export interface CheckSourceAdmissionRequest {\n    scopeReservation: NodeWorkChainScopeReservation;\n    route: NodeWorkChainRoute;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    executionNodeId: SeatNodeId;\n}',
+  },
+  {
+    name: 'CheckSourceAdmissionResult',
+    declaration: 'export type CheckSourceAdmissionResult = {\n    status: \'allowed\';\n    policyRevision: number;\n} | {\n    status: \'denied\' | \'unknown\';\n    policyRevision: number | null;\n    error: SeatFailure;\n};',
+  },
+  {
     name: 'ChildAdmissionResult',
     declaration: 'export type ChildAdmissionResult = {\n    status: \'queued\';\n    ticket: ChildAdmissionTicket;\n} | {\n    status: \'admitted\';\n    ticket: ChildAdmissionTicket;\n    childSessionId: SessionId;\n} | SeatRejected;',
   },
@@ -7129,6 +7181,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DeepSeekLlmApiJson',
     declaration: 'export type DeepSeekLlmApiJson = null | boolean | number | string | DeepSeekLlmApiJson[] | {\n    [key: string]: DeepSeekLlmApiJson;\n};',
+  },
+  {
+    name: 'DeliverSourceCallbackRequest',
+    declaration: 'export interface DeliverSourceCallbackRequest {\n    callback: SeatCallbackPayload;\n    route: NodeWorkChainRoute;\n    modelEvidence: SeatExecutionModelEvidence;\n    payloadDigest: SeatDigest;\n}',
+  },
+  {
+    name: 'DeliverSourceCallbackResult',
+    declaration: 'export type DeliverSourceCallbackResult = {\n    status: \'pending\' | \'committed\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n} | {\n    status: \'paused\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n    error: SeatFailure;\n} | SeatRejected;',
   },
   {
     name: 'DeliveryMessage',
@@ -8791,6 +8851,42 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type NodeWireResponse = {\n    [K in keyof NodeRouteMethods]: {\n        version: typeof NODE_LINK_VERSION;\n        requestId: Branded<\'NodeRequestId\'>;\n        operationId: Seat.SeatOperationId;\n        sourceNodeId: Seat.SeatNodeId;\n        targetNodeId: Seat.SeatNodeId;\n        method: K;\n    } & ({\n        status: \'ok\';\n        result: NodeRouteMethods[K][\'result\'];\n    } | {\n        status: \'unavailable\' | \'rejected\' | \'uncertain\';\n        error: NodeLinkFailure;\n    });\n}[keyof NodeRouteMethods];',
   },
   {
+    name: 'NodeWorkChainAcceptedData',
+    declaration: 'export interface NodeWorkChainAcceptedData {\n    capability: \'node-work-chain/v1\';\n    route: NodeWorkChainRoute;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    authorizationRef: AuthorizationRef;\n    payloadDigest: SeatDigest;\n    operationKey: NodeWorkChainOperationKey;\n    trigger: TriggerEnvelope | null;\n}',
+  },
+  {
+    name: 'NodeWorkChainCallbackPath',
+    declaration: 'export type NodeWorkChainCallbackPath = {\n    kind: \'source\';\n    sourceId: SeatSourceId;\n} | {\n    kind: \'opening-context\';\n    reference: OpeningContextReference;\n    operationId: SeatOperationId;\n};',
+  },
+  {
+    name: 'NodeWorkChainMethod',
+    declaration: 'export type NodeWorkChainMethod = SeatRemoteOpeningMethod | \'source.prepareOpening\' | \'source.checkAdmission\' | \'source.deliverCallback\' | \'chain.operation\';',
+  },
+  {
+    name: 'NodeWorkChainModeCeiling',
+    declaration: 'export interface NodeWorkChainModeCeiling {\n    mode: EngineMode;\n    policy: {\n        sourceId: SeatSourceId;\n        projectId: SeatProjectId;\n        revision: number;\n        ruleId?: SeatRuleId;\n    };\n}',
+  },
+  {
+    name: 'NodeWorkChainOpeningContext',
+    declaration: 'export interface NodeWorkChainOpeningContext {\n    snapshot: OpeningContextSnapshot;\n    staffBinding?: SeatVerifiedStaffBinding;\n    scopeReservation: NodeWorkChainScopeReservation;\n    openingMode: \'auto\' | \'prefill\';\n}',
+  },
+  {
+    name: 'NodeWorkChainOperationKey',
+    declaration: 'export interface NodeWorkChainOperationKey {\n    sourceNodeId: SeatNodeId;\n    principalId: SeatPrincipalId;\n    sourceId: SeatSourceId;\n    ownerEpoch: OwnerEpoch;\n    method: NodeWorkChainMethod;\n    operationId: SeatOperationId;\n    callbackId?: CallbackId;\n}',
+  },
+  {
+    name: 'NodeWorkChainReasonCode',
+    declaration: 'export type NodeWorkChainReasonCode = \'peer-capability-missing\' | \'remote-open-not-allowed\' | \'principal-mapping-missing\' | \'source-mismatch\' | \'node-mismatch\' | \'principal-mismatch\' | \'evidence-missing\' | \'evidence-revoked\' | \'evidence-digest-mismatch\' | \'frame-too-large\' | \'hello-policy-not-ready\' | \'method-not-allowed\' | \'owner-epoch-mismatch\' | \'seat-revision-mismatch\' | \'scope-reservation-mismatch\' | \'operation-payload-conflict\' | \'protocol-version-mismatch\' | \'authentication-unconfirmed\' | \'tunnel-disconnected\' | \'outcome-unknown\' | \'deadline-exceeded\' | \'invalid-diagnostic\';',
+  },
+  {
+    name: 'NodeWorkChainRoute',
+    declaration: 'export interface NodeWorkChainRoute {\n    sourceId: SeatSourceId;\n    sourceOwnerNodeId: SeatNodeId;\n    ownerEpoch: OwnerEpoch;\n    triggerId: TriggerId | null;\n    originalOperationId: SeatOperationId;\n    targetNodeId: SeatNodeId;\n    snapshotDigest: SeatDigest;\n    callbackPath: NodeWorkChainCallbackPath;\n    modeCeiling: NodeWorkChainModeCeiling;\n}',
+  },
+  {
+    name: 'NodeWorkChainScopeReservation',
+    declaration: 'export interface NodeWorkChainScopeReservation {\n    reservationId: Branded<\'SeatScopeReservationId\'>;\n    sourceId: SeatSourceId;\n    sourceOwnerNodeId: SeatNodeId;\n    ownerEpoch: OwnerEpoch;\n    operationId: SeatOperationId;\n    taskIds: readonly SeatTaskId[];\n    snapshotDigest: SeatDigest;\n    policyRevision: number;\n}',
+  },
+  {
     name: 'NotFutureError',
     declaration: 'export interface NotFutureError {\n    readonly code: \'not_future\';\n    readonly message: string;\n}',
   },
@@ -8841,6 +8937,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OpenedSeatWindow',
     declaration: 'export interface OpenedSeatWindow {\n    sessionId: SessionId;\n    seat: SeatName;\n    nodeId: SeatNodeId;\n    nodeName: string;\n    title: string;\n    budget: SeatBudgetLimits;\n    phase: OpenPhase;\n    stateVersion: number;\n    callbackIds: readonly CallbackId[];\n}',
+  },
+  {
+    name: 'OpenFrozenSeatRequest',
+    declaration: 'export interface OpenFrozenSeatRequest {\n    request: OpenSeatRequest;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    route: NodeWorkChainRoute;\n}',
+  },
+  {
+    name: 'OpenFrozenSeatResult',
+    declaration: 'export type OpenFrozenSeatResult = OpenSeatResult;',
   },
   {
     name: 'OpeningContextProvider',
@@ -9069,6 +9173,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PrepareSessionOptions',
     declaration: 'export type PrepareSessionOptions = (CreateSessionOptions & {\n    readonly eventState?: undefined;\n}) | RestoredSessionOptions;',
+  },
+  {
+    name: 'PrepareSourceOpeningRequest',
+    declaration: 'export interface PrepareSourceOpeningRequest {\n    sourceId: SeatSourceId;\n    sourceOwnerNodeId: SeatNodeId;\n    ownerEpoch: OwnerEpoch;\n    reference: OpeningContextReference;\n    seat: SeatName;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    targetNodeId: SeatNodeId;\n    expectedSeatRevision: number;\n    openingMode: \'auto\' | \'prefill\';\n}',
+  },
+  {
+    name: 'PrepareSourceOpeningResult',
+    declaration: 'export type PrepareSourceOpeningResult = {\n    status: \'prepared\';\n    openingContext: NodeWorkChainOpeningContext;\n    route: NodeWorkChainRoute;\n    expectedSeatRevision: number;\n} | SeatRejected;',
   },
   {
     name: 'PresetDefinition',
@@ -9527,6 +9639,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RoutedDeliveryEnvelope {\n    readonly message: DeliveryMessage;\n    readonly deliveryId: RoutedDeliveryId;\n    readonly sourceNodeId: NodeId;\n    readonly digest: RoutedDeliveryDigest;\n    readonly callId?: Branded<\'ToolCallId\'>;\n    readonly rootCallId?: Branded<\'ToolCallId\'>;\n    readonly causedByDeliveryId?: RoutedDeliveryId;\n}',
   },
   {
+    name: 'RoutedDeliveryFailureCause',
+    declaration: 'export interface RoutedDeliveryFailureCause {\n    readonly domain: string;\n    readonly code: string;\n    readonly reason: string;\n    readonly effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n    readonly retryable: boolean;\n    readonly operationId: SendMessageRequest[\'operationId\'];\n    readonly nodeId: NodeId;\n    readonly reasonCode?: string;\n}',
+  },
+  {
     name: 'RoutedDeliveryId',
     declaration: 'export type RoutedDeliveryId = Branded<\'RoutedDeliveryId\'>;',
   },
@@ -9796,7 +9912,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatBinding',
-    declaration: 'export type SeatBinding = {\n    kind: \'free\';\n    sessionId: SessionId;\n    nodeId: SeatNodeId;\n    identitySource: \'free\';\n} | {\n    kind: \'seat\';\n    sessionId: SessionId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    nodeId: SeatNodeId;\n    bindingSource: \'seat-definition\';\n    identitySource: \'settings\' | \'inherited\';\n    openOperationId: SeatOperationId;\n    seatRevision: number;\n    taskId?: SeatTaskId;\n    relatedTaskIds: readonly SeatTaskId[];\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    subscriptions: readonly string[];\n    openingDigest: SeatDigest;\n};',
+    declaration: 'export type SeatBinding = {\n    kind: \'free\';\n    sessionId: SessionId;\n    nodeId: SeatNodeId;\n    identitySource: \'free\';\n} | {\n    kind: \'seat\';\n    sessionId: SessionId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    nodeId: SeatNodeId;\n    staffBinding?: SeatVerifiedStaffBinding;\n    bindingSource: \'seat-definition\';\n    identitySource: \'settings\' | \'inherited\';\n    openOperationId: SeatOperationId;\n    seatRevision: number;\n    taskId?: SeatTaskId;\n    relatedTaskIds: readonly SeatTaskId[];\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    subscriptions: readonly string[];\n    openingDigest: SeatDigest;\n};',
   },
   {
     name: 'SeatBindingRequest',
@@ -9824,7 +9940,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCallbackDelivery',
-    declaration: 'export interface SeatCallbackDelivery {\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+    declaration: 'export interface SeatCallbackDelivery {\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
   },
   {
     name: 'SeatCallbackPayload',
@@ -9852,7 +9968,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatDefinition',
-    declaration: 'export interface SeatDefinition {\n    schemaVersion: 1;\n    revision: number;\n    seat: SeatName;\n    platform: \'desktop\' | \'vscode\' | \'server\';\n    node: string;\n    projectId: SeatProjectId;\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    opening: SeatText;\n    openingInstructionFiles: readonly string[];\n    agentPreset: string;\n    provider: string;\n    model: string;\n    reasoningEffort: string;\n    permissionPreset: string;\n    subscriptions: readonly string[];\n    checkpointFiles: readonly SeatCheckpointFile[];\n    wakeTemplate?: SeatText;\n    autoKeepAlive?: boolean;\n    maxOpenSessions: number;\n    maxActiveSubagents: number;\n    contextThresholdTokens?: number;\n    subagentContextThresholdTokens: number;\n    rules: readonly SeatRule[];\n    pollingThreshold?: number;\n    maxSleepSeconds?: number;\n    worktree: SeatWorktreePolicy;\n    source?: SeatImportSource;\n}',
+    declaration: 'export interface SeatDefinition {\n    schemaVersion: 1;\n    revision: number;\n    seat: SeatName;\n    platform: \'desktop\' | \'vscode\' | \'server\';\n    node: string;\n    projectId: SeatProjectId;\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    opening: SeatText;\n    openingInstructionFiles: readonly string[];\n    agentPreset: string;\n    provider: string;\n    model: string;\n    reasoningEffort: string;\n    permissionPreset: string;\n    subscriptions: readonly string[];\n    checkpointFiles: readonly SeatCheckpointFile[];\n    remoteAdmission?: SeatRemoteAdmission;\n    wakeTemplate?: SeatText;\n    autoKeepAlive?: boolean;\n    maxOpenSessions: number;\n    maxActiveSubagents: number;\n    contextThresholdTokens?: number;\n    subagentContextThresholdTokens: number;\n    rules: readonly SeatRule[];\n    pollingThreshold?: number;\n    maxSleepSeconds?: number;\n    worktree: SeatWorktreePolicy;\n    source?: SeatImportSource;\n}',
   },
   {
     name: 'SeatDigest',
@@ -9907,12 +10023,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SeatErrorCode = \'seat-not-found\' | \'seat-already-open\' | \'seat-choice-required\' | \'cross-node-unsupported\' | \'import-preview-stale\' | \'import-conflict\' | \'import-source-authoritative\' | \'seat-store-authoritative\' | \'invalid-definition\' | \'invalid-request\' | \'unsupported-schema-version\' | \'revision-conflict\' | \'operation-id-conflict\' | \'event-id-conflict\' | \'unauthorized\' | \'unavailable\' | \'disabled\' | \'engine-store-corrupt\' | \'session-not-found\' | \'session-busy\' | \'state-conflict\' | \'owner-unknown\' | \'memory-seat-mismatch\' | \'wake-template-missing\' | \'batch-explicit-seats-required\' | \'batch-limit-exceeded\' | \'cache-evidence-unavailable\' | \'cache-expired\' | \'cache-prefix-changed\' | \'maintenance-busy\' | \'renewal-uncertain\' | \'subagent-renewal-expired\' | \'subagent-context-limit\' | \'evidence-unavailable\' | \'polling\' | \'sleep-limit-exceeded\' | \'gate-denied\' | \'audit-unavailable\' | \'checkpoint-unavailable\' | \'checkpoint-changed\' | \'checkpoint-budget-exceeded\' | \'budget-unverifiable\' | \'budget-full\' | \'budget-stopped\' | \'source-not-found\' | \'source-authentication-failed\' | \'source-payload-too-large\' | \'source-timestamp-invalid\' | \'callback-authentication-failed\' | \'callback-protocol-error\' | \'open-create-failed\' | \'open-configuration-failed\' | \'opening-failed\' | \'session-id-conflict\' | \'replacement-open-failed\' | \'replacement-first-turn-failed\' | \'replacement-cleanup-failed\' | \'wait-id-conflict\' | \'wait-object-not-found\' | \'wait-object-unauthorized\' | \'ticket-not-found\'  /* …truncated — full shape in source */',
   },
   {
+    name: 'SeatExecutionModelEvidence',
+    declaration: 'export type SeatExecutionModelEvidence = {\n    status: \'present\';\n    provider: string;\n    model: string;\n    kind: \'request/header\' | \'model/selection\';\n    sessionId: SessionId;\n    nodeId: SeatNodeId;\n    recordRef: Branded<\'SeatModelRecordRef\'>;\n    observedAt: SeatTimestamp;\n} | {\n    status: \'missing\';\n    sessionId: SessionId | null;\n    nodeId: SeatNodeId;\n    observedAt: SeatTimestamp;\n};',
+  },
+  {
     name: 'SeatFailure',
-    declaration: 'export interface SeatFailure {\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause;\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+  },
+  {
+    name: 'SeatFailureCause',
+    declaration: 'export interface SeatFailureCause {\n    domain: string;\n    code: string;\n    reason: string;\n    effectState: SeatFailure[\'effectState\'];\n    retryable: boolean;\n    operationId: SeatOperationId;\n    nodeId: SeatNodeId;\n    reasonCode?: NodeWorkChainReasonCode;\n}',
   },
   {
     name: 'SeatFrozenOpen',
-    declaration: 'export interface SeatFrozenOpen {\n    recheckRequired?: true;\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    openingContext?: OpeningContextSnapshot;\n}',
+    declaration: 'export interface SeatFrozenOpen {\n    nodeWorkChain?: NodeWorkChainAcceptedData;\n    recheckRequired?: true;\n    definition: SeatDefinition;\n    title: string;\n    openingMode: \'auto\' | \'prefill\';\n    frozenOpening?: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
     name: 'SeatGateQuerySnapshot',
@@ -9968,7 +10092,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatLocalOpenRequest',
-    declaration: 'export interface SeatLocalOpenRequest {\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n    openingContext?: OpeningContextSnapshot;\n}',
+    declaration: 'export interface SeatLocalOpenRequest {\n    nodeWorkChain?: NodeWorkChainAcceptedData;\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
     name: 'SeatName',
@@ -10023,6 +10147,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatRejected {\n    status: \'rejected\';\n    error: SeatFailure;\n}',
   },
   {
+    name: 'SeatRemoteAdmission',
+    declaration: 'export interface SeatRemoteAdmission {\n    allowOpen: true;\n    sourceNodeIds: readonly SeatNodeId[];\n    sourceIds: readonly SeatSourceId[];\n    principalIds: readonly SeatPrincipalId[];\n    methods: readonly SeatRemoteOpeningMethod[];\n    policyRevision: number;\n}',
+  },
+  {
+    name: 'SeatRemoteOpeningMethod',
+    declaration: 'export type SeatRemoteOpeningMethod = \'engine.acceptFrozen\' | \'seat.openFrozen\' | \'seat.wakeFrozen\';',
+  },
+  {
     name: 'SeatRequestMap',
     declaration: 'export interface SeatRequestMap {\n    \'seats/import.preview\': {\n        params: Seat.PreviewSeatImportRequest;\n        result: Seat.SeatImportPlan | Seat.SeatRejected;\n    };\n    \'seats/import.commit\': {\n        params: Seat.CommitSeatImportRequest;\n        result: Seat.CommitSeatImportResult;\n    };\n    \'seats/setAuthority\': {\n        params: Seat.SetSeatAuthorityRequest;\n        result: Seat.SeatCatalogMutationResult;\n    };\n    \'seats/report.submit\': {\n        params: Seat.SubmitCloseReportRequest;\n        result: Seat.CloseReportResult;\n    };\n    \'seats/wait.register\': {\n        params: Seat.RegisterSeatWaitRequest;\n        result: Seat.RegisterSeatWaitResult;\n    };\n    \'seats/wait.cancel\': {\n        params: Seat.CancelSeatWaitRequest;\n        result: Seat.CancelSeatWaitResult;\n    };\n    \'seats/list\': {\n        params: Seat.ListSeatWindowsRequest;\n        result: Seat.ListSeatWindowsResult;\n    };\n    \'seats/open\': {\n        params: Seat.OpenSeatRequest;\n        result: Seat.OpenSeatResult;\n    };\n    \'seats/openBatch\': {\n        params: Seat.OpenSeatBatchRequest;\n        result: Seat.OpenSeatBatchResult;\n    };\n    \'seats/renew\': {\n        params: Seat.RenewSeatRequest;\n        result: Seat.RenewSeatResult;\n    };\n    \'seats/close\': {\n        params: Seat.CloseSeatRequest;\n        result: Seat.CloseSeatResult;\n    };\n    \'seats/replace\': {\n        params: Seat.ReplaceSeatRequest;\n        result: Seat.ReplaceSeatResult;\n    };\n    \'seats/rename\': {\n        params: Seat /* …truncated — full shape in source */',
   },
@@ -10040,7 +10172,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatService',
-    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    nodeStatus?(): Promise<T.SeatNodeStatus>;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult>;\n    abstract wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult>;\n    abstract binding(request: T.SeatBindingRequest): Promise<T.SeatB /* …truncated — full shape in source */',
+    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    nodeStatus?(): Promise<T.SeatNodeStatus>;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    openFrozen?(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult>;\n    wakeFrozen?(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Pro /* …truncated — full shape in source */',
   },
   {
     name: 'SeatSessionOperations',
@@ -10095,6 +10227,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SeatTurnAdmission = {\n    status: \'allow\';\n} | {\n    status: \'defer\';\n    reason: \'budget-stopped\' | \'budget-unverifiable\' | \'configuring\' | \'owner-unknown\';\n};',
   },
   {
+    name: 'SeatVerifiedStaffBinding',
+    declaration: 'export interface SeatVerifiedStaffBinding {\n    staffId: Branded<\'SeatStaffId\'>;\n    seat: SeatName;\n    taskIds: readonly SeatTaskId[];\n    evidenceRef: Branded<\'SeatStaffEvidenceRef\'>;\n    revision: string;\n    verifiedAt: SeatTimestamp;\n}',
+  },
+  {
     name: 'SeatWait',
     declaration: 'export interface SeatWait {\n    waitId: WaitId;\n    sessionId: SessionId;\n    mode: \'any\' | \'all\';\n    objects: readonly WaitObject[];\n    observations: readonly WaitObservation[];\n    phase: \'registered\' | \'satisfied\' | \'woken\' | \'cancelled\';\n    operationId: SeatOperationId;\n    wakeOperationId: SeatOperationId;\n    toolCallId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n    stateVersion: number;\n    durability: \'durable\' | \'best-effort\';\n}',
   },
@@ -10140,7 +10276,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SendMessageResult',
-    declaration: 'export type SendMessageResult = {\n    readonly messageId: MessageId;\n    readonly operationId: OperationId;\n} & ({\n    readonly deliveryOutcome: \'accepted\';\n    readonly messageState: \'queued\';\n    readonly pending: boolean;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: \'target-closed-pending\';\n    readonly messageState: \'queued\';\n    readonly pending: true;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: Exclude<MessageReason, \'target-closed-pending\'>;\n    readonly messageState: \'rejected\';\n    readonly pending: false;\n    readonly candidates: readonly MessageRecipient[];\n});',
+    declaration: 'export type SendMessageResult = {\n    readonly cause?: import(\'./routed.ts\').RoutedDeliveryFailureCause;\n    readonly messageId: MessageId;\n    readonly operationId: OperationId;\n} & ({\n    readonly deliveryOutcome: \'accepted\';\n    readonly messageState: \'queued\';\n    readonly pending: boolean;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: \'target-closed-pending\';\n    readonly messageState: \'queued\';\n    readonly pending: true;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: Exclude<MessageReason, \'target-closed-pending\'>;\n    readonly messageState: \'rejected\';\n    readonly pending: false;\n    readonly candidates: readonly MessageRecipient[];\n});',
   },
   {
     name: 'SendTeamMessageRequest',
@@ -11813,6 +11949,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WaitObservation',
     declaration: 'export interface WaitObservation {\n    object: WaitObject;\n    outcome: \'completed\' | \'failed\' | \'cancelled\' | \'owner-lost\' | \'unknown\';\n    observedAt: SeatTimestamp;\n    watermark: number;\n    durability: \'durable\' | \'best-effort\';\n}',
+  },
+  {
+    name: 'WakeFrozenSeatRequest',
+    declaration: 'export interface WakeFrozenSeatRequest {\n    request: WakeSeatRequest;\n    openingContext: NodeWorkChainOpeningContext;\n    expectedSeatRevision: number;\n    route: NodeWorkChainRoute;\n}',
+  },
+  {
+    name: 'WakeFrozenSeatResult',
+    declaration: 'export type WakeFrozenSeatResult = WakeSeatResult;',
   },
   {
     name: 'WakeSeatRequest',

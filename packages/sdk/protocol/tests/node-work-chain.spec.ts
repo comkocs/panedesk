@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest'
+import { decodeMessagesResult } from '../src/index.ts'
+import { decodeSeatRequest, decodeSeatResult, decodeNodeWorkChainRequest, decodeNodeWorkChainResult,
+  decodeNodeDelegationEvidenceRequest, decodeNodeDelegationEvidenceResult, encodeNodeWorkChainFrame } from '../src/seat.ts'
+
+const cause = { domain: 'node-link', code: 'node-outcome-unknown', reason: 'Receipt unavailable',
+  effectState: 'unknown', retryable: false, operationId: 'operation-a', nodeId: 'node-b', reasonCode: 'outcome-unknown' }
+const error = { code: 'unavailable', message: 'Unavailable', alternative: 'Query original operation', retryable: false, effectState: 'unknown' }
+const reference = { providerId: 'provider-a', reference: 'reference-a', revision: '1' }
+const scopeReservation = { reservationId: 'reservation-a', sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'epoch-a',
+  operationId: 'operation-a', taskIds: ['task-a'], snapshotDigest: 'digest-a', policyRevision: 1 }
+const openingContext = { snapshot: { reference, text: 'Frozen input', digest: 'digest-a', revision: '1', taskIds: ['task-a'],
+  scopeEvidence: [{ status: 'unknown', taskId: 'task-a', reason: 'Unspecified', alternative: 'serial' }] },
+scopeReservation, openingMode: 'auto' }
+const route = { sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'epoch-a', triggerId: null,
+  originalOperationId: 'operation-a', targetNodeId: 'node-b', snapshotDigest: 'digest-a',
+  callbackPath: { kind: 'opening-context', reference, operationId: 'operation-a' },
+  modeCeiling: { mode: 'remind', policy: { sourceId: 'source-a', projectId: 'project-a', revision: 1 } } }
+const frozen = { openingContext, route, expectedSeatRevision: 1 }
+const callback = { kind: 'opened', callbackId: 'callback-a', sourceId: 'source-a', triggerId: null, stateVersion: 1,
+  seat: 'seat-a', title: 'Window', sessionId: 'session-a', nodeId: 'node-b', nodeName: 'target', budget: {}, relatedTaskIds: ['task-a'] }
+const key = { sourceNodeId: 'node-a', principalId: 'principal-a', sourceId: 'source-a', ownerEpoch: 'epoch-a', method: 'seat.openFrozen', operationId: 'operation-a' }
+
+describe('node work chain projection', () => {
+  it('preserves legacy payload bytes without materializing optional fields', () => {
+    const request = { seat: 'seat-a', operationId: 'operation-a', origin: 'manual' }
+    const result = { status: 'rejected', error }
+    const preview = { format: 'csv', sourcePath: 'seats.csv', columnMap: {}, defaults: {} }
+    expect(JSON.stringify(decodeSeatRequest('seats/open', request))).toBe(JSON.stringify(request))
+    expect(JSON.stringify(decodeSeatResult('seats/open', result))).toBe(JSON.stringify(result))
+    expect(JSON.stringify(decodeSeatRequest('seats/import.preview', preview))).toBe(JSON.stringify(preview))
+    const message = { messageId: 'message-a', operationId: 'operation-a', deliveryOutcome: 'rejected', messageState: 'rejected', pending: false, reason: 'unavailable', candidates: [] }
+    expect(JSON.stringify(decodeMessagesResult('messages/send', message))).toBe(JSON.stringify(message))
+    expect(decodeMessagesResult('messages/send', { ...message, cause })).toEqual({ ...message, cause })
+  })
+  it('retains original cause and rejects invalid codes and UTF-8 overlimits', () => {
+    const result = { status: 'rejected', error: { ...error, cause } }
+    expect(decodeSeatResult('seats/open', result)).toBe(result)
+    for (const invalid of ['', 'a b', 'a'.repeat(129), 'é', 'a\n']) {
+      expect(() => decodeSeatResult('seats/open', { ...result, error: { ...error, cause: { ...cause, code: invalid } } })).toThrow()
+    }
+    for (const invalid of ['a'.repeat(513), 'é'.repeat(257), 'line\nfeed', '', 'a\u0085']) {
+      expect(() => decodeSeatResult('seats/open', { ...result, error: { ...error, cause: { ...cause, reason: invalid } } })).toThrow()
+    }
+    expect(() => decodeSeatResult('seats/open', { ...result, error: { ...error, cause: { ...cause, code: 'a'.repeat(128), reason: 'é'.repeat(256) } } })).not.toThrow()
+    expect(() => decodeSeatResult('seats/open', { ...result, error: { ...error, cause: { ...cause, reasonCode: 'invented' } } })).toThrow()
+  })
+  it('requires nonempty unique explicit remote opening permission', () => {
+    const remoteAdmission = { allowOpen: true, sourceNodeIds: ['node-a'], sourceIds: ['source-a'], principalIds: ['principal-a'], methods: ['seat.openFrozen'], policyRevision: 1 }
+    const request = { format: 'csv', sourcePath: 'seats.csv', columnMap: {}, defaults: { remoteAdmission } }
+    expect(decodeSeatRequest('seats/import.preview', request)).toBe(request)
+    for (const patch of [{ allowOpen: false }, { sourceNodeIds: [] }, { sourceIds: ['*'] }, { principalIds: ['a', 'a'] }, { methods: ['seat.open'] }, { policyRevision: 0 }]) {
+      expect(() => decodeSeatRequest('seats/import.preview', { ...request, defaults: { remoteAdmission: { ...remoteAdmission, ...patch } } })).toThrow()
+    }
+  })
+  it('decodes seven methods and rejects malformed nested requests and results', () => {
+    const cases = [
+      ['engine.acceptFrozen', { ...frozen, envelope: { triggerId: 'trigger-a', sourceId: 'source-a', kind: 'external', evidence: { kind: 'external', eventType: 'ready' },
+        seat: 'seat-a', projectId: 'project-a', receivedAt: 'now', dataDigest: 'digest-a', data: {}, callbackRef: 'source-a' } },
+      { status: 'accepted', triggerId: 'trigger-a', queueItemId: 'queue-a', sequence: 1 }],
+      ['seat.openFrozen', { ...frozen, request: { seat: 'seat-a', operationId: 'operation-a', origin: 'manual' } }, { status: 'cancelled' }],
+      ['seat.wakeFrozen', { ...frozen, request: { seat: 'seat-a', operationId: 'operation-a' } }, { status: 'opened', result: { status: 'cancelled' } }],
+      ['source.prepareOpening', { sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'epoch-a', reference, seat: 'seat-a', taskIds: ['task-a'], operationId: 'operation-a', targetNodeId: 'node-b', expectedSeatRevision: 1, openingMode: 'auto' }, { status: 'prepared', ...frozen }],
+      ['source.checkAdmission', { scopeReservation, route, taskIds: ['task-a'], operationId: 'operation-a', executionNodeId: 'node-b' }, { status: 'unknown', policyRevision: null, error: { ...error, cause } }],
+      ['source.deliverCallback', { callback, route, modelEvidence: { status: 'missing', sessionId: null, nodeId: 'node-b', observedAt: 'now' }, payloadDigest: 'digest-b' }, { status: 'committed', callbackId: 'callback-a', payloadDigest: 'digest-b' }],
+      ['chain.operation', { key, payloadDigest: 'digest-b' }, { status: 'settled', method: 'seat.openFrozen', result: { status: 'cancelled' } }],
+    ] as const
+    for (const [method, request, result] of cases) {
+      expect(decodeNodeWorkChainRequest(method, request)).toBe(request)
+      expect(decodeNodeWorkChainResult(method, result)).toBe(result)
+      expect(() => decodeNodeWorkChainRequest(method, { ...request, injected: true })).toThrow()
+      expect(() => decodeNodeWorkChainResult(method, { status: 'invented' })).toThrow()
+    }
+    expect(() => decodeNodeWorkChainRequest('seat.openFrozen', { ...cases[1][1], openingContext: { ...openingContext, snapshot: {} } })).toThrow()
+    expect(() => decodeNodeWorkChainResult('chain.operation', { status: 'settled', method: 'chain.operation', result: { status: 'missing' } })).toThrow()
+  })
+  it('validates evidence control fields and complete frame byte limits', () => {
+    const request = { authorizationRef: 'authorization-a', method: 'seat.openFrozen', operationId: 'operation-a', payloadDigest: 'digest-a', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+    expect(decodeNodeDelegationEvidenceRequest(request)).toBe(request)
+    expect(() => decodeNodeDelegationEvidenceRequest({ ...request, method: 'arbitrary' })).toThrow()
+    expect(decodeNodeDelegationEvidenceResult({ status: 'rejected', cause })).toEqual({ status: 'rejected', cause })
+    expect(() => decodeNodeDelegationEvidenceResult({ status: 'retained', request, fact: {}, revoked: false, expiresAt: 'later' })).toThrow()
+    const frame = { wrapper: 'é' }, size = new TextEncoder().encode(JSON.stringify(frame)).length
+    expect(encodeNodeWorkChainFrame(frame, [size, size, size])).toBe(JSON.stringify(frame))
+    expect(() => encodeNodeWorkChainFrame(frame, [size, size - 1, size])).toThrow()
+    expect(() => encodeNodeWorkChainFrame(frame, [0, size, size])).toThrow()
+    expect(() => encodeNodeWorkChainFrame('a'.repeat(1_048_576), [2_000_000, 2_000_000, 2_000_000])).toThrow()
+  })
+})

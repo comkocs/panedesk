@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import re
 from typing import Annotated, Callable, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -218,6 +219,8 @@ class MessageStatus(_MessageModel):
 
 class SendMessageResult(_MessageModel):
     """Closed-target rejection may retain a queued pending message."""
+
+    cause: SeatFailureCause | None = None
 
     messageId: _MessageText
     operationId: _MessageText
@@ -469,7 +472,19 @@ _SEAT_TRIGGER: _SeatCheck = lambda value: any(_seat_fields(fields)(value) for fi
     {"kind": _seat_choice("handoff-timeout"), "timeoutMinutes": _seat_integer},
     {"kind": _seat_choice("manual"), "origin": _seat_choice("manual", "remote")},
 ))
+def _chain_allowlist(value: object) -> bool:
+    return isinstance(value, list) and bool(value) and all(
+        _seat_text(item) and not any(c in "*?" or ord(c) < 32 or ord(c) == 127 for c in item)
+        and item.lower() not in ("all", chr(0x5168) + chr(0x90E8)) for item in value
+    ) and len(set(value)) == len(value)
+
+
+_CHAIN_REMOTE_ADMISSION = _seat_fields({"allowOpen": lambda value: value is True,
+    "sourceNodeIds": _chain_allowlist, "sourceIds": _chain_allowlist, "principalIds": _chain_allowlist,
+    "methods": lambda value: _chain_allowlist(value) and _seat_array(_seat_choice("engine.acceptFrozen", "seat.openFrozen", "seat.wakeFrozen"))(value),
+    "policyRevision": lambda value: _seat_integer(value) and value > 0})
 _SEAT_DEFINITION: dict[str, _SeatCheck] = {
+    "remoteAdmission": _seat_optional(_CHAIN_REMOTE_ADMISSION),
     "schemaVersion": lambda value: type(value) is int and value == 1, "revision": _seat_integer, "seat": _seat_text,
     "platform": _seat_choice("desktop", "vscode", "server"), "node": _seat_text, "projectId": _seat_text,
     "directories": _seat_array(_SEAT_DIRECTORY), "memoryDirectories": _seat_array(_seat_text), "opening": _SEAT_TEXT,
@@ -505,8 +520,19 @@ source-not-found source-authentication-failed source-payload-too-large source-ti
 open-create-failed open-configuration-failed opening-failed session-id-conflict replacement-open-failed replacement-first-turn-failed replacement-cleanup-failed
 wait-id-conflict wait-object-not-found wait-object-unauthorized ticket-not-found ticket-cancelled report-not-found report-revoked causal-depth-exceeded
 rule-self-loop query-cursor-invalid export-event-conflict worktree-client-limit worktree-unverified""".split())
+_CHAIN_REASON_CODES = frozenset("""peer-capability-missing remote-open-not-allowed principal-mapping-missing
+source-mismatch node-mismatch principal-mismatch evidence-missing evidence-revoked evidence-digest-mismatch
+frame-too-large hello-policy-not-ready method-not-allowed owner-epoch-mismatch seat-revision-mismatch
+scope-reservation-mismatch operation-payload-conflict protocol-version-mismatch authentication-unconfirmed
+tunnel-disconnected outcome-unknown deadline-exceeded invalid-diagnostic""".split())
+_CHAIN_CODE: _SeatCheck = lambda value: isinstance(value, str) and len(value) <= 128 and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", value) is not None
+_CHAIN_REASON: _SeatCheck = lambda value: isinstance(value, str) and bool(value.strip()) and len(value.encode("utf-8")) <= 512 and re.search(r"[\x00-\x1f\x7f-\x9f]", value) is None
+_SEAT_FAILURE_CAUSE = _seat_fields({"domain": _CHAIN_CODE, "code": _CHAIN_CODE, "reason": _CHAIN_REASON,
+    "effectState": _seat_choice("none", "committed", "partial", "unknown"), "retryable": _SEAT_BOOL,
+    "operationId": _seat_text, "nodeId": _seat_text, "reasonCode": _seat_optional(_seat_choice(*_CHAIN_REASON_CODES))})
 _SEAT_FAILURE = _seat_fields({"code": _seat_choice(*_SEAT_CODES), "message": _seat_text, "alternative": _seat_text,
-    "retryable": _SEAT_BOOL, "effectState": _seat_choice("none", "committed", "partial", "unknown")})
+    "retryable": _SEAT_BOOL, "effectState": _seat_choice("none", "committed", "partial", "unknown"),
+    "cause": _seat_optional(_SEAT_FAILURE_CAUSE)})
 _SEAT_IMPORT_ROW = _seat_fields({"row": _seat_integer, "seat": _seat_nullable(_seat_text), "definition": _seat_nullable(_seat_fields(_SEAT_DEFINITION)),
     "rowHash": _seat_text, "columnHashes": _seat_record(_seat_text), "action": _seat_choice("create", "update", "retain", "conflict", "tombstone", "invalid"),
     "selected": _SEAT_BOOL, "differences": _seat_array(_seat_fields({"field": _seat_text, "baseline": _seat_json, "local": _seat_json, "source": _seat_json, "conflict": _SEAT_BOOL})),
@@ -520,7 +546,8 @@ _SEAT_BINDING: _SeatCheck = lambda value: _seat_fields({"kind": _seat_choice("fr
     "kind": _seat_choice("seat"), "sessionId": _seat_text, "seat": _seat_text, "projectId": _seat_text, "nodeId": _seat_text, "bindingSource": _seat_choice("seat-definition"),
     "identitySource": _seat_choice("settings", "inherited"), "openOperationId": _seat_text, "seatRevision": _seat_integer, "taskId": _seat_optional(_seat_text),
     "relatedTaskIds": _seat_array(_seat_text), "directories": _seat_array(_SEAT_DIRECTORY), "memoryDirectories": _seat_array(_seat_text),
-    "subscriptions": _seat_array(_seat_text), "openingDigest": _seat_text})(value)
+    "subscriptions": _seat_array(_seat_text), "openingDigest": _seat_text,
+    "staffBinding": _seat_optional(lambda item: _CHAIN_STAFF(item))})(value)
 _SEAT_CANDIDATE = {"seat": _seat_text, "sessionId": _seat_text, "title": _SEAT_STRING, "nodeId": _seat_text}
 _SEAT_BUSY = _seat_fields({"kind": _seat_choice("turn", "subagent", "job", "approval", "plan-review", "answer", "wait", "ticket", "inbox", "owner-unknown"),
     "objectId": _seat_optional(_seat_text), "summary": _SEAT_STRING})
@@ -544,10 +571,40 @@ _SEAT_EVIDENCE: _SeatCheck = lambda value: any(_seat_fields(fields)(value) for f
     {"kind": _seat_choice("handoff-timeout"), **_SEAT_HANDOFF}, {"kind": _seat_choice("manual"), "origin": _seat_choice("manual", "remote"), "operationId": _seat_text},
 ))
 _SEAT_TRIGGER_KIND = _seat_choice("schedule", "git", "external", "window-ended", "handoff-timeout", "manual")
+_CHAIN_REFERENCE = _seat_fields({"providerId": _seat_text, "reference": _seat_text, "revision": _seat_text})
+_CHAIN_SCOPE: _SeatCheck = lambda value: _seat_fields({"status": _seat_choice("unknown"), "taskId": _seat_text,
+    "reason": _seat_text, "alternative": _seat_choice("serial")})(value) or _seat_fields({"status": _seat_choice("known"),
+    "taskId": _seat_text, "revision": _seat_text, "repositoryId": _seat_text, "baseRevision": _seat_text,
+    "entries": _seat_array(_seat_fields({"kind": _seat_choice("file", "directory", "pattern"), "path": _seat_text, "access": _seat_choice("read", "write")})),
+    "patternSyntax": _seat_choice("literal", "glob-v1"), "caseSensitive": _SEAT_BOOL})(value)
+_CHAIN_SNAPSHOT = _seat_fields({"reference": _CHAIN_REFERENCE, "text": _SEAT_STRING, "digest": _seat_text,
+    "revision": _seat_text, "taskIds": _seat_array(_seat_text), "scopeEvidence": _seat_array(_CHAIN_SCOPE)})
+_CHAIN_STAFF = _seat_fields({"staffId": _seat_text, "seat": _seat_text, "taskIds": _seat_array(_seat_text),
+    "evidenceRef": _seat_text, "revision": _seat_text, "verifiedAt": _seat_text})
+_CHAIN_RESERVATION = _seat_fields({"reservationId": _seat_text, "sourceId": _seat_text, "sourceOwnerNodeId": _seat_text,
+    "ownerEpoch": _seat_text, "operationId": _seat_text, "taskIds": _seat_array(_seat_text), "snapshotDigest": _seat_text, "policyRevision": _seat_integer})
+_CHAIN_CONTEXT = _seat_fields({"snapshot": _CHAIN_SNAPSHOT, "staffBinding": _seat_optional(_CHAIN_STAFF),
+    "scopeReservation": _CHAIN_RESERVATION, "openingMode": _seat_choice("auto", "prefill")})
+_CHAIN_CALLBACK_PATH: _SeatCheck = lambda value: _seat_fields({"kind": _seat_choice("source"), "sourceId": _seat_text})(value) or _seat_fields({
+    "kind": _seat_choice("opening-context"), "reference": _CHAIN_REFERENCE, "operationId": _seat_text})(value)
+_CHAIN_ROUTE = _seat_fields({"sourceId": _seat_text, "sourceOwnerNodeId": _seat_text, "ownerEpoch": _seat_text,
+    "triggerId": _seat_nullable(_seat_text), "originalOperationId": _seat_text, "targetNodeId": _seat_text,
+    "snapshotDigest": _seat_text, "callbackPath": _CHAIN_CALLBACK_PATH, "modeCeiling": _seat_fields({"mode": _seat_choice("off", "remind", "auto"),
+        "policy": _seat_fields({"sourceId": _seat_text, "projectId": _seat_text, "revision": _seat_integer, "ruleId": _seat_optional(_seat_text)})})})
+_CHAIN_MODEL: _SeatCheck = lambda value: _seat_fields({"status": _seat_choice("present"), "provider": _seat_text, "model": _seat_text,
+    "kind": _seat_choice("request/header", "model/selection"), "sessionId": _seat_text, "nodeId": _seat_text, "recordRef": _seat_text,
+    "observedAt": _seat_text})(value) or _seat_fields({"status": _seat_choice("missing"), "sessionId": _seat_nullable(_seat_text),
+    "nodeId": _seat_text, "observedAt": _seat_text})(value)
 _SEAT_ENVELOPE = _seat_fields({"triggerId": _seat_text, "sourceId": _seat_text, "eventId": _seat_optional(_seat_text), "kind": _SEAT_TRIGGER_KIND, "evidence": _SEAT_EVIDENCE,
     "seat": _seat_text, "projectId": _seat_text, "receivedAt": _seat_text, "dataDigest": _seat_text, "data": _seat_json, "taskId": _seat_optional(_seat_text), "callbackRef": _seat_text,
-    "cause": _seat_optional(_seat_fields({"eventId": _seat_text, "depth": _seat_integer}))})
-_SEAT_PENDING = _seat_fields({"queueItemId": _seat_text, "seat": _seat_text, "projectId": _seat_text, "triggerKind": _SEAT_TRIGGER_KIND,
+    "cause": _seat_optional(_seat_fields({"eventId": _seat_text, "depth": _seat_integer})),
+    "openingContext": _seat_optional(_CHAIN_REFERENCE), "relatedTaskIds": _seat_optional(_seat_array(_seat_text))})
+_CHAIN_FROZEN_OPEN = _seat_fields({"definition": _seat_fields(_SEAT_DEFINITION), "title": _SEAT_STRING,
+    "openingMode": _seat_choice("auto", "prefill"), "recheckRequired": _seat_optional(lambda value: value is True),
+    "openingContext": _seat_optional(_CHAIN_SNAPSHOT), "nodeWorkChain": _seat_optional(lambda value: _CHAIN_ACCEPTED(value)),
+    "frozenOpening": _seat_optional(_seat_fields({"text": _SEAT_STRING, "digest": _seat_text,
+        "variables": _seat_fields({"seat": _seat_text, "date": _seat_text, "taskId": _seat_nullable(_seat_text)})}))})
+_SEAT_PENDING = _seat_fields({"frozenOpen": _seat_optional(_CHAIN_FROZEN_OPEN), "replacementId": _seat_optional(_seat_text), "queueItemId": _seat_text, "seat": _seat_text, "projectId": _seat_text, "triggerKind": _SEAT_TRIGGER_KIND,
     "action": _seat_choice("open", "wake-sender", "replace"), "handoffTimeout": _seat_optional(_seat_fields(_SEAT_HANDOFF)), "sequence": _seat_integer,
     "effectiveMode": _seat_choice("off", "remind", "auto"), "reason": _SEAT_REASON, "blockedBy": _seat_array(_seat_text), "sources": _seat_array(_SEAT_ENVELOPE),
     "relatedTaskIds": _seat_array(_seat_text), "queuedAt": _seat_text, "stateVersion": _seat_integer})
@@ -667,6 +724,79 @@ def _seat_result_matches(method: str, value: object) -> bool:
         return True
     except ValueError:
         return False
+
+
+_CHAIN_METHODS = ("engine.acceptFrozen", "seat.openFrozen", "seat.wakeFrozen", "source.prepareOpening",
+    "source.checkAdmission", "source.deliverCallback", "chain.operation")
+_CHAIN_KEY = _seat_fields({"sourceNodeId": _seat_text, "principalId": _seat_text, "sourceId": _seat_text,
+    "ownerEpoch": _seat_text, "method": _seat_choice(*_CHAIN_METHODS), "operationId": _seat_text, "callbackId": _seat_optional(_seat_text)})
+_CHAIN_ACCEPTED = _seat_fields({"capability": _seat_choice("node-work-chain/v1"), "route": _CHAIN_ROUTE,
+    "openingContext": _CHAIN_CONTEXT, "expectedSeatRevision": _seat_integer, "authorizationRef": _seat_text,
+    "payloadDigest": _seat_text, "operationKey": _CHAIN_KEY, "trigger": _seat_nullable(_SEAT_ENVELOPE)})
+_CHAIN_FROZEN = {"openingContext": _CHAIN_CONTEXT, "expectedSeatRevision": _seat_integer, "route": _CHAIN_ROUTE}
+_CHAIN_REJECTED = _seat_fields({"status": _seat_choice("rejected"), "error": _SEAT_FAILURE})
+_CHAIN_CALLBACK_BASE = {"callbackId": _seat_text, "sourceId": _seat_text, "triggerId": _seat_nullable(_seat_text),
+    "stateVersion": _seat_integer, "seat": _seat_text, "title": _seat_nullable(_SEAT_STRING), "sessionId": _seat_nullable(_seat_text),
+    "nodeId": _seat_text, "nodeName": _seat_text, "budget": _SEAT_BUDGET, "taskId": _seat_optional(_seat_text), "relatedTaskIds": _seat_array(_seat_text)}
+_CHAIN_BUDGET = _seat_fields({"sessionId": _seat_text, "seat": _seat_text, "currency": _seat_choice("USD"),
+    "costState": _seat_choice("known", "unknown"), "windowCost": _seat_nullable(_SEAT_MONEY), "dailyCost": _seat_nullable(_SEAT_MONEY),
+    "limits": _SEAT_BUDGET, "dayKey": _seat_text, "budgetTimeZone": _seat_text, "inFlightUnknown": _seat_integer, "watermark": _seat_integer, "budgetRevision": _seat_integer})
+_CHAIN_CALLBACK: _SeatCheck = lambda value: any(_seat_fields({**_CHAIN_CALLBACK_BASE, **variant})(value) for variant in (
+    {"kind": _seat_choice("opened"), "sessionId": _seat_text, "title": _SEAT_STRING},
+    {"kind": _seat_choice("opening-failed", "rejected"), "reason": _SEAT_FAILURE},
+    {"kind": _seat_choice("window-ended"), "reason": _seat_choice("manual", "self-report", "replaced", "owner-dead", "replacement-failed"),
+        "endedAt": _seat_text, "selfReport": _seat_nullable(_seat_fields(_SEAT_REPORT)), "selfReportStatus": _seat_choice("submitted", "not-submitted", "revoked"), "reportId": _seat_optional(_seat_text)},
+    {"kind": _seat_choice("budget-stopped"), "budgetSnapshot": _CHAIN_BUDGET},
+    {"kind": _seat_choice("replacement-failed"), "replacementId": _seat_text, "oldSessionId": _seat_text, "newSessionId": _seat_nullable(_seat_text),
+        "reason": _seat_choice("replacement-open-failed", "replacement-first-turn-failed", "replacement-cleanup-failed"), "cause": _SEAT_FAILURE, "cleanup": _seat_choice("not-created", "closed", "pending")},
+))
+_CHAIN_OPERATION = {"operationId": _seat_text, "nodeId": _seat_optional(_seat_text)}
+_CHAIN_OPEN = _seat_fields({**_CHAIN_OPERATION, "seat": lambda value: _chain_allowlist([value]), "origin": _seat_choice("manual", "remote", "engine"),
+    "taskId": _seat_optional(_seat_text), "openingMode": _seat_optional(_seat_choice("auto", "prefill")), "expectedSeatRevision": _seat_optional(_seat_integer),
+    "existingChoice": _seat_optional(lambda value: _seat_fields({"kind": _seat_choice("cancel")})(value)
+        or _seat_fields({"kind": _seat_choice("switch", "replace"), "sessionId": _seat_text})(value))})
+_CHAIN_WAKE = _seat_fields({**_CHAIN_OPERATION, "seat": lambda value: _chain_allowlist([value]), "sessionId": _seat_optional(_seat_text)})
+_CHAIN_REQUESTS = {
+    "engine.acceptFrozen": _seat_fields({**_CHAIN_FROZEN, "envelope": _SEAT_ENVELOPE}),
+    "seat.openFrozen": _seat_fields({**_CHAIN_FROZEN, "request": _CHAIN_OPEN}),
+    "seat.wakeFrozen": _seat_fields({**_CHAIN_FROZEN, "request": _CHAIN_WAKE}),
+    "source.prepareOpening": _seat_fields({"sourceId": _seat_text, "sourceOwnerNodeId": _seat_text, "ownerEpoch": _seat_text,
+        "reference": _CHAIN_REFERENCE, "seat": lambda value: _chain_allowlist([value]), "taskIds": _seat_array(_seat_text),
+        "operationId": _seat_text, "targetNodeId": _seat_text, "expectedSeatRevision": _seat_integer, "openingMode": _seat_choice("auto", "prefill")}),
+    "source.checkAdmission": _seat_fields({"scopeReservation": _CHAIN_RESERVATION, "route": _CHAIN_ROUTE,
+        "taskIds": _seat_array(_seat_text), "operationId": _seat_text, "executionNodeId": _seat_text}),
+    "source.deliverCallback": _seat_fields({"callback": _CHAIN_CALLBACK, "route": _CHAIN_ROUTE, "modelEvidence": _CHAIN_MODEL, "payloadDigest": _seat_text}),
+    "chain.operation": _seat_fields({"key": _CHAIN_KEY, "payloadDigest": _seat_text}),
+}
+_CHAIN_RESULTS: dict[str, _SeatCheck] = {
+    "engine.acceptFrozen": lambda value: _CHAIN_REJECTED(value) or _seat_fields({"status": _seat_choice("accepted", "coalesced"),
+        "triggerId": _seat_text, "queueItemId": _seat_text, "sequence": _seat_integer})(value)
+        or _seat_fields({"status": _seat_choice("duplicate"), "triggerId": _seat_text, "originalTriggerId": _seat_text, "queueItemId": _seat_nullable(_seat_text)})(value),
+    "seat.openFrozen": lambda value: _seat_result_matches("open", value),
+    "seat.wakeFrozen": lambda value: _seat_result_matches("wake", value),
+    "source.prepareOpening": lambda value: _CHAIN_REJECTED(value) or _seat_fields({"status": _seat_choice("prepared"), **_CHAIN_FROZEN})(value),
+    "source.checkAdmission": lambda value: _seat_fields({"status": _seat_choice("allowed"), "policyRevision": _seat_integer})(value)
+        or _seat_fields({"status": _seat_choice("denied", "unknown"), "policyRevision": _seat_nullable(_seat_integer), "error": _SEAT_FAILURE})(value),
+    "source.deliverCallback": lambda value: _CHAIN_REJECTED(value)
+        or _seat_fields({"status": _seat_choice("pending", "committed"), "callbackId": _seat_text, "payloadDigest": _seat_text})(value)
+        or _seat_fields({"status": _seat_choice("paused"), "callbackId": _seat_text, "payloadDigest": _seat_text, "error": _SEAT_FAILURE})(value),
+    "chain.operation": lambda value: _CHAIN_REJECTED(value) or _seat_fields({"status": _seat_choice("missing")})(value)
+        or _seat_fields({"status": _seat_choice("pending"), "effectState": _seat_choice("none", "unknown")})(value)
+        or (_seat_fields({"status": _seat_choice("settled"), "method": _seat_choice(*_CHAIN_METHODS[:-1]), "result": lambda item: isinstance(item, dict)})(value)
+            and _CHAIN_RESULTS[value["method"]](value["result"])),
+}
+
+
+def validate_node_work_chain_request(method: str, value: object) -> None:
+    """Validate closed chain payloads without granting transport or execution authority."""
+    if method not in _CHAIN_REQUESTS or not _CHAIN_REQUESTS[method](value):
+        raise ValueError("invalid chain request")
+
+
+def validate_node_work_chain_result(method: str, value: object) -> None:
+    """Validate the complete result, retaining original bytes and method association."""
+    if method not in _CHAIN_RESULTS or not _CHAIN_RESULTS[method](value):
+        raise ValueError("invalid chain result")
 
 
 class SeatBindingRequest(BaseModel):
@@ -832,8 +962,49 @@ class ListSeatsRequest(SeatRequest):
     cursor: _MessageText | None = None
 
 
+class SeatRemoteAdmission(BaseModel):
+    """Explicit remote opening permission, never an implicit renewal grant."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+    allowOpen: Literal[True]
+    sourceNodeIds: list[str]
+    sourceIds: list[str]
+    principalIds: list[str]
+    methods: list[Literal["engine.acceptFrozen", "seat.openFrozen", "seat.wakeFrozen"]]
+    policyRevision: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def _permission(cls, value: object) -> object:
+        if not _CHAIN_REMOTE_ADMISSION(value):
+            raise ValueError("invalid remote admission")
+        return value
+
+
+class SeatFailureCause(BaseModel):
+    """Sanitized original refusal; unknown effects and original codes remain intact."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+    domain: str
+    code: str
+    reason: str
+    effectState: Literal["none", "committed", "partial", "unknown"]
+    retryable: bool
+    operationId: _MessageText
+    nodeId: _MessageText
+    reasonCode: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _diagnostic(cls, value: object) -> object:
+        if not _SEAT_FAILURE_CAUSE(value):
+            raise ValueError("invalid refusal cause")
+        return value
+
+
 class SeatFailure(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
+    cause: SeatFailureCause | None = None
     code: _MessageText
     message: _MessageText
     alternative: _MessageText

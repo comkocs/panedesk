@@ -2,13 +2,16 @@
 import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
   SEAT_ENGINE_EVENT_NAMES, SEAT_ENGINE_NAMESPACE, SEAT_ENGINE_SCHEMA_VERSION,
-  SEAT_ERROR_CODES, SEAT_GATE_HOOKS,
+  SEAT_ERROR_CODES, SEAT_GATE_HOOKS, NODE_WORK_CHAIN_CAPABILITY, NODE_WORK_CHAIN_METHODS,
+  NODE_WORK_CHAIN_REASON_CODES, NODE_WORK_CHAIN_MAX_FRAME_BYTES, NODE_WORK_CHAIN_MAX_CODE_BYTES, NODE_WORK_CHAIN_MAX_REASON_BYTES,
   SEAT_AUTHORIZATION_EVENT_NAME, SEAT_AUTHORIZATION_CAPABILITY, SEAT_AUTHORIZATION_KINDS,
 } from '../src/index.ts'
 import type {
   EngineEffect, EngineEventKind, GateContext, GateHook, GateResult, OpenSeatResult,
   ReplaceSeatResult, ResourceReleaseReason, SeatCallbackPayload, SeatErrorCode,
-  TaskScopeBatchGateContext, TaskScopeGateDecision,
+  TaskScopeBatchGateContext, TaskScopeGateDecision, NodeWorkChainMethod, NodeWorkChainReasonCode,
+  SeatService, SeatEngineService, SeatOpeningContexts, NodeWorkChainAcceptedData, SeatFrozenOpen,
+  SeatCallbackDelivery, DeliverSourceCallbackRequest,
 } from '../src/index.ts'
 
 const errorCodes = [
@@ -66,6 +69,22 @@ function isRelease(effect: EngineEffect): effect is Extract<EngineEffect, { kind
 }
 
 describe('seat declarations', () => {
+  it('pins opt-in chain names and optional consumer hooks without widening legacy effects', () => {
+    expect(NODE_WORK_CHAIN_CAPABILITY).toBe('node-work-chain/v1')
+    expect(NODE_WORK_CHAIN_METHODS).toHaveLength(7)
+    expect(new Set(NODE_WORK_CHAIN_METHODS).size).toBe(7)
+    expectTypeOf<typeof NODE_WORK_CHAIN_METHODS[number]>().toEqualTypeOf<NodeWorkChainMethod>()
+    expectTypeOf<typeof NODE_WORK_CHAIN_REASON_CODES[number]>().toEqualTypeOf<NodeWorkChainReasonCode>()
+    expect([NODE_WORK_CHAIN_MAX_FRAME_BYTES, NODE_WORK_CHAIN_MAX_CODE_BYTES, NODE_WORK_CHAIN_MAX_REASON_BYTES])
+      .toEqual([1_048_576, 128, 512])
+    expectTypeOf<SeatService['openFrozen']>().toBeNullable()
+    expectTypeOf<SeatEngineService['acceptFrozen']>().toBeNullable()
+    expectTypeOf<SeatOpeningContexts['prepare']>().toBeNullable()
+    expectTypeOf<SeatFrozenOpen['nodeWorkChain']>().toEqualTypeOf<NodeWorkChainAcceptedData | undefined>()
+    expectTypeOf<SeatCallbackDelivery['nodeWorkChain']>().toEqualTypeOf<DeliverSourceCallbackRequest | undefined>()
+    expect(Object.keys(SEAT_ENGINE_EVENT_NAMES)).not.toContain('node-route/accepted')
+  })
+
   it('carries unknown scope into whole-batch refusal with a serial alternative', () => {
     type Evidence = TaskScopeBatchGateContext['tasks'][number]['scopeEvidence']
     expectTypeOf<Extract<Evidence, { status: 'unknown' }>['alternative']>().toEqualTypeOf<'serial'>()
