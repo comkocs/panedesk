@@ -1,6 +1,6 @@
 /** Administration combines redacted effects with the independent issued-authorization projection. */
 import type * as Seat from '@panedesk/dsh-seat'
-import { redact } from '@panedesk/dsh-seat-engine/src/query.ts'
+import { redact } from '@panedesk/dsh-seat-engine'
 import type { HostAdminQueryRequest, HostAdminQueryResult } from './index.ts'
 
 /** Read bounded pages without treating legacy effects as complete authorization history.
