@@ -60,6 +60,65 @@ test('waits for a late active Windows node factory before reading directional cr
   expect(f.unlock).toHaveBeenCalledTimes(1)
 })
 
+test.each(['factory-first', 'composition-first', 'replacement-failure'])('replaces a waiting Windows attachment after provider activation: %s', async (order) => {
+  const { ctx, logs } = context(), f = fixture(), fiber = start(ctx)
+  if (order === 'replacement-failure') f.prepare.mockRejectedValue(new Error('Private ACL rights rejected'))
+  await vi.waitFor(() => {
+    expect([...ctx.registry.values()].some(entry => entry.name === 'node-link-attachment'
+      && [...entry.fibers].some(child => child.state === FiberState.LOADING))).toBe(true)
+  })
+  const services: NodeLink.ChainServices = { maxControlPending: 2,
+    policy: { ready: async () => {}, expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 },
+      authorize: async () => { throw new Error('Unexpected authorization') } },
+    local: { methods: [], ready: async () => {} } }
+  const provider = ctx.plugin((owner) => {
+    if (order === 'factory-first') owner.provide('nodeLinkFiles', f.factory)
+    owner.provide('nodeWorkChain', services)
+    if (order !== 'factory-first') owner.provide('nodeLinkFiles', f.factory)
+  })
+  await provider
+  let failure: unknown
+  try { await fiber } catch (error) { failure = error }
+  if (order === 'replacement-failure') {
+    expect(failure instanceof Error ? failure.message : failure).toBe('Private ACL rights rejected')
+    expect(fiber.state).toBe(FiberState.FAILED)
+    expect(ctx.get('nodeRouter')).toBeUndefined()
+    expect(logs.some(line => line.includes('Private ACL rights rejected'))).toBe(true)
+    expect(logs.some(line => line.includes('inactive context'))).toBe(false)
+    return
+  }
+  expect(failure instanceof Error ? failure.message : failure).toBeUndefined()
+  expect(fiber.state).toBe(FiberState.ACTIVE)
+  expect(ctx.get('nodeRouter')).toBeDefined()
+  expect(ctx.get('nodeWorkChainRouter')).toBeDefined()
+  expect(logs).toEqual([])
+  await fiber.dispose()
+  expect(ctx.get('nodeRouter')).toBeUndefined()
+  expect(ctx.get('nodeWorkChainRouter')).toBeUndefined()
+})
+
+test('drains a disposed Windows attachment before replacing its prepared resources', async () => {
+  const { ctx, logs } = context(), f = fixture()
+  let release!: () => void
+  const preparing = new Promise<void>((resolve) => { release = resolve })
+  f.prepare.mockImplementationOnce(() => preparing)
+  ctx.provide('nodeLinkFiles', f.factory)
+  const fiber = start(ctx)
+  await vi.waitFor(() => { expect(f.prepare).toHaveBeenCalledTimes(1) })
+  ctx.provide('nodeWorkChain', { maxControlPending: 2,
+    policy: { ready: async () => {}, expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 },
+      authorize: async () => { throw new Error('Unexpected authorization') } },
+    local: { methods: [], ready: async () => {} } })
+  release()
+  await fiber
+  expect(ctx.get('nodeRouter')).toBeDefined()
+  expect(ctx.get('nodeWorkChainRouter')).toBeDefined()
+  expect(f.unlock).toHaveBeenCalledTimes(1)
+  expect(logs).toEqual([])
+  await fiber.dispose()
+  expect(f.unlock).toHaveBeenCalledTimes(2)
+})
+
 test('fails visibly when the Windows node private-file factory is missing', async () => {
   const { ctx, logs } = context(), fiber = start(ctx)
   await expect(fiber.await()).rejects.toThrow('nodeLinkFiles unavailable')

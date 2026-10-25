@@ -90,6 +90,25 @@ test('waits for a late active Windows factory before publishing ACL-protected en
   expect(await fs.readdir(f.mapped('C:\\private'))).toEqual([])
 })
 
+test.each(['missing', 'factory', 'preparation'])('abandons disposed Windows administration during %s startup', async (stage) => {
+  const f = await fixture(), { ctx, logs } = context()
+  let release!: () => void
+  const waiting = new Promise<void>((resolve) => { release = resolve })
+  const prepare = f.files.prepare.bind(f.files)
+  const preparing = vi.spyOn(f.files, 'prepare').mockImplementation(async () => { await waiting; await prepare() })
+  const fiber = start(ctx)
+  await vi.waitFor(() => { expect(fiber.state).toBe(FiberState.LOADING) })
+  if (stage !== 'missing') ctx.provide('hostAdminFiles', () => f.files)
+  if (stage === 'preparation') await vi.waitFor(() => { expect(preparing).toHaveBeenCalled() })
+  const closing = fiber.dispose()
+  release()
+  await closing
+  expect(ctx.get('hostAdmin')).toBeUndefined()
+  expect(ctx.get('hostSessionCredentials')).toBeUndefined()
+  expect(logs).toEqual([])
+  if (stage === 'preparation') expect(await fs.readdir(f.mapped('C:\\private'))).toEqual([])
+})
+
 test('fails visibly when the Windows private-file factory is missing', async () => {
   const { ctx, logs } = context(), fiber = start(ctx)
   await expect(fiber.await()).rejects.toThrow('hostAdminFiles unavailable')

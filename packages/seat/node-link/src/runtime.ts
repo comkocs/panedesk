@@ -1,7 +1,7 @@
 /** Paired optional transport owns every listener, child, epoch and operation store. */
 import { join } from 'node:path'
-import type { Context } from '@panedesk/cordis'
-import { PosixPrivateFiles, waitForPrivateFiles, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
+import { FiberState, type Context } from '@panedesk/cordis'
+import { PosixPrivateFiles, waitForPrivateFiles, PrivateFilesWaitCancelled, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
 import { NODE_LINK_VERSION, type Config } from './index.ts'
 import { loadCredential } from './credentials.ts'
 import { NodeReceiver } from './receiver.ts'
@@ -26,8 +26,13 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
   if (!identifier(options.nodeId) || !identifier(options.peerNodeId) || options.nodeId === options.peerNodeId) {
     throw new Error('Node identities rejected')
   }
+  const inactive = () => windows && (ctx.fiber.uid === null || ctx.fiber.state === FiberState.UNLOADING)
   const windowsFactory = windows
-    ? await waitForPrivateFiles(ctx, 'nodeLinkFiles', options.requestTimeoutMs, () => ctx.get('nodeLinkFiles')) : undefined
+    ? await waitForPrivateFiles(ctx, 'nodeLinkFiles', options.requestTimeoutMs, () => ctx.get('nodeLinkFiles')).catch((error: unknown) => {
+      if (error instanceof PrivateFilesWaitCancelled) return undefined
+      throw error
+    }) : undefined
+  if (inactive()) return async () => {}
   const privateFiles = windowsFactory ?? ((directory: string) => ctx.get('nodeLinkFiles')?.(directory)
     ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
   const files = privateFiles(options.directory)
@@ -63,6 +68,7 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
       throw new Error('Directional credentials must differ')
     }
     await store.load(); await outgoing.load()
+    if (inactive()) return
     let credentialsReady = true
     const services = ctx.get('nodeWorkChain'), business = ctx.get('nodeWorkChainBusiness')
     if (services !== undefined) {
@@ -133,8 +139,10 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
       tunnel = new SshTunnel(subprocess, options, listener.port, () => router?.disconnect())
       await tunnel.start()
     }
+    if (inactive()) return
     ctx.provide('nodeRouter', router)
     await router.handshake()
+    if (inactive()) return
     const poll = (): void => {
       if (stopped || router === undefined) return
       const activeRouter = router

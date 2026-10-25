@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "windows-startup-fiber-cancellation",
+      "description": "Abandon disposed Windows startup contexts and await replacement node attachments.",
+      "origin": "Optional host administration and node transport",
+      "reason": "Provider activation can replace a waiting attachment before its asynchronous startup publishes services.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/startup.spec.ts"],
+        "test": "replaces a waiting Windows attachment after provider activation: %s"
+      }
+    },
+    {
       "id": "windows-private-files-startup",
       "description": "Wait for active Windows private-file factories and propagate startup refusals through Cordis.",
       "origin": "Optional host administration and node transport",

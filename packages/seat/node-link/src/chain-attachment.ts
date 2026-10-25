@@ -1,12 +1,12 @@
 /** Optional composition changes drain the previous transport before acquiring its directories again. */
-import type { Context, Fiber } from '@panedesk/cordis'
+import { FiberState, type Context, type Fiber } from '@panedesk/cordis'
 import type { Config } from './index.ts'
 import { mountNode } from './runtime.ts'
 
 /** Track late installation, replacement and withdrawal without retaining stale service providers.
  * @param ctx - Owning plugin lifecycle and optional service store.
  * @param config - Explicit transport configuration, or an inert empty configuration.
- * @param awaitStartup - Windows startup waits for initial activation and propagates its failure.
+ * @param awaitStartup - Windows startup follows replacement attachments until activation and propagates failure.
  * @returns Owned disposer, or its startup promise when activation must be observed.
  */
 export function mountChangingNode(ctx: Context, config: Config, awaitStartup = false):
@@ -25,6 +25,7 @@ export function mountChangingNode(ctx: Context, config: Config, awaitStartup = f
     serial = serial.then(async () => {
       await closing
       if (stopped || wanted !== revision) return
+      if (awaitStartup && (ctx.fiber.uid === null || ctx.fiber.state === FiberState.UNLOADING)) return
       const fiber = ctx.plugin({ name: 'node-link-attachment', apply(owner: Context) {
         const startup = owner.effect(() => mountNode(owner, config, awaitStartup || process.platform === 'win32'))
         if (awaitStartup) return Promise.resolve(startup)
@@ -52,7 +53,12 @@ export function mountChangingNode(ctx: Context, config: Config, awaitStartup = f
     await closing
   }
   if (!awaitStartup) return dispose
-  return serial.then(() => dispose, async (error: unknown) => {
+  const startup = async () => {
+    let pending: Promise<void>
+    do { pending = serial; await pending } while (pending !== serial)
+    return dispose
+  }
+  return startup().catch(async (error: unknown) => {
     stopped = true
     unwatch()
     await active?.dispose()
