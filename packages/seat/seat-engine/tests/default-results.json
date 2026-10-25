@@ -1,0 +1,4 @@
+{
+  "accepted": "{\"status\":\"accepted\",\"triggerId\":\"event-a\",\"queueItemId\":\"00000000-0000-4000-8000-000000000001\",\"sequence\":1}",
+  "rejected": "{\"status\":\"rejected\",\"error\":{\"code\":\"cross-node-unsupported\",\"message\":\"The seat belongs to another node\",\"alternative\":\"Inspect engine state and retry with the same operation identity.\",\"retryable\":false,\"effectState\":\"none\"}}"
+}

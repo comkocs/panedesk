@@ -15,28 +15,37 @@ export function installFrozenBusiness(ctx: Context, engine: SeatEngine): void {
     const registry = child.get('nodeWorkChainBusiness')
     if (!registry) return
     child.effect(() => {
+      const lifecycle = new AbortController(), pending = new Set<Promise<T.NodeWorkChainOperationResult>>()
       let recovered = false
       let recovery: Promise<void> | undefined
-      const provider: T.NodeWorkChainBusinessProvider = { methods: ['engine.acceptFrozen'], ready: () => {
-        recovery ??= engine.ready().then(async () => {
-          await registry.ready(['seat.openFrozen', 'seat.wakeFrozen'])
-          recovered = true
-        })
-        return recovery
-      },
-      query: async (request, context) => {
-        if (!recovered) return { status: 'pending', effectState: 'unknown' }
+      const query = async (request: T.NodeWorkChainOperationRequest,
+        context: T.SeatCallContext): Promise<T.NodeWorkChainOperationResult> => {
         const grant = context.authorization, fact = grant?.fact
         if (!grant || !fact || fact.kind !== 'node-delegation' || !fact.sourceNodeId
-            || request.key.method !== 'engine.acceptFrozen' || fact.sourceNodeId !== request.key.sourceNodeId
-            || fact.principalId !== request.key.principalId || context.principalId !== fact.principalId) {
+          || request.key.method !== 'engine.acceptFrozen' || fact.sourceNodeId !== request.key.sourceNodeId
+          || fact.principalId !== request.key.principalId || context.principalId !== fact.principalId) {
           return rejected('unauthorized', 'Frozen query attribution does not match')
         }
         const refusal = await engine.authorizations.validate({ operationId: fact.operationId, requestDigest: digest(request),
           ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
         return refusal ?? structuredClone(queryFrozen(engine.journal.projection, request))
+      }
+      const provider: T.NodeWorkChainBusinessProvider = { methods: ['engine.acceptFrozen'], ready: () => {
+        recovery ??= engine.ready().then(async () => {
+          await registry.ready(['seat.openFrozen', 'seat.wakeFrozen'])
+          recovered = !lifecycle.signal.aborted
+        })
+        return recovery
+      },
+      query: (request, context) => {
+        if (lifecycle.signal.aborted) return Promise.resolve(rejected('unavailable', 'Frozen query provider was revoked'))
+        if (!recovered) return Promise.resolve({ status: 'pending', effectState: 'unknown' })
+        const work = query(request, context)
+        pending.add(work)
+        return work.finally(() => pending.delete(work))
       } }
-      return registry.register(provider)
+      const unregister = registry.register(provider)
+      return async () => { lifecycle.abort(); unregister(); await Promise.allSettled([...pending]) }
     })
   })
 }
