@@ -39,6 +39,8 @@ test('loads opt-in administration, authenticates five methods and disposes crede
         approvals++
         return { ...common, method: request.method, status: 'ok', result: { status: 'approved',
           queueItemId: request.params.queueItemId, stateVersion: request.params.expectedStateVersion + 1 } }
+      case 'engine.cancel': return { ...common, method: request.method, status: 'ok', result: { status: 'cancelled',
+        queueItemId: request.params.queueItemId, stateVersion: request.params.expectedStateVersion + 1 } }
       case 'engine.operation': return { ...common, method: request.method, status: 'ok', result: { status: 'missing' } }
       case 'engine.query': return { ...common, method: request.method, status: 'ok', result: { effects: [], complete: true, watermark: 1 } }
     }

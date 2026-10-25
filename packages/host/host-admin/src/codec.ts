@@ -22,6 +22,7 @@ export function decodeRequest(value: unknown): HostAdminRequest {
     case 'node.status': decodeSeatRequest('seats/nodeStatus', value.params); break
     case 'engine.pending': decodeSeatRequest('seats/pending', value.params); break
     case 'engine.approve': decodeSeatRequest('seats/approve', value.params); break
+    case 'engine.cancel': decodeSeatRequest('seats/cancel', value.params); break
     case 'engine.operation': decodeSeatRequest('seats/operation', value.params); break
     case 'engine.query': {
       const params = value.params
@@ -65,6 +66,7 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       else decodeSeatResult('seats/pending', value.result)
       break
     case 'engine.approve': decodeSeatResult('seats/approve', value.result); break
+    case 'engine.cancel': decodeSeatResult('seats/cancel', value.result); break
     case 'engine.operation':
       decodeSeatResult('seats/operation', value.result)
       if (object(value.result)) validateProgress(value.result)

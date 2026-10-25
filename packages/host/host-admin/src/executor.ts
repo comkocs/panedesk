@@ -14,7 +14,7 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
     code: 'admin-unauthorized', reason: 'Administration authority rejected' })
   return { execute: async (request, authority) => {
     if (!authority.methods.includes(request.method)
-      || (request.method === 'engine.approve' && authority.kind !== 'local-operator')) return refuse(request)
+      || ((request.method === 'engine.approve' || request.method === 'engine.cancel') && authority.kind !== 'local-operator')) return refuse(request)
     const issuer = await dependencies.policy.authorize(request, authority)
     if ('status' in issuer) return refuse(request)
     const base = { version: HOST_ADMIN_VERSION, requestId: request.requestId, status: 'ok' as const }
@@ -30,6 +30,7 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
           result: await dependencies.authorization.operation(request.params) }
         return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
           status: 'unavailable', code: 'admin-method-unavailable', reason: 'Local operation projection is unavailable' }
+      case 'engine.cancel':
       case 'engine.approve': {
         const grant = await issuer.check({ operationId: request.params.operationId,
           requestDigest: digest(request.params) as import('@panedesk/dsh-seat').SeatDigest })
@@ -38,6 +39,8 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
         if (fact.kind !== 'local-operator' || fact.nodeId !== dependencies.nodeId
           || fact.principalId !== authority.principalId || fact.operationId !== request.params.operationId
           || fact.requestDigest !== digest(request.params)) return refuse(request)
+        if (request.method === 'engine.cancel') return { ...base, method: request.method,
+          result: await dependencies.engine.cancel(request.params) }
         return { ...base, method: request.method, result: await dependencies.authorization.approve(request.params, grant) }
       }
     }

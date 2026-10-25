@@ -22,7 +22,7 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
   const executor = createHostAdminExecutor({ nodeId, engine, authorization, queries, policy: {
     authorize: async () => {
       let pending: Seat.PendingSeatItem | undefined
-      if (request.method === 'engine.approve') {
+      if (request.method === 'engine.approve' || request.method === 'engine.cancel') {
         let cursor: Seat.EngineCursor | undefined
         do {
           const page = await engine.pending({ limit, ...(cursor ? { cursor } : {}) })
@@ -30,7 +30,7 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
           if (pending || page.complete || !page.nextCursor) break
           cursor = page.nextCursor
         } while (current())
-        if (!pending) return { status: 'rejected', error: { code: 'unauthorized', message: 'Approval target is unavailable',
+        if (!pending && request.method === 'engine.approve') return { status: 'rejected', error: { code: 'unauthorized', message: 'Approval target is unavailable',
           alternative: 'Query the durable operation before retrying', effectState: 'none', retryable: false } }
       }
       registration = issuers.register({ identity: { kind: 'local-operator', principalId: authority.principalId,
