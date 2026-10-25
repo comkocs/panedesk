@@ -290,7 +290,9 @@ export class LocalSeatService extends SeatService {
   ): Promise<T.OpenSeatResult> {
     const scoped = this.withAuthority(authority) as LocalSeatService
     const { openingContext: _reference, relatedTaskIds: _tasks, ...base } = request
-    return scoped.openResolved(base, { request, resolve })
+    const engine = this.engine()
+    return (engine instanceof SeatEngine ? engine.routeSource('seat.openFrozen', request, authority) : Promise.resolve(undefined))
+      .then(routed => routed ?? scoped.openResolved(base, { request, resolve }))
   }
   private async openResolved(request: T.OpenSeatRequest, context?: {
     request: T.OpenSeatWithContextRequest
@@ -549,10 +551,19 @@ export class LocalSeatService extends SeatService {
     if (this.caller().authorization) return rejected('unavailable', 'Atomic title authorization is unavailable.', 'Use a supported local entry.')
     return await this.guard(request.nodeId, request.operationId) ?? this.runtime.rename(request)
   }
-  /** Keep context fallback inside the existing wake admission and window selection.
+  /** Route source context before entering local wake admission.
+   * @param request - Complete original wake context.
+   * @param authority - Captured local entry grant.
+   * @returns Remote outcome, or absence when source routing is not installed or not needed.
+   */
+  routeWakeWithContext(request: T.WakeSeatWithContextRequest, authority: T.SeatCallContext): Promise<T.WakeSeatResult | undefined> {
+    const engine = this.engine()
+    return engine instanceof SeatEngine ? engine.routeSource('seat.wakeFrozen', request, authority) : Promise.resolve(undefined)
+  }
+  /** Keep context fallback inside existing local wake admission.
    * @param request - Original wake target.
    * @param authority - Host-authenticated identity.
-   * @param open - Registry-owned fallback for a missing window.
+   * @param open - Registry-owned missing-window fallback.
    * @returns Existing wake result or trusted opening result.
    */
   wakeWithContext(request: T.WakeSeatRequest, authority: T.SeatCallContext,

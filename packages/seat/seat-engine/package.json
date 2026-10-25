@@ -45,6 +45,7 @@
     "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-sdk-protocol": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",

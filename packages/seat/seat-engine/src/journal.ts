@@ -166,9 +166,10 @@ export class EngineJournal {
         decisionId: metadata?.decisionId ?? randomUUID() as EngineDecisionId,
         sequence: this.projection.sequence + 1, observedAt: metadata?.observedAt ?? new Date().toISOString(),
         nodeId: this.nodeId, policyRevision, effects,
-        ...(effects.some(effect => effect.kind === 'node-route/accepted' || effect.kind === 'node-batch/accepted')
+        ...(effects.some(effect => effect.kind === 'node-route/accepted' || effect.kind === 'node-batch/accepted' || effect.kind === 'node-source/updated')
           ? { requiredCapabilities: ['node-work-chain/v1'] as const } : {}) })
-      if (metadata || decision.effects.some(effect => effect.kind === 'authorization/checked' || effect.kind === 'node-route/accepted')) {
+      if (metadata || decision.effects.some(effect => effect.kind === 'authorization/checked' || effect.kind === 'node-route/accepted'
+        || effect.kind === 'node-source/updated')) {
         decodeAuthorizationFrame(canonical(decision), this.maxBytes)
       }
       this.projection.validateAuthorization(decision)
