@@ -1355,6 +1355,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'hostAdminSourceOperator',
+    summary: 'Optional local source owner; absence never starts another engine or delivery path.',
+    description: 'Optional local source owner; absence never starts another engine or delivery path.',
+    methods: [
+      {
+        signature: 'list(params: { limit?: number }): Promise<{ items: SourceOperatorItem[] }>',
+        description: 'List source work without changing its state.',
+        parameters: [{ name: 'params', description: 'Optional page limit from 1 through 200.' }],
+        returns: 'At most 200 provider items, preserving their full keys.',
+      },
+      {
+        signature: 'abandon(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>',
+        description: 'Delegate abandonment to the source owner after exact-operation authorization.',
+        parameters: [{ name: 'params', description: 'Operation identity, original key and bounded reason.' }, { name: 'grant', description: 'Original local-operator grant, including audit attribution.' }],
+        returns: 'Provider result after its audit and release decisions.',
+      },
+      {
+        signature: 'resend?(params: SourceOperatorWriteParams, grant: HostAdminGrant): Promise<SourceOperatorResult>',
+        description: 'Delegate directed resend when the source owner supplies this capability.',
+        parameters: [{ name: 'params', description: 'Operation identity, original key and bounded reason.' }, { name: 'grant', description: 'Original local-operator grant, including audit attribution.' }],
+        returns: 'Provider result after its admission and generation decisions.',
+      },
+    ],
+  },
+  {
     key: 'hostSdkInvoker',
     summary: 'The SDK registry provider supplies this optional adapter without starting stdio.',
     description: 'The SDK registry provider supplies this optional adapter without starting stdio.',
@@ -7800,8 +7825,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface HostAdminEndpoint {\n    nodeId: Seat.SeatNodeId;\n    pid: number;\n    processEpoch: Branded<\'HostProcessEpoch\'>;\n    version: typeof HOST_ADMIN_VERSION;\n    credentialRef: Branded<\'HostAdminCredentialRef\'>;\n}',
   },
   {
+    name: 'HostAdminGrant',
+    declaration: 'export type HostAdminGrant = SeatAuthorizationGrant;',
+  },
+  {
     name: 'HostAdminMethods',
-    declaration: 'export interface HostAdminMethods {\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
+    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
   },
   {
     name: 'HostAdminQueryRequest',
@@ -11182,6 +11211,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SourceEventId',
     declaration: 'export type SourceEventId = Branded<\'SeatSourceEventId\'>;',
+  },
+  {
+    name: 'SourceOperatorItem',
+    declaration: 'export interface SourceOperatorItem {\n    key: string;\n    state: \'awaiting-manual\' | \'parked-none\';\n    eventId: string;\n    target: string;\n    since: string;\n    ticket?: string;\n    detail?: string;\n}',
+  },
+  {
+    name: 'SourceOperatorResult',
+    declaration: 'export interface SourceOperatorResult {\n    status: \'ok\' | \'rejected\';\n    code?: string;\n    reason?: string;\n    generation?: number;\n}',
+  },
+  {
+    name: 'SourceOperatorWriteParams',
+    declaration: 'export interface SourceOperatorWriteParams {\n    operationId: string;\n    key: string;\n    reason: string;\n}',
   },
   {
     name: 'SpawnTeammateRequest',

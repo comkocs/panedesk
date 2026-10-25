@@ -19,7 +19,9 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
   const issuers = ctx.get('seatAuthorizationIssuers'), queries = ctx.get('seatAuthorizationQueries')
   if (!engine || !authorization || !issuers || !queries) return null
   let registration: ReturnType<Seat.SeatAuthorizationIssuers['register']> | undefined
-  const executor = createHostAdminExecutor({ nodeId, engine, authorization, queries, policy: {
+  const sourceOperator = ctx.get('hostAdminSourceOperator')
+  const optional = sourceOperator ? { sourceOperator } : {}
+  const executor = createHostAdminExecutor({ nodeId, engine, authorization, queries, ...optional, policy: {
     authorize: async () => {
       let pending: Seat.PendingSeatItem | undefined
       if (request.method === 'engine.approve' || request.method === 'engine.cancel') {

@@ -167,6 +167,10 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['host-admin'], note: 'Deployment providers own authorization journaling and local execution; absent providers reject writes.',
   },
   {
+    key: 'hostAdminSourceOperator', pkg: 'host-admin', title: 'Optional source operator actions', mode: 'seam',
+    consumers: ['host-admin'], note: 'Source owners list work and receive exact local-operator grants for abandonment or resend.',
+  },
+  {
     key: 'hostSdkInvoker', pkg: 'host-admin', title: 'Running-host SDK namespace invocation', mode: 'seam',
     implementations: ['sdk-jsonrpc-server'], consumers: ['host-admin'],
     note: 'Invokes registered namespaces with host-issued identity and revocation signals without starting stdio.',

@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "host-admin-source-operator",
+      "description": "Delegate bounded source administration to an optional local source owner.",
+      "origin": "Optional host administration",
+      "reason": "Source abandonment and resend require exact local-operator grants without extending session or node-delegation authority.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/source-operator.spec.ts"],
+        "test": "%s requires every grant binding and passes the original grant"
+      }
+    },
+    {
       "id": "windows-startup-fiber-cancellation",
       "description": "Abandon disposed Windows startup contexts and await replacement node attachments.",
       "origin": "Optional host administration and node transport",

@@ -27,6 +27,7 @@ flowchart LR
   svc_routedDeliveryVerifier["ctx.routedDeliveryVerifier<br/>Exact routed delivery verification"]
   svc_hostAdmin["ctx.hostAdmin<br/>Opt-in loopback host administration"]
   svc_hostAdminExecutor["ctx.hostAdminExecutor<br/>Authorized host administration execution"]
+  svc_hostAdminSourceOperator["ctx.hostAdminSourceOperator<br/>Optional source operator actions"]
   svc_hostSdkInvoker["ctx.hostSdkInvoker<br/>Running-host SDK namespace invocation"]
   pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   svc_hostSessionCredentials["ctx.hostSessionCredentials<br/>Session-bound host credential issuance"]
@@ -422,6 +423,7 @@ flowchart LR
   pkg_hmr --> svc_hmr
   pkg_host_admin --> svc_hostAdmin
   pkg_host_admin --> svc_hostAdminExecutor
+  pkg_host_admin --> svc_hostAdminSourceOperator
   pkg_host_admin --> svc_hostSdkInvoker
   pkg_host_admin --> svc_hostSessionCredentials
   pkg_host_directory_picker --> svc_directoryPicker
@@ -620,6 +622,7 @@ flowchart LR
   svc_fs --> pkg_tool_fs
   svc_hmr --> pkg_app_boot
   svc_hostAdminExecutor --> pkg_host_admin
+  svc_hostAdminSourceOperator --> pkg_host_admin
   svc_hostSdkInvoker --> pkg_host_admin
   svc_hostSessionCredentials --> pkg_seat_local
   svc_instructionSubscriptions --> pkg_seat_local
@@ -808,6 +811,7 @@ flowchart LR
 | `ctx.routedDeliveryVerifier` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | Checks host-owned envelope capabilities rather than wire authority claims. |
 | `ctx.hostAdmin` | `service` | [`host-admin`](../packages/host/host-admin) | - | - | - | Dispatches fixed authenticated requests against an existing host without starting another engine. |
 | `ctx.hostAdminExecutor` | `seam` | [`host-admin`](../packages/host/host-admin) | - | [`host-admin`](../packages/host/host-admin) | - | Deployment providers own authorization journaling and local execution; absent providers reject writes. |
+| `ctx.hostAdminSourceOperator` | `seam` | [`host-admin`](../packages/host/host-admin) | - | [`host-admin`](../packages/host/host-admin) | - | Source owners list work and receive exact local-operator grants for abandonment or resend. |
 | `ctx.hostSdkInvoker` | `seam` | [`host-admin`](../packages/host/host-admin) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`host-admin`](../packages/host/host-admin) | - | Invokes registered namespaces with host-issued identity and revocation signals without starting stdio. |
 | `ctx.hostSessionCredentials` | `service` | [`host-admin`](../packages/host/host-admin) | - | [`seat-local`](../packages/seat/seat-local) | - | Publishes owner-only credential paths and revokes bindings on replacement, archive and disposal. |
 | `ctx.nodeLinkExecutor` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Deployment providers authenticate delegation and execute locally without forwarding again. |
