@@ -1,5 +1,5 @@
 /** Work-chain sending negotiates explicit capabilities and never blindly replays intent. */
-import { callLoopback } from '@panedesk/dsh-host-admin'
+import { callLoopback, LoopbackConnectionError } from '@panedesk/dsh-host-admin'
 import { randomUUID } from 'node:crypto'
 import type { SeatAuthorizationGrant, SeatAuthorizationIssuer } from '@panedesk/dsh-seat'
 import { ChainRetainedEvidence, matchesChainGrant } from './chain-retained.ts'
@@ -19,7 +19,8 @@ export class ChainRouter implements ChainRouterService {
   constructor(private readonly options: NodeLinkRuntimeConfig, private readonly store: ChainStore,
     private readonly credential: () => ChannelCredential, private readonly available: () => boolean,
     private readonly capabilities: () => { local?: ChainCapability | undefined; remote?: ChainCapability | undefined },
-    private readonly evidence: ChainRetainedEvidence) {}
+    private readonly evidence: ChainRetainedEvidence,
+    private readonly disconnect?: () => void) {}
 
   /** Send once; an admitted duplicate remains unknown until an authenticated business query.
    * @param input - Exact frozen request with a fresh entry-issued delegation.
@@ -41,14 +42,30 @@ export class ChainRouter implements ChainRouterService {
   async close(): Promise<void> { this.stopped = true; await Promise.allSettled([...this.active]) }
 
   private async send(input: ChainRequest, authorization: SeatAuthorizationGrant, replay = false): Promise<ChainResponse> {
-    const request = decodeChainRequest(input), { local, remote } = this.capabilities()
+    const request = decodeChainRequest(input)
     if (this.stopped) return chainFailure(request, 'node-tunnel-disconnected', 'tunnel-disconnected')
     if (!matchesChainGrant(request, authorization)) return chainFailure(request, 'node-delegation-rejected', 'evidence-digest-mismatch')
-    if (!local || !remote || !remote.methods.includes(request.method)) {
-      return chainFailure(request, 'cross-node-unsupported', 'peer-capability-missing')
-    }
     if (request.sourceNodeId !== this.options.nodeId || request.targetNodeId !== this.options.peerNodeId) {
       return chainFailure(request, 'node-authentication-failed', 'node-mismatch')
+    }
+    let pendingQuery = false
+    if (request.method === 'chain.operation' && request.payload.key.sourceNodeId === request.sourceNodeId) {
+      let previous: ReturnType<ChainStore['query']>
+      try { previous = this.store.query(request.payload.key, request.payload.payloadDigest) }
+      catch (error) { void error; return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true) }
+      if (previous.state === 'settled' && previous.response.status !== 'ok'
+        && previous.response.error.code === 'node-tunnel-disconnected' && previous.response.error.effectState === 'none') {
+        return decodeChainResponse({ ...previous.response, method: request.method, requestId: request.requestId }, request)
+      }
+      pendingQuery = previous.state === 'pending'
+      if (pendingQuery && !this.available()) {
+        return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true)
+      }
+    }
+    if (!this.available()) return chainFailure(request, 'node-tunnel-disconnected', 'tunnel-disconnected')
+    const { local, remote } = this.capabilities()
+    if (!local || !remote || !remote.methods.includes(request.method)) {
+      return chainFailure(request, 'cross-node-unsupported', 'peer-capability-missing')
     }
     if (Date.parse(request.deadline) <= Date.now() || Date.parse(request.delegation.expiresAt) <= Date.now()) {
       return chainFailure(request, 'node-deadline-exceeded', 'deadline-exceeded')
@@ -75,7 +92,21 @@ export class ChainRouter implements ChainRouterService {
           Date.parse(request.deadline) - Date.now())) }), request)
       if (admitted) await this.store.settle(request, response)
       return response
-    } catch (error) { void error; return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true) }
+    } catch (error) {
+      if (error instanceof LoopbackConnectionError) {
+        this.disconnect?.()
+        if (pendingQuery) {
+          return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true)
+        }
+        const response = chainFailure(request, 'node-tunnel-disconnected', 'tunnel-disconnected')
+        if (admitted) {
+          try { await this.store.settle(request, response) }
+          catch (settlementError) { void settlementError; return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true) }
+        }
+        return response
+      }
+      return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true)
+    }
     finally { this.pending-- }
   }
 

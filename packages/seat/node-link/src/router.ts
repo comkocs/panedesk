@@ -30,7 +30,12 @@ export class NodeRouter implements NodeRouterService {
   }
   /** Mark only transport state; retained self-reported counts are never rewritten to zero. */
   disconnect(): void { this.connected = false; this.chain?.observe(undefined); this.statusValue = { ...this.statusValue, reachable: false,
-    linkState: 'disconnected', safeReason: 'node-tunnel-disconnected' } }
+    linkState: 'disconnected', safeReason: 'node-tunnel-disconnected',
+    capabilities: this.statusValue.capabilities.filter(capability => capability !== 'node-work-chain/v1') } }
+  /** Read the last authenticated connection observation without starting a probe.
+   * @returns Whether routing has observed a connection that has not been withdrawn.
+   */
+  isConnected(): boolean { return this.connected }
   /** Authenticate epoch and node identity before allowing new writes.
    * @returns Whether a bounded authenticated self-report was obtained.
    */

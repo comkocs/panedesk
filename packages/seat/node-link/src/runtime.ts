@@ -66,7 +66,8 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
       if (!(business instanceof ChainBusinessRegistry)) throw new Error('Node chain registry unavailable')
       chain = new ChainRuntime(options, services, business, privateFiles, () => outbound,
         () => !stopped && ctx.get('nodeWorkChain') === services && ctx.get('nodeWorkChainBusiness') === business,
-        () => credentialsReady && (tunnel === undefined || tunnel.available))
+        () => credentialsReady && router?.isConnected() === true && (tunnel === undefined || tunnel.available),
+        () => router?.disconnect())
       ctx.provide('nodeWorkChainRouter', chain.router)
       void chain.ready().catch((error: unknown) => { void error })
     }

@@ -58,12 +58,13 @@ export async function networkWorker(directory: string) {
 }
 
 /** Provision one group; nodes never share business stores or authorization evidence.
+ * @param staleMs - Health probe interval; long intervals let tests observe pre-probe failures.
  * @returns Independent node paths, restart operation, and reverse-order cleanup.
  */
-export async function networkPair() {
+export async function networkPair(staleMs = 100) {
   const root = await mkdtemp(join(tmpdir(), 'chain-network-'))
   const limits = { maxFrameBytes: 4096, requestTimeoutMs: 500, maxPending: 2,
-    maxStoreBytes: 1048576, maxOperations: 100, staleMs: 100 }
+    maxStoreBytes: 1048576, maxOperations: 100, staleMs }
   const auth = () => ({ credential: randomBytes(32).toString('hex'), epoch: randomUUID() })
   const reserved = [await listenLoopback(0, limits, auth, async () => ({})), await listenLoopback(0, limits, auth, async () => ({}))]
   const ports = reserved.map(item => item.port)

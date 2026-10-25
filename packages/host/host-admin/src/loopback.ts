@@ -113,7 +113,11 @@ export async function listenAuthenticatedLoopback(port: number, limits: RpcLimit
   } }
 }
 
+/** No TCP connection was established, so no request bytes could reach the peer. */
+export class LoopbackConnectionError extends Error {}
+
 /** Send exactly once; a missing response after dispatch is an unknown outcome.
+ * A LoopbackConnectionError identifies failure before TCP connection; all later failures remain ambiguous.
  * @param port - Loopback tunnel or local listener port.
  * @param auth - Private-file authentication kept out of URLs and environments.
  * @param value - Complete JSON request.
@@ -124,6 +128,7 @@ export function callLoopback(port: number, auth: RpcAuthentication, value: unkno
   const text = JSON.stringify(value)
   if (Buffer.byteLength(text) > limits.maxFrameBytes) return Promise.reject(new Error('RPC frame exceeds limit'))
   return new Promise((resolve, reject) => {
+    let connected = false
     const req = httpRequest({ host: loopback, port, method: 'POST', path: '/rpc', agent: false,
       headers: { 'content-type': 'application/json', authorization: auth.credential, 'x-rpc-epoch': auth.epoch },
       signal: AbortSignal.timeout(limits.requestTimeoutMs),
@@ -131,7 +136,12 @@ export function callLoopback(port: number, auth: RpcAuthentication, value: unkno
       if (res.statusCode !== 200) { res.resume(); reject(new Error('RPC request refused')); return }
       void body(res, limits.maxFrameBytes).then(resolve, () => { reject(new Error('RPC response rejected')) })
     })
-    req.on('error', () => { reject(new Error('RPC outcome unavailable')) })
+    req.on('socket', (socket) => {
+      socket.once('connect', () => { connected = true })
+    })
+    req.on('error', () => {
+      reject(connected ? new Error('RPC outcome unavailable') : new LoopbackConnectionError('RPC outcome unavailable'))
+    })
     req.end(text)
   })
 }

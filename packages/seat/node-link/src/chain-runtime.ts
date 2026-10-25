@@ -33,7 +33,8 @@ export class ChainRuntime {
   private recovery: Promise<void> | undefined
   constructor(private readonly options: NodeLinkRuntimeConfig, private readonly services: ChainServices,
     private readonly business: ChainBusinessRegistry, files: (directory: string) => PrivateFiles,
-    credential: () => ChannelCredential, private readonly current: () => boolean, available: () => boolean) {
+    credential: () => ChannelCredential, private readonly current: () => boolean, available: () => boolean,
+    disconnect?: () => void) {
     this.slots = new ChainSlots(options.maxPending, services.maxControlPending)
     this.received = new ChainStore(files(join(options.directory, 'chain-received')), options.maxStoreBytes, options.maxOperations)
     this.sent = new ChainStore(files(join(options.directory, 'chain-sent')), options.maxStoreBytes, options.maxOperations)
@@ -45,7 +46,10 @@ export class ChainRuntime {
     void this.loaded.catch((error: unknown) => { void error })
     this.evidence = new ChainEvidence(options, services.maxControlPending, evidence, credential, () => this.remote)
     this.router = new ChainRouter(options, this.sent, credential, () => !this.stopped && current() && available(),
-      () => ({ local: this.capability(), remote: this.remote }), this.retained)
+      () => ({ local: this.capability(), remote: this.remote }), this.retained, () => {
+        this.observe(undefined)
+        disconnect?.()
+      })
     this.receiver = new ChainReceiver(() => ({ sourceNodeId: options.peerNodeId as ChainRequest['sourceNodeId'],
       targetNodeId: options.nodeId as ChainRequest['targetNodeId'], authenticatedAt: new Date().toISOString() }),
     services, business, this.evidence, this.received, () => this.capability() !== undefined)
