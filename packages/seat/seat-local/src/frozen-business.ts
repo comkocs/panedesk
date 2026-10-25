@@ -16,22 +16,32 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
     const registry = child.get('nodeWorkChainBusiness')
     if (!registry) return
     child.effect(() => {
+      const lifecycle = new AbortController(), pending = new Set<Promise<T.NodeWorkChainOperationResult>>()
       let recovered = false
-      const ready = recovery.then(() => { recovered = true })
+      const ready = recovery
       void ready.catch((_error: unknown) => { /* Recovery failure is retained for the capability barrier. */ })
-      const provider: T.NodeWorkChainBusinessProvider = { methods: ['seat.openFrozen', 'seat.wakeFrozen'], ready: () => ready,
+      const query = async (request: T.NodeWorkChainOperationRequest,
+        context: T.SeatCallContext): Promise<T.NodeWorkChainOperationResult> => {
+        const grant = context.authorization, fact = grant?.fact, transactions = child.get('seatAuthorizationTransactions')
+        if (!grant || !fact || !transactions?.validate
+          || !provider.methods.includes(request.key.method as T.NodeWorkChainBusinessMethod)) {
+          return rejected('unauthorized', 'Frozen query requires live authority.', 'Restore the authenticated entry.')
+        }
+        const refusal = await transactions.validate({ operationId: fact.operationId, requestDigest: digest(request),
+          ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
+        return refusal ?? structuredClone(querySeatFrozen((await seats.state.read()).effects, request, context))
+      }
+      const provider: T.NodeWorkChainBusinessProvider = { methods: ['seat.openFrozen', 'seat.wakeFrozen'],
+        ready: () => ready.then(() => { recovered = !lifecycle.signal.aborted }),
         query: async (request, context) => {
+          if (lifecycle.signal.aborted) return rejected('unavailable', 'Frozen query provider was revoked.', 'Restore the provider.')
           if (!recovered) return { status: 'pending', effectState: 'unknown' }
-          const grant = context.authorization, fact = grant?.fact, transactions = child.get('seatAuthorizationTransactions')
-          if (!grant || !fact || !transactions?.validate
-            || !provider.methods.includes(request.key.method as T.NodeWorkChainBusinessMethod)) {
-            return rejected('unauthorized', 'Frozen query requires live authority.', 'Restore the authenticated entry.')
-          }
-          const refusal = await transactions.validate({ operationId: fact.operationId, requestDigest: digest(request),
-            ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
-          return refusal ?? structuredClone(querySeatFrozen((await seats.state.read()).effects, request, context))
+          const work = query(request, context)
+          pending.add(work)
+          try { return await work } finally { pending.delete(work) }
         } }
-      return registry.register(provider)
+      const unregister = registry.register(provider)
+      return async () => { lifecycle.abort(); unregister(); await Promise.allSettled([...pending]) }
     })
   })
 }

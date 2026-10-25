@@ -1,11 +1,11 @@
 /** Optional node batch admission preflights all members and retains independent committed results. */
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type * as T from '@panedesk/dsh-seat'
 import type { NodeWireRequest } from '@panedesk/dsh-node-link'
-import { digest } from '@panedesk/dsh-seat-engine'
+import { digest, EngineError } from '@panedesk/dsh-seat-engine'
 import { processFixture, methods, sender, principalId } from './frozen-process-fixture.ts'
 
 async function fixture() {
@@ -89,4 +89,97 @@ test('retains a committed member when later authority is revoked and continues o
     expect(await h.run(changed, (await h.authorize(changed)).grant)).toMatchObject({ status: 'ok', result: {
       status: 'rejected', error: { code: 'operation-id-conflict' } } })
   } finally { await h.close() }
+})
+
+test.each(['missing-member', 'duplicate-member', 'foreign-node', 'changed-origin'] as const)(
+  'preflights the complete batch without side effects: %s', async (kind) => {
+    const h = await fixture()
+    try {
+      const request = structuredClone(h.request)
+      if (kind === 'missing-member') request.seats = [...request.seats, 'missing-seat' as T.SeatName]
+      if (kind === 'duplicate-member') request.seats = [...request.seats, h.definition.seat]
+      if (kind === 'foreign-node') request.nodeId = sender
+      const entry = await h.authorize(request)
+      if (kind === 'changed-origin') request.origin = 'manual'
+      const sequence = h.engine.journal.projection.sequence
+      const member = vi.spyOn(h.engine, 'openBatchMember')
+      expect(await h.run(request, entry.grant)).toMatchObject(kind === 'changed-origin'
+        ? { status: 'rejected', error: { code: 'node-delegation-rejected' } }
+        : { status: 'ok', result: { status: 'rejected' } })
+      expect(member).not.toHaveBeenCalled()
+      expect(h.engine.journal.projection.sequence).toBe(sequence)
+      expect(h.engine.journal.projection.pending.size).toBe(0)
+      expect(h.engine.journal.projection.opens.size).toBe(0)
+    } finally { vi.restoreAllMocks(); await h.close() }
+  })
+
+test('rechecks revocation after preflight while the member waits for the journal slot', async () => {
+  const h = await fixture()
+  const entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+  try {
+    const entry = await h.authorize(h.request)
+    const commit = h.engine.journal.commitAuthorization.bind(h.engine.journal)
+    vi.spyOn(h.engine.journal, 'commitAuthorization').mockImplementation(async (...args) => {
+      entered.resolve(undefined)
+      await release.promise
+      return commit(...args)
+    })
+    const sequence = h.engine.journal.projection.sequence
+    const active = h.run(h.request, entry.grant)
+    await entered.promise
+    entry.dispose()
+    release.resolve(undefined)
+    expect(await active).toMatchObject({ status: 'ok', result: { status: 'processed', results: [
+      { seat: 'seat-a', result: { status: 'rejected', error: { code: 'unauthorized' } } },
+      { seat: 'seat-b', result: { status: 'rejected', error: { code: 'unauthorized' } } }] } })
+    expect(h.engine.journal.projection.sequence).toBe(sequence)
+    expect(h.engine.journal.projection.pending.size).toBe(0)
+  } finally { release.resolve(undefined); vi.restoreAllMocks(); await h.close() }
+})
+
+test('returns a member storage failure without discarding a committed predecessor', async () => {
+  const h = await fixture()
+  try {
+    const entry = await h.authorize(h.request)
+    const commit = h.engine.journal.commitAuthorization.bind(h.engine.journal)
+    let calls = 0
+    vi.spyOn(h.engine.journal, 'commitAuthorization').mockImplementation((...args) => {
+      if (++calls === 2) throw new EngineError('unavailable', 'Injected member storage failure')
+      return commit(...args)
+    })
+    expect(await h.run(h.request, entry.grant)).toMatchObject({ status: 'ok', result: { status: 'processed', results: [
+      { seat: 'seat-a', result: { status: 'queued' } },
+      { seat: 'seat-b', result: { status: 'rejected', error: { code: 'unavailable', effectState: 'unknown' } } }] } })
+    expect(h.engine.journal.projection.pending.size).toBe(1)
+    expect(h.engine.journal.projection.authorizationDecisions.filter(frame =>
+      frame.effects.some(effect => effect.kind === 'node-batch/accepted'))).toHaveLength(1)
+  } finally { vi.restoreAllMocks(); await h.close() }
+})
+
+test('does not admit a changed input while a preflighted member waits to commit', async () => {
+  const h = await fixture()
+  const entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+  try {
+    const entry = await h.authorize(h.request), original = structuredClone(h.request)
+    const commit = h.engine.journal.commitAuthorization.bind(h.engine.journal)
+    vi.spyOn(h.engine.journal, 'commitAuthorization').mockImplementation(async (...args) => {
+      entered.resolve(undefined)
+      await release.promise
+      return commit(...args)
+    })
+    const sequence = h.engine.journal.projection.sequence
+    const active = h.run(h.request, entry.grant)
+    await entered.promise
+    h.request.openingMode = 'prefill'
+    release.resolve(undefined)
+    expect(await active).toMatchObject({ status: 'ok', result: { status: 'processed', results: [
+      { result: { status: 'rejected', error: { code: 'unauthorized' } } },
+      { result: { status: 'rejected', error: { code: 'unauthorized' } } }] } })
+    expect(h.engine.journal.projection.sequence).toBe(sequence)
+    expect(await h.run(original, entry.grant)).toMatchObject({ status: 'ok', result: { status: 'processed', results: [
+      { result: { status: 'queued' } }, { result: { status: 'queued' } }] } })
+    const bindings = h.engine.journal.projection.authorizationDecisions.flatMap(frame => frame.effects)
+      .filter(effect => effect.kind === 'node-batch/accepted')
+    expect(bindings.map(effect => effect.data.request)).toEqual([original, original])
+  } finally { release.resolve(undefined); vi.restoreAllMocks(); await h.close() }
 })
