@@ -1,6 +1,6 @@
 /** Append-only, checksummed JSONL segments with native-lock serialization and durable acknowledgements. */
 import { randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readdir, readFile } from 'node:fs/promises'
+import { lstat, mkdir, open, readdir, readFile, type FileHandle } from 'node:fs/promises'
 import { dirname, join, relative as relativePath } from 'node:path'
 import { canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot } from './index-store.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
@@ -21,12 +21,23 @@ export interface LedgerScan {
   watermark: LedgerWatermark
 }
 
-/** Synchronize a directory after creating a durable child name.
+/** Synchronize a directory; only unsupported Windows directory open and sync errors are tolerated.
+ * File synchronization, directory close and non-Windows failures still propagate.
  * @param path - Existing directory owned by the ledger.
+ * @param platform - Host platform, defaulting to the current host.
+ * @param openDirectory - Directory-only opener, defaulting to the host filesystem.
  */
-export async function syncDirectory(path: string): Promise<void> {
-  const handle = await open(path, 'r')
-  try { await handle.sync() } finally { await handle.close() }
+export async function syncDirectory(path: string, platform: NodeJS.Platform = process.platform,
+  openDirectory: (path: string, flags: string) => Promise<Pick<FileHandle, 'sync' | 'close'>> = open): Promise<void> {
+  const unsupported = (error: unknown): boolean => platform === 'win32' && error !== null && typeof error === 'object'
+    && 'code' in error && ['EPERM', 'EISDIR', 'EINVAL'].includes(String(error.code))
+  let handle: Pick<FileHandle, 'sync' | 'close'>
+  try { handle = await openDirectory(path, 'r') }
+  catch (error) { if (unsupported(error)) return; throw error }
+  try {
+    try { await handle.sync() }
+    catch (error) { if (!unsupported(error)) throw error }
+  } finally { await handle.close() }
 }
 
 /** Create restricted directories and synchronize each newly visible parent entry.

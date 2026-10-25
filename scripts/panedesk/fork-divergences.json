@@ -933,6 +933,28 @@
       }
     },
     {
+      "id": "windows-directory-sync-ledger",
+      "description": "Tolerate only EPERM, EISDIR and EINVAL from Windows ledger directory open or synchronization; preserve file and close failures.",
+      "origin": "Windows directory synchronization tolerance",
+      "reason": "Windows hosts may not support directory handles while file durability failures must remain fatal.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/directory-sync.spec.ts"],
+        "test": "tolerates unsupported Windows directory open and sync: %s"
+      }
+    },
+    {
+      "id": "windows-directory-sync-notifications",
+      "description": "Tolerate only EPERM, EISDIR and EINVAL from Windows notification directory open or synchronization; preserve file and close failures.",
+      "origin": "Windows directory synchronization tolerance",
+      "reason": "Synchronous notification publication must not fail solely because Windows cannot synchronize directory metadata.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/notification-directory-sync.spec.ts"],
+        "test": "tolerates unsupported Windows notification directory open and sync: %s"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",
