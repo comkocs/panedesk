@@ -30,6 +30,8 @@ flowchart LR
   pkg_sdk_jsonrpc_server["sdk-jsonrpc-server"]
   svc_hostSessionCredentials["ctx.hostSessionCredentials<br/>Session-bound host credential issuance"]
   svc_nodeLinkExecutor["ctx.nodeLinkExecutor<br/>Authorized local node execution"]
+  svc_nodeWorkChain["ctx.nodeWorkChain<br/>Optional frozen work-chain dependencies"]
+  svc_nodeWorkChainRouter["ctx.nodeWorkChainRouter<br/>Negotiated frozen work-chain routing"]
   svc_nodeRouter["ctx.nodeRouter<br/>Configured paired-node routing"]
   svc_sdkMethods["ctx.sdkMethods<br/>Unloadable SDK namespace registration"]
   svc_seatAuthorizationQueries["ctx.seatAuthorizationQueries<br/>Provider-owned authorization queries"]
@@ -451,7 +453,9 @@ flowchart LR
   pkg_node_link --> svc_nodeDelegationReceivingPolicy
   pkg_node_link --> svc_nodeLinkExecutor
   pkg_node_link --> svc_nodeRouter
+  pkg_node_link --> svc_nodeWorkChain
   pkg_node_link --> svc_nodeWorkChainBusiness
+  pkg_node_link --> svc_nodeWorkChainRouter
   pkg_office_to_pdf --> svc_officeToPdf
   pkg_otel --> svc_otel
   pkg_permission_presets --> svc_permissionPresets
@@ -633,6 +637,7 @@ flowchart LR
   svc_nodeDelegationReceivingPolicy --> pkg_node_link
   svc_nodeLinkExecutor --> pkg_node_link
   svc_nodeRouter --> pkg_sdk_jsonrpc_server
+  svc_nodeWorkChain --> pkg_node_link
   svc_nodeWorkChainBusiness --> pkg_node_link
   svc_nodeWorkChainBusiness --> pkg_seat_engine
   svc_nodeWorkChainBusiness --> pkg_seat_local
@@ -802,6 +807,8 @@ flowchart LR
 | `ctx.hostSdkInvoker` | `seam` | [`host-admin`](../packages/host/host-admin) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`host-admin`](../packages/host/host-admin) | - | Invokes registered namespaces with host-issued identity and revocation signals without starting stdio. |
 | `ctx.hostSessionCredentials` | `service` | [`host-admin`](../packages/host/host-admin) | - | [`seat-local`](../packages/seat/seat-local) | - | Publishes owner-only credential paths and revokes bindings on replacement, archive and disposal. |
 | `ctx.nodeLinkExecutor` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Deployment providers authenticate delegation and execute locally without forwarding again. |
+| `ctx.nodeWorkChain` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Requires explicit receiving policy, independent evidence and local admission readiness. |
+| `ctx.nodeWorkChainRouter` | `service` | [`node-link`](../packages/seat/node-link) | [`node-link`](../packages/seat/node-link) | - | - | Retains exact original intents independently from legacy operations. |
 | `ctx.nodeRouter` | `service` | [`node-link`](../packages/seat/node-link) | - | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Provides bounded transport and dated health evidence without granting execution authority. |
 | `ctx.sdkMethods` | `seam` | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Registers exclusive optional namespaces with contributor-owned decoding, authorization and disposal. |
 | `ctx.seatAuthorizationQueries` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-app`](../packages/seat/seat-app), [`sdk-jsonrpc-server`](../packages/sdk/server), [`acp`](../packages/acp/acp) | - | Projects bounded authorization evidence when a trusted provider is available. |
