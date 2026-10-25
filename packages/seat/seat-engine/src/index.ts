@@ -13,6 +13,9 @@ import { registerProductionSources, type ProductionSource } from './production-s
 export { SeatEngine } from './engine.ts'
 export type { EngineOptions, EngineDependencies } from './engine.ts'
 export { EngineJournal, EngineError, frame, digest } from './journal.ts'
+export { validEffect } from './validation.ts'
+export { validAuthorization } from './authorization-storage.ts'
+export { redact } from './query.ts'
 /** Loader plugin identity. */
 export const name = 'seat-engine'
 /** Optional dependencies are resolved through the service store. */
