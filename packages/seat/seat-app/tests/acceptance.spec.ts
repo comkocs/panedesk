@@ -611,30 +611,50 @@ it('A18 preserves the latest three self-report fields and revokes a close candid
   expect(JSON.stringify(await f.effects())).toContain('Review complete.')
 }, 20000)
 
-it('A19 wakes an all-object schedule wait once within five seconds without polling tools', async () => {
-  const f = await setup()
-  await f.save(f.definition())
-  const { sessionId } = await f.open()
-  const request = { title: 'Review', prompt: 'Review pending work.', every_seconds: 3600 }
-  const first = await f.ctx.schedule.create(sessionId, request)
-  const second = await f.ctx.schedule.create(sessionId, request)
-  const wait = { sessionId, waitId: 'wait-a' as never, mode: 'all' as const,
-    objects: [{ kind: 'schedule' as const, id: first.id }, { kind: 'schedule' as const, id: second.id }], operationId: operation() }
-  expect(await f.seats.registerWait(wait)).toMatchObject({ status: 'registered' })
-  await f.ctx.schedule.delete({ sessionId, id: first.id })
-  await expect.poll(async () => (await f.seats.wait(wait.waitId))?.observations.length).toBe(1)
-  expect((await f.seats.wait(wait.waitId))?.phase).toBe('registered')
-  const result = await completesTurn(f.ctx, sessionId, inputContains('Wait wait-a:'), () =>
-    measured('A19 schedule wake', async () => {
-      await f.ctx.schedule.delete({ sessionId, id: second.id })
-      await expect.poll(async () => (await f.seats.wait(wait.waitId))?.phase, { timeout: 5000 }).toBe('woken')
-    }))
-  expect(result.milliseconds).toBeLessThan(5000)
-  const replay = await f.seats.registerWait(wait)
-  expect(replay, JSON.stringify(replay)).toMatchObject({ status: 'registered', wait: { phase: 'woken' } })
-  await f.settle()
-  expect(f.model.requests.filter(item => JSON.stringify(item).includes('Wait wait-a'))).toHaveLength(1)
-}, 20000)
+it.each(['natural delivery', 'delivery within the opening turn'] as const)(
+  'A19 wakes an all-object schedule wait once within five seconds without polling tools: %s', async (delivery) => {
+    const f = await setup()
+    const preparing = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const inserted = Promise.withResolvers<undefined>()
+    const sameTurn = delivery === 'delivery within the opening turn'
+    const offPreparing = f.ctx.on('agent/input-preparing', async () => {
+      if (sameTurn) { preparing.resolve(undefined); await release.promise }
+    })
+    const offInserted = f.ctx.on('agent/inbox/inserted', ({ message }) => {
+      if (inputContains('Wait wait-a:')(message)) inserted.resolve(undefined)
+    })
+    try {
+      await f.save(f.definition())
+      // A steer wake may join the opening turn, so observe its start before opening the session.
+      const { wait, result } = await completesTurn(f.ctx, () => true, inputContains('Wait wait-a:'), async () => {
+        const { sessionId } = await f.open()
+        if (sameTurn) await preparing.promise
+        const request = { title: 'Review', prompt: 'Review pending work.', every_seconds: 3600 }
+        const first = await f.ctx.schedule.create(sessionId, request)
+        const second = await f.ctx.schedule.create(sessionId, request)
+        const wait = { sessionId, waitId: 'wait-a' as never, mode: 'all' as const,
+          objects: [{ kind: 'schedule' as const, id: first.id }, { kind: 'schedule' as const, id: second.id }], operationId: operation() }
+        expect(await f.seats.registerWait(wait)).toMatchObject({ status: 'registered' })
+        await f.ctx.schedule.delete({ sessionId, id: first.id })
+        await expect.poll(async () => (await f.seats.wait(wait.waitId))?.observations.length).toBe(1)
+        expect((await f.seats.wait(wait.waitId))?.phase).toBe('registered')
+        const result = await measured('A19 schedule wake', async () => {
+          await f.ctx.schedule.delete({ sessionId, id: second.id })
+          await expect.poll(async () => (await f.seats.wait(wait.waitId))?.phase, { timeout: 5000 }).toBe('woken')
+        })
+        if (sameTurn) await inserted.promise
+        release.resolve(undefined)
+        return { wait, result }
+      })
+      expect(result.milliseconds).toBeLessThan(5000)
+      const replay = await f.seats.registerWait(wait)
+      expect(replay, JSON.stringify(replay)).toMatchObject({ status: 'registered', wait: { phase: 'woken' } })
+      await f.settle()
+      expect(f.model.requests.filter(item => JSON.stringify(item).includes('Wait wait-a'))).toHaveLength(1)
+      if (sameTurn) expect(f.model.requests).toHaveLength(1)
+    } finally { release.resolve(undefined); offInserted(); offPreparing() }
+  }, 20000)
 
 it('A20 denies the third polling call and a literal nine-hundred-second sleep', async () => {
   const f = await setup()

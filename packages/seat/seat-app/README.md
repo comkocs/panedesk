@@ -59,4 +59,6 @@ The application does not rewrite model prefixes or refresh caches itself. Reques
 
 Keep command dispatch behind launcher readiness and provider authority; do not add a separate executable or inline replacement engine.
 
+Acceptance tests observe turn completion before opening a session: a schedule wait's steer wake can join the opening turn. A held first input claim covers that ordering without relying on elapsed delays.
+
 </details>
