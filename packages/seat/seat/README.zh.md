@@ -31,6 +31,8 @@ kind: "package-reference"
 
 `node-work-chain/v1` 声明七个封闭方法、冻结来源输入、显式远开许可列表、运行模型证据与必需的 `node-route/accepted` 效果。可选 `openFrozen`、`wakeFrozen`、`acceptFrozen` 及来源准备、核验、回调挂点要求另装经过认证的提供方；省略不授予权限。`SeatFrozenOpen.nodeWorkChain` 为派发复核保留准入事实，`SeatBinding.staffBinding` 携带已核名册证据，`SeatCallbackDelivery.nodeWorkChain` 冻结完整远端回调。模型证据缺失时保持缺失，不从配置推断。原拒因经可选 `cause` 传递：code/domain 是最多 128 字节的受控 ASCII 标识，脱敏 reason 最多 512 个 UTF-8 字节。完整协商帧上限为 1,048,576 字节，并取两端与本地限额的最小值；超限拒绝而不截断。导入声明不启用路由、不改变旧载荷。持久化提供方必须在应用帧内任何部分前拒绝不支持的必需效果。
 
+可选 `nodeWorkChainBusiness` 为六个业务方法注册 `NodeWorkChainBusinessProvider` 所有者，不包含 `chain.operation`。同一方法全局仅有一个提供方；方法重叠或重复注册均抛出异常，不能部分注册。通过 `ctx.get` 获取服务，缺席时跳过注册，保持基线行为。查询使用完整业务键和载荷摘要及已认证上下文，不以传输层待处理状态或旧操作号查询替代。各提供方的恢复屏障覆盖全部已持久意图与收件箱；屏障完成前只返回待处理或未知，不返回缺失，恢复失败不得通告接收能力。可选续推重新核验受限发件箱身份，保留原键与摘要，由提供方负责原子去重。本包仅提供声明；注册处与业务所有者由独立提供方实现。
+
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 
 <a id="model-experience"></a>
