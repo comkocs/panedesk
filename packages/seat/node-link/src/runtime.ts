@@ -116,7 +116,12 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
     }
     listener = await listenAuthenticatedLoopback(options.listenPort,
       chain ? { ...options, maxPending: chain.slots.capacity() } : options, () => inbound,
-      (value, epoch) => chain ? chain.slots.run(value, () => dispatch(value, epoch)) : dispatch(value, epoch))
+      (value, epoch) => chain ? chain.slots.run(value, () => dispatch(value, epoch)) : dispatch(value, epoch), {
+        forwardedHosts: options.forwardedHosts ?? [],
+        rejected: (refusal) => {
+          ctx.logger.warn(`${refusal.code} expectedPort=${refusal.expectedPort} actualPort=${refusal.actualPort ?? 'unknown'}`)
+        },
+      })
     router = new NodeRouter(options, outbound, outgoing, () => !stopped && (tunnel === undefined || tunnel.available),
       chain ? { capability: () => chain?.capability(), observe: capability => chain?.observe(capability) } : undefined)
     if (options.ssh !== undefined) {

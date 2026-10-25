@@ -1,6 +1,6 @@
 /** Router refuses offline writes and retains unknown operation identities until reconciliation. */
 import { randomUUID } from 'node:crypto'
-import { callLoopback, digest, object, OperationStore } from '@panedesk/dsh-host-admin'
+import { callLoopback, digest, object, OperationStore, LoopbackHostMismatchError } from '@panedesk/dsh-host-admin'
 import { decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
 import { NODE_LINK_VERSION } from './index.ts'
 import type { NodeLinkRuntimeConfig, NodeRouterService, NodeWireRequest, NodeWireResponse, NodeLinkStatus } from './index.ts'
@@ -45,7 +45,7 @@ export class NodeRouter implements NodeRouterService {
       const nonce = randomUUID(), credential = this.credential, chain = this.chain?.capability()
       const value = await callLoopback(this.options.peerPort, credential, { type: 'hello', version: NODE_LINK_VERSION,
         sourceNodeId: this.options.nodeId, targetNodeId: this.options.peerNodeId, nonce,
-        ...(chain === undefined ? {} : { chain }) }, this.options)
+        ...(chain === undefined ? {} : { chain }) }, this.options, true)
       if (!object(value) || value.version !== NODE_LINK_VERSION || value.nonce !== nonce || value.nodeId !== this.options.peerNodeId
         || value.epoch !== credential.epoch || this.credential !== credential) throw new Error('Node handshake rejected')
       const refusal = this.chain === undefined ? undefined : decodeHelloRefusal(value)
@@ -63,7 +63,11 @@ export class NodeRouter implements NodeRouterService {
           ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : [])], safeReason: null }
       this.connected = true
       return true
-    } catch (error) { void error; this.disconnect(); return false }
+    } catch (error) {
+      this.disconnect()
+      if (error instanceof LoopbackHostMismatchError) this.statusValue = { ...this.statusValue, safeReason: error.code }
+      return false
+    }
   }
   /** Route an exact operation or reconcile its retained unknown outcome.
    * @param input - Prepared request with entry-issued single-hop delegation.

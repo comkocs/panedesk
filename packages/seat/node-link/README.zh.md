@@ -30,6 +30,10 @@ kind: "package-reference"
 
 `runtime` 必须填写 `nodeId`、`peerNodeId`、`peerName`、`directory`、`listenPort`、`peerPort`、`maxFrameBytes`、`requestTimeoutMs`、`maxPending`、`maxStoreBytes`、`maxOperations`、`staleMs`。`listenPort: 0` 供临时随机端口测试，`peerPort` 指向本机受监管转发或替身对端。
 
+可选 `runtime.forwardedHosts` 是转发入口 `host:port` authority 的精确名单。主机须为 IPv4 回环标准字面量、`localhost` 或 IPv6 回环方括号字面量，端口须为显式规范十进制数，范围 1 至 65535；通配、范围、缺端口与其他主机均在配置校验期报错。每个接收节点填写配对发送端在转发入口实际使用的 Host；主机别名不互换。省略或空表仅接受原监听 authority。认证、浏览器请求头拒绝和 admin 端点保持不变。
+
+node-link 每次 Host 拒绝记录一行 `host-mismatch`，只含 `expectedPort`（接收端监听端口）和 `actualPort`（Host 端口；非法时 JSON 为 `null`，日志为 `unknown`）。其他接纳条件全部通过且帧限额允许时，HTTP 403 hello 回包包含这三个字段。发送端仅将白名单码 `host-mismatch` 投影到 `safeReason`，不公开地址或凭据，也不把拒绝视为已认证的对端健康证据。其他拒绝回包保留泛化传输失败。
+
 可选 `ssh` 必须填写 `alias`、`cwd`、`remotePort`、`remoteTargetPort`、`graceMs`、`keepAliveSeconds`、`keepAliveCount`、`retryMs`、`maxRetries`，并要求已有 `subprocess` 服务。别名必须是简单名称，禁止命令或任意选项。转发两端显式绑定回环；私有 SSH 配置必须经过运维审核，不得附带额外转发或改变认证身份。
 
 每节点预置 `inbound.json` 与 `outbound.json`，均含方向节点标识、`epoch` 与随机凭据；两个方向值必须独立。`provisionInbound` 可生成入向私有文件但不打印或返回秘密值。将一端入向文件安全配置为另一端出向文件，禁止通过参数、地址或环境变量传播。

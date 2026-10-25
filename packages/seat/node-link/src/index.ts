@@ -4,7 +4,7 @@ import Schema from '@panedesk/schemastery'
 import type { Branded } from '@panedesk/dsh-brand'
 import type * as Seat from '@panedesk/dsh-seat'
 import type { SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
-import type { PrivateFiles } from '@panedesk/dsh-host-admin'
+import { isLoopbackAuthority, type PrivateFiles } from '@panedesk/dsh-host-admin'
 import { mountChangingNode } from './chain-attachment.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 
@@ -137,6 +137,8 @@ export interface NodeLinkRuntimeConfig {
   listenPort: number
   /** Local loopback port reaching the paired node through the supervised forward. */
   peerPort: number
+  /** Exact additional loopback Host authorities; omission or an empty list accepts only the actual listener authority. */
+  forwardedHosts?: string[] | undefined
   /** Maximum bytes in a complete request or response frame. */
   maxFrameBytes: number
   /** Maximum time in milliseconds to wait for a transport response. */
@@ -183,6 +185,10 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
   nodeId: Schema.string().required(), peerNodeId: Schema.string().required(), peerName: Schema.string().required(),
   directory: Schema.string().required(), listenPort: Schema.number().min(0).max(65535).step(1).required(),
   peerPort: Schema.number().min(1).max(65535).step(1).required(),
+  forwardedHosts: Schema.union([Schema.const(undefined), Schema.array(Schema.transform(Schema.string(), (value) => {
+    if (!isLoopbackAuthority(value)) throw new Error('Forwarded Host rejected')
+    return value
+  }))]),
   maxFrameBytes: Schema.number().min(1).step(1).required(), requestTimeoutMs: Schema.number().min(1).max(2147483647).step(1).required(),
   maxPending: Schema.number().min(1).step(1).required(), maxStoreBytes: Schema.number().min(1).step(1).required(),
   maxOperations: Schema.number().min(1).step(1).required(), staleMs: Schema.number().min(1).step(1).required(),

@@ -157,4 +157,5 @@ export { createHostAdminExecutor, hostAdminExecutionAdapter } from './executor.t
 export { WindowsPrivateFiles } from './windows-private-files.ts'
 export type { WindowsPrivateFilesOptions } from './windows-private-files.ts'
 export type { WindowsPrivateFilesExecutor } from './windows-private-files-system.ts'
-export { LoopbackConnectionError } from './loopback.ts'
+export { LoopbackConnectionError, LoopbackHostMismatchError, isLoopbackAuthority } from './loopback.ts'
+export type { LoopbackHostMismatch, LoopbackHostPolicy } from './loopback.ts'
