@@ -7,6 +7,7 @@ import type { NodeLinkRuntimeConfig, NodeRouterService, NodeWireRequest, NodeWir
 import type { ChannelCredential } from './credentials.ts'
 import { decodeRequest, decodeResponse } from './codec.ts'
 import { failure } from './receiver.ts'
+import { decodeHelloRefusal, helloCapability, type ChainHelloHooks } from './chain-hello.ts'
 
 /** One paired peer owns health observations and bounded outbound calls. */
 export class NodeRouter implements NodeRouterService {
@@ -14,7 +15,8 @@ export class NodeRouter implements NodeRouterService {
   private pending = 0
   private statusValue: NodeLinkStatus
   constructor(private readonly options: NodeLinkRuntimeConfig, private credential: ChannelCredential,
-    private readonly outgoing: OperationStore, private readonly available: () => boolean) {
+    private readonly outgoing: OperationStore, private readonly available: () => boolean,
+    private readonly chain?: ChainHelloHooks) {
     this.statusValue = { nodeId: options.peerNodeId as NodeLinkStatus['nodeId'], nodeName: options.peerName,
       reachable: false, linkState: 'disconnected', observedAt: new Date().toISOString(),
       status: null, capabilities: [], safeReason: 'node-tunnel-disconnected' }
@@ -27,7 +29,7 @@ export class NodeRouter implements NodeRouterService {
     this.credential = credential
   }
   /** Mark only transport state; retained self-reported counts are never rewritten to zero. */
-  disconnect(): void { this.connected = false; this.statusValue = { ...this.statusValue, reachable: false,
+  disconnect(): void { this.connected = false; this.chain?.observe(undefined); this.statusValue = { ...this.statusValue, reachable: false,
     linkState: 'disconnected', safeReason: 'node-tunnel-disconnected' } }
   /** Authenticate epoch and node identity before allowing new writes.
    * @returns Whether a bounded authenticated self-report was obtained.
@@ -35,15 +37,25 @@ export class NodeRouter implements NodeRouterService {
   async handshake(): Promise<boolean> {
     if (!this.available()) { this.disconnect(); return false }
     try {
-      const nonce = randomUUID(), credential = this.credential
+      const nonce = randomUUID(), credential = this.credential, chain = this.chain?.capability()
       const value = await callLoopback(this.options.peerPort, credential, { type: 'hello', version: NODE_LINK_VERSION,
-        sourceNodeId: this.options.nodeId, targetNodeId: this.options.peerNodeId, nonce }, this.options)
+        sourceNodeId: this.options.nodeId, targetNodeId: this.options.peerNodeId, nonce,
+        ...(chain === undefined ? {} : { chain }) }, this.options)
       if (!object(value) || value.version !== NODE_LINK_VERSION || value.nonce !== nonce || value.nodeId !== this.options.peerNodeId
         || value.epoch !== credential.epoch || this.credential !== credential) throw new Error('Node handshake rejected')
+      const refusal = this.chain === undefined ? undefined : decodeHelloRefusal(value)
+      if (refusal !== undefined) {
+        this.disconnect()
+        this.statusValue = { ...this.statusValue, safeReason: refusal.reasonCode ?? refusal.code }
+        return false
+      }
       const status = decodeSeatResult('seats/nodeStatus', value.status)
       if (status.nodeId !== this.options.peerNodeId) throw new Error('Node status identity rejected')
+      const peerChain = this.chain === undefined ? undefined : helloCapability(value)
+      this.chain?.observe(peerChain)
       this.statusValue = { ...this.statusValue, reachable: true, linkState: 'connected', status,
-        observedAt: new Date().toISOString(), capabilities: [NODE_LINK_VERSION], safeReason: null }
+        observedAt: new Date().toISOString(), capabilities: [NODE_LINK_VERSION,
+          ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : [])], safeReason: null }
       this.connected = true
       return true
     } catch (error) { void error; this.disconnect(); return false }

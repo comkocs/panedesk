@@ -1929,6 +1929,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'nodeWorkChain',
+    summary: 'Explicit composition supplies every security and local-admission dependency.',
+    description: 'Explicit composition supplies every security and local-admission dependency.',
+    methods: [
+      {
+        signature: 'readonly maxControlPending: number',
+        description: 'Independent reserved control slots; business calls cannot consume these slots.',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'nodeWorkChainBusiness',
     summary: 'Optional node-link registry definition; business providers depend only on this declaration.',
     description: 'Optional node-link registry definition; business providers depend only on this declaration.',
@@ -1951,6 +1963,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Wait for every listed method\'s provider to finish recovering persisted intents and inboxes.',
         parameters: [{ name: 'methods', description: 'Methods whose receiving capabilities may be advertised only after resolution.' }],
         returns: 'Recovery barrier; provider recovery failure rejects and missing providers cannot satisfy it.',
+      },
+    ],
+  },
+  {
+    key: 'nodeWorkChainRouter',
+    summary: 'Opt-in router remains distinct from the unchanged legacy router API.',
+    description: 'Opt-in router remains distinct from the unchanged legacy router API.',
+    methods: [
+      {
+        signature: 'route(request: ChainRequest): Promise<ChainResponse>',
+        description: 'Send only after both peers advertise this method, retaining unknown intent.',
+        parameters: [{ name: 'request', description: 'Entry-authorized frozen request.' }],
+        returns: 'Correlated result or explicit safe failure.',
       },
     ],
   },
@@ -6791,6 +6816,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CancelSeatWaitResult',
     declaration: 'export type CancelSeatWaitResult = {\n    status: \'cancelled\' | \'already-settled\';\n    wait: SeatWait;\n} | SeatRejected;',
+  },
+  {
+    name: 'ChainFailure',
+    declaration: 'export interface ChainFailure extends NodeLinkFailure {\n    cause: Seat.SeatFailureCause;\n}',
+  },
+  {
+    name: 'ChainRequest',
+    declaration: 'export type ChainRequest = {\n    [M in Seat.NodeWorkChainMethod]: {\n        version: \'node-link/v1\';\n        requestId: Branded<\'NodeRequestId\'>;\n        sourceNodeId: Seat.SeatNodeId;\n        targetNodeId: Seat.SeatNodeId;\n        operationId: Seat.SeatOperationId;\n        deadline: Seat.SeatTimestamp;\n        hop: 1;\n        method: M;\n        payload: Seat.NodeWorkChainMethodMap[M][\'request\'];\n        payloadDigest: Seat.SeatDigest;\n        delegation: Seat.SeatNodeDelegation;\n    };\n}[Seat.NodeWorkChainMethod];',
+  },
+  {
+    name: 'ChainResponse',
+    declaration: 'export type ChainResponse = {\n    [M in Seat.NodeWorkChainMethod]: {\n        version: \'node-link/v1\';\n        requestId: Branded<\'NodeRequestId\'>;\n        sourceNodeId: Seat.SeatNodeId;\n        targetNodeId: Seat.SeatNodeId;\n        operationId: Seat.SeatOperationId;\n        method: M;\n    } & ({\n        status: \'ok\';\n        result: Seat.NodeWorkChainMethodMap[M][\'result\'];\n    } | {\n        status: \'unavailable\' | \'rejected\' | \'uncertain\';\n        error: ChainFailure;\n    });\n}[Seat.NodeWorkChainMethod];',
   },
   {
     name: 'ChangeResult',

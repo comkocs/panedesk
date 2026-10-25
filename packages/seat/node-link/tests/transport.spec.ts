@@ -80,6 +80,24 @@ test('queries receipts without replay after response loss, rejects disconnected 
   expect(await router.route(frame('operation-c'))).toMatchObject({ error: { effectState: 'none' } })
 })
 
+test('preserves complete legacy refusal bytes and payload digest without work-chain capability', async () => {
+  const request = decodeRequest({ ...frame(), deadline: '2099-01-01T00:00:00.000Z',
+    delegation: { ...frame().delegation, expiresAt: '2099-01-01T00:00:00.000Z' } })
+  const receiver = new NodeReceiver('node-b', 'node-a', await store(), () => undefined)
+  const expected = '{"version":"node-link/v1","requestId":"request-a","operationId":"operation-a",'
+    + '"sourceNodeId":"node-a","targetNodeId":"node-b","method":"seat.wake","status":"unavailable",'
+    + '"error":{"code":"cross-node-unsupported","reason":"cross-node-unsupported","retryable":false,'
+    + '"effectState":"none","operationId":"operation-a","targetNodeId":"node-b"}}'
+  expect(JSON.stringify(await receiver.receive(request))).toBe(expected)
+  expect(request.payloadDigest).toBe('05ee3f8188520a02cce05895fe4c9bd29afb961e621cdbcee0970830194d2db2')
+  const router = new NodeRouter({ ...limits, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer',
+    directory: 'unused', listenPort: 0, peerPort: 1, staleMs: 10 },
+  { credential: randomBytes(32).toString('hex'), epoch: 'epoch-b', sourceNodeId: 'node-a', targetNodeId: 'node-b' },
+  await store(), () => false)
+  expect(JSON.stringify(await router.route(request))).toBe(expected.replaceAll('cross-node-unsupported', 'node-tunnel-disconnected')
+    .replace('"retryable":false', '"retryable":true'))
+})
+
 test('rejects mismatched identities, digests, multiple hops and response correlation', () => {
   const valid = frame()
   expect(() => decodeRequest({ ...valid, hop: 2 })).toThrow()

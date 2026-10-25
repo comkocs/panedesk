@@ -177,6 +177,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['node-link'], note: 'Deployment providers authenticate delegation and execute locally without forwarding again.',
   },
   {
+    key: 'nodeWorkChain', pkg: 'node-link', title: 'Optional frozen work-chain dependencies', mode: 'seam',
+    consumers: ['node-link'], note: 'Requires explicit receiving policy, independent evidence and local admission readiness.',
+  },
+  {
+    key: 'nodeWorkChainRouter', pkg: 'node-link', title: 'Negotiated frozen work-chain routing', mode: 'service',
+    implementations: ['node-link'], note: 'Retains exact original intents independently from legacy operations.',
+  },
+  {
     key: 'nodeRouter', pkg: 'node-link', title: 'Configured paired-node routing', mode: 'service',
     consumers: ['sdk-jsonrpc-server'], note: 'Provides bounded transport and dated health evidence without granting execution authority.',
   },

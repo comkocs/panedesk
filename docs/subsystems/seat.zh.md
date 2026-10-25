@@ -230,6 +230,14 @@ status(): Promise<readonly NodeLinkStatus[]>
 
 Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
 
+<a id="ctxnodeworkchain--chainservices"></a>
+
+### `ctx.nodeWorkChain` — `ChainServices`
+
+Explicit composition supplies every security and local-admission dependency.
+
+Source: [`packages/seat/node-link/src/chain-services.ts`](../../packages/seat/node-link/src/chain-services.ts)
+
 <a id="ctxnodeworkchainbusiness--nodeworkchainbusinessregistry"></a>
 
 ### `ctx.nodeWorkChainBusiness` — `NodeWorkChainBusinessRegistry`
@@ -258,6 +266,22 @@ ready(methods: readonly T.NodeWorkChainBusinessMethod[]): Promise<void>
 ```
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
+
+<a id="ctxnodeworkchainrouter--chainrouterservice"></a>
+
+### `ctx.nodeWorkChainRouter` — `ChainRouterService`
+
+Opt-in router remains distinct from the unchanged legacy router API.
+
+```ts cordis-catalog
+/** Send only after both peers advertise this method, retaining unknown intent.
+ * @param request - Entry-authorized frozen request.
+ * @returns Correlated result or explicit safe failure.
+ */
+route(request: ChainRequest): Promise<ChainResponse>
+```
+
+Source: [`packages/seat/node-link/src/chain-services.ts`](../../packages/seat/node-link/src/chain-services.ts)
 
 <a id="ctxseatauthorizationexports--seatauthorizationexports"></a>
 

@@ -6,6 +6,7 @@ import type * as Seat from '@panedesk/dsh-seat'
 import type { SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
 import type { PrivateFiles } from '@panedesk/dsh-host-admin'
 import { mountNode } from './runtime.ts'
+import { ChainBusinessRegistry } from './chain-business.ts'
 
 /** Wire framing is independent of Core protocol operation numbers. */
 export const NODE_LINK_VERSION = 'node-link/v1' as const
@@ -198,9 +199,14 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  * @param _ctx - Owning plugin context.
  * @param _config - Optional runtime activation and resource bounds.
  */
-export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountNode(_ctx, _config)) }
+export function apply(_ctx: Context, _config: Config): void {
+  if (_config.runtime !== undefined) _ctx.provide('nodeWorkChainBusiness', new ChainBusinessRegistry())
+  _ctx.effect(() => mountNode(_ctx, _config))
+}
 export type * from './delegation.ts'
 export type * from './execution.ts'
+export type * from './chain-services.ts'
+export type * from './chain-types.ts'
 export { createDelegationIssuer, createDelegationReceivingPolicy } from './delegation-policy.ts'
 export type { DelegationEvidence, DelegationIssuanceOptions, DelegationReceivingOptions } from './delegation-policy.ts'
 export { createNodeLinkExecutor, nodeLinkExecutionAdapter } from './executor.ts'
