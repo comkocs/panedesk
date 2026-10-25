@@ -31,6 +31,8 @@ export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.S
 export interface EngineDependencies {
   seats(): Pick<SeatService, 'resolve' | 'list' | 'close'> | undefined
   ledger(): Pick<SessionLedger, 'snapshot'> | undefined
+  /** Deliver a frozen callback to its retained source owner; absence keeps routed work pending. */
+  deliverCallback?: (request: T.DeliverSourceCallbackRequest) => Promise<T.DeliverSourceCallbackResult>
   /** Omitted runtime reports unavailable cache evidence and never dispatches maintenance. */
   keepalive?: KeepAliveRuntime
 }
@@ -80,7 +82,7 @@ export class SeatEngine extends SeatEngineService {
       tasks: async (request) => { await this.ready(); return queryTasks(this.journal.projection.decisions, request) },
     })
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
-    this.outbox = new CallbackOutbox(this.journal, this.sources, options.config)
+    this.outbox = new CallbackOutbox(this.journal, this.sources, options.config, dependencies.deliverCallback)
     this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName)
     this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {
       remaining: () => Promise.resolve({ kind: 'unknown' }),
@@ -613,7 +615,9 @@ export class SeatEngine extends SeatEngineService {
       const current = view.pending.get(item.queueItemId)
       if (!current || canonical(current) !== canonical(item)) return []
       const policy = view.policies.get(item.projectId)
-      const mode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
+      const localMode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
+      const mode = item.frozenOpen?.nodeWorkChain
+        ? effectiveMode(localMode, item.frozenOpen.nodeWorkChain.route.modeCeiling.mode) : localMode
       const pending = (reason: T.PendingReason, blockedBy: readonly string[] = []): T.EngineEffect[] => {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }

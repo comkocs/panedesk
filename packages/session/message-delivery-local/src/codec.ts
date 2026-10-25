@@ -42,7 +42,28 @@ const recipient = z.object({
   status: z.enum(['busy', 'idle', 'closed']), matchedFields: z.array(z.enum(['sessionId', 'window', 'title'])),
   observedAt: integer,
 })
-const sendResult = z.intersection(z.object({ messageId, operationId }), z.union([
+const diagnosticCode = z.string().max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/)
+const failureCause = z.preprocess((value) => {
+  if (value !== null && typeof value === 'object'
+    && Object.keys(value).some(key => !['domain', 'code', 'reason', 'effectState', 'retryable', 'operationId', 'nodeId', 'reasonCode'].includes(key))) return null
+  return value
+}, z.object({
+  domain: diagnosticCode, code: diagnosticCode,
+  reason: z.string().refine(value => value.trim().length > 0 && Buffer.byteLength(value, 'utf8') <= 512
+    && !/[\u0000-\u001f\u007f-\u009f]/u.test(value)),
+  effectState: z.enum(['none', 'committed', 'partial', 'unknown']), retryable: z.boolean(),
+  operationId, nodeId, reasonCode: z.enum([
+    'peer-capability-missing', 'remote-open-not-allowed', 'principal-mapping-missing', 'source-mismatch',
+    'node-mismatch', 'principal-mismatch', 'evidence-missing', 'evidence-revoked', 'evidence-digest-mismatch',
+    'frame-too-large', 'hello-policy-not-ready', 'method-not-allowed', 'owner-epoch-mismatch',
+    'seat-revision-mismatch', 'scope-reservation-mismatch', 'operation-payload-conflict',
+    'protocol-version-mismatch', 'authentication-unconfirmed', 'tunnel-disconnected', 'outcome-unknown',
+    'deadline-exceeded', 'invalid-diagnostic',
+  ]).optional(),
+}).strict()).transform(({ reasonCode, ...required }) => ({ ...required,
+  ...(reasonCode === undefined ? {} : { reasonCode }) }))
+const sendResult = z.intersection(z.object({ messageId, operationId, cause: failureCause.optional() })
+  .transform(({ cause, ...required }) => ({ ...required, ...(cause === undefined ? {} : { cause }) })), z.union([
   z.object({ deliveryOutcome: z.literal('accepted'), messageState: z.literal('queued'), pending: z.boolean(), recipient }),
   z.object({ deliveryOutcome: z.literal('rejected'), reason: z.literal('target-closed-pending'), messageState: z.literal('queued'), pending: z.literal(true), recipient }),
   z.object({ deliveryOutcome: z.literal('rejected'), reason: reason.exclude(['target-closed-pending']), messageState: z.literal('rejected'), pending: z.literal(false), candidates: z.array(recipient) }),

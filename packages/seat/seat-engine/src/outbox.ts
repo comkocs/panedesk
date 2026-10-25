@@ -1,6 +1,6 @@
 /** At-least-once callbacks retain their original identities and per-source window ordering. */
-import type { SeatEngineConfig, SeatCallbackDelivery } from '@panedesk/dsh-seat'
-import { EngineJournal, EngineError } from './journal.ts'
+import type { SeatEngineConfig, SeatCallbackDelivery, DeliverSourceCallbackRequest, DeliverSourceCallbackResult } from '@panedesk/dsh-seat'
+import { digest, EngineJournal, EngineError } from './journal.ts'
 import { SourceRegistry } from './sources.ts'
 import { fact } from './triggers.ts'
 
@@ -8,7 +8,8 @@ import { fact } from './triggers.ts'
 export class CallbackOutbox {
   private running: Promise<void> | undefined
   constructor(private readonly journal: EngineJournal, private readonly sources: SourceRegistry,
-    private readonly config: SeatEngineConfig) {}
+    private readonly config: SeatEngineConfig,
+    private readonly routed?: (request: DeliverSourceCallbackRequest) => Promise<DeliverSourceCallbackResult>) {}
 
   /** Deliver currently due facts without overtaking a failed earlier state.
    * @param now - host time used for this attempt batch.
@@ -21,6 +22,24 @@ export class CallbackOutbox {
   }
   /** Drain owned callbacks and their durable acknowledgements before closing the journal. */
   async close(): Promise<void> { await this.running }
+
+  private async deliverRouted(request: DeliverSourceCallbackRequest): Promise<SeatCallbackDelivery['responseClass']> {
+    if (!this.routed) return 'transient'
+    const result = await this.routed(structuredClone(request))
+    if (result.status === 'rejected') return this.refusalClass(result.error)
+    if (result.callbackId !== request.callback.callbackId || result.payloadDigest !== request.payloadDigest) return 'protocol'
+    if (result.status === 'paused') {
+      return this.refusalClass(result.error) === 'authentication' ? 'authentication' : 'protocol'
+    }
+    return result.status === 'committed' ? 'success' : 'transient'
+  }
+
+  private refusalClass(error: import('@panedesk/dsh-seat').SeatFailure): SeatCallbackDelivery['responseClass'] {
+    const code = error.cause?.code ?? error.code
+    return ['node-authentication-failed', 'node-delegation-rejected', 'unauthorized', 'callback-authentication-failed'].includes(code)
+      ? 'authentication' : ['node-protocol-mismatch', 'node-operation-conflict', 'callback-protocol-error'].includes(code)
+        ? 'protocol' : 'transient'
+  }
 
   private async run(now: number): Promise<void> {
     const blocked = new Set<string>()
@@ -35,8 +54,15 @@ export class CallbackOutbox {
       const started = performance.now()
       try {
         // A timeout cannot cancel arbitrary adapter code; retain ownership until it settles.
-        await this.sources.use(delivery.payload.sourceId, source => source.callback(delivery.payload))
-        if (performance.now() - started > this.config.callbackTimeoutMs) responseClass = 'transient'
+        if (delivery.nodeWorkChain) {
+          const { payloadDigest, ...body } = delivery.nodeWorkChain
+          responseClass = digest(body) !== payloadDigest || digest(body.callback) !== delivery.payloadDigest
+            || digest(delivery.payload) !== delivery.payloadDigest || body.route.targetNodeId !== delivery.payload.nodeId
+            || body.route.sourceId !== delivery.payload.sourceId || body.modelEvidence.nodeId !== delivery.payload.nodeId
+            || body.modelEvidence.sessionId !== delivery.payload.sessionId ? 'protocol'
+            : await this.deliverRouted(delivery.nodeWorkChain)
+        } else await this.sources.use(delivery.payload.sourceId, source => source.callback(delivery.payload))
+        if (responseClass === 'success' && performance.now() - started > this.config.callbackTimeoutMs) responseClass = 'transient'
       } catch (error) {
         responseClass = error instanceof EngineError && error.code === 'callback-authentication-failed' ? 'authentication'
           : error instanceof EngineError && error.code === 'callback-protocol-error' ? 'protocol' : 'transient'

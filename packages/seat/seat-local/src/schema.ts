@@ -26,6 +26,15 @@ const trigger = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('handoff-timeout'), timeoutMinutes: positive }),
   z.object({ kind: z.literal('manual'), origin: z.enum(['manual', 'remote']) }),
 ])
+const admissionIdentity = z.string().min(1).refine(value => value.trim().length > 0
+  && !/[*?\u0000-\u001f\u007f]/.test(value) && !['all', String.fromCodePoint(0x5168, 0x90e8)].includes(value.toLowerCase()))
+const admissionList = z.array(admissionIdentity).min(1).refine(values => new Set(values).size === values.length)
+const remoteAdmission = z.object({
+  allowOpen: z.literal(true), sourceNodeIds: admissionList, sourceIds: admissionList, principalIds: admissionList,
+  methods: z.array(z.enum(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])).min(1)
+    .refine(values => new Set(values).size === values.length),
+  policyRevision: positive,
+}).strict()
 const shape = z.object({
   schemaVersion: z.literal(1), revision: positive, seat: z.string().trim().min(1),
   platform: z.enum(['desktop', 'vscode', 'server']), node: z.string().min(1), projectId: z.string().min(1),
@@ -49,7 +58,7 @@ const shape = z.object({
     windowBudgetUsd: z.string().regex(/^\d+$/).optional(), dailyBudgetUsd: z.string().regex(/^\d+$/).optional(),
     modelAccountConcurrency: z.array(z.object({ accountLabel: z.string(), limit: positive })).optional(),
     timeoutMinutes: positive.optional(),
-  })), source: source.optional(),
+  })), source: source.optional(), remoteAdmission: remoteAdmission.optional(),
 })
 
 /** Dynamic catalogs are supplied by the installed runtime, never guessed from model names. */
