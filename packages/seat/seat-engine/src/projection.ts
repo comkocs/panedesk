@@ -1,6 +1,7 @@
 /** Rebuildable engine views; only synchronized decisions may enter this projection. */
 import { digest, EngineError } from './journal.ts'
 import { legacyDecision, type AuthorizationDecision } from './authorization-storage.ts'
+import { validateSourceProxyTransition } from './source-proxy-storage.ts'
 import type { SessionId } from '@panedesk/dsh-session'
 import type {
   EngineDecision, EngineOpenData, EngineTriggerData, PendingSeatItem, QueueItemId,
@@ -26,6 +27,7 @@ export class EngineProjection {
    * @param decision - Required-capability frame awaiting append or replay.
    */
   validateAuthorization(decision: AuthorizationDecision): void {
+    validateSourceProxyTransition(this.authorizationDecisions, decision)
     const members = decision.effects.filter(effect => effect.kind === 'node-batch/accepted')
     for (const member of members) {
       if (this.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-batch/accepted'

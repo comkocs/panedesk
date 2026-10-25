@@ -10,6 +10,7 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../seat" },
+    { "path": "../../sdk/protocol" },
     { "path": "../../core/agent" },
     { "path": "../../jobs/jobs" },
     { "path": "../../subagent/subagent" },

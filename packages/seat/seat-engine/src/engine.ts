@@ -29,6 +29,8 @@ import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen } from './f
 import { installFrozenBusiness } from './frozen-business.ts'
 import { validChainAccepted } from './chain-storage.ts'
 import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batch.ts'
+import { SourceProxy } from './source-proxy.ts'
+import type { SourceProxyInputs, SourceProxyPort } from './source-proxy-types.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -50,6 +52,27 @@ export class SeatEngine extends SeatEngineService {
   /** Required-capability admission shares the legacy journal owner. */
   readonly authorizations: AuthorizationTransactions
   private readonly sources = new SourceRegistry()
+  private sourceProxy: SourceProxy | undefined
+  /** Install one trusted source composition; disposal drains sends without owning an issuer.
+   * @param port - Source owner preparation and composition-owned restricted outbox.
+   * @returns Disposer that rejects new sends before draining accepted calls.
+   */
+  registerSourceProxy(port: SourceProxyPort): () => Promise<void> {
+    if (this.sourceProxy || this.stopped) throw new EngineError('unavailable', 'Source proxy is already installed or stopping')
+    const proxy = new SourceProxy(this, port)
+    this.sourceProxy = proxy
+    return async () => { await proxy.close(); if (this.sourceProxy === proxy) this.sourceProxy = undefined }
+  }
+  /** Source-only routing leaves receiver admission and unconfigured local behavior unchanged.
+   * @param method - Frozen remote method.
+   * @param input - Original local request.
+   * @param authority - Captured local entry; trigger composition supplies its own original grant.
+   * @returns Remote result or absence when no source composition is installed or target is local.
+   */
+  routeSource<M extends T.SeatRemoteOpeningMethod>(method: M, input: SourceProxyInputs[M], authority?: T.SeatCallContext):
+  Promise<T.NodeWorkChainMethodMap[M]['result'] | undefined> {
+    return this.sourceProxy?.route(method, input, authority) ?? Promise.resolve(undefined)
+  }
   private readonly triggers: TriggerRegistry
   private readonly outbox: CallbackOutbox
   private readonly replacements: ReplacementDriver
@@ -117,6 +140,7 @@ export class SeatEngine extends SeatEngineService {
   }
   async shutdown(): Promise<void> {
     this.stopped = true
+    await this.sourceProxy?.close()
     this.authorizationIssuers.close()
     if (this.timer) clearTimeout(this.timer)
     await this.localOpenChain
@@ -314,6 +338,19 @@ export class SeatEngine extends SeatEngineService {
   async accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult> {
     await this.ready()
     if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
+    if (this.sourceProxy) {
+      try {
+        const routed = await this.sources.use(envelope.sourceId, (source) => {
+          if (!source.kinds.includes(envelope.kind) || envelope.callbackRef !== envelope.sourceId
+            || envelope.evidence.kind !== envelope.kind) return Promise.resolve(rejected('unauthorized', 'Source is not authorized for this trigger'))
+          return this.routeSource('engine.acceptFrozen', envelope)
+        })
+        if (routed !== undefined) return routed
+      } catch (error) {
+        if (!(error instanceof EngineError)) throw error
+        return rejected(error.code, error.message)
+      }
+    }
     const definition = await this.dependencies.seats()?.resolve(envelope.seat)
     if (!definition) return rejected('unavailable', 'Seat provider is unavailable')
     if ('status' in definition) return definition
