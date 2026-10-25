@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="purpose"></a>
 ## 用途
 
-五个管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
+六个管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
 
 <a id="configuration-and-identity"></a>
 ## 配置与身份
@@ -36,12 +36,14 @@ kind: "package-reference"
 
 `hostAdminExecutor` 接收传输导出的身份并保留原引擎检查。没有自定义执行器时，运行时从现有引擎的签发器、事务及查询能力装配 `createHostAdminExecutor`。监听器持有的身份签发 `local-operator` 归属，与队列批准原子提交。自报 dispatch 身份不能进入此路径或读取缓存回执；缺少能力时拒绝该方法。状态及待批准查询保留只读引擎回退。
 
-`hostSessionCredentials` 在会话专属权限目录中签发独立且绑定进程代次的凭据。受信创建方提供会话与位，已有核验员工号时可一并提供；请求字段不提供身份。替换或撤销绑定会删除凭据并取消其调用信号。运维 SDK 调用没有位，命名空间授权必须拒绝无位写入。会话凭据不能调用五个运维方法。`callHostSdk` 读取显式端点与凭据路径，只发送一次，不重试未知结果。
+`hostSessionCredentials` 在会话专属权限目录中签发独立且绑定进程代次的凭据。受信创建方提供会话与位，已有核验员工号时可一并提供；请求字段不提供身份。替换或撤销绑定会删除凭据并取消其调用信号。运维 SDK 调用没有位，命名空间授权必须拒绝无位写入。会话凭据不能调用六个运维方法。`callHostSdk` 读取显式端点与凭据路径，只发送一次，不重试未知结果。
 
 <a id="persistence-and-recovery"></a>
 ## 持久化与恢复
 
 `operations.json` 按主体与操作号保留摘要、待决状态或原始回执。先耐久写待决再执行，结果落盘后才公开；同号同参返回原结果，异参拒绝，丢回包保持未知，不自动重放。容量耗尽拒绝新操作，不淘汰未知记录。此接收记录不替代引擎授权账本。
+
+`engine.cancel({ operationId, queueItemId, expectedStateVersion })` 要求本地操作员授权绑定配置节点、主体、操作号与请求摘要，调用运行中引擎的取消能力；节点委托及会话凭据不能取消。未知队列项与过期版本保留引擎拒绝结果。取消复用批准的持久回执处理，包括重启后回放及丢回包时的未知结果，不增加远程入口。
 
 `engine.operation({ operationId })` 读取引擎账本而非传输回执：`approval` 表示队列批准登记，`progress` 区分待决理由与阻塞项、关联开窗阶段及取消。已创建窗口与首轮失败在重启后仍可区分。查询不驱动或重放工作。
 
@@ -70,6 +72,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
+- 取消目前继承引擎语义：已移除的目标返回 `revision-conflict`，取消效果使用 `engine-policy` 而非操作员身份，且没有原因字段。操作者与原因入账、按取消操作号查询、精确派发状态拒绝及外部改面占位释放仍需提供方补齐；传输回执不提供这些保证。
 - `engine.operation` 要求引擎提供可选操作投影；旧提供方缺少此能力时仍不可用。已接纳意图若无已提交创建或失败事实，保持待决，不能报告成功。旧自定义执行器可省略授权分页；调用者不能将缺页当成空授权历史。
 
 - Windows ACL 实跑、真实 SSH 与多进程崩溃注入不在本包 Linux 替身测试覆盖内。执行提供器必须保证自身调用可终止；卸载会等待已接纳调用，不能强制取消任意提供器内部副作用。nonce 集合和操作记录有显式容量限制，满额后需受控重启或运维处理。

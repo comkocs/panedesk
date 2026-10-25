@@ -7696,7 +7696,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostAdminMethods',
-    declaration: 'export interface HostAdminMethods {\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
+    declaration: 'export interface HostAdminMethods {\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
   },
   {
     name: 'HostAdminQueryRequest',

@@ -41,7 +41,7 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
   const failure = (request: HostAdminRequest, code: Exclude<HostAdminResponse, { status: 'ok' }>['code']): HostAdminResponse => ({
     version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
     status: code === 'admin-outcome-unknown' ? 'uncertain' : 'rejected', code, reason: code,
-    ...(request.method === 'engine.approve' ? { operationId: request.params.operationId } : {}),
+    ...(request.method === 'engine.approve' || request.method === 'engine.cancel' ? { operationId: request.params.operationId } : {}),
   })
   const service: HostAdminService = { dispatch: async (request, authenticatedAuthority) => {
     if (stopped) return failure(request, 'admin-unavailable')
@@ -61,7 +61,7 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
       if (response) return decodeResponse(response, request)
       return failure(request, 'admin-method-unavailable')
     }
-    if (request.method !== 'engine.approve') return execute()
+    if (request.method !== 'engine.approve' && request.method !== 'engine.cancel') return execute()
     if (authenticatedAuthority.kind !== 'local-operator'
       || !ctx.get('hostAdminExecutor') && authenticatedAuthority !== authority) return failure(request, 'admin-unauthorized')
     try {
