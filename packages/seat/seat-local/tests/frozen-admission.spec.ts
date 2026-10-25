@@ -1,5 +1,5 @@
 /** Loader-owned local admission preserves frozen acknowledgements and exact business queries. */
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { frozenHost, sender, principalId } from './frozen-fixture.ts'
 import { digest } from '../src/store.ts'
@@ -50,3 +50,42 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
     expect(h.adapter.requests).toHaveLength(0)
   } finally { await h.close() }
 })
+
+test.each(['engine.acceptFrozen', 'seat.openFrozen'] as const)(
+  '%s withdraws captured queries and drains calls before Loader replacement becomes ready', async (method) => {
+    const { h, registry, request, authorize } = await frozenHost()
+    const entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+    try {
+      await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
+      const provider = registry.resolve(method)!
+      const payload = request('query-lifecycle' as T.SeatOperationId)
+      const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId,
+        sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method,
+        operationId: payload.request.operationId }, payloadDigest: digest(payload) }
+      const authority = await authorize(query, 'query-lifecycle-authority' as T.SeatOperationId)
+      const validate = h.engine.authorizations.validate.bind(h.engine.authorizations)
+      vi.spyOn(h.engine.authorizations, 'validate').mockImplementation(async (...args) => {
+        entered.resolve(undefined)
+        await release.promise
+        return validate(...args)
+      })
+      const active = provider.query(query, authority)
+      await entered.promise
+      let drained = false
+      const reloading = h.reload().then(() => { drained = true })
+      await expect.poll(() => registry.resolve(method) === provider).toBe(false)
+      expect(await provider.query(query, authority)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+      expect(drained).toBe(false)
+      release.resolve(undefined)
+      expect(await active).toEqual({ status: 'missing' })
+      await reloading
+      await expect.poll(() => Boolean(registry.resolve(method))).toBe(true)
+      const replacement = registry.resolve(method)!
+      expect(replacement).not.toBe(provider)
+      expect(await replacement.query(query, authority)).toEqual({ status: 'pending', effectState: 'unknown' })
+      expect(await registry.query(query, authority)).toEqual({ status: 'pending', effectState: 'unknown' })
+      await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
+      expect(await registry.query(query, authority)).toEqual({ status: 'missing' })
+      expect(await provider.query(query, authority)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+    } finally { release.resolve(undefined); vi.restoreAllMocks(); await h.close() }
+  })
