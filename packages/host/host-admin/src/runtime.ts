@@ -4,6 +4,7 @@ import type { Context } from '@panedesk/cordis'
 import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION } from './index.ts'
 import type { Config, HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse, HostAdminService } from './index.ts'
 import { PosixPrivateFiles } from './private-files.ts'
+import { waitForPrivateFiles } from './private-files-ready.ts'
 import { OperationStore } from './operation-store.ts'
 import { listenAuthenticatedLoopback, type LoopbackListener } from './loopback.ts'
 import { SessionCredentials } from './session-credentials.ts'
@@ -22,15 +23,17 @@ import { executeLocal } from './local-executor.ts'
 export async function mountAdmin(ctx: Context, config: Config): Promise<() => Promise<void>> {
   const options = config.runtime
   if (options === undefined) return () => Promise.resolve()
-  const files = ctx.get('hostAdminFiles')?.(options.directory)
-    ?? new PosixPrivateFiles(options.directory, process.getuid?.() ?? -1)
+  const windowsFactory = process.platform === 'win32'
+    ? await waitForPrivateFiles(ctx, 'hostAdminFiles', options.requestTimeoutMs, () => ctx.get('hostAdminFiles')) : undefined
+  const privateFiles = windowsFactory ?? ((directory: string) => ctx.get('hostAdminFiles')?.(directory)
+    ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
+  const files = privateFiles(options.directory)
   const epoch = randomUUID() as HostAdminEndpoint['processEpoch']
   const credential = randomBytes(32).toString('hex')
   const sdkAbort = new AbortController()
   const operatorIdentity: HostSdkIdentity = Object.freeze({ principalId: options.principalId as HostSdkIdentity['principalId'],
     authorizationRef: `admin:${epoch}` as HostSdkIdentity['authorizationRef'], signal: sdkAbort.signal })
-  const sessions = new SessionCredentials(options.directory, epoch, directory => ctx.get('hostAdminFiles')?.(directory)
-    ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
+  const sessions = new SessionCredentials(options.directory, epoch, privateFiles)
   const store = new OperationStore(files, options.maxStoreBytes, options.maxOperations)
   const authority: HostAdminAuthority = { principalId: options.principalId as HostAdminAuthority['principalId'],
     authorizationRef: `admin:${epoch}` as HostAdminAuthority['authorizationRef'], kind: 'local-operator', methods: HOST_ADMIN_METHODS }
