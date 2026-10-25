@@ -24,6 +24,7 @@ import { readContextUsage, remindContext } from './context-runtime.ts'
 import { readWindowStatus, renewalRefusal } from './status.ts'
 import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
+import { seatFrozenIdentity, querySeatFrozen } from './frozen-admission.ts'
 
 const reminderSchema = z.object({ sessionId: z.string(), operationId: z.string(), text: z.string(), sent: z.boolean() })
 const reminderSpec = defineDomain({ name: 'seat_close_reminders', version: 1, layout: 'per-record',
@@ -226,6 +227,55 @@ export class LocalSeatService extends SeatService {
     const target = request.nodeId ?? (definition ? this.options.nodeAliases[definition.node] : undefined)
     const routed = await routeSeat(this.runtime.context, this.options.nodeId, target, this.caller(), 'seat.open', request)
     return routed ?? this.openResolved(request)
+  }
+  override async openFrozen(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult> {
+    return this.openFrozenResolved(request, 'seat.openFrozen')
+  }
+  private async openFrozenResolved(request: T.OpenFrozenSeatRequest | T.WakeFrozenSeatRequest,
+    method: 'seat.openFrozen' | 'seat.wakeFrozen'): Promise<T.OpenSeatResult> {
+    const authority = this.caller(), chain = seatFrozenIdentity(request, authority, method)
+    if ('status' in chain) return chain
+    const original = querySeatFrozen((await this.state.read()).effects,
+      { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
+    if (original.status === 'rejected') return original
+    if (original.status === 'settled') {
+      if (original.method === 'seat.openFrozen') return structuredClone(original.result)
+      if (original.method === 'seat.wakeFrozen' && original.result.status === 'opened') return structuredClone(original.result.result)
+    }
+    if (authority.nodeId !== this.options.nodeId) return rejected('cross-node-unsupported', 'Frozen admission is node-local.', 'Use the target node.')
+    const engine = this.engine()
+    if (!engine?.openWindow) return rejected('unavailable', 'Frozen admission is unavailable.', 'Restore the local engine.')
+    const definition = await this.resolve(request.request.seat)
+    if ('status' in definition) return definition
+    if (this.options.nodeAliases[definition.node] !== this.options.nodeId) {
+      return rejected('cross-node-unsupported', 'Frozen admission cannot route again.', 'Use the owning node.')
+    }
+    const snapshot = request.openingContext.snapshot
+    if (Buffer.byteLength(snapshot.text) > this.options.maxOpeningBytes) {
+      return rejected('source-payload-too-large', 'Frozen opening exceeds its byte limit.', 'Reduce the opening input.')
+    }
+    const date = formatTemplateDate(new Date(), this.runtime.context.get('seatGates')?.getTimeZone() ?? 'UTC')
+    const base: T.OpenSeatRequest = 'origin' in request.request ? request.request
+      : { seat: request.request.seat, operationId: request.request.operationId, origin: 'remote',
+        ...(request.request.nodeId ? { nodeId: request.request.nodeId } : {}) }
+    return engine.openWindow({ request: base, authority, definition, nodeWorkChain: chain,
+      openingContext: snapshot, title: `${definition.seat} ${date.slice(5)}`,
+      opening: { text: snapshot.text, digest: snapshot.digest, variables: { seat: definition.seat, date, taskId: base.taskId ?? null } } })
+  }
+  override async wakeFrozen(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult> {
+    const authority = this.caller(), chain = seatFrozenIdentity(request, authority, 'seat.wakeFrozen')
+    if ('status' in chain) return chain
+    const original = querySeatFrozen((await this.state.read()).effects,
+      { key: chain.operationKey, payloadDigest: chain.payloadDigest }, authority)
+    if (original.status === 'rejected') return original
+    if (original.status === 'settled' && original.method === 'seat.wakeFrozen') return structuredClone(original.result)
+    const transactions = this.runtime.context.get('seatAuthorizationTransactions'), grant = authority.authorization
+    if (!transactions?.validate || !grant) return rejected('unavailable', 'Frozen admission is unavailable.', 'Restore admission authority.')
+    const refusal = await transactions.validate({ operationId: grant.fact.operationId, requestDigest: digest(request),
+      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, grant)
+    if (refusal) return refusal
+    return this.wakeResolved(request.request, () => this.openFrozenResolved(request, 'seat.wakeFrozen'))
   }
   /** Trusted source entries retain the complete local opening policy and durable admission.
    * @param request - Source reference and original opening parameters.

@@ -55,6 +55,14 @@ export async function admitLocalOpen(engine: T.SeatEngineService, state: LocalEn
     }
   }
   if (!pending) return rejected('state-conflict', 'Opening queue no longer owns this request.', 'Read the retained window or queue outcome.')
+  return queuedOpenResult(pending)
+}
+
+/** Project the queued acknowledgement of a retained admission.
+ * @param pending - Durable queue record selected by the caller.
+ * @returns Queued acknowledgement without internal frozen content.
+ */
+export function queuedOpenResult(pending: T.PendingSeatItem): T.SeatQueued {
   return { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
     reason: pending.reason, blockedBy: pending.blockedBy }
 }

@@ -15,6 +15,7 @@ import { localFact } from './engine-state.ts'
 import { closingState } from './closing-service.ts'
 import { localSourceId } from './open-admission.ts'
 import { installOpeningContexts } from './opening-contexts.ts'
+import { installSeatFrozenBusiness } from './frozen-business.ts'
 import type { EngineJobData, OwnerEpoch } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { SubagentRunInfo } from '@panedesk/dsh-subagent'
@@ -108,6 +109,7 @@ export function apply(ctx: Context, config: Config): void {
           const unregisterAccess = engine.registerLocalAccess?.({ ...createEngineAccess(installed, config, openingContexts),
             preAdmit: input => engineOpeningGate(child, installed, input) })
           const recovery = engine.ready().then(() => installed.recover())
+          installSeatFrozenBusiness(child, installed, recovery)
           void recovery.catch((error: unknown) => { child.logger.warn('Seat recovery failed', error) })
           return async () => {
             try { await unregister(); await unregisterAccess?.(); await unregisterSource(); await recovery }

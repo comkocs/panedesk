@@ -25,6 +25,9 @@ import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
 import { authorizedCommit, type ActionCommit } from './authorized-commit.ts'
 import { exportAuthorizations } from './authorization-export.ts'
 import { freezeCallbackEvidence, type ExecutionModelReader } from './callback-evidence.ts'
+import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen } from './frozen-admission.ts'
+import { installFrozenBusiness } from './frozen-business.ts'
+import { validChainAccepted } from './chain-storage.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -91,6 +94,7 @@ export class SeatEngine extends SeatEngineService {
       remaining: () => Promise.resolve({ kind: 'unknown' }),
       renew: () => Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' }),
     }, async sessionId => (await this.admitTurn(sessionId)).status !== 'allow')
+    installFrozenBusiness(ctx, this)
   }
   async ready(): Promise<void> {
     this.started ??= this.start()
@@ -140,6 +144,7 @@ export class SeatEngine extends SeatEngineService {
   }
   private async openLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
     await this.ready()
+    if (input.nodeWorkChain) return this.openFrozenLocal(input)
     return openLocalWindow(this, input, async (envelope) => {
       if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
       if (this.options.config.nodeAliases[input.definition.node] !== this.options.nodeId) {
@@ -168,6 +173,79 @@ export class SeatEngine extends SeatEngineService {
       await this.publish()
       return result
     })
+  }
+  private async openFrozenLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
+    const chain = input.nodeWorkChain, grant = input.authority.authorization
+    if (!chain || !grant) return rejected('unauthorized', 'Frozen opening requires admission identity')
+    const retained = queryFrozen(this.journal.projection, { key: chain.operationKey, payloadDigest: chain.payloadDigest })
+    if (retained.status === 'rejected') return retained
+    if (retained.status === 'settled') {
+      if (retained.method === 'seat.openFrozen') return structuredClone(retained.result)
+      if (retained.method === 'seat.wakeFrozen' && retained.result.status === 'opened') return structuredClone(retained.result.result)
+    }
+    if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
+    const definition = await this.dependencies.seats()?.resolve(input.request.seat)
+    if (!definition) return rejected('unavailable', 'Seat provider is unavailable')
+    if ('status' in definition) return definition
+    if (this.options.config.nodeAliases[definition.node] !== this.options.nodeId || chain.route.targetNodeId !== this.options.nodeId) {
+      return rejected('cross-node-unsupported', 'Frozen admission cannot route to another node')
+    }
+    if (!validChainAccepted(chain) || !['seat.openFrozen', 'seat.wakeFrozen'].includes(chain.operationKey.method)
+      || input.request.operationId !== chain.operationKey.operationId || input.authority.principalId !== grant.fact.principalId
+      || digest(input.definition) !== digest(definition) || input.opening.text !== chain.openingContext.snapshot.text
+      || input.opening.digest !== chain.openingContext.snapshot.digest) {
+      return rejected('invalid-request', 'Frozen local action differs from its retained wire intent')
+    }
+    if (this.localAccess?.preAdmit) {
+      const refusal = await this.localAccess.preAdmit(input)
+      if (refusal) return refusal
+    }
+    const originalRequest = chain.operationKey.method === 'seat.openFrozen' ? input.request
+      : { seat: input.request.seat, operationId: input.request.operationId,
+        ...(input.request.nodeId ? { nodeId: input.request.nodeId } : {}) }
+    if (digest({ request: originalRequest, openingContext: chain.openingContext,
+      expectedSeatRevision: chain.expectedSeatRevision, route: chain.route }) !== chain.payloadDigest) {
+      return rejected('unauthorized', 'Derived local opening does not match the authorized frozen request')
+    }
+    const snapshot = chain.openingContext.snapshot
+    const envelope: T.TriggerEnvelope = { triggerId: digest(chain.operationKey) as string as T.TriggerId,
+      sourceId: chain.route.sourceId, kind: 'manual', evidence: { kind: 'manual', origin: 'remote', operationId: input.request.operationId },
+      seat: definition.seat, projectId: definition.projectId, receivedAt: new Date().toISOString(),
+      data: null, dataDigest: digest(null), callbackRef: chain.route.sourceId, relatedTaskIds: snapshot.taskIds }
+    const frozen: T.SeatFrozenOpen = { definition: structuredClone(definition), title: input.title,
+      frozenOpening: structuredClone(input.opening), openingContext: snapshot, nodeWorkChain: chain,
+      openingMode: chain.openingContext.openingMode, recheckRequired: true }
+    let result: T.OpenSeatResult = rejected('unavailable', 'Frozen admission did not commit')
+    try {
+      await this.journal.commitAuthorization((view) => {
+        const original = queryFrozen(view, { key: chain.operationKey, payloadDigest: chain.payloadDigest })
+        if (original.status === 'rejected') { result = original; return [] }
+        if (original.status === 'settled') {
+          if (original.method === 'seat.openFrozen') result = original.result
+          else if (original.method === 'seat.wakeFrozen' && original.result.status === 'opened') result = original.result.result
+          return []
+        }
+        const authorization = authorizeFrozen(this.authorizationIssuers, grant, chain, definition, this.options.nodeId)
+        const effects = frozenEffects(view, chain, envelope, frozen)
+        if ('status' in effects) { result = effects; return [] }
+        const intent = effects.find(effect => effect.kind === 'trigger/accepted')
+        if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
+        const pending = intent.data.pending
+        result = { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
+          reason: pending.reason, blockedBy: pending.blockedBy }
+        return [...effects, authorization]
+      })
+    } catch (error) {
+      return this.frozenCommitFailure(error)
+    }
+    await this.publish()
+    return result
+  }
+  private frozenCommitFailure(error: unknown): T.SeatRejected {
+    if (!(error instanceof EngineError)) throw error
+    const result = rejected(error.code, error.message)
+    return error.code === 'unavailable'
+      ? { ...result, error: { ...result.error, effectState: 'unknown' } } : result
   }
   registerSource(source: T.SeatTriggerSource): () => Promise<void> { return this.sources.register(source) }
   registerExecutor(executor: T.SeatOpenExecutor): () => Promise<void> {
@@ -226,6 +304,63 @@ export class SeatEngine extends SeatEngineService {
     const rule = triggerRule(frozenOpen.definition, envelope)
     const result = await this.triggers.accept(envelope,
       externalRuleMiss(frozenOpen.definition, envelope) ? 'off' : rule?.mode, frozenOpen)
+    await this.publish()
+    return result
+  }
+  override async acceptFrozen(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult> {
+    await this.ready()
+    const input = frozenIdentity(request, authority, 'engine.acceptFrozen')
+    if ('status' in input) return input
+    const retained = queryFrozen(this.journal.projection, { key: input.operationKey, payloadDigest: input.payloadDigest })
+    if (retained.status === 'rejected') return retained
+    if (retained.status === 'settled' && retained.method === 'engine.acceptFrozen') return structuredClone(retained.result)
+    if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
+    if (!validChainAccepted(input)) return rejected('invalid-request', 'Frozen input does not match its original business identity')
+    const definition = await this.dependencies.seats()?.resolve(request.envelope.seat)
+    if (!definition) return rejected('unavailable', 'Seat provider is unavailable')
+    if ('status' in definition) return definition
+    if (this.options.config.nodeAliases[definition.node] !== this.options.nodeId) {
+      return rejected('cross-node-unsupported', 'Frozen admission cannot route to another node')
+    }
+    const envelope = structuredClone(request.envelope), snapshot = input.openingContext.snapshot
+    if (envelope.projectId !== definition.projectId || envelope.evidence.kind !== envelope.kind
+      || envelope.dataDigest !== digest(envelope.data)
+      || envelope.taskId && !snapshot.taskIds.includes(envelope.taskId)
+      || digest([...(envelope.relatedTaskIds ?? snapshot.taskIds)].sort()) !== digest([...snapshot.taskIds].sort())) {
+      return rejected('invalid-request', 'Frozen trigger does not match target and task evidence')
+    }
+    if (Buffer.byteLength(canonical(request)) > this.options.config.maxSourceBytes) {
+      return rejected('source-payload-too-large', 'Frozen input exceeds its byte limit')
+    }
+    if (envelope.cause && envelope.cause.depth >= this.options.config.maxCauseDepth) {
+      return rejected('causal-depth-exceeded', 'Trigger causal chain requires manual review')
+    }
+    const frozen: T.SeatFrozenOpen = { definition: structuredClone(definition), title: definition.seat,
+      openingMode: input.openingContext.openingMode, openingContext: snapshot, nodeWorkChain: input,
+      recheckRequired: true,
+      frozenOpening: { text: snapshot.text, digest: snapshot.digest,
+        variables: { seat: definition.seat, date: envelope.receivedAt.slice(0, 10), taskId: envelope.taskId ?? null } } }
+    let result: T.AcceptTriggerResult = rejected('unavailable', 'Frozen admission did not commit')
+    try {
+      await this.journal.commitAuthorization((view) => {
+        const grant = authority.authorization
+        if (!grant) throw new EngineError('unauthorized', 'Frozen admission requires a live grant')
+        const original = queryFrozen(view, { key: input.operationKey, payloadDigest: input.payloadDigest })
+        if (original.status === 'rejected') { result = original; return [] }
+        if (original.status === 'settled' && original.method === 'engine.acceptFrozen') { result = structuredClone(original.result); return [] }
+        const authorization = authorizeFrozen(this.authorizationIssuers, grant, input, definition, this.options.nodeId)
+        const effects = frozenEffects(view, input, envelope, frozen,
+          externalRuleMiss(definition, envelope) ? 'off' : triggerRule(definition, envelope)?.mode)
+        if ('status' in effects) { result = effects; return [] }
+        const intent = effects.find(effect => effect.kind === 'trigger/accepted')
+        if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
+        result = { status: 'accepted', triggerId: envelope.triggerId, queueItemId: intent.data.pending.queueItemId,
+          sequence: intent.data.pending.sequence }
+        return [...effects, authorization]
+      })
+    } catch (error) {
+      return this.frozenCommitFailure(error)
+    }
     await this.publish()
     return result
   }
@@ -617,7 +752,8 @@ export class SeatEngine extends SeatEngineService {
     if (!definition || 'status' in definition) return
     const source = item.sources[0]
     const rule = source ? triggerRule(definition, source) : undefined
-    const livePolicy = item.triggerKind === 'manual' ? undefined : await this.dependencies.seats()?.resolve(item.seat)
+    const livePolicy = item.triggerKind === 'manual' && !item.frozenOpen?.nodeWorkChain
+      ? undefined : await this.dependencies.seats()?.resolve(item.seat)
     const currentDefinition = livePolicy && !('status' in livePolicy) ? livePolicy : definition
     const ruleMode = source && externalRuleMiss(currentDefinition, source) ? 'off'
       : source ? triggerRule(currentDefinition, source)?.mode : rule?.mode
@@ -631,7 +767,8 @@ export class SeatEngine extends SeatEngineService {
       const current = view.pending.get(item.queueItemId)
       if (!current || canonical(current) !== canonical(item)) return []
       const policy = view.policies.get(item.projectId)
-      const localMode = item.triggerKind === 'manual' ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
+      const localMode = item.triggerKind === 'manual' && !item.frozenOpen?.nodeWorkChain
+        ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
       const mode = item.frozenOpen?.nodeWorkChain
         ? effectiveMode(localMode, item.frozenOpen.nodeWorkChain.route.modeCeiling.mode) : localMode
       const pending = (reason: T.PendingReason, blockedBy: readonly string[] = []): T.EngineEffect[] => {
