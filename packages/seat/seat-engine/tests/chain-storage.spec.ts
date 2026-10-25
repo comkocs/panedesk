@@ -4,7 +4,10 @@ import type * as T from '@panedesk/dsh-seat'
 import { authorizationFrame, decodeAuthorizationFrame } from '../src/authorization-storage.ts'
 import { canonical, decodeFrame, digest, EngineJournal } from '../src/journal.ts'
 import { validChainAccepted, type ChainAcceptedEffect } from '../src/chain-storage.ts'
-import { harness, nodeId, sourceId, trigger } from './fixtures.ts'
+import { auto, harness, nodeId, sourceId, trigger } from './fixtures.ts'
+import { TriggerRegistry } from '../src/triggers.ts'
+import { SourceRegistry } from '../src/sources.ts'
+import { config } from './fixtures.ts'
 
 async function fixture() {
   const h = await harness()
@@ -60,6 +63,45 @@ test('requires the route capability and matching intent in one frame, refusing l
     expect(() => decodeAuthorizationFrame(canonical(authorizationFrame(missing)), 200000)).toThrow('capability')
     expect(() => decodeAuthorizationFrame(canonical(authorizationFrame({ ...body,
       effects: body.effects.filter(effect => effect.kind === 'trigger/accepted') })), 200000)).toThrow('capability')
+  } finally { await h.close() }
+})
+
+test('separates frozen owners and epochs without changing local coalescing', async () => {
+  const { h, data } = await fixture()
+  const sources = new SourceRegistry()
+  sources.register({ sourceId, kinds: ['external'], maxRedeliveryMs: null, callback: async () => {} })
+  const registry = new TriggerRegistry(h.engine.journal, sources, config)
+  const frozen = [...h.engine.journal.projection.pending.values()][0]!.frozenOpen!
+  try {
+    for (const [index, ownerEpoch] of ['epoch-a', 'epoch-b', 'epoch-a'].entries()) {
+      const result = await registry.accept(trigger('external', `chain-${index}`), undefined,
+        { ...frozen, nodeWorkChain: { ...data, route: { ...data.route, ownerEpoch: ownerEpoch as T.OwnerEpoch } } })
+      expect(result.status).toBe(index === 2 ? 'coalesced' : 'accepted')
+    }
+    expect(h.engine.journal.projection.pending.size).toBe(3)
+  } finally { await sources.close(); await h.close() }
+})
+
+test.each(['off', 'remind'] as const)('retains the source %s ceiling across dispatch and recovery', async (mode) => {
+  const { h, decision } = await fixture()
+  try {
+    const effects = structuredClone(decision.effects)
+    for (const effect of effects) {
+      if (effect.kind === 'node-route/accepted') effect.data.route.modeCeiling.mode = mode
+      if (effect.kind === 'trigger/accepted' && effect.data.pending.frozenOpen?.nodeWorkChain) {
+        effect.data.pending.frozenOpen.nodeWorkChain.route.modeCeiling.mode = mode
+      }
+    }
+    await h.engine.journal.commitAuthorization(() => effects)
+    await auto(h.engine)
+    await h.engine.drive()
+    expect(h.creates).toEqual([])
+    expect([...h.engine.journal.projection.pending.values()][0]?.reason).toBe(mode === 'off' ? 'project-off' : 'approval')
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    await restarted.drive()
+    expect(h.creates).toEqual([])
+    expect([...restarted.journal.projection.pending.values()][0]?.effectiveMode).toBe(mode)
   } finally { await h.close() }
 })
 

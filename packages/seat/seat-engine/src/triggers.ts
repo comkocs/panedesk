@@ -82,7 +82,8 @@ export class TriggerRegistry {
           }
           const policy: SeatProjectPolicy = view.policies.get(trigger.projectId) ?? { projectId: trigger.projectId,
             mode: 'remind', modeChosen: false, revision: 0 }
-          const mode = trigger.kind === 'manual' ? 'auto' : effectiveMode(policy.mode, ruleMode)
+          const localMode = trigger.kind === 'manual' ? 'auto' : effectiveMode(policy.mode, ruleMode)
+          const mode = frozenOpen?.nodeWorkChain ? effectiveMode(localMode, frozenOpen.nodeWorkChain.route.modeCeiling.mode) : localMode
           if (mode === 'off') {
             result = rejected('disabled', 'Automatic triggering is disabled')
             return [...checkpoint, fact({ kind: 'source/rejected', seat: trigger.seat, data: { sourceId: trigger.sourceId,
@@ -94,6 +95,7 @@ export class TriggerRegistry {
               || item.sources[0]?.sourceId === trigger.sourceId
               && item.sources[0].evidence.kind === 'external' && trigger.evidence.kind === 'external'
               && item.sources[0].evidence.eventType === trigger.evidence.eventType)
+            && canonical(item.frozenOpen?.nodeWorkChain ?? null) === canonical(frozenOpen?.nodeWorkChain ?? null)
             && canonical(item.frozenOpen?.openingContext?.reference ?? null) === canonical(frozenOpen?.openingContext?.reference ?? null)
             && (trigger.evidence.kind !== 'handoff-timeout' || item.handoffTimeout?.messageId === trigger.evidence.messageId))
           const sources = [...(previous?.sources ?? []), trigger]
