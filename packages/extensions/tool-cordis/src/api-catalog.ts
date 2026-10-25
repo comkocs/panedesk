@@ -3046,6 +3046,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Disposer that stops new calls and drains active admissions.',
       },
       {
+        signature: 'registerSourceOwner?(owner: T.SeatSourceOwner): () => Promise<void>',
+        description: 'Install the sole trusted source owner; omission preserves the legacy opening service.',
+        parameters: [{ name: 'owner', description: 'Owner of source preparation, admission checks and callback delivery.' }],
+        returns: 'Disposer that stops new calls and drains in-flight calls before removing the owner.',
+        throws: ['If a source owner is already registered, including the same owner again.'],
+      },
+      {
         signature: 'register(provider: T.OpeningContextProvider): () => Promise<void>',
         description: 'Register trusted resolver code through a Cordis effect.',
         parameters: [{ name: 'provider', description: 'Installed resolver with an exclusive provider identity.' }],
@@ -9963,7 +9970,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatAuthorizationFact',
-    declaration: 'export interface SeatAuthorizationFact {\n    authorizationId: AuthorizationRef;\n    kind: SeatAuthorizationKind;\n    principalId: SeatPrincipalId;\n    origin: SeatCallContext[\'origin\'];\n    nodeId: SeatNodeId;\n    sessionId?: SessionId;\n    seat?: SeatName;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    callId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n    policyRevision: number;\n    decision: \'allowed\' | \'denied\';\n    reasonCode: string;\n    requestDigest: SeatDigest;\n    delegatedBy?: AuthorizationRef;\n    checkedAt: SeatTimestamp;\n}',
+    declaration: 'export interface SeatAuthorizationFact {\n    authorizationId: AuthorizationRef;\n    kind: SeatAuthorizationKind;\n    sourceNodeId?: SeatNodeId;\n    principalId: SeatPrincipalId;\n    origin: SeatCallContext[\'origin\'];\n    nodeId: SeatNodeId;\n    sessionId?: SessionId;\n    seat?: SeatName;\n    taskIds: readonly SeatTaskId[];\n    operationId: SeatOperationId;\n    callId?: Branded<\'ToolCallId\'>;\n    rootCallId?: Branded<\'ToolCallId\'>;\n    policyRevision: number;\n    decision: \'allowed\' | \'denied\';\n    reasonCode: string;\n    requestDigest: SeatDigest;\n    delegatedBy?: AuthorizationRef;\n    checkedAt: SeatTimestamp;\n}',
   },
   {
     name: 'SeatAuthorizationGrant',
@@ -10268,6 +10275,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatSourceId',
     declaration: 'export type SeatSourceId = Branded<\'SeatSourceId\'>;',
+  },
+  {
+    name: 'SeatSourceOwner',
+    declaration: 'export interface SeatSourceOwner {\n    prepare(request: PrepareSourceOpeningRequest, authority: SeatCallContext): Promise<PrepareSourceOpeningResult>;\n    checkAdmission(request: CheckSourceAdmissionRequest, authority: SeatCallContext): Promise<CheckSourceAdmissionResult>;\n    deliverCallback(request: DeliverSourceCallbackRequest, authority: SeatCallContext): Promise<DeliverSourceCallbackResult>;\n}',
   },
   {
     name: 'SeatTaskEndedRequest',

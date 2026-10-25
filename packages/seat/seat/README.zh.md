@@ -33,6 +33,8 @@ kind: "package-reference"
 
 可选 `nodeWorkChainBusiness` 为六个业务方法注册 `NodeWorkChainBusinessProvider` 所有者，不包含 `chain.operation`。同一方法全局仅有一个提供方；方法重叠或重复注册均抛出异常，不能部分注册。通过 `ctx.get` 获取服务，缺席时跳过注册，保持基线行为。查询使用完整业务键和载荷摘要及已认证上下文，不以传输层待处理状态或旧操作号查询替代。各提供方的恢复屏障覆盖全部已持久意图与收件箱；屏障完成前只返回待处理或未知，不返回缺失，恢复失败不得通告接收能力。可选续推重新核验受限发件箱身份，保留原键与摘要，由提供方负责原子去重。本包仅提供声明；注册处与业务所有者由独立提供方实现。
 
+可选 `SeatAuthorizationFact.sourceNodeId` 只出现在本地签发的 `node-delegation` 事实上：接收策略将传输层已认证的发送节点写入签发入口身份，绝不取自请求 JSON。旧事实与旧委托保持逐字节不变。可选 `SeatOpeningContexts.registerSourceOwner` 安装唯一受信 `SeatSourceOwner`，其必有的 `prepare`、`checkAdmission`、`deliverCallback` 方法与既有可选挂点签名一致。重复注册抛出异常；注销停止新调用并排空在途调用。未注册所有者时，提供方不暴露这三个方法；本包不安装实现。
+
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 
 <a id="model-experience"></a>

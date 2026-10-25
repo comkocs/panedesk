@@ -1,3 +1,4 @@
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -38,6 +39,31 @@ def test_queries_preserve_stale_nodes_and_empty_advancing_pages() -> None:
     assert host.query_authorizations({"taskId": "task-a", "limit": 3, "cursor": cursor}) == page
     assert request.call_count == 3
     assert request.call_args.args == ("authorizations/query", {"taskId": "task-a", "limit": 3, "cursor": cursor})
+
+
+def test_legacy_authorization_fact_json_bytes_and_optional_source_identity() -> None:
+    from deepseek_harness.host import AuthorizationFact
+
+    raw = ('{"authorizationId":"authorization-a","kind":"node-delegation",'
+           '"principalId":"principal-a","origin":"remote","nodeId":"node-b",'
+           '"taskIds":[],"operationId":"operation-a","policyRevision":1,'
+           '"decision":"allowed","reasonCode":"allowed","requestDigest":"digest-a",'
+           '"checkedAt":"2026-01-01T00:00:00Z"}')
+    fact = json.loads(raw)
+    assert AuthorizationFact.model_validate(fact).model_dump_json(exclude_unset=True) == raw
+    page = {"facts": [fact], "complete": True, "watermark": 1, "legacyAttribution": "none"}
+    host = HostClient(Mock(return_value=page))
+    result = host.query_authorizations({"limit": 1})
+    assert json.dumps(result["facts"][0], separators=(",", ":")) == raw
+    assert "sourceNodeId" not in result["facts"][0]
+    current = {**fact, "sourceNodeId": "node-a"}
+    assert AuthorizationFact.model_validate(current).sourceNodeId == "node-a"
+    page["facts"] = [current]
+    assert host.query_authorizations({"limit": 1}) == page
+    for source_node_id in ["", 3]:
+        page["facts"] = [{**fact, "sourceNodeId": source_node_id}]
+        with pytest.raises(SdkProtocolError):
+            host.query_authorizations({"limit": 1})
 
 
 def test_queries_reject_authority_fields_and_corrupt_pages_without_retry() -> None:

@@ -32,6 +32,7 @@ class AuthorizationFact(BaseModel):
     principalId: Text
     origin: Literal["manual", "remote", "engine"]
     nodeId: Text
+    sourceNodeId: Text | None = None
     sessionId: Text | None = None
     seat: Text | None = None
     taskIds: list[Text]

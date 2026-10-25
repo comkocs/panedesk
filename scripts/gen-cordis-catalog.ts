@@ -389,6 +389,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   'T.SeatTaskQueryRequest': 'seat.md',
   'T.OpeningContextProvider': 'seat.md',
   'T.OpeningScopeAdmission': 'seat.md',
+  'T.SeatSourceOwner': 'seat.md',
   'T.OpenSeatWithContextRequest': 'seat.md',
   'T.WakeSeatWithContextRequest': 'seat.md',
   'T.OpenSeatBatchWithScopeRequest': 'seat.md',

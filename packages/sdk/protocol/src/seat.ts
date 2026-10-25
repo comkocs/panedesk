@@ -263,7 +263,7 @@ export function decodeNodeWorkChainResult<M extends NodeWorkChainMethod>(method:
 const evidenceRequest = fields({ authorizationRef: text, method: choice(...NODE_WORK_CHAIN_METHODS), operationId: text,
   payloadDigest: text, sourceNodeId: text, targetNodeId: text })
 const authorizationFact = fields({ authorizationId: text, kind: choice('model-tool-call', 'human', 'engine', 'local-operator', 'node-delegation', 'plugin'),
-  principalId: text, origin: choice('manual', 'remote', 'engine'), nodeId: text, sessionId: optional(text), seat: optional(text),
+  principalId: text, origin: choice('manual', 'remote', 'engine'), nodeId: text, sourceNodeId: optional(text), sessionId: optional(text), seat: optional(text),
   taskIds: array(text), operationId: text, callId: optional(text), rootCallId: optional(text), policyRevision: integer,
   decision: choice('allowed', 'denied'), reasonCode: diagnosticCode, requestDigest: text, delegatedBy: optional(text), checkedAt: text })
 /** Validate the same-channel exact evidence lookup without issuing another delegation.
