@@ -589,6 +589,12 @@ export interface SeatOpeningContexts {
    * @returns Disposer that stops new calls and drains active admissions.
    */
   registerScopeAdmission?(admission: T.OpeningScopeAdmission): () => Promise<void>
+  /** Install the sole trusted source owner; omission preserves the legacy opening service.
+   * @param owner - Owner of source preparation, admission checks and callback delivery.
+   * @returns Disposer that stops new calls and drains in-flight calls before removing the owner.
+   * @throws If a source owner is already registered, including the same owner again.
+   */
+  registerSourceOwner?(owner: T.SeatSourceOwner): () => Promise<void>
   /** Register trusted resolver code through a Cordis effect.
    * @param provider - Installed resolver with an exclusive provider identity.
    * @returns Disposer that drains resolutions before removing the provider.

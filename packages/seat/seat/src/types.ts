@@ -954,6 +954,27 @@ export interface OpeningScopeAdmission {
    */
   open(request: OpenSeatWithContextRequest, authority: SeatCallContext, execute: () => Promise<OpenSeatResult>): Promise<OpenSeatResult>
 }
+/** Sole trusted source owner; all three operations are required when registered. */
+export interface SeatSourceOwner {
+  /** Prepare and retain source input without waiting for execution.
+   * @param request - Exact source, epoch, task and operation identities.
+   * @param authority - Authenticated original caller.
+   * @returns Frozen input and reservation or refusal.
+   */
+  prepare(request: PrepareSourceOpeningRequest, authority: SeatCallContext): Promise<PrepareSourceOpeningResult>
+  /** Recheck the retained reservation without reading source text again.
+   * @param request - Original reservation and actual execution node.
+   * @param authority - Authenticated restricted caller.
+   * @returns Current permission; unknown retains occupancy.
+   */
+  checkAdmission(request: CheckSourceAdmissionRequest, authority: SeatCallContext): Promise<CheckSourceAdmissionResult>
+  /** Retain the callback before performing source-owned writeback steps.
+   * @param request - Original callback, route and frozen runtime evidence.
+   * @param authority - Authenticated execution-node identity.
+   * @returns Committed only after all original steps finish.
+   */
+  deliverCallback(request: DeliverSourceCallbackRequest, authority: SeatCallContext): Promise<DeliverSourceCallbackResult>
+}
 /** Source identity matches exactly; an omitted event type accepts any type from that source only. */
 export interface ExternalRuleMatch { sourceId: SeatSourceId; eventType?: string }
 /** Verified external evidence supplies both operands without changing legacy trigger records. */
@@ -964,6 +985,11 @@ export type SeatAuthorizationKind = 'model-tool-call' | 'human' | 'engine' | 'lo
 export interface SeatAuthorizationFact {
   authorizationId: AuthorizationRef
   kind: SeatAuthorizationKind
+  /** Present only on locally issued node-delegation facts, never legacy facts or delegations.
+   * The receiving policy captures the transport-authenticated sending node in the entry identity;
+   * this value must never come from request JSON.
+   */
+  sourceNodeId?: SeatNodeId
   principalId: SeatPrincipalId
   origin: SeatCallContext['origin']
   nodeId: SeatNodeId

@@ -74,6 +74,23 @@ describe('node work chain projection', () => {
     expect(() => decodeNodeWorkChainRequest('seat.openFrozen', { ...cases[1][1], openingContext: { ...openingContext, snapshot: {} } })).toThrow()
     expect(() => decodeNodeWorkChainResult('chain.operation', { status: 'settled', method: 'chain.operation', result: { status: 'missing' } })).toThrow()
   })
+  it('preserves legacy authorization fact JSON bytes and accepts optional source identity', () => {
+    const bytes = '{"authorizationId":"authorization-a","kind":"node-delegation","principalId":"principal-a","origin":"remote","nodeId":"node-b","taskIds":[],"operationId":"operation-a","policyRevision":1,"decision":"allowed","reasonCode":"allowed","requestDigest":"digest-a","checkedAt":"2026-01-01T00:00:00Z"}'
+    const fact: unknown = JSON.parse(bytes)
+    const request = { authorizationRef: 'authorization-a', method: 'seat.openFrozen', operationId: 'operation-a', payloadDigest: 'digest-a', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+    const retained = { status: 'retained', request, fact, expiresAt: '2026-01-01T00:01:00Z', revoked: false }
+    const decoded = decodeNodeDelegationEvidenceResult(retained)
+    expect(decoded.status).toBe('retained')
+    if (decoded.status !== 'retained') throw new Error('Expected retained evidence')
+    expect(encodeNodeWorkChainFrame(decoded.fact, [4096, 4096, 4096])).toBe(bytes)
+    expect(decoded.fact).not.toHaveProperty('sourceNodeId')
+    const current = { ...retained, fact: { ...decoded.fact, sourceNodeId: 'node-a' } }
+    expect(decodeNodeDelegationEvidenceResult(current)).toBe(current)
+    expect(JSON.stringify(decodeNodeDelegationEvidenceResult(current))).toBe(JSON.stringify(current))
+    for (const sourceNodeId of ['', ' ', null, 3]) {
+      expect(() => decodeNodeDelegationEvidenceResult({ ...retained, fact: { ...decoded.fact, sourceNodeId } })).toThrow('Invalid evidence result')
+    }
+  })
   it('validates evidence control fields and complete frame byte limits', () => {
     const request = { authorizationRef: 'authorization-a', method: 'seat.openFrozen', operationId: 'operation-a', payloadDigest: 'digest-a', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
     expect(decodeNodeDelegationEvidenceRequest(request)).toBe(request)
