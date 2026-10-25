@@ -62,8 +62,8 @@ test('routes six methods through Loader peers with real admission or explicit un
       await contexts[i]!.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
       await contexts[i]!.loader.await()
     }
+    await expect.poll(async () => (await source.get('nodeRouter')?.status())?.[0]?.reachable).toBe(true)
     const router = source.get('nodeRouter')!
-    await expect.poll(async () => (await router.status())[0]?.reachable).toBe(true)
     const route = async (method: typeof methods[number], payload: object) => {
       const deadline = new Date(Date.now() + 50000).toISOString(), operationId = `remote-${method}`
       const body = { ...payload, nodeId: 'node-a', operationId }, requestDigest = digest(body)

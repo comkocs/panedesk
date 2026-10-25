@@ -25,7 +25,9 @@ export async function frozenHost(root?: string) {
   const definition = { ...h.definition, remoteAdmission: { allowOpen: true as const, sourceNodeIds: [sender],
     sourceIds: ['remote-source' as T.SeatSourceId], principalIds: [principalId],
     methods: ['seat.openFrozen', 'seat.wakeFrozen', 'engine.acceptFrozen'] as T.SeatRemoteOpeningMethod[], policyRevision: 1 } }
-  await h.seats.save({ definition, expectedRevision: 2, operationId: 'save-remote' as T.SeatOperationId })
+  if ((await h.seats.definitions({})).revision === 2) {
+    await h.seats.save({ definition, expectedRevision: 2, operationId: 'save-remote' as T.SeatOperationId })
+  }
   await h.ctx.loader.await()
   await registered.promise
   const request = (operationId: T.SeatOperationId): T.OpenFrozenSeatRequest => {

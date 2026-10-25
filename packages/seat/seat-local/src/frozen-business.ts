@@ -5,6 +5,7 @@ import type { LocalSeatService } from './service.ts'
 import { querySeatFrozen } from './frozen-admission.ts'
 import { digest } from './store.ts'
 import { rejected } from './errors.ts'
+import { SeatEngine } from '@panedesk/dsh-seat-engine'
 
 /** Scope query registration to the existing engine recovery and the optional chain registry.
  * @param ctx - Local admission lifecycle owner.
@@ -30,7 +31,13 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
         }
         const refusal = await transactions.validate({ operationId: fact.operationId, requestDigest: digest(request),
           ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
-        return refusal ?? structuredClone(querySeatFrozen((await seats.state.read()).effects, request, context))
+        if (refusal) return refusal
+        const engine = child.get('seatEngine')
+        if (engine instanceof SeatEngine && request.key.method === 'seat.wakeFrozen') {
+          const delivery = engine.wakeDeliveries.query(request, context)
+          if (delivery.status !== 'missing') return delivery
+        }
+        return structuredClone(querySeatFrozen((await seats.state.read()).effects, request, context))
       }
       const provider: T.NodeWorkChainBusinessProvider = { methods: ['seat.openFrozen', 'seat.wakeFrozen'],
         ready: () => ready.then(() => { recovered = !lifecycle.signal.aborted; if (recovered) writes.ready() }),

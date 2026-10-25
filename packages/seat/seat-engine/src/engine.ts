@@ -31,6 +31,7 @@ import { validChainAccepted } from './chain-storage.ts'
 import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batch.ts'
 import { SourceProxy } from './source-proxy.ts'
 import type { SourceProxyInputs, SourceProxyPort } from './source-proxy-types.ts'
+import { WakeDeliveries } from './wake-delivery.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -51,6 +52,8 @@ export class SeatEngine extends SeatEngineService {
   readonly authorizationIssuers = new AuthorizationIssuers()
   /** Required-capability admission shares the legacy journal owner. */
   readonly authorizations: AuthorizationTransactions
+  /** Private wake intents share this journal's writer and recovery. */
+  readonly wakeDeliveries: WakeDeliveries
   /** Registration readiness and withdrawal cover complete frozen and batch admissions. */
   readonly frozenWrites = new FrozenWriteBarrier()
   private readonly sources = new SourceRegistry()
@@ -93,6 +96,7 @@ export class SeatEngine extends SeatEngineService {
     super(ctx)
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
+    this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers)
     this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
       () => this.ready(), () => this.publish(), options.config.nodeName)
     ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
@@ -172,6 +176,37 @@ export class SeatEngine extends SeatEngineService {
     const result = this.localOpenChain.then(() => this.openLocal(input))
     this.localOpenChain = result.then(() => undefined, () => undefined)
     return result
+  }
+  /** Serialize window selection and frozen fallback with all local opening admissions.
+   * @param operationId - Original wire identity retained by the callback's journal intent.
+   * @param work - Local-only selection with a non-reentrant frozen opener.
+   * @returns Original wake acknowledgement or admission refusal.
+   */
+  wakeLocal(operationId: T.SeatOperationId,
+    work: (open: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>) => Promise<T.WakeSeatResult>): Promise<T.WakeSeatResult> {
+    return this.frozenWrites.run(() => {
+      const result = this.localOpenChain.then(async () => {
+        await this.ready()
+        return work(async (input) => {
+          if (!input.nodeWorkChain || input.request.operationId !== operationId
+            || input.nodeWorkChain.operationKey.method !== 'seat.wakeFrozen') {
+            return rejected('unauthorized', 'Wake fallback requires its original frozen identity')
+          }
+          const retained = queryFrozen(this.journal.projection, {
+            key: input.nodeWorkChain.operationKey, payloadDigest: input.nodeWorkChain.payloadDigest })
+          if (retained.status !== 'missing') return this.openLocal(input)
+          const view = this.journal.projection
+          if ([...view.pending.values()].some(item => item.seat === input.request.seat)
+            || [...view.opens.values()].some(item => item.binding.kind === 'seat' && item.binding.seat === input.request.seat
+              && !view.closed.has(item.sessionId))) {
+            return rejected('session-busy', 'A window opening for this seat is already admitted')
+          }
+          return this.openLocal(input)
+        })
+      })
+      this.localOpenChain = result.then(() => undefined, () => undefined)
+      return result
+    })
   }
   private async openLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
     await this.ready()

@@ -59,6 +59,10 @@ async function batch(root: string, stage: string) {
 
 async function main() {
   const [root, selected, stage] = process.argv.slice(2)
+  if (root && selected === 'seat.wakeDelivery' && stage) {
+    const { wakeProcess } = await import('./frozen-wake-process.ts')
+    return wakeProcess(root, stage)
+  }
   if (root && selected === 'seat.openBatch' && (stage === 'partial' || stage === 'recover')) return batch(root, stage)
   const method = methods.find(value => value === selected)
   if (!root || !method || !['write', 'partial', 'recover'].includes(stage ?? '')) throw new Error('Invalid worker arguments')

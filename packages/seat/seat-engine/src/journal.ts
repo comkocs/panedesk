@@ -169,7 +169,7 @@ export class EngineJournal {
         ...(effects.some(effect => effect.kind === 'node-route/accepted' || effect.kind === 'node-batch/accepted' || effect.kind === 'node-source/updated')
           ? { requiredCapabilities: ['node-work-chain/v1'] as const } : {}) })
       if (metadata || decision.effects.some(effect => effect.kind === 'authorization/checked' || effect.kind === 'node-route/accepted'
-        || effect.kind === 'node-source/updated')) {
+        || effect.kind === 'node-source/updated' || effect.kind === 'node-wake/updated')) {
         decodeAuthorizationFrame(canonical(decision), this.maxBytes)
       }
       this.projection.validateAuthorization(decision)

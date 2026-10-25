@@ -2,6 +2,7 @@
 import { digest, EngineError } from './journal.ts'
 import { legacyDecision, type AuthorizationDecision } from './authorization-storage.ts'
 import { validateSourceProxyTransition } from './source-proxy-storage.ts'
+import { validateWakeTransition } from './wake-storage.ts'
 import type { SessionId } from '@panedesk/dsh-session'
 import type {
   EngineDecision, EngineOpenData, EngineTriggerData, PendingSeatItem, QueueItemId,
@@ -28,6 +29,7 @@ export class EngineProjection {
    */
   validateAuthorization(decision: AuthorizationDecision): void {
     validateSourceProxyTransition(this.authorizationDecisions, decision)
+    validateWakeTransition(this.authorizationDecisions, decision)
     const members = decision.effects.filter(effect => effect.kind === 'node-batch/accepted')
     for (const member of members) {
       if (this.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-batch/accepted'

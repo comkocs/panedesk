@@ -68,9 +68,11 @@ export async function admissionHost(retainedRoot?: string) {
     await waiting
     const authority: T.SeatCallContext = { principalId: 'user-a' as T.SeatPrincipalId, origin: 'manual', nodeId: f.options.nodeId }
     const seats = f.ctx.get('seats')!.withAuthority(authority)
-    await seats.setAuthority({ authority: 'seat-store', authorizationRef: 'user-a' as T.AuthorizationRef,
-      expectedRevision: 0, operationId: operation('authority') })
-    await seats.save({ definition: f.definition, expectedRevision: 1, operationId: operation('save-a') })
+    if (!(await seats.definitions({})).definitions.length) {
+      await seats.setAuthority({ authority: 'seat-store', authorizationRef: 'user-a' as T.AuthorizationRef,
+        expectedRevision: 0, operationId: operation('authority') })
+      await seats.save({ definition: f.definition, expectedRevision: 1, operationId: operation('save-a') })
+    }
     return { ...f, adapter, seats, authority, load, async reload() {
       await f.ctx.loader.resolve(entry).fiber?.dispose()
       const waiting = ready()

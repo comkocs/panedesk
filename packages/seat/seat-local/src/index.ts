@@ -94,6 +94,17 @@ export function apply(ctx: Context, config: Config): void {
             }
             return installed.openNodeBatch(request, authority, sourceNodeId)
           })
+        }, async (request, authority) => {
+          const registry = ctx.get('nodeWorkChainBusiness'), chain = ctx.get('nodeWorkChain')
+          if (!registry || !chain) return undefined
+          return installed.frozenWrites.run<import('@panedesk/dsh-seat').WakeSeatResult>(async () => {
+            await Promise.all([registry.ready(['seat.wakeFrozen']), chain.local.ready(), chain.policy.ready()])
+            if (lifecycle.signal.aborted || ctx.get('nodeWorkChain') !== chain || ctx.get('nodeWorkChainBusiness') !== registry) {
+              return { status: 'rejected', error: { code: 'unavailable', message: 'Node wake provider was revoked.',
+                alternative: 'Restore the trusted composition.', retryable: true, effectState: 'none' } }
+            }
+            return installed.wakeNode(request, authority)
+          })
         }))
       const openingContexts = installOpeningContexts(ctx, installed)
       registerLocalReadAccess(ctx, installed, config)
