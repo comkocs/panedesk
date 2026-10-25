@@ -5,7 +5,7 @@ import math
 import re
 from typing import Annotated, Callable, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonScalar | dict[str, "JsonValue"] | list["JsonValue"]
@@ -455,6 +455,11 @@ def _seat_json(value: object) -> bool:
 
 _SEAT_BOOL: _SeatCheck = lambda value: type(value) is bool
 _SEAT_STRING: _SeatCheck = lambda value: isinstance(value, str)
+_SEAT_CANCEL_REASON: _SeatCheck = lambda value: isinstance(value, str) and len(value.encode("utf-8")) <= 512 and re.search(r"[\x00-\x1f\x7f-\x9f]", value) is None
+_SEAT_CANCELLATION = _seat_fields({"authorizationId": _seat_text, "principalId": _seat_text,
+    "kind": _seat_choice("model-tool-call", "human", "engine", "local-operator", "node-delegation", "plugin"),
+    "operationId": _seat_text, "queueItemId": _seat_text, "cancelledAt": _seat_text, "stateVersion": _seat_integer,
+    "reason": _seat_optional(_SEAT_CANCEL_REASON), "reasonPresent": _SEAT_BOOL})
 _SEAT_MONEY: _SeatCheck = lambda value: isinstance(value, str) and value.isascii() and value.isdecimal() and (value == "0" or not value.startswith("0"))
 _SEAT_BUDGET = _seat_fields({"windowBudgetUsd": _seat_optional(_SEAT_MONEY), "dailyBudgetUsd": _seat_optional(_SEAT_MONEY)})
 _SEAT_DIRECTORY = _seat_fields({"path": _seat_text, "startup": _SEAT_BOOL})
@@ -529,7 +534,7 @@ _CHAIN_CODE: _SeatCheck = lambda value: isinstance(value, str) and len(value) <=
 _CHAIN_REASON: _SeatCheck = lambda value: isinstance(value, str) and bool(value.strip()) and len(value.encode("utf-8")) <= 512 and re.search(r"[\x00-\x1f\x7f-\x9f]", value) is None
 _SEAT_FAILURE_CAUSE = _seat_fields({"domain": _CHAIN_CODE, "code": _CHAIN_CODE, "reason": _CHAIN_REASON,
     "effectState": _seat_choice("none", "committed", "partial", "unknown"), "retryable": _SEAT_BOOL,
-    "operationId": _seat_text, "nodeId": _seat_text, "reasonCode": _seat_optional(_seat_choice(*_CHAIN_REASON_CODES))})
+    "operationId": _seat_text, "nodeId": _seat_text, "reasonCode": _seat_optional(_seat_choice(*_CHAIN_REASON_CODES, "queue-item-dispatched", "queue-item-opened", "queue-item-unknown"))})
 _SEAT_FAILURE = _seat_fields({"code": _seat_choice(*_SEAT_CODES), "message": _seat_text, "alternative": _seat_text,
     "retryable": _SEAT_BOOL, "effectState": _seat_choice("none", "committed", "partial", "unknown"),
     "cause": _seat_optional(_SEAT_FAILURE_CAUSE)})
@@ -709,7 +714,7 @@ def validate_seat_result(method: str, value: object) -> None:
         if status == "pending":
             checks.update(phase=_seat_choice("intent", "creating", "created", "configuring", "opening-pending", "active", "opening-failed", "admission", "rechecking", "archiving", "renaming", "flushing", "closed", "queued", "opening", "first-turn-pending", "awaiting-old-idle", "closing-old", "completed", "closing-new", "failed"), stateVersion=_seat_integer)
         elif status == "settled":
-            checks["result"] = lambda item: any(_seat_result_matches(operation, item) for operation in ("open", "close", "replace", "wake", "renew", "rename"))
+            checks["result"] = lambda item: _seat_fields({"status": _seat_choice("cancelled"), "cancellation": _SEAT_CANCELLATION})(item) if isinstance(item, dict) and "cancellation" in item else any(_seat_result_matches(operation, item) for operation in ("open", "close", "replace", "wake", "renew", "rename"))
     else:
         raise ValueError("unknown seat method")
     if status != "rejected" and method in ("import.preview", "import.commit", "setAuthority", "report.submit", "wait.register", "wait.cancel") and not set(value).issubset(checks):
@@ -1101,3 +1106,16 @@ class PendingSeatMutationRequest(BaseModel):
     queueItemId: _MessageText
     expectedStateVersion: _MessageInteger
     operationId: _MessageText
+
+
+class CancelPendingSeatRequest(PendingSeatMutationRequest):
+    """Cancellation alone accepts an optional bounded UTF-8 reason."""
+
+    reason: str | None = None
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str | None) -> str | None:
+        if value is not None and not _SEAT_CANCEL_REASON(value):
+            raise ValueError("Cancellation reason exceeds 512 UTF-8 bytes or contains controls")
+        return value

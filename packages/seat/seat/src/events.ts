@@ -128,7 +128,7 @@ export interface EngineEventDataMap {
   'queue/reminded': EngineReminderData
   'queue/pending': PendingSeatItem
   'queue/approved': { pending: PendingSeatItem; principalId: SeatPrincipalId; previousRevision: number; revision: number }
-  'queue/cancelled': { pending: PendingSeatItem; principalId: SeatPrincipalId; previousRevision: number; revision: number }
+  'queue/cancelled': { pending: PendingSeatItem; principalId: SeatPrincipalId; previousRevision: number; revision: number; cancellation?: import('./types.ts').SeatCancellationRecord }
   'open/intent': EngineOpenData
   'open/created': EngineOpenData
   'open/configured': EngineOpenData

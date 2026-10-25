@@ -6,6 +6,7 @@ import type { AuthorizationDecision } from './authorization-storage.ts'
 import { queryAuthorizations } from './authorization-query.ts'
 import { queryOperation } from './operation.ts'
 import { fact, rejected } from './triggers.ts'
+import { cancelEffects } from './cancellation.ts'
 
 /** One provider owns issuer validation, atomic admission and historical receipts. */
 export class AuthorizationTransactions implements T.SeatAuthorizationTransactions {
@@ -110,6 +111,23 @@ export class AuthorizationTransactions implements T.SeatAuthorizationTransaction
       if (!(error instanceof EngineError)) throw error
       return failure(error)
     }
+    await this.publish()
+    return result
+  }
+
+  async cancel(request: T.CancelPendingSeatRequest, authorization: T.SeatAuthorizationGrant): Promise<T.PendingSeatMutationResult> {
+    await this.ready()
+    let result: T.PendingSeatMutationResult = rejected('revision-conflict', 'Pending state changed')
+    try {
+      await this.journal.commitAuthorization((view) => {
+        const data = this.issuers.verify(authorization, { operationId: request.operationId, requestDigest: digest(request),
+          ...(authorization.fact.callId ? { callId: authorization.fact.callId } : {}),
+          ...(authorization.fact.rootCallId ? { rootCallId: authorization.fact.rootCallId } : {}) }, this.journal.nodeId)
+        const action = cancelEffects(view, request, data)
+        result = action.result
+        return action.effects
+      })
+    } catch (error) { if (!(error instanceof EngineError)) throw error; return failure(error) }
     await this.publish()
     return result
   }

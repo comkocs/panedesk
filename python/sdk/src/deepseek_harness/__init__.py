@@ -6,7 +6,7 @@ from .client import HarnessClient, HarnessConfig, MessagesClient, MessageSubscri
 from .models import (OpenSeatRequest, OpenSeatBatchRequest, SeatSessionRequest, CloseSeatRequest,
                      RenameSeatRequest, WakeSeatRequest, ListSeatsRequest, SeatOperationRequest,
                      SeatResult, SeatFailure, SeatCursor, PendingSeatsRequest, SeatGatesRequest,
-                     SetSeatProjectModeRequest, PendingSeatMutationRequest, SeatBindingRequest,
+                     SetSeatProjectModeRequest, PendingSeatMutationRequest, CancelPendingSeatRequest, SeatBindingRequest,
                      PreviewSeatImportRequest, CommitSeatImportRequest, SetSeatAuthorityRequest,
                      SubmitCloseReportRequest, RegisterSeatWaitRequest, CancelSeatWaitRequest)
 from .errors import JsonRpcError, SdkProtocolError, TransportClosedError
@@ -45,7 +45,7 @@ __all__ = [
     "OpenSeatRequest", "OpenSeatBatchRequest", "SeatSessionRequest", "CloseSeatRequest",
     "RenameSeatRequest", "WakeSeatRequest", "ListSeatsRequest", "SeatOperationRequest",
     "SeatResult", "SeatFailure", "SeatCursor", "PendingSeatsRequest", "SeatGatesRequest",
-    "SetSeatProjectModeRequest", "PendingSeatMutationRequest", "SeatBindingRequest",
+    "SetSeatProjectModeRequest", "PendingSeatMutationRequest", "CancelPendingSeatRequest", "SeatBindingRequest",
     "PreviewSeatImportRequest", "CommitSeatImportRequest", "SetSeatAuthorityRequest",
     "SubmitCloseReportRequest", "RegisterSeatWaitRequest", "CancelSeatWaitRequest",
     "MessagesClient",

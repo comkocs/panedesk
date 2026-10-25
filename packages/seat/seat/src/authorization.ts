@@ -102,6 +102,12 @@ export interface SeatAuthorizationTransactions {
    * @returns Original approval/conflict/refusal after the combined decision is durable.
    */
   approve(request: ApprovePendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>
+  /** Cancel pending work and commit its issued attribution in the same decision.
+   * @param request - Exact queue revision, operation identity and optional bounded reason.
+   * @param authorization - Entry-issued grant covering the target seat and tasks.
+   * @returns Original mutation reply or a structured lifecycle refusal.
+   */
+  cancel?(request: import('./types.ts').CancelPendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>
   /** Rebuild the same redacted projection on restart, without reading process-local grant objects.
    * @param request - Authorized task, seat, kind and time filters with an exclusive cursor.
    * @returns Matching facts once each, scanned watermark and explicit completeness or refusal.
@@ -157,6 +163,12 @@ declare module './types.ts' {
 
 /** Optional engine actions preserve their original admission builders and attach issued authority. */
 export interface SeatAuthorizedEngineActions {
+  /** Cancel only while the queue item remains undispatched.
+   * @param request - Exact queue revision and optional cancellation reason.
+   * @param authorization - Entry-issued grant for this operation.
+   * @returns Revision-checked cancellation or structured refusal.
+   */
+  cancel?(request: import('./types.ts').CancelPendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>
   /** Renew only after the attempt and authorization commit together.
    * @param request - Original renewal input.
    * @param authorization - Entry-issued grant for the exact input.

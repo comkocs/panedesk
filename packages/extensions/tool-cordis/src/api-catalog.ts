@@ -2609,6 +2609,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Original approval/conflict/refusal after the combined decision is durable.',
       },
       {
+        signature: 'cancel?(request: import(\'./types.ts\').CancelPendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>',
+        description: 'Cancel pending work and commit its issued attribution in the same decision.',
+        parameters: [{ name: 'request', description: 'Exact queue revision, operation identity and optional bounded reason.' }, { name: 'authorization', description: 'Entry-issued grant covering the target seat and tasks.' }],
+        returns: 'Original mutation reply or a structured lifecycle refusal.',
+      },
+      {
         signature: 'query(request: SeatIssuedAuthorizationQueryRequest): Promise<SeatIssuedAuthorizationQueryResult | SeatRejected>',
         description: 'Rebuild the same redacted projection on restart, without reading process-local grant objects.',
         parameters: [{ name: 'request', description: 'Authorized task, seat, kind and time filters with an exclusive cursor.' }],
@@ -2627,6 +2633,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Optional engine actions preserve their original admission builders and attach issued authority.',
     description: 'Optional engine actions preserve their original admission builders and attach issued authority.',
     methods: [
+      {
+        signature: 'cancel?(request: import(\'./types.ts\').CancelPendingSeatRequest, authorization: SeatAuthorizationGrant): Promise<PendingSeatMutationResult>',
+        description: 'Cancel only while the queue item remains undispatched.',
+        parameters: [{ name: 'request', description: 'Exact queue revision and optional cancellation reason.' }, { name: 'authorization', description: 'Entry-issued grant for this operation.' }],
+        returns: 'Revision-checked cancellation or structured refusal.',
+      },
       {
         signature: 'renew(request: import(\'./types.ts\').RenewSeatRequest, authorization: SeatAuthorizationGrant): Promise<import(\'./types.ts\').RenewSeatResult>',
         description: 'Renew only after the attempt and authorization commit together.',
@@ -6831,7 +6843,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CancelPendingSeatRequest',
-    declaration: 'export interface CancelPendingSeatRequest {\n    queueItemId: QueueItemId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
+    declaration: 'export interface CancelPendingSeatRequest {\n    queueItemId: QueueItemId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n    reason?: string;\n}',
   },
   {
     name: 'CancelSeatWaitRequest',
@@ -7455,7 +7467,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'EngineEventDataMap',
-    declaration: 'export interface EngineEventDataMap {\n    \'cache/keepalive\': EngineKeepAliveData;\n    \'cache/keepalive-skipped\': EngineKeepAliveData;\n    \'git/checkpoint\': EngineGitCheckpoint;\n    \'trigger/accepted\': EngineTriggerData;\n    \'trigger/deduplicated\': EngineTriggerData;\n    \'trigger/coalesced\': EngineTriggerData;\n    \'queue/reminded\': EngineReminderData;\n    \'queue/pending\': PendingSeatItem;\n    \'queue/approved\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'queue/cancelled\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'open/intent\': EngineOpenData;\n    \'open/created\': EngineOpenData;\n    \'open/configured\': EngineOpenData;\n    \'open/opening-failed\': EngineOpenData;\n    \'open/rejected\': {\n        error: SeatFailure;\n        candidates: readonly import(\'./types.ts\').SeatWindowCandidate[];\n    };\n    \'source/rejected\': {\n        sourceId: SeatSourceId;\n        sourceEventId: SourceEventId | null;\n        digest: SeatDigest;\n        error: SeatFailure;\n    };\n    \'seat/binding\': SeatBinding;\n    \'window/closing\': EngineCloseData;\n    \'window/closed\': EngineCloseData;\n    \'window/replacement\': EngineReplacementData;\n    \'callback/pending\': SeatCallbackDelivery;\n    \'callback/attempted\': SeatCallbackDelivery;\n    \'callback/delivered\': SeatCallbackDelivery;\n    \'gate/hit\': EngineGateData;\n /* …truncated — full shape in source */',
+    declaration: 'export interface EngineEventDataMap {\n    \'cache/keepalive\': EngineKeepAliveData;\n    \'cache/keepalive-skipped\': EngineKeepAliveData;\n    \'git/checkpoint\': EngineGitCheckpoint;\n    \'trigger/accepted\': EngineTriggerData;\n    \'trigger/deduplicated\': EngineTriggerData;\n    \'trigger/coalesced\': EngineTriggerData;\n    \'queue/reminded\': EngineReminderData;\n    \'queue/pending\': PendingSeatItem;\n    \'queue/approved\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n    };\n    \'queue/cancelled\': {\n        pending: PendingSeatItem;\n        principalId: SeatPrincipalId;\n        previousRevision: number;\n        revision: number;\n        cancellation?: import(\'./types.ts\').SeatCancellationRecord;\n    };\n    \'open/intent\': EngineOpenData;\n    \'open/created\': EngineOpenData;\n    \'open/configured\': EngineOpenData;\n    \'open/opening-failed\': EngineOpenData;\n    \'open/rejected\': {\n        error: SeatFailure;\n        candidates: readonly import(\'./types.ts\').SeatWindowCandidate[];\n    };\n    \'source/rejected\': {\n        sourceId: SeatSourceId;\n        sourceEventId: SourceEventId | null;\n        digest: SeatDigest;\n        error: SeatFailure;\n    };\n    \'seat/binding\': SeatBinding;\n    \'window/closing\': EngineCloseData;\n    \'window/closed\': EngineCloseData;\n    \'window/replacement\': EngineReplacementData;\n    \'callback/pending\': SeatCallbackDelivery;\n    \'callback/attempted\': SeatCallbackDelivery;\n    \'callbac /* …truncated — full shape in source */',
   },
   {
     name: 'EngineEventId',
@@ -7472,10 +7484,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EngineExportResult',
     declaration: 'export type EngineExportResult = {\n    status: \'exported\';\n    count: number;\n    digest: SeatDigest;\n    watermark: number;\n} | SeatRejected;',
-  },
-  {
-    name: 'EngineGateData',
-    declaration: 'export interface EngineGateData {\n    definition: GateDefinition;\n    context: GateContext;\n    result: GateResult;\n}',
   },
   {
     name: 'EngineGitCheckpoint',
@@ -10074,6 +10082,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatCallContext {\n    principalId: SeatPrincipalId;\n    origin: \'manual\' | \'remote\' | \'engine\';\n    nodeId: SeatNodeId;\n}',
   },
   {
+    name: 'SeatCancellationCause',
+    declaration: 'export interface SeatCancellationCause extends Omit<SeatFailureCause, \'reasonCode\'> {\n    reasonCode: SeatCancellationReasonCode;\n}',
+  },
+  {
+    name: 'SeatCancellationReasonCode',
+    declaration: 'export type SeatCancellationReasonCode = \'queue-item-dispatched\' | \'queue-item-opened\' | \'queue-item-unknown\';',
+  },
+  {
+    name: 'SeatCancellationReceipt',
+    declaration: 'export interface SeatCancellationReceipt {\n    status: \'cancelled\';\n    cancellation: SeatCancellationRecord;\n}',
+  },
+  {
+    name: 'SeatCancellationRecord',
+    declaration: 'export interface SeatCancellationRecord {\n    authorizationId: AuthorizationRef;\n    principalId: SeatPrincipalId;\n    kind: import(\'./authorization.ts\').SeatIssuedAuthorizationKind;\n    operationId: SeatOperationId;\n    queueItemId: QueueItemId;\n    cancelledAt: SeatTimestamp;\n    stateVersion: number;\n    reason?: string;\n    reasonPresent: boolean;\n}',
+  },
+  {
     name: 'SeatCatalogMutationResult',
     declaration: 'export type SeatCatalogMutationResult = {\n    status: \'saved\';\n    revision: number;\n} | SeatRejected;',
   },
@@ -10151,7 +10175,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatFailure',
-    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause;\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause | SeatCancellationCause;\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
   },
   {
     name: 'SeatFailureCause',
@@ -10247,7 +10271,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatOperationResult',
-    declaration: 'export type SeatOperationResult = {\n    status: \'missing\';\n} | {\n    status: \'pending\';\n    phase: OpenPhase | ClosePhase | ReplacePhase;\n    stateVersion: number;\n} | {\n    status: \'settled\';\n    result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult;\n};',
+    declaration: 'export type SeatOperationResult = {\n    status: \'missing\';\n} | {\n    status: \'pending\';\n    phase: OpenPhase | ClosePhase | ReplacePhase;\n    stateVersion: number;\n} | {\n    status: \'settled\';\n    result: OpenSeatResult | CloseSeatResult | ReplaceSeatResult | WakeSeatResult | RenewSeatResult | RenameSeatResult | SeatCancellationReceipt;\n};',
   },
   {
     name: 'SeatPrincipalId',

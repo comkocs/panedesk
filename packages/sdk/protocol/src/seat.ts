@@ -23,10 +23,14 @@ const diagnosticReason: Check = value => typeof value === 'string' && value.trim
 const failureCause = fields({ domain: diagnosticCode, code: diagnosticCode, reason: diagnosticReason,
   effectState: choice('none', 'committed', 'partial', 'unknown'), retryable: value => typeof value === 'boolean',
   operationId: text, nodeId: text, reasonCode: optional(choice(...NODE_WORK_CHAIN_REASON_CODES)) })
+const cancellationCause = fields({ domain: diagnosticCode, code: diagnosticCode, reason: diagnosticReason,
+  effectState: choice('none', 'committed', 'partial', 'unknown'), retryable: value => typeof value === 'boolean',
+  operationId: text, nodeId: text, reasonCode: choice('queue-item-dispatched', 'queue-item-opened', 'queue-item-unknown') })
+const seatFailureCause: Check = value => failureCause(value) || cancellationCause(value)
 const candidate: Check = value => object(value) && text(value.seat) && text(value.sessionId) && string(value.title) && text(value.nodeId)
 const failure: Check = value => object(value) && typeof value.code === 'string' && Object.hasOwn(SEAT_ERROR_CODES, value.code)
   && text(value.message) && text(value.alternative) && typeof value.retryable === 'boolean' && choice('none', 'committed', 'partial', 'unknown')(value.effectState)
-  && optional(failureCause)(value.cause)
+  && optional(seatFailureCause)(value.cause)
 const explicit: Check = value => text(value) && typeof value === 'string' && !/[*?\u0000-\u001f\u007f]/.test(value) && !['all', String.fromCodePoint(0x5168, 0x90e8)].includes(value.toLowerCase())
 const node = { nodeId: optional(text) }
 const operation = { ...node, operationId: text }
@@ -38,6 +42,12 @@ const cursor = fields({ nodeId: text, sequence: integer, effectIndex: integer })
 const filters = { ...node, projectId: optional(text), cursor: optional(text) }
 const page = { limit: (value: unknown) => integer(value) && Number(value) > 0, cursor: optional(cursor) }
 const pending = { queueItemId: text, expectedStateVersion: integer, operationId: text }
+const cancellationReason: Check = value => typeof value === 'string' && new TextEncoder().encode(value).length <= 512
+  && !/[\u0000-\u001f\u007f-\u009f]/u.test(value)
+const cancellationRecord = fields({ authorizationId: text, principalId: text,
+  kind: choice('model-tool-call', 'human', 'engine', 'local-operator', 'node-delegation', 'plugin'),
+  operationId: text, queueItemId: text, cancelledAt: value => typeof value === 'string' && Number.isFinite(Date.parse(value)),
+  stateVersion: integer, reason: optional(cancellationReason), reasonPresent: value => typeof value === 'boolean' })
 const boolean: Check = value => typeof value === 'boolean'
 const string: Check = value => typeof value === 'string'
 const nullable = (check: Check): Check => value => value === null || check(value)
@@ -114,7 +124,7 @@ const requestChecks: Record<keyof SeatRequestMap, Check> = {
   'seats/setProjectMode': fields({ projectId: text, mode: choice('off', 'remind', 'auto'), expectedRevision: integer, operationId: text }),
   'seats/pending': fields({ ...page, projectId: optional(text), seat: optional(explicit) }),
   'seats/approve': fields(pending),
-  'seats/cancel': fields(pending),
+  'seats/cancel': fields({ ...pending, reason: optional(cancellationReason) }),
   'seats/gates': fields({ ...page, gateId: optional(text), hook: optional(choice(...SEAT_GATE_HOOKS)) }),
   'seats/nodeStatus': fields({}),
 }
@@ -328,7 +338,7 @@ export function decodeSeatResult<M extends keyof SeatRequestMap>(method: M, valu
     if (!object(value.error) || typeof value.error.code !== 'string' || !Object.hasOwn(SEAT_ERROR_CODES, value.error.code)
       || !text(value.error.message) || !text(value.error.alternative) || typeof value.error.retryable !== 'boolean'
       || !choice('none', 'committed', 'partial', 'unknown')(value.error.effectState)
-      || !optional(failureCause)(value.error.cause)) return fail()
+      || !optional(seatFailureCause)(value.error.cause)) return fail()
     return value as SeatRequestMap[M]['result']
   }
   if (method === 'seats/import.preview' && !fields({ planId: text, sourceFileHash: text, mappingHash: text, baseRevision: integer, rows: array(importRow) })(value)) return fail()
@@ -426,6 +436,10 @@ export function decodeSeatResult<M extends keyof SeatRequestMap>(method: M, valu
     if (value.status === 'pending' && !choice('intent', 'creating', 'created', 'configuring', 'opening-pending', 'active', 'opening-failed',
       'admission', 'rechecking', 'archiving', 'renaming', 'flushing', 'closed', 'queued', 'opening', 'first-turn-pending', 'awaiting-old-idle', 'closing-old', 'completed', 'closing-new', 'failed')(value.phase)) return fail()
     if (value.status === 'settled') {
+      if (object(value.result) && 'cancellation' in value.result) {
+        if (!fields({ status: choice('cancelled'), cancellation: cancellationRecord })(value.result)) return fail()
+        return value as SeatRequestMap[M]['result']
+      }
       const methods = ['seats/open', 'seats/close', 'seats/replace', 'seats/wake', 'seats/renew', 'seats/rename'] as const
       if (!methods.some((operation) => {
         try { decodeSeatResult(operation, value.result); return true } catch (error) { void error; return false }

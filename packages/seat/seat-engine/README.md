@@ -49,6 +49,10 @@ Routed callbacks freeze execution-node model evidence before their first durable
 
 `seatAuthorizationTransactions.operation` rebuilds approval registration and correlated opening progress from the committed queue and trigger facts. Pending reasons, created phases, cancellations and recorded failures remain queryable after restart without executing work or exposing frozen instructions. Approval does not imply creation or first-turn success.
 
+Authorized `cancel` commits `queue/cancelled` with its issued authorization, principal, kind, operation ID, queue ID, timestamp, revision and optional reason. Reasons contain at most 512 UTF-8 bytes and no control characters. Operation lookup returns the settled cancellation receipt; redacted effects retain only reason presence. Queue and operation indexes retain the latest 256 receipts each, with older lookups reconstructed from committed decisions. Pending and approved-but-undispatched items have no budget or resource reservation: cancellation neither creates nor changes those projections. Dispatched, opened and unknown targets retain `revision-conflict` with a structured `cause.reasonCode`; unaudited cancellation retains its original bytes and attribution. Cancellation does not release external scope reservations.
+
+Directory synchronization tolerates only `EPERM`, `EISDIR` and `EINVAL` from opening or flushing directory handles on Windows. File writes, file synchronization, directory close failures and every non-Windows failure still propagate; Windows does not gain a guarantee that unsupported directory metadata synchronization completed.
+
 Committed decisions update projections and outbox delivery. Source callbacks are at-least-once with stable identities; credentials are supplied by source registrations rather than stored in engine records. Disposal stops ingress, drains owned work, flushes the journal, and releases writer ownership.
 
 <a id="model-experience"></a>

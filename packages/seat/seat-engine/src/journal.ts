@@ -82,9 +82,22 @@ export function decodeFrame(text: string, maxBytes: number): EngineDecision {
   const verified: unknown = parsed
   return verified as EngineDecision
 }
-async function syncDirectory(path: string): Promise<void> {
-  const handle = await open(path, constants.O_RDONLY)
-  try { await handle.sync() } finally { await handle.close() }
+/** Synchronize directory metadata; Windows may not support opening or flushing directory handles.
+ * @param path - Directory containing newly committed entries.
+ * @param platform - Host platform, injectable for filesystem behavior tests.
+ * @param openDirectory - Directory opener; file writes never use this tolerance.
+ */
+export async function syncDirectory(path: string, platform: NodeJS.Platform = process.platform,
+  openDirectory: (path: string, flags: number) => Promise<Pick<FileHandle, 'sync' | 'close'>> = open): Promise<void> {
+  const unsupported = (error: unknown): boolean => platform === 'win32' && error !== null && typeof error === 'object'
+    && 'code' in error && ['EPERM', 'EISDIR', 'EINVAL'].includes(String(error.code))
+  let handle: Pick<FileHandle, 'sync' | 'close'>
+  try { handle = await openDirectory(path, constants.O_RDONLY) }
+  catch (error) { if (unsupported(error)) return; throw error }
+  try {
+    try { await handle.sync() }
+    catch (error) { if (!unsupported(error)) throw error }
+  } finally { await handle.close() }
 }
 /** One node owner serializes local decisions and rejects other process owners. */
 export class EngineJournal {

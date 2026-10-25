@@ -1,5 +1,6 @@
 /** Every persisted payload is checked before replay can mutate a projection. */
 import { SEAT_ERROR_CODES, type EngineEventKind, type EngineEffect } from '@panedesk/dsh-seat'
+import { validCancellationReason } from './cancellation.ts'
 
 type Check = (value: unknown) => boolean
 const text: Check = value => typeof value === 'string'
@@ -174,7 +175,11 @@ const checks: Record<EngineEventKind, Check> = {
   'trigger/accepted': triggerData, 'trigger/coalesced': triggerData, 'trigger/deduplicated': triggerData,
   'queue/reminded': fields({ queueItemId: id, seat: id, projectId: id, triggerKind, reason: one('approval'),
     triggerId: id, sequence: positive, stateVersion: positive, remindedAt: timestamp }),
-  'queue/pending': pending, 'queue/approved': queueChange, 'queue/cancelled': queueChange,
+  'queue/pending': pending, 'queue/approved': queueChange, 'queue/cancelled': value => queueChange(value)
+    && fields({ cancellation: optional(fields({ authorizationId: id, principalId: id,
+      kind: one('model-tool-call', 'human', 'engine', 'local-operator', 'node-delegation', 'plugin'),
+      operationId: id, queueItemId: id, cancelledAt: timestamp, stateVersion: positive,
+      reason: validCancellationReason, reasonPresent: boolean })) })(value),
   'open/intent': open, 'open/created': open, 'open/configured': open, 'open/opening-failed': open,
   'open/rejected': fields({ error: failure, candidates: array(fields({ seat: id, sessionId: id, title: text, nodeId: id })) }),
   'source/rejected': fields({ sourceId: id, sourceEventId: nullable(id), digest: id, error: failure }),
@@ -228,7 +233,13 @@ function consistent(effect: EngineEffect): boolean {
     }
     case 'queue/reminded': return true
     case 'queue/pending': return pendingConsistent(effect.data)
-    case 'queue/approved': case 'queue/cancelled':
+    case 'queue/cancelled': {
+      const record = effect.data.cancellation
+      if (record && (record.queueItemId !== effect.data.pending.queueItemId || record.principalId !== effect.data.principalId
+        || record.stateVersion !== effect.data.revision || record.reason !== undefined && !record.reasonPresent)) return false
+      return pendingConsistent(effect.data.pending) && effect.data.revision === effect.data.previousRevision + 1
+    }
+    case 'queue/approved':
       return pendingConsistent(effect.data.pending) && effect.data.revision === effect.data.previousRevision + 1
     case 'window/closing': case 'window/closed': {
       const data = effect.data

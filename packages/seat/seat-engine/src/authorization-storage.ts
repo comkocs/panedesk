@@ -86,6 +86,20 @@ export function decodeAuthorizationFrame(text: string, maxBytes: number): Author
       throw new EngineError('engine-store-corrupt', 'Invalid authorization attribution or capability')
     }
   }
+  for (const effect of decision.effects) {
+    if (effect.kind !== 'queue/cancelled' || !effect.data.cancellation) continue
+    const record = effect.data.cancellation
+    const authorization = decision.effects.find(item => item.kind === 'authorization/checked'
+      && item.data.authorizationId === record.authorizationId)
+    if (authorization?.kind !== 'authorization/checked' || authorization.data.decision !== 'allowed'
+      || authorization.data.operationId !== record.operationId || effect.operationId !== record.operationId
+      || authorization.data.principalId !== record.principalId || authorization.data.kind !== record.kind
+      || authorization.data.seat !== effect.data.pending.seat
+      || effect.data.pending.relatedTaskIds.some(task => !authorization.data.taskIds.includes(task))
+      || record.reasonPresent !== (record.reason !== undefined)) {
+      throw new EngineError('engine-store-corrupt', 'Cancellation attribution does not match its authorization')
+    }
+  }
   validateChainFrame(decision)
   const legacy = legacyDecision(decision)
   // A denied fact has no business effects; a synthetic validation effect checks only the header.
