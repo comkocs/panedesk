@@ -15,10 +15,15 @@ export interface NodeAuthorizedLocalAdmission {
 }
 import type { NodeAuthenticatedPeer, NodeDelegationReceivingPolicy } from './delegation.ts'
 
+/** Host-provided exact-envelope authority consumed only by paired node message ingress. */
+export interface NodeMessageAuthority extends RoutedDeliveryAuthorizer {}
+
 declare module '@panedesk/cordis' {
   interface Context {
     /** Local journal-owning admission, installed only by the seat provider. */
     nodeAuthorizedLocalAdmission: NodeAuthorizedLocalAdmission
+    /** Optional exact-envelope issuer captured by the authenticated host message adapter. */
+    nodeMessageAuthority: NodeMessageAuthority
   }
 }
 

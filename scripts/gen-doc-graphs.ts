@@ -151,6 +151,10 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Retains sender identity and original durable acknowledgements without ordinary-send fallback.',
   },
   {
+    key: 'nodeMessageAuthority', pkg: 'node-link', title: 'Exact routed message authorization', mode: 'seam',
+    consumers: ['node-link'], note: 'Binds authenticated message envelopes to process-local delivery authority.',
+  },
+  {
     key: 'routedDeliveryVerifier', pkg: 'message-delivery', title: 'Exact routed delivery verification', mode: 'seam',
     consumers: ['message-delivery-local'], note: 'Checks host-owned envelope capabilities rather than wire authority claims.',
   },

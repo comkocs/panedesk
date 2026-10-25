@@ -50,16 +50,23 @@ export interface ChainLocalServices {
 export interface ChainRouterService {
   /** Send only after both peers advertise this method, retaining unknown intent.
    * @param request - Entry-authorized frozen request.
+   * @param authorization - Fresh process-local entry grant matching every delegation field.
    * @returns Correlated result or explicit safe failure.
    */
-  route(request: ChainRequest): Promise<ChainResponse>
+  route(request: ChainRequest, authorization: Seat.SeatAuthorizationGrant): Promise<ChainResponse>
 }
 
 /** Explicit composition supplies every security and local-admission dependency. */
 export interface ChainServices {
   readonly policy: ChainReceivingPolicy
-  readonly evidence: ChainEvidenceService
+  /** Omission uses node-link's paired persistent evidence; injection is intended for tests. */
+  readonly evidence?: ChainEvidenceService
   readonly local: ChainLocalServices
+  /** Optional restricted outbox entry; absence retains unknown intents without replay.
+   * @param request - Complete original request read from the sender's durable store.
+   * @returns Captured exact-intent issuer, or absence when this outbox does not own the intent.
+   */
+  outboxIssuer?(request: ChainRequest): Promise<Seat.SeatAuthorizationIssuer | undefined>
   /** Independent reserved control slots; business calls cannot consume these slots. */
   readonly maxControlPending: number
 }

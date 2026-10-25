@@ -439,6 +439,14 @@ Types: [MessageId](llm-streaming.zh.md)
 
 Source: [`packages/session/message-delivery/src/index.ts`](../../packages/session/message-delivery/src/index.ts)
 
+<a id="ctxnodemessageauthority--nodemessageauthority"></a>
+
+### `ctx.nodeMessageAuthority` — `NodeMessageAuthority`
+
+Host-provided exact-envelope authority consumed only by paired node message ingress.
+
+Source: [`packages/seat/node-link/src/execution.ts`](../../packages/seat/node-link/src/execution.ts)
+
 <a id="ctxrouteddeliveryverifier--routeddeliveryverifier"></a>
 
 ### `ctx.routedDeliveryVerifier` — `RoutedDeliveryVerifier`

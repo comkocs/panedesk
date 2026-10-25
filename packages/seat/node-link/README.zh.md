@@ -36,7 +36,7 @@ kind: "package-reference"
 
 POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单硬链接普通文件，路径不得含符号链接；运维须保证祖先目录不受非受信账号替换。Windows 显式注入 `nodeLinkFiles: directory => new WindowsPrivateFiles(directory)`，类从 `@panedesk/dsh-host-admin` 导出；默认装配不变。其 [Windows 存储策略](../../host/host-admin/README.zh.md#configuration-and-identity) 拒绝继承项、额外 SID 和重解析点，空文件先设权限再写内容，刷盘后替换并对共享冲突作有界重试。一次双向健康重载启动八个仅输出元数据的 PowerShell 进程，不缓存 ACL；`staleMs` 应计入实测开销。每次健康探测重新读取两个方向的已校验私有文件。`credentialOverlapMs` 显式限制唯一旧代次的剩余有效期，省略则禁用重叠。发布新凭据时附带具有固定 `expiresAt` 的旧条目，再安全更新对端出向文件；重叠期两个代次均可认证，到期后拒绝旧代次。重载失败会断开出向路由；发布须与探测周期协调。
 
-`createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。未显式提供执行器时，已配置传输仅在接收策略、授权事务、本地席位及 `nodeAuthorizedLocalAdmission` 服务全部安装后组合它们。缺少服务时拒绝接收，接收端不再转发。此后备装配不安装消息授权。
+`createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。未显式提供执行器时，已配置传输仅在接收策略、授权事务、本地席位及 `nodeAuthorizedLocalAdmission` 服务全部安装后组合它们。缺少服务时拒绝接收，接收端不再转发。后备装配通过 `ctx.get` 读取可选的 `routedMessageReceiver` 与 `nodeMessageAuthority` 服务；消息能力缺失时保持原有拒绝。
 
 <a id="persistence-and-disconnection"></a>
 ## 持久化与断链
@@ -64,9 +64,9 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 ## 已知限制与待完成项
 
-独立的新链编解码器识别 `node-work-chain/v1`、七个方法及精确 `delegation-evidence` 帧。完整 JSON 帧包含委托、冻结输入和结果外壳；采用本地与双方协商限额的最小值，上限为 1,048,576 个 UTF-8 字节，不截断、不分片。诊断码最多 128 个 ASCII 字符，说明最多 512 个 UTF-8 字节。这些辅助实现尚未接入默认运行时：安装本包尚不会通告或接收该能力。已配置传输提供唯一的 `nodeWorkChainBusiness` 注册处；其恢复屏障拒绝缺席或恢复失败的提供方，精确查询辅助方法在恢复前不能报告缺失。`chain.operation` 分派、hello 就绪门槛、监听器保留控制容量与运行装配尚未接通；进程测试仅验证隔离的传输意图持久化，不代表端到端业务执行或独立网络取证通过。
+显式 `nodeWorkChain` 组合启用 `node-work-chain/v1`、七个固定方法与精确 `delegation-evidence` 帧。hello 仅在业务提供方、本地准入、接收策略和持久证据全部恢复后通告接收能力；提供方撤销即撤去能力。完整 JSON 帧包含委托、冻结输入和结果外壳；采用本地与双方协商限额的最小值，上限为 1,048,576 个 UTF-8 字节，不截断、不分片。诊断码最多 128 个 ASCII 字符，说明最多 512 个 UTF-8 字节。控制请求具有独立有界容量。经过鉴权的 `chain.operation` 调用查询已恢复的业务所有者，不从传输收据推断缺失。
 
-独立的 `chain-v1.json` 存储保留完整原意图与精确业务键。待决、未知及暂停结果不成为终态；认证后的终态修复保留原请求身份。不淘汰未决记录，也不重放普通方法。该存储与旧操作文件分离，默认运行时不会打开它。
+`route(request, authorization)` 要求与委托逐字段一致的新入口授权。发送前，node-link 将事实持久留存在有界的 `chain-evidence/evidence-v1.json`；仅已认证配对节点可以精确查询，到期证据在恢复或发布时淘汰。独立的 `chain-received/chain-v1.json` 与 `chain-sent/chain-v1.json` 保留完整原意图与精确业务键，不淘汰未决记录。待决、未知及暂停结果不成为终态。可选的宿主持有 `outboxIssuer` 仅在已认证业务查询答复缺失后，允许使用持久原载荷、原键及新签发受限授权经原方法重发。缺少该签发器时，未决发送保留未知；不调用 `resume`。未配置链组合时不打开这些文件。
 
 <a id="known-limitations-and-deferred-work"></a>
 

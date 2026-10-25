@@ -1910,6 +1910,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'nodeMessageAuthority',
+    summary: 'Host-provided exact-envelope authority consumed only by paired node message ingress.',
+    description: 'Host-provided exact-envelope authority consumed only by paired node message ingress.',
+    methods: [],
+  },
+  {
     key: 'nodeRouter',
     summary: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
     description: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
@@ -1933,6 +1939,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Explicit composition supplies every security and local-admission dependency.',
     description: 'Explicit composition supplies every security and local-admission dependency.',
     methods: [
+      {
+        signature: 'readonly evidence?: ChainEvidenceService',
+        description: 'Omission uses node-link\'s paired persistent evidence; injection is intended for tests.',
+        parameters: [],
+      },
+      {
+        signature: 'outboxIssuer?(request: ChainRequest): Promise<Seat.SeatAuthorizationIssuer | undefined>',
+        description: 'Optional restricted outbox entry; absence retains unknown intents without replay.',
+        parameters: [{ name: 'request', description: 'Complete original request read from the sender\'s durable store.' }],
+        returns: 'Captured exact-intent issuer, or absence when this outbox does not own the intent.',
+      },
       {
         signature: 'readonly maxControlPending: number',
         description: 'Independent reserved control slots; business calls cannot consume these slots.',
@@ -1972,9 +1989,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Opt-in router remains distinct from the unchanged legacy router API.',
     methods: [
       {
-        signature: 'route(request: ChainRequest): Promise<ChainResponse>',
+        signature: 'route(request: ChainRequest, authorization: Seat.SeatAuthorizationGrant): Promise<ChainResponse>',
         description: 'Send only after both peers advertise this method, retaining unknown intent.',
-        parameters: [{ name: 'request', description: 'Entry-authorized frozen request.' }],
+        parameters: [{ name: 'request', description: 'Entry-authorized frozen request.' }, { name: 'authorization', description: 'Fresh process-local entry grant matching every delegation field.' }],
         returns: 'Correlated result or explicit safe failure.',
       },
     ],
@@ -6825,6 +6842,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CancelSeatWaitResult = {\n    status: \'cancelled\' | \'already-settled\';\n    wait: SeatWait;\n} | SeatRejected;',
   },
   {
+    name: 'ChainEvidenceService',
+    declaration: 'export interface ChainEvidenceService {\n    ready(): Promise<void>;\n    query(request: Seat.NodeDelegationEvidenceRequest, peer: NodeAuthenticatedPeer): Promise<Seat.NodeDelegationEvidenceResult>;\n}',
+  },
+  {
     name: 'ChainFailure',
     declaration: 'export interface ChainFailure extends NodeLinkFailure {\n    cause: Seat.SeatFailureCause;\n}',
   },
@@ -8875,6 +8896,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'NodeAuthenticatedPeer',
     declaration: 'export interface NodeAuthenticatedPeer {\n    readonly sourceNodeId: Seat.SeatNodeId;\n    readonly targetNodeId: Seat.SeatNodeId;\n    readonly authenticatedAt: Seat.SeatTimestamp;\n}',
+  },
+  {
+    name: 'NodeDelegationEvidenceRequest',
+    declaration: 'export interface NodeDelegationEvidenceRequest {\n    authorizationRef: AuthorizationRef;\n    method: NodeWorkChainMethod;\n    operationId: SeatOperationId;\n    payloadDigest: SeatDigest;\n    sourceNodeId: SeatNodeId;\n    targetNodeId: SeatNodeId;\n}',
+  },
+  {
+    name: 'NodeDelegationEvidenceResult',
+    declaration: 'export type NodeDelegationEvidenceResult = {\n    status: \'retained\';\n    request: NodeDelegationEvidenceRequest;\n    fact: import(\'./authorization.ts\').SeatIssuedAuthorizationFact;\n    expiresAt: SeatTimestamp;\n    revoked: false;\n} | {\n    status: \'rejected\';\n    cause: SeatFailureCause;\n};',
   },
   {
     name: 'NodeDelegationRequest',

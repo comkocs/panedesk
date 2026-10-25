@@ -9,6 +9,10 @@ import { NodeRouter } from './router.ts'
 import { decodeRequest } from './codec.ts'
 import { SshTunnel } from './tunnel.ts'
 import { createNodeLinkExecutor } from './executor.ts'
+import { ChainRuntime } from './chain-runtime.ts'
+import { ChainBusinessRegistry } from './chain-business.ts'
+import { decodeChainRequest, encodeChainFrame, isChainMethod } from './chain-codec.ts'
+import { helloCapability, helloRefusal } from './chain-hello.ts'
 
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
  * @param ctx - Lifecycle and optional local execution/subprocess services.
@@ -32,37 +36,60 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
     const policy = ctx.get('nodeDelegationReceivingPolicy'), authorization = ctx.get('seatAuthorizationTransactions')
     const localSeats = ctx.get('seats'), localAdmission = ctx.get('nodeAuthorizedLocalAdmission')
     if (!policy || !authorization || !localSeats || !localAdmission) return undefined
+    const messages = ctx.get('routedMessageReceiver'), messageAuthority = ctx.get('nodeMessageAuthority')
     return createNodeLinkExecutor({ nodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
       peer: { sourceNodeId: options.peerNodeId as import('@panedesk/dsh-seat').SeatNodeId,
         targetNodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
-        authenticatedAt: new Date().toISOString() }, policy, authorization, localSeats, localAdmission })
+        authenticatedAt: new Date().toISOString() }, policy, authorization, localSeats, localAdmission,
+      ...(messages === undefined ? {} : { messages }), ...(messageAuthority === undefined ? {} : { messageAuthority }) })
   }
   const receiver = new NodeReceiver(options.nodeId, options.peerNodeId, store, localExecutor)
   let listener: LoopbackListener | undefined, tunnel: SshTunnel | undefined, router: NodeRouter | undefined
   let unlock: (() => Promise<void>) | undefined
   let stopped = false
+  let chain: ChainRuntime | undefined
   let probe: NodeJS.Timeout | undefined
   let probing: Promise<boolean> | undefined
   const ready = (async () => {
     await files.prepare()
     unlock = await files.lock()
     let inbound = await loadCredential(files, 'inbound', options.peerNodeId, options.nodeId, options.credentialOverlapMs)
-    const outbound = await loadCredential(files, 'outbound', options.nodeId, options.peerNodeId, options.credentialOverlapMs)
+    let outbound = await loadCredential(files, 'outbound', options.nodeId, options.peerNodeId, options.credentialOverlapMs)
     if ([inbound, ...(inbound.previous ?? [])].some(receiving =>
       [outbound, ...(outbound.previous ?? [])].some(sending => receiving.credential === sending.credential))) {
       throw new Error('Directional credentials must differ')
     }
     await store.load(); await outgoing.load()
     let credentialsReady = true
-    listener = await listenAuthenticatedLoopback(options.listenPort, options, () => inbound, async (value, authenticatedEpoch) => {
+    const services = ctx.get('nodeWorkChain'), business = ctx.get('nodeWorkChainBusiness')
+    if (services !== undefined) {
+      if (!(business instanceof ChainBusinessRegistry)) throw new Error('Node chain registry unavailable')
+      chain = new ChainRuntime(options, services, business, privateFiles, () => outbound,
+        () => !stopped && ctx.get('nodeWorkChain') === services && ctx.get('nodeWorkChainBusiness') === business,
+        () => credentialsReady && (tunnel === undefined || tunnel.available))
+      ctx.provide('nodeWorkChainRouter', chain.router)
+      void chain.ready().catch((error: unknown) => { void error })
+    }
+    const dispatch = async (value: unknown, authenticatedEpoch: string): Promise<unknown> => {
       if (!credentialsReady) throw new Error('Directional credentials unavailable')
       if (object(value) && value.type === 'hello') {
-        if (value.version !== NODE_LINK_VERSION || value.sourceNodeId !== options.peerNodeId
-          || value.targetNodeId !== options.nodeId || !identifier(value.nonce)) throw new Error('Node handshake rejected')
-        const executor = localExecutor()
-        if (executor === undefined) throw new Error('Local node provider unavailable')
+        if (value.sourceNodeId !== options.peerNodeId || value.targetNodeId !== options.nodeId
+          || !identifier(value.nonce)) throw new Error('Node handshake rejected')
+        if (value.version !== NODE_LINK_VERSION) {
+          if (chain) return helloRefusal(options.nodeId, value.nonce, authenticatedEpoch,
+            'node-protocol-mismatch', 'protocol-version-mismatch')
+          throw new Error('Node handshake rejected')
+        }
+        if (chain) {
+          void chain.ready().catch((error: unknown) => { void error })
+          chain.observe(helloCapability(value))
+        }
+        const capability = chain?.capability(), executor = localExecutor()
+        const status = executor ? await executor.status() : capability && services?.local.seats?.nodeStatus
+          ? await services.local.seats.nodeStatus() : undefined
+        if (status === undefined) throw new Error('Local node provider unavailable')
         return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: authenticatedEpoch,
-          nonce: value.nonce, status: await executor.status() }
+          nonce: value.nonce, status, ...(capability === undefined ? {} : { chain: capability }) }
       }
       if (object(value) && value.type === 'receipt') {
         const request = decodeRequest(value.request)
@@ -75,9 +102,22 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
           digest({ method: request.method, payload: request.payload, principalId: request.delegation.principalId,
             seat: request.delegation.seat ?? null, sessionId: request.delegation.sessionId ?? null, taskIds: request.delegation.taskIds }))
       }
+      if (chain && object(value) && (value.type === 'delegation-evidence' || isChainMethod(value.method))) {
+        const capability = chain.capability()
+        if (!capability) throw new Error('Node chain capability unavailable')
+        encodeChainFrame(value, chain.limits())
+        const response = value.type === 'delegation-evidence'
+          ? await chain.evidence.receive(value) : await chain.receive(decodeChainRequest(value))
+        encodeChainFrame(response, chain.limits())
+        return response
+      }
       return receiver.receive(decodeRequest(value))
-    })
-    router = new NodeRouter(options, outbound, outgoing, () => !stopped && (tunnel === undefined || tunnel.available))
+    }
+    listener = await listenAuthenticatedLoopback(options.listenPort,
+      chain ? { ...options, maxPending: chain.slots.capacity() } : options, () => inbound,
+      (value, epoch) => chain ? chain.slots.run(value, () => dispatch(value, epoch)) : dispatch(value, epoch))
+    router = new NodeRouter(options, outbound, outgoing, () => !stopped && (tunnel === undefined || tunnel.available),
+      chain ? { capability: () => chain?.capability(), observe: capability => chain?.observe(capability) } : undefined)
     if (options.ssh !== undefined) {
       const subprocess = ctx.get('subprocess')
       if (subprocess === undefined) throw new Error('Node link requires a local subprocess provider')
@@ -99,6 +139,7 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
           }
           inbound = nextInbound
           credentialsReady = true
+          outbound = nextOutbound
           activeRouter.rotate(nextOutbound)
           return await activeRouter.handshake()
         } catch (error) { void error; credentialsReady = false; activeRouter.disconnect(); return false }
@@ -112,8 +153,10 @@ export async function mountNode(ctx: Context, config: Config): Promise<() => Pro
     if (probe !== undefined) clearTimeout(probe)
     await ready.catch((error: unknown) => { void error })
     if (probe !== undefined) clearTimeout(probe)
-    await tunnel?.close()
+    const chainClosed = chain?.close()
     await probing
+    await chainClosed
+    await tunnel?.close()
     await listener?.close()
     await store.close(); await outgoing.close()
     await unlock?.()
