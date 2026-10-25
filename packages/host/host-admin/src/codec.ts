@@ -4,8 +4,7 @@ import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, HOST_ADMIN_ERROR_CODES } from '
 import type { HostAdminRequest, HostAdminResponse } from './index.ts'
 import { object, identifier, digest } from './json.ts'
 import { SEAT_ENGINE_EVENT_NAMES, type EngineEventKind } from '@panedesk/dsh-seat'
-import { validEffect } from '@panedesk/dsh-seat-engine/src/validation.ts'
-import { validAuthorization } from '@panedesk/dsh-seat-engine/src/authorization-storage.ts'
+import { validEffect, validAuthorization } from '@panedesk/dsh-seat-engine'
 
 /** Decode only the frozen administrative method set.
  * @param value - Bounded JSON request.
