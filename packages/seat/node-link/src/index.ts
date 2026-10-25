@@ -1,10 +1,10 @@
 /** Optional node transport definitions and runtime; links require explicit configuration. */
-import { FiberState, type Context } from '@panedesk/cordis'
+import type { Context } from '@panedesk/cordis'
 import Schema from '@panedesk/schemastery'
 import type { Branded } from '@panedesk/dsh-brand'
 import type * as Seat from '@panedesk/dsh-seat'
 import type { SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
-import { isLoopbackAuthority, type PrivateFiles } from '@panedesk/dsh-host-admin'
+import { isLoopbackAuthority, isPrivateFilesContextActive, type PrivateFiles } from '@panedesk/dsh-host-admin'
 import { mountChangingNode } from './chain-attachment.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 
@@ -211,7 +211,7 @@ export function apply(_ctx: Context, _config: Config): void | Promise<() => Prom
       await _ctx.plugin({ name: 'node-link-business', apply(owner: Context) {
         owner.provide('nodeWorkChainBusiness', new ChainBusinessRegistry())
       } })
-      if (_ctx.fiber.uid === null || _ctx.fiber.state === FiberState.UNLOADING) return async () => {}
+      if (!isPrivateFilesContextActive(_ctx)) return async () => {}
       return mountChangingNode(_ctx, _config, true)
     }))
   }

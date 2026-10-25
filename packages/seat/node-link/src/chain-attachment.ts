@@ -1,5 +1,6 @@
 /** Optional composition changes drain the previous transport before acquiring its directories again. */
-import { FiberState, type Context, type Fiber } from '@panedesk/cordis'
+import type { Context, Fiber } from '@panedesk/cordis'
+import { isPrivateFilesContextActive } from '@panedesk/dsh-host-admin'
 import type { Config } from './index.ts'
 import { mountNode } from './runtime.ts'
 
@@ -25,7 +26,7 @@ export function mountChangingNode(ctx: Context, config: Config, awaitStartup = f
     serial = serial.then(async () => {
       await closing
       if (stopped || wanted !== revision) return
-      if (awaitStartup && (ctx.fiber.uid === null || ctx.fiber.state === FiberState.UNLOADING)) return
+      if (awaitStartup && !isPrivateFilesContextActive(ctx)) return
       const fiber = ctx.plugin({ name: 'node-link-attachment', apply(owner: Context) {
         const startup = owner.effect(() => mountNode(owner, config, awaitStartup || process.platform === 'win32'))
         if (awaitStartup) return Promise.resolve(startup)
