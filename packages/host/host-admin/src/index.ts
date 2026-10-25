@@ -151,7 +151,11 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  * @param _ctx - Owning plugin context.
  * @param _config - Explicit activation and resource bounds, or inert empty configuration.
  */
-export function apply(_ctx: Context, _config: Config): void { _ctx.effect(() => mountAdmin(_ctx, _config)) }
+export function apply(_ctx: Context, _config: Config): void | Promise<() => Promise<void>> {
+  const startup = _ctx.effect(() => mountAdmin(_ctx, _config))
+  if (process.platform === 'win32') return Promise.resolve(startup)
+}
+export { waitForPrivateFiles } from './private-files-ready.ts'
 export type * from './execution.ts'
 export { createHostAdminExecutor, hostAdminExecutionAdapter } from './executor.ts'
 export { WindowsPrivateFiles } from './windows-private-files.ts'

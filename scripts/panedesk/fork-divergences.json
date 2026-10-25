@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "windows-private-files-startup",
+      "description": "Wait for active Windows private-file factories and propagate startup refusals through Cordis.",
+      "origin": "Optional host administration and node transport",
+      "reason": "Late providers must not cause silent activation without private endpoints; POSIX startup remains unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/host/host-admin/tests/startup.spec.ts"],
+        "test": "fails visibly when the Windows private-file factory is missing"
+      }
+    },
+    {
       "id": "node-link-forwarded-host",
       "description": "Accept an explicitly configured loopback forwarding entrance authority for node-link.",
       "origin": "Optional node transport",

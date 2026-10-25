@@ -6,9 +6,11 @@ import { mountNode } from './runtime.ts'
 /** Track late installation, replacement and withdrawal without retaining stale service providers.
  * @param ctx - Owning plugin lifecycle and optional service store.
  * @param config - Explicit transport configuration, or an inert empty configuration.
- * @returns Completion after the active transport and all replacement work have drained.
+ * @param awaitStartup - Windows startup waits for initial activation and propagates its failure.
+ * @returns Owned disposer, or its startup promise when activation must be observed.
  */
-export function mountChangingNode(ctx: Context, config: Config): () => Promise<void> {
+export function mountChangingNode(ctx: Context, config: Config, awaitStartup = false):
+  (() => Promise<void>) | Promise<() => Promise<void>> {
   if (config.runtime === undefined) return async () => {}
   let active: Fiber | undefined
   let stopped = false
@@ -24,7 +26,8 @@ export function mountChangingNode(ctx: Context, config: Config): () => Promise<v
       await closing
       if (stopped || wanted !== revision) return
       const fiber = ctx.plugin({ name: 'node-link-attachment', apply(owner: Context) {
-        owner.effect(() => mountNode(owner, config))
+        const startup = owner.effect(() => mountNode(owner, config, awaitStartup || process.platform === 'win32'))
+        if (awaitStartup) return Promise.resolve(startup)
       } })
       active = fiber
       await fiber
@@ -40,7 +43,7 @@ export function mountChangingNode(ctx: Context, config: Config): () => Promise<v
     refresh()
   })
   refresh()
-  return async () => {
+  const dispose = async () => {
     stopped = true
     unwatch()
     const closing = active?.dispose()
@@ -48,4 +51,11 @@ export function mountChangingNode(ctx: Context, config: Config): () => Promise<v
     await serial
     await closing
   }
+  if (!awaitStartup) return dispose
+  return serial.then(() => dispose, async (error: unknown) => {
+    stopped = true
+    unwatch()
+    await active?.dispose()
+    throw error
+  })
 }

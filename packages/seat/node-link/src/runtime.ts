@@ -1,7 +1,7 @@
 /** Paired optional transport owns every listener, child, epoch and operation store. */
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
-import { PosixPrivateFiles, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
+import { PosixPrivateFiles, waitForPrivateFiles, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
 import { NODE_LINK_VERSION, type Config } from './index.ts'
 import { loadCredential } from './credentials.ts'
 import { NodeReceiver } from './receiver.ts'
@@ -17,16 +17,19 @@ import { helloCapability, helloRefusal } from './chain-hello.ts'
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
  * @param ctx - Lifecycle and optional local execution/subprocess services.
  * @param config - Paired endpoint and resource options.
+ * @param windows - Captured platform selection for deferred attachment startup.
  * @returns Disposer after accepted requests and owned resources have drained.
  */
-export async function mountNode(ctx: Context, config: Config): Promise<() => Promise<void>> {
+export async function mountNode(ctx: Context, config: Config, windows = process.platform === 'win32'): Promise<() => Promise<void>> {
   const options = config.runtime
   if (options === undefined) return () => Promise.resolve()
   if (!identifier(options.nodeId) || !identifier(options.peerNodeId) || options.nodeId === options.peerNodeId) {
     throw new Error('Node identities rejected')
   }
-  const privateFiles = (directory: string) => ctx.get('nodeLinkFiles')?.(directory)
-    ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1)
+  const windowsFactory = windows
+    ? await waitForPrivateFiles(ctx, 'nodeLinkFiles', options.requestTimeoutMs, () => ctx.get('nodeLinkFiles')) : undefined
+  const privateFiles = windowsFactory ?? ((directory: string) => ctx.get('nodeLinkFiles')?.(directory)
+    ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1))
   const files = privateFiles(options.directory)
   const store = new OperationStore(privateFiles(join(options.directory, 'received')), options.maxStoreBytes, options.maxOperations)
   const outgoing = new OperationStore(privateFiles(join(options.directory, 'sent')), options.maxStoreBytes, options.maxOperations)

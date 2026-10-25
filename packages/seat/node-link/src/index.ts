@@ -205,7 +205,15 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
  * @param _ctx - Owning plugin context.
  * @param _config - Optional runtime activation and resource bounds.
  */
-export function apply(_ctx: Context, _config: Config): void {
+export function apply(_ctx: Context, _config: Config): void | Promise<() => Promise<void>> {
+  if (process.platform === 'win32' && _config.runtime !== undefined) {
+    return Promise.resolve(_ctx.effect(async () => {
+      await _ctx.plugin({ name: 'node-link-business', apply(owner: Context) {
+        owner.provide('nodeWorkChainBusiness', new ChainBusinessRegistry())
+      } })
+      return mountChangingNode(_ctx, _config, true)
+    }))
+  }
   if (_config.runtime !== undefined) _ctx.provide('nodeWorkChainBusiness', new ChainBusinessRegistry())
   _ctx.effect(() => mountChangingNode(_ctx, _config))
 }
