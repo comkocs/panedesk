@@ -49,6 +49,7 @@ export async function chainAuthority(request: ChainRequest, peer: NodeAuthentica
   if ('status' in grant) return refuse('method-not-allowed')
   const local = grant.fact
   if (local.kind !== 'node-delegation' || local.decision !== 'allowed' || local.nodeId !== peer.targetNodeId
+    || local.sourceNodeId !== peer.sourceNodeId
     || local.principalId !== delegation.principalId || local.delegatedBy !== delegation.authorizationRef
     || local.operationId !== request.operationId || local.requestDigest !== request.payloadDigest
     || local.seat !== delegation.seat || local.sessionId !== delegation.sessionId

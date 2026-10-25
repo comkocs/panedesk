@@ -236,6 +236,14 @@ Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/s
 
 Explicit composition supplies every security and local-admission dependency.
 
+```ts cordis-catalog
+/** Optional restricted outbox entry; absence retains unknown intents without replay.
+ * @param request - Complete original request read from the sender's durable store.
+ * @returns Captured exact-intent issuer, or absence when this outbox does not own the intent.
+ */
+outboxIssuer?(request: ChainRequest): Promise<Seat.SeatAuthorizationIssuer | undefined>
+```
+
 Source: [`packages/seat/node-link/src/chain-services.ts`](../../packages/seat/node-link/src/chain-services.ts)
 
 <a id="ctxnodeworkchainbusiness--nodeworkchainbusinessregistry"></a>
@@ -276,9 +284,10 @@ Opt-in router remains distinct from the unchanged legacy router API.
 ```ts cordis-catalog
 /** Send only after both peers advertise this method, retaining unknown intent.
  * @param request - Entry-authorized frozen request.
+ * @param authorization - Fresh process-local entry grant matching every delegation field.
  * @returns Correlated result or explicit safe failure.
  */
-route(request: ChainRequest): Promise<ChainResponse>
+route(request: ChainRequest, authorization: Seat.SeatAuthorizationGrant): Promise<ChainResponse>
 ```
 
 Source: [`packages/seat/node-link/src/chain-services.ts`](../../packages/seat/node-link/src/chain-services.ts)

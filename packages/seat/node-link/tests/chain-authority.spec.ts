@@ -26,11 +26,11 @@ function fixture() {
     fact, expiresAt, revoked: false }
   // The authorization owner is a double; no journal authority is claimed by this fixture.
   const grant = { fact: { ...fact, kind: 'node-delegation', nodeId: request.targetNodeId,
-    delegatedBy: request.delegation.authorizationRef } } as Pick<Seat.SeatAuthorizationGrant, 'fact'> as Seat.SeatAuthorizationGrant
+    sourceNodeId: peer.sourceNodeId, delegatedBy: request.delegation.authorizationRef } } as Pick<Seat.SeatAuthorizationGrant, 'fact'> as Seat.SeatAuthorizationGrant
   const authorize = vi.fn(async () => ({ check: async () => grant }))
   const policy: ChainReceivingPolicy = { ready: async () => {}, expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 }, authorize }
   const lookup = vi.fn(async () => retained)
-  return { request, peer, retained, policy, authorize, lookup }
+  return { request, peer, retained, policy, authorize, lookup, grant }
 }
 
 test('requires independent exact evidence before asking policy for a local grant', async () => {
@@ -44,6 +44,17 @@ test('requires independent exact evidence before asking policy for a local grant
   expect(await chainAuthority(f.request, f.peer, f.policy, async () => changed))
     .toMatchObject({ cause: { reasonCode: 'evidence-digest-mismatch' } })
   expect(f.authorize).not.toHaveBeenCalled()
+})
+
+test('rejects a local grant lacking the transport-authenticated source node or naming another node', async () => {
+  const f = fixture()
+  for (const sourceNodeId of [undefined, f.peer.targetNodeId]) {
+    const { sourceNodeId: previous, ...fact } = f.grant.fact
+    void previous
+    const changed = { ...f.grant, fact: { ...fact, ...(sourceNodeId === undefined ? {} : { sourceNodeId }) } }
+    f.authorize.mockImplementation(async () => ({ check: async () => changed }))
+    expect(await chainAuthority(f.request, f.peer, f.policy, f.lookup)).toMatchObject({ cause: { reasonCode: 'method-not-allowed' } })
+  }
 })
 
 test('rejects missing policy, mismatched peer and expired delegation without requesting evidence', async () => {
