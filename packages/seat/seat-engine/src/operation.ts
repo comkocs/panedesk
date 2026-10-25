@@ -9,6 +9,10 @@ import type { EngineProjection } from './projection.ts'
  * @returns Safe registration and progress evidence, never frozen instruction content.
  */
 export function queryOperation(view: EngineProjection, request: T.SeatOperationQuery, nodeName: string): T.SeatEngineOperationResult {
+  const uncertain = [...view.callbacks.values()].find(item => item.nodeWorkChain?.route.originalOperationId === request.operationId
+    && item.responseClass === 'unknown' && item.phase !== 'delivered')
+  if (uncertain) return { status: 'pending', phase: 'configuring', stateVersion: view.sequence,
+    progress: { kind: 'pending', reason: 'provider-unavailable', blockedBy: ['callback-outcome-unknown'] } }
   const effects = view.decisions.flatMap(decision => decision.effects)
   const owned = effects.filter(effect => effect.operationId === request.operationId
     || 'operationId' in effect.data && effect.data.operationId === request.operationId)

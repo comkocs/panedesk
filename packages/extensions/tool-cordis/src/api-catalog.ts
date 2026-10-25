@@ -1994,6 +1994,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'Entry-authorized frozen request.' }, { name: 'authorization', description: 'Fresh process-local entry grant matching every delegation field.' }],
         returns: 'Correlated result or explicit safe failure.',
       },
+      {
+        signature: 'recover?(issuerFor: (request: ChainRequest) => Promise<Seat.SeatAuthorizationIssuer | undefined>): Promise<void>',
+        description: 'Reconcile retained intents before replay; absence leaves uncertain delivery pending.',
+        parameters: [{ name: 'issuerFor', description: 'Exact durable-intent owner, returning fresh restricted authority per check.' }],
+        returns: 'Completion of one query-before-replay pass.',
+      },
     ],
   },
   {

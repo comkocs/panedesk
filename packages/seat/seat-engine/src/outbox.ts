@@ -26,7 +26,7 @@ export class CallbackOutbox {
   private async deliverRouted(request: DeliverSourceCallbackRequest): Promise<SeatCallbackDelivery['responseClass']> {
     if (!this.routed) return 'transient'
     const result = await this.routed(structuredClone(request))
-    if (result.status === 'rejected') return this.refusalClass(result.error)
+    if (result.status === 'rejected') return result.error.effectState === 'unknown' ? 'unknown' : this.refusalClass(result.error)
     if (result.callbackId !== request.callback.callbackId || result.payloadDigest !== request.payloadDigest) return 'protocol'
     if (result.status === 'paused') {
       return this.refusalClass(result.error) === 'authentication' ? 'authentication' : 'protocol'

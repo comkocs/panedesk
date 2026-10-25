@@ -1,0 +1,52 @@
+/** Sender exceptions reconcile immediately and unknown intents never blindly resend. */
+import { expect, test } from 'vitest'
+import { CallbackOutbox } from '../src/outbox.ts'
+import { SourceRegistry } from '../src/sources.ts'
+import { deliverRoutedCallback } from '../src/routed-callback.ts'
+import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
+import { harness, seat } from './fixtures.ts'
+import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+
+test.each(['throw', 'timeout'] as const)('queries during the same %s attempt and retains unknown across restart', async (mode) => {
+  const h = await harness({ callbackTimeoutMs: 20 })
+  const sources = new SourceRegistry()
+  let outbox: CallbackOutbox | undefined
+  try {
+    h.definitions.set(seat, admittedDefinition())
+    const body = await persistCallback(h.engine), seen: CallbackChainRequest[] = []
+    let engine = h.engine, committed = false
+    const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
+      kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const router: CallbackRouterPort = { route: async (request) => {
+      seen.push(request)
+      if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: committed
+        ? { status: 'settled', method: 'source.deliverCallback', result: { status: 'committed',
+          callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } } : { status: 'missing' } }
+      if (mode === 'throw') throw new Error('Transport response lost')
+      return new Promise<never>(() => {})
+    } }
+    h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    await outbox.deliver(0)
+    expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback', 'chain.operation'])
+    const query = seen[2]
+    expect(query?.method === 'chain.operation' && query.payload).toEqual({ payloadDigest: body.payloadDigest, key: {
+      sourceNodeId: engine.options.nodeId, principalId, sourceId: body.route.sourceId, ownerEpoch: body.route.ownerEpoch,
+      method: 'source.deliverCallback', operationId: body.route.originalOperationId, callbackId: body.callback.callbackId,
+    } })
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
+    await outbox.close(); await engine.shutdown()
+    engine = await h.start()
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    await outbox.deliver(100)
+    expect(seen.filter(item => item.method === 'source.deliverCallback')).toHaveLength(1)
+    expect(await engine.authorizations.operation({ operationId: body.route.originalOperationId })).toMatchObject({
+      status: 'pending', progress: { blockedBy: ['callback-outcome-unknown'] },
+    })
+    committed = true
+    await outbox.deliver(200)
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.phase).toBe('delivered')
+    expect(seen.filter(item => item.method === 'source.deliverCallback')).toHaveLength(1)
+  } finally { await outbox?.close(); await sources.close(); await h.close() }
+})

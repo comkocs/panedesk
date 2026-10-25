@@ -8,9 +8,11 @@ import { SeatEngine } from './engine.ts'
 import { EngineError } from './journal.ts'
 import { CompletionProviders } from './notifications.ts'
 import { ChildAdmissionProvider } from './child-admission.ts'
+import { deliverRoutedCallback } from './routed-callback.ts'
 import { registerProductionSources, type ProductionSource } from './production-sources.ts'
 
 export { SeatEngine } from './engine.ts'
+export { queryRoutedCallback } from './routed-callback.ts'
 export { batchMemberId, queryBatchMember } from './node-batch.ts'
 export { FrozenWriteBarrier } from './frozen-business.ts'
 export type { EngineOptions, EngineDependencies } from './engine.ts'
@@ -92,15 +94,17 @@ export function apply(ctx: Context, config: Config): void {
       const starting = ledger.nodeId().then(async (nodeId) => {
         if (stopped) return
         engine = new SeatEngine(child, { home: resolveDshHome(config.home), nodeId: nodeId, config },
-          { seats: () => child.get('seats'), ledger: () => child.get('sessionLedger'), keepalive: {
-            remaining: async (sessionId) => {
-              const agent = child.get('agents')?.get(sessionId), cache = child.get('llmCache')
-              return agent && cache ? cache.remaining(agent) : { kind: 'unknown' }
-            },
-            renew: async (sessionId, operationId) => child.get('llmCache')?.renewOnce({ sessionId,
-              operationId: operationId as string as CacheRenewOperationId })
+          { seats: () => child.get('seats'), ledger: () => child.get('sessionLedger'),
+            deliverCallback: request => engine ? deliverRoutedCallback(child, engine, request) : Promise.resolve({ status: 'pending',
+              callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest }), keepalive: {
+              remaining: async (sessionId) => {
+                const agent = child.get('agents')?.get(sessionId), cache = child.get('llmCache')
+                return agent && cache ? cache.remaining(agent) : { kind: 'unknown' }
+              },
+              renew: async (sessionId, operationId) => child.get('llmCache')?.renewOnce({ sessionId,
+                operationId: operationId as string as CacheRenewOperationId })
               ?? { kind: 'rejected', reason: 'cache-evidence-unavailable' },
-          } })
+            } })
         await engine.ready()
         completions = new CompletionProviders(child, engine)
         admission = new ChildAdmissionProvider(child, engine)

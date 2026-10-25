@@ -1270,6 +1270,8 @@ export interface NodeWorkChainBusinessProvider {
    */
   resume?(request: NodeWorkChainOperationRequest, context: SeatCallContext): Promise<NodeWorkChainOperationResult>
 }
+/** Correlation identity for one work-chain transport attempt, separate from its durable operation. */
+export type NodeWorkChainRequestId = Branded<'NodeRequestId'>
 /** Shared wire request/result association; no arbitrary namespaces are admitted. */
 export interface NodeWorkChainMethodMap {
   'engine.acceptFrozen': { request: AcceptFrozenTriggerRequest; result: AcceptFrozenTriggerResult }

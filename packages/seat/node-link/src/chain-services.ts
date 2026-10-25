@@ -54,6 +54,11 @@ export interface ChainRouterService {
    * @returns Correlated result or explicit safe failure.
    */
   route(request: ChainRequest, authorization: Seat.SeatAuthorizationGrant): Promise<ChainResponse>
+  /** Reconcile retained intents before replay; absence leaves uncertain delivery pending.
+   * @param issuerFor - Exact durable-intent owner, returning fresh restricted authority per check.
+   * @returns Completion of one query-before-replay pass.
+   */
+  recover?(issuerFor: (request: ChainRequest) => Promise<Seat.SeatAuthorizationIssuer | undefined>): Promise<void>
 }
 
 /** Explicit composition supplies every security and local-admission dependency. */
