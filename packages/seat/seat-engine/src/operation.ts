@@ -1,6 +1,7 @@
 /** Operation reads correlate committed queue transitions with their original trigger identities. */
 import type * as T from '@panedesk/dsh-seat'
 import type { EngineProjection } from './projection.ts'
+import { frozenItems, frozenTerminal } from './frozen-terminal.ts'
 
 /** Project durable registration and progress without executing an operation.
  * @param view - Replayed committed journal state.
@@ -9,10 +10,22 @@ import type { EngineProjection } from './projection.ts'
  * @returns Safe registration and progress evidence, never frozen instruction content.
  */
 export function queryOperation(view: EngineProjection, request: T.SeatOperationQuery, nodeName: string): T.SeatEngineOperationResult {
+  const originals = frozenItems(view).filter(item => item.chain.operationKey.operationId === request.operationId)
+  const original = originals.length === 1 ? originals[0] : undefined
+  if (original) {
+    const terminal = frozenTerminal(view, original)
+    if (terminal) return { status: 'settled', result: { status: 'rejected', error: structuredClone(terminal.error) },
+      progress: { kind: 'cancelled' } }
+  }
   const uncertain = [...view.callbacks.values()].find(item => item.nodeWorkChain?.route.originalOperationId === request.operationId
     && item.responseClass === 'unknown' && item.phase !== 'delivered')
   if (uncertain) return { status: 'pending', phase: 'configuring', stateVersion: view.sequence,
     progress: { kind: 'pending', reason: 'provider-unavailable', blockedBy: ['callback-outcome-unknown'] } }
+  if (original) {
+    const pending = view.pending.get(original.pending.queueItemId)
+    if (pending) return { status: 'pending', phase: 'configuring', stateVersion: pending.stateVersion,
+      progress: { kind: 'pending', reason: pending.reason, blockedBy: pending.blockedBy } }
+  }
   const effects = view.decisions.flatMap(decision => decision.effects)
   const owned = effects.filter(effect => effect.operationId === request.operationId
     || 'operationId' in effect.data && effect.data.operationId === request.operationId)

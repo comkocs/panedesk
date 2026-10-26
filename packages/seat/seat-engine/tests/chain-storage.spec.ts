@@ -92,7 +92,12 @@ async function fixture() {
     { ...intent, operationId, data: { ...intent.data, pending: { ...intent.data.pending,
       frozenOpen: { ...frozen, nodeWorkChain: data } } } }, accepted, authorization,
   ] })
-  return { h, decision, data, accepted, authorization }
+  const registerRetention = (engine: typeof h.engine) => engine.registerPreopenRetention({
+    projectId: intent.data.trigger.projectId, sourceId: data.route.sourceId,
+    sourceOwnerNodeId: data.route.sourceOwnerNodeId, limitMs: 900000,
+  })
+  h.ctx.effect(() => registerRetention(h.engine))
+  return { h, decision, data, accepted, authorization, registerRetention }
 }
 
 test('requires the route capability and matching intent in one frame, refusing legacy readers', async () => {
@@ -139,7 +144,7 @@ test('separates frozen owners and epochs without changing local coalescing', asy
 })
 
 test.each(['off', 'remind'] as const)('retains the source %s ceiling across dispatch and recovery', async (mode) => {
-  const { h, decision } = await fixture()
+  const { h, decision, registerRetention } = await fixture()
   try {
     const effects = structuredClone(decision.effects)
     for (const effect of effects) {
@@ -155,6 +160,7 @@ test.each(['off', 'remind'] as const)('retains the source %s ceiling across disp
     expect([...h.engine.journal.projection.pending.values()][0]?.reason).toBe(mode === 'off' ? 'project-off' : 'approval')
     await h.engine.shutdown()
     const restarted = await h.start()
+    h.ctx.effect(() => registerRetention(restarted))
     await restarted.drive()
     expect(h.creates).toEqual([])
     expect([...restarted.journal.projection.pending.values()][0]?.effectiveMode).toBe(mode)

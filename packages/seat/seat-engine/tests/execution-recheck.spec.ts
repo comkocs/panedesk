@@ -2,6 +2,7 @@
 import { expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { auto, harness, trigger } from './fixtures.ts'
+import { retentionSince } from '../src/execution-recheck.ts'
 
 const refusal = (effectState: 'none' | 'unknown'): T.SeatRejected => ({ status: 'rejected', error: {
   code: 'gate-denied', message: 'Frozen permission changed.', alternative: 'Submit fresh preflight.', retryable: false, effectState,
@@ -22,6 +23,58 @@ it.each(['allow', 'none', 'unknown', 'throw'] as const)('checks queued work befo
     expect(h.creates).toHaveLength(outcome === 'allow' ? 1 : 0)
     expect(h.engine.journal.projection.pending.size).toBe(outcome === 'unknown' || outcome === 'throw' ? 1 : 0)
     expect(h.engine.journal.projection.opens.size).toBe(outcome === 'allow' ? 1 : 0)
+  } finally { await h.close() }
+})
+
+it('retains retryable no-effect refusals without changing the queue on repeated checks', async () => {
+  const h = await harness({ ownerObserveIntervalMs: 60000 })
+  try {
+    h.engine.registerLocalAccess({ list: () => h.seatProvider.list(), close: request => h.seatProvider.close(request),
+      freeze: async definition => ({ definition, title: 'Frozen', openingMode: 'auto' }), requiresRecheck: () => true,
+      recheck: async () => ({ ...refusal('none'), error: { ...refusal('none').error, retryable: true } }) })
+    await h.engine.accept(trigger())
+    const original = [...h.engine.journal.projection.pending.values()][0]!
+    await h.engine.drive()
+    const retained = h.engine.journal.projection.pending.get(original.queueItemId)
+    expect(retained).toMatchObject({ reason: 'provider-unavailable', blockedBy: ['provider-unavailable'],
+      queuedAt: original.queuedAt, sources: original.sources, frozenOpen: original.frozenOpen })
+    await h.engine.drive()
+    expect(h.engine.journal.projection.pending.get(original.queueItemId)).toEqual(retained)
+    expect(h.engine.journal.projection.opens.size).toBe(0)
+    expect(h.engine.journal.projection.callbacks.size).toBe(0)
+  } finally { await h.close() }
+})
+
+it.each(['none', 'unknown', 'committed'] as const)('retains retryable %s checks across approval, coalescing and restart', async (effectState) => {
+  const h = await harness({ ownerObserveIntervalMs: 60000 })
+  const access: T.SeatEngineLocalAccess = { list: () => h.seatProvider.list(), close: request => h.seatProvider.close(request),
+    freeze: async definition => ({ definition, title: 'Frozen', openingMode: 'auto' }), requiresRecheck: () => true,
+    recheck: async () => ({ status: 'rejected', error: { ...refusal('none').error, retryable: true, effectState } }) }
+  try {
+    h.engine.registerLocalAccess(access)
+    await h.engine.accept(trigger())
+    await h.engine.drive()
+    const blocked = [...h.engine.journal.projection.pending.values()][0]!
+    const since = retentionSince(h.engine.journal.projection, blocked.queueItemId)
+    expect(since).toBeTypeOf('number')
+    expect(blocked).toMatchObject({ reason: 'provider-unavailable', blockedBy: ['provider-unavailable'] })
+    await h.engine.approve({ queueItemId: blocked.queueItemId, expectedStateVersion: blocked.stateVersion,
+      operationId: 'approve-transient' as T.SeatOperationId })
+    await h.engine.accept(trigger('external', 'merged-transient'))
+    const merged = h.engine.journal.projection.pending.get(blocked.queueItemId)!
+    expect(merged).toMatchObject({ reason: blocked.reason, blockedBy: blocked.blockedBy, queuedAt: blocked.queuedAt })
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    const remove = restarted.registerLocalAccess(access)
+    await restarted.drive()
+    expect(restarted.journal.projection.pending.get(blocked.queueItemId)).toEqual(merged)
+    expect(retentionSince(restarted.journal.projection, blocked.queueItemId)).toBe(since)
+    expect(restarted.journal.projection.approved.has(blocked.queueItemId)).toBe(true)
+    expect(h.creates).toHaveLength(0)
+    await remove()
+    restarted.registerLocalAccess({ ...access, recheck: async () => null })
+    await restarted.drive()
+    expect(h.creates).toHaveLength(1)
   } finally { await h.close() }
 })
 

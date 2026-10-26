@@ -32,6 +32,10 @@ import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batc
 import { SourceProxy } from './source-proxy.ts'
 import type { SourceProxyInputs, SourceProxyPort } from './source-proxy-types.ts'
 import { WakeDeliveries } from './wake-delivery.ts'
+import { classifyRecheck, retentionSince, transientCategory } from './execution-recheck.ts'
+import { withPreopenCallbacks } from './preopen-callback.ts'
+import { preopenCancelledReason } from './frozen-terminal.ts'
+import { recoverPreopenCallbacks } from './preopen-recovery.ts'
 
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
@@ -77,6 +81,37 @@ export class SeatEngine extends SeatEngineService {
   routeSource<M extends T.SeatRemoteOpeningMethod>(method: M, input: SourceProxyInputs[M], authority?: T.SeatCallContext):
   Promise<T.NodeWorkChainMethodMap[M]['result'] | undefined> {
     return this.sourceProxy?.route(method, input, authority) ?? Promise.resolve(undefined)
+  }
+  private readonly preopenRetentions = new Set<Readonly<{
+    projectId: T.SeatProjectId
+    sourceId: T.SeatSourceId
+    sourceOwnerNodeId: T.SeatNodeId
+    limitMs: number
+  }>>()
+  /** Register a trusted composition's exact frozen-route retention limit before admitting work.
+   * @param registration - Project, source, original owner and explicit wall-clock limit in milliseconds.
+   * @returns Disposer that withdraws permission immediately and drains the active drive.
+   */
+  registerPreopenRetention(registration: {
+    projectId: T.SeatProjectId
+    sourceId: T.SeatSourceId
+    sourceOwnerNodeId: T.SeatNodeId
+    limitMs: number
+  }): () => Promise<void> {
+    if (this.stopped) throw new EngineError('unavailable', 'Engine is stopping')
+    if (!Number.isSafeInteger(registration.limitMs) || registration.limitMs <= 0) {
+      throw new EngineError('invalid-request', 'Pre-open retention limit must be positive')
+    }
+    const retained = Object.freeze({ ...registration })
+    this.preopenRetentions.add(retained)
+    return async () => { this.preopenRetentions.delete(retained); await this.activeDrive }
+  }
+  private retentionLimit(item: T.PendingSeatItem): number | undefined {
+    const route = item.frozenOpen?.nodeWorkChain?.route
+    if (!route) return undefined
+    const matches = [...this.preopenRetentions].filter(entry => entry.projectId === item.projectId
+      && entry.sourceId === route.sourceId && entry.sourceOwnerNodeId === route.sourceOwnerNodeId)
+    return matches.length === 1 ? matches[0]?.limitMs : undefined
   }
   private readonly triggers: TriggerRegistry
   private readonly outbox: CallbackOutbox
@@ -132,6 +167,9 @@ export class SeatEngine extends SeatEngineService {
   }
   private async start(): Promise<void> {
     await this.journal.ready()
+    if (await recoverPreopenCallbacks(this.journal, this.options.config.nodeName)) {
+      this.failure = new EngineError('state-conflict', 'Pre-open terminal evidence is ambiguous; notification was not reconstructed')
+    }
     for (const resource of this.journal.projection.resources.values()) this.recoveredOwners.add(resource.owner.ownerEpoch)
     this.readyAt = new Date().toISOString()
     await this.ctx.parallel('seat/ready', await this.nodeStatus())
@@ -589,8 +627,10 @@ export class SeatEngine extends SeatEngineService {
       const pending = { ...previous, stateVersion: previous.stateVersion + 1 }
       result = { status: kind === 'queue/approved' ? 'approved' : 'cancelled', queueItemId: pending.queueItemId,
         stateVersion: pending.stateVersion }
-      return [fact({ kind, operationId: request.operationId, data: { pending, principalId: 'engine-policy' as T.SeatPrincipalId,
+      const effects = [fact({ kind, operationId: request.operationId, data: { pending, principalId: 'engine-policy' as T.SeatPrincipalId,
         previousRevision: previous.stateVersion, revision: pending.stateVersion } })]
+      return kind === 'queue/cancelled' && previous.frozenOpen?.nodeWorkChain
+        ? withPreopenCallbacks(view, effects, preopenCancelledReason(), this.options.config.nodeName) : effects
     })
     await this.publish()
     return result
@@ -804,6 +844,7 @@ export class SeatEngine extends SeatEngineService {
   private async run(): Promise<void> {
     await this.ready()
     if (this.stopped) return
+    await this.checkPreopenRetention()
     const executor = this.executor
     if (executor) {
       await this.releaseDead(executor)
@@ -823,7 +864,7 @@ export class SeatEngine extends SeatEngineService {
           if (queued?.kind === 'queue/cancelled') {
             const refusal = await this.recheck(queued.data.pending)
             if (refusal) {
-              if (refusal.error.effectState === 'none' && (open.phase === 'intent' || open.phase === 'creating')
+              if (classifyRecheck(refusal) === 'terminal' && (open.phase === 'intent' || open.phase === 'creating')
                 && await executor.observe(open) === 'absent') {
                 await this.journal.commit((view) => {
                   const resource = view.resources.get(open.sessionId)
@@ -856,6 +897,39 @@ export class SeatEngine extends SeatEngineService {
     this.activeCallbacks ??= this.outbox.deliver().then(() => this.publish())
       .catch((error: unknown) => { this.failure = error }).finally(() => { this.activeCallbacks = undefined })
     await this.publish()
+  }
+  private async checkPreopenRetention(): Promise<void> {
+    for (const item of [...this.journal.projection.pending.values()]) {
+      if (!item.frozenOpen?.nodeWorkChain || item.action !== 'open') continue
+      await this.journal.commit((view) => {
+        const current = view.pending.get(item.queueItemId)
+        if (!current?.frozenOpen?.nodeWorkChain || canonical(current) !== canonical(item)) return []
+        const route = current.frozenOpen.nodeWorkChain.route
+        const source = current.sources[0], definition = current.frozenOpen.definition
+        const ruleMode = source && externalRuleMiss(definition, source) ? 'off'
+          : source ? triggerRule(definition, source)?.mode : undefined
+        const mode = effectiveMode(effectiveMode(view.policies.get(current.projectId)?.mode ?? 'remind', ruleMode), route.modeCeiling.mode)
+        if (mode === 'off') return []
+        const limit = this.retentionLimit(current)
+        if (limit !== undefined && !transientCategory(current) && current.reason !== 'provider-unavailable') return []
+        if (limit === undefined || !this.executor || !this.localAccess?.recheck) {
+          if (limit === undefined) this.failure = new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous')
+          if (limit === undefined || !transientCategory(current)) {
+            if (transientCategory(current) === 'provider-unavailable') return []
+            return [fact({ kind: 'queue/pending', seat: current.seat, data: { ...current,
+              reason: 'provider-unavailable', blockedBy: ['provider-unavailable'], stateVersion: current.stateVersion + 1 } })]
+          }
+        }
+        if (!transientCategory(current)) return []
+        const since = retentionSince(view, current.queueItemId)
+        if (since === undefined || Date.now() - since < limit) return []
+        const error: T.SeatFailure = { code: 'gate-denied', message: 'Pre-open retention limit reached',
+          alternative: 'Query the original operation; prepare and submit a new operation.', retryable: false, effectState: 'none' }
+        return withPreopenCallbacks(view, [fact({ kind: 'open/rejected', seat: current.seat, data: { error, candidates: [] } }),
+          fact({ kind: 'queue/cancelled', data: { pending: current, principalId: 'engine-policy' as T.SeatPrincipalId,
+            previousRevision: current.stateVersion, revision: current.stateVersion + 1 } })], error, this.options.config.nodeName)
+      })
+    }
   }
   private async releaseDead(executor: T.SeatOpenExecutor): Promise<void> {
     for (const resource of [...this.journal.projection.resources.values()]) {
@@ -903,6 +977,7 @@ export class SeatEngine extends SeatEngineService {
       alternative: 'Restore the execution policy and recheck.', retryable: true, effectState: 'unknown' } }
   }
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
+    if (item.frozenOpen?.nodeWorkChain && this.retentionLimit(item) === undefined) return
     const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
     const source = item.sources[0]
@@ -931,11 +1006,16 @@ export class SeatEngine extends SeatEngineService {
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }
         return [fact({ kind: 'queue/pending', seat: item.seat, data: next }), ...reminderEffects(next, current)]
       }
+      if (item.frozenOpen?.nodeWorkChain && this.retentionLimit(current) === undefined) {
+        return pending('provider-unavailable', ['provider-unavailable'])
+      }
+      if (item.frozenOpen?.nodeWorkChain && mode === 'off') return pending('project-off')
       if (refusal) {
-        if (refusal.error.effectState !== 'none') return pending('provider-unavailable', [refusal.error.message])
-        return [fact({ kind: 'open/rejected', seat: item.seat, data: { error: refusal.error, candidates: [] } }),
+        const classification = classifyRecheck(refusal)
+        if (classification !== 'terminal') return pending('provider-unavailable', [classification])
+        return withPreopenCallbacks(view, [fact({ kind: 'open/rejected', seat: item.seat, data: { error: refusal.error, candidates: [] } }),
           fact({ kind: 'queue/cancelled', data: { pending: current, principalId: 'engine-policy' as T.SeatPrincipalId,
-            previousRevision: current.stateVersion, revision: current.stateVersion + 1 } })]
+            previousRevision: current.stateVersion, revision: current.stateVersion + 1 } })], refusal.error, this.options.config.nodeName)
       }
       if (mode === 'off') return pending('project-off')
       if (mode === 'remind' && !view.approved.has(item.queueItemId)) return pending('approval')
@@ -956,10 +1036,12 @@ export class SeatEngine extends SeatEngineService {
         ...(this.options.config.nodeEngineWindowLimit !== undefined ? { nodeLimit: this.options.config.nodeEngineWindowLimit } : {}),
         budget, sessionId })
       if (admission.status === 'pending') return pending(admission.reason, admission.blockedBy)
-      if (admission.status === 'rejected') return [fact({ kind: 'open/rejected', seat: item.seat,
-        data: { error: rejected(admission.code, 'Window admission refused').error, candidates: [] } }),
-      fact({ kind: 'queue/cancelled', data: { pending: current, principalId: 'engine-policy' as T.SeatPrincipalId,
-        previousRevision: current.stateVersion, revision: current.stateVersion + 1 } })]
+      if (admission.status === 'rejected') {
+        const error = rejected(admission.code, 'Window admission refused').error
+        return withPreopenCallbacks(view, [fact({ kind: 'open/rejected', seat: item.seat, data: { error, candidates: [] } }),
+          fact({ kind: 'queue/cancelled', data: { pending: current, principalId: 'engine-policy' as T.SeatPrincipalId,
+            previousRevision: current.stateVersion, revision: current.stateVersion + 1 } })], error, this.options.config.nodeName)
+      }
       const intentId = randomUUID() as T.OpenIntentId, operationId = randomUUID() as T.SeatOperationId
       const binding: T.SeatBinding = { kind: 'seat', sessionId, seat: item.seat, projectId: item.projectId, nodeId: this.options.nodeId,
         bindingSource: 'seat-definition', identitySource: 'settings', openOperationId: operationId, seatRevision: definition.revision,

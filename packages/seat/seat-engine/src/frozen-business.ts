@@ -2,7 +2,7 @@
 import type { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import type { SeatEngine } from './engine.ts'
-import { queryFrozen } from './frozen-admission.ts'
+import { queryFrozenExecution } from './frozen-terminal.ts'
 import { digest } from './journal.ts'
 import { rejected } from './triggers.ts'
 
@@ -69,7 +69,7 @@ export function installFrozenBusiness(ctx: Context, engine: SeatEngine): void {
         }
         const refusal = await engine.authorizations.validate({ operationId: fact.operationId, requestDigest: digest(request),
           ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
-        return refusal ?? structuredClone(queryFrozen(engine.journal.projection, request))
+        return refusal ?? structuredClone(queryFrozenExecution(engine.journal.projection, request))
       }
       const provider: T.NodeWorkChainBusinessProvider = { methods: ['engine.acceptFrozen'], ready: () => {
         recovery ??= engine.ready().then(async () => {
