@@ -1,6 +1,50 @@
 {
   "divergences": [
     {
+      "id": "F02-preopen-retention-registration",
+      "description": "冻结开窗暂态保留队列，由实例级注册限值控制终局。",
+      "origin": "可选席位引擎组合",
+      "reason": "registerPreopenRetention 精确绑定项目、来源与原所有者；首个已提交类别帧计时，不增加公开配置键或持久字段，执行器缺席仍检查到限。",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "test": "expires retained frozen work at its original committed time even without providers or an executor"
+      }
+    },
+    {
+      "id": "F02-preopen-terminal-callback",
+      "description": "开窗前终局与原所有者拒绝回调在同一事务提交。",
+      "origin": "可选席位回调交付",
+      "reason": "每个原冻结受理项保留唯一回调身份和原路由，构造或整帧写入失败不能只取消队列；普通无链路径不变。",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "test": "commits one rejected owner callback with a pre-open cancellation and keeps the original receipt"
+      }
+    },
+    {
+      "id": "F02-preopen-startup-reconciliation",
+      "description": "启动从完整历史补投可证冻结终局，不修改原帧。",
+      "origin": "可选席位日志恢复",
+      "reason": "四类无执行终局各追加一次回调，引用原取消事件；历史执行、回调或歧义证据阻止重复或猜测性补投。",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "test": "recovers one rejected callback for old %s cancellation without rewriting history"
+      }
+    },
+    {
+      "id": "F05-preopen-terminal-query",
+      "description": "原来源及精确冻结查询返回可证终局，重复写保持首次回执。",
+      "origin": "可选席位业务查询",
+      "reason": "复用既有 settled-rejected 分支，无新增 wire 字段；可证未开窗终局优先于回调运输未知，取消操作仍返回原审计回执。",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "test": "uses the current frozen queue version and keeps its proven terminal ahead of transport uncertainty"
+      }
+    },
+    {
       "id": "node-chain-publication-deadline",
       "description": "Recheck sending deadlines after evidence and intent publication without disconnecting a healthy peer.",
       "origin": "Optional node transport and frozen callback delivery",

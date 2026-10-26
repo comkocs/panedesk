@@ -67,6 +67,12 @@ Waits retain authorized object identities and terminal observations. Job reads t
 
 Controlled creation and resume optionally obtain session-bound credentials from `hostSessionCredentials` before publishing the agent. The shell environment registry contributes only `DSH_HOST_ENDPOINT_PATH` and `DSH_HOST_CREDENTIAL_PATH` for the calling session, never credential bytes. Archive, replacement, and agent disposal revoke the old binding. Without the administration issuer, creation remains unchanged. The current persistent seat binding has no employee field, so this provider issues seat-only identities and never guesses an employee ID.
 
+### 开窗前终局查询与升级
+
+`seat.openFrozen` 与无窗回退的 `seat.wakeFrozen` 精确业务查询先校验完整原身份和摘要，再读取实际引擎历史中的可证开窗前终局，返回既有 `settled` 与原方法的 `rejected` 分支。重复写保持首次排队回执，不能据此判断仍可执行；有窗唤醒的原投递查询优先级不变。暂态复核保留冻结正文与批准位，不自动批准；开窗前拒绝、到限或取消不开窗，由引擎沿原认证回调通知所有者。
+
+组合须先在实际执行端注册明确限值再开放准入；起算、缺席和歧义处理、启动补投及成对升级和回滚限制见[引擎说明](../seat-engine/README.md#开窗前终局与暂态上限)。升级先停新准入、备份双方持久域，先恢复所有者再启动执行端；原帧不改，未结清回调不得靠降级或单边恢复备份清除。旧程序能解码既有结果不代表具备终局查询和补投语义。
+
 ## Dev Note
 
 [`index.ts`](src/index.ts) owns plugin activation and disposal. [`service-options.ts`](src/service-options.ts) separates deployment configuration from trusted runtime capabilities; the owning [seat subsystem](../../../docs/subsystems/seat.md) defines the shared service semantics.
