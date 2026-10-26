@@ -116,6 +116,43 @@ test.each(['pending', 'authentication', 'protocol', 'other'] as const)(
     } finally { await outbox?.close(); await sources.close(); await h.close() }
   })
 
+test('records a local peer-query timeout as deadline-exceeded and retains transient retries across restart', async () => {
+  const h = await harness({ callbackTimeoutMs: 20 }), sources = new SourceRegistry()
+  let engine = h.engine, outbox: CallbackOutbox | undefined
+  try {
+    h.definitions.set(seat, admittedDefinition())
+    const body = await persistCallback(engine)
+    let complete = false
+    const peer = vi.fn<CallbackRouterPort['route']>(async () => {
+      if (!complete) return new Promise<never>(() => {})
+      return { method: 'chain.operation', status: 'ok', result: { status: 'settled', method: 'source.deliverCallback',
+        result: { status: 'committed', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } } }
+    })
+    const issuer: CallbackIssuerPort = { outboxIssuer: async () => engine.authorizationIssuers.register({ identity: {
+      kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', { route: peer })
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    await outbox.deliver(0)
+    const expected = { phase: 'retry-due', responseClass: 'transient', attempt: 1,
+      lastDiagnostic: { stage: 'peer-query', cause: { reasonCode: 'deadline-exceeded', code: 'unavailable',
+        effectState: 'none', retryable: true } } }
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject(expected)
+    expect(peer.mock.calls.map(([request]) => request.method)).toEqual(['chain.operation'])
+    await outbox.close(); await engine.shutdown()
+    engine = await h.start()
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject(expected)
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    await outbox.deliver(100)
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ ...expected, attempt: 2 })
+    complete = true
+    await outbox.deliver(200)
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ phase: 'delivered', responseClass: 'success' })
+    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.lastDiagnostic).toBeUndefined()
+    expect(peer.mock.calls.map(([request]) => request.method)).toEqual(['chain.operation', 'chain.operation', 'chain.operation'])
+  } finally { await outbox?.close(); await sources.close(); await h.close() }
+})
+
 test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when its exact query fails by %s', async (mode) => {
   const h = await harness({ callbackTimeoutMs: 20 })
   const sources = new SourceRegistry()

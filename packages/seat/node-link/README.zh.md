@@ -42,10 +42,14 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 `createDelegationIssuer` 捕获受信签发证据，将到期限制在原授权和请求期限内。`createDelegationReceivingPolicy` 验证留存证据，并依真实对端的本地权限白名单收窄。`createNodeLinkExecutor` 在执行前复核授权；席位写操作要求 `localAdmission` 将授权与意图一起提交，远端消息要求宿主持有的精确载荷授权。委托字符串或 SSH 登录本身不赋予权限。未显式提供执行器时，已配置传输仅在接收策略、授权事务、本地席位及 `nodeAuthorizedLocalAdmission` 服务全部安装后组合它们。缺少服务时拒绝接收，接收端不再转发。后备装配通过 `ctx.get` 读取可选的 `routedMessageReceiver` 与 `nodeMessageAuthority` 服务；消息能力缺失时保持原有拒绝。
 
+Windows 等证据持久化较慢的节点，席位引擎的 `callbackTimeoutMs` 必须覆盖证据落盘耗时（一次部署实测约 1.2 秒）及其余回调工作耗时。
+
 <a id="persistence-and-disconnection"></a>
 ## 持久化与断链
 
 `received/operations.json` 在执行前耐久记录待决，`sent/operations.json` 保留发送身份与结果。同号同参不重复执行，同号异参拒绝；丢回包标未知，通过认证只读回执恢复，不盲重发。存在未决发送时阻止新的写操作，容量满时拒绝而不淘汰。根目录 `owner.lock` 排斥双实例，遗留锁需人工确认后恢复。
+
+工作链在证据与意图落盘后、触网前重新核对请求与委托期限。过期返回 `deadline-exceeded`，不触网、不撤连接；已接纳意图以 `effectState: 'none'` 持久结清。
 
 断链先于能力协商拒绝新请求。工作链在 TCP 连接建立前失败时，返回 `node-tunnel-disconnected` 与 `effectState: 'none'`，将已接纳的发送意图持久落定，并撤销连接观察与对端能力。经过授权的精确 `chain.operation` 查询即使在断链时也能读回该本地拒绝；它不是推断出的业务证据。TCP 连接建立后丢失响应仍为未知，发送记录保持待决；经过认证的精确查询核对恢复后的业务结果，不重复执行。已发送但无回包不能声称未执行。健康探测校验代次与节点自报身份；超 `staleMs` 标为过期，保留上次窗数，不伪造零窗。SSH 进程存活不等于应用握手成功。
 

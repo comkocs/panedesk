@@ -89,9 +89,14 @@ export class ChainRouter implements ChainRouterService {
         }
         admitted = true
       }
+      const remaining = Math.min(Date.parse(request.deadline), Date.parse(request.delegation.expiresAt)) - Date.now()
+      if (remaining <= 0) {
+        const response = chainFailure(request, 'node-deadline-exceeded', 'deadline-exceeded')
+        if (admitted) await this.store.settle(request, response)
+        return response
+      }
       const response = decodeChainResponse(await callLoopback(this.options.peerPort, this.credential(), request,
-        { ...this.options, maxFrameBytes, requestTimeoutMs: Math.max(1, Math.min(this.options.requestTimeoutMs,
-          Date.parse(request.deadline) - Date.now())) }), request)
+        { ...this.options, maxFrameBytes, requestTimeoutMs: Math.min(this.options.requestTimeoutMs, remaining) }), request)
       if (admitted) await this.store.settle(request, response)
       return response
     } catch (error) {

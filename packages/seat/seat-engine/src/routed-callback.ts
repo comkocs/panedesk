@@ -45,11 +45,13 @@ function failure(response: Exclude<ChainResponse, { status: 'ok' }>): T.SeatReje
     effectState: response.error.effectState, ...(response.error.cause ? { cause: response.error.cause } : {}) } }
 }
 
+class CallbackDeadlineError extends Error {}
+
 async function bounded<R>(work: () => Promise<R>, milliseconds: number): Promise<R> {
   let timeout: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([work(), new Promise<never>((_resolve, reject) => {
-      timeout = setTimeout(() => { reject(new Error('Callback attempt timed out')) }, milliseconds)
+      timeout = setTimeout(() => { reject(new CallbackDeadlineError('Callback attempt timed out')) }, milliseconds)
     })])
   } finally { if (timeout) clearTimeout(timeout) }
 }
@@ -161,8 +163,10 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
   }
   const read = async (): Promise<QueryAttempt> => {
     try { return await bounded(query, engine.options.config.callbackTimeoutMs) }
-    catch (_error) {
-      return callbackFailure(body, queryStage, 'Callback owner query did not complete')    }
+    catch (error) {
+      return callbackFailure(body, queryStage, 'Callback owner query did not complete', 'unavailable', 'none',
+        error instanceof CallbackDeadlineError ? 'deadline-exceeded' : 'hello-policy-not-ready')
+    }
   }
   const outcome = (attempt: QueryAttempt, barrier: boolean): CallbackAttempt | undefined => {
     const result = attempt.result
