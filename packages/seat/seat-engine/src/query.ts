@@ -26,7 +26,8 @@ export function queryEngine(decisions: readonly EngineDecision[], request: Engin
       if (request.nodeId !== undefined && request.nodeId !== decision.nodeId) continue
       const data = effect.data
       const seat = effect.seat ?? ('seat' in data ? data.seat : 'pending' in data ? data.pending?.seat
-        : 'binding' in data && data.binding.kind === 'seat' ? data.binding.seat : undefined)
+        : 'binding' in data && data.binding.kind === 'seat' ? data.binding.seat
+          : 'payload' in data ? data.payload.seat : undefined)
       if (request.seat !== undefined && request.seat !== seat) continue
       if (request.kinds && !request.kinds.includes(effect.kind)) continue
       if (request.from && decision.observedAt < request.from) continue

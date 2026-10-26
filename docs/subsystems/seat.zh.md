@@ -837,6 +837,37 @@ abstract list(request: T.ListSeatGatesRequest): Promise<import('./gates.ts').Sea
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
 
+<a id="ctxseatlocalcallbackowner--seatlocalcallbackowner"></a>
+
+### `ctx.seatLocalCallbackOwner` — `SeatLocalCallbackOwner`
+
+Optional same-node owner; complete keys are correlation, never authorization. Providers independently recover retained callbacks and validate fresh restricted grants. Publish only after inbox and business recovery; withdrawal stops admission and drains calls.
+
+```ts cordis-catalog
+/** Await this provider generation's inbox and business recovery. */
+ready(): Promise<void>
+
+/** Report whether this generation accepts new calls.
+ * @returns False before recovery or after withdrawal.
+ */
+available(): boolean
+
+/** Query only source.deliverCallback with a complete callback key.
+ * @param request - Retained full business key, including callbackId, and original digest.
+ * @returns Exact owner outcome; unready providers must never report missing.
+ */
+query(request: NodeWorkChainOperationRequest): Promise<SeatCallbackAttemptResult<NodeWorkChainOperationResult>>
+
+/** Deliver only the original callback after independently verifying its retained identity.
+ * @param request - Immutable callback, route, evidence and digest.
+ * @param key - Complete source.deliverCallback key with callbackId; grants no authority.
+ * @returns Committed only after every original owner step completes.
+ */
+deliver(request: DeliverSourceCallbackRequest, key: NodeWorkChainOperationKey): Promise<SeatCallbackAttemptResult<DeliverSourceCallbackResult>>
+```
+
+Source: [`packages/seat/seat/src/types.ts`](../../packages/seat/seat/src/types.ts)
+
 <a id="ctxseatlocalcreation--localseatcreation"></a>
 
 ### `ctx.seatLocalCreation` — `LocalSeatCreation`

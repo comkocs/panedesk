@@ -95,8 +95,8 @@ export function apply(ctx: Context, config: Config): void {
         if (stopped) return
         engine = new SeatEngine(child, { home: resolveDshHome(config.home), nodeId: nodeId, config },
           { seats: () => child.get('seats'), ledger: () => child.get('sessionLedger'),
-            deliverCallback: request => engine ? deliverRoutedCallback(child, engine, request) : Promise.resolve({ status: 'pending',
-              callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest }), keepalive: {
+            deliverCallback: request => engine ? deliverRoutedCallback(child, engine, request) : Promise.resolve({ result: { status: 'pending',
+              callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest } }), keepalive: {
               remaining: async (sessionId) => {
                 const agent = child.get('agents')?.get(sessionId), cache = child.get('llmCache')
                 return agent && cache ? cache.remaining(agent) : { kind: 'unknown' }

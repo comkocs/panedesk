@@ -5,9 +5,25 @@ import type {
   SeatAuthorizationEntry, SeatAuthorizationFact, SeatIssuedAuthorizationFact,
   SeatNodeId, SeatOpeningContexts, SeatSourceOwner,
 } from '../src/index.ts'
-import type { SeatSourceOwner as DirectOwner } from '../src/types.ts'
+import type { SeatSourceOwner as DirectOwner, SeatLocalCallbackOwner as DirectCallbackOwner } from '../src/types.ts'
+import { Context } from '@panedesk/cordis'
+import type { SeatLocalCallbackOwner, SeatCallbackAttemptResult, SeatCallbackDiagnostic, SeatCallbackDelivery,
+  NodeWorkChainOperationRequest, NodeWorkChainOperationResult, DeliverSourceCallbackRequest,
+  DeliverSourceCallbackResult, NodeWorkChainOperationKey } from '../src/index.ts'
 
 describe('chain context declarations', () => {
+  it('exports the optional local callback owner and leaves it unprovided', async () => {
+    expectTypeOf<SeatLocalCallbackOwner>().toEqualTypeOf<DirectCallbackOwner>()
+    expectTypeOf<SeatLocalCallbackOwner['query']>().toEqualTypeOf<
+      (request: NodeWorkChainOperationRequest) => Promise<SeatCallbackAttemptResult<NodeWorkChainOperationResult>>>()
+    expectTypeOf<SeatLocalCallbackOwner['deliver']>().toEqualTypeOf<
+      (request: DeliverSourceCallbackRequest, key: NodeWorkChainOperationKey) =>
+      Promise<SeatCallbackAttemptResult<DeliverSourceCallbackResult>>>()
+    expectTypeOf<SeatCallbackDelivery['lastDiagnostic']>().toEqualTypeOf<SeatCallbackDiagnostic | undefined>()
+    const ctx = new Context()
+    try { expect(ctx.get('seatLocalCallbackOwner')).toBeUndefined() } finally { await ctx.fiber.dispose() }
+  })
+
   it('carries optional authenticated source identity through issued facts and entry identity', () => {
     expectTypeOf<SeatAuthorizationFact['sourceNodeId']>().toEqualTypeOf<SeatNodeId | undefined>()
     expectTypeOf<SeatIssuedAuthorizationFact['sourceNodeId']>().toEqualTypeOf<SeatNodeId | undefined>()

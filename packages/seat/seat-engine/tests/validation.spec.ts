@@ -10,6 +10,34 @@ function encoded(kind: EngineEventKind, data: Record<string, unknown>, duplicate
     effects: duplicate ? [effect, effect] : [effect] } as Omit<EngineDecision, 'digest' | 'byteLength'>
   return canonical(frame(input))
 }
+const diagnostic = { stage: 'local-query', cause: { domain: 'seat-callback', code: 'unavailable', reason: 'Owner is unavailable',
+  effectState: 'none', retryable: true, operationId: 'operation-a', nodeId: 'node-a', reasonCode: 'hello-policy-not-ready' } }
+
+it('rejects unknown stages secret dynamic exceptions and oversized multibyte diagnostic reasons', () => {
+  const sample = examples['callback/attempted']
+  const encode = (lastDiagnostic: unknown) => encoded('callback/attempted', { ...sample, lastDiagnostic })
+  const maximum = { ...diagnostic, cause: { ...diagnostic.cause, domain: 'a'.repeat(128), code: 'b'.repeat(128), reason: 'é'.repeat(256) } }
+  const text = encode(maximum)
+  expect(() => decodeFrame(text, Buffer.byteLength(text) + 1)).not.toThrow()
+  expect(() => decodeFrame(text, Buffer.byteLength(text))).toThrow('exceeds the configured bound')
+  for (const invalid of [null, { ...diagnostic, stage: 'unknown' }, { ...diagnostic, extra: true },
+    ...[{ domain: '' }, { domain: 'a'.repeat(129) }, { code: '' }, { code: 'a'.repeat(129) }, { code: 'é' },
+      { reason: '' }, { reason: 'é'.repeat(257) }, { reason: 'line\nbreak' }, { reason: '\u007f' },
+      { reasonCode: 'unknown' }, { effectState: 'unknown-state' }, { retryable: 'true' }, { stack: 'Synthetic private exception' }]
+      .map(change => ({ ...diagnostic, cause: { ...diagnostic.cause, ...change } }))]) {
+    expect(() => decodeFrame(encode(invalid), 200000)).toThrow('Invalid engine effect')
+  }
+  expect(() => decodeFrame(encoded('callback/delivered', { ...examples['callback/delivered'], lastDiagnostic: diagnostic }), 200000))
+    .toThrow('Invalid engine effect')
+})
+
+it('restores old callback frames without materializing an optional diagnostic', () => {
+  const decoded = decodeFrame(encoded('callback/attempted', examples['callback/attempted']), 200000)
+  expect(Object.hasOwn(decoded.effects[0]!.data, 'lastDiagnostic')).toBe(false)
+  expect(decodeFrame(encoded('callback/attempted', { ...examples['callback/attempted'], lastDiagnostic: diagnostic }), 200000).effects[0])
+    .toMatchObject({ data: { lastDiagnostic: diagnostic } })
+})
+
 const optional = new Set(['definition', 'sources', 'title', 'operationId', 'cleanup', 'replacementId', 'handoffTimeout'])
 it.each(eventKinds)('validates every persisted %s field before replay', (kind) => {
   const sample = examples[kind]

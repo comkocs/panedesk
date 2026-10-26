@@ -8,7 +8,7 @@ import { definition, sourceId, projectId, seat, trigger } from './fixtures.ts'
 
 export const principalId = 'principal-a' as T.SeatPrincipalId
 export const owner = 'owner-a' as T.SeatNodeId
-export async function persistCallback(engine: SeatEngine) {
+export async function persistCallback(engine: SeatEngine, callbackOwner = owner) {
   const nodeId = engine.options.nodeId, envelope = trigger(), operationId = 'operation-a' as T.SeatOperationId
   const ownerEpoch = 'epoch-a' as T.OwnerEpoch
   const snapshot: T.OpeningContextSnapshot = { reference: { providerId: 'provider-a' as T.OpeningProviderId,
@@ -16,12 +16,13 @@ export async function persistCallback(engine: SeatEngine) {
   digest: digest('Frozen text'), revision: '1', taskIds: [], scopeEvidence: [] }
   const input: T.AcceptFrozenTriggerRequest = { envelope, expectedSeatRevision: 1,
     openingContext: { snapshot, openingMode: 'auto', scopeReservation: { reservationId: 'reservation-a' as T.NodeWorkChainScopeReservation['reservationId'],
-      sourceId, sourceOwnerNodeId: owner, ownerEpoch, operationId, taskIds: [], snapshotDigest: snapshot.digest, policyRevision: 1 } },
-    route: { sourceId, sourceOwnerNodeId: owner, ownerEpoch, triggerId: envelope.triggerId, originalOperationId: operationId,
+      sourceId, sourceOwnerNodeId: callbackOwner, ownerEpoch, operationId, taskIds: [],
+      snapshotDigest: snapshot.digest, policyRevision: 1 } },
+    route: { sourceId, sourceOwnerNodeId: callbackOwner, ownerEpoch, triggerId: envelope.triggerId, originalOperationId: operationId,
       targetNodeId: nodeId, snapshotDigest: snapshot.digest, callbackPath: { kind: 'source', sourceId },
       modeCeiling: { mode: 'remind', policy: { sourceId, projectId, revision: 1 } } } }
   const entry = engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId, nodeId,
-    origin: 'remote', sourceNodeId: owner, seat, taskIds: [], policyRevision: 1 },
+    origin: 'remote', sourceNodeId: callbackOwner, seat, taskIds: [], policyRevision: 1 },
   current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
   const grant = await entry.issuer.check({ operationId, requestDigest: digest(input) })
   if ('status' in grant) throw new Error('Missing admission grant')
@@ -37,7 +38,7 @@ export async function persistCallback(engine: SeatEngine) {
   if (!delivery.nodeWorkChain) throw new Error('Missing durable route')
   return delivery.nodeWorkChain
 }
-export function admittedDefinition(): T.SeatDefinition {
-  return { ...definition(), remoteAdmission: { allowOpen: true, sourceNodeIds: [owner], sourceIds: [sourceId],
+export function admittedDefinition(callbackOwner = owner): T.SeatDefinition {
+  return { ...definition(), remoteAdmission: { allowOpen: true, sourceNodeIds: [callbackOwner], sourceIds: [sourceId],
     principalIds: [principalId], methods: ['engine.acceptFrozen' as const], policyRevision: 1 } }
 }

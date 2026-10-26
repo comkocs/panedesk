@@ -1,5 +1,51 @@
 /** Structural consumer ports keep the engine independent of transport providers. */
 import type * as T from '@panedesk/dsh-seat'
+import { validCallbackDiagnostic } from './validation.ts'
+import { rejected } from './triggers.ts'
+
+/** Internal callback consumption carries observations without changing wire results. */
+export type CallbackAttempt = T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>
+
+/** Construct a fixed safe observation without copying dynamic exception text.
+ * @param body - Retained callback identity.
+ * @param stage - Last verifiable failure hop.
+ * @param reason - Fixed safe explanation owned by the caller.
+ * @param code - Existing refusal category.
+ * @param effectState - Conservative business effect bound.
+ * @param reasonCode - Existing diagnostic refinement.
+ * @returns Refusal and its bounded diagnostic.
+ */
+export function callbackFailure(body: T.DeliverSourceCallbackRequest, stage: T.SeatCallbackFailureStage,
+  reason: string, code: T.SeatErrorCode = 'unavailable', effectState: T.SeatFailure['effectState'] = 'none',
+  reasonCode: T.NodeWorkChainReasonCode = 'hello-policy-not-ready'):
+T.SeatCallbackAttemptResult<T.SeatRejected> & { diagnostic: T.SeatCallbackDiagnostic } {
+  const result = rejected(code, reason)
+  const cause: T.SeatFailureCause = { domain: 'seat-callback', code, reason, effectState,
+    retryable: code === 'unavailable' && effectState === 'none', operationId: body.route.originalOperationId,
+    nodeId: body.callback.nodeId, reasonCode }
+  return { result: { ...result, error: { ...result.error, effectState, retryable: cause.retryable, cause } },
+    diagnostic: { stage, cause } }
+}
+
+/** Retain valid original causes and reject unrelated or malformed diagnostic attribution.
+ * @param body - Original callback and permitted endpoint identities.
+ * @param attempt - Result with an optional provider observation.
+ * @param stage - Known hop when an older refusal omits a diagnostic.
+ * @returns One bounded observation; invalid diagnostics never reduce uncertain effects.
+ */
+export function callbackObservation<R extends T.NodeWorkChainOperationResult | T.DeliverSourceCallbackResult>(
+  body: T.DeliverSourceCallbackRequest, attempt: T.SeatCallbackAttemptResult<R>,
+  stage: T.SeatCallbackFailureStage): T.SeatCallbackAttemptResult<R> {
+  const result = attempt.result
+  const error = 'error' in result ? result.error : undefined
+  const diagnostic = attempt.diagnostic ?? (error?.cause ? { stage, cause: error.cause }
+    : error ? callbackFailure(body, stage, 'Callback attempt was refused', error.code, error.effectState, 'evidence-missing').diagnostic : undefined)
+  if (!diagnostic) return attempt
+  if (validCallbackDiagnostic(diagnostic) && diagnostic.cause.operationId === body.route.originalOperationId
+    && [body.callback.nodeId, body.route.sourceOwnerNodeId].includes(diagnostic.cause.nodeId)) return { result, diagnostic }
+  return { result, diagnostic: callbackFailure(body, stage, 'Callback diagnostic was invalid', 'callback-protocol-error',
+    error?.effectState === 'unknown' || diagnostic.cause.effectState === 'unknown' ? 'unknown' : 'none', 'invalid-diagnostic').diagnostic }
+}
 
 /** Frozen method payloads use the shared seat vocabulary, not a transport package dependency. */
 export type CallbackChainRequest = { [M in T.NodeWorkChainMethod]: {
