@@ -34,7 +34,9 @@ export class ChainReceiver {
         }
         return this.result(request, await this.business.query(request.payload, authority))
       }
-      if (request.method === 'source.checkAdmission') return await dispatchChain(request, authority, this.services.local)
+      if (request.method === 'source.checkAdmission' || request.method === 'seat.definitionRevision') {
+        return await dispatchChain(request, authority, this.services.local)
+      }
       const key = chainKeyText(chainKey(request))
       if (this.active.has(key)) return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true)
       this.active.add(key)

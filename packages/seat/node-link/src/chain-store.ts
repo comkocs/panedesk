@@ -32,7 +32,7 @@ export class ChainStore {
     for (const [key, item] of Object.entries(value.entries)) {
       if (!object(item) || Object.keys(item).some(field => !['request', 'response'].includes(field))) throw new Error('Node chain entry rejected')
       const request = decodeChainRequest(item.request)
-      if (request.method === 'chain.operation' || key !== digest(chainKeyText(chainKey(request)))) throw new Error('Node chain store identity rejected')
+      if (request.method === 'chain.operation' || request.method === 'seat.definitionRevision' || key !== digest(chainKeyText(chainKey(request)))) throw new Error('Node chain store identity rejected')
       const response = item.response === undefined ? undefined : decodeChainResponse(item.response, request)
       if (response !== undefined && chainPending(response)) throw new Error('Node chain terminal stage rejected')
       entries[key] = response === undefined ? { request } : { request, response }
@@ -60,7 +60,7 @@ export class ChainStore {
   admit(input: ChainRequest): Promise<{ state: 'admitted' } | Outcome> {
     const request = decodeChainRequest(JSON.parse(JSON.stringify(input)))
     return this.enqueue(async () => {
-      if (request.method === 'chain.operation') throw new Error('Node chain query cannot create intent')
+      if (request.method === 'chain.operation' || request.method === 'seat.definitionRevision') throw new Error('Node chain query cannot create intent')
       const previous = this.query(chainKey(request), request.payloadDigest)
       if (previous.state !== 'missing') return previous
       if (Object.keys(this.entries).length >= this.limits.maxEntries) throw new Error('Node chain capacity exceeded')

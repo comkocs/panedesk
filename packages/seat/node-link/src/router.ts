@@ -7,7 +7,7 @@ import type { NodeLinkRuntimeConfig, NodeRouterService, NodeWireRequest, NodeWir
 import type { ChannelCredential } from './credentials.ts'
 import { decodeRequest, decodeResponse } from './codec.ts'
 import { failure } from './receiver.ts'
-import { decodeHelloRefusal, helloCapability, type ChainHelloHooks } from './chain-hello.ts'
+import { decodeHelloRefusal, helloCapability, helloAdvertisement, type ChainHelloHooks } from './chain-hello.ts'
 
 /** One paired peer owns health observations and bounded outbound calls. */
 export class NodeRouter implements NodeRouterService {
@@ -40,18 +40,26 @@ export class NodeRouter implements NodeRouterService {
    * @returns Whether a bounded authenticated self-report was obtained.
    */
   async handshake(): Promise<boolean> {
-    if (!this.available()) { this.disconnect(); return false }
+    let revision = false
     try {
       const nonce = randomUUID(), credential = this.credential, chain = this.chain?.capability()
+      revision = chain?.methods.includes('seat.definitionRevision') === true
+      if (!this.available()) {
+        this.disconnect()
+        if (revision) this.statusValue = { ...this.statusValue,
+          safeReason: 'tunnel-disconnected: The peer transport is unavailable; exact revision reads are unavailable.' }
+        return false
+      }
       const value = await callLoopback(this.options.peerPort, credential, { type: 'hello', version: NODE_LINK_VERSION,
         sourceNodeId: this.options.nodeId, targetNodeId: this.options.peerNodeId, nonce,
-        ...(chain === undefined ? {} : { chain }) }, this.options, true)
+        ...helloAdvertisement(chain) }, this.options, true)
       if (!object(value) || value.version !== NODE_LINK_VERSION || value.nonce !== nonce || value.nodeId !== this.options.peerNodeId
         || value.epoch !== credential.epoch || this.credential !== credential) throw new Error('Node handshake rejected')
       const refusal = this.chain === undefined ? undefined : decodeHelloRefusal(value)
       if (refusal !== undefined) {
         this.disconnect()
-        this.statusValue = { ...this.statusValue, safeReason: refusal.reasonCode ?? refusal.code }
+        this.statusValue = { ...this.statusValue, safeReason: revision
+          ? `${refusal.reasonCode ?? refusal.code}: ${refusal.reason}` : refusal.reasonCode ?? refusal.code }
         return false
       }
       const status = decodeSeatResult('seats/nodeStatus', value.status)
@@ -60,12 +68,17 @@ export class NodeRouter implements NodeRouterService {
       this.chain?.observe(peerChain)
       this.statusValue = { ...this.statusValue, reachable: true, linkState: 'connected', status,
         observedAt: new Date().toISOString(), capabilities: [NODE_LINK_VERSION,
-          ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : [])], safeReason: null }
+          ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : [])],
+        safeReason: revision && !peerChain?.methods.includes('seat.definitionRevision')
+          ? 'peer-capability-missing: The peer does not advertise seat-definition-revision/v1; exact revision reads are unavailable.' : null }
       this.connected = true
       return true
     } catch (error) {
       this.disconnect()
-      if (error instanceof LoopbackHostMismatchError) this.statusValue = { ...this.statusValue, safeReason: error.code }
+      if (error instanceof LoopbackHostMismatchError) this.statusValue = { ...this.statusValue, safeReason: revision
+        ? `${error.code}: The peer transport identity does not match; exact revision reads are unavailable.` : error.code }
+      else if (revision) this.statusValue = { ...this.statusValue,
+        safeReason: 'authentication-unconfirmed: The peer handshake could not be authenticated or decoded; exact revision reads are unavailable.' }
       return false
     }
   }

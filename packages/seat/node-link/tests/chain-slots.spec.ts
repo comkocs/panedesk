@@ -13,6 +13,7 @@ test('reserves bounded control slots while business execution waits for independ
   expect(slots.capacity()).toBe(2)
   const executing = slots.run({ method: 'source.prepareOpening' }, () => business.promise)
   await expect(slots.run({ method: 'seat.openFrozen' }, async () => 'unexpected')).rejects.toThrow('capacity')
+  await expect(slots.run({ method: 'seat.definitionRevision' }, async () => 'unexpected')).rejects.toThrow('capacity')
   const evidence = slots.run({ type: 'delegation-evidence' }, () => control.promise)
   await expect(slots.run({ method: 'chain.operation' }, async () => 'unexpected')).rejects.toThrow('capacity')
   control.resolve()

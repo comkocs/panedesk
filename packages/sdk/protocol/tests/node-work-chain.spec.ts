@@ -22,6 +22,27 @@ const callback = { kind: 'opened', callbackId: 'callback-a', sourceId: 'source-a
 const key = { sourceNodeId: 'node-a', principalId: 'principal-a', sourceId: 'source-a', ownerEpoch: 'epoch-a', method: 'seat.openFrozen', operationId: 'operation-a' }
 
 describe('node work chain projection', () => {
+  it('projects exact revision observations without admitting them into business queries', () => {
+    const request = { seat: 'seat-a', sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'epoch-a',
+      openingMethod: 'seat.openFrozen', taskIds: [] }
+    const result = { status: 'found', nodeId: 'node-b', seat: 'seat-a', revision: 1 }
+    expect(decodeNodeWorkChainRequest('seat.definitionRevision', request)).toBe(request)
+    expect(decodeNodeWorkChainResult('seat.definitionRevision', result)).toBe(result)
+    for (const field of Object.keys(request)) {
+      const missing = Object.fromEntries(Object.entries(request).filter(([key]) => key !== field))
+      expect(() => decodeNodeWorkChainRequest('seat.definitionRevision', missing)).toThrow()
+    }
+    for (const patch of [{ seat: '*' }, { sourceId: '' }, { ownerEpoch: '' }, { sourceOwnerNodeId: '' },
+      { openingMethod: 'seat.open' }, { taskIds: null }, { expectedSeatRevision: 1 }]) {
+      expect(() => decodeNodeWorkChainRequest('seat.definitionRevision', { ...request, ...patch })).toThrow()
+    }
+    for (const revision of [0, -1, 1.5, true, undefined, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => decodeNodeWorkChainResult('seat.definitionRevision', { ...result, revision })).toThrow()
+    }
+    expect(() => decodeNodeWorkChainResult('seat.definitionRevision', { ...result, definition: {} })).toThrow()
+    expect(() => decodeNodeWorkChainRequest('chain.operation', { key: { ...key, method: 'seat.definitionRevision' }, payloadDigest: 'digest' })).toThrow()
+    expect(() => decodeNodeWorkChainResult('chain.operation', { status: 'settled', method: 'seat.definitionRevision', result })).toThrow()
+  })
   it('preserves legacy payload bytes without materializing optional fields', () => {
     const request = { seat: 'seat-a', operationId: 'operation-a', origin: 'manual' }
     const result = { status: 'rejected', error }

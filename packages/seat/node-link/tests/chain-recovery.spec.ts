@@ -10,6 +10,7 @@ import { ChainBusinessRegistry } from '../src/chain-business.ts'
 import { ChainRetainedEvidence } from '../src/chain-retained.ts'
 import { ChainStore } from '../src/chain-store.ts'
 import { decodeChainRequest } from '../src/chain-codec.ts'
+import { helloAdvertisement } from '../src/chain-hello.ts'
 import { networkInput } from './chain-network-fixture.ts'
 
 const cleanups: (() => Promise<unknown>)[] = []
@@ -51,6 +52,27 @@ async function fixture() {
   }
   return { root, files, create, pending, request, issuer }
 }
+
+test('without a local revision provider the complete legacy seven-method advertisement is unchanged', async () => {
+  const f = await fixture(), business = new ChainBusinessRegistry()
+  const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen', 'source.prepareOpening',
+    'source.checkAdmission', 'source.deliverCallback'] as const
+  business.register({ methods, ready: async () => {}, query: async () => ({ status: 'missing' }) })
+  await f.files(join(f.root, 'legacy')).prepare()
+  const runtime = new ChainRuntime({ directory: join(f.root, 'legacy'), nodeId: 'node-a', peerNodeId: 'node-b',
+    peerName: 'peer', listenPort: 0, peerPort: 1, maxFrameBytes: 65536, requestTimeoutMs: 100,
+    maxPending: 2, maxStoreBytes: 65536, maxOperations: 10, staleMs: 10 }, {
+    maxControlPending: 1, policy: { ready: async () => {}, expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 },
+      authorize: async () => { throw new Error('Unexpected receiving execution') } },
+    local: { methods: [...methods, 'seat.definitionRevision'], ready: async () => {} },
+  }, business, f.files, () => { throw new Error('Unexpected network dispatch') }, () => true, () => true)
+  cleanups.push(() => runtime.close())
+  await runtime.ready()
+  expect(JSON.stringify(helloAdvertisement(runtime.capability()))).toBe(JSON.stringify({ chain: {
+    capability: 'node-work-chain/v1', maxFrameBytes: 65536, methods: [...methods, 'chain.operation'],
+  } }))
+  expect(helloAdvertisement(undefined)).toEqual({})
+})
 
 test.each(['malformed-json', 'wrong-identity'] as const)('evidence recovery refuses %s without advertising or replaying pending work', async (fault) => {
   const f = await fixture(), files = f.files(join(f.root, 'chain-evidence'))

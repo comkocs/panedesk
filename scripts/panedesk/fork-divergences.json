@@ -1142,6 +1142,17 @@
       }
     },
     {
+      "id": "seat-exact-definition-revision",
+      "description": "Negotiate an independently authorized exact local definition revision observation without business intent or replay.",
+      "origin": "Opt-in paired-node seat orchestration",
+      "reason": "Initial frozen preparation requires the target definition revision without exposing its directory or reusing execution authority.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-wire.spec.ts"],
+        "test": "negotiates exact revision reads outside the legacy seven-method advertisement"
+      }
+    },
+    {
       "id": "host-typecheck-heap-budget",
       "description": "Raise the host aggregate type-check heap budget from 4096 MiB to 6144 MiB.",
       "origin": "Opt-in seat orchestration",

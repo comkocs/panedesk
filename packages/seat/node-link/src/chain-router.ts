@@ -64,7 +64,8 @@ export class ChainRouter implements ChainRouterService {
     }
     if (!this.available()) return chainFailure(request, 'node-tunnel-disconnected', 'tunnel-disconnected')
     const { local, remote } = this.capabilities()
-    if (!local || !remote || !remote.methods.includes(request.method)) {
+    if (!local || !remote || !remote.methods.includes(request.method)
+      || (request.method === 'seat.definitionRevision' && !local.methods.includes(request.method))) {
       return chainFailure(request, 'cross-node-unsupported', 'peer-capability-missing')
     }
     if (Date.parse(request.deadline) <= Date.now() || Date.parse(request.delegation.expiresAt) <= Date.now()) {
@@ -78,7 +79,8 @@ export class ChainRouter implements ChainRouterService {
     let admitted = false
     try {
       await this.evidence.retain(request, authorization)
-      if (request.method !== 'chain.operation' && request.method !== 'source.checkAdmission') {
+      if (request.method !== 'chain.operation' && request.method !== 'source.checkAdmission'
+        && request.method !== 'seat.definitionRevision') {
         const previous = await this.store.admit(request)
         if (previous.state === 'conflict') return chainFailure(request, 'node-operation-conflict', 'operation-payload-conflict')
         if (previous.state === 'settled') return decodeChainResponse({ ...previous.response, requestId: request.requestId }, request)

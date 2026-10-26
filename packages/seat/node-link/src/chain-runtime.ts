@@ -12,6 +12,7 @@ import { ChainReceiver } from './chain-receiver.ts'
 import { ChainRouter } from './chain-router.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 import { ChainSlots } from './chain-slots.ts'
+import { chainFailure } from './chain-identity.ts'
 
 /** Withdrawing any captured dependency immediately removes the advertised receiving capability. */
 export class ChainRuntime {
@@ -61,7 +62,8 @@ export class ChainRuntime {
   ready(): Promise<void> {
     return this.preparing ??= Promise.all([this.loaded, this.services.evidence?.ready(),
       this.services.local.ready(), this.services.policy.ready(),
-      this.business.ready(this.services.local.methods)]).then(() => { this.recovered = !this.stopped }, (error: unknown) => {
+      this.business.ready(this.services.local.methods.filter(method => method !== 'seat.definitionRevision')),
+      this.services.local.methods.includes('seat.definitionRevision') ? this.services.local.definitionRevisions?.ready() : undefined]).then(() => { this.recovered = !this.stopped }, (error: unknown) => {
       this.preparing = undefined
       throw error
     })
@@ -71,9 +73,12 @@ export class ChainRuntime {
    * @returns Live negotiated capability, absent during recovery or withdrawal.
    */
   capability(): ChainCapability | undefined {
-    if (this.stopped || !this.current() || !this.recovered || !this.business.isReady(this.services.local.methods)) return undefined
+    const methods = this.services.local.methods.filter(method => method !== 'seat.definitionRevision')
+    if (this.stopped || !this.current() || !this.recovered || !this.business.isReady(methods)) return undefined
+    const revision = this.services.local.methods.includes('seat.definitionRevision')
+      && this.services.local.definitionRevisions?.available() === true
     return { capability: 'node-work-chain/v1', maxFrameBytes: Math.min(this.options.maxFrameBytes, 1048576),
-      methods: [...this.services.local.methods, 'chain.operation'] }
+      methods: [...methods, 'chain.operation', ...(revision ? ['seat.definitionRevision' as const] : [])] }
   }
 
   /** Observe only a decoded authenticated peer advertisement.
@@ -104,6 +109,10 @@ export class ChainRuntime {
    */
   receive(request: ChainRequest): Promise<ChainResponse> {
     if (!this.remote) return Promise.reject(new Error('Node chain peer capability unavailable'))
+    if (request.method === 'seat.definitionRevision' && (!this.remote.methods.includes(request.method)
+      || !this.capability()?.methods.includes(request.method))) {
+      return Promise.resolve(chainFailure(request, 'cross-node-unsupported', 'peer-capability-missing'))
+    }
     return this.receiver.receive(request)
   }
 

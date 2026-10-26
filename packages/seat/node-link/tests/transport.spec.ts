@@ -9,6 +9,9 @@ import { NODE_LINK_VERSION, type NodeLinkRuntimeConfig, type NodeWireRequest, ty
 import { decodeRequest, decodeResponse } from '../src/codec.ts'
 import { NodeReceiver, failure } from '../src/receiver.ts'
 import { NodeRouter } from '../src/router.ts'
+import { decodeChainCapability } from '../src/chain-codec.ts'
+import { helloRefusal } from '../src/chain-hello.ts'
+import type { ChainCapability } from '../src/chain-types.ts'
 
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -96,6 +99,44 @@ test('preserves complete legacy refusal bytes and payload digest without work-ch
   await store(), () => false)
   expect(JSON.stringify(await router.route(request))).toBe(expected.replaceAll('cross-node-unsupported', 'node-tunnel-disconnected')
     .replace('"retryable":false', '"retryable":true'))
+})
+
+test('old peers accept the seven-method hello and expose readable missing revision capability', async () => {
+  const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen', 'source.prepareOpening',
+    'source.checkAdmission', 'source.deliverCallback', 'chain.operation'] as const
+  const legacy: ChainCapability = { capability: 'node-work-chain/v1', maxFrameBytes: 65536, methods }
+  let observed: ChainCapability | undefined, mode = 'legacy', available = true
+  const auth = { credential: randomBytes(32).toString('hex'), epoch: 'epoch-b', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+  const executor = provider(async request => failure(request, 'cross-node-unsupported'))
+  const listener = await listenLoopback(0, limits, () => auth, async (value) => {
+    if (!object(value) || value.type !== 'hello' || typeof value.nonce !== 'string') throw new Error('Expected hello')
+    expect(decodeChainCapability(value.chain)).toEqual(legacy)
+    expect(value.seatDefinitionRevision).toBe('seat-definition-revision/v1')
+    if (mode === 'refused') return helloRefusal('node-b', value.nonce, auth.epoch,
+      'node-protocol-mismatch', 'protocol-version-mismatch', 'The peer protocol version is not supported.')
+    return { version: NODE_LINK_VERSION, nodeId: 'node-b', epoch: auth.epoch, nonce: value.nonce,
+      status: await executor.status(), chain: legacy, ...(mode === 'invalid' ? { seatDefinitionRevision: 'future' } : {}) }
+  })
+  cleanups.push(() => listener.close())
+  const router = new NodeRouter({ ...limits, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer',
+    directory: 'unused', listenPort: 0, peerPort: listener.port, staleMs: 60000 }, auth, await store(), () => available,
+  { capability: () => ({ ...legacy, methods: [...methods, 'seat.definitionRevision'] }), observe: (value) => { observed = value } })
+  expect(await router.handshake()).toBe(true)
+  expect(observed).toEqual(legacy)
+  expect(await router.status()).toMatchObject([{ reachable: true, capabilities: ['node-link/v1', 'node-work-chain/v1'],
+    safeReason: 'peer-capability-missing: The peer does not advertise seat-definition-revision/v1; exact revision reads are unavailable.' }])
+  mode = 'refused'
+  expect(await router.handshake()).toBe(false)
+  expect(await router.status()).toMatchObject([{ reachable: false,
+    safeReason: 'protocol-version-mismatch: The peer protocol version is not supported.' }])
+  mode = 'invalid'
+  expect(await router.handshake()).toBe(false)
+  expect(await router.status()).toMatchObject([{ reachable: false,
+    safeReason: 'authentication-unconfirmed: The peer handshake could not be authenticated or decoded; exact revision reads are unavailable.' }])
+  available = false
+  expect(await router.handshake()).toBe(false)
+  expect(await router.status()).toMatchObject([{ reachable: false,
+    safeReason: 'tunnel-disconnected: The peer transport is unavailable; exact revision reads are unavailable.' }])
 })
 
 test('rejects mismatched identities, digests, multiple hops and response correlation', () => {

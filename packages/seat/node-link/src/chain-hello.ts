@@ -1,7 +1,7 @@
 /** Authenticated hello refusals preserve safe categories without exposing transport details. */
 import { object } from '@panedesk/dsh-host-admin'
 import { decodeSeatFailureCause } from '@panedesk/dsh-sdk-protocol'
-import type { NodeWorkChainReasonCode, SeatFailureCause } from '@panedesk/dsh-seat'
+import { SEAT_DEFINITION_REVISION_CAPABILITY, type NodeWorkChainReasonCode, type SeatFailureCause } from '@panedesk/dsh-seat'
 import type { NodeLinkErrorCode } from './index.ts'
 import { NODE_LINK_VERSION, NODE_LINK_ERROR_CODES } from './index.ts'
 import type { ChainCapability } from './chain-types.ts'
@@ -25,12 +25,13 @@ export interface ChainHelloHooks {
  * @param epoch - Actual authenticated credential epoch.
  * @param code - Existing transport failure category.
  * @param reasonCode - Frozen bounded diagnostic.
+ * @param reason - Fixed safe explanation for an optional capability refusal.
  * @returns Structured hello refusal, with no invented execution outcome.
  */
 export function helloRefusal(nodeId: string, nonce: string, epoch: string, code: NodeLinkErrorCode,
-  reasonCode: NodeWorkChainReasonCode): object {
+  reasonCode: NodeWorkChainReasonCode, reason: string = reasonCode): object {
   return { version: NODE_LINK_VERSION, nodeId, nonce, epoch, status: 'rejected', cause: {
-    domain: 'node-link', code, reason: reasonCode, reasonCode, effectState: 'none', retryable: false,
+    domain: 'node-link', code, reason, reasonCode, effectState: 'none', retryable: false,
     operationId: nonce, nodeId } }
 }
 
@@ -51,5 +52,22 @@ export function decodeHelloRefusal(value: unknown): SeatFailureCause | undefined
  * @returns Strict optional chain capability.
  */
 export function helloCapability(value: unknown): ChainCapability | undefined {
-  return object(value) ? decodeChainCapability(value.chain) : undefined
+  if (!object(value)) return undefined
+  const chain = decodeChainCapability(value.chain)
+  if (value.seatDefinitionRevision !== undefined && value.seatDefinitionRevision !== SEAT_DEFINITION_REVISION_CAPABILITY) {
+    throw new Error('Node revision capability rejected')
+  }
+  return chain && value.seatDefinitionRevision === SEAT_DEFINITION_REVISION_CAPABILITY
+    ? { ...chain, methods: [...chain.methods, 'seat.definitionRevision'] } : chain
+}
+
+/** Keep the legacy chain advertisement closed while carrying an independent optional read capability.
+ * @param capability - Current in-memory receiving capability.
+ * @returns Compatible hello fields, without materializing absent extensions.
+ */
+export function helloAdvertisement(capability: ChainCapability | undefined): object {
+  if (!capability) return {}
+  const revision = capability.methods.includes('seat.definitionRevision')
+  return { chain: { ...capability, methods: capability.methods.filter(method => method !== 'seat.definitionRevision') },
+    ...(revision ? { seatDefinitionRevision: SEAT_DEFINITION_REVISION_CAPABILITY } : {}) }
 }

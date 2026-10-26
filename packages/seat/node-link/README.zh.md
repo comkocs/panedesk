@@ -70,6 +70,8 @@ POSIX 目标目录为当前属主的 `0700` 绝对路径，文件为 `0600` 单�
 
 显式 `nodeWorkChain` 组合启用 `node-work-chain/v1`、七个固定方法与精确 `delegation-evidence` 帧。hello 仅在业务提供方、本地准入、接收策略和持久证据全部恢复后通告接收能力；提供方撤销即撤去能力。晚装或替换 `nodeWorkChain` 时，先排空旧传输再重挂载；卸载不等待就绪永不完成的注入证据提供方。完整 JSON 帧包含委托、冻结输入和结果外壳；采用本地与双方协商限额的最小值，上限为 1,048,576 个 UTF-8 字节，不截断、不分片。诊断码最多 128 个 ASCII 字符，说明最多 512 个 UTF-8 字节。控制请求具有独立有界容量。经过鉴权的 `chain.operation` 调用查询已恢复的业务所有者，不从传输收据推断缺失。
 
+可选 `seat.definitionRevision` 要求双方通过独立 hello 字段 `seatDefinitionRevision: 'seat-definition-revision/v1'` 通告能力；`chain.methods` 仍是原七方法闭集。任何一方缺能力均在发送前拒绝。显式 `local.methods` 与 `local.definitionRevisions` 必须提供已就绪且可用的提供方；撤装立即移除此能力。接收政策必须核精确读与目标席权限，以及受信来源所有权和代次，再独立签发精确凭证。读使用普通业务容量，但不进入意图存储、业务查询或发件箱重放，只保留有界授权证据。首次准备前读；恢复已持久准备及原版本／摘要，不在同键下重读。观察与准入不具原子性，版本变化时安全拒绝，不透明刷新。两节点须成对升级。写过新方法授权证据后，旧程序的闭集 decoder 不能读取这些记录。回滚前须停用新读，并通过兼容 reader 或隔离存储保留记录，不得删除记录让旧程序启动。
+
 `route(request, authorization)` 要求与委托逐字段一致的新入口授权。发送前，node-link 将事实持久留存在有界的 `chain-evidence/evidence-v1.json`；仅已认证配对节点可以精确查询，到期证据在恢复或发布时淘汰。独立的 `chain-received/chain-v1.json` 与 `chain-sent/chain-v1.json` 保留完整原意图与精确业务键，不淘汰未决记录。待决、未知及暂停结果不成为终态。可选的宿主持有 `outboxIssuer` 仅在已认证业务查询答复缺失后，允许使用持久原载荷、原键及新签发受限授权经原方法重发。缺少该签发器时，未决发送保留未知；不调用 `resume`。未配置链组合时不打开这些文件。
 
 <a id="known-limitations-and-deferred-work"></a>

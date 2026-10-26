@@ -71,8 +71,8 @@ function isRelease(effect: EngineEffect): effect is Extract<EngineEffect, { kind
 describe('seat declarations', () => {
   it('pins opt-in chain names and optional consumer hooks without widening legacy effects', () => {
     expect(NODE_WORK_CHAIN_CAPABILITY).toBe('node-work-chain/v1')
-    expect(NODE_WORK_CHAIN_METHODS).toHaveLength(7)
-    expect(new Set(NODE_WORK_CHAIN_METHODS).size).toBe(7)
+    expect(NODE_WORK_CHAIN_METHODS).toHaveLength(8)
+    expect(new Set(NODE_WORK_CHAIN_METHODS).size).toBe(8)
     expectTypeOf<typeof NODE_WORK_CHAIN_METHODS[number]>().toEqualTypeOf<NodeWorkChainMethod>()
     expectTypeOf<typeof NODE_WORK_CHAIN_REASON_CODES[number]>().toEqualTypeOf<NodeWorkChainReasonCode>()
     expect([NODE_WORK_CHAIN_MAX_FRAME_BYTES, NODE_WORK_CHAIN_MAX_CODE_BYTES, NODE_WORK_CHAIN_MAX_REASON_BYTES])

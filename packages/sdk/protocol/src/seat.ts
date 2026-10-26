@@ -208,11 +208,13 @@ const callback: Check = value => fields({ ...callbackBase, kind: choice('opened'
   || fields({ ...callbackBase, kind: choice('replacement-failed'), replacementId: text, oldSessionId: text, newSessionId: nullable(text),
     reason: choice('replacement-open-failed', 'replacement-first-turn-failed', 'replacement-cleanup-failed'), cause: failure, cleanup: choice('not-created', 'closed', 'pending') })(value)
 const chainKey = fields({ sourceNodeId: text, principalId: text, sourceId: text, ownerEpoch: text,
-  method: choice(...NODE_WORK_CHAIN_METHODS), operationId: text, callbackId: optional(text) })
+  method: choice(...NODE_WORK_CHAIN_METHODS.filter(method => method !== 'seat.definitionRevision')), operationId: text, callbackId: optional(text) })
 const acceptedData = fields({ capability: choice('node-work-chain/v1'), route: chainRoute, openingContext: chainContext,
   expectedSeatRevision: integer, authorizationRef: text, payloadDigest: text, operationKey: chainKey, trigger: nullable(sourceEnvelope) })
 const frozen = { openingContext: chainContext, expectedSeatRevision: integer, route: chainRoute }
 const chainRequests: Record<NodeWorkChainMethod, Check> = {
+  'seat.definitionRevision': fields({ seat: explicit, sourceId: text, sourceOwnerNodeId: text, ownerEpoch: text,
+    openingMethod: choice('engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'), taskIds: array(text) }),
   'engine.acceptFrozen': fields({ ...frozen, envelope: sourceEnvelope }),
   'seat.openFrozen': fields({ ...frozen, request: fields(open) }),
   'seat.wakeFrozen': fields({ ...frozen, request: requestChecks['seats/wake'] }),
@@ -224,6 +226,8 @@ const chainRequests: Record<NodeWorkChainMethod, Check> = {
 }
 const rejected = fields({ status: choice('rejected'), error: failure })
 const chainResults: Record<NodeWorkChainMethod, Check> = {
+  'seat.definitionRevision': value => rejected(value) || fields({ status: choice('found'), nodeId: text, seat: explicit,
+    revision: value => integer(value) && Number(value) > 0 })(value),
   'engine.acceptFrozen': value => rejected(value)
     || fields({ status: choice('accepted', 'coalesced'), triggerId: text, queueItemId: text, sequence: integer })(value)
     || fields({ status: choice('duplicate'), triggerId: text, originalTriggerId: text, queueItemId: nullable(text) })(value),
@@ -237,7 +241,7 @@ const chainResults: Record<NodeWorkChainMethod, Check> = {
     || fields({ status: choice('paused'), callbackId: text, payloadDigest: text, error: failure })(value),
   'chain.operation': value => rejected(value) || fields({ status: choice('missing') })(value)
     || fields({ status: choice('pending'), effectState: choice('none', 'unknown') })(value)
-    || (fields({ status: choice('settled'), method: choice(...NODE_WORK_CHAIN_METHODS.filter(method => method !== 'chain.operation')), result: object })(value)
+    || (fields({ status: choice('settled'), method: choice(...NODE_WORK_CHAIN_METHODS.filter(method => method !== 'chain.operation' && method !== 'seat.definitionRevision')), result: object })(value)
       && object(value) && chainResults[value.method as Exclude<NodeWorkChainMethod, 'chain.operation'>](value.result)),
 }
 function seatResultMatches(method: keyof SeatRequestMap, value: unknown): boolean {

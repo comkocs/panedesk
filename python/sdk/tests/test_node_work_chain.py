@@ -13,6 +13,32 @@ CAUSE = {"domain": "node-link", "code": "node-outcome-unknown", "reason": "Recei
 ERROR = {"code": "unavailable", "message": "Unavailable", "alternative": "Query original operation", "retryable": False, "effectState": "unknown"}
 
 
+def test_exact_revision_observation_is_closed_and_not_a_business_query() -> None:
+    request = {"seat": "seat-a", "sourceId": "source-a", "sourceOwnerNodeId": "node-a", "ownerEpoch": "epoch-a",
+        "openingMethod": "seat.openFrozen", "taskIds": []}
+    result = {"status": "found", "nodeId": "node-b", "seat": "seat-a", "revision": 1}
+    validate_node_work_chain_request("seat.definitionRevision", request)
+    validate_node_work_chain_result("seat.definitionRevision", result)
+    for field in request:
+        with pytest.raises(ValueError):
+            validate_node_work_chain_request("seat.definitionRevision", {k: v for k, v in request.items() if k != field})
+    for patch in [{"seat": "*"}, {"sourceId": ""}, {"ownerEpoch": ""}, {"sourceOwnerNodeId": ""},
+                  {"openingMethod": "seat.open"}, {"taskIds": None}, {"expectedSeatRevision": 1}]:
+        with pytest.raises(ValueError):
+            validate_node_work_chain_request("seat.definitionRevision", {**request, **patch})
+    for revision in [0, -1, 1.5, True, None, 9007199254740992]:
+        with pytest.raises(ValueError):
+            validate_node_work_chain_result("seat.definitionRevision", {**result, "revision": revision})
+    with pytest.raises(ValueError):
+        validate_node_work_chain_result("seat.definitionRevision", {**result, "definition": {}})
+    key = {"sourceNodeId": "node-a", "principalId": "principal-a", "sourceId": "source-a", "ownerEpoch": "epoch-a",
+        "method": "seat.definitionRevision", "operationId": "operation-a"}
+    with pytest.raises(ValueError):
+        validate_node_work_chain_request("chain.operation", {"key": key, "payloadDigest": "digest"})
+    with pytest.raises(ValueError):
+        validate_node_work_chain_result("chain.operation", {"status": "settled", "method": "seat.definitionRevision", "result": result})
+
+
 def test_preserves_legacy_bytes_and_optional_cause_through_sdk() -> None:
     transport = Mock(spec=HarnessClient)
     seats = SeatsClient(transport)

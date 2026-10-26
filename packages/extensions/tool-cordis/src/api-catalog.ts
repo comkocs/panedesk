@@ -2685,6 +2685,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatDefinitionRevisions',
+    summary: 'Immediate observations never create business intents or authorize frozen execution.',
+    description: 'Immediate observations never create business intents or authorize frozen execution.',
+    methods: [
+      {
+        signature: 'ready(): Promise<void>',
+        description: 'Await local read and authorization recovery.',
+        parameters: [],
+        returns: 'Readiness of this registration, never a withdrawn predecessor.',
+      },
+      {
+        signature: 'available(): boolean',
+        description: 'Observe current registration ownership synchronously.',
+        parameters: [],
+        returns: 'False before readiness or after withdrawal.',
+      },
+      {
+        signature: 'read(request: SeatDefinitionRevisionRequest, authority: SeatCallContext): Promise<SeatDefinitionRevisionResult>',
+        description: 'Read one local definition under an independently issued exact read grant.',
+        parameters: [{ name: 'request', description: 'Complete read scope, including the intended frozen opening method.' }, { name: 'authority', description: 'Live receiver-issued authority; historical facts grant nothing.' }],
+        returns: 'Only the exact node, seat and revision, or a sanitized refusal.',
+      },
+    ],
+  },
+  {
     key: 'seatDirectories',
     summary: 'Additional-root tools retain filesystem permission checks and do not widen shell write policy.',
     description: 'Additional-root tools retain filesystem permission checks and do not widen shell write policy.',
@@ -8998,7 +9023,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeWorkChainBusinessMethod',
-    declaration: 'export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, \'chain.operation\'>;',
+    declaration: 'export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, \'chain.operation\' | \'seat.definitionRevision\'>;',
   },
   {
     name: 'NodeWorkChainBusinessProvider',
@@ -9010,11 +9035,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeWorkChainMethod',
-    declaration: 'export type NodeWorkChainMethod = SeatRemoteOpeningMethod | \'source.prepareOpening\' | \'source.checkAdmission\' | \'source.deliverCallback\' | \'chain.operation\';',
+    declaration: 'export type NodeWorkChainMethod = SeatRemoteOpeningMethod | \'source.prepareOpening\' | \'source.checkAdmission\' | \'source.deliverCallback\' | \'chain.operation\' | \'seat.definitionRevision\';',
   },
   {
     name: 'NodeWorkChainMethodMap',
-    declaration: 'export interface NodeWorkChainMethodMap {\n    \'engine.acceptFrozen\': {\n        request: AcceptFrozenTriggerRequest;\n        result: AcceptFrozenTriggerResult;\n    };\n    \'seat.openFrozen\': {\n        request: OpenFrozenSeatRequest;\n        result: OpenFrozenSeatResult;\n    };\n    \'seat.wakeFrozen\': {\n        request: WakeFrozenSeatRequest;\n        result: WakeFrozenSeatResult;\n    };\n    \'source.prepareOpening\': {\n        request: PrepareSourceOpeningRequest;\n        result: PrepareSourceOpeningResult;\n    };\n    \'source.checkAdmission\': {\n        request: CheckSourceAdmissionRequest;\n        result: CheckSourceAdmissionResult;\n    };\n    \'source.deliverCallback\': {\n        request: DeliverSourceCallbackRequest;\n        result: DeliverSourceCallbackResult;\n    };\n    \'chain.operation\': {\n        request: NodeWorkChainOperationRequest;\n        result: NodeWorkChainOperationResult;\n    };\n}',
+    declaration: 'export interface NodeWorkChainMethodMap {\n    \'seat.definitionRevision\': {\n        request: SeatDefinitionRevisionRequest;\n        result: SeatDefinitionRevisionResult;\n    };\n    \'engine.acceptFrozen\': {\n        request: AcceptFrozenTriggerRequest;\n        result: AcceptFrozenTriggerResult;\n    };\n    \'seat.openFrozen\': {\n        request: OpenFrozenSeatRequest;\n        result: OpenFrozenSeatResult;\n    };\n    \'seat.wakeFrozen\': {\n        request: WakeFrozenSeatRequest;\n        result: WakeFrozenSeatResult;\n    };\n    \'source.prepareOpening\': {\n        request: PrepareSourceOpeningRequest;\n        result: PrepareSourceOpeningResult;\n    };\n    \'source.checkAdmission\': {\n        request: CheckSourceAdmissionRequest;\n        result: CheckSourceAdmissionResult;\n    };\n    \'source.deliverCallback\': {\n        request: DeliverSourceCallbackRequest;\n        result: DeliverSourceCallbackResult;\n    };\n    \'chain.operation\': {\n        request: NodeWorkChainOperationRequest;\n        result: NodeWorkChainOperationResult;\n    };\n}',
   },
   {
     name: 'NodeWorkChainModeCeiling',
@@ -9050,7 +9075,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeWorkChainSettledResult',
-    declaration: 'export type NodeWorkChainSettledResult = {\n    [M in Exclude<NodeWorkChainMethod, \'chain.operation\'>]: {\n        status: \'settled\';\n        method: M;\n        result: NodeWorkChainMethodMap[M][\'result\'];\n    };\n}[Exclude<NodeWorkChainMethod, \'chain.operation\'>];',
+    declaration: 'export type NodeWorkChainSettledResult = {\n    [M in Exclude<NodeWorkChainMethod, \'chain.operation\' | \'seat.definitionRevision\'>]: {\n        status: \'settled\';\n        method: M;\n        result: NodeWorkChainMethodMap[M][\'result\'];\n    };\n}[Exclude<NodeWorkChainMethod, \'chain.operation\' | \'seat.definitionRevision\'>];',
   },
   {
     name: 'NotFutureError',
@@ -10151,6 +10176,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatDefinition',
     declaration: 'export interface SeatDefinition {\n    schemaVersion: 1;\n    revision: number;\n    seat: SeatName;\n    platform: \'desktop\' | \'vscode\' | \'server\';\n    node: string;\n    projectId: SeatProjectId;\n    directories: readonly SeatDirectory[];\n    memoryDirectories: readonly string[];\n    opening: SeatText;\n    openingInstructionFiles: readonly string[];\n    agentPreset: string;\n    provider: string;\n    model: string;\n    reasoningEffort: string;\n    permissionPreset: string;\n    subscriptions: readonly string[];\n    checkpointFiles: readonly SeatCheckpointFile[];\n    remoteAdmission?: SeatRemoteAdmission;\n    wakeTemplate?: SeatText;\n    autoKeepAlive?: boolean;\n    maxOpenSessions: number;\n    maxActiveSubagents: number;\n    contextThresholdTokens?: number;\n    subagentContextThresholdTokens: number;\n    rules: readonly SeatRule[];\n    pollingThreshold?: number;\n    maxSleepSeconds?: number;\n    worktree: SeatWorktreePolicy;\n    source?: SeatImportSource;\n}',
+  },
+  {
+    name: 'SeatDefinitionRevisionRequest',
+    declaration: 'export interface SeatDefinitionRevisionRequest {\n    seat: SeatName;\n    sourceId: SeatSourceId;\n    sourceOwnerNodeId: SeatNodeId;\n    ownerEpoch: OwnerEpoch;\n    openingMethod: SeatRemoteOpeningMethod;\n    taskIds: readonly SeatTaskId[];\n}',
+  },
+  {
+    name: 'SeatDefinitionRevisionResult',
+    declaration: 'export type SeatDefinitionRevisionResult = {\n    status: \'found\';\n    nodeId: SeatNodeId;\n    seat: SeatName;\n    revision: number;\n} | SeatRejected;',
   },
   {
     name: 'SeatDigest',

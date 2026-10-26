@@ -3,12 +3,12 @@ import { afterEach, expect, test } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { PosixPrivateFiles, listenLoopback } from '@panedesk/dsh-host-admin'
+import { PosixPrivateFiles, listenLoopback, callLoopback } from '@panedesk/dsh-host-admin'
 import type * as Seat from '@panedesk/dsh-seat'
 import { decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
 import * as NodeLink from '../src/index.ts'
@@ -51,7 +51,8 @@ test('Loader advertises only recovered capabilities, queries business truth and 
   const services: NodeLink.ChainServices[] = []
   let release!: () => void
   const restored = new Promise<void>((resolve) => { release = resolve })
-  let queries = 0
+  let queries = 0, revisionReads = 0, replayRequests = 0
+  const revisionAvailable = [true, true]
   for (const i of [0, 1]) {
     const nodeId = i === 0 ? 'node-a' : 'node-b', peerNodeId = i === 0 ? 'node-b' : 'node-a'
     const directory = join(root, nodeId), files = new PosixPrivateFiles(directory, process.getuid!())
@@ -66,10 +67,14 @@ test('Loader advertises only recovered capabilities, queries business truth and 
       status: async () => decodeSeatResult('seats/nodeStatus', { nodeId, nodeName: nodeId,
         engine: 'running', openEngineWindows: 0, limit: 4, readyAt: null }) })
     services.push({ maxControlPending: 2,
+      outboxIssuer: async () => { replayRequests++; return undefined },
       policy: { ready: async () => {}, expiry: { maxLifetimeMs: 60000, maxClockSkewMs: 0 },
         authorize: async (request, peer, evidence) => ({ check: async () => grant({ ...evidence.fact, kind: 'node-delegation',
           nodeId: peer.targetNodeId, sourceNodeId: peer.sourceNodeId, delegatedBy: request.delegation.authorizationRef }) }) },
-      local: { methods: ['source.prepareOpening'], ready: async () => {} } })
+      local: { methods: ['source.prepareOpening', 'seat.definitionRevision'], ready: async () => {},
+        definitionRevisions: { ready: async () => {}, available: () => revisionAvailable[i] === true,
+          read: async (request) => { revisionReads++; return { status: 'found', nodeId: nodeId as Seat.SeatNodeId,
+            seat: request.seat, revision: revisionReads } } } } })
     const profile = join(root, `${nodeId}.yml`)
     await writeFile(profile, JSON.stringify([{ name: 'cordis:nodeLink', config: { runtime: {
       ...limits, directory, nodeId, peerNodeId, peerName: peerNodeId, listenPort: ports[i], peerPort: ports[1 - i],
@@ -96,6 +101,15 @@ test('Loader advertises only recovered capabilities, queries business truth and 
     .toMatchObject({ error: { cause: { reasonCode: 'peer-capability-missing' } } })
   release()
   await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities, { timeout: 10000 }).toContain('node-work-chain/v1')
+  const rejectedHello = await callLoopback(ports[1]!, credentials[1]!, { type: 'hello', version: 'node-link/v1',
+    sourceNodeId: 'node-a', targetNodeId: 'node-b', nonce: 'revision-hello', seatDefinitionRevision: 'future' }, limits)
+  expect(rejectedHello).toMatchObject({ status: 'rejected', cause: { code: 'node-protocol-mismatch',
+    reasonCode: 'protocol-version-mismatch',
+    reason: 'The peer exact revision capability advertisement is invalid; use seat-definition-revision/v1.' } })
+  await callLoopback(ports[1]!, credentials[1]!, { type: 'hello', version: 'node-link/v1', sourceNodeId: 'node-a',
+    targetNodeId: 'node-b', nonce: 'revision-hello-restored', seatDefinitionRevision: 'seat-definition-revision/v1',
+    chain: { capability: 'node-work-chain/v1', maxFrameBytes: limits.maxFrameBytes,
+      methods: ['source.prepareOpening', 'chain.operation'] } }, limits)
   const payload = { key: { sourceNodeId: f.request.sourceNodeId, principalId: f.request.delegation.principalId,
     sourceId: 'source-a', ownerEpoch: 'owner-a', method: 'source.prepareOpening', operationId: f.request.operationId },
   payloadDigest: f.request.payloadDigest }
@@ -106,6 +120,29 @@ test('Loader advertises only recovered capabilities, queries business truth and 
     authorizationId: query.delegation.authorizationRef, requestDigest: query.payloadDigest })
   expect(await source.get('nodeWorkChainRouter')!.route(query, authorization)).toMatchObject({ status: 'ok', result: { status: 'missing' } })
   expect(queries).toBe(1)
+  const revisionPayload = { seat: 'seat-a', sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'owner-a',
+    openingMethod: 'seat.openFrozen', taskIds: ['task-a'] }
+  const revisionDigest = chainDigest('seat.definitionRevision', revisionPayload)
+  const revisionRequest = decodeChainRequest({ ...f.request, method: 'seat.definitionRevision', payload: revisionPayload,
+    payloadDigest: revisionDigest, delegation: { ...f.request.delegation, seat: 'seat-a', requestDigest: revisionDigest } })
+  const revisionAuthority = grant({ ...f.authorization.fact, seat: 'seat-a' as Seat.SeatName, requestDigest: revisionDigest })
+  const readRevision = () => source.get('nodeWorkChainRouter')!.route(revisionRequest, revisionAuthority)
+  expect(await readRevision()).toMatchObject({ status: 'ok', result: { status: 'found', revision: 1 } })
+  expect(await readRevision()).toMatchObject({ status: 'ok', result: { status: 'found', revision: 2 } })
+  for (const nodeId of ['node-a', 'node-b']) for (const directory of ['chain-sent', 'chain-received']) {
+    const text = await readFile(join(root, nodeId, directory, 'chain-v1.json'), 'utf8').catch((error: unknown) => {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return '{}'
+      throw error
+    })
+    expect(text).not.toContain('seat.definitionRevision')
+  }
+  revisionAvailable[0] = false
+  expect(await readRevision()).toMatchObject({ status: 'unavailable', error: { code: 'cross-node-unsupported',
+    reason: 'Both nodes must advertise seat-definition-revision/v1 before an exact revision read.',
+    effectState: 'none', cause: { reasonCode: 'peer-capability-missing',
+      reason: 'Both nodes must advertise seat-definition-revision/v1 before an exact revision read.' } } })
+  expect(revisionReads).toBe(2)
+  revisionAvailable[0] = true
   const previous = target.get('nodeWorkChainRouter')!
   compositions[1]!()
   await expect.poll(() => target.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeUndefined()
@@ -115,6 +152,8 @@ test('Loader advertises only recovered capabilities, queries business truth and 
   await expect.poll(() => target.get('nodeWorkChainRouter'), { timeout: 10000 }).toBeDefined()
   expect(target.get('nodeWorkChainRouter')).not.toBe(previous)
   await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities, { timeout: 10000 }).toContain('node-work-chain/v1')
+  expect(revisionReads).toBe(2)
+  expect(replayRequests).toBe(0)
   await withdrawals[1]!()
   await expect.poll(async () => (await source.get('nodeRouter')!.status())[0]?.capabilities, { timeout: 10000 }).not.toContain('node-work-chain/v1')
   compositions[1]()

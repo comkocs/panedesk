@@ -40,6 +40,7 @@ export interface ChainLocalServices {
   readonly seats?: Seat.SeatService
   readonly engine?: Seat.SeatEngineService
   readonly opening?: Seat.SeatOpeningContexts
+  readonly definitionRevisions?: Seat.SeatDefinitionRevisionProvider
   /** Local admission must be ready before any corresponding capability is advertised.
    * @returns Completion after local transaction owners can accept frozen intents.
    */
