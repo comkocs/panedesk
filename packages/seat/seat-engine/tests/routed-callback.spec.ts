@@ -65,6 +65,57 @@ test('pauses a definite remote delivery authentication refusal with its original
   } finally { await outbox?.close(); await sources.close(); await h.close() }
 })
 
+test.each(['pending', 'authentication', 'protocol', 'other'] as const)(
+  'keeps the baseline class for an explicit remote owner %s result', async (kind) => {
+    const h = await harness(), sources = new SourceRegistry()
+    let outbox: CallbackOutbox | undefined
+    try {
+      h.definitions.set(seat, admittedDefinition())
+      const body = await persistCallback(h.engine), seen: CallbackChainRequest[] = []
+      let query: T.NodeWorkChainOperationResult = { status: 'missing' }
+      const result: T.DeliverSourceCallbackResult = kind === 'pending' ? { status: 'pending',
+        callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } : { status: 'rejected', error: {
+        code: kind === 'authentication' ? 'unauthorized' : kind === 'protocol' ? 'callback-protocol-error' : 'unavailable',
+        message: 'Owner refusal', alternative: 'Review owner state', retryable: false, effectState: 'none' } }
+      const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
+        kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
+      current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+      const router: CallbackRouterPort = { route: async (request) => {
+        seen.push(request)
+        return request.method === 'chain.operation' ? { method: request.method, status: 'ok', result: query }
+          : { method: 'source.deliverCallback', status: 'ok', result }
+      } }
+      h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
+      outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config,
+        input => deliverRoutedCallback(h.ctx, h.engine, input))
+      await outbox.deliver(0)
+      const paused = kind === 'authentication' || kind === 'protocol'
+      expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({
+        phase: paused ? 'paused' : 'retry-due', responseClass: paused ? kind : 'transient', attempt: 1 })
+      expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback'])
+      query = { status: 'pending', effectState: 'none' }
+      await outbox.deliver(100)
+      expect(seen.map(item => item.method)).toEqual(paused ? ['chain.operation', 'source.deliverCallback']
+        : ['chain.operation', 'source.deliverCallback', 'chain.operation'])
+      if (!paused) {
+        expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('transient')
+        query = { status: 'missing' }
+        await outbox.deliver(200)
+        expect(seen.map(item => item.method)).toEqual([
+          'chain.operation', 'source.deliverCallback', 'chain.operation', 'chain.operation', 'source.deliverCallback',
+        ])
+      }
+      for (const request of seen) {
+        if (request.method === 'chain.operation') expect(request.payload).toMatchObject({
+          key: { sourceNodeId: h.engine.options.nodeId, principalId, sourceId: body.route.sourceId,
+            ownerEpoch: body.route.ownerEpoch, method: 'source.deliverCallback',
+            operationId: body.route.originalOperationId, callbackId: body.callback.callbackId }, payloadDigest: body.payloadDigest })
+        else expect(request.payload).toEqual(body)
+      }
+      expect(h.callbacks).toEqual([])
+    } finally { await outbox?.close(); await sources.close(); await h.close() }
+  })
+
 test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when its exact query fails by %s', async (mode) => {
   const h = await harness({ callbackTimeoutMs: 20 })
   const sources = new SourceRegistry()
