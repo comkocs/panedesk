@@ -65,6 +65,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 已提交决策更新投影与发件箱交付。来源回调以稳定标识提供至少一次交付；凭据由来源注册提供，不存入引擎记录。dispose（资源释放）停止入口、排空自有工作、刷新日志并释放写入所有权。
 
+<a id="pre-open-terminal-outcomes-and-transient-retention-limit"></a>
 ### 开窗前终局与暂态上限
 
 组合在对外准入前对实际执行端实例调用 `SeatEngine.registerPreopenRetention({ projectId, sourceId, sourceOwnerNodeId, limitMs }): () => Promise<void>`，通过生命周期效果保留返回的撤装函数。标识使用席位服务的品牌类型；正整数毫秒限值来自组合已解析配置，公开包不提供隐式默认值或新配置键。项目与原冻结来源、所有者精确匹配；缺失或多重匹配时保留队列、禁止开窗和自动取消，记录固定诊断，仍可受权人工取消。复核提供方撤回不撤限值；组合撤装立即移除注册并等待当前驱动结束。

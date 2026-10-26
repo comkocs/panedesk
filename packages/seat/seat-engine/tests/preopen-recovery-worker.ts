@@ -1,4 +1,4 @@
-/** 测试子进程在补投追加前或落稳后停于可观测屏障。 */
+/** The test subprocess pauses at an observable barrier before reconciliation append or after durable commit. */
 import type { SeatNodeId } from '@panedesk/dsh-seat'
 import { EngineJournal } from '../src/journal.ts'
 import { recoverPreopenCallbacks } from '../src/preopen-recovery.ts'
