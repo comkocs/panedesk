@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "node-chain-publication-deadline",
+      "description": "Recheck sending deadlines after evidence and intent publication without disconnecting a healthy peer.",
+      "origin": "Optional node transport and frozen callback delivery",
+      "reason": "Publication consumes the existing request and delegation budget. Expired unsent intents settle with no effect; bounded callback query timeouts retain transient retries and the existing deadline diagnostic.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-router.spec.ts"],
+        "test": "does not dispatch or disconnect when %s publication exhausts the sending deadline"
+      }
+    },
+    {
       "id": "seat-local-callback-owner",
       "description": "Consume an optional local frozen callback owner and persist bounded outer delivery diagnostics.",
       "origin": "Optional seat orchestration and bounded administration reads",
