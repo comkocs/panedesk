@@ -85,7 +85,7 @@ export class CallbackOutbox {
         }
       }
       if (delivery.nodeWorkChain && responseClass === 'transient'
-        && this.journal.projection.callbacks.get(delivery.payload.callbackId)?.responseClass === 'unknown') responseClass = 'unknown'
+        && delivery.responseClass === 'unknown') responseClass = 'unknown'
       const attempt = delivery.attempt + 1
       const phase = responseClass === 'success' ? 'delivered' : responseClass === 'authentication' || responseClass === 'protocol' ? 'paused' : 'retry-due'
       const { lastDiagnostic: _previousDiagnostic, ...original } = delivery
