@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-frozen-execution-target-recheck",
+      "description": "Recheck current execution-seat revision and remote admission before frozen dispatch and recovery.",
+      "origin": "Optional seat orchestration",
+      "reason": "Queued frozen work must not execute after target permission or revision changes, including when the source owner is the execution target.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "test": "refuses a changed frozen target revision before dispatch for %s"
+      }
+    },
+    {
       "id": "host-admin-source-operator",
       "description": "Delegate bounded source administration to an optional local source owner.",
       "origin": "Optional host administration",

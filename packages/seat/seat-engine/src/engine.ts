@@ -25,7 +25,7 @@ import { queryLegacyAuthorizations, queryTasks } from './authorization-query.ts'
 import { authorizedCommit, type ActionCommit } from './authorized-commit.ts'
 import { exportAuthorizations } from './authorization-export.ts'
 import { freezeCallbackEvidence, type ExecutionModelReader } from './callback-evidence.ts'
-import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen } from './frozen-admission.ts'
+import { authorizeFrozen, frozenEffects, frozenIdentity, queryFrozen, recheckFrozenDefinition } from './frozen-admission.ts'
 import { FrozenWriteBarrier, installFrozenBusiness } from './frozen-business.ts'
 import { validChainAccepted } from './chain-storage.ts'
 import { batchMemberEffects, batchMemberId, queryBatchMember } from './node-batch.ts'
@@ -874,12 +874,29 @@ export class SeatEngine extends SeatEngineService {
         'Owner release exceeded its configured time budget')
     }
   }
+  private async recheckFrozenTarget(item: T.PendingSeatItem): Promise<T.SeatRejected | null> {
+    const chain = item.frozenOpen?.nodeWorkChain
+    if (!chain) return null
+    const definition = await this.dependencies.seats()?.resolve(item.seat)
+    if (!definition) throw new EngineError('unavailable', 'Seat provider is unavailable')
+    if ('status' in definition) return definition
+    if (this.options.config.nodeAliases[definition.node] !== this.options.nodeId || chain.route.targetNodeId !== this.options.nodeId) {
+      return rejected('cross-node-unsupported', 'Frozen admission cannot route to another node')
+    }
+    return recheckFrozenDefinition(chain, definition)
+  }
   private async recheck(item: T.PendingSeatItem): Promise<T.SeatRejected | null> {
     const access = this.localAccess
     try {
+      const refusal = await this.recheckFrozenTarget(item)
+      if (refusal) return refusal
       if (access?.recheck) {
         const result = await access.recheck(structuredClone(item))
-        if (this.localAccess === access) return result
+        if (this.localAccess === access) {
+          if (result) return result
+          const targetRefusal = await this.recheckFrozenTarget(item)
+          if (this.localAccess === access) return targetRefusal
+        }
       } else if (!item.frozenOpen?.recheckRequired) return null
     } catch (_error) { /* An unavailable execution policy cannot grant permission. */ }
     return { status: 'rejected', error: { code: 'unavailable', message: 'Execution permission is unconfirmed.',

@@ -20,6 +20,8 @@ async function fixture() {
   const operationId = 'remote-operation' as T.SeatOperationId
   const principalId = 'principal' as T.SeatPrincipalId
   const sourceNodeId = 'source-node' as T.SeatNodeId
+  h.definitions.get(intent.seat!)!.remoteAdmission = { allowOpen: true, sourceNodeIds: [sourceNodeId], sourceIds: [sourceId],
+    principalIds: [principalId], methods: ['engine.acceptFrozen'], policyRevision: 1 }
   const ownerEpoch = 'source-epoch' as T.OwnerEpoch
   const snapshot: T.OpeningContextSnapshot = { reference: { providerId: 'provider' as T.OpeningProviderId,
     reference: 'reference' as T.OpeningContextReference['reference'], revision: '1' }, text: 'Frozen opening', digest: digest('Frozen opening'), revision: '1', taskIds: [], scopeEvidence: [] }

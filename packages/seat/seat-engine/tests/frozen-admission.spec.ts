@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import type * as T from '@panedesk/dsh-seat'
 import { harness, nodeId, sourceId, seat, trigger } from './fixtures.ts'
 import { digest } from '../src/journal.ts'
-import { queryFrozen } from '../src/frozen-admission.ts'
+import { frozenIdentity, queryFrozen } from '../src/frozen-admission.ts'
 
 function request(): T.AcceptFrozenTriggerRequest {
   const envelope = trigger(), operationId = 'frozen-operation' as T.SeatOperationId
@@ -22,11 +22,12 @@ function request(): T.AcceptFrozenTriggerRequest {
 }
 
 async function setup() {
-  const h = await harness(), input = request(), sender = 'sending-node' as T.SeatNodeId
+  const h = await harness({ ownerObserveIntervalMs: 60000 }), input = request(), sender = 'sending-node' as T.SeatNodeId
   const principalId = 'principal' as T.SeatPrincipalId
   h.definitions.get(seat)!.remoteAdmission = { allowOpen: true, sourceNodeIds: [sender], sourceIds: [sourceId],
     principalIds: [principalId], methods: ['engine.acceptFrozen'], policyRevision: 1 }
-  const authorize = async (payload = input, engine = h.engine, sourceNodeId: T.SeatNodeId | undefined = sender) => {
+  const authorize = async (payload: T.AcceptFrozenTriggerRequest | T.OpenFrozenSeatRequest = input,
+    engine = h.engine, sourceNodeId: T.SeatNodeId | undefined = sender) => {
     const entry = engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
       nodeId, origin: 'remote', seat, taskIds: [], policyRevision: 1, ...(sourceNodeId ? { sourceNodeId } : {}) },
     current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
@@ -112,6 +113,157 @@ test('revokes new frozen writes before shutdown drains an admitted call', async 
     await closing
     expect(await h.engine.acceptFrozen(input, authority)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
   } finally { release.resolve(undefined); vi.restoreAllMocks(); await h.close() }
+})
+
+function executionAccess(h: Awaited<ReturnType<typeof harness>>, recheck = vi.fn(async (): Promise<T.SeatRejected | null> => null)) {
+  return { list: () => h.seatProvider.list(), close: (input: T.CloseSeatRequest) => h.seatProvider.close(input),
+    freeze: async (definition: T.SeatDefinition) => ({ definition, title: 'Frozen', openingMode: 'auto' as const }), recheck }
+}
+
+async function admitForExecution(kind: 'remote-source' | 'owner-target') {
+  const setupResult = await setup(), { h, input, authorize } = setupResult
+  const recheck = vi.fn(async (): Promise<T.SeatRejected | null> => null)
+  h.engine.registerLocalAccess(executionAccess(h, recheck))
+  if (kind === 'owner-target') {
+    input.route.sourceOwnerNodeId = nodeId
+    input.openingContext.scopeReservation.sourceOwnerNodeId = nodeId
+    const payload: T.OpenFrozenSeatRequest = { request: { seat, operationId: input.route.originalOperationId,
+      origin: 'remote', openingMode: 'auto' }, expectedSeatRevision: input.expectedSeatRevision,
+    openingContext: input.openingContext, route: { ...input.route, triggerId: null } }
+    h.definitions.get(seat)!.remoteAdmission!.methods = ['seat.openFrozen']
+    const authority = await authorize(payload), chain = frozenIdentity(payload, authority, 'seat.openFrozen')
+    if ('status' in chain) throw new Error('Expected frozen identity')
+    expect(await h.engine.openWindow({ request: payload.request, authority, nodeWorkChain: chain,
+      definition: structuredClone(h.definitions.get(seat)!), title: 'Frozen', openingContext: payload.openingContext.snapshot,
+      opening: { text: payload.openingContext.snapshot.text, digest: payload.openingContext.snapshot.digest,
+        variables: { seat, date: '2026-01-01', taskId: null } } })).toMatchObject({ status: 'queued' })
+  } else {
+    expect(await h.engine.acceptFrozen(input, await authorize())).toMatchObject({ status: 'accepted' })
+  }
+  const pending = [...h.engine.journal.projection.pending.values()][0]!
+  const query = { key: pending.frozenOpen!.nodeWorkChain!.operationKey,
+    payloadDigest: pending.frozenOpen!.nodeWorkChain!.payloadDigest }
+  const original = queryFrozen(h.engine.journal.projection, query)
+  return { ...setupResult, recheck, pending, query, original }
+}
+
+async function approveForExecution(h: Awaited<ReturnType<typeof harness>>, pending: T.PendingSeatItem) {
+  expect(await h.engine.approve({ queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion,
+    operationId: 'approve-a' as T.SeatOperationId })).toMatchObject({ status: 'approved' })
+}
+
+test.each(['remote-source', 'owner-target'] as const)('refuses a changed frozen target revision before dispatch for %s', async (kind) => {
+  const { h, pending, query, original, recheck } = await admitForExecution(kind)
+  try {
+    await h.engine.drive()
+    expect(h.creates).toEqual([])
+    h.definitions.get(seat)!.revision++
+    await approveForExecution(h, h.engine.journal.projection.pending.get(pending.queueItemId)!)
+    await h.engine.drive()
+    expect(h.creates).toEqual([])
+    expect(h.engine.journal.projection.pending.size).toBe(0)
+    expect(h.engine.journal.projection.opens.size).toBe(0)
+    expect(h.engine.journal.projection.resources.size).toBe(0)
+    expect(h.engine.journal.projection.decisions.flatMap(item => item.effects)
+      .filter(effect => effect.kind === 'open/rejected')).toMatchObject([
+      { kind: 'open/rejected', data: { error: { code: 'revision-conflict', effectState: 'none' }, candidates: [] } } ])
+    expect(pending.frozenOpen!.nodeWorkChain!.expectedSeatRevision).toBe(1)
+    expect(queryFrozen(h.engine.journal.projection, query)).toEqual(original)
+    expect(recheck).toHaveBeenCalledTimes(1)
+  } finally { await h.close() }
+})
+
+test.each(['sourceNodeIds', 'sourceIds', 'principalIds', 'methods', 'missing'] as const)(
+  'refuses frozen execution when remote admission removes %s without changing the seat revision', async (field) => {
+    const { h, pending, query, original } = await admitForExecution('remote-source')
+    try {
+      const definition = h.definitions.get(seat)!, policy = definition.remoteAdmission!
+      if (field === 'missing') delete definition.remoteAdmission
+      else policy[field] = []
+      await approveForExecution(h, pending)
+      await h.engine.drive()
+      expect(h.creates).toEqual([])
+      expect(h.engine.journal.projection.pending.size).toBe(0)
+      expect(h.engine.journal.projection.decisions.flatMap(item => item.effects)
+        .filter(effect => effect.kind === 'open/rejected')).toMatchObject([
+        { kind: 'open/rejected', data: { error: { code: 'unauthorized', effectState: 'none' }, candidates: [] } } ])
+      expect(queryFrozen(h.engine.journal.projection, query)).toEqual(original)
+    } finally { await h.close() }
+  })
+
+test.each(['remote-source', 'owner-target'] as const)('executes unchanged frozen permission once without renewing the original grant for %s', async (kind) => {
+  const { h, pending, query, original, recheck } = await admitForExecution(kind)
+  try {
+    h.engine.authorizationIssuers.close()
+    await approveForExecution(h, pending)
+    await h.engine.drive()
+    await h.engine.drive()
+    expect(h.creates).toHaveLength(1)
+    expect(h.engine.journal.projection.opens.size).toBe(1)
+    expect(recheck).toHaveBeenCalledTimes(2)
+    expect(queryFrozen(h.engine.journal.projection, query)).toEqual(original)
+    const frames = structuredClone(h.engine.journal.projection.authorizationDecisions)
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    restarted.registerLocalAccess(executionAccess(h))
+    await restarted.drive()
+    expect(h.creates).toHaveLength(1)
+    expect(restarted.journal.projection.authorizationDecisions).toEqual(frames)
+    expect(queryFrozen(restarted.journal.projection, query)).toEqual(original)
+  } finally { await h.close() }
+})
+
+test.each(['revision', 'permission'] as const)('rechecks the frozen target after asynchronous source policy changes %s', async (change) => {
+  const { h, pending, recheck } = await admitForExecution('owner-target')
+  try {
+    recheck.mockImplementation(async () => {
+      if (change === 'revision') h.definitions.get(seat)!.revision++
+      else delete h.definitions.get(seat)!.remoteAdmission
+      return null
+    })
+    await approveForExecution(h, pending)
+    await h.engine.drive()
+    expect(h.creates).toEqual([])
+    expect(h.engine.journal.projection.opens.size).toBe(0)
+  } finally { await h.close() }
+})
+
+test('rechecks the frozen target after dispatch commits and before creating a window', async () => {
+  const { h, pending } = await admitForExecution('owner-target')
+  try {
+    h.ctx.on('seat/decision', (decision) => {
+      if (decision.effects.some(effect => effect.kind === 'open/intent')) h.definitions.get(seat)!.revision++
+    })
+    await approveForExecution(h, pending)
+    await h.engine.drive()
+    expect(h.creates).toEqual([])
+    expect([...h.engine.journal.projection.opens.values()]).toMatchObject([
+      { phase: 'opening-failed', failure: { code: 'revision-conflict', effectState: 'none' } } ])
+    expect(h.engine.journal.projection.resources.size).toBe(0)
+  } finally { await h.close() }
+})
+
+test('rechecks the frozen target after restart before unfinished configuration or opening', async () => {
+  const { h, pending, query, original } = await admitForExecution('owner-target')
+  try {
+    h.executor.configure = async () => { throw new Error('Interrupted configuration') }
+    await approveForExecution(h, pending)
+    await expect(h.engine.drive()).rejects.toThrow('Interrupted configuration')
+    expect(h.creates).toHaveLength(1)
+    const frames = structuredClone(h.engine.journal.projection.authorizationDecisions)
+    await h.engine.shutdown()
+    h.definitions.get(seat)!.revision++
+    const configure = vi.fn(async () => {}), opening = vi.spyOn(h.executor, 'opening')
+    h.executor.configure = configure
+    const restarted = await h.start()
+    restarted.registerLocalAccess(executionAccess(h))
+    await restarted.drive()
+    expect(configure).not.toHaveBeenCalled()
+    expect(opening).not.toHaveBeenCalled()
+    expect(h.creates).toHaveLength(1)
+    expect(restarted.journal.projection.authorizationDecisions).toEqual(frames)
+    expect(queryFrozen(restarted.journal.projection, query)).toEqual(original)
+  } finally { await h.close() }
 })
 
 test('refuses missing sender, forged grants and denied target policies without admission', async () => {
