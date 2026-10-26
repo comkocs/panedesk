@@ -34,6 +34,37 @@ test('remote callbacks ignore the local owner and retain issuer refusals with th
   } finally { await outbox?.close(); await sources.close(); await h.close() }
 })
 
+test('pauses a definite remote delivery authentication refusal with its original diagnostic', async () => {
+  const h = await harness(), sources = new SourceRegistry()
+  let outbox: CallbackOutbox | undefined
+  try {
+    h.definitions.set(seat, admittedDefinition())
+    const body = await persistCallback(h.engine), seen: CallbackChainRequest[] = []
+    const cause: T.SeatFailureCause = { domain: 'node-link', code: 'node-delegation-rejected',
+      reason: 'Callback account is not authorized', effectState: 'none', retryable: false,
+      operationId: body.route.originalOperationId, nodeId: body.route.sourceOwnerNodeId,
+      reasonCode: 'method-not-allowed' }
+    const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
+      kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+    const router: CallbackRouterPort = { route: async (request) => {
+      seen.push(request)
+      if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: { status: 'missing' } }
+      return { method: 'source.deliverCallback', status: 'rejected', error: { code: 'unauthorized',
+        retryable: false, effectState: 'none', cause } }
+    } }
+    h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
+    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+    await outbox.deliver(0)
+    expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ phase: 'paused',
+      responseClass: 'authentication', attempt: 1, nextDue: null,
+      lastDiagnostic: { stage: 'peer-dispatch', cause } })
+    expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback'])
+    await outbox.deliver(100)
+    expect(seen).toHaveLength(2)
+  } finally { await outbox?.close(); await sources.close(); await h.close() }
+})
+
 test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when its exact query fails by %s', async (mode) => {
   const h = await harness({ callbackTimeoutMs: 20 })
   const sources = new SourceRegistry()
