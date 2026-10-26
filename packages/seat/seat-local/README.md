@@ -67,11 +67,11 @@ Waits retain authorized object identities and terminal observations. Job reads t
 
 Controlled creation and resume optionally obtain session-bound credentials from `hostSessionCredentials` before publishing the agent. The shell environment registry contributes only `DSH_HOST_ENDPOINT_PATH` and `DSH_HOST_CREDENTIAL_PATH` for the calling session, never credential bytes. Archive, replacement, and agent disposal revoke the old binding. Without the administration issuer, creation remains unchanged. The current persistent seat binding has no employee field, so this provider issues seat-only identities and never guesses an employee ID.
 
-### 开窗前终局查询与升级
+### Pre-open terminal queries and upgrade
 
-`seat.openFrozen` 与无窗回退的 `seat.wakeFrozen` 精确业务查询先校验完整原身份和摘要，再读取实际引擎历史中的可证开窗前终局，返回既有 `settled` 与原方法的 `rejected` 分支。重复写保持首次排队回执，不能据此判断仍可执行；有窗唤醒的原投递查询优先级不变。暂态复核保留冻结正文与批准位，不自动批准；开窗前拒绝、到限或取消不开窗，由引擎沿原认证回调通知所有者。
+Exact business queries for `seat.openFrozen` and the missing-window fallback of `seat.wakeFrozen` first validate the complete original identity and digest, then read proven pre-open terminal outcomes from the actual engine history and return the existing `settled` result with the original method's `rejected` branch. Repeated writes retain the first queued receipt, which does not imply that execution remains permitted; the original delivery-query precedence for existing-window wakes is unchanged. Transient rechecks retain the frozen body and approval state without automatic approval. Pre-open refusal, retention expiry or cancellation creates no window; the engine notifies the source owner through the original authenticated callback.
 
-组合须先在实际执行端注册明确限值再开放准入；起算、缺席和歧义处理、启动补投及成对升级和回滚限制见[引擎说明](../seat-engine/README.md#开窗前终局与暂态上限)。升级先停新准入、备份双方持久域，先恢复所有者再启动执行端；原帧不改，未结清回调不得靠降级或单边恢复备份清除。旧程序能解码既有结果不代表具备终局查询和补投语义。
+Composition must register an explicit transient retention limit on the actual executor before enabling admission. See the [engine documentation](../seat-engine/README.md#pre-open-terminal-outcomes-and-transient-retention-limit) for timing, missing and ambiguous registrations, startup callback reconciliation, and paired upgrade and rollback restrictions. For upgrade, stop new admission and back up both sides' persistent domains, then restore the owner before starting the executor. Original frames remain unchanged; unsettled callbacks must not be cleared by downgrading or restoring a backup on only one side. An older program's ability to decode existing results does not imply support for terminal queries or callback reconciliation.
 
 ## Dev Note
 
