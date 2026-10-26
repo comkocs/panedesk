@@ -202,6 +202,8 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
     && sent.result.payloadDigest === body.payloadDigest) return sent
   if (sent.result.status === 'paused' && sent.result.callbackId === body.callback.callbackId
     && sent.result.payloadDigest === body.payloadDigest) return sent
+  if (!self && sent.result.status === 'rejected' && sent.result.error.effectState === 'none'
+    && sent.diagnostic?.stage === 'peer-dispatch') return sent
   const reconciled = outcome(await read(), true) ?? unknown(sent.diagnostic)
   return sent.diagnostic && reconciled.result.status === 'rejected' && reconciled.result.error.effectState === 'unknown'
     ? { ...reconciled, diagnostic: sent.diagnostic } : reconciled
