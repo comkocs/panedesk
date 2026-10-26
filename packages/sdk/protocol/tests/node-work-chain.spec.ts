@@ -95,6 +95,20 @@ describe('node work chain projection', () => {
     expect(() => decodeNodeWorkChainRequest('seat.openFrozen', { ...cases[1][1], openingContext: { ...openingContext, snapshot: {} } })).toThrow()
     expect(() => decodeNodeWorkChainResult('chain.operation', { status: 'settled', method: 'chain.operation', result: { status: 'missing' } })).toThrow()
   })
+  it.each(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'] as const)('decodes pre-open rejected execution for %s without new result fields', (method) => {
+    const result = { status: 'settled', method, result: { status: 'rejected', error: { ...error, code: 'gate-denied', effectState: 'none' } } }
+    expect(decodeNodeWorkChainResult('chain.operation', result)).toBe(result)
+    for (const field of ['revision', 'stateVersion', 'terminal']) {
+      expect(() => decodeNodeWorkChainResult('chain.operation', { ...result, [field]: 4 })).toThrow()
+    }
+    expect(() => decodeNodeWorkChainResult('chain.operation', { ...result, method: 'seat.definitionRevision' })).toThrow()
+    const rejectedCallback = { ...callback, kind: 'rejected', sessionId: null, reason: result.result.error }
+    const request = { callback: rejectedCallback, route, modelEvidence: { status: 'missing', sessionId: null,
+      nodeId: 'node-b', observedAt: 'now' }, payloadDigest: 'digest-a' }
+    expect(decodeNodeWorkChainRequest('source.deliverCallback', request)).toBe(request)
+    expect(() => decodeNodeWorkChainRequest('source.deliverCallback', { ...request,
+      callback: { ...rejectedCallback, revision: 4 } })).toThrow()
+  })
   it('preserves legacy authorization fact JSON bytes and accepts optional source identity', () => {
     const bytes = '{"authorizationId":"authorization-a","kind":"node-delegation","principalId":"principal-a","origin":"remote","nodeId":"node-b","taskIds":[],"operationId":"operation-a","policyRevision":1,"decision":"allowed","reasonCode":"allowed","requestDigest":"digest-a","checkedAt":"2026-01-01T00:00:00Z"}'
     const fact: unknown = JSON.parse(bytes)

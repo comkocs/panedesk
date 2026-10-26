@@ -5,6 +5,8 @@ import type { AuthorizationDecision } from './authorization-storage.ts'
 import { authorizationEffect } from './authorization-issuer.ts'
 import { digest } from './journal.ts'
 import { fact, rejected } from './triggers.ts'
+import { withPreopenCallbacks } from './preopen-callback.ts'
+import { preopenCancelledReason } from './frozen-terminal.ts'
 
 /** Validate the bounded operator reason at request and durable JSON entry points.
  * @param value - Optional untrusted cancellation reason.
@@ -70,7 +72,7 @@ export function cancelEffects(view: EngineProjection, request: T.CancelPendingSe
     cancelledAt: new Date().toISOString(), stateVersion: pending.stateVersion, reasonPresent: request.reason !== undefined,
     ...(request.reason !== undefined ? { reason: request.reason } : {}) }
   return { result: { status: 'cancelled', queueItemId: pending.queueItemId, stateVersion: pending.stateVersion },
-    effects: [fact({ kind: 'queue/cancelled', operationId: request.operationId, data: { pending, cancellation,
-      principalId: data.principalId, previousRevision: previous.stateVersion, revision: pending.stateVersion } }),
-    authorizationEffect(data)] }
+    effects: [...withPreopenCallbacks(view, [fact({ kind: 'queue/cancelled', operationId: request.operationId, data: { pending, cancellation,
+      principalId: data.principalId, previousRevision: previous.stateVersion, revision: pending.stateVersion } })],
+    preopenCancelledReason(), data.nodeId), authorizationEffect(data)] }
 }

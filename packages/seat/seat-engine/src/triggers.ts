@@ -4,6 +4,7 @@ import type { AcceptTriggerResult, EngineEffect, EngineEventId, PendingSeatItem,
 import { canonical, digest, EngineJournal, EngineError } from './journal.ts'
 import { effectiveMode } from './admission.ts'
 import { SourceRegistry } from './sources.ts'
+import { transientCategory } from './execution-recheck.ts'
 
 /** Safe machine rejection carries no source body or credential material.
  * @param code - stable failure classification.
@@ -107,7 +108,8 @@ export class TriggerRegistry {
             action: trigger.kind === 'handoff-timeout' ? 'wake-sender' : 'open',
             ...(trigger.evidence.kind === 'handoff-timeout' ? { handoffTimeout: trigger.evidence } : {}),
             sequence: previous?.sequence ?? view.sequence + 1, effectiveMode: mode,
-            reason: mode === 'remind' ? 'approval' : 'provider-unavailable', blockedBy: [], sources,
+            reason: previous && transientCategory(previous) ? previous.reason : mode === 'remind' ? 'approval' : 'provider-unavailable',
+            blockedBy: previous && transientCategory(previous) ? previous.blockedBy : [], sources,
             relatedTaskIds: [...new Set([...sources.flatMap(source => source.taskId ? [source.taskId] : []),
               ...(retainedOpen?.openingContext?.taskIds ?? [])])],
             queuedAt: previous?.queuedAt ?? receivedAt, stateVersion: (previous?.stateVersion ?? 0) + 1,

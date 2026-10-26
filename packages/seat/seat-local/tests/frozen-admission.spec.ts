@@ -81,6 +81,37 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
   } finally { await h.close() }
 })
 
+test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s queries pre-open rejection while writes retain the first receipt across reload', async (method) => {
+  const { h, registry, request, authorize } = await frozenHost()
+  try {
+    const operationId = `terminal:${method}` as T.SeatOperationId, base = request(operationId)
+    const payload = method === 'seat.openFrozen' ? base : { ...base, request: { seat: base.request.seat, operationId } }
+    const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'] as const
+    await registry.ready(methods)
+    const invoke = async () => {
+      const seats = h.ctx.get('seats')!.withAuthority(await authorize(payload, operationId))
+      return method === 'seat.openFrozen' ? seats.openFrozen!(payload as T.OpenFrozenSeatRequest) : seats.wakeFrozen!(payload)
+    }
+    const first = await invoke()
+    const pending = [...h.engine.journal.projection.pending.values()][0]!
+    const cancellation = await h.engine.cancel({ queueItemId: pending.queueItemId,
+      expectedStateVersion: pending.stateVersion, operationId: 'cancel-terminal' as T.SeatOperationId })
+    expect(cancellation).toMatchObject({ status: 'cancelled' })
+    const query: T.NodeWorkChainOperationRequest = { key: { sourceNodeId: sender, principalId,
+      sourceId: payload.route.sourceId, ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
+    for (let pass = 0; pass < 2; pass++) {
+      expect(await registry.query(query, await authorize(query, operationId))).toMatchObject({ status: 'settled', method,
+        result: { status: 'rejected', error: { code: 'gate-denied', retryable: false, effectState: 'none' } } })
+      expect(await invoke()).toEqual(first)
+      const changed = { ...query, payloadDigest: digest('changed') }
+      expect(await registry.query(changed, await authorize(changed, operationId))).toMatchObject({ status: 'rejected' })
+      if (!pass) { await h.reload(); await expect.poll(() => Boolean(registry.resolve(method))).toBe(true); await registry.ready(methods) }
+    }
+    expect(h.adapter.requests).toHaveLength(0)
+    expect(h.engine.journal.projection.decisions.flatMap(frame => frame.effects).filter(effect => effect.kind === 'callback/pending')).toHaveLength(1)
+  } finally { await h.close() }
+})
+
 test.each(['seat.openFrozen', 'seat.wakeFrozen', 'seat.openBatch', 'seat.wake'] as const)(
   '%s rejects captured writes and drains admitted work during Loader replacement', async (method) => {
     const { h, registry, request, authorize } = await frozenHost()

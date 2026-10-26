@@ -39,6 +39,18 @@ def test_exact_revision_observation_is_closed_and_not_a_business_query() -> None
         validate_node_work_chain_result("chain.operation", {"status": "settled", "method": "seat.definitionRevision", "result": result})
 
 
+@pytest.mark.parametrize("method", ["engine.acceptFrozen", "seat.openFrozen", "seat.wakeFrozen"])
+def test_preopen_terminal_uses_existing_closed_rejected_result(method: str) -> None:
+    result = {"status": "settled", "method": method, "result": {"status": "rejected",
+        "error": {**ERROR, "code": "gate-denied", "effectState": "none"}}}
+    validate_node_work_chain_result("chain.operation", result)
+    for field in ["revision", "stateVersion", "terminal"]:
+        with pytest.raises(ValueError):
+            validate_node_work_chain_result("chain.operation", {**result, field: 4})
+    with pytest.raises(ValueError):
+        validate_node_work_chain_result("chain.operation", {**result, "method": "seat.definitionRevision"})
+
+
 def test_preserves_legacy_bytes_and_optional_cause_through_sdk() -> None:
     transport = Mock(spec=HarnessClient)
     seats = SeatsClient(transport)
