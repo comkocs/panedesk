@@ -160,7 +160,8 @@ export function setCatalogAuthority(catalog: SeatCatalog, authority: SeatAuthori
   if (!reference.trim()) refuse('unauthorized', 'An authorization reference is required.', 'Obtain authorization before transferring authority.')
   catalog.authority = authority
   catalog.authorizations.push({ reference, authority, revision: catalog.revision + 1 })
-  catalog.definitions = catalog.definitions.map((definition): SeatDefinition => ({ ...definition,
-    ...(definition.source === undefined ? {} : { source: { ...definition.source, authority } }),
-  }))
+  catalog.definitions = catalog.definitions.map((definition): SeatDefinition => {
+    if (definition.source === undefined || definition.source.authority === authority) return definition
+    return { ...definition, revision: definition.revision + 1, source: { ...definition.source, authority } }
+  })
 }

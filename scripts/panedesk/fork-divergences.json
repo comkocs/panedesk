@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-authority-definition-revision",
+      "description": "Advance a seat definition revision when an authority handover changes its recorded source authority.",
+      "origin": "Optional local seat catalog",
+      "reason": "An editing-authority handover changes persisted source authority, so the affected definition revision advances with the catalog.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/store.spec.ts"],
+        "test": "advances only the per-seat revision whose source authority actually changes"
+      }
+    },
+    {
       "id": "host-admin-source-operator",
       "description": "Delegate bounded source administration to an optional local source owner.",
       "origin": "Optional host administration",

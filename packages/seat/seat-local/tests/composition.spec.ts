@@ -40,6 +40,18 @@ it('loads the catalog through Loader, rejects operations without an engine and r
     if (seats === undefined) throw new Error('Seat provider was not installed')
     const scoped = seats.withAuthority({ principalId: 'user-a' as SeatPrincipalId, nodeId, origin: 'manual' })
     expect(await scoped.definitions({})).toEqual({ definitions: [], revision: 0, complete: true })
+    const sourcePath = join(root, 'source.csv')
+    await writeFile(sourcePath, 'seat,model\nseat-a,model-a\nseat-b,model-b\n')
+    const preview = await scoped.previewImport({ format: 'csv', sourcePath, columnMap: { seat: 'seat', model: 'model' }, defaults: {} })
+    if (!('planId' in preview)) throw new Error('Import preview was rejected')
+    expect(await scoped.commitImport({ planId: preview.planId, selectedRows: preview.rows.map(row => row.row),
+      expectedRevision: 0, operationId: 'import-a' as never })).toMatchObject({ status: 'committed', revision: 1 })
+    expect((await scoped.definitions({})).definitions.map(item => [item.seat, item.revision, item.source?.authority]))
+      .toEqual([['seat-a', 1, 'import-source'], ['seat-b', 1, 'import-source']])
+    expect(await scoped.setAuthority({ authority: 'seat-store', authorizationRef: 'user-a' as never,
+      expectedRevision: 1, operationId: 'authority-a' as never })).toMatchObject({ status: 'saved', revision: 2 })
+    expect((await scoped.definitions({})).definitions.map(item => [item.seat, item.revision, item.source?.authority]))
+      .toEqual([['seat-a', 2, 'seat-store'], ['seat-b', 2, 'seat-store']])
     expect(await scoped.list({})).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
     await ctx.loader.resolve(entry).fiber?.dispose()
     expect(ctx.get('seats')).toBeUndefined()

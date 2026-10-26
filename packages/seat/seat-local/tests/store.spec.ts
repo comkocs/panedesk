@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { SeatDigest } from '@panedesk/dsh-seat'
 import { SeatStore, setCatalogAuthority } from '../src/store.ts'
 import { definition, operation, storeFixture } from './fixtures.ts'
 
@@ -38,5 +39,45 @@ describe('catalog ownership', () => {
     const next = await SeatStore.open(fixture.facility, fixture.root)
     try { expect(next.snapshot().authority).toBe('seat-store'); expect(next.snapshot().authorizations).toHaveLength(1) }
     finally { await next.close() }
+  })
+
+  it('advances only the per-seat revision whose source authority actually changes', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    const sourced = (seat: string, revision: number, authority: 'import-source' | 'seat-store') => definition(root, {
+      seat: seat as never, revision, source: { sourcePath: join(root, 'source.csv'), sourceFileHash: 'a'.repeat(64) as SeatDigest,
+        rowHash: 'b'.repeat(64) as SeatDigest, mappingHash: 'c'.repeat(64) as SeatDigest, columnHashes: {}, baseline: {}, authority },
+    })
+    await store.mutate(0, operation('import-source'), { value: 'import' }, (catalog) => {
+      catalog.authority = 'import-source'
+      catalog.definitions.push(sourced('seat-a', 1, 'import-source'), sourced('seat-b', 4, 'import-source'), definition(root, { seat: 'seat-c' as never, revision: 2 }))
+    })
+    const before = store.snapshot().definitions.map(item => [item.seat, item.revision, item.source?.authority])
+    expect(before).toEqual([['seat-a', 1, 'import-source'], ['seat-b', 4, 'import-source'], ['seat-c', 2, undefined]])
+    const request = { authority: 'seat-store', authorizationRef: 'authorization-a' }
+    expect(await store.mutate(1, operation('authority-switch'), request, (catalog) => {
+      setCatalogAuthority(catalog, 'seat-store', 'authorization-a')
+    })).toBe(2)
+    const switched = store.snapshot()
+    expect(switched.revision).toBe(2)
+    expect(switched.authority).toBe('seat-store')
+    expect(switched.definitions.map(item => [item.seat, item.revision, item.source?.authority])).toEqual([
+      ['seat-a', 2, 'seat-store'], ['seat-b', 5, 'seat-store'], ['seat-c', 2, undefined],
+    ])
+    expect(await store.mutate(2, operation('authority-back'), { authority: 'import-source' }, (catalog) => {
+      setCatalogAuthority(catalog, 'import-source', 'authorization-b')
+    })).toBe(3)
+    expect(store.snapshot().definitions.map(item => [item.seat, item.revision, item.source?.authority])).toEqual([
+      ['seat-a', 3, 'import-source'], ['seat-b', 6, 'import-source'], ['seat-c', 2, undefined],
+    ])
+    expect(await store.mutate(3, operation('authority-same'), { authority: 'import-source' }, (catalog) => {
+      setCatalogAuthority(catalog, 'import-source', 'authorization-c')
+    })).toBe(4)
+    expect(store.snapshot().definitions.map(item => item.revision)).toEqual([3, 6, 2])
+    expect(store.snapshot().revision).toBe(4)
+    expect(await store.mutate(3, operation('authority-back'), { authority: 'import-source' }, () => { throw new Error('Replay must not mutate') })).toBe(3)
+    expect(store.snapshot().definitions.map(item => item.revision)).toEqual([3, 6, 2])
+    expect(store.snapshot().revision).toBe(4)
+    await expect(store.mutate(4, operation('authority-back'), { authority: 'seat-store' }, () => {})).rejects.toMatchObject({ failure: { code: 'operation-id-conflict' } })
   })
 })
