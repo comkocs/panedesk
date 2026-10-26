@@ -732,9 +732,9 @@ def _seat_result_matches(method: str, value: object) -> bool:
 
 
 _CHAIN_METHODS = ("engine.acceptFrozen", "seat.openFrozen", "seat.wakeFrozen", "source.prepareOpening",
-    "source.checkAdmission", "source.deliverCallback", "chain.operation")
+    "source.checkAdmission", "source.deliverCallback", "chain.operation", "seat.definitionRevision")
 _CHAIN_KEY = _seat_fields({"sourceNodeId": _seat_text, "principalId": _seat_text, "sourceId": _seat_text,
-    "ownerEpoch": _seat_text, "method": _seat_choice(*_CHAIN_METHODS), "operationId": _seat_text, "callbackId": _seat_optional(_seat_text)})
+    "ownerEpoch": _seat_text, "method": _seat_choice(*_CHAIN_METHODS[:7]), "operationId": _seat_text, "callbackId": _seat_optional(_seat_text)})
 _CHAIN_ACCEPTED = _seat_fields({"capability": _seat_choice("node-work-chain/v1"), "route": _CHAIN_ROUTE,
     "openingContext": _CHAIN_CONTEXT, "expectedSeatRevision": _seat_integer, "authorizationRef": _seat_text,
     "payloadDigest": _seat_text, "operationKey": _CHAIN_KEY, "trigger": _seat_nullable(_SEAT_ENVELOPE)})
@@ -762,6 +762,9 @@ _CHAIN_OPEN = _seat_fields({**_CHAIN_OPERATION, "seat": lambda value: _chain_all
         or _seat_fields({"kind": _seat_choice("switch", "replace"), "sessionId": _seat_text})(value))})
 _CHAIN_WAKE = _seat_fields({**_CHAIN_OPERATION, "seat": lambda value: _chain_allowlist([value]), "sessionId": _seat_optional(_seat_text)})
 _CHAIN_REQUESTS = {
+    "seat.definitionRevision": _seat_fields({"seat": lambda value: _chain_allowlist([value]), "sourceId": _seat_text,
+        "sourceOwnerNodeId": _seat_text, "ownerEpoch": _seat_text,
+        "openingMethod": _seat_choice("engine.acceptFrozen", "seat.openFrozen", "seat.wakeFrozen"), "taskIds": _seat_array(_seat_text)}),
     "engine.acceptFrozen": _seat_fields({**_CHAIN_FROZEN, "envelope": _SEAT_ENVELOPE}),
     "seat.openFrozen": _seat_fields({**_CHAIN_FROZEN, "request": _CHAIN_OPEN}),
     "seat.wakeFrozen": _seat_fields({**_CHAIN_FROZEN, "request": _CHAIN_WAKE}),
@@ -774,6 +777,9 @@ _CHAIN_REQUESTS = {
     "chain.operation": _seat_fields({"key": _CHAIN_KEY, "payloadDigest": _seat_text}),
 }
 _CHAIN_RESULTS: dict[str, _SeatCheck] = {
+    "seat.definitionRevision": lambda value: _CHAIN_REJECTED(value) or _seat_fields({"status": _seat_choice("found"),
+        "nodeId": _seat_text, "seat": lambda item: _chain_allowlist([item]),
+        "revision": lambda item: _seat_integer(item) and item > 0})(value),
     "engine.acceptFrozen": lambda value: _CHAIN_REJECTED(value) or _seat_fields({"status": _seat_choice("accepted", "coalesced"),
         "triggerId": _seat_text, "queueItemId": _seat_text, "sequence": _seat_integer})(value)
         or _seat_fields({"status": _seat_choice("duplicate"), "triggerId": _seat_text, "originalTriggerId": _seat_text, "queueItemId": _seat_nullable(_seat_text)})(value),
@@ -787,7 +793,7 @@ _CHAIN_RESULTS: dict[str, _SeatCheck] = {
         or _seat_fields({"status": _seat_choice("paused"), "callbackId": _seat_text, "payloadDigest": _seat_text, "error": _SEAT_FAILURE})(value),
     "chain.operation": lambda value: _CHAIN_REJECTED(value) or _seat_fields({"status": _seat_choice("missing")})(value)
         or _seat_fields({"status": _seat_choice("pending"), "effectState": _seat_choice("none", "unknown")})(value)
-        or (_seat_fields({"status": _seat_choice("settled"), "method": _seat_choice(*_CHAIN_METHODS[:-1]), "result": lambda item: isinstance(item, dict)})(value)
+        or (_seat_fields({"status": _seat_choice("settled"), "method": _seat_choice(*_CHAIN_METHODS[:6]), "result": lambda item: isinstance(item, dict)})(value)
             and _CHAIN_RESULTS[value["method"]](value["result"])),
 }
 

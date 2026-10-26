@@ -41,6 +41,7 @@ flowchart LR
   svc_seatAuthorizationQueries["ctx.seatAuthorizationQueries<br/>Provider-owned authorization queries"]
   pkg_seat_app["seat-app"]
   pkg_acp["acp"]
+  svc_seatDefinitionRevisions["ctx.seatDefinitionRevisions<br/>Authorized exact local definition revisions"]
   svc_seatOpeningContexts["ctx.seatOpeningContexts<br/>Trusted opening source registration"]
   pkg_instruction_subscriptions["instruction-subscriptions"]
   svc_instructionSubscriptions["ctx.instructionSubscriptions<br/>Persisted instruction subscriptions"]
@@ -486,6 +487,7 @@ flowchart LR
   pkg_seat --> svc_seatAuthorizationQueries
   pkg_seat --> svc_seatAuthorizationTransactions
   pkg_seat --> svc_seatAuthorizedEngineActions
+  pkg_seat --> svc_seatDefinitionRevisions
   pkg_seat --> svc_seatDirectories
   pkg_seat --> svc_seatEngine
   pkg_seat --> svc_seatEngineQuery
@@ -511,6 +513,7 @@ flowchart LR
   pkg_seat_gates --> svc_seatGatesQuery
   pkg_seat_gates --> svc_subagentDispatch
   pkg_seat_local --> svc_nodeAuthorizedLocalAdmission
+  pkg_seat_local --> svc_seatDefinitionRevisions
   pkg_seat_local --> svc_seatLocalCreation
   pkg_seat_local --> svc_seatLocalRead
   pkg_seat_local --> svc_seatLocalSession
@@ -680,6 +683,7 @@ flowchart LR
   svc_seatAuthorizationTransactions --> pkg_node_link
   svc_seatAuthorizationTransactions --> pkg_seat_local
   svc_seatAuthorizedEngineActions --> pkg_seat_local
+  svc_seatDefinitionRevisions --> pkg_node_link
   svc_seatDirectories --> pkg_tool_seat
   svc_seatEngine --> pkg_ledger_query
   svc_seatEngine --> pkg_seat_app
@@ -822,6 +826,7 @@ flowchart LR
 | `ctx.nodeRouter` | `service` | [`node-link`](../packages/seat/node-link) | - | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Provides bounded transport and dated health evidence without granting execution authority. |
 | `ctx.sdkMethods` | `seam` | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Registers exclusive optional namespaces with contributor-owned decoding, authorization and disposal. |
 | `ctx.seatAuthorizationQueries` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-app`](../packages/seat/seat-app), [`sdk-jsonrpc-server`](../packages/sdk/server), [`acp`](../packages/acp/acp) | - | Projects bounded authorization evidence when a trusted provider is available. |
+| `ctx.seatDefinitionRevisions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`node-link`](../packages/seat/node-link) | - | Reads one local definition revision with independent live authority, without business intent or replay. |
 | `ctx.seatOpeningContexts` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-local`](../packages/seat/seat-local) | - | Freezes source text and task associations once and drains active resolutions during disposal. |
 | `ctx.instructionSubscriptions` | `service` | [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | - | [`seat-local`](../packages/seat/seat-local) | - | 保留选定的指令身份，供后续提示词组装使用，不激活会话。 |
 | `ctx.seats` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-app`](../packages/seat/seat-app), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`seat-engine`](../packages/seat/seat-engine) | - | 可选的本地提供者拥有经过授权的定义与窗口操作；缺席时不改变上游行为。 |

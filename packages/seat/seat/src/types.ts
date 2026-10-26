@@ -1069,7 +1069,35 @@ export interface SeatNodeDelegation {
 /** Remote opening permission never grants renewal or implicit wake permission. */
 export type SeatRemoteOpeningMethod = 'engine.acceptFrozen' | 'seat.openFrozen' | 'seat.wakeFrozen'
 /** Closed method set negotiated separately from the legacy node-link methods. */
-export type NodeWorkChainMethod = SeatRemoteOpeningMethod | 'source.prepareOpening' | 'source.checkAdmission' | 'source.deliverCallback' | 'chain.operation'
+export type NodeWorkChainMethod = SeatRemoteOpeningMethod | 'source.prepareOpening' | 'source.checkAdmission' | 'source.deliverCallback' | 'chain.operation' | 'seat.definitionRevision'
+/** Exact observation of one target-local definition; identity comes from authenticated transport. */
+export interface SeatDefinitionRevisionRequest {
+  seat: SeatName
+  sourceId: SeatSourceId
+  sourceOwnerNodeId: SeatNodeId
+  ownerEpoch: OwnerEpoch
+  openingMethod: SeatRemoteOpeningMethod
+  taskIds: readonly SeatTaskId[]
+}
+/** Only the owning node's positive safe-integer revision is disclosed. */
+export type SeatDefinitionRevisionResult = { status: 'found'; nodeId: SeatNodeId; seat: SeatName; revision: number } | SeatRejected
+/** Immediate observations never create business intents or authorize frozen execution. */
+export interface SeatDefinitionRevisionProvider {
+  /** Await local read and authorization recovery.
+   * @returns Readiness of this registration, never a withdrawn predecessor.
+   */
+  ready(): Promise<void>
+  /** Observe current registration ownership synchronously.
+   * @returns False before readiness or after withdrawal.
+   */
+  available(): boolean
+  /** Read one local definition under an independently issued exact read grant.
+   * @param request - Complete read scope, including the intended frozen opening method.
+   * @param authority - Live receiver-issued authority; historical facts grant nothing.
+   * @returns Only the exact node, seat and revision, or a sanitized refusal.
+   */
+  read(request: SeatDefinitionRevisionRequest, authority: SeatCallContext): Promise<SeatDefinitionRevisionResult>
+}
 /** Nonempty, unique, wildcard-free lists are validated by the admission provider. */
 export interface SeatRemoteAdmission {
   allowOpen: true
@@ -1237,16 +1265,16 @@ export interface NodeWorkChainOperationRequest {
 }
 /** Settled results remain paired with their original method, excluding recursive queries. */
 export type NodeWorkChainSettledResult = {
-  [M in Exclude<NodeWorkChainMethod, 'chain.operation'>]: {
+  [M in Exclude<NodeWorkChainMethod, 'chain.operation' | 'seat.definitionRevision'>]: {
     status: 'settled'
     method: M
     result: NodeWorkChainMethodMap[M]['result']
   }
-}[Exclude<NodeWorkChainMethod, 'chain.operation'>]
+}[Exclude<NodeWorkChainMethod, 'chain.operation' | 'seat.definitionRevision'>]
 /** Missing is reportable only after recovery; pending is not a terminal cached result. */
 export type NodeWorkChainOperationResult = { status: 'missing' } | { status: 'pending'; effectState: 'none' | 'unknown' } | NodeWorkChainSettledResult | SeatRejected
 /** Provider-owned business methods exclude the query dispatcher itself. */
-export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, 'chain.operation'>
+export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, 'chain.operation' | 'seat.definitionRevision'>
 /** Durable business owner; registration grants no caller authority. */
 export interface NodeWorkChainBusinessProvider {
   /** Nonempty method domain; each method has exactly one provider across the registry. */
@@ -1274,6 +1302,7 @@ export interface NodeWorkChainBusinessProvider {
 export type NodeWorkChainRequestId = Branded<'NodeRequestId'>
 /** Shared wire request/result association; no arbitrary namespaces are admitted. */
 export interface NodeWorkChainMethodMap {
+  'seat.definitionRevision': { request: SeatDefinitionRevisionRequest; result: SeatDefinitionRevisionResult }
   'engine.acceptFrozen': { request: AcceptFrozenTriggerRequest; result: AcceptFrozenTriggerResult }
   'seat.openFrozen': { request: OpenFrozenSeatRequest; result: OpenFrozenSeatResult }
   'seat.wakeFrozen': { request: WakeFrozenSeatRequest; result: WakeFrozenSeatResult }

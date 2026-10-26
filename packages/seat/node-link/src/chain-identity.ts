@@ -9,6 +9,7 @@ import type { NodeLinkErrorCode } from './index.ts'
  */
 export function chainKey(request: ChainRequest): NodeWorkChainOperationKey {
   if (request.method === 'chain.operation') return request.payload.key
+  if (request.method === 'seat.definitionRevision') throw new Error('Node chain observation has no business key')
   const source = request.method === 'source.prepareOpening' ? request.payload : request.payload.route
   return { sourceNodeId: request.sourceNodeId, principalId: request.delegation.principalId,
     sourceId: source.sourceId, ownerEpoch: source.ownerEpoch, method: request.method,
@@ -36,11 +37,13 @@ export function chainFailure(request: ChainRequest, code: NodeLinkErrorCode, rea
   unknown = false): ChainResponse {
   const effectState = unknown ? 'unknown' : 'none'
   const retryable = code === 'node-tunnel-disconnected'
+  const reason = request.method === 'seat.definitionRevision' && reasonCode === 'peer-capability-missing'
+    ? 'Both nodes must advertise seat-definition-revision/v1 before an exact revision read.' : reasonCode
   return { version: request.version, requestId: request.requestId, operationId: request.operationId,
     sourceNodeId: request.sourceNodeId, targetNodeId: request.targetNodeId, method: request.method,
     status: unknown ? 'uncertain' : code === 'node-delegation-rejected' || code === 'node-operation-conflict' ? 'rejected' : 'unavailable',
-    error: { code, reason: reasonCode, retryable, effectState, operationId: request.operationId, targetNodeId: request.targetNodeId,
-      cause: { domain: 'node-link', code, reason: reasonCode, reasonCode, effectState, retryable,
+    error: { code, reason, retryable, effectState, operationId: request.operationId, targetNodeId: request.targetNodeId,
+      cause: { domain: 'node-link', code, reason, reasonCode, effectState, retryable,
         operationId: request.operationId, nodeId: request.targetNodeId } } }
 }
 

@@ -57,6 +57,8 @@ kind: "package-library"
 
 `SeatRequestMap` 以加法方式提供 `seats/*` 操作，不改变 Session 事件和既有方法标识。`decodeSeatRequest` 校验明确目标并拒绝调用方注入权限；`decodeSeatResult` 校验判别字段及嵌套字段。管理方法为 `import.preview`、`import.commit`、`setAuthority`、`report.submit`、`wait.register` 和 `wait.cancel`；其余方法覆盖窗口操作、绑定、操作状态、项目模式、待开队列、闸与节点状态。仅类型的 `./types` 导出允许声明消费者不导入传输代码。
 
+可选链解码器同时投影 `seat.definitionRevision`：请求严格六字段（`seat`、`sourceId`、`sourceOwnerNodeId`、`ownerEpoch`、`openingMethod`、`taskIds`），结果为 `SeatRejected` 或仅含 `nodeId`、`seat` 与正安全整数 `revision` 的 `found`。未知字段、非正数或小数版本，以及业务查询中的观察方法均拒绝。不新增公开 JSON-RPC 端点；独立能力协商与鉴权归 node-link，旧载荷不变。
+
 ### 载荷语义
 
 `SessionPromptResult.messageId` 标识已排队的用户消息；它不标识后续的助手消息、轮次结束或提示词结果。`SdkPromptContentBlock` 接受普通持久内容以及 `SdkEncodedImageBlock { type: "image", data, mimeType }`；服务器在入队前把编码图像转换为持久引用。`InitializeParams.reasoningEffort` 是所选提供方／模型路由可选的非空适配器自有标识符；省略时保留该模型的默认值。`InitializeParams.maxTokens` 是可选的正安全整数，用于限制 SDK 创建的 agent 及其进程内后代的每次对话模型输出；省略时应用所选适配器的确切模型默认值。服务器会在初始化期间解析确切路由，并在握手成功前拒绝 `session/prompt`，因此缺少适配器、模型不可用或推理强度不受支持时，不会回退到构造期默认值。`SubagentFinishedNotification.lastAssistantMessage` 携带子 agent 最后一条非空 assistant 消息；若不存在这类消息，则携带其累积的 assistant 文本；子 agent 两种输出均未产生时，该字段缺省。`serverInfo.name` 的协议值固定为 `deepseek-harness-sdk-runtime`。通知载荷依赖 `SessionEvent`（`dsh-session`）、`ContentBlock`（`dsh-llm`）与 `SubagentStopReason`（`dsh-subagent`），因此会话词汇是协议格式约定的一部分。

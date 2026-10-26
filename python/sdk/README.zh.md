@@ -26,6 +26,8 @@ preview = render_images("report.docx", "report-preview", pages=[1])
 
 创作环境可通过 `deepseek_harness_runtime.download_primary_runtime()` 独立选择。缓存选择、资源启用与下载行为见[运行时参考](../sdk-runtime/README.zh.md)。SDK 启动和 Office 操作都不会自动获取缺失资源。
 
+可选链校验器投影 `seat.definitionRevision`，不新增客户端端点。请求严格要求 `seat`、`sourceId`、`sourceOwnerNodeId`、`ownerEpoch`、`openingMethod` 和 `taskIds`；结果为拒绝，或仅含 `nodeId`、`seat` 与正安全整数 `revision` 的 `found`。布尔、小数、缺字段和未知字段均拒绝。观察不能成为业务查询对象或 settled 方法。传输协商和独立读凭证归 node-link；旧 SDK 载荷字节不变。
+
 ## 启动运行时
 
 Python SDK 没有独立的应用入口。它以 `--profile sdk` 启动内置的 `dsh` CLI（命令行界面）；所选 profile 负责 JSON-RPC 服务器、agent（智能体）组合、凭据、持久化、工具和关闭流程。

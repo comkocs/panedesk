@@ -53,6 +53,7 @@ export async function chainAuthority(request: ChainRequest, peer: NodeAuthentica
     || local.principalId !== delegation.principalId || local.delegatedBy !== delegation.authorizationRef
     || local.operationId !== request.operationId || local.requestDigest !== request.payloadDigest
     || local.seat !== delegation.seat || local.sessionId !== delegation.sessionId
-    || local.taskIds.some(task => !delegation.taskIds.includes(task))) return refuse('method-not-allowed')
+    || local.taskIds.some(task => !delegation.taskIds.includes(task))
+    || (request.method === 'seat.definitionRevision' && digest(local.taskIds) !== digest(request.payload.taskIds))) return refuse('method-not-allowed')
   return { principalId: local.principalId, origin: local.origin, nodeId: peer.targetNodeId, authorization: grant }
 }

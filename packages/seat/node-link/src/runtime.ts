@@ -12,7 +12,7 @@ import { createNodeLinkExecutor } from './executor.ts'
 import { ChainRuntime } from './chain-runtime.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 import { decodeChainRequest, encodeChainFrame, isChainMethod } from './chain-codec.ts'
-import { helloCapability, helloRefusal } from './chain-hello.ts'
+import { helloCapability, helloRefusal, helloAdvertisement } from './chain-hello.ts'
 
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
  * @param ctx - Lifecycle and optional local execution/subprocess services.
@@ -92,14 +92,21 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
         }
         if (chain) {
           void chain.ready().catch((error: unknown) => { void error })
-          chain.observe(helloCapability(value))
+          try { chain.observe(helloCapability(value)) }
+          catch (error) {
+            if (value.seatDefinitionRevision === undefined) throw error
+            chain.observe(undefined)
+            return helloRefusal(options.nodeId, value.nonce, authenticatedEpoch,
+              'node-protocol-mismatch', 'protocol-version-mismatch',
+              'The peer exact revision capability advertisement is invalid; use seat-definition-revision/v1.')
+          }
         }
         const capability = chain?.capability(), executor = localExecutor()
         const status = executor ? await executor.status() : capability && services?.local.seats?.nodeStatus
           ? await services.local.seats.nodeStatus() : undefined
         if (status === undefined) throw new Error('Local node provider unavailable')
         return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: authenticatedEpoch,
-          nonce: value.nonce, status, ...(capability === undefined ? {} : { chain: capability }) }
+          nonce: value.nonce, status, ...helloAdvertisement(capability) }
       }
       if (object(value) && value.type === 'receipt') {
         const request = decodeRequest(value.request)

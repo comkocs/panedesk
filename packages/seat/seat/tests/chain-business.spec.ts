@@ -10,7 +10,7 @@ import type { NodeWorkChainBusinessProvider as DirectProvider } from '../src/typ
 
 describe('chain business declarations', () => {
   it('exports six business methods and authenticated exact-query signatures', () => {
-    expectTypeOf<NodeWorkChainBusinessMethod>().toEqualTypeOf<Exclude<NodeWorkChainMethod, 'chain.operation'>>()
+    expectTypeOf<NodeWorkChainBusinessMethod>().toEqualTypeOf<Exclude<NodeWorkChainMethod, 'chain.operation' | 'seat.definitionRevision'>>()
     expectTypeOf<Extract<NodeWorkChainBusinessMethod, 'chain.operation'>>().toEqualTypeOf<never>()
     expectTypeOf<NodeWorkChainBusinessProvider>().toEqualTypeOf<DirectProvider>()
     expectTypeOf<NodeWorkChainBusinessProvider['methods']>().toEqualTypeOf<readonly NodeWorkChainBusinessMethod[]>()

@@ -12,12 +12,12 @@ const methods = ['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen', 's
 const fields = (value: Record<string, unknown>, allowed: readonly string[]): boolean =>
   Object.keys(value).every(key => allowed.includes(key))
 
-/** Recognize only the frozen seven-method set.
+/** Recognize the frozen methods and the independently negotiated exact revision read.
  * @param value - Untrusted method discriminator.
  * @returns Whether the method belongs to the work-chain protocol.
  */
 export function isChainMethod(value: unknown): value is NodeWorkChainMethod {
-  return typeof value === 'string' && methods.some(method => method === value)
+  return value === 'seat.definitionRevision' || (typeof value === 'string' && methods.some(method => method === value))
 }
 
 /** Callback digests exclude only their self-referential digest field.
@@ -42,7 +42,7 @@ export function decodeChainCapability(value: unknown): ChainCapability | undefin
   if (value === undefined) return undefined
   if (!object(value) || value.capability !== 'node-work-chain/v1' || !Number.isSafeInteger(value.maxFrameBytes)
     || typeof value.maxFrameBytes !== 'number' || value.maxFrameBytes < 1 || value.maxFrameBytes > 1048576
-    || !Array.isArray(value.methods) || value.methods.length === 0 || !value.methods.every(isChainMethod)
+    || !Array.isArray(value.methods) || value.methods.length === 0 || !value.methods.every(method => isChainMethod(method) && method !== 'seat.definitionRevision')
     || new Set(value.methods).size !== value.methods.length || !fields(value, ['capability', 'maxFrameBytes', 'methods'])) {
     throw new Error('Node chain capability rejected')
   }
@@ -65,6 +65,8 @@ export function decodeChainRequest(value: unknown): ChainRequest {
   if (!validDelegation(value)) throw new Error('Node chain delegation rejected')
   const request = value as ChainRequest
   switch (request.method) {
+    case 'seat.definitionRevision':
+      break
     case 'seat.openFrozen': case 'seat.wakeFrozen':
       if (request.payload.request.operationId !== request.operationId) throw new Error('Node chain operation rejected')
       break
@@ -75,7 +77,7 @@ export function decodeChainRequest(value: unknown): ChainRequest {
       if (request.payload.payloadDigest !== request.payloadDigest) throw new Error('Node chain callback digest rejected')
       break
     case 'chain.operation':
-      if (request.payload.key.method === 'chain.operation'
+      if (request.payload.key.method === 'chain.operation' || request.payload.key.method === 'seat.definitionRevision'
         || request.payload.key.principalId !== request.delegation.principalId
         || (request.payload.key.method === 'source.deliverCallback') !== (request.payload.key.callbackId !== undefined)) {
         throw new Error('Node chain query identity rejected')
@@ -89,6 +91,12 @@ export function decodeChainRequest(value: unknown): ChainRequest {
   }
   if (request.method === 'source.prepareOpening') {
     if (request.payload.sourceOwnerNodeId !== request.targetNodeId) throw new Error('Node chain owner rejected')
+  } else if (request.method === 'seat.definitionRevision') {
+    if (![request.sourceNodeId, request.targetNodeId].includes(request.payload.sourceOwnerNodeId)
+      || request.payload.seat !== request.delegation.seat
+      || JSON.stringify(request.payload.taskIds) !== JSON.stringify(request.delegation.taskIds)) {
+      throw new Error('Node chain revision scope rejected')
+    }
   } else if (request.method !== 'chain.operation') {
     const route = request.payload.route
     if (request.method === 'source.deliverCallback' || request.method === 'source.checkAdmission') {
@@ -115,7 +123,13 @@ export function decodeChainResponse(value: unknown, request: ChainRequest): Chai
   if (!object(value) || value.version !== NODE_LINK_VERSION || value.requestId !== request.requestId
     || value.operationId !== request.operationId || value.sourceNodeId !== request.sourceNodeId
     || value.targetNodeId !== request.targetNodeId || value.method !== request.method) throw new Error('Node chain response rejected')
-  if (value.status === 'ok') decodeNodeWorkChainResult(request.method, value.result)
+  if (value.status === 'ok') {
+    decodeNodeWorkChainResult(request.method, value.result)
+    if (request.method === 'seat.definitionRevision' && object(value.result) && value.result.status === 'found'
+      && (value.result.nodeId !== request.targetNodeId || value.result.seat !== request.payload.seat)) {
+      throw new Error('Node chain revision result identity rejected')
+    }
+  }
   else {
     const error = value.error
     if (!['unavailable', 'rejected', 'uncertain'].includes(String(value.status)) || !object(error)

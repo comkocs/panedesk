@@ -17,6 +17,10 @@ export async function dispatchChain(request: ChainRequest, authority: SeatCallCo
   if (request.method === 'chain.operation' || !local.methods.includes(request.method)) return refused()
   let result: unknown
   switch (request.method) {
+    case 'seat.definitionRevision':
+      if (!local.definitionRevisions?.available()) return refused()
+      result = await local.definitionRevisions.read(request.payload, authority)
+      break
     case 'engine.acceptFrozen':
       if (!local.engine?.acceptFrozen) return refused()
       result = await local.engine.acceptFrozen(request.payload, authority)

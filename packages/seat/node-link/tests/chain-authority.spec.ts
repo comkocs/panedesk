@@ -4,6 +4,55 @@ import type * as Seat from '@panedesk/dsh-seat'
 import { chainAuthority } from '../src/chain-authority.ts'
 import { chainDigest, decodeChainRequest } from '../src/chain-codec.ts'
 import type { ChainReceivingPolicy } from '../src/chain-services.ts'
+import { chainFailure } from '../src/chain-identity.ts'
+
+test('requires exact revision read policy ownership and refuses expired revoked or mismatched authority', async () => {
+  const f = fixture(), method = 'seat.definitionRevision' as const
+  const payload = { seat: 'seat-a', sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'owner-a',
+    openingMethod: 'seat.openFrozen', taskIds: ['task-a'] }
+  const make = (body = payload) => decodeChainRequest({ ...f.request, method, payload: body,
+    payloadDigest: chainDigest(method, body), delegation: { ...f.request.delegation,
+      seat: body.seat, requestDigest: chainDigest(method, body) } })
+  const policy: ChainReceivingPolicy = { ...f.policy, authorize: async (request, peer, evidence) => {
+    if (request.method !== method) throw new Error('Expected exact revision read')
+    const reason = request.payload.sourceId !== payload.sourceId
+      || request.payload.sourceOwnerNodeId !== payload.sourceOwnerNodeId ? 'source-mismatch'
+      : request.payload.ownerEpoch !== payload.ownerEpoch ? 'owner-epoch-mismatch'
+        : request.payload.seat !== payload.seat ? 'method-not-allowed' : undefined
+    if (reason) {
+      const response = chainFailure(request, 'node-delegation-rejected', reason)
+      if (response.status === 'ok') throw new Error('Expected refusal')
+      return response.error
+    }
+    const grant = { ...f.grant, fact: { ...evidence.fact, kind: 'node-delegation' as const,
+      nodeId: peer.targetNodeId, sourceNodeId: peer.sourceNodeId, delegatedBy: request.delegation.authorizationRef } }
+    return { check: async () => grant }
+  } }
+  const evidenceFor = (request: ReturnType<typeof make>) => ({ ...f.retained,
+    request: { ...f.retained.request, method, payloadDigest: request.payloadDigest },
+    fact: { ...f.retained.fact, seat: request.delegation.seat!, requestDigest: request.payloadDigest } })
+  const request = make(), retained = evidenceFor(request)
+  expect(await chainAuthority(request, f.peer, policy, async () => retained)).toHaveProperty('authorization')
+  for (const [patch, reasonCode] of [[{ sourceId: 'other' }, 'source-mismatch'], [{ ownerEpoch: 'other' }, 'owner-epoch-mismatch'],
+    [{ seat: 'other' }, 'method-not-allowed'], [{ sourceOwnerNodeId: 'node-b' }, 'source-mismatch']] as const) {
+    const changed = make({ ...payload, ...patch })
+    expect(await chainAuthority(changed, f.peer, policy, async () => evidenceFor(changed))).toMatchObject({ cause: { reasonCode } })
+  }
+  expect(await chainAuthority({ ...request, deadline: '2000-01-01T00:00:00.000Z' }, f.peer, policy, async () => retained))
+    .toMatchObject({ cause: { reasonCode: 'deadline-exceeded' } })
+  const revoked = chainFailure(request, 'node-delegation-rejected', 'evidence-revoked')
+  if (revoked.status === 'ok') throw new Error('Expected refusal')
+  expect(await chainAuthority(request, f.peer, policy, async () => ({ status: 'rejected', cause: revoked.error.cause })))
+    .toMatchObject({ cause: { reasonCode: 'evidence-revoked' } })
+  expect(await chainAuthority(request, { ...f.peer, sourceNodeId: f.peer.targetNodeId }, policy, async () => retained))
+    .toMatchObject({ cause: { reasonCode: 'node-mismatch' } })
+  for (const patch of [{ principalId: 'other' as Seat.SeatPrincipalId }, { nodeId: f.peer.targetNodeId },
+    { seat: 'other' as Seat.SeatName }, { taskIds: [] }, { authorizationId: 'other' as Seat.AuthorizationRef },
+    { operationId: 'other' as Seat.SeatOperationId }, { requestDigest: 'other' as Seat.SeatDigest }]) {
+    expect(await chainAuthority(request, f.peer, policy, async () => ({ ...retained, fact: { ...retained.fact, ...patch } })))
+      .toMatchObject({ cause: { reasonCode: 'evidence-digest-mismatch' } })
+  }
+})
 
 function fixture() {
   const now = Date.now(), expiresAt = new Date(now + 30000).toISOString()

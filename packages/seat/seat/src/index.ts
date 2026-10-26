@@ -40,6 +40,8 @@ export const SEAT_ERROR_CODES = {
 declare module '@panedesk/cordis' {
   interface Context {
     seats: SeatService
+    /** Optional exact local read provider; missing capability never permits remote fallback. */
+    seatDefinitionRevisions: T.SeatDefinitionRevisionProvider
     seatLocalRead: SeatLocalReadAccess
     seatLocalSession: SeatLocalSessionAccess
     seatLocalWindows: SeatLocalWindowsAccess
@@ -644,10 +646,12 @@ declare module '@panedesk/cordis' {
 
 /** Opt-in negotiation marker; importing it does not enable routing. */
 export const NODE_WORK_CHAIN_CAPABILITY = 'node-work-chain/v1'
+/** Independent optional hello capability; never inserted into the legacy chain method advertisement. */
+export const SEAT_DEFINITION_REVISION_CAPABILITY = 'seat-definition-revision/v1'
 /** Closed additional method names, independent of legacy method negotiation. */
 export const NODE_WORK_CHAIN_METHODS = [
   'engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen', 'source.prepareOpening',
-  'source.checkAdmission', 'source.deliverCallback', 'chain.operation',
+  'source.checkAdmission', 'source.deliverCallback', 'chain.operation', 'seat.definitionRevision',
 ] as const satisfies readonly T.NodeWorkChainMethod[]
 /** Authenticated control frame, not a Core operation. */
 export const NODE_WORK_CHAIN_EVIDENCE_FRAME = 'delegation-evidence'

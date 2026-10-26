@@ -2,6 +2,38 @@
 import { expect, test } from 'vitest'
 import { chainDigest, decodeChainCapability, decodeChainRequest, decodeChainResponse, decodeEvidenceFrame, encodeChainFrame } from '../src/chain-codec.ts'
 import { chainFailure } from '../src/chain-identity.ts'
+import { helloAdvertisement, helloCapability } from '../src/chain-hello.ts'
+
+test('negotiates exact revision reads outside the legacy seven-method advertisement', () => {
+  const legacy = { capability: 'node-work-chain/v1' as const, maxFrameBytes: 1048576, methods: ['chain.operation' as const] }
+  const extended = { ...legacy, methods: [...legacy.methods, 'seat.definitionRevision' as const] }
+  expect(helloAdvertisement(legacy)).toEqual({ chain: legacy })
+  const hello = helloAdvertisement(extended)
+  expect(hello).toEqual({ chain: legacy, seatDefinitionRevision: 'seat-definition-revision/v1' })
+  expect(helloCapability(hello)).toEqual(extended)
+  expect(helloCapability({ chain: legacy })).toEqual(legacy)
+  expect(() => decodeChainCapability(extended)).toThrow()
+  expect(() => helloCapability({ chain: legacy, seatDefinitionRevision: 'future' })).toThrow()
+})
+
+test('binds exact revision observations to the paired node seat and tasks', () => {
+  const original = frame(), method = 'seat.definitionRevision' as const
+  const payload = { seat: 'seat-a', sourceId: 'source-a', sourceOwnerNodeId: 'node-a', ownerEpoch: 'owner-a',
+    openingMethod: 'seat.openFrozen', taskIds: ['task-a'] }
+  const make = (body = payload) => ({ ...original, method, payload: body, payloadDigest: chainDigest(method, body),
+    delegation: { ...original.delegation, seat: body.seat, requestDigest: chainDigest(method, body) } })
+  const request = decodeChainRequest(make())
+  const response = { version: request.version, requestId: request.requestId, operationId: request.operationId,
+    sourceNodeId: request.sourceNodeId, targetNodeId: request.targetNodeId, method, status: 'ok',
+    result: { status: 'found', nodeId: 'node-b', seat: 'seat-a', revision: 7 } }
+  expect(decodeChainResponse(response, request)).toEqual(response)
+  for (const patch of [{ nodeId: 'node-a' }, { seat: 'other' }, { revision: 0 }, { path: 'private' }]) {
+    expect(() => decodeChainResponse({ ...response, result: { ...response.result, ...patch } }, request)).toThrow()
+  }
+  expect(() => decodeChainRequest(make({ ...payload, sourceOwnerNodeId: 'third-node' }))).toThrow()
+  expect(() => decodeChainRequest(make({ ...payload, taskIds: [] }))).toThrow()
+  expect(() => decodeChainRequest({ ...make(), delegation: { ...make().delegation, seat: 'other' } })).toThrow()
+})
 
 function frame() {
   const payload = { sourceId: 'source-a', sourceOwnerNodeId: 'node-b', ownerEpoch: 'owner-a',

@@ -472,6 +472,33 @@ replace(request: import('./types.ts').ReplaceSeatRequest, authorization: SeatAut
 
 Source: [`packages/seat/seat/src/authorization.ts`](../../packages/seat/seat/src/authorization.ts)
 
+<a id="ctxseatdefinitionrevisions--seatdefinitionrevisionprovider"></a>
+
+### `ctx.seatDefinitionRevisions` — `SeatDefinitionRevisionProvider`
+
+Immediate observations never create business intents or authorize frozen execution.
+
+```ts cordis-catalog
+/** Await local read and authorization recovery.
+ * @returns Readiness of this registration, never a withdrawn predecessor.
+ */
+ready(): Promise<void>
+
+/** Observe current registration ownership synchronously.
+ * @returns False before readiness or after withdrawal.
+ */
+available(): boolean
+
+/** Read one local definition under an independently issued exact read grant.
+ * @param request - Complete read scope, including the intended frozen opening method.
+ * @param authority - Live receiver-issued authority; historical facts grant nothing.
+ * @returns Only the exact node, seat and revision, or a sanitized refusal.
+ */
+read(request: SeatDefinitionRevisionRequest, authority: SeatCallContext): Promise<SeatDefinitionRevisionResult>
+```
+
+Source: [`packages/seat/seat/src/types.ts`](../../packages/seat/seat/src/types.ts)
+
 <a id="ctxseatdirectories--seatdirectoryservice-abstract-seam"></a>
 
 ### `ctx.seatDirectories` — `SeatDirectoryService` (abstract seam)

@@ -206,6 +206,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['seat-app', 'sdk-jsonrpc-server', 'acp'], note: 'Projects bounded authorization evidence when a trusted provider is available.',
   },
   {
+    key: 'seatDefinitionRevisions', pkg: 'seat', title: 'Authorized exact local definition revisions', mode: 'seam',
+    implementations: ['seat-local'], consumers: ['node-link'],
+    note: 'Reads one local definition revision with independent live authority, without business intent or replay.',
+  },
+  {
     key: 'seatOpeningContexts', pkg: 'seat', title: 'Trusted opening source registration', mode: 'seam',
     implementations: ['seat-local'], consumers: ['seat-local'],
     note: 'Freezes source text and task associations once and drains active resolutions during disposal.',

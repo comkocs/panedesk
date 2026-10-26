@@ -53,7 +53,7 @@ export class ChainBusinessRegistry implements NodeWorkChainBusinessRegistry {
    */
   async query(request: NodeWorkChainOperationRequest, context: SeatCallContext): Promise<NodeWorkChainOperationResult> {
     const unknown: NodeWorkChainOperationResult = { status: 'pending', effectState: 'unknown' }
-    if (request.key.method === 'chain.operation') return unknown
+    if (request.key.method === 'chain.operation' || request.key.method === 'seat.definitionRevision') return unknown
     const entry = this.entries.get(request.key.method)
     if (!entry?.recovered) return unknown
     const result = await entry.provider.query(request, context)

@@ -26,6 +26,8 @@ The output file or image directory must not exist. Successful outputs belong to 
 
 The authoring environment is independently optional through `deepseek_harness_runtime.download_primary_runtime()`. See the [runtime reference](../sdk-runtime/README.md) for cache selection, resource activation, and download behavior. SDK startup and Office operations never acquire missing resources automatically.
 
+The opt-in chain validators project `seat.definitionRevision` without adding a client endpoint. Requests require exactly `seat`, `sourceId`, `sourceOwnerNodeId`, `ownerEpoch`, `openingMethod` and `taskIds`; results are refusals or `found` with only `nodeId`, `seat` and a positive safe integer `revision`. Boolean, fractional, missing and unknown values are rejected. Observations cannot be business query targets or settled methods. Transport negotiation and independent read grants belong to node-link; old SDK payload bytes remain unchanged.
+
 ## Start a runtime
 
 The Python SDK has no separate application entrypoint. It launches the bundled `dsh` CLI with `--profile sdk`; the selected profile owns the JSON-RPC server, agent composition, credentials, persistence, tools, and shutdown behavior.
