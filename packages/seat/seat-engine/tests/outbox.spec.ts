@@ -2,6 +2,11 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { auto, harness, seat, trigger } from './fixtures.ts'
 import { commitsEffect } from '../../seat/tests/completion.ts'
+import { CallbackOutbox } from '../src/outbox.ts'
+import { SourceRegistry } from '../src/sources.ts'
+import { digest } from '../src/journal.ts'
+import { fact } from '../src/triggers.ts'
+import { admittedDefinition, persistCallback } from './routed-callback-fixture.ts'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => {
@@ -18,6 +23,34 @@ async function deliverRetry(h: Awaited<ReturnType<typeof harness>>, callbackId: 
     && effect.data.payload.callbackId === callbackId, () => h.engine.drive())
   expect(h.engine.journal.projection.callbacks.get(callbackId)?.phase).toBe('delivered')
 }
+it('blocks window-ended while opened for the same source session and trigger is unconfirmed', async () => {
+  const h = await harness(); cleanups.push(h.close)
+  h.definitions.set(seat, admittedDefinition())
+  const opened = await persistCallback(h.engine)
+  const payload: T.SeatCallbackPayload = { ...opened.callback, kind: 'window-ended', callbackId: 'ended-a' as T.CallbackId,
+    stateVersion: 2, reason: 'manual', endedAt: '2026-01-01T00:00:00Z', selfReport: null, selfReportStatus: 'not-submitted' }
+  const body = { callback: payload, route: opened.route, modelEvidence: opened.modelEvidence }
+  const ended: T.DeliverSourceCallbackRequest = { ...body, payloadDigest: digest(body) }
+  await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: { payload, payloadDigest: digest(payload),
+    attempt: 0, phase: 'pending', nextDue: null, responseClass: null, nodeWorkChain: ended } })])
+  let committed = false
+  const seen: T.DeliverSourceCallbackRequest[] = []
+  const sources = new SourceRegistry()
+  const outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, async (request) => {
+    seen.push(request)
+    return { result: { status: committed ? 'committed' : 'pending', callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest } }
+  })
+  try {
+    await outbox.deliver(0)
+    expect(seen).toEqual([opened])
+    expect(h.engine.journal.projection.callbacks.get(payload.callbackId)?.attempt).toBe(0)
+    committed = true
+    await outbox.deliver(100)
+    expect(seen).toEqual([opened, opened, ended])
+    expect([...h.engine.journal.projection.callbacks.values()].every(delivery => delivery.phase === 'delivered')).toBe(true)
+  } finally { await outbox.close(); await sources.close() }
+})
+
 it('A10 publishes complete opened payload before first-turn completion and retries the same callback', async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   const h = await harness(); cleanups.push(h.close); await auto(h.engine)

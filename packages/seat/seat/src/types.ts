@@ -703,6 +703,8 @@ export type SeatCallbackPayload = SeatCallbackBase & (
 )
 /** At-least-once outbox keeps the same payload and callback ID across all retries. */
 export interface SeatCallbackDelivery {
+  /** Latest bounded failure observation; absent on old records and after success. */
+  lastDiagnostic?: SeatCallbackDiagnostic
   /** Frozen complete remote callback request; replay retains its original digest. */
   nodeWorkChain?: DeliverSourceCallbackRequest
   payload: SeatCallbackPayload
@@ -1248,6 +1250,49 @@ export type DeliverSourceCallbackResult =
   | { status: 'pending' | 'committed'; callbackId: CallbackId; payloadDigest: SeatDigest }
   | { status: 'paused'; callbackId: CallbackId; payloadDigest: SeatDigest; error: SeatFailure }
   | SeatRejected
+/** Fixed observable callback failure hops; stages never confer execution authority. */
+export type SeatCallbackFailureStage =
+  | 'retained' | 'issuer' | 'local-query' | 'local-dispatch'
+  | 'peer-query' | 'peer-dispatch' | 'owner-inbox' | 'writeback'
+
+/** One safe failure observation, outside the frozen callback payload and digest. */
+export interface SeatCallbackDiagnostic {
+  stage: SeatCallbackFailureStage
+  cause: SeatFailureCause
+}
+
+/** Process-local observation wrapper; wire result unions remain unchanged. */
+export interface SeatCallbackAttemptResult<R> {
+  result: R
+  diagnostic?: SeatCallbackDiagnostic
+}
+
+/** Optional same-node owner; complete keys are correlation, never authorization.
+ * Providers independently recover retained callbacks and validate fresh restricted grants.
+ * Publish only after inbox and business recovery; withdrawal stops admission and drains calls.
+ */
+export interface SeatLocalCallbackOwner {
+  /** Await this provider generation's inbox and business recovery. */
+  ready(): Promise<void>
+  /** Report whether this generation accepts new calls.
+   * @returns False before recovery or after withdrawal.
+   */
+  available(): boolean
+  /** Query only source.deliverCallback with a complete callback key.
+   * @param request - Retained full business key, including callbackId, and original digest.
+   * @returns Exact owner outcome; unready providers must never report missing.
+   */
+  query(request: NodeWorkChainOperationRequest):
+  Promise<SeatCallbackAttemptResult<NodeWorkChainOperationResult>>
+  /** Deliver only the original callback after independently verifying its retained identity.
+   * @param request - Immutable callback, route, evidence and digest.
+   * @param key - Complete source.deliverCallback key with callbackId; grants no authority.
+   * @returns Committed only after every original owner step completes.
+   */
+  deliver(request: DeliverSourceCallbackRequest, key: NodeWorkChainOperationKey):
+  Promise<SeatCallbackAttemptResult<DeliverSourceCallbackResult>>
+}
+
 /** Full business key is independent of transport request identity and authorization lifetime. */
 export interface NodeWorkChainOperationKey {
   sourceNodeId: SeatNodeId

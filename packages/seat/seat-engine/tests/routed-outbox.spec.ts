@@ -47,7 +47,7 @@ test.each(['digest', 'node', 'session'] as const)('rejects inconsistent retained
   }
   const outbox = new CallbackOutbox(h.engine.journal, sources, config, async () => {
     calls++
-    return { status: 'committed', callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest }
+    return { result: { status: 'committed', callbackId: request.callback.callbackId, payloadDigest: request.payloadDigest } }
   })
   try {
     await expect(h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: {
@@ -67,9 +67,9 @@ test.each(['pending', 'committed', 'mismatch', 'paused'] as const)('classifies t
     input.modelEvidence.observedAt = '2026-02-01T00:00:00Z'
     const identity = { callbackId: request.callback.callbackId,
       payloadDigest: status === 'mismatch' ? digest('other') : request.payloadDigest }
-    return status === 'paused' ? { status, ...identity, error: { code: 'unauthorized',
+    return { result: status === 'paused' ? { status, ...identity, error: { code: 'unauthorized',
       message: 'Owner permission rejected', alternative: 'Review owner permission', effectState: 'none', retryable: false } }
-      : { status: status === 'pending' ? 'pending' : 'committed', ...identity }
+      : { status: status === 'pending' ? 'pending' : 'committed', ...identity } }
   })
   try {
     await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: {

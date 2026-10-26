@@ -82,8 +82,10 @@ export function queryTasks(decisions: readonly T.EngineDecision[], request: T.Se
       const pending = 'pending' in data ? data.pending : undefined
       const tasks = 'relatedTaskIds' in data ? data.relatedTaskIds
         : pending && 'relatedTaskIds' in pending ? pending.relatedTaskIds
-          : 'binding' in data && data.binding.kind === 'seat' ? data.binding.relatedTaskIds : []
-      if (effect.taskId === request.taskId || tasks.includes(request.taskId)) effects.push(effect)
+          : 'binding' in data && data.binding.kind === 'seat' ? data.binding.relatedTaskIds
+            : 'payload' in data ? data.payload.relatedTaskIds : []
+      if (effect.taskId === request.taskId || tasks.includes(request.taskId)
+        || 'payload' in data && data.payload.taskId === request.taskId) effects.push(effect)
     }
   }
   return { effects, complete: true, watermark, ...(nextCursor ? { nextCursor } : {}) }

@@ -10,6 +10,49 @@ import { SourceRegistry } from '../src/sources.ts'
 import { config } from './fixtures.ts'
 import { freezeCallbackEvidence } from '../src/callback-evidence.ts'
 import { fact } from '../src/triggers.ts'
+import { readFile, readdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { CallbackOutbox } from '../src/outbox.ts'
+import { admittedDefinition, persistCallback } from './routed-callback-fixture.ts'
+import { seat } from './fixtures.ts'
+
+test('rejects a diagnostic frame above maxDecisionBytes without truncating the original or clearing unknown', async () => {
+  const h = await harness()
+  h.definitions.set(seat, admittedDefinition())
+  const body = await persistCallback(h.engine)
+  const delivery = h.engine.journal.projection.callbacks.get(body.callback.callbackId)!
+  const lastDiagnostic: T.SeatCallbackDiagnostic = { stage: 'writeback', cause: { domain: 'a'.repeat(128), code: 'b'.repeat(128),
+    reason: 'é'.repeat(256), effectState: 'unknown', retryable: false, operationId: body.route.originalOperationId,
+    nodeId, reasonCode: 'outcome-unknown' } }
+  const metadata = { decisionId: 'decision-a' as T.EngineDecisionId, observedAt: '2026-01-01T00:00:00.000Z' }
+  const attempted = fact({ kind: 'callback/attempted', data: { ...delivery, responseClass: 'unknown', lastDiagnostic } })
+  const frame = authorizationFrame({ namespace: 'ledger/engine/v1', schemaVersion: 1, ...metadata,
+    sequence: 2, nodeId, policyRevision: 0, effects: [attempted] })
+  const bound = Buffer.byteLength(canonical(frame)) + 1
+  const exact = new EngineJournal(join(h.home, 'exact'), nodeId, bound)
+  const over = new EngineJournal(join(h.home, 'over'), nodeId, bound - 1)
+  const sources = new SourceRegistry()
+  try {
+    for (const journal of [exact, over]) {
+      await journal.ready()
+      await journal.commit(() => [fact({ kind: 'callback/pending', data: { ...delivery, responseClass: 'unknown' } })], 0, metadata)
+    }
+    await exact.commit(() => [attempted], 0, metadata)
+    const beforeNames = await readdir(join(over.root, 'events'))
+    const before = await readFile(join(over.root, 'events', beforeNames[0]!), 'utf8')
+    await expect(over.commit(() => [attempted], 0, metadata)).rejects.toMatchObject({ code: 'engine-store-corrupt' })
+    expect(await readdir(join(over.root, 'events'))).toEqual(beforeNames)
+    expect(await readFile(join(over.root, 'events', beforeNames[0]!), 'utf8')).toBe(before)
+    expect(over.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ responseClass: 'unknown', nodeWorkChain: body })
+    const outbox = new CallbackOutbox(over, sources, h.engine.options.config, async () => ({ result: { status: 'pending',
+      callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest }, diagnostic: lastDiagnostic }))
+    try {
+      await expect(outbox.deliver(0)).rejects.toMatchObject({ code: 'source-payload-too-large' })
+      expect(over.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
+    } finally { await outbox.close() }
+    expect(exact.projection.callbacks.get(body.callback.callbackId)?.lastDiagnostic).toEqual(lastDiagnostic)
+  } finally { await sources.close(); await exact.close(); await over.close(); await h.close() }
+})
 
 async function fixture() {
   const h = await harness()

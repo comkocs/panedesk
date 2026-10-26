@@ -1,5 +1,5 @@
 /** Every persisted payload is checked before replay can mutate a projection. */
-import { SEAT_ERROR_CODES, type EngineEventKind, type EngineEffect } from '@panedesk/dsh-seat'
+import { SEAT_ERROR_CODES, NODE_WORK_CHAIN_REASON_CODES, type SeatCallbackDiagnostic, type EngineEventKind, type EngineEffect } from '@panedesk/dsh-seat'
 import { validCancellationReason } from './cancellation.ts'
 
 type Check = (value: unknown) => boolean
@@ -135,7 +135,25 @@ const modelEvidence = discriminated('status', {
     sessionId: id, nodeId: id, recordRef: id, observedAt: timestamp }),
   missing: fields({ sessionId: nullable(id), nodeId: id, observedAt: timestamp }),
 })
-const callback = fields({ payload: value => callbackPayload(value) && callbackKind(value), payloadDigest: id,
+const diagnosticIdentifier: Check = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(value)
+const diagnosticCause = fields({ domain: diagnosticIdentifier, code: diagnosticIdentifier,
+  reason: value => typeof value === 'string' && value.length > 0 && Buffer.byteLength(value, 'utf8') <= 512
+    && !/[\u0000-\u001f\u007f-\u009f]/u.test(value),
+  effectState: one('none', 'committed', 'partial', 'unknown'), retryable: boolean, operationId: id, nodeId: id,
+  reasonCode: optional(one(...NODE_WORK_CHAIN_REASON_CODES)) })
+/** Validate the bounded diagnostic before either persistence or replay.
+ * @param value - Candidate diagnostic from a delivery attempt or stored frame.
+ * @returns Whether the complete diagnostic uses only declared fields and safe byte bounds.
+ */
+export function validCallbackDiagnostic(value: unknown): value is SeatCallbackDiagnostic {
+  return object(value) && Object.keys(value).every(key => ['stage', 'cause'].includes(key))
+    && one('retained', 'issuer', 'local-query', 'local-dispatch', 'peer-query', 'peer-dispatch', 'owner-inbox', 'writeback')(value.stage)
+    && object(value.cause) && Object.keys(value.cause).every(key =>
+    ['domain', 'code', 'reason', 'effectState', 'retryable', 'operationId', 'nodeId', 'reasonCode'].includes(key))
+    && diagnosticCause(value.cause)
+}
+const callback = fields({ lastDiagnostic: optional(validCallbackDiagnostic),
+  payload: value => callbackPayload(value) && callbackKind(value), payloadDigest: id,
   attempt: integer, phase: one('pending', 'retry-due', 'paused', 'delivered'), nextDue: nullable(timestamp),
   nodeWorkChain: optional(fields({ callback: value => callbackPayload(value) && callbackKind(value),
     route: object, modelEvidence, payloadDigest: id })),
@@ -261,6 +279,10 @@ function consistent(effect: EngineEffect): boolean {
     case 'callback/pending': case 'callback/attempted': case 'callback/delivered': {
       const data = effect.data, payload = data.payload
       return (effect.kind !== 'callback/delivered' || (data.phase === 'delivered' && data.responseClass === 'success'))
+        && (data.lastDiagnostic === undefined || data.phase !== 'delivered')
+        && (!data.nodeWorkChain || !data.lastDiagnostic
+          || (data.lastDiagnostic.cause.operationId === data.nodeWorkChain.route.originalOperationId
+          && [payload.nodeId, data.nodeWorkChain.route.sourceOwnerNodeId].includes(data.lastDiagnostic.cause.nodeId)))
         && (payload.kind !== 'budget-stopped' || payload.budgetSnapshot.sessionId === payload.sessionId)
         && (payload.kind !== 'window-ended' || payload.selfReport === null || payload.selfReport.sessionId === payload.sessionId)
     }

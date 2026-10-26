@@ -42,6 +42,8 @@ declare module '@panedesk/cordis' {
     seats: SeatService
     /** Optional exact local read provider; missing capability never permits remote fallback. */
     seatDefinitionRevisions: T.SeatDefinitionRevisionProvider
+    /** Optional frozen same-node callback owner; absence never permits a source or peer fallback. */
+    seatLocalCallbackOwner: T.SeatLocalCallbackOwner
     seatLocalRead: SeatLocalReadAccess
     seatLocalSession: SeatLocalSessionAccess
     seatLocalWindows: SeatLocalWindowsAccess

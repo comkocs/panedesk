@@ -36,3 +36,16 @@ export async function freezeCallbackEvidence(view: EngineProjection, deliveries:
     return { ...delivery, nodeWorkChain: structuredClone({ ...body, payloadDigest: digest(body) }) }
   }))
 }
+
+/** Match retained frozen evidence to its execution without changing either value.
+ * @param delivery - Retained delivery, optionally carrying frozen evidence.
+ * @returns Whether all retained digests and execution identities match; true without frozen evidence.
+ */
+export function callbackEvidenceMatches(delivery: T.SeatCallbackDelivery): boolean {
+  if (!delivery.nodeWorkChain) return true
+  const { payloadDigest, ...body } = delivery.nodeWorkChain
+  return digest(body) === payloadDigest && digest(body.callback) === delivery.payloadDigest
+    && digest(delivery.payload) === delivery.payloadDigest && body.route.targetNodeId === delivery.payload.nodeId
+    && body.route.sourceId === delivery.payload.sourceId && body.modelEvidence.nodeId === delivery.payload.nodeId
+    && body.modelEvidence.sessionId === delivery.payload.sessionId
+}

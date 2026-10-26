@@ -40,6 +40,7 @@ flowchart LR
   pkg_seat_app["seat-app"]
   pkg_acp["acp"]
   svc_seatDefinitionRevisions["ctx.seatDefinitionRevisions<br/>Authorized exact local definition revisions"]
+  svc_seatLocalCallbackOwner["ctx.seatLocalCallbackOwner<br/>Optional same-node frozen callback owner"]
   svc_seatOpeningContexts["ctx.seatOpeningContexts<br/>Trusted opening source registration"]
   pkg_instruction_subscriptions["instruction-subscriptions"]
   svc_instructionSubscriptions["ctx.instructionSubscriptions<br/>Persisted instruction subscriptions"]
@@ -491,6 +492,7 @@ flowchart LR
   pkg_seat --> svc_seatEngineQuery
   pkg_seat --> svc_seatGates
   pkg_seat --> svc_seatGatesQuery
+  pkg_seat --> svc_seatLocalCallbackOwner
   pkg_seat --> svc_seatLocalRead
   pkg_seat --> svc_seatLocalSession
   pkg_seat --> svc_seatLocalWindows
@@ -695,6 +697,7 @@ flowchart LR
   svc_seatGates --> pkg_seat_remote
   svc_seatGates --> pkg_tool_seat
   svc_seatGatesQuery --> pkg_ledger_query
+  svc_seatLocalCallbackOwner --> pkg_seat_engine
   svc_seatLocalRead --> pkg_seat_gates
   svc_seatLocalRead --> pkg_tool_seat
   svc_seatLocalSession --> pkg_tool_seat
@@ -825,6 +828,7 @@ flowchart LR
 | `ctx.sdkMethods` | `seam` | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | [`sdk-jsonrpc-server`](../packages/sdk/server) | - | Registers exclusive optional namespaces with contributor-owned decoding, authorization and disposal. |
 | `ctx.seatAuthorizationQueries` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-app`](../packages/seat/seat-app), [`sdk-jsonrpc-server`](../packages/sdk/server), [`acp`](../packages/acp/acp) | - | Projects bounded authorization evidence when a trusted provider is available. |
 | `ctx.seatDefinitionRevisions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`node-link`](../packages/seat/node-link) | - | Reads one local definition revision with independent live authority, without business intent or replay. |
+| `ctx.seatLocalCallbackOwner` | `seam` | [`seat`](../packages/seat/seat) | - | [`seat-engine`](../packages/seat/seat-engine) | - | Deployment providers recover original callbacks and independently authorize exact-key queries and delivery without peer fallback. |
 | `ctx.seatOpeningContexts` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-local`](../packages/seat/seat-local) | - | Freezes source text and task associations once and drains active resolutions during disposal. |
 | `ctx.instructionSubscriptions` | `service` | [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | - | [`seat-local`](../packages/seat/seat-local) | - | Retains selected instruction identities for later prompt assembly without activating a Session. |
 | `ctx.seats` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`seat-app`](../packages/seat/seat-app), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`seat-engine`](../packages/seat/seat-engine) | - | Optional local providers own authorized definitions and window operations without changing upstream behavior when absent. |

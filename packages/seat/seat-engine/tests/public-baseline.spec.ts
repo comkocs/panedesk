@@ -3,10 +3,40 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { readFile, readdir } from 'node:fs/promises'
 import { harness, seat, trigger } from './fixtures.ts'
 import { digest } from '../src/journal.ts'
+import { CallbackOutbox } from '../src/outbox.ts'
+import { SourceRegistry } from '../src/sources.ts'
+import { fact } from '../src/triggers.ts'
+import type * as T from '@panedesk/dsh-seat'
 
 vi.mock('node:crypto', async original => ({ ...await original<typeof import('node:crypto')>(),
   randomUUID: () => '00000000-0000-4000-8000-000000000001' }))
 afterEach(() => vi.useRealTimers())
+
+test('ordinary local callbacks match the baseline without chain or local owner providers', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+  const h = await harness(), sources = new SourceRegistry()
+  const calls: T.SeatCallbackPayload[] = []
+  const payload: T.SeatCallbackPayload = { kind: 'opened', callbackId: 'callback-a' as T.CallbackId,
+    sourceId: 'source-a' as T.SeatSourceId, triggerId: null, stateVersion: 1, seat,
+    sessionId: 'session-a' as NonNullable<T.SeatCallbackPayload['sessionId']>, title: 'Window',
+    nodeId: h.engine.options.nodeId, nodeName: 'node-a', budget: {}, relatedTaskIds: [] }
+  const retained: T.SeatCallbackDelivery = { payload, payloadDigest: digest(payload), attempt: 0,
+    phase: 'pending', responseClass: null, nextDue: null }
+  sources.register({ sourceId: payload.sourceId, kinds: ['manual'], maxRedeliveryMs: null,
+    callback: async (callback) => { calls.push(callback) } })
+  const outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config)
+  try {
+    expect(h.ctx.get('seatLocalCallbackOwner')).toBeUndefined()
+    expect(h.ctx.get('nodeWorkChain')).toBeUndefined()
+    await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: retained })])
+    await outbox.deliver(0)
+    expect(JSON.stringify(calls)).toBe(JSON.stringify([payload]))
+    const expected = { ...retained, attempt: 1, responseClass: 'success', phase: 'delivered', nextDue: null }
+    expect(JSON.stringify(h.engine.journal.projection.callbacks.get(payload.callbackId))).toBe(JSON.stringify(expected))
+    expect(Object.hasOwn(h.engine.journal.projection.callbacks.get(payload.callbackId)!, 'lastDiagnostic')).toBe(false)
+  } finally { await outbox.close(); await sources.close(); await h.close() }
+})
 
 test.each(['registry', 'node-link', 'both'] as const)(
   'keeps local acceptance and remote refusal byte-identical with missing %s', async (missing) => {

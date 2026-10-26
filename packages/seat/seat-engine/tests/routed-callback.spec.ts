@@ -1,11 +1,38 @@
 /** Sender exceptions reconcile immediately and unknown intents never blindly resend. */
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
+import type * as T from '@panedesk/dsh-seat'
+import { rejected } from '../src/triggers.ts'
 import { CallbackOutbox } from '../src/outbox.ts'
 import { SourceRegistry } from '../src/sources.ts'
 import { deliverRoutedCallback } from '../src/routed-callback.ts'
 import type { CallbackChainRequest, CallbackIssuerPort, CallbackRouterPort } from '../src/routed-callback-types.ts'
 import { harness, seat } from './fixtures.ts'
 import { admittedDefinition, persistCallback, principalId } from './routed-callback-fixture.ts'
+
+test('remote callbacks ignore the local owner and retain issuer refusals with their original cause', async () => {
+  const h = await harness(), sources = new SourceRegistry()
+  let outbox: CallbackOutbox | undefined
+  try {
+    h.definitions.set(seat, admittedDefinition())
+    const body = await persistCallback(h.engine)
+    const cause: T.SeatFailureCause = { domain: 'issuer', code: 'unauthorized', reason: 'Callback authority was revoked',
+      effectState: 'none', retryable: false, operationId: body.route.originalOperationId, nodeId: body.callback.nodeId,
+      reasonCode: 'evidence-revoked' }
+    const refuse = { ...rejected('unauthorized', 'Callback authority was revoked'), error: {
+      ...rejected('unauthorized', 'Callback authority was revoked').error, cause } }
+    const local = vi.fn(async () => { throw new Error('Local owner must not be called') })
+    h.ctx.provide('seatLocalCallbackOwner', { ready: async () => {}, available: () => true, query: local, deliver: local })
+    const peer = vi.fn(async () => { throw new Error('Refused issuer must not reach peer') })
+    h.ctx.provide('nodeWorkChainRouter', { route: peer })
+    h.ctx.provide('nodeWorkChain', { outboxIssuer: async () => ({ check: async () => refuse }) })
+    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+    await outbox.deliver(0)
+    expect(local).not.toHaveBeenCalled()
+    expect(peer).not.toHaveBeenCalled()
+    expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ phase: 'paused',
+      responseClass: 'authentication', lastDiagnostic: { stage: 'issuer', cause } })
+  } finally { await outbox?.close(); await sources.close(); await h.close() }
+})
 
 test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when its exact query fails by %s', async (mode) => {
   const h = await harness({ callbackTimeoutMs: 20 })

@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-local-callback-owner",
+      "description": "Consume an optional local frozen callback owner and persist bounded outer delivery diagnostics.",
+      "origin": "Optional seat orchestration and bounded administration reads",
+      "reason": "F02 with adjacent F05 reads: same-node frozen callbacks must not fall back to peers or source callbacks. Ordinary callbacks remain unchanged without a provider. Optional observations do not remove rollback restrictions on retained new-method evidence.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/local-callback-owner.spec.ts"],
+        "test": "calls only the optional owner seam when the frozen callback owner is local"
+      }
+    },
+    {
       "id": "seat-frozen-execution-target-recheck",
       "description": "Recheck current execution-seat revision and remote admission before frozen dispatch and recovery.",
       "origin": "Optional seat orchestration",

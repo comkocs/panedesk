@@ -40,7 +40,7 @@ export interface EngineDependencies {
   seats(): Pick<SeatService, 'resolve' | 'list' | 'close'> | undefined
   ledger(): Pick<SessionLedger, 'snapshot'> | undefined
   /** Deliver a frozen callback to its retained source owner; absence keeps routed work pending. */
-  deliverCallback?: (request: T.DeliverSourceCallbackRequest) => Promise<T.DeliverSourceCallbackResult>
+  deliverCallback?: (request: T.DeliverSourceCallbackRequest) => Promise<T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>>
   /** Omitted runtime reports unavailable cache evidence and never dispatches maintenance. */
   keepalive?: KeepAliveRuntime
 }

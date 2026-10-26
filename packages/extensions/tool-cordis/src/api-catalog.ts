@@ -3051,6 +3051,36 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatLocalCallbackOwner',
+    summary: 'Optional same-node owner; complete keys are correlation, never authorization.',
+    description: 'Optional same-node owner; complete keys are correlation, never authorization. Providers independently recover retained callbacks and validate fresh restricted grants. Publish only after inbox and business recovery; withdrawal stops admission and drains calls.',
+    methods: [
+      {
+        signature: 'ready(): Promise<void>',
+        description: 'Await this provider generation\'s inbox and business recovery.',
+        parameters: [],
+      },
+      {
+        signature: 'available(): boolean',
+        description: 'Report whether this generation accepts new calls.',
+        parameters: [],
+        returns: 'False before recovery or after withdrawal.',
+      },
+      {
+        signature: 'query(request: NodeWorkChainOperationRequest): Promise<SeatCallbackAttemptResult<NodeWorkChainOperationResult>>',
+        description: 'Query only source.deliverCallback with a complete callback key.',
+        parameters: [{ name: 'request', description: 'Retained full business key, including callbackId, and original digest.' }],
+        returns: 'Exact owner outcome; unready providers must never report missing.',
+      },
+      {
+        signature: 'deliver(request: DeliverSourceCallbackRequest, key: NodeWorkChainOperationKey): Promise<SeatCallbackAttemptResult<DeliverSourceCallbackResult>>',
+        description: 'Deliver only the original callback after independently verifying its retained identity.',
+        parameters: [{ name: 'request', description: 'Immutable callback, route, evidence and digest.' }, { name: 'key', description: 'Complete source.deliverCallback key with callbackId; grants no authority.' }],
+        returns: 'Committed only after every original owner step completes.',
+      },
+    ],
+  },
+  {
     key: 'seatLocalCreation',
     summary: 'Trusted adapters scope one confirmed traditional creation, never wire-provided identity.',
     description: 'Trusted adapters scope one confirmed traditional creation, never wire-provided identity.',
@@ -10126,12 +10156,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatCacheEvidence {\n    lastActivityAt: SeatTimestamp | null;\n    cacheTtlMs: number | null;\n    prefixDigest: SeatDigest | null;\n    observedAt: SeatTimestamp;\n    reusableRequest: boolean;\n}',
   },
   {
+    name: 'SeatCallbackAttemptResult',
+    declaration: 'export interface SeatCallbackAttemptResult<R> {\n    result: R;\n    diagnostic?: SeatCallbackDiagnostic;\n}',
+  },
+  {
     name: 'SeatCallbackBase',
     declaration: 'export interface SeatCallbackBase {\n    callbackId: CallbackId;\n    sourceId: SeatSourceId;\n    triggerId: TriggerId | null;\n    stateVersion: number;\n    seat: SeatName;\n    title: string | null;\n    sessionId: SessionId | null;\n    nodeId: SeatNodeId;\n    nodeName: string;\n    budget: SeatBudgetLimits;\n    taskId?: SeatTaskId;\n    relatedTaskIds: readonly SeatTaskId[];\n}',
   },
   {
     name: 'SeatCallbackDelivery',
-    declaration: 'export interface SeatCallbackDelivery {\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+  },
+  {
+    name: 'SeatCallbackDiagnostic',
+    declaration: 'export interface SeatCallbackDiagnostic {\n    stage: SeatCallbackFailureStage;\n    cause: SeatFailureCause;\n}',
+  },
+  {
+    name: 'SeatCallbackFailureStage',
+    declaration: 'export type SeatCallbackFailureStage = \'retained\' | \'issuer\' | \'local-query\' | \'local-dispatch\' | \'peer-query\' | \'peer-dispatch\' | \'owner-inbox\' | \'writeback\';',
   },
   {
     name: 'SeatCallbackPayload',

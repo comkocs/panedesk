@@ -1,5 +1,6 @@
 /** Rebuildable engine views; only synchronized decisions may enter this projection. */
 import { digest, EngineError } from './journal.ts'
+import { callbackEvidenceMatches } from './callback-evidence.ts'
 import { legacyDecision, type AuthorizationDecision } from './authorization-storage.ts'
 import { validateSourceProxyTransition } from './source-proxy-storage.ts'
 import { validateWakeTransition } from './wake-storage.ts'
@@ -102,14 +103,8 @@ export class EngineProjection {
         if (retained?.nodeWorkChain && digest(retained.nodeWorkChain) !== digest(delivery.nodeWorkChain ?? null)) {
           throw new EngineError('state-conflict', 'Frozen callback evidence cannot change')
         }
-        if (delivery.nodeWorkChain) {
-          const { payloadDigest, ...body } = delivery.nodeWorkChain
-          if (digest(body) !== payloadDigest || digest(body.callback) !== delivery.payloadDigest
-            || digest(delivery.payload) !== delivery.payloadDigest || body.route.targetNodeId !== delivery.payload.nodeId
-            || body.route.sourceId !== delivery.payload.sourceId || body.modelEvidence.nodeId !== delivery.payload.nodeId
-            || body.modelEvidence.sessionId !== delivery.payload.sessionId) {
-            throw new EngineError('engine-store-corrupt', 'Frozen callback evidence does not match its execution')
-          }
+        if (!callbackEvidenceMatches(delivery)) {
+          throw new EngineError('engine-store-corrupt', 'Frozen callback evidence does not match its execution')
         }
       }
       if (effect.kind === 'window/replacement') {

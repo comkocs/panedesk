@@ -211,6 +211,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads one local definition revision with independent live authority, without business intent or replay.',
   },
   {
+    key: 'seatLocalCallbackOwner', pkg: 'seat', title: 'Optional same-node frozen callback owner', mode: 'seam',
+    consumers: ['seat-engine'],
+    note: 'Deployment providers recover original callbacks and independently authorize exact-key queries and delivery without peer fallback.',
+  },
+  {
     key: 'seatOpeningContexts', pkg: 'seat', title: 'Trusted opening source registration', mode: 'seam',
     implementations: ['seat-local'], consumers: ['seat-local'],
     note: 'Freezes source text and task associations once and drains active resolutions during disposal.',
