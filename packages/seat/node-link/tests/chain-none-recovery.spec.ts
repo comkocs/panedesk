@@ -47,7 +47,7 @@ async function fixture(code: 'node-deadline-exceeded' | 'node-tunnel-disconnecte
         ? { status: 'settled', method: original.method, result: { status: 'rejected', error: { code: 'unavailable',
           message: 'Owner refused operation', alternative: 'Review owner state', retryable: false, effectState: 'none' } } }
         : state.query === 'committed' ? { status: 'settled', method: original.method, result }
-        : state.query === 'unknown' ? { status: 'pending', effectState: 'unknown' } : { status: 'missing' } }, request)
+          : state.query === 'unknown' ? { status: 'pending', effectState: 'unknown' } : { status: 'missing' } }, request)
       return response
     }
     state.executions++; state.writes++; state.query = 'committed'
