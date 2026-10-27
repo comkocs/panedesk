@@ -2,9 +2,9 @@
   "divergences": [
     {
       "id": "F02-preopen-retention-registration",
-      "description": "Retain queued frozen openings during transient conditions, with terminal outcomes controlled by an instance-registered limit.",
+      "description": "Retain queued frozen openings during transient conditions, with instance-registered route-wide limits and optional exact project overrides.",
       "origin": "Optional seat engine composition",
-      "reason": "registerPreopenRetention exactly binds the project, source and original source owner. Timing starts at the first committed class frame without adding public configuration keys or persistent fields; expiry is still checked without an executor.",
+      "reason": "registerPreopenRetention binds the frozen source and original source owner; optional projectId restricts the match to one project. A unique exact project match precedes a unique route-wide match, while duplicates at either level retain the queue. Composition must register every trusted route before admission. Timing starts at the first committed class frame without new public configuration keys or persistent fields; expiry is checked without an executor.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],

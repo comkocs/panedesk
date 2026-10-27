@@ -83,17 +83,19 @@ export class SeatEngine extends SeatEngineService {
     return this.sourceProxy?.route(method, input, authority) ?? Promise.resolve(undefined)
   }
   private readonly preopenRetentions = new Set<Readonly<{
-    projectId: T.SeatProjectId
+    projectId?: T.SeatProjectId
     sourceId: T.SeatSourceId
     sourceOwnerNodeId: T.SeatNodeId
     limitMs: number
   }>>()
-  /** Register a trusted composition's exact frozen-route retention limit before admitting work.
-   * @param registration - Project, source, original owner and explicit wall-clock limit in milliseconds.
+  /** Register a trusted composition's frozen-route retention limit before admitting work.
+   * Omitting projectId covers all projects on the frozen (sourceId, sourceOwnerNodeId) route.
+   * A unique exact project match takes precedence; duplicates at either level remain ambiguous.
+   * @param registration - Optional project, source, original owner and explicit wall-clock limit in milliseconds.
    * @returns Disposer that withdraws permission immediately and drains the active drive.
    */
   registerPreopenRetention(registration: {
-    projectId: T.SeatProjectId
+    projectId?: T.SeatProjectId
     sourceId: T.SeatSourceId
     sourceOwnerNodeId: T.SeatNodeId
     limitMs: number
@@ -109,9 +111,12 @@ export class SeatEngine extends SeatEngineService {
   private retentionLimit(item: T.PendingSeatItem): number | undefined {
     const route = item.frozenOpen?.nodeWorkChain?.route
     if (!route) return undefined
-    const matches = [...this.preopenRetentions].filter(entry => entry.projectId === item.projectId
-      && entry.sourceId === route.sourceId && entry.sourceOwnerNodeId === route.sourceOwnerNodeId)
-    return matches.length === 1 ? matches[0]?.limitMs : undefined
+    const matches = [...this.preopenRetentions].filter(entry => entry.sourceId === route.sourceId
+      && entry.sourceOwnerNodeId === route.sourceOwnerNodeId)
+    const exact = matches.filter(entry => entry.projectId !== undefined && entry.projectId === item.projectId)
+    const routeWide = matches.filter(entry => entry.projectId === undefined)
+    if (exact.length > 1 || routeWide.length > 1) return undefined
+    return exact[0]?.limitMs ?? routeWide[0]?.limitMs
   }
   private readonly triggers: TriggerRegistry
   private readonly outbox: CallbackOutbox
