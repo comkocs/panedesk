@@ -39,6 +39,15 @@ export function decodeRequest(value: unknown): HostAdminRequest {
     case 'engine.pending': decodeSeatRequest('seats/pending', value.params); break
     case 'engine.approve': decodeSeatRequest('seats/approve', value.params); break
     case 'engine.cancel': decodeSeatRequest('seats/cancel', value.params); break
+    case 'engine.callbackResolve': {
+      const params = value.params
+      if (!object(params) || Object.keys(params).some(key => !['callbackId', 'action', 'expectedAttempt'].includes(key))
+        || !identifier(params.callbackId) || params.action !== 'resume' && params.action !== 'abandon'
+        || !Number.isSafeInteger(params.expectedAttempt) || Number(params.expectedAttempt) < 0) {
+        throw new Error('Callback resolution request rejected')
+      }
+      break
+    }
     case 'engine.operation': decodeSeatRequest('seats/operation', value.params); break
     case 'engine.query': {
       const params = value.params
@@ -106,6 +115,21 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
       break
     case 'engine.approve': decodeSeatResult('seats/approve', value.result); break
     case 'engine.cancel': decodeSeatResult('seats/cancel', value.result); break
+    case 'engine.callbackResolve': {
+      const result = value.result
+      if (!object(result)) throw new Error('Callback resolution result rejected')
+      if (result.status === 'ok') {
+        if (Object.keys(result).some(key => !['status', 'callbackId', 'phase', 'attempt'].includes(key))
+          || result.callbackId !== request.params.callbackId || !Number.isSafeInteger(result.attempt) || Number(result.attempt) < 0
+          || !['pending', 'retry-due', 'paused', 'delivered', 'abandoned'].includes(String(result.phase))) {
+          throw new Error('Callback resolution state rejected')
+        }
+      } else if (result.status !== 'rejected' || Object.keys(result).some(key => !['status', 'code'].includes(key))
+        || !['callback-unknown', 'callback-not-paused', 'callback-attempt-conflict', 'callback-resolution-unauthorized'].includes(String(result.code))) {
+        throw new Error('Callback resolution refusal rejected')
+      }
+      break
+    }
     case 'engine.operation':
       decodeSeatResult('seats/operation', value.result)
       if (object(value.result)) validateProgress(value.result)

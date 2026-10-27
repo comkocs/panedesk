@@ -53,7 +53,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 节点批量保留相互独立的成员决策。每个 `node-batch/accepted` 事实要求 `node-work-chain/v1`，在同帧将原批载荷及签发授权绑定到唯一确定性成员动作。恢复拒绝不匹配的绑定并返回首次排队回执；后续成员中断不回滚已提交的前序成员。不签发新的本地凭证。
 
-路由尝试失败时，可选外层 `lastDiagnostic` 与 attempted 交付在同次日志提交中持久保存，不改变回调正文或业务摘要。八个阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`。原因标识匹配 `[A-Za-z0-9][A-Za-z0-9._/-]{0,127}`；说明非空、最多 512 个 UTF-8 字节且不含控制字符。不复制异常文本。完整决策帧仍受 `maxDecisionBytes` 约束，不截断；未知态写入失败禁止派发，诊断写入失败不能清除已保留的 unknown。成功只移除最新诊断，历史尝试不变；旧记录不补默认字段。既有 `engine.query` 按嵌套席位、关联任务和主任务过滤回调效果，保留有界分页和授权。操作身份冲突暂停而非重试。不存在回调暂停恢复写端点。可选观察本身不能作为部署降级依据：已保留的新方法证据仍要求兼容读取器。
+路由尝试失败时，可选外层 `lastDiagnostic` 与 attempted 交付在同次日志提交中持久保存，不改变回调正文或业务摘要。八个阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`。原因标识匹配 `[A-Za-z0-9][A-Za-z0-9._/-]{0,127}`；说明非空、最多 512 个 UTF-8 字节且不含控制字符。不复制异常文本。完整决策帧仍受 `maxDecisionBytes` 约束，不截断；未知态写入失败禁止派发，诊断写入失败不能清除已保留的 unknown。成功只移除最新诊断，历史尝试不变；旧记录不补默认字段。既有 `engine.query` 按嵌套席位、关联任务和主任务过滤回调效果，保留有界分页和授权。操作身份冲突暂停而非重试。本地操作员通过 `engine.callbackResolve` 处置暂停的回调。可选观察本身不能作为部署降级依据：已保留的新方法证据仍要求兼容读取器。
 
 路由回调在首次持久发布前冻结执行节点模型证据。已注册本地执行器提供记录中的模型或明确缺失证据；缺失时绝不退回档案配置。重放保留原证据与摘要，包括缺失观察。日志准入拒绝不一致的回调摘要、执行身份及替换已冻结证据的尝试。
 
@@ -64,6 +64,17 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 目录同步仅在 Windows 打开或刷新目录句柄时容忍 `EPERM`、`EISDIR` 和 `EINVAL`。文件写入、文件同步、目录关闭失败及全部非 Windows 失败仍向上抛出；这不保证 Windows 上不受支持的目录元数据同步已经完成。
 
 已提交决策更新投影与发件箱交付。来源回调以稳定标识提供至少一次交付；凭据由来源注册提供，不存入引擎记录。dispose（资源释放）停止入口、排空自有工作、刷新日志并释放写入所有权。
+
+<a id="callback-parking-and-operator-resolution"></a>
+### 回调停车与操作员处置
+
+本机来源异常使用 `lastDiagnostic.stage=local-dispatch`，固定 `cause.code` 为 `callback-unclassified-error`、`callback-timeout`、`callback-authentication-failed` 或 `callback-protocol-error`。不保存异常消息、堆栈或嵌套原因；未分类异常与超时保守报告副作用未知。关联标识先取持久路由操作号，再取开窗操作号，否则以 `callback/` 拼接规范化回调标识的 SHA-256 摘要；无会话回调也使用此规则。
+
+每段连续 transient 的内建墙钟上限为 900000 ms，起点是首个已提交 `callback/attempted` 帧的 `observedAt`。重启、离线及暂态细码变化不重置；成功、认证、协议及最终 unknown 中断，attempt 未递增的发前 unknown 屏障既不起段也不断段。在 `nextDue` 与外部 I/O 前检查，调用完成后再核；成功优先于到限。I/O 前停车只追加一帧 attempted 转换，attempt 不变；实际调用后则在该次唯一 attempted 帧递增 attempt 并直接记录停车，不另写转换帧。两者均为 `phase=paused`、`nextDue=null`；保持停车期间，后续 drive 和重启对该回调零新帧。此规则独立于重试退避配置及开窗前保留注册。
+
+远端传输 none、链路不可用及 hello 能力缺失以 `callback-link-unreachable-limit` 停车，其它失败用 `callback-transient-limit-reached`。既有路由缓存状态中的认证 hello 就绪观察，其 `observedAt` 必须严格晚于最近停车帧，才会令链路类自动恢复一次，码为 `callback-auto-resumed-on-link-ready`。再次停车须等待更新的观察，旧缓存 hello 不得再次恢复。目标 owner 须 connected、reachable 且声明 `node-work-chain/v1`；失败或重复 hello 不增加恢复帧。恢复帧起算新段，实际投递仍复核当前路由授权。其它类停车必须由操作员处置。
+
+`engine.callbackResolve({ callbackId, action: 'resume' | 'abandon', expectedAttempt })` 要求当前本地操作员授权。resume 保留全部身份和正文，写 `callback-manually-resumed` 并开始新段；abandon 写 `callback-manually-abandoned` 和终态 `abandoned`，不声称 owner 已产生业务效果。只有同回调标识、同动作、同预期 attempt 的已执行处置帧之后没有新停车帧时，才读回现状、零帧重放；否则先拒非 paused，再比较 attempt。相同 attempt 上的新停车可以再次处置；未知回调、非 paused 和 attempt 冲突零帧拒绝。同组键为 `(sourceId, sessionId, triggerId)`：paused opened 挡住 ended；resume 后须等 opened delivered，abandon 后下一轮 drive 即可投 ended。见[受信命令行示例](../../host/host-admin/README.zh.md#callback-resolution)。
 
 <a id="pre-open-terminal-outcomes-and-transient-retention-limit"></a>
 ### 开窗前终局与暂态上限
@@ -104,6 +115,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 - 开窗和恢复需要注册本地执行器；证据缺失时工作保持待处理，不能虚构窗口。
 - 活跃提供方拥有写入器和协调计时器；它不是离线只读查询提供方。
 - 账户并发统计用于诊断，不是强制执行的账户限流器。
+- M8b：有链回调 abandon 不修改 `chain-sent`，链层仍可对账原 owner 键。晚到的 owner `committed` 回执本身不解除 seat 预算停车：其它类仍需操作员处置，链路类仍需更新的 hello 就绪观察。这两个独立状态不意味着 owner `paused`；abandon 不代表 owner 终态回执。unknown 回调及永不返回的适配器不在暂态限时内。早于 `abandoned` 的读取器不能重放此状态；须保留完整账本并前滚，不删除转换帧。
 
 <a id="dev-note"></a>
 ### 开发备注

@@ -2752,6 +2752,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'durable opening outcome; absence means this provider cannot admit local openings.',
       },
       {
+        signature: 'callbackResolve?: (request: T.CallbackResolveRequest, grant: import(\'./authorization.ts\').SeatAuthorizationGrant) => Promise<T.CallbackResolveResult>',
+        description: 'Resolve a parked callback under current local-operator authority; absence refuses resolution.',
+        parameters: [{ name: 'request', description: 'Callback identity, expected attempt and operator action.' }, { name: 'grant', description: 'Live authority bound to this exact request.' }],
+        returns: 'Current delivery state or a fixed zero-frame refusal.',
+      },
+      {
         signature: 'registerLocalAccess?: (access: T.SeatEngineLocalAccess) => () => Promise<void>',
         description: 'Register trusted local capabilities for engine-only calls; external seats still require authority.',
         parameters: [{ name: 'access', description: 'provider-owned closures, captured under internal authority.' }],
@@ -6920,6 +6926,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CallbackId = Branded<\'SeatCallbackId\'>;',
   },
   {
+    name: 'CallbackResolveRequest',
+    declaration: 'export interface CallbackResolveRequest {\n    callbackId: CallbackId;\n    action: \'resume\' | \'abandon\';\n    expectedAttempt: number;\n}',
+  },
+  {
+    name: 'CallbackResolveResult',
+    declaration: 'export type CallbackResolveResult = {\n    status: \'ok\';\n    callbackId: CallbackId;\n    phase: SeatCallbackDelivery[\'phase\'];\n    attempt: number;\n} | {\n    status: \'rejected\';\n    code: \'callback-unknown\' | \'callback-not-paused\' | \'callback-attempt-conflict\' | \'callback-resolution-unauthorized\';\n};',
+  },
+  {
     name: 'CancelChildTicketRequest',
     declaration: 'export interface CancelChildTicketRequest {\n    ticketId: ChildTicketId;\n    parentSessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
   },
@@ -7876,6 +7890,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface HostAdminAuthority {\n    principalId: Seat.SeatPrincipalId;\n    authorizationRef: Seat.AuthorizationRef;\n    kind: \'local-operator\' | \'node-delegation\';\n    methods: readonly (keyof HostAdminMethods)[];\n}',
   },
   {
+    name: 'HostAdminCallbackResolveRequest',
+    declaration: 'export type HostAdminCallbackResolveRequest = Seat.CallbackResolveRequest;',
+  },
+  {
+    name: 'HostAdminCallbackResolveResult',
+    declaration: 'export type HostAdminCallbackResolveResult = Seat.CallbackResolveResult;',
+  },
+  {
     name: 'HostAdminEndpoint',
     declaration: 'export interface HostAdminEndpoint {\n    nodeId: Seat.SeatNodeId;\n    pid: number;\n    processEpoch: Branded<\'HostProcessEpoch\'>;\n    version: typeof HOST_ADMIN_VERSION;\n    credentialRef: Branded<\'HostAdminCredentialRef\'>;\n}',
   },
@@ -7885,7 +7907,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostAdminMethods',
-    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
+    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.callbackResolve\': {\n        request: HostAdminCallbackResolveRequest;\n        result: HostAdminCallbackResolveResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
   },
   {
     name: 'HostAdminQueryRequest',
@@ -10165,7 +10187,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCallbackDelivery',
-    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\' | \'abandoned\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
   },
   {
     name: 'SeatCallbackDiagnostic',

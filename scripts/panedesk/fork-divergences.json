@@ -1294,6 +1294,17 @@
         "paths": ["packages/seat/node-link/tests/tunnel.spec.ts"],
         "test": "logs retry number and delay, then exhausts once without further spawns"
       }
+    },
+    {
+      "id": "callback-bounded-parking-resolution",
+      "description": "Persist fixed callback diagnostics, park continuous transient delivery after 900000 ms, resume link-class parking on ready hello, and expose authenticated operator resume or abandon without changing callback identities.",
+      "origin": "Opt-in paired-node seat orchestration",
+      "reason": "Permanent transient failures must not grow the callback journal indefinitely or leave ordered callbacks without an operator exit; transport recovery remains independent of abandonment.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/callback-retention.spec.ts"],
+        "test": "C11-b parks at 900000 but not 899999 and appends nothing after restart"
+      }
     }
   ]
 }

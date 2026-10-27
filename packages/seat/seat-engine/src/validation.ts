@@ -154,7 +154,7 @@ export function validCallbackDiagnostic(value: unknown): value is SeatCallbackDi
 }
 const callback = fields({ lastDiagnostic: optional(validCallbackDiagnostic),
   payload: value => callbackPayload(value) && callbackKind(value), payloadDigest: id,
-  attempt: integer, phase: one('pending', 'retry-due', 'paused', 'delivered'), nextDue: nullable(timestamp),
+  attempt: integer, phase: one('pending', 'retry-due', 'paused', 'delivered', 'abandoned'), nextDue: nullable(timestamp),
   nodeWorkChain: optional(fields({ callback: value => callbackPayload(value) && callbackKind(value),
     route: object, modelEvidence, payloadDigest: id })),
   responseClass: nullable(one('success', 'transient', 'authentication', 'protocol', 'unknown')) })

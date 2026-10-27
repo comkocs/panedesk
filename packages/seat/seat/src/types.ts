@@ -710,10 +710,19 @@ export interface SeatCallbackDelivery {
   payload: SeatCallbackPayload
   payloadDigest: SeatDigest
   attempt: number
-  phase: 'pending' | 'retry-due' | 'paused' | 'delivered'
+  phase: 'pending' | 'retry-due' | 'paused' | 'delivered' | 'abandoned'
   nextDue: SeatTimestamp | null
   responseClass: 'success' | 'transient' | 'authentication' | 'protocol' | 'unknown' | null
 }
+/** Operators resolve an existing parked callback without replacing its identity. */
+export interface CallbackResolveRequest {
+  callbackId: CallbackId
+  action: 'resume' | 'abandon'
+  expectedAttempt: number
+}
+/** Fixed resolution refusals leave the engine journal unchanged. */
+export type CallbackResolveResult = { status: 'ok'; callbackId: CallbackId; phase: SeatCallbackDelivery['phase']; attempt: number }
+  | { status: 'rejected'; code: 'callback-unknown' | 'callback-not-paused' | 'callback-attempt-conflict' | 'callback-resolution-unauthorized' }
 /** Source registration owns credentials outside the ledger and returns an awaited disposer. */
 export interface SeatTriggerSource { sourceId: SeatSourceId; kinds: readonly SeatTrigger['kind'][]; maxRedeliveryMs: number | null; callback: (payload: SeatCallbackPayload) => Promise<void> }
 /** Effect cursor is exclusive and filters do not prevent its advancement. */

@@ -36,6 +36,9 @@ import { classifyRecheck, retentionSince, transientCategory } from './execution-
 import { withPreopenCallbacks } from './preopen-callback.ts'
 import { preopenCancelledReason } from './frozen-terminal.ts'
 import { recoverPreopenCallbacks } from './preopen-recovery.ts'
+import { resolveCallback } from './callback-resolution.ts'
+
+export type { CallbackResolveRequest, CallbackResolveResult } from '@panedesk/dsh-seat'
 
 /** Bound unregistered or ambiguous frozen routes at the composition default; register another limit when needed. */
 const PREOPEN_RETENTION_FALLBACK_MS = 900000
@@ -163,7 +166,23 @@ export class SeatEngine extends SeatEngineService {
       tasks: async (request) => { await this.ready(); return queryTasks(this.journal.projection.decisions, request) },
     })
     this.triggers = new TriggerRegistry(this.journal, this.sources, options.config)
-    this.outbox = new CallbackOutbox(this.journal, this.sources, options.config, dependencies.deliverCallback)
+    this.outbox = new CallbackOutbox(this.journal, this.sources, options.config, dependencies.deliverCallback,
+      async (delivery, parkedAt) => {
+        const store: { get(name: 'nodeRouter'): { status(): Promise<readonly {
+          nodeId: T.SeatNodeId
+          reachable: boolean
+          linkState: string
+          capabilities: readonly string[]
+          observedAt: string
+        }[]> } | undefined } = ctx
+        const router = store.get('nodeRouter')
+        if (!router) return false
+        const statuses = await router.status()
+        return store.get('nodeRouter') === router && statuses.some(status =>
+          status.nodeId === delivery.nodeWorkChain?.route.sourceOwnerNodeId && status.reachable
+          && status.linkState === 'connected' && status.capabilities.includes('node-work-chain/v1')
+          && Date.parse(status.observedAt) > parkedAt)
+      })
     this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName,
       deliveries => freezeCallbackEvidence(this.journal.projection, deliveries, this.executor?.executionModel))
     this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {
@@ -171,6 +190,18 @@ export class SeatEngine extends SeatEngineService {
       renew: () => Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' }),
     }, async sessionId => (await this.admitTurn(sessionId)).status !== 'allow')
     installFrozenBusiness(ctx, this)
+  }
+  /** Resolve a parked callback without replacing its payload or chain operation.
+   * @param request - Callback identity, expected attempt and operator action.
+   * @param grant - Current local operator authority for this exact request.
+   * @returns Retained state or a fixed refusal with no mutation.
+   */
+  override callbackResolve = async (request: T.CallbackResolveRequest,
+    grant: T.SeatAuthorizationGrant): Promise<T.CallbackResolveResult> => {
+    await this.ready()
+    const result = await resolveCallback(this.journal, this.authorizationIssuers, request, grant)
+    await this.publish()
+    return result
   }
   async ready(): Promise<void> {
     this.started ??= this.start()

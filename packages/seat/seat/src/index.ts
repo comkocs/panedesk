@@ -246,6 +246,12 @@ export abstract class SeatEngineService extends Service {
    * @returns durable opening outcome; absence means this provider cannot admit local openings.
    */
   openWindow?: (request: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>
+  /** Resolve a parked callback under current local-operator authority; absence refuses resolution.
+   * @param request - Callback identity, expected attempt and operator action.
+   * @param grant - Live authority bound to this exact request.
+   * @returns Current delivery state or a fixed zero-frame refusal.
+   */
+  callbackResolve?: (request: T.CallbackResolveRequest, grant: import('./authorization.ts').SeatAuthorizationGrant) => Promise<T.CallbackResolveResult>
   /** Register trusted local capabilities for engine-only calls; external seats still require authority.
    * @param access - provider-owned closures, captured under internal authority.
    * @returns disposer draining the current engine drive before detaching.

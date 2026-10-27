@@ -23,7 +23,7 @@ Optional administration channel for a running host. Importing the package or omi
 <a id="purpose"></a>
 ## Purpose
 
-The administrative methods are `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, `engine.query`, `engine.cancel`, `source.operations`, `source.abandon`, and `source.resend`. The additive `sdk.invoke` method dispatches only registered SDK namespaces through their decode, authorize, invoke, and encode functions; absent or unloaded namespaces return `method-unavailable`. The transport uses local loopback only and rejects browser origins, request cookies, unexpected paths or Host headers, old process epochs, and invalid authentication headers. Complete request and response frames obey the byte limit.
+The administrative methods are `node.status`, `engine.pending`, `engine.approve`, `engine.operation`, `engine.query`, `engine.cancel`, `engine.callbackResolve`, `source.operations`, `source.abandon`, and `source.resend`. The additive `sdk.invoke` method dispatches only registered SDK namespaces through their decode, authorize, invoke, and encode functions; absent or unloaded namespaces return `method-unavailable`. The transport uses local loopback only and rejects browser origins, request cookies, unexpected paths or Host headers, old process epochs, and invalid authentication headers. Complete request and response frames obey the byte limit.
 
 <a id="configuration-and-identity"></a>
 ## Configuration and Identity
@@ -55,6 +55,25 @@ The host creates `credential` and `endpoint.json` and deletes both on exit; each
 
 `owner.lock` permits only one running instance per directory. A lock left after abnormal exit requires explicit recovery after operators confirm the old instance has exited; the plugin never guesses ownership from a PID.
 
+<a id="callback-resolution"></a>
+### Callback resolution
+
+`engine.callbackResolve({ callbackId, action: 'resume' | 'abandon', expectedAttempt })` uses only authenticated `local-operator` authority, with the same node, principal and exact-request grant checks as cancellation. The running engine commits one `callback/attempted` transition and operator authorization together. Resume keeps the attempt and original payload, enters `retry-due`, and starts a new retention segment; abandon enters terminal `abandoned`. The same callback ID, action and expected attempt replay current state without a frame, including after restart, only if no newer parking frame follows that action. Otherwise non-paused state refuses before attempt comparison; new parking at the same attempt permits a new resolution. Unknown callbacks, non-paused state and attempt mismatch return `callback-unknown`, `callback-not-paused` and `callback-attempt-conflict`; invalid authority returns `admin-unauthorized` or `callback-resolution-unauthorized`. Transport uncertainty returns `uncertain / admin-outcome-unknown`, never automatic retry.
+
+Read `engine.query` for fixed local diagnostic codes `callback-unclassified-error`, `callback-timeout`, `callback-authentication-failed` and `callback-protocol-error`, without raw exception text. The engine's built-in 900000 ms window starts at the first committed attempted frame of the current transient segment; restarts and changed transient detail codes do not reset it. Parking produces no further callback frames until resolution. `callback-link-unreachable-limit` resumes once per parking on a newer ready hello with `callback-auto-resumed-on-link-ready`; `callback-transient-limit-reached` requires an operator. Ordered `(sourceId, sessionId, triggerId)` groups keep ended behind paused opened; resume waits for delivered, while abandon releases the next drive. Full timing and unknown-barrier rules belong to the [engine](../../seat/seat-engine/README.md#callback-parking-and-operator-resolution).
+
+In an operator command-line session, use the already configured checked `files` provider and `limits`; this call neither starts another host nor accepts a credential in its arguments:
+
+```js
+const { callHostAdmin } = await import('@panedesk/dsh-host-admin');
+const result = await callHostAdmin(files, 'engine.callbackResolve', {
+  callbackId, action: 'abandon', expectedAttempt,
+}, limits);
+console.log(result);
+```
+
+Use `action: 'resume'` to retry the same callback after correcting its prerequisites. Obtain `callbackId` and the current `attempt` from the complete query result before choosing the action.
+
 <a id="model-experience"></a>
 ## Model Experience
 
@@ -76,6 +95,7 @@ Existing session history and cache prefixes remain unchanged.
 
 <a id="known-limitations-and-deferred-work"></a>
 
+- M8b: callback abandon does not alter `chain-sent` or create an owner terminal receipt; retained transport recovery remains independent.
 - Cancellation requires the engine's optional authorized cancellation capability; missing capability refuses rather than invoking the unaudited path. External scope-reservation release remains owned by its provider and is not implemented by the administration transport.
 - `engine.operation` requires the engine's optional operation projection; older providers without it remain unavailable. An admitted intent with no committed creation or failure remains pending, not successful. Legacy custom executors may omit the authorization page; callers must not interpret an absent page as empty authorization history.
 - Linux tests with doubles do not cover Windows ACL execution, real SSH, or multi-process crash injection. Executors must ensure their own calls terminate; unloading waits for accepted calls and cannot forcibly cancel arbitrary provider side effects. Nonce sets and operation records have explicit capacity limits; exhaustion requires controlled restart or operational recovery.
