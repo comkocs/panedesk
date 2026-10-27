@@ -143,7 +143,8 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
     if (options.ssh !== undefined) {
       const subprocess = ctx.get('subprocess')
       if (subprocess === undefined) throw new Error('Node link requires a local subprocess provider')
-      tunnel = new SshTunnel(subprocess, options, listener.port, () => router?.disconnect())
+      tunnel = new SshTunnel(subprocess, options, listener.port, () => router?.disconnect(),
+        (level, message) => { ctx.logger[level](message) })
       await tunnel.start()
     }
     if (inactive()) return
