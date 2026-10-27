@@ -89,6 +89,28 @@
       }
     },
     {
+      "id": "seat-local-restart-close-agent-resolution",
+      "description": "Resolve the released agent when closing a dead window after restart without reviving a fenced turn.",
+      "origin": "Optional seat-local dead-window close recovery",
+      "reason": "Commit 9a65506c adds automatic resolveAgent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67. A host-restart-recovery release permits guarded owner resolution so close can archive the Session while turn admission remains fenced.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/restart-close-composition.spec.ts"],
+        "test": "opens, restarts and closes the same window without reviving a fenced turn"
+      }
+    },
+    {
+      "id": "seat-local-opening-failure-agent-resolution",
+      "description": "Resolve the released agent when closing a dead window after a failed opening while preserving its failure callback.",
+      "origin": "Optional seat-local dead-window close recovery",
+      "reason": "Commit 9a65506c adds automatic resolveAgent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67, including open/opening-failed effects after holder-death or host-restart-recovery. The composition records the provider error and one opening-failed callback without replaying the turn.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/opening-failure-composition.spec.ts"],
+        "test": "records a failed opening and callback after an actual provider error turn"
+      }
+    },
+    {
       "id": "seat-frozen-execution-target-recheck",
       "description": "Recheck current execution-seat revision and remote admission before frozen dispatch and recovery.",
       "origin": "Optional seat orchestration",
