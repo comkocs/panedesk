@@ -3,6 +3,17 @@ import type { EngineOpenData, SeatOpenExecutor, EngineEffect, SeatCallbackDelive
 import { EngineJournal, EngineError } from './journal.ts'
 import { fact } from './triggers.ts'
 
+const configurationStages = ['workspace', 'model', 'permission', 'subscriptions', 'title', 'binding'] as const
+
+/** Identify durable recovery that can only query an already sent opening message.
+ * @param open - Persisted opening checkpoint, including completed configuration stages.
+ * @returns Whether recovery needs neither creation, configuration nor a first send.
+ */
+export function isOpeningObservation(open: EngineOpenData): boolean {
+  return open.phase === 'opening-pending' && open.openingMessageId !== null && open.openingMode !== 'prefill'
+    && configurationStages.every(stage => open.completedStages.includes(stage))
+}
+
 /** Resume one original intent through idempotent executor stages.
  * @param journal - exclusive node writer.
  * @param initial - fixed durable intent.
@@ -38,7 +49,7 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     await publish('open/created', created, (await createdCallbacks(created))
       .map(data => fact({ kind: 'callback/pending', sessionId: created.sessionId, data })))
   }
-  for (const stage of ['workspace', 'model', 'permission', 'subscriptions', 'title', 'binding'] as const) {
+  for (const stage of configurationStages) {
     if (current.completedStages.includes(stage)) continue
     await executor.configure(current, stage)
     await publish('open/configured', { ...current, phase: 'configuring', completedStages: [...current.completedStages, stage] })

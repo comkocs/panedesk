@@ -122,6 +122,17 @@
       }
     },
     {
+      "id": "seat-sent-opening-observation",
+      "description": "Observe an already sent opening result despite later admission refusal, including after restart.",
+      "origin": "Optional seat orchestration recovery",
+      "reason": "A durable opening message with completed configuration needs only result observation. Later scope changes must not hide its failure fact or ordered callback; creation, configuration and first sends still require admission rechecks.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/sent-opening-observation.spec.ts"],
+        "test": "observes a sent %s opening after scope-stale (restart: %s)"
+      }
+    },
+    {
       "id": "seat-frozen-execution-target-recheck",
       "description": "Recheck current execution-seat revision and remote admission before frozen dispatch and recovery.",
       "origin": "Optional seat orchestration",
