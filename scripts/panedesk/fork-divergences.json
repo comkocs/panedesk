@@ -92,7 +92,7 @@
       "id": "seat-local-restart-close-agent-resolution",
       "description": "Resolve the released agent when closing a dead window after restart without reviving a fenced turn.",
       "origin": "Optional seat-local dead-window close recovery",
-      "reason": "Commit 9a65506c adds automatic resolveAgent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67. A host-restart-recovery release permits guarded owner resolution so close can archive the Session while turn admission remains fenced.",
+      "reason": "The seat-local close service automatically resolves the agent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67. A host-restart-recovery release permits guarded owner resolution so close can archive the Session while turn admission remains fenced.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/seat/seat-local/tests/restart-close-composition.spec.ts"],
@@ -103,7 +103,7 @@
       "id": "seat-local-opening-failure-agent-resolution",
       "description": "Resolve the released agent when closing a dead window after a failed opening while preserving its failure callback.",
       "origin": "Optional seat-local dead-window close recovery",
-      "reason": "Commit 9a65506c adds automatic resolveAgent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67, including open/opening-failed effects after holder-death or host-restart-recovery. The composition records the provider error and one opening-failed callback without replaying the turn.",
+      "reason": "The seat-local close service automatically resolves the agent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67, including open/opening-failed effects after holder-death or host-restart-recovery. The composition records the provider error and one opening-failed callback without replaying the turn.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/seat/seat-local/tests/opening-failure-composition.spec.ts"],
@@ -1156,7 +1156,7 @@
       "id": "F05-routed-delivery-identity",
       "description": "Preserve sender-frozen message, delivery and causal identity through durable routed admission.",
       "origin": "Optional host integration",
-      "reason": "Same identity and digest returns the original durable acknowledgement after restart; changed content cannot reuse retained identity.",
+      "reason": "Same identity and digest returns the original durable acknowledgement after restart; changed content cannot reuse retained identity. Cross-node transport dependencies are optional and loaded only for routed sends or receives, keeping the default worker bundle independent of node-link and host-admin.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/session/message-delivery-local/tests/routed.spec.ts"],
