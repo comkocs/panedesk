@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import type * as Seat from '@panedesk/dsh-seat'
 import { harness, seat, trigger } from '../../../seat/seat-engine/tests/fixtures.ts'
 import { mountAdmin } from '../src/runtime.ts'
+import { acceptAutomatic, operationHistory, sourceOperation, openingOperation, closingOperation } from '../../../seat/seat-engine/tests/operation-fixture.ts'
 import { PosixPrivateFiles } from '../src/private-files.ts'
 import { callAdmin } from '../src/client.ts'
 import { callLoopback } from '../src/loopback.ts'
@@ -102,6 +103,72 @@ test('reports capacity blocking and a durable first-turn failure instead of trea
     expect(await callAdmin(files, 'engine.operation', { operationId: params.operationId }, limits))
       .toMatchObject({ result: { status: 'settled', result: { status: 'rejected' }, progress: { kind: 'open', phase: 'opening-failed' } } })
   } finally { await stop?.(); await h.close() }
+})
+
+async function restartOperationEngine(h: Awaited<ReturnType<typeof harness>>, ctx: Context) {
+  const engine = new SeatEngine(ctx, h.engine.options, { seats: () => h.seatProvider,
+    ledger: () => ({ snapshot: async () => h.state.snapshot }) })
+  engine.registerExecutor(h.executor)
+  await engine.ready()
+  return engine
+}
+
+test('queries an automatic frozen source through administration after real execution and restart', async () => {
+  const h = await harness({ ownerObserveIntervalMs: 60000 }), restartedContext = new Context()
+  let restartedEngine: SeatEngine | undefined
+  let stop: (() => Promise<void>) | undefined
+  const directory = join(h.home, 'admin'), runtime = { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
+    port: 0, maxStoreBytes: 1048576, maxOperations: 100 }
+  const files = new PosixPrivateFiles(directory, process.getuid!())
+  try {
+    await acceptAutomatic(h)
+    stop = await mountAdmin(h.ctx, { runtime })
+    expect(await callAdmin(files, 'engine.operation', { operationId: sourceOperation }, limits))
+      .toMatchObject({ result: { status: 'pending', progress: { kind: 'pending' } } })
+    await h.engine.drive()
+    expect(h.creates).toHaveLength(1)
+    const params = { operationId: sourceOperation }
+    expect(await callAdmin(files, 'engine.operation', params, limits)).toMatchObject({ status: 'ok',
+      result: { status: 'settled', result: { status: 'opened', phase: 'active' } } })
+    await stop(); stop = undefined
+    await h.engine.shutdown()
+    const restarted = restartedEngine = await restartOperationEngine(h, restartedContext)
+    stop = await mountAdmin(restartedContext, { runtime })
+    const after = await callAdmin(files, 'engine.operation', params, limits)
+    expect(after).toMatchObject({ status: 'ok', result: { status: 'settled', result: { status: 'opened',
+      stateVersion: restarted.journal.projection.sequence, sessionId: h.creates[0], phase: 'active' } } })
+    expect(h.creates).toHaveLength(1)
+  } finally { await stop?.(); await restartedEngine?.shutdown(); await restartedContext.fiber.dispose(); await h.close() }
+})
+
+test('keeps delivered automatic source and independent opening and closing queries settled after journal replay', async () => {
+  const h = await harness({ ownerObserveIntervalMs: 60000 }), { frames } = await operationHistory()
+  const restartedContext = new Context()
+  let restartedEngine: SeatEngine | undefined
+  let stop: (() => Promise<void>) | undefined
+  const directory = join(h.home, 'admin'), runtime = { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
+    port: 0, maxStoreBytes: 1048576, maxOperations: 100 }
+  const files = new PosixPrivateFiles(directory, process.getuid!())
+  try {
+    for (const frame of frames) await h.engine.journal.commitAuthorization(() => frame.effects, frame.policyRevision,
+      { observedAt: frame.observedAt })
+    stop = await mountAdmin(h.ctx, { runtime })
+    const before = []
+    for (const operationId of [sourceOperation, openingOperation, closingOperation]) {
+      const result = await callAdmin(files, 'engine.operation', { operationId }, limits)
+      expect(result).toMatchObject({ status: 'ok', result: { status: 'settled', result: {
+        status: operationId === closingOperation ? 'closed' : 'opened',
+        stateVersion: operationId === closingOperation ? 27 : 20 } } })
+      before.push(result.status === 'ok' ? result.result : undefined)
+    }
+    await stop(); stop = undefined
+    await h.engine.shutdown()
+    restartedEngine = await restartOperationEngine(h, restartedContext)
+    stop = await mountAdmin(restartedContext, { runtime })
+    for (const [index, operationId] of [sourceOperation, openingOperation, closingOperation].entries()) {
+      expect(await callAdmin(files, 'engine.operation', { operationId }, limits)).toMatchObject({ result: before[index] })
+    }
+  } finally { await stop?.(); await restartedEngine?.shutdown(); await restartedContext.fiber.dispose(); await h.close() }
 })
 
 test('rejects malformed authorization pages, kinds and progress received over the wire', () => {

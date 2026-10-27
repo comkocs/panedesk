@@ -38,11 +38,18 @@ export function queryOperation(view: EngineProjection, request: T.SeatOperationQ
   const approval = approved?.kind === 'queue/approved' ? {
     queueItemId: approved.data.pending.queueItemId, stateVersion: approved.data.pending.stateVersion,
   } : undefined
-  const sources = approved?.kind === 'queue/approved' ? approved.data.pending.sources : []
-  const open = [...view.opens.values()].find(item => item.openingOperationId === request.operationId
-    || item.binding.kind === 'seat' && item.binding.openOperationId === request.operationId
-    || sources.some(source => item.sources?.some(candidate => candidate.triggerId === source.triggerId
-      && candidate.sourceId === source.sourceId)))
+  const sources = original ? [original.source] : approved?.kind === 'queue/approved' ? approved.data.pending.sources : []
+  const opens = [...view.opens.values()].filter((item) => {
+    const binding = item.binding
+    if (!original && (item.openingOperationId === request.operationId
+      || binding.kind === 'seat' && binding.openOperationId === request.operationId)) return true
+    if (original && (binding.kind !== 'seat' || binding.nodeId !== original.chain.route.targetNodeId
+      || binding.seat !== original.pending.seat || binding.projectId !== original.pending.projectId
+      || !original.pending.relatedTaskIds.every(task => binding.relatedTaskIds.includes(task)))) return false
+    return sources.some(source => item.sources?.some(candidate => candidate.triggerId === source.triggerId
+      && candidate.sourceId === source.sourceId))
+  })
+  const open = !original || opens.length === 1 ? opens[0] : undefined
   const metadata = approval ? { approval } : {}
   if (open) {
     const progress = { kind: 'open' as const, phase: open.phase, sessionId: open.sessionId }
@@ -72,5 +79,5 @@ export function queryOperation(view: EngineProjection, request: T.SeatOperationQ
     status: 'closed', sessionId: last.data.sessionId, phase: 'closed', endedAt: last.data.endedAt, stateVersion: last.data.stateVersion,
   } }
   if (last.kind === 'open/rejected') return { status: 'settled', result: { status: 'rejected', error: last.data.error } }
-  return { status: 'pending', phase: last.kind === 'window/replacement' ? last.data.phase : 'configuring', stateVersion: owned.length }
+  return { status: 'pending', phase: last.kind === 'window/replacement' ? last.data.phase : 'configuring', stateVersion: view.sequence }
 }

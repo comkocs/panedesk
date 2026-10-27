@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-automatic-source-operation",
+      "description": "Link automatic source operations to their local opening by the exact original source and trigger identities.",
+      "origin": "Optional seat operation queries",
+      "reason": "Frozen automatic admissions have no approval transition. Original source queries use the retained target and source-trigger pair, preserve callback uncertainty, and return committed opening progress and the journal version instead of an effect count. Independent close operations retain their own identity and result.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/tests/operation.spec.ts"],
+        "test": "settles a delivered automatic source instead of returning pending configuring with an effect count"
+      }
+    },
+    {
       "id": "F02-preopen-retention-registration",
       "description": "Bound transient frozen openings with registered route-wide limits, optional exact project overrides, and a 900000 ms fallback for unregistered or ambiguous routes.",
       "origin": "Optional seat engine composition",
