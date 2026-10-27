@@ -362,6 +362,134 @@ test('expires retained frozen work at its original committed time even without p
   } finally { clock.mockRestore(); await restarted?.shutdown(); await ctx.fiber.dispose(); await h.close() }
 })
 
+test.each(['unregistered', 'ambiguous'] as const)('bounds %s frozen retention with one stable rejected callback at 900000 ms', async (kind) => {
+  const { h, input, authorize } = await setup(), clock = vi.spyOn(Date, 'now')
+  try {
+    h.engine.registerLocalAccess(executionAccess(h))
+    if (kind === 'ambiguous') {
+      for (const limitMs of [60000, 1800000]) h.engine.registerPreopenRetention({
+        sourceId: input.route.sourceId, sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs })
+    }
+    const receipt = await h.engine.acceptFrozen(input, await authorize())
+    const pending = [...h.engine.journal.projection.pending.values()][0]!
+    const chain = pending.frozenOpen!.nodeWorkChain!
+    const query = { key: chain.operationKey, payloadDigest: chain.payloadDigest }
+    const originalFrames = h.engine.journal.projection.authorizationDecisions.map(frame => frame.digest)
+    await h.engine.drive()
+    const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
+    const first = h.engine.journal.projection.decisions.find(frame => frame.effects.some(effect => effect.kind === 'queue/pending'))!
+    expect(since).toBe(Date.parse(first.observedAt))
+    const blocked = structuredClone(h.engine.journal.projection.pending.get(pending.queueItemId)!)
+    expect(blocked).toMatchObject({ reason: 'provider-unavailable', blockedBy: ['provider-unavailable'],
+      sources: pending.sources, frozenOpen: pending.frozenOpen, queuedAt: pending.queuedAt })
+    expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'unavailable' })
+    for (const elapsed of [60000, 899999]) {
+      clock.mockReturnValue(since + elapsed)
+      await h.engine.drive()
+      expect(h.engine.journal.projection.pending.get(pending.queueItemId)).toEqual(blocked)
+      expect(h.engine.journal.projection.callbacks.size).toBe(0)
+      expect(h.engine.journal.projection.opens.size).toBe(0)
+      expect(h.creates).toHaveLength(0)
+    }
+    clock.mockReturnValue(since + 900000)
+    await h.engine.drive()
+    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(false)
+    const terminal = h.engine.journal.projection.decisions.findLast(frame => frame.effects.some(effect => effect.kind === 'queue/cancelled'))!
+    expect(terminal.effects.map(effect => effect.kind)).toEqual(['open/rejected', 'queue/cancelled', 'callback/pending'])
+    const callbackId = digest(['seat-preopen-rejected/v1', nodeId, chain.operationKey,
+      pending.queueItemId, sourceId, input.envelope.triggerId])
+    expect(terminal.effects[2]).toMatchObject({ causedBy: terminal.effects[1]!.eventId, data: { payload: {
+      callbackId, kind: 'rejected', sessionId: null, reason: { code: 'gate-denied',
+        message: 'Pre-open retention limit reached', retryable: false, effectState: 'none' } }, nodeWorkChain: { route: input.route } } })
+    expect(queryFrozenExecution(h.engine.journal.projection, query)).toMatchObject({ status: 'settled',
+      result: { status: 'rejected', error: { code: 'gate-denied' } } })
+    expect(await h.engine.acceptFrozen(input, await authorize())).toEqual(receipt)
+    await h.engine.drive()
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    await restarted.drive()
+    expect(restarted.journal.projection.decisions.flatMap(frame => frame.effects)
+      .filter(effect => effect.kind === 'callback/pending')).toHaveLength(1)
+    expect([...restarted.journal.projection.callbacks.keys()]).toEqual([callbackId])
+    expect(restarted.journal.projection.authorizationDecisions.slice(0, originalFrames.length).map(frame => frame.digest))
+      .toEqual(originalFrames)
+    expect(h.creates).toHaveLength(0)
+  } finally { clock.mockRestore(); await h.close() }
+})
+
+test('keeps the first fallback retention frame across approval and an engine restart without providers', async () => {
+  const { h, pending, removeRetention } = await admitForExecution('remote-source')
+  const clock = vi.spyOn(Date, 'now'), ctx = new Context()
+  let restarted: SeatEngine | undefined
+  try {
+    await removeRetention()
+    await h.engine.drive()
+    const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
+    await approveForExecution(h, h.engine.journal.projection.pending.get(pending.queueItemId)!)
+    clock.mockReturnValue(since + 899999)
+    await h.engine.drive()
+    const history = h.engine.journal.projection.authorizationDecisions.map(frame => frame.digest)
+    await h.engine.shutdown()
+    restarted = new SeatEngine(ctx, h.engine.options, { seats: () => undefined, ledger: () => undefined })
+    await restarted.ready()
+    expect(retentionSince(restarted.journal.projection, pending.queueItemId)).toBe(since)
+    await restarted.drive()
+    expect(restarted.journal.projection.pending.has(pending.queueItemId)).toBe(true)
+    expect(restarted.journal.projection.approved.has(pending.queueItemId)).toBe(true)
+    clock.mockReturnValue(since + 900000)
+    await restarted.drive()
+    expect(restarted.journal.projection.pending.has(pending.queueItemId)).toBe(false)
+    expect(restarted.journal.projection.callbacks.size).toBe(1)
+    expect(restarted.journal.projection.authorizationDecisions.slice(0, history.length).map(frame => frame.digest)).toEqual(history)
+    expect(h.creates).toHaveLength(0)
+  } finally { clock.mockRestore(); await restarted?.shutdown(); await ctx.fiber.dispose(); await h.close() }
+})
+
+test.each([60000, 1800000])('keeps the registered %s ms limit independent of the fallback', async (limitMs) => {
+  const { h, pending, input, recheck, removeRetention } = await admitForExecution('remote-source')
+  const clock = vi.spyOn(Date, 'now')
+  try {
+    await removeRetention()
+    h.engine.registerPreopenRetention({ sourceId: input.route.sourceId, sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs })
+    recheck.mockResolvedValue({ status: 'rejected', error: { ...preopenCancelledReason(), retryable: true } })
+    await h.engine.drive()
+    const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
+    clock.mockReturnValue(since + limitMs - 1)
+    await h.engine.drive()
+    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(true)
+    clock.mockReturnValue(since + limitMs)
+    await h.engine.drive()
+    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(false)
+    expect([...h.engine.journal.projection.callbacks.values()]).toMatchObject([
+      { payload: { kind: 'rejected', reason: { code: 'gate-denied', retryable: false, effectState: 'none' } } } ])
+    expect(h.creates).toHaveLength(0)
+  } finally { clock.mockRestore(); await h.close() }
+})
+
+test.each(['before-dispatch', 'during-recheck'] as const)('never opens an approved unregistered route after withdrawal %s', async (stage) => {
+  const { h, pending, recheck, removeRetention } = await admitForExecution('remote-source')
+  const clock = vi.spyOn(Date, 'now')
+  try {
+    await approveForExecution(h, pending)
+    if (stage === 'before-dispatch') await removeRetention()
+    else recheck.mockImplementation(async () => { void removeRetention(); return null })
+    await h.engine.drive()
+    expect(recheck).toHaveBeenCalledTimes(stage === 'before-dispatch' ? 0 : 1)
+    const since = retentionSince(h.engine.journal.projection, pending.queueItemId)!
+    for (const elapsed of [0, 1, 60000, 899999]) {
+      clock.mockReturnValue(since + elapsed)
+      await h.engine.drive()
+      expect(h.engine.journal.projection.pending.get(pending.queueItemId)?.blockedBy).toEqual(['provider-unavailable'])
+      expect(h.engine.journal.projection.opens.size).toBe(0)
+      expect(h.engine.journal.projection.resources.size).toBe(0)
+      expect(h.creates).toHaveLength(0)
+    }
+    clock.mockReturnValue(since + 900000)
+    await h.engine.drive()
+    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(false)
+  } finally { clock.mockRestore(); await h.close() }
+})
+
 test.each([false, true])('expires route-wide retention without a matching project registration (other project: %s)', async (otherProject) => {
   const { h, pending, input, recheck, query, removeRetention } = await admitForExecution('remote-source')
   const clock = vi.spyOn(Date, 'now')
@@ -414,7 +542,7 @@ test.each([1000, 3000])('uses the exact project limit %s before route-wide reten
   } finally { clock.mockRestore(); await h.close() }
 })
 
-test.each(['route', 'route-with-exact', 'project'] as const)('keeps ambiguous %s retention queued until a duplicate is withdrawn', async (kind) => {
+test.each(['route', 'route-with-exact', 'project'] as const)('keeps ambiguous %s retention queued until the fallback limit', async (kind) => {
   const { h, pending, input, recheck, removeRetention } = await admitForExecution('remote-source')
   const clock = vi.spyOn(Date, 'now')
   try {
@@ -422,7 +550,7 @@ test.each(['route', 'route-with-exact', 'project'] as const)('keeps ambiguous %s
     const registration = { sourceId: input.route.sourceId, sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs: 1000 }
     h.engine.registerPreopenRetention(registration)
     if (kind !== 'route') h.engine.registerPreopenRetention({ ...registration, projectId: pending.projectId })
-    const removeDuplicate = h.engine.registerPreopenRetention({ ...registration,
+    h.engine.registerPreopenRetention({ ...registration,
       ...(kind === 'project' ? { projectId: pending.projectId } : {}) })
     recheck.mockResolvedValue({ status: 'rejected', error: { ...preopenCancelledReason(), retryable: true } })
     await h.engine.drive()
@@ -432,9 +560,16 @@ test.each(['route', 'route-with-exact', 'project'] as const)('keeps ambiguous %s
     expect(h.engine.journal.projection.pending.get(pending.queueItemId)?.blockedBy).toEqual(['provider-unavailable'])
     expect(h.engine.journal.projection.callbacks.size).toBe(0)
     expect(h.creates).toHaveLength(0)
-    await removeDuplicate()
+    clock.mockReturnValue(since + 899999)
+    await h.engine.drive()
+    expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(true)
+    clock.mockReturnValue(since + 900000)
     await h.engine.drive()
     expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(false)
+    const terminal = h.engine.journal.projection.decisions.findLast(frame => frame.effects.some(effect => effect.kind === 'queue/cancelled'))!
+    expect(terminal.effects.map(effect => effect.kind)).toEqual(['open/rejected', 'queue/cancelled', 'callback/pending'])
+    expect(terminal.effects[2]).toMatchObject({ data: { payload: { kind: 'rejected',
+      reason: { code: 'gate-denied', retryable: false, effectState: 'none' } } } })
   } finally { clock.mockRestore(); await h.close() }
 })
 

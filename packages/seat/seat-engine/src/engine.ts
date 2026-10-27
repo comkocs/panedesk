@@ -37,6 +37,9 @@ import { withPreopenCallbacks } from './preopen-callback.ts'
 import { preopenCancelledReason } from './frozen-terminal.ts'
 import { recoverPreopenCallbacks } from './preopen-recovery.ts'
 
+/** Bound unregistered or ambiguous frozen routes at the composition default; register another limit when needed. */
+const PREOPEN_RETENTION_FALLBACK_MS = 900000
+
 /** Provider options add an explicit isolated storage home to validated deployment policy. */
 export interface EngineOptions { home: string; nodeId: T.SeatNodeId; config: T.SeatEngineConfig }
 /** Runtime providers are resolved on use, permitting optional composition and HMR. */
@@ -108,7 +111,10 @@ export class SeatEngine extends SeatEngineService {
     this.preopenRetentions.add(retained)
     return async () => { this.preopenRetentions.delete(retained); await this.activeDrive }
   }
-  private retentionLimit(item: T.PendingSeatItem): number | undefined {
+  private retentionLimit(item: T.PendingSeatItem): number {
+    return this.registeredRetentionLimit(item) ?? PREOPEN_RETENTION_FALLBACK_MS
+  }
+  private registeredRetentionLimit(item: T.PendingSeatItem): number | undefined {
     const route = item.frozenOpen?.nodeWorkChain?.route
     if (!route) return undefined
     const matches = [...this.preopenRetentions].filter(entry => entry.sourceId === route.sourceId
@@ -915,12 +921,12 @@ export class SeatEngine extends SeatEngineService {
           : source ? triggerRule(definition, source)?.mode : undefined
         const mode = effectiveMode(effectiveMode(view.policies.get(current.projectId)?.mode ?? 'remind', ruleMode), route.modeCeiling.mode)
         if (mode === 'off') return []
+        const registered = this.registeredRetentionLimit(current) !== undefined
         const limit = this.retentionLimit(current)
-        if (limit !== undefined && !transientCategory(current) && current.reason !== 'provider-unavailable') return []
-        if (limit === undefined || !this.executor || !this.localAccess?.recheck) {
-          if (limit === undefined) this.failure = new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous')
-          if (limit === undefined || !transientCategory(current)) {
-            if (transientCategory(current) === 'provider-unavailable') return []
+        if (registered && !transientCategory(current) && current.reason !== 'provider-unavailable') return []
+        if (!registered || !this.executor || !this.localAccess?.recheck) {
+          if (!registered) this.failure = new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous')
+          if ((!registered || !transientCategory(current)) && transientCategory(current) !== 'provider-unavailable') {
             return [fact({ kind: 'queue/pending', seat: current.seat, data: { ...current,
               reason: 'provider-unavailable', blockedBy: ['provider-unavailable'], stateVersion: current.stateVersion + 1 } })]
           }
@@ -982,7 +988,7 @@ export class SeatEngine extends SeatEngineService {
       alternative: 'Restore the execution policy and recheck.', retryable: true, effectState: 'unknown' } }
   }
   private async dispatch(item: T.PendingSeatItem, executor: T.SeatOpenExecutor): Promise<void> {
-    if (item.frozenOpen?.nodeWorkChain && this.retentionLimit(item) === undefined) return
+    if (item.frozenOpen?.nodeWorkChain && this.registeredRetentionLimit(item) === undefined) return
     const definition = item.frozenOpen?.definition ?? await this.dependencies.seats()?.resolve(item.seat)
     if (!definition || 'status' in definition) return
     const source = item.sources[0]
@@ -1011,7 +1017,7 @@ export class SeatEngine extends SeatEngineService {
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }
         return [fact({ kind: 'queue/pending', seat: item.seat, data: next }), ...reminderEffects(next, current)]
       }
-      if (item.frozenOpen?.nodeWorkChain && this.retentionLimit(current) === undefined) {
+      if (item.frozenOpen?.nodeWorkChain && this.registeredRetentionLimit(current) === undefined) {
         return pending('provider-unavailable', ['provider-unavailable'])
       }
       if (item.frozenOpen?.nodeWorkChain && mode === 'off') return pending('project-off')
