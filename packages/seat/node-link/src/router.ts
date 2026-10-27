@@ -16,7 +16,7 @@ export class NodeRouter implements NodeRouterService {
   private statusValue: NodeLinkStatus
   constructor(private readonly options: NodeLinkRuntimeConfig, private credential: ChannelCredential,
     private readonly outgoing: OperationStore, private readonly available: () => boolean,
-    private readonly chain?: ChainHelloHooks) {
+    private readonly chain?: ChainHelloHooks, private readonly transportReason?: () => string | undefined) {
     this.statusValue = { nodeId: options.peerNodeId as NodeLinkStatus['nodeId'], nodeName: options.peerName,
       reachable: false, linkState: 'disconnected', observedAt: new Date().toISOString(),
       status: null, capabilities: [], safeReason: 'node-tunnel-disconnected' }
@@ -129,6 +129,8 @@ export class NodeRouter implements NodeRouterService {
   }
   status(): Promise<readonly NodeLinkStatus[]> {
     const stale = Date.now() - Date.parse(this.statusValue.observedAt) >= this.options.staleMs
-    return Promise.resolve([{ ...this.statusValue, ...(stale ? { linkState: 'stale' as const, reachable: false } : {}) }])
+    const exhausted = this.transportReason?.()
+    return Promise.resolve([{ ...this.statusValue, ...(stale ? { linkState: 'stale' as const, reachable: false } : {}),
+      ...(exhausted === undefined ? {} : { reachable: false, safeReason: exhausted }) }])
   }
 }
