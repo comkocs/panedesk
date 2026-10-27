@@ -23,7 +23,7 @@ export type { RunningHostOptions } from './sdk-client.ts'
 /** Administration framing never reuses browser launch credentials or Core operation numbers. */
 export const HOST_ADMIN_VERSION = 'host-admin/v1' as const
 /** Fixed administrative methods cannot become a shell or arbitrary file API. */
-export const HOST_ADMIN_METHODS = ['node.status', 'engine.pending', 'engine.approve', 'engine.operation', 'engine.query', 'engine.cancel', 'source.operations', 'source.abandon', 'source.resend'] as const
+export const HOST_ADMIN_METHODS = ['node.status', 'engine.pending', 'engine.approve', 'engine.operation', 'engine.query', 'engine.cancel', 'engine.callbackResolve', 'source.operations', 'source.abandon', 'source.resend'] as const
 /** Request/result pairs reuse provider definitions rather than forking their semantics. */
 export interface HostAdminMethods {
   'source.operations': { request: { limit?: number }; result: { items: SourceOperatorItem[] } }
@@ -33,8 +33,22 @@ export interface HostAdminMethods {
   'engine.pending': { request: Seat.ListPendingSeatsRequest; result: Seat.ListPendingSeatsResult | Seat.SeatRejected }
   'engine.approve': { request: Seat.ApprovePendingSeatRequest; result: Seat.PendingSeatMutationResult }
   'engine.cancel': { request: Seat.CancelPendingSeatRequest; result: Seat.PendingSeatMutationResult }
+  'engine.callbackResolve': { request: HostAdminCallbackResolveRequest; result: HostAdminCallbackResolveResult }
   'engine.operation': { request: Seat.SeatOperationQuery; result: Seat.SeatEngineOperationResult }
   'engine.query': { request: HostAdminQueryRequest; result: HostAdminQueryResult | Seat.SeatRejected }
+}
+/** Operators resolve only an existing paused callback without replacing its identity. */
+export type HostAdminCallbackResolveRequest = Seat.CallbackResolveRequest
+/** Fixed resolution refusals leave the engine journal unchanged. */
+export type HostAdminCallbackResolveResult = Seat.CallbackResolveResult
+/** Optional running-engine capability; absence refuses the administrative write. */
+export interface HostAdminCallbackResolver {
+  /** Resolve using the engine's current local-operator grant.
+   * @param request - Frozen callback action and expected attempt.
+   * @param grant - Exact request authority issued by this engine.
+   * @returns Current delivery state or a fixed refusal.
+   */
+  callbackResolve(request: HostAdminCallbackResolveRequest, grant: Seat.SeatAuthorizationGrant): Promise<HostAdminCallbackResolveResult>
 }
 /** Effect and authorization scans have independent exclusive cursors. */
 export interface HostAdminQueryRequest extends Seat.SeatTaskQueryRequest {

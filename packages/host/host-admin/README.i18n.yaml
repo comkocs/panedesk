@@ -15,14 +15,17 @@
   en: f5cd15e4b28b8249
   zh: 1cf77c414f6d552f
 /panedesk-dsh-host-admin/purpose:
-  en: 14d3e7d6025db130
-  zh: 3ef9d3f8e1f6770e
+  en: c5ed596d1d3b11a7
+  zh: bfdd30716044909f
 /panedesk-dsh-host-admin/configuration-and-identity:
   en: 4baac82f8f5afdd0
   zh: 0817d9cda844d6b4
 /panedesk-dsh-host-admin/persistence-and-recovery:
-  en: e738373903df898f
-  zh: a63c521bf074802c
+  en: 5f51288238491ce4
+  zh: f8b81a5859647993
+/panedesk-dsh-host-admin/persistence-and-recovery/callback-resolution:
+  en: 3e18386a6e2cf0f3
+  zh: e109c582a0ee5053
 /panedesk-dsh-host-admin/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -39,8 +42,8 @@
   en: eca03e5816500f14
   zh: 4c008a5821a1de94
 /panedesk-dsh-host-admin/known-limitations-and-deferred-work:
-  en: 30712b1cbe23a73c
-  zh: d69c53dcc31e3d53
+  en: 368913b3aaf474e6
+  zh: dae4504d677ca49c
 /panedesk-dsh-host-admin/known-limitations-and-deferred-work/dev-note:
   en: 6144f5ca4c99be8e
   zh: ae82984551c9c001

@@ -1582,7 +1582,7 @@ export interface Config {
 
 ## `@panedesk/dsh-host-admin`
 
-- `source`: [`packages/host/host-admin/src/index.ts:127`](../packages/host/host-admin/src/index.ts)
+- `source`: [`packages/host/host-admin/src/index.ts:141`](../packages/host/host-admin/src/index.ts)
 
 ```ts config-catalog
 /** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */

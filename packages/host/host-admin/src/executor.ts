@@ -8,7 +8,9 @@ import { queryAdmin } from './query.ts'
  * @param dependencies - Running engine and trusted local authorization capabilities.
  * @returns Fixed-method executor; approval never calls the legacy engine entry.
  */
-export function createHostAdminExecutor(dependencies: HostAdminExecutionDependencies): HostAdminExecutor {
+export function createHostAdminExecutor(dependencies: HostAdminExecutionDependencies & {
+  callbackResolver?: import('./index.ts').HostAdminCallbackResolver
+}): HostAdminExecutor {
   const refuse = (request: HostAdminRequest): HostAdminResponse => ({ version: HOST_ADMIN_VERSION,
     requestId: request.requestId, method: request.method, status: 'rejected',
     code: 'admin-unauthorized', reason: 'Administration authority rejected' })
@@ -18,7 +20,7 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
   return { execute: async (request, authority) => {
     const provider = dependencies.sourceOperator
     if (!authority.methods.includes(request.method)
-      || ((request.method === 'engine.approve' || request.method === 'engine.cancel'
+      || ((request.method === 'engine.approve' || request.method === 'engine.cancel' || request.method === 'engine.callbackResolve'
         || request.method === 'source.abandon' || request.method === 'source.resend') && authority.kind !== 'local-operator')) return refuse(request)
     if ((request.method === 'source.operations' || request.method === 'source.abandon' || request.method === 'source.resend')
       && (!provider || request.method === 'source.resend' && !provider.resend)) return unavailable(request)
@@ -56,6 +58,18 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
           result: await dependencies.authorization.operation(request.params) }
         return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
           status: 'unavailable', code: 'admin-method-unavailable', reason: 'Local operation projection is unavailable' }
+      case 'engine.callbackResolve': {
+        if (!dependencies.callbackResolver) return unavailable(request)
+        const requestDigest = digest(request.params) as import('@panedesk/dsh-seat').SeatDigest
+        const operationId = `callback-resolve/${requestDigest}` as import('@panedesk/dsh-seat').SeatOperationId
+        const grant = await issuer.check({ operationId, requestDigest })
+        if ('status' in grant) return refuse(request)
+        const fact = grant.fact
+        if (fact.kind !== 'local-operator' || fact.decision !== 'allowed' || fact.nodeId !== dependencies.nodeId
+          || fact.principalId !== authority.principalId || fact.operationId !== operationId
+          || fact.requestDigest !== requestDigest) return refuse(request)
+        return { ...base, method: request.method, result: await dependencies.callbackResolver.callbackResolve(request.params, grant) }
+      }
       case 'engine.cancel':
       case 'engine.approve': {
         const grant = await issuer.check({ operationId: request.params.operationId,

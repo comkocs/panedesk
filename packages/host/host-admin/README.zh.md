@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="purpose"></a>
 ## 用途
 
-管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`、`source.operations`、`source.abandon`、`source.resend`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
+管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`、`engine.callbackResolve`、`source.operations`、`source.abandon`、`source.resend`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
 
 <a id="configuration-and-identity"></a>
 ## 配置与身份
@@ -55,6 +55,25 @@ Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，�
 
 `owner.lock` 保证单个目录仅有一个运行实例；进程异常退出后的遗留锁需运维确认旧实例已退出后显式恢复，插件不凭 PID 猜测接管。
 
+<a id="callback-resolution"></a>
+### 回调处置
+
+`engine.callbackResolve({ callbackId, action: 'resume' | 'abandon', expectedAttempt })` 只接受认证的 `local-operator`，节点、主体和精确请求授权核验同取消。运行中引擎将一条 `callback/attempted` 转换与操作员授权同帧提交。resume 保留 attempt 和原正文，进入 `retry-due` 并起算新保留段；abandon 进入终态 `abandoned`。只有同回调标识、同动作、同预期 attempt 的处置帧之后没有新停车帧时，才读回现状、零帧重放，重启后亦然。否则先拒非 paused，再比较 attempt；相同 attempt 上的新停车允许再次处置。未知回调、非 paused 及 attempt 不符分别返回 `callback-unknown`、`callback-not-paused`、`callback-attempt-conflict`；无效授权返回 `admin-unauthorized` 或 `callback-resolution-unauthorized`。传输结果不明返回 `uncertain / admin-outcome-unknown`，不自动重试。
+
+通过 `engine.query` 读取固定本机诊断 `callback-unclassified-error`、`callback-timeout`、`callback-authentication-failed`、`callback-protocol-error`，不含异常原文。引擎内建 900000 ms 上限从当前连续 transient 段首个已提交 attempted 帧起算，重启和暂态细码变化不重置。停车后至处置前，该回调不再落帧。`callback-link-unreachable-limit` 在更新的 hello 就绪时每次停车自动恢复一次，码为 `callback-auto-resumed-on-link-ready`；`callback-transient-limit-reached` 要求操作员。同组 `(sourceId, sessionId, triggerId)` 中，ended 等待 paused opened；resume 后等前项 delivered，abandon 后下一轮放行。完整计时和 unknown 屏障规则见[引擎说明](../../seat/seat-engine/README.zh.md#callback-parking-and-operator-resolution)。
+
+操作员命令行会话使用已配置并完成权限校验的 `files` 提供方和 `limits`；以下调用不启动第二个宿主，也不在参数中传入口令：
+
+```js
+const { callHostAdmin } = await import('@panedesk/dsh-host-admin');
+const result = await callHostAdmin(files, 'engine.callbackResolve', {
+  callbackId, action: 'abandon', expectedAttempt,
+}, limits);
+console.log(result);
+```
+
+修复前提后，用 `action: 'resume'` 续投原回调。选择动作前，先从完整查询结果取得 `callbackId` 和当前 `attempt`。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -76,6 +95,7 @@ Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，�
 
 <a id="known-limitations-and-deferred-work"></a>
 
+- M8b：回调 abandon 不改 `chain-sent`，也不生成 owner 终态回执；既有链层恢复保持独立。
 - 取消要求引擎提供可选的授权取消能力；能力缺失时拒绝，不调用无授权旧入口。外部改面占位释放仍归其提供方，不由运维传输实现。
 - `engine.operation` 要求引擎提供可选操作投影；旧提供方缺少此能力时仍不可用。已接纳意图若无已提交创建或失败事实，保持待决，不能报告成功。旧自定义执行器可省略授权分页；调用者不能将缺页当成空授权历史。
 

@@ -1,6 +1,7 @@
 /** Running-host assembly scopes entry-issued authority to one authenticated invocation. */
 import type { Context } from '@panedesk/cordis'
 import type * as Seat from '@panedesk/dsh-seat'
+import type {} from '@panedesk/dsh-seat-engine'
 import { createHostAdminExecutor } from './executor.ts'
 import type { HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse } from './index.ts'
 
@@ -20,7 +21,11 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
   if (!engine || !authorization || !issuers || !queries) return null
   let registration: ReturnType<Seat.SeatAuthorizationIssuers['register']> | undefined
   const sourceOperator = ctx.get('hostAdminSourceOperator')
-  const optional = sourceOperator ? { sourceOperator } : {}
+  const callbackResolver = engine.callbackResolve ? {
+    callbackResolve: (params: import('./index.ts').HostAdminCallbackResolveRequest, grant: Seat.SeatAuthorizationGrant) =>
+      (engine.callbackResolve as NonNullable<typeof engine.callbackResolve>)(params, grant),
+  } : undefined
+  const optional = { ...(sourceOperator ? { sourceOperator } : {}), ...(callbackResolver ? { callbackResolver } : {}) }
   const executor = createHostAdminExecutor({ nodeId, engine, authorization, queries, ...optional, policy: {
     authorize: async () => {
       let pending: Seat.PendingSeatItem | undefined

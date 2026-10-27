@@ -12,7 +12,7 @@ const frames = [
 ] as const
 
 test('preserves the five baseline method request and response bytes without cancellation', () => {
-  expect(HOST_ADMIN_METHODS.filter(method => method !== 'engine.cancel' && !method.startsWith('source.'))).toEqual(frames.map(([method]) => method))
+  expect(HOST_ADMIN_METHODS.filter(method => method !== 'engine.cancel' && method !== 'engine.callbackResolve' && !method.startsWith('source.'))).toEqual(frames.map(([method]) => method))
   for (const [method, params, result] of frames) {
     const input = `{"version":"host-admin/v1","requestId":"request-a","processEpoch":"epoch-a","nonce":"nonce-a","method":"${method}","params":${params}}`
     const request = decodeRequest(JSON.parse(input))

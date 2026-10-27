@@ -5,13 +5,17 @@ import { EngineJournal, EngineError } from './journal.ts'
 import { callbackEvidenceMatches } from './callback-evidence.ts'
 import { SourceRegistry } from './sources.ts'
 import { fact } from './triggers.ts'
+import { callbackRetentions, callbackLinkFailure, callbackDiagnostic, resolvedCallback } from './callback-retention.ts'
+
+const CALLBACK_TRANSIENT_LIMIT_MS = 900000
 
 /** One delivery controller owns all in-flight callbacks until they settle. */
 export class CallbackOutbox {
   private running: Promise<void> | undefined
   constructor(private readonly journal: EngineJournal, private readonly sources: SourceRegistry,
     private readonly config: SeatEngineConfig,
-    private readonly routed?: (request: DeliverSourceCallbackRequest) => Promise<CallbackAttempt>) {}
+    private readonly routed?: (request: DeliverSourceCallbackRequest) => Promise<CallbackAttempt>,
+    private readonly linkReady?: (delivery: SeatCallbackDelivery, parkedAt: number) => Promise<boolean>) {}
 
   /** Deliver currently due facts without overtaking a failed earlier state.
    * @param now - host time used for this attempt batch.
@@ -53,13 +57,37 @@ export class CallbackOutbox {
 
   private async run(now: number): Promise<void> {
     const blocked = new Set<string>()
+    const retentions = callbackRetentions(this.journal.projection.decisions)
     const deliveries = [...this.journal.projection.callbacks.values()].sort((a, b) => a.payload.stateVersion - b.payload.stateVersion)
-    for (const delivery of deliveries) {
+    for (let delivery of deliveries) {
       const key = JSON.stringify([delivery.payload.sourceId, delivery.payload.sessionId, delivery.payload.triggerId])
-      if (delivery.phase === 'delivered') continue
+      if (delivery.phase === 'delivered' || delivery.phase === 'abandoned') { blocked.delete(key); continue }
       if (blocked.has(key)) continue
       blocked.add(key)
-      if (delivery.phase === 'paused' || (delivery.nextDue !== null && Date.parse(delivery.nextDue) > now)) continue
+      let retention = retentions.get(delivery.payload.callbackId)
+      if (delivery.phase === 'paused') {
+        if (delivery.lastDiagnostic?.cause.code !== 'callback-link-unreachable-limit'
+          || retention?.parkedAt === undefined || !await this.linkReady?.(delivery, retention.parkedAt)) continue
+        const parked = delivery
+        const resumed = await this.journal.commit((view) => {
+          const current = view.callbacks.get(parked.payload.callbackId)
+          return current === parked ? [fact({ kind: 'callback/attempted',
+            data: resolvedCallback(view, current, 'resume', now, true) })] : []
+        })
+        if (!resumed) continue
+        delivery = this.journal.projection.callbacks.get(delivery.payload.callbackId) as SeatCallbackDelivery
+        retention = { attempt: delivery.attempt, since: Date.parse(resumed.observedAt) }
+      }
+      if (delivery.responseClass === 'transient' && retention?.since !== undefined
+        && now - retention.since >= CALLBACK_TRANSIENT_LIMIT_MS) {
+        const parked = delivery
+        await this.journal.commit(view => view.callbacks.get(parked.payload.callbackId) !== parked ? []
+          : [fact({ kind: 'callback/attempted', data: { ...parked, phase: 'paused', nextDue: null,
+            lastDiagnostic: callbackDiagnostic(view, parked, callbackLinkFailure(parked, retention.latest)
+              ? 'callback-link-unreachable-limit' : 'callback-transient-limit-reached') } })])
+        continue
+      }
+      if (delivery.nextDue !== null && Date.parse(delivery.nextDue) > now) continue
       let responseClass: SeatCallbackDelivery['responseClass'] = 'success'
       let diagnostic: SeatCallbackDiagnostic | undefined
       const started = performance.now()
@@ -73,7 +101,10 @@ export class CallbackOutbox {
           } else ({ responseClass, diagnostic } = await this.deliverRouted(delivery.nodeWorkChain))
         } else await this.sources.use(delivery.payload.sourceId, source => source.callback(delivery.payload))
         if (!delivery.nodeWorkChain && responseClass === 'success'
-          && performance.now() - started > this.config.callbackTimeoutMs) responseClass = 'transient'
+          && performance.now() - started > this.config.callbackTimeoutMs) {
+          responseClass = 'transient'
+          diagnostic = callbackDiagnostic(this.journal.projection, delivery, 'callback-timeout', 'local-dispatch', true)
+        }
       } catch (error) {
         responseClass = error instanceof EngineError && error.code === 'callback-authentication-failed' ? 'authentication'
           : error instanceof EngineError && error.code === 'callback-protocol-error' ? 'protocol' : 'transient'
@@ -82,20 +113,32 @@ export class CallbackOutbox {
           if (this.journal.projection.callbacks.get(delivery.payload.callbackId)?.responseClass === 'unknown') responseClass = 'unknown'
           diagnostic = callbackFailure(delivery.nodeWorkChain, 'retained', 'Callback attempt did not complete', 'unavailable',
             responseClass === 'unknown' ? 'unknown' : 'none').diagnostic
-        }
+        } else diagnostic = callbackDiagnostic(this.journal.projection, delivery,
+          responseClass === 'authentication' ? 'callback-authentication-failed'
+            : responseClass === 'protocol' ? 'callback-protocol-error' : 'callback-unclassified-error',
+          'local-dispatch', responseClass === 'transient')
       }
       if (delivery.nodeWorkChain && responseClass === 'transient'
         && delivery.responseClass === 'unknown') responseClass = 'unknown'
       const attempt = delivery.attempt + 1
-      const phase = responseClass === 'success' ? 'delivered' : responseClass === 'authentication' || responseClass === 'protocol' ? 'paused' : 'retry-due'
+      const limited = responseClass === 'transient' && retention?.since !== undefined
+        && Date.now() - retention.since >= CALLBACK_TRANSIENT_LIMIT_MS
+      const phase = responseClass === 'success' ? 'delivered'
+        : limited || responseClass === 'authentication' || responseClass === 'protocol' ? 'paused' : 'retry-due'
+      if (limited) diagnostic = callbackDiagnostic(this.journal.projection, delivery,
+        callbackLinkFailure(delivery, diagnostic) ? 'callback-link-unreachable-limit' : 'callback-transient-limit-reached')
       const { lastDiagnostic: _previousDiagnostic, ...original } = delivery
       const updated: SeatCallbackDelivery = { ...original, attempt, responseClass, phase,
         ...(responseClass !== 'success' && diagnostic ? { lastDiagnostic: diagnostic } : {}),
         nextDue: phase === 'retry-due' ? new Date(now + Math.min(this.config.callbackRetryMaxMs,
           this.config.callbackRetryInitialMs * 2 ** Math.min(attempt - 1, 30))).toISOString() : null }
-      await this.journal.commit(view => view.callbacks.get(delivery.payload.callbackId)?.phase === 'delivered' ? []
-        : [fact({ kind: phase === 'delivered' ? 'callback/delivered' : 'callback/attempted',
-          ...(delivery.payload.sessionId ? { sessionId: delivery.payload.sessionId } : {}), data: updated })])
+      await this.journal.commit((view) => {
+        const current = view.callbacks.get(delivery.payload.callbackId)
+        if (!current || current.phase === 'delivered' || current.phase === 'abandoned'
+          || current.phase === 'paused' || current.attempt !== delivery.attempt) return []
+        return [fact({ kind: phase === 'delivered' ? 'callback/delivered' : 'callback/attempted',
+          ...(delivery.payload.sessionId ? { sessionId: delivery.payload.sessionId } : {}), data: updated })]
+      })
       if (phase === 'delivered') blocked.delete(key)
     }
   }
