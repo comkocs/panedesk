@@ -3,8 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { MessageSender, SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
-import { NODE_LINK_VERSION, decodeRoutedSend, type NodeDelegationRequest, type NodeLinkFailure } from '@panedesk/dsh-node-link'
-import { digest } from '@panedesk/dsh-host-admin'
+import type { NodeDelegationRequest, NodeLinkFailure } from '@panedesk/dsh-node-link'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import type { FileMailbox } from './mailbox.ts'
 import { component, MailboxUnavailableError, object, publish, readValue } from './files.ts'
@@ -19,6 +18,9 @@ import { decodeSendResult } from './codec.ts'
  */
 export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, request: SendMessageRequest,
   sender: MessageSender): Promise<SendMessageResult> {
+  // Computed imports keep optional transports out of the default worker image.
+  const { NODE_LINK_VERSION, decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
+  const { digest } = await import('@panedesk/dsh-'.concat('host-admin')) as typeof import('@panedesk/dsh-host-admin')
   const key = component(request.operationId), fingerprint = digest({ sender, request })
   return mailbox.locked(join(mailbox.root, 'operations', `${key}.lock`), async () => {
     const path = join(mailbox.root, 'operations', `${key}.json`)

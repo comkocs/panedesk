@@ -37,8 +37,6 @@
   "dependencies": {
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
-    "@panedesk/dsh-host-admin": "workspace:*",
-    "@panedesk/dsh-node-link": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
@@ -52,11 +50,17 @@
     "@panedesk/node-addon-system": "workspace:~",
     "zod": "^4.4.3"
   },
+  "optionalDependencies": {
+    "@panedesk/dsh-host-admin": "workspace:*",
+    "@panedesk/dsh-node-link": "workspace:*"
+  },
   "devDependencies": {
     "vitest": "^4.1.11",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/dsh-host-admin": "workspace:*",
+    "@panedesk/dsh-node-link": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*"
   }
 }

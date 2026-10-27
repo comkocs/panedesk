@@ -1,7 +1,5 @@
 /** Routed mailbox admission retains original identities and durable acknowledgements. */
 import { join } from 'node:path'
-import { digest } from '@panedesk/dsh-host-admin'
-import { decodeRoutedSend } from '@panedesk/dsh-node-link'
 import type { MessageReason, MessageRecipient, RoutedDeliveryAuthority, RoutedMessageReceiver,
   RoutedSendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
 import type { FileMailbox } from './mailbox.ts'
@@ -35,6 +33,9 @@ export interface RoutedMailboxOptions {
 export function createRoutedMailboxReceiver(options: RoutedMailboxOptions): RoutedMessageReceiver {
   const mailbox = options.mailbox
   return { receive: async (input, authority) => {
+    // Register synchronously, but load optional transports only for routed traffic.
+    const { decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
+    const { digest } = await import('@panedesk/dsh-'.concat('host-admin')) as typeof import('@panedesk/dsh-host-admin')
     const request = decodeRoutedSend(input), envelope = request.delivery, message = envelope.message
     const rejected = (reason: Exclude<MessageReason, 'target-closed-pending'>): SendMessageResult => ({
       messageId: message.messageId, operationId: message.operationId, deliveryOutcome: 'rejected',
