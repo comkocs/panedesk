@@ -49,7 +49,7 @@ Windows 等证据持久化较慢的节点，席位引擎的 `callbackTimeoutMs` 
 
 `received/operations.json` 在执行前耐久记录待决，`sent/operations.json` 保留发送身份与结果。同号同参不重复执行，同号异参拒绝；丢回包标未知，通过认证只读回执恢复，不盲重发。存在未决发送时阻止新的写操作，容量满时拒绝而不淘汰。根目录 `owner.lock` 排斥双实例，遗留锁需人工确认后恢复。
 
-工作链在证据与意图落盘后、触网前重新核对请求与委托期限。过期返回 `deadline-exceeded`，不触网、不撤连接；已接纳意图以 `effectState: 'none'` 持久结清。
+工作链在证据与意图落盘后、触网前重新核对请求与委托期限。过期返回 `deadline-exceeded`，不触网、不撤连接；已接纳意图持久保留 `effectState: 'none'`，作为可恢复的传输回执，而非业务终局。
 
 断链先于能力协商拒绝新请求。工作链在 TCP 连接建立前失败时，返回 `node-tunnel-disconnected` 与 `effectState: 'none'`，将已接纳的发送意图持久落定，并撤销连接观察与对端能力。经过授权的精确 `chain.operation` 查询即使在断链时也能读回该本地拒绝；它不是推断出的业务证据。TCP 连接建立后丢失响应仍为未知，发送记录保持待决；经过认证的精确查询核对恢复后的业务结果，不重复执行。已发送但无回包不能声称未执行。健康探测校验代次与节点自报身份；超 `staleMs` 标为过期，保留上次窗数，不伪造零窗。SSH 进程存活不等于应用握手成功。
 
@@ -76,7 +76,11 @@ Windows 等证据持久化较慢的节点，席位引擎的 `callbackTimeoutMs` 
 
 可选 `seat.definitionRevision` 要求双方通过独立 hello 字段 `seatDefinitionRevision: 'seat-definition-revision/v1'` 通告能力；`chain.methods` 仍是原七方法闭集。任何一方缺能力均在发送前拒绝。显式 `local.methods` 与 `local.definitionRevisions` 必须提供已就绪且可用的提供方；撤装立即移除此能力。接收政策必须核精确读与目标席权限，以及受信来源所有权和代次，再独立签发精确凭证。读使用普通业务容量，但不进入意图存储、业务查询或发件箱重放，只保留有界授权证据。首次准备前读；恢复已持久准备及原版本／摘要，不在同键下重读。观察与准入不具原子性，版本变化时安全拒绝，不透明刷新。两节点须成对升级。写过新方法授权证据后，旧程序的闭集 decoder 不能读取这些记录。回滚前须停用新读，并通过兼容 reader 或隔离存储保留记录，不得删除记录让旧程序启动。
 
-`route(request, authorization)` 要求与委托逐字段一致的新入口授权。发送前，node-link 将事实持久留存在有界的 `chain-evidence/evidence-v1.json`；仅已认证配对节点可以精确查询，到期证据在恢复或发布时淘汰。独立的 `chain-received/chain-v1.json` 与 `chain-sent/chain-v1.json` 保留完整原意图与精确业务键，不淘汰未决记录。待决、未知及暂停结果不成为终态。可选的宿主持有 `outboxIssuer` 仅在已认证业务查询答复缺失后，允许使用持久原载荷、原键及新签发受限授权经原方法重发。缺少该签发器时，未决发送保留未知；不调用 `resume`。未配置链组合时不打开这些文件。
+`route(request, authorization)` 要求与委托逐字段一致的新入口授权。发送前，node-link 将事实持久留存在有界的 `chain-evidence/evidence-v1.json`；仅已认证配对节点可以精确查询，到期证据在恢复或发布时淘汰。独立的 `chain-received/chain-v1.json` 与 `chain-sent/chain-v1.json` 保留完整原意图与精确业务键，不淘汰未决记录。待决与未知结果不成为终态；不重开所有者暂停与拒绝。可选的宿主持有 `outboxIssuer` 仅在已认证业务查询答复缺失后，允许使用持久原载荷、原键及新签发受限授权经原方法重发。缺少该签发器时，未决发送保留未知；不调用 `resume`。未配置链组合时不打开这些文件。
+
+启动就绪、在线 hello 与重连均扫描未决意图及发送端合成的无副作用 `node-deadline-exceeded` 或 `node-tunnel-disconnected` 回执，包括无元数据的旧记录。恢复先获取新受限授权，再精确查询已恢复的所有者。只有经过认证的持久 `missing` 才允许使用新 wire 请求号经原方法续投一次；业务键、载荷摘要与冻结路由不变。未知、超时、断链、能力不可用或授权被拒均不能许可续投。所有者已提交的证据仅修复回执，不再发送。同键发送与恢复串行；再次超期等待下一次恢复触发，不循环热投。所有者拒绝不会成为传输重投候选，seat 发件箱未知屏障保持不变。
+
+`chain-sent` 可选内部字段 `transportNone` 与 `recovery` 区分发送端拒绝和所有者响应，并保留 `attemptId` 及含每次旧 `response`、`reactivatedAt` 的 `history`。重新激活在发布前比较原键、摘要与观察到的旧回执；旧尝试不能结清已重新激活的条目。历史计入既有存储字节限额，不丢弃历史腾出空间。新版直接读取旧记录；旧版拒绝含这些可选字段的记录。回滚前须通过兼容 reader 或隔离存储保留记录，不得删除回执或历史让旧程序启动。
 
 <a id="known-limitations-and-deferred-work"></a>
 

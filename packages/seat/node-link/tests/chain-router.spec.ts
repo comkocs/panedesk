@@ -52,12 +52,13 @@ test.each(['evidence-query', 'evidence-delegation', 'intent'] as const)(
       expect(wire).not.toHaveBeenCalled()
       expect(disconnect).not.toHaveBeenCalled()
       expect(connected).toBe(true)
-      expect(store.pending()).toEqual([])
+      expect(store.pending()).toEqual(stage === 'evidence-query' ? [] : [request])
       if (stage !== 'evidence-query') {
         expect(store.query(chainKey(request), request.payloadDigest)).toEqual({ state: 'settled', response })
         const restored = new ChainStore(files, 65536, 10)
         await restored.load()
         expect(restored.query(chainKey(request), request.payloadDigest)).toEqual({ state: 'settled', response })
+        expect(restored.pending()).toEqual([request])
         await restored.close()
       }
     } finally {

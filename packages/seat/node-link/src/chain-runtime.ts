@@ -63,7 +63,10 @@ export class ChainRuntime {
     return this.preparing ??= Promise.all([this.loaded, this.services.evidence?.ready(),
       this.services.local.ready(), this.services.policy.ready(),
       this.business.ready(this.services.local.methods.filter(method => method !== 'seat.definitionRevision')),
-      this.services.local.methods.includes('seat.definitionRevision') ? this.services.local.definitionRevisions?.ready() : undefined]).then(() => { this.recovered = !this.stopped }, (error: unknown) => {
+      this.services.local.methods.includes('seat.definitionRevision') ? this.services.local.definitionRevisions?.ready() : undefined]).then(() => {
+      this.recovered = !this.stopped
+      this.observe(this.remote)
+    }, (error: unknown) => {
       this.preparing = undefined
       throw error
     })

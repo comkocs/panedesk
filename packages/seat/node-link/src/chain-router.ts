@@ -8,7 +8,7 @@ import type { ChannelCredential } from './credentials.ts'
 import type { ChainCapability, ChainRequest, ChainResponse } from './chain-types.ts'
 import type { ChainRouterService } from './chain-services.ts'
 import { chainDigest, decodeChainRequest, decodeChainResponse, encodeChainFrame } from './chain-codec.ts'
-import { chainFailure, chainKey, chainKeyText } from './chain-identity.ts'
+import { chainFailure, chainKey, chainKeyText, chainPending } from './chain-identity.ts'
 import { ChainStore } from './chain-store.ts'
 
 /** Transport owns sending records, while business providers own operation progress. */
@@ -16,6 +16,8 @@ export class ChainRouter implements ChainRouterService {
   private pending = 0
   private stopped = false
   private readonly active = new Set<Promise<ChainResponse>>()
+  private readonly keys = new Map<string, Promise<void>>()
+  private recovery: Promise<void> | undefined
   constructor(private readonly options: NodeLinkRuntimeConfig, private readonly store: ChainStore,
     private readonly credential: () => ChannelCredential, private readonly available: () => boolean,
     private readonly capabilities: () => { local?: ChainCapability | undefined; remote?: ChainCapability | undefined },
@@ -30,7 +32,10 @@ export class ChainRouter implements ChainRouterService {
   route(input: ChainRequest, authorization: SeatAuthorizationGrant): Promise<ChainResponse> {
     if (this.stopped) return Promise.resolve(chainFailure(input, 'node-tunnel-disconnected', 'tunnel-disconnected'))
     const request = decodeChainRequest(structuredClone(input))
-    const work = this.send(request, { ...authorization, fact: structuredClone(authorization.fact) })
+    const grant = { ...authorization, fact: structuredClone(authorization.fact) }
+    const work = request.method === 'chain.operation' || request.method === 'seat.definitionRevision'
+      || request.method === 'source.checkAdmission' ? this.send(request, grant)
+      : this.serial(request, () => this.send(request, grant))
     this.active.add(work)
     void work.then(() => { this.active.delete(work) }, () => { this.active.delete(work) })
     return work
@@ -39,7 +44,16 @@ export class ChainRouter implements ChainRouterService {
   /** Withdraw new sends and await every accepted call before closing persistence.
    * @returns Completion after in-flight calls settle.
    */
-  async close(): Promise<void> { this.stopped = true; await Promise.allSettled([...this.active]) }
+  async close(): Promise<void> { this.stopped = true; await Promise.allSettled([...this.active, this.recovery]) }
+
+  private serial<T>(request: ChainRequest, work: () => Promise<T>): Promise<T> {
+    const key = chainKeyText(chainKey(request)), previous = this.keys.get(key) ?? Promise.resolve()
+    const result = previous.then(work)
+    const done = result.then(() => {}, () => {})
+    this.keys.set(key, done)
+    void done.then(() => { if (this.keys.get(key) === done) this.keys.delete(key) })
+    return result
+  }
 
   private async send(input: ChainRequest, authorization: SeatAuthorizationGrant, replay = false): Promise<ChainResponse> {
     const request = decodeChainRequest(input)
@@ -53,7 +67,7 @@ export class ChainRouter implements ChainRouterService {
       let previous: ReturnType<ChainStore['query']>
       try { previous = this.store.query(request.payload.key, request.payload.payloadDigest) }
       catch (error) { void error; return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true) }
-      if (previous.state === 'settled' && previous.response.status !== 'ok'
+      if (!this.available() && previous.state === 'settled' && previous.response.status !== 'ok'
         && previous.response.error.code === 'node-tunnel-disconnected' && previous.response.error.effectState === 'none') {
         return decodeChainResponse({ ...previous.response, method: request.method, requestId: request.requestId }, request)
       }
@@ -92,12 +106,12 @@ export class ChainRouter implements ChainRouterService {
       const remaining = Math.min(Date.parse(request.deadline), Date.parse(request.delegation.expiresAt)) - Date.now()
       if (remaining <= 0) {
         const response = chainFailure(request, 'node-deadline-exceeded', 'deadline-exceeded')
-        if (admitted) await this.store.settle(request, response)
+        if (admitted) await this.store.settle(request, response, true)
         return response
       }
       const response = decodeChainResponse(await callLoopback(this.options.peerPort, this.credential(), request,
         { ...this.options, maxFrameBytes, requestTimeoutMs: Math.min(this.options.requestTimeoutMs, remaining) }), request)
-      if (admitted) await this.store.settle(request, response)
+      if (admitted) await this.store.settle(request, response, false)
       return response
     } catch (error) {
       if (error instanceof LoopbackConnectionError) {
@@ -107,7 +121,7 @@ export class ChainRouter implements ChainRouterService {
         }
         const response = chainFailure(request, 'node-tunnel-disconnected', 'tunnel-disconnected')
         if (admitted) {
-          try { await this.store.settle(request, response) }
+          try { await this.store.settle(request, response, true) }
           catch (settlementError) { void settlementError; return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true) }
         }
         return response
@@ -121,32 +135,42 @@ export class ChainRouter implements ChainRouterService {
    * @param issuerFor - Host closure checking exact durable intent ownership, never principal-name inference.
    * @returns Completion after one bounded sequential reconciliation pass.
    */
-  async recover(issuerFor: (request: ChainRequest) => Promise<SeatAuthorizationIssuer | undefined>): Promise<void> {
+  recover(issuerFor: (request: ChainRequest) => Promise<SeatAuthorizationIssuer | undefined>): Promise<void> {
+    return this.recovery ??= this.recoverAll(issuerFor).finally(() => { this.recovery = undefined })
+  }
+
+  private async recoverAll(issuerFor: (request: ChainRequest) => Promise<SeatAuthorizationIssuer | undefined>): Promise<void> {
     for (const original of this.store.pending()) {
       if (this.stopped) return
-      const issuer = await issuerFor(original)
-      if (!issuer) continue
-      const payload = { key: chainKey(original), payloadDigest: original.payloadDigest }
-      const grant = await issuer.check({ operationId: original.operationId, requestDigest: chainDigest('chain.operation', payload) })
-      if ('status' in grant || grant.fact.principalId !== original.delegation.principalId) continue
-      const queryDelegation = this.delegation(original, grant)
-      const query = decodeChainRequest({ ...original, method: 'chain.operation', payload,
-        payloadDigest: grant.fact.requestDigest, requestId: randomUUID(), deadline: queryDelegation.expiresAt,
-        delegation: queryDelegation })
-      if (query.method !== 'chain.operation') continue
-      const response = await this.reconcile(original, query, grant)
-      if (response.status !== 'ok' || response.method !== 'chain.operation' || response.result.status !== 'missing') continue
-      const replayGrant = await issuer.check({ operationId: original.operationId, requestDigest: original.payloadDigest })
-      if ('status' in replayGrant || replayGrant.fact.principalId !== original.delegation.principalId
-        || replayGrant.fact.seat !== original.delegation.seat || replayGrant.fact.sessionId !== original.delegation.sessionId
-        || JSON.stringify(replayGrant.fact.taskIds) !== JSON.stringify(original.delegation.taskIds)) continue
-      const replayDelegation = this.delegation(original, replayGrant)
-      const replay = decodeChainRequest({ ...original, requestId: randomUUID(),
-        deadline: replayDelegation.expiresAt, delegation: replayDelegation })
-      const work = this.send(replay, replayGrant, true)
-      this.active.add(work)
-      try { await work } finally { this.active.delete(work) }
+      await this.serial(original, () => this.recoverOne(original, issuerFor))
     }
+  }
+
+  private async recoverOne(original: ChainRequest,
+    issuerFor: (request: ChainRequest) => Promise<SeatAuthorizationIssuer | undefined>): Promise<void> {
+    if (this.stopped || !this.store.pending().some(request => chainKeyText(chainKey(request)) === chainKeyText(chainKey(original)))) return
+    const expected = this.store.query(chainKey(original), original.payloadDigest)
+    const issuer = await issuerFor(original)
+    if (!issuer) return
+    const payload = { key: chainKey(original), payloadDigest: original.payloadDigest }
+    const grant = await issuer.check({ operationId: original.operationId, requestDigest: chainDigest('chain.operation', payload) })
+    if ('status' in grant || grant.fact.principalId !== original.delegation.principalId) return
+    const queryDelegation = this.delegation(original, grant)
+    const query = decodeChainRequest({ ...original, method: 'chain.operation', payload,
+      payloadDigest: grant.fact.requestDigest, requestId: randomUUID(), deadline: queryDelegation.expiresAt,
+      delegation: queryDelegation })
+    if (query.method !== 'chain.operation') return
+    const response = await this.reconcileOne(original, query, grant)
+    if (response.status !== 'ok' || response.method !== 'chain.operation' || response.result.status !== 'missing') return
+    const replayGrant = await issuer.check({ operationId: original.operationId, requestDigest: original.payloadDigest })
+    if ('status' in replayGrant || replayGrant.fact.principalId !== original.delegation.principalId
+      || replayGrant.fact.seat !== original.delegation.seat || replayGrant.fact.sessionId !== original.delegation.sessionId
+      || JSON.stringify(replayGrant.fact.taskIds) !== JSON.stringify(original.delegation.taskIds)) return
+    const replayDelegation = this.delegation(original, replayGrant)
+    const replay = decodeChainRequest({ ...original, requestId: randomUUID(),
+      deadline: replayDelegation.expiresAt, delegation: replayDelegation })
+    if (!await this.store.reactivate(replay, expected)) return
+    await this.send(replay, replayGrant, true)
   }
 
   private delegation(original: ChainRequest, grant: SeatAuthorizationGrant): ChainRequest['delegation'] {
@@ -164,17 +188,28 @@ export class ChainRouter implements ChainRouterService {
    * @param authorization - Fresh entry grant for the query payload.
    * @returns Query response; no ordinary method is retried.
    */
-  async reconcile(original: ChainRequest, query: Extract<ChainRequest, { method: 'chain.operation' }>,
+  reconcile(original: ChainRequest, query: Extract<ChainRequest, { method: 'chain.operation' }>,
+    authorization: SeatAuthorizationGrant): Promise<ChainResponse> {
+    const work = this.serial(original, () => this.reconcileOne(original, query, authorization))
+    this.active.add(work)
+    void work.then(() => { this.active.delete(work) }, () => { this.active.delete(work) })
+    return work
+  }
+
+  private async reconcileOne(original: ChainRequest, query: Extract<ChainRequest, { method: 'chain.operation' }>,
     authorization: SeatAuthorizationGrant): Promise<ChainResponse> {
     if (chainKeyText(chainKey(original)) !== chainKeyText(query.payload.key) || original.payloadDigest !== query.payload.payloadDigest) {
       return chainFailure(query, 'node-operation-conflict', 'operation-payload-conflict')
     }
+    const expected = this.store.query(chainKey(original), original.payloadDigest)
     const response = await this.route(query, authorization)
     if (response.status === 'ok' && response.method === 'chain.operation' && response.result.status === 'settled'
       && response.result.method === original.method) {
-      await this.store.settle(original, decodeChainResponse({ version: original.version, requestId: original.requestId,
+      const repair = { ...original, requestId: query.requestId }
+      const receipt = decodeChainResponse({ version: original.version, requestId: repair.requestId,
         sourceNodeId: original.sourceNodeId, targetNodeId: original.targetNodeId, operationId: original.operationId,
-        method: original.method, status: 'ok', result: response.result.result }, original))
+        method: original.method, status: 'ok', result: response.result.result }, repair)
+      if (!chainPending(receipt) && await this.store.reactivate(repair, expected)) await this.store.settle(repair, receipt)
     }
     return response
   }
