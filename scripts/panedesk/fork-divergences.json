@@ -2,13 +2,13 @@
   "divergences": [
     {
       "id": "F02-preopen-retention-registration",
-      "description": "Retain queued frozen openings during transient conditions, with instance-registered route-wide limits and optional exact project overrides.",
+      "description": "Bound transient frozen openings with registered route-wide limits, optional exact project overrides, and a 900000 ms fallback for unregistered or ambiguous routes.",
       "origin": "Optional seat engine composition",
-      "reason": "registerPreopenRetention binds the frozen source and original source owner; optional projectId restricts the match to one project. A unique exact project match precedes a unique route-wide match, while duplicates at either level retain the queue. Composition must register every trusted route before admission. Timing starts at the first committed class frame without new public configuration keys or persistent fields; expiry is checked without an executor.",
+      "reason": "registerPreopenRetention binds the frozen source and original source owner; optional projectId restricts the match to one project. A unique exact project match precedes a unique route-wide match. Missing or ambiguous registrations never authorize opening and use the 900000 ms fallback, retaining provider-unavailable and engine diagnostics until expiry. Every expiry uses the existing same-frame cancellation and rejected owner callback, including startup reconciliation. Timing starts at the first committed class frame without new public configuration keys or persistent fields and survives restart; expiry is checked without an executor. Public-only deployments can register another limit. Limits above the fallback require continuous registration across hot reload.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
-        "test": "expires retained frozen work at its original committed time even without providers or an executor"
+        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts", "packages/seat/seat-engine/tests/execution-recheck.spec.ts"],
+        "test": "bounds %s frozen retention with one stable rejected callback at 900000 ms"
       }
     },
     {
