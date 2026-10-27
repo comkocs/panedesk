@@ -117,6 +117,59 @@ test('logs only a fixed reason category when retry supervision fails', async () 
   } finally { await fixture.tunnel.close() }
 })
 
+test('bounds consecutive fast failures to the retry budget with a full delay between spawns', async () => {
+  const fixture = supervised(2)
+  try {
+    await fixture.tunnel.start()
+    for (let generation = 1; generation <= 3; generation++) {
+      expect(fixture.spawn).toHaveBeenCalledTimes(generation)
+      await vi.advanceTimersByTimeAsync(99)
+      await fixture.exit()
+      expect(fixture.messages('exhausted')).toHaveLength(generation === 3 ? 1 : 0)
+      await vi.advanceTimersByTimeAsync(99)
+      expect(fixture.spawn).toHaveBeenCalledTimes(generation)
+      await vi.advanceTimersByTimeAsync(1)
+    }
+    expect(fixture.spawn).toHaveBeenCalledTimes(3)
+    expect(fixture.messages('retry').map(([, message]) => message)).toEqual([
+      'ssh-tunnel retry attempt=1 maxRetries=2 waitMs=100', 'ssh-tunnel retry attempt=2 maxRetries=2 waitMs=100',
+    ])
+  } finally { await fixture.tunnel.close() }
+})
+
+test('resets the retry budget after each of five stable generations including the exact threshold', async () => {
+  const fixture = supervised(2)
+  try {
+    await fixture.tunnel.start()
+    for (let generation = 1; generation <= 5; generation++) {
+      await vi.advanceTimersByTimeAsync(100)
+      await fixture.exit()
+      expect(fixture.messages('exhausted')).toHaveLength(0)
+      expect(fixture.messages('retry').at(-1)?.[1]).toBe('ssh-tunnel retry attempt=1 maxRetries=2 waitMs=100')
+      await vi.advanceTimersByTimeAsync(100)
+      expect(fixture.spawn).toHaveBeenCalledTimes(generation + 1)
+    }
+  } finally { await fixture.tunnel.close() }
+})
+
+test('clears only stable generations in a fast stable fast fast fast sequence', async () => {
+  const fixture = supervised(3)
+  try {
+    await fixture.tunnel.start()
+    const expectedRetries = [1, 1, 2, 3, undefined]
+    for (let index = 0; index < expectedRetries.length; index++) {
+      await vi.advanceTimersByTimeAsync(index === 1 ? 100 : 99)
+      await fixture.exit()
+      const attempt = expectedRetries[index]
+      expect(fixture.messages('exhausted')).toHaveLength(attempt === undefined ? 1 : 0)
+      if (attempt !== undefined) expect(fixture.messages('retry').at(-1)?.[1])
+        .toBe(`ssh-tunnel retry attempt=${attempt} maxRetries=3 waitMs=100`)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(fixture.spawn).toHaveBeenCalledTimes(attempt === undefined ? 5 : index + 2)
+    }
+  } finally { await fixture.tunnel.close() }
+})
+
 test('uses independent bidirectional loopback forwards, strict host checks and owned child cleanup', async () => {
   const limits = { maxFrameBytes: 4096, requestTimeoutMs: 1000, maxPending: 2 }
   const listener = await listenLoopback(0, limits, () => ({ credential: randomBytes(32).toString('hex'), epoch: 'test' }), async () => ({}))

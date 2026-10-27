@@ -1,5 +1,7 @@
 /** Two Loader nodes handshake bidirectionally through temporary loopback peers and unload. */
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
+import { PassThrough } from 'node:stream'
+import { SubprocessRuntime, type SubprocessOutcome } from '@panedesk/dsh-subprocess'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import Include from '@panedesk/cordis-plugin-include'
@@ -56,6 +58,52 @@ test('authenticates each Loader direction independently, aggregates reported sta
   expect(contexts[0]!.get('nodeRouter')).toBeUndefined()
   await expect.poll(async () => (await contexts[1]!.get('nodeRouter')?.status())?.[0]?.reachable, { timeout: 10000 }).toBe(false)
   expect((await contexts[1]!.get('nodeRouter')?.status())?.[0]?.status?.openEngineWindows).toBe(1)
+})
+
+test('Loader node status retains the exhausted tunnel reason through health probes', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'node-exhausted-'))
+  cleanups.push(() => rm(root, { recursive: true, force: true }))
+  const files = new PosixPrivateFiles(root, process.getuid!())
+  for (const name of ['inbound', 'outbound']) await files.write(`${name}.json`, JSON.stringify({
+    credential: randomBytes(32).toString('hex'), epoch: 'test', sourceNodeId: name === 'inbound' ? 'node-b' : 'node-a',
+    targetNodeId: name === 'inbound' ? 'node-a' : 'node-b',
+  }))
+  const done = Promise.withResolvers<SubprocessOutcome>(), stderr = new PassThrough()
+  const spawn = vi.fn(() => ({ stdin: undefined, stdout: undefined, stderr, control: undefined, collected: {},
+    done: done.promise, terminate: () => { done.resolve({ exitCode: 0, signal: null }) },
+    waitForExit: async () => { await done.promise; return true } }))
+  class TestSubprocess extends SubprocessRuntime {
+    resolveExecutable = async () => '/usr/bin/ssh'
+    terminalEnvironment = async () => ({ platform: 'posix' as const })
+    spawn = spawn
+    spawnTerminal = async (): Promise<never> => { throw new Error('Not used') }
+  }
+  const ctx = new Context(), messages: string[] = []
+  cleanups.push(() => ctx.fiber.dispose())
+  ctx.logger.exporter({ export: (message) => { messages.push(String(message.args[0])) } })
+  await ctx.plugin(TestSubprocess)
+  ctx.baseUrl = `${pathToFileURL(root).href}/`
+  await ctx.plugin(Loader)
+  Object.assign(ctx.loader.builtins, { include: Include, nodeLink: NodeLink })
+  const profile = join(root, 'node.yml')
+  await writeFile(profile, JSON.stringify([{ name: 'cordis:nodeLink', config: { runtime: {
+    ...limits, directory: root, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer', listenPort: 0, peerPort: 1,
+    ssh: { alias: 'test-peer', cwd: root, remotePort: 1, remoteTargetPort: 1,
+      graceMs: 100, keepAliveSeconds: 5, keepAliveCount: 2, retryMs: 100, maxRetries: 0 },
+  } } }]))
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(profile).href } })
+  await ctx.loader.await()
+  await expect.poll(() => ctx.get('nodeRouter'), { timeout: 2000 }).toBeDefined()
+  expect(spawn).toHaveBeenCalledOnce()
+  stderr.write('Connection to 192.0.2.1 failed. Extra detail\n')
+  done.resolve({ exitCode: 255, signal: null })
+  await expect.poll(async () => (await ctx.get('nodeRouter')?.status())?.[0]?.safeReason, { timeout: 10000 })
+    .toBe('SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until host restart.')
+  await new Promise(resolve => setTimeout(resolve, limits.staleMs * 3))
+  expect((await ctx.get('nodeRouter')!.status())[0]).toMatchObject({ reachable: false,
+    safeReason: 'SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until host restart.' })
+  expect(spawn).toHaveBeenCalledOnce()
+  expect(messages.filter(message => message.startsWith('ssh-tunnel exhausted '))).toHaveLength(1)
 })
 
 test('leaves node services unregistered without configuration', async () => {

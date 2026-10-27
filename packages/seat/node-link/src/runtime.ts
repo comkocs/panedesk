@@ -139,7 +139,8 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
         },
       })
     router = new NodeRouter(options, outbound, outgoing, () => !stopped && (tunnel === undefined || tunnel.available),
-      chain ? { capability: () => chain?.capability(), observe: capability => chain?.observe(capability) } : undefined)
+      chain ? { capability: () => chain?.capability(), observe: capability => chain?.observe(capability) } : undefined,
+      () => tunnel?.exhaustedReason)
     if (options.ssh !== undefined) {
       const subprocess = ctx.get('subprocess')
       if (subprocess === undefined) throw new Error('Node link requires a local subprocess provider')

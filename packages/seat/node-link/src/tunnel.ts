@@ -33,13 +33,18 @@ export class SshTunnel {
   private stderrTail: Buffer = Buffer.alloc(0)
   private generation = 0
   private startedAt = 0
+  private exhaustion: string | undefined
   constructor(private readonly runtime: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>,
     private readonly options: NodeLinkRuntimeConfig, private readonly localPort: number,
     private readonly disconnected: () => void,
     private readonly log: (level: 'info' | 'warn' | 'error', message: string) => void = () => {}) {}
   /** A live process is only transport availability, not peer authentication. */
   get available(): boolean { return this.live }
+  /** Local exhausted-state explanation for existing node status diagnostics. */
+  get exhaustedReason(): string | undefined { return this.exhaustion }
   /** Start bounded supervision; no credential enters argv or environment.
+   * A child surviving at least retryMs resets the retry budget before its next retry.
+   * Faster exits consume the remaining maxRetries budget; every retry waits retryMs.
    * @returns Completion once the first owned child exists.
    */
   async start(): Promise<void> {
@@ -80,7 +85,10 @@ export class SshTunnel {
         this.live = false
         this.disconnected()
         if (this.lifetime.signal.aborted) return
+        if (aliveMs >= ssh.retryMs) attempt = 0
         if (attempt >= ssh.maxRetries) {
+          const firstSentence = summary.split('\n')[0]?.split(/(?<=[.!?])\s/)[0] ?? ''
+          this.exhaustion = `SSH tunnel exhausted: exitCode=${outcome?.exitCode ?? 'unknown'} signal=${outcome?.signal ?? 'none'}${category === undefined ? '' : ` category=${category}`}${firstSentence ? `; ${firstSentence}` : ''} Link remains disconnected until host restart.`
           this.log('error', `ssh-tunnel exhausted generation=${this.generation}; link remains disconnected until host restart`)
           return
         }

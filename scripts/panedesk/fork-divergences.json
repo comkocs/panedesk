@@ -1264,7 +1264,7 @@
     },
     {
       "id": "node-link-tunnel-supervision",
-      "description": "Log SSH tunnel generations, exits, retries and exhaustion with bounded address-redacted stderr summaries.",
+      "description": "Log SSH tunnel generations, exits, retries and exhaustion with bounded address-redacted stderr summaries; reset retries after a stable child and expose exhaustion through existing node status diagnostics.",
       "origin": "Optional host integration",
       "reason": "Tunnel failures must remain observable without retaining unbounded child output or exposing literal addresses.",
       "match": {
