@@ -92,6 +92,8 @@ export async function processFixture(root: string) {
       if ('status' in grant) throw new Error('Expected fresh grant')
       return { principalId, nodeId, origin: 'remote' as const, authorization: grant }
     }
+    // Startup now starts local readiness itself; observe its completion rather than a scheduling race.
+    await registry.ready(methods)
     return { ctx, engine: current, registry, definition, authorize,
       close: async () => { await ctx.fiber.dispose(); await facility.closeAll(); await backend.close() } }
   } catch (error) { await ctx.fiber.dispose(); await facility.closeAll(); await backend.close(); throw error }

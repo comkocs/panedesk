@@ -41,12 +41,12 @@ test.each(['seat.openFrozen', 'seat.wakeFrozen'] as const)('%s admits once and q
       return method === 'seat.openFrozen' ? seats.openFrozen!(value as T.OpenFrozenSeatRequest) : seats.wakeFrozen!(value)
     }
     const before = h.engine.journal.projection.sequence
-    expect(await invoke(payload, false)).toMatchObject({ status: 'rejected', error: { code: 'unavailable' } })
+    expect(await invoke(payload, false)).toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
     expect(h.engine.journal.projection.sequence).toBe(before)
-    const queryBeforeReady = { key: { sourceNodeId: sender, principalId, sourceId: payload.route.sourceId,
+    const queryAfterRecovery = { key: { sourceNodeId: sender, principalId, sourceId: payload.route.sourceId,
       ownerEpoch: payload.route.ownerEpoch, method, operationId }, payloadDigest: digest(payload) }
-    expect(await registry.query(queryBeforeReady, await authorize(queryBeforeReady, 'before-ready' as T.SeatOperationId)))
-      .toEqual({ status: 'pending', effectState: 'unknown' })
+    expect(await registry.query(queryAfterRecovery, await authorize(queryAfterRecovery, 'after-recovery' as T.SeatOperationId)))
+      .toEqual({ status: 'missing' })
     await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
     const first = await invoke()
     expect(first).toMatchObject(method === 'seat.openFrozen' ? { status: 'queued' } : { status: 'opened', result: { status: 'queued' } })

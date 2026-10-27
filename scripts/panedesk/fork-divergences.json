@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-local-recovery-readiness",
+      "description": "Release local frozen write admission after local recovery without waiting for a remote hello.",
+      "origin": "Optional seat-local and node-link composition",
+      "reason": "Late business registration can miss the transport startup recovery attempt. Local recovery now owns its write readiness and starts the dependent engine barrier; incomplete or failed recovery and withdrawn registrations still reject writes. Peer negotiation and retained remote work remain independent.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/local-ready-composition.spec.ts"],
+        "test": "late frozen providers admit two disjoint local seats after recovery without a remote hello"
+      }
+    },
+    {
       "id": "seat-automatic-source-operation",
       "description": "Link automatic source operations to their local opening by the exact original source and trigger identities.",
       "origin": "Optional seat operation queries",
