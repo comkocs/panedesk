@@ -14,7 +14,7 @@ import { effectiveMode, reserveOpen } from './admission.ts'
 import { externalRuleMiss, triggerRule } from './rules.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
 import { queryEngine, exportEngine, verifyEngine, redactPending } from './query.ts'
-import { reconcileOpen } from './open-recovery.ts'
+import { isOpeningObservation, reconcileOpen } from './open-recovery.ts'
 import { openLocalWindow } from './local-open.ts'
 import { closeEffects } from './closing.ts'
 import { queueReplacement, ReplacementDriver } from './replacement.ts'
@@ -900,7 +900,8 @@ export class SeatEngine extends SeatEngineService {
       }
       for (const open of [...this.journal.projection.opens.values()]) {
         if (!this.journal.projection.resources.has(open.sessionId)) continue
-        if (open.phase !== 'active' && open.phase !== 'opening-failed') {
+        // Later admission changes cannot block read-only observation of a durably sent opening.
+        if (open.phase !== 'active' && open.phase !== 'opening-failed' && !isOpeningObservation(open)) {
           const queued = this.journal.projection.decisions.flatMap(decision => decision.effects).find(effect =>
             effect.kind === 'queue/cancelled' && canonical(effect.data.pending.sources) === canonical(open.sources))
           if (queued?.kind === 'queue/cancelled') {
