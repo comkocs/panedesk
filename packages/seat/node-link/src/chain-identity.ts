@@ -47,11 +47,21 @@ export function chainFailure(request: ChainRequest, code: NodeLinkErrorCode, rea
         operationId: request.operationId, nodeId: request.targetNodeId } } }
 }
 
+/** Identify the two local transport refusals retained by legacy sending stores.
+ * @param response - Correlated transport receipt, absent for an unresolved intent.
+ * @returns Whether the receipt represents expiry or connection failure without an owner result.
+ */
+export function chainTransportNone(response: ChainResponse | undefined): boolean {
+  return response !== undefined && response.status === 'unavailable' && response.error.effectState === 'none'
+    && ((response.error.code === 'node-deadline-exceeded' && response.error.cause.reasonCode === 'deadline-exceeded')
+      || (response.error.code === 'node-tunnel-disconnected' && response.error.cause.reasonCode === 'tunnel-disconnected'))
+}
+
 /** Pending business stages never become permanent transport settlements.
  * @param response - Validated chain response.
  * @returns Whether the receipt must remain queryable rather than terminal.
  */
 export function chainPending(response: ChainResponse): boolean {
   if (response.status !== 'ok') return response.error.effectState === 'unknown'
-  return response.result.status === 'pending' || response.result.status === 'unknown' || response.result.status === 'paused'
+  return response.result.status === 'pending' || response.result.status === 'unknown'
 }

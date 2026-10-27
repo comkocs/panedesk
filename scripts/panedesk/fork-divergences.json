@@ -56,6 +56,17 @@
       }
     },
     {
+      "id": "node-chain-transport-none-recovery",
+      "description": "Recover sender transport refusals through an authenticated exact owner query without weakening callback uncertainty.",
+      "origin": "Optional paired-node work-chain recovery",
+      "reason": "Legacy deadline and connection refusals remain recoverable. Durable owner missing permits one same-key replay with fresh restricted authority; committed evidence repairs receipts. Optional internal recovery history preserves prior refusals and excludes old readers after publication.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/node-link/tests/chain-none-recovery.spec.ts"],
+        "test": "recovers a legacy %s receipt with one exact missing permit and preserves its audit receipt"
+      }
+    },
+    {
       "id": "seat-local-callback-owner",
       "description": "Consume an optional local frozen callback owner and persist bounded outer delivery diagnostics.",
       "origin": "Optional seat orchestration and bounded administration reads",
