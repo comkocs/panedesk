@@ -39,7 +39,7 @@ test.each(methods)('%s queries the original result after full process SIGKILL an
     const first = worker(root, method, 'write'); children.push(first.child)
     expect(first.child.pid).toBeTypeOf('number')
     const accepted = await first.message
-    expect(accepted).toMatchObject({ kind: 'accepted', before: { status: 'pending', effectState: 'unknown' },
+    expect(accepted).toMatchObject({ kind: 'accepted', before: { status: 'missing' },
       result: { status: method === 'engine.acceptFrozen' ? 'accepted' : method === 'seat.openFrozen' ? 'queued' : 'opened' } })
     await kill(first.child)
     expect(await first.exited).toEqual([null, 'SIGKILL'])
@@ -47,7 +47,7 @@ test.each(methods)('%s queries the original result after full process SIGKILL an
     const recovered = await second.message
     expect(await second.exited, second.diagnostics()).toEqual([0, null])
     if (!accepted || typeof accepted !== 'object' || !('result' in accepted)) throw new Error('Expected admission result')
-    expect(recovered).toMatchObject({ kind: 'recovered', before: { status: 'pending', effectState: 'unknown' },
+    expect(recovered).toMatchObject({ kind: 'recovered', before: { status: 'settled', method, result: accepted.result },
       result: { status: 'settled', method, result: accepted.result }, routes: 1,
       conflict: { status: 'rejected', error: { code: 'operation-id-conflict' } },
       variants: Array.from({ length: 4 }, () => ({ status: 'missing' })) })
@@ -104,7 +104,7 @@ test.each(methods)('%s recovers no partial admission after SIGKILL during the du
     await kill(first.child)
     expect(await first.exited).toEqual([null, 'SIGKILL'])
     const second = worker(root, method, 'recover'); children.push(second.child)
-    expect(await second.message).toMatchObject({ kind: 'recovered', before: { status: 'pending', effectState: 'unknown' },
+    expect(await second.message).toMatchObject({ kind: 'recovered', before: { status: 'missing' },
       result: { status: 'missing' }, routes: 0 })
     expect(await second.exited, second.diagnostics()).toEqual([0, null])
   } finally { for (const child of children) await kill(child); await rm(root, { recursive: true, force: true }) }

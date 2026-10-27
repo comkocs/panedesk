@@ -20,7 +20,10 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
       const lifecycle = new AbortController(), pending = new Set<Promise<T.NodeWorkChainOperationResult>>()
       const writes = seats.frozenWrites.register()
       let recovered = false
-      const ready = recovery
+      const ready = recovery.then(() => {
+        recovered = !lifecycle.signal.aborted
+        if (recovered) writes.ready()
+      })
       void ready.catch((_error: unknown) => { /* Recovery failure is retained for the capability barrier. */ })
       const query = async (request: T.NodeWorkChainOperationRequest,
         context: T.SeatCallContext): Promise<T.NodeWorkChainOperationResult> => {
@@ -46,7 +49,7 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
         return structuredClone(original)
       }
       const provider: T.NodeWorkChainBusinessProvider = { methods: ['seat.openFrozen', 'seat.wakeFrozen'],
-        ready: () => ready.then(() => { recovered = !lifecycle.signal.aborted; if (recovered) writes.ready() }),
+        ready: () => ready,
         query: async (request, context) => {
           if (lifecycle.signal.aborted) return rejected('unavailable', 'Frozen query provider was revoked.', 'Restore the provider.')
           if (!recovered) return { status: 'pending', effectState: 'unknown' }
@@ -55,6 +58,10 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
           try { return await work } finally { pending.delete(work) }
         } }
       const unregister = registry.register(provider)
+      // Local recovery also releases the engine's dependent local write barrier, without a peer hello.
+      void ready.then(async () => {
+        if (!lifecycle.signal.aborted) await registry.ready(['engine.acceptFrozen'])
+      }).catch((_error: unknown) => { /* Missing or failed engine recovery cannot grant readiness. */ })
       return async () => {
         lifecycle.abort(); const drained = writes.close(); unregister(); await drained; await Promise.allSettled([...pending])
       }
