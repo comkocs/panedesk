@@ -68,7 +68,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 <a id="pre-open-terminal-outcomes-and-transient-retention-limit"></a>
 ### 开窗前终局与暂态上限
 
-组合在对外准入前对实际执行端实例调用 `SeatEngine.registerPreopenRetention({ projectId, sourceId, sourceOwnerNodeId, limitMs }): () => Promise<void>`，通过生命周期效果保留返回的撤装函数。标识使用席位服务的品牌类型；正整数毫秒限值来自组合已解析配置，公开包不提供隐式默认值或新配置键。项目与原冻结来源、所有者精确匹配；缺失或多重匹配时保留队列、禁止开窗和自动取消，记录固定诊断，仍可受权人工取消。复核提供方撤回不撤限值；组合撤装立即移除注册并等待当前驱动结束。
+组合必须在对外准入前，对实际执行端实例的全部受信路由调用 `SeatEngine.registerPreopenRetention({ sourceId, sourceOwnerNodeId, limitMs, projectId? }): () => Promise<void>` 注册，并通过生命周期效果保留各撤装函数。`projectId` 可选：提供时只覆盖该项目，省略时覆盖冻结路由 `(sourceId, sourceOwnerNodeId)` 的全部项目。唯一的精确项目匹配优先于唯一的路由级匹配。任一层多重匹配，或两层均无匹配时，保留队列、禁止开窗和自动取消，记录固定诊断，仍可受权人工取消。标识使用席位服务的品牌类型；正整数毫秒限值来自组合已解析配置，不提供隐式默认值或新公开配置键。复核提供方撤回不撤限值；组合撤装立即移除注册并等待当前驱动结束。
 
 当前固定暂态类别的首个已提交帧 `observedAt` 为起点。批准、同类重试、合并及重启不重置，真实换类别另起一段；旧项首次写入固定类别才开始计时，不倒推。墙钟倒退不重置起点。独立检查先于执行器和外部读取，到限首轮以 `gate-denied`、`retryable=false`、`effectState=none` 同帧取消并通知；提供方或执行器缺席不能跳过。普通待批、关闭模式、预算和容量等待以及已派发工作不套此终局路径。
 
