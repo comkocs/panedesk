@@ -57,6 +57,15 @@ export function chainTransportNone(response: ChainResponse | undefined): boolean
       || (response.error.code === 'node-tunnel-disconnected' && response.error.cause.reasonCode === 'tunnel-disconnected'))
 }
 
+/** Only callback delivery may recover a local refusal; every response-less intent remains queryable.
+ * @param method - Original admitted business method, never the recovery query method.
+ * @param response - Retained receipt, absent for an unresolved intent.
+ * @returns Whether method and receipt permit recovery, subject to retained owner-evidence exclusion.
+ */
+export function chainRecoveryEligible(method: ChainRequest['method'], response: ChainResponse | undefined): boolean {
+  return response === undefined || (method === 'source.deliverCallback' && chainTransportNone(response))
+}
+
 /** Pending business stages never become permanent transport settlements.
  * @param response - Validated chain response.
  * @returns Whether the receipt must remain queryable rather than terminal.

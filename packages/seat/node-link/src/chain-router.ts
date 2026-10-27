@@ -8,7 +8,7 @@ import type { ChannelCredential } from './credentials.ts'
 import type { ChainCapability, ChainRequest, ChainResponse } from './chain-types.ts'
 import type { ChainRouterService } from './chain-services.ts'
 import { chainDigest, decodeChainRequest, decodeChainResponse, encodeChainFrame } from './chain-codec.ts'
-import { chainFailure, chainKey, chainKeyText, chainPending } from './chain-identity.ts'
+import { chainFailure, chainKey, chainKeyText, chainPending, chainRecoveryEligible, chainTransportNone } from './chain-identity.ts'
 import { ChainStore } from './chain-store.ts'
 
 /** Transport owns sending records, while business providers own operation progress. */
@@ -67,8 +67,8 @@ export class ChainRouter implements ChainRouterService {
       let previous: ReturnType<ChainStore['query']>
       try { previous = this.store.query(request.payload.key, request.payload.payloadDigest) }
       catch (error) { void error; return chainFailure(request, 'node-outcome-unknown', 'outcome-unknown', true) }
-      if (!this.available() && previous.state === 'settled' && previous.response.status !== 'ok'
-        && previous.response.error.code === 'node-tunnel-disconnected' && previous.response.error.effectState === 'none') {
+      if (previous.state === 'settled' && chainTransportNone(previous.response)
+        && (!chainRecoveryEligible(request.payload.key.method, previous.response) || !this.available())) {
         return decodeChainResponse({ ...previous.response, method: request.method, requestId: request.requestId }, request)
       }
       pendingQuery = previous.state === 'pending'

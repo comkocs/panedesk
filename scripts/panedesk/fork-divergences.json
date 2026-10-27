@@ -57,9 +57,9 @@
     },
     {
       "id": "node-chain-transport-none-recovery",
-      "description": "Recover sender transport refusals through an authenticated exact owner query without weakening callback uncertainty.",
+      "description": "Recover sender transport refusals only for callback delivery while keeping initiating pre-send rejections final and response-less unknown intents recoverable.",
       "origin": "Optional paired-node work-chain recovery",
-      "reason": "Legacy deadline and connection refusals remain recoverable. Durable owner missing permits one same-key replay with fresh restricted authority; committed evidence repairs receipts. Optional internal recovery history preserves prior refusals and excludes old readers after publication.",
+      "reason": "Legacy deadline and connection refusals recover only for source.deliverCallback; initiating methods are not automatically sent after hello, restart or explicit recovery. Every admitted method without a response retains exact-key verification. Durable owner missing permits one same-key replay with fresh restricted authority; committed evidence repairs eligible receipts. Optional internal recovery history preserves prior refusals and excludes old readers after publication.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/seat/node-link/tests/chain-none-recovery.spec.ts"],

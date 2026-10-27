@@ -3,7 +3,7 @@ import { digest, object, parseJson, type PrivateFiles } from '@panedesk/dsh-host
 import type { NodeWorkChainOperationKey, SeatDigest } from '@panedesk/dsh-seat'
 import type { ChainRequest, ChainResponse } from './chain-types.ts'
 import { decodeChainRequest, decodeChainResponse } from './chain-codec.ts'
-import { chainKey, chainKeyText, chainPending, chainTransportNone } from './chain-identity.ts'
+import { chainKey, chainKeyText, chainPending, chainRecoveryEligible, chainTransportNone } from './chain-identity.ts'
 
 type Entry = {
   request: ChainRequest
@@ -121,14 +121,13 @@ export class ChainStore {
   reactivate(request: ChainRequest, expected: Outcome): Promise<boolean> {
     return this.enqueue(async () => {
       const key = digest(chainKeyText(chainKey(request))), entry = this.entries[key]
-      if (!entry || entry.request.payloadDigest !== request.payloadDigest
+      if (!entry || !this.recoverable(entry) || entry.request.payloadDigest !== request.payloadDigest
         || digest(this.query(chainKey(request), request.payloadDigest)) !== digest(expected)) return false
       if (entry.response === undefined) {
         if (entry.recovery) await this.publish({ ...this.entries,
           [key]: { ...entry, recovery: { ...entry.recovery, attemptId: request.requestId } } })
         return true
       }
-      if (!this.recoverable(entry)) return false
       const history = [...(entry.recovery?.history ?? []), { response: entry.response, reactivatedAt: new Date().toISOString() }]
       await this.publish({ ...this.entries, [key]: { request: entry.request,
         recovery: { attemptId: request.requestId, history } } })
@@ -151,7 +150,7 @@ export class ChainStore {
   async close(): Promise<void> { await this.serial }
 
   private recoverable(entry: Entry): boolean {
-    return entry.response === undefined || (entry.transportNone !== false && chainTransportNone(entry.response))
+    return entry.transportNone !== false && chainRecoveryEligible(entry.request.method, entry.response)
   }
 
   private enqueue<T>(work: () => Promise<T>): Promise<T> {

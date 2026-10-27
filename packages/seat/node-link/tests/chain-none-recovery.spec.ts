@@ -18,7 +18,16 @@ afterEach(async () => {
 async function fixture(code: 'node-deadline-exceeded' | 'node-tunnel-disconnected' = 'node-deadline-exceeded') {
   vi.useFakeTimers({ toFake: ['Date'] })
   const input = networkInput('none-recovery', new Date(Date.now() + 1000).toISOString())
-  const original = decodeChainRequest(input.request)
+  const prepared = decodeChainRequest(input.request)
+  if (prepared.method !== 'source.prepareOpening') throw new Error('Unexpected fixture method')
+  const body = { callback: { kind: 'opened', callbackId: 'callback-a', sourceId: prepared.payload.sourceId,
+    triggerId: null, stateVersion: 1, seat: prepared.payload.seat, title: 'Frozen title', sessionId: 'session-a',
+    nodeId: prepared.sourceNodeId, nodeName: 'node-a', budget: {}, relatedTaskIds: prepared.payload.taskIds },
+  route: networkPrepared(prepared.payload).route, modelEvidence: { status: 'missing', sessionId: 'session-a',
+    nodeId: prepared.sourceNodeId, observedAt: new Date().toISOString() } }
+  const payloadDigest = chainDigest('source.deliverCallback', body)
+  const original = decodeChainRequest({ ...prepared, method: 'source.deliverCallback', payload: { ...body, payloadDigest },
+    payloadDigest, delegation: { ...prepared.delegation, requestDigest: payloadDigest } })
   const none = chainFailure(original, code, code === 'node-deadline-exceeded' ? 'deadline-exceeded' : 'tunnel-disconnected')
   // This is the old on-disk generation: no recovery metadata is required.
   const records = new Map([['chain-v1.json', JSON.stringify({ version: 'node-work-chain/v1', entries: {
@@ -31,12 +40,12 @@ async function fixture(code: 'node-deadline-exceeded' | 'node-tunnel-disconnecte
   await store.load()
   const evidence = new ChainRetainedEvidence(files, 262144, 100, 'node-a', 'node-b')
   const capability: ChainCapability = { capability: 'node-work-chain/v1', maxFrameBytes: 65536,
-    methods: ['source.prepareOpening', 'chain.operation'] }
+    methods: ['source.deliverCallback', 'chain.operation'] }
   const state = { available: true, ready: true, authorized: true, query: 'missing', executions: 0, writes: 0,
     lost: false }
   const seen: ChainRequest[] = []
-  if (original.method !== 'source.prepareOpening') throw new Error('Unexpected fixture method')
-  const result = networkPrepared(original.payload)
+  if (original.method !== 'source.deliverCallback') throw new Error('Unexpected fixture method')
+  const result = { status: 'committed', callbackId: original.payload.callback.callbackId, payloadDigest: original.payloadDigest }
   const wire = vi.spyOn(Host, 'callLoopback').mockImplementation(async (_port, _credential, value) => {
     const request = decodeChainRequest(value); seen.push(request)
     if (request.method === 'chain.operation') {
@@ -126,7 +135,7 @@ test('a replay whose evidence publication expires waits for another authenticate
   let expire = true
   f.files.write = async (name, text) => {
     await publish(name, text)
-    if (expire && name === 'evidence-v1.json' && text.includes('source.prepareOpening')) {
+    if (expire && name === 'evidence-v1.json' && text.includes('source.deliverCallback')) {
       expire = false; vi.setSystemTime(Date.now() + 1001)
     }
   }
@@ -145,8 +154,9 @@ test('a replay whose evidence publication expires waits for another authenticate
 
 test('a changed payload conflicts and an owner epoch change cannot reactivate the original key', async () => {
   const f = await fixture()
-  if (f.original.method !== 'source.prepareOpening') throw new Error('Unexpected fixture method')
-  const payload = { ...f.original.payload, taskIds: ['different-task'] as Seat.SeatTaskId[] }
+  if (f.original.method !== 'source.deliverCallback') throw new Error('Unexpected fixture method')
+  const body = { ...f.original.payload, callback: { ...f.original.payload.callback, title: 'Changed title' } }
+  const payload = { ...body, payloadDigest: chainDigest(f.original.method, body) }
   const changed = decodeChainRequest({ ...f.original, payload, payloadDigest: chainDigest(f.original.method, payload),
     delegation: { ...f.original.delegation, requestDigest: chainDigest(f.original.method, payload) } })
   expect(await f.store.admit(changed)).toEqual({ state: 'conflict' })
