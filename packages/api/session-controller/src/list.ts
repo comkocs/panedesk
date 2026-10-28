@@ -20,6 +20,8 @@ import type {
   SessionSearchValue, SessionSummary,
 } from './types.ts'
 
+import { withAccountingStatus } from './accounting-status.ts'
+
 const SEARCH_PROVIDER_CALL_LIMIT = 100
 const SESSION_SEARCH_QUERY_MAX_CHARS = 500
 const MESSAGE_TYPES = new Set(['user/message', 'assistant/message'])
@@ -296,13 +298,13 @@ export class ApiSessionList {
       if (session !== undefined) {
         // The live registry computed the block for this Session: its watermark
         // shares the sequence space of the Session's baselines and frames.
-        return hintsOf('sequenced', this.ctx.sessionProjections.cachedSnapshot(session))
+        return hintsOf(this.ctx, 'sequenced', this.ctx.sessionProjections.cachedSnapshot(session))
       }
       // A cold row reads the persisted cache by header alone; the cache serves
       // seeded and unseeded lifecycles alike because a listing never seeds a
       // fold. The watermark is the stored record's own.
       const cache = this.ctx.get('sessionProjectionCache')
-      return hintsOf('cached', cache?.cachedSnapshot(header) ?? cache?.cachedPredecessorTitle(header))
+      return hintsOf(this.ctx, 'cached', cache?.cachedSnapshot(header) ?? cache?.cachedPredecessorTitle(header))
     } catch (error) {
       this.ctx.logger.warn(
         `api-session.list: projection column for "${header.id}" failed; serving the row without it: ${String(error)}`,
@@ -314,18 +316,22 @@ export class ApiSessionList {
 
 /**
  * Wrap one projection block as Session-list hints of the named sequence space.
+ * @param ctx - Host context carrying the optional startup audit.
  * @param kind - which sequence space the block's watermark belongs to.
  * @param block - the block, or `undefined` when no source served one.
  * @returns the hints, or `undefined` when the block is absent or carries no value.
  */
 function hintsOf(
+  ctx: Context,
   kind: SessionProjectionHints['kind'],
   block: ProjectionSnapshot | undefined,
 ): SessionProjectionHints | undefined {
-  if (block === undefined || Object.keys(block.values).length === 0) return undefined
+  if (block === undefined) return undefined
+  const values = withAccountingStatus(ctx, block.values as SessionProjectionValues)
+  if (Object.keys(values).length === 0) return undefined
   // Listing hints contain every wire value the source currently holds but
   // remain partial: missing cells and cache rows are never materialized here.
-  return { kind, asOfSeq: block.asOfSeq, values: block.values as SessionProjectionValues }
+  return { kind, asOfSeq: block.asOfSeq, values }
 }
 
 function normalizeSearchQuery(query: string): string {

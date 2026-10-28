@@ -170,9 +170,9 @@ function decodeSpeed(stats: WindowStats, t: Translate): string {
 }
 
 /** A static reading: used when the pill has no dialog rows or the mode is Compact. */
-function PlainPill({ stat, icon, label }: PillContent) {
+function PlainPill({ stat, icon, label, title }: PillContent & { title?: string }) {
   return (
-    <span className={css.anchor} data-composer-stat={stat}>
+    <span className={css.anchor} data-composer-stat={stat} title={title}>
       <span className={css.pill}>
         {icon}
         <span className={css.label}>{label}</span>
@@ -278,16 +278,21 @@ export const ActivityPill = memo(function ActivityPill({ useChat, useProjection,
   )
 })
 
-/** Whole-log token total and cache hit; Compact keeps only the cache hit. */
+/** Whole-log usage, or startup ledger unavailability; absent audit keeps the existing usage display. */
 export const UsagePill = memo(function UsagePill({ useProjection, usePerformanceUsage, t }: StatPillProps) {
   const mode = usePerformanceUsage(value => value)
   const usage = useProjection('tokenUsage')
+  const accounting = useProjection('accountingStatus')
+  const icon = <IconDatabaseOutlineRegular />
+  if (accounting !== undefined && accounting.ledger !== 'mounted') {
+    const label = t('stats.ledgerNotMounted')
+    return <PlainPill stat="usage" icon={icon} label={label} title={accounting.cause} />
+  }
   // Gated on actual token activity: a session whose steps all settled without
   // billing (e.g. every request failed) shows no usage pill.
   if (usage === undefined || (billedInputTokens(usage) === 0 && usage.outputTokens === 0)) return null
   const cacheHit = cacheHitPercent(usage)
   const cacheHitText = cacheHit !== null ? t('stats.cacheHit', { percent: cacheHit }) : null
-  const icon = <IconDatabaseOutlineRegular />
   if (mode === 'compact') {
     return cacheHitText === null ? null : <PlainPill stat="usage" icon={icon} label={cacheHitText} />
   }

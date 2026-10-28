@@ -13,6 +13,8 @@ import type {
   SessionProjectionValues,
 } from './types.ts'
 
+import { withAccountingStatus } from './accounting-status.ts'
+
 /** Owns the Host-wide Session control stream. */
 export class SessionControlController {
   private readonly streams = new Set<ControlQueue>()
@@ -68,7 +70,7 @@ export class SessionControlController {
       blocks[session.id] = {
         asOfSeq: snapshot.asOfSeq,
         // Every projection definition validates its value before snapshot publication.
-        values: snapshot.values as SessionProjectionValues,
+        values: withAccountingStatus(this.ctx, snapshot.values as SessionProjectionValues),
       }
     }
     return blocks

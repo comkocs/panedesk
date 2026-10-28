@@ -34,6 +34,7 @@ import type {
   SessionWireEvent,
 } from './types.ts'
 import { SessionAssistantStreamAccumulator } from './assistant-stream.ts'
+import { withAccountingStatus } from './accounting-status.ts'
 
 const DEFAULT_MAX_MESSAGES = 50
 const MESSAGE_TYPES = new Set(['user/message', 'assistant/message'])
@@ -197,8 +198,8 @@ export class SessionHistoryController {
         records: pageRecords(page.events),
         hasMore: page.hasMore,
         projections: source.projections === undefined
-          ? { asOfSeq: cursor, values: {} }
-          : projectionBlock(source.projections),
+          ? { asOfSeq: cursor, values: withAccountingStatus(this.ctx, {}) }
+          : projectionBlock(this.ctx, source.projections),
         ...assistantStream === undefined ? {} : { assistantStream },
       }
       if (address.kind === 'session' && source.source === 'prepared') {
@@ -293,12 +294,13 @@ function wireAssistantStreamFrame(
 }
 
 function projectionBlock(
+  ctx: Context,
   snapshot: NonNullable<SessionObservation['projections']>,
 ): SessionProjectionBaseline {
   return {
     asOfSeq: snapshot.asOfSeq,
     // Projection definitions validate whole JSON values before snapshot publication.
-    values: snapshot.values as SessionProjectionValues,
+    values: withAccountingStatus(ctx, snapshot.values as SessionProjectionValues),
   }
 }
 

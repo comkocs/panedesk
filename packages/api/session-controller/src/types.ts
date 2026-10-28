@@ -29,6 +29,8 @@ declare module '@panedesk/dsh-session-projection/types' {
     imageLimits: ImageAttachmentLimits
     /** Durable model selection already used and selected for the next request. */
     modelSelection: ModelSelectionProjection
+    /** Current Host startup audit; absent when the Host has not published one. */
+    accountingStatus: { readonly ledger: 'mounted' | 'missing' | 'disabled' | 'failed'; readonly cause?: string }
   }
 }
 

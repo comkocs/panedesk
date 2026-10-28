@@ -1566,6 +1566,9 @@ importers:
       '@panedesk/dsh-api-remote-access':
         specifier: workspace:*
         version: link:../remote-access
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
