@@ -14,12 +14,13 @@ const homes: string[] = []
 afterEach(async () => { await Promise.all(homes.splice(0).map(home => rm(home, { recursive: true, force: true }))) })
 const execute = promisify(execFile)
 
-it('blocks an old snapshot and export while a writer holds a half-frame', async () => {
+it.each(['current', 'compat'])('blocks %s snapshots and exports while a writer holds a half-frame', async (version) => {
   const home = await mkdtemp(join(import.meta.dirname, '.old-reader-'))
   homes.push(home)
   const ctx = new Context()
   const ledger = new JournalSessionLedger(ctx, { dshHome: home })
-  const reader = resolve(process.env.LEDGER_COMPAT_READER_ROOT ?? join(import.meta.dirname, '../../../..'))
+  const current = resolve(import.meta.dirname, '../../../..')
+  const reader = version === 'current' ? current : resolve(process.env.LEDGER_COMPAT_READER_ROOT ?? current)
   const root = join(home, 'ledger', 'v1', await ledger.nodeId())
   await ledger.beginCall(callStart)
   const script = `
@@ -28,19 +29,38 @@ it('blocks an old snapshot and export while a writer holds a half-frame', async 
     const load = path => import(pathToFileURL(tree + '/' + path).href);
     const { Context } = await load('vendor/cordis/src/index.ts');
     const { JournalSessionLedger } = await load('packages/session/session-ledger/src/index.ts');
+    const { LedgerQueryService } = await load('packages/session/ledger-query/src/index.ts');
     const { serializeLedger } = await load('packages/session/ledger-query/src/export.ts');
+    const { recoverSegments } = await load('packages/session/session-ledger/src/journal.ts');
     const ctx = new Context();
     const ledger = new JournalSessionLedger(ctx, { dshHome: home, lockTimeoutMs: 40, lockRetryMs: 5 });
-    await ledger.nodeId();
+    const query = new LedgerQueryService(ctx);
+    const nodeId = await ledger.nodeId();
     process.send({ ready: true });
     process.on('message', async mode => {
+      if (mode === 'locked') {
+        const codes = [];
+        for (const read of [() => ledger.snapshot(),
+          () => query.export({ query: {}, format: 'jsonl', outputPath: home + '/locked.jsonl' }),
+          () => query.export({ query: {}, format: 'csv', outputPath: home + '/locked.csv' })]) {
+          try { await read(); codes.push('unexpected-success'); }
+          catch (error) { codes.push(error.code); }
+        }
+        process.send({ mode, codes });
+        return;
+      }
       try {
         const snapshot = await ledger.snapshot();
+        const jsonl = await query.export({ query: {}, format: 'jsonl', outputPath: home + '/released.jsonl' });
+        const csv = await query.export({ query: {}, format: 'csv', outputPath: home + '/released.csv' });
+        const scan = await recoverSegments(home + '/ledger/v1/' + nodeId, 1048576);
         process.send({ mode, complete: snapshot.complete, rows: snapshot.rows.length,
           finished: snapshot.rows.some(row => row.kind === 'call' && row.finish),
-          exported: serializeLedger(snapshot, 'jsonl').endsWith('\\n') && serializeLedger(snapshot, 'csv').length > 0 });
+          exported: jsonl.rows === 1 && csv.rows === 1 && serializeLedger(snapshot, 'jsonl').endsWith('\\n')
+            && serializeLedger(snapshot, 'csv').length > 0, corrupt: scan.corrupt.length, tails: scan.tails.length,
+          alerts: scan.events.filter(event => event.kind === 'alert' && event.alert.code === 'ledger-tail-recovered').length });
       } catch (error) { process.send({ mode, code: error.code }); }
-      if (mode === 'released') { await ctx.fiber.dispose(); process.disconnect(); }
+      await ctx.fiber.dispose(); process.disconnect();
     });
   `
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
@@ -59,11 +79,13 @@ it('blocks an old snapshot and export while a writer holds a half-frame', async 
       if (phase !== 'partial-write') return
       const response = message()
       child.send('locked')
-      expect(await response).toEqual({ mode: 'locked', code: 'LEDGER_UNAVAILABLE' })
+      expect(await response).toEqual({ mode: 'locked', codes: ['LEDGER_UNAVAILABLE', 'LEDGER_UNAVAILABLE', 'LEDGER_UNAVAILABLE'] })
     } })
     const response = message()
     child.send('released')
-    expect(await response).toEqual({ mode: 'released', complete: true, rows: 1, finished: true, exported: true })
+    expect(await response).toEqual({ mode: 'released', complete: true, rows: 1, finished: true, exported: true, corrupt: 0, tails: 0, alerts: 0 })
+    await expect(readFile(join(home, 'locked.jsonl'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(home, 'locked.csv'))).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await exit).toBe(0)
   } finally {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
