@@ -162,7 +162,7 @@ export type SeatErrorCode =
   | 'budget-unverifiable' | 'budget-full' | 'budget-stopped'
   | 'source-not-found' | 'source-authentication-failed' | 'source-payload-too-large'
   | 'source-timestamp-invalid' | 'callback-authentication-failed' | 'callback-protocol-error'
-  | 'open-create-failed' | 'open-configuration-failed' | 'opening-failed'
+  | 'open-create-failed' | 'open-configuration-failed' | 'opening-failed' | 'opening-owner-lost'
   | 'session-id-conflict' | 'replacement-open-failed' | 'replacement-first-turn-failed'
   | 'replacement-cleanup-failed' | 'wait-id-conflict' | 'wait-object-not-found'
   | 'wait-object-unauthorized' | 'ticket-not-found' | 'ticket-cancelled'

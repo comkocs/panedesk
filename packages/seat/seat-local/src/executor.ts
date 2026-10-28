@@ -17,6 +17,7 @@ import { readSeatText, renderOpening } from './template.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { localSourceId } from './open-admission.ts'
 import { observeOwner } from './owner-observation.ts'
+import { recordOrphanedOpening } from './orphaned-opening.ts'
 import { sessionCredentialSetup } from './session-credentials.ts'
 import { readExecutionModel } from './model-evidence.ts'
 
@@ -216,7 +217,9 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
         if (persistence === undefined || await persistence.stat(owner.sessionId) === undefined) return 'unknown'
         await agentFor(latest.data)
       }
-      return observeOwner(ctx, owner, options.nodeId)
+      const observed = await observeOwner(ctx, owner, options.nodeId)
+      if (observed === 'dead') await recordOrphanedOpening(ctx, state, owner.sessionId)
+      return observed
     },
   }
 }
