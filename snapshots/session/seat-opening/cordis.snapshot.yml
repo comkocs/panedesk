@@ -59,6 +59,7 @@
       name: '@panedesk/dsh-api-session-controller'
 
 - id: session-ledger-full
+  disabled: false
   config:
     dshHome: !!js "process.cwd() + '/.panedesk/seat-home'"
 
