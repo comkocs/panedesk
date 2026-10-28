@@ -3,7 +3,8 @@ import { cp, mkdtemp, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { appendUnique, JournalViewOwner, readJournal } from '../src/journal.ts'
+import { appendUnique, JournalViewOwner, readJournal, recoverSegments } from '../src/journal.ts'
+import type { LedgerAppendResult, LedgerEvent, LedgerEventId } from '../src/types.ts'
 import { event, options } from './fixtures.ts'
 
 const roots: string[] = []
@@ -30,6 +31,7 @@ async function oldWatermark(root: string): Promise<Buffer> {
 for (const [label, fixture] of [
   ['V0', process.env.LEDGER_COMPAT_V0_ROOT],
   ['V0b', process.env.LEDGER_COMPAT_V0B_ROOT],
+  ['Windows', process.env.LEDGER_COMPAT_WINDOWS_ROOT],
   ['segmented', undefined],
 ] as const) {
   it.skipIf(label !== 'segmented' && fixture === undefined)(`keeps the ${label} incremental watermark byte-identical to the full-scan reader`, async () => {
@@ -45,6 +47,7 @@ for (const [label, fixture] of [
       }
       const compare = async () => {
         const scan = await readJournal(root, retained)
+        expect(Buffer.from(scan.watermark)).toEqual(Buffer.from((await recoverSegments(root, options.maxRecordBytes)).watermark))
         expect(scan.complete).toBe(true)
         expect(scan.events.length).toBeGreaterThan(0)
         const bytes = Buffer.from(scan.watermark)
@@ -56,6 +59,51 @@ for (const [label, fixture] of [
       if (label === 'segmented') {
         await appendUnique(root, event('run/start'), options)
         await compare()
+      }
+      const delayed: { result: Exclude<LedgerAppendResult, { kind: 'conflict' }>; bytes: Buffer }[] = []
+      for (let step = 0; step < 3; step++) {
+        const fact: LedgerEvent = { ...event(), kind: 'alert', eventId: `watermark:${step}` as LedgerEventId,
+          alert: { code: 'watermark-fixture', message: 'Synthetic watermark fixture.', redacted: false } }
+        const result = await appendUnique(root, fact, retained)
+        if (result.kind === 'conflict') throw new Error('Unexpected fixture conflict')
+        const bytes = await oldWatermark(root)
+        delayed.push({ result, bytes })
+        const replay = await appendUnique(root, fact, retained)
+        if (replay.kind === 'conflict') throw new Error('Unexpected replay conflict')
+        expect(replay.kind).toBe('existing')
+        expect(Buffer.from(replay.watermark)).toEqual(bytes)
+        await compare()
+      }
+      const beforeChild = await oldWatermark(root)
+      const reader = resolve(join(import.meta.dirname, '../../../..'))
+      const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
+      env.TSX_TSCONFIG_PATH = join(reader, 'tsconfig.json')
+      const script = `
+        import { pathToFileURL } from 'node:url';
+        const [tree, root] = process.argv.slice(1);
+        const { appendUnique, JournalViewOwner } = await import(pathToFileURL(tree + '/packages/session/session-ledger/src/journal.ts').href);
+        const { event, options } = await import(pathToFileURL(tree + '/packages/session/session-ledger/tests/fixtures.ts').href);
+        const owner = new JournalViewOwner();
+        try {
+          for (let i = 0; i < 3; i++) await appendUnique(root, { ...event(), kind: 'alert', eventId: 'child:' + i,
+            alert: { code: 'watermark-fixture', message: 'Concurrent fixture.', redacted: false } }, { ...options, viewOwner: owner });
+        } finally { owner.dispose(); }
+      `
+      const writing = execute(process.execPath, ['--import', join(reader, 'node_modules/tsx/dist/esm/index.mjs'),
+        '--input-type=module', '-e', script, reader, root], { cwd: reader, env, timeout: 30000 })
+      await Promise.all([writing, appendUnique(root, { ...event(), kind: 'alert', eventId: 'parent:concurrent' as LedgerEventId,
+        alert: { code: 'watermark-fixture', message: 'Concurrent parent fixture.', redacted: false } }, retained)])
+      await compare()
+      expect((await oldWatermark(root)).equals(beforeChild)).toBe(false)
+      const replay = await appendUnique(root, { ...event(), kind: 'alert', eventId: 'watermark:0' as LedgerEventId,
+        alert: { code: 'watermark-fixture', message: 'Synthetic watermark fixture.', redacted: false } }, retained)
+      if (replay.kind === 'conflict') throw new Error('Unexpected refreshed replay conflict')
+      expect(Buffer.from(replay.watermark)).toEqual(await oldWatermark(root))
+      viewOwner.dispose()
+      for (const { result, bytes } of delayed) {
+        expect(Buffer.from(result.watermark)).toEqual(bytes)
+        expect(Buffer.from(structuredClone(result).watermark)).toEqual(bytes)
+        expect(JSON.stringify(result)).toBe(JSON.stringify({ kind: result.kind, event: result.event, watermark: bytes.toString() }))
       }
     } finally { viewOwner.dispose() }
   }, 30000)

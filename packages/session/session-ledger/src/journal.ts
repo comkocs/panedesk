@@ -299,6 +299,7 @@ class JournalView {
   writer: { path: string; date: string } | undefined
 
   private references = 0
+  private watermarkSnapshot: (() => LedgerWatermark) | undefined
 
   static async forRoot(root: string, options: JournalOptions): Promise<JournalView> {
     const identity = await stat(join(root, 'writer.lock'), { bigint: true })
@@ -317,6 +318,7 @@ class JournalView {
   }
 
   accept(path: string, segment: SegmentView, event: LedgerEvent): void {
+    this.watermarkSnapshot = undefined
     segment.events.push(event)
     segment.marks.push(digest(canonicalJson(event)))
     addToIndex(this.index, event)
@@ -348,6 +350,7 @@ class JournalView {
     const present = new Set(paths)
     if ([...this.segments.keys()].some(path => !present.has(path))) {
       // Administrative moves invalidate positions; normal writers never remove journal files.
+      this.watermarkSnapshot = undefined
       this.segments.clear()
       this.index.events.clear(); this.index.slots.clear(); this.index.conflicts.length = 0
       this.eventFiles.clear(); this.waitFacts.clear(); this.latestStarts.clear(); this.openRuns.clear(); this.writer = undefined
@@ -395,8 +398,8 @@ class JournalView {
     }
   }
 
-  scan(root: string): LedgerScan {
-    const ordered = [...this.segments].sort(([a], [b]) => {
+  private orderedSegments(): [string, SegmentView][] {
+    return [...this.segments].sort(([a], [b]) => {
       const left = a.split('/'); const right = b.split('/')
       for (let i = 0; i < Math.min(left.length, right.length); i++) {
         const part = left[i]; const other = right[i]
@@ -406,6 +409,34 @@ class JournalView {
       }
       return left.length - right.length
     })
+  }
+
+  private captureWatermark(): () => LedgerWatermark {
+    if (this.watermarkSnapshot) return this.watermarkSnapshot
+    // Marks are append-only. Fixed lengths preserve this acknowledgement after later writes or view release.
+    let state: { snapshot: { marks: string[]; length: number }[] } | { watermark: LedgerWatermark } = {
+      snapshot: this.orderedSegments().map(([, segment]) => ({ marks: segment.marks, length: segment.marks.length })),
+    }
+    this.watermarkSnapshot = () => {
+      if ('snapshot' in state) {
+        state = { watermark: digest(state.snapshot.flatMap(({ marks, length }) => marks.slice(0, length)).join('\n')) as LedgerWatermark }
+      }
+      return state.watermark
+    }
+    return this.watermarkSnapshot
+  }
+
+  acknowledgement(kind: 'appended' | 'existing', event: LedgerEvent): LedgerAppendResult {
+    const readWatermark = this.captureWatermark()
+    let assigned: LedgerWatermark | undefined
+    return { kind, event: structuredClone(event),
+      get watermark() { return assigned ?? readWatermark() },
+      set watermark(value: LedgerWatermark) { assigned = value },
+    }
+  }
+
+  scan(root: string): LedgerScan {
+    const ordered = this.orderedSegments()
     const tails = ordered.filter(([, value]) => value.tail).map(([path]) => join(root, path))
     const corrupt = ordered.filter(([, value]) => value.corrupt).map(([path]) => join(root, path))
     return { events: ordered.flatMap(([, value]) => value.events), tails, corrupt,
@@ -502,7 +533,7 @@ export async function readJournalFacts(root: string, options: JournalOptions, se
  * @param event - Complete event, or a factory resolving its start from the locked index.
  * @param options - Storage limits and native-lock wait budget.
  * @param firstTerminalWins - Only finishRun may accept a different already committed terminal fact.
- * @returns Durable append/existing outcome or a non-overwriting conflict.
+ * @returns Durable append/existing outcome with a lazily cached, transaction-pinned watermark, or a non-overwriting conflict.
  */
 export async function appendUnique(
   root: string, event: LedgerEvent | ((index: LedgerIndex) => LedgerEvent), options: JournalOptions, firstTerminalWins = false,
@@ -531,7 +562,7 @@ export async function appendUnique(
       const path = view.eventFiles.get(prior.eventId)
       if (path === undefined) throw new Error('Ledger fact has no synchronized segment')
       await syncFiles([join(root, path)])
-      return { kind: 'existing', event: structuredClone(prior), watermark: view.scan(root).watermark }
+      return view.acknowledgement('existing', prior)
     }
     for (const [tail, segment] of view.segments) {
       if (!segment.tail) continue
@@ -545,7 +576,7 @@ export async function appendUnique(
       await view.append(root, recovery, frame(recovery, options.maxRecordBytes), options.appendCheckpoint)
     }
     await view.append(root, immutable, encoded, options.appendCheckpoint)
-    return { kind: 'appended', event: structuredClone(immutable), watermark: view.scan(root).watermark }
+    return view.acknowledgement('appended', immutable)
   })
 }
 

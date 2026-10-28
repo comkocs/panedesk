@@ -642,6 +642,17 @@
       }
     },
     {
+      "id": "ledger-lazy-write-watermarks",
+      "description": "Compute transaction-pinned write watermarks only when read, retaining the persisted scan-order digest.",
+      "origin": "Ledger write optimization continuation",
+      "reason": "Avoid full event copies and full watermark hashing on unobserved write acknowledgements.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/watermark-lazy.spec.ts"],
+        "test": "defers full watermark hashing and event copying at fifty and one thousand facts"
+      }
+    },
+    {
       "id": "provider-concurrency-limit",
       "description": "Bound concurrent requests by provider family without changing retry backoff.",
       "origin": "Cache controls and session ledger",
