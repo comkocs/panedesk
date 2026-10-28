@@ -34,6 +34,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",

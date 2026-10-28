@@ -125,7 +125,7 @@ export class Adapter extends LlmAdapter {
   }
 }
 
-export async function harness(options: { ledger?: boolean; config?: Partial<Cache.Config> } = {}) {
+export async function harness(options: { ledger?: boolean; cache?: boolean; config?: Partial<Cache.Config> } = {}) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
@@ -144,7 +144,7 @@ export async function harness(options: { ledger?: boolean; config?: Partial<Cach
     routes: [{ provider: 'model-provider', modelFamily: 'family-a', capability: 'anthropic' }],
     ...options.config,
   }
-  await ctx.plugin(Cache, config)
+  if (options.cache !== false) await ctx.plugin(Cache, config)
   return { ctx, adapter, ledger: ctx.get('sessionLedger') as MemoryLedger | undefined }
 }
 

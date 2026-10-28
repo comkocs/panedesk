@@ -28,6 +28,10 @@ import type {
 export type * from './types.ts'
 export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
 export { projectWaits, withoutWaitProjection } from './waits.ts'
+export { callWaits } from './call-waits.ts'
+export type * from './call-contributor.ts'
+import type { CallContributor } from './call-contributor.ts'
+import { installCallAccounting } from './call-accounting.ts'
 
 /** Trusted configuration accepted by concrete ledger providers. */
 export type Config = LedgerOptions
@@ -40,8 +44,22 @@ declare module '@panedesk/cordis' {
 
 /** Durable ledger contract; implementations alone own storage and runtime hooks. */
 export abstract class SessionLedger extends Service {
+  private readonly registerContributor: (contributor: CallContributor) => () => void
+
   constructor(ctx: Context) {
     super(ctx, 'sessionLedger')
+    this.registerContributor = installCallAccounting(ctx, this)
+  }
+
+  /** Register the optional cache contributor on this ledger instance.
+   * Concurrent registrations reject, including the same object twice. Capture the returned
+   * disposer in the contributing plugin's effect; release prevents future contributions,
+   * while calls already prepared retain their contribution through settlement.
+   * @param contributor - Cache evidence and admission owner, never a call lifecycle writer.
+   * @returns Idempotent disposer releasing only this registration.
+   */
+  registerCallContributor(contributor: CallContributor): () => void {
+    return this.registerContributor(contributor)
   }
 
   /** Resolve trusted attribution before dispatch.
