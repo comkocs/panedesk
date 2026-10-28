@@ -501,6 +501,9 @@ importers:
       '@panedesk/dsh-session-checkpoint-policy':
         specifier: workspace:*
         version: link:../../packages/session/session-checkpoint-policy
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../packages/session/session-ledger
       '@panedesk/dsh-session-log-deepseek':
         specifier: workspace:*
         version: link:../../packages/session/session-log-deepseek
@@ -516,6 +519,9 @@ importers:
       '@panedesk/dsh-session-reference':
         specifier: workspace:*
         version: link:../../packages/context/session-reference
+      '@panedesk/dsh-session-snapshot':
+        specifier: workspace:*
+        version: link:../../packages/test-support/session-snapshot
       '@panedesk/dsh-settings':
         specifier: workspace:*
         version: link:../../packages/settings/settings

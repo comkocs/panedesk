@@ -44,11 +44,11 @@
               - id: deepseek-v4-flash
               - id: deepseek-v4-pro
 
+- id: session-ledger-full
+  config:
+    dshHome: !!js "process.cwd() + '/.panedesk/seat-home'"
+
 - insert:
-    - id: seat-ledger
-      name: '@panedesk/dsh-session-ledger'
-      config:
-        dshHome: !!js "process.cwd() + '/.panedesk/seat-home'"
     - id: seat-engine
       name: '@panedesk/dsh-seat-engine'
       config:

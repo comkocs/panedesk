@@ -1,6 +1,129 @@
 {
   "divergences": [
     {
+      "id": "creator-fixture-distinct-tool-calls",
+      "description": "Give each synthetic Creator management invocation a distinct tool call identity.",
+      "origin": "Default accounting composition integration",
+      "reason": "Repeated synthetic calls must not reuse the durable wait event identity; recorded expectations and assertions stay unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["apps/cli/tests/profiles/web/tests/fixtures/creator-plugin-manager.mjs"],
+        "replacements": [
+          { "upstream": [], "fork": ["      let manageCall = 0"] },
+          { "upstream": ["        callId: `${phase}-manage`, signal: new AbortController().signal })"], "fork": ["        callId: `${phase}-manage-${++manageCall}`, signal: new AbortController().signal })"] }
+        ]
+      }
+    },
+    {
+      "id": "seat-snapshot-single-default-ledger",
+      "description": "Configure the default full ledger instead of inserting a second ledger in seat replay compositions.",
+      "origin": "Default accounting composition integration",
+      "reason": "Seat engine node identity must come from one ledger service while retaining the scenario-owned home and unchanged recording expectations.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/session/seat-opening/cordis.yml", "snapshots/session/seat-opening/cordis.snapshot.yml", "snapshots/session/seat-windows/cordis.yml", "snapshots/session/seat-windows/cordis.snapshot.yml"],
+        "replacements": [{
+          "upstream": ["- insert:", "    - id: seat-ledger", "      name: '@panedesk/dsh-session-ledger'", "      config:", "        dshHome: !!js \"process.cwd() + '/.panedesk/seat-home'\""],
+          "fork": ["- id: session-ledger-full", "  config:", "    dshHome: !!js \"process.cwd() + '/.panedesk/seat-home'\"", "", "- insert:"]
+        }]
+      }
+    },
+    {
+      "id": "upstream-headless-cache-disabled",
+      "description": "Apply the ordinary disabled patch after scenario layers for headless replay and resume.",
+      "origin": "Default accounting cache integration",
+      "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/session/headless.snapshot.ts"],
+        "replacements": [{ "upstream": [], "fork": ["        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),"] }]
+      }
+    },
+    {
+      "id": "upstream-sdk-cache-disabled",
+      "description": "Disable the cache layer through ordinary patches in SDK parent and child replay processes.",
+      "origin": "Default accounting cache integration",
+      "reason": "Upstream snapshots were recorded without the accounting cache layer; dynamic tool additions and removals retain their three recorded headers.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/sdk/sdk.snapshot.ts"],
+        "replacements": [
+          { "upstream": ["  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? []]"], "fork": ["  const cacheDisabledPatch = join(corpusRoot, 'cache-disabled.patch.yml')", "  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]"] },
+          { "upstream": [], "fork": ["    const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1)"] },
+          { "upstream": ["      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),"], "fork": ["      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch, childCachePatch]),"] }
+        ]
+      }
+    },
+    {
+      "id": "upstream-acp-cache-disabled",
+      "description": "Disable the cache layer in the base ACP snapshot composition shared by goal process expectations.",
+      "origin": "Default accounting cache integration",
+      "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/acp/escalation-approved/cordis.yml"],
+        "replacements": [{ "upstream": [], "fork": ["# Upstream snapshots were recorded without the accounting cache layer.", "- id: llm-cache", "  disabled: true"] }]
+      }
+    },
+    {
+      "id": "upstream-headless-driver-cache-disabled",
+      "description": "Append the ordinary disabled patch to the keyless headless fixture driver.",
+      "origin": "Default accounting cache integration",
+      "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts"],
+        "replacements": [
+          { "upstream": [], "fork": ["import { fileURLToPath } from 'node:url'"] },
+          { "upstream": ["    overlayPaths: [resolveConfigPath(configPath, undefined)],"], "fork": ["    overlayPaths: [resolveConfigPath(configPath, undefined), fileURLToPath(new URL('./cache-disabled.patch.yml', import.meta.url))],"] }
+        ]
+      }
+    },
+    {
+      "id": "upstream-headless-cli-cache-disabled",
+      "description": "Disable the cache layer in the keyless product headless CLI fixture.",
+      "origin": "Default accounting cache integration",
+      "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["apps/cli/tests/profiles/headless/tests/fixtures/headless-profile.patch.yml"],
+        "replacements": [{ "upstream": [], "fork": ["- id: llm-cache", "  disabled: true"] }]
+      }
+    },
+    {
+      "id": "upstream-web-cache-disabled",
+      "description": "Disable the cache layer after scenario overlays in the Web replay scaffold.",
+      "origin": "Default accounting cache integration",
+      "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["apps/web/tests/scaffold.ts"],
+        "replacements": [{ "upstream": [], "fork": ["    // Upstream snapshots were recorded without the accounting cache layer.", "    { id: 'llm-cache', disabled: true },"] }]
+      }
+    },
+    {
+      "id": "default-cache-three-profile-requests",
+      "description": "Pin default cache controls and disabled-patch call accounting through headless, SDK and ACP profiles.",
+      "origin": "Default accounting cache integration",
+      "reason": "Default requests differ from the reconstructed upstream request only by cache controls; disabling the plugin keeps ledger call accounting active.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["apps/cli/tests/profiles/cache-default.expected.e2e.ts"],
+        "test": "%s adds only cache controls and preserves accounting when disabled"
+      }
+    },
+    {
+      "id": "kernel-startup-publication-owner",
+      "description": "Publish one immutable accounting observation at boot, independently of repeated readiness audits and profile reloads.",
+      "origin": "Default accounting availability diagnostics",
+      "reason": "Readiness audits may overlap and must not register the root-owned status service twice or replace its startup evidence.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/boot/app-boot/tests/kernel-status.spec.ts"],
+        "test": "keeps one startup observation across concurrent audits and profile reloads"
+      }
+    },
+    {
       "id": "agent-loop-reused-start-debug-fields",
       "description": "Report reused run-start differences once at debug level with field names only, without a second ledger start.",
       "origin": "Caller-prepared run admission diagnostics",
@@ -92,7 +215,7 @@
       "id": "default-llm-cache",
       "description": "Mount the existing cache layer in default slim and full compositions without overriding its policy.",
       "origin": "Default accounting composition",
-      "reason": "With the ledger mounted, users receive frozen system and tool prefixes and default Anthropic 1h or DeepSeek automatic cache controls. retention=none disables cache controls but does not disable prefix freezing.",
+      "reason": "With the ledger mounted, users receive frozen system and tool prefixes and default Anthropic 1h or DeepSeek automatic cache controls. retention=none disables cache controls but does not disable prefix freezing. Upstream snapshots run with the cache layer disabled; separate headless, SDK and ACP cases pin the default profile behavior.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/bundle/slim-base/tests/slim-base.spec.ts"],

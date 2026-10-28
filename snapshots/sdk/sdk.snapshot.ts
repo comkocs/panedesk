@@ -592,17 +592,19 @@ async function runScenario(scenario: CorpusScenario): Promise<{
   const patchRoot = join(cwd, '.snapshot-patches')
   await mkdir(patchRoot, { recursive: true })
   const assertions = SDK_ASSERTIONS[scenario.name] ?? {}
-  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? []]
+  const cacheDisabledPatch = join(corpusRoot, 'cache-disabled.patch.yml')
+  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]
     .map((patch, index) => materializeProfilePatch(patch, cwd, scenario.manifest.profile, patchRoot, index))
   let childSessionsRoot: string | undefined
   let childEnvironment: Record<string, string> = {}
   if (assertions.dshSdkChild !== undefined) {
     const childHome = join(cwd, '.child-dsh')
     const childPatch = materializeProfilePatch(assertions.dshSdkChild.config, cwd, 'sdk', patchRoot, patches.length)
+    const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1)
     await mkdir(childHome, { recursive: true })
     childSessionsRoot = join(childHome, 'sessions')
     childEnvironment = {
-      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),
+      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch, childCachePatch]),
       DSH_TEST_CHILD_HOME: childHome,
     }
   }

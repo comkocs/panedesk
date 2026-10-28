@@ -1159,11 +1159,6 @@ export async function auditStartupEntries(
   warn: (line: string) => void = line => void process.stderr.write(line),
 ): Promise<void> {
   const failures = await inactiveEntries(ctx)
-  await publishKernelStatus(ctx, failures.map(({ entry, outcome }) => ({
-    id: entry.options.id, kind: outcome.kind,
-    ...outcome.kind === 'pending' ? { missing: outcome.missing }
-      : { importing: outcome.phase === 'failed to import', error: outcome.error },
-  })))
   const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)
     || requiredStartupEntryIds.has(entry.options.id)).map(({ entry }) => entry))
   if (required.size > 0) {
@@ -1246,6 +1241,12 @@ export async function boot(
     // as asked. Re-check after settlement before auditing the tree.
     await ctx.get('loader')?.await()
     if (ctx.get('loader') === undefined) return ctx
+    const failures = await inactiveEntries(ctx)
+    await publishKernelStatus(ctx, failures.map(({ entry, outcome }) => ({
+      id: entry.options.id, kind: outcome.kind,
+      ...outcome.kind === 'pending' ? { missing: outcome.missing }
+        : { importing: outcome.phase === 'failed to import', error: outcome.error },
+    })))
     await auditStartupEntries(ctx, binName)
     return ctx
   } catch (cause) {

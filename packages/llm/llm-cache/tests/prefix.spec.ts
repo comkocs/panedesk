@@ -6,6 +6,30 @@ import { fingerprintPrefix } from '../src/fingerprint.ts'
 import { harness } from './harness.ts'
 
 describe('stable prefix', () => {
+  it.each([false, true])('records dynamic tool header transitions with cache=%s', async (cache) => {
+    const { ctx, adapter } = await harness({ cache })
+    try {
+      const initial = [{ name: 'read', description: 'Read', parameters: { type: 'object' } }]
+      let tools = initial
+      ctx.systemPrompt.tools(() => ({ schemas: tools }))
+      const handle = await ctx.agents.create({ sessionId: SessionId('dynamic-header-session'),
+        agentOptions: { provider: 'model-provider', model: 'model-a' } })
+      const expanded = [...initial, { name: 'snapshot_ping', description: 'Ping', parameters: { type: 'object' } }]
+      for (const schemas of [initial, expanded, initial]) {
+        tools = schemas
+        handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue' }], source: { kind: 'user' } }))
+        await handle.agent.whenIdle()
+      }
+      const headers = handle.agent.session.snapshotEvents().filter(event => event.type === 'request/header')
+      expect(adapter.requests).toHaveLength(3)
+      expect(headers).toHaveLength(cache ? 1 : 3)
+      expect(adapter.requests.map(request => request.tools?.map(tool => tool.name)))
+        .toEqual(cache ? [['read'], ['read'], ['read']] : [['read'], ['read', 'snapshot_ping'], ['read']])
+      expect(adapter.requests.every(request => (request.cache !== undefined) === cache)).toBe(true)
+      await handle.dispose()
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('canonicalizes object keys and tool order while preserving array order and exact system bytes', () => {
     const a = { name: 'a', description: 'A', parameters: { type: 'object', required: ['x', 'y'] } }
     const b = { name: 'b', description: 'B', parameters: {} }

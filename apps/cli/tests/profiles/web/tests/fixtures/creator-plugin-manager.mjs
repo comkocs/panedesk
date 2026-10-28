@@ -30,8 +30,9 @@ export function apply(ctx, config) {
     try {
       const first = await make(`${phase}-first`)
       const before = names(first)
+      let manageCall = 0
       const manage = args => ctx.tools.execute({ name: 'plugin_manager', arguments: args, agent: first,
-        callId: `${phase}-manage`, signal: new AbortController().signal })
+        callId: `${phase}-manage-${++manageCall}`, signal: new AbortController().signal })
       ctx.permissionPresets.set(first.session, 'workspace-write')
       first.session.append('turn/start', { turn: 1 })
       activeSession = first.session

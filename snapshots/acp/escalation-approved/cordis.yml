@@ -83,3 +83,7 @@
 - id: session-log-deepseek
   config:
     enabled: false
+
+# Upstream snapshots were recorded without the accounting cache layer.
+- id: llm-cache
+  disabled: true
