@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { Context } from '@panedesk/cordis'
-import { JournalSessionLedger, type LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { JournalSessionLedger, type LedgerRunId, type LedgerSessionContext, type LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { brandString } from '@panedesk/dsh-brand'
 import { applyEntryPatches } from '@panedesk/cordis-plugin-include'
 import { boot, loadOverlayPatches } from '@panedesk/dsh-app-boot'
 import { provideCmdline } from '@panedesk/dsh-cmdline'
@@ -98,6 +99,42 @@ async function start(profile: 'slim' | 'full'): Promise<{ ctx: Context; adapter:
 }
 
 describe('default profile durable accounting', () => {
+  it.each(['slim', 'full'] as const)('%s reuses a caller-started run for a tool turn and settles it on disposal', async (profile) => {
+    calls.length = 0
+    const { ctx, adapter } = await start(profile)
+    const ledger = ctx.get('sessionLedger')!
+    const sessionId = SessionId(randomUUID())
+    const context: LedgerSessionContext = {
+      sessionId, rootSessionId: sessionId, runId: brandString<LedgerRunId>(randomUUID()),
+      nodeId: await ledger.nodeId(), seat: 'free', window: 'free', identitySource: 'free', accountLabel: 'mock',
+    }
+    const unbind = ledger.bindContext(context)
+    const input = { ...context, startedAt: Date.now(), launchState: 'started' as const, deliveryPaths: [] }
+    expect((await ledger.beginRun(input)).kind).toBe('appended')
+    const begin = vi.spyOn(ledger, 'beginRun')
+    try {
+      const handle = await ctx.get('agents')!.create({ sessionId, agentOptions: { provider: 'mock', model: 'ledger-model' } })
+      try {
+        expect(begin).not.toHaveBeenCalled()
+        handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Run the probe.' }], source: { kind: 'user' } }))
+        await handle.agent.whenIdle()
+        expect(calls).toEqual(['main'])
+        const snapshot = await ledger.snapshot({ sessionId })
+        expect(snapshot.complete).toBe(true)
+        expectConversationCalls(snapshot, adapter.requests, sessionId)
+        const activeRuns = snapshot.rows.filter(row => row.kind === 'run')
+        expect(activeRuns).toHaveLength(1)
+        expect(activeRuns[0]?.start).toEqual(input)
+        expect(activeRuns[0]?.finish).toBeUndefined()
+        expect(snapshot.rows.some(row => row.kind === 'event' && row.event.kind === 'wait/start')).toBe(true)
+      } finally { await Promise.all([handle.dispose(), handle.dispose()]) }
+      const runs = (await ledger.snapshot({ sessionId })).rows.filter(row => row.kind === 'run')
+      expect(runs).toHaveLength(1)
+      expect(runs[0]).toMatchObject({ start: input, finish: { runId: context.runId, endReason: 'completed' } })
+      expect(ledger.contextFor(sessionId)).toEqual(context)
+    } finally { begin.mockRestore(); unbind() }
+  })
+
   it.each(['slim', 'full'] as const)('%s records main, managed, ACP, seat and SDK tool turns with run starts and physical calls', async (profile) => {
     calls.length = 0
     const { ctx, adapter } = await start(profile)

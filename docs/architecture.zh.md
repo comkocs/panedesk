@@ -84,7 +84,7 @@ Electron 使用 Electron Node 模式启动私有 Desktop Host。Host 调用共�
 
 ## 轮次流程
 
-[Agent-loop](../packages/core/agent-loop/README.zh.md#use-this-package)在发布 Agent 前提交生命周期计量。
+[Agent-loop](../packages/core/agent-loop/README.zh.md#use-this-package)在发布 Agent 前确立生命周期计量，复用调用方已写入且身份匹配、尚未结束的起点。
 
 一个**步骤**是一次模型请求加上它调用的工具。一个**轮次**包含零个或多个步骤：它在领取首条输入之前打开，并在不再欠下任何工作时关闭。
 

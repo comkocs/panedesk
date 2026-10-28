@@ -8,11 +8,12 @@ import type { LedgerAppendResult, LedgerEventId, LedgerRunId, LedgerSessionConte
 import { readProcessIdentity } from '@panedesk/dsh-subprocess'
 import { resolveLedgerIdentity, type LedgerIdentityOptions } from './ledger-identity.ts'
 
-/** Admit one residency before registry publication; absence preserves the uninstrumented path.
+/** Admit or reuse a bound unfinished residency before registry publication; mismatched identities reject.
+ * Top-level reused runs settle through Agent teardown; inherited subagent runs retain their lifecycle owner.
  * @param ctx - factory-owned context retaining the optional service through teardown.
  * @param sessionId - exact local session identity.
  * @param settings - profile-owned default labels below launch-time sources.
- * @returns terminal writer retaining its attribution until acknowledgement, or undefined without a ledger.
+ * @returns terminal writer retaining attribution until acknowledgement, or undefined without a ledger or for an inherited live run.
  */
 export async function beginAgentRun(
   ctx: Context,
@@ -22,9 +23,19 @@ export async function beginAgentRun(
   const ledger = ctx.get('sessionLedger')
   if (ledger === undefined) return undefined
   const bound = ledger.contextFor(sessionId)
-  if (bound?.subagentRunId !== undefined) {
-    const snapshot = await ledger.snapshot({ sessionId })
-    if (snapshot.rows.some(row => row.kind === 'run' && row.start.runId === bound.runId && !row.finish)) return undefined
+  let reuseStart = false
+  if (bound !== undefined) {
+    const snapshot = await ledger.snapshot()
+    if (!snapshot.complete) throw new Error('Agent lifecycle ledger snapshot is incomplete')
+    const run = snapshot.rows.find(row => row.kind === 'run' && row.start.runId === bound.runId)
+    if (run?.kind === 'run') {
+      if (run.start.sessionId !== sessionId || run.start.nodeId !== bound.nodeId) {
+        throw new Error('Agent lifecycle ledger run identity conflicted')
+      }
+      reuseStart = run.finish === undefined
+      if (reuseStart && bound.subagentRunId !== undefined) return undefined
+      if (!reuseStart && bound.subagentRunId === undefined) throw new Error('Agent lifecycle ledger run already finished')
+    }
   }
   const context: LedgerSessionContext = bound?.subagentRunId !== undefined ? {
     ...bound, runId: brandString<LedgerRunId>(randomUUID()), parentRunId: bound.runId,
@@ -35,7 +46,9 @@ export async function beginAgentRun(
   const observed = readProcessIdentity(process.pid)
   const processIdentity = { ...observed, nodeId: context.nodeId, registeredAt: Date.now(),
     verification: observed.startIdentity !== undefined && observed.bootIdentity !== undefined ? 'verified' as const : 'unverified' as const }
-  assertWrite(await ledger.beginRun({ ...context, startedAt: Date.now(), launchState: 'started', deliveryPaths: [], processIdentity }))
+  if (!reuseStart) {
+    assertWrite(await ledger.beginRun({ ...context, startedAt: Date.now(), launchState: 'started', deliveryPaths: [], processIdentity }))
+  }
   const unbind = ledger.bindContext(context)
   try {
     assertWrite(await ledger.appendEvent({ schemaVersion: 1, eventId: brandString<LedgerEventId>(randomUUID()),

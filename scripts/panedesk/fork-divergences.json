@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "agent-loop-caller-started-residency",
+      "description": "Reuse a caller-started unfinished bound run without appending a second start, and settle top-level runs through Agent teardown.",
+      "origin": "Caller-prepared run admission",
+      "reason": "Integrations may bind context and persist launch intent before Agent creation. Reuse requires matching session and node identities and must preserve subagent terminal ownership and strict unique slots.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "test": "%s reuses a caller-started run for a tool turn and settles it on disposal"
+      }
+    },
+    {
       "id": "ledger-integration-profile-fixtures",
       "description": "Seat uses the base-owned full ledger; SDK and budget compositions supply durable launch intent and explicit synthetic transport evidence.",
       "origin": "Ledger integration runtime and generated-reference repair",

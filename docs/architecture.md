@@ -80,7 +80,7 @@ The [event map](event-producer-consumer.md) lists every event's producers and co
 
 ## Turn flow
 
-[Agent-loop](../packages/core/agent-loop/README.md#use-this-package) commits lifecycle accounting before publishing an Agent.
+[Agent-loop](../packages/core/agent-loop/README.md#use-this-package) establishes lifecycle accounting before publishing an Agent, reusing matching unfinished caller-written starts.
 
 A **step** is one model request plus the tools it calls. A **turn** is zero or more steps: it opens before its first input is claimed and closes once nothing is owed.
 
