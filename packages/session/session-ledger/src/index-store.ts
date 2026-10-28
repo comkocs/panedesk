@@ -59,16 +59,22 @@ export function slotContent(event: LedgerEvent): string {
  */
 export function rebuildIndex(events: readonly LedgerEvent[]): LedgerIndex {
   const index: LedgerIndex = { events: new Map(), slots: new Map(), conflicts: [] }
-  for (const event of events) {
-    const prior = index.events.get(event.eventId)
-    const key = uniqueSlot(event)
-    const slot = key === undefined ? undefined : index.slots.get(key)
-    if (prior && canonicalJson(prior) !== canonicalJson(event)) index.conflicts.push({ existing: prior, incoming: event })
-    else if (slot && slotContent(slot) !== slotContent(event)) index.conflicts.push({ existing: slot, incoming: event })
-    else {
-      if (!prior) index.events.set(event.eventId, event)
-      if (key !== undefined && !slot) index.slots.set(key, event)
-    }
-  }
+  for (const event of events) addToIndex(index, event)
   return index
+}
+
+/** Add a validated fact without rebuilding or overwriting earlier unique slots.
+ * @param index - Lock-owned derived indexes.
+ * @param event - Newly synchronized fact.
+ */
+export function addToIndex(index: LedgerIndex, event: LedgerEvent): void {
+  const prior = index.events.get(event.eventId)
+  const key = uniqueSlot(event)
+  const slot = key === undefined ? undefined : index.slots.get(key)
+  if (prior && canonicalJson(prior) !== canonicalJson(event)) index.conflicts.push({ existing: prior, incoming: event })
+  else if (slot && slotContent(slot) !== slotContent(event)) index.conflicts.push({ existing: slot, incoming: event })
+  else {
+    if (!prior) index.events.set(event.eventId, event)
+    if (key !== undefined && !slot) index.slots.set(key, event)
+  }
 }

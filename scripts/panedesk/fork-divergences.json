@@ -576,6 +576,39 @@
       }
     },
     {
+      "id": "ledger-writer-segments",
+      "description": "Append synchronized facts to writer-owned segments with locked incremental indexes.",
+      "origin": "Ledger write optimization",
+      "reason": "Avoid rereading and resynchronizing historical facts on every write.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "test": "keeps write read and sync counts equal at fifty and one thousand existing facts"
+      }
+    },
+    {
+      "id": "ledger-interrupted-segment-writes",
+      "description": "Retain acknowledged facts through deterministic process termination during append.",
+      "origin": "Ledger write optimization",
+      "reason": "Exercise incomplete writes and lost synchronization acknowledgements without weakening replay assertions.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "test": "retains acknowledged facts after four kills at %s"
+      }
+    },
+    {
+      "id": "ledger-incremental-hot-reader",
+      "description": "Reuse synchronized node facts for settlement snapshots across Context instances.",
+      "origin": "Ledger write optimization",
+      "reason": "Remove repeated journal byte reads without changing projection algorithms.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "test": "shares synchronized bytes across independent Context instances"
+      }
+    },
+    {
       "id": "provider-concurrency-limit",
       "description": "Bound concurrent requests by provider family without changing retry backoff.",
       "origin": "Cache controls and session ledger",

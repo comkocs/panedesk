@@ -1,8 +1,8 @@
 /** Append-only, checksummed JSONL segments with native-lock serialization and durable acknowledgements. */
 import { randomUUID } from 'node:crypto'
-import { lstat, mkdir, open, readdir, readFile, type FileHandle } from 'node:fs/promises'
+import { lstat, mkdir, open, readdir, readFile, realpath, stat, type FileHandle } from 'node:fs/promises'
 import { dirname, join, relative as relativePath } from 'node:path'
-import { canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot } from './index-store.ts'
+import { addToIndex, canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot, type LedgerIndex } from './index-store.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
 import type { MessageCursor } from '@panedesk/dsh-message-delivery'
@@ -10,6 +10,8 @@ import type { MessageCursor } from '@panedesk/dsh-message-delivery'
 /** Explicit local storage limits shared by every writer and scanner. */
 export interface JournalOptions extends WriterLockOptions {
   maxRecordBytes: number
+  /** Test-only interruption observer; absent in provider configuration and normal writes. */
+  appendCheckpoint?: (phase: 'partial-write' | 'before-file-sync' | 'before-directory-sync') => Promise<void>
 }
 
 /** Validated scan results expose uncommitted tails and corruption without discarding bytes. */
@@ -252,25 +254,171 @@ export async function recoverSegments(root: string, maxRecordBytes: number): Pro
   }
 }
 
+interface SegmentView {
+  offset: number
+  events: LedgerEvent[]
+  marks: string[]
+  tail: boolean
+  corrupt: boolean
+  importedConflicts: boolean
+}
+
+/** Process-local owner of node views, keyed by real directory and stable lock identity. */
+class JournalView {
+  private static readonly nodes = new Map<string, JournalView>()
+  readonly segments = new Map<string, SegmentView>()
+  readonly index: LedgerIndex = rebuildIndex([])
+  readonly eventFiles = new Map<string, string>()
+  writer: { path: string; date: string } | undefined
+
+  static async forRoot(root: string): Promise<JournalView> {
+    const identity = await stat(join(root, 'writer.lock'), { bigint: true })
+    const key = JSON.stringify([await realpath(root), String(identity.dev), String(identity.ino)])
+    let view = this.nodes.get(key)
+    if (!view) { view = new JournalView(); this.nodes.set(key, view) }
+    return view
+  }
+
+  accept(path: string, segment: SegmentView, event: LedgerEvent): void {
+    segment.events.push(event)
+    segment.marks.push(digest(canonicalJson(event)))
+    addToIndex(this.index, event)
+    if (!this.eventFiles.has(event.eventId)) this.eventFiles.set(event.eventId, path)
+  }
+
+  async refresh(root: string, maxBytes: number): Promise<void> {
+    const paths = [...await files(join(root, 'events')), ...await files(join(root, 'imports'))]
+    if ([...this.segments.keys()].some(path => !paths.includes(path))) {
+      // Administrative moves invalidate positions; normal writers never remove journal files.
+      this.segments.clear()
+      this.index.events.clear(); this.index.slots.clear(); this.index.conflicts.length = 0
+      this.eventFiles.clear(); this.writer = undefined
+    }
+    for (const path of paths) {
+      const previous = this.segments.get(path)
+      const size = (await stat(path)).size
+      if (previous && previous.offset === size) continue
+      if (previous && size < previous.offset) throw new Error('Ledger segment was truncated')
+      const handle = await open(path, 'r+')
+      let content: Buffer
+      try {
+        const offset = previous?.offset ?? 0
+        content = Buffer.alloc(size - offset)
+        let read = 0
+        while (read < content.length) {
+          const result = await handle.read(content, read, content.length - read, offset + read)
+          if (!result.bytesRead) throw new Error('Ledger segment changed during refresh')
+          read += result.bytesRead
+        }
+        await handle.sync()
+      } finally { await handle.close() }
+      if (!previous) await syncDirectory(dirname(path))
+      const segment = previous ?? { offset: 0, events: [], marks: [], tail: false, corrupt: false, importedConflicts: false }
+      if (previous?.tail) segment.corrupt = true
+      if (relativePath(root, path).startsWith('imports/') || relativePath(root, path).startsWith('imports\\')) {
+        try {
+          if (content.at(-1) !== 10) throw new Error('Incomplete import manifest')
+          const manifest = record(decode(content.subarray(0, -1), maxBytes))
+          if (!Array.isArray(manifest.conflicts)) throw new Error('Invalid import manifest')
+          segment.importedConflicts = manifest.conflicts.length > 0
+        } catch (error) { if (!(error instanceof Error)) throw error; segment.corrupt = true }
+      } else {
+        for (const line of completeLines(content)) {
+          try { this.accept(path, segment, validateEvent(decode(line, maxBytes))) }
+          catch (error) { if (!(error instanceof Error)) throw error; segment.corrupt = true }
+        }
+        segment.tail ||= content.length > 0 && content.at(-1) !== 10
+      }
+      segment.offset = size
+      this.segments.set(path, segment)
+    }
+  }
+
+  scan(): LedgerScan {
+    const ordered = [...this.segments].sort(([a], [b]) => {
+      const left = a.split(/[\\/]/); const right = b.split(/[\\/]/)
+      for (let i = 0; i < Math.min(left.length, right.length); i++) {
+        const part = left[i]; const other = right[i]
+        if (part === undefined || other === undefined) break
+        const order = part.localeCompare(other)
+        if (order) return order
+      }
+      return left.length - right.length
+    })
+    const tails = ordered.filter(([, value]) => value.tail).map(([path]) => path)
+    const corrupt = ordered.filter(([, value]) => value.corrupt).map(([path]) => path)
+    return { events: ordered.flatMap(([, value]) => value.events), tails, corrupt,
+      complete: !tails.length && !corrupt.length && !ordered.some(([, value]) => value.importedConflicts),
+      watermark: digest(ordered.flatMap(([, value]) => value.marks).join('\n')) as LedgerWatermark }
+  }
+
+  assertWritable(): void {
+    if ([...this.segments.values()].some(segment => segment.corrupt)) throw new Error('Ledger corruption prevents further writes')
+    if (this.index.conflicts.length) throw new Error('Ledger contains conflicting unique slots')
+  }
+
+  async append(root: string, event: LedgerEvent, encoded: Buffer, checkpoint: JournalOptions['appendCheckpoint']): Promise<void> {
+    const date = new Date().toISOString().slice(0, 10)
+    const fresh = this.writer === undefined || this.writer.date !== date
+    const directory = join(root, 'events', date)
+    if (fresh) { await ensureDirectory(directory); this.writer = { path: join(directory, `segment-${randomUUID()}.jsonl`), date } }
+    const writer = this.writer
+    if (!writer) throw new Error('Ledger writer segment is unavailable')
+    try {
+      const handle = await open(writer.path, fresh ? 'wx' : 'a', 0o600)
+      try {
+        let offset = 0
+        while (offset < encoded.length) {
+          const length = checkpoint && offset === 0 ? Math.max(1, Math.floor(encoded.length / 2)) : encoded.length - offset
+          const { bytesWritten } = await handle.write(encoded, offset, length)
+          if (bytesWritten <= 0) throw new Error('Ledger write made no progress')
+          offset += bytesWritten
+          if (offset < encoded.length) await checkpoint?.('partial-write')
+        }
+        await checkpoint?.('before-file-sync')
+        await handle.sync()
+      } finally { await handle.close() }
+      if (fresh) { await checkpoint?.('before-directory-sync'); await syncDirectory(directory) }
+      const segment = this.segments.get(writer.path)
+        ?? { offset: 0, events: [], marks: [], tail: false, corrupt: false, importedConflicts: false }
+      this.accept(writer.path, segment, event)
+      segment.offset += encoded.length
+      this.segments.set(writer.path, segment)
+    } catch (error) { this.writer = undefined; throw error }
+  }
+}
+
+/** Read refreshed facts under the node lock without rereading synchronized bytes.
+ * @param root - Existing node directory.
+ * @param options - Lock and record limits.
+ * @returns Detached scan retaining the historical persisted watermark algorithm.
+ */
+export async function readJournal(root: string, options: JournalOptions): Promise<LedgerScan> {
+  return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    const view = await JournalView.forRoot(root)
+    await view.refresh(root, options.maxRecordBytes)
+    return structuredClone(view.scan())
+  })
+}
+
 /** Persist or compare one semantic slot while holding the node's stable-inode writer lock.
  * @param root - Local node directory.
- * @param event - Immutable complete event.
+ * @param event - Complete event, or a factory resolving its start from the locked index.
  * @param options - Storage limits and native-lock wait budget.
  * @param firstTerminalWins - Only finishRun may accept a different already committed terminal fact.
  * @returns Durable append/existing outcome or a non-overwriting conflict.
  */
 export async function appendUnique(
-  root: string, event: LedgerEvent, options: JournalOptions, firstTerminalWins = false,
+  root: string, event: LedgerEvent | ((index: LedgerIndex) => LedgerEvent), options: JournalOptions, firstTerminalWins = false,
 ): Promise<LedgerAppendResult> {
-  const immutable = validateEvent(JSON.parse(canonicalJson(event)))
-  const encoded = frame(immutable, options.maxRecordBytes)
   await ensureDirectory(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
-    const scan = await recoverSegments(root, options.maxRecordBytes)
-    if (scan.corrupt.length) throw new Error('Ledger corruption prevents further writes')
-    const index = rebuildIndex(scan.events)
-    if (index.conflicts.length) throw new Error('Ledger contains conflicting unique slots')
-    await syncFiles(await files(join(root, 'events')))
+    const view = await JournalView.forRoot(root)
+    await view.refresh(root, options.maxRecordBytes)
+    view.assertWritable()
+    const index = view.index
+    const immutable = validateEvent(JSON.parse(canonicalJson(typeof event === 'function' ? event(index) : event)))
+    const encoded = frame(immutable, options.maxRecordBytes)
     const priorId = index.events.get(immutable.eventId)
     const key = uniqueSlot(immutable)
     const priorSlot = key === undefined ? undefined : index.slots.get(key)
@@ -283,12 +431,13 @@ export async function appendUnique(
         return { kind: 'conflict', eventId: immutable.eventId, existingDigest: digest(canonicalJson(prior)), incomingDigest: digest(canonicalJson(immutable)) }
       }
       // A previous writer may have lost its fsync acknowledgement; a replay must synchronize again.
-      await syncFiles(await files(join(root, 'events')))
-      return { kind: 'existing', event: prior, watermark: scan.watermark }
+      const path = view.eventFiles.get(prior.eventId)
+      if (path === undefined) throw new Error('Ledger fact has no synchronized segment')
+      await syncFiles([path])
+      return { kind: 'existing', event: structuredClone(prior), watermark: view.scan().watermark }
     }
-    const directory = join(root, 'events', new Date().toISOString().slice(0, 10))
-    await ensureDirectory(directory)
-    for (const tail of scan.tails) {
+    for (const [tail, segment] of view.segments) {
+      if (!segment.tail) continue
       const recoveryId = `recovery:${digest(relativePath(root, tail))}` as LedgerEvent['eventId']
       if (index.events.has(recoveryId)) continue
       const recovery: LedgerEvent = {
@@ -296,11 +445,10 @@ export async function appendUnique(
         runId: immutable.runId, sessionId: immutable.sessionId, observedAt: Date.now(), kind: 'alert',
         alert: { code: 'ledger-tail-recovered', message: 'An incomplete journal tail was preserved; writing resumed in a new segment.', redacted: false },
       }
-      await durableFile(join(directory, `${randomUUID()}.jsonl`), frame(recovery, options.maxRecordBytes))
+      await view.append(root, recovery, frame(recovery, options.maxRecordBytes), options.appendCheckpoint)
     }
-    await durableFile(join(directory, `${randomUUID()}.jsonl`), encoded)
-    const after = await recoverSegments(root, options.maxRecordBytes)
-    return { kind: 'appended', event: immutable, watermark: after.watermark }
+    await view.append(root, immutable, encoded, options.appendCheckpoint)
+    return { kind: 'appended', event: structuredClone(immutable), watermark: view.scan().watermark }
   })
 }
 
@@ -510,10 +658,11 @@ function referenceOf(input: LedgerArtifactAppend, path: string): LedgerArtifactR
  * @param root - Node directory owning the stream.
  * @param input - Fragment identity and unmodified serialized content.
  * @param options - Native lock and record size limits.
+ * @param validateStart - Provider start guard inside the lock; absent for standalone fragment storage.
  * @returns Durable reference or an explicit conflicting digest pair.
  */
 export async function appendArtifact(
-  root: string, input: LedgerArtifactAppend, options: JournalOptions,
+  root: string, input: LedgerArtifactAppend, options: JournalOptions, validateStart?: (index: LedgerIndex) => void,
 ): Promise<LedgerArtifactAppendResult> {
   if (!Number.isSafeInteger(input.seq) || input.seq < 0 || !['partial-response', 'keepalive-request'].includes(input.kind)) throw new Error('Invalid artifact key')
   JSON.parse(input.content)
@@ -521,6 +670,12 @@ export async function appendArtifact(
   const encoded = frame({ type: 'fragment', input }, options.maxRecordBytes)
   await ensureDirectory(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    if (validateStart) {
+      const view = await JournalView.forRoot(root)
+      await view.refresh(root, options.maxRecordBytes)
+      view.assertWritable()
+      validateStart(view.index)
+    }
     const relative = artifactPath(input)
     const records = await artifactRecords(root, relative, options.maxRecordBytes)
     const fragments = records.filter(item => item.type === 'fragment')
