@@ -44,6 +44,7 @@
     "@panedesk/dsh-fs-sandbox": "workspace:*",
     "@panedesk/dsh-instruction-subscriptions": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-llm-pi-ai": "workspace:*",
     "@panedesk/dsh-llm-retry": "workspace:*",
     "@panedesk/dsh-message-delivery-local": "workspace:*",

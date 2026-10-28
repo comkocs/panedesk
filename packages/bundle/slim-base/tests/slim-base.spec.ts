@@ -62,10 +62,10 @@ describe('slim-base bundle', () => {
     expect(slimRows.every(row => typeof row.id === 'string' && typeof row.name === 'string')).toBe(true)
   })
 
-  it('mounts exactly the 40 slim rows with unique ids', () => {
+  it('mounts exactly the 42 slim rows with unique ids', () => {
     const ids = slimRows.map(row => row.id)
-    expect(ids).toHaveLength(40)
-    expect(new Set(ids).size).toBe(40)
+    expect(ids).toHaveLength(42)
+    expect(new Set(ids).size).toBe(42)
     expect([...ids].sort()).toEqual([
       'llm', 'session', 'agent', 'agent-default-model', 'llm-retry', 'llm-pi-ai',
       'session-persistence-jsonl', 'working-directory', 'session-projection',
@@ -76,7 +76,7 @@ describe('slim-base bundle', () => {
       'session-checkpoint-policy', 'tools', 'system-prompt', 'agent-loop', 'fs-sandbox',
       'agent-instructions', 'token-meter', 'compaction-basic', 'timeout-policy',
       'spill-local', 'spill-policy', 'tool-result-pruner',
-      'session-ledger', 'message-delivery', 'instruction-subscriptions',
+      'session-ledger', 'session-ledger-full', 'llm-cache', 'message-delivery', 'instruction-subscriptions',
     ].sort())
   })
 

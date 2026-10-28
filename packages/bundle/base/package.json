@@ -63,6 +63,7 @@
     "@panedesk/dsh-api-gateway": "workspace:*",
     "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-llm-deepseek-account": "workspace:*",
     "@panedesk/dsh-llm-pi-ai": "workspace:*",
@@ -137,6 +138,8 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@panedesk/cordis": "workspace:~"
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/dsh-app-boot": "workspace:*"
   }
 }

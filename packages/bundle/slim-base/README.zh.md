@@ -32,7 +32,7 @@ kind: "package-bundle"
 
 #### KV Cache 影响
 
-配置不变时可以保留重复的系统提示和工具前缀。更改配置行、加载的指令、压缩或裁剪后的历史可能替换请求 token，从而使受影响的前缀无法复用。
+本组合包保留消息专用账本入口，并在同一个 harness home 中加挂完整调用账本与缓存层。缓存缺省冻结首次系统提示与工具前缀，并请求 Anthropic 1h 或 DeepSeek automatic 缓存。`retention: none` 禁用缓存控制，但不关闭前缀冻结。压缩或裁剪后的历史可能替换请求 token，使受影响的前缀无法复用。
 
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作

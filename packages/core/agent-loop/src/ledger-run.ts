@@ -22,9 +22,13 @@ export async function beginAgentRun(
   const ledger = ctx.get('sessionLedger')
   if (ledger === undefined) return undefined
   const bound = ledger.contextFor(sessionId)
-  // An external delegator owns the run slot carried by an SDK child handshake.
-  if (bound?.subagentRunId !== undefined) return undefined
-  const context: LedgerSessionContext = bound ?? {
+  if (bound?.subagentRunId !== undefined) {
+    const snapshot = await ledger.snapshot({ sessionId })
+    if (snapshot.rows.some(row => row.kind === 'run' && row.start.runId === bound.runId && !row.finish)) return undefined
+  }
+  const context: LedgerSessionContext = bound?.subagentRunId !== undefined ? {
+    ...bound, runId: brandString<LedgerRunId>(randomUUID()), parentRunId: bound.runId,
+  } : bound ?? {
     sessionId, rootSessionId: sessionId, runId: brandString<LedgerRunId>(randomUUID()),
     nodeId: await ledger.nodeId(), ...resolveLedgerIdentity(ctx, settings), accountLabel: 'unknown',
   }

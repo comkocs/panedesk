@@ -27,6 +27,8 @@ English | [中文](README.zh.md)
 
 Mount `dsh-agent-loop` in any composition that should run agents. It supplies the driver behind `ctx.agents` and starts any agents you declare in its config; both [`dsh-base`](../../bundle/base/README.md) and [`dsh-sdk-minimal`](../../bundle/sdk-minimal/README.md) mount it as an explicit row.
 
+With a ledger mounted, Agent creation persists a local residency before publication. An inherited SDK run is reused only when its unfinished start is visible in the local journal; otherwise the child persists a new local residency linked to the delegator run and retains the inherited attribution.
+
 Optional turn admission runs before a new turn claims input. Deferral preserves queued work without interrupting the current turn; `wake()` retries after policy changes without adding a message. Prepared ledger ownership transfers to the live driver, and failed initialization releases it. Without admission listeners, ordinary turn scheduling is unchanged.
 
 ### Configure declarative agents

@@ -84,6 +84,8 @@ Electron 使用 Electron Node 模式启动私有 Desktop Host。Host 调用共�
 
 ## 轮次流程
 
+挂有计量服务时，loop 会在发布 Agent 前提交本地 run；SDK 子进程继承的 run 必须在本地可见，否则创建链接的本地驻留。[Agent-loop](../packages/core/agent-loop/README.zh.md#use-this-package)负责生命周期计量。
+
 一个**步骤**是一次模型请求加上它调用的工具。一个**轮次**包含零个或多个步骤：它在领取首条输入之前打开，并在不再欠下任何工作时关闭。
 
 ```text

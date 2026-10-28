@@ -6,7 +6,8 @@ import { createLaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environmen
 import { MockAdapter, textResponse } from './mock-adapter.ts'
 import { afterEach, expect, it, vi } from 'vitest'
 import AgentLoop from '../src/index.ts'
-import { MemoryLedger } from '../../../subagent/subagent/tests/ledger-fixture.ts'
+import { MemoryLedger, seedParentLedger } from '../../../subagent/subagent/tests/ledger-fixture.ts'
+import { beginAgentRun } from '../src/ledger-run.ts'
 
 const contexts: Context[] = []
 afterEach(async () => { for (const ctx of contexts.splice(0).reverse()) await ctx.fiber.dispose() })
@@ -82,6 +83,27 @@ it('refuses publication when the optional ledger cannot persist a start', async 
   await expect(ctx.agents.create({ sessionId: SessionId('session-a') })).rejects.toThrow('synchronization')
   expect(announced).not.toHaveBeenCalled()
   expect(ctx.agents.get(SessionId('session-a'))).toBeUndefined()
+})
+
+it.each([true, false])('reuses inherited run only when its local start exists: %s', async (visible) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await ctx.plugin(MemoryLedger)
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const sessionId = SessionId('child-local')
+  await seedParentLedger(ledger, sessionId)
+  const parent = ledger.contextFor(sessionId)!
+  ledger.bindContext({ ...parent, subagentRunId: parent.runId })
+  if (visible) await ledger.beginRun({ ...parent, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+  const finish = await beginAgentRun(ctx, sessionId)
+  expect(ledger.starts).toHaveLength(1)
+  if (visible) expect(finish).toBeUndefined()
+  else {
+    expect(ledger.starts[0]).toMatchObject({ parentRunId: parent.runId, sessionId })
+    expect(ledger.starts[0]?.runId).not.toBe(parent.runId)
+    await finish!([], false)
+    expect(ledger.finishes).toHaveLength(1)
+  }
 })
 
 it('preserves creation and teardown without the optional ledger', async () => {

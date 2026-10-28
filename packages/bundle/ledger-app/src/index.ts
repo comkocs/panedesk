@@ -7,6 +7,7 @@ import * as engineReader from '@panedesk/dsh-seat-engine/reader'
 import * as gatesReader from '@panedesk/dsh-seat-gates/reader'
 import z from '@panedesk/schemastery'
 import type { LedgerAppOptions } from './types.ts'
+import { unavailableQueryCause, warnKernelStatus } from './kernel-warning.ts'
 export type * from './types.ts'
 
 /** Loader plugin identity. */
@@ -54,9 +55,14 @@ export function apply(ctx: Context, config: Config): void {
     const remove = ready.onReady(() => {
       running = (async () => {
         try {
+          await warnKernelStatus(ctx)
           await readers
           const service = ctx.get('ledgerQuery')
-          if (!service) throw new Error('Ledger query provider is unavailable')
+          if (!service) {
+            process.stderr.write(`Session ledger not mounted: ${unavailableQueryCause(ctx)}\n`)
+            exit(1)
+            return
+          }
           const result = await service.execute(args.get())
           process.stdout.write(JSON.stringify(result.output) + '\n')
           exit(result.code)

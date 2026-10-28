@@ -1182,6 +1182,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
@@ -1191,9 +1194,15 @@ importers:
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
+      '@panedesk/dsh-cmdline':
+        specifier: workspace:*
+        version: link:../../boot/cmdline
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -1215,6 +1224,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
       '@panedesk/dsh-session-persistence':
         specifier: workspace:*
         version: link:../../session/session-persistence
@@ -1227,6 +1239,12 @@ importers:
       '@panedesk/dsh-subagent':
         specifier: workspace:*
         version: link:../../subagent/subagent
+      '@panedesk/dsh-subagent-codex':
+        specifier: workspace:*
+        version: link:../../subagent/subagent-codex
+      '@panedesk/dsh-subagent-dsh-sdk':
+        specifier: workspace:*
+        version: link:../../subagent/subagent-dsh-sdk
       '@panedesk/dsh-token-meter':
         specifier: workspace:*
         version: link:../../llm/token-meter
@@ -1944,6 +1962,9 @@ importers:
       '@panedesk/cordis-plugin-timer':
         specifier: workspace:~
         version: link:../../../vendor/timer
+      '@panedesk/dsh-cmdline':
+        specifier: workspace:*
+        version: link:../cmdline
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
@@ -2321,6 +2342,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-llm-deepseek-account':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek-account
@@ -2529,6 +2553,12 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
 
   packages/bundle/full:
     dependencies:
@@ -2866,6 +2896,9 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-ledger-query':
         specifier: workspace:*
         version: link:../../session/ledger-query
@@ -3085,6 +3118,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-llm-pi-ai':
         specifier: workspace:*
         version: link:../../llm/llm-pi-ai

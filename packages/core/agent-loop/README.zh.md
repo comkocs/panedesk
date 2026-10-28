@@ -27,6 +27,8 @@ kind: "package-reference"
 
 在任何应运行 agent 的组合中挂载 `dsh-agent-loop`。它提供 `ctx.agents` 背后的驱动器，并启动你在配置中声明的 agent；[`dsh-base`](../../bundle/base/README.zh.md) 与 [`dsh-sdk-minimal`](../../bundle/sdk-minimal/README.zh.md) 都将它作为显式配置行挂载。
 
+挂有账本时，Agent 创建会在发布前持久化本地驻留。只有本地日志中可见继承的 SDK run 尚未结束的启动记录时，才复用该 run；否则子进程持久化链接到委派方 run 的新本地驻留，并保留继承的归属信息。
+
 可选回合准入在新轮次认领输入前执行。延期保留排队工作，不打断当前轮次；策略改变后，`wake()` 不添加消息而重试。准备好的账本所有权移交实时驱动器，初始化失败时释放。没有准入监听器时，普通回合调度保持不变。
 
 ### 配置声明式 agent
