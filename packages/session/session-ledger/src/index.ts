@@ -7,7 +7,7 @@ import type {} from '@panedesk/dsh-tools'
 import {
   appendUnique, readJournal, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
-  appendMessageUnique,
+  appendMessageUnique, JournalViewOwner, readJournalFacts,
 } from './journal.ts'
 import { LedgerUnavailableError } from './lock.ts'
 import type { LedgerIndex } from './index-store.ts'
@@ -30,6 +30,7 @@ export type * from './types.ts'
 export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
 export { projectWaits, withoutWaitProjection } from './waits.ts'
 export { callWaits } from './call-waits.ts'
+import { callWaits } from './call-waits.ts'
 export type * from './call-contributor.ts'
 import type { CallContributor } from './call-contributor.ts'
 import { installCallAccounting } from './call-accounting.ts'
@@ -49,7 +50,11 @@ export abstract class SessionLedger extends Service {
 
   constructor(ctx: Context) {
     super(ctx, 'sessionLedger')
-    this.registerContributor = installCallAccounting(ctx, this)
+    this.registerContributor = installCallAccounting(ctx, this, (start, ids) => this.readCallWaits(start, ids))
+  }
+
+  protected async readCallWaits(start: LedgerCallStart, ids: readonly NonNullable<LedgerInterval['toolCallId']>[]): Promise<LedgerInterval[]> {
+    return callWaits(await this.snapshot({ sessionId: start.sessionId }), start, ids)
   }
 
   /** Register the optional cache contributor on this ledger instance.
@@ -194,7 +199,10 @@ export class JournalSessionLedger extends SessionLedger {
   constructor(ctx: Context, config: Config = {}) {
     super(ctx)
     this.home = resolveDshHome(config.dshHome)
+    const viewOwner = new JournalViewOwner()
+    ctx.effect(() => () => { viewOwner.dispose() })
     this.options = {
+      viewOwner,
       lockTimeoutMs: config.lockTimeoutMs ?? 5000,
       lockRetryMs: config.lockRetryMs ?? 10,
       maxRecordBytes: config.maxRecordBytes ?? 16 * 1024 * 1024,
@@ -209,7 +217,7 @@ export class JournalSessionLedger extends SessionLedger {
     }
     ctx.on('tools/execute', async (exec, next) => {
       if (!exec.agent) return next()
-      const snapshot = await this.snapshot({ sessionId: exec.agent.session.id })
+      const snapshot = await this.hotSnapshot({ kind: 'open-runs', sessionId: exec.agent.session.id })
       const runs = snapshot.rows.filter(row => row.kind === 'run' && !row.finish)
       const run = runs.at(-1)
       if (!run || run.kind !== 'run') throw new LedgerUnavailableError(new Error('Tool execution has no durable run start'))
@@ -245,6 +253,19 @@ export class JournalSessionLedger extends SessionLedger {
     return this.node
   }
 
+  private async hotSnapshot(selection: Parameters<typeof readJournalFacts>[2]): Promise<LedgerSnapshot> {
+    const { root, id } = await this.location()
+    const facts = await readJournalFacts(root, this.options, selection)
+    return foldLedger(facts.events, { asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
+      filter: { sessionId: selection.sessionId as LedgerContext['sessionId'] }, complete: facts.complete })
+  }
+
+  protected override async readCallWaits(start: LedgerCallStart, ids: readonly NonNullable<LedgerInterval['toolCallId']>[]): Promise<LedgerInterval[]> {
+    const snapshot = await this.hotSnapshot({ kind: 'waits', nodeId: start.nodeId,
+      sessionId: start.sessionId, runId: start.runId, toolCallIds: ids })
+    return callWaits(snapshot, start, ids)
+  }
+
   private async write(event: LedgerEvent | ((index: LedgerIndex) => LedgerEvent), firstTerminalWins = false): Promise<LedgerAppendResult> {
     try {
       const { root } = await this.location()
@@ -274,7 +295,7 @@ export class JournalSessionLedger extends SessionLedger {
     if (request.sessionId !== undefined) {
       const bound = this.contextFor(request.sessionId)
       if (bound !== undefined) return { context: bound, runId: bound.runId, ...pricing }
-      const snapshot = await this.snapshot({ sessionId: request.sessionId })
+      const snapshot = await this.hotSnapshot({ kind: 'latest-start', sessionId: request.sessionId })
       const starts = snapshot.rows.flatMap(row => row.kind === 'run' || row.kind === 'call' ? [row.start] : [])
         .sort((a, b) => b.startedAt - a.startedAt)
       const start = starts[0]

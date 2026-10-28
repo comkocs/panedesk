@@ -3,16 +3,74 @@ import { Context } from '@panedesk/cordis'
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { JournalSessionLedger } from '../src/index.ts'
-import { messageEventId } from '../src/journal.ts'
+import { appendUnique, messageEventId } from '../src/journal.ts'
 import type { MessageLedgerEvent, LedgerEventId } from '../src/types.ts'
-import { callStart, callFinish } from './fixtures.ts'
+import { callStart, callFinish, event, options } from './fixtures.ts'
 
 const homes: string[] = []
 afterEach(async () => { await Promise.all(homes.splice(0).map(home => rm(home, { recursive: true, force: true }))) })
 const execute = promisify(execFile)
+
+it('blocks an old snapshot and export while a writer holds a half-frame', async () => {
+  const home = await mkdtemp(join(import.meta.dirname, '.old-reader-'))
+  homes.push(home)
+  const ctx = new Context()
+  const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+  const reader = resolve(process.env.LEDGER_COMPAT_READER_ROOT ?? join(import.meta.dirname, '../../../..'))
+  const root = join(home, 'ledger', 'v1', await ledger.nodeId())
+  await ledger.beginCall(callStart)
+  const script = `
+    import { pathToFileURL } from 'node:url';
+    const [tree, home] = process.argv.slice(1);
+    const load = path => import(pathToFileURL(tree + '/' + path).href);
+    const { Context } = await load('vendor/cordis/src/index.ts');
+    const { JournalSessionLedger } = await load('packages/session/session-ledger/src/index.ts');
+    const { serializeLedger } = await load('packages/session/ledger-query/src/export.ts');
+    const ctx = new Context();
+    const ledger = new JournalSessionLedger(ctx, { dshHome: home, lockTimeoutMs: 40, lockRetryMs: 5 });
+    await ledger.nodeId();
+    process.send({ ready: true });
+    process.on('message', async mode => {
+      try {
+        const snapshot = await ledger.snapshot();
+        process.send({ mode, complete: snapshot.complete, rows: snapshot.rows.length,
+          finished: snapshot.rows.some(row => row.kind === 'call' && row.finish),
+          exported: serializeLedger(snapshot, 'jsonl').endsWith('\\n') && serializeLedger(snapshot, 'csv').length > 0 });
+      } catch (error) { process.send({ mode, code: error.code }); }
+      if (mode === 'released') { await ctx.fiber.dispose(); process.disconnect(); }
+    });
+  `
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
+  env.TSX_TSCONFIG_PATH = join(reader, 'tsconfig.json')
+  const child = spawn(process.execPath, ['--import', join(reader, 'node_modules/tsx/dist/esm/index.mjs'),
+    '--input-type=module', '-e', script, reader, home], { cwd: reader, env, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
+  const exit = new Promise<number | null>((resolve, reject) => { child.once('error', reject); child.once('exit', resolve) })
+  const message = () => new Promise<unknown>((resolve, reject) => {
+    child.once('message', resolve)
+    child.once('error', reject)
+  })
+  try {
+    expect(child.pid).toBeTypeOf('number')
+    expect(await message()).toEqual({ ready: true })
+    await appendUnique(root, event('call/end'), { ...options, appendCheckpoint: async (phase) => {
+      if (phase !== 'partial-write') return
+      const response = message()
+      child.send('locked')
+      expect(await response).toEqual({ mode: 'locked', code: 'LEDGER_UNAVAILABLE' })
+    } })
+    const response = message()
+    child.send('released')
+    expect(await response).toEqual({ mode: 'released', complete: true, rows: 1, finished: true, exported: true })
+    expect(await exit).toBe(0)
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    await exit
+    await ctx.fiber.dispose()
+  }
+})
 
 it('keeps old recovery, snapshots, query, export and daily headlines unchanged beside message segments', async () => {
   const home = await mkdtemp(join(import.meta.dirname, '.old-reader-'))

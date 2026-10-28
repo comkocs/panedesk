@@ -10,6 +10,8 @@ import type { MessageCursor } from '@panedesk/dsh-message-delivery'
 /** Explicit local storage limits shared by every writer and scanner. */
 export interface JournalOptions extends WriterLockOptions {
   maxRecordBytes: number
+  /** Service-owned shared-view lifetime; absent owners use transaction-local views. */
+  viewOwner?: JournalViewOwner
   /** Test-only interruption observer; absent in provider configuration and normal writes. */
   appendCheckpoint?: (phase: 'partial-write' | 'before-file-sync' | 'before-directory-sync') => Promise<void>
 }
@@ -263,19 +265,53 @@ interface SegmentView {
   importedConflicts: boolean
 }
 
-/** Process-local owner of node views, keyed by real directory and stable lock identity. */
+/** Service lifetime retaining shared node views until its final release. */
+export class JournalViewOwner {
+  private readonly releases = new Map<string, () => void>()
+  private disposed = false
+
+  /** Retain one view per storage identity for this owner.
+   * @param key - Canonical node, lock identity and decoder limit.
+   * @param retain - Acquire a reference and return its release.
+   */
+  retain(key: string, retain: () => () => void): void {
+    if (!this.disposed && !this.releases.has(key)) this.releases.set(key, retain())
+  }
+
+  /** Release all retained views; in-flight transactions keep their own references. */
+  dispose(): void {
+    this.disposed = true
+    for (const release of this.releases.values()) release()
+    this.releases.clear()
+  }
+}
+
+/** Shared node views are retained only by explicit service owners. */
 class JournalView {
   private static readonly nodes = new Map<string, JournalView>()
   readonly segments = new Map<string, SegmentView>()
   readonly index: LedgerIndex = rebuildIndex([])
   readonly eventFiles = new Map<string, string>()
+  readonly waitFacts = new Map<string, LedgerEvent[]>()
+  readonly latestStarts = new Map<string, LedgerEvent[]>()
+  readonly openRuns = new Map<string, Map<string, LedgerEvent>>()
   writer: { path: string; date: string } | undefined
 
-  static async forRoot(root: string): Promise<JournalView> {
+  private references = 0
+
+  static async forRoot(root: string, options: JournalOptions): Promise<JournalView> {
     const identity = await stat(join(root, 'writer.lock'), { bigint: true })
-    const key = JSON.stringify([await realpath(root), String(identity.dev), String(identity.ino)])
+    const key = JSON.stringify([root, String(identity.dev), String(identity.ino), options.maxRecordBytes])
     let view = this.nodes.get(key)
-    if (!view) { view = new JournalView(); this.nodes.set(key, view) }
+    if (!view) view = new JournalView()
+    const retained = view
+    options.viewOwner?.retain(key, () => {
+      this.nodes.set(key, retained)
+      retained.references++
+      return () => {
+        if (--retained.references === 0) this.nodes.delete(key)
+      }
+    })
     return view
   }
 
@@ -283,19 +319,41 @@ class JournalView {
     segment.events.push(event)
     segment.marks.push(digest(canonicalJson(event)))
     addToIndex(this.index, event)
+    if (event.kind === 'wait/start' || event.kind === 'wait/end') {
+      const key = JSON.stringify([event.nodeId, event.sessionId, event.runId, event.interval.toolCallId])
+      const facts = this.waitFacts.get(key) ?? []
+      facts.push(event)
+      this.waitFacts.set(key, facts)
+    }
+    if (event.kind === 'call/start' || event.kind === 'run/start') {
+      const facts = this.latestStarts.get(event.sessionId) ?? []
+      const latest = facts[0]
+      const time = latest && (latest.kind === 'call/start' || latest.kind === 'run/start') ? latest.data.startedAt : -Infinity
+      if (event.data.startedAt > time) this.latestStarts.set(event.sessionId, [event])
+      else if (event.data.startedAt === time) { facts.push(event); this.latestStarts.set(event.sessionId, facts) }
+    }
+    if (event.kind === 'run/start' || event.kind === 'run/end') {
+      const runs = this.openRuns.get(event.sessionId) ?? new Map<string, LedgerEvent>()
+      if (event.kind === 'run/start' && !this.index.slots.has(JSON.stringify(['run/end', event.runId]))) runs.set(event.runId, event)
+      else runs.delete(event.runId)
+      this.openRuns.set(event.sessionId, runs)
+    }
     if (!this.eventFiles.has(event.eventId)) this.eventFiles.set(event.eventId, path)
   }
 
   async refresh(root: string, maxBytes: number): Promise<void> {
     const paths = [...await files(join(root, 'events')), ...await files(join(root, 'imports'))]
-    if ([...this.segments.keys()].some(path => !paths.includes(path))) {
+    const present = new Set(paths)
+    if ([...this.segments.keys()].some(path => !present.has(path))) {
       // Administrative moves invalidate positions; normal writers never remove journal files.
       this.segments.clear()
       this.index.events.clear(); this.index.slots.clear(); this.index.conflicts.length = 0
-      this.eventFiles.clear(); this.writer = undefined
+      this.eventFiles.clear(); this.waitFacts.clear(); this.latestStarts.clear(); this.openRuns.clear(); this.writer = undefined
     }
     for (const path of paths) {
       const previous = this.segments.get(path)
+      // Legacy writers publish immutable UUID-named facts; unknown names remain monitored.
+      if (previous && /[\\/][a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.jsonl$/.test(path)) continue
       const size = (await stat(path)).size
       if (previous && previous.offset === size) continue
       if (previous && size < previous.offset) throw new Error('Ledger segment was truncated')
@@ -394,10 +452,45 @@ class JournalView {
  * @returns Detached scan retaining the historical persisted watermark algorithm.
  */
 export async function readJournal(root: string, options: JournalOptions): Promise<LedgerScan> {
+  root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
-    const view = await JournalView.forRoot(root)
+    const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
     return structuredClone(view.scan())
+  })
+}
+
+/** Read only facts needed by a call or session hot reader; conflicting journals retain full projection semantics.
+ * @param root - Existing canonical node directory.
+ * @param options - Storage limits and service-owned view lifetime.
+ * @param selection - Exact wait identity or session start selection.
+ * @returns Detached facts and journal completeness, without calculating a watermark.
+ */
+export async function readJournalFacts(root: string, options: JournalOptions, selection:
+  | { kind: 'waits'; nodeId: string; sessionId: string; runId: string; toolCallIds: readonly string[] }
+  | { kind: 'latest-start' | 'open-runs'; sessionId: string },
+): Promise<{ events: LedgerEvent[]; complete: boolean }> {
+  root = await realpath(root)
+  return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    const view = await JournalView.forRoot(root, options)
+    await view.refresh(root, options.maxRecordBytes)
+    let events: LedgerEvent[]
+    if (selection.kind === 'waits') {
+      events = selection.toolCallIds.flatMap(id => view.waitFacts.get(JSON.stringify([
+        selection.nodeId, selection.sessionId, selection.runId, id,
+      ])) ?? [])
+    } else events = selection.kind === 'latest-start'
+      ? view.latestStarts.get(selection.sessionId) ?? []
+      : [...view.openRuns.get(selection.sessionId)?.values() ?? []]
+    const run = events[0]
+    if (selection.kind === 'open-runs' && events.length === 1 && run !== undefined) {
+      const end = view.index.slots.get(JSON.stringify(['run/end', run.runId]))
+      if (end) events = [...events, end]
+    }
+    // Ambiguous ordering and corrupt identities use the unchanged full projection path.
+    if (view.index.conflicts.length || selection.kind !== 'waits' && events.length > 1) events = view.scan().events
+    const complete = ![...view.segments.values()].some(segment => segment.tail || segment.corrupt || segment.importedConflicts)
+    return structuredClone({ events, complete })
   })
 }
 
@@ -412,8 +505,9 @@ export async function appendUnique(
   root: string, event: LedgerEvent | ((index: LedgerIndex) => LedgerEvent), options: JournalOptions, firstTerminalWins = false,
 ): Promise<LedgerAppendResult> {
   await ensureDirectory(root)
+  root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
-    const view = await JournalView.forRoot(root)
+    const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
     view.assertWritable()
     const index = view.index
@@ -669,9 +763,10 @@ export async function appendArtifact(
   if (Buffer.from(input.content).toString('utf8') !== input.content) throw new Error('Artifact content must be lossless UTF-8')
   const encoded = frame({ type: 'fragment', input }, options.maxRecordBytes)
   await ensureDirectory(root)
+  root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     if (validateStart) {
-      const view = await JournalView.forRoot(root)
+      const view = await JournalView.forRoot(root, options)
       await view.refresh(root, options.maxRecordBytes)
       view.assertWritable()
       validateStart(view.index)
