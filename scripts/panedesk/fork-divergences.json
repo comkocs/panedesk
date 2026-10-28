@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "agent-loop-reused-start-debug-fields",
+      "description": "Report reused run-start differences once at debug level with field names only, without a second ledger start.",
+      "origin": "Caller-prepared run admission diagnostics",
+      "reason": "First-writer fields remain authoritative in both default profiles; reverse-order retries retain existing or conflict outcomes without disrupting the Agent.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/core/agent-loop/tests/ledger-run.spec.ts"],
+        "test": "logs only differing field names when reusing a start; inherited: %s"
+      }
+    },
+    {
       "id": "agent-loop-caller-started-residency",
       "description": "Reuse a caller-started unfinished bound run without appending a second start, and settle top-level runs through Agent teardown.",
       "origin": "Caller-prepared run admission",

@@ -108,6 +108,43 @@ it.each([true, false])('reuses inherited run only when its local start exists: %
   }
 })
 
+it.each([false, true])('logs only differing field names when reusing a start; inherited: %s', async (inherited) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await ctx.plugin(MemoryLedger)
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const sessionId = SessionId('session-a')
+  const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+  const debug = vi.spyOn(ctx.logger, 'debug').mockImplementation(() => undefined)
+  try {
+    const finish = await beginAgentRun(ctx, sessionId)
+    const original = ledger.starts[0]!
+    const context = ledger.contextFor(sessionId)!
+    if (inherited) {
+      const subagentRunId = brandString<Branded<'SubagentRunId'>>(context.runId)
+      ledger.bindContext({ ...context, subagentRunId })
+      original.subagentRunId = subagentRunId
+    }
+    const equal = await beginAgentRun(ctx, sessionId)
+    expect(debug).not.toHaveBeenCalled()
+    if (inherited) expect(equal).toBeUndefined()
+    original.deliveryPaths = ['caller-delivery']
+    original.launchState = 'pending'
+    original.startedAt = 1
+    original.definition = 'caller-definition'
+    delete original.processIdentity
+    const changed = await beginAgentRun(ctx, sessionId)
+    expect(debug).toHaveBeenCalledExactlyOnceWith(
+      'Agent lifecycle ledger reused start; differing fields: definition, deliveryPaths, launchState, processIdentity, startedAt',
+    )
+    if (inherited) expect(changed).toBeUndefined()
+    expect(ledger.starts).toEqual([original])
+    expect(ledger.events.filter(event => event.kind === 'run/start')).toHaveLength(1)
+    expect(ledger.events.every(event => event.kind === 'run/start' || event.kind === 'process/observed')).toBe(true)
+    await finish!([], false)
+  } finally { debug.mockRestore(); now.mockRestore() }
+})
+
 it.each(['session', 'node'] as const)('rejects a bound run with a different %s identity before publication', async (identity) => {
   const ctx = new Context()
   contexts.push(ctx)
