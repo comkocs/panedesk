@@ -25,6 +25,7 @@ import {
 } from './agent.ts'
 import { SessionCommandController, hasPromptContent } from './commands.ts'
 import { SessionControlController } from './control.ts'
+import { withAccountingStatus } from './accounting-status.ts'
 import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { ApiSessionList } from './list.ts'
@@ -564,14 +565,14 @@ export class SessionController extends TypertRemoteService {
       if (stored === undefined) return null
       if (stored.formatStatus === 'migration-required') {
         const cached = this.ctx.get('sessionProjectionCache')?.cachedSnapshot(stored.header)
-        return { kind: 'migration-required', values: { ...cached?.values } as SessionProjectionValues }
+        return { kind: 'migration-required', values: withAccountingStatus(this.ctx, { ...cached?.values } as SessionProjectionValues) }
       }
       using observation = await this.ctx.sessionQuery.observeSession(sessionId, { signal })
       const projections = observation.projections
       if (projections === undefined) {
         throw new RemoteError('session/projections-unavailable', 'Session projections are unavailable', {})
       }
-      return { kind: 'sequenced', asOfSeq: projections.asOfSeq, values: projections.values as SessionProjectionValues }
+      return { kind: 'sequenced', asOfSeq: projections.asOfSeq, values: withAccountingStatus(this.ctx, projections.values as SessionProjectionValues) }
     } catch (error: unknown) {
       if (error instanceof SessionQueryError && error.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
         return this.liveProjections(sessionId) ?? null
@@ -590,7 +591,7 @@ export class SessionController extends TypertRemoteService {
     const session = this.ctx.sessions.get(sessionId)
     if (session === undefined) return undefined
     const snapshot = this.ctx.sessionProjections.snapshot(session)
-    return { kind: 'sequenced', asOfSeq: snapshot.asOfSeq, values: snapshot.values as SessionProjectionValues }
+    return { kind: 'sequenced', asOfSeq: snapshot.asOfSeq, values: withAccountingStatus(this.ctx, snapshot.values as SessionProjectionValues) }
   }
 
   /**

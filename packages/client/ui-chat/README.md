@@ -70,6 +70,8 @@ Settings → General → Performance & usage appears after Send behavior while b
 
 The composer statistics are two `conversation.composer.dock` list entries: `activity` (order 0, turn and step counts and output speed, with LLM time, tool time, and TTFT) and `usage` (order 1, token total and cache hit). The controls follow the shared [statistics-control radius](../../../docs/ui-radius.md#radius-scale). Another plugin replaces one control by registering the same id and the same `order`; the dock orders rows by `order`, while a lower `priority` picks the replacement: a dynamic plugin receives one automatically, and a statically composed plugin passes it explicitly. A new id adds a control. Each control carries its id in `data-composer-stat`. An open statistics dialog closes on Escape or on a pointerdown or click outside it, so activating another control by pointer or keyboard swaps dialogs instead of stacking them.
 
+When the Host's optional `accountingStatus` projection reports a ledger other than `mounted`, the usage entry shows `Ledger not mounted` in both modes, even without token activity; its title carries the stable cause code when provided. A mounted ledger or an absent status preserves the existing usage display, including hiding unavailable or zero usage. The activity entry and dock layout are unchanged.
+
 Explicit selections update every consumer immediately; accepted Host settings reconcile the live value, so a refused or pending write keeps the selected mode until the Host answers.
 
 Preference menus restore focus to their trigger without scrolling before publishing a new selection.

@@ -70,6 +70,8 @@ Assistant 尝试结束且没有可见消息时，Chat 隐藏已发布的 Node，
 
 输入框统计信息由两个 `conversation.composer.dock` 列表条目组成：`activity`（order 0，轮次数、步骤数与输出速度，以及 LLM 耗时、工具耗时与 TTFT）和 `usage`（order 1，token 总量与缓存命中）。这些控件遵循公共的[统计控件圆角规则](../../../docs/ui-radius.zh.md#radius-scale)。其他插件以相同的 id 和相同的 `order` 注册即可替换某个控件；dock 按 `order` 排列各行，更低的 `priority` 决定由替换者渲染：动态插件会自动获得，静态组合的插件需显式传入。以新 id 注册则新增控件。每个控件在 `data-composer-stat` 中携带其 id。按下 Escape，或在已打开的对话框之外发生 pointerdown 或点击时，该对话框会关闭，因此用指针或键盘激活另一个控件会切换对话框，而不会叠加两个。
 
+Host 的可选 `accountingStatus` 投影报告账本不是 `mounted` 时，`usage` 条目在两种模式下均显示“账本未挂”，即使没有 token 活动；提供稳定原因码时，其 title 携带该码。账本已挂载或状态缺席时保留既有用量展示，包括隐藏不可用或零用量。`activity` 条目与 dock 布局保持不变。
+
 明确选择会立即更新所有使用方；Host 接受的设置会校正实时值，因此写入被拒绝或尚未应答时保持所选模式，直到 Host 应答。
 
 偏好菜单在发布新选择之前，先将焦点还给触发按钮，且不引起滚动。

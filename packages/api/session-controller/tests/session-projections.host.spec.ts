@@ -12,6 +12,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
+import { KernelStatusService } from '@panedesk/dsh-app-boot'
 import { z } from 'zod'
 import AgentRegistry from '@panedesk/dsh-agent'
 import { AttachmentStore } from '@panedesk/dsh-attachment'
@@ -163,6 +164,41 @@ function seedMessages(session: Session, count: number): void {
 const remote = (ctx: Context) => createSessionTestRemote(ctx, { defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp' })
 
 describe('session.history projections block', () => {
+  it.each([true, false])('carries the optional startup ledger audit across payloads: %s', async (withAudit) => {
+    const { ctx, session } = await harness(true)
+    if (withAudit) {
+      new KernelStatusService(ctx, {
+        pid: process.pid,
+        time: new Date().toISOString(),
+        services: {
+          sessionLedger: { status: 'failed', cause: 'activation-failed' },
+          llmCache: { status: 'mounted', cause: 'service-present' },
+        },
+      })
+    }
+    const proxy = remote(ctx)
+    const expected = withAudit ? { ledger: 'failed', cause: 'activation-failed' } : undefined
+    const history = await opening(proxy, session.id)
+    expect(history.projections.values.accountingStatus).toEqual(expected)
+    const pulled = await proxy.projections({ sessionId: session.id })
+    if (!pulled.ok || pulled.value === null) throw new Error('projection read failed')
+    expect(pulled.value.values.accountingStatus).toEqual(expected)
+    const listing = await proxy.list({})
+    if (!listing.ok) throw new Error('listing failed')
+    expect(listing.value.items.find(row => row.sessionId === session.id)?.projections?.values.accountingStatus).toEqual(expected)
+    const abort = new AbortController()
+    const iterator = proxy.control(abort.signal)[Symbol.asyncIterator]()
+    try {
+      const baseline = await iterator.next()
+      if (baseline.done || baseline.value.type !== 'baseline') throw new Error('control baseline missing')
+      expect(baseline.value.value.projections[session.id]?.values.accountingStatus).toEqual(expected)
+    } finally {
+      abort.abort()
+      await iterator.return?.()
+    }
+    expect(ctx.sessionProjections.snapshot(session).values).not.toHaveProperty('accountingStatus')
+  })
+
   it('keeps the v0 numeric seed cut on the wire while logical headers expose only lineage', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)

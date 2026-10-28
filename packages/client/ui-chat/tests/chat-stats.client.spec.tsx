@@ -171,6 +171,51 @@ describe('composer stats pills', () => {
     timing: { stepStartTime: 1_000, firstTokenTime: 1_800, completedTime: 4_800 },
   })
 
+  it.each(['compact', 'detailed'] as const)('keeps mounted and legacy usage unchanged in %s mode', (mode) => {
+    const { source } = makeSource()
+    const view = render(<UsagePill {...props(source)} usePerformanceUsage={selector => selector(mode)} />)
+    const legacy = view.container.textContent
+    view.rerender(<UsagePill {...props(source, {
+      tokenUsage: USAGE, accountingStatus: { ledger: 'mounted', cause: 'service-present' },
+    })} usePerformanceUsage={selector => selector(mode)} />)
+    expect(view.container.textContent).toBe(legacy)
+    expect(view.queryByText('Ledger not mounted')).toBeNull()
+    view.rerender(<UsagePill {...props(source, {
+      accountingStatus: { ledger: 'mounted', cause: 'service-present' },
+    })} usePerformanceUsage={selector => selector(mode)} />)
+    expect(view.container.textContent).toBe('')
+  })
+
+  it.each(['failed', 'missing', 'disabled'] as const)('replaces usage with the %s ledger warning in both modes', (ledger) => {
+    const { source } = makeSource({ nodes: [timedStep()] })
+    const values = { tokenUsage: USAGE, accountingStatus: { ledger, cause: 'activation-failed' } }
+    const view = render(<StatsPills {...props(source, values)} />)
+    expect(view.getByText('Ledger not mounted').closest('[title]')?.getAttribute('title')).toBe('activation-failed')
+    expect(view.queryByText('105 tok')).toBeNull()
+    expect(view.getByRole('button', { name: '1 turns 1 steps · 20 tok/s' })).toBeTruthy()
+    expect(view.queryByRole('dialog')).toBeNull()
+    view.rerender(<UsagePill {...props(source, values)} usePerformanceUsage={selector => selector('compact')} />)
+    expect(view.container.textContent).toBe('Ledger not mounted')
+    expect(view.queryByRole('button')).toBeNull()
+    view.rerender(<UsagePill {...props(source, { accountingStatus: { ledger } })} t={t} />)
+    expect(view.container.textContent).toBe('账本未挂')
+    expect(view.container.querySelector('[title]')).toBeNull()
+  })
+
+  it('pins the localized failed-ledger reading without token data', () => {
+    const { source } = makeSource()
+    const view = render(<UsagePill {...props(source, {
+      accountingStatus: { ledger: 'failed', cause: 'import-failed:ERR_MODULE_NOT_FOUND' },
+    })} />)
+    expect({ text: view.container.textContent, title: view.container.querySelector('[title]')?.getAttribute('title') })
+      .toMatchInlineSnapshot(`
+        {
+          "text": "Ledger not mounted",
+          "title": "import-failed:ERR_MODULE_NOT_FOUND",
+        }
+      `)
+  })
+
   it('compact keeps only speed and cache hit, with no interactive statistics', () => {
     const { source } = makeSource({ nodes: [timedStep()] })
     const view = render(<StatsPills {...props(source)} usePerformanceUsage={selector => selector('compact')} />)
