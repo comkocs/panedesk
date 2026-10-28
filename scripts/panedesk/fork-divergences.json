@@ -1,6 +1,94 @@
 {
   "divergences": [
     {
+      "id": "upstream-snapshot-full-ledger-disabled",
+      "description": "Disable the full ledger in the shared headless and SDK replay patch without changing recorded expectations.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/cache-disabled.patch.yml"],
+        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+      }
+    },
+    {
+      "id": "upstream-loader-smoke-full-ledger-disabled",
+      "description": "Disable the full ledger in the loader smoke replay patch.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["packages/test-support/loader-smoke/tests/fixtures/cache-disabled.patch.yml"],
+        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+      }
+    },
+    {
+      "id": "upstream-headless-expected-full-ledger-disabled",
+      "description": "Disable the full ledger in the headless expected-output replay profile.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["apps/cli/tests/profiles/headless/tests/fixtures/headless-profile.patch.yml"],
+        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+      }
+    },
+    {
+      "id": "upstream-acp-full-ledger-disabled",
+      "description": "Disable the full ledger in the shared ACP replay composition.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/acp/escalation-approved/cordis.yml"],
+        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+      }
+    },
+    {
+      "id": "full-ledger-three-scenario-invariants",
+      "description": "Pin unordered upstream events, physical calls, durable tool starts and exit budgets with the full ledger enabled.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["snapshots/full-ledger.snapshot.ts"],
+        "test": "${scenario.name} preserves every event once, physical calls, durable tool starts and upstream exit deadline"
+      }
+    },
+    {
+      "id": "upstream-seat-opening-full-ledger-retained",
+      "description": "Keep the full ledger enabled in the seat-opening replay composition.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/session/seat-opening/cordis.snapshot.yml"],
+        "replacements": [{ "upstream": ["- id: session-ledger-full", "  config:"], "fork": ["- id: session-ledger-full", "  disabled: false", "  config:"] }]
+      }
+    },
+    {
+      "id": "upstream-seat-windows-full-ledger-retained",
+      "description": "Keep the full ledger enabled in the seat-windows replay composition.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/session/seat-windows/cordis.snapshot.yml"],
+        "replacements": [{ "upstream": ["- id: session-ledger-full", "  config:"], "fork": ["- id: session-ledger-full", "  disabled: false", "  config:"] }]
+      }
+    },
+    {
+      "id": "upstream-headless-ledger-patch-precedence",
+      "description": "Apply the shared disabled patch before scenario overrides so seat scenarios retain their full ledger.",
+      "origin": "Upstream recorded-session ledger composition",
+      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": ["snapshots/session/headless.snapshot.ts"],
+        "replacements": [{ "upstream": ["        ...composition === baseComposition && !replaying ? [] : [compositionPatch],"], "fork": ["        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),", "        ...composition === baseComposition && !replaying ? [] : [compositionPatch],"] }]
+      }
+    },
+    {
       "id": "creator-fixture-distinct-tool-calls",
       "description": "Give each synthetic Creator management invocation a distinct tool call identity.",
       "origin": "Default accounting composition integration",
@@ -215,7 +303,7 @@
       "id": "default-llm-cache",
       "description": "Mount the existing cache layer in default slim and full compositions without overriding its policy.",
       "origin": "Default accounting composition",
-      "reason": "With the ledger mounted, users receive frozen system and tool prefixes and default Anthropic 1h or DeepSeek automatic cache controls. retention=none disables cache controls but does not disable prefix freezing. Upstream snapshots run with the cache layer disabled; separate headless, SDK and ACP cases pin the default profile behavior.",
+      "reason": "With the ledger mounted, users receive frozen system and tool prefixes and default Anthropic 1h or DeepSeek automatic cache controls. retention=none disables cache controls but does not disable prefix freezing. Upstream snapshot tests run with both the cache layer and the full ledger disabled; separate cases pin the default profile behavior.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/bundle/slim-base/tests/slim-base.spec.ts"],
