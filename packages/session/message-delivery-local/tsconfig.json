@@ -18,6 +18,7 @@
     { "path": "../../util/home-paths" },
     { "path": "../../host/host-admin" },
     { "path": "../../seat/node-link" },
+    { "path": "../../seat/seat" },
     { "path": "../session-ledger" },
     { "path": "../session-persistence" },
     { "path": "../session-projection" },

@@ -9,8 +9,8 @@
   en: 6cc2cd9ced70bb09
   zh: 1c0e6cb4ba2ed637
 /tool-schema-catalog/tool-package-map:
-  en: 34a6b3a843d95d48
-  zh: 96269377776954ba
+  en: 03b421a0b4f50e7a
+  zh: 5d24ec5df51f09c4
 /tool-schema-catalog/panedesk-dsh-plugin-manager:
   en: 9c2a64c2528dbed9
   zh: 9c2a64c2528dbed9
@@ -201,8 +201,17 @@
   en: 02fb7ffa1169a156
   zh: 02fb7ffa1169a156
 /tool-schema-catalog/panedesk-dsh-tool-ralph/ralph:
-  en: 71b5a56d6a403273
-  zh: cee8155ea5c3518c
+  en: edb18b9db0e2c124
+  zh: ce4a41117f2e92c9
+/tool-schema-catalog/panedesk-dsh-tool-seat-messages:
+  en: ba82989c6e8bf39c
+  zh: ba82989c6e8bf39c
+/tool-schema-catalog/panedesk-dsh-tool-seat-messages/seat-list-online:
+  en: 578fe343dbbd6794
+  zh: 6ca2ef9dbe6f92ec
+/tool-schema-catalog/panedesk-dsh-tool-seat-messages/seat-send:
+  en: 331f4d344a575375
+  zh: f5ced1676d1bfa2e
 /tool-schema-catalog/panedesk-dsh-tool-seat:
   en: 5ea1134b2abef61b
   zh: 5ea1134b2abef61b

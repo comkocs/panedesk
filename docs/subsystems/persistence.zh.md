@@ -356,6 +356,17 @@ Caller authority is bound by the provider; wire input never supplies trusted sen
  */
 abstract send(request: SendMessageRequest): Promise<SendMessageResult>
 
+/** Resolve one exact local seat; absent capability leaves legacy addressing unchanged.
+ * @param seat - exact seat name, never a group or wildcard.
+ * @returns live primary recipient or detailed refusal without opening a Session.
+ */
+resolveSeat?(seat: string): Promise<import('./types.ts').SeatRecipientResolution>
+
+/** List verified live local seat windows; absent capability means unsupported.
+ * @returns seat bindings paired with runtime busy/idle observations.
+ */
+listOnlineSeats?(): Promise<readonly import('./types.ts').OnlineSeat[]>
+
 /**
  * Request withdrawal before claim; an offline owner acknowledges only durable intent.
  * @param request - message identity, expected revision, and operation identity.

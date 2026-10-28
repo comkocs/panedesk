@@ -2519,6 +2519,8 @@ export interface Config {
   readonly lockRetryMs: number
   /** Enable filesystem notifications in addition to periodic mailbox scans. */
   readonly watch: boolean
+  /** Enable explicit same-node seat queries; omission or false preserves legacy addressing only. */
+  readonly seatAddressing?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-message-delivery-local -->
@@ -5261,6 +5263,7 @@ export interface Config {
 | `@panedesk/dsh-tool-cordis` | `tools` · `cordisInspect` | [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts) |
 | `@panedesk/dsh-tool-schedule` | `tools` | [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts) |
 | `@panedesk/dsh-tool-seat` | — | [`packages/seat/tool-seat/src/index.ts`](../packages/seat/tool-seat/src/index.ts) |
+| `@panedesk/dsh-tool-seat-messages` | — | [`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts) |
 | `@panedesk/dsh-tool-subagent-control` | `tools` · `subagents` | [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts) |
 | `@panedesk/dsh-tool-working-directory` | `tools` · `workingDirectory` | [`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts) |
 | `@panedesk/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |

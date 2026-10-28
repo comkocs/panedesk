@@ -28,6 +28,7 @@ import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { seatFrozenIdentity, querySeatFrozen } from './frozen-admission.ts'
 import { SeatEngine, FrozenWriteBarrier, batchMemberId, queryBatchMember } from '@panedesk/dsh-seat-engine'
 import { validateLocalDefinition } from './paths.ts'
+import { messageWindows } from './message-windows.ts'
 
 const reminderSchema = z.object({ sessionId: z.string(), operationId: z.string(), text: z.string(), sent: z.boolean() })
 const reminderSpec = defineDomain({ name: 'seat_close_reminders', version: 1, layout: 'per-record',
@@ -189,6 +190,10 @@ export class LocalSeatService extends SeatService {
     if (!complete) return 'unknown'
     if (open.phase !== 'active' && open.phase !== 'opening-pending') return 'configuring'
     return open.openingMode === 'prefill' ? 'prefilled' : 'active'
+  }
+  override async messageWindows(): Promise<readonly import('@panedesk/dsh-seat').SeatMessageWindow[]> {
+    this.caller()
+    return messageWindows((await this.state.read()).effects, this.options.nodeId)
   }
   async list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult> {
     const refusal = await this.guard(request.nodeId)

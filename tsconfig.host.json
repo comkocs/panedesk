@@ -382,6 +382,7 @@
     { "path": "./packages/experimental/worktree" },
     { "path": "./packages/experimental/tool-worktree" },
     { "path": "./packages/session/tool-working-directory" },
+    { "path": "./packages/session/tool-seat-messages" },
     { "path": "./packages/session/session-title-llm" },
     { "path": "./packages/session/session-title-first-prompt-llm" },
     { "path": "./packages/experimental/session-title-all-prompts-llm" },

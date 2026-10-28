@@ -98,6 +98,27 @@ it('projects all six runtime states from real question, approval and model lifec
   }
 })
 
+it('selects the latest committed binding and restores message windows without changing bindings', async () => {
+  const f = await admissionHost()
+  try {
+    const opened = await f.seats.open({ seat: f.definition.seat, origin: 'manual', openingMode: 'prefill', operationId: operation('message-binding') })
+    if (opened.status !== 'prefilled') throw new Error(JSON.stringify(opened))
+    const binding = await f.seats.binding({ sessionId: opened.sessionId })
+    if (!binding || 'status' in binding || binding.kind !== 'seat') throw new Error('Seat binding is unavailable')
+    const rebound = { ...binding, seat: 'rebound-seat' as T.SeatName }
+    await f.state.mutate(() => ({ result: undefined, effects: [localFact({ kind: 'seat/binding',
+      sessionId: opened.sessionId, data: rebound })] }))
+    const windows = [{ seat: rebound.seat, sessionId: opened.sessionId, nodeId: binding.nodeId, primary: true }]
+    expect(await f.seats.messageWindows!()).toEqual(windows)
+    const restored = await f.reload()
+    expect(await restored.messageWindows!()).toEqual(windows)
+    await f.state.mutate(() => ({ result: undefined, effects: [localFact({ kind: 'seat/binding',
+      sessionId: opened.sessionId, data: { kind: 'free', sessionId: opened.sessionId,
+        nodeId: binding.nodeId, identitySource: 'free' } })] }))
+    expect(await restored.messageWindows!()).toEqual([])
+  } finally { await f.close() }
+})
+
 it('projects budget stop beside runtime state and restores it from the engine', async () => {
   const f = await admissionHost()
   try {
@@ -117,5 +138,6 @@ it('projects budget stop beside runtime state and restores it from the engine', 
         operationId: operation('closing'), phase: 'admission', reason: 'manual', stateVersion: 1,
         endedAt: null, reportId: null, selfReport: null, selfReportStatus: 'not-submitted' } })] }))
     expect(await restored.list({})).toMatchObject({ sessions: [{ status: 'idle', engineStatus: 'closing', canRenew: false }] })
+    expect(await restored.messageWindows!()).toEqual([])
   } finally { await f.close() }
 })

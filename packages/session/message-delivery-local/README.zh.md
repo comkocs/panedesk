@@ -13,6 +13,8 @@ kind: "package-reference"
 
 设置 `pagination: true` 时，提供方签发的游标对未答消息分页，前页条目变为终态也不重复返回前页。保持筛选条件不变；不可用游标和非正安全整数限额会被拒绝。否则忽略 `cursor`，`limit` 使用 JavaScript `slice(0, limit)`，`complete` 比较匹配条数与限额，且不返回游标。
 
+设置 `seatAddressing: true`，通过 `seatLocalRead.messageWindows` 启用可选的精确位解析与在线观测。省略时位寻址保持关闭，会话号／标题寻址不变。仅纳入本地在开且运行时存活状态明确的窗口；多窗时解析唯一主窗，否则返回歧义原因及候选。未开位返回 `seat not open`。显式组合与时序参见[位消息工具](../tool-seat-messages/README.zh.md)。
+
 ## 目录
 
 - [开发备注](#dev-note)

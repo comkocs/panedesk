@@ -524,6 +524,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   'T.SeatSourceId': 'seat.md',
   SeatSessionOperations: 'seat.md',
   SeatWindowOperations: 'seat.md',
+  SeatMessageWindow: 'seat.md',
   'T.SeatTaskEndedRequest': 'seat.md',
   'T.SeatTimestamp': 'seat.md',
   'T.SeatTriggerSource': 'seat.md',

@@ -27,6 +27,8 @@ kind: "package-reference"
 
 `RoutedSendMessageRequest` 在旧发送输入上增加冻结的发送身份、消息号、投递号、摘要及可选调用／因果引用。可选 `routedDeliveryVerifier` 验证宿主持有的精确载荷能力；线上字段不赋予权限。接收端保留这些身份，仅在耐久入箱后确认。
 
+可选 `resolveSeat` 与 `listOnlineSeats` 提供本地位解析及忙闲观测，不扩大既有地址输入。提供方可以省略；消费者必须拒绝缺失能力，不推断可用性。不改变消息或账本格式。
+
 `message/settings` 是读取时必需的持久事件。`message/state` 只在持久回执提交后发出。消息生命周期记录归独立消息账本命名空间，不进入调用日志。
 
 <a id="dev-note"></a>

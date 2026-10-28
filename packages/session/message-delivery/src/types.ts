@@ -59,6 +59,25 @@ export interface MessageRecipient {
 export type ResolvedRecipient =
   | { readonly kind: 'resolved'; readonly address: MessageAddress; readonly recipient: MessageRecipient }
   | { readonly kind: 'rejected'; readonly address: MessageAddress; readonly reason: MessageReason; readonly candidates: readonly MessageRecipient[] }
+/** Exact seat resolution is separate from legacy Session id and title addressing. */
+export type SeatRecipientResolution =
+  | { readonly kind: 'resolved'; readonly seat: string; readonly recipient: MessageRecipient }
+  | {
+    readonly kind: 'rejected'
+    readonly seat: string
+    readonly reason: MessageReason
+    readonly detail: string
+    readonly candidates: readonly MessageRecipient[]
+  }
+/** Verified live local seat window; this is an observation, not a delivery reservation. */
+export interface OnlineSeat {
+  readonly seat: string
+  readonly sessionId: SessionId
+  readonly nodeId: NodeId
+  readonly status: 'busy' | 'idle'
+  readonly primary: boolean
+}
+
 /** Per-Session receive policy; replies qualify under handoff-only. */
 export interface MessageSettings {
   readonly receiveMode: 'all' | 'handoff-only' | 'none'

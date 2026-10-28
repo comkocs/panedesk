@@ -1753,6 +1753,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'delivery acknowledgement distinct from lifecycle state.',
       },
       {
+        signature: 'resolveSeat?(seat: string): Promise<import(\'./types.ts\').SeatRecipientResolution>',
+        description: 'Resolve one exact local seat; absent capability leaves legacy addressing unchanged.',
+        parameters: [{ name: 'seat', description: 'exact seat name, never a group or wildcard.' }],
+        returns: 'live primary recipient or detailed refusal without opening a Session.',
+      },
+      {
+        signature: 'listOnlineSeats?(): Promise<readonly import(\'./types.ts\').OnlineSeat[]>',
+        description: 'List verified live local seat windows; absent capability means unsupported.',
+        parameters: [],
+        returns: 'seat bindings paired with runtime busy/idle observations.',
+      },
+      {
         signature: 'abstract withdraw(request: MessageControlRequest): Promise<ControlResult>',
         description: 'Request withdrawal before claim; an offline owner acknowledges only durable intent.',
         parameters: [{ name: 'request', description: 'message identity, expected revision, and operation identity.' }],
@@ -3409,6 +3421,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List runtime-derived states, including unavailable evidence.',
         parameters: [{ name: 'request', description: 'authorized local filters and cursor.' }],
         returns: 'windows and unopened definitions with completeness.',
+      },
+      {
+        signature: 'messageWindows?(): Promise<readonly SeatMessageWindow[]>',
+        description: 'Read committed local open bindings without activating Sessions or mutating engine admission.',
+        parameters: [],
+        returns: 'complete local bindings; omission means the provider lacks this read capability.',
       },
       {
         signature: 'abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>',
@@ -9174,6 +9192,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OneShotScheduleRecord = AfterScheduleRecord | AtScheduleRecord;',
   },
   {
+    name: 'OnlineSeat',
+    declaration: 'export interface OnlineSeat {\n    readonly seat: string;\n    readonly sessionId: SessionId;\n    readonly nodeId: NodeId;\n    readonly status: \'busy\' | \'idle\';\n    readonly primary: boolean;\n}',
+  },
+  {
     name: 'OpenConfigurationStage',
     declaration: 'export type OpenConfigurationStage = \'workspace\' | \'model\' | \'permission\' | \'subscriptions\' | \'title\' | \'binding\' | \'opening\';',
   },
@@ -10374,6 +10396,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatLocalOpenRequest {\n    nodeWorkChain?: NodeWorkChainAcceptedData;\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
+    name: 'SeatMessageWindow',
+    declaration: 'export interface SeatMessageWindow {\n    readonly seat: string;\n    readonly sessionId: SessionId;\n    readonly nodeId: T.SeatNodeId;\n    readonly primary: boolean;\n}',
+  },
+  {
     name: 'SeatName',
     declaration: 'export type SeatName = Branded<\'SeatName\'>;',
   },
@@ -10422,6 +10448,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatQueued {\n    status: \'queued\';\n    queueItemId: QueueItemId;\n    sequence: number;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n}',
   },
   {
+    name: 'SeatRecipientResolution',
+    declaration: 'export type SeatRecipientResolution = {\n    readonly kind: \'resolved\';\n    readonly seat: string;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly kind: \'rejected\';\n    readonly seat: string;\n    readonly reason: MessageReason;\n    readonly detail: string;\n    readonly candidates: readonly MessageRecipient[];\n};',
+  },
+  {
     name: 'SeatRejected',
     declaration: 'export interface SeatRejected {\n    status: \'rejected\';\n    error: SeatFailure;\n}',
   },
@@ -10451,7 +10481,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatService',
-    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    nodeStatus?(): Promise<T.SeatNodeStatus>;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    openFrozen?(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult>;\n    wakeFrozen?(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult>;\n    abstract rename(request: T.RenameSeatRequest): Pro /* …truncated — full shape in source */',
+    declaration: 'export abstract class SeatService extends Service {\n    constructor(ctx: Context);\n    abstract withAuthority(authority: T.SeatCallContext): SeatService;\n    nodeStatus?(): Promise<T.SeatNodeStatus>;\n    abstract definitions(request: T.ListSeatDefinitionsRequest): Promise<T.ListSeatDefinitionsResult>;\n    abstract resolve(seat: T.SeatName): Promise<T.SeatDefinition | T.SeatRejected>;\n    abstract save(request: T.SaveSeatDefinitionRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract previewImport(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>;\n    abstract commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>;\n    abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalogMutationResult>;\n    abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>;\n    messageWindows?(): Promise<readonly SeatMessageWindow[]>;\n    abstract open(request: T.OpenSeatRequest): Promise<T.OpenSeatResult>;\n    openFrozen?(request: T.OpenFrozenSeatRequest): Promise<T.OpenFrozenSeatResult>;\n    wakeFrozen?(request: T.WakeFrozenSeatRequest): Promise<T.WakeFrozenSeatResult>;\n    abstract openBatch(request: T.OpenSeatBatchRequest): Promise<T.OpenSeatBatchResult>;\n    abstract renew(request: T.RenewSeatRequest): Promise<T.RenewSeatResult>;\n    abstract close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult>;\n    abstract replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatR /* …truncated — full shape in source */',
   },
   {
     name: 'SeatSessionOperations',

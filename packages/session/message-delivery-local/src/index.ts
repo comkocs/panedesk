@@ -36,7 +36,8 @@ import { ReceiptStore } from './receipts.ts'
 import { createRoutedMailboxReceiver } from './routed-receiver.ts'
 import { sendRoutedMessage } from './routed-sender.ts'
 import { inspectWindowsAcl } from './windows-permissions.ts'
-import { policyReason, resolveRecipients } from './recipients.ts'
+import { policyReason, resolveRecipients, resolveSeatRecipient } from './recipients.ts'
+import type {} from '@panedesk/dsh-seat'
 import type { Config, ControlCommand, RecipientMetadata } from './types.ts'
 
 export type { Config } from './types.ts'
@@ -296,6 +297,34 @@ export default class LocalMessageDelivery extends MessageDelivery {
   async resolve(addresses: readonly MessageAddress[]): Promise<ResolvedRecipient[]> {
     await this.ready
     return resolveRecipients(this.nodeId, addresses, await this.metadata(), id => this.registry.status(id))
+  }
+
+  private async seatWindows(): Promise<readonly import('@panedesk/dsh-seat').SeatMessageWindow[]> {
+    await this.ready
+    if (!this.config.seatAddressing) throw new MailboxUnavailableError('Seat addressing is disabled')
+    const seats = this.ctx.get('seatLocalRead')
+    if (!seats?.messageWindows) throw new MailboxUnavailableError('Local seat window evidence is unavailable')
+    return seats.messageWindows()
+  }
+
+  override async resolveSeat(seat: string): Promise<import('@panedesk/dsh-message-delivery').SeatRecipientResolution> {
+    const windows = await this.seatWindows()
+    return resolveSeatRecipient(this.nodeId, seat, windows, await this.metadata(), id => this.registry.status(id))
+  }
+
+  override async listOnlineSeats(): Promise<readonly import('@panedesk/dsh-message-delivery').OnlineSeat[]> {
+    const windows = (await this.seatWindows()).filter(window => window.nodeId === this.nodeId)
+    const metadata = await this.metadata()
+    const output: import('@panedesk/dsh-message-delivery').OnlineSeat[] = []
+    for (const window of windows) {
+      const [result] = await resolveRecipients(this.nodeId, [{ sessionId: window.sessionId }], metadata, id => this.registry.status(id))
+      if (result?.kind === 'rejected' && result.reason === 'unavailable') throw new MailboxUnavailableError('Seat runtime liveness is unavailable')
+      if (result?.kind === 'resolved' && result.recipient.status !== 'closed') {
+        output.push({ seat: window.seat, sessionId: window.sessionId, nodeId: this.nodeId,
+          status: result.recipient.status, primary: window.primary })
+      }
+    }
+    return output
   }
 
   async send(request: SendMessageRequest): Promise<SendMessageResult> {

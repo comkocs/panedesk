@@ -20,6 +20,8 @@
 
 `SeatWindowView` 投影运行时状态、忙碌原因、缓存证据和状态版本。`SeatContextUsage` 表示带时间的当前上下文证据，不是累计计费 token。证据缺失保持未知。`SeatFailure` 携带机器码、说明、替代方案、可重试性及观察到的副作用状态。
 
+`SeatMessageWindow` 包含本地在开绑定的席位、会话、节点身份及主窗选择。可选只读能力 `messageWindows()` 从已提交的换窗进度推导选择，排除已关窗口与尚未解除关闭屏障的窗口，不会激活会话。运行时存活性由[消息提供方](../../packages/session/message-delivery-local/README.zh.md)单独检查。
+
 ## 引擎记录与查询
 
 `EngineDecision` 在写入所有权与预期序列比较下提交一个含类型化 `EngineEffect` 记录的有界帧。引擎日志独立于会话、计费与消息日志。回调通过稳定标识与发件箱提供至少一次交付；恢复不重放结果不确定的模型副作用。
@@ -1227,6 +1229,11 @@ abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalog
  * @returns windows and unopened definitions with completeness.
  */
 abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>
+
+/** Read committed local open bindings without activating Sessions or mutating engine admission.
+ * @returns complete local bindings; omission means the provider lacks this read capability.
+ */
+messageWindows?(): Promise<readonly SeatMessageWindow[]>
 
 /** Create through one durable intent; bind ledger identity before the first run starts.
  * @param request - caller-stable identity and exact definition.

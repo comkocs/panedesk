@@ -27,6 +27,8 @@ export interface Config {
   readonly lockRetryMs: number
   /** Enable filesystem notifications in addition to periodic mailbox scans. */
   readonly watch: boolean
+  /** Enable explicit same-node seat queries; omission or false preserves legacy addressing only. */
+  readonly seatAddressing?: boolean
 }
 
 /** Exact runtime adapter; queue mutation belongs to the priority-aware driver. */

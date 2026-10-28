@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/session/tool-seat-messages/README.md
+/:
+  en: 1553c7ac38e9740d
+  zh: fc427f9b9e179b6c
+/panedesk-dsh-tool-seat-messages:
+  en: fcfd1a599acfd171
+  zh: a8fb9bcc2e34e62a
+/panedesk-dsh-tool-seat-messages/summary:
+  en: e4830753fcb1cdbc
+  zh: 0faa64e52d09a9a1
+/panedesk-dsh-tool-seat-messages/use-this-package:
+  en: 270f8b3bf103d987
+  zh: b13080c40519e9b0
+/panedesk-dsh-tool-seat-messages/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-tool-seat-messages/model-experience/single-seat-tools:
+  en: 4545d9fd500dcbba
+  zh: 87a606439c3ac349
+/panedesk-dsh-tool-seat-messages/model-experience/single-seat-tools/what-the-model-sees:
+  en: bd5bbc9a6c18bc3e
+  zh: 629ca636bb08e7cb
+/panedesk-dsh-tool-seat-messages/model-experience/single-seat-tools/token-effect:
+  en: e4073d9f73327f6d
+  zh: de49bb9359935f6c
+/panedesk-dsh-tool-seat-messages/model-experience/single-seat-tools/kv-cache-effect:
+  en: 004af35cc95c6590
+  zh: 73bbd922d634b230
+/panedesk-dsh-tool-seat-messages/known-limitations-and-deferred-work:
+  en: 74ac314a68db2a7d
+  zh: 39fac76689925ec2
+/panedesk-dsh-tool-seat-messages/dev-note:
+  en: 8ac0199d847cd74a
+  zh: 4cf7b9aed595d2d5
