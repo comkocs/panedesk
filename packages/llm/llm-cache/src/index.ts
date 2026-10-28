@@ -148,10 +148,6 @@ function requestSystem(request: GenerateOptions): string {
     ? first.content.filter(block => block.type === 'text').map(block => block.text).join('\n') : '')
 }
 
-function committed(result: { kind: string }): void {
-  if (result.kind === 'conflict') throw new Error('Ledger rejected conflicting call evidence')
-}
-
 /** Install request policy and contribute cache evidence to the optional ledger.
  * @param ctx - plugin-owned context; optional ledger absence preserves passthrough.
  * @param config - validated policy, capability declarations, and maintenance budgets.
@@ -183,11 +179,12 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   async function fact(service: SessionLedger, start: LedgerCallStart, value: LedgerAuxiliaryFact): Promise<void> {
-    committed(await service.appendEvent({
-      schemaVersion: 1, eventId: randomUUID() as LedgerEventId,
+    const result = await service.appendEvent({
+      ...value, schemaVersion: 1, eventId: randomUUID() as LedgerEventId,
       nodeId: start.nodeId, sessionId: start.sessionId, runId: start.runId,
-      callId: start.callId, observedAt: Date.now(), ...value,
-    }))
+      callId: start.callId, observedAt: Date.now(),
+    })
+    if (result.kind === 'conflict') throw new Error('Ledger rejected conflicting call evidence')
   }
 
   function queueFact(state: SessionState, value: LedgerAuxiliaryFact): void {
@@ -199,6 +196,8 @@ export function apply(ctx: Context, config: Config): void {
       ctx.logger.warn('Cache ledger observation failed; further calls are blocked')
     })
   }
+
+  ctx.on('agent/disposed', ({ agent }) => { states.delete(agent.id) })
 
   function arm(id: string, state: SessionState): void {
     if (state.timer !== undefined) clearTimeout(state.timer)
@@ -448,7 +447,6 @@ export function apply(ctx: Context, config: Config): void {
     await state.pending
     if (state.failure !== undefined) throw new Error('Cache accounting requires repair', { cause: state.failure })
   })
-  ctx.on('agent/disposed', ({ agent }) => { states.delete(agent.id) })
 
   const contributor: CallContributor = {
     async prepare({ request, id, agent, auxiliary }) {

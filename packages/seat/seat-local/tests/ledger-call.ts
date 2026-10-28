@@ -1,8 +1,24 @@
 /** Explicit completed call evidence for real ledger composition tests. */
 import type { Context } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session'
-import type { LedgerCallStart, LedgerCallFinish } from '@panedesk/dsh-session-ledger'
+import type { LedgerCallStart, LedgerCallFinish, LedgerPriceEntry } from '@panedesk/dsh-session-ledger'
 import { seat } from './fixtures.ts'
+
+/** Price the synthetic transport explicitly at zero; budget charges come from recordCost.
+ * @param ctx - context with the real ledger provider.
+ */
+export function priceSyntheticTransport(ctx: Context): void {
+  const price: LedgerPriceEntry = {
+    version: 'test-free-transport-v1', sourceUrls: ['https://example.invalid/free-test-transport'],
+    retrievedOn: '2026-01-01', reference: true, modelFamily: 'model-a', modelKey: 'model-a',
+    currency: 'USD', holidaysUnmodeled: true,
+    prices: { input: '0', output: '0', cacheRead: '0', cacheWrite: { '5m': '0', '1h': '0', untiered: '0' } },
+  }
+  const resolve = ctx.sessionLedger.resolveCallContext.bind(ctx.sessionLedger)
+  ctx.sessionLedger.resolveCallContext = async request => ({
+    ...await resolve(request), price, priceTable: { ...price, entries: [price] },
+  })
+}
 
 /** Commit a complete conversation call through the public ledger writer.
  * @param ctx - context with the real ledger provider.

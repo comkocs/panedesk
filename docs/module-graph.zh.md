@@ -1026,6 +1026,7 @@ flowchart TD
   pkg_session_checkpoint_policy --> pkg_session
   pkg_session_checkpoint_policy --> pkg_session_persistence
   pkg_session_checkpoint_policy --> pkg_tools
+  pkg_session_ledger --> pkg_agent
   pkg_session_ledger --> pkg_brand
   pkg_session_ledger --> pkg_home_paths
   pkg_session_ledger --> pkg_llm
@@ -1817,7 +1818,7 @@ flowchart TD
 | [`mcp-resources`](../packages/mcp/mcp-resources) | `mcp` | [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`agent-preset-registry`](../packages/preset/agent-preset-registry) | `preset` | [`agent`](../packages/core/agent), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`settings`](../packages/settings/settings), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol) |
 | [`session-checkpoint-policy`](../packages/session/session-checkpoint-policy) | `session` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`tools`](../packages/core/tools) |
-| [`session-ledger`](../packages/session/session-ledger) | `session` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`message-delivery`](../packages/session/message-delivery), [`session`](../packages/core/session), [`tools`](../packages/core/tools) |
+| [`session-ledger`](../packages/session/session-ledger) | `session` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`message-delivery`](../packages/session/message-delivery), [`session`](../packages/core/session), [`tools`](../packages/core/tools) |
 | [`session-title-first-prompt-llm`](../packages/session/session-title-first-prompt-llm) | `session` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`session-title-llm`](../packages/session/session-title-llm) |
 | [`tool-working-directory`](../packages/session/tool-working-directory) | `session` | [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`shell-env`](../packages/shell/shell-env) | `shell` | [`app-boot`](../packages/boot/app-boot), [`home-paths`](../packages/util/home-paths), [`shell`](../packages/shell/shell), [`tools`](../packages/core/tools) |

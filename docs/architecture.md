@@ -80,7 +80,7 @@ The [event map](event-producer-consumer.md) lists every event's producers and co
 
 ## Turn flow
 
-With accounting mounted, the loop commits a local run before publishing an Agent; an SDK child's inherited run must be visible locally or receive a linked local residency. [Agent-loop](../packages/core/agent-loop/README.md#use-this-package) owns lifecycle accounting.
+[Agent-loop](../packages/core/agent-loop/README.md#use-this-package) commits lifecycle accounting before publishing an Agent.
 
 A **step** is one model request plus the tools it calls. A **turn** is zero or more steps: it opens before its first input is claimed and closes once nothing is owed.
 

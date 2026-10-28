@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "ledger-integration-profile-fixtures",
+      "description": "Seat uses the base-owned full ledger; SDK and budget compositions supply durable launch intent and explicit synthetic transport evidence.",
+      "origin": "Ledger integration runtime and generated-reference repair",
+      "reason": "A single ledger must retain identity and physical-call ownership without weakening run-start, budget or request-count assertions.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/sdk/server/tests/policy-journal.spec.ts"],
+        "test": "mounts a controlled SDK preset and commits a fourth-tool denial with %s journal identity"
+      }
+    },
+    {
       "id": "usage-pill-ledger-unavailable",
       "description": "The existing usage pill shows when the host session ledger is unavailable, and stays compatible with hosts that omit the status.",
       "origin": "Session ledger availability in the usage pill",

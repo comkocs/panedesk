@@ -8,7 +8,7 @@ import { mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit
 import AgentPresets, { executionPolicyMetadata } from '@panedesk/dsh-agent-preset-registry'
 import { ReasoningEffortId } from '@panedesk/dsh-llm'
 import { SessionId } from '@panedesk/dsh-session'
-import { JournalSessionLedger } from '@panedesk/dsh-session-ledger'
+import { JournalSessionLedger, type LedgerRunStart } from '@panedesk/dsh-session-ledger'
 import { defineTool } from '@panedesk/dsh-tools'
 import { MockAdapter, textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { HarnessSdkJsonRpcServer } from '../src/server.ts'
@@ -40,6 +40,14 @@ it.each(['inherited', 'startup'] as const)('mounts a controlled SDK preset and c
   const adapter = new MockAdapter([toolCallResponse('call-a', 'four', {}), textResponse('done')],
     { efforts: [{ id: ReasoningEffortId('high'), name: 'High' }], defaultEffort: ReasoningEffortId('high') })
   ctx.llm.registerAdapter(['mock'], adapter)
+  // The supervising SDK launcher commits this intent before starting the child.
+  await ctx.sessionLedger.beginRun({
+    runId: 'run-a' as LedgerRunStart['runId'], parentRunId: 'parent-run-a' as LedgerRunStart['runId'],
+    sessionId: SessionId('child-a'), parentSessionId: SessionId('parent-a'), rootSessionId: SessionId('root-a'),
+    subagentRunId: 'run-a' as NonNullable<LedgerRunStart['subagentRunId']>, nodeId: await ctx.sessionLedger.nodeId(),
+    seat: 'seat-a', window: 'window-a', taskId: 'task-a', identitySource, accountLabel: 'unknown',
+    startedAt: Date.now(), launchState: 'pending', deliveryPaths: [],
+  })
   const server = new HarnessSdkJsonRpcServer(ctx, { notify: () => {}, request: async () => ({}) })
   try {
     await server.initialize({ cwd: home, provider: policy.provider, model: policy.model, reasoningEffort: ReasoningEffortId('high'),

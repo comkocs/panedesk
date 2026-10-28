@@ -223,6 +223,15 @@ Source: [`packages/session/session-ledger/src/types.ts`](../../packages/session/
 Durable ledger contract; implementations alone own storage and runtime hooks.
 
 ```ts cordis-catalog
+/** Register the optional cache contributor on this ledger instance.
+ * Concurrent registrations reject, including the same object twice. Capture the returned
+ * disposer in the contributing plugin's effect; release prevents future contributions,
+ * while calls already prepared retain their contribution through settlement.
+ * @param contributor - Cache evidence and admission owner, never a call lifecycle writer.
+ * @returns Idempotent disposer releasing only this registration.
+ */
+registerCallContributor(contributor: CallContributor): () => void
+
 /** Resolve trusted attribution before dispatch.
  * @param request - Explicit session and serving route.
  * @returns Resolved identity and optional frozen reference price.
@@ -343,7 +352,7 @@ async querySessions(query: Pick<LedgerQuery, 'sessionId' | 'from' | 'to'>): Prom
 async exportMessages(query: MessageQuery): Promise<string>
 ```
 
-Types: [MessageQuery](persistence.zh.md)
+Types: [CallContributor](persistence.zh.md) · [MessageQuery](persistence.zh.md)
 
 Source: [`packages/session/session-ledger/src/index.ts`](../../packages/session/session-ledger/src/index.ts)
 

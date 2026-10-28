@@ -48,7 +48,7 @@ export class BarrierAdapter extends LlmAdapter {
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text: 'Budget warning acknowledged.' }
     yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Budget warning acknowledged.' } }
-    yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 20 } }
+    yield { type: 'usage', usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 20, cacheWriteTokens: 0, cacheWriteLongTokens: 0 } }
     yield { type: 'finish', reason: { kind: 'stop' }, responseModel: 'model-a', responseModelReported: 'same',
       cacheRetention: '1h', cacheWriteTiering: { kind: 'tiered', short: '5m', long: '1h' }, accountLabel: 'route-a' }
   }

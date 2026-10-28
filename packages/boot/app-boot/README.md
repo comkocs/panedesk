@@ -42,9 +42,9 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 
 `installFailLoud` writes one labelled `util.inspect` diagnostic to stderr for an unhandled rejection or an uncaught exception, awaits the surface's release hook under a fixed timeout, and exits 1; control never returns to the failed operation, because only the throw site knows which state is intact, and the event loop runs only until the release settles or times out. With that entry point, startup keeps every plugin that can activate. An enabled failed plugin produces a labelled warning. A failed required entry makes startup dispose the whole app and exit nonzero; required ids absent from a profile and disabled required entries do not affect startup. The global required list covers shared Agent execution, application endpoints, and Web bootstrap/transport: `agent-loop`, `webserver`, `web-runtime`, `modules`, `connection`, `headless-runner`, `acp`, and `sdk-jsonrpc-server`.
 
-<a id="profiles"></a>
 Main-process profiles publish immutable `ctx.kernelStatus.snapshot()` observations for `sessionLedger` and `llmCache` after Loader settlement. Missing, disabled, failed, and dependency-pending services produce one `Session ledger not mounted: <cause>` logger error. The owner-only atomic `$PANEDESK_HOME/run/kernel-status.json` contains only service names, availability, diagnostic codes, pid, and ISO time; exception messages and configuration values are excluded. `$PANEDESK_HOME/run/kernel-boot.json` marks the latest main-process boot so offline readers can identify older status. Offline `ledger`, `ledger-watch`, and plugin-management profiles never replace these files; persistence errors reject startup. This is startup evidence, not continuous health monitoring.
 
+<a id="profiles"></a>
 ### Profiles
 
 The opt-in `seat` template composes `dsh-base` with [seat-app](../../seat/seat-app/README.md). Existing templates are unchanged; selecting `seat` does not install a system service, and its engine entry remains disabled until deployment policy is supplied explicitly.

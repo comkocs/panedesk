@@ -305,10 +305,6 @@
   "packages/attachment/attachment/tests/admission.spec.ts": {
     "d7dc9c349af8699fefcaffed26377443dd73ef95f1dc985f4de542ec133869f5": 1
   },
-  "packages/boot/app-boot/tests/app-boot.spec.ts": {
-    "46749c86ea74f896ecf7a25e5839d4b49f839497cec757f3ef09ad551d99a933": 1,
-    "f66725b07f595b27258f0e9fe86618d8c44652052e6150704f0488ecc7d176b9": 1
-  },
   "packages/boot/app-boot/tests/profile-resolution.spec.ts": {
     "595612a86672eea9eaae2da6c5e42de22708304549218489fa2b9f851305ac35": 1
   },

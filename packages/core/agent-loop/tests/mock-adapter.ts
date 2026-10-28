@@ -76,12 +76,15 @@ export class MockAdapter extends LlmAdapter {
   /** Declared tool update mode of every route this adapter serves. */
   toolUpdate?: ToolUpdate
 
-  constructor(
-    private script: (StreamChunk[] | ((options: GenerateOptions) => StreamChunk[]) | 'hang' | 'hang-slow' | HangAfter)[],
-    private readonly reasoning?: LlmModelReasoningInfo,
-    private readonly defaultMaxTokens?: number,
-  ) {
+  private script: (StreamChunk[] | ((options: GenerateOptions) => StreamChunk[]) | 'hang' | 'hang-slow' | HangAfter)[]
+  private readonly reasoning: LlmModelReasoningInfo | undefined
+  private readonly defaultMaxTokens: number | undefined
+
+  constructor(script: MockAdapter['script'], reasoning?: LlmModelReasoningInfo, defaultMaxTokens?: number) {
     super()
+    this.script = script
+    this.reasoning = reasoning
+    this.defaultMaxTokens = defaultMaxTokens
   }
 
   override resolveModel(

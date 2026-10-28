@@ -356,6 +356,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Fetches and validates the index sources the user configures; installation goes through the plugin manager.',
   },
   {
+    key: 'kernelStatus', pkg: 'app-boot', title: 'Accounting startup observations', mode: 'core',
+    consumers: ['api-session-controller'],
+    note: 'Publishes immutable accounting-service availability after Loader settlement, not ongoing health or usage estimates.',
+  },
+  {
     key: 'profileContext',
     pkg: 'app-boot',
     title: 'Launcher-owned profile data',

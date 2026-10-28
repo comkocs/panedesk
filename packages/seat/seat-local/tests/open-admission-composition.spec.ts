@@ -4,7 +4,7 @@ import type * as T from '@panedesk/dsh-seat'
 import { admissionHost } from './admission-host.ts'
 import { operation } from './fixtures.ts'
 import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
-import { recordCost } from './ledger-call.ts'
+import { priceSyntheticTransport, recordCost } from './ledger-call.ts'
 
 it('limits concurrent remote openings to two distinct durable windows', async () => {
   const f = await admissionHost()
@@ -31,6 +31,7 @@ it('limits concurrent remote openings to two distinct durable windows', async ()
 it('retains a budget-stopped wake without starting another model turn', async () => {
   const f = await admissionHost()
   try {
+    priceSyntheticTransport(f.ctx)
     await f.seats.save({ definition: { ...f.definition, wakeTemplate: { kind: 'text', text: 'Continue the assigned work.' } },
       expectedRevision: 2, operationId: operation('wake-template') })
     const opened = await completesTurn(f.ctx, () => true, inputContains('Open seat-a'), () => f.seats.open({

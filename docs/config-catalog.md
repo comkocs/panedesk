@@ -232,7 +232,7 @@ export interface Config {
 ## `@panedesk/dsh-api-session-controller`
 
 - `inject`: `agentDefaultModel` · `agents` · `attachments` · `fileUploads` · `fs` · `llm` · `remoteAccess` · `sessions` · `sessionProjections` · `sessionQuery` · `typert` · `workspaceRegistry`
-- `source`: [`packages/api/session-controller/src/index.ts:96`](../packages/api/session-controller/src/index.ts)
+- `source`: [`packages/api/session-controller/src/index.ts:97`](../packages/api/session-controller/src/index.ts)
 
 ```ts config-catalog
 /** Session Controller deployment policy. */
@@ -1821,7 +1821,7 @@ export interface Config {
 
 - `inject`: `cmdlineArgs` · `appReady` · `appExit`
 - `refs`: `engineReader` (`@panedesk/dsh-seat-engine/reader`)
-- `source`: [`packages/bundle/ledger-app/src/index.ts:17`](../packages/bundle/ledger-app/src/index.ts)
+- `source`: [`packages/bundle/ledger-app/src/index.ts:18`](../packages/bundle/ledger-app/src/index.ts)
 
 ```ts config-catalog
 /** Offline application mode. */
@@ -1894,7 +1894,7 @@ export interface LedgerWatchOptions {
 
 - `inject`: `llm` · `agents` · `systemPrompt`
 - `refs`: [`CacheRetention`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/llm/llm-cache/src/index.ts:32`](../packages/llm/llm-cache/src/index.ts)
+- `source`: [`packages/llm/llm-cache/src/index.ts:30`](../packages/llm/llm-cache/src/index.ts)
 
 ```ts config-catalog
 /** Session cache and harness-process concurrency configuration. */
@@ -3299,7 +3299,7 @@ export interface WebhookSource {
 
 ## `@panedesk/dsh-session-ledger`
 
-- `source`: [`packages/session/session-ledger/src/index.ts:33`](../packages/session/session-ledger/src/index.ts)
+- `source`: [`packages/session/session-ledger/src/index.ts:37`](../packages/session/session-ledger/src/index.ts)
 
 ```ts config-catalog
 /** Trusted configuration accepted by concrete ledger providers. */

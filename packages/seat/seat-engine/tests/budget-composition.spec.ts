@@ -9,10 +9,12 @@ import { SeatEngine } from '../src/engine.ts'
 import { digest } from '../src/journal.ts'
 import { auto, seat, sourceId, trigger } from './fixtures.ts'
 import { completesTurn, inputContains } from '../../seat/tests/completion.ts'
+import { priceSyntheticTransport } from '../../seat-local/tests/ledger-call.ts'
 
 it('A17 persists one handoff/steer warning, completes the admitted turn and leaves the next input unclaimed', async () => {
   const f = await composition()
   const { ctx, adapter } = f
+  priceSyntheticTransport(ctx)
   const callbacks: T.SeatCallbackPayload[] = []
   let agent: Agent | undefined
   try {

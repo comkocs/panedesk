@@ -5,7 +5,7 @@ import { LlmError } from '@panedesk/dsh-llm'
 import type { ToolCallId } from '@panedesk/dsh-llm'
 import type { LedgerEvent, LedgerEventId } from '@panedesk/dsh-session-ledger'
 import { consume, harness } from './harness.ts'
-import { callWaits } from '../src/waits.ts'
+import { callWaits } from '@panedesk/dsh-session-ledger'
 
 const contexts: Context[] = []
 afterEach(async () => { await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose())) })

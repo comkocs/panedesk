@@ -3,8 +3,6 @@
   disabled: true
 
 - insert:
-    - id: seat-session-ledger
-      name: '@panedesk/dsh-session-ledger'
     - id: seat-schedule
       name: '@panedesk/dsh-schedule'
     - id: seat-engine

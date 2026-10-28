@@ -140,6 +140,21 @@ async reconcileProfile(requiredIds: readonly string[] = []): Promise<ProfileReco
 
 Source: [`packages/boot/hmr/src/index.ts`](../../packages/boot/hmr/src/index.ts)
 
+<a id="ctxkernelstatus--kernelstatusservice"></a>
+
+### `ctx.kernelStatus` — `KernelStatusService`
+
+Immutable startup status shared with in-process usage consumers.
+
+```ts cordis-catalog
+/** Read the startup audit without dispatching a model or accessing the journal.
+ * @returns the immutable snapshot owned by this process, including unavailable services.
+ */
+snapshot(): KernelStatus
+```
+
+Source: [`packages/boot/app-boot/src/kernel-status.ts`](../../packages/boot/app-boot/src/kernel-status.ts)
+
 <a id="ctxpluginmanager--pluginmanager"></a>
 
 ### `ctx.pluginManager` — `PluginManager`

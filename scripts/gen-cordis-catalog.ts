@@ -107,6 +107,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   pluginRegistryProbe: 'boot.md',
   configEditor: 'boot.md',
   profileContext: 'boot.md',
+  kernelStatus: 'boot.md',
   hmr: 'boot.md',
   mcpResources: 'mcp.md',
   agentLoop: 'core.md',
@@ -341,6 +342,8 @@ export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
  */
 export const LINK_MAP: Readonly<Record<string, string>> = {
   'ApiSessionCreated': 'session.md',
+  'CallContributor': 'persistence.md',
+  'KernelStatus': 'boot.md',
   'CacheRenewRequest': 'llm-streaming.md',
   'CacheRenewResult': 'llm-streaming.md',
   'ExactSessionCreation': 'session.md',

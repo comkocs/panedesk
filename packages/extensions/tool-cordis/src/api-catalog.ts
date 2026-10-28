@@ -1550,6 +1550,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'kernelStatus',
+    summary: 'Immutable startup status shared with in-process usage consumers.',
+    description: 'Immutable startup status shared with in-process usage consumers.',
+    methods: [
+      {
+        signature: 'snapshot(): KernelStatus',
+        description: 'Read the startup audit without dispatching a model or accessing the journal.',
+        parameters: [],
+        returns: 'the immutable snapshot owned by this process, including unavailable services.',
+      },
+    ],
+  },
+  {
     key: 'ledgerQuery',
     summary: 'Query providers read ledger snapshots without launching an Agent or model provider.',
     description: 'Query providers read ledger snapshots without launching an Agent or model provider.',
@@ -3748,6 +3761,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Durable ledger contract; implementations alone own storage and runtime hooks.',
     description: 'Durable ledger contract; implementations alone own storage and runtime hooks.',
     methods: [
+      {
+        signature: 'registerCallContributor(contributor: CallContributor): () => void',
+        description: 'Register the optional cache contributor on this ledger instance. Concurrent registrations reject, including the same object twice. Capture the returned disposer in the contributing plugin\'s effect; release prevents future contributions, while calls already prepared retain their contribution through settlement.',
+        parameters: [{ name: 'contributor', description: 'Cache evidence and admission owner, never a call lifecycle writer.' }],
+        returns: 'Idempotent disposer releasing only this registration.',
+      },
       {
         signature: 'abstract resolveCallContext(request: { sessionId?: LedgerContext[\'sessionId\'] provider: string model: string }): Promise<{ context: LedgerContext; runId: LedgerRunId; price?: LedgerPriceEntry; priceTable?: LedgerPriceTable }>',
         description: 'Resolve trusted attribution before dispatch.',
@@ -6934,6 +6953,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CallbackResolveResult = {\n    status: \'ok\';\n    callbackId: CallbackId;\n    phase: SeatCallbackDelivery[\'phase\'];\n    attempt: number;\n} | {\n    status: \'rejected\';\n    code: \'callback-unknown\' | \'callback-not-paused\' | \'callback-attempt-conflict\' | \'callback-resolution-unauthorized\';\n};',
   },
   {
+    name: 'CallContribution',
+    declaration: 'export interface CallContribution {\n    readonly evidence: LedgerCacheEvidence;\n    readonly modelFamily: string;\n    readonly signal: AbortSignal;\n    started(scope: CallContributionScope): Promise<void>;\n    acquire(signal: AbortSignal): Promise<() => void>;\n    terminal(observation: {\n        finish: Extract<StreamChunk, {\n            type: \'finish\';\n        }> | undefined;\n        terminalEvidence: NonNullable<typeof LlmAdapter.ledgerEvidence> extends WeakMap<StreamChunk, infer T> ? T | undefined : never;\n        usage: TokenUsage | undefined;\n    }): void | Promise<void>;\n    interjected(): Promise<void>;\n    settled(): Promise<void>;\n    dispose(failure?: unknown): void | Promise<void>;\n}',
+  },
+  {
+    name: 'CallContributionScope',
+    declaration: 'export interface CallContributionScope {\n    readonly start: LedgerCallStart;\n    readonly signal: AbortSignal;\n    fact(value: LedgerAuxiliaryFact): Promise<void>;\n    artifact(kind: \'keepalive-request\', content: string, index: number): Promise<void>;\n}',
+  },
+  {
+    name: 'CallContributor',
+    declaration: 'export interface CallContributor {\n    prepare(call: {\n        request: GenerateOptions;\n        id: string;\n        agent: Agent | undefined;\n        auxiliary: boolean;\n    }): Promise<CallContribution>;\n}',
+  },
+  {
     name: 'CancelChildTicketRequest',
     declaration: 'export interface CancelChildTicketRequest {\n    ticketId: ChildTicketId;\n    parentSessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
   },
@@ -8224,6 +8255,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'KeepalivePolicy',
     declaration: 'export interface KeepalivePolicy {\n    enabled: boolean;\n    leadSeconds: number;\n    minimumIntervalSeconds: number;\n    maxOutputTokens: number;\n}',
+  },
+  {
+    name: 'KernelServiceStatus',
+    declaration: 'export interface KernelServiceStatus {\n    readonly status: \'mounted\' | \'missing\' | \'disabled\' | \'failed\';\n    readonly cause: string;\n}',
+  },
+  {
+    name: 'KernelStatus',
+    declaration: 'export interface KernelStatus {\n    readonly pid: number;\n    readonly time: string;\n    readonly services: Readonly<Record<\'sessionLedger\' | \'llmCache\', KernelServiceStatus>>;\n}',
   },
   {
     name: 'KvFacet',
