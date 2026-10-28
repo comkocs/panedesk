@@ -651,7 +651,16 @@ export interface SeatCancellationCause extends Omit<SeatFailureCause, 'reasonCod
 /** Pending mutation is revision-checked and can settle without creating a window. */
 export type PendingSeatMutationResult = { status: 'approved' | 'cancelled'; queueItemId: QueueItemId; stateVersion: number } | SeatRejected
 /** Node name is a configured alias, not a network address. */
-export interface SeatNodeStatus { nodeId: SeatNodeId; nodeName: string; engine: 'running' | 'recovering' | 'unavailable'; openEngineWindows: number; limit: number | null; readyAt: SeatTimestamp | null }
+export interface SeatNodeStatus {
+  nodeId: SeatNodeId
+  nodeName: string
+  engine: 'running' | 'recovering' | 'unavailable'
+  openEngineWindows: number
+  limit: number | null
+  readyAt: SeatTimestamp | null
+  /** Current runtime failure; absent before failure or after a successful supervised retry. */
+  failure?: { site: string; code: string; since: SeatTimestamp; retryable: boolean; attempts: number }
+}
 /** Reference-price cost includes descendant work and maintenance; missing evidence stays unknown. */
 export interface SeatBudgetSnapshot {
   sessionId: SessionId
@@ -766,6 +775,11 @@ export interface SeatEngineConfig {
   ownerObserveIntervalMs: number
   ownerReleaseBudgetMs: number
   queueWakeBudgetMs: number
+  /** Opt-in failure supervision; omission preserves latched status and existing scheduling. */
+  failureRecovery?: {
+    /** Positive initial retry delay, at most 300000 ms; exponential retries cap at five minutes. */
+    retryInitialMs: number
+  }
 }
 /** Policies share one gate registry while validated tunables remain deployment-owned. */
 export interface SeatGateConfig {

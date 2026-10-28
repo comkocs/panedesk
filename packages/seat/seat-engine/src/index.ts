@@ -50,6 +50,10 @@ export function validateConfig(config: Config): Config {
       && (!Number.isSafeInteger(config.nodeEngineWindowLimit) || config.nodeEngineWindowLimit < 1))) {
     throw new EngineError('invalid-request', 'Invalid engine capacity or timing policy')
   }
+  if (config.failureRecovery && (!Number.isSafeInteger(config.failureRecovery.retryInitialMs)
+    || config.failureRecovery.retryInitialMs < 1 || config.failureRecovery.retryInitialMs > 300000)) {
+    throw new EngineError('invalid-request', 'Invalid engine failure retry delay')
+  }
   new Intl.DateTimeFormat('en-US', { timeZone: config.budgetTimeZone }).format()
   const identities = new Set<string>()
   for (const source of config.sources ?? []) {
