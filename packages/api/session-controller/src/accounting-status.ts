@@ -11,5 +11,5 @@ import type { SessionProjectionValues } from './types.ts'
 export function withAccountingStatus(ctx: Context, values: SessionProjectionValues): SessionProjectionValues {
   const ledger = ctx.get('kernelStatus')?.snapshot().services.sessionLedger
   if (ledger === undefined) return values
-  return { ...values, accountingStatus: { ledger: ledger.status, cause: ledger.cause } }
+  return Object.assign({}, values, { accountingStatus: { ledger: ledger.status, cause: ledger.cause } })
 }

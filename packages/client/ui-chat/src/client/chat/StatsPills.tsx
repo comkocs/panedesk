@@ -170,7 +170,7 @@ function decodeSpeed(stats: WindowStats, t: Translate): string {
 }
 
 /** A static reading: used when the pill has no dialog rows or the mode is Compact. */
-function PlainPill({ stat, icon, label, title }: PillContent & { title?: string }) {
+function PlainPill({ stat, icon, label, title }: PillContent & { title?: string | undefined }) {
   return (
     <span className={css.anchor} data-composer-stat={stat} title={title}>
       <span className={css.pill}>
