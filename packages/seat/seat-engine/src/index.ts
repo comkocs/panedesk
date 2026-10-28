@@ -54,6 +54,13 @@ export function validateConfig(config: Config): Config {
     || config.failureRecovery.retryInitialMs < 1 || config.failureRecovery.retryInitialMs > 300000)) {
     throw new EngineError('invalid-request', 'Invalid engine failure retry delay')
   }
+  if (config.frozenWakeContext !== undefined && typeof config.frozenWakeContext !== 'boolean'
+    || config.sourceWake !== undefined && (!Array.isArray(config.sourceWake) || config.sourceWake.some((rule: unknown) =>
+      !rule || typeof rule !== 'object' || !('sourceId' in rule) || typeof rule.sourceId !== 'string' || !rule.sourceId
+      || !('eventTypes' in rule) || !Array.isArray(rule.eventTypes) || !rule.eventTypes.length
+      || rule.eventTypes.some((event: unknown) => typeof event !== 'string' || !event)))) {
+    throw new EngineError('invalid-request', 'Invalid frozen source wake configuration')
+  }
   new Intl.DateTimeFormat('en-US', { timeZone: config.budgetTimeZone }).format()
   const identities = new Set<string>()
   for (const source of config.sources ?? []) {

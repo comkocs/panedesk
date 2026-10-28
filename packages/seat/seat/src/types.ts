@@ -775,6 +775,10 @@ export interface SeatEngineConfig {
   ownerObserveIntervalMs: number
   ownerReleaseBudgetMs: number
   queueWakeBudgetMs: number
+  /** Explicit external source events wake remote seats with their frozen context; omission keeps opening ingress. */
+  sourceWake?: readonly { sourceId: SeatSourceId; eventTypes: readonly string[] }[]
+  /** Append frozen task text to authenticated wake messages, bounded by maxSourceBytes; omission keeps template-only delivery. */
+  frozenWakeContext?: boolean
   /** Opt-in failure supervision; omission preserves latched status and existing scheduling. */
   failureRecovery?: {
     /** Positive initial retry delay, at most 300000 ms; exponential retries cap at five minutes. */

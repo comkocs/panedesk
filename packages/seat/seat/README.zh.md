@@ -39,6 +39,8 @@ kind: "package-reference"
 
 可选 `seatLocalCallbackOwner: SeatLocalCallbackOwner` 为来源所有者、目标及执行节点均为本地引擎的回调提供 `ready`、`available`、完整键 `query` 与冻结原包 `deliver`。每次查询或交付返回 `SeatCallbackAttemptResult<R>`，可附 `SeatCallbackDiagnostic`；提供方负责独立授权、持久去重、恢复及撤装。导入声明不安装提供方或默认注入，缺席绝不允许来源或对端兜底。`SeatCallbackDelivery.lastDiagnostic` 是可选的交付外层观察，不属于回调正文或业务摘要；旧记录省略该字段，成功交付只清除最新观察。失败阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`；原因保留有界标识与脱敏说明。
 
+可选 `SeatEngineService.wakeSource` 接收携任务上下文的已注册外部事件；方法缺席或返回 undefined 时保留普通触发入口。可选 `SeatEngineConfig.sourceWake` 选择来源与事件组合，`frozenWakeContext` 启用已有窗投递中的冻结任务正文。二者省略时均不启用；校验、授权与持久结果归 [seat-engine](../seat-engine/README.zh.md) 所有。不改变 wire 方法或已有必填字段。
+
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 
 <a id="model-experience"></a>

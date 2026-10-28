@@ -16,7 +16,8 @@ export type WakeSender = (request: { sessionId: WakeDeliveryRecord['action']['se
   mode: 'queue' }) => Promise<{ messageId: Extract<T.WakeSeatResult, { status: 'sent' | 'stored-budget-stopped' }>['messageId'] }>
 /** This instance shares the engine's journal owner and serial admission slot. */
 export class WakeDeliveries {
-  constructor(private readonly journal: EngineJournal, private readonly issuers: AuthorizationIssuers) {}
+  constructor(private readonly journal: EngineJournal, private readonly issuers: AuthorizationIssuers,
+    private readonly contextLimit?: number) {}
 
   /** Read an exact replay before evaluating any new-admission policy.
    * @param payload - Original wire payload.
@@ -75,8 +76,13 @@ export class WakeDeliveries {
           || binding.relatedTaskIds.some(task => !original.taskIds.includes(task))) {
           throw new EngineError('unauthorized', 'Wake grant does not cover the selected window and tasks')
         }
+        const text = input && this.contextLimit !== undefined
+          ? `${action.text}\n\n${input.openingContext.snapshot.text}` : action.text
+        if (this.contextLimit !== undefined && Buffer.byteLength(text) > this.contextLimit) {
+          throw new EngineError('source-payload-too-large', 'Frozen wake message exceeds its configured byte limit')
+        }
         const record: WakeDeliveryRecord = { method: input ? 'seat.wakeFrozen' : 'seat.wake', payload: structuredClone(payload),
-          original, action: { ...action, operationId: wakeDeliveryId(original.operationId, action.sessionId) }, result: null }
+          original, action: { ...action, text, operationId: wakeDeliveryId(original.operationId, action.sessionId) }, result: null }
         return [checked, this.effect(record)]
       })
       const record = this.find(payload, authority)

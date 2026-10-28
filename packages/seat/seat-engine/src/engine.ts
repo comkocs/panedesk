@@ -153,7 +153,8 @@ export class SeatEngine extends SeatEngineService {
     })
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
-    this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers)
+    this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,
+      options.config.frozenWakeContext ? options.config.maxSourceBytes : undefined)
     this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
       () => this.ready(), () => this.publish(), options.config.nodeName)
     ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
@@ -473,6 +474,32 @@ export class SeatEngine extends SeatEngineService {
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),
       limit: this.options.config.nodeEngineWindowLimit ?? null, readyAt: this.readyAt,
       ...(failure ? { failure } : {}) })
+  }
+  override wakeSource = async (envelope: T.TriggerEnvelope): Promise<T.WakeSeatResult | undefined> => {
+    if (envelope.evidence.kind !== 'external' || !this.options.config.sourceWake?.some(rule =>
+      rule.sourceId === envelope.sourceId && rule.eventTypes.includes(envelope.evidence.kind === 'external' ? envelope.evidence.eventType : ''))) return undefined
+    await this.ready()
+    if (this.stopped || !this.sourceProxy) return rejected('unavailable', 'Frozen source wake routing is unavailable')
+    const proxy = this.sourceProxy
+    try {
+      return await this.sources.use(envelope.sourceId, async (source) => {
+        if (envelope.kind !== 'external' || !source.kinds.includes(envelope.kind) || envelope.callbackRef !== envelope.sourceId
+          || !envelope.openingContext || !(envelope.relatedTaskIds?.length || envelope.taskId)) {
+          return rejected('unauthorized', 'Source wake requires its registered event and task context')
+        }
+        const policy = await this.projectPolicy(envelope.projectId)
+        if (!policy.modeChosen || policy.mode !== 'auto') return rejected('disabled', 'Source wake requires automatic project policy')
+        const input: T.WakeSeatWithContextRequest = { seat: envelope.seat,
+          operationId: `source:${envelope.sourceId}:${envelope.eventId ?? envelope.triggerId}` as T.SeatOperationId,
+          openingContext: structuredClone(envelope.openingContext),
+          relatedTaskIds: [...(envelope.relatedTaskIds ?? (envelope.taskId ? [envelope.taskId] : []))] }
+        return await proxy.route('seat.wakeFrozen', input, undefined, envelope)
+          ?? rejected('cross-node-unsupported', 'Configured source wake requires an explicit remote target')
+      })
+    } catch (error) {
+      if (!(error instanceof EngineError)) throw error
+      return rejected(error.code, error.message)
+    }
   }
   async accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult> {
     await this.ready()

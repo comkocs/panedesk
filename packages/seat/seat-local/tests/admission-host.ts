@@ -24,8 +24,8 @@ import type * as T from '@panedesk/dsh-seat'
 import { operation } from './fixtures.ts'
 import * as Local from '../src/index.ts'
 
-export async function admissionHost(retainedRoot?: string) {
-  const f = await engineFixture(true, retainedRoot)
+export async function admissionHost(retainedRoot?: string, engineConfig: Partial<T.SeatEngineConfig> = {}) {
+  const f = await engineFixture(true, retainedRoot, engineConfig)
   try {
     const adapter = new CreationAdapter()
     f.ctx.llm.registerAdapter(['provider-a'], adapter)

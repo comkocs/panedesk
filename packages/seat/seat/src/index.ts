@@ -289,6 +289,11 @@ export abstract class SeatEngineService extends Service {
    * @returns stable accepted, duplicate, coalesced or rejected identity.
    */
   abstract accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult>
+  /** Route configured external events through frozen remote wake admission.
+   * @param envelope - Original event from a registered source with opening context.
+   * @returns Durable wake receipt, refusal, or absence when opening ingress remains selected.
+   */
+  wakeSource?: (envelope: T.TriggerEnvelope) => Promise<T.WakeSeatResult | undefined>
   /** Commit frozen admission and its live grant together; never route again.
    * @param request - Frozen source input, route and expected local definition revision.
    * @param authority - Independently verified process-local authority with the exact grant.
