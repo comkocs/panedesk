@@ -18,6 +18,12 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./types": {
+      "types": "./lib/types/types.d.ts"
+    },
+    "./authorization": {
+      "types": "./lib/types/authorization.d.ts"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },

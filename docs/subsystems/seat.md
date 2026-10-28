@@ -34,6 +34,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `HostSdkInvocation` identifies a registered namespace method and its untrusted parameters. `HostSdkIdentity` carries only host-issued principal, optional Session and seat attribution, and a revocation signal; request fields cannot supply that identity. `HostSdkResult` separates an encoded JSON value from a safe rejection. `HostSessionBinding` supplies trusted Session and seat facts to the credential issuer; `HostSessionCredential` returns owner-only endpoint and credential paths with awaited revocation. These services remain absent when their optional providers are not installed.
 
+`PendingSeatItem` optionally carries `windowName`, `nodeId` and `budget` projected from retained opening evidence. Missing evidence remains absent; `SeatBudgetLimits` values are integer micro-USD strings. Pending responses do not reveal frozen instruction bodies or raw source data.
+
 `SeatEngineOperationResult` preserves the existing operation status while adding optional approval registration and correlated pending/open/cancelled progress. `HostAdminQueryRequest` uses separate effect and authorization cursors; `HostAdminQueryResult` carries redacted effects and an independently bounded issued-authorization page. Neither historical facts nor queries grant execution authority.
 
 ## Waits, reports, and policies

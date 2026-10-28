@@ -46,6 +46,8 @@ dsh --profile web --no-open --port 8080
 
 ### 配置
 
+`ui-seat-approvals` 条目默认惰性。后续档案补丁启用其 `enabled` 字段后，经过认证的所有者可确认待批席位工作；限额、回显及失败行为见[插件参考](../../client/ui-seat-approvals/README.zh.md)。
+
 `minimal` agent preset 使用持久 Shell、`read_image` 工具和固定 persona，支持自动历史压缩以及会话空闲时的 `/compact` 命令。它复用 Host token meter，并拥有隔离的压缩后端。[压缩配置与保留策略](../../compaction/compaction-basic/README.zh.md#use-this-package) 沿用现有后端。图片读取复用 Host 文件系统和附件存储，要求模型支持图片输入；不加载文本读取、写入和编辑工具。
 
 `--host` 与 `--port` 配置监听器；`--tls-cert` 与 `--tls-key` 让它直接提供 HTTPS；`--public-url` 指定 GUI 在剥离前缀的代理之后对外公告的公开 HTTP(S) 根，`--trusted-host` 则添加更多被接受的 authority。这些都在[监听、信任与公开部署](#public-deployments)中说明，而这些 flag 设置的 `tls` 字段记录在[载体的配置](../../../docs/subsystems/web-server.zh.md#config)中：
