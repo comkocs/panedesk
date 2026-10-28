@@ -63,7 +63,7 @@ function fixture(t, { platform = 'linux', arch = 'x64', kind = 'node-api' } = {}
   const executable = kind === 'static-musl';
   const binary = executable
     ? { tool: 'landlock-run', kind, path: 'bin/landlock-run' }
-    : { tool: 'flock', kind, napi: 8, ...(platform === 'linux' ? { libc: 'glibc' } : {}), path: 'bin/system.node' };
+    : { tool: platform === 'win32' ? 'windows-private-files' : 'flock', kind, napi: 8, ...(platform === 'linux' ? { libc: 'glibc' } : {}), path: 'bin/system.node' };
   const spec = { platform: `${platform}-${arch}`, binaries: [binary] };
   const manifest = { name: 'fixture', os: [platform], cpu: [arch] };
   const bytes = Buffer.alloc(256);
@@ -73,6 +73,12 @@ function fixture(t, { platform = 'linux', arch = 'x64', kind = 'node-api' } = {}
     bytes[5] = 1;
     bytes.writeUInt16LE(executable ? 2 : 3, 16);
     bytes.writeUInt16LE(arch === 'x64' ? 62 : 183, 18);
+  } else if (platform === 'win32') {
+    bytes.writeUInt16LE(0x5a4d, 0);
+    bytes.writeUInt32LE(128, 60);
+    bytes.writeUInt32LE(0x4550, 128);
+    bytes.writeUInt16LE(arch === 'x64' ? 0x8664 : 0xaa64, 132);
+    bytes.writeUInt16LE(0x2000, 150);
   } else {
     bytes.writeUInt32LE(0xfeedfacf, 0);
     bytes.writeUInt32LE(arch === 'x64' ? 0x01000007 : 0x0100000c, 4);
@@ -90,7 +96,7 @@ function fixture(t, { platform = 'linux', arch = 'x64', kind = 'node-api' } = {}
   return { dir, file, bytes, binary, spec, manifest, save };
 }
 
-for (const platform of ['linux', 'darwin']) {
+for (const platform of ['linux', 'darwin', 'win32']) {
   for (const arch of ['x64', 'arm64']) {
     test(`accepts ${platform}-${arch} addon metadata and header`, (t) => {
       assert.equal(verifyPlatformBinaries(fixture(t, { platform, arch }).dir).count, 1);
@@ -103,7 +109,7 @@ test('accepts the Linux static launcher format', (t) => {
 });
 
 for (const [name, change, expected] of [
-  ['unknown platform', (f) => { f.manifest.os = ['win32']; }, /os\/cpu/],
+  ['unknown platform', (f) => { f.manifest.os = ['unknown']; }, /os\/cpu/],
   ['mismatched platform', (f) => { f.spec.platform = 'linux-arm64'; }, /disagrees/],
   ['path outside bin', (f) => { f.binary.path = '../system.node'; }, /inside bin/],
   ['duplicate binary', (f) => { f.spec.binaries.push({ ...f.binary }); }, /duplicate/],
@@ -122,6 +128,15 @@ for (const [name, change, expected] of [
     change(f);
     f.save();
     assert.throws(() => verifyPlatformBinaries(f.dir), expected);
+  });
+}
+
+for (const [offset, value] of [[0, 0], [60, 255], [128, 0], [132, 0], [150, 0]]) {
+  test(`rejects invalid PE field at ${offset}`, (t) => {
+    const f = fixture(t, { platform: 'win32' });
+    f.bytes.writeUInt16LE(value, offset);
+    fs.writeFileSync(f.file, f.bytes);
+    assert.throws(() => verifyPlatformBinaries(f.dir), /PE/);
   });
 }
 

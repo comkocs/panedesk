@@ -120,6 +120,7 @@
       "@panedesk/cordis-plugin-logger-console": ["./vendor/logger-console/src"],
       "@panedesk/node-addon-system/landlock-run": ["./native/system/packages/entry/src/index.ts"],
       "@panedesk/node-addon-system/flock": ["./native/system/packages/entry/src/flock.ts"],
+      "@panedesk/node-addon-system/windows-private-files": ["./native/system/packages/entry/src/windows-private-files.ts"],
       "@panedesk/dsh-tool-call-timeout-policy": ["./packages/guard/timeout-policy/src"],
       "@panedesk/dsh-spill-policy/notice": ["./packages/spill/spill-policy/src/notice.ts"],
       "@panedesk/dsh-subprocess/control": ["./packages/subprocess/subprocess/src/control.ts"],

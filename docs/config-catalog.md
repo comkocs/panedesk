@@ -404,6 +404,8 @@ export interface Config {
 ```ts config-catalog
 /** Validated plugin configuration with live command budgets. */
 export interface Config {
+  /** Bash executable name or absolute path; passed as one argv element, default: bash. */
+  bashPath: Volatile<string>
   /** Default working directory for commands (default: process.cwd()). */
   cwd: Volatile<string | undefined>
   /** Default foreground timeout in milliseconds. */

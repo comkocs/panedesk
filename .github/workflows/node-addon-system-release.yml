@@ -54,6 +54,7 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -66,18 +67,39 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -yq musl-tools
 
+      - name: Prepare Windows native toolchain
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node -e "if (process.platform + '-' + process.arch !== '${{ matrix.platform }}') process.exit(1)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/prepare-windows-build.ps1
+
       - name: Build native binaries
         run: pnpm build:native
 
       - name: Verify binary metadata
         run: node ./scripts/verify-launcher-binary.mjs ${{ matrix.dir }}
 
-      - name: Verify the built entry and flock
+      - name: Build the entry
+        run: pnpm build:ts
+
+      - name: Verify packaging
+        run: pnpm test:packaging
+
+      - name: Verify POSIX flock
+        if: runner.os != 'Windows'
         run: |
-          pnpm build:ts
           pnpm build:test-oracle
           pnpm test:flock
-          pnpm test:packaging
+
+      - name: Verify installed Windows private-file binding
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node ./scripts/pack-release.mjs .release/npm --current-platform-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node ./scripts/verify-packed-install.mjs .release/npm --current-platform-only
 
       - name: Upload prebuild artifact
         uses: actions/upload-artifact@v7.0.1

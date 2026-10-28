@@ -67,7 +67,7 @@ The bundle also mounts the session ledger, local message delivery, and instructi
 
 ### Shell tools per platform
 
-On macOS and Linux you get the bash shell tools; on Windows you get the PowerShell twins instead, so exactly one shell stack is available per machine. The safety behavior is identical on every platform. A Windows host that prefers the unconfined PowerShell executor can switch the shell rows in its profile patch — the switch must disable both PowerShell rows and re-enable both bash rows, otherwise the profile fails to load.
+On macOS and Linux you get the bash shell tools; on Windows you get the PowerShell twins instead, so exactly one shell stack is available per machine. The safety behavior is identical on every platform. A Windows host can explicitly select Git Bash by setting `PANEDESK_BASH_PATH` to its executable, for example `C:\Program Files\Git\bin\bash.exe`. This enables both Bash rows and disables both PowerShell rows without removing sandbox confinement; omission preserves the Windows default.
 
 ### Changing the defaults
 
@@ -89,7 +89,7 @@ A patch replaces the targeted row's whole `config` rather than merging into it. 
 
 ### Platform gating
 
-The patch gates the two shell stacks by platform on its own rows: `bash-sandbox` and `tool-bash` carry `disabled: !!js process.platform === 'win32'`, and their twins `pwsh-sandbox` and `tool-pwsh` mount on win32 only with the inverted expression. The permission surface stays identical to POSIX: the sandbox policy executes the same file-effect policy through the Windows ACL restricted-token runner (`dsh-sandbox-local` → `@panedesk/dsh-sandbox-windows-acl`), and `fs-sandbox` keeps fencing `ctx.fs` writes — mounting `dsh-fs-local` alongside it would double-register `ctx.fs` and fail the load.
+The patch gates the two shell stacks by platform on its own rows: `bash-sandbox` and `tool-bash` disable on win32 unless `PANEDESK_BASH_PATH` is nonempty; their twins `pwsh-sandbox` and `tool-pwsh` use the inverted expression. The Bash executor receives that path through its inherited `bashPath` configuration, defaulting to `bash`. The permission surface stays identical to POSIX: the sandbox policy executes the same file-effect policy through the Windows ACL restricted-token runner (`dsh-sandbox-local` → `@panedesk/dsh-sandbox-windows-acl`), and `fs-sandbox` keeps fencing `ctx.fs` writes — mounting `dsh-fs-local` alongside it would double-register `ctx.fs` and fail the load.
 
 ### Source map
 

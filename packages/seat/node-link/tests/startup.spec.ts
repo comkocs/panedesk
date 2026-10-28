@@ -119,6 +119,18 @@ test('drains a disposed Windows attachment before replacing its prepared resourc
   expect(f.unlock).toHaveBeenCalledTimes(2)
 })
 
+test.each(['SIGINT', 'SIGTERM'] as const)('releases the node lock after %s termination', async (signal) => {
+  const { ctx } = context(), f = fixture()
+  ctx.provide('nodeLinkFiles', f.factory)
+  const fiber = start(ctx)
+  await fiber
+  const handler = process.listeners(signal).at(-1)!
+  handler(signal)
+  await vi.waitFor(() => { expect(f.unlock).toHaveBeenCalledTimes(1) })
+  await fiber.dispose()
+  expect(f.unlock).toHaveBeenCalledTimes(1)
+})
+
 test('fails visibly when the Windows node private-file factory is missing', async () => {
   const { ctx, logs } = context(), fiber = start(ctx)
   await expect(fiber.await()).rejects.toThrow('nodeLinkFiles unavailable')

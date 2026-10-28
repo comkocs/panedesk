@@ -24,15 +24,17 @@ kind: "package-library"
 
 `@panedesk/node-addon-system/flock` 导出 `tryLockExclusive(fd): Promise<void>`。在调用完成前保持描述符打开。获取操作使用非阻塞独占 flock；发生竞争时，返回的 Promise 会以 `EAGAIN` 或 `EWOULDBLOCK` 拒绝，关闭该打开文件描述的最后一个描述符即释放锁。参见[入口 README](packages/entry/README.zh.md)。
 
+`@panedesk/node-addon-system/windows-private-files` 在 Windows 提供同步元数据检查、仅属主 ACL 设置及同卷 `MoveFileExW` 替换。绑定不传文件内容，不回退 PowerShell；调用方负责路径校验、新鲜检查、文件句柄身份比对及内容刷盘。
+
 导入任一入口都不会加载 addon。Landlock 可执行文件缺失时探测为不可用；flock 绑定缺失时拒绝获取。两条路径都不会进行编译，也不会静默允许不受支持的行为。
 
 ## Support
 
-Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 包仅包含 `system.node`。Landlock 还需要支持强制执行的 Linux 内核；Windows 使用 Harness 既有锁实现。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。
+Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 包仅包含 `system.node`。Windows x64/arm64 包仅包含私有文件 Win32 `system.node`；POSIX flock 与 Windows 锁文件行为不变。Landlock 还需要支持强制执行的 Linux 内核。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。
 
 ## Development
 
-在本目录运行 `pnpm build:ts` 构建入口、`pnpm build:native` 构建当前宿主声明的原生产物、`pnpm build:test-oracle` 构建独立的 flock 系统调用 fixture（测试前置数据）。随后用 `pnpm test` 验证入口、锁、打包及可用的内核行为。Linux 完整构建需要 musl-gcc；macOS 使用 cc。根目录 `pnpm run build:native-system` 只构建源码测试所需的当前宿主 addon。
+在本目录运行 `pnpm build:ts` 构建入口、`pnpm build:native` 构建当前宿主声明的原生产物、`pnpm build:test-oracle` 构建独立的 flock 系统调用 fixture（测试前置数据）。随后用 `pnpm test` 验证入口、锁、打包及可用的内核行为。Linux 完整构建需要 musl-gcc；macOS 使用 cc。Windows 要求匹配架构的 MSVC 开发环境、`node.exe` 同级 `include/node` 下的 Node 开发头文件及同级匹配的 `node.lib`。Windows 编译与真实 ACL 验收必须在 Windows 执行，Linux 测试不能证明这些结果。根目录 `pnpm run build:native-system` 只构建源码测试所需的当前宿主 addon。
 
 [架构](docs/architecture.md)、[打包](docs/packaging.md)和[发布流程](docs/release.md)分别负责实现与发布细节。
 

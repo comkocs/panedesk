@@ -67,7 +67,7 @@ kind: "package-bundle"
 
 ### 各平台的 shell 工具
 
-在 macOS 与 Linux 上你获得 bash shell 工具；在 Windows 上则获得对应的 PowerShell 孪生工具，因此每台机器恰好有一套 shell 栈。各平台的安全行为完全一致。偏好不受沙盒约束的 PowerShell 执行器的 Windows 主机可以在其 profile patch 中切换 shell 行——切换必须同时禁用两个 PowerShell 行并重新启用两个 bash 行，否则 profile 无法加载。
+在 macOS 与 Linux 上你获得 bash shell 工具；在 Windows 上则获得对应的 PowerShell 孪生工具，因此每台机器恰好有一套 shell 栈。各平台的安全行为完全一致。Windows 主机可将 `PANEDESK_BASH_PATH` 显式设为 Git Bash 可执行文件，如 `C:\Program Files\Git\bin\bash.exe`；这会启用两个 Bash 行并禁用两个 PowerShell 行，不移除沙箱限制。省略时保留 Windows 缺省。
 
 ### 更改默认值
 
@@ -89,7 +89,7 @@ patch 会替换目标行的整个 `config`，而不是合并进它。后续组�
 
 ### 平台门控
 
-patch 在自身上按平台门控两个 shell 栈：`bash-sandbox` 与 `tool-bash` 携带 `disabled: !!js process.platform === 'win32'`，孪生行 `pwsh-sandbox` 与 `tool-pwsh` 以取反的表达式仅在 win32 挂载。权限面与 POSIX 完全一致：沙箱策略通过 Windows ACL 受限令牌 runner（`dsh-sandbox-local` → `@panedesk/dsh-sandbox-windows-acl`）执行相同的文件效果策略，`fs-sandbox` 继续围栏 `ctx.fs` 写入——在其旁再挂载 `dsh-fs-local` 会重复注册 `ctx.fs` 并在加载时失败。
+patch 在自身上按平台门控两个 shell 栈：`bash-sandbox` 与 `tool-bash` 在 win32 且 `PANEDESK_BASH_PATH` 为空时禁用；孪生行 `pwsh-sandbox` 与 `tool-pwsh` 使用相反表达式。Bash 执行器通过继承的 `bashPath` 配置接收该路径，缺省为 `bash`。权限面与 POSIX 完全一致：沙箱策略通过 Windows ACL 受限令牌 runner（`dsh-sandbox-local` → `@panedesk/dsh-sandbox-windows-acl`）执行相同的文件效果策略，`fs-sandbox` 继续围栏 `ctx.fs` 写入——在其旁再挂载 `dsh-fs-local` 会重复注册 `ctx.fs` 并在加载时失败。
 
 ### 源码地图
 

@@ -278,13 +278,14 @@
 
     - id: bash-sandbox
       name: '@panedesk/dsh-bash-sandbox'
-      disabled: !!js process.platform === 'win32'
+      disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH
       config:
         timeoutMs: 60000
+        bashPath: !!js process.env.PANEDESK_BASH_PATH ?? 'bash'
 
     - id: pwsh-sandbox
       name: '@panedesk/dsh-pwsh-sandbox'
-      disabled: !!js process.platform !== 'win32'
+      disabled: !!js process.platform !== 'win32' || !!process.env.PANEDESK_BASH_PATH
 
     - id: approval
       name: '@panedesk/dsh-user-approval'
@@ -310,11 +311,11 @@
 
     - id: tool-bash
       name: '@panedesk/dsh-tool-bash'
-      disabled: !!js process.platform === 'win32'
+      disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH
 
     - id: tool-pwsh
       name: '@panedesk/dsh-tool-pwsh'
-      disabled: !!js process.platform !== 'win32'
+      disabled: !!js process.platform !== 'win32' || !!process.env.PANEDESK_BASH_PATH
 
     - id: tool-jobs
       name: '@panedesk/dsh-tool-jobs'

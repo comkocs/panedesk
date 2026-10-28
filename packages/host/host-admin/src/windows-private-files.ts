@@ -5,13 +5,16 @@ import { randomBytes } from 'node:crypto'
 import { win32 } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import type { PrivateFiles } from './private-files.ts'
-import { executeWindowsPrivateFiles, inspectWindowsPrivatePath, secureWindowsPrivatePath, replaceWindowsPrivatePath,
+import * as native from '@panedesk/node-addon-system/windows-private-files'
+import { inspectWindowsPrivatePath, secureWindowsPrivatePath, replaceWindowsPrivatePath,
   type WindowsPrivateFilesExecutor } from './windows-private-files-system.ts'
 
 /** Injectable operating-system seams for server-side Windows policy tests. */
 export interface WindowsPrivateFilesOptions {
-  /** Metadata-only PowerShell executor; no file contents cross this interface. */
+  /** Legacy metadata-only test oracle; production never executes PowerShell. */
   execute?: WindowsPrivateFilesExecutor
+  /** In-process Win32 operations; production uses the stable Node-API binding. */
+  security?: Pick<typeof native, 'inspectWindowsPrivatePath' | 'secureWindowsPrivatePath' | 'replaceWindowsPrivatePath'>
   /** File operations; production uses Node's filesystem implementation. */
   filesystem?: {
     lstat: (path: string) => Promise<Stats>
@@ -36,7 +39,8 @@ function code(error: unknown, expected: string): boolean {
 /** Current-user-only Windows DACLs; existing permissions are never repaired or broadened. */
 export class WindowsPrivateFiles implements PrivateFiles {
   private readonly filesystem: NonNullable<WindowsPrivateFilesOptions['filesystem']>
-  private readonly execute: WindowsPrivateFilesExecutor
+  private readonly execute: WindowsPrivateFilesExecutor | undefined
+  private readonly security: NonNullable<WindowsPrivateFilesOptions['security']>
   private readonly replace: NonNullable<WindowsPrivateFilesOptions['replace']>
   private readonly delay: NonNullable<WindowsPrivateFilesOptions['delay']>
   constructor(private readonly root: string, options: WindowsPrivateFilesOptions = {}) {
@@ -46,10 +50,13 @@ export class WindowsPrivateFiles implements PrivateFiles {
       throw new Error('Private absolute Windows path rejected')
     }
     this.filesystem = options.filesystem ?? fs
-    this.execute = options.execute ?? executeWindowsPrivateFiles
+    this.execute = options.execute
+    this.security = options.security ?? native
     this.delay = options.delay ?? (milliseconds => setTimeout(milliseconds))
     this.replace = options.replace ?? (async (source, target) => {
-      const result = await this.execute(replaceWindowsPrivatePath(source, target))
+      const result = this.execute === undefined
+        ? String(this.security.replaceWindowsPrivatePath(source, target))
+        : await this.execute(replaceWindowsPrivatePath(source, target))
       if (result !== '0') throw Object.assign(new Error('Private replacement unavailable'), {
         code: result === '5' ? 'EPERM' : result === '32' || result === '33' ? 'EBUSY' : 'EIO',
       })
@@ -61,7 +68,8 @@ export class WindowsPrivateFiles implements PrivateFiles {
     return win32.join(this.root, name)
   }
   private async inspect(path: string, acl: boolean, directory?: string): Promise<void> {
-    const value: unknown = JSON.parse(await this.execute(inspectWindowsPrivatePath(path, directory)))
+    const value: unknown = this.execute === undefined ? this.security.inspectWindowsPrivatePath(path, directory)
+      : JSON.parse(await this.execute(inspectWindowsPrivatePath(path, directory)))
     this.validate(value, acl)
     if (directory !== undefined) this.validate(object(value) ? value.directory : undefined, true)
   }
@@ -97,7 +105,7 @@ export class WindowsPrivateFiles implements PrivateFiles {
     try {
       const stat = await this.filesystem.lstat(this.root)
       if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Private directory type rejected')
-      if (created) await this.execute(secureWindowsPrivatePath(this.root, true))
+      if (created) await this.secure(this.root, true)
       await this.inspect(this.root, true)
     } catch (error) {
       if (created) await this.filesystem.rmdir(this.root)
@@ -142,10 +150,14 @@ export class WindowsPrivateFiles implements PrivateFiles {
       return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))
     } finally { await handle.close() }
   }
+  private async secure(path: string, directory: boolean): Promise<void> {
+    if (this.execute === undefined) this.security.secureWindowsPrivatePath(path)
+    else await this.execute(secureWindowsPrivatePath(path, directory))
+  }
   private async create(path: string, content: string): Promise<fs.FileHandle> {
     const handle = await this.filesystem.open(path, 'wx')
     try {
-      await this.execute(secureWindowsPrivatePath(path, false))
+      await this.secure(path, false)
       await this.inspect(path, true)
       const stat = await handle.stat(), named = await this.filesystem.lstat(path)
       if (!stat.isFile() || stat.nlink !== 1 || stat.ino !== named.ino || stat.dev !== named.dev) {
