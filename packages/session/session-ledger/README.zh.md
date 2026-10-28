@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-持久化调用与生命周期账本服务定义。本包公开抽象 Cordis 服务与公共类型。消费者使用这些操作前，须由具体提供方实现。
+持久化调用与生命周期记账。本包公开 `SessionLedger`、公共类型和本地 `JournalSessionLedger` 提供方。完整服务独立于可选缓存插件，拥有模型流计量。
 
 ## 目录
 
@@ -21,7 +21,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。`/messages` 插件只注册 `messageLedger`，不注册 `sessionLedger`，也不挂运行、调用和工具记账监听。可选存储与锁设置与完整提供方一致，`nodeId()` 解析同一份持久化 `ledger/v1/node-id`。默认 bundle 使用此消息专用入口；记账 profile 保留完整提供方。
+从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。`/messages` 插件只注册 `messageLedger`，不注册 `sessionLedger`，也不挂运行、调用和工具记账监听。可选存储与锁设置与完整提供方一致，`nodeId()` 解析同一份持久化 `ledger/v1/node-id`。消息专用入口不启用调用计量；需要记录调用时，另行装配完整提供方。
+
+`SessionLedger` 每个实例安装一个 `llm/stream` 监听。它在适配器派发前提交调用意图，取消或失败时保留部分响应片段与已观察用量，并对同一物理调用结算一次。逻辑请求、重试、退避、精确参考定价与等待归属均由账本持有。缺失用量保持缺失，不补零。结算失败会阻止受影响会话的后续调用。
+
+`registerCallContributor(contributor)` 接受一个可选缓存贡献者并返回幂等卸载函数。第二个存活注册会被拒绝，包括重复注册同一对象。贡献插件通过自身副作用注册；卸载移除后续贡献，已准备调用则保留捕获的贡献者直至清理。贡献者在起始前冻结缓存证据，起始后追加断点与请求片段，派发前获取准入，定价前更新终态缓存证据，结算后持久化缓存观察。注册顺序与持久行查询都不决定所有权。
 
 提供方接受 `Config.waitTools`，并实现 `registerWaitTool(name, category)`，登记可信运行时分类（`sleep`、`external-marker`、`subagent`）。运行时登记优先于配置默认值；存活登记的类别冲突时拒绝，幂等释放函数只释放自己的登记。未登记工具保持 `unclassified`；模型输出不得定义类别。
 
@@ -38,7 +42,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-### 未启用的骨架
+### 调用计量
 
 #### 模型可见内容
 
@@ -46,17 +50,17 @@ kind: "package-reference"
 
 #### Token 影响
 
-骨架不发起模型请求，不增加输入或输出 token。
+计量观察模型请求，不发起额外请求，也不增加输入或输出 token。
 
 #### KV Cache 影响
 
-骨架不修改请求前缀，也不建立或刷新缓存。
+账本不修改请求前缀，也不建立或刷新缓存。缓存策略与准入由可选贡献者持有。
 
 ## 已知限制与后续工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 本包仅提供声明与骨架；存储、网络请求、进程观测、命令执行及 profile 组合均未在此实现。
+- 参考费用需要已观察用量与精确匹配的受支持价格键。未知计数、档位与价格保持明确覆盖缺口；账本不推断提供方账单，也不组合应用 profile。
 
 <a id="dev-note"></a>
 ### 开发备注

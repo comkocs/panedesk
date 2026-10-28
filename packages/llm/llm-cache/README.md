@@ -23,6 +23,8 @@ Session cache policy, maintenance, and model-family concurrency. The optional pl
 
 `renewOnce` performs one explicitly requested, operation-identified keepalive at an idle maintenance point. It records ledger usage without adding a conversation body; missing evidence, an expired cache, changed prefixes, or competing maintenance can refuse renewal. Uncertain execution is not reported as successful renewal.
 
+Call accounting belongs to the full `sessionLedger`, not this plugin. Cache policy and stable-prefix preparation run before request freezing; an instance-local call contributor supplies cache evidence and family admission to the ledger-owned call. Either plugin load order records one call. Without a ledger, requests pass through unchanged; without this plugin, the full ledger still records calls. Contributor registration is released with the plugin, and prepared contributions remain available through call settlement.
+
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
 An active inbox insertion retains the existing `interjection` cache breakpoint. An `interjection` abort settles the interrupted call as `cancelled` with `upstreamStopReason: 'interjection'`, preserves partial-response artifacts, and records the breakpoint on the interrupted call and its continuation. Ordinary user cancellation remains distinct. Upstream prefix reconstruction is not suppressed: committed history replacement retains `history-edit`, and changed request headers retain `request-config-change`; each call records its actual prefix fingerprint.

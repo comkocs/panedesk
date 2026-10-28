@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Durable call and lifecycle ledger service definitions. The package exposes an abstract Cordis service and public types. A concrete provider must implement the operations before consumers can use them.
+Durable call and lifecycle accounting. The package exposes `SessionLedger`, public types, and the local `JournalSessionLedger` provider. The full service owns model-stream accounting independently of the optional cache plugin.
 
 ## Table of Contents
 
@@ -21,7 +21,11 @@ Durable call and lifecycle ledger service definitions. The package exposes an ab
 <a id="use-this-package"></a>
 ## Use this package
 
-Import public types from the package entry. The package is Host-only and does not provide a browser entry. The `/messages` plugin registers only `messageLedger`, without `sessionLedger` or run, call, and tool accounting hooks. Its optional storage and lock settings match the full provider, and `nodeId()` resolves the same persisted `ledger/v1/node-id`. Default bundles use this message-only entry; accounting profiles retain the full provider.
+Import public types from the package entry. The package is Host-only and does not provide a browser entry. The `/messages` plugin registers only `messageLedger`, without `sessionLedger` or run, call, and tool accounting hooks. Its optional storage and lock settings match the full provider, and `nodeId()` resolves the same persisted `ledger/v1/node-id`. The message-only entry does not enable call accounting; compose the full provider separately when calls must be recorded.
+
+`SessionLedger` installs one `llm/stream` listener per instance. It commits call intent before adapter dispatch, retains partial sidecars and observed usage through cancellation or failure, and settles the same physical call once. Logical requests, retries, backoff, exact reference pricing and wait attribution remain ledger-owned. Missing usage stays missing, not zero. Settlement failures block subsequent calls in the affected session.
+
+`registerCallContributor(contributor)` accepts one optional cache contributor and returns an idempotent disposer. A second live registration rejects, including the same object twice. Register through the contributing plugin's effect; unloading removes future contributions while prepared calls retain their captured contribution until cleanup. Contributions freeze cache evidence before start, append breakpoints and request sidecars after start, acquire admission before dispatch, update terminal cache evidence before pricing, and persist cache observations after settlement. Neither registration order nor persisted-row lookup decides ownership.
 
 Providers accept `Config.waitTools` and implement `registerWaitTool(name, category)` for trusted runtime classifications (`sleep`, `external-marker`, `subagent`). Runtime registrations override configured defaults; conflicting live categories reject, and the idempotent disposer releases only its registration. Unregistered tools remain `unclassified`; model output never defines a category.
 
@@ -38,7 +42,7 @@ Directory synchronization tolerates only `EPERM`, `EISDIR` and `EINVAL` from ope
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Call accounting
 
 #### What the model sees
 
@@ -46,17 +50,17 @@ Directory synchronization tolerates only `EPERM`, `EISDIR` and `EINVAL` from ope
 
 #### Token effect
 
-The scaffold dispatches no model requests and adds no input or output tokens.
+Accounting observes model requests without dispatching additional requests or adding input or output tokens.
 
 #### KV Cache effect
 
-The scaffold neither modifies request prefixes nor creates or refreshes cache entries.
+The ledger does not modify request prefixes or create or refresh cache entries. Optional contributors own cache policy and admission.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This package supplies declarations and a scaffold only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
+- Reference costs require observed usage and an exact supported price key. Unknown counters, tiers and prices remain explicit coverage gaps; the ledger does not infer provider billing or compose application profiles.
 
 <a id="dev-note"></a>
 ### Dev Note
