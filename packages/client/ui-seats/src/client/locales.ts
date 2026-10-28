@@ -1,0 +1,23 @@
+/** Typed seat UI copy; names and provider refusal details remain verbatim data. */
+export const en = {
+  seat: 'Seat', seats: 'Seats', free: 'Free window', open: 'Open seat', opened: 'Open', unopened: 'Not open',
+  busy: 'Busy', idle: 'Idle', unknown: 'Unknown', unavailable: 'Seat data is unavailable.',
+  incomplete: 'Seat data is incomplete; opening is disabled.',
+  directoryTitle: 'Choose the startup directory',
+  directoryDescription: 'The current directory differs from the seat profile.',
+  profile: 'Use profile directory', here: 'Stay in this directory', cancel: 'Cancel', close: 'Close',
+  openFailed: 'Seat opening was refused: {reason}', memoryDenied: 'Memory write refused [{code}]: {reason}',
+  existingChoice: 'This seat already has windows. Select an existing window from Seats before opening another.',
+} as const
+/** Locale-owned key set. */
+export type SeatKey = keyof typeof en
+/** Chinese seat UI copy. */
+export const zh: Record<SeatKey, string> = {
+  seat: '位', seats: '工位', free: '自由窗', open: '按位开', opened: '在开', unopened: '未开',
+  busy: '忙', idle: '闲', unknown: '未知', unavailable: '工位数据不可用。',
+  incomplete: '工位数据不完整，暂不能按位开。',
+  directoryTitle: '选择起窗目录', directoryDescription: '当前起窗目录与工位档案目录不同。',
+  profile: '改到档案目录', here: '仍在此开', cancel: '取消', close: '关闭',
+  openFailed: '按位开被拒：{reason}', memoryDenied: '记忆写入被拒 [{code}]：{reason}',
+  existingChoice: '该位已有在开会话，请先从工位列表选择已有会话。',
+}

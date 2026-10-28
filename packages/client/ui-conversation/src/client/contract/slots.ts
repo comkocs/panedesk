@@ -237,6 +237,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
       scope: 'session'
       owner: ConversationHeaderActionOwnerProps
     }
+    /** Occurrence-scoped seat identity beside global navigation, available before a Session exists. */
+    'conversation.header.seat': { kind: 'single'; scope: 'session-maybe' }
     /** Global navigation before the Session title, available without a Session. */
     'conversation.header.leading': {
       kind: 'single'
@@ -264,6 +266,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
     'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe'; owner: HeroAgentPresetOwnerProps }
+    /** Optional seat picker available before a Session exists. */
+    'conversation.hero.seat': { kind: 'single'; scope: 'session-maybe'; owner: { currentDirectory: string | undefined } }
     /** Compact options right-aligned in the New Session row after the workspace and preset controls; rendered only with a Session. */
     'conversation.hero.options': { kind: 'list'; scope: 'session' }
     /** Full-width entries above the composer card. */
@@ -311,6 +315,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
         'conversation.hero.brand.mark': { kind: 'single'; scope: 'root' }
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }
+        'conversation.hero.seat': { kind: 'single'; scope: 'session-maybe' }
         'conversation.hero.options': { kind: 'list'; scope: 'session' }
       }
       inject: ConversationInjected
@@ -569,7 +574,7 @@ export type ConversationSessionSlotProps =
 /** Full props of the resident navigation header. */
 export type ConversationHeaderProps =
   PropsRuntime<'conversation.header'>
-  & PropsRenderSlots<'conversation.header.leading' | 'conversation.session.header'>
+  & PropsRenderSlots<'conversation.header.leading' | 'conversation.header.seat' | 'conversation.session.header'>
 
 /** Full props of the strict Session header. */
 export type ConversationSessionHeaderSlotProps =

@@ -70,7 +70,7 @@ export interface SeatIssuedAuthorizationQueryResult extends Omit<SeatAuthorizati
 export type SeatEngineOperationResult = import('./types.ts').SeatOperationResult & {
   approval?: { queueItemId: import('./types.ts').QueueItemId; stateVersion: number }
   progress?: { kind: 'pending'; reason: import('./types.ts').PendingReason; blockedBy: readonly string[] }
-    | { kind: 'open'; phase: import('./types.ts').OpenPhase; sessionId: import('@panedesk/dsh-session').SessionId }
+    | { kind: 'open'; phase: import('./types.ts').OpenPhase; sessionId: import('@panedesk/dsh-session/types').SessionId }
     | { kind: 'cancelled' }
 }
 /** Installed only with a compatible journal writer, replay validator and query projection. */

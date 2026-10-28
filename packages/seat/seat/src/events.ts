@@ -1,6 +1,6 @@
 /** Version-one engine facts are isolated from Session and message-ledger event maps. */
 import type { Branded } from '@panedesk/dsh-brand'
-import type { SessionId } from '@panedesk/dsh-session'
+import type { SessionId } from '@panedesk/dsh-session/types'
 import type { GateContext, GateDefinition, GateResult } from './gates.ts'
 import type {
   ChildAdmissionTicket, ClosePhase, CloseReportId, CloseSelfReport, EngineMode,

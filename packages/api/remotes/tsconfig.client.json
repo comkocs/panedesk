@@ -45,6 +45,7 @@
     {
       "path": "../../schedule/schedule"
     },
+    { "path": "../../seat/seat-gates" },
     {
       "path": "../../feedback/message-feedback"
     },

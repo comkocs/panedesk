@@ -13,6 +13,7 @@ import type {} from '@panedesk/dsh-permission-presets/types'
 import type {} from '@panedesk/dsh-plugin-manager/types'
 import type {} from '@panedesk/dsh-plugin-market/types'
 import type {} from '@panedesk/dsh-schedule/client'
+import type {} from '@panedesk/dsh-seat-gates/events'
 import type { TypertForwardableEventEntry } from '@panedesk/dsh-typert-protocol'
 
 /**
@@ -51,5 +52,6 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'plugin-market/changed', mode: 'emit' },
   { event: 'settings/document-updated', mode: 'emit' },
   { event: 'schedule/changed', mode: 'emit' },
+  { event: 'seat/memory-write-denied', mode: 'emit', resources: { session: (sessionId): SessionId => sessionId } },
   { event: 'user-questions/request', mode: 'waterfall' },
 ] as const satisfies readonly TypertForwardableEventEntry[]

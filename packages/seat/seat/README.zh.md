@@ -21,6 +21,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+浏览器消费方通过纯类型 `@panedesk/dsh-seat/types` 子路径导入共享工位数据。其 Session 身份使用 `dsh-session/types`，调度选择器使用 `dsh-schedule/client`，使共享声明独立于 Host Session 服务。根入口仍暴露 Host 服务定义。
+
 可选 `SeatOpeningContexts.registerScopeAdmission` 为来源单项开窗及任务批次安装 `OpeningScopeAdmission` 所有者。所有者串行化评估、持久占位及既有执行器；注销排空在途调用。省略时保持既有评估器查询及拒绝行为。接口不含来源特有的工单字段。
 
 可选开窗快照与触发引用保留提供方版本及任务证据，不改变旧开窗请求。`OpeningContextProvider.callback` 可选接收持久手动结果，附冻结引用及原操作身份；调用者不能提供回调目的地。本地提供方拥有路由与投递生命周期。`SeatGateService.evaluateTaskScopes` 是可选预检能力；任务批次调用者必须拒绝缺席的评估器，不能绕过。授权声明提供宿主拥有的签发注册、进程内凭证、原子动作事务与历史查询。可选 `validate` 在恢复外部工作前复核存活凭证，但不替代事务准入。`seatAuthorizedEngineActions` 为续期和换窗携带凭证；`seatAuthorizationExports` 提供独立版本化 JSON 分页，不扩宽旧效果。导入定义不安装任何提供方；`seat-engine` 提供持久化与查询。
@@ -38,6 +40,8 @@ kind: "package-reference"
 可选 `SeatAuthorizationFact.sourceNodeId` 只出现在本地签发的 `node-delegation` 事实上：接收策略将传输层已认证的发送节点写入签发入口身份，绝不取自请求 JSON。旧事实与旧委托保持逐字节不变。可选 `SeatOpeningContexts.registerSourceOwner` 安装唯一受信 `SeatSourceOwner`，其必有的 `prepare`、`checkAdmission`、`deliverCallback` 方法与既有可选挂点签名一致。重复注册抛出异常；注销停止新调用并排空在途调用。未注册所有者时，提供方不暴露这三个方法；本包不安装实现。
 
 可选 `seatLocalCallbackOwner: SeatLocalCallbackOwner` 为来源所有者、目标及执行节点均为本地引擎的回调提供 `ready`、`available`、完整键 `query` 与冻结原包 `deliver`。每次查询或交付返回 `SeatCallbackAttemptResult<R>`，可附 `SeatCallbackDiagnostic`；提供方负责独立授权、持久去重、恢复及撤装。导入声明不安装提供方或默认注入，缺席绝不允许来源或对端兜底。`SeatCallbackDelivery.lastDiagnostic` 是可选的交付外层观察，不属于回调正文或业务摘要；旧记录省略该字段，成功交付只清除最新观察。失败阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`；原因保留有界标识与脱敏说明。
+
+可选 `OpenSeatRequest.startupDirectory` 为手动开窗选择精确的已登记目录；省略时保留档案起窗目录。本地提供方冻结所选起窗标记供执行与重放使用，不改档案，也不扩大目录授权；重试须保留相同选择。
 
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 

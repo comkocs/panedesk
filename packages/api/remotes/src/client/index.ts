@@ -89,6 +89,7 @@ export type {} from '@panedesk/dsh-settings/types'
 export type {} from '@panedesk/dsh-user-approval/types'
 export type {} from '@panedesk/dsh-user-questions/types'
 export type {} from '@panedesk/dsh-api-session-controller/types'
+export type {} from '@panedesk/dsh-seat-gates/events'
 
 /**
  * The carrier's Client-facing types, re-exported so a business package names one

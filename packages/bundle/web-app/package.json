@@ -188,7 +188,8 @@
     "@panedesk/dsh-client-product-analytics": "workspace:*",
     "@panedesk/dsh-host-product-telemetry-otel": "workspace:*",
     "@panedesk/dsh-client-ui-settings-session-log": "workspace:*",
-    "@panedesk/dsh-harness-dev-context": "workspace:*"
+    "@panedesk/dsh-harness-dev-context": "workspace:*",
+    "@panedesk/dsh-client-ui-seats": "workspace:*"
   },
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",

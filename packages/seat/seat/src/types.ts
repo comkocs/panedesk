@@ -1,6 +1,6 @@
 /** Shared seat declarations; durable records belong to the engine, never the Session event union. */
 import type { Branded } from '@panedesk/dsh-brand'
-import type { SessionId } from '@panedesk/dsh-session'
+import type { SessionId } from '@panedesk/dsh-session/types'
 import type { EngineDecision, EngineEffect, EngineEventKind } from './events.ts'
 import type { GateDefinition, GateHook, GateSnapshot } from './gates.ts'
 
@@ -132,7 +132,7 @@ export type SeatTrigger =
   | { kind: 'handoff-timeout'; timeoutMinutes: number }
   | { kind: 'manual'; origin: 'manual' | 'remote' }
 /** Schedule recurrence is supplied by the existing scheduler, not a second timer engine. */
-export type SeatScheduleSelector = Omit<import('@panedesk/dsh-schedule').ScheduleCreateRequest, 'prompt' | 'title'>
+export type SeatScheduleSelector = Omit<import('@panedesk/dsh-schedule/client').ScheduleCreateRequest, 'prompt' | 'title'>
 /** Rule policy cannot widen its project's mode. */
 export interface SeatRule extends SeatBudgetLimits {
   id: SeatRuleId
@@ -258,6 +258,8 @@ export interface OpenSeatRequest {
   taskId?: SeatTaskId
   openingMode?: 'auto' | 'prefill'
   existingChoice?: ExistingSeatChoice
+  /** Manual-only exact registered directory; omission preserves the profile startup directory. */
+  startupDirectory?: string
   expectedSeatRevision?: number
 }
 /** Authorized existing-window candidate, never selected implicitly when several exist. */

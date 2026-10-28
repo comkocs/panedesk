@@ -80,6 +80,7 @@
     "@panedesk/dsh-message-feedback": "workspace:*",
     "@panedesk/dsh-permission-presets": "workspace:*",
     "@panedesk/dsh-schedule": "workspace:*",
+    "@panedesk/dsh-seat-gates": "workspace:*",
     "@panedesk/dsh-scope": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-reference": "workspace:*",

@@ -10,6 +10,8 @@ import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import {
   allowAllAccess, bindSnapshotSelector, makeTranslate, RemoteError, sessionSnapshot as sessionFixture,
 } from '@panedesk/dsh-client-test-runtime'
+import type {} from '@panedesk/dsh-client-ui-chat/client'
+import type {} from '@panedesk/dsh-client-ui-trajectory/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SessionStatusSnapshot } from '@panedesk/dsh-client-ui-session/client'
 import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
@@ -192,9 +194,11 @@ function mount(
   const useConversationViews: SessionSlotProps['useConversationViews'] = selector => selector(viewTabs)
   /** Owner share handed to the two composer tool-row seats, per render. */
   const seatOwners: { key: string; owner: unknown }[] = []
+  let seatDirectory: string | undefined
   let pickerOwner: unknown
   const renderSlot = ((key: string, owner: object, opts?: { only?: string; fallback?: ReactNode }) => {
     slotCalls.push(key)
+    if (key === 'conversation.hero.seat') seatDirectory = (owner as { currentDirectory: string | undefined }).currentDirectory
     if (key === 'conversation.input.model' || key === 'conversation.input.plan') {
       seatOwners.push({ key, owner })
     }
@@ -381,6 +385,7 @@ function mount(
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,
     pickerOwner: () => pickerOwner,
+    seatDirectory: () => seatDirectory,
     rerender: () => { view.rerender(<ConversationMainPanel {...props} />) },
   }
 }
@@ -571,6 +576,7 @@ describe('ConversationRoot resident composer', () => {
     act(() => { owner.onPick(wid('second')) })
     expect(b.retargetWorkspace).toHaveBeenCalledWith(wid('second'))
     expect(b.view.getByText('Selected Folder')).toBeTruthy()
+    expect(b.seatDirectory()).toBe('/projects/second')
   })
 
   it('keeps a rejected first prompt engaging instead of returning to the Hero', () => {
@@ -695,12 +701,17 @@ describe('ConversationRoot resident composer', () => {
   it('seats the New Session options after the agent-preset chip, and only for a Session', () => {
     const b = mount(sessionSnapshotOf({ blank: true }))
     const preset = within(b.view.container).getByTestId('view-conversation.hero.agentPreset')
+    const seat = within(b.view.container).getByTestId('view-conversation.hero.seat')
     const options = within(b.view.container).getByTestId('view-conversation.hero.options')
-    expect(options.parentElement?.previousElementSibling).toBe(preset)
+    expect(seat.previousElementSibling).toBe(preset)
+    expect(options.parentElement?.previousElementSibling).toBe(seat)
 
     const cold = mount(sessionSnapshotOf(), [], undefined, { sessionId: undefined })
     expect(cold.slotCalls).toContain('conversation.hero.agentPreset')
+    expect(cold.slotCalls).toContain('conversation.hero.seat')
     expect(cold.slotCalls).not.toContain('conversation.hero.options')
+    const active = mount(sessionSnapshotOf({ blank: false }))
+    expect(within(active.view.container).queryByTestId('view-conversation.hero.seat')).toBeNull()
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

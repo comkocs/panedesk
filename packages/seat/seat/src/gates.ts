@@ -1,6 +1,6 @@
 /** Shared policy declarations; evaluation and durable counters belong to providers. */
 import type { Branded } from '@panedesk/dsh-brand'
-import type { SessionId } from '@panedesk/dsh-session'
+import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SeatFailure, SeatJson, SeatName, SeatNodeId, SeatOperationId, SeatTimestamp } from './types.ts'
 
 /** The seven semantic policy hooks are not names of upstream Cordis events. */

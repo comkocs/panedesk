@@ -4,7 +4,7 @@ import type { GateCriterion, GateContext, GateDefinition, GateResult, SeatFailur
 import type { Config } from './index.ts'
 import { checkContinuation } from './continuation.ts'
 import { checkPolling, type PollingState } from './polling.ts'
-import { canonicalWritePath, checkMemoryWrite } from './memory.ts'
+import { canonicalWritePath, checkMemoryWrite, containsPath } from './memory.ts'
 
 /** Create a built-in evaluator; registry publication remains the single audit owner.
  * @param ctx - optional service access.
@@ -66,7 +66,15 @@ export function builtinCriterion(ctx: Context, config: Config, id: string): Gate
         if (page.nextCursor === undefined || page.nextCursor === cursor) throw new Error('Memory directory catalog is incomplete.')
         cursor = page.nextCursor
       }
-      failure = checkMemoryWrite(await canonicalWritePath(context.targetPath, context.cwd ?? '/'), context.seat, roots)
+      const target = await canonicalWritePath(context.targetPath, context.cwd ?? '/')
+      failure = checkMemoryWrite(target, context.seat, roots)
+      if (failure === null && context.seat !== null && roots.some(root => containsPath(root.path, target))) {
+        const authorized = await Promise.all(context.authorizedDirectories.map(path => canonicalWritePath(path, context.cwd ?? '/')))
+        if (!authorized.some(path => containsPath(path, target))) {
+          failure = refusal('memory-seat-mismatch', 'The write destination is outside this seat\'s memory directories.',
+            authorized.length > 0 ? `Write within this seat's memory directories: ${authorized.join(', ')}.` : 'Configure a memory directory for this seat before writing.')
+        }
+      }
     } else {
       failure = checkCustom(id, context, definition)
     }

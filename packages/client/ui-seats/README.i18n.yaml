@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-seats/README.md
+/:
+  en: 0737664a50930a6b
+  zh: 04666fd3e9ed66b1
+/panedesk-dsh-client-ui-seats:
+  en: 0143cb47d1cc882e
+  zh: 9a141244e50f734a
+/panedesk-dsh-client-ui-seats/summary:
+  en: 97b86704fa034eaf
+  zh: 798168fb6220e677
+/panedesk-dsh-client-ui-seats/use-this-package:
+  en: fbb61ac219105ccf
+  zh: 209905b86228e678
+/panedesk-dsh-client-ui-seats/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-client-ui-seats/model-experience/what-the-model-sees:
+  en: 90cc736189bc509f
+  zh: af07e878d65762fd
+/panedesk-dsh-client-ui-seats/model-experience/token-effect:
+  en: 50f1da5bc45ce6d8
+  zh: 99a4c19bef9bd7fe
+/panedesk-dsh-client-ui-seats/model-experience/kv-cache-effect:
+  en: acce0a2132e33e51
+  zh: 21d9aefaf8bb301e
+/panedesk-dsh-client-ui-seats/known-limitations-and-deferred-work:
+  en: f740170ee2fe316f
+  zh: eeade0b9e9a7be48

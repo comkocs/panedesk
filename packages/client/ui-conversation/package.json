@@ -63,6 +63,8 @@
     "@panedesk/dsh-client-file-upload": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-client-ui-chat": "workspace:*",
+    "@panedesk/dsh-client-ui-trajectory": "workspace:*",
     "@panedesk/dsh-client-ui-layout": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-client-ui-renderer": "workspace:*",
