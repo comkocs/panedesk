@@ -1158,7 +1158,16 @@ export async function auditStartupEntries(
   binName: string,
   warn: (line: string) => void = line => void process.stderr.write(line),
 ): Promise<void> {
-  const failures = await inactiveEntries(ctx)
+  auditStartupFailures(ctx, binName, await inactiveEntries(ctx), warn)
+}
+
+/** Apply startup policy to one settled observation, including after status publication. */
+function auditStartupFailures(
+  ctx: Context,
+  binName: string,
+  failures: readonly InactiveEntry[],
+  warn: (line: string) => void = line => void process.stderr.write(line),
+): void {
   const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)
     || requiredStartupEntryIds.has(entry.options.id)).map(({ entry }) => entry))
   if (required.size > 0) {
@@ -1178,7 +1187,8 @@ export async function auditStartupEntries(
  * through the ambient module pipeline (vite/tsx/plain ESM). The package build
  * embeds Include while leaving Loader external, so the built include tree and
  * host share one Loader peer. Loader settlement drains entry work without
- * rejecting the whole tree. The final {@link auditStartupEntries} call rejects
+ * rejecting the whole tree. Status publication and the final startup audit share
+ * one settled observation, retained if the tree exits during publication. The audit rejects
  * failures in the global required list and warns about other failed, missing,
  * and pending entries while successful siblings remain active. Later unhandled
  * rejections remain covered by {@link installFailLoud}. Built bins need the Loader's native
@@ -1247,7 +1257,7 @@ export async function boot(
       ...outcome.kind === 'pending' ? { missing: outcome.missing }
         : { importing: outcome.phase === 'failed to import', error: outcome.error },
     })))
-    await auditStartupEntries(ctx, binName)
+    auditStartupFailures(ctx, binName, failures)
     return ctx
   } catch (cause) {
     // Root-fiber disposal contains cleanup failures per observer (Cordis

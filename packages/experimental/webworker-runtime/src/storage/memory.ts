@@ -152,8 +152,26 @@ interface OpenMode {
   readonly exclusive: boolean
 }
 
-/** Parse the Node string flags supported by the compatibility filesystem. */
-function openMode(flags: string): OpenMode {
+/** Parse Node string flags or the Linux numeric flags exposed by the worker fs shim. */
+function openMode(flags: string | number): OpenMode {
+  if (typeof flags === 'number') {
+    const access = flags & 3
+    // O_CREAT, O_EXCL, O_TRUNC, O_APPEND and O_NOFOLLOW; the VFS has no symlinks.
+    const supported = 3 | 0o100 | 0o200 | 0o1000 | 0o2000 | 0o400000
+    if (!Number.isSafeInteger(flags) || flags < 0 || flags > supported || (flags & ~supported) !== 0 || access === 3) {
+      const error = new TypeError(`The argument 'flags' is invalid. Received '${flags}'`) as TypeError & { code: string }
+      error.code = 'ERR_INVALID_ARG_VALUE'
+      throw error
+    }
+    return {
+      readable: access !== 1,
+      writable: access !== 0,
+      append: (flags & 0o2000) !== 0,
+      create: (flags & 0o100) !== 0,
+      truncate: (flags & 0o1000) !== 0,
+      exclusive: (flags & 0o200) !== 0 && (flags & 0o100) !== 0,
+    }
+  }
   const base = flags[0]
   const suffix = flags.slice(1).split('')
   const validSuffix = suffix.every(flag => flag === '+' || flag === 'x' || flag === 's')
@@ -280,7 +298,7 @@ export class MemoryVfs implements Vfs {
     truncate: async (path: string, length?: number): Promise<void> => { this.truncateSync(path, length) },
     chmod: async (path: string, mode: number): Promise<void> => { this.chmodSync(path, mode) },
     opendir: async (path: string): Promise<VfsDir> => this.opendir(path),
-    open: async (path: string, flags?: string, mode?: number): Promise<VfsFileHandle> => {
+    open: async (path: string, flags?: string | number, mode?: number): Promise<VfsFileHandle> => {
       await this.whenReadable(path)
       return this.open(path, flags, mode)
     },
@@ -754,11 +772,11 @@ export class MemoryVfs implements Vfs {
    * @param mode - Permission bits applied when the open creates the file.
    * @returns File handle.
    */
-  open(path: string, flags = 'r', mode?: number): VfsFileHandle {
+  open(path: string, flags: string | number = 'r', mode?: number): VfsFileHandle {
     const target = this.key(path)
     // Durable writers fsync the parent directory by opening it read-only.
     if (this.directories.has(target)) {
-      if (!flags.startsWith('r')) fail('EISDIR', 'open', target)
+      if (typeof flags === 'string' ? !flags.startsWith('r') : !openMode(flags).readable) fail('EISDIR', 'open', target)
       return {
         write: async (): Promise<{ bytesWritten: number }> => fail('EISDIR', 'write', target),
         writeFile: async (): Promise<void> => fail('EISDIR', 'write', target),
@@ -815,7 +833,7 @@ export class MemoryVfs implements Vfs {
    * @param mode - Permission bits applied only when a file is created.
    * @returns An open file that survives path rename, replacement, and unlink.
    */
-  openFileSync(path: string, flags = 'r', mode?: number): VfsOpenFile {
+  openFileSync(path: string, flags: string | number = 'r', mode?: number): VfsOpenFile {
     const target = this.key(path)
     this.requireArrived('open', target)
     const access = openMode(flags)

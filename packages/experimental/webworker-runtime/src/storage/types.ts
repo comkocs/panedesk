@@ -257,7 +257,7 @@ export interface Vfs {
     truncate(path: string, length?: number): Promise<void>
     chmod(path: string, mode: number): Promise<void>
     opendir(path: string): Promise<VfsDir>
-    open(path: string, flags?: string, mode?: number): Promise<VfsFileHandle>
+    open(path: string, flags?: string | number, mode?: number): Promise<VfsFileHandle>
     access(path: string): Promise<void>
   }
   readFileSync(path: string, options?: VfsReadOptions): string | Uint8Array
@@ -276,7 +276,7 @@ export interface Vfs {
   rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void
   mkdtempSync(prefix: string): string
   /** Open and retain one file identity until its Node descriptor closes. */
-  openFileSync(path: string, flags?: string, mode?: number): VfsOpenFile
+  openFileSync(path: string, flags?: string | number, mode?: number): VfsOpenFile
   seed(path: string, data: string | Uint8Array, options?: VfsSeedOptions): void
   seedDirectory(path: string, options?: VfsSeedOptions): void
   usage(): { files: number; directories: number; bytes: number }

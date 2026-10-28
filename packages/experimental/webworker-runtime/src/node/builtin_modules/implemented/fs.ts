@@ -103,6 +103,8 @@ export const constants = {
   O_CREAT: 64,
   O_TRUNC: 512,
   O_APPEND: 1024,
+  O_EXCL: 128,
+  O_NOFOLLOW: 131072,
 }
 
 /**
@@ -328,12 +330,11 @@ let nextFd = 3
 /**
  * Open a file descriptor.
  * @param path - file path.
- * @param flags - Node flag string: 'r', 'w', 'a', with optional '+' and the
- * exclusive 'x' (create-only) modifier.
+ * @param flags - Node string mode or supported Linux numeric access and creation flags.
  * @param mode - creation permission bits.
  * @returns the descriptor.
  */
-export function openSync(path: PathArg, flags = 'r', mode?: number): number {
+export function openSync(path: PathArg, flags: string | number = 'r', mode?: number): number {
   const target = asPath(path)
   const file = vfs().openFileSync(target, flags, mode)
   const fd = nextFd++
@@ -433,11 +434,11 @@ export interface FileHandle {
  * Open a file handle. Directories open read-only, which is what the durability
  * helpers do before an fsync.
  * @param path - file or directory path.
- * @param flags - Node flag string.
+ * @param flags - Node string mode or supported Linux numeric access and creation flags.
  * @param mode - creation permission bits.
  * @returns the handle.
  */
-export function openHandleSync(path: PathArg, flags = 'r', mode?: number): FileHandle {
+export function openHandleSync(path: PathArg, flags: string | number = 'r', mode?: number): FileHandle {
   const target = asPath(path)
   const directory = vfs().existsSync(target) && vfs().statSync(target).isDirectory()
   const fd = directory ? -1 : openSync(target, flags, mode)
@@ -857,7 +858,7 @@ export const promises = {
   },
   // The VFS keeps both names attached to one file identity until either name is removed.
   link: async (from: PathArg, to: PathArg): Promise<void> => { linkSync(from, to) },
-  open: async (path: PathArg, flags?: string, mode?: number): Promise<FileHandle> => {
+  open: async (path: PathArg, flags?: string | number, mode?: number): Promise<FileHandle> => {
     await vfs().whenReadable(asPath(path))
     return openHandleSync(path, flags, mode)
   },

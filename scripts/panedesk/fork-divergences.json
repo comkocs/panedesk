@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "default-ledger-opening-completion",
+      "description": "Wait for each seat opening input's completed turn and durable response before asserting accounting.",
+      "origin": "Default accounting integration completion checks",
+      "reason": "Opening admission and engine dispatch do not guarantee tool completion within a polling interval; all six route and physical-call assertions remain unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "test": "%s records main, managed, ACP, seat, engine and SDK tool turns with run starts and physical calls"
+      }
+    },
+    {
       "id": "creator-fixture-distinct-tool-calls",
       "description": "Give each synthetic Creator management invocation a distinct tool call identity.",
       "origin": "Default accounting composition integration",

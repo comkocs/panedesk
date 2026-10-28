@@ -42,7 +42,7 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 
 `installFailLoud` 会为未处理 rejection 或未捕获异常向 stderr 写一条带标签的 `util.inspect` 诊断，在固定超时内等待界面的 release 钩子，然后以 1 退出；控制流不会回到失败的操作，因为只有抛出点知道哪些状态仍然完整，事件循环只运行到 release 结束或超时。有了这个入口，启动会保留所有能够激活的插件。启用但失败的插件会产生带标签的警告。required entry 失败时，启动会拆卸整个应用并以非零码退出；profile 中不存在的 required id 和已禁用的 required entry 不影响启动。全局 required list 覆盖共享 Agent 执行、应用 endpoint，以及 Web 启动与传输：`agent-loop`、`webserver`、`web-runtime`、`modules`、`connection`、`headless-runner`、`acp` 和 `sdk-jsonrpc-server`。
 
-主进程 profile 在 Loader 结算后通过不可变的 `ctx.kernelStatus.snapshot()` 发布 `sessionLedger` 与 `llmCache` 观测。服务缺失、禁用、失败或等待依赖时，logger 输出一行错误：账本不可用时为 `Session ledger not mounted: <details>`，否则为 `Accounting cache layer not mounted: <details>`。两者均不可用时细节列出两个服务。仅所有者可读写、原子替换的 `$PANEDESK_HOME/run/kernel-status.json` 只含服务名、可用状态、细因码、pid 与 ISO 时刻，不包含异常消息或配置值。`$PANEDESK_HOME/run/kernel-boot.json` 标记最近一次主进程启动，供离线读取方识别旧状态。离线 `ledger`、`ledger-watch` 与插件管理 profile 不替换这两份文件；持久化失败使启动拒绝。每个根上下文只由 boot 发布一次；重复就绪审计与 profile 重载保留同一观测，直到根上下文释放。这是启动观测，不是持续健康监测。
+主进程 profile 在 Loader 结算后通过不可变的 `ctx.kernelStatus.snapshot()` 发布 `sessionLedger` 与 `llmCache` 观测。服务缺失、禁用、失败或等待依赖时，logger 输出一行错误：账本不可用时为 `Session ledger not mounted: <details>`，否则为 `Accounting cache layer not mounted: <details>`。两者均不可用时细节列出两个服务。仅所有者可读写、原子替换的 `$PANEDESK_HOME/run/kernel-status.json` 只含服务名、可用状态、细因码、pid 与 ISO 时刻，不包含异常消息或配置值。`$PANEDESK_HOME/run/kernel-boot.json` 标记最近一次主进程启动，供离线读取方识别旧状态。离线 `ledger`、`ledger-watch` 与插件管理 profile 不替换这两份文件；持久化失败使启动拒绝。每个根上下文只由 boot 发布一次；重复就绪审计与 profile 重载保留同一观测，直到根上下文释放。发布与最终启动审计使用同一份已收集的激活失败，因此发布期间释放上下文不会因二次读取 Loader 而覆盖原诊断。这是启动观测，不是持续健康监测。
 
 <a id="profiles"></a>
 ### Profile
