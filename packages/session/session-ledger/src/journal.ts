@@ -1,7 +1,8 @@
 /** Append-only, checksummed JSONL segments with native-lock serialization and durable acknowledgements. */
 import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, readFile, realpath, stat, type FileHandle } from 'node:fs/promises'
-import { dirname, join, relative as relativePath } from 'node:path'
+import { dirname, join } from 'node:path'
+import { ledgerRelative } from './paths.ts'
 import { addToIndex, canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot, type LedgerIndex } from './index-store.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
@@ -343,6 +344,7 @@ class JournalView {
 
   async refresh(root: string, maxBytes: number): Promise<void> {
     const paths = [...await files(join(root, 'events')), ...await files(join(root, 'imports'))]
+      .map(path => ledgerRelative(root, path))
     const present = new Set(paths)
     if ([...this.segments.keys()].some(path => !present.has(path))) {
       // Administrative moves invalidate positions; normal writers never remove journal files.
@@ -353,11 +355,12 @@ class JournalView {
     for (const path of paths) {
       const previous = this.segments.get(path)
       // Legacy writers publish immutable UUID-named facts; unknown names remain monitored.
-      if (previous && /[\\/][a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.jsonl$/.test(path)) continue
-      const size = (await stat(path)).size
+      if (previous && /\/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.jsonl$/.test(path)) continue
+      const absolute = join(root, path)
+      const size = (await stat(absolute)).size
       if (previous && previous.offset === size) continue
       if (previous && size < previous.offset) throw new Error('Ledger segment was truncated')
-      const handle = await open(path, 'r+')
+      const handle = await open(absolute, 'r+')
       let content: Buffer
       try {
         const offset = previous?.offset ?? 0
@@ -370,10 +373,10 @@ class JournalView {
         }
         await handle.sync()
       } finally { await handle.close() }
-      if (!previous) await syncDirectory(dirname(path))
+      if (!previous) await syncDirectory(dirname(absolute))
       const segment = previous ?? { offset: 0, events: [], marks: [], tail: false, corrupt: false, importedConflicts: false }
       if (previous?.tail) segment.corrupt = true
-      if (relativePath(root, path).startsWith('imports/') || relativePath(root, path).startsWith('imports\\')) {
+      if (path.startsWith('imports/')) {
         try {
           if (content.at(-1) !== 10) throw new Error('Incomplete import manifest')
           const manifest = record(decode(content.subarray(0, -1), maxBytes))
@@ -392,9 +395,9 @@ class JournalView {
     }
   }
 
-  scan(): LedgerScan {
+  scan(root: string): LedgerScan {
     const ordered = [...this.segments].sort(([a], [b]) => {
-      const left = a.split(/[\\/]/); const right = b.split(/[\\/]/)
+      const left = a.split('/'); const right = b.split('/')
       for (let i = 0; i < Math.min(left.length, right.length); i++) {
         const part = left[i]; const other = right[i]
         if (part === undefined || other === undefined) break
@@ -403,8 +406,8 @@ class JournalView {
       }
       return left.length - right.length
     })
-    const tails = ordered.filter(([, value]) => value.tail).map(([path]) => path)
-    const corrupt = ordered.filter(([, value]) => value.corrupt).map(([path]) => path)
+    const tails = ordered.filter(([, value]) => value.tail).map(([path]) => join(root, path))
+    const corrupt = ordered.filter(([, value]) => value.corrupt).map(([path]) => join(root, path))
     return { events: ordered.flatMap(([, value]) => value.events), tails, corrupt,
       complete: !tails.length && !corrupt.length && !ordered.some(([, value]) => value.importedConflicts),
       watermark: digest(ordered.flatMap(([, value]) => value.marks).join('\n')) as LedgerWatermark }
@@ -419,11 +422,11 @@ class JournalView {
     const date = new Date().toISOString().slice(0, 10)
     const fresh = this.writer === undefined || this.writer.date !== date
     const directory = join(root, 'events', date)
-    if (fresh) { await ensureDirectory(directory); this.writer = { path: join(directory, `segment-${randomUUID()}.jsonl`), date } }
+    if (fresh) { await ensureDirectory(directory); this.writer = { path: ledgerRelative(root, join(directory, `segment-${randomUUID()}.jsonl`)), date } }
     const writer = this.writer
     if (!writer) throw new Error('Ledger writer segment is unavailable')
     try {
-      const handle = await open(writer.path, fresh ? 'wx' : 'a', 0o600)
+      const handle = await open(join(root, writer.path), fresh ? 'wx' : 'a', 0o600)
       try {
         let offset = 0
         while (offset < encoded.length) {
@@ -456,7 +459,7 @@ export async function readJournal(root: string, options: JournalOptions): Promis
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
-    return structuredClone(view.scan())
+    return structuredClone(view.scan(root))
   })
 }
 
@@ -488,7 +491,7 @@ export async function readJournalFacts(root: string, options: JournalOptions, se
       if (end) events = [...events, end]
     }
     // Ambiguous ordering and corrupt identities use the unchanged full projection path.
-    if (view.index.conflicts.length || selection.kind !== 'waits' && events.length > 1) events = view.scan().events
+    if (view.index.conflicts.length || selection.kind !== 'waits' && events.length > 1) events = view.scan(root).events
     const complete = ![...view.segments.values()].some(segment => segment.tail || segment.corrupt || segment.importedConflicts)
     return structuredClone({ events, complete })
   })
@@ -527,12 +530,12 @@ export async function appendUnique(
       // A previous writer may have lost its fsync acknowledgement; a replay must synchronize again.
       const path = view.eventFiles.get(prior.eventId)
       if (path === undefined) throw new Error('Ledger fact has no synchronized segment')
-      await syncFiles([path])
-      return { kind: 'existing', event: structuredClone(prior), watermark: view.scan().watermark }
+      await syncFiles([join(root, path)])
+      return { kind: 'existing', event: structuredClone(prior), watermark: view.scan(root).watermark }
     }
     for (const [tail, segment] of view.segments) {
       if (!segment.tail) continue
-      const recoveryId = `recovery:${digest(relativePath(root, tail))}` as LedgerEvent['eventId']
+      const recoveryId = `recovery:${digest(ledgerRelative(root, join(root, tail)))}` as LedgerEvent['eventId']
       if (index.events.has(recoveryId)) continue
       const recovery: LedgerEvent = {
         schemaVersion: 1, eventId: recoveryId, nodeId: immutable.nodeId,
@@ -542,7 +545,7 @@ export async function appendUnique(
       await view.append(root, recovery, frame(recovery, options.maxRecordBytes), options.appendCheckpoint)
     }
     await view.append(root, immutable, encoded, options.appendCheckpoint)
-    return { kind: 'appended', event: structuredClone(immutable), watermark: view.scan().watermark }
+    return { kind: 'appended', event: structuredClone(immutable), watermark: view.scan(root).watermark }
   })
 }
 
@@ -735,7 +738,7 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
     if (value.type === 'fragment') {
       const input = value.input
       assertArtifactAppend(input)
-      records.push({ type: 'fragment', input, path: relativePath(root, path) })
+      records.push({ type: 'fragment', input, path: ledgerRelative(root, path) })
     } else {
       record(value.reference)
       records.push(value as ArtifactRecord)

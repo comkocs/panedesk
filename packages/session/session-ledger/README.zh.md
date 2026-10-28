@@ -29,7 +29,7 @@ kind: "package-reference"
 
 提供方接受 `Config.waitTools`，并实现 `registerWaitTool(name, category)`，登记可信运行时分类（`sleep`、`external-marker`、`subagent`）。运行时登记优先于配置默认值；存活登记的类别冲突时拒绝，幂等释放函数只释放自己的登记。未登记工具保持 `unclassified`；模型输出不得定义类别。
 
-`appendArtifact` 在账本自管路径写入受限的 `partial-response` 或 `keepalive-request` JSON 片段。`(callId, kind, seq)` 标识精确 UTF-8 内容字节：相同重放返回 `existing`，异内容返回 `conflict`，不覆盖。序号从零开始且连续。成功应答须等待文件及必要目录同步。`finishArtifact` 核对末片并持久化收尾；之后拒绝新片段，但精确重放仍幂等。`LedgerCallFinish.artifacts` 携带返回引用，不携带原始内容。
+`appendArtifact` 在账本自管路径写入受限的 `partial-response` 或 `keepalive-request` JSON 片段。`(callId, kind, seq)` 标识精确 UTF-8 内容字节：相同重放返回 `existing`，异内容返回 `conflict`，不覆盖。序号从零开始且连续。成功应答须等待文件及必要目录同步。`finishArtifact` 核对末片并持久化收尾；之后拒绝新片段，但精确重放仍幂等。`LedgerCallFinish.artifacts` 携带返回引用，不携带原始内容。片段引用以及用于计算残尾恢复事件号摘要的相对路径，在所有平台上均使用 `/` 分隔；读取与重放保持已落盘的引用格式。
 
 `JournalSessionLedger.messages()` 将不含正文的 `message/state` 事实存入 `ledger/messages/v1/<nodeId>/events/<UTC-date>/`，独立于保持不变的调用命名空间 `ledger/v1/`。消息封套从 `schemaVersion: 1` 起步；人工来源可以没有会话或运行号。事件身份由节点、消息、状态版本与转移派生。原生写锁串行保护唯一状态版本；相同重放同步并确认既有字节，不同重放拒绝。每次追加创建受限权限、带校验的 JSONL 段，并同步文件与目录。中断半行保留不动，后续写入另起段；读取明确报告不完整存储，不隐藏半行或损坏。消息正文被拒绝。
 

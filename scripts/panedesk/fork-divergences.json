@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "agent-loop-reused-start-debug-fields",
+      "description": "Report reused run-start differences once at debug level with field names only, without a second ledger start.",
+      "origin": "Caller-prepared run admission diagnostics",
+      "reason": "First-writer fields remain authoritative in both default profiles; reverse-order retries retain existing or conflict outcomes without disrupting the Agent.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/core/agent-loop/tests/ledger-run.spec.ts"],
+        "test": "logs only differing field names when reusing a start; inherited: %s"
+      }
+    },
+    {
+      "id": "agent-loop-caller-started-residency",
+      "description": "Reuse a caller-started unfinished bound run without appending a second start, and settle top-level runs through Agent teardown.",
+      "origin": "Caller-prepared run admission",
+      "reason": "Integrations may bind context and persist launch intent before Agent creation. Reuse requires matching session and node identities and must preserve subagent terminal ownership and strict unique slots.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "test": "%s reuses a caller-started run for a tool turn and settles it on disposal"
+      }
+    },
+    {
       "id": "ledger-integration-profile-fixtures",
       "description": "Seat uses the base-owned full ledger; SDK and budget compositions supply durable launch intent and explicit synthetic transport evidence.",
       "origin": "Ledger integration runtime and generated-reference repair",
@@ -1491,6 +1513,17 @@
         "type": "test-assertion",
         "paths": ["packages/seat/seat-engine/tests/callback-retention.spec.ts"],
         "test": "C11-b parks at 900000 but not 899999 and appends nothing after restart"
+      }
+    },
+    {
+      "id": "ledger-portable-relative-paths",
+      "description": "Normalize ledger fragment references and tail-recovery identity paths to forward slashes on every platform.",
+      "origin": "Windows ledger sidecar closure repair",
+      "reason": "Native Windows relative separators must not differ from persisted fragment references or duplicate tail-recovery alerts after a platform change.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/relative-paths.spec.ts"],
+        "test": "keeps tail recovery identities equal across POSIX and Windows reads without duplicate alerts"
       }
     }
   ]

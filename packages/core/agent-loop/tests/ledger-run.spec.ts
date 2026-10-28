@@ -4,6 +4,7 @@ import { SessionId } from '@panedesk/dsh-session'
 import { brandString, type Branded } from '@panedesk/dsh-brand'
 import { createUserMessage, LlmError } from '@panedesk/dsh-llm'
 import { createLaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
+import type { LedgerNodeId } from '@panedesk/dsh-session-ledger'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
 import { afterEach, expect, it, vi } from 'vitest'
 import AgentLoop from '../src/index.ts'
@@ -105,6 +106,110 @@ it.each([true, false])('reuses inherited run only when its local start exists: %
     await finish!([], false)
     expect(ledger.finishes).toHaveLength(1)
   }
+})
+
+it.each([false, true])('logs only differing field names when reusing a start; inherited: %s', async (inherited) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await ctx.plugin(MemoryLedger)
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const sessionId = SessionId('session-a')
+  const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+  const debug = vi.spyOn(ctx.logger, 'debug').mockImplementation(() => undefined)
+  try {
+    const finish = await beginAgentRun(ctx, sessionId)
+    const original = ledger.starts[0]!
+    const context = ledger.contextFor(sessionId)!
+    if (inherited) {
+      const subagentRunId = brandString<Branded<'SubagentRunId'>>(context.runId)
+      ledger.bindContext({ ...context, subagentRunId })
+      original.subagentRunId = subagentRunId
+    }
+    const equal = await beginAgentRun(ctx, sessionId)
+    expect(debug).not.toHaveBeenCalled()
+    if (inherited) expect(equal).toBeUndefined()
+    original.deliveryPaths = ['caller-delivery']
+    original.launchState = 'pending'
+    original.startedAt = 1
+    original.definition = 'caller-definition'
+    delete original.processIdentity
+    const changed = await beginAgentRun(ctx, sessionId)
+    expect(debug).toHaveBeenCalledExactlyOnceWith(
+      'Agent lifecycle ledger reused start; differing fields: definition, deliveryPaths, launchState, processIdentity, startedAt',
+    )
+    if (inherited) expect(changed).toBeUndefined()
+    expect(ledger.starts).toEqual([original])
+    expect(ledger.events.filter(event => event.kind === 'run/start')).toHaveLength(1)
+    expect(ledger.events.every(event => event.kind === 'run/start' || event.kind === 'process/observed')).toBe(true)
+    await finish!([], false)
+  } finally { debug.mockRestore(); now.mockRestore() }
+})
+
+it.each(['session', 'node'] as const)('rejects a bound run with a different %s identity before publication', async (identity) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(MemoryLedger)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const sessionId = SessionId('session-a')
+  await seedParentLedger(ledger, sessionId)
+  const bound = ledger.contextFor(sessionId)!
+  await ledger.beginRun({ ...bound, startedAt: Date.now(), launchState: 'started', deliveryPaths: [],
+    ...identity === 'session' ? { sessionId: SessionId('other-session') }
+      : { nodeId: brandString<LedgerNodeId>('other-node') } })
+  const announced = vi.fn()
+  ctx.on('agent/created', announced)
+  for (const inherited of [false, true]) {
+    const unbind = ledger.bindContext({ ...bound,
+      ...inherited ? { subagentRunId: brandString<Branded<'SubagentRunId'>>(bound.runId) } : {} })
+    try {
+      await expect(ctx.agents.create({ sessionId })).rejects.toThrow('run identity conflicted')
+      expect(announced).not.toHaveBeenCalled()
+      expect(ctx.agents.get(sessionId)).toBeUndefined()
+    } finally { unbind() }
+  }
+  expect(ledger.starts).toHaveLength(1)
+  expect(ledger.finishes).toHaveLength(0)
+})
+
+it.each(['finished', 'incomplete'] as const)('does not reuse a %s bound residency', async (state) => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await ctx.plugin(MemoryLedger)
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const sessionId = SessionId('session-a')
+  await seedParentLedger(ledger, sessionId)
+  const bound = ledger.contextFor(sessionId)!
+  await ledger.beginRun({ ...bound, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+  if (state === 'finished') {
+    await ledger.finishRun({ runId: bound.runId, observedAt: Date.now(), endReason: 'completed',
+      recovered: false, deliveryState: 'not-requested' })
+  } else {
+    const snapshot = await ledger.snapshot()
+    vi.spyOn(ledger, 'snapshot').mockResolvedValue({ ...snapshot, complete: false })
+  }
+  await expect(beginAgentRun(ctx, sessionId)).rejects.toThrow(state === 'finished' ? 'already finished' : 'snapshot is incomplete')
+  expect(ledger.starts).toHaveLength(1)
+  expect(ledger.finishes).toHaveLength(state === 'finished' ? 1 : 0)
+})
+
+it('settles a caller-started run when publication fails without removing the caller binding', async () => {
+  const ctx = new Context()
+  contexts.push(ctx)
+  await mountAgentLoopTestDependencies(ctx)
+  await ctx.plugin(MemoryLedger)
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const ledger = ctx.sessionLedger as MemoryLedger
+  const sessionId = SessionId('session-a')
+  await seedParentLedger(ledger, sessionId)
+  const bound = ledger.contextFor(sessionId)!
+  await ledger.beginRun({ ...bound, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+  ctx.on('agent/created', () => { throw new Error('Publication failed') })
+  await expect(ctx.agents.create({ sessionId })).rejects.toThrow('Publication failed')
+  expect(ledger.starts).toHaveLength(1)
+  expect(ledger.finishes).toEqual([expect.objectContaining({ runId: bound.runId, endReason: 'error' })])
+  expect(ledger.contextFor(sessionId)).toEqual(bound)
 })
 
 it('preserves creation and teardown without the optional ledger', async () => {

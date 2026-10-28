@@ -3,13 +3,15 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { Context } from '@panedesk/cordis'
-import { JournalSessionLedger, type LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { JournalSessionLedger, type LedgerRunId, type LedgerSessionContext, type LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { brandString } from '@panedesk/dsh-brand'
 import { applyEntryPatches } from '@panedesk/cordis-plugin-include'
 import { boot, loadOverlayPatches } from '@panedesk/dsh-app-boot'
 import { provideCmdline } from '@panedesk/dsh-cmdline'
 import { createUserMessage, ReasoningEffortId, type GenerateOptions, type StreamChunk } from '@panedesk/dsh-llm'
 import { SessionId } from '@panedesk/dsh-session'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import type { SeatDigest, SeatName, SeatSourceId, SourceEventId, TriggerId } from '@panedesk/dsh-seat'
 import { MessageId } from '@panedesk/dsh-llm/brand'
 import { client as createAcpClientApp, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
 import * as Acp from '@panedesk/dsh-acp'
@@ -86,6 +88,7 @@ async function start(profile: 'slim' | 'full'): Promise<{ ctx: Context; adapter:
     toolCallResponse('child-call', 'ledger_probe', { text: 'child' }), textResponse('child done'),
     toolCallResponse('acp-call', 'ledger_probe', { text: 'acp' }), textResponse('acp done'),
     toolCallResponse('seat-call', 'ledger_probe', { text: 'seat' }), textResponse('seat done'),
+    toolCallResponse('engine-call', 'ledger_probe', { text: 'engine' }), textResponse('engine done'),
   ], { efforts: [{ id: ReasoningEffortId('effort-a'), name: 'Fixture effort' }] })
   ctx.effect(() => ctx.get('llm')!.registerAdapter(['mock'], adapter))
   ctx.effect(() => ctx.get('tools')!.register(defineTool({
@@ -98,7 +101,89 @@ async function start(profile: 'slim' | 'full'): Promise<{ ctx: Context; adapter:
 }
 
 describe('default profile durable accounting', () => {
-  it.each(['slim', 'full'] as const)('%s records main, managed, ACP, seat and SDK tool turns with run starts and physical calls', async (profile) => {
+  it.each(['slim', 'full'] as const)('%s reuses a caller-started run for a tool turn and settles it on disposal', async (profile) => {
+    calls.length = 0
+    const { ctx, adapter } = await start(profile)
+    const ledger = ctx.get('sessionLedger')!
+    const sessionId = SessionId(randomUUID())
+    const context: LedgerSessionContext = {
+      sessionId, rootSessionId: sessionId, runId: brandString<LedgerRunId>(randomUUID()),
+      nodeId: await ledger.nodeId(), seat: 'free', window: 'free', identitySource: 'free', accountLabel: 'mock',
+    }
+    const unbind = ledger.bindContext(context)
+    const input = { ...context, startedAt: 1, launchState: 'pending' as const, deliveryPaths: ['caller-delivery'] }
+    expect((await ledger.beginRun(input)).kind).toBe('appended')
+    const begin = vi.spyOn(ledger, 'beginRun')
+    const differences: { type: string; args: unknown[] }[] = []
+    const stopLogging = ctx.logger.exporter({ levels: { default: 3 }, export(message) {
+      if (String(message.args[0]).startsWith('Agent lifecycle ledger reused start;')) {
+        differences.push({ type: message.type, args: message.args })
+      }
+    } })
+    try {
+      const handle = await ctx.get('agents')!.create({ sessionId, agentOptions: { provider: 'mock', model: 'ledger-model' } })
+      try {
+        expect(begin).not.toHaveBeenCalled()
+        expect(differences).toEqual([{ type: 'debug', args: [
+          'Agent lifecycle ledger reused start; differing fields: deliveryPaths, launchState, processIdentity, startedAt',
+        ] }])
+        handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Run the probe.' }], source: { kind: 'user' } }))
+        await handle.agent.whenIdle()
+        expect(calls).toEqual(['main'])
+        const snapshot = await ledger.snapshot({ sessionId })
+        expect(snapshot.complete).toBe(true)
+        expectConversationCalls(snapshot, adapter.requests, sessionId)
+        const activeRuns = snapshot.rows.filter(row => row.kind === 'run')
+        expect(activeRuns).toHaveLength(1)
+        expect(activeRuns[0]?.start).toEqual(input)
+        expect(activeRuns[0]?.finish).toBeUndefined()
+        expect(JSON.stringify(snapshot)).not.toContain('differing fields')
+        expect(snapshot.rows.some(row => row.kind === 'event' && row.event.kind === 'wait/start')).toBe(true)
+      } finally { await Promise.all([handle.dispose(), handle.dispose()]) }
+      const runs = (await ledger.snapshot({ sessionId })).rows.filter(row => row.kind === 'run')
+      expect(runs).toHaveLength(1)
+      expect(runs[0]).toMatchObject({ start: input, finish: { runId: context.runId, endReason: 'completed' } })
+      expect(ledger.contextFor(sessionId)).toEqual(context)
+    } finally { await stopLogging(); begin.mockRestore(); unbind() }
+  })
+
+  it.each((['slim', 'full'] as const).flatMap(profile =>
+    (['agent-first', 'neither-prewrites'] as const).map(order => ({ profile, order })),
+  ))('$profile persists one start for $order and keeps the Agent usable', async ({ profile, order }) => {
+    calls.length = 0
+    const { ctx, adapter } = await start(profile)
+    const ledger = ctx.get('sessionLedger')!
+    const sessionId = SessionId(randomUUID())
+    expect(ledger.contextFor(sessionId)).toBeUndefined()
+    expect((await ledger.snapshot({ sessionId })).rows).toEqual([])
+    const begin = vi.spyOn(ledger, 'beginRun')
+    const handle = await ctx.get('agents')!.create({ sessionId, agentOptions: { provider: 'mock', model: 'ledger-model' } })
+    try {
+      expect(begin).toHaveBeenCalledTimes(1)
+      const input = begin.mock.calls[0]![0]
+      if (order === 'agent-first') {
+        expect((await ledger.beginRun({ ...input, launchState: 'pending', deliveryPaths: ['late-caller'] })).kind).toBe('conflict')
+        expect((await ledger.beginRun(input)).kind).toBe('existing')
+      }
+      handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Run the probe.' }], source: { kind: 'user' } }))
+      await handle.agent.whenIdle()
+      expect(calls).toEqual(['main'])
+      const snapshot = await ledger.snapshot({ sessionId })
+      expect(snapshot.complete).toBe(true)
+      expectConversationCalls(snapshot, adapter.requests, sessionId)
+      const runs = snapshot.rows.filter(row => row.kind === 'run')
+      expect(runs).toHaveLength(1)
+      expect(runs[0]?.start).toEqual(input)
+      expect(runs[0]?.finish).toBeUndefined()
+      expect(snapshot.rows.some(row => row.kind === 'event' && row.event.kind === 'wait/start')).toBe(true)
+    } finally { begin.mockRestore(); await handle.dispose() }
+    const runs = (await ledger.snapshot({ sessionId })).rows.filter(row => row.kind === 'run')
+    expect(runs).toHaveLength(1)
+    expect(runs[0]?.finish?.endReason).toBe('completed')
+    expect(ledger.contextFor(sessionId)).toBeUndefined()
+  })
+
+  it.each(['slim', 'full'] as const)('%s records main, managed, ACP, seat, engine and SDK tool turns with run starts and physical calls', async (profile) => {
     calls.length = 0
     const { ctx, adapter } = await start(profile)
     expect(ctx.get('sessionLedger')).toBeDefined()
@@ -200,11 +285,13 @@ describe('default profile durable accounting', () => {
       const seats = ctx.get('seats')!.withAuthority({ principalId: 'test-user' as import('@panedesk/dsh-seat').SeatPrincipalId,
         origin: 'manual', nodeId: seatConfig.local.nodeId })
       const sourcePath = join(home, 'seats.csv')
-      await writeFile(sourcePath, 'seat,model\nseat-a,ledger-model\n')
+      await writeFile(sourcePath, 'seat,model\nseat-a,ledger-model\nseat-engine,ledger-model\n')
       const plan = await seats.previewImport({ format: 'csv', sourcePath, columnMap: { seat: 'seat', model: 'model' }, defaults: {} })
       if ('status' in plan) throw new Error(JSON.stringify(plan))
       expect(plan.rows[0]?.diagnostics).toEqual([])
-      expect(await seats.commitImport({ planId: plan.planId, selectedRows: [plan.rows[0]!.row],
+      expect(plan.rows).toHaveLength(2)
+      expect(plan.rows[1]?.diagnostics).toEqual([])
+      expect(await seats.commitImport({ planId: plan.planId, selectedRows: plan.rows.map(row => row.row),
         expectedRevision: 0, operationId: operation('import-ledger') })).toMatchObject({ status: 'committed' })
       const opened = await seats.open({ seat: seatConfig.definition.seat, origin: 'manual', operationId: operation('open-ledger') })
       if (opened.status !== 'opened') throw new Error(JSON.stringify(opened))
@@ -214,6 +301,35 @@ describe('default profile durable accounting', () => {
       expect(seatLedger.rows.some(row => row.kind === 'run')).toBe(true)
       expect(seatLedger.rows.filter(row => row.kind === 'call' && row.start.purpose === 'conversation')).toHaveLength(2)
       expectConversationCalls(seatLedger, adapter.requests, opened.sessionId)
+
+      const engine = ctx.get('seatEngine')!
+      const sourceId = brandString<SeatSourceId>('accounting-source')
+      const engineSeat = brandString<SeatName>('seat-engine')
+      const unregisterSource = engine.registerSource({ sourceId, kinds: ['external'], maxRedeliveryMs: null,
+        callback: async () => {} })
+      try {
+        expect(await engine.setProjectMode({ projectId: seatConfig.definition.projectId, mode: 'auto',
+          expectedRevision: 0, operationId: operation('engine-auto') })).toMatchObject({ status: 'saved' })
+        expect(await engine.accept({ triggerId: brandString<TriggerId>('accounting-trigger'), sourceId,
+          eventId: brandString<SourceEventId>('accounting-event'), kind: 'external',
+          evidence: { kind: 'external', eventType: 'accounting' }, seat: engineSeat,
+          projectId: seatConfig.definition.projectId, receivedAt: new Date().toISOString(),
+          dataDigest: brandString<SeatDigest>(createHash('sha256').update('null').digest('hex')), data: null, callbackRef: sourceId,
+        })).toMatchObject({ status: 'accepted' })
+        await engine.drive()
+        await vi.waitFor(() => { expect(calls).toContain('engine') })
+        const listed = await seats.list({})
+        if (listed.status !== 'listed') throw new Error(JSON.stringify(listed))
+        const window = listed.sessions.find(session => session.seat === engineSeat)!
+        const agent = ctx.get('agents')!.get(window.sessionId)!
+        await agent.whenIdle()
+        const snapshot = await ctx.get('sessionLedger')!.snapshot({ sessionId: agent.id })
+        expect(snapshot.complete).toBe(true)
+        expect(snapshot.rows.filter(row => row.kind === 'run')).toHaveLength(1)
+        expectConversationCalls(snapshot, adapter.requests, agent.id)
+        expect(snapshot.rows.some(row => row.kind === 'event' && row.event.kind === 'wait/start')).toBe(true)
+        expect((await engine.nodeStatus()).openEngineWindows).toBe(1)
+      } finally { await unregisterSource() }
 
       const childHome = join(home, 'sdk-child')
       const marker = join(home, 'sdk-tool-executed')
