@@ -72,6 +72,20 @@ describe('cross-process kernel diagnostics', () => {
     expect(await readFile(join(home, 'run/kernel-boot.json'), 'utf8')).toBe(marker)
   })
 
+  it.each([
+    ['failed', 'mounted', 'Session ledger not mounted: sessionLedger=failed(activation-failed)'],
+    ['mounted', 'failed', 'Accounting cache layer not mounted: llmCache=failed(activation-failed)'],
+    ['failed', 'failed', 'Session ledger not mounted: sessionLedger=failed(activation-failed); llmCache=failed(activation-failed)'],
+  ] as const)('reports ledger %s and cache %s accurately', async (ledger, cache, expected) => {
+    const home = await failedMain('llm-cache')
+    await writeFile(join(home, 'run/kernel-status.json'), JSON.stringify({ pid: process.pid, time: new Date().toISOString(), services: {
+      sessionLedger: { status: ledger, cause: ledger === 'mounted' ? 'service-present' : 'activation-failed' },
+      llmCache: { status: cache, cause: cache === 'mounted' ? 'service-present' : 'activation-failed' },
+    } }))
+    const { stderr } = await query(home)
+    expect(String(stderr.mock.calls[0]![0])).toBe(`${expected}\n`)
+  })
+
   it('marks an observation older than the latest boot as possibly stale', async () => {
     const home = await failedMain('session-ledger-full')
     await writeFile(join(home, 'run/kernel-boot.json'), JSON.stringify({ pid: process.pid, time: '9999-01-01T00:00:00.000Z' }))
@@ -84,6 +98,6 @@ describe('cross-process kernel diagnostics', () => {
     const { exit, stdout, stderr } = await query(home, { id: 'ledger-query', name: 'cordis:query', disabled: true })
     expect(exit).toHaveBeenCalledWith(1)
     expect(stdout).not.toHaveBeenCalled()
-    expect(stderr.mock.calls.map(call => String(call[0]))).toContain('Session ledger not mounted: ledgerQuery=disabled(entry-disabled)\n')
+    expect(stderr.mock.calls.map(call => String(call[0]))).toContain('Ledger query unavailable: ledgerQuery=disabled(entry-disabled)\n')
   })
 })

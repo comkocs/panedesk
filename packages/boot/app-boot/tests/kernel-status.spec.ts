@@ -50,6 +50,30 @@ describe('kernel startup status', () => {
     expect(Object.isFrozen(ctx.get('kernelStatus')?.snapshot())).toBe(true)
   })
 
+  it.each([
+    ['sessionLedger', 'Session ledger not mounted: sessionLedger=failed(activation-failed)'],
+    ['llmCache', 'Accounting cache layer not mounted: llmCache=failed(activation-failed)'],
+    ['neither', 'Session ledger not mounted: sessionLedger=failed(activation-failed); llmCache=failed(activation-failed)'],
+  ] as const)('reports actual missing services when %s fails', async (failed, expected) => {
+    const homeRows = '- id: session-ledger-full\n  name: ./failure.mjs\n- id: llm-cache\n  name: ./failure.mjs\n- id: partial\n  name: ./partial.mjs\n'
+    const home = mkdtempSync(join(tmpdir(), 'kernel-status-'))
+    roots.push(home)
+    writeFileSync(join(home, 'partial.mjs'), `export function apply(ctx) { ${failed !== 'sessionLedger' && failed !== 'neither' ? 'ctx.provide("sessionLedger", {})' : ''}; ${failed !== 'llmCache' && failed !== 'neither' ? 'ctx.provide("llmCache", {})' : ''} }\n`)
+    writeFileSync(join(home, 'failure.mjs'), 'export function apply() { throw new Error("failure") }\n')
+    writeFileSync(join(home, 'cordis.yml'), homeRows)
+    const errors: unknown[][] = []
+    const ctx = await boot('kernel-test', join(home, 'cordis.yml'), undefined, (host) => {
+      host.provide('profileContext', { name: 'slim', home, cwd: home, dir: home, patchPath: join(home, 'cordis.patch.yml'),
+        installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined })
+      host.logger.exporter({ levels: { default: 2 }, export: ({ type, args }) => {
+        const values: readonly unknown[] = args
+        if (type === 'error') errors.push([...values])
+      } })
+    })
+    contexts.push(ctx)
+    expect(errors.flat()).toContain(expected)
+  })
+
   it('distinguishes disabled and missing entries instead of treating them as mounted', async () => {
     const { home } = await start('- id: session-ledger-full\n  name: ./missing.mjs\n  disabled: true\n')
     const status = JSON.parse(readFileSync(join(home, 'run/kernel-status.json'), 'utf8')) as KernelStatus

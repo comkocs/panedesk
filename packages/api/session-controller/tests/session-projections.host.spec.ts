@@ -177,7 +177,7 @@ describe('session.history projections block', () => {
       })
     }
     const proxy = remote(ctx)
-    const expected = withAudit ? { ledger: 'failed', cause: 'activation-failed' } : undefined
+    const expected = withAudit ? { ledger: 'failed', cause: 'activation-failed', cache: { status: 'mounted', cause: 'service-present' } } : undefined
     const history = await opening(proxy, session.id)
     expect(history.projections.values.accountingStatus).toEqual(expected)
     const pulled = await proxy.projections({ sessionId: session.id })
@@ -197,6 +197,20 @@ describe('session.history projections block', () => {
       await iterator.return?.()
     }
     expect(ctx.sessionProjections.snapshot(session).values).not.toHaveProperty('accountingStatus')
+  })
+
+  it.each([
+    ['failed', 'mounted'], ['mounted', 'failed'], ['failed', 'failed'],
+  ] as const)('projects ledger %s and cache %s', async (ledger, cache) => {
+    const { ctx, session } = await harness(true)
+    new KernelStatusService(ctx, { pid: process.pid, time: new Date().toISOString(), services: {
+      sessionLedger: { status: ledger, cause: ledger === 'mounted' ? 'service-present' : 'activation-failed' },
+      llmCache: { status: cache, cause: cache === 'mounted' ? 'service-present' : 'activation-failed' },
+    } })
+    const history = await opening(remote(ctx), session.id)
+    expect(history.projections.values.accountingStatus).toEqual({ ledger,
+      cause: ledger === 'mounted' ? 'service-present' : 'activation-failed',
+      cache: { status: cache, cause: cache === 'mounted' ? 'service-present' : 'activation-failed' } })
   })
 
   it('keeps the v0 numeric seed cut on the wire while logical headers expose only lineage', async () => {

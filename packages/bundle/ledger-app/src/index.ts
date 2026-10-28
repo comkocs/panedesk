@@ -59,7 +59,7 @@ export function apply(ctx: Context, config: Config): void {
           await readers
           const service = ctx.get('ledgerQuery')
           if (!service) {
-            process.stderr.write(`Session ledger not mounted: ${unavailableQueryCause(ctx)}\n`)
+            process.stderr.write(`Ledger query unavailable: ${unavailableQueryCause(ctx)}\n`)
             exit(1)
             return
           }
