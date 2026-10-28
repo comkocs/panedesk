@@ -1,7 +1,8 @@
 /** Append-only, checksummed JSONL segments with native-lock serialization and durable acknowledgements. */
 import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, readFile, type FileHandle } from 'node:fs/promises'
-import { dirname, join, relative as relativePath } from 'node:path'
+import { dirname, join } from 'node:path'
+import { ledgerRelative } from './paths.ts'
 import { canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot } from './index-store.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
@@ -289,7 +290,7 @@ export async function appendUnique(
     const directory = join(root, 'events', new Date().toISOString().slice(0, 10))
     await ensureDirectory(directory)
     for (const tail of scan.tails) {
-      const recoveryId = `recovery:${digest(relativePath(root, tail))}` as LedgerEvent['eventId']
+      const recoveryId = `recovery:${digest(ledgerRelative(root, tail))}` as LedgerEvent['eventId']
       if (index.events.has(recoveryId)) continue
       const recovery: LedgerEvent = {
         schemaVersion: 1, eventId: recoveryId, nodeId: immutable.nodeId,
@@ -493,7 +494,7 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
     if (value.type === 'fragment') {
       const input = value.input
       assertArtifactAppend(input)
-      records.push({ type: 'fragment', input, path: relativePath(root, path) })
+      records.push({ type: 'fragment', input, path: ledgerRelative(root, path) })
     } else {
       record(value.reference)
       records.push(value as ArtifactRecord)

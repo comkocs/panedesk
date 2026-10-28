@@ -1470,6 +1470,17 @@
         "paths": ["packages/seat/seat-engine/tests/callback-retention.spec.ts"],
         "test": "C11-b parks at 900000 but not 899999 and appends nothing after restart"
       }
+    },
+    {
+      "id": "ledger-portable-relative-paths",
+      "description": "Normalize ledger fragment references and tail-recovery identity paths to forward slashes on every platform.",
+      "origin": "Windows ledger sidecar closure repair",
+      "reason": "Native Windows relative separators must not differ from persisted fragment references or duplicate tail-recovery alerts after a platform change.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/relative-paths.spec.ts"],
+        "test": "keeps tail recovery identities equal across POSIX and Windows reads without duplicate alerts"
+      }
     }
   ]
 }
