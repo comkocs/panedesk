@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { Context } from '@panedesk/cordis'
-import { JournalSessionLedger } from '@panedesk/dsh-session-ledger'
+import { JournalSessionLedger, type LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import { applyEntryPatches } from '@panedesk/cordis-plugin-include'
 import { boot, loadOverlayPatches } from '@panedesk/dsh-app-boot'
 import { provideCmdline } from '@panedesk/dsh-cmdline'
@@ -44,7 +44,16 @@ class AccountingAdapter extends MockAdapter {
   }
 }
 
-async function start(profile: 'slim' | 'full'): Promise<Context> {
+function expectConversationCalls(snapshot: LedgerSnapshot, requests: readonly Pick<GenerateOptions, 'sessionId' | 'purpose'>[], sessionId: SessionId): void {
+  const received = requests.filter(request => request.sessionId === sessionId && request.purpose === undefined)
+  const rows = snapshot.rows.filter(row => row.kind === 'call')
+    .filter(row => row.start.purpose === 'conversation' && row.start.sessionId === sessionId)
+  expect(received).toHaveLength(2)
+  expect(rows).toHaveLength(received.length)
+  expect(new Set(rows.map(row => row.start.callId)).size).toBe(received.length)
+}
+
+async function start(profile: 'slim' | 'full'): Promise<{ ctx: Context; adapter: AccountingAdapter }> {
   const home = await mkdtemp(join(tmpdir(), 'default-ledger-'))
   roots.push(home)
   vi.stubEnv('PANEDESK_HOME', home)
@@ -85,13 +94,13 @@ async function start(profile: 'slim' | 'full'): Promise<Context> {
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     async execute(args) { calls.push(args.text ?? ''); return args.text ?? '' },
   })))
-  return ctx
+  return { ctx, adapter }
 }
 
 describe('default profile durable accounting', () => {
   it.each(['slim', 'full'] as const)('%s records main, managed, ACP, seat and SDK tool turns with run starts and physical calls', async (profile) => {
     calls.length = 0
-    const ctx = await start(profile)
+    const { ctx, adapter } = await start(profile)
     expect(ctx.get('sessionLedger')).toBeDefined()
     expect(ctx.get('messageLedger')).toBeDefined()
     expect(ctx.get('llmCache')).toBeDefined()
@@ -111,6 +120,7 @@ describe('default profile durable accounting', () => {
         expect(snapshot.complete).toBe(true)
         expect(snapshot.rows.some(row => row.kind === 'run')).toBe(true)
         expect(snapshot.rows.filter(row => row.kind === 'call' && row.start.purpose === 'conversation')).toHaveLength(2)
+        expectConversationCalls(snapshot, adapter.requests, sessionId)
         expect(snapshot.rows.some(row => row.kind === 'event' && row.event.kind === 'wait/start')).toBe(true)
       }
       const messageRead = vi.spyOn(ctx.get('messageLedger')!, 'read')
@@ -128,7 +138,7 @@ describe('default profile durable accounting', () => {
         apply: (host: Context, config: Acp.AcpConfig) => {
           Acp.apply(host, { ...config, stream: ndJsonStream(outbound.writable, inbound.readable) })
         } }
-      const acpId = await ctx.loader.create({ id: 'accounting-acp', name: 'cordis:accounting-acp',
+      const acpId = await ctx.loader.create({ name: 'cordis:accounting-acp',
         config: { provider: 'mock', model: 'ledger-model' } })
       await ctx.loader.await()
       const client = clientApp.connect(ndJsonStream(inbound.writable, outbound.readable)).agent
@@ -142,6 +152,7 @@ describe('default profile durable accounting', () => {
         const snapshot = await ctx.get('sessionLedger')!.snapshot({ sessionId: SessionId(session.sessionId) })
         expect(snapshot.rows.some(row => row.kind === 'run')).toBe(true)
         expect(snapshot.rows.filter(row => row.kind === 'call' && row.start.purpose === 'conversation')).toHaveLength(2)
+        expectConversationCalls(snapshot, adapter.requests, SessionId(session.sessionId))
       } finally { await ctx.loader.resolve(acpId).fiber?.dispose() }
 
       const home = ctx.get('profileContext')!.home
@@ -151,7 +162,7 @@ describe('default profile durable accounting', () => {
       seatConfig.definition.permissionPreset = 'workspace-write'
       const credentialModule: object = await import('@panedesk/dsh-credentials-local')
       ctx.loader.builtins['seat-credentials'] = credentialModule
-      await ctx.loader.create({ id: 'seat-credentials', name: 'cordis:seat-credentials', config: { dshHome: home, watch: false } })
+      await ctx.loader.create({ name: 'cordis:seat-credentials', config: { dshHome: home, watch: false } })
       const dependencyRows = [
         ['commands', '@panedesk/dsh-commands', {}],
         ['session-title', '@panedesk/dsh-session-title', { fallbackMaxWords: 5, fallbackMaxBytes: 40, maxTitleBytes: 80 }],
@@ -174,7 +185,7 @@ describe('default profile durable accounting', () => {
         if (loaded.has(id)) continue
         const builtin = `seat-fixture-${id}`
         ctx.loader.builtins[builtin] = await import(module) as object
-        await ctx.loader.create({ id, name: `cordis:${builtin}`, config })
+        await ctx.loader.create({ name: `cordis:${builtin}`, config })
       }
       await ctx.loader.await()
       await vi.waitFor(() => {
@@ -202,6 +213,7 @@ describe('default profile durable accounting', () => {
       const seatLedger = await ctx.get('sessionLedger')!.snapshot({ sessionId: opened.sessionId })
       expect(seatLedger.rows.some(row => row.kind === 'run')).toBe(true)
       expect(seatLedger.rows.filter(row => row.kind === 'call' && row.start.purpose === 'conversation')).toHaveLength(2)
+      expectConversationCalls(seatLedger, adapter.requests, opened.sessionId)
 
       const childHome = join(home, 'sdk-child')
       const marker = join(home, 'sdk-tool-executed')
@@ -217,7 +229,7 @@ describe('default profile durable accounting', () => {
         ] },
       ]))
       ctx.loader.builtins['accounting-sdk'] = await import('@panedesk/dsh-subagent-dsh-sdk')
-      await ctx.loader.create({ id: 'accounting-sdk', name: 'cordis:accounting-sdk', config: {
+      await ctx.loader.create({ name: 'cordis:accounting-sdk', config: {
         profile, patches: [sdkPatch], dshHome: childHome, provider: 'mock', model: 'ledger-model',
         env: { DSH_ACCOUNTING_MARKER: marker, PANEDESK_TELEMETRY_DISABLED: '1' },
       } })
@@ -237,6 +249,14 @@ describe('default profile durable accounting', () => {
       expect(sdkLedger.complete).toBe(true)
       const sdkCalls = sdkLedger.rows.filter(row => row.kind === 'call' && row.start.purpose === 'conversation')
       expect(sdkCalls).toHaveLength(2)
+      const sdkRequests = (await readFile(`${marker}.requests`, 'utf8')).trim().split('\n').map((line) => {
+        const request: unknown = JSON.parse(line)
+        if (request === null || typeof request !== 'object' || !('sessionId' in request)
+          || typeof request.sessionId !== 'string' || 'purpose' in request) throw new Error('Invalid SDK conversation request marker')
+        return { sessionId: SessionId(request.sessionId) }
+      })
+      expect(new Set(sdkRequests.map(request => request.sessionId)).size).toBe(1)
+      expectConversationCalls(sdkLedger, sdkRequests, sdkRequests[0]!.sessionId)
       for (const row of sdkCalls) {
         if (row.kind !== 'call') continue
         expect(sdkLedger.rows.some(run => run.kind === 'run' && run.start.runId === row.start.runId)).toBe(true)
@@ -262,7 +282,7 @@ describe('default profile durable accounting', () => {
           '[analytics]', 'enabled = false',
         ].join('\n'))
         ctx.loader.builtins['accounting-codex'] = await import('@panedesk/dsh-subagent-codex')
-        await ctx.loader.create({ id: 'accounting-codex', name: 'cordis:accounting-codex', config: {
+        await ctx.loader.create({ name: 'cordis:accounting-codex', config: {
           permissionMode: 'dangerously-bypass-approvals-and-sandbox', disposeGraceMs: 2000,
           env: { CODEX_HOME: codexHome, HOME: home, XDG_CONFIG_HOME: join(home, 'xdg'),
             HTTP_PROXY: '', HTTPS_PROXY: '', ALL_PROXY: '', NO_PROXY: 'localhost' },
@@ -277,6 +297,9 @@ describe('default profile durable accounting', () => {
           const snapshot = await ctx.get('sessionLedger')!.snapshot({ sessionId: external.childId })
           expect(snapshot.rows.some(row => row.kind === 'run')).toBe(true)
           expect(snapshot.rows.filter(row => row.kind === 'call')).toHaveLength(0)
+          // External transports bypass llm/stream; aggregate run usage is not a physical call row.
+          expect(fixture.requests).toHaveLength(2)
+          expect(adapter.requests.filter(request => request.sessionId === external.childId)).toHaveLength(0)
         } finally { await external.dispose() }
       } finally { await fixture.close() }
     } finally { fallback.mockRestore(); await handle.dispose() }

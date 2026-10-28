@@ -7,7 +7,7 @@ import { LlmAdapter, LlmError } from '@panedesk/dsh-llm'
 import type { StreamChunk } from '@panedesk/dsh-llm'
 import { SessionId } from '@panedesk/dsh-session'
 import { JournalSessionLedger, tokenColumns } from '@panedesk/dsh-session-ledger'
-import type { CallContributor } from '@panedesk/dsh-session-ledger'
+import type { CallContributor, SessionLedger } from '@panedesk/dsh-session-ledger'
 import * as Cache from '../src/index.ts'
 import { harness } from './harness.ts'
 
@@ -47,7 +47,7 @@ function observedChunks(): StreamChunk[] {
   return [{ type: 'usage', usage: { inputTokens: 10, outputTokens: 2 } }, finish]
 }
 
-async function expectObserved(ledger: JournalSessionLedger) {
+async function expectObserved(ledger: SessionLedger) {
   const rows = (await ledger.snapshot()).rows.filter(row => row.kind === 'call')
   expect(rows).toHaveLength(1)
   const row = rows[0]!

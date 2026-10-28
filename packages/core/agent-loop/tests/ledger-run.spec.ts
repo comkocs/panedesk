@@ -1,6 +1,7 @@
 import { Context } from '@panedesk/cordis'
 import { mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
 import { SessionId } from '@panedesk/dsh-session'
+import { brandString, type Branded } from '@panedesk/dsh-brand'
 import { createUserMessage, LlmError } from '@panedesk/dsh-llm'
 import { createLaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
 import { MockAdapter, textResponse } from './mock-adapter.ts'
@@ -93,7 +94,7 @@ it.each([true, false])('reuses inherited run only when its local start exists: %
   const sessionId = SessionId('child-local')
   await seedParentLedger(ledger, sessionId)
   const parent = ledger.contextFor(sessionId)!
-  ledger.bindContext({ ...parent, subagentRunId: parent.runId })
+  ledger.bindContext({ ...parent, subagentRunId: brandString<Branded<'SubagentRunId'>>(parent.runId) })
   if (visible) await ledger.beginRun({ ...parent, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
   const finish = await beginAgentRun(ctx, sessionId)
   expect(ledger.starts).toHaveLength(1)
