@@ -63,7 +63,7 @@ The built-in `working_directory` tool changes the directory for subsequent opera
 
 The bundle mounts [MCP resources](../../mcp/mcp-resources/README.md) once. Configure only [MCP client entries](../../mcp/mcp-client/README.md) for the servers you need. Clients mounted by another provider also count as configured in their scope. Callers with no configured server in scope receive no MCP tools or prompt text.
 
-The bundle also mounts the session ledger, local message delivery, and instruction subscriptions. Delivery resolves its node identity from the ledger; unavailable identity disables delivery without blocking legacy input. Instruction subscriptions add reminders only for changed startup-loaded or explicitly configured files. Neither service replaces the existing prompt, inbox, or cancellation interfaces.
+The bundle mounts the complete call ledger and cache layer alongside the unchanged message-only ledger entry, local message delivery, and instruction subscriptions. All ledger entries use the same Harness home. Cache defaults freeze the initial system/tool prefix and request Anthropic 1h or DeepSeek automatic caching; `retention: none` disables cache control, not prefix freezing. Delivery resolves its node identity from the ledger; unavailable identity disables delivery without blocking legacy input. Instruction subscriptions add reminders only for changed startup-loaded or explicitly configured files. Neither service replaces the existing prompt, inbox, or cancellation interfaces.
 
 ### Shell tools per platform
 

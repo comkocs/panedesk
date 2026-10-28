@@ -1,6 +1,50 @@
 {
   "divergences": [
     {
+      "id": "sdk-child-local-run-start",
+      "description": "Persist a linked local Agent residency when an inherited SDK run has no unfinished start in the child journal.",
+      "origin": "Default-profile SDK subprocess accounting",
+      "reason": "An isolated child home cannot read the delegator journal. Tool execution requires a durable local run start without weakening the accounting guard or duplicating an existing live residency.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "test": "%s records main, managed, ACP, seat and SDK tool turns with run starts and physical calls"
+      }
+    },
+    {
+      "id": "default-full-session-ledger",
+      "description": "Mount the complete session ledger in default slim and full compositions while retaining the message-only service.",
+      "origin": "Default accounting composition",
+      "reason": "Default model sessions require durable run and physical-call accounting in the same home as message delivery. The message-only entry remains mounted independently.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/bundle/slim-base/tests/slim-base.spec.ts"],
+        "test": "mounts exactly the 42 slim rows with unique ids"
+      }
+    },
+    {
+      "id": "default-llm-cache",
+      "description": "Mount the existing cache layer in default slim and full compositions without overriding its policy.",
+      "origin": "Default accounting composition",
+      "reason": "With the ledger mounted, users receive frozen system and tool prefixes and default Anthropic 1h or DeepSeek automatic cache controls. retention=none disables cache controls but does not disable prefix freezing.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/bundle/slim-base/tests/slim-base.spec.ts"],
+        "test": "mounts exactly the 42 slim rows with unique ids"
+      }
+    },
+    {
+      "id": "kernel-accounting-status",
+      "description": "Report unavailable accounting services and publish private atomic startup evidence for in-process and offline consumers.",
+      "origin": "Default accounting availability diagnostics",
+      "reason": "Missing, disabled, failed and pending services must not appear healthy. Offline queries report safe main-process causes and stale evidence without replacing it or corrupting JSON stdout.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/boot/app-boot/tests/kernel-status.spec.ts"],
+        "test": "distinguishes disabled and missing entries instead of treating them as mounted"
+      }
+    },
+    {
       "id": "seat-local-recovery-readiness",
       "description": "Release local frozen write admission after local recovery without waiting for a remote hello.",
       "origin": "Optional seat-local and node-link composition",

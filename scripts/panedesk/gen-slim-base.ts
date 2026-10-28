@@ -23,7 +23,8 @@ import { resolve } from 'node:path'
 export const SLIM_BASE_ROWS: readonly string[] = [
   // Minimal headless core.
   'llm', 'session', 'agent', 'agent-default-model', 'llm-retry', 'llm-pi-ai',
-  'session-persistence-jsonl', 'session-ledger', 'message-delivery', 'instruction-subscriptions',
+  'session-persistence-jsonl', 'session-ledger', 'session-ledger-full', 'llm-cache',
+  'message-delivery', 'instruction-subscriptions',
   'working-directory', 'session-projection',
   'subprocess', 'sandbox', 'sandbox-policy', 'bash-sandbox', 'pwsh-sandbox',
   'approval', 'permission', 'shell-env', 'tool-bash', 'tool-pwsh',

@@ -27,6 +27,8 @@ export {
 import { prepareProfilePatches } from './compatibility-preflight.ts'
 import { ProfileRuntimeResolution, type RuntimeResolution } from './profile.ts'
 import { ResolutionRestartRequired } from './profile-resolution/resolver.ts'
+import { markKernelBoot, publishKernelStatus } from './kernel-status.ts'
+export { KernelStatusService, readKernelStatus, type KernelStatus, type KernelServiceStatus, type KernelStatusRead } from './kernel-status.ts'
 export { prepareProfileEntries, prepareProfilePatches } from './compatibility-preflight.ts'
 export { readPluginMeta, resolvePluginResource } from './package-meta.ts'
 export { ON_DEMAND_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG, type OfficialBundleCatalogEntry } from './official-bundles.ts'
@@ -1157,6 +1159,11 @@ export async function auditStartupEntries(
   warn: (line: string) => void = line => void process.stderr.write(line),
 ): Promise<void> {
   const failures = await inactiveEntries(ctx)
+  await publishKernelStatus(ctx, failures.map(({ entry, outcome }) => ({
+    id: entry.options.id, kind: outcome.kind,
+    ...outcome.kind === 'pending' ? { missing: outcome.missing }
+      : { importing: outcome.phase === 'failed to import', error: outcome.error },
+  })))
   const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)
     || requiredStartupEntryIds.has(entry.options.id)).map(({ entry }) => entry))
   if (required.size > 0) {
@@ -1229,6 +1236,7 @@ export async function boot(
     }, { global: true, prepend: true })
     await ctx.plugin(Loader)
     await prepare?.(ctx)
+    await markKernelBoot(ctx)
     stage = 'plugin tree failed to load'
     await mountRootInclude(ctx, absoluteConfigPath, patches, bareModuleBaseUrl, binName)
     // A surface can finish and dispose the whole tree while startup is still

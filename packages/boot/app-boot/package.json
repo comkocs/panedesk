@@ -50,6 +50,7 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-cmdline": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "@panedesk/cordis-plugin-group": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",

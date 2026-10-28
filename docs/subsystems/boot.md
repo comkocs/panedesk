@@ -4,6 +4,10 @@ English | [中文](boot.zh.md)
 
 The [boot package group](../../packages/boot/README.md) owns launcher-provided profile access and the plugin manager. [Plugin Manager](../../packages/boot/plugin-manager/README.md) documents persistence, reload and package-operation behavior.
 
+## Accounting startup status
+
+`ctx.get('kernelStatus')?.snapshot()` returns the immutable `KernelStatus` captured after the initial Loader settlement: `pid`, ISO `time`, and `services.sessionLedger` / `services.llmCache`. Each `KernelServiceStatus` contains `status` (`mounted`, `missing`, `disabled`, or `failed`) and a safe `cause` code. It is startup evidence, not continuing health monitoring. `readKernelStatus(home)` returns an available snapshot with `stale`, or an unavailable result with `status-missing`, `status-invalid`, or `status-unreadable`; it never replaces the producer's files. [App Boot](../../packages/boot/app-boot/README.md) owns persistence and diagnostics.
+
 ## Management records
 
 `PluginEntryId` identifies one Loader entry; callers obtain it from `listPlugins` rather than constructing a patch id.

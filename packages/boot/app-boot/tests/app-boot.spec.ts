@@ -434,6 +434,7 @@ describe('installFailLoud', () => {
     const error = new Error('assembled activation failure')
     const warn = vi.fn()
     const audit = auditStartupEntries({
+      get: () => undefined,
       loader: {
         entries: () => ['broken-a', 'broken-b'].map(name => ({
           options: { id: name, name },
@@ -580,6 +581,7 @@ describe('auditStartupEntries', () => {
 
   const ctxWith = (entries: FakeEntry[]): Context => ({
     loader: { entries: () => entries.values() },
+    get: () => undefined,
   }) as unknown as Context
 
   const fiber = (

@@ -4,6 +4,10 @@
 
 [boot 包组](../../packages/boot/README.zh.md)负责 launcher 提供的 profile 访问与插件管理器。[插件管理器](../../packages/boot/plugin-manager/README.zh.md)文档说明持久化、重载与包操作行为。
 
+## 计量启动状态
+
+`ctx.get('kernelStatus')?.snapshot()` 返回初次 Loader 稳定后捕获的不可变 `KernelStatus`：`pid`、ISO `time` 与 `services.sessionLedger` / `services.llmCache`。每个 `KernelServiceStatus` 包含 `status`（`mounted`、`missing`、`disabled` 或 `failed`）和安全的 `cause` 细因码。这是启动证据，不是持续健康监测。`readKernelStatus(home)` 返回带 `stale` 的可用快照，或带 `status-missing`、`status-invalid`、`status-unreadable` 的不可用结果；它不替换生产方文件。[App Boot](../../packages/boot/app-boot/README.zh.md)负责持久化与诊断。
+
 ## 管理记录
 
 `PluginEntryId` 标识一个 Loader 条目；调用方从 `listPlugins` 获取，不自行拼接 patch id。

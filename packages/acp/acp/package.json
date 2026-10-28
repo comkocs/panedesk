@@ -57,6 +57,12 @@
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-cmdline": "workspace:*",
+    "@panedesk/dsh-session-ledger": "workspace:*",
+    "@panedesk/dsh-subagent-codex": "workspace:*",
+    "@panedesk/dsh-subagent-dsh-sdk": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",

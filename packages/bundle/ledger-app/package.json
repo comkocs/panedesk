@@ -45,6 +45,7 @@
     "@panedesk/dsh-cmdline": "workspace:*"
   },
   "dependencies": {
+    "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-seat-engine": "workspace:*",
     "@panedesk/dsh-seat-gates": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",

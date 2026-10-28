@@ -23,6 +23,8 @@ Offline ledger application bundle. Its patch mounts the session ledger, query se
 
 Import public types from the package entry. The package is Host-only and does not provide a browser entry.
 
+Before a query, stderr reports `Session ledger not mounted: <cause>` when the latest main-process `$PANEDESK_HOME/run/kernel-status.json` records an unavailable ledger or cache layer, or the status cannot be read. `(may be stale)` marks an exited pid or a status older than `run/kernel-boot.json`. Offline queries never overwrite the main-process files. Missing local `ledgerQuery` reports its disabled, import, or pending-injection cause and exits 1. stdout retains machine-readable JSON; existing command diagnostics are English.
+
 Set `PANEDESK_SEAT_MAX_DECISION_BYTES` to the target writer's `maxDecisionBytes`, or set `engineReader` on the `ledger-app` row with explicit `home`, `nodeId`, and `maxDecisionBytes`. Only `engine` command arguments mount the engine and gate readers; other commands retain the default plugin rows and services. No frame limit is inferred. Without reader configuration, engine queries report unavailable. Engine commands disable local message delivery to avoid initializing mailboxes. The readers support `engine events`, `pending`, `export`, `verify`, and `gates` without mounting the writer; export returns JSONL in `content` and never writes its output path. Gate queries rebuild each recorded revision's hit count, expiration and limit evidence from one verified journal prefix. Unrecorded policies are omitted and unrecorded limits are `unknown`; worktree client limits use recorded counts and bounds. Pagination cursors belong to the observed watermark and become invalid after a new commit.
 
 <a id="model-experience"></a>

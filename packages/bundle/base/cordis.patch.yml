@@ -43,6 +43,12 @@
     - id: session-ledger
       name: '@panedesk/dsh-session-ledger/messages'
 
+    - id: session-ledger-full
+      name: '@panedesk/dsh-session-ledger'
+
+    - id: llm-cache
+      name: '@panedesk/dsh-llm-cache'
+
     - id: message-delivery
       name: '@panedesk/dsh-message-delivery-local'
       inject: [messageLedger]

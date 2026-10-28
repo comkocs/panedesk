@@ -31,7 +31,7 @@ The bundle has no fixed independent token overhead; composed prompts and tools a
 
 #### KV Cache effect
 
-Unchanged configuration can retain repeated system-prompt and tool prefixes. Changes to configuration rows, loaded instructions, or compacted or pruned history can replace request tokens and prevent reuse of affected prefixes.
+The bundle retains the message-only ledger entry and also mounts the complete call ledger and cache layer in the same Harness home. Cache defaults freeze the initial system/tool prefix and request Anthropic 1h or DeepSeek automatic caching. `retention: none` disables cache control, not prefix freezing. Compacted or pruned history can replace request tokens and prevent reuse of affected prefixes.
 
 ## Known Limitations and Deferred Work
 
