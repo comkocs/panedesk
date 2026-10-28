@@ -18,6 +18,7 @@ import { WaitStore, projectedWaits } from './wait-store.ts'
 import { WaitCoordinator } from './wait.ts'
 import { CloseCoordinator } from './report.ts'
 import { LocalCloser, closingState } from './closing-service.ts'
+import { recordOrphanedOpening } from './orphaned-opening.ts'
 import { admitLocalOpen, localSourceId } from './open-admission.ts'
 import { readLocalOpenInput } from './open-input.ts'
 import { readContextUsage, remindContext } from './context-runtime.ts'
@@ -713,6 +714,16 @@ export class LocalSeatService extends SeatService {
     if (engine === undefined) return
     if (engine instanceof SeatEngine) await engine.wakeDeliveries.recover(input => this.runtime.send(input))
     const effects = (await this.state.read()).effects
+    const released = new Map<SessionId, T.EngineEffect>()
+    for (const effect of effects) {
+      if (effect.kind === 'resource/reserved' || effect.kind === 'resource/released') released.set(effect.data.owner.sessionId, effect)
+    }
+    for (const [sessionId, effect] of released) {
+      if (effect.kind === 'resource/released'
+        && ['holder-death', 'host-restart-recovery'].includes(effect.data.reason)) {
+        await recordOrphanedOpening(this.ctx, this.state, sessionId)
+      }
+    }
     for (const wait of projectedWaits(effects).values()) await this.coordinator.watch(wait)
     const closing = new Set(effects.flatMap(effect => effect.kind === 'window/closing' ? [effect.data.sessionId] : []))
     for (const sessionId of closing) {

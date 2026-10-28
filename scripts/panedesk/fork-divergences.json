@@ -111,6 +111,17 @@
       }
     },
     {
+      "id": "seat-local-orphaned-opening-close",
+      "description": "Diagnose an unexecuted opening after owner death and withdraw only its unclaimed handoff during ordinary close.",
+      "origin": "Optional seat-local dead-window close recovery",
+      "reason": "Restart may leave the first handoff queued after its owner is fenced. Preserve opened history, publish an ordered opening-failed diagnosis with the safe seat-local/opening-owner-lost cause, and use durable sender-checked withdrawal without bypassing close revisions or busy barriers. Replay must neither resend the handoff nor duplicate terminal callbacks. The composition also covers actual claimed and injected input, completed replies, unknown owners, and legacy release replay.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/orphaned-opening-close-composition.spec.ts"],
+        "test": "withdraws an orphaned queued opening on ordinary close and never replays it after another restart"
+      }
+    },
+    {
       "id": "seat-local-opening-failure-agent-resolution",
       "description": "Resolve the released agent when closing a dead window after a failed opening while preserving its failure callback.",
       "origin": "Optional seat-local dead-window close recovery",

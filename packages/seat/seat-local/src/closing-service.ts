@@ -8,6 +8,7 @@ import { createCloseExecutor } from './close-executor.ts'
 import { readWindowStatus } from './status.ts'
 import { rejected } from './errors.ts'
 import { digest } from './store.ts'
+import { withdrawOrphanedOpening } from './orphaned-opening.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 
 /** Last committed close state, including a released pre-archive barrier.
@@ -67,7 +68,21 @@ export class LocalCloser {
         if ('error' in resumed) return rejected('owner-unknown', 'Session ownership could not be acquired.', 'Inspect the existing Session owner before retrying.')
       }
     }
-    const initial = await this.runtime.evidence(request.sessionId)
+    let initial = await this.runtime.evidence(request.sessionId)
+    if (initial.stateVersion === request.expectedStateVersion) {
+      const effects = (await this.state.read()).effects
+      const old = closingState(effects, request.sessionId)
+      const opened = effects.findLast(effect => (effect.kind === 'open/created' || effect.kind === 'open/configured')
+        && effect.data.sessionId === request.sessionId)
+      const binding = opened?.kind === 'open/created' || opened?.kind === 'open/configured' ? opened.data.binding : undefined
+      const authorized = !authorization || binding?.kind === 'seat' && binding.seat === authorization.fact.seat
+        && binding.relatedTaskIds.every(task => authorization.fact.taskIds.includes(task))
+      const busy = readWindowStatus(initial).busyReasons
+      if ((!old || old.barrierReleased) && authorized && busy.every(reason => reason.kind === 'inbox')
+        && await withdrawOrphanedOpening(this.ctx, this.state, request.sessionId)) {
+        initial = await this.runtime.evidence(request.sessionId)
+      }
+    }
     const admitted = await this.state.mutate<T.EngineCloseData | T.CloseSeatResult>((effects) => {
       if (authorization) {
         const opened = effects.findLast(effect => (effect.kind === 'open/created' || effect.kind === 'open/configured')

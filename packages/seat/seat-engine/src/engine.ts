@@ -862,6 +862,8 @@ export class SeatEngine extends SeatEngineService {
   }
   async recordClosed(closed: T.EngineCloseData): Promise<void> {
     await this.ready()
+    const open = this.journal.projection.opens.get(closed.sessionId)
+    if (open?.phase === 'opening-failed') await this.recordCallbacks(open, 'opening-failed')
     if (!this.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-route/accepted'))) {
       await this.journal.commit(view => closeEffects(view, closed, this.options.config.nodeName))
       await this.publish()
@@ -899,7 +901,10 @@ export class SeatEngine extends SeatEngineService {
         opening: async (open) => { await this.publish(); return executor.opening(open) },
       }
       for (const open of [...this.journal.projection.opens.values()]) {
-        if (!this.journal.projection.resources.has(open.sessionId)) continue
+        if (!this.journal.projection.resources.has(open.sessionId)) {
+          if (open.phase === 'opening-failed') await this.recordCallbacks(open, 'opening-failed')
+          continue
+        }
         // Later admission changes cannot block read-only observation of a durably sent opening.
         if (open.phase !== 'active' && open.phase !== 'opening-failed' && !isOpeningObservation(open)) {
           const queued = this.journal.projection.decisions.flatMap(decision => decision.effects).find(effect =>

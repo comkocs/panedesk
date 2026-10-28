@@ -28,7 +28,7 @@ export const SEAT_ERROR_CODES = {
   'budget-unverifiable': true, 'budget-full': true, 'budget-stopped': true,
   'source-not-found': true, 'source-authentication-failed': true, 'source-payload-too-large': true,
   'source-timestamp-invalid': true, 'callback-authentication-failed': true, 'callback-protocol-error': true,
-  'open-create-failed': true, 'open-configuration-failed': true, 'opening-failed': true,
+  'open-create-failed': true, 'open-configuration-failed': true, 'opening-failed': true, 'opening-owner-lost': true,
   'session-id-conflict': true, 'replacement-open-failed': true, 'replacement-first-turn-failed': true,
   'replacement-cleanup-failed': true, 'wait-id-conflict': true, 'wait-object-not-found': true,
   'wait-object-unauthorized': true, 'ticket-not-found': true, 'ticket-cancelled': true,
