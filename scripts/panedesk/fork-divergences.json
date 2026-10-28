@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "session-ledger-call-accounting-owner",
+      "description": "The full session ledger owns model-call accounting and an instance-local cache contributor registration.",
+      "origin": "Session ledger call accounting",
+      "reason": "The full ledger records calls without the cache plugin while preserving the ledger format and pricing algorithm.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/llm/llm-cache/tests/call-accounting.spec.ts"],
+        "test": "records calls with the session ledger and no cache plugin"
+      }
+    },
+    {
+      "id": "llm-cache-call-contributor",
+      "description": "The cache plugin contributes policy, admission and evidence without writing call lifecycle facts.",
+      "origin": "Session ledger call accounting",
+      "reason": "Both loading orders share one call lifecycle without making accounting depend on the optional cache plugin.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/llm/llm-cache/tests/call-accounting.spec.ts"],
+        "test": "records exactly one call when ledger and cache plugins coexist (%s)"
+      }
+    },
+    {
       "id": "sdk-child-local-run-start",
       "description": "Persist a linked local Agent residency when an inherited SDK run has no unfinished start in the child journal.",
       "origin": "Default-profile SDK subprocess accounting",
