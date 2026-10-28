@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "usage-pill-ledger-unavailable",
+      "description": "The existing usage pill shows when the host session ledger is unavailable, and stays compatible with hosts that omit the status.",
+      "origin": "Session ledger availability in the usage pill",
+      "reason": "An unavailable ledger must not be hidden behind historical token readings; the status travels in an optional existing projection without a new protocol operation.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/client/ui-chat/tests/chat-stats.client.spec.tsx"],
+        "test": "replaces usage with the %s ledger warning in both modes"
+      }
+    },
+    {
       "id": "session-ledger-call-accounting-owner",
       "description": "The full session ledger owns model-call accounting and an instance-local cache contributor registration.",
       "origin": "Session ledger call accounting",
