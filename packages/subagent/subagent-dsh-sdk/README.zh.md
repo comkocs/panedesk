@@ -52,6 +52,8 @@ kind: "package-reference"
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-subagent-dsh-sdk)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
+子级 `agentOptions.cachePolicy` 优先于父级账本的原始 `sessionPolicy`。SDK 握手标记继承选择，由子级缓存插件按自身通路能力解析；不支持时回退到该通路缺省并警告一次，子级显式覆盖仍拒绝不支持的保留期。原始策略缺失时，不把父请求已解析的 TTL 当作子级显式选择。
+
 请求 `agentOptions` 会分别覆盖 `provider`、`model` 与 `maxTokens`。`reasoningEffort` 没有提供方实例默认值：请求省略时保持缺省，由所选子模型解析自身默认值。面向模型的 subagent 工具可在每次调用时选择提供方／模型／推理强度；`maxTokens` 仍由工具配置或本提供方默认值在部署侧控制。
 
 ```yaml

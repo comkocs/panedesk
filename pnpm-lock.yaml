@@ -15903,6 +15903,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-llm-cache':
+        specifier: workspace:*
+        version: link:../../llm/llm-cache
       '@panedesk/dsh-llm-deepseek':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek

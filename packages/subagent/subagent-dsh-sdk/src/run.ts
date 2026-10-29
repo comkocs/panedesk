@@ -33,6 +33,8 @@ export interface SdkRunSpec {
   agentPreset?: DeepSeekHarnessOptions['agentPreset']
   executionPolicy?: DeepSeekHarnessOptions['executionPolicy']
   cachePolicy?: DeepSeekHarnessOptions['cachePolicy']
+  /** Distinguishes parent inheritance from a strict explicit child override. */
+  cachePolicyInherited?: boolean
   /** Optional durable accounting service and trusted parent attribution. */
   ledger?: SessionLedger
   parentContext?: LedgerSessionContext
@@ -290,6 +292,7 @@ export async function startSdkRun(request: SubagentStartRequest, spec: SdkRunSpe
     ...spec.agentPreset === undefined ? {} : { agentPreset: spec.agentPreset },
     ...spec.executionPolicy === undefined ? {} : { executionPolicy: spec.executionPolicy },
     ...spec.cachePolicy === undefined ? {} : { cachePolicy: spec.cachePolicy },
+    ...spec.cachePolicyInherited === undefined ? {} : { cachePolicyInherited: spec.cachePolicyInherited },
     ...parent === undefined ? {} : { ledgerContext: {
       seat: parent.seat, window: parent.window, nodeId: parent.nodeId,
       ...parent.taskId === undefined ? {} : { taskId: parent.taskId },

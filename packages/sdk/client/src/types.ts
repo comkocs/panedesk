@@ -66,6 +66,8 @@ export interface DeepSeekHarnessOptions extends HarnessClientOptions {
   ledgerContext?: InitializeParams['ledgerContext']
   /** Session cache override; omission uses local cache settings. */
   cachePolicy?: InitializeParams['cachePolicy']
+  /** Mark a parent selection for child-route capability resolution; omission keeps explicit validation. */
+  cachePolicyInherited?: InitializeParams['cachePolicyInherited']
   /** Workspace cwd recorded on every SDK-created session (default: the process cwd, else `process.cwd()`). */
   cwd?: string
   /** Provider route for SDK-created agents (default `deepseek-official`). */

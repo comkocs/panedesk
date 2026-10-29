@@ -115,6 +115,8 @@ export interface InitializeParams {
   ledgerContext?: InitializeLedgerContext
   /** Session cache controls; omission resolves the local session policy. */
   cachePolicy?: LlmCacheControl
+  /** True only for a parent selection; unsupported retention then uses the child route default. */
+  cachePolicyInherited?: boolean
 }
 
 /** Wire-stable server identity returned by initialization. */

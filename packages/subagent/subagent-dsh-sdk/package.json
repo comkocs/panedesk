@@ -31,6 +31,7 @@
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-preset-registry": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-sdk-client": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-ledger": "workspace:*",
@@ -38,6 +39,9 @@
     "@panedesk/dsh-subprocess": "workspace:*"
   },
   "peerDependenciesMeta": {
+    "@panedesk/dsh-llm-cache": {
+      "optional": true
+    },
     "@panedesk/dsh-session-ledger": {
       "optional": true
     }
@@ -54,6 +58,7 @@
     "@panedesk/dsh-agent-instructions": "workspace:*",
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-llm-cache": "workspace:*",
     "@panedesk/dsh-llm-deepseek": "workspace:*",
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
     "@panedesk/dsh-loader-smoke": "workspace:*",

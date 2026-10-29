@@ -914,7 +914,7 @@
       "id": "session-cache-policy",
       "description": "Apply supported cache controls and stable per-session cache keys.",
       "origin": "Cache controls and session ledger",
-      "reason": "Apply supported cache controls and stable per-session cache keys.",
+      "reason": "Apply supported cache controls and stable per-session cache keys; resolve inherited retention against child route capabilities in both in-process and SDK delegation, preserve explicit child overrides, and record effective child controls.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -2476,6 +2476,45 @@
           "apps/web/tests/shipped-composition.e2e.ts"
         ],
         "test": "reviews initially authorized, restricted, and cold-resumed child calls independently"
+      }
+    },
+    {
+      "id": "sdk-inherited-cache-policy",
+      "description": "Carry an optional cache inheritance marker and map SDK cache selection to session policy while retaining strict explicit-value validation.",
+      "origin": "SDK child cache capability resolution",
+      "reason": "The optional inheritance marker lets child routes resolve inherited retention by their capabilities. Server-side session policy mapping records the effective child selection; absent or false markers keep explicit values strictly validated and preserve legacy client request cache controls.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/sdk/client/src/api.ts",
+          "packages/sdk/client/src/types.ts",
+          "packages/sdk/client/tests/sdk-client.spec.ts",
+          "packages/sdk/client/README.md",
+          "packages/sdk/client/README.zh.md",
+          "packages/sdk/client/README.i18n.yaml",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "packages/sdk/protocol/src/types.ts",
+          "packages/sdk/protocol/README.md",
+          "packages/sdk/protocol/README.zh.md",
+          "packages/sdk/protocol/README.i18n.yaml",
+          "packages/sdk/server/src/server.ts",
+          "packages/sdk/server/README.md",
+          "packages/sdk/server/README.zh.md",
+          "packages/sdk/server/README.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/module-graph.md",
+          "docs/module-graph.zh.md",
+          "packages/subagent/subagent-dsh-sdk/package.json",
+          "packages/subagent/subagent-dsh-sdk/tsconfig.json",
+          "packages/subagent/subagent-dsh-sdk/README.md",
+          "packages/subagent/subagent-dsh-sdk/README.zh.md",
+          "packages/subagent/subagent-dsh-sdk/README.i18n.yaml",
+          "tsconfig.json",
+          "pnpm-lock.yaml"
+        ],
+        "test": "preserves legacy client request cache controls without an inheritance marker"
       }
     }
   ]

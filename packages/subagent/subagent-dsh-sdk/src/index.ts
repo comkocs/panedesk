@@ -3,7 +3,7 @@
  * Harness runtime in its own process — own named profile and patch composition,
  * session, model route, and tools — driven over stdio JSON-RPC through the
  * TypeScript SDK client, so it shares no Cordis context. It accepts the
- * provider/model/reasoning/maxTokens subset of `agentOptions`; other start
+ * provider/model/reasoning/maxTokens/cachePolicy subset of `agentOptions`; other start
  * features remain unsupported. The child retains its parent's origin directory
  * while starting in the directory selected by the subagent service. This plugin uses named
  * exports only; a default would hide its loader metadata (see
@@ -16,6 +16,7 @@ import { statSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import z from '@panedesk/schemastery'
 import type { AgentOptions } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-llm-cache'
 import { ReasoningEffortId } from '@panedesk/dsh-llm'
 import type { SubagentCapabilities, SubagentProvider, ResolvedSubagentStartRequest } from '@panedesk/dsh-subagent'
 import { assertPositiveFinite, NO_START_CAPABILITIES, assertUsableCwd } from '@panedesk/dsh-subagent'
@@ -177,11 +178,13 @@ class SdkSubagentProvider implements SubagentProvider {
       : row.kind === 'event' && row.event.kind === 'cache/evidence'
         ? [{ at: row.event.observedAt, cache: row.event.evidence }] : [])
       .toSorted((a, b) => b.at - a.at)[0]?.cache : undefined
-    const inheritedPolicy = evidence?.sessionPolicy
-    const cachePolicy = inheritedPolicy === undefined ? request.parent.session.requestHeader()?.config.cache : {
-      retention: inheritedPolicy.retention,
-      ...inheritedPolicy.stableKey === undefined ? {} : { key: inheritedPolicy.stableKey },
-    }
+    const selectedPolicy = request.agentOptions?.cachePolicy ?? evidence?.sessionPolicy ?? request.parent.options.cachePolicy
+    const cachePolicy = selectedPolicy === undefined
+      ? request.parent.session.requestHeader()?.config.cache === undefined ? undefined : { retention: 'default' as const }
+      : {
+        retention: selectedPolicy.retention,
+        ...selectedPolicy.stableKey === undefined ? {} : { key: selectedPolicy.stableKey },
+      }
     const spec: SdkRunSpec = {
       ...this.config.dshBin === undefined ? {} : { dshBin: this.config.dshBin },
       profile: this.config.profile,
@@ -196,7 +199,7 @@ class SdkSubagentProvider implements SubagentProvider {
       } },
       ...ledger === undefined ? {} : { ledger },
       ...parentContext === undefined ? {} : { parentContext },
-      ...cachePolicy === undefined ? {} : { cachePolicy },
+      ...cachePolicy === undefined ? {} : { cachePolicy, cachePolicyInherited: request.agentOptions?.cachePolicy === undefined },
       env: this.config.env,
       shutdownTimeoutMs: this.config.shutdownTimeoutMs,
       disposeEofGraceMs: this.config.disposeEofGraceMs,

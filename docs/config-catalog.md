@@ -4061,7 +4061,7 @@ export type CodexPermissionMode =
 ## `@panedesk/dsh-subagent-dsh-sdk`
 
 - `inject`: `subagents`
-- `source`: [`packages/subagent/subagent-dsh-sdk/src/index.ts:35`](../packages/subagent/subagent-dsh-sdk/src/index.ts)
+- `source`: [`packages/subagent/subagent-dsh-sdk/src/index.ts:36`](../packages/subagent/subagent-dsh-sdk/src/index.ts)
 
 ```ts config-catalog
 /** Config: how to spawn and drive the child SDK runtime process. */

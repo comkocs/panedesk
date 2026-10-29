@@ -59,7 +59,7 @@ export class DeepSeekHarness implements AsyncDisposable {
   private readonly model: string
   private readonly reasoningEffort: DeepSeekHarnessOptions['reasoningEffort']
   private readonly maxTokens: number | undefined
-  private readonly handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'>
+  private readonly handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy' | 'cachePolicyInherited'>
   private initialized: Promise<void> | undefined
   private closed = false
 
@@ -81,6 +81,7 @@ export class DeepSeekHarness implements AsyncDisposable {
       ...options.executionPolicy === undefined ? {} : { executionPolicy: options.executionPolicy },
       ...options.ledgerContext === undefined ? {} : { ledgerContext: options.ledgerContext },
       ...options.cachePolicy === undefined ? {} : { cachePolicy: options.cachePolicy },
+      ...options.cachePolicyInherited === undefined ? {} : { cachePolicyInherited: options.cachePolicyInherited },
     })
   }
 
