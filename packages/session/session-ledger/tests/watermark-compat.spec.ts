@@ -3,6 +3,7 @@ import { cp, mkdtemp, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { pathToFileURL } from 'node:url'
 import { appendUnique, JournalViewOwner, readJournal, recoverSegments } from '../src/journal.ts'
 import type { LedgerAppendResult, LedgerEvent, LedgerEventId } from '../src/types.ts'
 import { event, options } from './fixtures.ts'
@@ -23,7 +24,7 @@ async function oldWatermark(root: string): Promise<Buffer> {
     if (!scan.complete) throw new Error('Incomplete compatibility fixture');
     process.stdout.write(scan.watermark);
   `
-  const result = await execute(process.execPath, ['--import', join(reader, 'node_modules/tsx/dist/esm/index.mjs'),
+  const result = await execute(process.execPath, ['--import', pathToFileURL(join(reader, 'node_modules/tsx/dist/esm/index.mjs')).href,
     '--input-type=module', '-e', script, reader, root], { cwd: reader, env, timeout: 30000 })
   return Buffer.from(result.stdout)
 }
@@ -89,7 +90,7 @@ for (const [label, fixture] of [
             alert: { code: 'watermark-fixture', message: 'Concurrent fixture.', redacted: false } }, { ...options, viewOwner: owner });
         } finally { owner.dispose(); }
       `
-      const writing = execute(process.execPath, ['--import', join(reader, 'node_modules/tsx/dist/esm/index.mjs'),
+      const writing = execute(process.execPath, ['--import', pathToFileURL(join(reader, 'node_modules/tsx/dist/esm/index.mjs')).href,
         '--input-type=module', '-e', script, reader, root], { cwd: reader, env, timeout: 30000 })
       await Promise.all([writing, appendUnique(root, { ...event(), kind: 'alert', eventId: 'parent:concurrent' as LedgerEventId,
         alert: { code: 'watermark-fixture', message: 'Concurrent parent fixture.', redacted: false } }, retained)])

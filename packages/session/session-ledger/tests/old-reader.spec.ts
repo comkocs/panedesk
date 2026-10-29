@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
+import { pathToFileURL } from 'node:url'
 import { JournalSessionLedger } from '../src/index.ts'
 import { appendUnique, messageEventId } from '../src/journal.ts'
 import type { MessageLedgerEvent, LedgerEventId } from '../src/types.ts'
@@ -65,7 +66,7 @@ it.each(['current', 'compat'])('blocks %s snapshots and exports while a writer h
   `
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
   env.TSX_TSCONFIG_PATH = join(reader, 'tsconfig.json')
-  const child = spawn(process.execPath, ['--import', join(reader, 'node_modules/tsx/dist/esm/index.mjs'),
+  const child = spawn(process.execPath, ['--import', pathToFileURL(join(reader, 'node_modules/tsx/dist/esm/index.mjs')).href,
     '--input-type=module', '-e', script, reader, home], { cwd: reader, env, stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
   const exit = new Promise<number | null>((resolve, reject) => { child.once('error', reject); child.once('exit', resolve) })
   const message = () => new Promise<unknown>((resolve, reject) => {
@@ -143,7 +144,7 @@ it('keeps old recovery, snapshots, query, export and daily headlines unchanged b
     const read = async () => {
       const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|SECRET|TOKEN|PASSWORD/i.test(key)))
       env.TSX_TSCONFIG_PATH = join(reader, 'tsconfig.json')
-      const result = await execute(process.execPath, ['--import', join(reader, 'node_modules/tsx/dist/esm/index.mjs'), '--input-type=module', '-e', script, reader, home, root, String(asOf)], { cwd: reader, env, timeout: 30000 })
+      const result = await execute(process.execPath, ['--import', pathToFileURL(join(reader, 'node_modules/tsx/dist/esm/index.mjs')).href, '--input-type=module', '-e', script, reader, home, root, String(asOf)], { cwd: reader, env, timeout: 30000 })
       const parsed: unknown = JSON.parse(result.stdout.trim())
       return parsed
     }
