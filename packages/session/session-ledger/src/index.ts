@@ -45,10 +45,24 @@ declare module '@panedesk/cordis' {
 /** Durable ledger contract; implementations alone own storage and runtime hooks. */
 export abstract class SessionLedger extends Service {
   private readonly registerContributor: (contributor: CallContributor) => () => void
+  private compactionOwner = false
 
   constructor(ctx: Context) {
     super(ctx, 'sessionLedger')
-    this.registerContributor = installCallAccounting(ctx, this)
+    this.registerContributor = installCallAccounting(ctx, this, () => this.compactionOwner)
+  }
+
+  /** Claim compaction facts while leaving physical request accounting with this service.
+   * Concurrent owners reject. Without an owner, call accounting records summary facts.
+   * @returns Idempotent disposer; capture it in the producing plugin's effect.
+   */
+  registerCompactionOwner(): () => void {
+    const dispose = this.ctx.effect(() => {
+      if (this.compactionOwner) throw new Error('Compaction owner is already registered')
+      this.compactionOwner = true
+      return () => { this.compactionOwner = false }
+    })
+    return () => { void dispose() }
   }
 
   /** Register the optional cache contributor on this ledger instance.

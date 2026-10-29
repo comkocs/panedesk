@@ -223,6 +223,12 @@ Source: [`packages/session/session-ledger/src/types.ts`](../../packages/session/
 Durable ledger contract; implementations alone own storage and runtime hooks.
 
 ```ts cordis-catalog
+/** Claim compaction facts while leaving physical request accounting with this service.
+ * Concurrent owners reject. Without an owner, call accounting records summary facts.
+ * @returns Idempotent disposer; capture it in the producing plugin's effect.
+ */
+registerCompactionOwner(): () => void
+
 /** Register the optional cache contributor on this ledger instance.
  * Concurrent registrations reject, including the same object twice. Capture the returned
  * disposer in the contributing plugin's effect; release prevents future contributions,

@@ -3762,6 +3762,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Durable ledger contract; implementations alone own storage and runtime hooks.',
     methods: [
       {
+        signature: 'registerCompactionOwner(): () => void',
+        description: 'Claim compaction facts while leaving physical request accounting with this service. Concurrent owners reject. Without an owner, call accounting records summary facts.',
+        parameters: [],
+        returns: 'Idempotent disposer; capture it in the producing plugin\'s effect.',
+      },
+      {
         signature: 'registerCallContributor(contributor: CallContributor): () => void',
         description: 'Register the optional cache contributor on this ledger instance. Concurrent registrations reject, including the same object twice. Capture the returned disposer in the contributing plugin\'s effect; release prevents future contributions, while calls already prepared retain their contribution through settlement.',
         parameters: [{ name: 'contributor', description: 'Cache evidence and admission owner, never a call lifecycle writer.' }],

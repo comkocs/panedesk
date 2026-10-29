@@ -1,5 +1,5 @@
 ---
-description: "Ledger checkpoint projection plugin scaffold."
+description: "Ledger checkpoint projection and compaction-event ownership."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Ledger checkpoint projection plugin scaffold. The package exposes validated configuration and an inert function plugin. Loading it registers no hooks, timers, commands, or services.
+Ledger-backed checkpoint contributions and post-commit compaction facts. When a ledger is available, the plugin registers as its sole compaction-event owner; call accounting retains physical summary requests without writing a second event. Unloading releases ownership. Without a ledger, checkpoints pass through unchanged.
 
 ## Table of Contents
 
@@ -26,25 +26,25 @@ Import public types from the package entry. The package is Host-only and does no
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Ledger checkpoint
 
 #### What the model sees
 
-`src/index.ts` registers no tools, prompts, or messages, so the model receives no content from this package.
+The committed checkpoint includes bounded `<ledger-checkpoint-data>`, including live child identities, explicitly marked as untrusted runtime data.
 
 #### Token effect
 
-The scaffold dispatches no model requests and adds no input or output tokens.
+Checkpoint data consumes the configured token budget but dispatches no additional model requests.
 
 #### KV Cache effect
 
-The scaffold neither modifies request prefixes nor creates or refreshes cache entries.
+The checkpoint changes compacted history; the plugin does not create or refresh provider cache entries.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This package supplies declarations and a scaffold only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
+- Post-commit ledger failures are reported without rolling back the checkpoint. Durable storage and physical model-call accounting belong to the ledger provider.
 
 <a id="dev-note"></a>
 ### Dev Note
