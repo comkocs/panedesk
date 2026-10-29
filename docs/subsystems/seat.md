@@ -22,7 +22,7 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `OpenSeatResult` distinguishes opened, prefilled, existing-window choices, switched, cancelled, queued, and rejected outcomes. Creation does not imply first-turn completion. `ReplaceSeatResult` preserves old and new identities and cleanup state; replacement opens new before closing old and retains an explicit handover permit. `CloseSeatResult` distinguishes closed, busy, version conflict, and refusal. Unknown activity is not idle evidence.
 
-`SeatWindowView` projects runtime state, busy reasons, cache evidence, and state version. `SeatContextUsage` represents dated current-context evidence, not accumulated accounting tokens. Missing evidence remains unknown. `SeatFailure` carries a machine code, explanation, alternative, retryability, and observed effect state.
+`SeatWindowView` projects runtime state, busy reasons, cache evidence, and state version. `SeatContextUsage` represents dated current-context evidence, not accumulated accounting tokens. Missing evidence remains unknown. `SeatFailure` carries a machine code, explanation, alternative, retryability, and observed effect state; optional `details.agentPreset` identifies a refused preset before Session creation. `SeatNodeStatus.failure` reports supervised runtime failure, while optional `openingFailures` separately lists unresolved absent openings by reserved Session identity, seat, preset and code. Diagnostic invalidations trigger authorized rereads; [seat-engine](../../packages/seat/seat-engine/README.md) defines clearance.
 
 `SeatMessageWindow` contains an open local binding's seat, Session and node identity plus its primary-window selection. The optional `messageWindows()` read capability derives selection from committed replacement progress, excludes closed windows and unreleased closing barriers, and never activates a Session. Runtime liveness is checked separately by the [message provider](../../packages/session/message-delivery-local/README.md).
 
@@ -1439,6 +1439,21 @@ Published only after a decision is durable; observer failure cannot undo the com
  * @param decision - committed frame and its complete effects.
  */
 'seat/decision'(decision: EngineDecision): void
+```
+
+Source: [`packages/seat/seat/src/events.ts`](../../packages/seat/seat/src/events.ts)
+
+<a id="seatdiagnostics-changed--emit"></a>
+
+#### `seat/diagnostics-changed` — emit
+
+Invalidates owner diagnostics after runtime supervision changes; carries no private data.
+
+```ts cordis-catalog
+/** Invalidates owner diagnostics after runtime supervision changes; carries no private data.
+ * @mode emit
+ */
+'seat/diagnostics-changed'(): void
 ```
 
 Source: [`packages/seat/seat/src/events.ts`](../../packages/seat/seat/src/events.ts)

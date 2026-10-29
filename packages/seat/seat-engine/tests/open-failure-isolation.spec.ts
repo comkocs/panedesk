@@ -31,6 +31,9 @@ it('isolates a missing preset before creation and recovers the remaining opening
     expect(opens.find(open => open.definition?.seat === seat)?.frozenOpening).toEqual(frozenOpening)
     expect(opens.find(open => open.definition?.seat === seat)).toMatchObject({ phase: 'opening-failed',
       failure: { code: 'open-create-failed', retryable: false, effectState: 'none' } })
+    expect(opens.find(open => open.definition?.seat === seat)?.failure).toMatchObject({
+      details: { agentPreset: 'agent-a' },
+    })
     expect(opens.find(open => open.definition?.seat === healthy)?.phase).toBe('active')
     expect(h.engine.journal.projection.resources.size).toBe(1)
     expect(h.creates).toHaveLength(1)

@@ -15,9 +15,14 @@ export interface WriterLockOptions {
 export class LedgerUnavailableError extends Error {
   /** Stable failure code for callers that must stop dependent dispatch. */
   readonly code = 'LEDGER_UNAVAILABLE'
+  /** Present only when contention expires before the transaction starts; wrappers preserve it. */
+  readonly lockTimeoutCode?: 'LEDGER_LOCK_TIMEOUT'
   constructor(cause: unknown) {
     super('Local accounting is unavailable; dispatch was stopped. Inspect the ledger before retrying.', { cause })
     this.name = 'LedgerUnavailableError'
+    if (cause instanceof Error && 'lockTimeoutCode' in cause && cause.lockTimeoutCode === 'LEDGER_LOCK_TIMEOUT') {
+      this.lockTimeoutCode = cause.lockTimeoutCode
+    }
   }
 }
 
@@ -33,6 +38,9 @@ export async function withWriterLock<T>(path: string, options: WriterLockOptions
     try {
       handle = await acquireExclusiveLockFile(path, { timeoutMs: options.lockTimeoutMs, retryMs: options.lockRetryMs })
     } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'EAGAIN') {
+        Object.assign(error, { lockTimeoutCode: 'LEDGER_LOCK_TIMEOUT' })
+      }
       if (error instanceof Error && 'code' in error && error.code === 'EAGAIN') throw new LedgerUnavailableError(error)
       throw error
     }
@@ -49,6 +57,7 @@ export async function withWriterLock<T>(path: string, options: WriterLockOptions
         const code = error instanceof Error && 'code' in error ? error.code : undefined
         if (code !== 'EAGAIN' && code !== 'EWOULDBLOCK') throw error
         const remaining = deadline - performance.now()
+        if (remaining <= 0 && error instanceof Error) Object.assign(error, { lockTimeoutCode: 'LEDGER_LOCK_TIMEOUT' })
         if (remaining <= 0) throw new LedgerUnavailableError(error)
         await setTimeout(Math.min(remaining, options.lockRetryMs))
       }

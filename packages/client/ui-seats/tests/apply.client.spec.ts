@@ -55,6 +55,30 @@ it('restores each slot contribution after declaration reload and removes slots, 
   } finally { stop() }
 }, 60_000)
 
+it('refreshes engine diagnostics without a Session event and clears them after recovery', async ({ mock, start }) => {
+  const c = await start()
+  const failure = { site: 'scheduled-drive', code: 'unclassified-error', since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 }
+  let stopped = false
+  mock.unary('seatUi/overview', () => ok({ available: true, definitions: [], windows: [], complete: true,
+    ...(stopped ? { diagnostics: { engine: failure, openings: [] } } : {}) }))
+  const source = c.ctx.resources.source('dsh-resource://seats/local')
+  const stop = source.subscribe(() => {})
+  try {
+    await vi.waitFor(() => { expect(source.getSnapshot().status).toBe('live') })
+    stopped = true
+    mock.streams.push('$events', { type: 'emit', event: 'seat/diagnostics-changed', args: [] })
+    await vi.waitFor(() => { expect(source.getSnapshot().value).toMatchObject({ diagnostics: { engine: failure } }) })
+    stopped = false
+    mock.streams.push('$events', { type: 'emit', event: 'seat/diagnostics-changed', args: [] })
+    await vi.waitFor(() => { expect(source.getSnapshot().value).not.toHaveProperty('diagnostics') })
+    stop()
+    const calls = mock.log.calls('seatUi/overview').length
+    mock.streams.push('$events', { type: 'emit', event: 'seat/diagnostics-changed', args: [] })
+    await c.flush()
+    expect(mock.log.calls('seatUi/overview')).toHaveLength(calls)
+  } finally { stop() }
+}, 60_000)
+
 it('initializes the returned opening draft in the selected real Session binding without sending it', async ({ mock, start }) => {
   const sessionId = 'seat-prefilled' as SessionId
   const draft = 'Review the assigned files before making changes.'

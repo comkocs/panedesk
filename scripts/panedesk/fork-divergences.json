@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-diagnostic-invalidation",
+      "description": "Forward payload-free seat engine diagnostic invalidations to owner-authorized UI resources.",
+      "origin": "Seat failure visibility",
+      "reason": "Engine failures and absent openings can change without Session lifecycle events; the UI must refresh its authorized overview immediately.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/api/remotes/package.json", "packages/api/remotes/src/remote-events.ts", "packages/api/remotes/tsconfig.client.json", "packages/api/remotes/tsconfig.host.json", "packages/api/remotes/README.md", "packages/api/remotes/README.zh.md", "packages/api/remotes/README.i18n.yaml", "packages/extensions/tool-cordis/src/api-catalog.ts", "docs/event-producer-consumer.md", "docs/event-producer-consumer.zh.md", "docs/event-producer-consumer.i18n.yaml", "pnpm-lock.yaml"],
+        "test": "refreshes engine diagnostics without a Session event and clears them after recovery"
+      }
+    },
+    {
       "id": "windows-x64-zig-cross-compilation",
       "description": "Cross-compile the Windows x64 private-file Node-API addon with Zig and official Node-API headers.",
       "origin": "Windows native artifact delivery",

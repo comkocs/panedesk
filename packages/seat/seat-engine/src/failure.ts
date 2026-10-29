@@ -51,7 +51,8 @@ export class EngineFailures {
   private alert: ReturnType<typeof setTimeout> | undefined
   private revision = 0
   private closed = false
-  constructor(private readonly initialMs: number | undefined, private readonly log: (line: string) => void) {}
+  constructor(private readonly initialMs: number | undefined, private readonly log: (line: string) => void,
+    private readonly changed: () => void = () => {}) {}
 
   /** Read a detached diagnostic, absent before a failure or after a verified successful retry.
    * @returns Safe failure fields without exception text.
@@ -83,6 +84,10 @@ export class EngineFailures {
         return errors.find(item => !item.retryable) ?? classify(error.errors[0])
       }
       const raw = error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined
+      if (raw === 'LEDGER_UNAVAILABLE' && error !== null && typeof error === 'object'
+        && 'lockTimeoutCode' in error && error.lockTimeoutCode === 'LEDGER_LOCK_TIMEOUT') {
+        return { code: 'LEDGER_LOCK_TIMEOUT', retryable: true }
+      }
       const known = typeof raw === 'string' && (Object.hasOwn(SEAT_ERROR_CODES, raw) || transportCodes.has(raw))
       // Never unwrap persistence errors even when their nested cause resembles a transport timeout.
       return { code: known ? raw : 'unclassified-error', retryable: known && transportCodes.has(raw) }
@@ -98,6 +103,7 @@ export class EngineFailures {
     if (this.initialMs !== undefined) this.nextDue = now + Math.min(300000, this.initialMs * 2 ** Math.min(attempts - 1, 30))
     this.log(`Seat engine failure ${JSON.stringify({ ...failure, action: retryable ? 'retry' : 'stop-and-restart-after-repair',
       ...(safeCode === 'unclassified-error' ? { exception: exceptionSummary(cause) } : {}) })}`)
+    this.changed()
     if (!previous && !this.closed) {
       this.alert = setTimeout(() => {
         this.alert = undefined
@@ -113,6 +119,7 @@ export class EngineFailures {
   succeeded(generation: number): void {
     if (this.initialMs === undefined || !this.current?.retryable || generation !== this.revision) return
     this.current = undefined
+    this.changed()
     if (this.alert) clearTimeout(this.alert)
     this.alert = undefined
   }

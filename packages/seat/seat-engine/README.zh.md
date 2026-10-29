@@ -27,6 +27,8 @@ kind: "package-reference"
 
 通过 `failureRecovery: { retryInitialMs: 1000 }` 显式启用运行时失败监督；省略时保留状态锁存与既有调度。初始延迟必须是 1 至 300000 毫秒的整数。已知传输码（`ETIMEDOUT`、`ECONNRESET`、`ECONNREFUSED`、`EPIPE`、`node-tunnel-disconnected`、`node-deadline-exceeded`、`callback-timeout`）按指数退避重试，上限五分钟。只有包含回调结算与决定通知的完整 drive 成功，才清除可重试失败。决定监听器可能再次收到同一个已提交决定，必须按其身份去重副作用。监听失败不回滚已提交决定。监听器发起的写入在提交后返回，不等待自身通知；串行发布器在当前监听器结束后继续发布这些决定。通知之外的并发调用仍等待发布器。回调重试保留既有载荷、键与未知结果查询屏障。
 
+账本争用仅在 `LEDGER_UNAVAILABLE` 带有 `lockTimeoutCode: LEDGER_LOCK_TIMEOUT` 时重试；该标记在写事务开始前设置，并穿过账本包装。写入及同步失败保留既有分类。重试保留原开窗与消息身份。运行时失败变化及已提交决定发布不带正文的诊断失效通知；`node.status.openingFailures` 投影每个工位最近的未创建失败，直到后续成功开窗，不将失败意图当作 Session。缺预设失败保留 `details.agentPreset`，供所有者本地化报告。
+
 未分类失败额外记录 `exception` 数组，包含异常、cause 与聚合成员的构造器名及 `name`/`code` 标识，最多四层、十六项。每个标识最多 48 个字符，仅允许 `[A-Za-z0-9._:-]`；不安全或令牌样标识省略。摘要绝不读入 message、stack、URL 或路径。它仅进入日志，不影响分类，也不扩展 `node.status` 或持久化记录。
 
 每次引擎失败通过 logger 与 stderr 输出一行安全错误，包含位置、细因码、可重试性及处置；`node.status.failure` 提供 `site`、`code`、`since`、`retryable`、`attempts`，不包含异常正文。连续不可用严格超过十分钟时再输出一次错误。状态冲突、证据歧义、持久化不确定、保留注册缺失或歧义、所有者释放超预算及未分类失败会停止受监督的 drive。后续传输暂态不能清除这些失败。修复底层证据或配置、停止准入、排空并重启宿主以重放日志；目前不提供 `engine.recover` 命令。不得通过删日志帧或绕过授权清除状态。诊断仅存在于运行时，不改变业务记录；卸载会取消告警计时器。

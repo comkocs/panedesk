@@ -150,7 +150,7 @@ export class SeatEngine extends SeatEngineService {
     this.failures = new EngineFailures(options.config.failureRecovery?.retryInitialMs, (line) => {
       ctx.logger.error(line)
       console.error(line)
-    })
+    }, () => { ctx.emit('seat/diagnostics-changed') })
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
     this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,
@@ -474,11 +474,20 @@ export class SeatEngine extends SeatEngineService {
   }
   nodeStatus(): Promise<T.SeatNodeStatus> {
     const failure = this.failures.snapshot()
+    const latest = new Map<T.SeatName, T.EngineOpenData>()
+    for (const open of this.journal.projection.opens.values()) {
+      if (open.definition && (open.phase === 'active'
+        || open.phase === 'opening-failed' && open.failure?.effectState === 'none')) latest.set(open.definition.seat, open)
+    }
+    const openingFailures = [...latest.values()].flatMap(open =>
+      open.phase === 'opening-failed' && open.failure?.effectState === 'none' && open.definition
+        ? [{ sessionId: open.sessionId, seat: open.definition.seat,
+          agentPreset: open.definition.agentPreset, code: open.failure.code }] : [])
     return Promise.resolve({ nodeId: this.options.nodeId, nodeName: this.options.config.nodeName,
       engine: failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),
       limit: this.options.config.nodeEngineWindowLimit ?? null, readyAt: this.readyAt,
-      ...(failure ? { failure } : {}) })
+      ...(failure ? { failure } : {}), ...(openingFailures.length ? { openingFailures } : {}) })
   }
   override wakeSource = async (envelope: T.TriggerEnvelope): Promise<T.WakeSeatResult | undefined> => {
     if (envelope.evidence.kind !== 'external' || !this.options.config.sourceWake?.some(rule =>
@@ -653,6 +662,7 @@ export class SeatEngine extends SeatEngineService {
       for (const decision of decisions) {
         if (!supervised) this.published = decision.sequence
         for (const notify of this.listeners) notify()
+        this.ctx.emit('seat/diagnostics-changed')
         const scope = { active: true }
         try {
           if (supervised) await this.notificationScope.run(scope, () => this.ctx.parallel('seat/decision', decision))

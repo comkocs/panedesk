@@ -43,6 +43,8 @@ Trusted receiving wake is enabled only with explicit chain composition. `seat.wa
 
 ## Window transactions
 
+Opening failures with `effectState: none` retain their engine audit facts but are excluded from window listing and message targets: the reserved identity is not a created Session. Failures with partial effects remain visible for inspection and cleanup.
+
 `seatOpeningContexts.registerScopeAdmission` optionally installs one trusted owner for serialized source opening and batch acceptance. Its evaluator replaces only the task-scope check; existing opening policies still run. The owner retains durable reservations before execution and drains on disposal. Its optional `recheck` confirms frozen permission again before queued dispatch and unfinished opening recovery, outside any admission chain awaiting the engine; required but missing or closing policies retain occupancy rather than allowing execution. Without registration, task-aware batches keep the existing evaluator lookup and `scope-unknown` refusal when it is absent; seats-only calls are unchanged.
 
 `registerSourceOwner` installs one trusted owner for preparation, admission checks and callback delivery. Without an owner, these three methods are absent. Disposal removes them immediately, rejects captured stale calls, and drains admitted calls before another owner can register.

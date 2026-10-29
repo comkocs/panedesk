@@ -56,6 +56,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
           ctx.remote.$on('api-session/added', invalidate),
           ctx.remote.$on('api-session/removed', invalidate),
           ctx.remote.$on('api-session/status', invalidate),
+          ctx.remote.$on('seat/diagnostics-changed', invalidate),
         ]
         signal.addEventListener('abort', invalidate, { once: true })
         const aborted = (): boolean => signal.aborted
@@ -106,7 +107,9 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       else if (value.status === 'choice-required') notify(t('existingChoice'))
       else if (value.status === 'rejected') {
         const directoryRefused = startupDirectory !== undefined && value.error.code === 'invalid-request'
-        notify(t('openFailed', { reason: `${value.error.code}: ${value.error.message} ${value.error.alternative}${directoryRefused ? ` ${t('directoryRefused')}` : ''}` }))
+        notify(value.error.details?.agentPreset !== undefined
+          ? t('missingPreset', { preset: value.error.details.agentPreset, code: value.error.code })
+          : t('openFailed', { reason: `${value.error.code}: ${value.error.message} ${value.error.alternative}${directoryRefused ? ` ${t('directoryRefused')}` : ''}` }))
       }
       else if (value.status !== 'cancelled') notify(t('openFailed', { reason: value.status }))
       refresh()

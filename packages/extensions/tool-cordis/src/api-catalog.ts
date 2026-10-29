@@ -6374,6 +6374,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'decision', description: 'committed frame and its complete effects.' }],
   },
   {
+    name: 'seat/diagnostics-changed',
+    mode: 'emit',
+    signature: '\'seat/diagnostics-changed\'(): void',
+    summary: 'Invalidates owner diagnostics after runtime supervision changes; carries no private data.',
+    description: 'Invalidates owner diagnostics after runtime supervision changes; carries no private data.',
+    parameters: [],
+  },
+  {
     name: 'seat/memory-write-denied',
     mode: 'emit',
     signature: '\'seat/memory-write-denied\'(sessionId: SessionId, failure: SeatFailure): void',
@@ -10463,7 +10471,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatFailure',
-    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause | SeatCancellationCause;\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause | SeatCancellationCause;\n    details?: {\n        agentPreset: string;\n    };\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
   },
   {
     name: 'SeatFailureCause',
@@ -10547,7 +10555,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatNodeStatus',
-    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n    };\n}',
+    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n    };\n    openingFailures?: readonly {\n        sessionId: SessionId;\n        seat: SeatName;\n        agentPreset: string;\n        code: SeatFailure[\'code\'];\n    }[];\n}',
   },
   {
     name: 'SeatOpenExecutor',

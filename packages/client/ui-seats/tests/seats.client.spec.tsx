@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SeatDefinition } from '@panedesk/dsh-seat/types'
 import type { SeatOverview } from '../src/types.ts'
 import { SeatHeader, SeatPicker, SeatsSection, type SeatHeaderProps, type SeatPickerProps, type SeatsSectionProps } from '../src/client/Seats.tsx'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 
 const seat: SeatDefinition = {
   schemaVersion: 1, revision: 1, seat: 'seat-a' as never, platform: 'server', node: 'node-a', projectId: 'project-a' as never,
@@ -29,13 +29,39 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
     useSessions: ((select: (snapshot: object) => unknown) => select({ ids: ['session-a'], byId: { 'session-a': { cwd, retainedBy: { mainView: 1 } } } })) as SeatPickerProps['useSessions'],
     useSeatNotice: ((select: (value: typeof notice) => unknown) => select(notice)) as SeatHeaderProps['useSeatNotice'],
     openSeat, openWindow: vi.fn(), dismiss: vi.fn(),
-    t: (key: keyof typeof en) => en[key],
+    t: (key: keyof typeof en, params?: Record<string, string | number>) =>
+      en[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match)),
   }
   return { props, openSeat }
 }
 afterEach(cleanup)
 
 describe('seat entry presentations', () => {
+  it('shows a missing preset refusal in the cold picker without a Session header', () => {
+    const f = fixture(data, undefined, { seq: 1, message: 'Agent preset agent-a is unavailable. Restore the preset and submit again.' })
+    render(<SeatPicker {...f.props as SeatPickerProps} />)
+    expect(screen.getByText('Agent preset agent-a is unavailable. Restore the preset and submit again.')).toBeTruthy()
+  })
+  it('shows a stopped engine and its clearance condition in the seat section', () => {
+    const f = fixture({ ...data, diagnostics: { engine: { site: 'scheduled-drive', code: 'unclassified-error',
+      since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 }, openings: [] } })
+    render(<SeatsSection {...f.props as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toContain('Seat engine stopped')
+    expect(screen.getByRole('alert').textContent).toContain('restart')
+    expect(screen.getByRole('alert').textContent).toContain('unclassified-error')
+  })
+  it.each(['en', 'zh'] as const)('keeps localized absent-opening diagnostics until a successful replacement: %s', (language) => {
+    const f = fixture({ ...data, diagnostics: { openings: [{ sessionId: 'absent-a' as never,
+      seat: seat.seat, agentPreset: seat.agentPreset, code: 'open-create-failed' }] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const view = render(<SeatPicker {...{ ...f.props, t } as SeatPickerProps} />)
+    if (language === 'en') expect(screen.getByRole('alert').textContent).toMatchInlineSnapshot('"seat-a: Agent preset "agent-a" is unavailable [open-create-failed]; no Session was created. Restore the preset and submit a new opening. This alert clears after that seat opens successfully."')
+    else expect(screen.getByRole('alert').textContent).toMatchInlineSnapshot('"seat-a: 代理预设“agent-a”不可用 [open-create-failed]，未创建会话。请恢复预设后重新提交开窗；该工位成功开窗后，本告警清除。"')
+    view.rerender(<SeatPicker {...{ ...fixture(data).props, t } as SeatPickerProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('shows a cold-start picker and optional sidebar, hiding unavailable, empty and collapsed sections', () => {
     const f = fixture()
     const view = render(<SeatPicker {...f.props as SeatPickerProps} />)

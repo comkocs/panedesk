@@ -50,7 +50,10 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
         if (error === null || typeof error !== 'object' || !('isDSHRemoteError' in error) || error.isDSHRemoteError !== true
           || !('code' in error) || error.code !== 'agent-preset/not-found' || await executor.observe(current) !== 'absent') throw error
         const failed: EngineOpenData = { ...(journal.projection.opens.get(current.sessionId) ?? current), phase: 'opening-failed', failure: {
-          code: 'open-create-failed', message: 'The retained agent preset is unavailable; no Session was created.',
+          ...(current.definition ? { details: { agentPreset: current.definition.agentPreset } } : {}),
+          code: 'open-create-failed', message: current.definition
+            ? `Agent preset "${current.definition.agentPreset}" is unavailable; no Session was created.`
+            : 'The retained agent preset is unavailable; no Session was created.',
           alternative: 'Restore the preset and submit a new opening operation.', retryable: false, effectState: 'none' } }
         await journal.commit((view) => {
           const resource = view.resources.get(current.sessionId)

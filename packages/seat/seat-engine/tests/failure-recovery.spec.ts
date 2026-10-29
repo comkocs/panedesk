@@ -4,6 +4,83 @@ import { EngineError } from '../src/journal.ts'
 import { EngineFailures } from '../src/failure.ts'
 import { validateConfig } from '../src/index.ts'
 import { auto, config, harness, projectId, trigger } from './fixtures.ts'
+import { join } from 'node:path'
+import { withWriterLock, LedgerUnavailableError } from '@panedesk/dsh-session-ledger/src/lock.ts'
+
+it('backs off only ledger lock acquisition timeouts and resumes the retained opening once', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const h = await harness({ failureRecovery: { retryInitialMs: 2000 } })
+  const lock = join(h.home, 'writer.lock')
+  const changed = vi.fn()
+  h.ctx.on('seat/diagnostics-changed', changed)
+  let failure: unknown
+  try {
+    await auto(h.engine)
+    await h.engine.accept(trigger())
+    await withWriterLock(lock, { lockTimeoutMs: 1000, lockRetryMs: 1 }, async () => {
+      try {
+        await withWriterLock(lock, { lockTimeoutMs: 1, lockRetryMs: 1 }, async () => {
+          throw new Error('A contended writer must never enter its transaction')
+        })
+      } catch (error) { failure = new LedgerUnavailableError(error) }
+    })
+    expect(failure).toMatchObject({ code: 'LEDGER_UNAVAILABLE', lockTimeoutCode: 'LEDGER_LOCK_TIMEOUT' })
+    const resolve = h.seatProvider.resolve.bind(h.seatProvider)
+    vi.spyOn(h.seatProvider, 'resolve').mockRejectedValueOnce(failure).mockImplementation(resolve)
+    await vi.advanceTimersByTimeAsync(1000)
+    try { await h.engine.drive() } catch (error) { expect(error).toBe(failure) }
+    expect((await h.engine.nodeStatus()).failure).toMatchObject({ code: 'LEDGER_LOCK_TIMEOUT', retryable: true })
+    expect(changed).toHaveBeenCalled()
+    changed.mockClear()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(h.creates).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(2000)
+    await h.engine.drive()
+    expect((await h.engine.nodeStatus()).failure).toBeUndefined()
+    expect(changed).toHaveBeenCalled()
+    await h.engine.drive()
+    expect(h.creates).toHaveLength(1)
+    expect([...h.engine.journal.projection.opens.values()]).toHaveLength(1)
+  } finally { await h.close() }
+})
+
+it('does not retry ledger errors raised after acquiring the writer lock', async () => {
+  const failures = new EngineFailures(1, () => {})
+  const h = await harness()
+  const writeFailure = Object.assign(new Error('write failed'), { code: 'EAGAIN' })
+  try {
+    try {
+      await withWriterLock(join(h.home, 'writer.lock'), { lockTimeoutMs: 1000, lockRetryMs: 1 }, async () => { throw writeFailure })
+    } catch (error) {
+      expect(error).toBe(writeFailure)
+      expect(error).not.toHaveProperty('lockTimeoutCode')
+      failures.record('scheduled-drive', new LedgerUnavailableError(error))
+    }
+    expect(failures.snapshot()).toMatchObject({ code: 'unclassified-error', retryable: false })
+    expect(failures.runnable()).toBe(false)
+  } finally { failures.close(); await h.close() }
+})
+
+it('invalidates owner diagnostics when an unregistered failure stops the real engine', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const h = await harness({ failureRecovery: { retryInitialMs: 2000 } })
+  const changed = vi.fn()
+  h.ctx.on('seat/diagnostics-changed', changed)
+  try {
+    await auto(h.engine)
+    await h.engine.accept(trigger())
+    changed.mockClear()
+    vi.spyOn(h.seatProvider, 'resolve').mockRejectedValue(Object.assign(new Error('Not public'), { code: 'test/unregistered' }))
+    await vi.advanceTimersByTimeAsync(1000)
+    expect((await h.engine.nodeStatus()).failure).toMatchObject({ code: 'unclassified-error', retryable: false })
+    expect(changed).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(h.creates).toHaveLength(0)
+    expect((await h.engine.nodeStatus()).failure?.retryable).toBe(false)
+  } finally { await h.close() }
+})
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 

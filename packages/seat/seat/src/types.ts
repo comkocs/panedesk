@@ -180,6 +180,8 @@ export type SeatErrorCode =
 export interface SeatFailure {
   /** Sanitized original refusal; the outer compatibility code remains unchanged. */
   cause?: SeatFailureCause | SeatCancellationCause
+  /** Retained preset identity for an opening that failed before Session creation; absent for other failures. */
+  details?: { agentPreset: string }
   code: SeatErrorCode
   message: string
   alternative: string
@@ -675,6 +677,8 @@ export interface SeatNodeStatus {
   readyAt: SeatTimestamp | null
   /** Current runtime failure; absent before failure or after a successful supervised retry. */
   failure?: { site: string; code: string; since: SeatTimestamp; retryable: boolean; attempts: number }
+  /** Latest absent opening per seat; a subsequent successful opening clears its diagnostic, not its audit facts. */
+  openingFailures?: readonly { sessionId: SessionId; seat: SeatName; agentPreset: string; code: SeatFailure['code'] }[]
 }
 /** Reference-price cost includes descendant work and maintenance; missing evidence stays unknown. */
 export interface SeatBudgetSnapshot {

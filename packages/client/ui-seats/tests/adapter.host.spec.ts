@@ -52,6 +52,21 @@ describe('manual seat UI adapter', () => {
         identityStatus: 'failed', definitions: [], windows: [] })
     } finally { await f.ctx.fiber.dispose() }
   })
+  it('projects safe engine diagnostics independently of dispatchable windows', async () => {
+    const f = fixture()
+    const failure = { site: 'scheduled-drive', code: 'unclassified-error', since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 }
+    const engine = f.ctx.get('seatEngine')!
+    const read = vi.spyOn(engine, 'nodeStatus').mockResolvedValue({ nodeId: 'node-a' as never, nodeName: 'local',
+      engine: 'unavailable', openEngineWindows: 0, limit: null, readyAt: null, failure,
+      openingFailures: [{ sessionId: 'absent-a' as never, seat: 'seat-a' as never, agentPreset: 'agent-a', code: 'open-create-failed' }] })
+    try {
+      expect(await f.ui.overview()).toMatchObject({ windows: [], diagnostics: { engine: failure,
+        openings: [{ agentPreset: 'agent-a', code: 'open-create-failed' }] } })
+      read.mockResolvedValue({ nodeId: 'node-a' as never, nodeName: 'local', engine: 'running',
+        openEngineWindows: 0, limit: null, readyAt: null })
+      expect(await f.ui.overview()).not.toHaveProperty('diagnostics')
+    } finally { read.mockRestore(); await f.ctx.fiber.dispose() }
+  })
   it('stops an aborted overview before provider reads', async () => {
     const f = fixture()
     try {

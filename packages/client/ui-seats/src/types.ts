@@ -1,5 +1,5 @@
 /** Owner-authorized seat facts shared by the Host projection and its Client resource. */
-import type { OpenSeatResult, SeatBinding, SeatDefinition, SeatName, SeatOperationId, SeatRejected, SeatWindowView } from '@panedesk/dsh-seat/types'
+import type { OpenSeatResult, SeatBinding, SeatDefinition, SeatName, SeatNodeStatus, SeatOperationId, SeatRejected, SeatWindowView } from '@panedesk/dsh-seat/types'
 
 /** Read-only projection; missing providers are explicit rather than an empty ready catalog. */
 export interface SeatOverview {
@@ -11,6 +11,8 @@ export interface SeatOverview {
   binding?: SeatBinding | null | SeatRejected
   /** An isolated read failure permits retaining previously verified identity in the same open resource. */
   identityStatus?: 'failed'
+  /** Owner-only failures independent of dispatchable Session windows; absence clears prior diagnostics. */
+  diagnostics?: { engine?: SeatNodeStatus['failure']; openings: NonNullable<SeatNodeStatus['openingFailures']> }
 }
 
 /** Manual opening accepts no caller-supplied authority or opening mode. */

@@ -22,7 +22,7 @@
 
 `OpenSeatResult` 区分已打开、已预填、既有窗口选择、已切换、已取消、排队及拒绝结果。创建不意味着首轮完成。`ReplaceSeatResult` 保留新旧身份与清理状态；替换先开新窗再关旧窗，并保留显式交接许可。`CloseSeatResult` 区分已关闭、忙碌、版本冲突和拒绝。未知活动不能作为空闲证据。
 
-`SeatWindowView` 投影运行时状态、忙碌原因、缓存证据和状态版本。`SeatContextUsage` 表示带时间的当前上下文证据，不是累计计费 token。证据缺失保持未知。`SeatFailure` 携带机器码、说明、替代方案、可重试性及观察到的副作用状态。
+`SeatWindowView` 投影运行时状态、忙碌原因、缓存证据和状态版本。`SeatContextUsage` 表示带时间的当前上下文证据，不是累计计费 token。证据缺失保持未知。`SeatFailure` 携带机器码、说明、替代方案、可重试性及观察到的副作用状态；可选 `details.agentPreset` 标识 Session 创建前被拒绝的预设。`SeatNodeStatus.failure` 报告受监督的运行时失败，可选 `openingFailures` 按预留会话身份、工位、预设及细因码独立列出未解决的未创建开窗。诊断失效通知触发已授权重读；清除条件由[工位引擎](../../packages/seat/seat-engine/README.zh.md)定义。
 
 `SeatMessageWindow` 包含本地在开绑定的席位、会话、节点身份及主窗选择。可选只读能力 `messageWindows()` 从已提交的换窗进度推导选择，排除已关窗口与尚未解除关闭屏障的窗口，不会激活会话。运行时存活性由[消息提供方](../../packages/session/message-delivery-local/README.zh.md)单独检查。
 
@@ -1439,6 +1439,21 @@ Published only after a decision is durable; observer failure cannot undo the com
  * @param decision - committed frame and its complete effects.
  */
 'seat/decision'(decision: EngineDecision): void
+```
+
+Source: [`packages/seat/seat/src/events.ts`](../../packages/seat/seat/src/events.ts)
+
+<a id="seatdiagnostics-changed--emit"></a>
+
+#### `seat/diagnostics-changed` — emit
+
+Invalidates owner diagnostics after runtime supervision changes; carries no private data.
+
+```ts cordis-catalog
+/** Invalidates owner diagnostics after runtime supervision changes; carries no private data.
+ * @mode emit
+ */
+'seat/diagnostics-changed'(): void
 ```
 
 Source: [`packages/seat/seat/src/events.ts`](../../packages/seat/seat/src/events.ts)

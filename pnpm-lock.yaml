@@ -1515,6 +1515,9 @@ importers:
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-seat-gates':
         specifier: workspace:*
         version: link:../../seat/seat-gates

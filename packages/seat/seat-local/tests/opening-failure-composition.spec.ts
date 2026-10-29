@@ -5,6 +5,34 @@ import type { StreamChunk } from '@panedesk/dsh-llm'
 import { admissionHost } from './admission-host.ts'
 import { operation } from './fixtures.ts'
 
+it('excludes absent failed openings from dispatchable windows after reload', async () => {
+  const f = await admissionHost(undefined, { ownerObserveIntervalMs: 60000 })
+  const create = vi.spyOn(f.ctx.agents, 'create').mockRejectedValueOnce(Object.assign(new Error('Missing preset'), {
+    name: 'RemoteError', code: 'agent-preset/not-found', isDSHRemoteError: true,
+  }))
+  try {
+    const result = await f.seats.open({ seat: f.definition.seat, origin: 'manual', operationId: operation('missing-preset') })
+    expect(result).toMatchObject({ status: 'rejected', error: { effectState: 'none' } })
+    const failed = [...f.engine.journal.projection.opens.values()][0]!
+    expect(failed.phase).toBe('opening-failed')
+    create.mockRestore()
+    const seats = await f.reload()
+    const listed = await seats.list({})
+    expect(listed).toMatchObject({ status: 'listed', sessions: [], unopenedSeats: [f.definition.seat] })
+    if (!seats.messageWindows) throw new Error('Message window capability is missing')
+    expect(await seats.messageWindows()).toEqual([])
+    expect(f.engine.journal.projection.opens.has(failed.sessionId)).toBe(true)
+    expect((await f.engine.nodeStatus()).openingFailures).toEqual([{ sessionId: failed.sessionId,
+      seat: f.definition.seat, agentPreset: f.definition.agentPreset, code: 'open-create-failed' }])
+    expect(f.engine.journal.projection.opens.get(failed.sessionId)?.failure?.details).toEqual({ agentPreset: f.definition.agentPreset })
+    const healthy = await seats.open({ seat: f.definition.seat, origin: 'manual', operationId: operation('restored-preset'),
+      openingMode: 'prefill' })
+    expect(healthy.status).toBe('prefilled')
+    expect((await f.engine.nodeStatus()).openingFailures).toBeUndefined()
+    expect(f.engine.journal.projection.opens.has(failed.sessionId)).toBe(true)
+  } finally { create.mockRestore(); await f.close() }
+}, 15000)
+
 it('records a failed opening and callback after an actual provider error turn', async () => {
   const f = await admissionHost()
   const callbacks: T.SeatCallbackPayload[] = []

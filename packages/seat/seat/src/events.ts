@@ -237,5 +237,9 @@ declare module '@panedesk/cordis' {
      * @param status - local node state, including the ready timestamp.
      */
     'seat/ready'(status: import('./types.ts').SeatNodeStatus): void
+    /** Invalidates owner diagnostics after runtime supervision changes; carries no private data.
+     * @mode emit
+     */
+    'seat/diagnostics-changed'(): void
   }
 }

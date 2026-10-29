@@ -180,6 +180,7 @@ export class LocalSeatService extends SeatService {
       if (effect.kind === 'window/closed') closed.add(effect.data.sessionId)
     }
     return [...opened.values()].flatMap(open => open.binding.kind === 'seat' && !closed.has(open.sessionId)
+      && !(open.phase === 'opening-failed' && open.failure?.effectState === 'none')
       ? [{ binding: open.binding, open }] : [])
   }
   private async windowEngineStatus(open: T.EngineOpenData, complete: boolean): Promise<T.SeatEngineStatus> {
