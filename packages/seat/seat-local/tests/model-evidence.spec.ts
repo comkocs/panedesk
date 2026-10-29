@@ -31,6 +31,8 @@ test('reads request headers after a real execution without issuing another model
       origin: 'manual', openingMode: 'auto' })
     if (result.status !== 'opened') throw new Error('Expected opened Session')
     await vi.waitFor(async () => {
+      // Request headers can be persisted before the ledger releases adapter dispatch.
+      expect(f.adapter.requests).toHaveLength(1)
       await f.ctx.get('sessionPersistence')!.flush()
       expect(await readExecutionModel(f.ctx, result.sessionId, f.options.nodeId)).toMatchObject({ status: 'present',
         kind: 'request/header', provider: f.definition.provider, model: f.definition.model, sessionId: result.sessionId })
