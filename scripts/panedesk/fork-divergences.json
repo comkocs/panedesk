@@ -114,7 +114,7 @@
       "id": "full-ledger-three-scenario-invariants",
       "description": "Pin unordered upstream events, physical calls, durable tool starts and exit budgets with the full ledger enabled.",
       "origin": "Upstream recorded-session ledger composition",
-      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "reason": "Pin default behavior with the full ledger enabled: normalized upstream events appear exactly once without ordering comparisons, turn structure is consistent, each physical request has one ledger row, every tool execution has a durable run start, and execution exits within the upstream timeout",
       "match": {
         "type": "test-assertion",
         "paths": ["snapshots/full-ledger.invariants.ts"],
@@ -125,7 +125,7 @@
       "id": "upstream-seat-opening-full-ledger-retained",
       "description": "Keep the full ledger enabled in the seat-opening replay composition.",
       "origin": "Upstream recorded-session ledger composition",
-      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "reason": "The seat engine depends on the full ledger for node identity and run starts; this scenario explicitly retains it after the shared ledger-disabling patch",
       "match": {
         "type": "allowed-line-edits",
         "paths": ["snapshots/session/seat-opening/cordis.snapshot.yml"],
@@ -136,7 +136,7 @@
       "id": "upstream-seat-windows-full-ledger-retained",
       "description": "Keep the full ledger enabled in the seat-windows replay composition.",
       "origin": "Upstream recorded-session ledger composition",
-      "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
+      "reason": "The seat engine depends on the full ledger for node identity and run starts; this scenario explicitly retains it after the shared ledger-disabling patch",
       "match": {
         "type": "allowed-line-edits",
         "paths": ["snapshots/session/seat-windows/cordis.snapshot.yml"],
