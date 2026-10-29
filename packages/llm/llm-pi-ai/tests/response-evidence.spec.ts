@@ -122,6 +122,65 @@ describe('provider response evidence', () => {
 })
 
 describe('opt-in wire cache controls', () => {
+  it.each(([false, true] as const).flatMap(catalog =>
+    (['none', '5m', '1h', 'default'] as const).flatMap(retention =>
+      [false, true].map(tools => ({ catalog, retention, tools })))))
+  ('orders Anthropic $retention breakpoints with tools=$tools and catalog=$catalog', async ({ catalog, retention, tools }) => {
+    const server = await mockServer([{ events: frames('anthropic-messages', 'claude-haiku-5-5') }])
+    const profiles = resolveProfiles({ 'route-a': { api: 'anthropic-messages', baseURL: server.url, models: [{ id: 'claude-haiku-5-5' }] },
+      ...(catalog ? { anthropic: { baseURL: server.url, models: [{ id: 'claude-haiku-5-5' }] } } : {}) })
+    const llm = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => 'fixture-key', auth: memoryAuth() })
+    await collect(llm, 'claude-haiku-5-5', {
+      provider: catalog ? 'anthropic' : 'route-a',
+      system: 'stable prefix', cache: { retention },
+      ...(tools ? { tools: [{ name: 'read', description: 'Read', parameters: { type: 'object', properties: {} } }] } : {}),
+    })
+    const body = server.requests[0] as {
+      tools?: { cache_control?: { ttl?: string } }[]
+      system?: { cache_control?: { ttl?: string } }[]
+      messages: { content: string | { cache_control?: { ttl?: string } }[] }[]
+    }
+    const blocks = [
+      ...(body.tools ?? []).map((block, index) => ({ position: `tools.${index}`, ttl: block.cache_control?.ttl })),
+      ...(body.system ?? []).map((block, index) => ({ position: `system.${index}`, ttl: block.cache_control?.ttl })),
+      ...body.messages.flatMap((message, index) => (typeof message.content === 'string' ? [] : message.content).map((block, content) => ({
+        position: `messages.${index}.content.${content}`, ttl: block.cache_control?.ttl,
+      }))),
+    ].filter(block => block.ttl !== undefined)
+    const expected = retention === 'default' ? '1h' : retention
+    expect(blocks, JSON.stringify(blocks)).toEqual(retention === 'none' ? []
+      : blocks.map(block => ({ ...block, ttl: expected })))
+    const durations = blocks.map(block => block.ttl === '1h' ? 3600 : 300)
+    expect(durations, JSON.stringify(blocks)).toEqual([...durations].sort((left, right) => right - left))
+    if (retention !== 'none') expect(blocks.length).toBeGreaterThanOrEqual(tools ? 3 : 2)
+  })
+
+  it.each([false, true])('pairs catalog effort messages with their protocol beta when catalog=%s', async (catalog) => {
+    const server = await mockServer([{ events: frames('anthropic-messages', 'claude-haiku-5-5') }])
+    const provider = catalog ? 'anthropic' : 'v1a-claude'
+    const profiles = resolveProfiles({ [provider]: { api: 'anthropic-messages', baseURL: server.url,
+      models: [{ id: 'claude-haiku-5-5', maxTokens: 8192, reasoningEfforts: false }] } })
+    const llm = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => 'fixture-key', auth: memoryAuth() })
+    await collect(llm, 'claude-haiku-5-5', { provider, system: 'stable prefix', cache: { retention: 'default' } })
+    const body = server.requests[0] as { messages: { output_config?: { effort: string } }[] }
+    const controls = body.messages.filter(message => message.output_config !== undefined)
+    if (catalog) {
+      expect(controls).toEqual([{ role: 'system', content: [], output_config: { effort: 'high' } }])
+      expect(server.headers[0]?.['anthropic-beta']).toContain('mid-conversation-output-config-2026-07-01')
+    } else {
+      expect(controls).toEqual([])
+      expect(server.headers[0]?.['anthropic-beta'] ?? '').not.toContain('mid-conversation-output-config-2026-07-01')
+    }
+  })
+
+  it('keeps DeepSeek automatic request bytes identical to absent controls', async () => {
+    const server = await mockServer([0, 1].map(() => ({ events: frames('openai-completions', 'deepseek-model-a') })))
+    const llm = adapter('openai-completions', server.url, 'deepseek-model-a')
+    await collect(llm, 'deepseek-model-a')
+    await collect(llm, 'deepseek-model-a', { cache: { retention: 'auto' } })
+    expect(JSON.stringify(server.requests[1])).toBe(JSON.stringify(server.requests[0]))
+  })
+
   it.each(['none', '5m', '1h', 'default'] as const)('applies Anthropic %s retention on existing breakpoints', async (retention) => {
     const server = await mockServer([{ events: frames('anthropic-messages', 'claude-model-a') }])
     const result = await collect(adapter('anthropic-messages', server.url, 'claude-model-a'), 'claude-model-a', {
