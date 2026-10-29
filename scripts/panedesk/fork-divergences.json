@@ -2199,6 +2199,139 @@
         ],
         "test": "restores a cold session and starts two fixed-rate turns on the real host clock"
       }
+    },
+    {
+      "id": "upstream-headless-subagent-defaults",
+      "description": "Replay upstream headless sessions with their recorded delegation defaults.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "The product enables root overflow queuing and deeper delegation through bundle configuration. An ordinary profile patch restores upstream depth, capacity, overflow and notification settings without changing recorded expectations.",
+      "match": { "type": "test-assertion", "paths": ["snapshots/session/headless.snapshot.ts", "snapshots/subagent-upstream.patch.yml"], "test": "headless recorded-session snapshots" }
+    },
+    {
+      "id": "upstream-sdk-subagent-defaults",
+      "description": "Replay upstream SDK sessions with their recorded delegation defaults.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "The shipped bundle enables queue result fields and depth three; the upstream SDK recordings retain depth one and immediate overflow rejection through an ordinary patch below scenario overrides.",
+      "match": { "type": "test-assertion", "paths": ["snapshots/sdk/sdk.snapshot.ts", "snapshots/subagent-upstream.patch.yml"], "test": "TypeScript SDK snapshots over the jsonrpc runtime" }
+    },
+    {
+      "id": "upstream-web-official-subagent-defaults",
+      "description": "Preserve the official provider recording's upstream control schemas.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "Product root queuing extends the PTC prompt; an ordinary Web overlay disables that capability while the existing recorded prompt and transcript stay unchanged.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/official-subagent-bundle.e2e.ts"], "test": "web snapshot: Official native subagent bundle" }
+    },
+    {
+      "id": "upstream-web-ptc-subagent-defaults",
+      "description": "Preserve the PTC browser recording's upstream control schemas.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "Product root queuing extends three result declarations; an ordinary Web overlay restores the upstream declarations without refreshing any snapshot.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/ptc-round.e2e.ts"], "test": "web e2e: PTC mode round renders nested sub-calls" }
+    },
+    {
+      "id": "upstream-web-editor-subagent-defaults",
+      "description": "Preserve the standalone editor recording's upstream control schemas.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "The editor scenario predates product root queuing. Its existing overlay stack now includes the upstream delegation patch; prompt and transcript expectations remain unchanged.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/standalone-string-editor.e2e.ts"], "test": "web snapshot: standalone string editor through PTC" }
+    },
+    {
+      "id": "upstream-web-fork-depth",
+      "description": "Retain recorded depth guidance in the Web fork scenario.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "The product's configured depth three removes depth-one child warnings. The scenario restores depth one through a profile patch and keeps its complete recorded child comparison.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/subagent-fork-schedule.snapshot.ts"], "test": "replays inherited schedule tools and refusals in a seeded Web fork" }
+    },
+    {
+      "id": "upstream-headless-settlement-depth",
+      "description": "Retain upstream child guidance in the settlement notification scenario.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "The bundle's deeper delegation changes recorded runtime context. The existing scenario patch restores upstream delegation defaults; notification, child and stream assertions remain intact.",
+      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/headless/subagent-settlement-snapshot.patch.yml"], "test": "notifies the parent when a continuable child settles without polling" }
+    },
+    {
+      "id": "upstream-headless-inheritance-depth",
+      "description": "Retain upstream fork guidance in the inherited permission scenario.",
+      "origin": "Recorded delegation compatibility",
+      "reason": "The bundle's deeper delegation removes the fork depth warning. The existing scenario patch restores upstream runtime defaults without altering the parent-only permission override or either complete transcript assertion.",
+      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/headless/subagent-inheritance-snapshot.patch.yml"], "test": "confines a delegated child through the assembled headless app" }
+    },
+    {
+      "id": "default-headless-subagent-queue-prompt",
+      "description": "Pin the default headless queue's exact additions to the upstream PTC prompt.",
+      "origin": "Product delegation defaults",
+      "reason": "A second keyless replay retains the shipped subagent configuration and compares the whole upstream prompt plus only the queue row and two queued activation result declarations.",
+      "match": { "type": "test-assertion", "paths": ["snapshots/session/headless.snapshot.ts", "snapshots/subagent-default.ts"], "test": "replays ptc-turn with default subagent queue through panedesk --profile headless" }
+    },
+    {
+      "id": "default-sdk-subagent-queue-prompt",
+      "description": "Pin the default SDK queue's exact additions to the upstream PTC prompt.",
+      "origin": "Product delegation defaults",
+      "reason": "A second keyless SDK replay retains the shipped subagent configuration and compares the complete upstream prompt with precisely the three queue-capable result declarations added.",
+      "match": { "type": "test-assertion", "paths": ["snapshots/sdk/sdk.snapshot.ts", "snapshots/subagent-default.ts"], "test": "replays ptc-turn with default subagent queue through panedesk --profile sdk" }
+    },
+    {
+      "id": "default-web-subagent-queue-prompt",
+      "description": "Pin the default Web queue's exact additions to the upstream PTC prompt.",
+      "origin": "Product delegation defaults",
+      "reason": "The assembled Web profile keeps product delegation enabled and compares the complete upstream prompt plus the declared queue fields, while explicitly checking depth three and root overflow queuing.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/subagent-default.expected.e2e.ts", "snapshots/subagent-default.ts"], "test": "the default web subagent queue adds only queue result fields to the upstream prompt" }
+    },
+    {
+      "id": "subagent-control-queue-schema-capability",
+      "description": "Expose queue result metadata only when root overflow queuing is enabled.",
+      "origin": "Subagent control tools",
+      "reason": "The queue extension previously changed upstream list_agents schemas even with overflow rejection. Conditional schema composition now preserves the upstream prompt when disabled; queue rendering tests explicitly enable the capability.",
+      "match": { "type": "test-assertion", "paths": ["packages/subagent/tool-subagent-control/src/list-agents.ts", "packages/subagent/tool-subagent-control/tests/list-agents.spec.ts"], "test": "adds queue counts, oldest time and positions" }
+    },
+    {
+      "id": "shell-composition-empty-environment",
+      "description": "Evaluate shell deployment expressions with an explicit empty environment.",
+      "origin": "Platform shell composition",
+      "reason": "Configurable Bash path selection reads process.env. The upstream platform-only test process omitted that object; supplying an empty environment preserves every existing platform roster assertion.",
+      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/windows-shell.spec.ts"], "test": "the shipped shell composition (real bundle layers)" }
+    },
+    {
+      "id": "seat-message-catalog-membership",
+      "description": "Include the shipped seat message tools in the complete catalog expectation.",
+      "origin": "Seat message tools",
+      "reason": "The catalog now includes seat_list_online and seat_send. The exact sorted expected roster adds those two names rather than weakening catalog membership assertions.",
+      "match": { "type": "test-assertion", "paths": ["packages/core/tools/tests/gen-tool-catalog.spec.ts"], "test": "boots every shipped tool package and harvests its model-facing schemas" }
+    },
+    {
+      "id": "web-subagent-product-limits-reset",
+      "description": "Expect product-configured delegation limits in the deployment reset form.",
+      "origin": "Product delegation defaults",
+      "reason": "Product defaults are supplied by bundle configuration, not plugin defaults: depth three and capacity sixteen replace one and eight in the deployment form expectations. Saving two and twelve, resetting, rereading and rejecting fractional depth remain asserted.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/plugin-config.e2e.ts"], "test": "saves subagent limits and resets them to the deployment defaults" }
+    },
+    {
+      "id": "web-subagent-product-limits-discard",
+      "description": "Expect product-configured depth after discarding an unsaved form edit.",
+      "origin": "Product delegation defaults",
+      "reason": "The deployment supplies depth three through bundle configuration while the plugin default stays one. The exact reread expectation follows the deployment; keyboard help and unsaved-edit preservation assertions remain unchanged.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/plugin-config.e2e.ts"], "test": "opens field explanations with the keyboard and retains unsaved edits" }
+    },
+    {
+      "id": "workspace-create-publication-after-durability",
+      "description": "Publish new workspace entities after their record is durable and before order notifications.",
+      "origin": "Workspace creation and Session attachment",
+      "reason": "Previously a discoverable entity could receive Session attachment before its table record existed. Publishing after record persistence but before the order commit prevents that race while keeping the entity resolvable by order-change subscribers, without changing stored formats or weakening browser error assertions.",
+      "match": { "type": "test-assertion", "paths": ["packages/workspace/workspace/src/index.ts", "apps/web/tests/workspace-management.e2e.ts"], "test": "reuses a deleted title for a different new directory without any transient error surface" }
+    },
+    {
+      "id": "workspace-session-creation-deletion-order",
+      "description": "Serialize Workspace-targeted Session creation and attachment with registration deletion.",
+      "origin": "Workspace lifecycle concurrency",
+      "reason": "A Session creation previously retained an entity while deletion could remove its durable record before attachment. The existing registry mutation queue now owns the complete creation and attachment callback, so an earlier creation finishes before deletion and an earlier deletion rejects creation before Agent side effects. Existing browser error assertions remain unchanged.",
+      "match": { "type": "test-assertion", "paths": ["packages/workspace/workspace/src/index.ts", "packages/api/session-controller/src/commands.ts", "packages/api/session-controller/tests/commands-create-fork.host.spec.ts", "packages/api/session-controller/tests/session-presets.host.spec.ts"], "test": "reuses a deleted title for a different new directory without any transient error surface" }
+    },
+    {
+      "id": "queue-journal-catalog-notification-state",
+      "description": "Keep the generated Cordis type catalog aligned with durable queue notification metadata.",
+      "origin": "Queue notification persistence",
+      "reason": "The runtime already declares the notified transition and notifiedAt timestamp. The generated declaration now includes those existing fields without changing queue behavior or persisted data.",
+      "match": { "type": "test-assertion", "paths": ["packages/extensions/tool-cordis/src/api-catalog.ts"], "test": "verify-cordis-catalog" }
     }
   ]
 }
