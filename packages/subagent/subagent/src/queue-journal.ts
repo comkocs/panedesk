@@ -14,15 +14,19 @@ const recordSchema = z.object({
   ticketId: z.string().min(1), parentSessionId: z.string().min(1),
   agentType: z.string().min(1), position: z.number().int().positive(),
   queuedAt: z.number().int().nonnegative(),
-  state: z.enum(['queued', 'dequeued', 'cancelled']),
+  state: z.enum(['queued', 'dequeued', 'cancelled', 'notified']),
   dequeuedAt: z.number().int().nonnegative().optional(),
   cancelledAt: z.number().int().nonnegative().optional(),
+  notifiedAt: z.number().int().nonnegative().optional(),
   reason: z.string().optional(),
-}).strict().refine(record => record.state === 'queued'
-  ? record.dequeuedAt === undefined && record.cancelledAt === undefined && record.reason === undefined
-  : record.state === 'dequeued'
-    ? record.dequeuedAt !== undefined && record.cancelledAt === undefined && record.reason === undefined
-    : record.cancelledAt !== undefined && record.dequeuedAt === undefined && record.reason !== undefined)
+}).strict().refine((record) => {
+  if (record.state === 'queued') return record.dequeuedAt === undefined && record.cancelledAt === undefined
+    && record.notifiedAt === undefined && record.reason === undefined
+  if (record.state === 'dequeued') return record.dequeuedAt !== undefined && record.cancelledAt === undefined
+    && record.notifiedAt === undefined && record.reason === undefined
+  return record.cancelledAt !== undefined && record.dequeuedAt === undefined && record.reason !== undefined
+    && (record.state === 'notified' ? record.notifiedAt !== undefined : record.notifiedAt === undefined)
+})
 
 /** Metadata-only transition; no task, label, model options, or execution identity. */
 export interface QueueJournalRecord {
@@ -31,9 +35,10 @@ export interface QueueJournalRecord {
   readonly agentType: string
   readonly position: number
   readonly queuedAt: number
-  readonly state: 'queued' | 'dequeued' | 'cancelled'
+  readonly state: 'queued' | 'dequeued' | 'cancelled' | 'notified'
   readonly dequeuedAt?: number
   readonly cancelledAt?: number
+  readonly notifiedAt?: number
   readonly reason?: string
 }
 
@@ -85,10 +90,10 @@ export class QueueJournal {
     syncDirectory(directory)
   }
 
-  /** Cancel abandoned tickets once, before delivering their parent notices.
+  /** Cancel abandoned tickets and retry notices until durable acceptance is marked.
    * Missing and corrupt journals never prevent Session startup.
    * @param parent - newly loaded root Session writer.
-   * @param notify - existing parent notification path, called after the cancellation commits.
+   * @param notify - parent notification path; resolves only after the notice is durably accepted.
    */
   async recover(parent: Agent, notify: (record: QueueJournalRecord) => void | Promise<void>): Promise<void> {
     try {
@@ -113,16 +118,19 @@ export class QueueJournal {
             agentType: parsed.agentType, position: parsed.position, queuedAt: parsed.queuedAt, state: parsed.state,
             ...parsed.dequeuedAt === undefined ? {} : { dequeuedAt: parsed.dequeuedAt },
             ...parsed.cancelledAt === undefined ? {} : { cancelledAt: parsed.cancelledAt },
+            ...parsed.notifiedAt === undefined ? {} : { notifiedAt: parsed.notifiedAt },
             ...parsed.reason === undefined ? {} : { reason: parsed.reason } }
-          if (record.state === 'queued') pending.set(record.ticketId, record)
+          if (record.state === 'queued' || record.state === 'cancelled') pending.set(record.ticketId, record)
           else pending.delete(record.ticketId)
         } catch (_error) { damaged = true }
       }
       if (damaged) this.ctx.logger.warn('Subagent queue journal contains damaged records; skipped invalid lines, recovery continues')
       for (const record of pending.values()) {
-        const cancelled: QueueJournalRecord = { ...record, state: 'cancelled', cancelledAt: Date.now(), reason: 'restart' }
-        this.append(parent, cancelled)
+        const cancelled: QueueJournalRecord = record.state === 'cancelled' ? record
+          : { ...record, state: 'cancelled', cancelledAt: Date.now(), reason: 'restart' }
+        if (record.state !== 'cancelled') this.append(parent, cancelled)
         await notify(cancelled)
+        this.append(parent, { ...cancelled, state: 'notified', notifiedAt: Date.now() })
       }
     } catch (_error) {
       this.ctx.logger.warn('Subagent queue recovery could not finish; session remains available, inspect queue storage before redispatching')

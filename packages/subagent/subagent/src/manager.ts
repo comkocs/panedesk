@@ -1343,15 +1343,20 @@ export class SubagentManager {
     if (failure !== undefined) throw failure
   }
 
-  /** Deliver restart cancellation through the same parent inbox path as settlement.
+  /** Deliver a queue cancellation through the parent inbox and confirm durable acceptance.
    * @param parent - exact newly loaded root receiving the notice.
    * @param ticketId - queue identity, never a child or run identity.
+   * @param reason - persisted cancellation classification.
+   * @returns fulfillment after the parent Session's durability checkpoint succeeds.
    */
-  notifyQueueRestart(parent: Agent, ticketId: import('./types.ts').SubagentQueued['ticketId']): void {
-    const text = `Queued subagent dispatch ${ticketId} was cancelled by restart. You may dispatch it again.`
+  async notifyQueueRestart(parent: Agent, ticketId: import('./types.ts').SubagentQueued['ticketId'], reason?: string): Promise<void> {
+    const cause = reason === 'restart' ? ' by restart' : ''
+    const text = `Queued subagent dispatch ${ticketId} was cancelled${cause}. You may dispatch it again.`
     this.sendWaking(parent, createUserMessage({ content: [{ type: 'text', text }],
       source: { kind: 'system-prompt' },
     }), parent.status === 'idle' ? 'queue' : 'steer')
+    // Inbox insertion is synchronous, but its Session events are buffered until this checkpoint.
+    if (!await parent.ctx.sessions.flush(parent.session)) throw new Error('Queue restart notice requires durable parent acceptance')
   }
 
   /** Deliver the captured execution result to the durable direct parent after cleanup. */

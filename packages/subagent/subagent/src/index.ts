@@ -224,7 +224,7 @@ export class SubagentRuntime extends TypertRemoteService {
     super(ctx, 'subagents')
     this.rootAdmission = config.overflow === 'queue'
       ? new RootSubagentAdmission(ctx, () => ctx.get('subagentAdmission'), config.persistQueue ? {
-        notify: (parent, record) => { this.requireManager().notifyQueueRestart(parent, record.ticketId) },
+        notify: (parent, record) => this.requireManager().notifyQueueRestart(parent, record.ticketId, record.reason),
       } : undefined) : undefined
     this.emitLifecycle = createLifecycleEmitter(this.ctx, parent => scopeTarget(this, parent))
     ctx.inject(['agents'], (childCtx: Context) => {

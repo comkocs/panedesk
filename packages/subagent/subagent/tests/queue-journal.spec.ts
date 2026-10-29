@@ -15,6 +15,7 @@ import { SessionId, SessionLogOffset } from '@panedesk/dsh-session'
 import SubagentRuntime from '../src/index.ts'
 import type { SubagentActivation, SubagentQueued } from '../src/types.ts'
 import { QueueJournal, type QueueJournalRecord } from '../src/queue-journal.ts'
+import { SubagentManager } from '../src/manager.ts'
 import { mountWorkingDirectoryFixture } from './working-directory-fixture.ts'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 
@@ -155,6 +156,74 @@ it('records one restart cancellation and one model-visible notice across three c
   expect(cancelled[0]).toMatchObject({ ticketId: queued.ticketId, reason: 'restart' })
   expect(notices).toHaveLength(1)
   expect(notices[0]).toContain(`Queued subagent dispatch ${queued.ticketId} was cancelled by restart. You may dispatch it again.`)
+  expect(rows(await readFile(path, 'utf8')).filter(row => row.state === 'notified')).toHaveLength(1)
+})
+
+it.each([
+  { interruption: 'before parent notification', expectedNotices: 1 },
+  { interruption: 'after durable acceptance before notified append', expectedNotices: 2 },
+])('recovers interruption $interruption with $expectedNotices notices and one notified marker', async ({ interruption, expectedNotices }) => {
+  const { ctx, parent, path, request, home } = await setup()
+  await request()
+  const queued = ticket(await request())
+  const crashImage = await readFile(path, 'utf8')
+  await ctx.fiber.dispose()
+  await writeFile(path, crashImage)
+  const notices: string[] = []
+  // Each wrapper calls the original with its intercepted receiver through .call(this).
+  // oxlint-disable-next-line typescript/unbound-method
+  const notify = SubagentManager.prototype.notifyQueueRestart
+  // oxlint-disable-next-line typescript/unbound-method
+  const append = QueueJournal.prototype.append
+  const notifySpy = vi.spyOn(SubagentManager.prototype, 'notifyQueueRestart')
+  const appendSpy = vi.spyOn(QueueJournal.prototype, 'append')
+  let durableNotices = 0
+  notifySpy.mockImplementation(async function (this: SubagentManager, parent, ticketId, reason) {
+    if (interruption === 'before parent notification') throw new Error('simulated interruption before notice')
+    await notify.call(this, parent, ticketId, reason)
+    // Read storage, not the in-memory Session, at the acknowledgement point.
+    const reader = await parent.ctx.sessionPersistence.open(parent.id, 'read')
+    try {
+      const { events } = await reader.read()
+      durableNotices = events.filter(event => event.type === 'agent/inbox/spliced'
+        && event.data.inserted.some(message => JSON.stringify(message.content).includes(ticketId))).length
+    } finally { await reader.close() }
+    expect(durableNotices).toBe(1)
+  })
+  appendSpy.mockImplementation(function (this: QueueJournal, parent, record) {
+    if (record.state === 'notified') {
+      expect(durableNotices).toBe(1)
+      throw new Error('simulated interruption before notified append')
+    }
+    append.call(this, parent, record)
+  })
+  const interrupted = await runtime(home)
+  const warn = vi.spyOn(interrupted.ctx.logger, 'warn')
+  const resumed = await interrupted.ctx.agents.resume({ resumeSessionId: parent.id, agentOptions: { provider: 'mock', model: 'mock' } })
+  await resumed.agent.whenIdle()
+  for (const request of interrupted.adapter.requests) notices.push(JSON.stringify(request.messages))
+  expect(warn).toHaveBeenCalledWith('Subagent queue recovery could not finish; session remains available, inspect queue storage before redispatching')
+  expect(rows(await readFile(path, 'utf8')).map(row => row.state)).toEqual(['queued', 'cancelled'])
+  expect(notices).toHaveLength(expectedNotices - 1)
+  notifySpy.mockRestore()
+  appendSpy.mockRestore()
+  await interrupted.ctx.fiber.dispose()
+  for (let restart = 0; restart < 3; restart++) {
+    const fresh = await runtime(home)
+    const recovered = await fresh.ctx.agents.resume({ resumeSessionId: parent.id, agentOptions: { provider: 'mock', model: 'mock' } })
+    await recovered.agent.whenIdle()
+    for (const request of fresh.adapter.requests) notices.push(JSON.stringify(request.messages))
+    expect(notices).toHaveLength(expectedNotices)
+    await fresh.ctx.fiber.dispose()
+  }
+  const records = rows(await readFile(path, 'utf8'))
+  expect(records.map(record => record.state)).toEqual(['queued', 'cancelled', 'notified'])
+  expect(records[2]).toMatchObject({ ticketId: queued.ticketId, reason: 'restart' })
+  expect(records[2]!.notifiedAt).toBeTypeOf('number')
+  expect(Object.keys(records[2]!).sort()).toEqual([
+    'agentType', 'cancelledAt', 'notifiedAt', 'parentSessionId', 'position', 'queuedAt', 'reason', 'state', 'ticketId',
+  ])
+  for (const notice of notices) expect(notice).toContain(`Queued subagent dispatch ${queued.ticketId} was cancelled by restart. You may dispatch it again.`)
 })
 
 it('starts and cold-restores with a missing journal without warning', async () => {
