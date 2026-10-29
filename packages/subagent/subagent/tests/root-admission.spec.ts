@@ -1,6 +1,10 @@
 /** Root queue admission through the production manager and fake model loop. */
 import { afterEach, expect, it, vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
+import Include from '@panedesk/cordis-plugin-include'
+import * as SeatEnginePlugin from '../../../seat/seat-engine/src/index.ts'
+import { config as seatConfig } from '../../../seat/seat-engine/tests/fixtures.ts'
 import { join } from 'node:path'
 import { brandString } from '@panedesk/dsh-brand'
 import { JournalSessionLedger, type LedgerRunId } from '@panedesk/dsh-session-ledger'
@@ -26,13 +30,30 @@ afterEach(async () => {
   for (const home of homes.splice(0)) await rm(home, { recursive: true, force: true })
 })
 
-async function setup(capacity: number, overflow: 'error' | 'queue' = 'queue') {
+async function setup(capacity: number, overflow: 'error' | 'queue' = 'queue', product = false) {
   const ctx = new Context()
   contexts.push(ctx)
   await ctx.plugin(Loader)
   await mountAgentLoopTestDependencies(ctx, { tools: { mode: 'native' } })
   await mountLocalActivations(ctx)
-  await ctx.plugin(SubagentRuntime, { maxDepth: 3, maxActiveSubagents: capacity, overflow })
+  ctx.loader.builtins.subagents = SubagentRuntime
+  let runtime: string
+  if (product) {
+    const home = await mkdtemp(join(import.meta.dirname, '.root-queue-composition-'))
+    homes.push(home)
+    const base = await readFile(new URL('../../../bundle/base/cordis.patch.yml', import.meta.url), 'utf8')
+    const row = base.match(/    - id: subagent\n[\s\S]*?(?=\n    - id:)/)?.[0]
+    if (row === undefined) throw new Error('Missing product subagent row')
+    const yaml = row.split('\n').map(line => line.slice(4)).join('\n')
+      .replace('@panedesk/dsh-subagent', 'cordis:subagents')
+    const path = join(home, 'cordis.yml')
+    await writeFile(path, yaml)
+    ctx.loader.builtins.include = Include
+    runtime = await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
+  } else {
+    runtime = await ctx.loader.create({ name: 'cordis:subagents', config: { maxDepth: 3, maxActiveSubagents: capacity, overflow } })
+  }
+  await ctx.loader.await()
   await ctx.plugin(AgentLoop, { agents: [] })
   const adapter = new MockAdapter(Array.from({ length: 40 }, () => 'hang' as const))
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -70,7 +91,8 @@ async function setup(capacity: number, overflow: 'error' | 'queue' = 'queue') {
       return activation
     } finally { release.resolve(undefined); off() }
   }
-  return { ctx, parent, parentHandle, adapter, events, spec, request, park }
+  return { ctx, parent, parentHandle, adapter, events, spec, request, park,
+    setCapacity: (value: number) => ctx.loader.resolve(runtime).update({ config: { maxDepth: 3, maxActiveSubagents: value, overflow } }) }
 }
 
 function queued(value: SubagentActivation | SubagentQueued): SubagentQueued {
@@ -173,6 +195,42 @@ it('runs sixteen fake-model children and queues the seventeenth while composing 
   await ctx.subagents.drainDescendants([parent])
 })
 
+it('loads the product queue row with the real seat-engine admission and starts the seventeenth after closing a resident', async () => {
+  const { ctx, parent, park, request, events } = await setup(16, 'queue', true)
+  const active: SubagentActivation[] = []
+  for (let index = 0; index < 16; index++) active.push(await park())
+  const home = await mkdtemp(join(import.meta.dirname, '.root-queue-seat-'))
+  homes.push(home)
+  Object.assign(ctx.loader.builtins, { ledger: JournalSessionLedger, seatEngine: SeatEnginePlugin, include: Include })
+  const path = join(home, 'cordis.yml')
+  await writeFile(path, JSON.stringify([
+    { name: 'cordis:ledger', config: { dshHome: home } },
+    { name: 'cordis:seatEngine', config: { ...seatConfig, home } },
+  ]))
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
+  await ctx.loader.await()
+  await vi.waitFor(() => { expect(ctx.get('subagentAdmission')).toBeDefined() })
+  const acquire = vi.spyOn(ctx.get('subagentAdmission')!, 'acquire')
+  const ledger = ctx.sessionLedger
+  const binding = { sessionId: parent.id, rootSessionId: parent.id, runId: brandString<LedgerRunId>('parent-run'),
+    nodeId: await ledger.nodeId(), seat: 'seat-a', window: 'window-a', identitySource: 'startup' as const, accountLabel: 'unknown' }
+  ledger.bindContext(binding)
+  await ledger.beginRun({ ...binding, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+  const ticket = queued(await request('seventeenth'))
+  expect(ticket.position).toBe(1)
+  await expect(request('nested', ctx.agents.get(active[0]!.childId))).rejects.toMatchObject({ code: 'ACTIVATION_LIMIT_REACHED' })
+  expect(acquire).not.toHaveBeenCalled()
+  await active[0]!.dispose()
+  const started = await ticket.outcome!
+  if ('status' in started) throw new Error('Expected seventeenth activation')
+  expect(acquire).toHaveBeenCalledOnce()
+  expect((await ledger.snapshot()).rows.filter(row => row.kind === 'run' && row.start.sessionId !== parent.id)).toHaveLength(1)
+  const cancelled = queued(await request('cancel queued'))
+  cancelled.cancel!()
+  expect(events.map(event => event.state)).toEqual(['queued', 'dequeued', 'queued', 'cancelled'])
+  await ctx.subagents.drainDescendants([parent])
+})
+
 it('gives repeated request objects independent grants and dispatches each request once', async () => {
   const { ctx, parent, park, spec } = await setup(1)
   const active = await park()
@@ -205,6 +263,72 @@ it('hands a dequeued request to another provider ticket without reporting startu
   await active.dispose()
   await expect(ticket.outcome).resolves.toBe(downstream)
   expect(ctx.subagents.listQueued(parent.id).queuedCount).toBe(0)
+})
+
+it.each(['caller', 'interrupt'] as const)('cancels a reserved unpublished start on %s and returns its slot once', async (mode) => {
+  const { ctx, parent, events, park, request, spec } = await setup(1)
+  const active = await park()
+  await ctx.plugin(MemoryLedger)
+  const ledger = ctx.sessionLedger as MemoryLedger
+  await seedParentLedger(ledger)
+  const entered = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const admissionRelease = vi.fn(async () => {})
+  ctx.provide('subagentAdmission', {
+    acquire: async () => { entered.resolve(undefined); await release.promise; return { status: 'reserved', release: admissionRelease } },
+    continue: async () => {}, resume: async () => ({ status: 'reserved', release: async () => {} }),
+  })
+  const controller = new AbortController()
+  const ticket = queued(await request('cancel before publication', parent, controller.signal))
+  if (mode === 'interrupt') {
+    parent.followup(createUserMessage({ content: [{ type: 'text', text: 'work' }], source: { kind: 'user' } }))
+    await vi.waitFor(() => { expect(parent.status).toBe('running') })
+  }
+  await active.dispose()
+  await entered.promise
+  try {
+    if (mode === 'caller') controller.abort()
+    else { parent.cancel({ kind: 'user' }); await parent.whenIdle() }
+  } finally { release.resolve(undefined) }
+  await expect(ticket.outcome).resolves.toEqual({ status: 'cancelled', reason: mode === 'caller' ? 'caller-cancelled' : 'parent-interrupted' })
+  expect(events.filter(event => event.state === 'cancelled')).toHaveLength(1)
+  expect(admissionRelease).toHaveBeenCalledOnce()
+  expect(ledger.starts).toHaveLength(0)
+  const next = await ctx.subagents.startActivation(spec('slot reused'))
+  expect(ledger.starts).toHaveLength(1)
+  queued(await request('still only one slot')).cancel!()
+  await next.dispose()
+})
+
+it('samples raised capacity on the next root dispatch and admits the oldest ticket first without a release', async () => {
+  const { ctx, parent, park, request, setCapacity } = await setup(1)
+  const active = await park()
+  const first = queued(await request('oldest'))
+  await setCapacity(2)
+  const second = queued(await request('next sampling point'))
+  const started = await first.outcome!
+  if ('status' in started) throw new Error('Expected first queued activation')
+  expect(ctx.agents.get(active.childId)).toBeDefined()
+  expect(ctx.subagents.listQueued(parent.id).tickets.map(ticket => ticket.ticketId)).toEqual([second.ticketId])
+  second.cancel!()
+  await started.dispose()
+  await active.dispose()
+})
+
+it('does not evict residents when capacity drops and stops dequeue until usage falls below the new limit', async () => {
+  const { ctx, parent, park, request, setCapacity } = await setup(2)
+  const first = await park()
+  const second = await park()
+  const ticket = queued(await request('waiting'))
+  await setCapacity(1)
+  expect(ctx.agents.get(first.childId)).toBeDefined()
+  expect(ctx.agents.get(second.childId)).toBeDefined()
+  await first.dispose()
+  expect(ctx.subagents.listQueued(parent.id).queuedCount).toBe(1)
+  await second.dispose()
+  const started = await ticket.outcome!
+  if ('status' in started) throw new Error('Expected queued activation')
+  await started.dispose()
 })
 
 it.each(['signal', 'ending', 'interrupt'] as const)('cancels all unpublished work on %s', async (mode) => {

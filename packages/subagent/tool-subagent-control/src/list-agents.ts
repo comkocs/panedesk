@@ -31,6 +31,12 @@ interface ListAgentsSpec {
 
 type ListAgentsEntry =
   | {
+    readonly kind: 'queue'
+    readonly queuedCount: number
+    readonly earliestQueuedAt: number
+    readonly tickets: { ticketId: string; position: number; queuedAt: number }[]
+  }
+  | {
     readonly kind: 'child'
     readonly id: SessionId
     readonly label: string
@@ -107,6 +113,26 @@ export function apply(ctx: Context): void {
               type: 'object',
               additionalProperties: false,
               properties: {
+                kind: { type: 'string', required: true, enum: ['queue'] },
+                queuedCount: { type: 'number', required: true },
+                earliestQueuedAt: { type: 'number', required: true },
+                tickets: {
+                  type: 'array', required: true,
+                  items: {
+                    type: 'object', additionalProperties: false,
+                    properties: {
+                      ticketId: { type: 'string', required: true },
+                      position: { type: 'number', required: true },
+                      queuedAt: { type: 'number', required: true },
+                    },
+                  },
+                },
+              },
+            },
+            {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
                 kind: { type: 'string', required: true, enum: ['child'] },
                 id: { type: 'string', required: true },
                 label: { type: 'string', required: true },
@@ -136,6 +162,11 @@ export function apply(ctx: Context): void {
           text: entries.length === 0
             ? '(no subagents)'
             : entries.map((entry) => {
+              if (entry.kind === 'queue') {
+                return `Queued dispatches: ${entry.queuedCount}; earliest queued at: ${new Date(entry.earliestQueuedAt).toISOString()}\n`
+                  + entry.tickets.map(ticket => `${ticket.ticketId} [queued] position=${ticket.position}`).join('\n')
+                  + '\nQueued tickets are not child ids and do not accept send_message.'
+              }
               // A descendants row always carries its position; children rows
               // never render it. String() spans the schema-optional shape
               // without a dead fallback branch.
@@ -156,18 +187,27 @@ export function apply(ctx: Context): void {
         throw new Error('list_agents requires a calling agent (exec.agent was undefined)')
       }
       const request = resolveListAgentsRequest(args)
+      const withQueue = (entries: ListAgentsEntry[]): ListAgentsEntry[] => {
+        const queue = ctx.subagents.listQueued(parent.id)
+        if (queue.queuedCount > 0 && queue.earliestQueuedAt !== undefined) {
+          entries.push({ kind: 'queue', queuedCount: queue.queuedCount,
+            earliestQueuedAt: queue.earliestQueuedAt,
+            tickets: queue.tickets.map(({ ticketId, position, queuedAt }) => ({ ticketId, position, queuedAt })) })
+        }
+        return entries
+      }
       switch (request.scope) {
         case 'children': {
           const entries = await ctx.subagents.listChildren(parent.id, exec.signal)
-          return entries
+          return withQueue(entries
             .map(entry => project(ctx.agents, entry))
-            .filter(entry => entry !== undefined)
+            .filter(entry => entry !== undefined))
         }
         case 'descendants': {
           const entries = await ctx.subagents.listDescendants(parent.id, exec.signal)
-          return entries
+          return withQueue(entries
             .map(entry => project(ctx.agents, entry, entry))
-            .filter(entry => entry !== undefined)
+            .filter(entry => entry !== undefined))
         }
         /* v8 ignore next 2 -- the resolver normalizes the schema-validated closed scope before dispatch. */
         default:

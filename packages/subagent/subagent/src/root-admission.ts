@@ -37,6 +37,9 @@ interface Entry {
   readonly ticket: SubagentQueued & { position: number; queuedAt: number }
   readonly outcome: PromiseWithResolvers<SubagentActivation | SubagentQueued | { status: 'cancelled'; reason: string }>
   readonly removeAbort: () => void
+  readonly controller: AbortController
+  state: 'queued' | 'starting' | 'settled'
+  cancellation?: string
 }
 
 /** Optional provider that composes with, rather than replaces, an installed admission service. */
@@ -44,6 +47,7 @@ export class RootSubagentAdmission implements SubagentAdmission {
   private readonly queues = new Map<Agent, Entry[]>()
   private readonly grants = new Map<SubagentActivationSpec, () => void>()
   private readonly pumping = new Set<Agent>()
+  private readonly starting = new Set<Entry>()
 
   constructor(private readonly ctx: Context, private readonly downstream: () => SubagentAdmission | undefined) {
     ctx.on('agent/ending', ({ agent }) => { this.cancelParent(agent, 'session-ended') })
@@ -58,7 +62,9 @@ export class RootSubagentAdmission implements SubagentAdmission {
       return next()
     })
     ctx.effect(() => () => {
-      for (const parent of this.queues.keys()) this.cancelParent(parent, 'runtime-stopped')
+      for (const parent of new Set([...this.queues.keys(), ...[...this.starting].map(entry => entry.spec.request.parent)])) {
+        this.cancelParent(parent, 'runtime-stopped')
+      }
     })
   }
 
@@ -70,6 +76,7 @@ export class RootSubagentAdmission implements SubagentAdmission {
     let releaseSlot = this.grants.get(spec)
     this.grants.delete(spec)
     if (releaseSlot === undefined) {
+      if (root) this.released(parent)
       if (root && (this.queues.get(parent)?.length ?? 0) > 0) return this.enqueue(spec, control)
       try { releaseSlot = control.reserve() }
       catch (error) {
@@ -118,18 +125,27 @@ export class RootSubagentAdmission implements SubagentAdmission {
           continue
         }
         queue.shift()
-        entry.removeAbort()
+        entry.state = 'starting'
+        this.starting.add(entry)
         this.grants.set(entry.spec, release)
         this.record(entry, 'dequeued')
-        void entry.control.start(entry.spec).then(entry.outcome.resolve, (error: unknown) => {
+        void entry.control.start(entry.spec).then((activation) => {
+          entry.state = 'settled'
+          entry.outcome.resolve(activation)
+        }, (error: unknown) => {
           this.grants.delete(entry.spec)
           release()
-          if (error instanceof SubagentQueuedError) {
+          entry.state = 'settled'
+          if (error instanceof SubagentQueuedError && entry.cancellation === undefined) {
             entry.outcome.resolve(error.ticket)
             return
           }
-          this.record(entry, 'cancelled', 'startup-failed')
-          entry.outcome.resolve({ status: 'cancelled', reason: 'startup-failed' })
+          const reason = entry.cancellation ?? 'startup-failed'
+          this.record(entry, 'cancelled', reason)
+          entry.outcome.resolve({ status: 'cancelled', reason })
+        }).finally(() => {
+          entry.removeAbort()
+          this.starting.delete(entry)
         })
       }
       if (queue?.length === 0) this.queues.delete(parent)
@@ -141,7 +157,9 @@ export class RootSubagentAdmission implements SubagentAdmission {
    * @param reason - safe cancellation classification.
    */
   cancelParent(parent: Agent, reason: string): void {
-    for (const entry of [...this.queues.get(parent) ?? []]) this.cancel(entry, reason)
+    for (const entry of [...this.queues.get(parent) ?? [], ...this.starting]) {
+      if (entry.spec.request.parent === parent) this.cancel(entry, reason)
+    }
   }
 
   /** Read queue statistics without creating or restoring children.
@@ -163,7 +181,9 @@ export class RootSubagentAdmission implements SubagentAdmission {
     const cancel = () => { this.cancel(entry, 'caller-cancelled') }
     const ticket = { status: 'queued' as const, ticketId: brandString<SubagentQueued['ticketId']>(randomUUID()),
       parentSessionId: parent.id, position: queue.length + 1, queuedAt: Date.now(), cancel, outcome: outcome.promise }
-    const entry: Entry = { spec: { ...spec }, control, ticket, outcome,
+    const controller = new AbortController()
+    const entry: Entry = { spec: { ...spec, signal: AbortSignal.any([spec.signal, controller.signal]) },
+      control, ticket, outcome, controller, state: 'queued',
       removeAbort: () => { spec.signal.removeEventListener('abort', cancel) } }
     queue.push(entry)
     this.queues.set(parent, queue)
@@ -173,6 +193,11 @@ export class RootSubagentAdmission implements SubagentAdmission {
   }
 
   private cancel(entry: Entry, reason: string): void {
+    if (entry.state === 'settled' || entry.cancellation !== undefined) return
+    entry.cancellation = reason
+    entry.controller.abort()
+    if (entry.state === 'starting') return
+    entry.state = 'settled'
     const queue = this.queues.get(entry.spec.request.parent)
     const index = queue?.indexOf(entry) ?? -1
     if (queue === undefined || index < 0) return
