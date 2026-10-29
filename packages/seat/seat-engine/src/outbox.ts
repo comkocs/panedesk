@@ -152,8 +152,11 @@ export class CallbackOutbox {
       })
       if (phase === 'delivered') blocked.delete(key)
       else if (this.recordFailure) {
-        this.recordFailure(responseClass === 'unknown' ? { code: 'callback-outcome-unconfirmed' }
-          : failure ?? { code: diagnostic?.cause.code ?? 'callback-outcome-unconfirmed' })
+        // A matching pending owner receipt is progress, not an exception; the outbox owns its next query.
+        if (failure !== undefined || diagnostic || responseClass !== 'transient') {
+          this.recordFailure(responseClass === 'unknown' ? { code: 'callback-outcome-unconfirmed' }
+            : failure ?? { code: diagnostic?.cause.code ?? 'callback-outcome-unconfirmed' })
+        }
         return
       }
     }

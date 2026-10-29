@@ -59,6 +59,34 @@ test.each(['digest', 'node', 'session'] as const)('rejects inconsistent retained
   } finally { await outbox.close(); await sources.close(); await h.close() }
 })
 
+test('supervises real failures but leaves a matching pending owner receipt to the outbox backoff', async () => {
+  const h = await harness(), sources = new SourceRegistry(), request = callback()
+  const failures: unknown[] = []
+  let committed = false, calls = 0
+  const outbox = new CallbackOutbox(h.engine.journal, sources, config, async () => {
+    calls++
+    return { result: { status: committed ? 'committed' : 'pending', callbackId: request.callback.callbackId,
+      payloadDigest: request.payloadDigest } }
+  }, undefined, (failure) => { failures.push(failure) })
+  try {
+    await h.engine.journal.commit(() => [fact({ kind: 'callback/pending', data: {
+      payload: request.callback, payloadDigest: digest(request.callback), nodeWorkChain: request,
+      attempt: 0, phase: 'pending', nextDue: null, responseClass: null } })])
+    await outbox.deliver(0)
+    expect(failures).toEqual([])
+    expect(h.engine.journal.projection.callbacks.get(request.callback.callbackId)).toMatchObject({
+      phase: 'retry-due', responseClass: 'transient', attempt: 1,
+      nextDue: new Date(config.callbackRetryInitialMs).toISOString() })
+    committed = true
+    await outbox.deliver(config.callbackRetryInitialMs - 1)
+    expect(calls).toBe(1)
+    await outbox.deliver(config.callbackRetryInitialMs)
+    expect(calls).toBe(2)
+    expect(failures).toEqual([])
+    expect(h.engine.journal.projection.callbacks.get(request.callback.callbackId)?.phase).toBe('delivered')
+  } finally { await outbox.close(); await sources.close(); await h.close() }
+})
+
 test.each(['pending', 'committed', 'mismatch', 'paused'] as const)('classifies the owner %s receipt and freezes retry input', async (status) => {
   const h = await harness(), sources = new SourceRegistry(), request = callback()
   const seen: T.DeliverSourceCallbackRequest[] = []
