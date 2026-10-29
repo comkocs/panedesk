@@ -154,7 +154,7 @@ Reminder messages append to the original Session's history and preserve earlier 
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The Host must be running to deliver reminders. Failed restoration, enqueue, or persistence leaves tasks stored and reports a warning; there is no automatic retry timer. A later task-management change, another scheduled wake, or Host restart can retry pending tasks.
+- The Host must be running to deliver reminders; punctual delivery is not guaranteed while its process is stopped. Failed restoration, enqueue, or persistence leaves tasks stored and reports a warning; there is no automatic retry timer. A later task-management change, another scheduled wake, or Host restart can retry pending tasks.
 - Enqueue and task writes are not atomic, so crash recovery does not guarantee exactly-once delivery. A shutdown can repeat a delivery for the same reason: sibling fibers dispose concurrently, so the storage facility can close before the delivery drain writes its acknowledgment.
 - Deletion removes the task row together with its saved delivery records: future delivery stops, the task leaves `list` and `catalog`, and `history` no longer resolves it.
 - Old Session-log reminders require explicit recreation. Previously physically deleted tasks are not restored or fabricated.
