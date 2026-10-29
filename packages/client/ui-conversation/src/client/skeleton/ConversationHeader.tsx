@@ -18,6 +18,7 @@ export function ConversationHeader({ sessionId, useSession, useConversation, ren
     <header className={clsx(css.header, blank && css.headerBlank, sessionId === undefined && css.headerSessionless)} data-window-drag>
       <div className={css.headerLeading} data-conversation-header-leading="">
         {renderSlot('conversation.header.leading', {})}
+        {renderSlot('conversation.header.seat', {})}
       </div>
       {sessionId === undefined
         ? <div className={css.titleRow} />

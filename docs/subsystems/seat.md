@@ -16,6 +16,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 ## Window operations
 
+`OpenSeatRequest.startupDirectory` optionally chooses an exact registered directory for manual opening. The local provider freezes that startup choice without editing the catalog or extending directory authority; omission keeps the profile directory and accepted retries must keep their original choice.
+
 `OpenSeatResult` distinguishes opened, prefilled, existing-window choices, switched, cancelled, queued, and rejected outcomes. Creation does not imply first-turn completion. `ReplaceSeatResult` preserves old and new identities and cleanup state; replacement opens new before closing old and retains an explicit handover permit. `CloseSeatResult` distinguishes closed, busy, version conflict, and refusal. Unknown activity is not idle evidence.
 
 `SeatWindowView` projects runtime state, busy reasons, cache evidence, and state version. `SeatContextUsage` represents dated current-context evidence, not accumulated accounting tokens. Missing evidence remains unknown. `SeatFailure` carries a machine code, explanation, alternative, retryability, and observed effect state.

@@ -18,6 +18,10 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./events": {
+      "types": "./lib/types/events.d.ts",
+      "default": "./lib/types/events.js"
+    },
     "./reader": {
       "types": "./lib/types/reader.d.ts",
       "default": "./lib/types/reader.js"

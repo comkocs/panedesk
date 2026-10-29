@@ -1,0 +1,62 @@
+import { Context } from '@panedesk/cordis'
+import { describe, expect, it, vi } from 'vitest'
+import type { SeatEngineService, SeatService } from '@panedesk/dsh-seat'
+import SeatUi from '../src/index.ts'
+
+function fixture() {
+  const ctx = new Context()
+  const open = vi.fn(async () => ({ status: 'cancelled' as const }))
+  const definitions = vi.fn(async () => ({ definitions: [], revision: 1, complete: true }))
+  const list = vi.fn(async () => ({ status: 'listed' as const, sessions: [], unopenedSeats: [], complete: true, snapshotAt: '' }))
+  const binding = vi.fn(async () => null)
+  const withAuthority = vi.fn((): SeatService => service)
+  const service = { open, definitions, list, binding, withAuthority } as Partial<SeatService> as SeatService
+  ctx.provide('seats', service)
+  ctx.provide('seatEngine', { nodeStatus: async () => ({ nodeId: 'node-a' }) } as SeatEngineService)
+  Object.defineProperty(ctx, 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } } } })
+  return { ctx, ui: new SeatUi(ctx), open, definitions, binding, withAuthority }
+}
+
+describe('manual seat UI adapter', () => {
+  it('derives owner authority from invocation and forces prefill without starting a model turn', async () => {
+    const f = fixture()
+    try {
+      await f.ui.open({ seat: 'seat-a' as never, operationId: 'op-a' as never, expectedSeatRevision: 1 })
+      expect(f.withAuthority).toHaveBeenCalledWith({ principalId: 'owner', nodeId: 'node-a', origin: 'manual' })
+      expect(f.open).toHaveBeenCalledWith({ seat: 'seat-a', operationId: 'op-a', expectedSeatRevision: 1,
+        origin: 'manual', openingMode: 'prefill' })
+      await f.ui.open({ seat: 'seat-a' as never, operationId: 'op-directory' as never, expectedSeatRevision: 1,
+        startupDirectory: '/registered' })
+      expect(f.open).toHaveBeenLastCalledWith({ seat: 'seat-a', operationId: 'op-directory', expectedSeatRevision: 1,
+        startupDirectory: '/registered', origin: 'manual', openingMode: 'prefill' })
+      expect(await f.ui.overview()).toEqual({ available: true, definitions: [], windows: [], complete: true })
+      expect(await f.ui.overview('session-a' as never)).toMatchObject({ binding: null })
+      expect(f.binding).toHaveBeenCalledWith({ sessionId: 'session-a' })
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it('stops an aborted overview before provider reads', async () => {
+    const f = fixture()
+    try {
+      await expect(f.ui.overview(undefined, AbortSignal.abort())).rejects.toThrow()
+      expect(f.definitions).not.toHaveBeenCalled()
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it('rejects callers without owner invocation before reading or mutating seats', async () => {
+    const f = fixture()
+    try {
+      Object.defineProperty(f.ctx, 'invocation', { value: undefined })
+      await expect(f.ui.overview()).rejects.toThrow('authenticated owner')
+      await expect(f.ui.open({ seat: 'seat-a' as never, operationId: 'op-a' as never, expectedSeatRevision: 1 })).rejects.toThrow('authenticated owner')
+      expect(f.definitions).not.toHaveBeenCalled()
+      expect(f.open).not.toHaveBeenCalled()
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it('reports missing providers without constructing a runtime', async () => {
+    const ctx = new Context()
+    Object.defineProperty(ctx, 'invocation', { value: { peer: { principal: { kind: 'owner' } } } })
+    try {
+      expect(await new SeatUi(ctx).overview()).toEqual({ available: false, definitions: [], windows: [], complete: true })
+      expect(ctx.get('seatEngine')).toBeUndefined()
+    } finally { await ctx.fiber.dispose() }
+  })
+})

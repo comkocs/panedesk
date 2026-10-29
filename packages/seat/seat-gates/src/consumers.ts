@@ -7,6 +7,7 @@ import type {} from '@panedesk/dsh-working-directory'
 import type { Config } from './index.ts'
 import { literalWriteTargets } from './memory.ts'
 import { buildCheckpoint } from './checkpoint.ts'
+import type {} from './events.ts'
 
 /** Connect tool denial and precommit checkpoint contributions to their actual executors.
  * @param ctx - reversible consumer scope.
@@ -41,6 +42,8 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
     if (['write', 'edit', 'Write', 'Edit', 'write_file', 'edit_file'].includes(exec.name)) {
       const target = args.file_path ?? args.path
       if (typeof target === 'string') targets.push(target)
+    } else if (exec.name === 'str_replace_editor' && typeof args.command === 'string' && ['create', 'str_replace', 'insert'].includes(args.command)) {
+      if (typeof args.path === 'string') targets.push(args.path)
     } else if (['seat_write', 'seat_edit'].includes(exec.name)) {
       const directories = ctx.get('seatDirectories')
       if (directories && typeof args.rootId === 'string' && typeof args.relativePath === 'string') {
@@ -57,7 +60,13 @@ export function installConsumers(ctx: Context, config: Config, gates: SeatGateSe
         hook: 'before-memory-write', targetPath: '', authorizedDirectories: [], syntax: 'unknown' }))
     }
     const denied = decisions.find(result => result.outcome === 'deny')
-    if (denied?.outcome === 'deny') return { kind: 'deny', reason: `${denied.reason.message} ${denied.alternative}${denied.audit === 'unavailable' ? ' Audit unavailable.' : ''}` }
+    if (denied?.outcome === 'deny') {
+      if (binding?.kind === 'seat' && denied.reason.code === 'memory-seat-mismatch') {
+        ctx.emit('seat/memory-write-denied', sessionId, denied.reason)
+      }
+      const code = binding?.kind === 'seat' && denied.reason.code === 'memory-seat-mismatch' ? `[${denied.reason.code}] ` : ''
+      return { kind: 'deny', reason: `${code}${denied.reason.message} ${denied.alternative}${denied.audit === 'unavailable' ? ' Audit unavailable.' : ''}` }
+    }
     return upstream
   })
   ctx.on('compaction/checkpoint', async (payload, next) => {

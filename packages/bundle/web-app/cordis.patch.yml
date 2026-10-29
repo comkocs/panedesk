@@ -425,6 +425,10 @@
     - id: ui-agent-preset
       name: '@panedesk/dsh-client-ui-agent-preset'
 
+    - id: ui-seats
+      name: '@panedesk/dsh-client-ui-seats'
+      disabled: true
+
     - id: ui-settings-session-log
       name: '@panedesk/dsh-client-ui-settings-session-log'
 

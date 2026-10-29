@@ -339,7 +339,7 @@ export class LocalSeatService extends SeatService {
       const retained = readLocalOpenInput(accepted.data.trigger.data)
       const canonical = (value: T.OpenSeatRequest) => ({ seat: value.seat, origin: value.origin, taskId: value.taskId,
         nodeId: value.nodeId, openingMode: value.origin === 'manual' ? value.openingMode ?? 'auto' : 'auto',
-        expectedSeatRevision: value.expectedSeatRevision })
+        expectedSeatRevision: value.expectedSeatRevision, startupDirectory: value.startupDirectory })
       if (digest(canonical(request)) !== digest(canonical(retained.request))
         || digest(context ? { reference: context.request.openingContext, taskIds: [...context.request.relatedTaskIds].sort() } : null)
           !== digest(retained.openingContext ? { reference: retained.openingContext.reference,
@@ -355,15 +355,24 @@ export class LocalSeatService extends SeatService {
     if (replay?.kind === 'open/intent' || replay?.kind === 'open/created' || replay?.kind === 'open/configured') {
       const open = replay.data
       if (open.binding.kind !== 'seat' || open.binding.seat !== request.seat
-        || open.definition === undefined || open.frozenOpening === undefined || open.title === undefined) {
+        || open.definition === undefined || open.frozenOpening === undefined || open.title === undefined
+        || (request.startupDirectory !== undefined && (request.origin !== 'manual'
+          || !open.definition.directories.some(directory => directory.startup && directory.path === request.startupDirectory)))) {
         return rejected('operation-id-conflict', 'Opening replay does not match this seat.', 'Use the original request.')
       }
       return this.engine()?.openWindow?.({ request, authority, definition: open.definition,
         opening: open.frozenOpening, title: open.title })
         ?? rejected('unavailable', 'Opening admission is unavailable.', 'Restore the engine before replaying.')
     }
-    const definition = await this.resolve(request.seat)
+    let definition = await this.resolve(request.seat)
     if ('status' in definition) return definition
+    if (request.startupDirectory !== undefined) {
+      if (request.origin !== 'manual' || !definition.directories.some(directory => directory.path === request.startupDirectory)) {
+        return rejected('invalid-request', 'The startup directory must be registered for a manual seat opening.', 'Choose a registered seat directory.')
+      }
+      definition = { ...definition, directories: definition.directories.map(directory => ({ ...directory,
+        startup: directory.path === request.startupDirectory })) }
+    }
     if (request.expectedSeatRevision !== undefined && request.expectedSeatRevision !== definition.revision) {
       return rejected('revision-conflict', 'The seat definition changed.', 'Read the current definition.')
     }

@@ -345,6 +345,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
       'conversation.hero.brand.mark': { kind: 'single', scope: 'root' },
       'conversation.hero.workspace': { kind: 'single', scope: 'root' },
       'conversation.hero.agentPreset': { kind: 'single', scope: 'session-maybe' },
+      'conversation.hero.seat': { kind: 'single', scope: 'session-maybe' },
       'conversation.hero.options': { kind: 'list', scope: 'session' },
     },
     slots: {
@@ -421,6 +422,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     name: 'conversation.header',
     children: {
       'conversation.header.leading': { kind: 'single', scope: 'root' },
+      'conversation.header.seat': { kind: 'single', scope: 'session-maybe' },
       'conversation.session.header': { kind: 'single', scope: 'session' },
     },
   }, ConversationHeader)
