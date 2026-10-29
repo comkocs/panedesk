@@ -31,6 +31,8 @@ import type SubagentRuntime from './index.ts'
 export interface ActivationObserver {
   /** Stable identity shared by durable completion and its notification outbox. */
   readonly runId: SubagentRunInfo['runId']
+  /** Authorized, normalized report hints prepared before execution; not file observations. */
+  readonly deliveryPaths?: readonly string[] | undefined
   /**
    * Publish the start edge once the epoch is resident.
    * @param child - the resident local Agent, or undefined for an external execution.
@@ -141,6 +143,7 @@ export function createActivationObserver(
   }
   return {
     runId: identity.runId,
+    get deliveryPaths() { return plan?.paths },
     prepare: async (request, policy) => {
       if (boundary === undefined) return
       identity.local = true

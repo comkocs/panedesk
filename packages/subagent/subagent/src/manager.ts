@@ -1300,6 +1300,8 @@ export class SubagentManager {
       ))
     }
 
+    const deliveryPaths = activation.observer.deliveryPaths
+    if (deliveryPaths !== undefined && deliveryPaths.length > 0) result = { ...result, deliveryPaths }
     const notifyBeforeAccounting = this.ctx.get('sessionLedger') !== undefined
     if (notifyBeforeAccounting) {
       try {

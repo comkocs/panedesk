@@ -67,6 +67,17 @@
       }
     },
     {
+      "id": "subagent-preaccounting-report-path-hints",
+      "description": "Include prepared local delivery paths in parent notices before terminal ledger accounting.",
+      "origin": "Declared report paths in early parent settlement notices",
+      "reason": "Authorized normalized paths are informational hints, independent of file observations. Parent notification still precedes terminal accounting, while activation results retain the accounting outcome.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/subagent/subagent/src/lifecycle.ts", "packages/subagent/subagent/src/manager.ts", "packages/subagent/subagent/README.md", "packages/subagent/subagent/README.zh.md", "packages/subagent/subagent/README.i18n.yaml"],
+        "test": "delivers normalized report path hints before terminal accounting finishes"
+      }
+    },
+    {
       "id": "persistence-attribution-coverage-budget",
       "description": "Give the four-extraction attribution case a 15-second budget in the instrumented coverage lane only.",
       "origin": "Coverage compiler extraction cost",
