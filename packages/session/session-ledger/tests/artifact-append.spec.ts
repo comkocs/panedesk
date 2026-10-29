@@ -1,10 +1,12 @@
 /** Durable artifact semantics across cached appends, restarts and independent source-mode writers. */
 import { spawn } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { Context } from '@panedesk/cordis'
+import { JournalSessionLedger } from '../src/index.ts'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { appendArtifact, ArtifactAppendCache, finishArtifact } from '../src/journal.ts'
-import { digest } from '../src/index-store.ts'
+import { canonicalJson, digest } from '../src/index-store.ts'
 import { callStart, options } from './fixtures.ts'
 
 const roots: string[] = []
@@ -48,7 +50,7 @@ it('retains equal replay, conflicting digests, closure and gap decisions with ap
     existingDigest: digest(input.content), incomingDigest: digest('"changed"'),
   })
   await expect(appendArtifact(path, { ...input, seq: 2 }, options, cache)).rejects.toThrow('Artifact sequence must be contiguous')
-  await finishArtifact(path, first.reference, options)
+  await finishArtifact(path, first.reference, options, cache)
   await expect(appendArtifact(path, { ...input, seq: 1 }, options, cache)).rejects.toThrow('Artifact stream is already closed')
   expect((await appendArtifact(path, input, options, cache)).kind).toBe('existing')
 })
@@ -61,6 +63,30 @@ it('continues a stream after its writer process exits and detects a foreign clos
   expect((await appendArtifact(path, input, options, cache)).kind).toBe('appended')
   await writer(path, callStart.callId, 3, 1, true)
   await expect(appendArtifact(path, { ...input, seq: 4 }, options, cache)).rejects.toThrow('Artifact stream is already closed')
+})
+
+it('rejects fragments beyond a closure in stream scans, snapshots, queries and imports', async () => {
+  const home = await root()
+  const ctx = new Context()
+  try {
+    const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+    await ledger.beginCall(callStart)
+    const first = await ledger.appendArtifact({ callId: callStart.callId, kind: 'partial-response', seq: 0, content: '0' })
+    if (first.kind === 'conflict') throw new Error('Unexpected conflict')
+    await ledger.finishArtifact(first.reference)
+    const node = join(home, 'ledger/v1', await ledger.nodeId())
+    const directory = join(node, `artifacts/${digest(callStart.callId)}/partial-response/1`)
+    await mkdir(directory)
+    const input = { callId: callStart.callId, kind: 'partial-response' as const, seq: 1, content: '1' }
+    const payload = { type: 'fragment', input }
+    const text = canonicalJson(payload)
+    await writeFile(join(directory, 'foreign.jsonl'), canonicalJson({ version: 1, bytes: Buffer.byteLength(text), digest: digest(text), payload }) + '\n')
+    const message = 'Artifact closure does not reference the final durable fragment'
+    await expect(ledger.snapshot()).rejects.toThrow(message)
+    await expect(ledger.query({})).rejects.toThrow(message)
+    await expect(ledger.importNode(node)).rejects.toThrow(message)
+    await expect(appendArtifact(node, { ...input, seq: 2 }, options, new ArtifactAppendCache())).rejects.toThrow(message)
+  } finally { await ctx.fiber.dispose() }
 })
 
 it('serializes two processes writing separate streams in the same root', async () => {

@@ -64,11 +64,77 @@ function canonical(value: unknown): string {
   return JSON.stringify(value)
 }
 
+function object(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function messageIdentity(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(messageIdentity)
+  if (!object(value)) return value
+  const result = Object.fromEntries(Object.entries(value).map(([key, item]) => [key, messageIdentity(item)]))
+  if (typeof result.role === 'string' && typeof result.id === 'string' && Array.isArray(result.content)) {
+    // Message positions can change; content and all identity-bearing references remain compared.
+    result.id = '{{message}}'
+  }
+  return result
+}
+
+function assertTurnStructure(log: string): void {
+  let turn = 0
+  let step = 0
+  let turnOpen = false
+  let stepOpen = false
+  const messages = new Set<string>()
+  for (const event of parseSessionLog(log)) {
+    if (event.type === 'agent/inbox/spliced') expect(['next-step', 'next-turn']).toContain(event.data.target)
+    if (event.type === 'turn/start') {
+      expect(turnOpen).toBe(false)
+      expect(event.data.turn).toBe(turn + 1)
+      turn = event.data.turn
+      step = 0
+      turnOpen = true
+    } else if (event.type === 'step/start') {
+      expect(turnOpen).toBe(true)
+      expect(stepOpen).toBe(false)
+      expect(event.data).toEqual({ turn, step: step + 1 })
+      step++
+      stepOpen = true
+    } else if (event.type === 'step/end') {
+      expect(stepOpen).toBe(true)
+      expect(event.data).toEqual({ turn, step })
+      stepOpen = false
+    } else if (event.type === 'turn/end') {
+      expect(turnOpen).toBe(true)
+      expect(stepOpen).toBe(false)
+      expect(event.data.turn).toBe(turn)
+      turnOpen = false
+    } else if (event.type.endsWith('/message') || event.type === 'assistant/attempt' || event.type === 'tool/result') {
+      const data: unknown = event.data
+      if (!object(data)) throw new Error('Expected message event data')
+      if ('turn' in data) expect(data.turn).toBe(turn)
+      if ('step' in data) expect(data.step).toBe(step)
+      const message = object(data.message) ? data.message : data
+      if (typeof message.id === 'string') {
+        expect(messages.has(message.id), 'committed message identities are unique').toBe(false)
+        messages.add(message.id)
+      }
+    }
+  }
+  expect(stepOpen).toBe(false)
+  expect(turnOpen).toBe(false)
+}
+
 function eventBag(logs: readonly string[]): string[][] {
   const normalized = normalizeSessionSnapshots(logs, fixtureContext(logs[0]!), { nativeWriterOutput: true })
   return normalized.map(log => log.trim().split('\n').slice(1).flatMap((line) => {
-    const event: { type: string } = JSON.parse(line)
-    return Object.hasOwn(excludedLedgerEvents, event.type) ? [] : [canonical(event)]
+    const event: { type: string; data: Record<string, unknown> } = JSON.parse(line)
+    if (event.type === 'agent/inbox/spliced') event.data.target = '{{splice-target}}'
+    if (event.type === 'step/start' || event.type === 'step/end' || event.type.endsWith('/message')
+      || event.type === 'assistant/attempt' || event.type === 'tool/result') {
+      if ('turn' in event.data) event.data.turn = '{{turn}}'
+      if ('step' in event.data) event.data.step = '{{step}}'
+    }
+    return Object.hasOwn(excludedLedgerEvents, event.type) ? [] : [canonical(messageIdentity(event))]
   }).sort())
 }
 
@@ -149,6 +215,7 @@ describe('full ledger upstream snapshot invariants', () => {
         expect(elapsed, 'clean subprocess exit stays within the unchanged upstream deadline').toBeLessThan(scenario.timeoutMs)
         const home = join(cwd, '.panedesk')
         const logs = await persisted(home)
+        for (const log of logs) assertTurnStructure(log)
         if (scenario.name === 'subagent-spawn-in-process') {
           const notices = parseSessionLog(logs[0]!).filter(event => event.type === 'user/message'
             && event.data.source?.kind === 'subagent-settled')

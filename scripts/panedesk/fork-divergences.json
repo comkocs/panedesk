@@ -1,6 +1,39 @@
 {
   "divergences": [
     {
+      "id": "startup-audit-observed-failures",
+      "description": "Retain the startup audit stack frame while reusing pre-publication activation observations.",
+      "origin": "Startup diagnostics",
+      "reason": "Publishing kernel status may dispose the Loader; required failures must retain their original audit frame without reading the Loader twice.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/boot/app-boot/src/index.ts"],
+        "test": "fails the full Web profile when its required HTTP server cannot bind"
+      }
+    },
+    {
+      "id": "artifact-closure-read-validation",
+      "description": "Reject sidecar fragments beyond a durable closure at read boundaries.",
+      "origin": "Durable streamed call accounting",
+      "reason": "Writer-owned closure hints avoid per-fragment directory enumeration; readers must reject abnormal foreign appends after sealing.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/src/journal.ts", "packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/tests/artifact-append.spec.ts"],
+        "test": "rejects fragments beyond a closure in stream scans, snapshots, queries and imports"
+      }
+    },
+    {
+      "id": "child-auto-script-prompt-phases",
+      "description": "Select the synthetic parent script phase from the submitted task marker.",
+      "origin": "Full-ledger Web replay composition",
+      "reason": "A notice-only pre-step rejection can omit a closing model request; a fixed global request count must not swallow the subsequent cold-resume task. Existing expectations and deadlines remain unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["apps/web/tests/shipped-composition.e2e.ts"],
+        "test": "reviews initially authorized, restricted, and cold-resumed child calls independently"
+      }
+    },
+    {
       "id": "ledger-independent-call-identifiers",
       "description": "Generate call-accounting and artifact UUIDs independently of the process UUID function.",
       "origin": "Durable accounting identifiers",
@@ -84,7 +117,7 @@
       "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
       "match": {
         "type": "test-assertion",
-        "paths": ["snapshots/full-ledger.snapshot.ts"],
+        "paths": ["snapshots/full-ledger.invariants.ts"],
         "test": "${scenario.name} preserves every event once, physical calls, durable tool starts and upstream exit deadline"
       }
     },

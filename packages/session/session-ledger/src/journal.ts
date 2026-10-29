@@ -335,6 +335,7 @@ export async function resolveNodeId(root: string, options: WriterLockOptions): P
  * @returns Per-fact outcomes, including conflicts without silently selecting a winner.
  */
 export async function importSegments(root: string, source: string, options: JournalOptions): Promise<LedgerAppendResult[]> {
+  await validateArtifactClosures(source, options.maxRecordBytes)
   const scan = await recoverSegments(source, options.maxRecordBytes)
   if (!scan.complete) throw new Error('Import requires complete, valid source segments')
   const results: LedgerAppendResult[] = []
@@ -502,22 +503,61 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
       records.push(value as ArtifactRecord)
     }
   }
+  const fragments = records.filter(item => item.type === 'fragment').sort((a, b) => a.input.seq - b.input.seq)
+  const last = fragments.at(-1)
+  for (const item of records) {
+    if (item.type === 'closed' && (!last
+      || canonicalJson(item.reference) !== canonicalJson(referenceOf(last.input, last.path)))) {
+      throw new Error('Artifact closure does not reference the final durable fragment')
+    }
+  }
   return records
+}
+
+/** Reject fragments beyond a sealed stream before exposing ledger projections or imports.
+ * @param root - Node directory containing call-owned artifact streams.
+ * @param maxBytes - Maximum accepted encoded record size.
+ */
+export async function validateArtifactClosures(root: string, maxBytes: number): Promise<void> {
+  let calls
+  try { calls = await readdir(join(root, 'artifacts'), { withFileTypes: true }) }
+  catch (error) { if (isCode(error, 'ENOENT')) return; throw error }
+  for (const call of calls) {
+    if (!call.isDirectory() || call.isSymbolicLink()) throw new Error('Invalid artifact directory')
+    for (const kind of await readdir(join(root, 'artifacts', call.name))) {
+      const stream = join(root, 'artifacts', call.name, kind)
+      const entries = await readdir(stream, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.startsWith('closed-')) continue
+        const path = join(stream, entry.name)
+        const bytes = await readFile(path)
+        const end = bytes.indexOf(10)
+        if (end < 0) continue
+        if (end !== bytes.length - 1) throw new Error('Invalid artifact segment framing')
+        const value = record(decode(bytes.subarray(0, end), maxBytes))
+        const reference = record(value.reference)
+        if (value.type !== 'closed' || !Number.isSafeInteger(reference.seq)) throw new Error('Invalid artifact closure')
+        if (entries.some(item => item.isDirectory() && Number(item.name) > Number(reference.seq))) {
+          throw new Error('Artifact closure does not reference the final durable fragment')
+        }
+      }
+    }
+  }
 }
 
 /** Instance-owned append hints; durable stream records remain authoritative. */
 export class ArtifactAppendCache {
   /** Stream positions are scoped by absolute node path and artifact identity. */
-  readonly streams = new Map<string, { next: number; closed: boolean; stamp: string }>()
+  readonly streams = new Map<string, { next: number; closed: boolean }>()
 }
 
-async function directoryStamp(path: string): Promise<string | undefined> {
+async function sequenceDirectoryExists(path: string): Promise<boolean> {
   try {
-    const entry = await lstat(path, { bigint: true })
-    if (!entry.isDirectory() || entry.isSymbolicLink()) return undefined
-    return `${entry.dev}:${entry.ino}:${entry.mtimeNs}:${entry.ctimeNs}`
+    const entry = await lstat(path)
+    if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error('Invalid artifact sequence directory')
+    return true
   } catch (error) {
-    if (isCode(error, 'ENOENT')) return undefined
+    if (isCode(error, 'ENOENT')) return false
     throw error
   }
 }
@@ -545,20 +585,21 @@ export async function appendArtifact(
     const relative = artifactPath(input)
     const stream = join(root, relative)
     const hint = cache?.streams.get(stream)
-    const stamp = await directoryStamp(stream)
     const directory = join(stream, String(input.seq))
-    const current = await directoryStamp(directory)
-    const previous = input.seq === 0 ? undefined : await directoryStamp(join(stream, String(input.seq - 1)))
-    // Closure names are random, so directory metadata alone cannot establish their absence.
-    const entries = stamp === undefined ? [] : await readdir(stream, { withFileTypes: true })
-    const hasClosure = entries.some(entry => !entry.isDirectory())
-    const sequential = hint !== undefined && !hint.closed && hint.next === input.seq
-      && stamp === hint.stamp && !hasClosure && current === undefined && (input.seq === 0 || previous !== undefined)
-    const retry = current !== undefined
+    const current = await sequenceDirectoryExists(directory)
+    const previous = input.seq === 0 || await sequenceDirectoryExists(join(stream, String(input.seq - 1)))
+    const sequential = hint !== undefined && !hint.closed && hint.next === input.seq && !current && previous
+    const retry = hint !== undefined && current
+    let fullScan = !sequential && !retry
     let records = sequential ? [] : await artifactRecords(root, retry ? `${relative}/${input.seq}` : relative, options.maxRecordBytes)
     if (retry && !records.some(item => item.type === 'fragment' && item.input.seq === input.seq)) {
       records = await artifactRecords(root, relative, options.maxRecordBytes)
+      fullScan = true
     }
+    if (fullScan) cache?.streams.set(stream, {
+      next: records.filter(item => item.type === 'fragment').length,
+      closed: records.some(item => item.type === 'closed'),
+    })
     const fragments = records.filter(item => item.type === 'fragment')
       .sort((a, b) => a.input.seq - b.input.seq)
     const prior = fragments.find(item => item.input.seq === input.seq)
@@ -577,8 +618,7 @@ export async function appendArtifact(
     await ensureDirectory(directory)
     const path = `${relative}/${input.seq}/${ledgerUuid()}.jsonl`
     await durableFile(join(root, path), encoded)
-    const committedStamp = await directoryStamp(stream)
-    if (committedStamp !== undefined) cache?.streams.set(stream, { next: input.seq + 1, closed: false, stamp: committedStamp })
+    cache?.streams.set(stream, { next: input.seq + 1, closed: false })
     return { kind: 'appended', reference: referenceOf(input, path) }
   })
 }
@@ -587,10 +627,11 @@ export async function appendArtifact(
  * @param root - Owning node directory.
  * @param reference - Exact last-fragment reference returned by appendArtifact.
  * @param options - Native lock and record size limits.
+ * @param cache - Optional instance-owned hints updated on closure; absent hints retain no local state.
  * @returns Idempotent closure acknowledgement after fsync.
  */
 export async function finishArtifact(
-  root: string, reference: LedgerArtifactReference, options: JournalOptions,
+  root: string, reference: LedgerArtifactReference, options: JournalOptions, cache?: ArtifactAppendCache,
 ): Promise<LedgerArtifactFinishResult> {
   await ensureDirectory(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
@@ -607,10 +648,12 @@ export async function finishArtifact(
     if (closed) {
       if (canonicalJson(closed.reference) !== canonicalJson(reference)) throw new Error('Conflicting artifact closure')
       await syncFiles(await files(join(root, relative)))
+      cache?.streams.set(join(root, relative), { next: fragments.length, closed: true })
       return { kind: 'existing', reference }
     }
     await syncFiles(await files(join(root, relative)))
     await durableFile(join(root, relative, `closed-${ledgerUuid()}.jsonl`), frame({ type: 'closed', reference }, options.maxRecordBytes))
+    cache?.streams.set(join(root, relative), { next: fragments.length, closed: true })
     return { kind: 'finished', reference }
   })
 }

@@ -1149,6 +1149,7 @@ function startupDiagnostic(binName: string, failures: readonly InactiveEntry[], 
  * @param ctx - the settled context whose Loader entries to audit.
  * @param binName - the prefix on startup diagnostics.
  * @param warn - sink for optional-entry warnings.
+ * @param observed - collected failures to reuse after publication; absent observations are collected from the Loader.
  * @returns after optional warnings if required startup checks pass.
  * @throws {@link StartupError} when the bootstrap Include or a required entry is inactive or its disabled expression throws;
  * its message includes optional failures too.
@@ -1157,17 +1158,9 @@ export async function auditStartupEntries(
   ctx: Context,
   binName: string,
   warn: (line: string) => void = line => void process.stderr.write(line),
+  observed?: readonly InactiveEntry[],
 ): Promise<void> {
-  auditStartupFailures(ctx, binName, await inactiveEntries(ctx), warn)
-}
-
-/** Apply startup policy to one settled observation, including after status publication. */
-function auditStartupFailures(
-  ctx: Context,
-  binName: string,
-  failures: readonly InactiveEntry[],
-  warn: (line: string) => void = line => void process.stderr.write(line),
-): void {
+  const failures = observed ?? await inactiveEntries(ctx)
   const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)
     || requiredStartupEntryIds.has(entry.options.id)).map(({ entry }) => entry))
   if (required.size > 0) {
@@ -1257,7 +1250,7 @@ export async function boot(
       ...outcome.kind === 'pending' ? { missing: outcome.missing }
         : { importing: outcome.phase === 'failed to import', error: outcome.error },
     })))
-    auditStartupFailures(ctx, binName, failures)
+    await auditStartupEntries(ctx, binName, undefined, failures)
     return ctx
   } catch (cause) {
     // Root-fiber disposal contains cleanup failures per observer (Cordis

@@ -7,10 +7,9 @@ import type {} from '@panedesk/dsh-tools'
 import {
   appendUnique, recoverSegments, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
-  appendMessageUnique, ArtifactAppendCache,
+  appendMessageUnique, ArtifactAppendCache, validateArtifactClosures,
 } from './journal.ts'
 import { withWriterLock, LedgerUnavailableError } from './lock.ts'
-import { digest } from './index-store.ts'
 import { foldLedger, foldMessages, joinSessionLedgers, exportMessages } from './projection.ts'
 import { loadPriceTable, priceUsage } from './pricing.ts'
 import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, LedgerMessagePage, LedgerSessionPage } from './types.ts'
@@ -405,8 +404,7 @@ export class JournalSessionLedger extends SessionLedger {
    */
   async finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult> {
     const { root } = await this.location()
-    try { return await finishSidecar(root, reference, this.options) }
-    finally { this.artifactCache.streams.delete(join(root, `artifacts/${digest(reference.callId)}/${reference.kind}`)) }
+    return finishSidecar(root, reference, this.options, this.artifactCache)
   }
   /** Select projections without counting lifecycle or retry observations as extra calls.
    * @param filter - half-open business-time and identity selection.
@@ -422,6 +420,7 @@ export class JournalSessionLedger extends SessionLedger {
   async snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot> {
     const { root, id } = await this.location()
     return withWriterLock(join(root, 'writer.lock'), this.options, async () => {
+      await validateArtifactClosures(root, this.options.maxRecordBytes)
       const scan = await recoverSegments(root, this.options.maxRecordBytes)
       return foldLedger(scan.events, {
         asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
