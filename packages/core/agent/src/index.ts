@@ -242,6 +242,7 @@ interface AgentEntry {
   announcing: boolean
   detachRequested: boolean
   ending?: Promise<void>
+  endingStarted?: boolean
 }
 
 /** One tracked boundary plus its inherited nesting chain. */
@@ -577,6 +578,7 @@ export class AgentRegistry extends Service {
   async ending(agent: Agent): Promise<void> {
     const entry = this.store.get(agent.id)
     if (entry === undefined || entry.agent !== agent || !entry.announced) return
+    entry.endingStarted = true
     entry.ending ??= this.ctx.serial(entry.carrier, 'agent/ending', { agent }).then(() => {})
     await entry.ending
   }
@@ -653,6 +655,17 @@ export class AgentRegistry extends Service {
    */
   get(id: SessionId): Agent | undefined {
     return this.store.get(id)?.agent
+  }
+
+  /** Inspect the exact entry without treating an ending or unpublished Agent as available.
+   * @param agent - Exact Agent object observed by a lifecycle consumer.
+   * @returns Registry lifecycle phase; missing includes a same-id replacement.
+   */
+  lifecycle(agent: Agent): 'missing' | 'unpublished' | 'live' | 'ending' {
+    const entry = this.store.get(agent.id)
+    if (!entry || entry.agent !== agent) return 'missing'
+    if (entry.endingStarted) return 'ending'
+    return entry.announced ? 'live' : 'unpublished'
   }
 
   /**

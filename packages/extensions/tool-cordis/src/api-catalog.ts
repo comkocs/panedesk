@@ -310,6 +310,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the agent, or undefined when no live agent has that id.',
       },
       {
+        signature: 'lifecycle(agent: Agent): \'missing\' | \'unpublished\' | \'live\' | \'ending\'',
+        description: 'Inspect the exact entry without treating an ending or unpublished Agent as available.',
+        parameters: [{ name: 'agent', description: 'Exact Agent object observed by a lifecycle consumer.' }],
+        returns: 'Registry lifecycle phase; missing includes a same-id replacement.',
+      },
+      {
         signature: 'isOwnedBy(id: SessionId, owner: Agent): boolean',
         description: 'Test whether a live agent was created through one exact parent agent\'s scoped context. Runtime ownership is independent of durable session lineage and remains unambiguous when unrelated providers reuse an id.',
         parameters: [{ name: 'id', description: 'the candidate child agent\'s shared agent/session id.' }, { name: 'owner', description: 'the expected runtime creator agent.' }],

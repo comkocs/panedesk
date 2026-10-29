@@ -65,6 +65,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
   private readonly lifetime = new AbortController()
   private readonly watchers = new Map<SessionId, FSWatcher>()
   private readonly tasks = new Set<Promise<void>>()
+  private readonly registrations = new Map<SessionId, Promise<void>>()
   private readonly emitted = new Set<string>()
   private readonly ready: Promise<void> | undefined
   private nodeId!: NodeId
@@ -87,42 +88,82 @@ export default class LocalMessageDelivery extends MessageDelivery {
     this.ready = this.initialize()
   }
 
-  private activate(): void {
+  private canAdopt(agent: Agent): boolean {
+    return !this.stopped && this.ctx.agents.lifecycle(agent) === 'live'
+  }
+
+  private registerAgent(agent: Agent): Promise<void> {
+    const pending = this.registrations.get(agent.id)
+    if (pending) return pending.then(() => this.registerAgent(agent))
+    if (this.stopped || this.ctx.agents.lifecycle(agent) !== 'live' || this.owners.get(agent.id)?.agent === agent) return Promise.resolve()
+    const work = this.adopt(agent).finally(() => {
+      if (this.registrations.get(agent.id) === work) this.registrations.delete(agent.id)
+    })
+    this.registrations.set(agent.id, work)
+    return work
+  }
+
+  private async adopt(agent: Agent): Promise<void> {
     const ctx = this.ctx
-    const config = this.config
+    const previous = this.owners.get(agent.id)
+    if (previous) await previous.released.promise
+    if (!this.canAdopt(agent)) return
+    if (!ctx.get('sessionPersistence')) throw new MailboxUnavailableError('Message delivery requires a Session write lease')
+    const driver = deliveryDriver(agent)
+    if (!driver) throw new MailboxUnavailableError('Agent does not expose priority-aware input scheduling')
+    const handle = await ctx.sessionPersistence.open(agent.id, 'read')
+    let replay: readonly import('@panedesk/dsh-agent/types').InputTransition[]
+    try {
+      replay = (await handle.read()).events.flatMap(event => event.type === 'agent/input/transition' ? [event.data] : [])
+    } finally {
+      await handle.close()
+    }
+    if (!this.canAdopt(agent)) return
+    const generation = await this.registry.register(agent.id, agent.status === 'running' ? 'busy' : 'idle')
+    if (ctx.agents.lifecycle(agent) === 'missing') {
+      await this.registry.unregister(agent.id)
+      return
+    }
+    const arbitrator = new MailboxArbitrator(this.mailbox, driver,
+      async () => {
+        if (ctx.agents.lifecycle(agent) === 'missing') throw new MailboxUnavailableError('Session residency has been replaced')
+        await this.registry.assertOwner(agent.id, generation)
+      }, event => this.publishReceipt(event),
+      () => this.settingsFor(agent.id).wakeOnHandoff, replay,
+      message => policyReason(this.settingsFor(agent.id), message.messageClass))
+    const closing = !this.canAdopt(agent)
+    this.owners.set(agent.id, { arbitrator, generation, agent, closing, released: Promise.withResolvers<void>() })
+    if (closing) {
+      await this.registry.update(agent.id, 'closing')
+      await arbitrator.close()
+      return
+    }
+    await arbitrator.drain()
+    if (this.config.watch && this.canAdopt(agent)) {
+      const root = await this.mailbox.target(agent.id)
+      if (!this.canAdopt(agent)) return
+      const watcher = watch(join(root, 'records'), () => {
+        arbitrator.changed()
+        this.track(arbitrator.drain())
+      })
+      watcher.on('error', (error) => { ctx.logger.warn('Mailbox watch unavailable; fallback scanning remains active', error) })
+      this.watchers.set(agent.id, watcher)
+    }
+  }
+
+  private async activate(): Promise<void> {
+    const ctx = this.ctx
     ctx.on('agent/created', async ({ agent }) => {
-      await this.ready
-      if (!ctx.get('sessionPersistence')) throw new MailboxUnavailableError('Message delivery requires a Session write lease')
-      const driver = deliveryDriver(agent)
-      if (!driver) throw new MailboxUnavailableError('Agent does not expose priority-aware input scheduling')
-      const handle = await ctx.sessionPersistence.open(agent.id, 'read')
-      let replay: readonly import('@panedesk/dsh-agent/types').InputTransition[]
-      try {
-        replay = (await handle.read()).events.flatMap(event => event.type === 'agent/input/transition' ? [event.data] : [])
-      } finally {
-        await handle.close()
-      }
-      const generation = await this.registry.register(agent.id, agent.status === 'running' ? 'busy' : 'idle')
-      const arbitrator = new MailboxArbitrator(this.mailbox, driver,
-        () => this.registry.assertOwner(agent.id, generation), event => this.publishReceipt(event),
-        () => this.settingsFor(agent.id).wakeOnHandoff, replay,
-        message => policyReason(this.settingsFor(agent.id), message.messageClass))
-      this.owners.set(agent.id, { arbitrator, generation, agent, closing: false, released: Promise.withResolvers<void>() })
-      await arbitrator.drain()
-      if (config.watch) {
-        const root = await this.mailbox.target(agent.id)
-        const watcher = watch(join(root, 'records'), () => {
-          arbitrator.changed()
-          this.track(arbitrator.drain())
-        })
-        watcher.on('error', (error) => { ctx.logger.warn('Mailbox watch unavailable; fallback scanning remains active', error) })
-        this.watchers.set(agent.id, watcher)
-      }
+      await this.registerAgent(agent)
       return undefined
     })
-    ctx.on('agent/input-preparing', ({ agent }) => this.owners.get(agent.id)?.arbitrator.prepare())
+    ctx.on('agent/input-preparing', ({ agent }) => {
+      const owner = this.owners.get(agent.id)
+      if (owner?.agent === agent && !owner.closing) return owner.arbitrator.prepare()
+    })
     ctx.on('agent/request', ({ agent, turn }, next) => {
-      this.requestTurns.set(agent.id, turn)
+      const owner = this.owners.get(agent.id)
+      if (owner?.agent === agent && !owner.closing) this.requestTurns.set(agent.id, turn)
       return next()
     })
     ctx.on('llm/stream', (options, next) => {
@@ -137,19 +178,20 @@ export default class LocalMessageDelivery extends MessageDelivery {
     ctx.on('agent/status', ({ agent, status }) => {
       const owner = this.owners.get(agent.id)
       // A closing residency stays closed: a trailing idle status must not republish it as live.
-      if (!owner || owner.closing) return
+      if (!owner || owner.agent !== agent || owner.closing) return
       this.track(this.registry.update(agent.id, status === 'running' ? 'busy' : 'idle'))
     })
     ctx.on('session/event', (session, event) => {
       const owner = this.owners.get(session.id)
-      if (!owner) return
+      if (!owner || owner.agent.session !== session) return
       if (event.type === 'agent/input/transition') owner.arbitrator.observe(event.data)
       if (event.type === 'assistant/message' && !event.data.interrupted) owner.arbitrator.assistant(event.data.turn)
       if (event.type === 'turn/end') this.track(owner.arbitrator.finish(event.data.turn, event.data.reason.kind === 'completed'))
     })
     const stopEnding = ctx.on('agent/ending', async ({ agent }) => {
+      await this.registrations.get(agent.id)
       const owner = this.owners.get(agent.id)
-      if (!owner || owner.closing) return
+      if (!owner || owner.agent !== agent || owner.closing) return
       owner.closing = true
       await this.registry.update(agent.id, 'closing')
       this.watchers.get(agent.id)?.close()
@@ -158,7 +200,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
     })
     const stopDisposed = ctx.on('agent/disposed', ({ agent }) => {
       const owner = this.owners.get(agent.id)
-      if (!owner) return
+      if (!owner || owner.agent !== agent) return
       this.owners.delete(agent.id)
       this.requestTurns.delete(agent.id)
       this.track(this.registry.unregister(agent.id).finally(() => { owner.released.resolve() }))
@@ -175,6 +217,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
         for (const watcher of this.watchers.values()) watcher.close()
         this.watchers.clear()
         await scanning
+        await Promise.all([...this.registrations.values()])
         await Promise.all([...this.tasks])
         const owners = [...this.owners.entries()]
         for (const [sessionId, owner] of owners) {
@@ -191,6 +234,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
         if (this.owners.size === 0) await this.registry.dispose()
       }
     }.bind(this))
+    await Promise.all(ctx.agents.list().map(agent => this.registerAgent(agent)))
   }
 
   protected async [Service.init](): Promise<void> {
@@ -214,7 +258,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
       },
       notify: (recipient) => { const owner = this.owners.get(recipient.sessionId); if (owner) this.track(owner.arbitrator.drain()) },
     })))
-    this.activate()
+    await this.activate()
   }
 
   private async initialize(): Promise<void> {
@@ -341,7 +385,9 @@ export default class LocalMessageDelivery extends MessageDelivery {
       const previous = await readValue(path, this.config.maxRecordBytes)
       if (previous !== undefined) {
         if (!object(previous) || previous.digest !== digest || !object(previous.result)) throw new MailboxUnavailableError('operation-conflict')
-        return decodeSendResult(previous.result)
+        const result = decodeSendResult(previous.result)
+        // Only a resolution refusal has no mailbox effects; accepted and uncertain sends retain their identity.
+        if (result.deliveryOutcome !== 'rejected' || result.reason !== 'unavailable') return result
       }
       const messageId = createUserMessage({ content: [{ type: 'text', text: request.content }], source: { kind: 'user' } }).id
       const [resolution] = await this.resolve([request.target])

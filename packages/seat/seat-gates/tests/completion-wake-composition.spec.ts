@@ -1,5 +1,7 @@
 /** Durable product completion delivery wakes idle parents and steers busy parents once. */
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
+import { SessionId } from '@panedesk/dsh-session'
+import { NodeRegistry } from '../../../session/message-delivery-local/src/registry.ts'
 import { spawn } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -32,6 +34,56 @@ class CompletionModel extends CreationAdapter {
     yield { type: 'finish', reason: { kind: 'tool-calls' } }
   }
 }
+
+it('isolates a bad completion head and delivers each recovered parent exactly once', async () => {
+  const f = await localHost()
+  f.ctx.loader.builtins.jobTools = JobTools
+  await f.load('isolation-job-tools.yml', [{ name: 'cordis:jobTools' }])
+  const bad = await f.ctx.agents.create({ sessionId: SessionId('completion-parent-unavailable'),
+    agentOptions: { provider: 'provider-a', model: 'model-a' } })
+  const good = await f.ctx.agents.create({ sessionId: SessionId('completion-parent-ready'),
+    agentOptions: { provider: 'provider-a', model: 'model-a' } })
+  const notices = new Map<string, number>()
+  const off = f.ctx.on('session/event', (session, event) => {
+    if (event.type === 'user/message' && event.data.content.some(block => block.type === 'text' && block.text.includes('isolated completion'))) {
+      notices.set(session.id, (notices.get(session.id) ?? 0) + 1)
+    }
+  })
+  // Only the nondeterministic liveness observation is unavailable; persistence and sends remain real.
+  // Invoke the captured method only with the registry receiver below.
+  // oxlint-disable-next-line typescript/unbound-method
+  const original = NodeRegistry.prototype.status
+  const status = vi.spyOn(NodeRegistry.prototype, 'status').mockImplementation(async function (this: NodeRegistry, id) {
+    return id === bad.agent.id ? 'unavailable' : original.call(this, id)
+  })
+  try {
+    const settle = (owner: typeof bad.agent) => f.ctx.jobs.start({ kind: 'bash', label: 'isolated completion', owner: owner.id,
+      run: () => ({ done: Promise.resolve({ status: 'completed' as const, detail: 'isolated completion' }), cancel() {} }) })
+    const first = settle(bad.agent)
+    await f.ctx.jobs.wait(first, 5000, bad.agent.id)
+    const second = settle(good.agent)
+    await f.ctx.jobs.wait(second, 5000, good.agent.id)
+    await expect.poll(() => notices.get(good.agent.id) ?? 0, { timeout: 5000 }).toBe(1)
+    expect(notices.get(bad.agent.id) ?? 0).toBe(0)
+    status.mockRestore()
+    await expect.poll(() => notices.get(bad.agent.id) ?? 0, { timeout: 5000 }).toBe(1)
+    await Promise.all([bad.agent.whenIdle(), good.agent.whenIdle()])
+    await new Promise(resolve => setTimeout(resolve, 1100))
+    expect([...notices.values()]).toEqual([1, 1])
+    expect((await f.ctx.messageDelivery.list({ targetSessionId: bad.agent.id })).items).toHaveLength(1)
+    expect((await f.ctx.messageDelivery.list({ targetSessionId: good.agent.id })).items).toHaveLength(1)
+    await f.ctx.sessions.flush(good.agent.session)
+    const stored = await f.ctx.sessionQuery.readSession(good.agent.id)
+    const text = stored.events.flatMap(event => event.type === 'user/message' ? event.data.content.flatMap(block =>
+      block.type === 'text' && block.text.includes('isolated completion') ? [block.text.replace(second, '<job>')] : []) : [])
+    expect(text).toMatchInlineSnapshot(`
+      [
+        "Job <job>: isolated completion
+      completed: isolated completion",
+      ]
+    `)
+  } finally { status.mockRestore(); off(); await f.close() }
+}, 30000)
 
 for (const kind of ['command', 'child'] as const) for (const busy of [false, true]) {
   it(`delivers one durable ${kind} completion with path hints to an ${busy ? 'busy' : 'idle'} parent`, async () => {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. The plugin registers already-leased Agents, publishes runtime busy/idle/closing observations, and removes their registrations after disposal. Session write leases remain authoritative; registration never acquires or steals a lease. See [Session persistence](../../../docs/subsystems/persistence.md).
+Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. The plugin registers already-leased Agents, publishes runtime busy/idle/closing observations, and removes their registrations after disposal. Session write leases remain authoritative; registration never acquires or steals a lease. Provider reload re-registers existing live Agents once under the new provider generation; unpublished or ending Agents are not adopted, and old-generation cleanup cannot remove the new registration. See [Session persistence](../../../docs/subsystems/persistence.md).
 
 ## Table of Contents
 
@@ -32,6 +32,8 @@ Configuration optionally supplies `nodeId`; otherwise startup resolves the persi
 Storage layout: each target uses `mailboxes/<sessionId>/publish.lock`; `operations/` holds `<operation-key>.lock`, `routed.lock`, and `receipt-order.lock`. These dedicated files are separate from readable records and receipts. Linux and macOS keep the original descriptor flock, checks and retry loop. Only win32 uses exclusive-share opening, with `EBUSY`/`EPERM` backoff from `lockRetryMs` to 40 ms within `lockTimeoutMs`; expiry reports `EAGAIN` with the lock filename, not its path or contents. Lock contents are never read or written; close or process exit releases ownership. Never remove or replace lock files.
 
 Each record uses exclusive temporary creation, a versioned length/digest envelope, file sync, atomic publication and directory sync on POSIX. Native per-target locks serialize publication and recover watermarks with explicit skipped ranges. Linux mailbox directories and files require owner-only permissions and reject symbolic links. The product home must belong to the current user, must not be a symbolic link, and must not allow other-user writes; group writes are allowed only for the current user's primary group when system name-service enumeration finds no other supplementary or primary members, and admission is diagnosed once during provider initialization. Unavailable membership information refuses mailbox use. Existing permissions are never changed. Windows admission checks inherited DACL grants before storage initialization; foreign read/write grants are refused. Unknown process identity remains unavailable, never authorization to reclaim a Session.
+
+An identical local send may re-resolve a cached `unavailable` refusal only when it was rejected before mailbox admission with no pending effects. The request digest must still match. Accepted, closed-target pending, and uncertain sends retain their original operation and mailbox deduplication; a changed payload conflicts.
 
 Routed refusals keep the legacy outer reason and optionally retain the original node-link cause through durable acknowledgement decoding. Cause codes are bounded ASCII identifiers; reasons are nonempty, control-free and at most 512 UTF-8 bytes. Producers must remove secrets and addresses before transport. Unknown outcomes remain unknown; missing causes do not acquire defaults. Invalid diagnostics reject instead of being truncated or silently dropped.
 

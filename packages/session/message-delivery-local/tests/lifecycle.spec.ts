@@ -19,6 +19,130 @@ async function storage() {
 }
 
 describe('wake and receipt lifecycle', () => {
+  it('re-registers a live window after provider reload and fences the previous generation', async () => {
+    const f = await wakeupFixture(false)
+    const mailbox = new FileMailbox({ home: f.home, nodeId: 'node-a', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
+    const registry = new NodeRegistry(mailbox)
+    try {
+      const path = join(mailbox.root, 'owners', `${f.session.id}.json`)
+      const previous = await readValue(path, 1048576)
+      const entry = [...f.ctx.loader.entries()].find(item => item.options.name === 'cordis:delivery')!
+      await entry.fiber!.dispose()
+      expect(await registry.status(f.session.id)).toBe('unavailable')
+      const replacementId = await f.ctx.loader.create({ name: 'cordis:delivery', config: { dshHome: f.home, nodeId: 'node-a',
+        maxRecordBytes: 1048576, maxContentBytes: 4096, maxBatchSize: 100,
+        lockTimeoutMs: 5000, lockRetryMs: 1, scanIntervalMs: 100, watch: false } })
+      await f.ctx.loader.await()
+      const service = f.ctx.get('messageDelivery')!
+      expect(await registry.status(f.session.id)).toBe('idle')
+      expect(await readValue(path, 1048576)).not.toEqual(previous)
+      const sent = await service.send({ target: { sessionId: f.session.id }, content: 'after reload',
+        messageClass: 'handoff', operationId: 'reload-send' as OperationId })
+      expect(sent.deliveryOutcome).toBe('accepted')
+      await f.started(sent.messageId)
+      expect(f.scheduler.queue.filter(message => message.id === sent.messageId)).toHaveLength(1)
+      await f.scheduler.close()
+      await f.ctx.loader.resolve(replacementId).fiber!.dispose()
+      expect(await registry.status(f.session.id)).toBe('closed')
+    } finally { await f.dispose() }
+  })
+
+  it('keeps an ending residency unavailable when reload registration is still in flight', async () => {
+    const f = await wakeupFixture(false)
+    const mailbox = new FileMailbox({ home: f.home, nodeId: 'node-a', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
+    const registry = new NodeRegistry(mailbox)
+    const registered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    // Invoke the original method only with its captured registry receiver.
+    // oxlint-disable-next-line typescript/unbound-method
+    const register = NodeRegistry.prototype.register
+    const registering = vi.spyOn(NodeRegistry.prototype, 'register').mockImplementation(async function (this: NodeRegistry, ...args) {
+      const generation = await register.apply(this, args)
+      registered.resolve(undefined)
+      await release.promise
+      return generation
+    })
+    try {
+      const entry = [...f.ctx.loader.entries()].find(item => item.options.name === 'cordis:delivery')!
+      await entry.fiber!.dispose()
+      const loading = f.ctx.loader.create({ name: 'cordis:delivery', config: { dshHome: f.home, nodeId: 'node-a',
+        maxRecordBytes: 1048576, maxContentBytes: 4096, maxBatchSize: 100,
+        lockTimeoutMs: 5000, lockRetryMs: 1, scanIntervalMs: 100, watch: false } })
+      await registered.promise
+      const ending = f.ctx.agents.ending(f.scheduler.agent)
+      release.resolve(undefined)
+      const replacementId = await loading
+      await f.ctx.loader.await()
+      await ending
+      expect(registering).toHaveBeenCalledTimes(1)
+      expect(await registry.status(f.session.id)).toBe('unavailable')
+      await f.scheduler.close()
+      await f.ctx.loader.resolve(replacementId).fiber!.dispose()
+      expect(await registry.status(f.session.id)).toBe('closed')
+    } finally { release.resolve(undefined); registering.mockRestore(); await f.dispose() }
+  })
+
+  it('ignores stale Agent callbacks after the same Session gains a replacement', async () => {
+    const f = await wakeupFixture(false)
+    const mailbox = new FileMailbox({ home: f.home, nodeId: 'node-a', maxRecordBytes: 1048576, lockTimeoutMs: 5000, lockRetryMs: 1 })
+    const registry = new NodeRegistry(mailbox)
+    try {
+      const old = f.scheduler.agent
+      await f.scheduler.close()
+      const replacement = await f.resume()
+      await f.ctx.serial('agent/status', { agent: old, status: 'running' })
+      await f.ctx.serial('agent/ending', { agent: old })
+      await f.ctx.serial('agent/disposed', { agent: old })
+      await f.ctx.serial('agent/input-preparing', { agent: old, turn: 1, step: 1, signal: new AbortController().signal })
+      expect(await registry.status(f.session.id)).toBe('idle')
+      const sent = await f.service.send({ target: { sessionId: f.session.id }, content: 'new residency',
+        messageClass: 'handoff', operationId: 'replacement-send' as OperationId })
+      expect(sent.deliveryOutcome).toBe('accepted')
+      await expect.poll(() => replacement.queue.filter(message => message.id === sent.messageId)).toHaveLength(1)
+      expect(old).not.toBe(replacement.agent)
+      await replacement.close()
+    } finally { await f.dispose() }
+  })
+
+  it('does not adopt an already ending Agent during provider reload', async () => {
+    const f = await wakeupFixture(false)
+    const register = vi.spyOn(NodeRegistry.prototype, 'register')
+    try {
+      await f.ctx.agents.ending(f.scheduler.agent)
+      const entry = [...f.ctx.loader.entries()].find(item => item.options.name === 'cordis:delivery')!
+      await entry.fiber!.dispose()
+      const id = await f.ctx.loader.create({ name: 'cordis:delivery', config: { dshHome: f.home, nodeId: 'node-a',
+        maxRecordBytes: 1048576, maxContentBytes: 4096, maxBatchSize: 100,
+        lockTimeoutMs: 5000, lockRetryMs: 1, scanIntervalMs: 100, watch: false } })
+      await f.ctx.loader.await()
+      expect(register).not.toHaveBeenCalled()
+      const result = await f.ctx.get('messageDelivery')!.send({ target: { sessionId: f.session.id }, content: 'must not reopen',
+        messageClass: 'handoff', operationId: 'ending-send' as OperationId })
+      expect(result).toMatchObject({ deliveryOutcome: 'rejected', reason: 'unavailable' })
+      expect(f.scheduler.queue).toHaveLength(0)
+      await f.scheduler.close()
+      await f.ctx.loader.resolve(id).fiber!.dispose()
+    } finally { register.mockRestore(); await f.dispose() }
+  })
+
+  it('re-resolves an unavailable rejection with the same operation and delivers exactly once', async () => {
+    const f = await wakeupFixture(false)
+    const request = { target: { sessionId: f.session.id }, content: 'retry completion',
+      messageClass: 'handoff' as const, operationId: 'retry-completion' as OperationId }
+    const status = vi.spyOn(NodeRegistry.prototype, 'status').mockResolvedValue('unavailable')
+    try {
+      expect(await f.service.send(request)).toMatchObject({ deliveryOutcome: 'rejected', reason: 'unavailable', pending: false })
+      status.mockRestore()
+      const accepted = await f.service.send(request)
+      expect(accepted.deliveryOutcome).toBe('accepted')
+      await f.started(accepted.messageId)
+      expect(await f.service.send(request)).toEqual(accepted)
+      expect((await f.service.list({ targetSessionId: f.session.id })).items).toHaveLength(1)
+      expect(f.scheduler.queue.filter(message => message.id === accepted.messageId)).toHaveLength(1)
+      await expect(f.service.send({ ...request, content: 'different completion' })).rejects.toThrow('operation-conflict')
+    } finally { status.mockRestore(); await f.dispose() }
+  })
+
   it('keeps notices and wake-disabled handoffs passive until a natural turn', async () => {
     const f = await wakeupFixture(false)
     try {
