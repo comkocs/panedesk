@@ -200,8 +200,8 @@ describe('web e2e: plugin configuration pages', () => {
     await openPage(panel, '子智能体')
     const depth = panel.getByLabel('最大递归深度', { exact: true })
     const capacity = panel.getByLabel('子智能体并行数量上限', { exact: true })
-    expect(await depth.inputValue()).toBe('1')
-    expect(await capacity.inputValue()).toBe('8')
+    expect(await depth.inputValue()).toBe('3')
+    expect(await capacity.inputValue()).toBe('16')
     await depth.fill('2')
     await capacity.fill('12')
     await panel.getByRole('button', { name: '保存', exact: true }).click()
@@ -223,8 +223,8 @@ describe('web e2e: plugin configuration pages', () => {
     await expect.poll(() => panel.getByRole('button', { name: '保存', exact: true }).isDisabled()).toBe(true)
     await openPlugins()
     await openPage(panel, '子智能体')
-    expect(await depth.inputValue()).toBe('1')
-    expect(await capacity.inputValue()).toBe('8')
+    expect(await depth.inputValue()).toBe('3')
+    expect(await capacity.inputValue()).toBe('16')
     await panel.getByRole('button', { name: '返回插件', exact: true }).click()
   })
 
@@ -251,7 +251,7 @@ describe('web e2e: plugin configuration pages', () => {
     expect(await capacityRules.getByText('同一主 Agent 下，所有递归层级同时存活的子智能体总数，主 Agent 不计入。达到上限时，新的启动请求会被拒绝。', { exact: true }).count()).toBe(1)
     await panel.getByRole('button', { name: '返回插件', exact: true }).click()
     await openPage(panel, '子智能体')
-    expect(await depth.inputValue()).toBe('1')
+    expect(await depth.inputValue()).toBe('3')
   })
 
   it('saves limits and the model allowlist together from the shared card', async () => {
