@@ -1,5 +1,6 @@
 /** Cordis engine provider owns journal lifecycle, policy, recovery and resource arbitration. */
 import { randomUUID } from 'node:crypto'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { SessionId } from '@panedesk/dsh-session'
@@ -37,6 +38,7 @@ import { withPreopenCallbacks } from './preopen-callback.ts'
 import { preopenCancelledReason } from './frozen-terminal.ts'
 import { recoverPreopenCallbacks } from './preopen-recovery.ts'
 import { resolveCallback } from './callback-resolution.ts'
+import { EngineFailures } from './failure.ts'
 
 export type { CallbackResolveRequest, CallbackResolveResult } from '@panedesk/dsh-seat'
 
@@ -139,13 +141,20 @@ export class SeatEngine extends SeatEngineService {
   private readyAt: string | null = null
   private stopped = false
   private timer: ReturnType<typeof setTimeout> | undefined
-  private failure: unknown
+  private readonly failures: EngineFailures
+  private publishing: Promise<void> | undefined
+  private readonly notificationScope = new AsyncLocalStorage<{ active: boolean }>()
   private readonly listeners = new Set<() => void>()
   constructor(ctx: Context, readonly options: EngineOptions, private readonly dependencies: EngineDependencies) {
     super(ctx)
+    this.failures = new EngineFailures(options.config.failureRecovery?.retryInitialMs, (line) => {
+      ctx.logger.error(line)
+      console.error(line)
+    })
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
-    this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers)
+    this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,
+      options.config.frozenWakeContext ? options.config.maxSourceBytes : undefined)
     this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
       () => this.ready(), () => this.publish(), options.config.nodeName)
     ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
@@ -182,7 +191,7 @@ export class SeatEngine extends SeatEngineService {
           status.nodeId === delivery.nodeWorkChain?.route.sourceOwnerNodeId && status.reachable
           && status.linkState === 'connected' && status.capabilities.includes('node-work-chain/v1')
           && Date.parse(status.observedAt) > parkedAt)
-      })
+      }, options.config.failureRecovery ? (cause) => { this.failures.record('callback-delivery', cause) } : undefined)
     this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName,
       deliveries => freezeCallbackEvidence(this.journal.projection, deliveries, this.executor?.executionModel))
     this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {
@@ -210,7 +219,8 @@ export class SeatEngine extends SeatEngineService {
   private async start(): Promise<void> {
     await this.journal.ready()
     if (await recoverPreopenCallbacks(this.journal, this.options.config.nodeName)) {
-      this.failure = new EngineError('state-conflict', 'Pre-open terminal evidence is ambiguous; notification was not reconstructed')
+      this.failures.record('startup-recovery', new EngineError('state-conflict', 'Pre-open terminal evidence is ambiguous'),
+        'preopen-terminal-evidence-ambiguous')
     }
     for (const resource of this.journal.projection.resources.values()) this.recoveredOwners.add(resource.owner.ownerEpoch)
     this.readyAt = new Date().toISOString()
@@ -220,13 +230,16 @@ export class SeatEngine extends SeatEngineService {
   private schedule(): void {
     if (this.stopped) return
     this.timer = setTimeout(() => {
-      void this.drive().then(() =>{  this.schedule() }, (error: unknown) => { this.failure = error; this.schedule() })
+      void this.drive().then(() => { this.schedule() }, (error: unknown) => {
+        this.failures.record('scheduled-drive', error); this.schedule()
+      })
     }, this.options.config.ownerObserveIntervalMs)
     this.timer.unref()
   }
   async shutdown(): Promise<void> {
     const drained = this.frozenWrites.close()
     this.stopped = true
+    this.failures.close()
     await Promise.all([drained, this.sourceProxy?.close()])
     this.authorizationIssuers.close()
     if (this.timer) clearTimeout(this.timer)
@@ -455,10 +468,38 @@ export class SeatEngine extends SeatEngineService {
     return async () => { if (this.executor === executor) this.executor = undefined; await this.activeDrive }
   }
   nodeStatus(): Promise<T.SeatNodeStatus> {
+    const failure = this.failures.snapshot()
     return Promise.resolve({ nodeId: this.options.nodeId, nodeName: this.options.config.nodeName,
-      engine: this.failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
+      engine: failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),
-      limit: this.options.config.nodeEngineWindowLimit ?? null, readyAt: this.readyAt })
+      limit: this.options.config.nodeEngineWindowLimit ?? null, readyAt: this.readyAt,
+      ...(failure ? { failure } : {}) })
+  }
+  override wakeSource = async (envelope: T.TriggerEnvelope): Promise<T.WakeSeatResult | undefined> => {
+    if (envelope.evidence.kind !== 'external' || !this.options.config.sourceWake?.some(rule =>
+      rule.sourceId === envelope.sourceId && rule.eventTypes.includes(envelope.evidence.kind === 'external' ? envelope.evidence.eventType : ''))) return undefined
+    await this.ready()
+    if (this.stopped || !this.sourceProxy) return rejected('unavailable', 'Frozen source wake routing is unavailable')
+    const proxy = this.sourceProxy
+    try {
+      return await this.sources.use(envelope.sourceId, async (source) => {
+        if (envelope.kind !== 'external' || !source.kinds.includes(envelope.kind) || envelope.callbackRef !== envelope.sourceId
+          || !envelope.openingContext || !(envelope.relatedTaskIds?.length || envelope.taskId)) {
+          return rejected('unauthorized', 'Source wake requires its registered event and task context')
+        }
+        const policy = await this.projectPolicy(envelope.projectId)
+        if (!policy.modeChosen || policy.mode !== 'auto') return rejected('disabled', 'Source wake requires automatic project policy')
+        const input: T.WakeSeatWithContextRequest = { seat: envelope.seat,
+          operationId: `source:${envelope.sourceId}:${envelope.eventId ?? envelope.triggerId}` as T.SeatOperationId,
+          openingContext: structuredClone(envelope.openingContext),
+          relatedTaskIds: [...(envelope.relatedTaskIds ?? (envelope.taskId ? [envelope.taskId] : []))] }
+        return await proxy.route('seat.wakeFrozen', input, undefined, envelope)
+          ?? rejected('cross-node-unsupported', 'Configured source wake requires an explicit remote target')
+      })
+    } catch (error) {
+      if (!(error instanceof EngineError)) throw error
+      return rejected(error.code, error.message)
+    }
   }
   async accept(envelope: T.TriggerEnvelope): Promise<T.AcceptTriggerResult> {
     await this.ready()
@@ -590,13 +631,34 @@ export class SeatEngine extends SeatEngineService {
     await this.publish()
   }
   private published = 0
-  private async publish(): Promise<void> {
-    const decisions = this.journal.projection.decisions.filter(decision => decision.sequence > this.published)
-    for (const decision of decisions) {
-      this.published = decision.sequence
-      for (const notify of this.listeners) notify()
-      try { await this.ctx.parallel('seat/decision', decision) } catch (error) { this.failure = error }
-    }
+  private publish(): Promise<void> {
+    if (!this.options.config.failureRecovery) return this.publishDecisions()
+    // A listener's committed write must not await the notification that is awaiting that listener.
+    if (this.notificationScope.getStore()?.active) return Promise.resolve()
+    this.publishing ??= Promise.resolve().then(() => this.publishDecisions())
+      .finally(() => { this.publishing = undefined })
+    return this.publishing
+  }
+  private async publishDecisions(): Promise<void> {
+    if (!this.failures.runnable()) return
+    const supervised = !!this.options.config.failureRecovery
+    do {
+      const decisions = this.journal.projection.decisions.filter(decision => decision.sequence > this.published)
+      if (!decisions.length) return
+      for (const decision of decisions) {
+        if (!supervised) this.published = decision.sequence
+        for (const notify of this.listeners) notify()
+        const scope = { active: true }
+        try {
+          if (supervised) await this.notificationScope.run(scope, () => this.ctx.parallel('seat/decision', decision))
+          else await this.ctx.parallel('seat/decision', decision)
+        } catch (error) {
+          this.failures.record('decision-notification', error)
+          if (supervised) return
+        } finally { scope.active = false }
+        if (supervised) this.published = decision.sequence
+      }
+    } while (supervised && this.failures.runnable())
   }
   async transact(request: T.EngineTransactionRequest): Promise<T.EngineTransactionResult> {
     await this.ready()
@@ -887,15 +949,23 @@ export class SeatEngine extends SeatEngineService {
   }
   private async run(): Promise<void> {
     await this.ready()
-    if (this.stopped) return
+    if (this.stopped || !this.failures.runnable()) return
+    const generation = this.failures.generation()
     await this.checkPreopenRetention()
+    if (!this.failures.runnable()) return
+    if (this.options.config.failureRecovery) await this.publish()
+    if (!this.failures.runnable()) return
     const executor = this.executor
     if (executor) {
       await this.releaseDead(executor)
-      for (const item of [...this.journal.projection.pending.values()].sort((a, b) => a.sequence - b.sequence)) await this.dispatch(item,
-        executor)
+      if (!this.failures.runnable()) return
+      for (const item of [...this.journal.projection.pending.values()].sort((a, b) => a.sequence - b.sequence)) {
+        if (!this.failures.runnable()) return
+        await this.dispatch(item, executor)
+      }
       // Publish each durable checkpoint before its next external Session effect.
       await this.publish()
+      if (!this.failures.runnable()) return
       const recoveryExecutor: T.SeatOpenExecutor = { ...executor,
         configure: async (open, stage) => { await this.publish(); await executor.configure(open, stage) },
         opening: async (open) => { await this.publish(); return executor.opening(open) },
@@ -929,13 +999,17 @@ export class SeatEngine extends SeatEngineService {
           }
         }
         let recovered: T.EngineOpenData
-        try { recovered = await reconcileOpen(this.journal, open, recoveryExecutor, current => this.callbacks(current, 'opened')) }
+        try {
+          recovered = await reconcileOpen(this.journal, open, recoveryExecutor, current => this.callbacks(current, 'opened'),
+            this.options.config.failureRecovery ? async () => { await this.publish(); return this.failures.runnable() } : undefined)
+        }
         catch (error) {
           const replacement = [...this.journal.projection.replacements.values()].find(item => item.newSessionId === open.sessionId)
           if (!replacement || !(error instanceof EngineError) || !['open-create-failed', 'open-configuration-failed'].includes(error.code)) throw error
           recovered = { ...open, phase: 'opening-failed', failure: rejected('replacement-open-failed', 'Replacement creation failed').error }
           await this.journal.commit(() => [fact({ kind: 'open/opening-failed', sessionId: open.sessionId, data: recovered })])
         }
+        if (!this.failures.runnable()) return
         if (recovered.phase === 'opening-failed') await this.recordCallbacks(recovered, 'opening-failed')
         await this.refreshBudget(recovered, executor)
       }
@@ -943,8 +1017,10 @@ export class SeatEngine extends SeatEngineService {
     }
     await this.keepalive.drive()
     this.activeCallbacks ??= this.outbox.deliver().then(() => this.publish())
-      .catch((error: unknown) => { this.failure = error }).finally(() => { this.activeCallbacks = undefined })
+      .catch((error: unknown) => { this.failures.record('callback-delivery', error) }).finally(() => { this.activeCallbacks = undefined })
+    if (this.options.config.failureRecovery) await this.activeCallbacks
     await this.publish()
+    if (!this.outbox.hasFailedDelivery()) this.failures.succeeded(generation)
   }
   private async checkPreopenRetention(): Promise<void> {
     for (const item of [...this.journal.projection.pending.values()]) {
@@ -962,7 +1038,8 @@ export class SeatEngine extends SeatEngineService {
         const limit = this.retentionLimit(current)
         if (registered && !transientCategory(current) && current.reason !== 'provider-unavailable') return []
         if (!registered || !this.executor || !this.localAccess?.recheck) {
-          if (!registered) this.failure = new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous')
+          if (!registered) this.failures.record('preopen-retention',
+            new EngineError('unavailable', 'Pre-open retention registration is unavailable or ambiguous'), 'preopen-retention-unconfirmed')
           if ((!registered || !transientCategory(current)) && transientCategory(current) !== 'provider-unavailable') {
             return [fact({ kind: 'queue/pending', seat: current.seat, data: { ...current,
               reason: 'provider-unavailable', blockedBy: ['provider-unavailable'], stateVersion: current.stateVersion + 1 } })]
@@ -992,8 +1069,8 @@ export class SeatEngine extends SeatEngineService {
           data: { owner: resource.owner, reason: recovered ? 'host-restart-recovery' : 'holder-death', observedAt,
             engineReadyAt: recovered ? this.readyAt : null, releasedAt: new Date().toISOString(), fenced: true },
         })])
-      if (performance.now() - start > this.options.config.ownerReleaseBudgetMs) this.failure = new EngineError('unavailable',
-        'Owner release exceeded its configured time budget')
+      if (performance.now() - start > this.options.config.ownerReleaseBudgetMs) this.failures.record('owner-release',
+        new EngineError('unavailable', 'Owner release exceeded its configured time budget'), 'owner-release-budget-exceeded')
     }
   }
   private async recheckFrozenTarget(item: T.PendingSeatItem): Promise<T.SeatRejected | null> {

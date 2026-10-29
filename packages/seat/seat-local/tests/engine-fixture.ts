@@ -25,7 +25,7 @@ import { createLocalRuntime } from '../src/runtime.ts'
 import type { LocalSeatOptions } from '../src/service-options.ts'
 
 /** Boot an actual engine through a test-only Loader profile. */
-export async function engineFixture(withArchive = false, retainedRoot?: string) {
+export async function engineFixture(withArchive = false, retainedRoot?: string, engineConfig: Partial<T.SeatEngineConfig> = {}) {
   const root = retainedRoot ?? await mkdtemp(join(tmpdir(), 'seat-engine-local-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
@@ -37,7 +37,7 @@ export async function engineFixture(withArchive = false, retainedRoot?: string) 
   const config: T.SeatEngineConfig = { nodeName: 'node-a', nodeAliases: options.nodeAliases, dedupWindowMs: 1000,
     maxDecisionBytes: 200000, maxSourceBytes: 65536, maxBatchSeats: 10, maxCauseDepth: 8, budgetTimeZone: 'UTC',
     callbackTimeoutMs: 1000, callbackMaxResponseBytes: 1000, callbackRetryInitialMs: 1, callbackRetryMaxMs: 100,
-    ownerObserveIntervalMs: 1000, ownerReleaseBudgetMs: 2000, queueWakeBudgetMs: 1000 }
+    ownerObserveIntervalMs: 1000, ownerReleaseBudgetMs: 2000, queueWakeBudgetMs: 1000, ...engineConfig }
   const created: T.EngineOpenData[] = []
   const renewals: T.SeatOperationId[] = []
   const dependencies: EngineDependencies = {

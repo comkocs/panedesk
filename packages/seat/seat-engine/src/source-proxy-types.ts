@@ -36,6 +36,8 @@ export interface SourceProxyPort {
     input: SourceProxyInputs[M]
     targetNodeId: T.SeatNodeId
     authority?: T.SeatCallContext
+    /** Registered source event for engine-selected wake; absent requires the original caller grant. */
+    sourceEvent?: T.TriggerEnvelope
   }): Promise<{
     payload: T.NodeWorkChainMethodMap[M]['request']
     original: T.SeatAuthorizationGrant

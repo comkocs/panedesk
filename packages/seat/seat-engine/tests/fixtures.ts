@@ -91,7 +91,7 @@ export async function harness(options: Partial<T.SeatEngineConfig> = {}, keepali
   }
   const engine = await start()
   return { home, engine, ctx: contexts[0]!, definitions, physical, creates, callbacks, wakes, warnings, state,
-    executor, start, seatProvider, closed,
+    executor, start, seatProvider, source, closed,
     close: async () => { for (const engine of engines) await engine.shutdown(); for (const ctx of contexts) await ctx.fiber.dispose()
       await rm(home, { recursive: true, force: true }) } }
 }

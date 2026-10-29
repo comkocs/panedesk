@@ -47,6 +47,8 @@ kind: "package-reference"
 
 可选 `OpenSeatRequest.startupDirectory` 为手动开窗选择精确的已登记目录；省略时保留档案起窗目录。本地提供方冻结所选起窗标记供执行与重放使用，不改档案，也不扩大目录授权；重试须保留相同选择。
 
+可选 `SeatEngineService.wakeSource` 接收携任务上下文的已注册外部事件；方法缺席或返回 undefined 时保留普通触发入口。可选 `SeatEngineConfig.sourceWake` 选择来源与事件组合，`frozenWakeContext` 启用已有窗投递中的冻结任务正文。二者省略时均不启用；校验、授权与持久结果归 [seat-engine](../seat-engine/README.zh.md) 所有。不改变 wire 方法或已有必填字段。
+
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 
 <a id="model-experience"></a>

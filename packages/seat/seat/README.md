@@ -47,6 +47,8 @@ Optional `seatLocalCallbackOwner: SeatLocalCallbackOwner` supplies `ready`, `ava
 
 Optional `OpenSeatRequest.startupDirectory` selects an exact registered directory for a manual opening. Omission preserves the profile startup directory. The local provider freezes the selected startup flag for execution and replay without editing the catalog or broadening directory authorization; retries must preserve the same selection.
 
+Optional `SeatEngineService.wakeSource` accepts a registered external event with task context; absence or an undefined result preserves ordinary trigger ingress. Optional `SeatEngineConfig.sourceWake` selects source/event pairs, and `frozenWakeContext` enables frozen task text in existing-window delivery. Both are disabled when omitted; [seat-engine](../seat-engine/README.md) owns validation, authorization and durable outcomes. No wire method or existing required field changes.
+
 Stable operation identities, revision comparisons, explicit incomplete pages, and typed refusals preserve observable outcomes across retries. Engine decisions live outside the Session event union. Configuration and execution belong to providers; the declarations supply no deployment defaults.
 
 <a id="model-experience"></a>

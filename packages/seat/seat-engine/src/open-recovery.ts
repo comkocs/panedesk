@@ -19,10 +19,12 @@ export function isOpeningObservation(open: EngineOpenData): boolean {
  * @param initial - fixed durable intent.
  * @param executor - local provider with persistence observation and never-mint creation.
  * @param createdCallbacks - callback facts committed with the first created observation.
+ * @param beforeEffect - Optional supervisor checkpoint; false retains the last durable phase without another external effect.
  * @returns latest committed phase; uncertain first turns remain pending.
  */
 export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenData, executor: SeatOpenExecutor,
   createdCallbacks: (open: EngineOpenData) => readonly SeatCallbackDelivery[] | Promise<readonly SeatCallbackDelivery[]>,
+  beforeEffect?: () => Promise<boolean>,
 ): Promise<EngineOpenData> {
   let current = journal.projection.opens.get(initial.sessionId) ?? initial
   if (current.phase === 'active' || current.phase === 'opening-failed') return current
@@ -38,6 +40,7 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     })
   }
   if (current.phase === 'intent' || current.phase === 'creating') {
+    if (beforeEffect && !await beforeEffect()) return current
     const observed = await executor.observe(current)
     if (observed === 'conflict') throw new EngineError('session-id-conflict', 'Reserved Session identity belongs to another operation')
     if (observed === 'unknown') throw new EngineError('owner-unknown', 'Session persistence ownership is unknown')
@@ -51,6 +54,7 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
   }
   for (const stage of configurationStages) {
     if (current.completedStages.includes(stage)) continue
+    if (beforeEffect && !await beforeEffect()) return current
     await executor.configure(current, stage)
     await publish('open/configured', { ...current, phase: 'configuring', completedStages: [...current.completedStages, stage] })
   }
@@ -59,6 +63,7 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     return current
   }
   if (current.phase !== 'opening-pending') await publish('open/configured', { ...current, phase: 'opening-pending' })
+  if (beforeEffect && !await beforeEffect()) return current
   const opening = await executor.opening(current)
   if (opening.state === 'failed') {
     const failed: EngineOpenData = { ...current, openingMessageId: opening.messageId, phase: 'opening-failed', failure: {

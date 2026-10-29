@@ -15,7 +15,16 @@ export class CallbackOutbox {
   constructor(private readonly journal: EngineJournal, private readonly sources: SourceRegistry,
     private readonly config: SeatEngineConfig,
     private readonly routed?: (request: DeliverSourceCallbackRequest) => Promise<CallbackAttempt>,
-    private readonly linkReady?: (delivery: SeatCallbackDelivery, parkedAt: number) => Promise<boolean>) {}
+    private readonly linkReady?: (delivery: SeatCallbackDelivery, parkedAt: number) => Promise<boolean>,
+    private readonly recordFailure?: (cause: unknown) => void) {}
+
+  /** Report retained failed deliveries, including attempts not yet due.
+   * @returns Whether a failed callback still needs settlement.
+   */
+  hasFailedDelivery(): boolean {
+    return [...this.journal.projection.callbacks.values()].some(delivery => delivery.responseClass !== null
+      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned')
+  }
 
   /** Deliver currently due facts without overtaking a failed earlier state.
    * @param now - host time used for this attempt batch.
@@ -91,6 +100,7 @@ export class CallbackOutbox {
       let responseClass: SeatCallbackDelivery['responseClass'] = 'success'
       let diagnostic: SeatCallbackDiagnostic | undefined
       const started = performance.now()
+      let failure: unknown
       try {
         // A timeout cannot cancel arbitrary adapter code; retain ownership until it settles.
         if (delivery.nodeWorkChain) {
@@ -106,6 +116,7 @@ export class CallbackOutbox {
           diagnostic = callbackDiagnostic(this.journal.projection, delivery, 'callback-timeout', 'local-dispatch', true)
         }
       } catch (error) {
+        failure = error
         responseClass = error instanceof EngineError && error.code === 'callback-authentication-failed' ? 'authentication'
           : error instanceof EngineError && error.code === 'callback-protocol-error' ? 'protocol' : 'transient'
         if (delivery.nodeWorkChain) {
@@ -140,6 +151,11 @@ export class CallbackOutbox {
           ...(delivery.payload.sessionId ? { sessionId: delivery.payload.sessionId } : {}), data: updated })]
       })
       if (phase === 'delivered') blocked.delete(key)
+      else if (this.recordFailure) {
+        this.recordFailure(responseClass === 'unknown' ? { code: 'callback-outcome-unconfirmed' }
+          : failure ?? { code: diagnostic?.cause.code ?? 'callback-outcome-unconfirmed' })
+        return
+      }
     }
   }
 }

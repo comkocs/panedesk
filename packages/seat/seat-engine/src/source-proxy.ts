@@ -18,10 +18,11 @@ export class SourceProxy {
    * @param method - Frozen remote method.
    * @param input - Original local action.
    * @param authority - Captured local entry, omitted only for composition-authenticated triggers.
+   * @param sourceEvent - Registered external event retained for composition-owned wake preparation.
    * @returns Remote acknowledgement, explicit unknown refusal, or absence for local execution.
    */
   async route<M extends T.SeatRemoteOpeningMethod>(method: M, input: SourceProxyInputs[M],
-    authority?: T.SeatCallContext): Promise<T.NodeWorkChainMethodMap[M]['result'] | undefined> {
+    authority?: T.SeatCallContext, sourceEvent?: T.TriggerEnvelope): Promise<T.NodeWorkChainMethodMap[M]['result'] | undefined> {
     if (this.isClosing()) return rejected('unavailable', 'Source proxy is closing')
     const target = 'nodeId' in input ? input.nodeId : await this.port.target(input.seat)
     if (target === undefined || target === this.engine.options.nodeId) return undefined
@@ -31,7 +32,8 @@ export class SourceProxy {
     const active = this.active.get(key)
     if (active) return active
     const snapshot = structuredClone(input)
-    const work = this.chain.then(() => this.forward(method, snapshot, target, authority))
+    const event = sourceEvent ? structuredClone(sourceEvent) : undefined
+    const work = this.chain.then(() => this.forward(method, snapshot, target, authority, event))
     this.chain = work.then(() => undefined, () => undefined)
     this.active.set(key, work)
     try { return await work } finally { this.active.delete(key) }
@@ -44,7 +46,7 @@ export class SourceProxy {
     return outcome.status === 'unknown' ? this.unknown() : outcome.result
   }
   private async forward<M extends T.SeatRemoteOpeningMethod>(method: M, input: SourceProxyInputs[M], targetNodeId: T.SeatNodeId,
-    authority?: T.SeatCallContext): Promise<T.NodeWorkChainMethodMap[M]['result']> {
+    authority?: T.SeatCallContext, sourceEvent?: T.TriggerEnvelope): Promise<T.NodeWorkChainMethodMap[M]['result']> {
     const inputDigest = digest(input)
     const records = sourceProxyRecords(this.engine.journal.projection.authorizationDecisions)
     const retained = [...records.values()].find(record => record.method === method
@@ -64,7 +66,8 @@ export class SourceProxy {
       }
       return this.result(retained.outcome)
     }
-    const prepared = await this.port.prepare({ method, input, targetNodeId, ...(authority ? { authority } : {}) })
+    const prepared = await this.port.prepare({ method, input, targetNodeId, ...(authority ? { authority } : {}),
+      ...(sourceEvent ? { sourceEvent } : {}) })
     if ('status' in prepared) return prepared
     const { payload, original } = prepared, operationId = payload.route.originalOperationId
     if (authority && (original !== authority.authorization || authority.principalId !== original.fact.principalId

@@ -5,8 +5,8 @@ import { admissionHost } from './admission-host.ts'
 import { digest } from '../src/store.ts'
 
 export const sender = 'sending-node' as T.SeatNodeId, principalId = 'remote-principal' as T.SeatPrincipalId
-export async function frozenHost(root?: string) {
-  const h = await admissionHost(root)
+export async function frozenHost(root?: string, engineConfig: Partial<T.SeatEngineConfig> = {}) {
+  const h = await admissionHost(root, engineConfig)
   const registry = new ChainBusinessRegistry()
   const registered = Promise.withResolvers<undefined>()
   const register = registry.register.bind(registry)

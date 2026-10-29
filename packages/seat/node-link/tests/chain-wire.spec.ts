@@ -59,6 +59,17 @@ test('decodes only frozen chain methods and binds delegation, operation and resp
   expect(() => decodeChainResponse({ ...response, requestId: 'other' }, request)).toThrow()
 })
 
+test('legacy strict decoding refuses source-wake configuration fields instead of treating them as wire authority', () => {
+  const request = decodeChainRequest(frame())
+  for (const name of ['wakeSource', 'sourceWake', 'frozenWakeContext']) {
+    expect(() => decodeChainRequest({ ...frame(), [name]: true })).toThrow('Node chain frame rejected')
+    const payload = { ...frame().payload, [name]: true }, payloadDigest = chainDigest(request.method, payload)
+    expect(() => decodeChainRequest({ ...frame(), payload, payloadDigest,
+      delegation: { ...frame().delegation, requestDigest: payloadDigest } })).toThrow()
+  }
+  expect(decodeChainRequest(JSON.parse(JSON.stringify(frame())))).toEqual(request)
+})
+
 test('rejects invalid diagnostic codes rather than truncating them', () => {
   const request = decodeChainRequest(frame()), response = chainFailure(request, 'node-protocol-mismatch', 'invalid-diagnostic')
   if (response.status === 'ok') throw new Error('Expected refusal')
