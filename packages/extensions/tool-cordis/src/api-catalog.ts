@@ -3945,6 +3945,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['{AggregateError} naming each session whose flush failed; the remaining handles still flush.'],
       },
       {
+        signature: 'sidecarDirectory?(id: SessionId): Promise<string | undefined>',
+        description: 'Resolve the existing session directory for plugin-owned sidecars, when supported. Callers must hold the session\'s write ownership and flush it before writing; sidecars are not Session events and are not included in seeded forks or exports. Backends without local directories omit this optional capability.',
+        parameters: [{ name: 'id', description: 'the owned, materialized session.' }],
+        returns: 'its absolute directory, or undefined when it has no stored artifact.',
+      },
+      {
         signature: 'abstract stat(id: SessionId, options?: SessionPersistenceStatOptions): Promise<SessionPersistenceSnapshot | undefined>',
         description: 'Observe one stored session without reading its event log or taking ownership.\n\nThe snapshot\'s `revision` is an opaque change token comparable only against revisions from the same service instance and session id: equal revisions may be treated as an unchanged log; unequal revisions promise nothing. Write-ownership churn does not change a revision. It exists for derived read-model caches keyed off `stat`/`list`; it plays no part in open, read, or resume.',
         parameters: [{ name: 'id', description: 'the stored session to observe.' }, { name: 'options', description: 'optional cancellation.' }],
@@ -4698,9 +4704,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Optional policy reserves capacity before the original parent-chain pool.',
     methods: [
       {
-        signature: 'acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>',
+        signature: 'acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>',
         description: 'Reserve capacity before starting an activation.',
-        parameters: [{ name: 'spec', description: 'Validated start request; the provider owns durable FIFO and replay.' }],
+        parameters: [{ name: 'spec', description: 'Validated start request; the provider owns FIFO and replay policy.' }, { name: 'control', description: 'Optional original-pool reservation and retry callbacks; legacy providers may ignore them.' }],
         returns: 'A reservation or a nonblocking queue ticket.',
       },
       {
@@ -4770,6 +4776,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Named provider registry with managed activations, durable discovery, and local child messaging.',
     description: 'Named provider registry with managed activations, durable discovery, and local child messaging.',
     methods: [
+      {
+        signature: 'listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission[\'list\']>',
+        description: 'Read process-local queued work without loading a child.',
+        parameters: [{ name: 'parentSessionId', description: 'owning root session.' }],
+        returns: 'count, oldest time, and current ticket positions.',
+      },
       {
         signature: 'resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined',
         description: 'Resolve a delegation tool\'s depth policy against the current user setting.',
@@ -6415,6 +6427,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'A provider left the registry.',
     description: 'A provider left the registry. Accepted runs remain holder-owned.',
     parameters: [{ name: 'name', description: 'the provider name that no longer resolves.' }],
+  },
+  {
+    name: 'subagent/queue',
+    mode: 'emit',
+    signature: '\'subagent/queue\'(event: SubagentQueueEvent): void',
+    summary: 'Observe root admission without implying execution has started.',
+    description: 'Observe root admission without implying execution has started.',
+    parameters: [{ name: 'event', description: 'queued, dequeued, or cancelled ticket transition.' }],
   },
   {
     name: 'subagent/start',
@@ -9669,6 +9689,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type QueueItemId = Branded<\'SeatQueueItemId\'>;',
   },
   {
+    name: 'QueueJournalRecord',
+    declaration: 'export interface QueueJournalRecord {\n    readonly ticketId: SubagentQueued[\'ticketId\'];\n    readonly parentSessionId: SessionId;\n    readonly agentType: string;\n    readonly position: number;\n    readonly queuedAt: number;\n    readonly state: \'queued\' | \'dequeued\' | \'cancelled\';\n    readonly dequeuedAt?: number;\n    readonly cancelledAt?: number;\n    readonly reason?: string;\n}',
+  },
+  {
     name: 'ReadFileLine',
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
@@ -9935,6 +9959,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RevokeCloseReportRequest',
     declaration: 'export interface RevokeCloseReportRequest {\n    reportId: CloseReportId;\n    sessionId: SessionId;\n    expectedStateVersion: number;\n    operationId: SeatOperationId;\n}',
+  },
+  {
+    name: 'RootSubagentAdmission',
+    declaration: 'export class RootSubagentAdmission implements SubagentAdmission {\n    constructor(private readonly ctx: Context, private readonly downstream: () => SubagentAdmission | undefined, persistence?: {\n        notify: (parent: Agent, record: QueueJournalRecord) => void | Promise<void>;\n    });\n    async acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>;\n    async continue(parent: Agent, childId: SessionId): Promise<void>;\n    async resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>;\n    released(parent: Agent): void;\n    cancelParent(parent: Agent, reason: string): void;\n    list(parentSessionId: SessionId): {\n        queuedCount: number;\n        earliestQueuedAt?: number;\n        tickets: SubagentQueueEvent[];\n    };\n}',
   },
   {
     name: 'RoutedDeliveryAuthority',
@@ -11521,6 +11549,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentActivationSpec {\n    readonly provider: string;\n    readonly label: string;\n    readonly childId?: SessionId;\n    readonly request: Omit<SubagentStartRequest, \'label\' | \'signal\'>;\n    readonly signal: AbortSignal;\n    readonly delivery: \'parent\' | \'caller\';\n}',
   },
   {
+    name: 'SubagentAdmission',
+    declaration: 'export interface SubagentAdmission {\n    acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>;\n    continue(parent: Agent, childId: SessionId): Promise<void>;\n    resume(parent: Agent, childId: SessionId): Promise<SubagentReservation | SubagentQueued>;\n}',
+  },
+  {
+    name: 'SubagentAdmissionControl',
+    declaration: 'export interface SubagentAdmissionControl {\n    reserve(): () => void;\n    start(spec?: SubagentActivationSpec): Promise<SubagentActivation>;\n}',
+  },
+  {
     name: 'SubagentCapabilities',
     declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly agentPreset: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n}',
   },
@@ -11566,11 +11602,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentQueued',
-    declaration: 'export interface SubagentQueued {\n    readonly status: \'queued\';\n    readonly ticketId: Branded<\'SeatChildTicketId\'>;\n    readonly parentSessionId: SessionId;\n}',
+    declaration: 'export interface SubagentQueued {\n    readonly status: \'queued\';\n    readonly ticketId: Branded<\'SeatChildTicketId\'>;\n    readonly parentSessionId: SessionId;\n    readonly position?: number;\n    readonly queuedAt?: number;\n    readonly cancel?: () => void;\n    readonly outcome?: Promise<SubagentActivation | SubagentQueued | {\n        status: \'cancelled\';\n        reason: string;\n    }>;\n}',
+  },
+  {
+    name: 'SubagentQueueEvent',
+    declaration: 'export interface SubagentQueueEvent {\n    readonly ticketId: SubagentQueued[\'ticketId\'];\n    readonly parentSessionId: SessionId;\n    readonly queuedAt: number;\n    readonly position: number;\n    readonly state: \'queued\' | \'dequeued\' | \'cancelled\';\n    readonly reason?: string;\n}',
   },
   {
     name: 'SubagentReservation',
-    declaration: 'export interface SubagentReservation {\n    readonly status: \'reserved\';\n    release(childId?: SessionId): Promise<void>;\n}',
+    declaration: 'export interface SubagentReservation {\n    readonly status: \'reserved\';\n    readonly releaseSlot?: () => void;\n    release(childId?: SessionId): Promise<void>;\n}',
   },
   {
     name: 'SubagentResult',
@@ -11594,7 +11634,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentRuntime',
-    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    static inject;\n    constructor(ctx: Context, private config: Config);\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    startActivation(spec: SubagentActivationSpec & {\n        readonly childId: SessionId;\n    }): Promise<SubagentActivation & {\n        readonly messageId: MessageId;\n    }>;\n    startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>;\n    async waitForChildren(parent: Agent): Promise<boolean>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'int /* …truncated — full shape in source */',
+    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    static inject;\n    constructor(ctx: Context, private config: Config);\n    get queuesRootOverflow(): boolean;\n    listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission[\'list\']>;\n    resolveMaxDepth(configured?: number | \'provider-managed\'): number | undefined;\n    startActivation(spec: SubagentActivationSpec & {\n        readonly childId: SessionId;\n    }): Promise<SubagentActivation & {\n        readonly messageId: MessageId;\n    }>;\n    startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async startActivation(spec: SubagentActivationSpec): Promise<SubagentActivation>;\n    async requestActivation(spec: SubagentActivationSpec): Promise<SubagentActivation | import(\'./types.ts\').SubagentQueued>;\n    async waitForChildren(parent: Agent): Promise<boolean>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentCatalogEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'pr /* …truncated — full shape in source */',
   },
   {
     name: 'SubagentSendMessageOptions',

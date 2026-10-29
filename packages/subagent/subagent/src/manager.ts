@@ -35,7 +35,7 @@ import type { ActivationObserver } from './lifecycle.ts'
 import type {
   ContinuableCreateRequest, ContinuableCreateSpec, SubagentInterruptAuthority,
   SubagentActivationSpec, SubagentActivation, SubagentStartRequest, SubagentRun,
-  SubagentSendMessageOptions, SubagentResult, ResolvedSubagentStartRequest, SubagentQueued, SubagentReservation,
+  SubagentSendMessageOptions, SubagentResult, ResolvedSubagentStartRequest, SubagentQueued, SubagentReservation, SubagentAdmission,
 } from './types.ts'
 import { attachStructuredRuntime } from './structured.ts'
 import { definitionOptions, installExecutionPolicy, resolveExecutionPolicy } from './execution-policy.ts'
@@ -67,6 +67,9 @@ interface SubagentHost {
   prepareContinuable(name: string, request: ContinuableCreateRequest): Promise<ContinuableCreateSpec>
   /** Build the lifecycle observer for one Activation residency epoch. */
   observeActivation(provider: string, childId: SessionId, parent: Agent): ActivationObserver
+  admission?(): SubagentAdmission | undefined
+  capacityReleased?(root: Agent): void
+  cancelQueued?(parent: Agent): void
 }
 
 /** Inputs shared by fresh and resumed Activation materialization. */
@@ -76,6 +79,7 @@ interface MaterializeBase {
   parent: Agent
   signal: AbortSignal
   delivery?: 'parent' | 'caller' | undefined
+  releaseSlot?: (() => void) | undefined
 }
 
 /** Creation inputs for a local residency or one external backend execution. */
@@ -312,6 +316,7 @@ export class SubagentManager {
     if (roots.size === 0) return
 
     for (const root of roots) {
+      this.host.cancelQueued?.(root)
       this.closingMembers(root).add(root)
     }
 
@@ -391,24 +396,29 @@ export class SubagentManager {
    * @returns the durable child id and accepted initial prompt message id.
    */
   startLocal(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
-    if (this.ctx.get('subagentAdmission') === undefined && this.ctx.get('subagentDispatch') === undefined) return this.startLocalAdmitted(spec)
-    return this.admitStart(spec, () => this.startLocalAdmitted(spec))
+    if ((this.host.admission?.() ?? this.ctx.get('subagentAdmission')) === undefined && this.ctx.get('subagentDispatch') === undefined) return this.startLocalAdmitted(spec)
+    return this.admitStart(spec, releaseSlot => this.startLocalAdmitted(spec, releaseSlot),
+      (retry = spec) => this.admitStart(retry, releaseSlot => this.startLocalAdmitted(retry, releaseSlot),
+        () => this.startLocal(retry), true))
   }
 
-  private async admitStart<T extends SubagentActivation>(spec: SubagentActivationSpec, start: () => Promise<T>): Promise<T> {
+  private async admitStart<T extends SubagentActivation>(spec: SubagentActivationSpec,
+    start: (releaseSlot?: () => void) => Promise<T>, retry: (spec?: SubagentActivationSpec) => Promise<T>,
+    dispatched = false): Promise<T> {
     this.assertAdmitting(spec.request.parent)
     const dispatch = this.ctx.get('subagentDispatch')
-    if (dispatch !== undefined) await dispatch.start(spec)
-    const policy = this.ctx.get('subagentAdmission')
+    if (!dispatched && dispatch !== undefined) await dispatch.start(spec)
+    const policy = (this.host.admission?.() ?? this.ctx.get('subagentAdmission'))
     if (policy === undefined) return start()
-    const admission = await policy.acquire(spec)
+    const admission = await policy.acquire(spec, { reserve: () => this.reserveCapacity(spec.request.parent), start: retry })
     if (admission.status === 'queued') throw new SubagentQueuedError(admission)
     let activation: T
     try {
       spec.signal.throwIfAborted()
       this.assertAdmitting(spec.request.parent)
-      activation = await start()
+      activation = await start(admission.releaseSlot)
     } catch (error: unknown) {
+      admission.releaseSlot?.()
       await admission.release()
       throw error
     }
@@ -430,7 +440,9 @@ export class SubagentManager {
     return result
   }
 
-  private async startLocalAdmitted(spec: SubagentActivationSpec): Promise<SubagentActivation & { messageId: MessageId }> {
+  private async startLocalAdmitted(
+    spec: SubagentActivationSpec, releaseSlot?: () => void,
+  ): Promise<SubagentActivation & { messageId: MessageId }> {
     const request = spec.request
     const parent = request.parent
     this.assertAdmitting(parent)
@@ -533,6 +545,7 @@ export class SubagentManager {
           signal: spec.signal,
           delivery: spec.delivery,
           outputSchema: spec.request.outputSchema,
+          releaseSlot,
         })
         established = activation
         const child = requireLocalActivation(activation).handle.agent
@@ -562,11 +575,13 @@ export class SubagentManager {
    * @returns the accepted activation and its result/disposal capabilities.
    */
   startExternal(spec: SubagentActivationSpec): Promise<SubagentActivation> {
-    if (this.ctx.get('subagentAdmission') === undefined && this.ctx.get('subagentDispatch') === undefined) return this.startExternalAdmitted(spec)
-    return this.admitStart(spec, () => this.startExternalAdmitted(spec))
+    if ((this.host.admission?.() ?? this.ctx.get('subagentAdmission')) === undefined && this.ctx.get('subagentDispatch') === undefined) return this.startExternalAdmitted(spec)
+    return this.admitStart(spec, releaseSlot => this.startExternalAdmitted(spec, releaseSlot),
+      (retry = spec) => this.admitStart(retry, releaseSlot => this.startExternalAdmitted(retry, releaseSlot),
+        () => this.startExternal(retry), true))
   }
 
-  private async startExternalAdmitted(spec: SubagentActivationSpec): Promise<SubagentActivation> {
+  private async startExternalAdmitted(spec: SubagentActivationSpec, releaseSlot?: () => void): Promise<SubagentActivation> {
     const parent = spec.request.parent
     this.assertAdmitting(parent)
     const pendingId = brandString<SessionId>(randomUUID())
@@ -581,6 +596,7 @@ export class SubagentManager {
         parent,
         signal: spec.signal,
         delivery: spec.delivery,
+        releaseSlot,
         start: signal => this.host.startExternal(spec.provider, {
           ...spec.request, cwd, label: spec.label, signal,
         }),
@@ -827,7 +843,7 @@ export class SubagentManager {
     inputs.signal.throwIfAborted()
     const lineage = this.liveLineage(inputs.parent)
     const pool = this.resident.get(inputs.parent.id)?.pool ?? this.rootPool(inputs.parent)
-    const releaseSlot = pool.reserve(this.maxActiveSubagents())
+    const releaseSlot = inputs.releaseSlot ?? this.reserveCapacity(inputs.parent)
     const settled = Promise.withResolvers<void>()
     const controller = new AbortController()
     const materialization: Materialization = {
@@ -921,6 +937,26 @@ export class SubagentManager {
       if (members.has(agent) || lineage.includes(root)) return root
     }
     return undefined
+  }
+
+  /** Reserve the unchanged pool and notify an optional admission provider after release. */
+  private reserveCapacity(parent: Agent): () => void {
+    this.assertAdmitting(parent)
+    const pool = this.resident.get(parent.id)?.pool ?? this.rootPool(parent)
+    const release = pool.reserve(this.maxActiveSubagents())
+    let root = parent
+    let ancestor = this.resident.get(root.id)
+    while (ancestor !== undefined) {
+      root = ancestor.parent
+      ancestor = this.resident.get(root.id)
+    }
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      release()
+      this.host.capacityReleased?.(root)
+    }
   }
 
   /** Resolve a root's pool once; descendants inherit their resident parent's pool directly. */
@@ -1304,6 +1340,17 @@ export class SubagentManager {
     if (failure !== undefined) throw failure
   }
 
+  /** Deliver restart cancellation through the same parent inbox path as settlement.
+   * @param parent - exact newly loaded root receiving the notice.
+   * @param ticketId - queue identity, never a child or run identity.
+   */
+  notifyQueueRestart(parent: Agent, ticketId: import('./types.ts').SubagentQueued['ticketId']): void {
+    const text = `Queued subagent dispatch ${ticketId} was cancelled by restart. You may dispatch it again.`
+    this.sendWaking(parent, createUserMessage({ content: [{ type: 'text', text }],
+      source: { kind: 'system-prompt' },
+    }), parent.status === 'idle' ? 'queue' : 'steer')
+  }
+
   /** Deliver the captured execution result to the durable direct parent after cleanup. */
   private notifySettlement(activation: Activation, terminal: SubagentResult): void | Promise<void> {
     if (!activation.announced || activation.delivery === 'caller') return
@@ -1367,7 +1414,7 @@ export class SubagentManager {
     this.assertAdmitting(parent)
     const dispatch = this.ctx.get('subagentDispatch')
     if (dispatch !== undefined) await dispatch.continue(parent, childId)
-    const admission = this.ctx.get('subagentAdmission')
+    const admission = (this.host.admission?.() ?? this.ctx.get('subagentAdmission'))
     if (admission !== undefined) {
       await admission.continue(parent, childId)
       this.assertAdmitting(parent)
@@ -1492,7 +1539,7 @@ export class SubagentManager {
         'NOT_RESUMABLE',
       )
     }
-    const policy = this.ctx.get('subagentAdmission')
+    const policy = (this.host.admission?.() ?? this.ctx.get('subagentAdmission'))
     const admission = policy === undefined ? undefined : await policy.resume(parent, childId)
     if (admission?.status === 'queued') throw new SubagentQueuedError(admission)
     let activation: Activation

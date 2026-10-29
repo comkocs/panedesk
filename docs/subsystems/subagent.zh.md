@@ -415,10 +415,11 @@ Optional policy reserves capacity before the original parent-chain pool.
 ```ts cordis-catalog
 /**
  * Reserve capacity before starting an activation.
- * @param spec - Validated start request; the provider owns durable FIFO and replay.
+ * @param spec - Validated start request; the provider owns FIFO and replay policy.
+ * @param control - Optional original-pool reservation and retry callbacks; legacy providers may ignore them.
  * @returns A reservation or a nonblocking queue ticket.
  */
-acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>
+acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>
 
 /**
  * Authorize continuation using the existing child evidence.
@@ -514,6 +515,12 @@ Source: [`packages/subagent/subagent/src/types.ts`](../../packages/subagent/suba
 Named provider registry with managed activations, durable discovery, and local child messaging.
 
 ```ts cordis-catalog
+/** Read process-local queued work without loading a child.
+ * @param parentSessionId - owning root session.
+ * @returns count, oldest time, and current ticket positions.
+ */
+listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission['list']>
+
 /**
  * Resolve a delegation tool's depth policy against the current user setting.
  * @param configured - Explicit tool limit, or provider-managed for external delegation.
@@ -802,6 +809,22 @@ A provider left the registry. Accepted runs remain holder-owned.
 ```
 
 Source: [`packages/subagent/subagent/src/index.ts`](../../packages/subagent/subagent/src/index.ts)
+
+<a id="subagentqueue--emit"></a>
+
+#### `subagent/queue` — emit
+
+Observe root admission without implying execution has started.
+
+```ts cordis-catalog
+/** Observe root admission without implying execution has started.
+ * @param event - queued, dequeued, or cancelled ticket transition.
+ * @mode emit
+ */
+'subagent/queue'(event: SubagentQueueEvent): void
+```
+
+Source: [`packages/subagent/subagent/src/root-admission.ts`](../../packages/subagent/subagent/src/root-admission.ts)
 
 <a id="subagentstart--emit"></a>
 

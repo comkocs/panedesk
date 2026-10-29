@@ -206,7 +206,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
     } | undefined
     const mount = (subagentProvider: SubagentProvider): void => {
       assertSubagentProviderConfiguration(subagentProvider)
-      const admissionEnabled = runtimeCtx.get('subagentAdmission') !== undefined
+      const admissionEnabled = (runtimeCtx.subagents.queuesRootOverflow || runtimeCtx.get('subagentAdmission') !== undefined)
       const wording = providerWording(subagentProvider.inheritsParentContext)
       const providerRouteDefaults = subagentProvider.agentRouteDefaults
       const selectionDescription = providerRouteDefaults !== undefined
@@ -285,13 +285,16 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
               kind: { type: 'string', required: true, enum: ['activation', 'queued'] },
               subagentId: { type: 'string' },
               ticketId: { type: 'string' },
+              position: { type: 'number' },
             } : {
               kind: { type: 'string', required: true, const: 'activation' },
               subagentId: { type: 'string', required: true },
             },
           },
           render: (_args, value) => [{ type: 'text', text: value.kind === 'queued'
-            ? `queued subagent ${value.ticketId}; register a wait for this ticket and end the turn instead of retrying`
+            ? value.position === undefined
+              ? `queued subagent ${value.ticketId}; register a wait for this ticket and end the turn instead of retrying`
+              : `queued subagent ${value.ticketId} at position ${value.position}; continue other work or close an idle child to free capacity`
             : `started subagent ${value.subagentId}` }],
         },
         isConcurrencySafe: () => true,
@@ -372,10 +375,11 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
             signal: exec.signal,
             delivery: 'parent' as const,
           }
-          const started = await (runtimeCtx.get('subagentAdmission') === undefined
+          const started = await (!runtimeCtx.subagents.queuesRootOverflow && runtimeCtx.get('subagentAdmission') === undefined
             ? runtimeCtx.subagents.startActivation(spec)
             : runtimeCtx.subagents.requestActivation(spec))
-          if ('status' in started) return { kind: 'queued' as const, ticketId: started.ticketId }
+          if ('status' in started) return { kind: 'queued' as const, ticketId: started.ticketId,
+            ...started.position === undefined ? {} : { position: started.position } }
           return { kind: 'activation' as const, subagentId: started.childId }
         },
       })
@@ -393,7 +397,7 @@ export async function apply(ctx: Context, config: Config, session?: Session): Pr
 
     runtimeCtx.on('internal/service', (name) => {
       if (name !== 'subagentAdmission' || mounted === undefined
-        || mounted.admissionEnabled === (runtimeCtx.get('subagentAdmission') !== undefined)) return
+        || mounted.admissionEnabled === ((runtimeCtx.subagents.queuesRootOverflow || runtimeCtx.get('subagentAdmission') !== undefined))) return
       const { subagentProvider } = mounted
       mounted.disposeTool()
       mounted = undefined

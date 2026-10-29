@@ -8,6 +8,8 @@ The seam is a [capability seam](../../.agents/notes/implemented/architecture/202
 
 The separate [session ledger](../../packages/session/session-ledger/README.md) owns durable run and call accounting. Its `CallContributor` is an optional cache-policy contributor registered on that ledger instance; it supplies per-call evidence without owning call lifecycle writes.
 
+Backends with local Session directories may implement `sidecarDirectory?(id: SessionId): Promise<string | undefined>`. It returns an existing materialized directory, not a Session-log access path; absence means no stored artifact, and unsupported backends omit the method. Callers retain Session write ownership and flush before writing plugin-owned files. Sidecars remain outside event-seeded forks and exports; their owning plugin defines their format and durability. See the [storage service](../../packages/session/session-persistence/README.md).
+
 ## `SessionHandle` — one open channel onto a stored session
 
 Every log read and write flows through a handle, never through id-addressed service methods: the handle is the single door the cross-process write lease guards. A read returns a caller-owned outer slice and the producer-established aliasing state of its event values. One handle type serves both accesses — a mutation on a `read` handle is a runtime `SessionReadOnlyError` rather than a typed split — and in-process single-writer ownership makes a second `open(id, 'write')` reject with `SessionAlreadyOwnedError` while an owner is active.
@@ -550,6 +552,16 @@ abstract open(id: SessionId, access: SessionAccess, options?: SessionPersistence
  *   remaining handles still flush.
  */
 abstract flush(): Promise<void>
+
+/**
+ * Resolve the existing session directory for plugin-owned sidecars, when supported.
+ * Callers must hold the session's write ownership and flush it before writing;
+ * sidecars are not Session events and are not included in seeded forks or exports.
+ * Backends without local directories omit this optional capability.
+ * @param id - the owned, materialized session.
+ * @returns its absolute directory, or undefined when it has no stored artifact.
+ */
+sidecarDirectory?(id: SessionId): Promise<string | undefined>
 
 /**
  * Observe one stored session without reading its event log or taking

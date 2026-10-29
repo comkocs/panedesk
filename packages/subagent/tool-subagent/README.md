@@ -56,7 +56,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 ### Managed delegation
 
-An admitted call returns `started subagent <childId>` after the runtime accepts the child. A queued call instead returns its admission ticket without creating a child or waiting for capacity; register a wait for that ticket rather than retrying. Neither result waits for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
+An admitted call returns `started subagent <childId>` after the runtime accepts the child. A queued call instead returns its admission ticket without creating a child or waiting for capacity. Root overflow tickets include their queue position and tell the caller to continue other work or close an idle child to free capacity; provider-owned tickets without a position retain their provider's wait guidance. Neither result waits for the child's result. The activation owns the work independently of the completed tool call; the runtime sends a completion notice and releases execution resources.
 
 Every backend’s completion notice carries its final answer. Local Spawn and Fork children can also send messages, accept more work through `send_message` while active, or resume after settling. Codex, Claude Code, ACP, and DSH SDK backends do not accept follow-up messages.
 

@@ -89,6 +89,14 @@ describe('slim-base bundle', () => {
     }
   })
 
+  it('uses the product depth and capacity without changing plugin defaults', () => {
+    for (const rows of [baseRows, slimRows]) {
+      expect(rows.find(row => row.id === 'subagent')?.config).toEqual({
+        maxDepth: 3, maxActiveSubagents: 16, overflow: 'queue', persistQueue: true,
+      })
+    }
+  })
+
   it('keeps the dsh-base row order', () => {
     const baseOrder = baseRows.map(row => row.id)
     const positions = slimRows.map(row => baseOrder.indexOf(row.id))

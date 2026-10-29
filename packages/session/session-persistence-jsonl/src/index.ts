@@ -348,6 +348,15 @@ class JsonlSessionPersistence extends SessionPersistence {
 
   // --- SessionPersistence service API ---
 
+  /** Resolve only materialized directories; never create a sidecar-only session.
+   * @param id - session whose writer owns the sidecar operation.
+   * @returns the selected generation's directory, or undefined if absent.
+   */
+  override async sidecarDirectory(id: SessionId): Promise<string | undefined> {
+    const selected = await this.findLog(id)
+    return selected === undefined ? undefined : dirname(selected.currentPath)
+  }
+
   /**
    * Create a new stored session and take its write ownership. The session is
    * visible to this process immediately; the physical artifact appears on the

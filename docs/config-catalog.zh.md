@@ -3894,7 +3894,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 - `inject`: `workingDirectory`
 - `refs`: `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/subagent/subagent/src/index.ts:189`](../packages/subagent/subagent/src/index.ts)
+- `source`: [`packages/subagent/subagent/src/index.ts:190`](../packages/subagent/subagent/src/index.ts)
 
 ```ts config-catalog
 /** Host configuration for continuable subagent capacity. */
@@ -3903,6 +3903,10 @@ export interface Config {
   maxActiveSubagents: Volatile<number>
   /** Default delegation depth for tools without an explicit limit; defaults to 1. */
   maxDepth: Volatile<number>
+  /** Root-only overflow handling; omission preserves immediate rejection. */
+  overflow?: 'error' | 'queue'
+  /** Persist root queue metadata beside the owning Session; defaults to false. */
+  persistQueue?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-subagent -->
