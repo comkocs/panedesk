@@ -9,8 +9,11 @@ import type { ApprovalQueueView } from './types.ts'
 
 /** Explicit activation and bounded observation of the existing engine. */
 export interface Config {
+  /** Enable owner-authorized approval operations; disabled by default. */
   enabled: boolean
+  /** Delay between queue and operation observations, in milliseconds. */
   pollIntervalMs: number
+  /** Maximum engine records requested per observation page. */
   pageSize: number
 }
 
