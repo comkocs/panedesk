@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { JobNotifications } from '@panedesk/dsh-jobs'
 import type { SubagentNotifications } from '@panedesk/dsh-subagent'
+import type MessageDelivery from '@panedesk/dsh-message-delivery'
 import type { OperationId } from '@panedesk/dsh-message-delivery'
 import type { SeatEngine } from './engine.ts'
 import type { OwnerEpoch, WaitObject } from '@panedesk/dsh-seat'
@@ -51,6 +52,7 @@ export class CompletionProviders {
   readonly subagents: SubagentNotifications = {
     accept: async (request) => {
       if (this.stopped) throw new EngineError('unavailable', 'Notification provider is stopping')
+      this.store.requireHealthy()
       const id = `subagent:${request.runId}`
       if (!this.store.records.has(id)) this.store.put({ version: 1, id, owner: request.parent.id,
         phase: 'settled', outcome: request.result.stopReason === 'completed' ? 'completed'
@@ -78,26 +80,39 @@ export class CompletionProviders {
   private async run(): Promise<void> {
     const delivery = this.ctx.get('messageDelivery')
     if (!delivery || this.stopped) return
+    this.store.requireHealthy()
+    const failures: unknown[] = []
     for (const record of this.store.records.values()) {
       if (record.delivered || !['settled', 'owner-lost'].includes(record.phase)) continue
-      if (record.owner !== null) {
-        const object: WaitObject = record.id.startsWith('job:')
-          ? { kind: 'job', id: record.id.slice(4) as Extract<WaitObject, { kind: 'job' }>['id'] }
-          : { kind: 'subagent', id: record.id.slice(9) as Extract<WaitObject, { kind: 'subagent' }>['id'] }
-        await this.engine.journal.commit(view => view.decisions.some(decision => decision.effects.some(effect =>
-          effect.kind === 'job/observed' && effect.data.phase === 'settled'
-          && effect.data.observation.object.kind === object.kind && effect.data.observation.object.id === object.id)) ? []
-          : [fact({ kind: 'job/observed', data: { sessionId: record.owner as NonNullable<NotificationRecord['owner']>,
-            ownerEpoch: digest(record.id) as string as OwnerEpoch, phase: 'settled', observation: { object,
-              outcome: record.phase === 'owner-lost' ? 'owner-lost' : record.outcome, watermark: view.sequence + 1,
-              observedAt: record.observedAt, durability: 'durable' } } })])
-        const result = await delivery.send({ target: { sessionId: record.owner }, content: record.text,
-          messageClass: 'handoff', priority: 'steer', operationId: digest(record.id) as string as OperationId })
-        if (result.deliveryOutcome !== 'accepted' && result.reason !== 'target-closed-pending') {
-          throw new EngineError('unavailable', `Completion delivery refused: ${result.reason}`)
-        }
+      try {
+        await this.send(record, delivery)
+      } catch (error) {
+        this.store.requireHealthy()
+        failures.push(error)
+        this.ctx.logger.warn('Seat completion remains pending', { id: record.id })
+        continue
       }
       this.store.put({ ...record, delivered: true })
+    }
+    if (failures.length) throw new AggregateError(failures, 'Seat completion deliveries remain pending')
+  }
+  private async send(record: NotificationRecord, delivery: MessageDelivery): Promise<void> {
+    if (record.owner === null) return
+    const object: WaitObject = record.id.startsWith('job:')
+      ? { kind: 'job', id: record.id.slice(4) as Extract<WaitObject, { kind: 'job' }>['id'] }
+      : { kind: 'subagent', id: record.id.slice(9) as Extract<WaitObject, { kind: 'subagent' }>['id'] }
+    await this.engine.journal.commit(view => view.decisions.some(decision => decision.effects.some(effect =>
+      effect.kind === 'job/observed' && effect.data.phase === 'settled'
+      && effect.data.observation.object.kind === object.kind && effect.data.observation.object.id === object.id)) ? []
+      : [fact({ kind: 'job/observed', data: { sessionId: record.owner as NonNullable<NotificationRecord['owner']>,
+        ownerEpoch: digest(record.id) as string as OwnerEpoch, phase: 'settled', observation: { object,
+          outcome: record.phase === 'owner-lost' ? 'owner-lost' : record.outcome, watermark: view.sequence + 1,
+          observedAt: record.observedAt, durability: 'durable' } } })])
+    this.store.requireHealthy()
+    const result = await delivery.send({ target: { sessionId: record.owner }, content: record.text,
+      messageClass: 'handoff', priority: 'steer', operationId: digest(record.id) as string as OperationId })
+    if (result.deliveryOutcome !== 'accepted' && result.reason !== 'target-closed-pending') {
+      throw new EngineError('unavailable', `Completion delivery refused: ${result.reason}`)
     }
   }
   /** Stop retries and fence execution-bound writers before releasing the engine lock. */

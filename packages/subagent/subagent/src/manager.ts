@@ -1303,7 +1303,9 @@ export class SubagentManager {
     const notifyBeforeAccounting = this.ctx.get('sessionLedger') !== undefined
     if (notifyBeforeAccounting) {
       try {
-        const notification = this.notifySettlement(activation, failures.length === 0 ? result : { output: [], stopReason: 'error' })
+        const deliveryPaths = activation.observer.deliveryPaths?.()
+        const terminal: SubagentResult = failures.length === 0 ? result : { output: [], stopReason: 'error' }
+        const notification = this.notifySettlement(activation, deliveryPaths?.length ? { ...terminal, deliveryPaths } : terminal)
         if (notification !== undefined) await notification
       } catch (error: unknown) {
         resultFailure = { error }

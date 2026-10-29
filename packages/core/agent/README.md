@@ -33,7 +33,7 @@ Optional `agent/resume-admitting` listeners run before persistence loading and t
 
 ### Create or resume an agent
 
-`ctx.agents.create()` builds a fresh agent and session under one identity; `ctx.agents.resume()` loads a persisted session and rebuilds the agent on it. Both delegate to the registered factory and return an `AgentHandle` — the only object that can tear that agent down. Set `parentAgent` in either operation's options to make the result a runtime child; omit it for a runtime root. `get(id)`, `list()`, and `roots()` find live agents, and `isOwnedBy(id, parent)` tests that exact live relation.
+`ctx.agents.create()` builds a fresh agent and session under one identity; `ctx.agents.resume()` loads a persisted session and rebuilds the agent on it. Both delegate to the registered factory and return an `AgentHandle` — the only object that can tear that agent down. Set `parentAgent` in either operation's options to make the result a runtime child; omit it for a runtime root. `get(id)`, `list()`, and `roots()` find registry entries, and `isOwnedBy(id, parent)` tests that exact ownership relation. `lifecycle(agent)` checks the exact object and distinguishes unpublished, live, ending, and missing entries; a same-id replacement reports missing for the old object. Ending becomes visible before ending listeners run, so provider reloads must adopt only live entries.
 
 ```text
 const handle = await ctx.agents.create({

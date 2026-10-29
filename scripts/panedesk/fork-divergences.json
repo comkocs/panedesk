@@ -78,6 +78,43 @@
       }
     },
     {
+      "id": "agent-exact-lifecycle-reload",
+      "description": "Expose exact Agent lifecycle state for generation-isolated provider reloads.",
+      "origin": "Local message provider hot reload",
+      "reason": "Registry enumeration includes unpublished and ending entries. Reload adoption requires exact object identity and an ending marker visible before listeners run; generated references and paired package documentation retain the same method semantics.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/agent/src/index.ts",
+          "packages/core/agent/tests/agent.spec.ts",
+          "packages/core/agent/README.md",
+          "packages/core/agent/README.zh.md",
+          "packages/core/agent/README.i18n.yaml",
+          "docs/subsystems/core.md",
+          "docs/subsystems/core.zh.md",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
+        "test": "exposes exact lifecycle state before ending listeners run and rejects stale identities"
+      }
+    },
+    {
+      "id": "subagent-pre-accounting-path-hints",
+      "description": "Retain normalized declared delivery paths in early parent settlement notices.",
+      "origin": "Durable completion notification composition",
+      "reason": "Ledger-backed parent notification precedes terminal accounting. Reading the prepared declaration synchronously preserves optional untrusted path hints without delaying the parent, checking files early, or claiming terminal accounting succeeded.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/subagent/subagent/src/lifecycle.ts",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/README.md",
+          "packages/subagent/subagent/README.zh.md",
+          "packages/subagent/subagent/README.i18n.yaml"
+        ],
+        "test": "delivers one durable child completion with path hints to an idle parent"
+      }
+    },
+    {
       "id": "jsonl-pending-read-publication",
       "description": "Capture pending Session visibility before scanning its first persisted generation.",
       "origin": "Full-ledger Session creation timing",
@@ -2492,8 +2529,8 @@
           "packages/sdk/client/README.md",
           "packages/sdk/client/README.zh.md",
           "packages/sdk/client/README.i18n.yaml",
-          "README.zh.md",
-          "README.i18n.yaml",
+          "packages/subagent/subagent-dsh-sdk/src/index.ts",
+          "packages/subagent/subagent-dsh-sdk/src/run.ts",
           "packages/sdk/protocol/src/types.ts",
           "packages/sdk/protocol/README.md",
           "packages/sdk/protocol/README.zh.md",
@@ -2511,7 +2548,7 @@
           "packages/subagent/subagent-dsh-sdk/README.md",
           "packages/subagent/subagent-dsh-sdk/README.zh.md",
           "packages/subagent/subagent-dsh-sdk/README.i18n.yaml",
-          "tsconfig.json",
+          "packages/subagent/subagent-dsh-sdk/tests/subagent-dsh-sdk.spec.ts",
           "pnpm-lock.yaml"
         ],
         "test": "preserves legacy client request cache controls without an inheritance marker"

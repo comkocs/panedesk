@@ -100,6 +100,27 @@ describe('AgentRegistry', () => {
     await ctx.fiber.dispose()
   })
 
+  it('exposes exact lifecycle state before ending listeners run and rejects stale identities', async () => {
+    const ctx = new Context()
+    await ctx.plugin(AgentRegistry)
+    const agent = stubAgent('lifecycle')
+    const detach = ctx.agents.enter(agent, undefined)
+    try {
+      expect(ctx.agents.lifecycle(agent)).toBe('unpublished')
+      await ctx.agents.announce(agent, 'startup')
+      expect(ctx.agents.lifecycle(agent)).toBe('live')
+      ctx.on('agent/ending', () => { expect(ctx.agents.lifecycle(agent)).toBe('ending') })
+      await ctx.agents.ending(agent)
+      expect(ctx.agents.lifecycle(agent)).toBe('ending')
+      detach()
+      expect(ctx.agents.lifecycle(agent)).toBe('missing')
+      const replacement = stubAgent('lifecycle')
+      const remove = ctx.agents.enter(replacement, undefined)
+      expect(ctx.agents.lifecycle(agent)).toBe('missing')
+      remove()
+    } finally { detach(); await ctx.fiber.dispose() }
+  })
+
   it('rejects an agent whose registry and session identities differ', async () => {
     const ctx = new Context()
     await ctx.plugin(AgentRegistry)

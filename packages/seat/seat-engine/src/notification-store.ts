@@ -69,11 +69,15 @@ export class NotificationStore {
       && typeof item.text === 'string' && typeof item.delivered === 'boolean'
       && typeof item.observedAt === 'string' && Number.isFinite(Date.parse(item.observedAt))
   }
+  /** Refuse dependent work after an uncertain write until this store is reopened. */
+  requireHealthy(): void {
+    if (this.failed) throw new EngineError('unavailable', 'Notification storage requires recovery')
+  }
   /** Commit synchronously; an uncertain write disables further writes until recovery.
    * @param record - complete replacement state for one immutable execution identity.
    */
   put(record: NotificationRecord): void {
-    if (this.failed) throw new EngineError('unavailable', 'Notification storage requires recovery')
+    this.requireHealthy()
     const text = JSON.stringify(record)
     if (Buffer.byteLength(text) > this.maxBytes) throw new EngineError('source-payload-too-large', 'Notification exceeds its bound')
     const temporary = join(this.root, `${randomUUID()}.pending`)

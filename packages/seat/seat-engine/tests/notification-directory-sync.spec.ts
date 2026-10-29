@@ -69,6 +69,19 @@ it.each(['EPERM', 'EISDIR', 'EINVAL'])('never tolerates notification file sync e
     vi.restoreAllMocks()
   }
 })
+it('fences notification reads after a renamed record has an uncertain directory sync', () => {
+  Object.defineProperty(process, 'platform', { value: 'linux' })
+  const store = storage()
+  vi.spyOn(fs, 'fsyncSync').mockReturnValue(undefined)
+  store.put(record)
+  const error = Object.assign(new Error('Directory sync failed'), { code: 'EIO' })
+  vi.mocked(fs.fsyncSync).mockImplementationOnce(() => {}).mockImplementationOnce(() => { throw error })
+  expect(() => { store.put({ ...record, delivered: true }) }).toThrow('requires recovery')
+  expect(fs.renameSync).toHaveBeenCalledTimes(2)
+  expect(store.records.get(record.id)?.delivered).toBe(false)
+  expect(() => { store.requireHealthy() }).toThrow('requires recovery')
+})
+
 it.each(['EPERM', 'EISDIR', 'EINVAL'])('commits notification state after unsupported Windows directory sync: %s', (code) => {
   Object.defineProperty(process, 'platform', { value: 'win32' })
   const store = storage()

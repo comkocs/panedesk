@@ -756,6 +756,12 @@ async announce(agent: Agent, source: SessionStartSource, signal?: AbortSignal): 
  */
 get(id: SessionId): Agent | undefined
 
+/** Inspect the exact entry without treating an ending or unpublished Agent as available.
+ * @param agent - Exact Agent object observed by a lifecycle consumer.
+ * @returns Registry lifecycle phase; missing includes a same-id replacement.
+ */
+lifecycle(agent: Agent): 'missing' | 'unpublished' | 'live' | 'ending'
+
 /**
  * Test whether a live agent was created through one exact parent agent's
  * scoped context. Runtime ownership is independent of durable session

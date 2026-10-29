@@ -40,6 +40,10 @@ export interface ActivationObserver {
   prepare?(request: SubagentStartRequest, policy?: PresetExecutionPolicy): Promise<void>
   /** Queue a synchronous policy refusal for durable settlement. */
   deny?(operation: 'model' | 'effort' | 'tool', requested: string, policy: PresetExecutionPolicy, reason: string): void
+  /** Read declared path hints without checking files or awaiting accounting.
+   * @returns Normalized declared paths, or undefined without a prepared delivery plan.
+   */
+  deliveryPaths?(): readonly string[] | undefined
   /** Await terminal accounting independently of the contained emit notifications. */
   complete?(result: SubagentResult): Promise<SubagentResult>
   /**
@@ -141,6 +145,7 @@ export function createActivationObserver(
   }
   return {
     runId: identity.runId,
+    deliveryPaths: () => plan?.paths,
     prepare: async (request, policy) => {
       if (boundary === undefined) return
       identity.local = true
