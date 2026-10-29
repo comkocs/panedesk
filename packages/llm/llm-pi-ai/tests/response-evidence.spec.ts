@@ -157,7 +157,7 @@ describe('opt-in wire cache controls', () => {
 
   it.each([false, true])('pairs catalog effort messages with their protocol beta when catalog=%s', async (catalog) => {
     const server = await mockServer([{ events: frames('anthropic-messages', 'claude-haiku-5-5') }])
-    const provider = catalog ? 'anthropic' : 'v1a-claude'
+    const provider = catalog ? 'anthropic' : 'custom-claude'
     const profiles = resolveProfiles({ [provider]: { api: 'anthropic-messages', baseURL: server.url,
       models: [{ id: 'claude-haiku-5-5', maxTokens: 8192, reasoningEfforts: false }] } })
     const llm = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => 'fixture-key', auth: memoryAuth() })
