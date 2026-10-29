@@ -11,6 +11,8 @@ kind: "package-reference"
 
 定义席位服务及共享请求、结果、事件和策略类型。导入本包不会安装引擎、创建会话或注册工具。类型参考归[席位子系统](../../../docs/subsystems/seat.zh.md)所有。
 
+可选 `SeatService.messageWindows` 及对应的 `SeatLocalReadAccess` 能力提供已提交的本地窗口身份与主窗选择，用于消息路由。能力缺失不表示没有在开位。查询不开窗，也不修改引擎事实。
+
 ## 目录
 
 - [使用本包](#use-this-package)

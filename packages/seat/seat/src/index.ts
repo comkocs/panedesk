@@ -60,7 +60,15 @@ declare module '@panedesk/cordis' {
 /** Provider-owned read capabilities for trusted in-process gates and tools, never remote adapters.
  * External SeatService calls still require explicit authority; no mutation facade is exposed.
  */
-export interface SeatLocalReadAccess extends Pick<SeatService, 'definitions' | 'binding' | 'list'> {}
+export interface SeatLocalReadAccess extends Pick<SeatService, 'definitions' | 'binding' | 'list' | 'messageWindows'> {}
+
+/** Open local seat bindings; primary is derived from committed replacement progress, not UI focus. */
+export interface SeatMessageWindow {
+  readonly seat: string
+  readonly sessionId: SessionId
+  readonly nodeId: T.SeatNodeId
+  readonly primary: boolean
+}
 
 /** Local model mutations are limited to the live calling Session, never remote request identities. */
 export interface SeatSessionOperations extends Pick<SeatService, 'registerWait' | 'cancelWait' | 'submitReport' | 'revokeReport'> {}
@@ -146,6 +154,10 @@ export abstract class SeatService extends Service {
    * @returns windows and unopened definitions with completeness.
    */
   abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>
+  /** Read committed local open bindings without activating Sessions or mutating engine admission.
+   * @returns complete local bindings; omission means the provider lacks this read capability.
+   */
+  messageWindows?(): Promise<readonly SeatMessageWindow[]>
   /** Create through one durable intent; bind ledger identity before the first run starts.
    * @param request - caller-stable identity and exact definition.
    * @returns created, prefilled, pending, choice or rejected outcome.

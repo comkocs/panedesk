@@ -81,6 +81,7 @@
     "@panedesk/dsh-seat-local": "workspace:*",
     "@panedesk/dsh-seat-remote": "workspace:*",
     "@panedesk/dsh-tool-seat": "workspace:*",
+    "@panedesk/dsh-tool-seat-messages": "workspace:*",
     "@panedesk/dsh-sdk-app": "workspace:*",
     "@panedesk/dsh-sdk-minimal": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",

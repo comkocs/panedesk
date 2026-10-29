@@ -36,6 +36,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@panedesk/dsh-tool-schedule` | `schedule_create`, `schedule_delete`, `schedule_list`, `schedule_update` | `ctx.tools`, `ctx.schedule` | `tool/call`, `Schedule storage domain create, update, or delete`, `tool/result` | - | A preset or Agent scope mounts this package; the preset decides which agents receive the four management tools. Each call acts on the calling Agent's Session. Accepts after_seconds, explicit absolute at, bounded fixed-rate every_seconds, daily and weekly local times in an explicit IANA zone, and cron as a five-field expression. Management uses the Host storage domain; due messages resume the original Session. |
 | `@panedesk/dsh-tool-lsp` | `lsp` | `ctx.workingDirectory`, `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@panedesk/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
 | `@panedesk/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
+| `@panedesk/dsh-tool-seat-messages` | `seat_list_online`, `seat_send` | `ctx.tools`, `ctx.agents`, `ctx.messageDelivery`, `ctx.seatLocalRead`, `a calling Agent for sending` | `tool/call`, `tool/result`, `recipient user/message and existing message ledger receipts` | - | Opt-in local single-seat messaging. Requires seatAddressing; recipient handoff wake policy controls idle wake. No broadcast. |
 | `@panedesk/dsh-tool-seat` | `seat_cancel_wait`, `seat_close`, `seat_directories`, `seat_edit`, `seat_open`, `seat_read`, `seat_rename`, `seat_renew`, `seat_replace`, `seat_report`, `seat_revoke_report`, `seat_wait`, `seat_wake`, `seat_windows`, `seat_write` | `ctx.tools`, `ctx.seats`, `ctx.seatDirectories`, `a calling Agent` | `tool/call`, `tool/result`, `seat engine records through providers` | - | Explicit seat composition only. Wait registration concludes the turn without polling; directory tools preserve provider permissions. |
 | `@panedesk/dsh-tool-skill` | `skill` | `ctx.workingDirectory`, `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
 | `@panedesk/dsh-tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
@@ -1802,6 +1803,51 @@ Run a foreground fresh-agent Ralph loop toward one immutable objective. Use only
 Source: [`packages/experimental/tool-ralph/src/index.ts`](../packages/experimental/tool-ralph/src/index.ts)
 
 A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap.
+
+<a id="panedeskdsh-tool-seat-messages"></a>
+
+## `@panedesk/dsh-tool-seat-messages`
+
+### `seat_list_online`
+
+List open local seats with their Session, node, primary-window selection, and current busy or idle state. Observations do not reserve delivery.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts)
+
+### `seat_send`
+
+Send text to one open seat on this node. A busy recipient reads it at the next tool-step boundary; an idle recipient starts a turn when handoff wake is enabled. Never opens a closed seat. No broadcast or wildcard targets.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seat": {
+      "type": "string",
+      "description": "One exact local seat name."
+    },
+    "text": {
+      "type": "string",
+      "description": "Message text."
+    }
+  },
+  "required": [
+    "seat",
+    "text"
+  ]
+}
+```
+
+Source: [`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts)
+
+Opt-in local single-seat messaging. Requires seatAddressing; recipient handoff wake policy controls idle wake. No broadcast.
 
 <a id="panedeskdsh-tool-seat"></a>
 

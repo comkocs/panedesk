@@ -52,7 +52,8 @@
   },
   "optionalDependencies": {
     "@panedesk/dsh-host-admin": "workspace:*",
-    "@panedesk/dsh-node-link": "workspace:*"
+    "@panedesk/dsh-node-link": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^4.1.11",

@@ -1,6 +1,37 @@
 /** Exact dual-field addressing; resolution never opens an Agent or writes a mailbox. */
 import type { MessageAddress, MessageRecipient, MessageSettings, NodeId, ResolvedRecipient } from '@panedesk/dsh-message-delivery'
 import type { RecipientMetadata } from './types.ts'
+import type { SeatMessageWindow } from '@panedesk/dsh-seat'
+import type { SeatRecipientResolution } from '@panedesk/dsh-message-delivery'
+
+/** Resolve a seat only against committed local bindings and verified live registrations.
+ * @param nodeId - owning mailbox node.
+ * @param seat - exact trimmed seat name.
+ * @param windows - complete local seat projection.
+ * @param metadata - current Session archive and title metadata.
+ * @param status - verified process-incarnation liveness reader.
+ * @returns one primary target or refusal with candidate details; never opens a closed seat.
+ */
+export async function resolveSeatRecipient(nodeId: NodeId, seat: string, windows: readonly SeatMessageWindow[],
+  metadata: readonly RecipientMetadata[],
+  status: (sessionId: string) => Promise<'busy' | 'idle' | 'closed' | 'unavailable'>,
+): Promise<SeatRecipientResolution> {
+  seat = seat.trim()
+  const reject = (reason: import('@panedesk/dsh-message-delivery').MessageReason, detail: string,
+    candidates: readonly MessageRecipient[] = []): SeatRecipientResolution => ({ kind: 'rejected', seat, reason, detail, candidates })
+  if (!seat || /[*?]/.test(seat)) return reject('target-not-found', 'one exact seat is required')
+  const selected = windows.filter(window => window.nodeId === nodeId && window.seat === seat)
+  const resolutions = await resolveRecipients(nodeId, selected.map(window => ({ sessionId: window.sessionId })), metadata, status)
+  const candidates = resolutions.flatMap(result => result.kind === 'resolved' && result.recipient.status !== 'closed' ? [result.recipient] : [])
+  if (resolutions.some(result => result.kind === 'rejected' && result.reason === 'unavailable')) {
+    return reject('unavailable', 'seat runtime liveness is unavailable', candidates)
+  }
+  if (!candidates.length) return reject('target-not-found', 'seat not open')
+  const primary = candidates.filter(candidate => selected.some(window => window.sessionId === candidate.sessionId && window.primary))
+  const recipient = selected.length === 1 ? candidates[0] : primary.length === 1 ? primary[0] : undefined
+  return recipient ? { kind: 'resolved', seat, recipient }
+    : reject('target-ambiguous', 'seat has no unique primary window', candidates)
+}
 
 /** Resolve an explicit list against one metadata cut and verified runtime liveness.
  * @param nodeId - this node, not a network address.

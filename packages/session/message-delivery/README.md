@@ -27,6 +27,8 @@ Service Definition for same-node messages, receive settings, durable controls, a
 
 `RoutedSendMessageRequest` extends the legacy send input with a frozen sender identity, message ID, delivery ID, digest and optional call/causal references. The optional `routedDeliveryVerifier` validates a host-owned exact-envelope capability; wire fields never grant authority. Receivers preserve these identities and acknowledge only after durable admission.
 
+Optional `resolveSeat` and `listOnlineSeats` expose local seat resolution and busy/idle observations without widening existing address inputs. Providers may omit them; consumers must reject missing capabilities rather than infer availability. They do not change message or ledger formats.
+
 `message/settings` is a required persistent event. `message/state` is emitted only after a durable receipt commits. Message lifecycle records belong to the separate message ledger namespace, not the call journal.
 
 <a id="dev-note"></a>

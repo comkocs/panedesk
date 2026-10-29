@@ -22,6 +22,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `SeatWindowView` projects runtime state, busy reasons, cache evidence, and state version. `SeatContextUsage` represents dated current-context evidence, not accumulated accounting tokens. Missing evidence remains unknown. `SeatFailure` carries a machine code, explanation, alternative, retryability, and observed effect state.
 
+`SeatMessageWindow` contains an open local binding's seat, Session and node identity plus its primary-window selection. The optional `messageWindows()` read capability derives selection from committed replacement progress, excludes closed windows and unreleased closing barriers, and never activates a Session. Runtime liveness is checked separately by the [message provider](../../packages/session/message-delivery-local/README.md).
+
 ## Engine records and queries
 
 `EngineDecision` commits one bounded frame containing typed `EngineEffect` records under writer ownership and expected-sequence comparison. The engine journal is separate from Session, accounting, and message journals. Callbacks use stable identities and at-least-once outbox delivery; recovery does not replay uncertain model effects.
@@ -1231,6 +1233,11 @@ abstract setAuthority(request: T.SetSeatAuthorityRequest): Promise<T.SeatCatalog
  * @returns windows and unopened definitions with completeness.
  */
 abstract list(request: T.ListSeatWindowsRequest): Promise<T.ListSeatWindowsResult>
+
+/** Read committed local open bindings without activating Sessions or mutating engine admission.
+ * @returns complete local bindings; omission means the provider lacks this read capability.
+ */
+messageWindows?(): Promise<readonly SeatMessageWindow[]>
 
 /** Create through one durable intent; bind ledger identity before the first run starts.
  * @param request - caller-stable identity and exact definition.

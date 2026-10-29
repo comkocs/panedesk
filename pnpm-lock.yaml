@@ -2821,6 +2821,9 @@ importers:
       '@panedesk/dsh-tool-seat':
         specifier: workspace:*
         version: link:../../seat/tool-seat
+      '@panedesk/dsh-tool-seat-messages':
+        specifier: workspace:*
+        version: link:../../session/tool-seat-messages
       '@panedesk/dsh-tool-skill':
         specifier: workspace:*
         version: link:../../skill/tool-skill
@@ -13824,6 +13827,9 @@ importers:
       '@panedesk/dsh-node-link':
         specifier: workspace:*
         version: link:../../seat/node-link
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
 
   packages/session/session-checkpoint-policy:
     devDependencies:
@@ -14385,6 +14391,57 @@ importers:
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../session-projection
+
+  packages/session/tool-seat-messages:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@panedesk/dsh-agent-loop':
+        specifier: workspace:*
+        version: link:../../core/agent-loop
+      '@panedesk/dsh-agent-loop-testkit':
+        specifier: workspace:*
+        version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@panedesk/dsh-message-delivery':
+        specifier: workspace:*
+        version: link:../message-delivery
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../message-delivery-local
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../session-ledger
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../session-persistence-jsonl
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../session-projection
+      '@panedesk/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@panedesk/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
 
   packages/session/tool-working-directory:
     devDependencies:

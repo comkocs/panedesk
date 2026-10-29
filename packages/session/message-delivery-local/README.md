@@ -13,6 +13,8 @@ Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. T
 
 With `pagination: true`, provider-issued cursors page unanswered messages without repeating pages when earlier items become terminal. Keep filters unchanged; unavailable cursors and non-positive or unsafe integer limits are rejected. Otherwise, `cursor` is ignored, `limit` uses JavaScript `slice(0, limit)`, `complete` compares matching count with limit, and no cursor is returned.
 
+Set `seatAddressing: true` to enable optional exact-seat resolution and online observations through `seatLocalRead.messageWindows`. Omission leaves seat addressing disabled and preserves Session-ID/title addressing. Only local open windows with known live runtime status participate; a unique primary resolves multiple windows, otherwise the result includes an ambiguity reason and candidates. Missing seats return `seat not open`. See [seat message tools](../tool-seat-messages/README.md) for opt-in composition and timing.
+
 ## Table of Contents
 
 - [Dev Note](#dev-note)

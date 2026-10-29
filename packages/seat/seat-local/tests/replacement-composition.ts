@@ -26,6 +26,9 @@ export async function checkReplacement(f: Awaited<ReturnType<typeof engineFixtur
   await f.ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
   await f.ctx.loader.await()
   await expect(raw.list({})).rejects.toMatchObject({ failure: { code: 'unauthorized' } })
+  await expect(raw.messageWindows!()).rejects.toMatchObject({ failure: { code: 'unauthorized' } })
+  expect(await seats.messageWindows!()).toEqual([expect.objectContaining({ sessionId: oldSessionId, primary: true })])
+  expect(await f.ctx.get('seatLocalRead')?.messageWindows?.()).toEqual(await seats.messageWindows!())
   await expect(raw.close({ sessionId: oldSessionId, operationId: operation('external-close'), expectedStateVersion: 1 }))
     .rejects.toMatchObject({ failure: { code: 'unauthorized' } })
   let oldBusy = true
@@ -60,6 +63,10 @@ export async function checkReplacement(f: Awaited<ReturnType<typeof engineFixtur
     await expect(f.ctx.sessions.flush(replacementAgent.session)).resolves.toBe(true)
     await f.engine.drive()
     expect([...f.engine.journal.projection.replacements.values()][0]?.phase).toBe('awaiting-old-idle')
+    expect(await seats.messageWindows!()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: oldSessionId, primary: false }),
+      expect.objectContaining({ sessionId: next, primary: true }),
+    ]))
     expect(f.engine.journal.projection.resources.get(oldSessionId)?.exclusiveTags).toEqual(['resource-a'])
     expect(f.engine.journal.projection.resources.get(next)?.exclusiveTags).toEqual([])
     expect(f.ctx.workspaceRegistry.archivedSessionIds).not.toContain(oldSessionId)
@@ -71,6 +78,7 @@ export async function checkReplacement(f: Awaited<ReturnType<typeof engineFixtur
     expect(settled).toMatchObject({ phase: 'completed', oldSessionId, newSessionId: next,
       firstTurn: { completed: true, hasAssistantReply: true } })
     expect(f.engine.journal.projection.resources.size).toBe(1)
+    expect(await seats.messageWindows!()).toEqual([expect.objectContaining({ sessionId: next, primary: true })])
     expect(f.engine.journal.projection.resources.has(next)).toBe(true)
     expect(f.engine.journal.projection.resources.has(oldSessionId)).toBe(false)
     await seats.replace(request)

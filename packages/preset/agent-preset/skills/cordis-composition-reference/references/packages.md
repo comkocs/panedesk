@@ -393,6 +393,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-session-title` | yes | Log-backed session title service and provider registry for the DeepSeek Harness |
 | `@panedesk/dsh-session-title-first-prompt-llm` | yes | First-message LLM provider plugin for DeepSeek Harness session titles |
 | `@panedesk/dsh-session-turn-outline` | no | Whole-log turn outline projection (turnOutline) for the DeepSeek Harness |
+| `@panedesk/dsh-tool-seat-messages` | no | Direct same-node seat messages and online seat observations |
 | `@panedesk/dsh-tool-working-directory` | no | Read and change the active Session working directory |
 | `@panedesk/dsh-working-directory` | yes | Session working directories with durable changes and model context |
 

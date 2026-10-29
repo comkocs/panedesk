@@ -58,6 +58,9 @@ import * as ToolPty from '@panedesk/dsh-tool-terminal'
 import * as ToolGoal from '@panedesk/dsh-tool-goal'
 import * as ToolSchedule from '@panedesk/dsh-tool-schedule'
 import * as ToolSeat from '@panedesk/dsh-tool-seat'
+import * as ToolSeatMessages from '@panedesk/dsh-tool-seat-messages'
+import type { MessageDelivery } from '@panedesk/dsh-message-delivery'
+import type { SeatLocalReadAccess } from '@panedesk/dsh-seat'
 import type { SeatService, SeatDirectoryService } from '@panedesk/dsh-seat'
 import type ScheduleService from '@panedesk/dsh-schedule'
 import Lsp from '@panedesk/dsh-lsp'
@@ -489,6 +492,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap.',
+  },
+  {
+    pkg: '@panedesk/dsh-tool-seat-messages',
+    dir: 'tool-seat-messages',
+    source: 'packages/session/tool-seat-messages/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'ctx.messageDelivery', 'ctx.seatLocalRead', 'a calling Agent for sending'],
+    writes: ['tool/call', 'tool/result', 'recipient user/message and existing message ledger receipts'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      // Schema collection does not invoke message delivery or seat observations.
+      ctx.provide('messageDelivery', {} as MessageDelivery)
+      ctx.provide('seatLocalRead', {} as SeatLocalReadAccess)
+      await ctx.plugin(ToolSeatMessages)
+    },
+    note: 'Opt-in local single-seat messaging. Requires seatAddressing; recipient handoff wake policy controls idle wake. No broadcast.',
   },
   {
     pkg: '@panedesk/dsh-tool-seat',

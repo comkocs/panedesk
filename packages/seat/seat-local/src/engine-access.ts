@@ -134,6 +134,7 @@ export function registerLocalReadAccess(ctx: Context, service: T.SeatService, op
     definitions: (request: T.ListSeatDefinitionsRequest) => internal.definitions(request),
     binding: (request: T.SeatBindingRequest) => internal.binding(request),
     list: (request: T.ListSeatWindowsRequest) => internal.list(request),
+    ...(internal.messageWindows ? { messageWindows: internal.messageWindows.bind(internal) } : {}),
   }))
 }
 

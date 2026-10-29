@@ -40,6 +40,7 @@
 | `@panedesk/dsh-tool-schedule` | `schedule_create`、`schedule_delete`、`schedule_list`、`schedule_update` | `ctx.tools`、`ctx.schedule` | `tool/call`、Schedule storage domain 创建、更新或删除、`tool/result` | - | preset 或 Agent scope 挂载本包；由 preset 决定哪些 agent 获得这四个管理工具。每次调用都作用于调用方 Agent 的 Session。接受 after_seconds、显式绝对 at、有界固定速率 every_seconds、带显式 IANA 时区的每日与每周本地时间，以及作为五字段表达式的 cron。管理使用宿主 storage domain；到期消息会恢复原 Session。 |
 | `@panedesk/dsh-tool-lsp` | `lsp` | `ctx.workingDirectory`、`ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@panedesk/dsh-lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
 | `@panedesk/dsh-tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
+| `@panedesk/dsh-tool-seat-messages` | `seat_list_online`, `seat_send` | `ctx.tools`, `ctx.agents`, `ctx.messageDelivery`, `ctx.seatLocalRead`, 发送时要求调用 Agent | `tool/call`, `tool/result`, 收件方 `user/message` 与既有消息账本回执 | - | 显式启用的本地单个位消息。要求 seatAddressing；收件方交接唤醒策略控制闲态唤醒。无群发。 |
 | `@panedesk/dsh-tool-seat` | `seat_cancel_wait`, `seat_close`, `seat_directories`, `seat_edit`, `seat_open`, `seat_read`, `seat_rename`, `seat_renew`, `seat_replace`, `seat_report`, `seat_revoke_report`, `seat_wait`, `seat_wake`, `seat_windows`, `seat_write` | `ctx.tools`, `ctx.seats`, `ctx.seatDirectories`, `a calling Agent` | `tool/call`, `tool/result`, `seat engine records through providers` | - | 仅用于显式席位组合。等待登记结束本轮而不轮询；目录工具保留提供方权限。 |
 | `@panedesk/dsh-tool-skill` | `skill` | `ctx.workingDirectory`、`ctx.tools`、`ctx.agents`、`ctx.skills` | `tool/call`、`tool/result`、`user/message replacement catalogs via agent.inject()` | - | - |
 | `@panedesk/dsh-tool-session-query` | `session_event_read`、`session_event_search`、`session_event_trace`、`session_search`、`session_trace` | `ctx.tools`、`ctx.systemPrompt`、`ctx.sessionQuery`、`a calling Agent for workspace authority` | `tool/call`、`tool/result` | - | 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。 |
@@ -1808,6 +1809,51 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 来源：[`packages/experimental/tool-ralph/src/index.ts`](../packages/experimental/tool-ralph/src/index.ts)
 
 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。
+
+<a id="panedeskdsh-tool-seat-messages"></a>
+
+## `@panedesk/dsh-tool-seat-messages`
+
+### `seat_list_online`
+
+列出本地在开位及其会话、节点、主窗选择与当前忙闲状态。观测不预留投递。
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+来源：[`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts)
+
+### `seat_send`
+
+向本节点一个在开位发送文本。忙碌收件方在下一工具步骤边界读取；空闲收件方在交接唤醒开启时启动回合。不打开已关闭的位。不提供群发或通配目标。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "seat": {
+      "type": "string",
+      "description": "One exact local seat name."
+    },
+    "text": {
+      "type": "string",
+      "description": "Message text."
+    }
+  },
+  "required": [
+    "seat",
+    "text"
+  ]
+}
+```
+
+来源：[`packages/session/tool-seat-messages/src/index.ts`](../packages/session/tool-seat-messages/src/index.ts)
+
+显式启用的本地单个位消息。要求 seatAddressing；收件方交接唤醒策略控制闲态唤醒。无群发。
 
 <a id="panedeskdsh-tool-seat"></a>
 

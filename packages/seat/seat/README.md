@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 Defines the seat services and shared request, result, event, and policy types. Importing this package does not install an engine, create Sessions, or register tools. The [seat subsystem](../../../docs/subsystems/seat.md) owns the type reference.
 
+Optional `SeatService.messageWindows` and the corresponding `SeatLocalReadAccess` capability expose committed local window identities and primary selection for message routing. Missing capability is not evidence that no seats are open. Queries neither open windows nor modify engine facts.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)
