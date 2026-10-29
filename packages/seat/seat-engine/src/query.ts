@@ -2,6 +2,7 @@
 import { writeFile, readFile } from 'node:fs/promises'
 import type { EngineDecision, EngineQueryRequest, EngineQueryResult, EngineExportRequest, EngineExportResult, EngineVerifyResult, EngineCursor, EngineEffect } from '@panedesk/dsh-seat'
 import { canonical, decodeFrame, digest, EngineError, frame } from './journal.ts'
+import { triggerRule } from './rules.ts'
 
 /** Query committed effects without executing or importing their operations.
  * @param decisions - verified ordered history.
@@ -42,8 +43,19 @@ export function queryEngine(decisions: readonly EngineDecision[], request: Engin
  * @returns metadata-only pending entry.
  */
 export function redactPending(item: import('@panedesk/dsh-seat').PendingSeatItem): import('@panedesk/dsh-seat').PendingSeatItem {
-  const { frozenOpen: _frozenOpen, ...metadata } = item
-  return { ...metadata, sources: item.sources.map(source => ({ ...source, data: null })) }
+  const { frozenOpen, ...metadata } = item
+  const source = item.sources[0]
+  const rule = frozenOpen && source ? triggerRule(frozenOpen.definition, source) : undefined
+  const budget = {
+    ...(rule?.windowBudgetUsd !== undefined ? { windowBudgetUsd: rule.windowBudgetUsd } : {}),
+    ...(rule?.dailyBudgetUsd !== undefined ? { dailyBudgetUsd: rule.dailyBudgetUsd } : {}),
+  }
+  const nodeId = frozenOpen?.nodeWorkChain?.route.targetNodeId
+  return { ...metadata,
+    ...(frozenOpen ? { windowName: frozenOpen.title } : {}),
+    ...(nodeId !== undefined ? { nodeId } : {}),
+    ...(Object.keys(budget).length ? { budget } : {}),
+    sources: item.sources.map(source => ({ ...source, data: null })) }
 }
 /** Remove instruction bodies and raw source data from a public effect.
  * @param effect - Committed effect.

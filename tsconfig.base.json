@@ -294,6 +294,8 @@
       "@panedesk/dsh-client-ui-brand-official": ["./packages/client/ui-brand-official/src"],
       "@panedesk/dsh-client-ui-approval": ["./packages/client/ui-approval/src"],
       "@panedesk/dsh-client-ui-approval/client": ["./packages/client/ui-approval/src/client/index.ts"],
+      "@panedesk/dsh-client-ui-seat-approvals": ["./packages/client/ui-seat-approvals/src"],
+      "@panedesk/dsh-client-ui-seat-approvals/client": ["./packages/client/ui-seat-approvals/src/client/index.ts"],
       "@panedesk/dsh-client-ui-chat": ["./packages/client/ui-chat/src"],
       "@panedesk/dsh-client-ui-chat/client": ["./packages/client/ui-chat/src/client/index.ts"],
       "@panedesk/dsh-client-ui-conversation": ["./packages/client/ui-conversation/src"],

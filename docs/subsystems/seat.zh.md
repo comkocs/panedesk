@@ -36,6 +36,8 @@
 
 `HostSdkInvocation` 标识已登记的命名空间方法及其不可信参数。`HostSdkIdentity` 仅携带宿主签发的主体、可选会话与席位归属以及撤销信号；请求字段不能提供该身份。`HostSdkResult` 区分已编码的 JSON 值与安全拒绝。`HostSessionBinding` 向凭据签发器提供可信的会话与席位事实；`HostSessionCredential` 返回仅所有者可读的端点及凭据路径，并提供须等待完成的撤销操作。未安装相应可选提供方时，这些服务保持缺席。
 
+`PendingSeatItem` 可选携带从保留开窗证据投影的 `windowName`、`nodeId` 和 `budget`。缺失证据保持缺席；`SeatBudgetLimits` 值为整数微美元字符串。待批响应不公开冻结指令正文或来源原始数据。
+
 `SeatEngineOperationResult` 保留既有操作状态，增加可选批准登记及关联的待决、开窗或取消进度。`HostAdminQueryRequest` 分别使用效果与授权游标；`HostAdminQueryResult` 携带脱正文效果及独立限额的已签发授权分页。历史事实与查询均不授予执行权限。
 
 ## 等待、报告与策略

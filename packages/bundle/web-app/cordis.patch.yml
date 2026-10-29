@@ -331,6 +331,12 @@
     - id: ui-approval
       name: '@panedesk/dsh-client-ui-approval'
 
+    # Opt in with a later patch setting enabled: true; ordinary profiles stay inert.
+    - id: ui-seat-approvals
+      name: '@panedesk/dsh-client-ui-seat-approvals'
+      config:
+        enabled: false
+
     - id: ui-chat
       name: '@panedesk/dsh-client-ui-chat'
 

@@ -1,0 +1,24 @@
+.surface {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 16px;
+  pointer-events: auto;
+  max-inline-size: min(480px, calc(100vw - 32px));
+  color: var(--dsw-alias-label-primary);
+}
+.card {
+  padding: 12px;
+  margin-block-start: 8px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  overflow-wrap: anywhere;
+}
+.card dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+}
+.card dd {
+  margin: 0;
+}

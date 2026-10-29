@@ -585,6 +585,12 @@ export type AcceptTriggerResult =
 export interface PendingSeatItem {
   /** First accepted opening snapshot; coalescing and dispatch retain this revision. */
   frozenOpen?: SeatFrozenOpen
+  /** Frozen window title when available; absent means no retained title, not a generated preview. */
+  windowName?: string
+  /** Authenticated target from a retained opening route; absent when no target identity was frozen. */
+  nodeId?: SeatNodeId
+  /** Matching frozen rule limits in micro-USD; absent when no budget limits were retained. */
+  budget?: SeatBudgetLimits
   queueItemId: QueueItemId
   seat: SeatName
   projectId: SeatProjectId

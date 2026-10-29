@@ -75,6 +75,7 @@
     "@panedesk/dsh-client-resources": "workspace:*",
     "@panedesk/dsh-client-ui-agent-preset": "workspace:*",
     "@panedesk/dsh-client-ui-approval": "workspace:*",
+    "@panedesk/dsh-client-ui-seat-approvals": "workspace:*",
     "@panedesk/dsh-client-ui-attachment": "workspace:*",
     "@panedesk/dsh-client-ui-brand-official": "workspace:*",
     "@panedesk/dsh-client-ui-chat": "workspace:*",

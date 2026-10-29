@@ -3403,6 +3403,9 @@ importers:
       '@panedesk/dsh-client-ui-seats':
         specifier: workspace:*
         version: link:../../client/ui-seats
+      '@panedesk/dsh-client-ui-seat-approvals':
+        specifier: workspace:*
+        version: link:../../client/ui-seat-approvals
       '@panedesk/dsh-client-ui-secret-mask':
         specifier: workspace:*
         version: link:../../client/ui-secret-mask
@@ -5559,6 +5562,61 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-seat-approvals:
+    dependencies:
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@panedesk/dsh-client-ui-layout':
+        specifier: workspace:*
+        version: link:../ui-layout
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-util-crypto':
+        specifier: workspace:*
+        version: link:../../util/crypto
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1

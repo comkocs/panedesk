@@ -22,6 +22,9 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
+    "./authorization": {
+      "types": "./lib/types/authorization.d.ts"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
