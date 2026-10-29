@@ -9,8 +9,10 @@ import { event, options as journalOptions, callStart, callFinish } from './fixtu
 import { foldLedger } from '../src/projection.ts'
 import { callWaits } from '../src/call-waits.ts'
 import { randomUUID } from 'node:crypto'
-import type { LedgerEventId } from '../src/types.ts'
+import * as crypto from 'node:crypto'
+import type { LedgerEvent, LedgerEventId } from '../src/types.ts'
 
+vi.mock('node:crypto', async original => ({ ...await original<typeof crypto>() }))
 vi.mock('node:fs/promises', async original => ({ ...await original<typeof fs>() }))
 const roots: string[] = []
 const contexts: Context[] = []
@@ -141,6 +143,38 @@ it('keeps write read and sync counts equal at fifty and one thousand existing fa
   expect(counts[0]).toEqual(counts[1])
   expect(counts[0]).toEqual({ reads: 0, syncs: 2 })
   expect(await readJournal(path, options)).toEqual(await recoverSegments(path, options.maxRecordBytes))
+}, 30000)
+
+it('segments non-call facts without changing event identities or process UUID consumption', async () => {
+  const path = await root()
+  const uuid = vi.spyOn(crypto, 'randomUUID')
+  const facts: LedgerEvent[] = []
+  const counts: number[] = []
+  for (let i = 0; i <= 1000; i++) {
+    const value: LedgerEvent = {
+      schemaVersion: 1, eventId: `evidence-${i}` as LedgerEventId, nodeId: callStart.nodeId,
+      sessionId: callStart.sessionId, runId: callStart.runId, observedAt: i,
+      kind: 'cache/evidence', evidence: { cacheMode: 'unknown', breakReasons: [] },
+    }
+    facts.push(value)
+    const stats = vi.spyOn(fs, 'stat')
+    expect((await appendUnique(path, value, options)).kind).toBe('appended')
+    if (i === 50 || i === 1000) counts.push(stats.mock.calls.length)
+    stats.mockRestore()
+  }
+  expect(uuid).toHaveBeenCalledTimes(facts.length)
+  expect((await appendUnique(path, facts[0]!, options)).kind).toBe('existing')
+  expect(uuid).toHaveBeenCalledTimes(facts.length)
+  await appendUnique(path, fact('call'), options)
+  expect(uuid).toHaveBeenCalledTimes(facts.length)
+  expect(counts[0]).toBe(counts[1])
+  const directory = join(path, 'events', new Date().toISOString().slice(0, 10))
+  const files = await fs.readdir(directory)
+  expect(files).toHaveLength(1)
+  expect(files[0]).toMatch(/^segment-/)
+  const scan = await recoverSegments(path, options.maxRecordBytes)
+  expect(scan.events).toEqual([...facts, fact('call')])
+  expect(await readJournal(path, options)).toEqual(scan)
 }, 30000)
 
 it.each([50, 1000])('matches every settlement field using keyed waits with %i facts', async (count) => {

@@ -2,13 +2,24 @@
   "divergences": [
     {
       "id": "ledger-noncall-filename-uuid",
-      "description": "Retain process UUID filenames for non-call facts while call segments use independent identifiers.",
-      "origin": "Upstream seat-opening UUID consumption",
-      "reason": "Run and other non-call facts retain their existing file identities and UUID consumption. Incremental views still accept both single-fact files and call segments without changing synchronization or watermark semantics.",
+      "description": "Append non-call facts to writer segments while preserving process UUID consumption independently of filenames.",
+      "origin": "Session ledger identity and segmented persistence",
+      "reason": "Non-call appends retain upstream process UUID consumption and unchanged event identities without creating a file per fact. Segment names use independent cryptographic identifiers. Readers still accept legacy single-fact files without changing synchronization or watermark semantics.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/session/session-ledger/src/journal.ts"],
         "test": "replays seat-opening through panedesk --profile headless"
+      }
+    },
+    {
+      "id": "ledger-noncall-segment-consumption",
+      "description": "Keep non-call facts in one writer segment without changing UUID consumption or replay results.",
+      "origin": "Session ledger segmented persistence regression coverage",
+      "reason": "Detect per-fact file growth while checking unchanged event identities, process UUID consumption, and equivalent cold and incremental reads.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "test": "segments non-call facts without changing event identities or process UUID consumption"
       }
     },
     {
