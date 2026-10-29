@@ -4468,6 +4468,9 @@ importers:
       '@panedesk/dsh-util-workspace-path':
         specifier: workspace:*
         version: link:../../util/workspace-path
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
       '@panedesk/dsh-workspace':
         specifier: workspace:*
         version: link:../../workspace/workspace
@@ -5690,6 +5693,9 @@ importers:
       '@panedesk/dsh-util-crypto':
         specifier: workspace:*
         version: link:../../util/crypto
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
       react:
         specifier: ^18.2.0
         version: 18.3.1

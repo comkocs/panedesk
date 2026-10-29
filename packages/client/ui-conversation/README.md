@@ -28,7 +28,7 @@ Desktop product events use the optional [product analytics service](../product-a
 <a id="conversation-assembly"></a>
 ## Conversation assembly
 
-The optional `conversation.hero.seat` single slot uses `session-maybe` scope and renders beside the preset chip before any Session exists. `conversation.header.seat` uses the same occurrence scope inside the leading area; the existing root-scoped `conversation.header.leading` slot is unchanged.
+The optional `conversation.hero.seat` single slot uses `session-maybe` scope and renders beside the preset chip before any Session exists. Its directory follows the current Session's working-directory projection, falling back to the original Session directory while unavailable; without a Session it receives the pending workspace path. Workspace selection and composer gating are unchanged. `conversation.header.seat` uses the same occurrence scope inside the leading area; the existing root-scoped `conversation.header.leading` slot is unchanged.
 
 `UiConversation.events` is the single registry for event Definitions, and `UiConversation.views` is the single registry for target snapshot builders. Both registries reject duplicate keys, preserve registration order, return idempotent disposers, and rebuild existing bindings when their contribution roster changes. `UiConversation.binding(bindingOrSessionId)` returns one identity-stable Conversation binding for the current Session Controller binding. It does not open another event source. A View Definition may declare `toolCallFocus` to translate a tool-call id into its focus identity. Conversation supplies an Inspect callback only while such a target has a visible View entry; Chat consumes this callback without selecting a target.
 

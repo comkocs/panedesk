@@ -139,7 +139,8 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
         if (workspace === undefined || startup === undefined || agent.session.header.cwd !== startup.path) {
           throw new Error('Workspace placement does not match the opening intent')
         }
-        await workspace.create(startup.path)
+        const target = await workspace.create(startup.path)
+        await target.attachSession(agent.id)
       } else if (stage === 'model') {
         const controller = ctx.get('sessionController')
         if (controller === undefined) throw new Error('Session model selection is unavailable')

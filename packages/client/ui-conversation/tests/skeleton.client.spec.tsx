@@ -142,6 +142,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    workingDirectory?: string
+    openingDraft?: string
   } = {},
 ) {
   const sessionId = 'sessionId' in options ? options.sessionId : SID
@@ -178,9 +180,10 @@ function mount(
     createSnapshotStore<SessionStatusSnapshot>(new Map()),
   )
   const store = createConversationStore().create()
-  store.actions.setDraft('ordinary draft')
+  store.actions.setDraft(options.openingDraft === undefined ? 'ordinary draft' : '')
   const { wiring, sink } = fakeWiring()
   wiring.setDraft(store.store.getSnapshot().draft)
+  if (options.openingDraft !== undefined) wiring.requestDraftInitialization({ prompt: options.openingDraft })
   const useInput = bindSnapshotSelector(wiring.state)
   const inputActions = wiring.actions
   const stop = vi.fn()
@@ -345,7 +348,7 @@ function mount(
       useSessionRetainInfo: () => undefined,
       useWorkspaces: bindSnapshotSelector(workspaces),
       ...allowAllAccess,
-      useProjection: (() => undefined),
+      useProjection: (key: string) => key === 'workingDirectory' ? options.workingDirectory : undefined,
       useComposerBlock: select => select(options.composerBlock),
       useInput,
       inputActions,
@@ -376,7 +379,7 @@ function mount(
     useResource,
     useWorkspaces: bindSnapshotSelector(workspaces),
     ...allowAllAccess,
-    useProjection: (() => undefined),
+    useProjection: (key: string) => key === 'workingDirectory' ? options.workingDirectory : undefined,
     useInput,
     inputActions,
   }
@@ -696,6 +699,32 @@ describe('ConversationRoot resident composer', () => {
     // choices are only open before the first message.
     expect(b.slotCalls).toContain('conversation.hero.agentPreset')
     expect(b.slotCalls).toContain('conversation.hero.options')
+  })
+
+  it('shows the unsent opening draft in an editable composer after workspace attachment', async () => {
+    const draft = 'Review the assigned files before making changes.'
+    const b = mount(sessionSnapshotOf({ blank: true }), [{ ...workspace('one'), sessionIds: [SID] }], undefined,
+      { summaryBlank: true, openingDraft: draft })
+    const box = b.view.getByRole('textbox')
+    await vi.waitFor(() => { expect(box.textContent).toBe(draft) })
+    expect(box.getAttribute('contenteditable')).toBe('true')
+    act(() => { b.wiring.setDraft(`${draft} Updated.`) })
+    await vi.waitFor(() => { expect(box.textContent).toBe(`${draft} Updated.`) })
+    expect(b.sink).not.toHaveBeenCalled()
+  })
+
+  it('passes the projected working directory to the seat entry after cd and refresh without moving its workspace', () => {
+    const options = { workingDirectory: '/projects/one' }
+    const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, options)
+    expect(b.seatDirectory()).toBe('/projects/one')
+    options.workingDirectory = '/registered/current'
+    b.rerender()
+    expect(b.seatDirectory()).toBe('/registered/current')
+    expect(b.view.getByText('one')).toBeTruthy()
+    b.view.unmount()
+    const refreshed = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, options)
+    expect(refreshed.seatDirectory()).toBe('/registered/current')
+    expect(refreshed.view.getByText('one')).toBeTruthy()
   })
 
   it('seats the New Session options after the agent-preset chip, and only for a Session', () => {

@@ -13,6 +13,7 @@ import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import type { ISessions } from '@panedesk/dsh-api-session-controller/client'
 import type { SeatDefinition, SeatOperationId } from '@panedesk/dsh-seat/types'
 import type { SessionId } from '@panedesk/dsh-session/types'
+import type { SeatOverview } from '../types.ts'
 import { SeatHeader, SeatPicker, SeatsSection, type SeatsInjected } from './Seats.tsx'
 import { en, zh, type SeatKey } from './locales.ts'
 
@@ -58,10 +59,19 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
         ]
         signal.addEventListener('abort', invalidate, { once: true })
         const aborted = (): boolean => signal.aborted
+        let verified: SeatOverview['binding']
         try {
           while (!aborted()) {
             const observed = revision
-            yield await ctx.remote.seatUi.overview(sessionId ?? undefined, signal)
+            const result = await ctx.remote.seatUi.overview(sessionId ?? undefined, signal)
+            if (result.ok) {
+              const overview = result.value
+              const binding = overview.binding
+              if (binding && 'kind' in binding && binding.sessionId === sessionId) verified = binding
+              else if (overview.identityStatus !== 'failed') verified = undefined
+              yield overview.identityStatus === 'failed' && verified !== undefined
+                ? { ...result, value: { ...overview, binding: verified } } : result
+            } else yield result
             if (aborted()) break
             if (revision === observed) await new Promise<void>((resolve) => {
               wake = resolve
@@ -94,7 +104,10 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
         }
       } else if (value.status === 'switched') openWindow(value.window.sessionId)
       else if (value.status === 'choice-required') notify(t('existingChoice'))
-      else if (value.status === 'rejected') notify(t('openFailed', { reason: `${value.error.code}: ${value.error.alternative}` }))
+      else if (value.status === 'rejected') {
+        const directoryRefused = startupDirectory !== undefined && value.error.code === 'invalid-request'
+        notify(t('openFailed', { reason: `${value.error.code}: ${value.error.message} ${value.error.alternative}${directoryRefused ? ` ${t('directoryRefused')}` : ''}` }))
+      }
       else if (value.status !== 'cancelled') notify(t('openFailed', { reason: value.status }))
       refresh()
     }

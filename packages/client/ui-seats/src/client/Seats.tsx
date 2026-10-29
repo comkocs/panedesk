@@ -5,6 +5,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { SeatDefinition, SeatName } from '@panedesk/dsh-seat/types'
 import type { SessionId } from '@panedesk/dsh-session/types'
+import type {} from '@panedesk/dsh-working-directory'
 import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import type {} from '@panedesk/dsh-client-ui-sidebar/client'
 import type { SeatOverview } from '../types.ts'
@@ -76,8 +77,13 @@ export function SeatPicker({ currentDirectory: cwd, useResource, openSeat, t }: 
  */
 export function SeatsSection({ wide, useResource, useSessions, openSeat, openWindow, t }: SeatsSectionProps) {
   const resource = useResource<'seats'>('dsh-resource://seats/local')
-  const cwd = useSessions(snapshot => snapshot.ids.map(id => snapshot.byId[id])
-    .find(row => row !== undefined && (row.retainedBy.mainView ?? 0) > 0)?.cwd)
+  const directory = useSessions((snapshot) => {
+    const rows = snapshot.ids.map(id => snapshot.byId[id])
+      .filter(row => row !== undefined && (row.retainedBy.mainView ?? 0) > 0)
+    const row = rows.length === 1 ? rows[0] : undefined
+    return { cwd: row?.projectionValues?.workingDirectory ?? row?.cwd, ambiguous: rows.length > 1 }
+  })
+  const cwd = directory.cwd
   const [pending, setPending] = useState<SeatDefinition | null>(null)
   const [expanded, setExpanded] = useState<SeatName | null>(null)
   const data = resource.value
@@ -86,6 +92,7 @@ export function SeatsSection({ wide, useResource, useSessions, openSeat, openWin
     <h2 className={css.heading}>{t('seats')}</h2>
     {resource.status === 'failed' && <p role="alert">{t('unavailable')}</p>}
     {!data.complete && <p role="alert">{t('incomplete')}</p>}
+    {directory.ambiguous && <p role="status">{t('directoryAmbiguous')}</p>}
     {data.definitions.map((seat) => {
       const windows = data.windows.filter(window => window.seat === seat.seat)
       const unknown = !data.complete || windows.some(window => window.evidence === 'unknown' || window.status === null)
@@ -101,7 +108,7 @@ export function SeatsSection({ wide, useResource, useSessions, openSeat, openWin
             {t(windows.length > 0 ? 'opened' : 'unopened')}
           </span>
           {windows.length > 0 && <span title={t(activity)}><StateDot state={unknown ? 'warning' : busy ? 'ongoing' : 'idle'} /></span>}
-          <Button size="sm" className={css.add} disabled={!data.complete || resource.status === 'failed'}
+          <Button size="sm" className={css.add} disabled={!data.complete || resource.status === 'failed' || directory.ambiguous}
             aria-label={t('open')} title={t('open')} icon={<IconPlusOutlineRegular />}
             onClick={() => {
               const startup = seat.directories.find(directory => directory.startup)?.path
@@ -126,13 +133,18 @@ export function SeatHeader({ sessionId, useResource, useSeatNotice, dismiss, t }
     : `dsh-resource://seats/local?session=${encodeURIComponent(sessionId)}`)
   const notice = useSeatNotice(value => value)
   const binding = resource.value?.binding
-  const current = binding && 'kind' in binding ? binding : undefined
+  const current = binding && 'kind' in binding && binding.sessionId === sessionId ? binding : undefined
   const node = current?.kind === 'seat' ? resource.value?.definitions.find(row => row.seat === current.seat)?.node : undefined
-  const label = sessionId === undefined ? t('free') : resource.status !== 'live' ? t('unknown')
+  const failed = resource.status === 'failed' || resource.value?.identityStatus === 'failed'
+    || (resource.status === 'live' && current === undefined)
+  const label = sessionId === undefined ? t('free')
     : current?.kind === 'seat' ? `${current.seat} · ${node ?? current.nodeId}`
-      : current?.kind === 'free' ? t('free') : t('unknown')
+      : current?.kind === 'free' ? t('free') : t(failed ? 'identityFailed' : 'identityLoading')
+  const abnormal = sessionId !== undefined && current !== undefined
+    && (resource.status !== 'live' || !resource.value?.complete || resource.value.identityStatus === 'failed')
   return <>
     <span className={css.identity}>{label}</span>
+    {abnormal && <span role="status">{t(failed ? 'identityFailed' : resource.status === 'live' ? 'unavailable' : 'identityLoading')}</span>}
     {notice !== null && (notice.sessionId === undefined || notice.sessionId === sessionId)
       && <Toast key={notice.seq} text={notice.message} onDone={dismiss} />}
   </>

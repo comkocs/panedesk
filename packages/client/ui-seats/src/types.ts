@@ -9,6 +9,8 @@ export interface SeatOverview {
   complete: boolean
   /** Exact occurrence metadata when requested; absent when providers are unavailable. */
   binding?: SeatBinding | null | SeatRejected
+  /** An isolated read failure permits retaining previously verified identity in the same open resource. */
+  identityStatus?: 'failed'
 }
 
 /** Manual opening accepts no caller-supplied authority or opening mode. */

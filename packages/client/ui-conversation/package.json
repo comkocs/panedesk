@@ -83,6 +83,7 @@
     "@panedesk/dsh-tool-todo": "workspace:*",
     "@panedesk/dsh-util-crypto": "workspace:*",
     "@panedesk/dsh-workspace": "workspace:*",
+    "@panedesk/dsh-working-directory": "workspace:*",
     "@panedesk/dsh-file-reference": "workspace:*",
     "@panedesk/dsh-util-workspace-path": "workspace:*",
     "react": "^18.2.0",

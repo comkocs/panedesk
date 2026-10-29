@@ -79,6 +79,83 @@ describe('seat entry presentations', () => {
     if (choice === 'Use profile directory') expect(f.openSeat).toHaveBeenCalledWith(seat)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+  it.each(['Use profile directory', 'Stay in this directory', 'Cancel'])('uses the sidebar projected directory after cd and refresh: %s', (choice) => {
+    const registered = { ...seat, directories: [...seat.directories, { path: '/current', startup: false }] }
+    const f = fixture({ ...data, definitions: [registered] }, '/profile')
+    const useSessions = ((select: (value: object) => unknown) => select({ ids: ['session-a'], byId: {
+      'session-a': { cwd: '/profile', retainedBy: { mainView: 1 }, projectionValues: { workingDirectory: '/current' } },
+    } })) as SeatsSectionProps['useSessions']
+    const view = render(<SeatsSection {...f.props as SeatsSectionProps} />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    view.rerender(<SeatsSection {...f.props as SeatsSectionProps} useSessions={useSessions} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open seat' }))
+    expect(screen.getByRole('dialog', { name: 'Choose the startup directory' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: choice }))
+    expect(f.openSeat).toHaveBeenCalledTimes(choice === 'Cancel' ? 0 : 1)
+    if (choice === 'Stay in this directory') expect(f.openSeat).toHaveBeenCalledWith(registered, '/current')
+    if (choice === 'Use profile directory') expect(f.openSeat).toHaveBeenCalledWith(registered)
+    view.unmount()
+    render(<SeatsSection {...f.props as SeatsSectionProps} useSessions={useSessions} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open seat' }))
+    expect(screen.getByRole('dialog', { name: 'Choose the startup directory' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: choice }))
+    expect(f.openSeat).toHaveBeenCalledTimes(choice === 'Cancel' ? 0 : 2)
+    if (choice === 'Stay in this directory') expect(f.openSeat).toHaveBeenLastCalledWith(registered, '/current')
+    if (choice === 'Use profile directory') expect(f.openSeat).toHaveBeenLastCalledWith(registered)
+  })
+  it('does not open from an ambiguous main-view directory', () => {
+    const f = fixture(data, '/current')
+    const useSessions = ((select: (value: object) => unknown) => select({ ids: ['session-a', 'session-b'], byId: {
+      'session-a': { cwd: '/current', retainedBy: { mainView: 1 } },
+      'session-b': { cwd: '/other', retainedBy: { mainView: 1 } },
+    } })) as SeatsSectionProps['useSessions']
+    render(<SeatsSection {...f.props as SeatsSectionProps} useSessions={useSessions} />)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Open seat' }).disabled).toBe(true)
+    expect(f.openSeat).not.toHaveBeenCalled()
+  })
+  it.each([null, { status: 'rejected', error: { code: 'unavailable', message: 'Binding unavailable',
+    alternative: 'Retry', retryable: true, effectState: 'none' } }] as const)('does not infer a free window from missing or rejected binding: %j', (binding) => {
+    const f = fixture({ ...data, binding }, '/current')
+    render(<SeatHeader {...f.props as SeatHeaderProps} />)
+    expect(screen.getByText('Identity read failed')).toBeTruthy()
+    expect(screen.queryByText('Free window')).toBeNull()
+  })
+  it.each(['Use profile directory', 'Stay in this directory', 'Cancel'])('uses the hero directory after cd and refresh: %s', async (choice) => {
+    const registered = { ...seat, directories: [...seat.directories, { path: '/current', startup: false }] }
+    const f = fixture({ ...data, definitions: [registered] }, '/profile')
+    let view = render(<SeatPicker {...f.props as SeatPickerProps} />)
+    view.rerender(<SeatPicker {...f.props as SeatPickerProps} currentDirectory="/current" />)
+    for (let pass = 0; pass < 2; pass++) {
+      fireEvent.click(screen.getByRole('button', { name: 'Seat' }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'seat-a' }))
+      expect(screen.getByRole('dialog', { name: 'Choose the startup directory' })).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: choice }))
+      expect(f.openSeat).toHaveBeenCalledTimes(choice === 'Cancel' ? 0 : pass + 1)
+      if (choice === 'Stay in this directory') expect(f.openSeat).toHaveBeenLastCalledWith(registered, '/current')
+      if (choice === 'Use profile directory') expect(f.openSeat).toHaveBeenLastCalledWith(registered)
+      view.unmount()
+      if (pass === 0) view = render(<SeatPicker {...f.props as SeatPickerProps} currentDirectory="/current" />)
+    }
+  })
+  it('keeps verified seat identity during failure and reconnect, then isolates a switched Session', () => {
+    const binding = { kind: 'seat' as const, sessionId: 'session-a' as never, nodeId: 'node-a' as never,
+      seat: seat.seat, projectId: seat.projectId, bindingSource: 'seat-definition' as const, identitySource: 'settings' as const,
+      openOperationId: 'open-a' as never, seatRevision: 1, relatedTaskIds: [], directories: seat.directories,
+      memoryDirectories: seat.memoryDirectories, subscriptions: [], openingDigest: 'digest-a' as never }
+    const value: SeatOverview = { ...data, binding }
+    const f = fixture(value, '/current')
+    const view = render(<SeatHeader {...f.props as SeatHeaderProps} />)
+    for (const status of ['failed', 'loading', 'live'] as const) {
+      view.rerender(<SeatHeader {...f.props as SeatHeaderProps}
+        useResource={(() => ({ status, value, failure: undefined })) as SeatHeaderProps['useResource']} />)
+      expect(screen.getByText('seat-a · node-a')).toBeTruthy()
+      if (status === 'live') expect(screen.queryByRole('status')).toBeNull()
+      else expect(screen.getByRole('status')).toBeTruthy()
+    }
+    view.rerender(<SeatHeader {...f.props as SeatHeaderProps} sessionId={'session-b' as never} />)
+    expect(screen.queryByText('seat-a · node-a')).toBeNull()
+    expect(screen.getByText('Identity read failed')).toBeTruthy()
+  })
   it('uses the cold-start owner directory without requiring a Session', async () => {
     const f = fixture(data, '/current')
     render(<SeatPicker {...f.props as SeatPickerProps} sessionId={undefined} />)
@@ -123,6 +200,30 @@ describe('seat entry presentations', () => {
     render(<SeatHeader {...f.props as SeatHeaderProps} />)
     expect(screen.getByText('seat-a · node-a')).toBeTruthy()
     expect(screen.queryByText('Free window')).toBeNull()
+  })
+  it.each(['failed', 'loading'] as const)('preserves verified occurrence identity while the resource is %s', (status) => {
+    const value: SeatOverview = { ...data, binding: { kind: 'free', sessionId: 'session-a' as never,
+      nodeId: 'node-a' as never, identitySource: 'free' } }
+    const f = fixture(value, '/current')
+    render(<SeatHeader {...f.props as SeatHeaderProps}
+      useResource={(() => ({ status, value, failure: undefined })) as SeatHeaderProps['useResource']} />)
+    expect(screen.getByText('Free window')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toContain(status === 'failed' ? 'failed' : 'Loading')
+  })
+  it.each(['failed', 'loading'] as const)('names an unverified identity state while the resource is %s', (status) => {
+    const f = fixture(data, '/current')
+    render(<SeatHeader {...f.props as SeatHeaderProps}
+      useResource={() => ({ status, value: undefined, failure: undefined })} />)
+    expect(screen.getByText(status === 'failed' ? 'Identity read failed' : 'Loading identity')).toBeTruthy()
+    expect(screen.queryByText('Free window')).toBeNull()
+    expect(screen.queryByText('Unknown')).toBeNull()
+  })
+  it('does not borrow a verified identity from a different occurrence', () => {
+    const f = fixture({ ...data, binding: { kind: 'free', sessionId: 'other-session' as never,
+      nodeId: 'node-a' as never, identitySource: 'free' } }, '/current')
+    render(<SeatHeader {...f.props as SeatHeaderProps} />)
+    expect(screen.queryByText('Free window')).toBeNull()
+    expect(screen.getByText('Identity read failed')).toBeTruthy()
   })
   it('shows a coded memory refusal only in its addressed Session', () => {
     const notice = { seq: 1, message: 'Memory write refused [memory-seat-mismatch]', sessionId: 'session-a' }

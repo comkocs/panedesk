@@ -26,6 +26,7 @@
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-working-directory": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",
     "@panedesk/dsh-remote-mock": "workspace:*",

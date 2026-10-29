@@ -78,6 +78,17 @@
       }
     },
     {
+      "id": "seat-entry-current-directory-projection",
+      "description": "Feed the optional seat entry from the current Session working-directory projection.",
+      "origin": "Manual seat directory selection",
+      "reason": "The original Session cwd and owning workspace path remain unchanged after a directory change; the seat entry must consume the existing projection while workspace selection and composer gating keep their upstream behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx", "packages/client/ui-conversation/tests/skeleton.client.spec.tsx", "packages/client/ui-conversation/README.md", "packages/client/ui-conversation/README.zh.md", "packages/client/ui-conversation/README.i18n.yaml", "packages/client/ui-conversation/package.json", "packages/client/ui-conversation/tsconfig.client.json", "pnpm-lock.yaml"],
+        "test": "passes the projected working directory to the seat entry after cd and refresh without moving its workspace"
+      }
+    },
+    {
       "id": "jsonl-pending-read-publication",
       "description": "Capture pending Session visibility before scanning its first persisted generation.",
       "origin": "Full-ledger Session creation timing",
