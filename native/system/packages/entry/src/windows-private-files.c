@@ -16,7 +16,7 @@ static napi_value fail(napi_env env) {
 static int property(napi_env env, napi_value object, const char *name, napi_value value) {
   return napi_set_named_property(env, object, name, value) == napi_ok;
 }
-static int boolean(napi_env env, napi_value object, const char *name, int value) {
+static int boolean_property(napi_env env, napi_value object, const char *name, int value) {
   napi_value result;
   return napi_get_boolean(env, value != 0, &result) == napi_ok && property(env, object, name, result);
 }
@@ -95,9 +95,9 @@ static int read_acl(napi_env env, wchar_t *path, PSID user, int parents, napi_va
   int ok = acl != NULL && IsValidAcl(acl)
     && GetSecurityDescriptorControl(descriptor, &control, &revision)
     && napi_create_object(env, result) == napi_ok
-    && boolean(env, *result, "reparse", 0) && boolean(env, *result, "parents", parents)
+    && boolean_property(env, *result, "reparse", 0) && boolean_property(env, *result, "parents", parents)
     && sid_value(env, *result, "sid", user) && sid_value(env, *result, "owner", owner)
-    && boolean(env, *result, "protected", control & SE_DACL_PROTECTED)
+    && boolean_property(env, *result, "protected", control & SE_DACL_PROTECTED)
     && napi_create_array_with_length(env, acl->AceCount, &rules) == napi_ok;
   for (DWORD i = 0; ok && i < acl->AceCount; i++) {
     void *raw = NULL;
@@ -116,8 +116,8 @@ static int read_acl(napi_env env, wchar_t *path, PSID user, int parents, napi_va
     DWORD propagation = ((header->AceFlags & NO_PROPAGATE_INHERIT_ACE) ? 1 : 0)
       | ((header->AceFlags & INHERIT_ONLY_ACE) ? 2 : 0);
     ok = napi_create_object(env, &rule) == napi_ok && sid_value(env, rule, "sid", sid)
-      && boolean(env, rule, "inherited", header->AceFlags & INHERITED_ACE)
-      && boolean(env, rule, "allow", header->AceType == ACCESS_ALLOWED_ACE_TYPE)
+      && boolean_property(env, rule, "inherited", header->AceFlags & INHERITED_ACE)
+      && boolean_property(env, rule, "allow", header->AceType == ACCESS_ALLOWED_ACE_TYPE)
       && number(env, rule, "rights", ace->Mask) && number(env, rule, "propagation", propagation)
       && napi_set_element(env, rules, i, rule) == napi_ok;
   }
@@ -135,7 +135,7 @@ static napi_value inspect(napi_env env, napi_callback_info info) {
   int reparse, parents;
   int ok = path != NULL && (argc < 2 || directory != NULL) && user != NULL && ancestors(path, &reparse, &parents);
   if (ok && reparse) {
-    ok = napi_create_object(env, &result) == napi_ok && boolean(env, result, "reparse", 1);
+    ok = napi_create_object(env, &result) == napi_ok && boolean_property(env, result, "reparse", 1);
   } else if (ok) {
     ok = read_acl(env, path, user->User.Sid, parents, &result);
     if (ok && directory != NULL) {
@@ -143,7 +143,7 @@ static napi_value inspect(napi_env env, napi_callback_info info) {
       int root_reparse, root_parents;
       ok = ancestors(directory, &root_reparse, &root_parents);
       if (ok && root_reparse) {
-        ok = napi_create_object(env, &root) == napi_ok && boolean(env, root, "reparse", 1);
+        ok = napi_create_object(env, &root) == napi_ok && boolean_property(env, root, "reparse", 1);
       } else if (ok) {
         ok = read_acl(env, directory, user->User.Sid, root_parents, &root);
       }
