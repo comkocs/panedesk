@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "anthropic-cache-breakpoint-order",
+      "description": "Pin uniform Anthropic cache retention across catalog and custom provider requests.",
+      "origin": "Anthropic request cache compatibility",
+      "reason": "Default and explicit controls preserve legal breakpoint order without changing retention policy or automatic provider request bytes.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"],
+        "test": "orders Anthropic $retention breakpoints with tools=$tools and catalog=$catalog"
+      }
+    },
+    {
+      "id": "anthropic-effort-message-beta",
+      "description": "Pin the protocol beta accompanying catalog-owned message-level effort controls.",
+      "origin": "Anthropic request capability negotiation",
+      "reason": "Catalog effort messages require their paired beta while hand-declared routes send neither; gateway header rewriting must not be hidden by deleting valid client fields.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"],
+        "test": "pairs catalog effort messages with their protocol beta when catalog=%s"
+      }
+    },
+    {
       "id": "compaction-ledger-single-owner",
       "description": "Register one compaction-event owner while preserving physical summarization call accounting.",
       "origin": "Upstream compaction hooks combined with full-ledger accounting",
