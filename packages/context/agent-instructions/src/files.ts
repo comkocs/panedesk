@@ -64,6 +64,7 @@ interface DiscoverOptions {
    */
   agentsHome?: string
   projectRootMarkers?: string[]
+  additionalRoots?: string[]
   instructionFileCandidates?: string[]
   localInstructionFileCandidates?: string[]
   projectRoot?: string
@@ -356,7 +357,11 @@ async function discoverInstructionFiles(
   const cwd = resolve(options.cwd)
   const projectRoot = options.projectRoot
     ?? await findProjectRoot(cwd, config.projectRootMarkers, fileSystem, options.signal)
-  for (const dir of ancestorChain(projectRoot, cwd)) {
+  const directories = [...new Set([
+    ...ancestorChain(projectRoot, cwd),
+    ...config.additionalRoots.map(root => resolve(cwd, root)),
+  ])]
+  for (const dir of directories) {
     for (const candidates of [config.instructionFileCandidates, config.localInstructionFileCandidates]) {
       for (const file of await allExistingInstructionFiles(dir, projectRoot, candidates, fileSystem, options.signal)) {
         addFile(file)
@@ -530,7 +535,7 @@ export function scopeInstructionFile(
 ): InstructionFile {
   const { directory, candidateName } = decodeScopeKey(scope)
   const globalRoot = userGlobalRoots(resolved).find(root => root.directory === directory)
-  const dir = globalRoot?.home ?? (directory === '.' ? projectRoot : join(projectRoot, directory))
+  const dir = globalRoot?.home ?? resolve(projectRoot, directory)
   const absolutePath = join(dir, candidateName)
   return {
     absolutePath,

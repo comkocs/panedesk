@@ -40,7 +40,10 @@ import { expect } from 'vitest'
 import { definition } from '../../seat-local/tests/fixtures.ts'
 import { CreationAdapter, UnusedFileUploads, UnusedShell } from '../../seat-local/tests/creation-provider.ts'
 
-export async function localHost(model = new CreationAdapter(), gateConfig: Partial<Gates.Config> = {}, subagents = false) {
+export async function localHost(
+  model = new CreationAdapter(), gateConfig: Partial<Gates.Config> = {}, subagents = false,
+  reportPathsInNotifications = false, jobReportPaths = false,
+) {
   const root = await mkdtemp(join(tmpdir(), 'seat-gates-'))
   const ctx = new Context()
   const backend = new JsonStorageBackend(join(root, 'storage'))
@@ -80,7 +83,7 @@ export async function localHost(model = new CreationAdapter(), gateConfig: Parti
       { name: 'cordis:attachments', config: { dshHome: root } }, { name: 'cordis:typert' },
       { name: 'cordis:access' }, { name: 'cordis:uploads' },
       { name: 'cordis:ledger', config: { dshHome: root } }, { name: 'cordis:questions' },
-      { name: 'cordis:jobs' }, { name: 'cordis:commands' }, { name: 'cordis:approval' }, { name: 'cordis:shell' },
+      { name: 'cordis:jobs', config: { reportPathsInNotifications: jobReportPaths } }, { name: 'cordis:commands' }, { name: 'cordis:approval' }, { name: 'cordis:shell' },
       { name: 'cordis:subscriptions', config: { maxBytes: 65536, watch: false } },
       { name: 'cordis:sandbox', config: { mode: 'read-only', workspaceRoot: root } },
       { name: 'cordis:permissions', config: { defaultPreset: 'permission-a',
@@ -103,13 +106,13 @@ export async function localHost(model = new CreationAdapter(), gateConfig: Parti
       budgetTimeZone: 'UTC', callbackTimeoutMs: 1000, callbackMaxResponseBytes: 1000,
       callbackRetryInitialMs: 1, callbackRetryMaxMs: 100, ownerObserveIntervalMs: 1000,
       ownerReleaseBudgetMs: 2000, queueWakeBudgetMs: 1000 } }])
-    if (subagents) await load('subagents.yml', [{ name: 'cordis:cache' }, { name: 'cordis:subagents' }, { name: 'cordis:spawn' }])
+    if (subagents) await load('subagents.yml', [{ name: 'cordis:cache' }, { name: 'cordis:subagents', config: { reportPathsInNotifications } }, { name: 'cordis:spawn' }])
     const entry = await load('seat.yml', [{ name: 'cordis:local', config: local },
       { name: 'cordis:gates', config: gateConfig }, { name: 'cordis:tools', config: {} }])
     await expect.poll(() => !!ctx.get('seatGates') && !!ctx.get('seatLocalRead')).toBe(true)
     await ctx.get('seatEngine')!.ready()
     const seats = ctx.get('seats')!.withAuthority({ principalId: 'user-a' as T.SeatPrincipalId, origin: 'manual', nodeId })
-    return { ctx, root, model, seats, defaults, close,
+    return { ctx, root, model, seats, defaults, close, load,
       unmount: () => ctx.loader.resolve(entry).fiber!.dispose() }
   } catch (error) { await close(); throw error }
 }

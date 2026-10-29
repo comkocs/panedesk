@@ -52,6 +52,9 @@ kind: "package-reference"
 ```ts
 export interface Config {
   projectRootMarkers?: string[]
+  additionalRoots?: string[]
+  includeSessionWorkspaceRoots?: boolean
+  refreshIntervalMs?: number
   maxBytes: number
   maxSourceBytes?: number
   instructionFileCandidates?: string[]
@@ -64,6 +67,9 @@ export interface Config {
 | `maxBytes` | 必填 | 完整渲染基线消息的上限，单位为字节 |
 | `maxSourceBytes` | `1048576` | 渲染前单个源指令文件的上限 |
 | `projectRootMarkers` | `['.git']` | 标记项目根目录的目录名 |
+| `additionalRoots` | `[]` | 额外根级候选目录，相对会话 cwd 解析并去重 |
+| `includeSessionWorkspaceRoots` | `false` | 纳入可选 `seatDirectories` 为当前绑定会话提供的附加根 |
+| `refreshIntervalMs` | `0` | 外部编辑检查间隔，单位毫秒；零关闭轮询 |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | 每个项目目录中加载的基础文件名 |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | 在基础文件之后加载的本地 overlay 文件名 |
 
@@ -219,7 +225,7 @@ The previously loaded instructions from this file no longer apply.
 这些限制说明指令加载何时不合适或需要运维注意。它们是当前包约束，不是任务积压。
 
 - **发现跟随结构化 fs 工具，而非 shell 导航**：更改目录的 `bash` 命令不会触发嵌套指令发现，因为 shell 语法与每次调用的 shell 状态不是可靠的文件系统 seam。
-- **刷新由 touch 驱动**：没有 watcher；外部编辑会在下一次成功的第一方 `read`、`write` 或 `edit` 时、恢复对账可见基线时，或进入步骤的 pre-step 恢复被遮蔽基线时可见。
+- **轮询需显式启用**：未配置 `refreshIntervalMs` 时仍由 touch 驱动。启用后检查已观测的 agent 而不唤醒它们，步骤进行中的变更延后到持久步骤结束，插件卸载即停止。更新在下一获准步骤进入落盘上下文；base 与 slim-base 使用 5,000 毫秒间隔，并纳入绑定位的附加根。
 - **候选语义有意保持简单**：不解释小写名称、`.claude/rules/` 与 `@path` import；项目 scope 默认加载 `AGENTS.local.md`／`CLAUDE.local.md` overlay，但两个用户全局根目录都没有本地 overlay，其他自定义名称需要显式候选配置。与用户全局 scope 目录同名的项目目录会渲染为 `./<name>/...`，从而保留自己的 scope，而不会解析到全局根目录。
 - **去重在同一候选组内基于内容**：候选只有在去除首尾空白后字节完全一致时才折叠。两个用户全局根目录共享同一个组，因此共享根文件会折叠在内容一致的 harness home 文件之后；同级项目候选同样折叠，而从 `AGENTS.md` 漂移的独立副本则会与它一起完整加载。预算保留内容的重复候选仍参与对账：保留的候选一旦改变或消失，它就会重新可见。未改变的隐藏重复项（包括因重复而从可见状态移除的文件）使用缓存元数据，不重新读取内容。
 - **同一候选组共享失败命运**：组内任一候选（包括隐藏的重复项）的元数据或内容无法读取时，整个组在该轮保留最后一次成功状态。因此共享 agents 根目录不可读时，harness home 的变更通知也会推迟到之后某一轮同时观测到两个根目录时。

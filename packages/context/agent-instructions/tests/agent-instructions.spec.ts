@@ -11,6 +11,7 @@ import type { ContextFormed } from '@panedesk/dsh-llm'
 import SessionStore, { SessionId, SessionSeq, type SessionEvent, type SurfaceIntent, type UserMessage } from '@panedesk/dsh-session'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import AgentRegistry, { agentEvents, type Agent } from '@panedesk/dsh-agent'
+import { SeatDirectoryService, type SeatDirectoryRoot } from '@panedesk/dsh-seat'
 import AgentLoop, { turnBoundaryProjectionDefinition } from '@panedesk/dsh-agent-loop'
 import { FileSystem, FsTargetKey, FsVersion } from '@panedesk/dsh-fs'
 import type {
@@ -373,7 +374,90 @@ function expectNoDerivedMessages(agent: Agent): void {
   expect(composedPrefixes.get(agent) ?? []).toEqual([])
 }
 
+class AdditionalRootDirectories extends SeatDirectoryService {
+  current: readonly SeatDirectoryRoot[] = []
+  roots() { return Promise.resolve(this.current) }
+  read(): never { throw new Error('Unused directory read') }
+  write(): never { throw new Error('Unused directory write') }
+  edit(): never { throw new Error('Unused directory edit') }
+}
+
 describe('workspace context instruction discovery', () => {
+  it('projects additional workspace roots from the session service and refreshes their three marked candidates', async () => {
+    const root = await tempRepo()
+    const extra = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      pinHarnessHome(home)
+      await ctx.plugin(AdditionalRootDirectories)
+      const directories = ctx.get('seatDirectories')
+      if (!(directories instanceof AdditionalRootDirectories)) throw new Error('Missing directories')
+      directories.current = [{ rootId: 'extra' as SeatDirectoryRoot['rootId'], path: extra, kind: 'additional', writable: false }]
+      const names = ['AGENTS.md', 'CLAUDE.md', 'CLAUDE.local.md']
+      for (const name of names) await write(join(extra, name), `EXTRA_BEFORE_${name}`)
+      await mountAgentInstructions(ctx, { maxBytes: 65536, includeSessionWorkspaceRoots: true, refreshIntervalMs: 10 })
+      const agent = await stubAgent(root)
+      await composeBaselinePrefix(ctx, agent)
+      for (const name of names) expect(derivedText(agent)).toContain(`EXTRA_BEFORE_${name}`)
+      for (const name of names) await write(join(extra, name), `EXTRA_AFTER_${name}`)
+      const update = await agentInstructionsOf(agent)
+      for (const name of names) expect(blocksText(update.content)).toContain(`EXTRA_AFTER_${name}`)
+    } finally {
+      await ctx.fiber.dispose()
+      vi.unstubAllEnvs()
+      await Promise.all([root, extra, home].map(path => rm(path, { recursive: true, force: true })))
+    }
+  })
+
+  it('polls external edits of three marked files before the next turn and stops on disposal', async () => {
+    const root = await tempRepo()
+    const home = await tempRepo()
+    const ctx = new Context()
+    try {
+      pinHarnessHome(home)
+      const names = ['AGENTS.md', 'CLAUDE.md', 'CLAUDE.local.md']
+      for (const name of names) await write(join(root, name), `BEFORE_${name}`)
+      const fiber = await mountAgentInstructions(ctx, { maxBytes: 65536, refreshIntervalMs: 10 })
+      const agent = await stubAgent(root)
+      await composeBaselinePrefix(ctx, agent)
+      for (const name of names) await write(join(root, name), `AFTER_${name}`)
+      const update = await agentInstructionsOf(agent)
+      for (const name of names) expect(blocksText(update.content)).toContain(`AFTER_${name}`)
+      await fiber.dispose()
+      for (const pending of agent.inbox.nextStep) agent.inbox.remove(pending.id)
+      await write(join(root, names[0]!), 'DISPOSED_MARKER')
+      await new Promise(resolve => setTimeout(resolve, 30))
+      expect(agent.inbox.nextStep).toHaveLength(0)
+    } finally {
+      await ctx.fiber.dispose()
+      vi.unstubAllEnvs()
+      await Promise.all([root, home].map(path => rm(path, { recursive: true, force: true })))
+    }
+  })
+
+  it('loads three marked instruction candidates from an additional root without duplicating the primary root', async () => {
+    const root = await tempRepo()
+    const extra = await tempRepo()
+    const home = await tempRepo()
+    try {
+      pinHarnessHome(home)
+      await write(join(root, 'AGENTS.md'), 'PRIMARY_ROOT_MARKER')
+      await write(join(extra, 'AGENTS.md'), 'ADDITIONAL_AGENTS_MARKER')
+      await write(join(extra, 'CLAUDE.md'), 'ADDITIONAL_CLAUDE_MARKER')
+      await write(join(extra, 'CLAUDE.local.md'), 'ADDITIONAL_LOCAL_MARKER')
+      const instructions = await loadBaselineInstructions({
+        cwd: root, maxBytes: 65536, additionalRoots: [extra, root, extra],
+      })
+      for (const marker of ['PRIMARY_ROOT_MARKER', 'ADDITIONAL_AGENTS_MARKER', 'ADDITIONAL_CLAUDE_MARKER', 'ADDITIONAL_LOCAL_MARKER']) {
+        expect(instructions?.text.split(marker)).toHaveLength(2)
+      }
+    } finally {
+      vi.unstubAllEnvs()
+      await Promise.all([root, extra, home].map(path => rm(path, { recursive: true, force: true })))
+    }
+  })
+
   it('treats ENOTDIR while probing a host candidate as confirmed absence', async () => {
     const root = await tempRepo()
     const homeFile = join(root, 'not-a-directory')

@@ -38,6 +38,9 @@
     },
     {
       "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../seat/seat"
     }
   ]
 }
