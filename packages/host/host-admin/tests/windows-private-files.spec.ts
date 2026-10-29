@@ -1,6 +1,7 @@
 /** Windows policy regressions run against mapped files and SID metadata on any server. */
 import { afterEach, expect, test, vi } from 'vitest'
 import * as fs from 'node:fs/promises'
+import { renameSync, statSync } from 'node:fs'
 import { join, win32 } from 'node:path'
 import { WindowsPrivateFiles } from '../src/windows-private-files.ts'
 import { inspectWindowsPrivatePath, replaceWindowsPrivatePath, secureWindowsPrivatePath } from '../src/windows-private-files-system.ts'
@@ -12,7 +13,7 @@ const sid = 'S-1-5-21-100-200-300-1001'
 const rule = () => ({ sid, inherited: false, allow: true, rights: 2032127, propagation: 0 })
 const metadata = () => ({ reparse: false, parents: true, sid, owner: sid, protected: true, rules: [rule()] })
 
-async function fixture() {
+async function fixture(mode: 'legacy' | 'native' = 'legacy') {
   const directory = await fs.mkdtemp(join(process.cwd(), '.windows-private-test-'))
   roots.push(directory)
   const mapped = (path: string) => join(directory, ...path.slice(3).split('\\').filter(Boolean))
@@ -51,8 +52,26 @@ async function fixture() {
     await fs.rename(mapped(source), mapped(target))
   })
   const delay = vi.fn(async (_milliseconds: number) => {})
-  const files = new WindowsPrivateFiles(root, { execute, filesystem, replace, delay })
-  return { files, execute, filesystem, replace, delay, values, mapped, events }
+  const security = {
+    inspectWindowsPrivatePath(path: string, directory?: string) {
+      let cursor = path
+      for (;;) {
+        if (values.get(cursor)?.reparse) return { reparse: true }
+        const parent = win32.dirname(cursor)
+        if (parent === cursor) break
+        cursor = parent
+      }
+      return { ...(values.get(path) ?? metadata()), ...(directory ? { directory: values.get(directory) ?? metadata() } : {}) }
+    },
+    secureWindowsPrivatePath(path: string) {
+      expect(statSync(mapped(path)).isDirectory() || statSync(mapped(path)).size === 0).toBe(true)
+      values.set(path, metadata())
+    },
+    replaceWindowsPrivatePath(source: string, target: string) { renameSync(mapped(source), mapped(target)); return 0 },
+  }
+  const files = new WindowsPrivateFiles(root, mode === 'native' ? { security, filesystem, replace, delay }
+    : { execute, filesystem, replace, delay })
+  return { files, execute, filesystem, replace, delay, values, mapped, events, security }
 }
 
 test('secures empty objects before writing and preserves owner-only replacement and locks', async () => {
@@ -72,7 +91,7 @@ test('secures empty objects before writing and preserves owner-only replacement 
   expect(await f.files.read('credential', 64)).toBeNull()
 })
 
-test.each([
+for (const mode of ['legacy', 'native'] as const) test.each([
   ['entry count', { rules: [rule(), { ...rule(), sid: 'S-1-5-18' }] }],
   ['entry count', { rules: [] }],
   ['SID', { rules: [{ ...rule(), sid: 'S-1-5-32-544' }] }],
@@ -84,8 +103,8 @@ test.each([
   ['owner', { owner: 'S-1-5-18' }],
   ['reparse', { reparse: true }],
   ['parent', { parents: false }],
-])('rejects unsafe existing directory %s without changing its ACL', async (reason, patch) => {
-  const f = await fixture()
+])(`${mode}: rejects unsafe existing directory %s without changing its ACL`, async (reason, patch) => {
+  const f = await fixture(mode)
   await f.files.prepare()
   f.values.set(root, { ...metadata(), ...patch })
   f.execute.mockClear()
@@ -224,6 +243,68 @@ test('maps Windows sharing failures and never retries unrelated replacement fail
   expect(moves).toBe(3)
   expect(f.delay.mock.calls).toEqual([[10], [20]])
   expect(await fs.readdir(f.mapped(root))).toEqual([])
+})
+
+test.each([1, 2, 3, 4, 5, 6, 7])('retains the old file and removes temporary data when security step %i fails', async (failedStep) => {
+  const f = await fixture()
+  await f.files.write('credential', 'original')
+  const execute = f.execute.getMockImplementation()!
+  let step = 0
+  const calls: string[] = []
+  const files = new WindowsPrivateFiles(root, { filesystem: f.filesystem, delay: f.delay, execute: async (script) => {
+    calls.push(script.includes('MoveFileExW') ? 'replace' : script.includes('Set-Acl') ? 'secure' : 'inspect')
+    if (++step === failedStep) throw new Error(`security step ${step} unavailable`)
+    if (script.includes('MoveFileExW')) throw new Error('Replacement must not be reached')
+    return execute(script)
+  } })
+  await expect(files.write('credential', 'replacement')).rejects.toThrow(`security step ${failedStep} unavailable`)
+  expect(calls).toEqual(['inspect', 'secure', 'inspect', 'inspect', 'inspect', 'inspect', 'replace'].slice(0, failedStep))
+  expect(await fs.readFile(f.mapped(win32.join(root, 'credential')), 'utf8')).toBe('original')
+  expect(await fs.readdir(f.mapped(root))).toEqual(['credential'])
+})
+
+test.each([0, 1, 2, 3, 4, 5, 6, 7])('matches the seven-step oracle through native calls with failure at step %i', async (failedStep) => {
+  const f = await fixture()
+  await f.files.write('credential', 'original')
+  const calls: string[] = []
+  const enter = (name: string) => {
+    calls.push(name)
+    if (calls.length === failedStep) throw new Error(`security step ${failedStep} unavailable`)
+  }
+  const files = new WindowsPrivateFiles(root, { filesystem: f.filesystem, delay: f.delay, security: {
+    inspectWindowsPrivatePath(path, directory) {
+      enter('inspect')
+      return { ...(f.values.get(path) ?? metadata()), ...(directory ? { directory: f.values.get(directory) ?? metadata() } : {}) }
+    },
+    secureWindowsPrivatePath(path) {
+      enter('secure')
+      expect(statSync(f.mapped(path)).size).toBe(0)
+      f.values.set(path, metadata())
+    },
+    replaceWindowsPrivatePath(source, target) {
+      enter('replace')
+      renameSync(f.mapped(source), f.mapped(target))
+      return 0
+    },
+  } })
+  if (failedStep) await expect(files.write('credential', 'replacement')).rejects.toThrow(`security step ${failedStep} unavailable`)
+  else await files.write('credential', 'replacement')
+  expect(calls).toEqual(['inspect', 'secure', 'inspect', 'inspect', 'inspect', 'inspect', 'replace'].slice(0, failedStep || 7))
+  expect(await fs.readFile(f.mapped(win32.join(root, 'credential')), 'utf8')).toBe(failedStep ? 'original' : 'replacement')
+  expect(await fs.readdir(f.mapped(root))).toEqual(['credential'])
+})
+
+test.each([[5, 5], [32, 5], [33, 5], [87, 1]])('maps native replacement error %i and bounds attempts at %i', async (error, attempts) => {
+  const f = await fixture('native')
+  await f.files.write('credential', 'original')
+  const replaceWindowsPrivatePath = vi.fn(() => error)
+  const files = new WindowsPrivateFiles(root, { filesystem: f.filesystem, delay: f.delay,
+    security: { ...f.security, replaceWindowsPrivatePath } })
+  await expect(files.write('credential', 'replacement')).rejects.toMatchObject({ code: error === 5 ? 'EPERM' : error === 87 ? 'EIO' : 'EBUSY' })
+  expect(replaceWindowsPrivatePath).toHaveBeenCalledTimes(attempts)
+  expect(f.delay.mock.calls.map(([milliseconds]) => milliseconds)).toEqual(attempts === 5 ? [10, 20, 40, 40] : [])
+  expect(await fs.readFile(f.mapped(win32.join(root, 'credential')), 'utf8')).toBe('original')
+  expect(await fs.readdir(f.mapped(root))).toEqual(['credential'])
 })
 
 test('generates SID-only checks, full parent traversal and write-through same-volume moves', () => {

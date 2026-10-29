@@ -17,6 +17,8 @@ const RUNNERS = {
   'linux-arm64': 'ubuntu-24.04-arm',
   'darwin-x64': 'macos-15-intel',
   'darwin-arm64': 'macos-latest',
+  'win32-x64': 'windows-latest',
+  'win32-arm64': 'windows-11-arm',
 };
 
 function runnerFor(platform) {

@@ -14,4 +14,6 @@ kind: "package-library"
 
 可选操作系统/CPU 平台包携带二进制。它们的 `~x.y.z` 依赖范围允许同一次版本内的后续补丁版本。Linux 包含 `bin/landlock-run` 和分别用于两种 libc 的 `bin/glibc/system.node` / `bin/musl/system.node`；macOS 包含 `bin/system.node`。flock 绑定缺失或无法加载时，锁获取请求会被拒绝，不在安装时编译。Landlock 仍是遵循既有失败关闭协议的独立可执行文件；不支持的内核或平台探测结果为不可用。
 
-两个 C 源文件随包分发以供审计。参见工作区[架构](../../docs/architecture.md)、[支持矩阵](../../docs/support-matrix.md)和 [CLI 约定](../../docs/cli-contract.md)。
+`./windows-private-files` 导出 `inspectWindowsPrivatePath(path, directory?)`、`secureWindowsPrivatePath(path)` 及 `replaceWindowsPrivatePath(source, target)`。导入不加载原生模块；调用时仅加载匹配的 Windows 平台 addon，其他平台或二进制缺失即拒绝。检查返回当前与属主 SID、受保护 DACL 规则及新鲜的祖先重解析点结果，可同时检查文件与根目录。secure 设置唯一当前用户 FullControl ACE 并禁用继承，只能由调用方用于新建空对象。替换返回 Win32 错误号，成功为零，保留 `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH` 且不跨卷复制；调用方先刷内容，负责有界重试、文件名及句柄身份检查。绑定不读取内容、不启动进程。
+
+三个 C 源文件随包分发以供审计。参见工作区[架构](../../docs/architecture.md)、[支持矩阵](../../docs/support-matrix.md)和 [CLI 约定](../../docs/cli-contract.md)。

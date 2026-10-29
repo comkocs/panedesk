@@ -76,9 +76,19 @@ describe('dsh-base bundle', () => {
       if (row === undefined) throw new Error(`base patch must mount ${id}`)
       const expression = (row.disabled as { __jsExpr?: string } | undefined)?.__jsExpr
       if (expression === undefined) throw new Error(`${id} must gate on a !!js disabled expression`)
-      expect(Boolean(evaluate({ process: { platform: 'win32' } }, expression)), `${id} on win32`).toBe(win32)
-      expect(Boolean(evaluate({ process: { platform: 'linux' } }, expression)), `${id} on linux`).toBe(linux)
+      expect(Boolean(evaluate({ process: { platform: 'win32', env: {} } }, expression)), `${id} on win32`).toBe(win32)
+      expect(Boolean(evaluate({ process: { platform: 'linux', env: {} } }, expression)), `${id} on linux`).toBe(linux)
     }
+    const bashPath = 'C:\\Program Files\\Git\\bin\\bash.exe'
+    for (const id of ['bash-sandbox', 'tool-bash', 'pwsh-sandbox', 'tool-pwsh']) {
+      const row = rows.find(candidate => candidate.id === id)!
+      const expression = (row.disabled as { __jsExpr: string }).__jsExpr
+      expect(Boolean(evaluate({ process: { platform: 'win32', env: { PANEDESK_BASH_PATH: bashPath } } }, expression)))
+        .toBe(id.startsWith('pwsh') || id === 'tool-pwsh')
+    }
+    const config = rows.find(row => row.id === 'bash-sandbox')?.config as { bashPath: { __jsExpr: string } }
+    expect(evaluate({ process: { env: {} } }, config.bashPath.__jsExpr)).toBe('bash')
+    expect(evaluate({ process: { env: { PANEDESK_BASH_PATH: bashPath } } }, config.bashPath.__jsExpr)).toBe(bashPath)
     // The platform layer folded into these rows: no separate patch file ships.
     expect(existsSync(resolve(root, 'windows.cordis.patch.yml'))).toBe(false)
   })

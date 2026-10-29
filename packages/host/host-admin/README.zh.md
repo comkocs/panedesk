@@ -32,7 +32,7 @@ kind: "package-reference"
 
 Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，并保留空 HTTP 403 拒绝回包。共享 `listenAuthenticatedLoopback` 助手可为 [node-link](../../seat/node-link/README.zh.md#configuration-and-identity) 接收精确回环转发 authority 名单与安全 Host 拒因报告回调；admin 均不传入。认证、固定路径与浏览器请求头检查仍为必需。`callLoopback` 仅在显式请求时解码有界 Host 拒因；其他调用方保留泛化传输错误。
 
-`directory` 为独占绝对路径，POSIX 目录权限必须为 `0700`，文件必须为当前属主的单硬链接普通文件且权限为 `0600`。祖先路径不得含符号链接；部署者还须保证祖先目录不可被非受信账号替换。Windows 显式注入本包的 `hostAdminFiles: directory => new WindowsPrivateFiles(directory)`，并将同一工厂传给 `callHostSdk` 的 `privateFiles` 选项；POSIX 默认装配不变。Windows 启动最多等待 `requestTimeoutMs`，直到工厂提供者活动；不回退 POSIX，工厂缺失或文件失败进入 Cordis 启动错误链。消费者卸载会取消等待而不误报工厂缺失；失活的启动会释放资源，不再发布服务。实现只接受带盘符的本地绝对路径，拒绝路径各级重解析点，要求关闭 DACL 继承、仅当前用户 SID 一条 FullControl 允许项且属主 SID 一致；既有 ACL 不符即拒，不修复。新建空对象先设 ACL，再写内容并刷盘；同目录以写穿透 `MoveFileExW` 替换，访问或共享冲突最多尝试五次，退避为 10/20/40/40 毫秒。PowerShell 安全操作超时为 15 秒，不需提权。不缓存身份、ACL 或路径结果：每次读取既有文件只启动一个仅输出元数据的 PowerShell 进程，合并核验文件与私有目录的 ACL、属主 SID，并完整遍历祖先重解析点。只读句柄在核验前打开；读取任何字节前，将其身份与打开前及核验后的路径名元数据比对。缺失文件仍须核验目录。部署者须防止非受信方并发替换祖先；路径名元数据不是绑定句柄的 Windows 安全检查。应实测部署延迟后再选择互不重叠的探测周期；进程启动时间不是网络健康期限。
+`directory` 为独占绝对路径，POSIX 目录权限必须为 `0700`，文件必须为当前属主的单硬链接普通文件且权限为 `0600`。祖先路径不得含符号链接；部署者还须保证祖先目录不可被非受信账号替换。Windows 显式注入本包的 `hostAdminFiles: directory => new WindowsPrivateFiles(directory)`，并将同一工厂传给 `callHostSdk` 的 `privateFiles` 选项；POSIX 默认装配不变。Windows 启动最多等待 `requestTimeoutMs`，直到工厂提供者活动；不回退 POSIX，工厂缺失或文件失败进入 Cordis 启动错误链。消费者卸载会取消等待而不误报工厂缺失；失活的启动会释放资源，不再发布服务。实现只接受带盘符的本地绝对路径，拒绝路径各级重解析点，要求关闭 DACL 继承、仅当前用户 SID 一条 FullControl 允许项且属主 SID 一致；既有 ACL 不符即拒，不修复。新建空对象先设 ACL，再写内容并刷盘；同目录以写穿透 `MoveFileExW` 替换，访问或共享冲突最多尝试五次，退避为 10/20/40/40 毫秒。安全操作通过进程内 Node-API Win32 绑定执行，不需提权，绝不启动或回退 PowerShell。不缓存身份、ACL 或路径结果：每次读取既有文件均重新合并核验文件与私有目录的 ACL、属主 SID，并完整遍历祖先重解析点。只读句柄在核验前打开；读取任何字节前，将其身份与打开前及核验后的路径名元数据比对。缺失文件仍须核验目录。部署者须防止非受信方并发替换祖先；路径名元数据不是绑定句柄的 Windows 安全检查。应实测部署延迟后再选择互不重叠的探测周期；进程启动时间不是网络健康期限。
 
 宿主创建 `credential` 与 `endpoint.json`，退出删除两者；每次启动生成独立进程代次。凭据仅通过私有文件和认证头传递，不进入参数、地址、环境变量或操作记录。`callAdmin` 只连接已运行宿主，缺少端点时拒绝，不自动启动服务。
 
@@ -52,6 +52,12 @@ Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，�
 `engine.operation({ operationId })` 读取引擎账本而非传输回执：`approval` 表示队列批准登记，`progress` 区分待决理由与阻塞项、关联开窗阶段及取消。已创建窗口与首轮失败在重启后仍可区分。查询不驱动或重放工作。
 
 `engine.query({ limit, taskId?, seat?, kind?, cursor?, authorizationCursor? })` 返回脱正文的 `effects` 和来自已签发事实投影的独立 `authorizations` 分页，包括 `plugin` 与 `local-operator` 种类。每页各有 `complete`、`watermark`、`nextCursor`；效果使用 `cursor` 续查，授权使用 `authorizationCursor` 续查。条数上限分别应用于两页，完整响应仍受字节上限限制。冻结指令与原始来源数据被省略，不提供原文查询选项。
+
+正常卸载及 `SIGINT`/`SIGTERM` 排空自有资源；即使前序清理失败，仍尝试删除凭据、端点和锁。同一幂等释放函数撤销终止监听；强杀无法执行清理。进程退出仍由部署的进程监管方负责。
+
+`reportHostFailure` 将固定短句的一行 error 追加到 `~/.panedesk/logs/host-errors.log` 并写 stderr。仅保留显式白名单细因码，不格式化异常消息、堆栈、路径或 URL。追加失败另写一行固定 stderr 提示。该助手不安装 boot 致命出口。
+
+Windows 验收：在 Windows 构建原生 addon 后，从仓库根运行 `pnpm exec tsx packages/host/host-admin/tests/windows-private-files-native.mts`。它检查真实私有文件操作、硬链接与 junction 拒绝、锁互斥和释放及二十次替换写入；输出中位数与 P95 毫秒值，目标分别为 3000/5000 毫秒。Linux 对照测试不能证明 Windows 实跑或耗时。
 
 `owner.lock` 保证单个目录仅有一个运行实例；进程异常退出后的遗留锁需运维确认旧实例已退出后显式恢复，插件不凭 PID 猜测接管。
 

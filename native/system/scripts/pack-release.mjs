@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { entryDirs, platformDirs, readJson, root } from './repo.mjs';
+import { entryDirs, packageManagerInvocation, platformDirs, readJson, root } from './repo.mjs';
 
 const args = process.argv.slice(2);
 const currentPlatformOnly = args.includes('--current-platform-only');
@@ -30,7 +30,8 @@ function hostPlatformDirs() {
 }
 
 function run(command, args, cwd) {
-  const result = spawnSync(command, args, {
+  const invocation = packageManagerInvocation(command, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd,
     stdio: 'inherit',
   });

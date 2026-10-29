@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import { PosixPrivateFiles, waitForPrivateFiles, PrivateFilesWaitCancelled, isPrivateFilesContextActive, OperationStore, listenAuthenticatedLoopback, object, identifier, digest, type LoopbackListener } from '@panedesk/dsh-host-admin'
 import { NODE_LINK_VERSION, type Config } from './index.ts'
+import { drainRuntime, onRuntimeTermination } from '@panedesk/dsh-host-admin/src/runtime-cleanup.ts'
 import { loadCredential } from './credentials.ts'
 import { NodeReceiver } from './receiver.ts'
 import { NodeRouter } from './router.ts'
@@ -174,19 +175,27 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
     }
     probe = setTimeout(poll, options.staleMs)
   })()
-  const dispose = async (): Promise<void> => {
+  let closing: Promise<void> | undefined
+  const dispose = (): Promise<void> => {
     stopped = true
+    removeSignals()
     if (probe !== undefined) clearTimeout(probe)
-    await ready.catch((error: unknown) => { void error })
-    if (probe !== undefined) clearTimeout(probe)
-    const chainClosed = chain?.close()
-    await probing
-    await chainClosed
-    await tunnel?.close()
-    await listener?.close()
-    await store.close(); await outgoing.close()
-    await unlock?.()
+    closing ??= drainRuntime([
+      () => ready.catch((error: unknown) => { void error }),
+      async () => {
+        if (probe !== undefined) clearTimeout(probe)
+        const chainClosed = chain?.close()
+        await drainRuntime([() => probing, () => chainClosed])
+      },
+      () => tunnel?.close(),
+      () => listener?.close(),
+      () => store.close(),
+      () => outgoing.close(),
+      () => unlock?.(),
+    ])
+    return closing
   }
+  const removeSignals = onRuntimeTermination(dispose, () => { ctx.logger.error('node-link-shutdown-failed: runtime cleanup failed') })
   try { await ready }
   catch (error) { await dispose(); throw error }
   return dispose

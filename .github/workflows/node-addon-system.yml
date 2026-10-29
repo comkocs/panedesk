@@ -72,6 +72,7 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 24
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -83,6 +84,14 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -yq musl-tools
+
+      - name: Prepare Windows native toolchain
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node -e "if (process.platform + '-' + process.arch !== '${{ matrix.platform }}') process.exit(1)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/prepare-windows-build.ps1
 
       - name: Build TypeScript
         run: pnpm build:ts
@@ -105,10 +114,11 @@ jobs:
         env:
           NALR_REQUIRE_LANDLOCK: 1
 
-      - name: Pack rehearsal (pack → install → confine, this platform only)
-        run: |
-          node ./scripts/pack-release.mjs .release/npm --current-platform-only
-          node ./scripts/verify-packed-install.mjs .release/npm --current-platform-only
+      - name: Pack rehearsal (this platform only)
+        run: node ./scripts/pack-release.mjs .release/npm --current-platform-only
+
+      - name: Verify installed payload (this platform only)
+        run: node ./scripts/verify-packed-install.mjs .release/npm --current-platform-only
         env:
           NALR_REQUIRE_LANDLOCK: ${{ runner.os == 'Linux' && '1' || '0' }}
 
@@ -116,6 +126,7 @@ jobs:
         run: pnpm test:packaging
 
       - name: Flock behavior (Node 24, built addon)
+        if: runner.os != 'Windows'
         run: |
           pnpm build:test-oracle
           pnpm test:flock
@@ -130,9 +141,14 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 20
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
 
       - name: Test the same binaries on Node 20
         run: node --test ./test/flock.test.js ./test/package-matrix.test.js
+
+      - name: Verify the same installed Windows binding on Node 20
+        if: runner.os == 'Windows'
+        run: node ./scripts/verify-packed-install.mjs .release/npm --current-platform-only
 
       - name: Test the same musl addon on Node 20 without a compiler
         if: runner.os == 'Linux'
@@ -144,9 +160,14 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 22
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
 
       - name: Test the same binaries on Node 22
         run: node --test ./test/flock.test.js ./test/package-matrix.test.js
+
+      - name: Verify the same installed Windows binding on Node 22
+        if: runner.os == 'Windows'
+        run: node ./scripts/verify-packed-install.mjs .release/npm --current-platform-only
 
       - name: Test the same musl addon on Node 22 without a compiler
         if: runner.os == 'Linux'
@@ -158,9 +179,14 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 26
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
 
       - name: Test the same binaries on Node 26
         run: node --test ./test/flock.test.js ./test/package-matrix.test.js
+
+      - name: Verify the same installed Windows binding on Node 26
+        if: runner.os == 'Windows'
+        run: node ./scripts/verify-packed-install.mjs .release/npm --current-platform-only
 
       - name: Test the same musl addon on Node 26 without a compiler
         if: runner.os == 'Linux'

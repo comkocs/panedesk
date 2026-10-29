@@ -185,7 +185,7 @@ export class SandboxBashExecutor extends LocalBashExecutor {
    * @returns the provider's exact argv and settlement-classification facts.
    */
   private confine(command: string, policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
-    return this.ctx.sandbox.confine(['bash', '-c', command], policy, signal)
+    return this.ctx.sandbox.confine([this.config.bashPath.get(), '-c', command], policy, signal)
   }
 }
 

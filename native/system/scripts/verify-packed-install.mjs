@@ -25,7 +25,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { entryDirs, packageDirs, platformDirs, readJson, root } from './repo.mjs';
+import { entryDirs, packageDirs, packageManagerInvocation, platformDirs, readJson, root } from './repo.mjs';
 
 const args = process.argv.slice(2);
 const currentPlatformOnly = args.includes('--current-platform-only');
@@ -48,7 +48,8 @@ function tarballPath(manifest) {
 }
 
 function run(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, {
+  const invocation = packageManagerInvocation(command, commandArgs);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: options.cwd || root,
     stdio: 'inherit',
     env: { ...process.env, ...options.env },
@@ -168,6 +169,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { grantArgs, launcherPath, probe } from '@panedesk/node-addon-system/landlock-run';
 import { tryLockExclusive } from '@panedesk/node-addon-system/flock';
+import { inspectWindowsPrivatePath, secureWindowsPrivatePath, replaceWindowsPrivatePath } from '@panedesk/node-addon-system/windows-private-files';
 
 await assert.rejects(import('@panedesk/node-addon-system'), {
   code: 'ERR_PACKAGE_PATH_NOT_EXPORTED',
@@ -207,6 +209,30 @@ if (process.platform === 'linux') {
   assert.ok(!fs.existsSync(resolved), 'Landlock has no executable for this host');
   assert.equal(probe(resolved), 'unusable');
   console.log('non-linux host: fallback resolution and unusable probe verified');
+}
+
+if (process.platform === 'win32') {
+  const privateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'native-system-private-'));
+  try {
+    secureWindowsPrivatePath(privateRoot);
+    const source = path.join(privateRoot, 'source');
+    const target = path.join(privateRoot, 'target');
+    fs.writeFileSync(source, '');
+    secureWindowsPrivatePath(source);
+    const metadata = inspectWindowsPrivatePath(source, privateRoot);
+    assert.equal(metadata.reparse, false);
+    assert.equal(metadata.parents, true);
+    assert.equal(metadata.owner, metadata.sid);
+    assert.equal(metadata.protected, true);
+    assert.deepEqual(metadata.rules, [{ sid: metadata.sid, inherited: false, allow: true, rights: 2032127, propagation: 0 }]);
+    assert.equal(metadata.directory.protected, true);
+    fs.writeFileSync(source, 'installed-private-file');
+    assert.equal(replaceWindowsPrivatePath(source, target), 0);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'installed-private-file');
+    console.log('installed Node-API Windows private-file operations verified');
+  } finally {
+    fs.rmSync(privateRoot, { recursive: true, force: true });
+  }
 }
 
 if (process.platform === 'linux' || process.platform === 'darwin') {

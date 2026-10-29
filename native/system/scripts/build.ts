@@ -14,6 +14,7 @@ const hostAddonOnly = values['host-addon-only'] === true
 const sources: Record<string, string> = {
   'landlock-run': 'packages/entry/src/main.c',
   flock: 'packages/entry/src/flock.c',
+  'windows-private-files': 'packages/entry/src/windows-private-files.c',
 }
 
 interface Binary {
@@ -24,9 +25,9 @@ interface Binary {
   libc?: string
 }
 
-if (process.platform !== 'linux' && process.platform !== 'darwin') {
+if (process.platform !== 'linux' && process.platform !== 'darwin' && process.platform !== 'win32') {
   if (hostAddonOnly) process.exit(0)
-  throw new Error('build: system binaries are built on Linux or macOS; no native target for this host')
+  throw new Error('build: system binaries are built on Linux, macOS or Windows; no native target for this host')
 }
 const host = `${process.platform}-${process.arch}`
 const libc = process.platform === 'linux'
@@ -51,7 +52,15 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
     let compiler: string
     let flags: string[]
 
-    if (binary.kind === 'static-musl' && process.platform === 'linux' && binary.tool === 'landlock-run') {
+    if (process.platform === 'win32' && binary.kind === 'node-api' && binary.tool === 'windows-private-files' && binary.napi === 8) {
+      const windowsHeaders = join(dirname(process.execPath), 'include', 'node')
+      const windowsLibrary = join(dirname(process.execPath), 'node.lib')
+      if (!existsSync(join(windowsHeaders, 'node_api.h')) || !existsSync(windowsLibrary)) {
+        throw new Error('build: Windows requires include/node headers and node.lib beside node.exe')
+      }
+      compiler = 'cl.exe'
+      flags = ['/nologo', '/O2', '/W4', '/WX', '/LD', '/DNAPI_VERSION=8', `/I${windowsHeaders}`]
+    } else if (binary.kind === 'static-musl' && process.platform === 'linux' && binary.tool === 'landlock-run') {
       compiler = 'musl-gcc'
       flags = ['-std=c11', '-Os', '-Wall', '-Wextra', '-Werror', '-static', '-s']
     } else if (binary.kind === 'node-api' && binary.tool === 'flock' && binary.napi === 8) {
@@ -77,7 +86,11 @@ for (const name of readdirSync(join(root, 'packages')).sort()) {
     const temporary = mkdtempSync(join(root, '.release', 'native-build-'))
     try {
       const pending = join(temporary, basename(output))
-      const result = spawnSync(compiler, [...flags, '-o', pending, join(root, source)], { stdio: 'inherit' })
+      const args = process.platform === 'win32'
+        ? [...flags, `/Fo${join(temporary, 'system.obj')}`, join(root, source), '/link', `/OUT:${pending}`,
+          join(dirname(process.execPath), 'node.lib'), 'advapi32.lib']
+        : [...flags, '-o', pending, join(root, source)]
+      const result = spawnSync(compiler, args, { stdio: 'inherit' })
       if (result.error) throw result.error
       if (result.status !== 0) throw new Error(`build: ${compiler} failed for ${binary.path}`)
       // Readers never see a truncated addon when source checks build concurrently.

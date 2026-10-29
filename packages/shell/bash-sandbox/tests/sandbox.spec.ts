@@ -103,6 +103,16 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 }
 
 describe('the provider hand-off', () => {
+  it('hands the configured Git Bash path to confinement without splitting spaces', async () => {
+    const bashPath = 'C:\\Program Files\\Git\\bin\\bash.exe'
+    const unavailable = new Error('test confinement stopped')
+    const { ctx, bash, calls } = await setup({ bashPath }, () => { throw unavailable })
+    try {
+      await expect(bash.execute(bash.resolve({ command: 'printf hello' }))).rejects.toBe(unavailable)
+      expect(calls[0]?.argv).toEqual([bashPath, '-c', 'printf hello'])
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('reports caller cancellation when a failed launch result is read after abort', async () => {
     const { ctx, bash } = await setup({}, () => passthrough(['node']))
     const controller = new AbortController()

@@ -1168,10 +1168,20 @@ importers:
       '@panedesk/node-addon-system-linux-x64':
         specifier: workspace:~
         version: link:../linux-x64
+      '@panedesk/node-addon-system-win32-arm64':
+        specifier: workspace:~
+        version: link:../win32-arm64
+      '@panedesk/node-addon-system-win32-x64':
+        specifier: workspace:~
+        version: link:../win32-x64
 
   native/system/packages/linux-arm64: {}
 
   native/system/packages/linux-x64: {}
+
+  native/system/packages/win32-arm64: {}
+
+  native/system/packages/win32-x64: {}
 
   packages/acp/acp:
     dependencies:
@@ -11282,6 +11292,9 @@ importers:
       '@panedesk/dsh-seat-engine':
         specifier: workspace:*
         version: link:../../seat/seat-engine
+      '@panedesk/node-addon-system':
+        specifier: workspace:~
+        version: link:../../../native/system/packages/entry
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery

@@ -1,23 +1,7 @@
-/** SID-based Windows security inspection and write-through replacement, without localized account names. */
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+/** Legacy metadata-only PowerShell source retained as an injectable comparison oracle; never spawned. */
 
-/** Injectable PowerShell execution; output contains security metadata, never file contents. */
+/** Injectable legacy security oracle; output contains metadata, never file contents. */
 export type WindowsPrivateFilesExecutor = (script: string) => Promise<string>
-
-const executeFile = promisify(execFile)
-/** Execute a bounded, noninteractive Windows security operation.
- * @param script - Internally generated PowerShell source with encoded literal paths.
- * @returns Standard output containing only the operation result.
- */
-export const executeWindowsPrivateFiles: WindowsPrivateFilesExecutor = async (script) => {
-  try {
-    const result = await executeFile('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand',
-      Buffer.from(`$ErrorActionPreference = 'Stop'; ${script}`, 'utf16le').toString('base64')],
-    { windowsHide: true, timeout: 15000, maxBuffer: 1024 * 1024 })
-    return result.stdout.trim()
-  } catch (error) { void error; throw new Error('Windows private security operation unavailable') }
-}
 
 function literal(path: string): string {
   return `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(path).toString('base64')}'))`

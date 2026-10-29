@@ -14,6 +14,7 @@ import { object } from './json.ts'
 import { decodeRequest, decodeResponse } from './codec.ts'
 import { digest } from './json.ts'
 import { executeLocal } from './local-executor.ts'
+import { drainRuntime, onRuntimeTermination } from './runtime-cleanup.ts'
 
 /** Install only under explicit runtime configuration.
  * @param ctx - Lifecycle and optional local executor.
@@ -139,21 +140,23 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
     if (inactive()) return
     ctx.provide('hostSessionCredentials', sessions)
   })()
-  const dispose = async (): Promise<void> => {
+  let closing: Promise<void> | undefined
+  const dispose = (): Promise<void> => {
     stopped = true
     sdkAbort.abort()
-    try { await sessions.close() }
-    finally {
-      await ready.catch((error: unknown) => { void error })
-      await listener?.close()
-      await store.close()
-      if (unlock !== undefined) {
-        await files.remove('credential')
-        await files.remove('endpoint.json')
-        await unlock()
-      }
-    }
+    removeSignals()
+    closing ??= drainRuntime([
+      () => sessions.close(),
+      () => ready.catch((error: unknown) => { void error }),
+      () => listener?.close(),
+      () => store.close(),
+      () => unlock === undefined ? undefined : files.remove('credential'),
+      () => unlock === undefined ? undefined : files.remove('endpoint.json'),
+      () => unlock?.(),
+    ])
+    return closing
   }
+  const removeSignals = onRuntimeTermination(dispose, () => { ctx.logger.error('host-admin-shutdown-failed: runtime cleanup failed') })
   try { await ready }
   catch (error) { await dispose(); throw error }
   return dispose

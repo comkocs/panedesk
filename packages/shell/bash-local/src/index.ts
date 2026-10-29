@@ -39,6 +39,8 @@ const DEFAULT_MAX_SPILL_BYTES = 64 * 1024 * 1024
 
 /** Validated plugin configuration with live command budgets. */
 export interface Config {
+  /** Bash executable name or absolute path; passed as one argv element, default: bash. */
+  bashPath: Volatile<string>
   /** Default working directory for commands (default: process.cwd()). */
   cwd: Volatile<string | undefined>
   /** Default foreground timeout in milliseconds. */
@@ -98,6 +100,7 @@ export class LocalBashExecutor extends ShellExecutor {
   static inject = ['subprocess']
 
   static Config = z.object({
+    bashPath: z.string().min(1).default('bash').volatile(),
     cwd: z.string().volatile(),
     timeoutMs: z.number().default(120_000).volatile(),
     maxTimeoutMs: z.number().default(600_000).volatile(),
@@ -185,7 +188,7 @@ export class LocalBashExecutor extends ShellExecutor {
   }
 
   async execute(spec: ShellExecSpec): Promise<ShellExecution> {
-    return this.executeArgv(spec, ['bash', '-c', spec.command])
+    return this.executeArgv(spec, [this.config.bashPath.get(), '-c', spec.command])
   }
 
   /**

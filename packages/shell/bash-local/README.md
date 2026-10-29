@@ -41,6 +41,7 @@ Load the executor with the budgets you want; every field has a default, so the s
 
 | Field | Default | Meaning |
 |---|---|---|
+| `bashPath` | `bash` | Executable passed as one argv element, including paths containing spaces |
 | `cwd` | `process.cwd()` | Default working directory for commands |
 | `timeoutMs` | `120,000` | Default foreground timeout, in milliseconds |
 | `maxTimeoutMs` | `600,000` | Cap for per-call timeout overrides |
@@ -93,7 +94,7 @@ The executor is a Service Provider for the `ctx.shell` seam built on the subproc
 
 ### Main flow
 
-A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes` from config and the request (capping per-call overrides); `execute` wires the deadline per expiry policy — `'kill'` fuses the clamped timeout with the caller's abort signal, `'none'` arms nothing — and spawns `['bash', '-c', command]` through `ctx.subprocess` with explicit byte caps and the `graceMs`; the settled outcome is classified first-cause — only the executor's own timeout reports `timedOut`, an upstream cancel reports `aborted`, a self-signaled command reports neither — and `result()` projects it into a `ShellRunResult` with collected output.
+A call runs through three steps: `resolve()` fills `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes` from config and the request (capping per-call overrides); `execute` wires the deadline per expiry policy — `'kill'` fuses the clamped timeout with the caller's abort signal, `'none'` arms nothing — and spawns `[bashPath, '-c', command]` through `ctx.subprocess` with explicit byte caps and the `graceMs`; the settled outcome is classified first-cause — only the executor's own timeout reports `timedOut`, an upstream cancel reports `aborted`, a self-signaled command reports neither — and `result()` projects it into a `ShellRunResult` with collected output.
 
 The foreground deadline starts before argv preparation and retains the same signal and remaining budget through execution. Preparation timeout returns empty output, `timedOut: true`, and null `exitCode` and `signal`; caller cancellation before process publication still rejects. Late preparation success or failure cannot trigger a spawn.
 
@@ -138,7 +139,7 @@ These limits define when this executor is a poor fit. They are current package c
 
 - **Unconfined by itself** — commands run with the harness process's authority; deployments needing confinement compose `dsh-bash-sandbox`, while per-call allow/deny/ask policy belongs on the tools' `pre-execute` waterfall.
 - **No persistent shell or PTY** — every call starts a fresh non-login `bash -c`; cwd-only persistence and interactive terminal sessions remain deferred until a real workflow requires them.
-- **POSIX-only** — the `bash` binary is hardcoded and the underlying service's group semantics are POSIX; Windows is unsupported.
+- **Windows requires an explicit Bash installation** — set `bashPath` to the Git Bash executable, for example `C:\Program Files\Git\bin\bash.exe`. The default remains `bash`; there is no installation discovery. Base profiles opt into the sandboxed Bash stack with `PANEDESK_BASH_PATH`; omission preserves Windows PowerShell. Command syntax and path translation remain the selected Bash installation's responsibility.
 - **A background provider-failure note is the whole stderr stream** — `SubprocessHandle.done` can reject before or after target execution begins, and the subprocess service buffers no output for a target that never reported, so the executor serves the stage-neutral `subprocess failed before reporting an outcome: …` as the observed stderr stream (offset readers re-read it at their own offsets) and folds it into exactly one `readOutput()` delta; a consuming reader that discards that delta recovers it only through `observed.stderr`.
 
 <a id="dev-note"></a>

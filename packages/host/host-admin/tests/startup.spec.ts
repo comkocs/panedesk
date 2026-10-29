@@ -110,6 +110,18 @@ test('waits for a late active Windows factory before publishing ACL-protected en
   expect(await fs.readdir(f.mapped('C:\\private'))).toEqual([])
 })
 
+test.each(['SIGINT', 'SIGTERM'] as const)('removes the administration lock after %s termination', async (signal) => {
+  const f = await fixture(), { ctx } = context()
+  ctx.provide('hostAdminFiles', () => f.files)
+  const fiber = start(ctx)
+  await fiber
+  expect(await fs.readdir(f.mapped('C:\\private'))).toContain('owner.lock')
+  const handler = process.listeners(signal).at(-1)!
+  handler(signal)
+  await expect.poll(() => fs.readdir(f.mapped('C:\\private'))).toEqual([])
+  await fiber.dispose()
+})
+
 test.each(['missing', 'factory', 'preparation'])('abandons disposed Windows administration during %s startup', async (stage) => {
   const f = await fixture(), { ctx, logs } = context()
   let release!: () => void

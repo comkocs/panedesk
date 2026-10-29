@@ -17,6 +17,10 @@
       "types": "./lib/flock.d.ts",
       "default": "./lib/flock.js"
     },
+    "./windows-private-files": {
+      "types": "./lib/windows-private-files.d.ts",
+      "default": "./lib/windows-private-files.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -24,7 +28,8 @@
     "lib/",
     "!lib/*.tsbuildinfo",
     "src/main.c",
-    "src/flock.c"
+    "src/flock.c",
+    "src/windows-private-files.c"
   ],
   "scripts": {
     "build:js": "tsc -b",
@@ -38,6 +43,8 @@
     "access": "public"
   },
   "optionalDependencies": {
+    "@panedesk/node-addon-system-win32-arm64": "workspace:~",
+    "@panedesk/node-addon-system-win32-x64": "workspace:~",
     "@panedesk/node-addon-system-darwin-arm64": "workspace:~",
     "@panedesk/node-addon-system-darwin-x64": "workspace:~",
     "@panedesk/node-addon-system-linux-arm64": "workspace:~",

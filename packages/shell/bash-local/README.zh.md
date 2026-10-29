@@ -41,6 +41,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
+| `bashPath` | `bash` | 作为单个 argv 元素传递的可执行文件，支持含空格的路径 |
 | `cwd` | `process.cwd()` | 命令的默认工作目录 |
 | `timeoutMs` | `120,000` | 默认前台超时，单位为毫秒 |
 | `maxTimeoutMs` | `600,000` | 每次调用超时覆盖值的上限 |
@@ -93,7 +94,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 ### 主要流程
 
-一次调用分三步：`resolve()` 从配置与请求填充 `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes`（并限制每次调用的覆盖值）；`execute` 按到期策略布置 deadline——`'kill'` 把钳位后的超时与调用方的中止信号融合为一个 deadline，`'none'` 不布置任何 deadline——再以显式字节上限与 `graceMs` 通过 `ctx.subprocess` spawn `['bash', '-c', command]`；结算的 subprocess 结果被分类——只有执行器自身的超时报告 `timedOut`，上游取消报告 `aborted`，自身因信号终止的命令两者皆不报告——并投影为带收集输出的 `ShellRunResult`。
+一次调用分三步：`resolve()` 从配置与请求填充 `workdir`/`timeoutMs`/`onExpiry`/`stdoutMaxBytes`（并限制每次调用的覆盖值）；`execute` 按到期策略布置 deadline——`'kill'` 把钳位后的超时与调用方的中止信号融合为一个 deadline，`'none'` 不布置任何 deadline——再以显式字节上限与 `graceMs` 通过 `ctx.subprocess` spawn `[bashPath, '-c', command]`；结算的 subprocess 结果被分类——只有执行器自身的超时报告 `timedOut`，上游取消报告 `aborted`，自身因信号终止的命令两者皆不报告——并投影为带收集输出的 `ShellRunResult`。
 
 前台 deadline 从 argv 准备开始，并在准备与执行之间保持同一信号和剩余预算。准备阶段超时返回空输出、`timedOut: true`，且 `exitCode` 和 `signal` 均为 `null`；调用方在发布进程前取消仍会拒绝调用。准备晚到的成功或失败不会触发 spawn。
 
@@ -138,7 +139,7 @@ if (result.timedOut) console.log('timed out after', result.timeoutMs)
 
 - **自身不提供隔离**——命令以 harness 进程的权限运行；需要隔离的部署组合 `dsh-bash-sandbox`，每次调用的 allow/deny/ask 策略则属于工具的 `pre-execute` waterfall（瀑布式事件）。
 - **没有持久 shell 或 PTY**——每次调用都启动全新的非登录 `bash -c`；仅持久化 cwd 与交互式终端会话均继续延期，直到真实工作流需要它们。
-- **仅支持 POSIX**——`bash` 二进制已硬编码，底层服务的进程组语义也是 POSIX 的；不支持 Windows。
+- **Windows 要求显式安装 Bash**——将 `bashPath` 设为 Git Bash 可执行文件，如 `C:\Program Files\Git\bin\bash.exe`。缺省仍为 `bash`，不自动发现安装。base 档通过 `PANEDESK_BASH_PATH` 显式启用沙箱 Bash 栈，省略时仍用 Windows PowerShell。命令语法与路径转换由所选 Bash 安装负责。
 - **后台提供方失败提示就是整条 stderr 流**——`SubprocessHandle.done` 可能在目标命令开始执行前或后被拒绝，而 subprocess 服务不会为从未上报结果的目标命令 缓冲任何输出，因此执行器把不声明失败阶段的 `subprocess failed before reporting an outcome: …` 作为观测到的 stderr 流提供（偏移读取方按各自偏移重读），并只折入恰好一个 `readOutput()` 增量；丢弃了该增量的消耗式读取方只能经 `observed.stderr` 恢复它。
 
 <a id="dev-note"></a>

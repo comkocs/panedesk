@@ -14,6 +14,22 @@ import { fileURLToPath } from 'node:url';
 export const root = fileURLToPath(new URL('..', import.meta.url));
 const packagesRoot = path.join(root, 'packages');
 
+/** Resolve Windows package-manager JavaScript entrypoints without a command shell. */
+export function packageManagerInvocation(command, args) {
+  if (process.platform !== 'win32' || !['npm', 'pnpm'].includes(command)) return { command, args };
+  const script = command === 'npm' ? 'npm-cli.js' : 'pnpm.cjs';
+  const directories = [path.dirname(process.execPath), ...(process.env.PATH || '').split(path.delimiter)];
+  const candidates = directories.flatMap((directory) => [
+    path.join(directory, 'node_modules', command, 'bin', script),
+    path.resolve(directory, '..', command, 'bin', script),
+    path.join(directory, script),
+  ]);
+  if (command === 'pnpm' && process.env.npm_execpath?.endsWith('pnpm.cjs')) candidates.unshift(process.env.npm_execpath);
+  const entry = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!entry) throw new Error(`${command} JavaScript entrypoint unavailable`);
+  return { command: process.execPath, args: [entry, ...args] };
+}
+
 /** ELF `e_machine` (offset 18, little-endian) per platform-package `cpu` value. */
 const E_MACHINE = { x64: 62, arm64: 183 };
 
@@ -52,7 +68,7 @@ export function verifyPlatformBinaries(packageDir) {
   const prebuilds = readJson(path.join(packageDir, 'prebuilds.json'));
   const cpu = manifest.cpu?.[0];
   const os = manifest.os?.[0];
-  if (!(cpu in E_MACHINE) || !['linux', 'darwin'].includes(os)) {
+  if (!(cpu in E_MACHINE) || !['linux', 'darwin', 'win32'].includes(os)) {
     throw new Error(`${manifest.name}: unsupported or missing os/cpu metadata`);
   }
   if (prebuilds.platform !== `${os}-${cpu}`) {
@@ -67,13 +83,14 @@ export function verifyPlatformBinaries(packageDir) {
     if (declared.has(binary.path)) throw new Error(`${manifest.name}: duplicate binary path ${binary.path}`);
     declared.add(binary.path);
     const executable = binary.kind === 'static-musl' && binary.tool === 'landlock-run' && os === 'linux';
-    const addon = binary.kind === 'node-api' && binary.tool === 'flock' && binary.napi === 8;
+    const addon = binary.kind === 'node-api' && binary.napi === 8
+      && (os === 'win32' ? binary.tool === 'windows-private-files' : binary.tool === 'flock');
     if (!executable && !addon) throw new Error(`${manifest.name}: unsupported binary kind/tool/NAPI for ${binary.path}`);
     if (addon && os === 'linux' && !['glibc', 'musl'].includes(binary.libc)) {
       throw new Error(`${manifest.name}: Linux addon must declare glibc or musl`);
     }
-    if (addon && os === 'darwin' && binary.libc !== undefined) {
-      throw new Error(`${manifest.name}: macOS addon must not declare a Linux libc`);
+    if (addon && os !== 'linux' && binary.libc !== undefined) {
+      throw new Error(`${manifest.name}: non-Linux addon must not declare a Linux libc`);
     }
 
     const file = path.join(packageDir, binary.path);
@@ -93,6 +110,14 @@ export function verifyPlatformBinaries(packageDir) {
       }
       if (data.readUInt16LE(16) !== (executable ? 2 : 3)) {
         throw new Error(`${manifest.name}: ${binary.path} has the wrong ELF file type`);
+      }
+    } else if (os === 'win32') {
+      const pe = data.length >= 64 ? data.readUInt32LE(60) : -1;
+      const machine = cpu === 'x64' ? 0x8664 : 0xaa64;
+      if (data.length < 64 || data.readUInt16LE(0) !== 0x5a4d || pe < 64 || pe + 24 > data.length
+        || data.readUInt32LE(pe) !== 0x4550 || data.readUInt16LE(pe + 4) !== machine
+        || (data.readUInt16LE(pe + 22) & 0x2000) === 0) {
+        throw new Error(`${manifest.name}: ${binary.path} is not a matching PE DLL`);
       }
     } else {
       const expectedCpu = cpu === 'x64' ? 0x01000007 : 0x0100000c;
