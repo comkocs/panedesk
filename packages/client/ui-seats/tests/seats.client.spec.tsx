@@ -187,7 +187,7 @@ describe('seat entry presentations', () => {
   it('distinguishes explicit free metadata from unknown binding evidence', () => {
     const f = fixture(data, '/current')
     const view = render(<SeatHeader {...f.props as SeatHeaderProps} />)
-    expect(screen.getByText('Unknown')).toBeTruthy()
+    expect(screen.getByText('Identity read failed')).toBeTruthy()
     const free = fixture({ ...data, binding: { kind: 'free', sessionId: 'session-a' as never, nodeId: 'node-a' as never, identitySource: 'free' } }, '/current')
     view.rerender(<SeatHeader {...free.props as SeatHeaderProps} />)
     expect(screen.getByText('Free window')).toBeTruthy()
