@@ -5,7 +5,7 @@ import { Context } from '@panedesk/cordis'
 import { JournalSessionLedger } from '../src/index.ts'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { appendArtifact, ArtifactAppendCache, finishArtifact } from '../src/journal.ts'
+import { appendArtifact, ArtifactAppendCache, finishArtifact, JournalViewOwner, readJournalFacts } from '../src/journal.ts'
 import { canonicalJson, digest } from '../src/index-store.ts'
 import { callStart, options } from './fixtures.ts'
 
@@ -87,6 +87,42 @@ it('rejects fragments beyond a closure in stream scans, snapshots, queries and i
     await expect(ledger.importNode(node)).rejects.toThrow(message)
     await expect(appendArtifact(node, { ...input, seq: 2 }, options, new ArtifactAppendCache())).rejects.toThrow(message)
   } finally { await ctx.fiber.dispose() }
+})
+
+it.each(['open-runs', 'waits', 'latest-start'] as const)('rejects fragments beyond a closure through the %s hot reader', async (kind) => {
+  const home = await root()
+  const ctx = new Context()
+  const viewOwner = new JournalViewOwner()
+  try {
+    const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+    await ledger.beginCall(callStart)
+    const first = await ledger.appendArtifact({ callId: callStart.callId, kind: 'partial-response', seq: 0, content: '0' })
+    if (first.kind === 'conflict') throw new Error('Unexpected conflict')
+    await ledger.finishArtifact(first.reference)
+    const node = join(home, 'ledger/v1', await ledger.nodeId())
+    const selection = { kind, sessionId: callStart.sessionId, nodeId: callStart.nodeId,
+      runId: callStart.runId, toolCallIds: [] }
+    const read = () => readJournalFacts(node, { ...options, viewOwner }, selection)
+    await read()
+    const directory = join(node, `artifacts/${digest(callStart.callId)}/partial-response/1`)
+    await mkdir(directory)
+    const input = { callId: callStart.callId, kind: 'partial-response' as const, seq: 1, content: '1' }
+    const payload = { type: 'fragment', input }
+    const text = canonicalJson(payload)
+    await writeFile(join(directory, 'foreign.jsonl'), canonicalJson({ version: 1, bytes: Buffer.byteLength(text), digest: digest(text), payload }) + '\n')
+    const rejection = (error: unknown) => {
+      expect(error).toBeInstanceOf(Error)
+      expect(error instanceof Error && error.constructor).toBe(Error)
+      expect(error).toHaveProperty('message', 'Artifact closure does not reference the final durable fragment')
+      expect(error).not.toHaveProperty('code')
+    }
+    await expect(ledger.snapshot()).rejects.toSatisfy((error: unknown) => { rejection(error); return true })
+    await expect(read()).rejects.toSatisfy((error: unknown) => { rejection(error); return true })
+    await expect(read()).rejects.toSatisfy((error: unknown) => { rejection(error); return true })
+  } finally {
+    viewOwner.dispose()
+    await ctx.fiber.dispose()
+  }
 })
 
 it('serializes two processes writing separate streams in the same root', async () => {

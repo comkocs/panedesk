@@ -263,6 +263,46 @@ it('does not stat previously synchronized legacy UUID facts', async () => {
   expect((await readJournal(path, options)).events).toHaveLength(2)
 })
 
+it('reuses closure contents for all hot readers without reading file bytes again', async () => {
+  const home = await root()
+  const ctx = new Context()
+  contexts.push(ctx)
+  const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+  await ledger.beginCall(callStart)
+  const fragment = await ledger.appendArtifact({ callId: callStart.callId, kind: 'partial-response', seq: 0, content: '0' })
+  if (fragment.kind === 'conflict') throw new Error('Unexpected conflict')
+  await ledger.finishArtifact(fragment.reference)
+  const node = join(home, 'ledger/v1', await ledger.nodeId())
+  const selections = ['open-runs', 'waits', 'latest-start'].map(kind => ({
+    kind: kind as 'open-runs' | 'waits' | 'latest-start', sessionId: callStart.sessionId,
+    nodeId: callStart.nodeId, runId: callStart.runId, toolCallIds: [],
+  }))
+  await readJournalFacts(node, options, selections[0]!)
+  const original = fs.open
+  let reads = 0
+  let bytes = 0
+  vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+    const handle = await original(...args)
+    const read = handle.read.bind(handle)
+    vi.spyOn(handle, 'read').mockImplementation(async (...values: Parameters<typeof handle.read>) => {
+      reads++
+      const result = await read(...values)
+      bytes += result.bytesRead
+      return result
+    })
+    return handle
+  })
+  const readFile = vi.spyOn(fs, 'readFile')
+  const directories = vi.spyOn(fs, 'readdir')
+  const stats = vi.spyOn(fs, 'stat')
+  for (const selection of selections) {
+    await readJournalFacts(node, options, selection)
+    expect({ reads, bytes, readFiles: readFile.mock.calls.length }).toEqual({ reads: 0, bytes: 0, readFiles: 0 })
+  }
+  expect(directories.mock.calls.some(([path]) => String(path).includes('artifacts'))).toBe(true)
+  expect(stats.mock.calls.some(([path]) => String(path).includes('closed-'))).toBe(true)
+})
+
 it('shares synchronized bytes across independent Context instances', async () => {
   const home = await root()
   const first = new Context(); const second = new Context()
