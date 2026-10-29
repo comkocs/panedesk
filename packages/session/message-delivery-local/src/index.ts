@@ -565,13 +565,15 @@ export default class LocalMessageDelivery extends MessageDelivery {
   }
 
   private async publishReceipt(event: MessageStateEvent): Promise<void> {
+    const identity = event.cursor
+    if (this.emitted.has(identity)) return
     const receipt = await this.receipts.publish(event)
     event = { ...event, cursor: receipt.cursor }
     const ledger = this.ctx.get('messageLedger') ?? await this.ctx.get('sessionLedger')?.messages()
     if (ledger) await ledger.append({ schemaVersion: 1, kind: 'message/state', eventId: messageEventId(event),
       nodeId: this.nodeId, observedAt: event.data.observedAt, data: event.data })
-    if (!this.emitted.has(event.cursor)) {
-      this.emitted.add(event.cursor)
+    if (!this.emitted.has(identity)) {
+      this.emitted.add(identity)
       this.ctx.emit('message/state', event)
     }
   }

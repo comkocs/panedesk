@@ -197,7 +197,11 @@ export class SeatEngine extends SeatEngineService {
     this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {
       remaining: () => Promise.resolve({ kind: 'unknown' }),
       renew: () => Promise.resolve({ kind: 'rejected', reason: 'cache-evidence-unavailable' }),
-    }, async sessionId => (await this.admitTurn(sessionId)).status !== 'allow')
+    }, async sessionId => (await this.checkTurnAdmission(sessionId)).status !== 'allow')
+    ctx.on('agent/status', ({ agent, status }) => {
+      if (status !== 'idle' || this.stopped || !this.deferredTurns.has(agent.id)) return
+      void this.drive().catch((error: unknown) => { this.failures.record('scheduled-drive', error) })
+    })
     installFrozenBusiness(ctx, this)
   }
   /** Resolve a parked callback without replacing its payload or chain operation.
@@ -291,7 +295,8 @@ export class SeatEngine extends SeatEngineService {
           const view = this.journal.projection
           if ([...view.pending.values()].some(item => item.seat === input.request.seat)
             || [...view.opens.values()].some(item => item.binding.kind === 'seat' && item.binding.seat === input.request.seat
-              && !view.closed.has(item.sessionId))) {
+              && !view.closed.has(item.sessionId)
+              && !(item.phase === 'opening-failed' && item.failure?.effectState === 'none' && !view.resources.has(item.sessionId)))) {
             return rejected('session-busy', 'A window opening for this seat is already admitted')
           }
           return this.openLocal(input)
@@ -904,7 +909,7 @@ export class SeatEngine extends SeatEngineService {
       ...rejected('cross-node-unsupported', 'Maintenance is node-local'), cacheEvidence }
     if (!this.journal.projection.resources.has(request.sessionId)) return {
       ...rejected('session-not-found', 'Maintenance window is not active'), cacheEvidence }
-    if ((await this.admitTurn(request.sessionId)).status !== 'allow') return {
+    if ((await this.checkTurnAdmission(request.sessionId)).status !== 'allow') return {
       ...rejected('budget-stopped', 'Maintenance is blocked by window admission'), cacheEvidence }
     let result: T.EngineKeepAliveData
     try { result = await this.keepalive.renew(request.sessionId, request.operationId, 'manual',
@@ -943,7 +948,7 @@ export class SeatEngine extends SeatEngineService {
     await this.publish()
   }
   drive(): Promise<void> {
-    if (this.activeDrive) return this.activeDrive
+    if (this.activeDrive) return this.activeDrive.then(() => this.drive())
     this.activeDrive = this.run().finally(() => { this.activeDrive = undefined })
     return this.activeDrive
   }
@@ -1021,6 +1026,16 @@ export class SeatEngine extends SeatEngineService {
     if (this.options.config.failureRecovery) await this.activeCallbacks
     await this.publish()
     if (!this.outbox.hasFailedDelivery()) this.failures.succeeded(generation)
+    if (this.failures.runnable()) {
+      for (const id of [...this.deferredTurns]) {
+        const agent = this.ctx.get('agents')?.get(id)
+        if (!agent) { this.deferredTurns.delete(id); continue }
+        if (agent.status === 'idle' && (await this.checkTurnAdmission(id)).status === 'allow') {
+          this.deferredTurns.delete(id)
+          agent.wake?.()
+        }
+      }
+    }
   }
   private async checkPreopenRetention(): Promise<void> {
     for (const item of [...this.journal.projection.pending.values()]) {
@@ -1245,7 +1260,13 @@ export class SeatEngine extends SeatEngineService {
     if (level === 'stopped') await this.recordCallbacks(open, 'budget-stopped', snapshot)
   }
   private readonly recoveredOwners = new Set<T.OwnerEpoch>()
+  private readonly deferredTurns = new Set<SessionId>()
   async admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission> {
+    const admission = await this.checkTurnAdmission(sessionId)
+    if (admission.status === 'defer') this.deferredTurns.add(sessionId)
+    return admission
+  }
+  private async checkTurnAdmission(sessionId: SessionId): Promise<T.SeatTurnAdmission> {
     await this.ready()
     const open = this.journal.projection.opens.get(sessionId)
     if (!open) return { status: 'allow' }

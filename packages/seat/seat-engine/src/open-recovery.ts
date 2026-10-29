@@ -20,7 +20,7 @@ export function isOpeningObservation(open: EngineOpenData): boolean {
  * @param executor - local provider with persistence observation and never-mint creation.
  * @param createdCallbacks - callback facts committed with the first created observation.
  * @param beforeEffect - Optional supervisor checkpoint; false retains the last durable phase without another external effect.
- * @returns latest committed phase; uncertain first turns remain pending.
+ * @returns Latest phase; a missing preset fails only an opening confirmed absent. Uncertain first turns remain pending.
  */
 export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenData, executor: SeatOpenExecutor,
   createdCallbacks: (open: EngineOpenData) => readonly SeatCallbackDelivery[] | Promise<readonly SeatCallbackDelivery[]>,
@@ -45,7 +45,22 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     if (observed === 'conflict') throw new EngineError('session-id-conflict', 'Reserved Session identity belongs to another operation')
     if (observed === 'unknown') throw new EngineError('owner-unknown', 'Session persistence ownership is unknown')
     if (observed === 'absent') {
-      const id = await executor.create(current)
+      let id: EngineOpenData['sessionId']
+      try { id = await executor.create(current) } catch (error) {
+        if (error === null || typeof error !== 'object' || !('isDSHRemoteError' in error) || error.isDSHRemoteError !== true
+          || !('code' in error) || error.code !== 'agent-preset/not-found' || await executor.observe(current) !== 'absent') throw error
+        const failed: EngineOpenData = { ...(journal.projection.opens.get(current.sessionId) ?? current), phase: 'opening-failed', failure: {
+          code: 'open-create-failed', message: 'The retained agent preset is unavailable; no Session was created.',
+          alternative: 'Restore the preset and submit a new opening operation.', retryable: false, effectState: 'none' } }
+        await journal.commit((view) => {
+          const resource = view.resources.get(current.sessionId)
+          return [fact({ kind: 'open/opening-failed', sessionId: current.sessionId, data: failed }),
+            ...(resource ? [fact({ kind: 'resource/released', sessionId: current.sessionId, data: { owner: resource.owner,
+              reason: 'open-aborted', observedAt: new Date().toISOString(), releasedAt: new Date().toISOString(),
+              engineReadyAt: null, fenced: true } })] : [])]
+        })
+        return failed
+      }
       if (id !== current.sessionId) throw new EngineError('session-id-conflict', 'Executor returned a different Session identity; opening is blocked')
     }
     const created: EngineOpenData = { ...current, phase: 'created' }
