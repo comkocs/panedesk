@@ -51,7 +51,7 @@
       "reason": "The previous assembly wrote both the checkpoint plugin's stable event with context peaks and the accounting listener's random event into the same session/summary slot. Explicit instance ownership retains only the checkpoint event when mounted and the accounting event otherwise, without changing journal comparison or existing records.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/src/call-accounting.ts", "packages/compaction/compaction-ledger/src/index.ts", "packages/bundle/base/tests/compaction-accounting.spec.ts"],
+        "paths": ["packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/src/call-accounting.ts", "packages/compaction/compaction-ledger/src/index.ts", "packages/bundle/base/tests/compaction-accounting.spec.ts", "packages/extensions/tool-cordis/src/api-catalog.ts", "docs/subsystems/session-telemetry.md", "docs/subsystems/session-telemetry.zh.md"],
         "test": "records one fact per slot and one row per request across two compactions (checkpoint owner: %s)"
       }
     },
