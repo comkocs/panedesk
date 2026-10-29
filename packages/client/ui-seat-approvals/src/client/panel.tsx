@@ -31,7 +31,7 @@ export function ApprovalPanel({ useResource, t, mutate }: Props) {
     const values = []
     if (budget?.windowBudgetUsd !== undefined) values.push(t('windowBudget', { amount: budget.windowBudgetUsd }))
     if (budget?.dailyBudgetUsd !== undefined) values.push(t('dailyBudget', { amount: budget.dailyBudgetUsd }))
-    return values.length ? values.join('; ') : t('absent')
+    return values.length ? values.join('; ') : t(budget === undefined ? 'absent' : 'unlimited')
   }
   const act = async (item: Seat.PendingSeatItem, action: 'approve' | 'cancel'): Promise<void> => {
     setBusy(true)
@@ -82,7 +82,7 @@ export function ApprovalPanel({ useResource, t, mutate }: Props) {
           <h3>{t(actual.phase === 'active' ? 'active' : actual.phase === 'opening-failed' ? 'openingFailed' : 'opened')}</h3>
           <dl><dt>{t('seat')}</dt><dd>{actual.seat}</dd>
             <dt>{t('window')}</dt><dd>{actual.title}</dd>
-            <dt>{t('node')}</dt><dd>{actual.nodeId}</dd>
+            <dt>{t('node')}</dt><dd title={actual.nodeId}>{actual.nodeName}</dd>
             <dt>{t('budget')}</dt><dd>{budgetText(actual.budget)}</dd></dl>
           {actual.phase !== 'active' && actual.phase !== 'opening-failed' && <p>{t('opening')}</p>}
         </> : outcome?.status === 'settled' && outcome.result.status === 'rejected'
