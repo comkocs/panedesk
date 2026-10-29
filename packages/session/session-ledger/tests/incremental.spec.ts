@@ -4,10 +4,11 @@ import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { Context } from '@panedesk/cordis'
 import { JournalSessionLedger } from '../src/index.ts'
-import { appendUnique, readJournal, recoverSegments, JournalViewOwner, readJournalFacts } from '../src/journal.ts'
+import { appendUnique, appendArtifact, finishArtifact, readJournal, recoverSegments, JournalViewOwner, readJournalFacts } from '../src/journal.ts'
 import { event, options as journalOptions, callStart, callFinish } from './fixtures.ts'
 import { foldLedger } from '../src/projection.ts'
 import { callWaits } from '../src/call-waits.ts'
+import { digest } from '../src/index-store.ts'
 import { randomUUID } from 'node:crypto'
 import * as crypto from 'node:crypto'
 import type { LedgerEvent, LedgerEventId } from '../src/types.ts'
@@ -277,7 +278,7 @@ it('reuses closure contents for all hot readers without reading file bytes again
     kind: kind as 'open-runs' | 'waits' | 'latest-start', sessionId: callStart.sessionId,
     nodeId: callStart.nodeId, runId: callStart.runId, toolCallIds: [],
   }))
-  await readJournalFacts(node, options, selections[0]!)
+  for (const selection of selections) await readJournalFacts(node, options, selection)
   const original = fs.open
   let reads = 0
   let bytes = 0
@@ -302,6 +303,74 @@ it('reuses closure contents for all hot readers without reading file bytes again
   expect(directories.mock.calls.some(([path]) => String(path).includes('artifacts'))).toBe(true)
   expect(stats.mock.calls.some(([path]) => String(path).includes('closed-'))).toBe(true)
 })
+
+it('keeps hot-reader filesystem counts constant with fifty and three thousand unrelated streams', async () => {
+  const path = await root()
+  await appendUnique(path, event(), options)
+  await appendUnique(path, event('run/start'), options)
+  const toolCallId = 'tool-a' as NonNullable<typeof callFinish.toolCallIds>[number]
+  await appendUnique(path, { ...event(), kind: 'wait/start', eventId: 'wait-a' as LedgerEventId,
+    interval: { kind: 'sleep', startedAt: 100, toolCallId } }, options)
+  const first = await appendArtifact(path, { callId: callStart.callId, kind: 'partial-response', seq: 0, content: '0' }, options)
+  if (first.kind === 'conflict') throw new Error('Unexpected conflict')
+  await finishArtifact(path, first.reference, options)
+  const selections = ['open-runs', 'waits', 'latest-start'].map(kind => ({
+    kind: kind as 'open-runs' | 'waits' | 'latest-start', sessionId: callStart.sessionId,
+    nodeId: callStart.nodeId, runId: callStart.runId, toolCallIds: [toolCallId],
+  }))
+  for (const selection of selections) await readJournalFacts(path, options, selection)
+  const counts: {
+    size: number
+    kind: string
+    directories: number
+    stats: number
+    lstats: number
+    reads: number
+    bytes: number
+    readFiles: number
+  }[] = []
+  for (let i = 1; i <= 3000; i++) {
+    // Unrelated durable streams need no journal facts: only artifact history varies between samples.
+    const fragment = await appendArtifact(path, { callId: `unrelated-${i}` as typeof callStart.callId,
+      kind: 'partial-response', seq: 0, content: '0' }, options)
+    if (fragment.kind === 'conflict') throw new Error('Unexpected conflict')
+    await finishArtifact(path, fragment.reference, options)
+    if (i !== 50 && i !== 3000) continue
+    for (const selection of selections) {
+      const count = { size: i, kind: selection.kind, directories: 0, stats: 0, lstats: 0, reads: 0, bytes: 0, readFiles: 0 }
+      const original = fs.open
+      vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+        const handle = await original(...args)
+        const read = handle.read.bind(handle)
+        vi.spyOn(handle, 'read').mockImplementation(async (...values: Parameters<typeof handle.read>) => {
+          count.reads++
+          const result = await read(...values)
+          count.bytes += result.bytesRead
+          return result
+        })
+        return handle
+      })
+      const directories = vi.spyOn(fs, 'readdir')
+      const stats = vi.spyOn(fs, 'stat')
+      const lstats = vi.spyOn(fs, 'lstat')
+      const readFiles = vi.spyOn(fs, 'readFile')
+      await readJournalFacts(path, options, selection)
+      count.directories = directories.mock.calls.length
+      count.stats = stats.mock.calls.length
+      count.lstats = lstats.mock.calls.length
+      count.readFiles = readFiles.mock.calls.length
+      expect(directories.mock.calls.some(([entry]) => entry === join(path, 'artifacts'))).toBe(false)
+      expect(directories.mock.calls.filter(([entry]) => String(entry).includes('artifacts')).every(([entry]) =>
+        String(entry).startsWith(join(path, 'artifacts', digest(callStart.callId))))).toBe(true)
+      expect({ reads: count.reads, bytes: count.bytes, readFiles: count.readFiles }).toEqual({ reads: 0, bytes: 0, readFiles: 0 })
+      counts.push(count)
+      vi.restoreAllMocks()
+    }
+  }
+  console.log(JSON.stringify(counts))
+  expect(counts.filter(row => row.size === 3000).map(({ size: _size, ...row }) => row))
+    .toEqual(counts.filter(row => row.size === 50).map(({ size: _size, ...row }) => row))
+}, 120000)
 
 it('shares synchronized bytes across independent Context instances', async () => {
   const home = await root()

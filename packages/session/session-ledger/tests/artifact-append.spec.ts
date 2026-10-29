@@ -5,9 +5,10 @@ import { Context } from '@panedesk/cordis'
 import { JournalSessionLedger } from '../src/index.ts'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
-import { appendArtifact, ArtifactAppendCache, finishArtifact, JournalViewOwner, readJournalFacts } from '../src/journal.ts'
+import { appendArtifact, ArtifactAppendCache, finishArtifact, JournalViewOwner, readJournal, readJournalFacts } from '../src/journal.ts'
 import { canonicalJson, digest } from '../src/index-store.ts'
-import { callStart, options } from './fixtures.ts'
+import { callStart, event, options, runStart } from './fixtures.ts'
+import type { LedgerEventId, LedgerInterval } from '../src/types.ts'
 
 const roots: string[] = []
 const pending: Promise<void>[] = []
@@ -100,10 +101,15 @@ it.each(['open-runs', 'waits', 'latest-start'] as const)('rejects fragments beyo
     if (first.kind === 'conflict') throw new Error('Unexpected conflict')
     await ledger.finishArtifact(first.reference)
     const node = join(home, 'ledger/v1', await ledger.nodeId())
+    // Imported run facts can carry an optional call ID even though beginRun does not emit one.
+    if (kind === 'open-runs') await ledger.appendEvent(event('run/start'))
+    const toolCallId = 'tool-a' as NonNullable<LedgerInterval['toolCallId']>
+    if (kind === 'waits') await ledger.appendEvent({ ...event(), kind: 'wait/start',
+      eventId: 'wait/start:tool-a' as LedgerEventId, interval: { kind: 'sleep', startedAt: 100, toolCallId } })
     const selection = { kind, sessionId: callStart.sessionId, nodeId: callStart.nodeId,
-      runId: callStart.runId, toolCallIds: [] }
+      runId: callStart.runId, toolCallIds: [toolCallId] }
     const read = () => readJournalFacts(node, { ...options, viewOwner }, selection)
-    await read()
+    expect((await read()).events.some(fact => fact.callId === callStart.callId)).toBe(true)
     const directory = join(node, `artifacts/${digest(callStart.callId)}/partial-response/1`)
     await mkdir(directory)
     const input = { callId: callStart.callId, kind: 'partial-response' as const, seq: 1, content: '1' }
@@ -119,6 +125,44 @@ it.each(['open-runs', 'waits', 'latest-start'] as const)('rejects fragments beyo
     await expect(ledger.snapshot()).rejects.toSatisfy((error: unknown) => { rejection(error); return true })
     await expect(read()).rejects.toSatisfy((error: unknown) => { rejection(error); return true })
     await expect(read()).rejects.toSatisfy((error: unknown) => { rejection(error); return true })
+  } finally {
+    viewOwner.dispose()
+    await ctx.fiber.dispose()
+  }
+})
+
+it.each(['open-runs', 'waits', 'latest-start'] as const)('ignores unrelated closed streams through %s while full readers reject', async (kind) => {
+  const home = await root()
+  const ctx = new Context()
+  const viewOwner = new JournalViewOwner()
+  try {
+    const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+    await ledger.beginCall(callStart)
+    const first = await ledger.appendArtifact({ callId: callStart.callId, kind: 'partial-response', seq: 0, content: '0' })
+    if (first.kind === 'conflict') throw new Error('Unexpected conflict')
+    await ledger.finishArtifact(first.reference)
+    await ledger.beginRun({ ...runStart, startedAt: 200 })
+    const toolCallId = 'tool-a' as NonNullable<LedgerInterval['toolCallId']>
+    const { callId: _callId, ...base } = event()
+    await ledger.appendEvent({ ...base, kind: 'wait/start', eventId: 'wait/start:tool-a' as LedgerEventId,
+      interval: { kind: 'sleep', startedAt: 200, toolCallId } })
+    const node = join(home, 'ledger/v1', await ledger.nodeId())
+    const selection = { kind, sessionId: callStart.sessionId, nodeId: callStart.nodeId,
+      runId: callStart.runId, toolCallIds: [toolCallId] }
+    const read = () => readJournalFacts(node, { ...options, viewOwner }, selection)
+    const before = await read()
+    expect(before.events).toHaveLength(1)
+    expect(before.events.every(fact => fact.callId === undefined)).toBe(true)
+    const directory = join(node, `artifacts/${digest(callStart.callId)}/partial-response/1`)
+    await mkdir(directory)
+    const payload = { type: 'fragment', input: { callId: callStart.callId, kind: 'partial-response', seq: 1, content: '1' } }
+    const text = canonicalJson(payload)
+    await writeFile(join(directory, 'foreign.jsonl'), canonicalJson({ version: 1, bytes: Buffer.byteLength(text), digest: digest(text), payload }) + '\n')
+    await expect(read()).resolves.toEqual(before)
+    const message = 'Artifact closure does not reference the final durable fragment'
+    await expect(ledger.snapshot()).rejects.toThrow(message)
+    await expect(readJournal(node, options)).rejects.toThrow(message)
+    await expect(ledger.importNode(node)).rejects.toThrow(message)
   } finally {
     viewOwner.dispose()
     await ctx.fiber.dispose()

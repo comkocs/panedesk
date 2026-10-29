@@ -966,7 +966,7 @@
       "id": "ledger-keyed-settlement-reader",
       "description": "Select call wait facts by runtime identity without projecting unrelated history.",
       "origin": "Ledger write optimization continuation",
-      "reason": "Keep settlement fields equivalent while bounding normal hot reads to the issuing call.",
+      "reason": "Keep settlement fields equivalent while validating artifact closures only for call IDs in returned hot-read facts; full readers still validate every stream.",
       "match": {
         "type": "test-assertion",
         "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],

@@ -500,8 +500,8 @@ export async function readJournal(root: string, options: JournalOptions): Promis
   })
 }
 
-/** Read keyed facts after checking durable artifact closures; conflicting journals retain full projection semantics.
- * Unchanged closure contents are cached; directory entries and file identities are checked under the writer lock.
+/** Read keyed facts after checking closures for their call IDs; conflicting journals retain full projection semantics.
+ * Unchanged closure contents are cached; selected directories and file identities are checked under the writer lock.
  * @param root - Existing canonical node directory.
  * @param options - Storage limits and service-owned view lifetime.
  * @param selection - Exact wait identity or session start selection.
@@ -515,7 +515,6 @@ export async function readJournalFacts(root: string, options: JournalOptions, se
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
-    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures)
     let events: LedgerEvent[]
     if (selection.kind === 'waits') {
       events = selection.toolCallIds.flatMap(id => view.waitFacts.get(JSON.stringify([
@@ -531,6 +530,11 @@ export async function readJournalFacts(root: string, options: JournalOptions, se
     }
     // Ambiguous ordering and corrupt identities use the unchanged full projection path.
     if (view.index.conflicts.length || selection.kind !== 'waits' && events.length > 1) events = view.scan(root).events
+    // Only returned facts authorize stream reads: waits and latest-start use their optional callId.
+    // Normal open-runs and run-only latest-start facts have no callId and validate no streams.
+    // Imported run facts with callId and full-projection fallback validate every returned call ID.
+    const callIds = new Set(events.flatMap(event => event.callId === undefined ? [] : [event.callId]))
+    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures, callIds)
     const complete = ![...view.segments.values()].some(segment => segment.tail || segment.corrupt || segment.importedConflicts)
     return structuredClone({ events, complete })
   })
@@ -801,42 +805,61 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
  * @param root - Node directory containing call-owned artifact streams.
  * @param maxBytes - Maximum accepted encoded record size.
  * @param closures - View-owned decoded closure cache; absent callers read every closure.
+ * @param callIds - Only these calls are checked when supplied; absent callers scan all artifact directories.
  */
 export async function validateArtifactClosures(root: string, maxBytes: number,
   closures?: Map<string, { identity: string; seq: number | undefined }>,
+  callIds?: ReadonlySet<string>,
 ): Promise<void> {
+  if (callIds !== undefined) {
+    for (const callId of callIds) {
+      const directory = join(root, 'artifacts', digest(callId))
+      let call
+      try { call = await lstat(directory) }
+      catch (error) { if (isCode(error, 'ENOENT')) continue; throw error }
+      if (!call.isDirectory() || call.isSymbolicLink()) throw new Error('Invalid artifact directory')
+      await validateCallArtifactClosures(directory, maxBytes, closures)
+    }
+    return
+  }
   let calls
   try { calls = await readdir(join(root, 'artifacts'), { withFileTypes: true }) }
   catch (error) { if (isCode(error, 'ENOENT')) return; throw error }
   for (const call of calls) {
     if (!call.isDirectory() || call.isSymbolicLink()) throw new Error('Invalid artifact directory')
-    for (const kind of await readdir(join(root, 'artifacts', call.name))) {
-      const stream = join(root, 'artifacts', call.name, kind)
-      const entries = await readdir(stream, { withFileTypes: true })
-      for (const entry of entries) {
-        if (!entry.isFile() || !entry.name.startsWith('closed-')) continue
-        const path = join(stream, entry.name)
-        const info = closures === undefined ? undefined : await stat(path, { bigint: true })
-        const identity = info === undefined ? '' : `${info.dev}:${info.ino}:${info.size}:${info.mtimeNs}:${info.ctimeNs}`
-        let closure = closures?.get(path)
-        if (closure === undefined || closure.identity !== identity) {
-          const bytes = await readFile(path)
-          const end = bytes.indexOf(10)
-          let seq: number | undefined
-          if (end >= 0) {
-            if (end !== bytes.length - 1) throw new Error('Invalid artifact segment framing')
-            const value = record(decode(bytes.subarray(0, end), maxBytes))
-            const reference = record(value.reference)
-            if (value.type !== 'closed' || !Number.isSafeInteger(reference.seq)) throw new Error('Invalid artifact closure')
-            seq = Number(reference.seq)
-          }
-          closure = { identity, seq }
-          closures?.set(path, closure)
+    await validateCallArtifactClosures(join(root, 'artifacts', call.name), maxBytes, closures)
+  }
+}
+
+async function validateCallArtifactClosures(directory: string, maxBytes: number,
+  closures?: Map<string, { identity: string; seq: number | undefined }>,
+): Promise<void> {
+  for (const kind of await readdir(directory)) {
+    const stream = join(directory, kind)
+    const entries = await readdir(stream, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.startsWith('closed-')) continue
+      const path = join(stream, entry.name)
+      const info = closures === undefined ? undefined : await stat(path, { bigint: true })
+      const identity = info === undefined ? '' : `${info.dev}:${info.ino}:${info.size}:${info.mtimeNs}:${info.ctimeNs}`
+      let closure = closures?.get(path)
+      if (closure === undefined || closure.identity !== identity) {
+        const bytes = await readFile(path)
+        const end = bytes.indexOf(10)
+        let seq: number | undefined
+        if (end >= 0) {
+          if (end !== bytes.length - 1) throw new Error('Invalid artifact segment framing')
+          const value = record(decode(bytes.subarray(0, end), maxBytes))
+          const reference = record(value.reference)
+          if (value.type !== 'closed' || !Number.isSafeInteger(reference.seq)) throw new Error('Invalid artifact closure')
+          seq = Number(reference.seq)
         }
-        const seq = closure.seq
-        if (seq !== undefined && entries.some(item => item.isDirectory() && Number(item.name) > seq)) {
-          throw new Error('Artifact closure does not reference the final durable fragment')
-        }
+        closure = { identity, seq }
+        closures?.set(path, closure)
+      }
+      const seq = closure.seq
+      if (seq !== undefined && entries.some(item => item.isDirectory() && Number(item.name) > seq)) {
+        throw new Error('Artifact closure does not reference the final durable fragment')
       }
     }
   }
