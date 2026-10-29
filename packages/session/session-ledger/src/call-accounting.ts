@@ -1,5 +1,5 @@
 /** Instance-owned model-call accounting; optional contributors never write call lifecycle facts. */
-import { randomUUID } from 'node:crypto'
+import { ledgerUuid as randomUUID } from './random.ts'
 import type { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { LlmAdapter, LlmError } from '@panedesk/dsh-llm'

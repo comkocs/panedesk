@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "ledger-independent-call-identifiers",
+      "description": "Generate call-accounting and artifact UUIDs independently of the process UUID function.",
+      "origin": "Durable accounting identifiers",
+      "reason": "Internal call and artifact identifiers must not consume the UUID sequence used by unrelated seat operations; version 4 format and 122 cryptographic random bits are preserved.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/src/random.ts", "packages/session/session-ledger/src/call-accounting.ts", "packages/session/session-ledger/src/journal.ts"],
+        "test": "replays seat-opening through panedesk --profile headless"
+      }
+    },
+    {
+      "id": "artifact-append-stream-position",
+      "description": "Reuse instance-owned stream positions with locked disk validation while retaining durable fragment files and replay decisions.",
+      "origin": "Durable streamed call accounting",
+      "reason": "Appending a fragment must not reread all previous fragments; disk state remains authoritative across process restarts and writers.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/src/journal.ts", "packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/tests/artifact-append.spec.ts"],
+        "test": "retains equal replay, conflicting digests, closure and gap decisions with append hints"
+      }
+    },
+    {
       "id": "default-ledger-opening-completion",
       "description": "Wait for each seat opening input's completed turn and durable response before asserting accounting.",
       "origin": "Default accounting integration completion checks",

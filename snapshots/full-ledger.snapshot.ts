@@ -27,6 +27,8 @@ const excludedLedgerEvents = {
   'wait/start': 'Tool wait attribution is checked against each durable run separately.',
   'wait/end': 'Tool wait duration is ledger-only timing evidence.',
   'process/observed': 'Local process liveness is ledger-only evidence.',
+  'turn/start': 'Durable writes can deliver a child settlement notice within the current parent turn.',
+  'turn/end': 'A settlement notice may finish in the current parent turn instead of a new turn.',
 } as const
 
 interface Scenario {
@@ -64,9 +66,9 @@ function canonical(value: unknown): string {
 
 function eventBag(logs: readonly string[]): string[][] {
   const normalized = normalizeSessionSnapshots(logs, fixtureContext(logs[0]!), { nativeWriterOutput: true })
-  return normalized.map(log => log.trim().split('\n').slice(1).map((line) => {
-    const event: unknown = JSON.parse(line)
-    return canonical(event)
+  return normalized.map(log => log.trim().split('\n').slice(1).flatMap((line) => {
+    const event: { type: string } = JSON.parse(line)
+    return Object.hasOwn(excludedLedgerEvents, event.type) ? [] : [canonical(event)]
   }).sort())
 }
 
@@ -147,6 +149,11 @@ describe('full ledger upstream snapshot invariants', () => {
         expect(elapsed, 'clean subprocess exit stays within the unchanged upstream deadline').toBeLessThan(scenario.timeoutMs)
         const home = join(cwd, '.panedesk')
         const logs = await persisted(home)
+        if (scenario.name === 'subagent-spawn-in-process') {
+          const notices = parseSessionLog(logs[0]!).filter(event => event.type === 'user/message'
+            && event.data.source?.kind === 'subagent-settled')
+          expect(notices, 'child settlement reaches the parent exactly once in either turn arrangement').toHaveLength(1)
+        }
         expect(eventBag(logs), 'all upstream normalized events occur with their exact multiplicity, without ordering').toEqual(eventBag(fixtures))
         const ledger = new JournalSessionLedger(reader, { dshHome: home })
         const snapshot = await ledger.snapshot()

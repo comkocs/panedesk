@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, readFile, type FileHandle } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { ledgerRelative } from './paths.ts'
+import { ledgerUuid } from './random.ts'
 import { canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot } from './index-store.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
@@ -299,7 +300,8 @@ export async function appendUnique(
       }
       await durableFile(join(directory, `${randomUUID()}.jsonl`), frame(recovery, options.maxRecordBytes))
     }
-    await durableFile(join(directory, `${randomUUID()}.jsonl`), encoded)
+    const id = immutable.kind === 'call/start' || immutable.kind === 'call/end' ? ledgerUuid() : randomUUID()
+    await durableFile(join(directory, `${id}.jsonl`), encoded)
     const after = await recoverSegments(root, options.maxRecordBytes)
     return { kind: 'appended', event: immutable, watermark: after.watermark }
   })
@@ -503,6 +505,23 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
   return records
 }
 
+/** Instance-owned append hints; durable stream records remain authoritative. */
+export class ArtifactAppendCache {
+  /** Stream positions are scoped by absolute node path and artifact identity. */
+  readonly streams = new Map<string, { next: number; closed: boolean; stamp: string }>()
+}
+
+async function directoryStamp(path: string): Promise<string | undefined> {
+  try {
+    const entry = await lstat(path, { bigint: true })
+    if (!entry.isDirectory() || entry.isSymbolicLink()) return undefined
+    return `${entry.dev}:${entry.ino}:${entry.mtimeNs}:${entry.ctimeNs}`
+  } catch (error) {
+    if (isCode(error, 'ENOENT')) return undefined
+    throw error
+  }
+}
+
 function referenceOf(input: LedgerArtifactAppend, path: string): LedgerArtifactReference {
   return { callId: input.callId, kind: input.kind, seq: input.seq, path, digest: digest(input.content) }
 }
@@ -511,10 +530,11 @@ function referenceOf(input: LedgerArtifactAppend, path: string): LedgerArtifactR
  * @param root - Node directory owning the stream.
  * @param input - Fragment identity and unmodified serialized content.
  * @param options - Native lock and record size limits.
+ * @param cache - Optional instance-owned hints; absent hints require a full initial scan on each call.
  * @returns Durable reference or an explicit conflicting digest pair.
  */
 export async function appendArtifact(
-  root: string, input: LedgerArtifactAppend, options: JournalOptions,
+  root: string, input: LedgerArtifactAppend, options: JournalOptions, cache?: ArtifactAppendCache,
 ): Promise<LedgerArtifactAppendResult> {
   if (!Number.isSafeInteger(input.seq) || input.seq < 0 || !['partial-response', 'keepalive-request'].includes(input.kind)) throw new Error('Invalid artifact key')
   JSON.parse(input.content)
@@ -523,7 +543,22 @@ export async function appendArtifact(
   await ensureDirectory(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     const relative = artifactPath(input)
-    const records = await artifactRecords(root, relative, options.maxRecordBytes)
+    const stream = join(root, relative)
+    const hint = cache?.streams.get(stream)
+    const stamp = await directoryStamp(stream)
+    const directory = join(stream, String(input.seq))
+    const current = await directoryStamp(directory)
+    const previous = input.seq === 0 ? undefined : await directoryStamp(join(stream, String(input.seq - 1)))
+    // Closure names are random, so directory metadata alone cannot establish their absence.
+    const entries = stamp === undefined ? [] : await readdir(stream, { withFileTypes: true })
+    const hasClosure = entries.some(entry => !entry.isDirectory())
+    const sequential = hint !== undefined && !hint.closed && hint.next === input.seq
+      && stamp === hint.stamp && !hasClosure && current === undefined && (input.seq === 0 || previous !== undefined)
+    const retry = current !== undefined
+    let records = sequential ? [] : await artifactRecords(root, retry ? `${relative}/${input.seq}` : relative, options.maxRecordBytes)
+    if (retry && !records.some(item => item.type === 'fragment' && item.input.seq === input.seq)) {
+      records = await artifactRecords(root, relative, options.maxRecordBytes)
+    }
     const fragments = records.filter(item => item.type === 'fragment')
       .sort((a, b) => a.input.seq - b.input.seq)
     const prior = fragments.find(item => item.input.seq === input.seq)
@@ -532,17 +567,18 @@ export async function appendArtifact(
         kind: 'conflict', key: { callId: input.callId, kind: input.kind, seq: input.seq },
         existingDigest: digest(prior.input.content), incomingDigest: digest(input.content),
       }
-      await syncFiles(await files(join(root, relative)))
+      await syncFiles(await files(directory))
       return { kind: 'existing', reference: referenceOf(prior.input, prior.path) }
     }
     if (records.some(item => item.type === 'closed')) throw new Error('Artifact stream is already closed')
-    if (fragments.some((item, seq) => item.input.seq !== seq) || input.seq !== fragments.length) {
+    if (!sequential && (fragments.some((item, seq) => item.input.seq !== seq) || input.seq !== fragments.length)) {
       throw new Error('Artifact sequence must be contiguous')
     }
-    const directory = join(root, relative, String(input.seq))
     await ensureDirectory(directory)
-    const path = `${relative}/${input.seq}/${randomUUID()}.jsonl`
+    const path = `${relative}/${input.seq}/${ledgerUuid()}.jsonl`
     await durableFile(join(root, path), encoded)
+    const committedStamp = await directoryStamp(stream)
+    if (committedStamp !== undefined) cache?.streams.set(stream, { next: input.seq + 1, closed: false, stamp: committedStamp })
     return { kind: 'appended', reference: referenceOf(input, path) }
   })
 }
@@ -574,7 +610,7 @@ export async function finishArtifact(
       return { kind: 'existing', reference }
     }
     await syncFiles(await files(join(root, relative)))
-    await durableFile(join(root, relative, `closed-${randomUUID()}.jsonl`), frame({ type: 'closed', reference }, options.maxRecordBytes))
+    await durableFile(join(root, relative, `closed-${ledgerUuid()}.jsonl`), frame({ type: 'closed', reference }, options.maxRecordBytes))
     return { kind: 'finished', reference }
   })
 }
