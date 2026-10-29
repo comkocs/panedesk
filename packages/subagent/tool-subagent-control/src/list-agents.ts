@@ -109,7 +109,7 @@ export function apply(ctx: Context): void {
         type: 'array',
         items: {
           oneOf: [
-            {
+            ...ctx.subagents.queuesRootOverflow ? [{
               type: 'object',
               additionalProperties: false,
               properties: {
@@ -128,7 +128,7 @@ export function apply(ctx: Context): void {
                   },
                 },
               },
-            },
+            }] as const : [] as const,
             {
               type: 'object',
               additionalProperties: false,

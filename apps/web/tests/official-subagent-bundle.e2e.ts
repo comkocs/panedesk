@@ -95,7 +95,8 @@ describe.skipIf(MODE === 'record')('web snapshot: Official native subagent bundl
     } }]))
     scaffold = await launchWebScaffold({
       developerTools: true, profile: { packages: [{ dir: PACKAGE }] },
-      extraOverlayPath: [fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)), overlay],
+      extraOverlayPath: [fileURLToPath(new URL('../../../snapshots/subagent-upstream.patch.yml', import.meta.url)),
+        fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)), overlay],
       replayFixture: FIXTURE, compareReplaySession: true,
     })
     expect((await scaffold.ctx.pluginManager.listBundles()).find(bundle => bundle.name === BUNDLE))

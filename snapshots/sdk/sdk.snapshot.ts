@@ -9,6 +9,7 @@
  * fixtures and rewrites expected outputs.
  */
 
+import { withDefaultSubagentQueue } from '../subagent-default.ts'
 import { existsSync } from 'node:fs'
 import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -564,7 +565,7 @@ function authoredPatches(scenario: CorpusScenario, replaying: boolean): string[]
 }
 
 /** One SDK-controlled recorded scenario against a fresh SDK-profile subprocess. */
-async function runScenario(scenario: CorpusScenario): Promise<{
+async function runScenario(scenario: CorpusScenario, productDefaults = false): Promise<{
   results: RunResult[]
   notifications: HarnessNotification[]
   observedMethods: ReadonlySet<string>
@@ -593,7 +594,8 @@ async function runScenario(scenario: CorpusScenario): Promise<{
   await mkdir(patchRoot, { recursive: true })
   const assertions = SDK_ASSERTIONS[scenario.name] ?? {}
   const cacheDisabledPatch = join(corpusRoot, 'cache-disabled.patch.yml')
-  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]
+  const patches = [...productDefaults || scenario.manifest.profile === 'sdk-minimal' ? [] : [join(corpusRoot, 'subagent-upstream.patch.yml')],
+    ...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]
     .map((patch, index) => materializeProfilePatch(patch, cwd, scenario.manifest.profile, patchRoot, index))
   let childSessionsRoot: string | undefined
   let childEnvironment: Record<string, string> = {}
@@ -601,10 +603,11 @@ async function runScenario(scenario: CorpusScenario): Promise<{
     const childHome = join(cwd, '.child-dsh')
     const childPatch = materializeProfilePatch(assertions.dshSdkChild.config, cwd, 'sdk', patchRoot, patches.length)
     const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1)
+    const childSubagentPatch = materializeProfilePatch(join(corpusRoot, 'subagent-upstream.patch.yml'), cwd, 'sdk', patchRoot, patches.length + 2)
     await mkdir(childHome, { recursive: true })
     childSessionsRoot = join(childHome, 'sessions')
     childEnvironment = {
-      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch, childCachePatch]),
+      DSH_TEST_CHILD_PATCHES: JSON.stringify([childSubagentPatch, childPatch, childCachePatch]),
       DSH_TEST_CHILD_HOME: childHome,
     }
   }
@@ -871,6 +874,7 @@ async function verifyHeaders(
   ordered: readonly PersistedLog[],
   ctx: NormalizeContext,
   dshSdkChildConfig?: Readonly<Record<string, unknown>>,
+  productDefaults = false,
 ): Promise<void> {
   const pin = headerPin(scenario)
   const [pinFixturePath] = await fixtureFiles(pin)
@@ -922,7 +926,7 @@ async function verifyHeaders(
     }
     if (prompts.length > 0) {
       expect(formatSystemPromptSnapshot(prompts[0] as string, prompts.slice(1)), `${scenario.name}: session ${logIndex} system prompts`)
-        .toBe(childPrompts.get(logIndex) ?? prompt)
+        .toBe(productDefaults ? withDefaultSubagentQueue(prompt) : childPrompts.get(logIndex) ?? prompt)
     }
   }
 }
@@ -946,12 +950,16 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
     expect(await readFile(path, 'utf8')).toBe(fixture)
   })
 
-  for (const scenario of sdkScenarios) {
+  const runs = sdkScenarios.flatMap(scenario => [
+    { scenario, productDefaults: false },
+    ...mode === 'replay' && scenario.name === 'ptc-turn' ? [{ scenario, productDefaults: true }] : [],
+  ])
+  for (const { scenario, productDefaults } of runs) {
     const scenarioTest = recording
       && (scenario.manifest.recording === 'authored' || scenario.manifest.sessionFormat !== undefined)
       ? it.skip
       : it
-    scenarioTest(`${mode}s ${scenario.name} through panedesk --profile ${scenario.manifest.profile}`, async () => {
+    scenarioTest(`${mode}s ${scenario.name}${productDefaults ? ' with default subagent queue' : ''} through panedesk --profile ${scenario.manifest.profile}`, async () => {
       const scenarioDir = scenario.dir
       const retained = scenario.manifest.sessionFormat !== undefined
       const notificationsExpectedPath = join(scenarioDir, retained ? 'notifications.current.expected.jsonl' : 'notifications.expected.jsonl')
@@ -967,7 +975,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
         expect(writerFiles, 'native writer oracle inventory').toEqual(retained
           ? files.map((_, index) => writerSnapshotName(index)).sort() : [])
       }
-      const { results, notifications, observedMethods, logs, initialWorkspace, finalWorkspace, cwd } = await runScenario(scenario)
+      const { results, notifications, observedMethods, logs, initialWorkspace, finalWorkspace, cwd } = await runScenario(scenario, productDefaults)
       const ordered = orderLogs(
         logs,
         recording ? logs.length : files.length,
@@ -1177,7 +1185,7 @@ describe('TypeScript SDK snapshots over the jsonrpc runtime', () => {
       const actualSnapshots = normalizeSessionSnapshots(ordered.map(log => log.content), actualContext, { nativeWriterOutput: true })
       const expectedSnapshots = normalizeSessionSnapshots(expectedContents, expectedContext, { nativeWriterOutput: true })
       expect(actualSnapshots.map(records), `${scenario.name}: sessions`).toEqual(expectedSnapshots.map(records))
-      await verifyHeaders(scenario, ordered, actualContext, assertions.dshSdkChild?.agentConfig)
+      await verifyHeaders(scenario, ordered, actualContext, assertions.dshSdkChild?.agentConfig, productDefaults)
 
       // Genuine SDK protocol cases retain their secondary wire projections.
       const finalResult = results.at(-1)

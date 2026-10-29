@@ -1,5 +1,6 @@
 /** Recorded-session replay through the shipped headless `dsh` profile. */
 
+import { withDefaultSubagentQueue } from '../subagent-default.ts'
 import { startHttpMcpFixture } from '../../packages/mcp/mcp-client/tests/http-fixture.ts'
 import { cp, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, utimes, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -897,7 +898,7 @@ async function verifyProviderCwdResume(
   }
 }
 
-async function verifyHeaders(scenario: HeadlessScenario, actualLogs: readonly SessionLog[], ctx: NormalizeContext): Promise<void> {
+async function verifyHeaders(scenario: HeadlessScenario, actualLogs: readonly SessionLog[], ctx: NormalizeContext, productDefaults = false): Promise<void> {
   const pin = pinOf(scenario)
   const fixture = await readFile(join(pin.dir, await primaryFixtureFile(pin.dir)), 'utf8')
   const pinned = normalizedHeaders(fixture, fixtureContext(fixture))
@@ -946,7 +947,7 @@ async function verifyHeaders(scenario: HeadlessScenario, actualLogs: readonly Se
       expect(
         formatSystemPromptSnapshot(prompts[0] as string, prompts.slice(1)),
         `${scenario.name}: system prompts`,
-      ).toBe(childPrompts.get(logIndex) ?? prompt)
+      ).toBe(productDefaults ? withDefaultSubagentQueue(prompt) : childPrompts.get(logIndex) ?? prompt)
     }
   }
 }
@@ -1219,19 +1220,20 @@ describe('headless recorded-session snapshots', () => {
       .toThrow('native tool-result messages match migration output')
   })
 
-  const runs = scenarios.flatMap((scenario): { scenario: HeadlessScenario; retainedToolInput?: string }[] => [
+  const runs = scenarios.flatMap((scenario): { scenario: HeadlessScenario; retainedToolInput?: string; productDefaults?: true }[] => [
     { scenario },
+    ...mode === 'replay' && scenario.name === 'ptc-turn' ? [{ scenario, productDefaults: true as const }] : [],
     // This comparison retains its own V3 input even after the ordinary scenario records a newer generation.
     ...mode === 'replay' && scenario.name === 'tool-call-turn'
       ? [{ scenario, retainedToolInput: 'session.v3.jsonl' }] : [],
   ])
-  for (const { scenario, retainedToolInput } of runs) {
+  for (const { scenario, retainedToolInput, productDefaults = false } of runs) {
     const skipped = scenario.manifest.platform === 'posix' && process.platform === 'win32'
       || scenario.manifest.platform === 'pwsh' && !hasPwsh
       || mode === 'record' && scenario.manifest.recording === 'authored'
       || mode === 'record' && scenario.manifest.sessionFormat !== undefined
     const scenarioTest = skipped ? it.skip : mode === 'replay' ? it.concurrent : it
-    const inputLabel = retainedToolInput === undefined ? '' : ' from retained V3 input'
+    const inputLabel = productDefaults ? ' with default subagent queue' : retainedToolInput === undefined ? '' : ' from retained V3 input'
     scenarioTest(`${mode}s ${scenario.name}${inputLabel} through panedesk --profile headless`, async () => {
       let fixtureFiles = retainedToolInput === undefined
         ? sessionFixtureNames(await readdir(scenario.dir)) : [retainedToolInput]
@@ -1257,6 +1259,7 @@ describe('headless recorded-session snapshots', () => {
       const patchSources = [
         join(baseComposition.dir, 'cordis.yml'),
         join(repoRoot, 'snapshots/cache-disabled.patch.yml'),
+        ...productDefaults ? [] : [join(repoRoot, 'snapshots/subagent-upstream.patch.yml')],
         ...composition === baseComposition && !replaying ? [] : [compositionPatch],
         join(baseComposition.dir, 'model.cordis.yml'),
         ...existsSync(join(scenario.dir, 'runtime.cordis.yml')) ? [join(scenario.dir, 'runtime.cordis.yml')] : [],
@@ -1441,7 +1444,7 @@ describe('headless recorded-session snapshots', () => {
           : records(expectedSnapshots[index] as string)
         expect(actualRecords, `${scenario.name}: session ${index}`).toEqual(expectedRecords)
       }
-      await verifyHeaders(scenario, actualLogs, actualContext)
+      await verifyHeaders(scenario, actualLogs, actualContext, productDefaults)
 
       if (initialWorkspace === undefined || finalWorkspace === undefined) {
         throw new Error(`${scenario.name}: workspace was not captured around the profile run`)

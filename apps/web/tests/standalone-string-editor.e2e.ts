@@ -25,6 +25,7 @@ describe('web snapshot: standalone string editor through PTC', () => {
     scaffold = await launchWebScaffold({
       developerTools: true,
       extraOverlayPath: [
+        fileURLToPath(new URL('../../../snapshots/subagent-upstream.patch.yml', import.meta.url)),
         fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)),
         fileURLToPath(new URL('./standalone-string-editor.overlay.yml', import.meta.url)),
       ],

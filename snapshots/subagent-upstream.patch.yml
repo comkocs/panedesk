@@ -1,0 +1,8 @@
+# Preserve the upstream delegation behavior for recorded-session replay.
+- id: subagent
+  config:
+    maxDepth: 1
+    maxActiveSubagents: 8
+    overflow: error
+    persistQueue: false
+    reportPathsInNotifications: false

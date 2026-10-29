@@ -56,7 +56,7 @@ afterEach(async () => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-async function setupWith(adapter: MockAdapter | GatedAdapter) {
+async function setupWith(adapter: MockAdapter | GatedAdapter, overflow: 'error' | 'queue' = 'error') {
   const ctx = new Context()
   contexts.add(ctx)
   await mountAgentLoopTestDependencies(ctx)
@@ -66,7 +66,7 @@ async function setupWith(adapter: MockAdapter | GatedAdapter) {
   await ctx.plugin(TestSessionQuery)
   await ctx.plugin(AgentLoop, { agents: [] })
   await mountWorkingDirectoryFixture(ctx)
-  await ctx.plugin(SubagentRuntime)
+  await ctx.plugin(SubagentRuntime, { overflow })
   await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
   await ctx.plugin(tool)
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -164,7 +164,7 @@ describe('dsh-tool-subagent-control/list-agents', () => {
   })
 
   it.each(['children', 'descendants'])('adds queue counts, oldest time and positions to %s without treating tickets as children', async (scope) => {
-    const { ctx, parent } = await setup([])
+    const { ctx, parent } = await setupWith(new MockAdapter([]), 'queue')
     vi.spyOn(ctx.subagents, 'listQueued').mockReturnValue({ queuedCount: 2, earliestQueuedAt: 1000,
       tickets: [1, 2].map(position => ({ ticketId: `ticket-${position}` as import('@panedesk/dsh-subagent').SubagentQueued['ticketId'],
         parentSessionId: parent.id, position, queuedAt: position * 1000, state: 'queued' })) })

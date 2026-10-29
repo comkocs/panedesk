@@ -36,6 +36,15 @@
     - id: resumed-agent
       name: './tests/fixtures/subagent-inheritance-agent.ts'
 
+# Keep the recorded child-depth guidance independent of deployment defaults.
+- id: subagent
+  config:
+    maxDepth: 1
+    maxActiveSubagents: 8
+    overflow: error
+    persistQueue: false
+    reportPathsInNotifications: false
+
 - id: session-log-deepseek
   config:
     enabled: false

@@ -27,7 +27,7 @@ import { bundlePatchPaths, composeEntries, createRuntimeResolution, initProfile,
 function disabledOn(row: { disabled?: unknown }, platform: 'win32' | 'linux'): boolean {
   const value = row.disabled
   if (value !== null && typeof value === 'object' && '__jsExpr' in value) {
-    return Boolean(evaluate({ process: { platform } }, (value as { __jsExpr: string }).__jsExpr))
+    return Boolean(evaluate({ process: { platform, env: {} } }, (value as { __jsExpr: string }).__jsExpr))
   }
   return value === true
 }
