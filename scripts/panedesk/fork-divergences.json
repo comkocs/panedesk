@@ -1804,7 +1804,7 @@
     {
       "id": "seat-entry-skeleton-slots",
       "description": "Add opt-in seat entry slots to the conversation and sidebar skeletons.",
-      "origin": "M8a A1",
+      "origin": "Seat workspace client surfaces",
       "reason": "Dedicated hero and header positions preserve existing leading-slot semantics while admitting optional seat navigation.",
       "match": {
         "type": "test-assertion",
@@ -1823,7 +1823,7 @@
     {
       "id": "seat-memory-write-authorization",
       "description": "Enforce canonical memory-root ownership for deterministic memory writes.",
-      "origin": "M8a A1",
+      "origin": "Seat workspace client surfaces",
       "reason": "Binding snapshots restrict memory writes without restricting ordinary source edits outside registered memory roots.",
       "match": {
         "type": "test-assertion",
@@ -1839,7 +1839,7 @@
     {
       "id": "registered-startup-directory-selection",
       "description": "Freeze explicitly registered startup-directory choices for manual openings.",
-      "origin": "M8a A1",
+      "origin": "Seat workspace client surfaces",
       "reason": "Manual selection must not authorize arbitrary directories or change catalog defaults.",
       "match": {
         "type": "test-assertion",
@@ -1856,7 +1856,7 @@
     {
       "id": "frozen-pending-seat-preview",
       "description": "Expose optional redacted window, node and budget fields from frozen pending evidence.",
-      "origin": "M8a A2",
+      "origin": "Opt-in seat approval surfaces",
       "reason": "Missing evidence stays absent and zero budgets remain distinguishable from unknown values.",
       "match": {
         "type": "test-assertion",
@@ -1871,7 +1871,7 @@
     {
       "id": "opt-in-seat-approval-ui",
       "description": "Compose an optional owner-authorized seat approval interface.",
-      "origin": "M8a A2",
+      "origin": "Opt-in seat approval surfaces",
       "reason": "Approval uses existing transactions and distinguishes committed confirmation from a durable opening result.",
       "match": {
         "type": "test-assertion",
@@ -1888,7 +1888,7 @@
     {
       "id": "seat-message-window-addressing",
       "description": "Resolve exact local seat windows from committed primary-window bindings.",
-      "origin": "M8a B1",
+      "origin": "Local seat messaging",
       "reason": "Explicit capability gating preserves legacy addressing and refuses ambiguous or unknown main-window evidence.",
       "match": {
         "type": "test-assertion",
@@ -1906,7 +1906,7 @@
     {
       "id": "seat-message-send-and-online-tools",
       "description": "Add optional single-recipient seat messaging and online-seat tools.",
-      "origin": "M8a B1",
+      "origin": "Local seat messaging",
       "reason": "Runtime sender identity, deduplication and existing busy or idle turn arbitration remain authoritative; no broadcast is added.",
       "match": {
         "type": "test-assertion",
@@ -1922,7 +1922,7 @@
     {
       "id": "failure-recovery-supervision",
       "description": "Add optional classified runtime failure supervision and bounded retry scheduling.",
-      "origin": "M8a E1",
+      "origin": "Seat engine failure supervision",
       "reason": "Only explicitly retryable transport failures resume; uncertain persistence and unknown effects remain stopped.",
       "match": {
         "type": "test-assertion",
@@ -1938,7 +1938,7 @@
     {
       "id": "decision-notification-reentrancy",
       "description": "Drain concurrent decision publications while isolating listener reentrancy.",
-      "origin": "M8a E1",
+      "origin": "Seat engine failure supervision",
       "reason": "A listener must not await its own publication; external callers still await the same durable decision notification.",
       "match": {
         "type": "test-assertion",
@@ -1952,7 +1952,7 @@
     {
       "id": "source-failure-recovery-and-checkpoints",
       "description": "Supervise callback delivery and external effects with conservative retry classification.",
-      "origin": "M8a E1",
+      "origin": "Seat engine failure supervision",
       "reason": "Pre-effect checkpoints retain original operation identities and never turn an unknown outcome into permission to retry.",
       "match": {
         "type": "test-assertion",
@@ -1968,7 +1968,7 @@
     {
       "id": "seat-engine-source-wake-api",
       "description": "Add optional registered-source wake selection and frozen-context delivery.",
-      "origin": "M8a F1",
+      "origin": "Cross-node seat wake routing",
       "reason": "Local opt-in configuration reuses existing frozen requests without extending wire methods or relaxing strict decoders.",
       "match": {
         "type": "test-assertion",
@@ -1984,7 +1984,7 @@
     {
       "id": "bash-local-explicit-path-opt-in",
       "description": "Accept an explicitly configured shell executable path without changing default shell selection.",
-      "origin": "M8a W1",
+      "origin": "Windows host prerequisites",
       "reason": "Passing the path as one executable argument permits explicit Git Bash use while preserving omitted-option behavior.",
       "match": {
         "type": "test-assertion",
@@ -2000,7 +2000,7 @@
     {
       "id": "graceful-stop-lock-drain",
       "description": "Drain release steps idempotently while attempting later lock cleanup after a failure.",
-      "origin": "M8a W1",
+      "origin": "Windows host prerequisites",
       "reason": "Partial cleanup failure must not prevent subsequent resource release; signal listeners share the same drain.",
       "match": {
         "type": "test-assertion",
@@ -2016,7 +2016,7 @@
     {
       "id": "safe-host-failure-logging",
       "description": "Write closed-set host failure diagnostics to stderr and a private home log.",
-      "origin": "M8a W1",
+      "origin": "Windows host prerequisites",
       "reason": "Fixed diagnostics avoid exception contents and reject insecure existing log paths.",
       "match": {
         "type": "test-assertion",
@@ -2030,7 +2030,7 @@
     {
       "id": "windows-native-private-file-handling",
       "description": "Provide native Windows private-file opening and ACL enforcement with explicit platform packaging.",
-      "origin": "M8a W1",
+      "origin": "Windows host prerequisites",
       "reason": "Native shared-handle and ACL behavior is distinct from the existing platform-independent private-file test divergence.",
       "match": {
         "type": "test-assertion",
@@ -2049,7 +2049,7 @@
     {
       "id": "subagent-product-limits",
       "description": "Set product delegation depth and shared capacity without changing plugin defaults.",
-      "origin": "M8a C1",
+      "origin": "Subagent capacity and root queueing",
       "reason": "Product compositions require depth three and capacity sixteen while omitted plugin options retain depth one and capacity eight.",
       "match": {
         "type": "test-assertion",
@@ -2065,7 +2065,7 @@
     {
       "id": "subagent-root-overflow-queue",
       "description": "Offer optional root-only FIFO overflow tickets without blocking parent turns.",
-      "origin": "M8a C1",
+      "origin": "Subagent capacity and root queueing",
       "reason": "Nested overflow still rejects immediately and queue admission composes with the existing provider.",
       "match": {
         "type": "test-assertion",
@@ -2083,7 +2083,7 @@
     {
       "id": "subagent-queue-cancel-sampling",
       "description": "Preserve queued cancellation ownership and sample live capacity at root dispatch.",
-      "origin": "M8a C1b/C1c",
+      "origin": "Subagent capacity and root queueing",
       "reason": "Cancellation settles once, FIFO remains ordered, and a lowered capacity never evicts admitted residents.",
       "match": {
         "type": "test-assertion",
@@ -2097,8 +2097,8 @@
     },
     {
       "id": "subagent-queue-ticket-journal",
-      "description": "Persist root queue metadata beside its owning Session and cancel stale tickets once on restart.",
-      "origin": "M8a C1d",
+      "description": "Persist root queue metadata beside its owning Session and cancel stale tickets on restart until the parent notice is durably acknowledged.",
+      "origin": "Subagent capacity and root queueing",
       "reason": "A ticket becomes observable only after fsync; the sidecar avoids new Session event discriminators and child ledger starts.",
       "match": {
         "type": "test-assertion",
@@ -2115,9 +2115,27 @@
       }
     },
     {
+      "id": "subagent-queue-notified-marker",
+      "description": "Retry cancelled queue notices until parent Session durability is confirmed and a notified marker is fsynced; a crash between acceptance and the marker may duplicate one notice.",
+      "origin": "Subagent capacity and root queueing",
+      "reason": "Avoid lost restart notices without changing Session events or ledger formats; older cancellation-only journals receive one additional notice.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/subagent/subagent/src/queue-journal.ts",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/src/index.ts",
+          "packages/subagent/subagent/tests/queue-journal.spec.ts",
+          "packages/subagent/subagent/README.md",
+          "packages/subagent/subagent/README.zh.md"
+        ],
+        "test": "records one restart cancellation and one model-visible notice across three cold restores without child ledger starts"
+      }
+    },
+    {
       "id": "agent-instructions-additional-roots",
       "description": "Discover optional additional instruction roots and poll changes without starting turns.",
-      "origin": "M8a D1",
+      "origin": "Background completion, scheduling, and instruction context",
       "reason": "Product compositions opt into roots and refresh while plugin defaults remain unchanged and context stays reconstructable.",
       "match": {
         "type": "test-assertion",
@@ -2134,7 +2152,7 @@
     {
       "id": "completion-notice-report-paths",
       "description": "Carry reported delivery paths into optional child and job completion notices.",
-      "origin": "M8a D1",
+      "origin": "Background completion, scheduling, and instruction context",
       "reason": "Paths remain bounded informational data, not instructions or evidence of file existence; defaults preserve legacy notices.",
       "match": {
         "type": "test-assertion",
@@ -2154,7 +2172,7 @@
     {
       "id": "seat-checkpoint-whole-file-mode",
       "description": "Retain complete required UTF-8 files across repeated compaction checkpoints.",
-      "origin": "M8a D1/I1",
+      "origin": "Background completion, scheduling, and instruction context",
       "reason": "Optional whole-file selection preserves headings and whitespace under existing shared limits; required content is never truncated.",
       "match": {
         "type": "test-assertion",
@@ -2172,7 +2190,7 @@
     {
       "id": "schedule-serial-delivery-real-clock",
       "description": "Exercise serial scheduled delivery with real adapter timing and cold restoration.",
-      "origin": "M8a D1",
+      "origin": "Background completion, scheduling, and instruction context",
       "reason": "The composition must observe actual delivery and recovery instead of relying on a fake-clock execution order.",
       "match": {
         "type": "test-assertion",
