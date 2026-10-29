@@ -41,7 +41,8 @@ function DirectoryConfirmation({ cwd, pending, setPending, openSeat, t }: Direct
       <Button onClick={() => { const seat = pending; setPending(null); if (seat && cwd !== undefined) void openSeat(seat, cwd) }}>{t('here')}</Button>
       <Button variant="primary" onClick={() => { const seat = pending; setPending(null); if (seat) void openSeat(seat) }}>{t('profile')}</Button>
     </>}>
-    {cwd}
+    <div>{t('currentDirectory')}: {cwd}</div>
+    <div>{t('profileDirectory')}: {pending?.directories.find(directory => directory.startup)?.path}</div>
   </Modal>
 }
 
