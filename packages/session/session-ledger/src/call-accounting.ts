@@ -34,10 +34,12 @@ function committed(result: { kind: string }): void {
 /** Install one stream owner and return its instance-local contribution registrar.
  * @param ctx - Ledger-owned effect scope.
  * @param service - Durable call provider.
+ * @param hasCompactionOwner - Instance-owned registration state, independent of event delivery order.
  * @param readWaits - Provider-owned keyed lookup; absent providers retain snapshot semantics.
  * @returns Registrar rejecting concurrent owners and returning an idempotent disposer.
  */
 export function installCallAccounting(ctx: Context, service: SessionLedger,
+  hasCompactionOwner: () => boolean,
   readWaits: (start: LedgerCallStart, ids: readonly ToolCallId[]) => Promise<import('./types.ts').LedgerInterval[]>
     = async (start, ids) => callWaits(await service.snapshot({ sessionId: start.sessionId }), start, ids),
 ): (contributor: CallContributor) => () => void {
@@ -301,7 +303,7 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
     if (type === 'compaction/summary') {
       const committedAt = event.time
       state.compactionTimes.push(committedAt)
-      queueFact(state, { kind: 'compaction', committedSeq: event.seq, committedAt })
+      if (!hasCompactionOwner()) queueFact(state, { kind: 'compaction', committedSeq: event.seq, committedAt })
     }
     if (event.type === 'assistant/attempt' && state.partial !== undefined) {
       queueFact(state, { kind: 'alert', alert: { code: 'partial-attempt-linked',

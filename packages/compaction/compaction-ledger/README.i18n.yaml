@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/compaction/compaction-ledger/README.md
 /:
-  en: 0232c94ab4fd1e35
-  zh: d523c63de20c027d
+  en: c0bba5167a720e7b
+  zh: 6e40b1fc15ea3baf
 /panedesk-dsh-compaction-ledger:
   en: fe1947c23f6844a0
   zh: 6a572b36255e0f98
 /panedesk-dsh-compaction-ledger/summary:
-  en: 04004f56dfe1f777
-  zh: f0b32fe8a8b1f162
+  en: 4af0912b180d4da1
+  zh: f8e05da3f648804f
 /panedesk-dsh-compaction-ledger/table-of-contents:
   en: 2e89ddb1e73218cb
   zh: 65e6e399d6b474c7
@@ -20,21 +20,21 @@
 /panedesk-dsh-compaction-ledger/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold:
-  en: e62c1383726153d5
-  zh: 3bb528512c369e35
-/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold/what-the-model-sees:
-  en: 6a86a8f8b101145f
-  zh: 20d268b66e850187
-/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold/token-effect:
-  en: 0ff46621086b65e2
-  zh: e718a12e119a30f0
-/panedesk-dsh-compaction-ledger/model-experience/inactive-scaffold/kv-cache-effect:
-  en: 49cbbefffbad012b
-  zh: 895288b7bc5c4987
+/panedesk-dsh-compaction-ledger/model-experience/ledger-checkpoint:
+  en: 20be5013598172cd
+  zh: 4f709962fab13bfd
+/panedesk-dsh-compaction-ledger/model-experience/ledger-checkpoint/what-the-model-sees:
+  en: 15bf4d71164fcc70
+  zh: 4c67a31e04c24570
+/panedesk-dsh-compaction-ledger/model-experience/ledger-checkpoint/token-effect:
+  en: 88dac0cbe38d92c6
+  zh: 61b0f822d734b5dd
+/panedesk-dsh-compaction-ledger/model-experience/ledger-checkpoint/kv-cache-effect:
+  en: bc06625e86a073d2
+  zh: 1f24160c63d7436e
 /panedesk-dsh-compaction-ledger/known-limitations-and-deferred-work:
-  en: 89cea0d221c02e86
-  zh: d7e0d57c062fac72
+  en: 43c7528d0213f948
+  zh: 553f8f09af3eb31a
 /panedesk-dsh-compaction-ledger/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

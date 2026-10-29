@@ -27,6 +27,9 @@ export const Config = z.object({
  * @param config - validated checkpoint limits.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['sessionLedger'], (child) => {
+    child.effect(() => child.sessionLedger.registerCompactionOwner())
+  })
   ctx.on('compaction/checkpoint', async (payload, next) => {
     const delegated = await next()
     const ledger = ctx.get('sessionLedger')

@@ -12,6 +12,17 @@
       }
     },
     {
+      "id": "compaction-ledger-single-owner",
+      "description": "Register one compaction-event owner while preserving physical summarization call accounting.",
+      "origin": "Upstream compaction hooks combined with full-ledger accounting",
+      "reason": "The previous assembly wrote both the checkpoint plugin's stable event with context peaks and the accounting listener's random event into the same session/summary slot. Explicit instance ownership retains only the checkpoint event when mounted and the accounting event otherwise, without changing journal comparison or existing records.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/src/call-accounting.ts", "packages/compaction/compaction-ledger/src/index.ts", "packages/bundle/base/tests/compaction-accounting.spec.ts"],
+        "test": "records one fact per slot and one row per request across two compactions (checkpoint owner: %s)"
+      }
+    },
+    {
       "id": "startup-audit-observed-failures",
       "description": "Retain the startup audit stack frame while reusing pre-publication activation observations.",
       "origin": "Startup diagnostics",
@@ -1823,6 +1834,37 @@
         "type": "test-assertion",
         "paths": ["packages/session/session-ledger/tests/relative-paths.spec.ts"],
         "test": "keeps tail recovery identities equal across POSIX and Windows reads without duplicate alerts"
+      }
+    },
+    {
+      "id": "worker-linux-numeric-open-flags",
+      "description": "Extend the upstream string-only filesystem bridge and VFS open modes to accept supported Linux numeric flags, and expose O_EXCL and O_NOFOLLOW constants. Numeric access modes 0, 1 and 2 select read, write and read/write; O_CREAT, O_TRUNC and O_APPEND control creation, truncation and append, while O_EXCL rejects existing files only with O_CREAT. Reject unsafe integers, negative values, unsupported bits and access mode 3 with ERR_INVALID_ARG_VALUE. O_NOFOLLOW is accepted without a link check because the VFS has no symbolic links; existing string modes are unchanged.",
+      "origin": "Worker Node filesystem compatibility",
+      "reason": "Worker filesystem consumers pass numeric open flags; the upstream string-only implementation cannot interpret those requests. The supported subset must retain explicit rejection of unsupported values instead of silently selecting a string mode.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/fs.ts",
+          "packages/experimental/webworker-runtime/src/storage/memory.ts",
+          "packages/experimental/webworker-runtime/src/storage/types.ts",
+          "packages/experimental/webworker-runtime/README.md",
+          "packages/experimental/webworker-runtime/README.zh.md",
+          "packages/experimental/webworker-runtime/README.i18n.yaml"
+        ],
+        "replacements": [
+          {
+            "upstream": ["function openMode(flags: string): OpenMode {"],
+            "fork": ["function openMode(flags: string | number): OpenMode {"]
+          },
+          {
+            "upstream": ["export function openSync(path: PathArg, flags = 'r', mode?: number): number {"],
+            "fork": ["export function openSync(path: PathArg, flags: string | number = 'r', mode?: number): number {"]
+          },
+          {
+            "upstream": ["  openFileSync(path: string, flags?: string, mode?: number): VfsOpenFile"],
+            "fork": ["  openFileSync(path: string, flags?: string | number, mode?: number): VfsOpenFile"]
+          }
+        ]
       }
     }
   ]
