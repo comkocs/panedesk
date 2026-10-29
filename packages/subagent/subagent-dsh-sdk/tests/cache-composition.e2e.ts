@@ -9,9 +9,9 @@ const fixtures = new URL('./fixtures/loader/', import.meta.url)
 
 it('resolves an inherited parent selection inside a complete SDK child runtime', async () => {
   const root = await mkdtemp(join(import.meta.dirname, '.sdk-cache-composition-'))
-  const childHome = join(root, 'M8a-X2_child')
-  const childPatch = join(root, 'M8a-X2_child.patch.yml')
-  const parentPatch = join(root, 'M8a-X2_parent.patch.yml')
+  const childHome = join(root, 'child')
+  const childPatch = join(root, 'child.patch.yml')
+  const parentPatch = join(root, 'parent.patch.yml')
   try {
     const childConfig = (await readFile(new URL('child.patch.yml', fixtures), 'utf8'))
       .replace("'./child-mock-llm.ts'", JSON.stringify(new URL('child-mock-llm.ts', fixtures).href))
@@ -22,7 +22,7 @@ it('resolves an inherited parent selection inside a complete SDK child runtime',
     await writeFile(parentPatch, `${parentConfig}\n- id: llm-cache\n  config:\n    policy:\n      retention: 5m\n    routes:\n      - provider: mock\n        modelFamily: anthropic\n        capability: anthropic\n`)
     await runLoaderSmoke({
       label: 'inherited SDK child cache',
-      tempDirPrefix: 'M8a-X2_workspace-',
+      tempDirPrefix: 'cache-composition-workspace-',
       tempDirParent: root,
       binScript: fileURLToPath(new URL('driver.ts', fixtures)),
       libBinScript: fileURLToPath(new URL('driver.ts', fixtures)),
