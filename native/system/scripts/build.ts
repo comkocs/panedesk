@@ -9,7 +9,17 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 
 const root = resolve(import.meta.dirname, '..')
-const { values } = parseArgs({ options: { 'host-addon-only': { type: 'boolean' } }, allowPositionals: false })
+const { values } = parseArgs({
+  options: {
+    'host-addon-only': { type: 'boolean' },
+    target: { type: 'string' },
+    zig: { type: 'string' },
+    'node-api-headers': { type: 'string' },
+    'output-dir': { type: 'string' },
+    'temporary-dir': { type: 'string' },
+  },
+  allowPositionals: false,
+})
 const hostAddonOnly = values['host-addon-only'] === true
 const sources: Record<string, string> = {
   'landlock-run': 'packages/entry/src/main.c',
@@ -23,6 +33,55 @@ interface Binary {
   path: string
   napi?: number
   libc?: string
+}
+
+if (values.target !== undefined) {
+  if (values.target !== 'win32-x64' || process.platform !== 'linux') {
+    throw new Error('build: cross compilation supports only win32-x64 from Linux')
+  }
+  if (hostAddonOnly || !values.zig || !values['node-api-headers'] || !values['output-dir'] || !values['temporary-dir']) {
+    throw new Error('build: cross compilation requires --zig, --node-api-headers, --output-dir and --temporary-dir without --host-addon-only')
+  }
+  const zig = resolve(values.zig)
+  const api = resolve(values['node-api-headers'])
+  const destination = resolve(values['output-dir'])
+  const temporaryRoot = resolve(values['temporary-dir'])
+  const spec = JSON.parse(readFileSync(join(root, 'packages/win32-x64/prebuilds.json'), 'utf8')) as { platform: string; binaries: Binary[] }
+  if (spec.platform !== values.target || spec.binaries.length !== 1) {
+    throw new Error('build: unexpected Windows x64 prebuild metadata')
+  }
+  const binary = spec.binaries[0]
+  if (binary?.tool !== 'windows-private-files' || binary.kind !== 'node-api' || binary.napi !== 8 || binary.path !== 'bin/system.node') {
+    throw new Error('build: unsupported Windows x64 binary declaration')
+  }
+  for (const file of ['include/node_api.h', 'def/node_api.def']) {
+    if (!existsSync(join(api, file))) throw new Error(`build: node-api-headers missing ${file}`)
+  }
+  mkdirSync(temporaryRoot, { recursive: true })
+  const temporary = mkdtempSync(join(temporaryRoot, 'cross-build-'))
+  const output = join(destination, binary.path)
+  mkdirSync(dirname(output), { recursive: true })
+  const run = (args: string[]): void => {
+    const result = spawnSync(zig, args, { stdio: 'inherit' })
+    if (result.error) throw result.error
+    if (result.status !== 0) throw new Error('build: Zig failed for Windows x64')
+  }
+  try {
+    const library = join(temporary, 'node.lib')
+    run(['dlltool', '-m', 'i386:x86-64', '-d', join(api, 'def/node_api.def'), '-D', 'node.exe', '-l', library])
+    const pending = join(temporary, 'system.node')
+    run(['cc', '-target', 'x86_64-windows-gnu', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
+      '-shared', '-DNAPI_VERSION=8', '-I', join(api, 'include'), join(root, 'packages/entry/src/windows-private-files.c'),
+      library, '-ladvapi32', '-o', pending])
+    renameSync(pending, output)
+  } finally {
+    rmSync(temporary, { recursive: true, force: true })
+  }
+  console.log(`build: built ${values.target}/${binary.path}`)
+  process.exit(0)
+}
+if (values.zig !== undefined || values['node-api-headers'] !== undefined || values['output-dir'] !== undefined || values['temporary-dir'] !== undefined) {
+  throw new Error('build: cross compilation options require --target win32-x64')
 }
 
 if (process.platform !== 'linux' && process.platform !== 'darwin' && process.platform !== 'win32') {

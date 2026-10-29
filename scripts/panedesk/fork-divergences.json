@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "windows-x64-zig-cross-compilation",
+      "description": "Cross-compile the Windows x64 private-file Node-API addon with Zig and official Node-API headers.",
+      "origin": "Windows native artifact delivery",
+      "reason": "Linux builders need a Windows x64 prebuild without Microsoft SDK files while retaining the native MSVC path and existing POSIX builds. The private boolean helper avoids the mingw-w64 RPC typedef name.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["native/system/scripts/build.ts", "native/system/packages/entry/src/windows-private-files.c", "native/system/packages/win32-x64/README.md", "native/system/packages/win32-x64/README.zh.md", "native/system/packages/win32-x64/README.i18n.yaml", "native/system/test/package-matrix.test.js"],
+        "test": "rejects incomplete or unsupported cross compilation"
+      }
+    },
+    {
       "id": "callback-failure-diagnosis-and-pending-progress",
       "description": "Log bounded exception identifiers and preserve normal asynchronous callback progress.",
       "origin": "Callback delivery supervision",

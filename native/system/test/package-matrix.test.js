@@ -55,6 +55,26 @@ test('the real Landlock subpath imports without platform packages or dlopen, whi
   assert.equal(result.status, 0, result.stderr);
 });
 
+for (const [args, expected] of [
+  [['--target', 'win32-arm64'], /cross compilation supports only win32-x64 from Linux/],
+  [['--target', 'win32-x64'], /cross compilation requires --zig/],
+  [['--zig', '/missing/compiler'], /cross compilation options require --target win32-x64/],
+  [['--target', 'win32-x64', '--host-addon-only'], /cross compilation requires --zig/],
+]) {
+  test(`rejects incomplete or unsupported cross compilation: ${args.join(' ')}`, { skip: process.platform !== 'linux' }, () => {
+    const script = fileURLToPath(new URL('../scripts/build.ts', import.meta.url));
+    const result = spawnSync(process.execPath, ['--import', 'tsx/esm', script, ...args], {
+      encoding: 'utf8',
+      timeout: 120_000,
+      env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !/KEY|TOKEN|SECRET|PASSWORD/i.test(key))),
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, expected);
+  });
+}
+
 // These minimal headers exercise format rejection, not executable behavior.
 // flock.test.js and packed-install verification execute the real addon.
 function fixture(t, { platform = 'linux', arch = 'x64', kind = 'node-api' } = {}) {
