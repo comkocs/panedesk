@@ -8,6 +8,8 @@
 
 独立的[会话账本](../../packages/session/session-ledger/README.zh.md)拥有持久运行与调用计量。`CallContributor` 是注册在该账本实例上的可选缓存策略贡献者；它提供逐调用证据，不拥有调用生命周期写入。
 
+拥有本地 Session 目录的后端可实现 `sidecarDirectory?(id: SessionId): Promise<string | undefined>`。它返回已实体化的既有目录，不是 Session 日志访问路径；返回缺失表示没有存储产物，不支持的后端省略此方法。调用方保持 Session 写所有权，并在写插件自有文件前 flush。附属文件不参与基于事件种子的分支与导出，其格式与持久性由所属插件定义。见[存储服务](../../packages/session/session-persistence/README.zh.md)。
+
 ## `SessionHandle`——通向已存储会话的一条打开通道
 
 每一次日志读写都经由句柄流动，绝不经由按 id 寻址的服务方法：句柄是跨进程写租约把守的唯一入口。读取会返回调用方独占的外层 slice，以及由生产者建立的 event value 别名状态。一种句柄类型同时服务两种访问——在 `read` 句柄上执行修改是运行时的 `SessionReadOnlyError`，而非类型层面的拆分——而进程内单写者所有权使得在已有活跃持有者时第二次 `open(id, 'write')` 以 `SessionAlreadyOwnedError` 拒绝。
@@ -539,6 +541,16 @@ abstract open(id: SessionId, access: SessionAccess, options?: SessionPersistence
  *   remaining handles still flush.
  */
 abstract flush(): Promise<void>
+
+/**
+ * Resolve the existing session directory for plugin-owned sidecars, when supported.
+ * Callers must hold the session's write ownership and flush it before writing;
+ * sidecars are not Session events and are not included in seeded forks or exports.
+ * Backends without local directories omit this optional capability.
+ * @param id - the owned, materialized session.
+ * @returns its absolute directory, or undefined when it has no stored artifact.
+ */
+sidecarDirectory?(id: SessionId): Promise<string | undefined>
 
 /**
  * Observe one stored session without reading its event log or taking

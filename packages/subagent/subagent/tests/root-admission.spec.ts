@@ -51,7 +51,7 @@ async function setup(capacity: number, overflow: 'error' | 'queue' = 'queue', pr
     ctx.loader.builtins.include = Include
     runtime = await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(path).href } })
   } else {
-    runtime = await ctx.loader.create({ name: 'cordis:subagents', config: { maxDepth: 3, maxActiveSubagents: capacity, overflow } })
+    runtime = await ctx.loader.create({ name: 'cordis:subagents', config: { maxDepth: 3, maxActiveSubagents: capacity, overflow, persistQueue: true } })
   }
   await ctx.loader.await()
   await ctx.plugin(AgentLoop, { agents: [] })
@@ -92,7 +92,9 @@ async function setup(capacity: number, overflow: 'error' | 'queue' = 'queue', pr
     } finally { release.resolve(undefined); off() }
   }
   return { ctx, parent, parentHandle, adapter, events, spec, request, park,
-    setCapacity: (value: number) => ctx.loader.resolve(runtime).update({ config: { maxDepth: 3, maxActiveSubagents: value, overflow } }) }
+    setCapacity: (value: number) => ctx.loader.resolve(runtime).update({
+      config: { maxDepth: 3, maxActiveSubagents: value, overflow, persistQueue: true },
+    }) }
 }
 
 function queued(value: SubagentActivation | SubagentQueued): SubagentQueued {

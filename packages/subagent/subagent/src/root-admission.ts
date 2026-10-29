@@ -9,6 +9,7 @@ import type { SessionId } from '@panedesk/dsh-session'
 import { delegationDepthOf } from './depth.ts'
 import { SubagentError } from './error.ts'
 import { SubagentQueuedError } from './manager.ts'
+import { QueueJournal, type QueueJournalRecord } from './queue-journal.ts'
 import type { SubagentActivation, SubagentActivationSpec, SubagentAdmission, SubagentAdmissionControl, SubagentQueued, SubagentReservation } from './types.ts'
 
 /** Process-local queue transitions; no run identity exists before dequeue. */
@@ -48,8 +49,15 @@ export class RootSubagentAdmission implements SubagentAdmission {
   private readonly grants = new Map<SubagentActivationSpec, () => void>()
   private readonly pumping = new Set<Agent>()
   private readonly starting = new Set<Entry>()
+  private readonly journal: QueueJournal | undefined
+  private readonly closed = new WeakSet<Agent>()
 
-  constructor(private readonly ctx: Context, private readonly downstream: () => SubagentAdmission | undefined) {
+  constructor(private readonly ctx: Context, private readonly downstream: () => SubagentAdmission | undefined,
+    persistence?: { notify: (parent: Agent, record: QueueJournalRecord) => void | Promise<void> }) {
+    this.journal = persistence === undefined ? undefined : new QueueJournal(ctx)
+    if (persistence !== undefined) ctx.on('agent/created', async ({ agent }) => {
+      if (delegationDepthOf(agent) === 0) await this.journal?.recover(agent, record => persistence.notify(agent, record))
+    })
     ctx.on('agent/ending', ({ agent }) => { this.cancelParent(agent, 'session-ended') })
     ctx.on('agent/disposed', ({ agent }) => { this.cancelParent(agent, 'session-ended') })
     ctx.on('agent/turn-admitting', ({ agent, signal }, next) => {
@@ -124,6 +132,13 @@ export class RootSubagentAdmission implements SubagentAdmission {
           this.cancel(entry, 'admission-unavailable')
           continue
         }
+        try { this.persist(entry, 'dequeued') }
+        catch (_error) {
+          // Do not start work whose durable dequeue is uncertain.
+          release()
+          this.cancel(entry, 'journal-unavailable')
+          continue
+        }
         queue.shift()
         entry.state = 'starting'
         this.starting.add(entry)
@@ -141,7 +156,7 @@ export class RootSubagentAdmission implements SubagentAdmission {
             return
           }
           const reason = entry.cancellation ?? 'startup-failed'
-          this.record(entry, 'cancelled', reason)
+          if (this.persistCancellation(entry, reason)) this.record(entry, 'cancelled', reason)
           entry.outcome.resolve({ status: 'cancelled', reason })
         }).finally(() => {
           entry.removeAbort()
@@ -157,6 +172,7 @@ export class RootSubagentAdmission implements SubagentAdmission {
    * @param reason - safe cancellation classification.
    */
   cancelParent(parent: Agent, reason: string): void {
+    if (reason === 'session-ended' || reason === 'runtime-stopped') this.closed.add(parent)
     for (const entry of [...this.queues.get(parent) ?? [], ...this.starting]) {
       if (entry.spec.request.parent === parent) this.cancel(entry, reason)
     }
@@ -174,8 +190,15 @@ export class RootSubagentAdmission implements SubagentAdmission {
         queuedAt: entry.ticket.queuedAt, position: index + 1, state: 'queued' })) }
   }
 
-  private enqueue(spec: SubagentActivationSpec, control: SubagentAdmissionControl): SubagentQueued {
+  private async enqueue(spec: SubagentActivationSpec, control: SubagentAdmissionControl): Promise<SubagentQueued> {
     const parent = spec.request.parent
+    try { await this.journal?.prepare(parent) }
+    catch (_error) {
+      throw new SubagentError('Subagent capacity reached; queue storage could not be synchronized, no ticket accepted', 'ACTIVATION_LIMIT_REACHED')
+    }
+    spec.signal.throwIfAborted()
+    // The parent can end while the first journal preparation flushes.
+    if (this.closed.has(parent) || this.ctx.get('agents')?.get(parent.id) !== parent) throw new SubagentError('Parent session ended before queue acceptance', 'ACTIVATION_LIMIT_REACHED')
     const queue = this.queues.get(parent) ?? []
     const outcome = Promise.withResolvers<SubagentActivation | SubagentQueued | { status: 'cancelled'; reason: string }>()
     const cancel = () => { this.cancel(entry, 'caller-cancelled') }
@@ -185,10 +208,15 @@ export class RootSubagentAdmission implements SubagentAdmission {
     const entry: Entry = { spec: { ...spec, signal: AbortSignal.any([spec.signal, controller.signal]) },
       control, ticket, outcome, controller, state: 'queued',
       removeAbort: () => { spec.signal.removeEventListener('abort', cancel) } }
+    try { this.persist(entry, 'queued') }
+    catch (_error) {
+      throw new SubagentError('Subagent capacity reached; queue storage could not be synchronized, no ticket accepted', 'ACTIVATION_LIMIT_REACHED')
+    }
     queue.push(entry)
     this.queues.set(parent, queue)
     spec.signal.addEventListener('abort', cancel, { once: true })
     this.record(entry, 'queued')
+    this.released(parent)
     return ticket
   }
 
@@ -197,6 +225,7 @@ export class RootSubagentAdmission implements SubagentAdmission {
     entry.cancellation = reason
     entry.controller.abort()
     if (entry.state === 'starting') return
+    const persisted = this.persistCancellation(entry, reason)
     entry.state = 'settled'
     const queue = this.queues.get(entry.spec.request.parent)
     const index = queue?.indexOf(entry) ?? -1
@@ -205,7 +234,25 @@ export class RootSubagentAdmission implements SubagentAdmission {
     entry.removeAbort()
     entry.outcome.resolve({ status: 'cancelled', reason })
     if (queue.length === 0) this.queues.delete(entry.spec.request.parent)
-    this.record(entry, 'cancelled', reason)
+    if (persisted) this.record(entry, 'cancelled', reason)
+  }
+
+  private persistCancellation(entry: Entry, reason: string): boolean {
+    try { this.persist(entry, 'cancelled', reason) }
+    catch (_error) {
+      this.ctx.logger.warn('Subagent queue cancellation was not durably confirmed; execution stopped, inspect queue storage')
+      return false
+    }
+    return true
+  }
+
+  private persist(entry: Entry, state: SubagentQueueEvent['state'], reason?: string): void {
+    const { ticketId, parentSessionId, position, queuedAt } = entry.ticket
+    this.journal?.append(entry.spec.request.parent, { ticketId, parentSessionId, position, queuedAt, state,
+      agentType: entry.spec.request.agentPreset ?? entry.spec.provider,
+      ...state === 'dequeued' ? { dequeuedAt: Date.now() } : {},
+      ...state === 'cancelled' ? { cancelledAt: Date.now() } : {},
+      ...reason === undefined ? {} : { reason } })
   }
 
   private record(entry: Entry, state: SubagentQueueEvent['state'], reason?: string): void {

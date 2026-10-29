@@ -180,6 +180,16 @@ export abstract class SessionPersistence extends Service {
   abstract flush(): Promise<void>
 
   /**
+   * Resolve the existing session directory for plugin-owned sidecars, when supported.
+   * Callers must hold the session's write ownership and flush it before writing;
+   * sidecars are not Session events and are not included in seeded forks or exports.
+   * Backends without local directories omit this optional capability.
+   * @param id - the owned, materialized session.
+   * @returns its absolute directory, or undefined when it has no stored artifact.
+   */
+  sidecarDirectory?(id: SessionId): Promise<string | undefined>
+
+  /**
    * Observe one stored session without reading its event log or taking
    * ownership.
    *

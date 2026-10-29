@@ -1340,6 +1340,17 @@ export class SubagentManager {
     if (failure !== undefined) throw failure
   }
 
+  /** Deliver restart cancellation through the same parent inbox path as settlement.
+   * @param parent - exact newly loaded root receiving the notice.
+   * @param ticketId - queue identity, never a child or run identity.
+   */
+  notifyQueueRestart(parent: Agent, ticketId: import('./types.ts').SubagentQueued['ticketId']): void {
+    const text = `Queued subagent dispatch ${ticketId} was cancelled by restart. You may dispatch it again.`
+    this.sendWaking(parent, createUserMessage({ content: [{ type: 'text', text }],
+      source: { kind: 'system-prompt' },
+    }), parent.status === 'idle' ? 'queue' : 'steer')
+  }
+
   /** Deliver the captured execution result to the durable direct parent after cleanup. */
   private notifySettlement(activation: Activation, terminal: SubagentResult): void | Promise<void> {
     if (!activation.announced || activation.delivery === 'caller') return

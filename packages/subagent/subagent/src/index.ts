@@ -194,12 +194,15 @@ export interface Config {
   maxDepth: Volatile<number>
   /** Root-only overflow handling; omission preserves immediate rejection. */
   overflow?: 'error' | 'queue'
+  /** Persist root queue metadata beside the owning Session; defaults to false. */
+  persistQueue?: boolean
 }
 
 /** Named provider registry with managed activations, durable discovery, and local child messaging. */
 export class SubagentRuntime extends TypertRemoteService {
   static Config = z.object({
     overflow: z.union([z.const('error'), z.const('queue')]).default('error'),
+    persistQueue: z.boolean().default(false),
     maxDepth: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(1).volatile(),
     maxActiveSubagents: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(8).volatile(),
   })
@@ -217,7 +220,9 @@ export class SubagentRuntime extends TypertRemoteService {
   constructor(ctx: Context, private config: Config) {
     super(ctx, 'subagents')
     this.rootAdmission = config.overflow === 'queue'
-      ? new RootSubagentAdmission(ctx, () => ctx.get('subagentAdmission')) : undefined
+      ? new RootSubagentAdmission(ctx, () => ctx.get('subagentAdmission'), config.persistQueue ? {
+        notify: (parent, record) => { this.requireManager().notifyQueueRestart(parent, record.ticketId) },
+      } : undefined) : undefined
     this.emitLifecycle = createLifecycleEmitter(this.ctx, parent => scopeTarget(this, parent))
     ctx.inject(['agents'], (childCtx: Context) => {
       const manager = new SubagentManager(childCtx, {
