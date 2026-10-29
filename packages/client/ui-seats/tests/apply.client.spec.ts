@@ -77,6 +77,31 @@ it('initializes the returned opening draft in the selected real Session binding 
   expect(injected.hooks.seatNotice.getSnapshot()).toBeNull()
 }, 60_000)
 
+it('retains verified identity through an isolated read failure and recovers after reconnect', async ({ mock, start }) => {
+  const sessionId = 'identity-session' as SessionId
+  const binding = { kind: 'free', sessionId, nodeId: 'node-a', identitySource: 'free' }
+  let failed = false
+  const c = await start()
+  mock.unary('seatUi/overview', () => ok({ available: true, definitions: [], windows: [], complete: true,
+    ...(failed ? { identityStatus: 'failed' } : { binding }) }))
+  const source = c.ctx.resources.source(`dsh-resource://seats/local?session=${sessionId}`)
+  const stop = source.subscribe(() => {})
+  try {
+    await vi.waitFor(() => { expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { binding } }) })
+    failed = true
+    c.ctx.emit('connection/reset')
+    await vi.waitFor(() => { expect(source.getSnapshot()).toMatchObject({ status: 'live',
+      value: { binding, identityStatus: 'failed' } }) })
+    failed = false
+    c.ctx.emit('connection/reset')
+    await vi.waitFor(() => {
+      const snapshot = source.getSnapshot()
+      expect(snapshot).toMatchObject({ status: 'live', value: { binding } })
+      expect(snapshot.value).not.toHaveProperty('identityStatus')
+    })
+  } finally { stop() }
+}, 60_000)
+
 it('aborts an in-flight overview when its last holder leaves', async ({ mock, start }) => {
   const pending = Promise.withResolvers<ReturnType<typeof ok>>()
   const c = await start()
@@ -116,6 +141,8 @@ it('releases an unpinned resource and keeps opening refusals in the injected not
   expect(mock.log.calls('seatUi/open')).toHaveLength(1)
   expect(mock.log.calls('seatUi/open')[0]).toMatchObject({ args: [{ request: { startupDirectory: '/registered' } }] })
   expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('invalid-request')
+  expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('Directory is not registered.')
+  expect(injected.hooks.seatNotice.getSnapshot()?.message).toContain('Use profile directory')
   injected.dismiss()
   expect(injected.hooks.seatNotice.getSnapshot()).toBeNull()
 }, 60_000)

@@ -34,23 +34,41 @@ export default class SeatUi extends TypertRemoteService {
     signal?.throwIfAborted()
     const service = await this.service()
     if (!service) return { available: false, definitions: [], windows: [], complete: true }
-    const definitions: SeatOverview['definitions'][number][] = []
-    let cursor: string | undefined
-    for (;;) {
-      signal?.throwIfAborted()
-      const page = await service.definitions(cursor === undefined ? {} : { cursor })
-      definitions.push(...page.definitions)
-      if (page.complete) break
-      if (page.nextCursor === undefined || page.nextCursor === cursor) {
+    const readIdentity = async (): Promise<Pick<SeatOverview, 'binding' | 'identityStatus'>> => {
+      if (sessionId === undefined) return {}
+      try { return { binding: await service.binding({ sessionId }) } }
+      catch (_error) {
+        signal?.throwIfAborted()
+        // Identity failures must not prevent independent catalog and online reads.
+        return { identityStatus: 'failed' }
+      }
+    }
+    const readCatalog = async (): Promise<Omit<SeatOverview, 'binding' | 'identityStatus'>> => {
+      const definitions: SeatOverview['definitions'][number][] = []
+      try {
+        let cursor: string | undefined
+        for (;;) {
+          signal?.throwIfAborted()
+          const page = await service.definitions(cursor === undefined ? {} : { cursor })
+          definitions.push(...page.definitions)
+          if (page.complete) break
+          if (page.nextCursor === undefined || page.nextCursor === cursor) {
+            return { available: true, definitions, windows: [], complete: false }
+          }
+          cursor = page.nextCursor
+        }
+        signal?.throwIfAborted()
+        const listed = await service.list({})
+        return { available: true, definitions, windows: listed.status === 'listed' ? listed.sessions : [],
+          complete: listed.status === 'listed' && listed.complete }
+      } catch (_error) {
+        signal?.throwIfAborted()
+        // Catalog or online failures do not erase independently verified identity.
         return { available: true, definitions, windows: [], complete: false }
       }
-      cursor = page.nextCursor
     }
-    signal?.throwIfAborted()
-    const listed = await service.list({})
-    const binding = sessionId === undefined ? {} : { binding: await service.binding({ sessionId }) }
-    return { available: true, definitions, ...binding, windows: listed.status === 'listed' ? listed.sessions : [],
-      complete: listed.status === 'listed' && listed.complete }
+    const [identity, catalog] = await Promise.all([readIdentity(), readCatalog()])
+    return { ...catalog, ...identity }
   }
 
   /** Open with the existing manual provider, never sending the opening sentence.

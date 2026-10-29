@@ -14,7 +14,7 @@ function fixture() {
   ctx.provide('seats', service)
   ctx.provide('seatEngine', { nodeStatus: async () => ({ nodeId: 'node-a' }) } as SeatEngineService)
   Object.defineProperty(ctx, 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } } } })
-  return { ctx, ui: new SeatUi(ctx), open, definitions, binding, withAuthority }
+  return { ctx, ui: new SeatUi(ctx), open, definitions, list, binding, withAuthority }
 }
 
 describe('manual seat UI adapter', () => {
@@ -32,6 +32,24 @@ describe('manual seat UI adapter', () => {
       expect(await f.ui.overview()).toEqual({ available: true, definitions: [], windows: [], complete: true })
       expect(await f.ui.overview('session-a' as never)).toMatchObject({ binding: null })
       expect(f.binding).toHaveBeenCalledWith({ sessionId: 'session-a' })
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it.each(['definitions', 'list'] as const)('keeps verified identity when %s is unavailable', async (failed) => {
+    const f = fixture()
+    const binding = { kind: 'free' as const, sessionId: 'session-a' as never, nodeId: 'node-a' as never, identitySource: 'free' as const }
+    f.binding.mockImplementation(async () => binding as never)
+    f[failed].mockRejectedValue(new Error('Catalog is unavailable'))
+    try {
+      expect(await f.ui.overview('session-a' as never)).toMatchObject({ binding, complete: false })
+      expect(f.binding).toHaveBeenCalledWith({ sessionId: 'session-a' })
+    } finally { await f.ctx.fiber.dispose() }
+  })
+  it('keeps the catalog readable when identity cannot be read', async () => {
+    const f = fixture()
+    f.binding.mockRejectedValue(new Error('Binding is unavailable'))
+    try {
+      expect(await f.ui.overview('session-a' as never)).toMatchObject({ available: true, complete: true,
+        identityStatus: 'failed', definitions: [], windows: [] })
     } finally { await f.ctx.fiber.dispose() }
   })
   it('stops an aborted overview before provider reads', async () => {

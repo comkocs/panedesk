@@ -55,6 +55,9 @@
       "path": "../../core/session"
     },
     {
+      "path": "../../session/working-directory"
+    },
+    {
       "path": "../../interaction/commands"
     },
     {
