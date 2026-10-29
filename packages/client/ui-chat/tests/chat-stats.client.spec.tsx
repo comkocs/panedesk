@@ -202,6 +202,15 @@ describe('composer stats pills', () => {
     expect(view.container.querySelector('[title]')).toBeNull()
   })
 
+  it.each(['failed', 'missing', 'disabled'] as const)('shows the %s cache warning without usage', (status) => {
+    const { source } = makeSource()
+    const values = { accountingStatus: { ledger: 'mounted' as const, cache: { status, cause: 'activation-failed' } } }
+    const view = render(<UsagePill {...props(source, values)} />)
+    expect(view.getByText('Accounting cache not mounted').closest('[title]')?.getAttribute('title')).toBe('activation-failed')
+    view.rerender(<UsagePill {...props(source, values)} t={t} usePerformanceUsage={selector => selector('compact')} />)
+    expect(view.container.textContent).toBe('缓存层未挂')
+  })
+
   it('pins the localized failed-ledger reading without token data', () => {
     const { source } = makeSource()
     const view = render(<UsagePill {...props(source, {

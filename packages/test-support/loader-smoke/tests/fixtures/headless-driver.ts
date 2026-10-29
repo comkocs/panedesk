@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Snapshot-only Loader driver: stream one fixture turn as canonical JSONL. */
 
+import { fileURLToPath } from 'node:url'
 import type { Context, FiberState } from '@panedesk/cordis'
 import { installFailLoud, loadEnv, resolveConfigPath } from '@panedesk/dsh-app-boot'
 import { runFixtureTurn } from '@panedesk/dsh-loader-smoke'
@@ -22,7 +23,7 @@ try {
   ctx = await bootProductionProfile({
     binName: NAME,
     profile: 'headless',
-    overlayPaths: [resolveConfigPath(configPath, undefined)],
+    overlayPaths: [resolveConfigPath(configPath, undefined), fileURLToPath(new URL('./cache-disabled.patch.yml', import.meta.url))],
   })
   const requiredEntryId = process.env[REQUIRED_ENTRY_ENV]
   if (requiredEntryId !== undefined) {

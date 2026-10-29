@@ -54,6 +54,7 @@ export default defineConfig({
       // mode remains the zero-build path, while lib mode requires a prior build.
       ...(process.env.DSH_EXAMPLE_MODE === 'lib' ? ['apps/web/tests/**/*.snapshot.ts'] : []),
       'snapshots/**/*.snapshot.ts',
+      'snapshots/full-ledger.invariants.ts',
     ],
     // Replay never writes committed outputs and every scenario owns its
     // mutable runtime state (the subprocess suites use a unique temp dir and

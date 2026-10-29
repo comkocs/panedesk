@@ -103,7 +103,8 @@ export async function publishKernelStatus(ctx: Context, failures: readonly Kerne
   await writeFileAtomic(join(home, 'run/kernel-status.json'), JSON.stringify(status) + '\n', { mode: 0o600, dirMode: 0o700 })
   new KernelStatusService(ctx, status)
   const unavailable = Object.entries(status.services).filter(([, value]) => value.status !== 'mounted')
-  if (unavailable.length > 0) ctx.logger.error(`Session ledger not mounted: ${unavailable.map(([name, value]) => `${name}=${value.status}(${value.cause})`).join('; ')}`)
+  const heading = status.services.sessionLedger.status !== 'mounted' ? 'Session ledger not mounted' : 'Accounting cache layer not mounted'
+  if (unavailable.length > 0) ctx.logger.error(`${heading}: ${unavailable.map(([name, value]) => `${name}=${value.status}(${value.cause})`).join('; ')}`)
 }
 
 /** Cross-process read result; absent and invalid evidence never claim mounted services. */

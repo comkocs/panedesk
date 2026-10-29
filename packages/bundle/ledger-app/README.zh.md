@@ -23,7 +23,7 @@ kind: "package-bundle"
 
 从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
 
-查询前，如果最近一次主进程的 `$PANEDESK_HOME/run/kernel-status.json` 记录账本或缓存层不可用，或状态无法读取，stderr 会以 `Session ledger not mounted: <cause>` 明示「账本未挂」。pid 已退出或状态早于 `run/kernel-boot.json` 时附加 `(may be stale)`。离线查询不覆盖主进程状态件。本地 `ledgerQuery` 缺席时明示禁用、导入或等待注入细因，并以 1 退出。stdout 保留机器可读 JSON；既有命令诊断使用英文。
+查询前，stderr 根据最近一次主进程的 `$PANEDESK_HOME/run/kernel-status.json` 报告可用性：账本不可用时为 `Session ledger not mounted: <details>`，仅缓存层故障时为 `Accounting cache layer not mounted: <details>`，状态无法读取时为 `Accounting status unavailable: <cause>`。两者均不可用时账本标题下列出两个服务。本地查询服务缺失时报告 `Ledger query unavailable: <cause>`。pid 已退出或状态早于 `run/kernel-boot.json` 时附加 `(may be stale)`。离线查询不覆盖主进程状态件。本地 `ledgerQuery` 缺席时明示禁用、导入或等待注入细因，并以 1 退出。stdout 保留机器可读 JSON；既有命令诊断使用英文。
 
 将 `PANEDESK_SEAT_MAX_DECISION_BYTES` 设为目标 writer 的 `maxDecisionBytes`，或在 `ledger-app` 行的 `engineReader` 中显式设置 `home`、`nodeId` 与 `maxDecisionBytes`。仅 `engine` 命令参数挂载引擎与闸只读服务；其他命令保留默认插件行及服务。不推断帧上限。没有 reader 配置时，引擎查询返回不可用。引擎命令禁用本地消息投递，避免初始化邮箱。reader 无需挂载 writer 即支持 `engine events`、`pending`、`export`、`verify` 与 `gates`；导出在 `content` 中返回 JSONL，不写入输出路径。闸查询从同一个已验证账本前缀重算每个已记录修订的命中次数、到期及上限证据。未记录的策略不列出，未记录的上限为 `unknown`；客户端工作树上限使用已记录的计数和界限。分页游标绑定观测水位，新提交后失效。
 

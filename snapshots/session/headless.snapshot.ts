@@ -1256,6 +1256,7 @@ describe('headless recorded-session snapshots', () => {
       const compositionPatch = join(composition.dir, replaying ? 'cordis.snapshot.yml' : 'cordis.yml')
       const patchSources = [
         join(baseComposition.dir, 'cordis.yml'),
+        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),
         ...composition === baseComposition && !replaying ? [] : [compositionPatch],
         join(baseComposition.dir, 'model.cordis.yml'),
         ...existsSync(join(scenario.dir, 'runtime.cordis.yml')) ? [join(scenario.dir, 'runtime.cordis.yml')] : [],

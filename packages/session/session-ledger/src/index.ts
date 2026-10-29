@@ -7,7 +7,7 @@ import type {} from '@panedesk/dsh-tools'
 import {
   appendUnique, readJournal, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
-  appendMessageUnique, JournalViewOwner, readJournalFacts,
+  appendMessageUnique, JournalViewOwner, readJournalFacts, ArtifactAppendCache,
 } from './journal.ts'
 import { LedgerUnavailableError } from './lock.ts'
 import type { LedgerIndex } from './index-store.ts'
@@ -195,6 +195,7 @@ export class JournalSessionLedger extends SessionLedger {
   private readonly waits = new Map<string, { category: LedgerWaitCategory; owners: Set<symbol> }>()
   private node: Promise<{ root: string; id: LedgerNodeId }> | undefined
   private readonly contexts = new Map<LedgerContext['sessionId'], Map<symbol, LedgerSessionContext>>()
+  private readonly artifactCache = new ArtifactAppendCache()
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx)
@@ -413,7 +414,8 @@ export class JournalSessionLedger extends SessionLedger {
    */
   async appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult> {
     const { root } = await this.location()
-    return appendSidecar(root, input, this.options, (index) => { this.findStart(index, 'call/start', input.callId) })
+    return appendSidecar(root, input, this.options, this.artifactCache,
+      (index) => { this.findStart(index, 'call/start', input.callId) })
   }
   /** Close a sidecar durably; a mismatching reference or a non-final sequence rejects without mutation.
    * Repeating the same closure is idempotent; acknowledgement follows fsync of the closure marker.
@@ -422,7 +424,7 @@ export class JournalSessionLedger extends SessionLedger {
    */
   async finishArtifact(reference: LedgerArtifactReference): Promise<LedgerArtifactFinishResult> {
     const { root } = await this.location()
-    return finishSidecar(root, reference, this.options)
+    return finishSidecar(root, reference, this.options, this.artifactCache)
   }
   /** Select projections without counting lifecycle or retry observations as extra calls.
    * @param filter - half-open business-time and identity selection.

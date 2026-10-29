@@ -11,11 +11,11 @@
     - id: seat-session-controller
       name: '@panedesk/dsh-api-session-controller'
 
+- id: session-ledger-full
+  config:
+    dshHome: !!js "process.cwd() + '/.panedesk/seat-home'"
+
 - insert:
-    - id: seat-ledger
-      name: '@panedesk/dsh-session-ledger'
-      config:
-        dshHome: !!js "process.cwd() + '/.panedesk/seat-home'"
     - id: seat-engine
       name: '@panedesk/dsh-seat-engine'
       config:

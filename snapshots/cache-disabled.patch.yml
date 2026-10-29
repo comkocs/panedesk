@@ -1,0 +1,6 @@
+# Upstream snapshots were recorded without the accounting cache layer.
+- id: llm-cache
+  disabled: true
+
+- id: session-ledger-full
+  disabled: true

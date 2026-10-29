@@ -16,6 +16,7 @@ import { MessageId } from '@panedesk/dsh-llm/brand'
 import { client as createAcpClientApp, methods, ndJsonStream, PROTOCOL_VERSION } from '@agentclientprotocol/sdk'
 import * as Acp from '@panedesk/dsh-acp'
 import { deployment, operation } from '../../../seat/seat-app/tests/fixtures/e2e-config.ts'
+import { completesTurn, inputContains } from '../../../seat/seat/tests/completion.ts'
 import { defineTool } from '@panedesk/dsh-tools'
 import { startResponsesFixture } from '../../../subagent/subagent-codex/tests/responses-fixture.ts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -293,9 +294,12 @@ describe('default profile durable accounting', () => {
       expect(plan.rows[1]?.diagnostics).toEqual([])
       expect(await seats.commitImport({ planId: plan.planId, selectedRows: plan.rows.map(row => row.row),
         expectedRevision: 0, operationId: operation('import-ledger') })).toMatchObject({ status: 'committed' })
-      const opened = await seats.open({ seat: seatConfig.definition.seat, origin: 'manual', operationId: operation('open-ledger') })
-      if (opened.status !== 'opened') throw new Error(JSON.stringify(opened))
-      await vi.waitFor(() => { expect(calls).toContain('seat') })
+      const opened = await completesTurn(ctx, () => true, inputContains('Open seat-a.'), async () => {
+        const result = await seats.open({ seat: seatConfig.definition.seat, origin: 'manual', operationId: operation('open-ledger') })
+        if (result.status !== 'opened') throw new Error(JSON.stringify(result))
+        return result
+      })
+      expect(calls).toContain('seat')
       await ctx.get('agents')!.get(opened.sessionId)!.whenIdle()
       const seatLedger = await ctx.get('sessionLedger')!.snapshot({ sessionId: opened.sessionId })
       expect(seatLedger.rows.some(row => row.kind === 'run')).toBe(true)
@@ -310,14 +314,16 @@ describe('default profile durable accounting', () => {
       try {
         expect(await engine.setProjectMode({ projectId: seatConfig.definition.projectId, mode: 'auto',
           expectedRevision: 0, operationId: operation('engine-auto') })).toMatchObject({ status: 'saved' })
-        expect(await engine.accept({ triggerId: brandString<TriggerId>('accounting-trigger'), sourceId,
-          eventId: brandString<SourceEventId>('accounting-event'), kind: 'external',
-          evidence: { kind: 'external', eventType: 'accounting' }, seat: engineSeat,
-          projectId: seatConfig.definition.projectId, receivedAt: new Date().toISOString(),
-          dataDigest: brandString<SeatDigest>(createHash('sha256').update('null').digest('hex')), data: null, callbackRef: sourceId,
-        })).toMatchObject({ status: 'accepted' })
-        await engine.drive()
-        await vi.waitFor(() => { expect(calls).toContain('engine') })
+        await completesTurn(ctx, () => true, inputContains('Open seat-engine.'), async () => {
+          expect(await engine.accept({ triggerId: brandString<TriggerId>('accounting-trigger'), sourceId,
+            eventId: brandString<SourceEventId>('accounting-event'), kind: 'external',
+            evidence: { kind: 'external', eventType: 'accounting' }, seat: engineSeat,
+            projectId: seatConfig.definition.projectId, receivedAt: new Date().toISOString(),
+            dataDigest: brandString<SeatDigest>(createHash('sha256').update('null').digest('hex')), data: null, callbackRef: sourceId,
+          })).toMatchObject({ status: 'accepted' })
+          await engine.drive()
+        })
+        expect(calls).toContain('engine')
         const listed = await seats.list({})
         if (listed.status !== 'listed') throw new Error(JSON.stringify(listed))
         const window = listed.sessions.find(session => session.seat === engineSeat)!

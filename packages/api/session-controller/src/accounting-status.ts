@@ -9,7 +9,8 @@ import type { SessionProjectionValues } from './types.ts'
  * @returns outgoing values with ledger availability when the audit exists.
  */
 export function withAccountingStatus(ctx: Context, values: SessionProjectionValues): SessionProjectionValues {
-  const ledger = ctx.get('kernelStatus')?.snapshot().services.sessionLedger
-  if (ledger === undefined) return values
-  return Object.assign({}, values, { accountingStatus: { ledger: ledger.status, cause: ledger.cause } })
+  const services = ctx.get('kernelStatus')?.snapshot().services
+  if (services === undefined) return values
+  return Object.assign({}, values, { accountingStatus: { ledger: services.sessionLedger.status, cause: services.sessionLedger.cause,
+    cache: { status: services.llmCache.status, cause: services.llmCache.cause } } })
 }

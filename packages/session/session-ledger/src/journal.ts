@@ -4,6 +4,7 @@ import { lstat, mkdir, open, readdir, readFile, realpath, stat, type FileHandle 
 import { dirname, join } from 'node:path'
 import { ledgerRelative } from './paths.ts'
 import { addToIndex, canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot, type LedgerIndex } from './index-store.ts'
+import { ledgerUuid } from './random.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
 import type { MessageCursor } from '@panedesk/dsh-message-delivery'
@@ -453,7 +454,7 @@ class JournalView {
     const date = new Date().toISOString().slice(0, 10)
     const fresh = this.writer === undefined || this.writer.date !== date
     const directory = join(root, 'events', date)
-    if (fresh) { await ensureDirectory(directory); this.writer = { path: ledgerRelative(root, join(directory, `segment-${randomUUID()}.jsonl`)), date } }
+    if (fresh) { await ensureDirectory(directory); this.writer = { path: ledgerRelative(root, join(directory, `segment-${ledgerUuid()}.jsonl`)), date } }
     const writer = this.writer
     if (!writer) throw new Error('Ledger writer segment is unavailable')
     try {
@@ -488,6 +489,7 @@ class JournalView {
 export async function readJournal(root: string, options: JournalOptions): Promise<LedgerScan> {
   root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    await validateArtifactClosures(root, options.maxRecordBytes)
     const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
     return structuredClone(view.scan(root))
@@ -608,6 +610,7 @@ export async function resolveNodeId(root: string, options: WriterLockOptions): P
  * @returns Per-fact outcomes, including conflicts without silently selecting a winner.
  */
 export async function importSegments(root: string, source: string, options: JournalOptions): Promise<LedgerAppendResult[]> {
+  await validateArtifactClosures(source, options.maxRecordBytes)
   const scan = await recoverSegments(source, options.maxRecordBytes)
   if (!scan.complete) throw new Error('Import requires complete, valid source segments')
   const results: LedgerAppendResult[] = []
@@ -775,7 +778,63 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
       records.push(value as ArtifactRecord)
     }
   }
+  const fragments = records.filter(item => item.type === 'fragment').sort((a, b) => a.input.seq - b.input.seq)
+  const last = fragments.at(-1)
+  for (const item of records) {
+    if (item.type === 'closed' && (!last
+      || canonicalJson(item.reference) !== canonicalJson(referenceOf(last.input, last.path)))) {
+      throw new Error('Artifact closure does not reference the final durable fragment')
+    }
+  }
   return records
+}
+
+/** Reject fragments beyond a sealed stream before exposing ledger projections or imports.
+ * @param root - Node directory containing call-owned artifact streams.
+ * @param maxBytes - Maximum accepted encoded record size.
+ */
+export async function validateArtifactClosures(root: string, maxBytes: number): Promise<void> {
+  let calls
+  try { calls = await readdir(join(root, 'artifacts'), { withFileTypes: true }) }
+  catch (error) { if (isCode(error, 'ENOENT')) return; throw error }
+  for (const call of calls) {
+    if (!call.isDirectory() || call.isSymbolicLink()) throw new Error('Invalid artifact directory')
+    for (const kind of await readdir(join(root, 'artifacts', call.name))) {
+      const stream = join(root, 'artifacts', call.name, kind)
+      const entries = await readdir(stream, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.startsWith('closed-')) continue
+        const path = join(stream, entry.name)
+        const bytes = await readFile(path)
+        const end = bytes.indexOf(10)
+        if (end < 0) continue
+        if (end !== bytes.length - 1) throw new Error('Invalid artifact segment framing')
+        const value = record(decode(bytes.subarray(0, end), maxBytes))
+        const reference = record(value.reference)
+        if (value.type !== 'closed' || !Number.isSafeInteger(reference.seq)) throw new Error('Invalid artifact closure')
+        if (entries.some(item => item.isDirectory() && Number(item.name) > Number(reference.seq))) {
+          throw new Error('Artifact closure does not reference the final durable fragment')
+        }
+      }
+    }
+  }
+}
+
+/** Instance-owned append hints; durable stream records remain authoritative. */
+export class ArtifactAppendCache {
+  /** Stream positions are scoped by absolute node path and artifact identity. */
+  readonly streams = new Map<string, { next: number; closed: boolean }>()
+}
+
+async function sequenceDirectoryExists(path: string): Promise<boolean> {
+  try {
+    const entry = await lstat(path)
+    if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error('Invalid artifact sequence directory')
+    return true
+  } catch (error) {
+    if (isCode(error, 'ENOENT')) return false
+    throw error
+  }
 }
 
 function referenceOf(input: LedgerArtifactAppend, path: string): LedgerArtifactReference {
@@ -786,11 +845,13 @@ function referenceOf(input: LedgerArtifactAppend, path: string): LedgerArtifactR
  * @param root - Node directory owning the stream.
  * @param input - Fragment identity and unmodified serialized content.
  * @param options - Native lock and record size limits.
+ * @param cache - Optional instance-owned hints; absent hints require a full initial scan on each call.
  * @param validateStart - Provider start guard inside the lock; absent for standalone fragment storage.
  * @returns Durable reference or an explicit conflicting digest pair.
  */
 export async function appendArtifact(
-  root: string, input: LedgerArtifactAppend, options: JournalOptions, validateStart?: (index: LedgerIndex) => void,
+  root: string, input: LedgerArtifactAppend, options: JournalOptions, cache?: ArtifactAppendCache,
+  validateStart?: (index: LedgerIndex) => void,
 ): Promise<LedgerArtifactAppendResult> {
   if (!Number.isSafeInteger(input.seq) || input.seq < 0 || !['partial-response', 'keepalive-request'].includes(input.kind)) throw new Error('Invalid artifact key')
   JSON.parse(input.content)
@@ -806,7 +867,23 @@ export async function appendArtifact(
       validateStart(view.index)
     }
     const relative = artifactPath(input)
-    const records = await artifactRecords(root, relative, options.maxRecordBytes)
+    const stream = join(root, relative)
+    const hint = cache?.streams.get(stream)
+    const directory = join(stream, String(input.seq))
+    const current = await sequenceDirectoryExists(directory)
+    const previous = input.seq === 0 || await sequenceDirectoryExists(join(stream, String(input.seq - 1)))
+    const sequential = hint !== undefined && !hint.closed && hint.next === input.seq && !current && previous
+    const retry = hint !== undefined && current
+    let fullScan = !sequential && !retry
+    let records = sequential ? [] : await artifactRecords(root, retry ? `${relative}/${input.seq}` : relative, options.maxRecordBytes)
+    if (retry && !records.some(item => item.type === 'fragment' && item.input.seq === input.seq)) {
+      records = await artifactRecords(root, relative, options.maxRecordBytes)
+      fullScan = true
+    }
+    if (fullScan) cache?.streams.set(stream, {
+      next: records.filter(item => item.type === 'fragment').length,
+      closed: records.some(item => item.type === 'closed'),
+    })
     const fragments = records.filter(item => item.type === 'fragment')
       .sort((a, b) => a.input.seq - b.input.seq)
     const prior = fragments.find(item => item.input.seq === input.seq)
@@ -815,17 +892,17 @@ export async function appendArtifact(
         kind: 'conflict', key: { callId: input.callId, kind: input.kind, seq: input.seq },
         existingDigest: digest(prior.input.content), incomingDigest: digest(input.content),
       }
-      await syncFiles(await files(join(root, relative)))
+      await syncFiles(await files(directory))
       return { kind: 'existing', reference: referenceOf(prior.input, prior.path) }
     }
     if (records.some(item => item.type === 'closed')) throw new Error('Artifact stream is already closed')
-    if (fragments.some((item, seq) => item.input.seq !== seq) || input.seq !== fragments.length) {
+    if (!sequential && (fragments.some((item, seq) => item.input.seq !== seq) || input.seq !== fragments.length)) {
       throw new Error('Artifact sequence must be contiguous')
     }
-    const directory = join(root, relative, String(input.seq))
     await ensureDirectory(directory)
-    const path = `${relative}/${input.seq}/${randomUUID()}.jsonl`
+    const path = `${relative}/${input.seq}/${ledgerUuid()}.jsonl`
     await durableFile(join(root, path), encoded)
+    cache?.streams.set(stream, { next: input.seq + 1, closed: false })
     return { kind: 'appended', reference: referenceOf(input, path) }
   })
 }
@@ -834,12 +911,14 @@ export async function appendArtifact(
  * @param root - Owning node directory.
  * @param reference - Exact last-fragment reference returned by appendArtifact.
  * @param options - Native lock and record size limits.
+ * @param cache - Optional instance-owned hints updated on closure; absent hints retain no local state.
  * @returns Idempotent closure acknowledgement after fsync.
  */
 export async function finishArtifact(
-  root: string, reference: LedgerArtifactReference, options: JournalOptions,
+  root: string, reference: LedgerArtifactReference, options: JournalOptions, cache?: ArtifactAppendCache,
 ): Promise<LedgerArtifactFinishResult> {
   await ensureDirectory(root)
+  root = await realpath(root)
   return withWriterLock(join(root, 'writer.lock'), options, async () => {
     const relative = artifactPath(reference)
     const records = await artifactRecords(root, relative, options.maxRecordBytes)
@@ -854,10 +933,12 @@ export async function finishArtifact(
     if (closed) {
       if (canonicalJson(closed.reference) !== canonicalJson(reference)) throw new Error('Conflicting artifact closure')
       await syncFiles(await files(join(root, relative)))
+      cache?.streams.set(join(root, relative), { next: fragments.length, closed: true })
       return { kind: 'existing', reference }
     }
     await syncFiles(await files(join(root, relative)))
-    await durableFile(join(root, relative, `closed-${randomUUID()}.jsonl`), frame({ type: 'closed', reference }, options.maxRecordBytes))
+    await durableFile(join(root, relative, `closed-${ledgerUuid()}.jsonl`), frame({ type: 'closed', reference }, options.maxRecordBytes))
+    cache?.streams.set(join(root, relative), { next: fragments.length, closed: true })
     return { kind: 'finished', reference }
   })
 }

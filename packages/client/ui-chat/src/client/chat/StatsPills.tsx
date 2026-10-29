@@ -288,6 +288,9 @@ export const UsagePill = memo(function UsagePill({ useProjection, usePerformance
     const label = t('stats.ledgerNotMounted')
     return <PlainPill stat="usage" icon={icon} label={label} title={accounting.cause} />
   }
+  if (accounting?.cache !== undefined && accounting.cache.status !== 'mounted') {
+    return <PlainPill stat="usage" icon={icon} label={t('stats.cacheNotMounted')} title={accounting.cache.cause} />
+  }
   // Gated on actual token activity: a session whose steps all settled without
   // billing (e.g. every request failed) shows no usage pill.
   if (usage === undefined || (billedInputTokens(usage) === 0 && usage.outputTokens === 0)) return null

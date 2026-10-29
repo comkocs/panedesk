@@ -595,6 +595,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       ? []
       : [{ id: 'agent-default-model', config: { provider: 'deepseek-official', model: 'deepseek-v4-flash' } }],
     ...extraOverlayPatches,
+    // Upstream snapshots were recorded without the accounting cache layer.
+    { id: 'llm-cache', disabled: true },
     { id: 'agent-preset-registry', config: { default: 'standard' } },
     { id: 'session-persistence-jsonl', config: { root: persistenceRoot } },
     // Content search is enabled here although the shipped bundles default it

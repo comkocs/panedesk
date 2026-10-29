@@ -47,7 +47,7 @@ Client 列表行和驻留 Session 使用当前 `sessionListMetadata` 投影纠�
 
 Client 列表刷新保留未变化的行对象，并在顺序和值均相同时复用条目数组。每行的 `retainedBy` 包含正数的本地引用来源计数，Host 元数据刷新不能覆盖它们。缓存成员检查使用每次刷新构建的 ID 集合，因此对账成本随当前列表和保留缓存的规模线性增长。 Host 摘要更新会替换运行状态与 Agent 可用性；本地 create/fork 响应只补充已有行缺失的元数据。普通 Session 被移除后，仅在目录仍有子项时保留其投影 store。
 
-发出的 control baseline、follow 快照、显式投影读取，以及存在的列表投影块，均包含来自 `kernelStatus.snapshot().services.sessionLedger` 的可选 `accountingStatus: { ledger: 'mounted' | 'missing' | 'disabled' | 'failed'; cause?: string }`。启动审计前或 Host 未提供该服务时省略此字段。它描述当前 Host，而不是历史 Session 的记账状态，不写入投影缓存或 Session 日志，复用已有 Remote 方法与投影传输。原因是稳定诊断码，不是异常消息。启动快照不提供持续健康检查。
+发出的 control baseline、follow 快照、显式投影读取，以及存在的列表投影块，均包含来自 `kernelStatus.snapshot().services.sessionLedger` 的可选 `accountingStatus: { ledger: 'mounted' | 'missing' | 'disabled' | 'failed'; cause?: string }`。可选的 `cache: { status, cause? }` 携带缓存层的同类状态与诊断码。启动审计前或 Host 未提供该服务时省略此字段。它描述当前 Host，而不是历史 Session 的记账状态，不写入投影缓存或 Session 日志，复用已有 Remote 方法与投影传输。原因是稳定诊断码，不是异常消息。启动快照不提供持续健康检查。
 
 后台 job 的名册行与观测流属于 [`dsh-api-job-controller`](../job-controller/README.zh.md)；控制流只承载投影。
 

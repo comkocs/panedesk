@@ -11,7 +11,7 @@ export async function warnKernelStatus(ctx: Context): Promise<void> {
   if (home === undefined) return
   const result = await readKernelStatus(home)
   if (result.kind === 'unavailable') {
-    process.stderr.write(`Session ledger not mounted: ${result.cause}\n`)
+    process.stderr.write(`Accounting status unavailable: ${result.cause}\n`)
     return
   }
   const missing = Object.entries(result.status.services).filter(([, value]) => value.status !== 'mounted')
@@ -19,7 +19,8 @@ export async function warnKernelStatus(ctx: Context): Promise<void> {
     if (result.stale) process.stderr.write('Session ledger status (may be stale): last main process is no longer current\n')
     return
   }
-  process.stderr.write(`Session ledger not mounted: ${missing.map(([name, value]) => `${name}=${value.status}(${value.cause})`).join('; ')}${result.stale ? ' (may be stale)' : ''}\n`)
+  const heading = result.status.services.sessionLedger.status !== 'mounted' ? 'Session ledger not mounted' : 'Accounting cache layer not mounted'
+  process.stderr.write(`${heading}: ${missing.map(([name, value]) => `${name}=${value.status}(${value.cause})`).join('; ')}${result.stale ? ' (may be stale)' : ''}\n`)
 }
 
 /** Describe missing query injection or its Loader failure using safe diagnostic codes.

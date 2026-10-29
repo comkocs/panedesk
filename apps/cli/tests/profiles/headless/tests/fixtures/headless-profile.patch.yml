@@ -1,4 +1,10 @@
 # Product headless profile patch for the keyless CLI snapshots.
+- id: llm-cache
+  disabled: true
+
+- id: session-ledger-full
+  disabled: true
+
 - id: agent-default-model
   config:
     provider: cli-mock
