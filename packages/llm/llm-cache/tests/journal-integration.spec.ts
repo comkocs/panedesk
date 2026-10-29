@@ -177,7 +177,7 @@ describe('cache journal integration', () => {
     let held = false
     vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
       const handle = await open(...args)
-      if (args[1] === 'wx' && String(args[0]).includes('/events/') && !held) {
+      if ((args[1] === 'wx' || args[1] === 'a') && String(args[0]).includes('/events/') && !held) {
         held = true
         const sync = handle.sync.bind(handle)
         vi.spyOn(handle, 'sync').mockImplementationOnce(async () => {

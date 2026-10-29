@@ -5,11 +5,12 @@ import { performance } from 'node:perf_hooks'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import type {} from '@panedesk/dsh-tools'
 import {
-  appendUnique, recoverSegments, resolveNodeId, ensureDirectory, importSegments,
+  appendUnique, readJournal, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
-  appendMessageUnique, ArtifactAppendCache, validateArtifactClosures,
+  appendMessageUnique, JournalViewOwner, readJournalFacts, ArtifactAppendCache,
 } from './journal.ts'
-import { withWriterLock, LedgerUnavailableError } from './lock.ts'
+import { LedgerUnavailableError } from './lock.ts'
+import type { LedgerIndex } from './index-store.ts'
 import { foldLedger, foldMessages, joinSessionLedgers, exportMessages } from './projection.ts'
 import { loadPriceTable, priceUsage } from './pricing.ts'
 import type { LedgerEventId, LedgerNodeId, LedgerInterval, MessageLedgerStore, LedgerMessagePage, LedgerSessionPage } from './types.ts'
@@ -29,6 +30,7 @@ export type * from './types.ts'
 export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
 export { projectWaits, withoutWaitProjection } from './waits.ts'
 export { callWaits } from './call-waits.ts'
+import { callWaits } from './call-waits.ts'
 export type * from './call-contributor.ts'
 import type { CallContributor } from './call-contributor.ts'
 import { installCallAccounting } from './call-accounting.ts'
@@ -49,7 +51,12 @@ export abstract class SessionLedger extends Service {
 
   constructor(ctx: Context) {
     super(ctx, 'sessionLedger')
-    this.registerContributor = installCallAccounting(ctx, this, () => this.compactionOwner)
+    this.registerContributor = installCallAccounting(ctx, this, () => this.compactionOwner,
+      (start, ids) => this.readCallWaits(start, ids))
+  }
+
+  protected async readCallWaits(start: LedgerCallStart, ids: readonly NonNullable<LedgerInterval['toolCallId']>[]): Promise<LedgerInterval[]> {
+    return callWaits(await this.snapshot({ sessionId: start.sessionId }), start, ids)
   }
 
   /** Claim compaction facts while leaving physical request accounting with this service.
@@ -208,7 +215,10 @@ export class JournalSessionLedger extends SessionLedger {
   constructor(ctx: Context, config: Config = {}) {
     super(ctx)
     this.home = resolveDshHome(config.dshHome)
+    const viewOwner = new JournalViewOwner()
+    ctx.effect(() => () => { viewOwner.dispose() })
     this.options = {
+      viewOwner,
       lockTimeoutMs: config.lockTimeoutMs ?? 5000,
       lockRetryMs: config.lockRetryMs ?? 10,
       maxRecordBytes: config.maxRecordBytes ?? 16 * 1024 * 1024,
@@ -223,7 +233,7 @@ export class JournalSessionLedger extends SessionLedger {
     }
     ctx.on('tools/execute', async (exec, next) => {
       if (!exec.agent) return next()
-      const snapshot = await this.snapshot({ sessionId: exec.agent.session.id })
+      const snapshot = await this.hotSnapshot({ kind: 'open-runs', sessionId: exec.agent.session.id })
       const runs = snapshot.rows.filter(row => row.kind === 'run' && !row.finish)
       const run = runs.at(-1)
       if (!run || run.kind !== 'run') throw new LedgerUnavailableError(new Error('Tool execution has no durable run start'))
@@ -259,22 +269,29 @@ export class JournalSessionLedger extends SessionLedger {
     return this.node
   }
 
-  private async write(event: LedgerEvent, firstTerminalWins = false): Promise<LedgerAppendResult> {
+  private async hotSnapshot(selection: Parameters<typeof readJournalFacts>[2]): Promise<LedgerSnapshot> {
+    const { root, id } = await this.location()
+    const facts = await readJournalFacts(root, this.options, selection)
+    return foldLedger(facts.events, { asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
+      filter: { sessionId: selection.sessionId as LedgerContext['sessionId'] }, complete: facts.complete })
+  }
+
+  protected override async readCallWaits(start: LedgerCallStart, ids: readonly NonNullable<LedgerInterval['toolCallId']>[]): Promise<LedgerInterval[]> {
+    const snapshot = await this.hotSnapshot({ kind: 'waits', nodeId: start.nodeId,
+      sessionId: start.sessionId, runId: start.runId, toolCallIds: ids })
+    return callWaits(snapshot, start, ids)
+  }
+
+  private async write(event: LedgerEvent | ((index: LedgerIndex) => LedgerEvent), firstTerminalWins = false): Promise<LedgerAppendResult> {
     try {
       const { root } = await this.location()
       return await appendUnique(root, event, this.options, firstTerminalWins)
     } catch (error) { throw new LedgerUnavailableError(error) }
   }
 
-  private async findStart(kind: 'call/start' | 'run/start', id: string): Promise<LedgerEvent> {
-    const { root } = await this.location()
-    const scan = await recoverSegments(root, this.options.maxRecordBytes)
-    const start = scan.events.find((event) => {
-      if (kind === 'call/start' && event.kind === 'call/start') return event.data.callId === id
-      if (kind === 'run/start' && event.kind === 'run/start') return event.data.runId === id
-      return false
-    })
-    if (!start || scan.corrupt.length) throw new LedgerUnavailableError(new Error('Missing or unreadable durable start'))
+  private findStart(index: LedgerIndex, kind: 'call/start' | 'run/start', id: string): LedgerEvent {
+    const start = index.slots.get(JSON.stringify([kind, id]))
+    if (!start) throw new LedgerUnavailableError(new Error('Missing or unreadable durable start'))
     return start
   }
 
@@ -294,7 +311,7 @@ export class JournalSessionLedger extends SessionLedger {
     if (request.sessionId !== undefined) {
       const bound = this.contextFor(request.sessionId)
       if (bound !== undefined) return { context: bound, runId: bound.runId, ...pricing }
-      const snapshot = await this.snapshot({ sessionId: request.sessionId })
+      const snapshot = await this.hotSnapshot({ kind: 'latest-start', sessionId: request.sessionId })
       const starts = snapshot.rows.flatMap(row => row.kind === 'run' || row.kind === 'call' ? [row.start] : [])
         .sort((a, b) => b.startedAt - a.startedAt)
       const start = starts[0]
@@ -354,8 +371,10 @@ export class JournalSessionLedger extends SessionLedger {
    * @returns committed or already existing terminal fact, or a conflict.
    */
   async finishCall(input: LedgerCallFinish): Promise<LedgerAppendResult> {
-    const start = await this.findStart('call/start', input.callId)
-    return this.write({ schemaVersion: 1, eventId: `call/end:${input.callId}` as LedgerEventId, nodeId: start.nodeId, observedAt: input.observedAt, runId: start.runId, sessionId: start.sessionId, callId: input.callId, kind: 'call/end', data: input })
+    return this.write((index) => {
+      const start = this.findStart(index, 'call/start', input.callId)
+      return { schemaVersion: 1, eventId: `call/end:${input.callId}` as LedgerEventId, nodeId: start.nodeId, observedAt: input.observedAt, runId: start.runId, sessionId: start.sessionId, callId: input.callId, kind: 'call/end', data: input }
+    })
   }
   /** Persist launch intent before permitting child execution.
    * @param input - reserved identities and trusted dispatch options.
@@ -369,8 +388,10 @@ export class JournalSessionLedger extends SessionLedger {
    * @returns first committed terminal fact, including when another writer won.
    */
   async finishRun(input: LedgerRunFinish): Promise<LedgerAppendResult> {
-    const start = await this.findStart('run/start', input.runId)
-    return this.write({ schemaVersion: 1, eventId: `run/end:${input.runId}` as LedgerEventId, nodeId: start.nodeId, observedAt: input.observedAt, runId: input.runId, sessionId: start.sessionId, kind: 'run/end', data: input }, true)
+    return this.write((index) => {
+      const start = this.findStart(index, 'run/start', input.runId)
+      return { schemaVersion: 1, eventId: `run/end:${input.runId}` as LedgerEventId, nodeId: start.nodeId, observedAt: input.observedAt, runId: input.runId, sessionId: start.sessionId, kind: 'run/end', data: input }
+    }, true)
   }
   /** Append a uniquely identified fact; equal replays are idempotent and unequal replays conflict.
    * @param event - complete versioned event, containing only runtime-authoritative evidence.
@@ -408,8 +429,8 @@ export class JournalSessionLedger extends SessionLedger {
    */
   async appendArtifact(input: LedgerArtifactAppend): Promise<LedgerArtifactAppendResult> {
     const { root } = await this.location()
-    await this.findStart('call/start', input.callId)
-    return appendSidecar(root, input, this.options, this.artifactCache)
+    return appendSidecar(root, input, this.options, this.artifactCache,
+      (index) => { this.findStart(index, 'call/start', input.callId) })
   }
   /** Close a sidecar durably; a mismatching reference or a non-final sequence rejects without mutation.
    * Repeating the same closure is idempotent; acknowledgement follows fsync of the closure marker.
@@ -433,14 +454,11 @@ export class JournalSessionLedger extends SessionLedger {
    */
   async snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot> {
     const { root, id } = await this.location()
-    return withWriterLock(join(root, 'writer.lock'), this.options, async () => {
-      await validateArtifactClosures(root, this.options.maxRecordBytes)
-      const scan = await recoverSegments(root, this.options.maxRecordBytes)
-      return foldLedger(scan.events, {
-        asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
-        ...filter === undefined ? {} : { filter },
-        complete: scan.complete, watermarks: { [id]: scan.watermark },
-      })
+    const scan = await readJournal(root, this.options)
+    return foldLedger(scan.events, {
+      asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
+      ...filter === undefined ? {} : { filter },
+      complete: scan.complete, watermarks: { [id]: scan.watermark },
     })
   }
   /** Price authoritative usage with decimal fixed-point arithmetic, without inventing missing values.

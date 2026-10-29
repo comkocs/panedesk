@@ -143,10 +143,12 @@ export class JsonlSessionHandle implements SessionHandle {
     } else if (this.access === 'write' && !this.state.materialized) {
       result = { eventState: 'detached', events: [] }
     } else {
+      // First publication can retire the pending entry after the directory scan misses its new file.
+      const pending = this.storage.hasPendingSession(this.id)
       const currentPath = await this.storage.resolveCurrentLog(this.id, options?.signal)
       if (currentPath !== undefined) {
         result = await this.readCurrent(currentPath, offset, length, options?.signal)
-      } else if (this.storage.hasPendingSession(this.id)) {
+      } else if (pending) {
         result = { eventState: 'detached', events: [] }
       } else {
         throw new SessionPersistenceNotFoundError(this.id)

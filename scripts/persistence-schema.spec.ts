@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { collectLogEvents } from './gen-persistence-catalog.ts'
+import { COVERAGE_EXEMPT_ENV } from './coverage-exempt.ts'
 import { extractPersistenceSchema } from './persistence-schema.ts'
 import { classifyPersistenceChange, parsePersistenceSnapshot } from './persistence-changes.ts'
 import { canonicalizeSchema, isArbitraryJsonSchema, schemaDigest, type PersistenceSchemaInventory } from './persistence-schema-model.ts'
@@ -505,7 +506,10 @@ declare module './message.js' {
       .toEqual([expect.objectContaining({ kind: 'attribution-kind-added', requiresCompatibilityReview: false })])
   })
 
-  it('does not qualify unmarked additions or structurally equal unbound fields', () => {
+  it('does not qualify unmarked additions or structurally equal unbound fields', {
+    // The instrumented lane budgets four compiler extractions; unit keeps its default.
+    ...(process.env[COVERAGE_EXEMPT_ENV] === '1' ? { timeout: 15_000 } : {}),
+  }, () => {
     const before = sourceFixture('')
     const after = sourceFixture("unmarked: {kind: 'new'}")
     expect(classifyPersistenceChange(extractPersistenceSchema(before).roots.find(root => root.kind === 'event')!,

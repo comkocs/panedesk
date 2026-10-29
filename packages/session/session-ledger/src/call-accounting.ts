@@ -35,10 +35,14 @@ function committed(result: { kind: string }): void {
  * @param ctx - Ledger-owned effect scope.
  * @param service - Durable call provider.
  * @param hasCompactionOwner - Instance-owned registration state, independent of event delivery order.
+ * @param readWaits - Provider-owned keyed lookup; absent providers retain snapshot semantics.
  * @returns Registrar rejecting concurrent owners and returning an idempotent disposer.
  */
 export function installCallAccounting(ctx: Context, service: SessionLedger,
-  hasCompactionOwner: () => boolean): (contributor: CallContributor) => () => void {
+  hasCompactionOwner: () => boolean,
+  readWaits: (start: LedgerCallStart, ids: readonly ToolCallId[]) => Promise<import('./types.ts').LedgerInterval[]>
+    = async (start, ids) => callWaits(await service.snapshot({ sessionId: start.sessionId }), start, ids),
+): (contributor: CallContributor) => () => void {
   const states = new Map<string, SessionState>()
   const lifetime = new AbortController()
   const operations = new Set<Promise<void>>()
@@ -230,7 +234,7 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
             if (!known) tiering = { kind: 'unknown' }
           }
           const priced = service.priceUsage({ usage, usageState, tiering, startedAt, entry: selectedPrice })
-          const waits = callWaits(await service.snapshot({ sessionId: start.sessionId }), start, [...toolCallIds])
+          const waits = await readWaits(start, [...toolCallIds])
           const timeout = (reason?.kind === 'error' || reason?.kind === 'aborted') && reason.failure.code === 'TIMEOUT'
             || failure instanceof LlmError && failure.code === 'TIMEOUT'
           const cancellation: unknown = request.signal?.aborted ? request.signal.reason : undefined
