@@ -275,10 +275,8 @@ class ShippedChildAutoAdapter extends LlmAdapter {
 
   private parentResponse(options: GenerateOptions): StreamChunk[] {
     const prompt = topLevelText(options)
-    // A notice-only pre-step rejection can omit the previous phase's closing request.
-    const phase = prompt.includes(AUTO_PARENT_ADJUST) ? Math.max(4, this.parentPhase)
-      : prompt.includes(AUTO_PARENT_CONTINUABLE) ? Math.max(2, this.parentPhase) : this.parentPhase
-    this.parentPhase = phase + 1
+    const phase = this.parentPhase
+    this.parentPhase += 1
     if (phase === 0 && prompt.includes(AUTO_PARENT_AUTHORIZED)) {
       return toolChunks('parent-authorized', 'subagent', {
         description: 'Auto authorized child',

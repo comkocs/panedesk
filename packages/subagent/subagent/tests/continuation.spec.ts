@@ -29,6 +29,7 @@ import * as activationResults from '../src/activation.ts'
 import { requireLocalActivation } from '../src/activation.ts'
 import { TestSessionQuery } from './test-session-query.ts'
 import { loadStoredSession } from './persistence-helpers.ts'
+import { MemoryLedger, seedParentLedger } from './ledger-fixture.ts'
 import {
   managerState,
   subagentManager,
@@ -3153,6 +3154,53 @@ describe('continuable settlement delivery', () => {
       expect(adapter.requests.filter(request => request.sessionId === parent.id)).toHaveLength(1)
     })
     expect(turnStarts).toEqual([1])
+  })
+
+  it('processes a concurrent parent prompt and settlement once while terminal accounting waits', async () => {
+    const releaseChild = Promise.withResolvers<undefined>()
+    const releaseAccounting = Promise.withResolvers<undefined>()
+    const accountingEntered = Promise.withResolvers<undefined>()
+    const adapter = new GatedAdapter([
+      { chunks: textResponse('child answer'), gate: releaseChild.promise },
+      { chunks: textResponse('parent ack') },
+      { chunks: textResponse('parent followup') },
+    ])
+    const { ctx, parent } = await setupWith(adapter)
+    await ctx.plugin(MemoryLedger)
+    const ledger = ctx.sessionLedger as MemoryLedger
+    await seedParentLedger(ledger)
+    const finish = ledger.finishRun.bind(ledger)
+    vi.spyOn(ledger, 'finishRun').mockImplementation(async (input) => {
+      accountingEntered.resolve(undefined)
+      await releaseAccounting.promise
+      return finish(input)
+    })
+    const started = await ctx.subagents.startActivation({ ...startSpec(parent), delivery: 'parent' })
+    const activation = managerState(ctx).resident.get(started.childId)!
+    const handle = requireLocalActivation(activation).handle
+    const dispose = handle.dispose.bind(handle)
+    handle.dispose = async () => {
+      await dispose()
+      parent.followup(createUserMessage({ content: message('concurrent parent prompt'), source: { kind: 'user' } }))
+    }
+    try {
+      releaseChild.resolve(undefined)
+      await accountingEntered.promise
+      await vi.waitFor(() => {
+        expect(settlementNotices(parent)).toHaveLength(1)
+        expect(userTexts(parent.session.snapshotEvents()).filter(text => text === 'concurrent parent prompt')).toHaveLength(1)
+      })
+      await parent.whenIdle()
+      expect(parent.inbox.nextTurn).toHaveLength(0)
+      expect(parent.inbox.nextStep).toHaveLength(0)
+      expect(ledger.finishes).toHaveLength(0)
+    } finally {
+      releaseAccounting.resolve(undefined)
+      await started.result
+    }
+    expect(ledger.finishes.filter(finish => finish.runId === activation.observer.runId)).toHaveLength(1)
+    expect(settlementNotices(parent)).toHaveLength(1)
+    expect(userTexts(parent.session.snapshotEvents()).filter(text => text === 'concurrent parent prompt')).toHaveLength(1)
   })
 
   it('batches simultaneous notices into one step of a busy parent', async () => {

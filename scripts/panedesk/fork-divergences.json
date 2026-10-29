@@ -1,6 +1,39 @@
 {
   "divergences": [
     {
+      "id": "ledger-noncall-filename-uuid",
+      "description": "Retain process UUID filenames for non-call facts while call segments use independent identifiers.",
+      "origin": "Upstream seat-opening UUID consumption",
+      "reason": "Run and other non-call facts retain their existing file identities and UUID consumption. Incremental views still accept both single-fact files and call segments without changing synchronization or watermark semantics.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-ledger/src/journal.ts"],
+        "test": "replays seat-opening through panedesk --profile headless"
+      }
+    },
+    {
+      "id": "subagent-notice-before-ledger-settlement",
+      "description": "Deliver the captured child execution result before slow terminal accounting when a ledger is mounted.",
+      "origin": "Full-ledger parent notification timing",
+      "reason": "Concurrent parent input must not wait behind terminal accounting. Handle cleanup precedes notification; activation result, ownership and capacity still wait for accounting, whose failures remain observable. Non-ledger notification order remains unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/subagent/subagent/src/manager.ts", "packages/subagent/subagent/tests/continuation.spec.ts"],
+        "test": "processes a concurrent parent prompt and settlement once while terminal accounting waits"
+      }
+    },
+    {
+      "id": "persistence-attribution-coverage-budget",
+      "description": "Give the four-extraction attribution case a 15-second budget in the instrumented coverage lane only.",
+      "origin": "Coverage compiler extraction cost",
+      "reason": "The same case exceeds the default five seconds on both the pre-optimization baseline (6130/6119 ms) and the merged tree (6355/5919 ms). The coverage lane marker scopes the allowance to this case; unit and other cases retain their existing budgets.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["scripts/persistence-schema.spec.ts"],
+        "test": "does not qualify unmarked additions or structurally equal unbound fields"
+      }
+    },
+    {
       "id": "jsonl-pending-read-publication",
       "description": "Capture pending Session visibility before scanning its first persisted generation.",
       "origin": "Full-ledger Session creation timing",
@@ -42,17 +75,6 @@
         "type": "test-assertion",
         "paths": ["packages/session/session-ledger/src/journal.ts", "packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/tests/artifact-append.spec.ts"],
         "test": "rejects fragments beyond a closure in stream scans, snapshots, queries and imports"
-      }
-    },
-    {
-      "id": "child-auto-script-prompt-phases",
-      "description": "Select the synthetic parent script phase from the submitted task marker.",
-      "origin": "Full-ledger Web replay composition",
-      "reason": "A notice-only pre-step rejection can omit a closing model request; a fixed global request count must not swallow the subsequent cold-resume task. Existing expectations and deadlines remain unchanged.",
-      "match": {
-        "type": "test-assertion",
-        "paths": ["apps/web/tests/shipped-composition.e2e.ts"],
-        "test": "reviews initially authorized, restricted, and cold-resumed child calls independently"
       }
     },
     {

@@ -1262,6 +1262,16 @@ export class SubagentManager {
       ))
     }
 
+    const notifyBeforeAccounting = this.ctx.get('sessionLedger') !== undefined
+    if (notifyBeforeAccounting) {
+      try {
+        const notification = this.notifySettlement(activation, failures.length === 0 ? result : { output: [], stopReason: 'error' })
+        if (notification !== undefined) await notification
+      } catch (error: unknown) {
+        resultFailure = { error }
+        failures.push(new SubagentError('Subagent settlement notification was not durably accepted', 'ACTIVATION_TEARDOWN_FAILED', { cause: error }))
+      }
+    }
     try {
       const accountingResult = activation.kind === 'local' && result.stopReason === 'error' && activation.diagnostic !== undefined
         ? { ...result, diagnostic: activation.diagnostic } : result
@@ -1290,12 +1300,14 @@ export class SubagentManager {
       catch (error: unknown) { this.ctx.logger.warn(`Subagent return observation failed: ${failureMessage(error)}`) }
     }
     const terminal: SubagentResult = failure === undefined ? result : { output: [], stopReason: 'error' }
-    try {
-      const notification = this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
-      if (notification !== undefined) await notification
-    } catch (error: unknown) {
-      resultFailure = { error }
-      failure ??= new SubagentError('Subagent settlement notification was not durably accepted', 'ACTIVATION_TEARDOWN_FAILED', { cause: error })
+    if (!notifyBeforeAccounting) {
+      try {
+        const notification = this.notifySettlement(activation, resultFailure === undefined ? result : terminal)
+        if (notification !== undefined) await notification
+      } catch (error: unknown) {
+        resultFailure = { error }
+        failure ??= new SubagentError('Subagent settlement notification was not durably accepted', 'ACTIVATION_TEARDOWN_FAILED', { cause: error })
+      }
     }
     this.releaseOwnership(childId)
     activation.observer.settle(terminal)

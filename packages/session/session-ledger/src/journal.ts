@@ -452,10 +452,13 @@ class JournalView {
 
   async append(root: string, event: LedgerEvent, encoded: Buffer, checkpoint: JournalOptions['appendCheckpoint']): Promise<void> {
     const date = new Date().toISOString().slice(0, 10)
-    const fresh = this.writer === undefined || this.writer.date !== date
     const directory = join(root, 'events', date)
-    if (fresh) { await ensureDirectory(directory); this.writer = { path: ledgerRelative(root, join(directory, `segment-${ledgerUuid()}.jsonl`)), date } }
-    const writer = this.writer
+    const call = event.kind === 'call/start' || event.kind === 'call/end'
+    const fresh = !call || this.writer === undefined || this.writer.date !== date
+    if (fresh) await ensureDirectory(directory)
+    if (call && fresh) this.writer = { path: ledgerRelative(root, join(directory, `segment-${ledgerUuid()}.jsonl`)), date }
+    // Non-call facts retain their existing filename identities and process UUID consumption.
+    const writer = call ? this.writer : { path: ledgerRelative(root, join(directory, `${randomUUID()}.jsonl`)), date }
     if (!writer) throw new Error('Ledger writer segment is unavailable')
     try {
       const handle = await open(join(root, writer.path), fresh ? 'wx' : 'a', 0o600)
