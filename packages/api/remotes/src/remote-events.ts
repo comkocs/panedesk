@@ -14,7 +14,7 @@ import type {} from '@panedesk/dsh-plugin-manager/types'
 import type {} from '@panedesk/dsh-plugin-market/types'
 import type {} from '@panedesk/dsh-schedule/client'
 import type {} from '@panedesk/dsh-seat-gates/events'
-import type {} from '@panedesk/dsh-seat'
+import type {} from '@panedesk/dsh-seat/types'
 import type { TypertForwardableEventEntry } from '@panedesk/dsh-typert-protocol'
 
 /**
