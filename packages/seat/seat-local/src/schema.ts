@@ -43,7 +43,7 @@ const shape = z.object({
   agentPreset: z.string().min(1), provider: z.string().min(1), model: z.string().min(1),
   reasoningEffort: z.string().min(1), permissionPreset: z.string().min(1),
   subscriptions: z.array(absolute), checkpointFiles: z.array(z.object({
-    path: absolute, section: z.string().min(1), maxBytes: positive, required: z.boolean(),
+    path: absolute, section: z.string().min(1), mode: z.enum(['section', 'file']).optional(), maxBytes: positive, required: z.boolean(),
   })), wakeTemplate: text.optional(), maxOpenSessions: positive, autoKeepAlive: z.boolean().default(true), maxActiveSubagents: positive,
   contextThresholdTokens: positive.optional(), subagentContextThresholdTokens: positive,
   pollingThreshold: positive.optional(), maxSleepSeconds: positive.optional(),

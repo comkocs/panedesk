@@ -15,6 +15,13 @@ const pathFields = (value: string): Partial<SeatDefinition>[] => [
 ]
 
 describe('catalog path styles', () => {
+  it('preserves optional whole-file checkpoint mode and rejects unknown modes', () => {
+    const file = { path: '/srv/report.md', section: 'Ignored for whole files', mode: 'file' as const, maxBytes: 4096, required: true }
+    expect(parseDefinition(definition('/srv/seat-a', { checkpointFiles: [file] }))).toMatchObject({ checkpointFiles: [file] })
+    expect(parseDefinition({ ...definition('/srv/seat-a'), checkpointFiles: [{ ...file, mode: 'unknown' }] }))
+      .toMatchObject({ status: 'rejected', error: { code: 'invalid-definition' } })
+  })
+
   it.each(['/srv/seat-a', 'C:\\work\\seat-a', 'C:/work/seat-a', '\\\\host-a\\share-a\\seat-a', '//host-a/share-a/seat-a'])(
     'accepts absolute catalog paths independently of the importing host: %s', (value) => {
       for (const fields of pathFields(value)) expect(parseDefinition(definition('/srv/seat-a', fields))).not.toHaveProperty('status')

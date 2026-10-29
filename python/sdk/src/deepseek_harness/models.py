@@ -495,7 +495,7 @@ _SEAT_DEFINITION: dict[str, _SeatCheck] = {
     "directories": _seat_array(_SEAT_DIRECTORY), "memoryDirectories": _seat_array(_seat_text), "opening": _SEAT_TEXT,
     "openingInstructionFiles": _seat_array(_seat_text), "agentPreset": _seat_text, "provider": _seat_text, "model": _seat_text,
     "reasoningEffort": _seat_text, "permissionPreset": _seat_text, "subscriptions": _seat_array(_seat_text),
-    "checkpointFiles": _seat_array(_seat_fields({"path": _seat_text, "section": _seat_text, "maxBytes": _seat_integer, "required": _SEAT_BOOL})),
+    "checkpointFiles": _seat_array(_seat_fields({"path": _seat_text, "section": _seat_text, "mode": _seat_optional(_seat_choice("section", "file")), "maxBytes": _seat_integer, "required": _SEAT_BOOL})),
     "wakeTemplate": _seat_optional(_SEAT_TEXT), "maxOpenSessions": _seat_integer, "maxActiveSubagents": _seat_integer,
     "contextThresholdTokens": _seat_optional(_seat_integer), "subagentContextThresholdTokens": _seat_integer,
     "pollingThreshold": _seat_optional(_seat_integer), "maxSleepSeconds": _seat_optional(_seat_integer), "autoKeepAlive": _seat_optional(_SEAT_BOOL),
