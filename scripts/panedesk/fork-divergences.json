@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "jsonl-pending-read-publication",
+      "description": "Capture pending Session visibility before scanning its first persisted generation.",
+      "origin": "Full-ledger Session creation timing",
+      "reason": "A concurrent first append may publish after a directory scan and retire the pending entry before the reader resumes; the read must retain its valid empty prefix instead of failing Agent initialization.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/session/session-persistence-jsonl/src/storage.ts"],
+        "test": "opts into Workspace tree grouping and preserves the parent Workspace session"
+      }
+    },
+    {
       "id": "startup-audit-observed-failures",
       "description": "Retain the startup audit stack frame while reusing pre-publication activation observations.",
       "origin": "Startup diagnostics",
