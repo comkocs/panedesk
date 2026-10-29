@@ -1526,6 +1526,7 @@ flowchart TD
   pkg_subagent_dsh_sdk --> pkg_agent
   pkg_subagent_dsh_sdk --> pkg_agent_preset_registry
   pkg_subagent_dsh_sdk --> pkg_llm
+  pkg_subagent_dsh_sdk --> pkg_llm_cache
   pkg_subagent_dsh_sdk --> pkg_sdk_client
   pkg_subagent_dsh_sdk --> pkg_session
   pkg_subagent_dsh_sdk --> pkg_session_ledger
@@ -1898,5 +1899,5 @@ flowchart TD
 | [`seat-app`](../packages/seat/seat-app) | `seat` | [`cmdline`](../packages/boot/cmdline), [`sdk-jsonrpc-server`](../packages/sdk/server), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat) |
 | [`acp`](../packages/acp/acp) | `acp` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`mcp-client`](../packages/mcp/mcp-client), [`message-delivery`](../packages/session/message-delivery), [`sdk-jsonrpc-server`](../packages/sdk/server), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`token-meter`](../packages/llm/token-meter), [`user-approval`](../packages/interaction/user-approval) |
 | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-jsonrpc-server`](../packages/sdk/server), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
-| [`subagent-dsh-sdk`](../packages/subagent/subagent-dsh-sdk) | `subagent` | [`agent`](../packages/core/agent), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`llm`](../packages/llm/llm), [`sdk-client`](../packages/sdk/client), [`session`](../packages/core/session), [`session-ledger`](../packages/session/session-ledger), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess) |
+| [`subagent-dsh-sdk`](../packages/subagent/subagent-dsh-sdk) | `subagent` | [`agent`](../packages/core/agent), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`llm`](../packages/llm/llm), [`llm-cache`](../packages/llm/llm-cache), [`sdk-client`](../packages/sdk/client), [`session`](../packages/core/session), [`session-ledger`](../packages/session/session-ledger), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess) |
 <!-- END GENERATED module-graph:packages -->

@@ -214,6 +214,16 @@ describe('DeepSeekHarness', () => {
     expect(JSON.parse((await readFile(recorded, 'utf8')).trim())).toMatchObject(fields)
   })
 
+  it('forwards inherited cache selection through initialize', async () => {
+    const dir = await tempDir('sdk-cache-inheritance-')
+    const recorded = join(dir, 'initialize.jsonl')
+    const fields = { cachePolicy: { retention: '5m' as const }, cachePolicyInherited: true }
+    const harness = createProcessDeepSeekHarness(fakeLaunch({ FAKE_RECORD_INIT: recorded }), fields)
+    cleanups.push(() => harness.close())
+    await harness.start()
+    expect(JSON.parse((await readFile(recorded, 'utf8')).trim())).toMatchObject(fields)
+  })
+
   it('blocks initialize when durable process registration fails', async () => {
     const dir = await tempDir('sdk-registration-')
     const recorded = join(dir, 'initialize.jsonl')

@@ -109,7 +109,7 @@ export class HarnessSdkJsonRpcServer {
   private readonly extensionPrincipal = brandString<SdkMethodContext['principalId']>(randomUUID())
   private initialized = false
   private initializing = false
-  private handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy'> = {}
+  private handshake: Pick<InitializeParams, 'agentPreset' | 'executionPolicy' | 'ledgerContext' | 'cachePolicy' | 'cachePolicyInherited'> = {}
 
   constructor(
     private readonly ctx: Context,
@@ -674,6 +674,10 @@ export class HarnessSdkJsonRpcServer {
       model: this.model,
       ...this.reasoningEffort === undefined ? {} : { reasoningEffort: this.reasoningEffort },
       ...this.maxTokens === undefined ? {} : { maxTokens: this.maxTokens },
+      ...this.handshake.cachePolicy === undefined ? {} : { cachePolicy: {
+        retention: this.handshake.cachePolicy.retention,
+        ...this.handshake.cachePolicy.key === undefined ? {} : { stableKey: this.handshake.cachePolicy.key },
+      }, cachePolicyInherited: this.handshake.cachePolicyInherited === true },
     }
     const handle = await (resume ? this.ctx.agents.resume({
       resumeSessionId: brandString<SessionId>(sessionId),

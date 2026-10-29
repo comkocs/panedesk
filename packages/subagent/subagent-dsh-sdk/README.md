@@ -52,6 +52,8 @@ The provider advertises `agentOptions: true`, with `agentPreset`/`outputSchema`/
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-subagent-dsh-sdk) is the exhaustive source for every accepted field and its JSDoc.
 
+Child `agentOptions.cachePolicy` takes precedence over the parent's original ledger `sessionPolicy`. The SDK handshake marks inherited selections so the child's cache plugin resolves them against its own route capability, falling back to that route's default with one warning when unsupported; explicit child overrides still reject unsupported retention. Missing original policy never turns a resolved parent request TTL into an explicit child selection.
+
 Request `agentOptions` override `provider`, `model`, and `maxTokens` independently. `reasoningEffort` has no provider-instance default: an omitted request leaves it absent so the selected child model resolves its own default. The model-facing subagent tool can select provider/model/reasoning per call; `maxTokens` remains deployment-controlled through tool config or this provider's default.
 
 ```yaml

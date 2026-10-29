@@ -51,6 +51,8 @@ describe('optional SDK handshake validation', () => {
     { agentPreset: 'worker', executionPolicy: { presetId: 'worker', version: '1', digest: 'bad' } },
     { ledgerContext: { seat: 'seat' } },
     { cachePolicy: { retention: 'forever' } },
+    { cachePolicyInherited: true },
+    { cachePolicy: { retention: '5m' }, cachePolicyInherited: 'true' },
   ])('rejects malformed optional fields before composition: %j', (fields) => {
     expect(() => { validateHandshake({ ...legacy, ...fields } as InitializeParams) }).toThrow()
   })

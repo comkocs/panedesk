@@ -870,7 +870,7 @@
       "id": "session-cache-policy",
       "description": "Apply supported cache controls and stable per-session cache keys.",
       "origin": "Cache controls and session ledger",
-      "reason": "Apply supported cache controls and stable per-session cache keys.",
+      "reason": "Apply supported cache controls and stable per-session cache keys; resolve inherited retention against child route capabilities in both in-process and SDK delegation, preserve explicit child overrides, and record effective child controls.",
       "match": {
         "type": "test-assertion",
         "paths": [

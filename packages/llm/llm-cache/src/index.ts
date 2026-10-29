@@ -11,7 +11,7 @@ import type {
   SessionLedger, LedgerEventId, LedgerCallStart, LedgerCacheEvidence, LedgerAuxiliaryFact,
   CallContributor, CallContributionScope,
 } from '@panedesk/dsh-session-ledger'
-import type { CachePolicy, FamilyConcurrencyLimit, KeepalivePolicy } from './types.ts'
+import type { CachePolicy, FamilyConcurrencyLimit, KeepalivePolicy, ResolvedCachePolicy } from './types.ts'
 import { FamilySemaphore } from './concurrency.ts'
 import { fingerprintPrefix, orderedTools } from './fingerprint.ts'
 import { resolveCachePolicy } from './policy.ts'
@@ -108,6 +108,8 @@ declare module '@panedesk/dsh-agent' {
   interface AgentOptions {
     /** Session-specific cache selection; absent children inherit their live parent's selection. */
     cachePolicy?: CachePolicy
+    /** SDK-provided parent selection; unsupported inherited values use the child route default. */
+    cachePolicyInherited?: boolean
     /** Session-specific maintenance; absent children inherit their live parent's selection. */
     cacheKeepalive?: KeepalivePolicy
   }
@@ -130,6 +132,8 @@ interface SessionState {
   stopped: boolean
   keepaliveFailures: number
   policyOverride: boolean
+  inheritedPolicy: boolean
+  inheritanceWarned: boolean
   active: Set<Promise<void>>
   downgradeReason?: string | undefined
 }
@@ -171,7 +175,10 @@ export function apply(ctx: Context, config: Config): void {
       policy: structuredClone(agent?.options.cachePolicy ?? inherited?.policy ?? config.policy),
       keepalive: structuredClone(agent?.options.cacheKeepalive ?? inherited?.keepalive ?? config.keepalive),
       reasons: new Set(), inFlight: 0, pending: Promise.resolve(), stopped: false,
-      keepaliveFailures: 0, policyOverride: agent?.options.cachePolicy !== undefined || inherited?.policyOverride === true,
+      keepaliveFailures: 0, policyOverride: agent?.options.cachePolicy !== undefined || inherited !== undefined,
+      inheritedPolicy: agent?.options.cachePolicyInherited === true
+        || (agent?.options.cachePolicy === undefined && parent !== undefined),
+      inheritanceWarned: false,
       active: new Set(),
     }
     states.set(id, state)
@@ -354,6 +361,7 @@ export function apply(ctx: Context, config: Config): void {
       if (agent.options.cachePolicy === undefined && inherited?.sessionPolicy !== undefined) {
         state.policy = structuredClone(inherited.sessionPolicy)
         state.policyOverride = true
+        state.inheritedPolicy = true
       }
       if (agent.options.cacheKeepalive === undefined && inherited?.keepalivePolicy !== undefined) {
         state.keepalive = structuredClone(inherited.keepalivePolicy)
@@ -363,7 +371,8 @@ export function apply(ctx: Context, config: Config): void {
       if (row.kind === 'call' && row.start.purpose === 'conversation'
         && (state.lastStart === undefined || row.start.startedAt >= state.lastStart.startedAt)) state.lastStart = row.start
     }
-    if (agent.options.cachePolicy === undefined && state.evidence?.sessionPolicy !== undefined) {
+    if ((agent.options.cachePolicy === undefined || agent.options.cachePolicyInherited === true)
+      && state.evidence?.sessionPolicy !== undefined) {
       state.policy = structuredClone(state.evidence.sessionPolicy)
       state.policyOverride = true
     }
@@ -394,6 +403,7 @@ export function apply(ctx: Context, config: Config): void {
       resolveCachePolicy(policy, routeOf(state.request?.provider ?? agent.options.provider ?? ''), agent.id)
       state.policy = structuredClone(policy)
       state.policyOverride = true
+      state.inheritedPolicy = false
       state.reasons.add('cache-policy-change')
       // Old evidence describes the old tier, not the new request configuration.
       state.evidence = { ...state.evidence, cacheMode: 'unknown', breakReasons: ['cache-policy-change'], sessionPolicy: state.policy }
@@ -434,7 +444,21 @@ export function apply(ctx: Context, config: Config): void {
     const policy = state.policyOverride || request.cache === undefined ? state.policy
       : { retention: request.cache.retention,
         ...request.cache.key === undefined ? {} : { stableKey: request.cache.key } }
-    const resolved = resolveCachePolicy(policy, routeOf(request.provider), agent.id)
+    const route = routeOf(request.provider)
+    let resolved: ResolvedCachePolicy
+    try {
+      resolved = resolveCachePolicy(policy, route, agent.id)
+    } catch (error: unknown) {
+      if (!state.inheritedPolicy) throw error
+      const fallback: CachePolicy = { ...policy, retention: 'default' }
+      resolved = resolveCachePolicy(fallback, route, agent.id)
+      state.policy = fallback
+      state.policyOverride = true
+      if (!state.inheritanceWarned) {
+        ctx.logger.warn(`Inherited cache retention ${policy.retention} is unsupported for ${route.provider} (${route.capability}); using ${resolved.control.retention}`)
+        state.inheritanceWarned = true
+      }
+    }
     state.downgradeReason = resolved.downgradeReason
     return { ...request, cache: resolved.control }
   }, { prepend: true })
@@ -489,7 +513,7 @@ export function apply(ctx: Context, config: Config): void {
           ...request.cache === undefined ? {} : { retention: request.cache },
           ...resolution.ttlSeconds === undefined ? {} : { ttlSeconds: resolution.ttlSeconds },
           ...downgradeReason === undefined ? {} : { downgradeReason },
-          ...state.policyOverride ? { sessionPolicy: state.policy } : {}, keepalivePolicy: state.keepalive,
+          sessionPolicy: state.policy, keepalivePolicy: state.keepalive,
           keepaliveFailures: state.keepaliveFailures,
           ...state.lastAttempt === undefined ? {} : { lastKeepaliveAttemptAt: state.lastAttempt },
           ...(!changed && state.reasons.size === 0 && state.route === routeKey && state.evidence?.lastCacheEvidenceAt !== undefined

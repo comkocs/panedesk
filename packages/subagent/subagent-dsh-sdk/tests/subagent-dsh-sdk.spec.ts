@@ -158,6 +158,43 @@ describe('sdkChildOutcome', () => {
 })
 
 describe('dsh-subagent-dsh-sdk provider', () => {
+  it.each(['parent default', 'parent explicit', 'child override', 'recovery'] as const)
+  ('forwards the original child cache selection: %s', async (scenario) => {
+    const home = mkdtempSync(join(import.meta.dirname, '.sdk-cache-'))
+    const ctx = await setup()
+    const raw = scenario === 'parent default' ? 'default' : '5m'
+    try {
+      await ctx.plugin(JournalSessionLedger, { dshHome: home })
+      const parent = await externalTestParent(ctx, process.cwd())
+      const ledger = ctx.sessionLedger
+      const context: LedgerSessionContext = { sessionId: parent.id, rootSessionId: parent.id,
+        runId: brandString<LedgerSessionContext['runId']>('cache-parent-run'), nodeId: await ledger.nodeId(),
+        seat: 'free', window: 'free', accountLabel: 'unknown', identitySource: 'startup' }
+      await ledger.beginRun({ ...context, startedAt: Date.now(), launchState: 'started', deliveryPaths: [] })
+      await ledger.appendEvent({ schemaVersion: 1,
+        eventId: brandString<LedgerEvent['eventId']>('cache-parent-policy'), nodeId: context.nodeId,
+        sessionId: parent.id, runId: context.runId, observedAt: Date.now(), kind: 'cache/evidence',
+        evidence: { cacheMode: 'explicit', breakReasons: [], sessionPolicy: { retention: raw } } })
+      if (scenario === 'recovery') {
+        const reopenedContext = new Context()
+        const reopened = new JournalSessionLedger(reopenedContext, { dshHome: home })
+        const snapshot = await reopened.snapshot({ sessionId: parent.id })
+        expect(snapshot.complete).toBe(true)
+        vi.spyOn(ledger, 'snapshot').mockResolvedValue(snapshot)
+        await reopenedContext.fiber.dispose()
+      }
+      const activation = await startExternalActivation(ctx, 'dsh-sdk', {
+        ...request(), parent,
+        ...scenario === 'child override' ? { agentOptions: { cachePolicy: { retention: 'default' as const } } } : {},
+      })
+      await activation.result
+      expect(createdHarnessOptions.at(-1)?.cachePolicy).toEqual({ retention: scenario === 'child override' ? 'default' : raw })
+      expect(createdHarnessOptions.at(-1)).toHaveProperty('cachePolicyInherited', scenario !== 'child override')
+    } finally {
+      await ctx.fiber.dispose()
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
   it('aligns activation identity and inherits an unbound durable parent through the SDK handshake', async () => {
     const home = mkdtempSync(join(import.meta.dirname, '.sdk-ledger-'))
     const ctx = await setup()

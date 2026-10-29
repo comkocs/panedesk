@@ -58,6 +58,10 @@ export function validateHandshake(params: InitializeParams): void {
       throw new TypeError('initialize deliveryPaths must contain non-empty strings')
     }
   }
+  if (params.cachePolicyInherited !== undefined && (typeof params.cachePolicyInherited !== 'boolean'
+    || params.cachePolicy === undefined)) {
+    throw new TypeError('initialize cachePolicyInherited requires a boolean and cachePolicy')
+  }
   if (params.cachePolicy !== undefined) {
     if (!object(params.cachePolicy)
       || !['default', 'none', '5m', '1h', '30m', '12h', 'auto'].includes(params.cachePolicy.retention)) {
