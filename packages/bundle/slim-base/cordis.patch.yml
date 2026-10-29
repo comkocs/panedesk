@@ -162,6 +162,7 @@
       config:
         maxDepth: 3
         maxActiveSubagents: 16
+        overflow: queue
 
     - id: subagent-spawn-in-process
       name: '@panedesk/dsh-subagent-spawn-in-process'

@@ -54,7 +54,9 @@ kind: "package-reference"
 
 每次新建或冷恢复 Activation 前都会读取当前 `maxActiveSubagents`。调高后已有树可接纳更多子代理；调低后驻留子代理继续运行，使用量降至上限以下前拒绝新接纳。
 
-容量耗尽时，新建或冷恢复以 `ACTIVATION_LIMIT_REACHED` 拒绝（浏览器消息返回 `subagent/delivery-unavailable`）：等待子代理完成，或继续使用现有代理。接纳不会排队，避免等待后代的父代理又等待自己占用的名额。名额仅存在于当前进程，不限制累计 Session 历史或 token 用量。
+`overflow: error`（默认值）下，容量耗尽时新建或冷恢复以 `ACTIVATION_LIMIT_REACHED` 拒绝（浏览器消息返回 `subagent/delivery-unavailable`）。`overflow: queue` 下，只有根会话的新委派进入 FIFO；嵌套委派和冷恢复仍在满额时立即拒绝。根请求立即返回包含从 1 开始的接纳位次与时间戳的票据，不等待空位，因此根可以继续工作或关闭空闲子级。base 与生成的 slim-base 组合包启用 `queue`。名额仍仅存在于当前进程，不限制累计 Session 历史或 token 用量。
+
+可选根准入提供方使用原容量池的预约与释放回调，并与已安装的 `subagentAdmission` 提供方组合，而非替换它。票据提供 `cancel()` 与 `outcome` Promise，后者兑现为已发布执行、下游提供方的排队票据或明确取消结果。`listQueued(parentSessionId)` 返回排队数、最早接纳时刻与当前位次。排队、出队、取消均发出 `subagent/queue`；排队请求没有执行或账本运行起点。调用方中止、根回合中断、会话结束及运行时释放会取消未发布工作。队列事件与票据仅存在于当前进程：强制重启会丢失它们，不重放，也不留下持久取消记录。
 
 ### 可选准入与完成投递
 

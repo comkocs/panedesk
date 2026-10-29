@@ -91,7 +91,7 @@ describe('slim-base bundle', () => {
 
   it('uses the product depth and capacity without changing plugin defaults', () => {
     for (const rows of [baseRows, slimRows]) {
-      expect(rows.find(row => row.id === 'subagent')?.config).toEqual({ maxDepth: 3, maxActiveSubagents: 16 })
+      expect(rows.find(row => row.id === 'subagent')?.config).toEqual({ maxDepth: 3, maxActiveSubagents: 16, overflow: 'queue' })
     }
   })
 

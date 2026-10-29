@@ -57,16 +57,38 @@ export interface SubagentQueued {
   readonly status: 'queued'
   readonly ticketId: Branded<'SeatChildTicketId'>
   readonly parentSessionId: SessionId
+  /** One-based position at acceptance; absent for providers without position reporting. */
+  readonly position?: number
+  /** Acceptance time in milliseconds since the epoch, when reported by the provider. */
+  readonly queuedAt?: number
+  /** Cancel unpublished queued work; absent when cancellation is provider-owned. */
+  readonly cancel?: () => void
+  /** Publication or explicit cancellation; absent for durable provider-owned tickets. */
+  readonly outcome?: Promise<SubagentActivation | SubagentQueued | { status: 'cancelled'; reason: string }>
+}
+
+/** Optional manager callbacks for providers sharing the original activation pool. */
+export interface SubagentAdmissionControl {
+  /** Reserve synchronously using the original pool's unchanged rejection policy.
+   * @returns an idempotent release after rollback or execution cleanup.
+   */
+  reserve(): () => void
+  /** Retry the validated request through dispatch and admission without waiting for its result.
+   * @param spec - isolated retry identity; omission reuses the original request.
+   * @returns the published activation, never its execution result.
+   */
+  start(spec?: SubagentActivationSpec): Promise<SubagentActivation>
 }
 
 /** Optional policy reserves capacity before the original parent-chain pool. */
 export interface SubagentAdmission {
   /**
    * Reserve capacity before starting an activation.
-   * @param spec - Validated start request; the provider owns durable FIFO and replay.
+   * @param spec - Validated start request; the provider owns FIFO and replay policy.
+   * @param control - Optional original-pool reservation and retry callbacks; legacy providers may ignore them.
    * @returns A reservation or a nonblocking queue ticket.
    */
-  acquire(spec: SubagentActivationSpec): Promise<SubagentReservation | SubagentQueued>
+  acquire(spec: SubagentActivationSpec, control?: SubagentAdmissionControl): Promise<SubagentReservation | SubagentQueued>
   /**
    * Authorize continuation using the existing child evidence.
    * @param parent - Authorized parent requesting another child turn.
@@ -106,6 +128,8 @@ export interface SubagentDispatch {
 /** A policy reservation is released after startup rollback or final cleanup. */
 export interface SubagentReservation {
   readonly status: 'reserved'
+  /** Original pool slot reserved by an optional admission controller; absent uses legacy reservation. */
+  readonly releaseSlot?: () => void
   /**
    * @param childId - Published child, absent when startup failed.
    * @returns After durable release and FIFO selection commit.

@@ -76,13 +76,14 @@ import type { SubagentCatalogEntry } from './projection-types.ts'
 import { subagentIdentityProjectionDefinition, subagentTimingProjectionDefinition } from './projection.ts'
 import { subagentCatalogProjectionDefinition } from './catalog.ts'
 import { deliverSubagentPrompt } from './internal.ts'
+import { RootSubagentAdmission } from './root-admission.ts'
 
 export type {} from './catalog.ts'
 export * from './out-of-process.ts'
 export { recordExternalRun, type ExternalLedgerSpec } from './external-ledger.ts'
 export { AssistantOutputFold, finalAssistantOutput } from './assistant-output.ts'
 export { SubagentRunId } from './types.ts'
-export type { SubagentAdmission, SubagentReservation, SubagentQueued, SubagentNotifications, SubagentDispatch } from './types.ts'
+export type { SubagentAdmission, SubagentAdmissionControl, SubagentReservation, SubagentQueued, SubagentNotifications, SubagentDispatch } from './types.ts'
 export { SubagentQueuedError } from './manager.ts'
 export type {
   ContinuableCreateRequest,
@@ -191,17 +192,21 @@ export interface Config {
   maxActiveSubagents: Volatile<number>
   /** Default delegation depth for tools without an explicit limit; defaults to 1. */
   maxDepth: Volatile<number>
+  /** Root-only overflow handling; omission preserves immediate rejection. */
+  overflow?: 'error' | 'queue'
 }
 
 /** Named provider registry with managed activations, durable discovery, and local child messaging. */
 export class SubagentRuntime extends TypertRemoteService {
   static Config = z.object({
+    overflow: z.union([z.const('error'), z.const('queue')]).default('error'),
     maxDepth: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(1).volatile(),
     maxActiveSubagents: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(8).volatile(),
   })
   static inject = ['workingDirectory']
   private providers = new Map<string, SubagentProvider>()
   private manager: SubagentManager | undefined
+  private readonly rootAdmission: RootSubagentAdmission | undefined
   /**
    * The contained lifecycle-edge publisher. Built here because scoped dispatch
    * keys its carrier by this exact service instance, whose own context filter
@@ -211,6 +216,8 @@ export class SubagentRuntime extends TypertRemoteService {
 
   constructor(ctx: Context, private config: Config) {
     super(ctx, 'subagents')
+    this.rootAdmission = config.overflow === 'queue'
+      ? new RootSubagentAdmission(ctx, () => ctx.get('subagentAdmission')) : undefined
     this.emitLifecycle = createLifecycleEmitter(this.ctx, parent => scopeTarget(this, parent))
     ctx.inject(['agents'], (childCtx: Context) => {
       const manager = new SubagentManager(childCtx, {
@@ -220,6 +227,9 @@ export class SubagentRuntime extends TypertRemoteService {
         },
         prepareContinuable: (name, request) => this.prepareContinuable(name, request),
         observeActivation: (provider, childId, parent) => this.observeActivation(provider, childId, parent),
+        admission: () => this.rootAdmission ?? childCtx.get('subagentAdmission'),
+        capacityReleased: root => this.rootAdmission?.released(root),
+        cancelQueued: parent => this.rootAdmission?.cancelParent(parent, 'session-ended'),
       }, () => this.config.maxActiveSubagents.get())
       this.manager = manager
       childCtx.effect(() => () => {
@@ -235,6 +245,17 @@ export class SubagentRuntime extends TypertRemoteService {
     // Archive admission: this runtime is the owner that knows which live
     // children descend from a Session and how a parent stops them.
     ctx.inject(['agents'], (agentsCtx: Context) => { installSubagentArchiveAdmission(agentsCtx) })
+  }
+
+  /** Whether root overflow can return queue tickets. */
+  get queuesRootOverflow(): boolean { return this.rootAdmission !== undefined }
+
+  /** Read process-local queued work without loading a child.
+   * @param parentSessionId - owning root session.
+   * @returns count, oldest time, and current ticket positions.
+   */
+  listQueued(parentSessionId: SessionId): ReturnType<RootSubagentAdmission['list']> {
+    return this.rootAdmission?.list(parentSessionId) ?? { queuedCount: 0, tickets: [] }
   }
 
   /**
