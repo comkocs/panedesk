@@ -7,6 +7,43 @@ type Site = 'startup-recovery' | 'scheduled-drive' | 'decision-notification' | '
 const transportCodes = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'EPIPE',
   'node-tunnel-disconnected', 'node-deadline-exceeded', 'callback-timeout'])
 
+function exceptionSummary(cause: unknown): { constructor?: string; name?: string; code?: string }[] {
+  const entries: { constructor?: string; name?: string; code?: string }[] = []
+  const seen = new Set<object>()
+  const read = (value: object, key: string): unknown => {
+    try {
+      let current: object | null = value
+      for (let depth = 0; current && depth < 4; depth++) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, key)
+        if (descriptor) return 'value' in descriptor ? descriptor.value : undefined
+        const prototype: unknown = Object.getPrototypeOf(current)
+        current = prototype !== null && typeof prototype === 'object' ? prototype : null
+      }
+    } catch (error) { void error /* Exception diagnostics cannot replace the supervised failure. */ }
+    return undefined
+  }
+  const identifier = (value: unknown): string | undefined => typeof value === 'string'
+    && /^[A-Za-z0-9._:-]{1,48}$/.test(value)
+    && !/(?:token|secret|password|bearer|^sk-|^gh[pousr]_|[a-z0-9]{24})/i.test(value) ? value : undefined
+  const visit = (value: unknown, depth: number): void => {
+    if (depth >= 4 || entries.length >= 16 || value === null || typeof value !== 'object' || seen.has(value)) return
+    seen.add(value)
+    const type = read(value, 'constructor')
+    const constructor = identifier(typeof type === 'function' ? read(type, 'name') : undefined)
+    const name = identifier(read(value, 'name')), code = identifier(read(value, 'code'))
+    entries.push({ ...(constructor ? { constructor } : {}), ...(name ? { name } : {}), ...(code ? { code } : {}) })
+    visit(read(value, 'cause'), depth + 1)
+    const errors = read(value, 'errors')
+    if (Array.isArray(errors)) {
+      for (let index = 0; index < Math.min(errors.length, 16) && entries.length < 16; index++) {
+        visit(read(errors, String(index)), depth + 1)
+      }
+    }
+  }
+  visit(cause, 0)
+  return entries
+}
+
 /** Own one continuous unavailable interval; an unrecoverable failure cannot be overwritten by a transient one. */
 export class EngineFailures {
   private current: Failure | undefined
@@ -35,7 +72,7 @@ export class EngineFailures {
 
   /** Record one failed attempt, retaining an earlier unrecoverable cause and the original interval start.
    * @param site - Fixed engine call site.
-   * @param cause - Structured failure; arbitrary messages and nested causes are never logged.
+   * @param cause - Failure; unknown classifications log bounded identifiers only, never exception text.
    * @param code - Optional fixed site-specific diagnosis for failures without a precise public code.
    */
   record(site: Site, cause: unknown, code?: string): void {
@@ -59,7 +96,8 @@ export class EngineFailures {
     const failure = { site, code: safeCode, since: previous?.since ?? new Date(now).toISOString(), retryable, attempts }
     this.current = previous && !previous.retryable ? { ...previous, attempts } : failure
     if (this.initialMs !== undefined) this.nextDue = now + Math.min(300000, this.initialMs * 2 ** Math.min(attempts - 1, 30))
-    this.log(`Seat engine failure ${JSON.stringify({ ...failure, action: retryable ? 'retry' : 'stop-and-restart-after-repair' })}`)
+    this.log(`Seat engine failure ${JSON.stringify({ ...failure, action: retryable ? 'retry' : 'stop-and-restart-after-repair',
+      ...(safeCode === 'unclassified-error' ? { exception: exceptionSummary(cause) } : {}) })}`)
     if (!previous && !this.closed) {
       this.alert = setTimeout(() => {
         this.alert = undefined

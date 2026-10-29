@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "callback-failure-diagnosis-and-pending-progress",
+      "description": "Log bounded exception identifiers and preserve normal asynchronous callback progress.",
+      "origin": "Callback delivery supervision",
+      "reason": "A matching pending owner receipt must not fabricate an unrecoverable engine failure; unknown exceptions need credential-free identifiers.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-engine/src/failure.ts", "packages/seat/seat-engine/src/outbox.ts", "packages/seat/seat-engine/tests/failure-recovery.spec.ts", "packages/seat/seat-engine/tests/routed-outbox.spec.ts"],
+        "test": "supervises real failures but leaves a matching pending owner receipt to the outbox backoff"
+      }
+    },
+    {
       "id": "anthropic-cache-breakpoint-order",
       "description": "Pin uniform Anthropic cache retention across catalog and custom provider requests.",
       "origin": "Anthropic request cache compatibility",

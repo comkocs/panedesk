@@ -144,6 +144,75 @@ it('retains unknown and persistence failures despite later transient errors or s
   } finally { unknown.close() }
 })
 
+it.each([
+  [new Error('private exception text'), [{ constructor: 'Error', name: 'Error' }]],
+  [new Error('private exception text', { cause: Object.assign(new TypeError('private cause'), { code: 'ETIMEDOUT' }) }),
+    [{ constructor: 'Error', name: 'Error' }, { constructor: 'TypeError', name: 'TypeError', code: 'ETIMEDOUT' }]],
+  [new AggregateError([new Error('private aggregate member'), Object.assign(new Error('private code'), { code: 'CUSTOM_FAILURE' })]),
+    [{ constructor: 'AggregateError', name: 'AggregateError' }, { constructor: 'Error', name: 'Error' },
+      { constructor: 'Error', name: 'Error', code: 'CUSTOM_FAILURE' }]],
+])('logs bounded exception identifiers without changing unknown classification: %s', (error, identifiers) => {
+  const log = vi.fn(), failures = new EngineFailures(1, log)
+  try {
+    failures.record('callback-delivery', error)
+    expect(failures.snapshot()).toMatchObject({ code: 'unclassified-error', retryable: false })
+    const line = String(log.mock.calls[0]?.[0])
+    expect(line).toContain(`"exception":${JSON.stringify(identifiers)}`)
+    expect(line).not.toContain('private')
+    expect(failures.snapshot()).not.toHaveProperty('exception')
+  } finally { failures.close() }
+})
+
+it('bounds exception traversal and excludes unsafe identifiers and exception text', () => {
+  const log = vi.fn(), failures = new EngineFailures(1, log)
+  const secret = `sk-${'x'.repeat(48)}`
+  const message = `https://example.invalid/private?key=${secret}`
+  const nested = Object.assign(new Error(message), { code: 'ECONNRESET' })
+  let error: Error = nested
+  for (let depth = 0; depth < 8; depth++) error = new Error(message, { cause: error })
+  const unsafe = Object.assign(new Error(message), { name: message, code: secret })
+  try {
+    failures.record('callback-delivery', new AggregateError([error, unsafe, ...Array.from({ length: 40 }, () => nested)], message))
+    const line = String(log.mock.calls[0]?.[0])
+    expect(line).toContain('"exception":')
+    expect(line).not.toContain(message)
+    expect(line).not.toContain(secret)
+    expect(line).not.toContain('https')
+    expect(line).not.toContain('stack')
+    expect(line.length).toBeLessThan(4096)
+    expect(line.match(/"constructor"/g)?.length).toBeLessThanOrEqual(16)
+  } finally { failures.close() }
+})
+
+it('keeps an unclassified callback stopped through the watchdog and requires repair before restart recovery', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const h = await harness({ failureRecovery: { retryInitialMs: 2000 } })
+  let engine = h.engine, broken = true
+  vi.spyOn(h.source, 'callback').mockImplementation(async (payload) => {
+    if (broken) throw new Error('private callback failure')
+    h.callbacks.push(payload)
+  })
+  try {
+    await auto(engine); await engine.accept(trigger())
+    await vi.advanceTimersByTimeAsync(1000); await engine.drive()
+    expect((await engine.nodeStatus()).failure).toMatchObject({ code: 'unclassified-error', retryable: false })
+    await vi.advanceTimersByTimeAsync(600001)
+    expect(log.mock.calls.some(([line]) => String(line).includes('over ten minutes'))).toBe(true)
+    await engine.shutdown(); engine = await h.start()
+    await vi.advanceTimersByTimeAsync(1000); await engine.drive()
+    expect((await engine.nodeStatus()).engine).toBe('unavailable')
+    broken = false
+    await engine.drive()
+    expect((await engine.nodeStatus()).engine).toBe('unavailable')
+    await engine.shutdown(); engine = await h.start()
+    await vi.advanceTimersByTimeAsync(1000); await engine.drive()
+    expect((await engine.nodeStatus()).engine).toBe('running')
+    expect((await engine.nodeStatus()).failure).toBeUndefined()
+    expect(h.callbacks).toHaveLength(1)
+  } finally { await h.close() }
+})
+
 it('preserves the default latched status and validates explicit retry policy', () => {
   const failures = new EngineFailures(undefined, () => {})
   try {
