@@ -4,6 +4,7 @@
  * @module @panedesk/dsh-agent-instructions/state
  */
 
+import { resolve } from 'node:path'
 import type { Agent } from '@panedesk/dsh-agent'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import type { Message } from '@panedesk/dsh-llm'
@@ -284,6 +285,7 @@ export async function reconcileInstructionContext(
   }
   for (const directory of USER_GLOBAL_DIRECTORIES) baselineScopes.add(candidateScopeKey(directory, USER_GLOBAL_FILE))
   for (const dir of ancestorChain(projectRoot, cwd)) addProjectScopes(baselineScopes, dir)
+  for (const root of resolved.additionalRoots) addProjectScopes(baselineScopes, resolve(cwd, root))
   if (options.includeBaselineScopes) {
     for (const scope of baselineScopes) scopes.add(scope)
   }

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
+import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@panedesk/dsh-llm'
 import AgentLoop from '@panedesk/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@panedesk/dsh-agent-loop-testkit'
 import { SessionId } from '@panedesk/dsh-session'
@@ -13,10 +14,26 @@ import * as JsonlSessionPersistence from '@panedesk/dsh-session-persistence-json
 import Storage from '@panedesk/dsh-storage'
 import * as StorageDomain from '@panedesk/dsh-storage-domain'
 import * as StorageJson from '@panedesk/dsh-storage-json'
-import { createAfterScheduleRecord, ScheduleId } from '../src/domain.ts'
+import { createAfterScheduleRecord, createEveryScheduleRecord, ScheduleId } from '../src/domain.ts'
 import ScheduleService from '../src/index.ts'
 import { scheduleDomain } from '../src/storage.ts'
 
+class ClockAdapter extends LlmAdapter {
+  readonly requests: GenerateOptions[] = []
+  override resolveModel(provider: string, model: string) {
+    return Promise.resolve({ provider, id: model, name: model, context: { contextWindow: 100000 } })
+  }
+  override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    this.requests.push(options)
+    yield { type: 'block-start', index: 0, blockType: 'text' }
+    yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Reminder received.' } }
+    yield { type: 'finish', reason: { kind: 'stop' } }
+  }
+}
+
+const liveEverySeconds = Number(process.env['DSH_SCHEDULE_LIVE_EVERY_SECONDS'] ?? 60)
+const liveFullIntervals = process.env['DSH_SCHEDULE_LIVE_FULL_INTERVALS'] === '1'
+const liveDurationMs = liveEverySeconds * 1000 * (liveFullIntervals ? 2 : 1)
 const roots: string[] = []
 const contexts: Context[] = []
 afterEach(async () => {
@@ -34,6 +51,55 @@ async function core(persistenceRoot: string) {
 }
 
 describe('due delivery during Agent creation', () => {
+  it('restores a cold session and starts two fixed-rate turns on the real host clock', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-schedule-every-live-'))
+    roots.push(root)
+    const ctx = await core(join(root, 'sessions'))
+    await ctx.plugin(Storage)
+    await ctx.plugin(StorageJson, { root: join(root, 'schedule-storage') })
+    await ctx.plugin(StorageDomain, { backend: 'json' })
+    const model = new ClockAdapter()
+    ctx.llm.registerAdapter(['clock'], model)
+    const sessionId = SessionId('every-cold-session')
+    const original = await ctx.agents.create({ sessionId, agentOptions: { provider: 'clock', model: 'clock-model' } })
+    await ctx.sessions.flush(original.agent.session)
+    await original.dispose()
+    expect(ctx.agents.get(sessionId)).toBeUndefined()
+    const record = createEveryScheduleRecord(ScheduleId('every-live'), 'EVERY_LIVE_MARKER', liveEverySeconds,
+      Date.now() - (liveFullIntervals ? 0 : liveEverySeconds * 1000 - 100), 'Live every')
+    const seeded = await ctx.storageDomain.open(scheduleDomain)
+    await seeded.table('tasks').put(record.id, { sessionId, record, status: 'active' })
+    await seeded.close()
+    let resolutions = 0
+    ctx.provide('sessionController', {
+      resolveAgent: async (bound: SessionId) => {
+        expect(bound).toBe(sessionId)
+        resolutions++
+        const live = ctx.agents.get(bound) ?? (await ctx.agents.resume({
+          resumeSessionId: bound, agentOptions: { provider: 'clock', model: 'clock-model' },
+        })).agent
+        return { agent: live }
+      },
+    } as never)
+    let turns = 0
+    ctx.on('session/event', (session, event) => {
+      if (session.id === sessionId && event.type === 'turn/start') turns++
+    })
+    const started = performance.now()
+    await ctx.plugin(ScheduleService)
+    await expect.poll(() => turns, { timeout: liveDurationMs + 5000, interval: 100 }).toBe(2)
+    expect(resolutions).toBe(2)
+    expect(performance.now() - started).toBeGreaterThanOrEqual(liveDurationMs - 1000)
+    const live = ctx.agents.get(sessionId)!
+    await live.whenIdle()
+    expect(model.requests).toHaveLength(2)
+    const [entry] = await ctx.schedule.catalog()
+    expect(entry?.kind).toBe('every')
+    expect(JSON.stringify(ctx.agents.get(sessionId)?.session.deriveMessages())).toContain('EVERY_LIVE_MARKER')
+    console.log('Real host clock:', JSON.stringify({ everySeconds: liveEverySeconds, turns, resolutions,
+      requests: model.requests.length, elapsedMs: performance.now() - started }))
+  }, liveDurationMs + 15000)
+
   it('enqueues the reminder without starting a turn before every creation listener finishes', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-schedule-serial-'))
     roots.push(root)

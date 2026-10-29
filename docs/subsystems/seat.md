@@ -12,6 +12,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `SeatDefinition` freezes its revision, startup and additional directories, opening text, model and permission selections, subscriptions, checkpoint files, rules, and local capacity. Import previews retain source and mapping digests; committing selected rows checks both the original source and catalog revision. Source authority changes only through an authorized operation.
 
+`SeatCheckpointFile` requires `path`, `section`, `maxBytes` and `required`, with optional `mode: 'section' | 'file'`. Omission selects one unique Markdown section; `file` ignores `section` and preserves the complete source text under the existing byte, token and required-content limits.
+
 `SeatProjectPolicy` defaults to reminder mode until explicitly selected. Rules cannot widen project policy. `SeatQueued` reports FIFO identity and blocking reasons without claiming resources. `ChildAdmissionTicket` represents nonblocking child admission; cancelling an unstarted ticket does not terminate a running child. `SeatTurnAdmission` defers only a new turn and leaves queued input intact.
 
 ## Window operations

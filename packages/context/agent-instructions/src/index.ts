@@ -10,6 +10,8 @@
  */
 
 import type {} from '@panedesk/dsh-working-directory'
+import type {} from '@panedesk/dsh-seat'
+import { resolve } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import { isDeepStrictEqual } from 'node:util'
 import { agentEvents, type Agent, type PreStepDecision } from '@panedesk/dsh-agent'
@@ -114,12 +116,18 @@ export function apply(ctx: Context, config: Config): void {
     excludedScopes: ReadonlySet<string>
   }>()
   const projectionLifecycle = new AbortController()
+  const observedAgents = new Set<Agent>()
+  let polling: Promise<void> | undefined
+  let pollTimer: ReturnType<typeof setTimeout> | undefined
   type ProjectionTouch = { agent: Agent; path: string }
   const executionTouches = new Map<ToolExecutionToken, ProjectionTouch[]>()
   ctx.effect(
-    () => () => {
+    () => async () => {
       projectionLifecycle.abort(new Error('agent-instructions disposed'))
+      if (pollTimer !== undefined) clearTimeout(pollTimer)
+      observedAgents.clear()
       executionTouches.clear()
+      await polling
     },
     'agent-instructions.projectionLifecycle',
   )
@@ -149,7 +157,17 @@ export function apply(ctx: Context, config: Config): void {
     const authorityMessages = [...claimed]
     const cwd = await ctx.workingDirectory.ensure(agent, signal)
     const projectRoot = await findProjectRoot(cwd, resolved.projectRootMarkers, fileSystem, signal)
-    const identity = workspaceBaselineIdentity(resolved, cwd, projectRoot)
+    const sessionRoots = resolved.includeSessionWorkspaceRoots
+      ? await ctx.get('seatDirectories')?.roots(agent.session.id) ?? []
+      : []
+    const effective: ResolvedConfig = {
+      ...resolved,
+      additionalRoots: [...new Set([
+        ...resolved.additionalRoots.map(root => resolve(cwd, root)),
+        ...sessionRoots.filter(root => root.kind === 'additional').map(root => root.path),
+      ])],
+    }
+    const identity = workspaceBaselineIdentity(effective, cwd, projectRoot)
     if (touchedPaths.length === 0 && pending.length > 0
       && baselinePreparations.get(agent.session)?.identity === identity) return pending[0]
     const visibleBaseline = visibleBaselineSource(agent, authorityMessages)
@@ -167,6 +185,7 @@ export function apply(ctx: Context, config: Config): void {
         dshHome: resolved.dshHome,
         agentsHome: resolved.agentsHome,
         projectRootMarkers: resolved.projectRootMarkers,
+        additionalRoots: effective.additionalRoots,
         maxBytes: resolved.maxBytes,
         maxSourceBytes: resolved.maxSourceBytes,
         instructionFileCandidates: resolved.instructionFileCandidates,
@@ -231,7 +250,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     const update = await reconcileInstructionContext(
       agent,
-      resolved,
+      effective,
       instructionVersions,
       fileSystem,
       {
@@ -327,6 +346,27 @@ export function apply(ctx: Context, config: Config): void {
     while ((projection = projectionTails.get(agent)) !== undefined) await projection
   }
 
+  if (resolved.refreshIntervalMs > 0) {
+    const schedulePoll = (): void => {
+      if (projectionLifecycle.signal.aborted) return
+      pollTimer = setTimeout(() => {
+        polling = (async () => {
+          for (const agent of observedAgents) {
+            if (projectionLifecycle.signal.aborted) break
+            // A poll discovers changes but only an admitted step commits them to history.
+            projectTouch({ agent, path: '.' })
+            await waitForProjections(agent)
+          }
+        })().catch((error: unknown) => {
+          if (!projectionLifecycle.signal.aborted) ctx.logger.warn('workspace instruction polling failed: %o', error)
+        }).finally(schedulePoll)
+      }, resolved.refreshIntervalMs)
+      pollTimer.unref()
+    }
+    schedulePoll()
+    ctx.on('agent/disposed', ({ agent }) => { observedAgents.delete(agent) })
+  }
+
   const stepIsOpen = (session: Session): boolean => {
     const boundary = ctx.sessionProjections.stateOf(session, 'turnBoundary')
     if (boundary === undefined) {
@@ -345,7 +385,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     const pending = stepTouches.get(session)
     if (pending === undefined) stepTouches.set(session, [touch])
-    else pending.push(touch)
+    else if (!pending.some(item => item.agent === touch.agent && item.path === touch.path)) pending.push(touch)
   }
 
   ctx.on('session/event', (session, event) => {
@@ -360,6 +400,7 @@ export function apply(ctx: Context, config: Config): void {
     { agent, messages, step, signal },
     next,
   ): Promise<PreStepDecision> => {
+    if (resolved.refreshIntervalMs > 0) observedAgents.add(agent)
     const decision = await next()
     await waitForProjections(agent)
     const pending = agent.inbox.nextStep.filter(isAgentInstructionsMessage)

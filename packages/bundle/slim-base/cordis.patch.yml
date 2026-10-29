@@ -97,13 +97,14 @@
 
     - id: bash-sandbox
       name: '@panedesk/dsh-bash-sandbox'
-      disabled: !!js process.platform === 'win32'
+      disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH
       config:
         timeoutMs: 60000
+        bashPath: !!js process.env.PANEDESK_BASH_PATH ?? 'bash'
 
     - id: pwsh-sandbox
       name: '@panedesk/dsh-pwsh-sandbox'
-      disabled: !!js process.platform !== 'win32'
+      disabled: !!js process.platform !== 'win32' || !!process.env.PANEDESK_BASH_PATH
 
     - id: approval
       name: '@panedesk/dsh-user-approval'
@@ -129,11 +130,11 @@
 
     - id: tool-bash
       name: '@panedesk/dsh-tool-bash'
-      disabled: !!js process.platform === 'win32'
+      disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH
 
     - id: tool-pwsh
       name: '@panedesk/dsh-tool-pwsh'
-      disabled: !!js process.platform !== 'win32'
+      disabled: !!js process.platform !== 'win32' || !!process.env.PANEDESK_BASH_PATH
 
     - id: fs-observation-policy
       name: '@panedesk/dsh-fs-observation-policy'
@@ -150,6 +151,8 @@
       name: '@panedesk/dsh-agent-instructions'
       config:
         maxBytes: 65536
+        includeSessionWorkspaceRoots: true
+        refreshIntervalMs: 5000
 
     - id: token-meter
       name: '@panedesk/dsh-token-meter'
@@ -164,6 +167,7 @@
         maxActiveSubagents: 16
         overflow: queue
         persistQueue: true
+        reportPathsInNotifications: true
 
     - id: subagent-spawn-in-process
       name: '@panedesk/dsh-subagent-spawn-in-process'

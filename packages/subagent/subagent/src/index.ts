@@ -196,6 +196,8 @@ export interface Config {
   overflow?: 'error' | 'queue'
   /** Persist root queue metadata beside the owning Session; defaults to false. */
   persistQueue?: boolean
+  /** Include reported artifact paths in parent completion notices; disabled by default. */
+  reportPathsInNotifications: boolean
 }
 
 /** Named provider registry with managed activations, durable discovery, and local child messaging. */
@@ -203,6 +205,7 @@ export class SubagentRuntime extends TypertRemoteService {
   static Config = z.object({
     overflow: z.union([z.const('error'), z.const('queue')]).default('error'),
     persistQueue: z.boolean().default(false),
+    reportPathsInNotifications: z.boolean().default(false),
     maxDepth: z.number().step(1).min(0).max(Number.MAX_SAFE_INTEGER).default(1).volatile(),
     maxActiveSubagents: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(8).volatile(),
   })
@@ -235,6 +238,7 @@ export class SubagentRuntime extends TypertRemoteService {
         admission: () => this.rootAdmission ?? childCtx.get('subagentAdmission'),
         capacityReleased: root => this.rootAdmission?.released(root),
         cancelQueued: parent => this.rootAdmission?.cancelParent(parent, 'session-ended'),
+        reportPathsInNotifications: () => this.config.reportPathsInNotifications,
       }, () => this.config.maxActiveSubagents.get())
       this.manager = manager
       childCtx.effect(() => () => {

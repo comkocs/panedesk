@@ -232,7 +232,8 @@ export function createActivationObserver(
       }) } catch (error) { failures.push(error) }
       unbind?.()
       if (failures.length > 0) throw new AggregateError(failures, 'Subagent terminal accounting failed; outcome is not durably confirmed')
-      return plan === undefined ? result : { ...result, deliveryState: delivery.state }
+      return plan === undefined ? result : { ...result, deliveryState: delivery.state,
+        ...plan.paths.length === 0 ? {} : { deliveryPaths: plan.paths } }
     },
     start: (child?: Agent): void => {
       childAgent = child

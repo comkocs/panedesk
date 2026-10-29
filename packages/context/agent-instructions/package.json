@@ -38,10 +38,16 @@
     "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/dsh-working-directory": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-seat": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@panedesk/dsh-util-values": "workspace:*",
@@ -60,6 +66,7 @@
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-llm-deepseek": "workspace:*",
     "@panedesk/dsh-llm-deepseek-api-key": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",

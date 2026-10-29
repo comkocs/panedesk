@@ -18,6 +18,12 @@ const RESERVED_PATH_SEGMENTS = new Set(['', '.', '..'])
 export interface Config {
   /** Directory entries that identify the project root while walking upward from the current working directory. */
   projectRootMarkers?: string[]
+  /** Additional workspace roots whose root-level candidates load after the primary chain; empty by default. */
+  additionalRoots?: string[]
+  /** Include a bound seat session's additional workspace roots; disabled by default. */
+  includeSessionWorkspaceRoots?: boolean
+  /** Poll instruction versions at this interval in milliseconds; zero disables polling. */
+  refreshIntervalMs?: number
   /** UTF-8 byte cap for one rendered baseline or dynamic batch; non-positive or non-finite disables loading. */
   maxBytes: number
   /** Maximum UTF-8 bytes read from one instruction file; larger files are ignored. */
@@ -36,6 +42,9 @@ export interface Config {
 
 export const Config: z<Config> = z.object({
   projectRootMarkers: z.array(z.string()).default([...DEFAULT_PROJECT_ROOT_MARKERS]),
+  additionalRoots: z.array(z.string()).default([]),
+  includeSessionWorkspaceRoots: z.boolean().default(false),
+  refreshIntervalMs: z.number().step(1).min(0).max(2_147_483_647).default(0),
   maxBytes: z.number().required(),
   maxSourceBytes: z.number().step(1).min(1).default(DEFAULT_MAX_SOURCE_BYTES),
   instructionFileCandidates: z.array(z.string()).default([...DEFAULT_INSTRUCTION_FILE_CANDIDATES]),
@@ -47,6 +56,7 @@ export interface ResolvedDiscoveryConfig {
   dshHome: string
   agentsHome: string
   projectRootMarkers: string[]
+  additionalRoots: string[]
   instructionFileCandidates: string[]
   localInstructionFileCandidates: string[]
 }
@@ -55,6 +65,8 @@ export interface ResolvedDiscoveryConfig {
 export interface ResolvedConfig extends ResolvedDiscoveryConfig {
   maxBytes: number
   maxSourceBytes: number
+  includeSessionWorkspaceRoots: boolean
+  refreshIntervalMs: number
 }
 
 /**
@@ -71,6 +83,7 @@ export function workspaceBaselineIdentity(
 ): string {
   return JSON.stringify({
     projectRoot: relative(cwd, projectRoot),
+    ...config.additionalRoots.length === 0 ? {} : { additionalRoots: config.additionalRoots },
     projectRootMarkers: config.projectRootMarkers,
     maxBytes: config.maxBytes,
     maxSourceBytes: config.maxSourceBytes,
@@ -89,6 +102,7 @@ export function resolveConfig(config: Config): ResolvedConfig {
   return {
     ...resolveDiscoveryConfig({
       ...config.projectRootMarkers === undefined ? {} : { projectRootMarkers: config.projectRootMarkers },
+      ...config.additionalRoots === undefined ? {} : { additionalRoots: config.additionalRoots },
       ...config.instructionFileCandidates === undefined ? {} : { instructionFileCandidates: config.instructionFileCandidates },
       ...config.localInstructionFileCandidates === undefined
         ? {}
@@ -96,6 +110,8 @@ export function resolveConfig(config: Config): ResolvedConfig {
     }),
     maxBytes: config.maxBytes,
     maxSourceBytes: config.maxSourceBytes ?? DEFAULT_MAX_SOURCE_BYTES,
+    includeSessionWorkspaceRoots: config.includeSessionWorkspaceRoots ?? false,
+    refreshIntervalMs: config.refreshIntervalMs ?? 0,
   }
 }
 
@@ -111,13 +127,14 @@ export function resolveConfig(config: Config): ResolvedConfig {
  * @returns normalized home, root markers, and instruction candidates.
  */
 export function resolveDiscoveryConfig(
-  config: Pick<Config, 'projectRootMarkers' | 'instructionFileCandidates' | 'localInstructionFileCandidates'>
+  config: Pick<Config, 'projectRootMarkers' | 'instructionFileCandidates' | 'localInstructionFileCandidates' | 'additionalRoots'>
     & { dshHome?: string; agentsHome?: string },
 ): ResolvedDiscoveryConfig {
   return {
     dshHome: resolveDshHome(config.dshHome),
     agentsHome: resolveAgentsHome(config.agentsHome),
     projectRootMarkers: config.projectRootMarkers ?? [...DEFAULT_PROJECT_ROOT_MARKERS],
+    additionalRoots: [...new Set(config.additionalRoots ?? [])],
     instructionFileCandidates: resolveInstructionFileCandidates(
       config.instructionFileCandidates,
       DEFAULT_INSTRUCTION_FILE_CANDIDATES,

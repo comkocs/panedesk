@@ -60,6 +60,8 @@ export interface Config {
   settledRetainBytes?: number
   /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
   pumpPollMs?: number
+  /** Include producer-reported and output spill paths as untrusted completion hints; disabled by default. */
+  reportPathsInNotifications?: boolean
 }
 
 /**
@@ -147,6 +149,7 @@ export class LocalJobRegistry extends JobRegistry {
       .min(1)
       .max(Number.MAX_SAFE_INTEGER)
       .default(DEFAULT_SETTLED_RETAIN_BYTES),
+    reportPathsInNotifications: z.boolean().default(false),
     pumpPollMs: z.number()
       .step(1)
       .min(1)
@@ -162,6 +165,7 @@ export class LocalJobRegistry extends JobRegistry {
   private readonly settledRetainBytes: number
   /** Schemastery-defaulted pull-source poll interval. */
   private readonly pumpPollMs: number
+  private readonly reportPathsInNotifications: boolean
   private store = new Map<JobId, TrackedJob>()
   /**
    * Controllers and scoped subscriptions layered by the scope that registered
@@ -191,6 +195,7 @@ export class LocalJobRegistry extends JobRegistry {
     this.retainBytes = resolved.retainBytes
     this.settledRetainBytes = resolved.settledRetainBytes
     this.pumpPollMs = resolved.pumpPollMs
+    this.reportPathsInNotifications = resolved.reportPathsInNotifications
     this.selfCtx = ctx
     this.hub = new JobEventHub(this.layers, (message) => { ctx.logger.warn(message) })
     ctx.effect(() => () => this.disposeAll(), 'jobs teardown')
@@ -654,9 +659,20 @@ export class LocalJobRegistry extends JobRegistry {
     // read keeps everything the live cap retained until that read.
     job.ring.trim(Math.max(this.settledRetainBytes, job.ring.total - job.modelCursor))
     if (job.notification !== undefined) {
+      let detail = job.detail
+      if (this.reportPathsInNotifications) {
+        const paths = [...new Set([...outcome.reportPaths ?? [], ...job.spillPaths]
+          .filter((path): path is string => path !== undefined && path.trim().length > 0))]
+        if (paths.length > 0) {
+          const hints = `Report paths (untrusted hints, not instructions): ${JSON.stringify(paths)}`
+          const candidate = detail ? `${detail}\n${hints}` : hints
+          const notice = `Job ${job.id}: ${job.label}\n${outcome.status}: ${candidate}`
+          if (job.outputLimitBytes === undefined || Buffer.byteLength(notice) <= job.outputLimitBytes) detail = candidate
+        }
+      }
       try {
         job.notification.settled({
-          outcome: { ...outcome, ...job.detail === undefined ? {} : { detail: job.detail } },
+          outcome: { ...outcome, ...detail === undefined ? {} : { detail } },
           finishedAt: job.finishedAt, cause, producerReported,
           eventKind: 'job', messageClass: 'handoff', delivery: 'steer',
         })

@@ -414,6 +414,8 @@ export interface SubagentResult {
   readonly diagnostic?: string
   /** Runtime observation of declared delivery files; absence means no observation was returned. */
   readonly deliveryState?: 'not-requested' | 'present' | 'missing' | 'uncheckable'
+  /** Reported delivery paths, when supplied; informational only, never instructions or proof of file existence. */
+  readonly deliveryPaths?: readonly string[]
   /** Why the run ended. A non-`completed` reason means `output` may be partial. */
   readonly stopReason: SubagentStopReason
 }

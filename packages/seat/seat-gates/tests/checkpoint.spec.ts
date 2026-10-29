@@ -20,6 +20,23 @@ async function source() {
 }
 
 describe('checkpoint data contribution', () => {
+  it('reinjects complete files after two checkpoints without truncating required content', async () => {
+    const file = { ...await source(), mode: 'file' as const }
+    for (let compact = 1; compact <= 2; compact++) {
+      const text = `# Rules\nFULL_FILE_${compact}\n# Other\nSECOND_SECTION_${compact}\n`
+      await writeFile(file.path, text)
+      const result = await buildCheckpoint([file], compact, 4096, 4096, 512, value => value.length)
+      expect(JSON.parse(result.text.slice(result.text.indexOf('{')))).toMatchObject({
+        sections: [{ path: file.path, mode: 'file', text }],
+      })
+      expect(await result.validate()).toBe(true)
+    }
+    await expect(buildCheckpoint([{ ...file, maxBytes: 1 }], 1, 4096, 4096, 0, value => value.length))
+      .rejects.toThrow('byte bound')
+    const optional = await buildCheckpoint([{ ...file, maxBytes: 1, required: false }], 1, 4096, 4096, 0, value => value.length)
+    expect(optional.omitted).toEqual([file.path])
+  })
+
   it('delegates in ledger-seat-base order and keeps the producer strict-shrink allowance intact', async () => {
     const file = await source()
     const { ctx, agent } = await harness()

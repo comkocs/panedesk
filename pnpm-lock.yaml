@@ -7578,6 +7578,9 @@ importers:
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
@@ -13356,6 +13359,24 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-agent-instructions':
+        specifier: workspace:*
+        version: link:../../context/agent-instructions
+      '@panedesk/dsh-compaction-basic':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-basic
+      '@panedesk/dsh-compaction-ledger':
+        specifier: workspace:*
+        version: link:../../compaction/compaction-ledger
+      '@panedesk/dsh-jobs':
+        specifier: workspace:*
+        version: link:../../jobs/jobs
+      '@panedesk/dsh-token-meter':
+        specifier: workspace:*
+        version: link:../../llm/token-meter
+      '@panedesk/dsh-tool-jobs':
+        specifier: workspace:*
+        version: link:../../jobs/tool-jobs
 
   packages/seat/seat-local:
     dependencies:

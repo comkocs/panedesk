@@ -69,6 +69,12 @@ export interface Config {
 export interface Config {
   /** Directory entries that identify the project root while walking upward from the current working directory. */
   projectRootMarkers?: string[]
+  /** Additional workspace roots whose root-level candidates load after the primary chain; empty by default. */
+  additionalRoots?: string[]
+  /** Include a bound seat session's additional workspace roots; disabled by default. */
+  includeSessionWorkspaceRoots?: boolean
+  /** Poll instruction versions at this interval in milliseconds; zero disables polling. */
+  refreshIntervalMs?: number
   /** UTF-8 byte cap for one rendered baseline or dynamic batch; non-positive or non-finite disables loading. */
   maxBytes: number
   /** Maximum UTF-8 bytes read from one instruction file; larger files are ignored. */
@@ -566,6 +572,26 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-plugin-manager -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-seat-approvals -->
+<a id="panedeskdsh-client-ui-seat-approvals"></a>
+
+## `@panedesk/dsh-client-ui-seat-approvals`
+
+- `source`: [`packages/client/ui-seat-approvals/src/index.ts:11`](../packages/client/ui-seat-approvals/src/index.ts)
+
+```ts config-catalog
+/** Explicit activation and bounded observation of the existing engine. */
+export interface Config {
+  /** Enable owner-authorized approval operations; disabled by default. */
+  enabled: boolean
+  /** Delay between queue and operation observations, in milliseconds. */
+  pollIntervalMs: number
+  /** Maximum engine records requested per observation page. */
+  pageSize: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-seat-approvals -->
 
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-settings-account -->
 <a id="panedeskdsh-client-ui-settings-account"></a>
@@ -1814,6 +1840,8 @@ export interface Config {
   settledRetainBytes?: number
   /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
   pumpPollMs?: number
+  /** Include producer-reported and output spill paths as untrusted completion hints; disabled by default. */
+  reportPathsInNotifications?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-jobs-local -->
@@ -3907,6 +3935,8 @@ export interface Config {
   overflow?: 'error' | 'queue'
   /** Persist root queue metadata beside the owning Session; defaults to false. */
   persistQueue?: boolean
+  /** Include reported artifact paths in parent completion notices; disabled by default. */
+  reportPathsInNotifications: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-subagent -->
@@ -5201,6 +5231,7 @@ export interface Config {
 | `@panedesk/dsh-client-ui-reference` | — | [`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts) |
 | `@panedesk/dsh-client-ui-renderer` | — | [`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts) |
 | `@panedesk/dsh-client-ui-schedule` | — | [`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts) |
+| `@panedesk/dsh-client-ui-seats` | — | [`packages/client/ui-seats/src/index.ts`](../packages/client/ui-seats/src/index.ts) |
 | `@panedesk/dsh-client-ui-secret-mask` | — | [`packages/client/ui-secret-mask/src/index.ts`](../packages/client/ui-secret-mask/src/index.ts) |
 | `@panedesk/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |

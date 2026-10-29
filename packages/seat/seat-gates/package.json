@@ -52,6 +52,12 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-agent-instructions": "workspace:*",
+    "@panedesk/dsh-compaction-basic": "workspace:*",
+    "@panedesk/dsh-compaction-ledger": "workspace:*",
+    "@panedesk/dsh-token-meter": "workspace:*",
+    "@panedesk/dsh-tool-jobs": "workspace:*",
+    "@panedesk/dsh-jobs": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   }
 }

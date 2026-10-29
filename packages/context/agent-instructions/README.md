@@ -52,6 +52,9 @@ The accepted fields, at a glance:
 ```ts
 export interface Config {
   projectRootMarkers?: string[]
+  additionalRoots?: string[]
+  includeSessionWorkspaceRoots?: boolean
+  refreshIntervalMs?: number
   maxBytes: number
   maxSourceBytes?: number
   instructionFileCandidates?: string[]
@@ -64,6 +67,9 @@ export interface Config {
 | `maxBytes` | required | Cap on the complete rendered baseline message, in bytes |
 | `maxSourceBytes` | `1048576` | Cap on one source instruction file before rendering |
 | `projectRootMarkers` | `['.git']` | Directory names that mark the project root |
+| `additionalRoots` | `[]` | Extra root-level candidate directories, resolved against the session cwd and deduplicated |
+| `includeSessionWorkspaceRoots` | `false` | Include additional roots from optional `seatDirectories` for this bound session |
+| `refreshIntervalMs` | `0` | Milliseconds between external-edit checks; zero disables polling |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | Base file names loaded in each project directory |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | Local overlay file names loaded after the base files |
 
@@ -219,7 +225,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when instruction loading is a poor fit or needs operational awareness. They are current package constraints, not a task backlog.
 
 - **Discovery follows structured fs tools, not shell navigation** — a `bash` command that changes directories does not trigger nested instruction discovery because shell syntax and per-call shell state are not a reliable filesystem seam.
-- **Refresh is touch-driven** — there is no watcher; external edits become visible on the next successful first-party `read`, `write`, or `edit`, when resume reconciles a visible baseline, or when an entering pre-step restores a shadowed baseline.
+- **Polling is opt-in** — without `refreshIntervalMs`, refresh remains touch-driven. Enabled polling checks observed agents without waking them, defers open-step changes to its durable end, and stops on plugin disposal. Updates enter logged context at the next admitted step; base and slim-base use a 5,000 ms interval and include bound-seat additional roots.
 - **Candidate semantics stay intentionally small** — lowercase names, `.claude/rules/`, and `@path` imports are not interpreted; project scopes load `AGENTS.local.md`/`CLAUDE.local.md` overlays by default, but neither user-global root has a local overlay and other custom names require explicit candidate configuration. A project directory named like a user-global scope directory renders as `./<name>/...`, so it keeps its own scope instead of resolving to the global root.
 - **Deduplication is content-based within one candidate group** — candidates collapse only when byte-identical after trimming leading and trailing whitespace. The two user-global roots share one group, so the shared-root file collapses behind a matching harness-home file; sibling project candidates collapse the same way, while a distinct real copy that has drifted from `AGENTS.md` loads in full alongside it. A duplicate of budget-retained content stays reconciled: when the retained candidate changes or disappears, the duplicate becomes visible again. Unchanged hidden duplicates, including files removed from visible state as duplicates, use cached metadata instead of content reads.
 - **One candidate group shares failure fate** — when metadata or content cannot be read for any candidate, including a hidden duplicate, the group keeps its last-good state for that pass. An unreadable shared agents root therefore also postpones a harness-home change notice until a later pass observes both roots.

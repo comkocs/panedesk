@@ -60,8 +60,15 @@ export type SeatAuthority = 'import-source' | 'seat-store'
 export type SeatText = { kind: 'text'; text: string } | { kind: 'file'; path: string; section?: string }
 /** Exactly one directory in a validated definition is the startup directory. */
 export interface SeatDirectory { path: string; startup: boolean }
-/** A bounded, uniquely selected checkpoint segment; required content cannot be silently omitted. */
-export interface SeatCheckpointFile { path: string; section: string; maxBytes: number; required: boolean }
+/** A bounded checkpoint section or whole file; required content cannot be silently omitted. */
+export interface SeatCheckpointFile {
+  path: string
+  section: string
+  /** Omitted selects the unique Markdown section; file includes all source bytes and ignores section. */
+  mode?: 'section' | 'file'
+  maxBytes: number
+  required: boolean
+}
 /** Product-neutral worktree policy; no automatic deletion is implied. */
 export interface SeatWorktreePolicy {
   clientTreesPerSlot: number

@@ -82,7 +82,7 @@ const definitionFields: Record<string, Check> = {
   schemaVersion: value => value === 1, revision: integer, seat: text, platform: choice('desktop', 'vscode', 'server'), node: text,
   projectId: text, directories: array(directory), memoryDirectories: array(text), opening: seatText, openingInstructionFiles: array(text),
   agentPreset: text, provider: text, model: text, reasoningEffort: text, permissionPreset: text, subscriptions: array(text),
-  checkpointFiles: array(fields({ path: text, section: text, maxBytes: integer, required: boolean })), wakeTemplate: optional(seatText),
+  checkpointFiles: array(fields({ path: text, section: text, mode: optional(choice('section', 'file')), maxBytes: integer, required: boolean })), wakeTemplate: optional(seatText),
   maxOpenSessions: integer, maxActiveSubagents: integer, contextThresholdTokens: optional(integer), subagentContextThresholdTokens: integer,
   pollingThreshold: optional(integer), maxSleepSeconds: optional(integer), autoKeepAlive: optional(boolean),
   worktree: fields({ clientTreesPerSlot: integer, staleOnSettle: choice('notify'), lightByDefault: boolean, staleHours: integer }),

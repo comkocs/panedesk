@@ -93,6 +93,7 @@ describe('slim-base bundle', () => {
     for (const rows of [baseRows, slimRows]) {
       expect(rows.find(row => row.id === 'subagent')?.config).toEqual({
         maxDepth: 3, maxActiveSubagents: 16, overflow: 'queue', persistQueue: true,
+        reportPathsInNotifications: true,
       })
     }
   })

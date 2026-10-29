@@ -129,6 +129,8 @@
 
     - id: jobs
       name: '@panedesk/dsh-jobs-local'
+      config:
+        reportPathsInNotifications: true
 
     - id: llm-retry
       name: '@panedesk/dsh-llm-retry'
@@ -341,6 +343,8 @@
       name: '@panedesk/dsh-agent-instructions'
       config:
         maxBytes: 65536
+        includeSessionWorkspaceRoots: true
+        refreshIntervalMs: 5000
 
     - id: skill
       name: '@panedesk/dsh-skill'
@@ -400,6 +404,7 @@
         maxActiveSubagents: 16
         overflow: queue
         persistQueue: true
+        reportPathsInNotifications: true
 
     - id: subagent-spawn-in-process
       name: '@panedesk/dsh-subagent-spawn-in-process'

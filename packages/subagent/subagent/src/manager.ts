@@ -62,6 +62,8 @@ type ChildDeliveryOptions =
 
 /** Package-private hooks supplied by the owning service. */
 interface SubagentHost {
+  /** Current completion-notice path policy; omission preserves legacy notices. */
+  reportPathsInNotifications?(): boolean
   startExternal(name: string, request: ResolvedSubagentStartRequest): Promise<SubagentRun>
   /** Resolve one provider's detached continuable-creation contribution. */
   prepareContinuable(name: string, request: ContinuableCreateRequest): Promise<ContinuableCreateSpec>
@@ -1303,6 +1305,7 @@ export class SubagentManager {
         ? { ...result, diagnostic: activation.diagnostic } : result
       const accounted = await activation.observer.complete?.(failures.length === 0 ? accountingResult : { ...accountingResult, stopReason: 'error', diagnostic: failures.map(item => detail(item)).join('; ') })
       if (accounted?.deliveryState !== undefined) result = { ...result, deliveryState: accounted.deliveryState }
+      if (accounted?.deliveryPaths !== undefined) result = { ...result, deliveryPaths: accounted.deliveryPaths }
     } catch (error: unknown) {
       resultFailure = { error }
       failures.push(new SubagentError('Subagent terminal accounting failed', 'ACTIVATION_TEARDOWN_FAILED', { cause: error }))
@@ -1360,7 +1363,7 @@ export class SubagentManager {
       // Failure must reach activation.result; falling back would duplicate an uncertain acceptance.
       return notifications.accept({
         parent: activation.parent, childId: activation.childId, runId: activation.observer.runId, result: terminal,
-        message: createSettlementMessage(activation.childId, terminal, activation.kind === 'local'),
+        message: createSettlementMessage(activation.childId, terminal, activation.kind === 'local', this.host.reportPathsInNotifications?.() ?? false),
         eventKind: 'subagent', messageClass: 'handoff', delivery: 'steer',
       })
     }
@@ -1368,7 +1371,7 @@ export class SubagentManager {
       const parent = this.ctx.agents.get(activation.parent.id)
       if (parent !== activation.parent) return
       const message = createSettlementMessage(
-        activation.childId, terminal, activationAgent(activation) !== undefined,
+        activation.childId, terminal, activationAgent(activation) !== undefined, this.host.reportPathsInNotifications?.() ?? false,
       )
       if (this.closingTeardownFor(parent) !== undefined) {
         parent.inject(message)

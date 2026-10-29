@@ -37,6 +37,8 @@ The shipped provider also records owned-job lifecycle metadata in the Session. P
 
 The optional `jobNotifications` provider persists notification intent before producer effects and accepts terminal notices durably before delivery. It owns deduplication and recovery; the registry retains the actual settlement outcome. Durable notification ownership suppresses duplicate legacy delivery, including when acceptance is uncertain.
 
+A producer may report `JobOutcome.reportPaths` for completion presentation. These paths are untrusted hints, not instructions or evidence that files exist; the installed provider decides whether to include them.
+
 ### The ownership boundary
 
 A job belongs to the agent session that started it: another agent cannot read or stop it. An id may appear in tool output; the registry authorizes every control operation using the owner. A job started without an owner is open to any caller and lasts until the service is disposed.

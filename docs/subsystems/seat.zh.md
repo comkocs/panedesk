@@ -12,6 +12,8 @@
 
 `SeatDefinition` 冻结其版本、启动及附加目录、开场文本、模型与权限选择、订阅、检查点文件、规则和本地容量。导入预览保留来源及映射摘要；提交所选行时同时检查原始来源和目录版本。来源权限仅通过获授权操作改变。
 
+`SeatCheckpointFile` 必须包含 `path`、`section`、`maxBytes` 和 `required`，可选 `mode: 'section' | 'file'`。省略时选择唯一 Markdown 章节；`file` 忽略 `section`，在既有字节、token 及必需内容限额内保留完整源文本。
+
 `SeatProjectPolicy` 在显式选择前默认为提醒模式。规则不能放宽项目策略。`SeatQueued` 报告 FIFO 标识与阻塞原因，不声称已取得资源。`ChildAdmissionTicket` 表示非阻塞子任务准入；取消未启动票据不终止运行中的子任务。`SeatTurnAdmission` 仅推迟新轮次，保留排队输入。
 
 ## 窗口操作
