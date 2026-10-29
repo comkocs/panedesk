@@ -29,7 +29,7 @@ kind: "package-reference"
 
 提供方接受 `Config.waitTools`，并实现 `registerWaitTool(name, category)`，登记可信运行时分类（`sleep`、`external-marker`、`subagent`）。运行时登记优先于配置默认值；存活登记的类别冲突时拒绝，幂等释放函数只释放自己的登记。未登记工具保持 `unclassified`；模型输出不得定义类别。
 
-`appendArtifact` 在账本自管路径写入受限的 `partial-response` 或 `keepalive-request` JSON 片段。`(callId, kind, seq)` 标识精确 UTF-8 内容字节：相同重放返回 `existing`，异内容返回 `conflict`，不覆盖。序号从零开始且连续。成功应答须等待文件及必要目录同步。`finishArtifact` 核对末片并持久化收尾；之后拒绝新片段，但精确重放仍幂等。`LedgerCallFinish.artifacts` 携带返回引用，不携带原始内容。片段引用以及用于计算残尾恢复事件号摘要的相对路径，在所有平台上均使用 `/` 分隔；读取与重放保持已落盘的引用格式。
+`appendArtifact` 在账本自管路径写入受限的 `partial-response` 或 `keepalive-request` JSON 片段。`(callId, kind, seq)` 标识精确 UTF-8 内容字节：相同重放返回 `existing`，异内容返回 `conflict`，不覆盖。序号从零开始且连续。成功应答须等待文件及必要目录同步。`finishArtifact` 核对末片并持久化收尾；之后拒绝新片段，但精确重放仍幂等。`LedgerCallFinish.artifacts` 携带返回引用，不携带原始内容。新写片段引用以及用于计算残尾恢复事件号摘要的相对路径，在所有平台上均使用 `/` 分隔。封口比较兼容旧 `\` 分隔，不改写存储记录；事件读取与导出保留原始引用。残尾恢复同时识别两种分隔形式生成的事件号摘要，任一种已存在时均不再追加告警。
 
 提供方持有暂态流位置与关闭状态。各进程使用提示前先扫描该流；后续追加在跨进程写锁内仅核对前一序号目录存在、拟写序号目录不存在。不符时完整扫描并刷新两项提示。旧序号重试只读取和同步该序号。流归单一调用写入方所有；其他进程的封口在首次或退回扫描时识别，不在每次追加时枚举。流扫描、快照、查询和节点导入拒绝封口后的片段，不会静默导出。提示不替代持久记录，也不改变文件布局。
 

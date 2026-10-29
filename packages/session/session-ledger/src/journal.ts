@@ -291,8 +291,10 @@ export async function appendUnique(
     const directory = join(root, 'events', new Date().toISOString().slice(0, 10))
     await ensureDirectory(directory)
     for (const tail of scan.tails) {
-      const recoveryId = `recovery:${digest(ledgerRelative(root, tail))}` as LedgerEvent['eventId']
-      if (index.events.has(recoveryId)) continue
+      const relative = ledgerRelative(root, tail)
+      const recoveryId = `recovery:${digest(relative)}` as LedgerEvent['eventId']
+      const legacyRecoveryId = `recovery:${digest(relative.replaceAll('/', '\\'))}`
+      if (index.events.has(recoveryId) || index.events.has(legacyRecoveryId)) continue
       const recovery: LedgerEvent = {
         schemaVersion: 1, eventId: recoveryId, nodeId: immutable.nodeId,
         runId: immutable.runId, sessionId: immutable.sessionId, observedAt: Date.now(), kind: 'alert',
@@ -507,7 +509,7 @@ async function artifactRecords(root: string, relative: string, maxBytes: number)
   const last = fragments.at(-1)
   for (const item of records) {
     if (item.type === 'closed' && (!last
-      || canonicalJson(item.reference) !== canonicalJson(referenceOf(last.input, last.path)))) {
+      || referenceKey(item.reference) !== referenceKey(referenceOf(last.input, last.path)))) {
       throw new Error('Artifact closure does not reference the final durable fragment')
     }
   }
@@ -564,6 +566,11 @@ async function sequenceDirectoryExists(path: string): Promise<boolean> {
 
 function referenceOf(input: LedgerArtifactAppend, path: string): LedgerArtifactReference {
   return { callId: input.callId, kind: input.kind, seq: input.seq, path, digest: digest(input.content) }
+}
+
+function referenceKey(reference: LedgerArtifactReference): string {
+  // Legacy Windows separators are equivalent only for comparison, never rewritten on disk.
+  return canonicalJson({ ...reference, path: reference.path.replaceAll('\\', '/') })
 }
 
 /** Append exact serialized JSON bytes to a contiguous call-owned sidecar stream.
@@ -624,6 +631,7 @@ export async function appendArtifact(
 }
 
 /** Durably seal a stream after validating its final persisted fragment.
+ * Legacy separators compare equally; existing records stay unchanged and new closures use forward slashes.
  * @param root - Owning node directory.
  * @param reference - Exact last-fragment reference returned by appendArtifact.
  * @param options - Native lock and record size limits.
@@ -641,19 +649,20 @@ export async function finishArtifact(
       .sort((a, b) => a.input.seq - b.input.seq)
     const last = fragments.at(-1)
     if (!last || fragments.some((item, seq) => item.input.seq !== seq)
-      || canonicalJson(referenceOf(last.input, last.path)) !== canonicalJson(reference)) {
+      || referenceKey(referenceOf(last.input, last.path)) !== referenceKey(reference)) {
       throw new Error('Artifact closure does not reference the final durable fragment')
     }
     const closed = records.find(item => item.type === 'closed')
     if (closed) {
-      if (canonicalJson(closed.reference) !== canonicalJson(reference)) throw new Error('Conflicting artifact closure')
+      if (referenceKey(closed.reference) !== referenceKey(reference)) throw new Error('Conflicting artifact closure')
       await syncFiles(await files(join(root, relative)))
       cache?.streams.set(join(root, relative), { next: fragments.length, closed: true })
       return { kind: 'existing', reference }
     }
     await syncFiles(await files(join(root, relative)))
-    await durableFile(join(root, relative, `closed-${ledgerUuid()}.jsonl`), frame({ type: 'closed', reference }, options.maxRecordBytes))
+    const durableReference = referenceOf(last.input, last.path)
+    await durableFile(join(root, relative, `closed-${ledgerUuid()}.jsonl`), frame({ type: 'closed', reference: durableReference }, options.maxRecordBytes))
     cache?.streams.set(join(root, relative), { next: fragments.length, closed: true })
-    return { kind: 'finished', reference }
+    return { kind: 'finished', reference: durableReference }
   })
 }
