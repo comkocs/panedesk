@@ -69,6 +69,12 @@ export interface Config {
 export interface Config {
   /** Directory entries that identify the project root while walking upward from the current working directory. */
   projectRootMarkers?: string[]
+  /** Additional workspace roots whose root-level candidates load after the primary chain; empty by default. */
+  additionalRoots?: string[]
+  /** Include a bound seat session's additional workspace roots; disabled by default. */
+  includeSessionWorkspaceRoots?: boolean
+  /** Poll instruction versions at this interval in milliseconds; zero disables polling. */
+  refreshIntervalMs?: number
   /** UTF-8 byte cap for one rendered baseline or dynamic batch; non-positive or non-finite disables loading. */
   maxBytes: number
   /** Maximum UTF-8 bytes read from one instruction file; larger files are ignored. */
@@ -1812,6 +1818,8 @@ export interface Config {
   settledRetainBytes?: number
   /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
   pumpPollMs?: number
+  /** Include producer-reported and output spill paths as untrusted completion hints; disabled by default. */
+  reportPathsInNotifications?: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-jobs-local -->
@@ -3899,6 +3907,8 @@ export interface Config {
   maxActiveSubagents: Volatile<number>
   /** Default delegation depth for tools without an explicit limit; defaults to 1. */
   maxDepth: Volatile<number>
+  /** Include reported artifact paths in parent completion notices; disabled by default. */
+  reportPathsInNotifications: boolean
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-subagent -->

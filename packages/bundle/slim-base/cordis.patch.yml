@@ -150,6 +150,8 @@
       name: '@panedesk/dsh-agent-instructions'
       config:
         maxBytes: 65536
+        includeSessionWorkspaceRoots: true
+        refreshIntervalMs: 5000
 
     - id: token-meter
       name: '@panedesk/dsh-token-meter'
@@ -162,6 +164,7 @@
       config:
         maxDepth: 3
         maxActiveSubagents: 16
+        reportPathsInNotifications: true
 
     - id: subagent-spawn-in-process
       name: '@panedesk/dsh-subagent-spawn-in-process'
