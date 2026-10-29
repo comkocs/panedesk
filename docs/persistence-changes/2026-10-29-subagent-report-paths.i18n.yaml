@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-10-29-subagent-report-paths.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-10-29-subagent-report-paths.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-10-29-subagent-report-paths:
+  en: de8e7d9350f5f2b1
+  zh: a0a661fa0c08762e
+/2026-10-29-subagent-report-paths/summary:
+  en: 7f0b4c6901774718
+  zh: f991d5117aabb43b
+/2026-10-29-subagent-report-paths/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-10-29-subagent-report-paths/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-10-29-subagent-report-paths/compatibility:
+  en: 230de070d8659105
+  zh: fa3a29f233472e72
+/2026-10-29-subagent-report-paths/verification:
+  en: 2e58d3351247543c
+  zh: 8132df4fef9db5ac
+/2026-10-29-subagent-report-paths/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

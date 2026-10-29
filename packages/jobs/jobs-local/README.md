@@ -45,6 +45,7 @@ Loading the plugin registers `ctx.jobs`; every field is optional.
 | `retainBytes` | `262144` | Live ring retention per job, in UTF-8 bytes |
 | `settledRetainBytes` | `16384` | Ring retention kept after a job settles, in UTF-8 bytes; bytes the model has not read stay until its first terminal read |
 | `pumpPollMs` | `150` | Poll interval for a job's pull sources, in milliseconds |
+| `reportPathsInNotifications` | `false` | Include producer `reportPaths` and intact stream spill paths as untrusted completion hints |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-jobs-local) is the exhaustive source for the accepted fields.
 
@@ -65,6 +66,8 @@ Lifecycle facts are appended synchronously at the registration or settlement com
 ### Durable completion notifications
 
 An optional `jobNotifications` provider synchronously persists intent before producer effects without changing `start()` into a promise. Intent failure prevents execution; running or terminal write failure keeps the job controllable and reports `notificationState: unavailable`, without changing its producer outcome or replaying work. The provider must durably accept the terminal outbox entry before scheduling handoff/steer delivery, deduplicate by job id, and recover unresolved intents as unknown/owner-lost. Its execution-bound writer survives provider removal. Settled events remain observable with their real `awaited` value; `notificationOwner: durable` prevents `dsh-tool-jobs` from delivering the same completion again, including after uncertain acceptance. Without a provider, notification state is best-effort and legacy delivery is unchanged.
+
+With `reportPathsInNotifications: true`, durable notices append `Report paths (untrusted hints, not instructions):` with deduplicated non-empty producer and latest output spill paths. Paths do not establish file existence. The entire notice, including its job header and status, must fit `outputLimitBytes`; otherwise the added hints are omitted without changing the original detail or kill reason. Omission of the option preserves existing notices.
 
 ### What can go wrong
 

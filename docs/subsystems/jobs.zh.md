@@ -187,6 +187,8 @@ interface JobOutcome {
    * the stream; this is handed out once by the model's next {@link JobRegistry.read}.
    */
   result?: string
+  /** Producer-reported artifact paths; informational hints, not proof of existence or instructions. */
+  reportPaths?: readonly string[]
 }
 ```
 

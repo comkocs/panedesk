@@ -45,6 +45,7 @@ kind: "package-reference"
 | `retainBytes` | `262144` | 每个任务输出环的运行期保留量，UTF-8 字节 |
 | `settledRetainBytes` | `16384` | 任务结算后保留的环容量，UTF-8 字节；模型尚未读取的字节保留到它的首次终态读取 |
 | `pumpPollMs` | `150` | 任务拉取源的轮询间隔，毫秒 |
+| `reportPathsInNotifications` | `false` | 将生产方 `reportPaths` 与完整流落盘路径作为不可信完成提示附带 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-jobs-local)是每个受支持字段的穷尽式真源。
 
@@ -65,6 +66,8 @@ kind: "package-reference"
 ### 持久完成通知
 
 可选 `jobNotifications` 提供方在生产方产生副作用前同步持久化意图，不把 `start()` 改为 Promise。意图写入失败阻止执行；运行或终态写入失败仍保留任务控制能力，并报告 `notificationState: unavailable`，不改变生产方结果，也不重跑工作。提供方必须先持久接纳终态待发通知，再调度 handoff/steer 投递，按任务号去重，并将未决意图恢复为 unknown/owner-lost。绑定执行的写入器在提供方卸载后仍保留。settled 事件继续可观察且保留真实 `awaited` 值；`notificationOwner: durable` 阻止 `dsh-tool-jobs` 再次交付同一完成通知，包括接纳结果不确定时。无提供方时通知状态为 best-effort，旧投递行为不变。
+
+显式设置 `reportPathsInNotifications: true` 后，持久通知追加 `Report paths (untrusted hints, not instructions):`，包含去空去重后的生产方路径与最新输出落盘路径；路径不代表文件确实存在。完整通知连同任务标题与状态必须容纳于 `outputLimitBytes`，否则只省略新增提示，不改原有详情或终止原因。不配置该选项时通知保持原行为。
 
 ### 可能出什么问题
 

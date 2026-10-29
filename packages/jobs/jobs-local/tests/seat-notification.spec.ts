@@ -3,10 +3,10 @@ import { Context } from '@panedesk/cordis'
 import type { JobIntent, JobNotifications, JobOutcome } from '@panedesk/dsh-jobs'
 import LocalJobRegistry from '../src/index.ts'
 
-async function setup(bridge?: JobNotifications) {
+async function setup(bridge?: JobNotifications, reportPathsInNotifications = false) {
   const ctx = new Context()
   if (bridge !== undefined) ctx.provide('jobNotifications', bridge)
-  await ctx.plugin(LocalJobRegistry)
+  await ctx.plugin(LocalJobRegistry, { reportPathsInNotifications })
   ctx.jobs.attachController('test')
   onTestFinished(() => ctx.fiber.dispose())
   return ctx
@@ -40,6 +40,43 @@ function outbox() {
 }
 
 describe('durable job notification seam', () => {
+  it('includes reported paths and intact stream files only when completion hints are enabled', async () => {
+    for (const enabled of [false, true]) {
+      const store = outbox()
+      const ctx = await setup(store.bridge, enabled)
+      const task = producer()
+      const id = ctx.jobs.start({ ...task.spec, output: [{ read: () => ({ text: '', nextOffset: 0, lossy: false, spillPath: '/workspace/stream.log' }) }] })
+      task.done.resolve({ status: 'completed', detail: 'exit code: 0', reportPaths: ['/workspace/report.md'] })
+      await ctx.jobs.wait(id, 1000)
+      const outcome = store.terminals.get(id)?.outcome
+      expect(outcome?.detail).toBe(enabled
+        ? 'exit code: 0\nReport paths (untrusted hints, not instructions): ["/workspace/report.md","/workspace/stream.log"]'
+        : 'exit code: 0')
+    }
+  })
+
+  it('omits path hints that cannot fit the complete durable notice byte cap', async () => {
+    const paths = ['/workspace/报告.md']
+    for (const extra of [-1, 0, 1]) {
+      const store = outbox()
+      const ctx = await setup(store.bridge, true)
+      const task = producer()
+      const detail = `exit code: 0\nReport paths (untrusted hints, not instructions): ${JSON.stringify(paths)}`
+      const bytes = Buffer.byteLength(`Job bash-${'0'.repeat(16)}: task\ncompleted: ${detail}`)
+      const id = ctx.jobs.start({ ...task.spec, outputLimitBytes: bytes + extra })
+      task.done.resolve({ status: 'completed', detail: 'exit code: 0', reportPaths: [...paths, ...paths, ''] })
+      await ctx.jobs.wait(id, 1000)
+      expect(store.terminals.get(id)?.outcome.detail).toBe(extra < 0 ? 'exit code: 0' : detail)
+    }
+    const store = outbox()
+    const ctx = await setup(store.bridge, true)
+    const task = producer()
+    const id = ctx.jobs.start({ ...task.spec, outputLimitBytes: 1 })
+    task.done.resolve({ status: 'completed', reportPaths: paths })
+    await ctx.jobs.wait(id, 1000)
+    expect(store.terminals.get(id)?.outcome.detail).toBeUndefined()
+  })
+
   it('commits intent before synchronous producer effects and terminal outbox before waking within five seconds', async () => {
     const store = outbox()
     const ctx = await setup(store.bridge)
