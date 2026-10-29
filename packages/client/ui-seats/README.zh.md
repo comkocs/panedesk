@@ -32,7 +32,7 @@ kind: "package-reference"
 
 ## 开发备注
 
-席位提供方拥有开窗策略与 Session 身份；客户端资源拥有观测刷新与取消。
+席位提供方拥有开窗策略与 Session 身份；客户端资源拥有观测刷新与取消。两个开窗入口共享包内的目录确认组件。发布的运行时入口使用已打包的 Host 与 Client 文件；纯类型入口只发布声明，不包含未打包的 Client 模块。
 
 <a id="model-experience"></a>
 

@@ -26,6 +26,24 @@ export type SeatsSectionProps = PropsRuntime<'sidebar.seats'> & Common
 /** Props derived from the occurrence-scoped header slot. */
 export type SeatHeaderProps = PropsRuntime<'conversation.header.seat'> & Common
 
+type DirectoryConfirmationProps = Pick<SeatPickerProps, 'openSeat' | 't'> & {
+  cwd: string | undefined
+  pending: SeatDefinition | null
+  setPending: (seat: SeatDefinition | null) => void
+}
+
+/** Shared directory choice for the picker and sidebar opening entries. */
+function DirectoryConfirmation({ cwd, pending, setPending, openSeat, t }: DirectoryConfirmationProps) {
+  return <Modal open={pending !== null} title={t('directoryTitle')} closeLabel={t('close')} onClose={() => { setPending(null) }}
+    description={t('directoryDescription')} footer={<>
+      <Button onClick={() => { setPending(null) }}>{t('cancel')}</Button>
+      <Button onClick={() => { const seat = pending; setPending(null); if (seat && cwd !== undefined) void openSeat(seat, cwd) }}>{t('here')}</Button>
+      <Button variant="primary" onClick={() => { const seat = pending; setPending(null); if (seat) void openSeat(seat) }}>{t('profile')}</Button>
+    </>}>
+    {pending?.directories.find(directory => directory.startup)?.path}
+  </Modal>
+}
+
 /** Render the pre-session picker without selecting a seat implicitly.
  * @param props - Slot runtime, locale and interaction callbacks.
  * @returns Picker and directory confirmation, or nothing when no seats are available.
@@ -48,14 +66,7 @@ export function SeatPicker({ currentDirectory: cwd, useResource, openSeat, t }: 
       onSelect={(id) => { const seat = data.definitions.find(row => row.seat === id); if (seat) pick(seat) }}
       anchor={<Button size="sm" aria-haspopup="menu" aria-expanded={menu} disabled={!data.complete || resource.status === 'failed'}
         title={data.complete ? t('open') : t('incomplete')} onClick={() => { setMenu(!menu) }}>{t('seat')}</Button>} />
-    <Modal open={pending !== null} title={t('directoryTitle')} closeLabel={t('close')} onClose={() => { setPending(null) }}
-      description={t('directoryDescription')} footer={<>
-        <Button onClick={() => { setPending(null) }}>{t('cancel')}</Button>
-        <Button onClick={() => { const seat = pending; setPending(null); if (seat && cwd !== undefined) void openSeat(seat, cwd) }}>{t('here')}</Button>
-        <Button variant="primary" onClick={() => { const seat = pending; setPending(null); if (seat) void openSeat(seat) }}>{t('profile')}</Button>
-      </>}>
-      {pending?.directories.find(directory => directory.startup)?.path}
-    </Modal>
+    <DirectoryConfirmation cwd={cwd} pending={pending} setPending={setPending} openSeat={openSeat} t={t} />
   </>
 }
 
@@ -102,14 +113,7 @@ export function SeatsSection({ wide, useResource, useSessions, openSeat, openWin
           onClick={() => { openWindow(window.sessionId) }}>{window.title}</Button>)}
       </div>
     })}
-    <Modal open={pending !== null} title={t('directoryTitle')} closeLabel={t('close')} onClose={() => { setPending(null) }}
-      description={t('directoryDescription')} footer={<>
-        <Button onClick={() => { setPending(null) }}>{t('cancel')}</Button>
-        <Button onClick={() => { const seat = pending; setPending(null); if (seat && cwd !== undefined) void openSeat(seat, cwd) }}>{t('here')}</Button>
-        <Button variant="primary" onClick={() => { const seat = pending; setPending(null); if (seat) void openSeat(seat) }}>{t('profile')}</Button>
-      </>}>
-      {pending?.directories.find(directory => directory.startup)?.path}
-    </Modal>
+    <DirectoryConfirmation cwd={cwd} pending={pending} setPending={setPending} openSeat={openSeat} t={t} />
   </section>
 }
 

@@ -28,7 +28,7 @@ Business data uses a Client resource, refreshed by Session lifecycle notificatio
 
 ## Dev Note
 
-The seat provider owns opening policy and Session identity; the Client resource owns observation refresh and cancellation.
+The seat provider owns opening policy and Session identity; the Client resource owns observation refresh and cancellation. Both opening entries share the package-local directory confirmation. Published runtime entries use the bundled Host and Client files; the types-only entry publishes declarations without unbundled Client modules.
 
 ## Model Experience
 
