@@ -2597,6 +2597,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatApprovals',
+    summary: 'The authenticated owner may confirm pending work, never bypass engine admission.',
+    description: 'The authenticated owner may confirm pending work, never bypass engine admission.',
+    methods: [
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *watchPending(signal: AbortSignal): AsyncIterable<ApprovalQueueView>',
+        description: 'Observe pending confirmations without creating an engine or admitting work.',
+        parameters: [{ name: 'signal', description: 'Remote stream lifetime.' }],
+        returns: 'complete queue observations; disabled configuration yields no entries.',
+      },
+      {
+        signature: '@Remote approve(request: Seat.ApprovePendingSeatRequest): Promise<Seat.PendingSeatMutationResult>',
+        description: 'Commit approval with the existing transactional engine capability.',
+        parameters: [{ name: 'request', description: 'Observed queue identity, version and stable operation identity.' }],
+        returns: 'committed confirmation or the original engine refusal; not an opening receipt.',
+      },
+      {
+        signature: '@Remote cancel(request: Seat.ApprovePendingSeatRequest): Promise<Seat.PendingSeatMutationResult>',
+        description: 'Cancel the observed queue revision without closing an existing window.',
+        parameters: [{ name: 'request', description: 'Observed queue identity, version and stable operation identity.' }],
+        returns: 'committed cancellation or the original engine refusal.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *watchOperation(request: Seat.SeatOperationQuery, signal: AbortSignal): AsyncIterable<Seat.SeatEngineOperationResult>',
+        description: 'Observe durable approval and correlated opening progress without replaying writes.',
+        parameters: [{ name: 'request', description: 'Exact original operation identity.' }, { name: 'signal', description: 'Remote stream lifetime.' }],
+        returns: 'durable progress, including actual opened metadata or a recorded opening failure.',
+      },
+    ],
+  },
+  {
     key: 'seatAuthorizationExports',
     summary: 'Separate JSON export includes issued kinds without widening legacy engine effects.',
     description: 'Separate JSON export includes issued kinds without widening legacy engine effects.',
@@ -2799,6 +2830,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Commit ingress before acknowledging acceptance.',
         parameters: [{ name: 'envelope', description: 'authenticated bounded source event.' }],
         returns: 'stable accepted, duplicate, coalesced or rejected identity.',
+      },
+      {
+        signature: 'wakeSource?: (envelope: T.TriggerEnvelope) => Promise<T.WakeSeatResult | undefined>',
+        description: 'Route configured external events through frozen remote wake admission.',
+        parameters: [{ name: 'envelope', description: 'Original event from a registered source with opening context.' }],
+        returns: 'Durable wake receipt, refusal, or absence when opening ingress remains selected.',
       },
       {
         signature: 'acceptFrozen?(request: T.AcceptFrozenTriggerRequest, authority: T.SeatCallContext): Promise<T.AcceptFrozenTriggerResult>',
@@ -6325,6 +6362,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'decision', description: 'committed frame and its complete effects.' }],
   },
   {
+    name: 'seat/memory-write-denied',
+    mode: 'emit',
+    signature: '\'seat/memory-write-denied\'(sessionId: SessionId, failure: SeatFailure): void',
+    summary: 'Notify observers after a bound-seat memory write is denied.',
+    description: 'Notify observers after a bound-seat memory write is denied.',
+    parameters: [{ name: 'sessionId', description: 'Tool executor\'s authenticated Session.' }, { name: 'failure', description: 'Coded refusal and actionable alternative, without tool arguments.' }],
+  },
+  {
     name: 'seat/ready',
     mode: 'parallel',
     signature: '\'seat/ready\'(status: import(\'./types.ts\').SeatNodeStatus): void',
@@ -6763,6 +6808,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApprovalPolicy',
     declaration: 'export type ApprovalPolicy = \'ask\' | \'never\';',
+  },
+  {
+    name: 'ApprovalQueueView',
+    declaration: 'export interface ApprovalQueueView {\n    enabled: boolean;\n    items: readonly import(\'@panedesk/dsh-seat\').PendingSeatItem[];\n    complete: boolean;\n}',
   },
   {
     name: 'ApprovalRequest',
@@ -8242,7 +8291,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'JobOutcome',
-    declaration: 'export interface JobOutcome {\n    status: \'completed\' | \'killed\' | \'failed\';\n    detail?: string;\n    result?: string;\n}',
+    declaration: 'export interface JobOutcome {\n    status: \'completed\' | \'killed\' | \'failed\';\n    detail?: string;\n    result?: string;\n    reportPaths?: readonly string[];\n}',
   },
   {
     name: 'JobOutputRead',
@@ -9318,7 +9367,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'OpenSeatRequest',
-    declaration: 'export interface OpenSeatRequest {\n    seat: SeatName;\n    operationId: SeatOperationId;\n    origin: \'manual\' | \'remote\' | \'engine\';\n    nodeId?: SeatNodeId;\n    taskId?: SeatTaskId;\n    openingMode?: \'auto\' | \'prefill\';\n    existingChoice?: ExistingSeatChoice;\n    expectedSeatRevision?: number;\n}',
+    declaration: 'export interface OpenSeatRequest {\n    seat: SeatName;\n    operationId: SeatOperationId;\n    origin: \'manual\' | \'remote\' | \'engine\';\n    nodeId?: SeatNodeId;\n    taskId?: SeatTaskId;\n    openingMode?: \'auto\' | \'prefill\';\n    existingChoice?: ExistingSeatChoice;\n    startupDirectory?: string;\n    expectedSeatRevision?: number;\n}',
   },
   {
     name: 'OpenSeatResult',
@@ -9394,7 +9443,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PendingSeatItem',
-    declaration: 'export interface PendingSeatItem {\n    frozenOpen?: SeatFrozenOpen;\n    queueItemId: QueueItemId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    triggerKind: SeatTrigger[\'kind\'];\n    action: \'open\' | \'wake-sender\' | \'replace\';\n    replacementId?: ReplacementId;\n    handoffTimeout?: SeatHandoffTimeout;\n    sequence: number;\n    effectiveMode: EngineMode;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n    sources: readonly TriggerEnvelope[];\n    relatedTaskIds: readonly SeatTaskId[];\n    queuedAt: SeatTimestamp;\n    stateVersion: number;\n}',
+    declaration: 'export interface PendingSeatItem {\n    frozenOpen?: SeatFrozenOpen;\n    windowName?: string;\n    nodeId?: SeatNodeId;\n    budget?: SeatBudgetLimits;\n    queueItemId: QueueItemId;\n    seat: SeatName;\n    projectId: SeatProjectId;\n    triggerKind: SeatTrigger[\'kind\'];\n    action: \'open\' | \'wake-sender\' | \'replace\';\n    replacementId?: ReplacementId;\n    handoffTimeout?: SeatHandoffTimeout;\n    sequence: number;\n    effectiveMode: EngineMode;\n    reason: PendingReason;\n    blockedBy: readonly string[];\n    sources: readonly TriggerEnvelope[];\n    relatedTaskIds: readonly SeatTaskId[];\n    queuedAt: SeatTimestamp;\n    stateVersion: number;\n}',
   },
   {
     name: 'PendingSeatMutationResult',
@@ -10322,7 +10371,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCheckpointFile',
-    declaration: 'export interface SeatCheckpointFile {\n    path: string;\n    section: string;\n    maxBytes: number;\n    required: boolean;\n}',
+    declaration: 'export interface SeatCheckpointFile {\n    path: string;\n    section: string;\n    mode?: \'section\' | \'file\';\n    maxBytes: number;\n    required: boolean;\n}',
   },
   {
     name: 'SeatChildThresholdRequest',
@@ -10386,7 +10435,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatEngineOperationResult',
-    declaration: 'export type SeatEngineOperationResult = import(\'./types.ts\').SeatOperationResult & {\n    approval?: {\n        queueItemId: import(\'./types.ts\').QueueItemId;\n        stateVersion: number;\n    };\n    progress?: {\n        kind: \'pending\';\n        reason: import(\'./types.ts\').PendingReason;\n        blockedBy: readonly string[];\n    } | {\n        kind: \'open\';\n        phase: import(\'./types.ts\').OpenPhase;\n        sessionId: import(\'@panedesk/dsh-session\').SessionId;\n    } | {\n        kind: \'cancelled\';\n    };\n};',
+    declaration: 'export type SeatEngineOperationResult = import(\'./types.ts\').SeatOperationResult & {\n    approval?: {\n        queueItemId: import(\'./types.ts\').QueueItemId;\n        stateVersion: number;\n    };\n    progress?: {\n        kind: \'pending\';\n        reason: import(\'./types.ts\').PendingReason;\n        blockedBy: readonly string[];\n    } | {\n        kind: \'open\';\n        phase: import(\'./types.ts\').OpenPhase;\n        sessionId: import(\'@panedesk/dsh-session/types\').SessionId;\n    } | {\n        kind: \'cancelled\';\n    };\n};',
   },
   {
     name: 'SeatEngineStatus',
@@ -10486,7 +10535,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatNodeStatus',
-    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n}',
+    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n    };\n}',
   },
   {
     name: 'SeatOpenExecutor',
@@ -10550,7 +10599,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatScheduleSelector',
-    declaration: 'export type SeatScheduleSelector = Omit<import(\'@panedesk/dsh-schedule\').ScheduleCreateRequest, \'prompt\' | \'title\'>;',
+    declaration: 'export type SeatScheduleSelector = Omit<import(\'@panedesk/dsh-schedule/client\').ScheduleCreateRequest, \'prompt\' | \'title\'>;',
   },
   {
     name: 'SeatService',
@@ -11614,7 +11663,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentResult',
-    declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly deliveryState?: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    readonly stopReason: SubagentStopReason;\n}',
+    declaration: 'export interface SubagentResult {\n    readonly output: readonly ContentBlock[];\n    readonly structured?: unknown;\n    readonly diagnostic?: string;\n    readonly deliveryState?: \'not-requested\' | \'present\' | \'missing\' | \'uncheckable\';\n    readonly deliveryPaths?: readonly string[];\n    readonly stopReason: SubagentStopReason;\n}',
   },
   {
     name: 'SubagentRun',

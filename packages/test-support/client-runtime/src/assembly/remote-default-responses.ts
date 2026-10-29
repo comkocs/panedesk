@@ -6,7 +6,7 @@
  * `RemoteMock`.
  * @module @panedesk/dsh-client-test-runtime/src/assembly/remote-default-responses
  */
-import { ok, openStream, type RemoteTable } from '@panedesk/dsh-remote-mock'
+import { ok, openStream, frames, type RemoteTable } from '@panedesk/dsh-remote-mock'
 
 /** Default responses of the boot-time Remote endpoints; a spec loads it first and layers its own table on top. */
 export const remoteDefaultResponses: RemoteTable = {
@@ -47,6 +47,8 @@ export const remoteDefaultResponses: RemoteTable = {
     'session/follow',
   ],
   stream: {
+    // ui-seat-approvals observes its disabled default on mounting the shell overlay.
+    'seatApprovals/watchPending': frames([{ enabled: false, items: [], complete: true }]),
     // api-session-controller client `apply`: the control stream's opening baseline, then open.
     'session/control': openStream([{ type: 'baseline', value: { projections: {} } }]),
     // ui-settings-account shares the account snapshot across settings and the sidebar menu.

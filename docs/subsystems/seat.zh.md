@@ -336,6 +336,41 @@ recover?(issuerFor: (request: ChainRequest) => Promise<Seat.SeatAuthorizationIss
 
 Source: [`packages/seat/node-link/src/chain-services.ts`](../../packages/seat/node-link/src/chain-services.ts)
 
+<a id="ctxseatapprovals--seatapprovals"></a>
+
+### `ctx.seatApprovals` — `SeatApprovals`
+
+The authenticated owner may confirm pending work, never bypass engine admission.
+
+```ts cordis-catalog
+/** Observe pending confirmations without creating an engine or admitting work.
+ * @param signal - Remote stream lifetime.
+ * @returns complete queue observations; disabled configuration yields no entries.
+ */
+@Remote({ mode: 'stream' }) async *watchPending(signal: AbortSignal): AsyncIterable<ApprovalQueueView>
+
+/** Commit approval with the existing transactional engine capability.
+ * @param request - Observed queue identity, version and stable operation identity.
+ * @returns committed confirmation or the original engine refusal; not an opening receipt.
+ */
+@Remote approve(request: Seat.ApprovePendingSeatRequest): Promise<Seat.PendingSeatMutationResult>
+
+/** Cancel the observed queue revision without closing an existing window.
+ * @param request - Observed queue identity, version and stable operation identity.
+ * @returns committed cancellation or the original engine refusal.
+ */
+@Remote cancel(request: Seat.ApprovePendingSeatRequest): Promise<Seat.PendingSeatMutationResult>
+
+/** Observe durable approval and correlated opening progress without replaying writes.
+ * @param request - Exact original operation identity.
+ * @param signal - Remote stream lifetime.
+ * @returns durable progress, including actual opened metadata or a recorded opening failure.
+ */
+@Remote({ mode: 'stream' }) async *watchOperation(request: Seat.SeatOperationQuery, signal: AbortSignal): AsyncIterable<Seat.SeatEngineOperationResult>
+```
+
+Source: [`packages/client/ui-seat-approvals/src/index.ts`](../../packages/client/ui-seat-approvals/src/index.ts)
+
 <a id="ctxseatauthorizationexports--seatauthorizationexports"></a>
 
 ### `ctx.seatAuthorizationExports` — `SeatAuthorizationExports`
@@ -1407,6 +1442,25 @@ Published only after a decision is durable; observer failure cannot undo the com
 ```
 
 Source: [`packages/seat/seat/src/events.ts`](../../packages/seat/seat/src/events.ts)
+
+<a id="seatmemory-write-denied--emit"></a>
+
+#### `seat/memory-write-denied` — emit
+
+Notify observers after a bound-seat memory write is denied.
+
+```ts cordis-catalog
+/** Notify observers after a bound-seat memory write is denied.
+ * @mode emit
+ * @param sessionId - Tool executor's authenticated Session.
+ * @param failure - Coded refusal and actionable alternative, without tool arguments.
+ */
+'seat/memory-write-denied'(sessionId: SessionId, failure: SeatFailure): void
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/seat/seat-gates/src/events.ts`](../../packages/seat/seat-gates/src/events.ts)
 
 <a id="seatready--parallel"></a>
 

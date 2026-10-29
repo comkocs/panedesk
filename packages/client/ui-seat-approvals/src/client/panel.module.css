@@ -9,8 +9,8 @@
 .card {
   padding: 12px;
   margin-block-start: 8px;
-  border: 1px solid var(--dsw-alias-border-l3);
-  border-radius: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-2);
   overflow-wrap: anywhere;
 }

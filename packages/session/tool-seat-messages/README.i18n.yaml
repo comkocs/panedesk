@@ -11,9 +11,15 @@
 /panedesk-dsh-tool-seat-messages/summary:
   en: e4830753fcb1cdbc
   zh: 0faa64e52d09a9a1
+/panedesk-dsh-tool-seat-messages/table-of-contents:
+  en: cc82388c0008148c
+  zh: 34ec39e05aac9bd2
 /panedesk-dsh-tool-seat-messages/use-this-package:
   en: 270f8b3bf103d987
-  zh: b13080c40519e9b0
+  zh: f67bb5a13d8f591b
+/panedesk-dsh-tool-seat-messages/dev-note:
+  en: 8ac0199d847cd74a
+  zh: 422c09a7399b18c2
 /panedesk-dsh-tool-seat-messages/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -28,10 +34,7 @@
   zh: de49bb9359935f6c
 /panedesk-dsh-tool-seat-messages/model-experience/single-seat-tools/kv-cache-effect:
   en: 004af35cc95c6590
-  zh: 73bbd922d634b230
+  zh: 82fba8a7d2f849ff
 /panedesk-dsh-tool-seat-messages/known-limitations-and-deferred-work:
-  en: 74ac314a68db2a7d
-  zh: 39fac76689925ec2
-/panedesk-dsh-tool-seat-messages/dev-note:
-  en: 8ac0199d847cd74a
-  zh: 4cf7b9aed595d2d5
+  en: d5604f5fcdf50bc8
+  zh: 6299a113893e0680

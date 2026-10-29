@@ -20,10 +20,10 @@
   "dsh": { "client": { "platform": "web", "inject": ["@panedesk/dsh-api-remotes", "@panedesk/dsh-client-resources", "@panedesk/dsh-client-ui-conversation", "@panedesk/dsh-client-ui-sidebar", "@panedesk/dsh-client-ui-workspace"] } },
   "scripts": { "bundle": "tsdown", "watch": "tsdown --watch" },
   "files": ["lib/index.js", "lib/client.js", "lib/types/**/*.js", "lib/types/**/*.d.ts", "lib/typert.host.js", "lib/typert.host.d.ts", "lib/typert.remote-client.js", "lib/typert.remote-client.d.ts"],
-  "peerDependencies": { "@panedesk/cordis": "workspace:~", "@panedesk/dsh-typert-protocol": "workspace:*" },
+  "peerDependencies": { "@panedesk/cordis": "workspace:~" },
+  "dependencies": { "@panedesk/dsh-typert-protocol": "workspace:*", "zod": "^4.4.3" },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
-    "@panedesk/dsh-typert-protocol": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",

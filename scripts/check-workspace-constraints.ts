@@ -53,10 +53,12 @@ const publicNativePackages = new Set([
   '@panedesk/node-addon-system-darwin-x64',
   '@panedesk/node-addon-system-linux-arm64',
   '@panedesk/node-addon-system-linux-x64',
+  '@panedesk/node-addon-system-win32-arm64',
+  '@panedesk/node-addon-system-win32-x64',
 ])
 /** Deliberate source payloads whose exact bytes are part of the package's audit surface. */
 const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = {
-  '@panedesk/node-addon-system': ['src/main.c', 'src/flock.c'],
+  '@panedesk/node-addon-system': ['src/main.c', 'src/flock.c', 'src/windows-private-files.c'],
 }
 /** Public source home recorded in maintained package manifests. */
 const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'

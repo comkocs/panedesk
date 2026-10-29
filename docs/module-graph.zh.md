@@ -195,6 +195,8 @@ flowchart TD
     pkg_client_ui_reference["client-ui-reference"]
     pkg_client_ui_renderer["client-ui-renderer"]
     pkg_client_ui_schedule["client-ui-schedule"]
+    pkg_client_ui_seat_approvals["client-ui-seat-approvals"]
+    pkg_client_ui_seats["client-ui-seats"]
     pkg_client_ui_secret_mask["client-ui-secret-mask"]
     pkg_client_ui_session["client-ui-session"]
     pkg_client_ui_settings["client-ui-settings"]
@@ -409,6 +411,7 @@ flowchart TD
     pkg_session_title_first_prompt_llm["session-title-first-prompt-llm"]
     pkg_session_title_llm["session-title-llm"]
     pkg_session_turn_outline["session-turn-outline"]
+    pkg_tool_seat_messages["tool-seat-messages"]
     pkg_tool_working_directory["tool-working-directory"]
     pkg_working_directory["working-directory"]
   end
@@ -898,15 +901,6 @@ flowchart TD
   pkg_compaction_image_offload --> pkg_compaction
   pkg_compaction_image_offload --> pkg_llm
   pkg_compaction_image_offload --> pkg_session
-  pkg_agent_instructions --> pkg_agent
-  pkg_agent_instructions --> pkg_fs
-  pkg_agent_instructions --> pkg_home_paths
-  pkg_agent_instructions --> pkg_llm
-  pkg_agent_instructions --> pkg_scope
-  pkg_agent_instructions --> pkg_session
-  pkg_agent_instructions --> pkg_session_projection
-  pkg_agent_instructions --> pkg_tools
-  pkg_agent_instructions --> pkg_working_directory
   pkg_file_reference_local --> pkg_agent
   pkg_file_reference_local --> pkg_file_reference
   pkg_file_reference_local --> pkg_system_prompt
@@ -1119,18 +1113,6 @@ flowchart TD
   pkg_web_app --> pkg_shell_env
   pkg_compaction_ledger --> pkg_compaction
   pkg_compaction_ledger --> pkg_session_ledger
-  pkg_instruction_subscriptions --> pkg_agent
-  pkg_instruction_subscriptions --> pkg_agent_instructions
-  pkg_instruction_subscriptions --> pkg_fs
-  pkg_instruction_subscriptions --> pkg_message_delivery
-  pkg_instruction_subscriptions --> pkg_session
-  pkg_experimental_auto_review --> pkg_agent
-  pkg_experimental_auto_review --> pkg_agent_instructions
-  pkg_experimental_auto_review --> pkg_llm
-  pkg_experimental_auto_review --> pkg_permission_presets
-  pkg_experimental_auto_review --> pkg_session
-  pkg_experimental_auto_review --> pkg_tools
-  pkg_experimental_auto_review --> pkg_working_directory
   pkg_webhook --> pkg_agent
   pkg_webhook --> pkg_agent_default_model
   pkg_webhook --> pkg_agent_preset_registry
@@ -1464,6 +1446,16 @@ flowchart TD
   pkg_tool_schedule --> pkg_schedule
   pkg_tool_schedule --> pkg_subagent
   pkg_tool_schedule --> pkg_tools
+  pkg_agent_instructions --> pkg_agent
+  pkg_agent_instructions --> pkg_fs
+  pkg_agent_instructions --> pkg_home_paths
+  pkg_agent_instructions --> pkg_llm
+  pkg_agent_instructions --> pkg_scope
+  pkg_agent_instructions --> pkg_seat
+  pkg_agent_instructions --> pkg_session
+  pkg_agent_instructions --> pkg_session_projection
+  pkg_agent_instructions --> pkg_tools
+  pkg_agent_instructions --> pkg_working_directory
   pkg_sdk_protocol --> pkg_llm
   pkg_sdk_protocol --> pkg_message_delivery
   pkg_sdk_protocol --> pkg_seat
@@ -1473,6 +1465,10 @@ flowchart TD
   pkg_ledger_query --> pkg_message_delivery
   pkg_ledger_query --> pkg_seat
   pkg_ledger_query --> pkg_session_ledger
+  pkg_tool_seat_messages --> pkg_agent
+  pkg_tool_seat_messages --> pkg_message_delivery
+  pkg_tool_seat_messages --> pkg_seat
+  pkg_tool_seat_messages --> pkg_tools
   pkg_seat_remote --> pkg_credentials
   pkg_seat_remote --> pkg_host_webserver
   pkg_seat_remote --> pkg_sdk_protocol
@@ -1483,6 +1479,18 @@ flowchart TD
   pkg_ledger_app --> pkg_ledger_query
   pkg_ledger_app --> pkg_ledger_watch
   pkg_ledger_app --> pkg_session_ledger
+  pkg_instruction_subscriptions --> pkg_agent
+  pkg_instruction_subscriptions --> pkg_agent_instructions
+  pkg_instruction_subscriptions --> pkg_fs
+  pkg_instruction_subscriptions --> pkg_message_delivery
+  pkg_instruction_subscriptions --> pkg_session
+  pkg_experimental_auto_review --> pkg_agent
+  pkg_experimental_auto_review --> pkg_agent_instructions
+  pkg_experimental_auto_review --> pkg_llm
+  pkg_experimental_auto_review --> pkg_permission_presets
+  pkg_experimental_auto_review --> pkg_session
+  pkg_experimental_auto_review --> pkg_tools
+  pkg_experimental_auto_review --> pkg_working_directory
   pkg_sdk_jsonrpc_server --> pkg_agent
   pkg_sdk_jsonrpc_server --> pkg_agent_preset_registry
   pkg_sdk_jsonrpc_server --> pkg_attachment
@@ -1600,6 +1608,8 @@ flowchart TD
 | [`client-ui-reference`](../packages/client/ui-reference) | `client` | — |
 | [`client-ui-renderer`](../packages/client/ui-renderer) | `client` | — |
 | [`client-ui-schedule`](../packages/client/ui-schedule) | `client` | — |
+| [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | `client` | — |
+| [`client-ui-seats`](../packages/client/ui-seats) | `client` | — |
 | [`client-ui-secret-mask`](../packages/client/ui-secret-mask) | `client` | — |
 | [`client-ui-session`](../packages/client/ui-session) | `client` | — |
 | [`client-ui-settings`](../packages/client/ui-settings) | `client` | — |
@@ -1794,7 +1804,6 @@ flowchart TD
 | [`plan-mode`](../packages/plan/plan-mode) | `plan` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
 | [`command-compact`](../packages/compaction/command-compact) | `compaction` | [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction) |
 | [`compaction-image-offload`](../packages/compaction/compaction-image-offload) | `compaction` | [`agent`](../packages/core/agent), [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
-| [`agent-instructions`](../packages/context/agent-instructions) | `context` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`file-reference-local`](../packages/context/file-reference-local) | `context` | [`agent`](../packages/core/agent), [`file-reference`](../packages/context/file-reference), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`tool-present`](../packages/deliverables/tool-present) | `deliverables` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`workspace-changes`](../packages/deliverables/workspace-changes) | `deliverables` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`session`](../packages/core/session), [`subprocess`](../packages/subprocess/subprocess), [`tools`](../packages/core/tools) |
@@ -1835,8 +1844,6 @@ flowchart TD
 | [`api-settings-controller`](../packages/api/settings-controller) | `api` | [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`credentials`](../packages/credentials/credentials), [`native-command`](../packages/util/native-command), [`session`](../packages/core/session), [`settings`](../packages/settings/settings), [`typert-protocol`](../packages/typert/protocol) |
 | [`web-app`](../packages/bundle/web-app) | `bundle` | [`shell-env`](../packages/shell/shell-env) |
 | [`compaction-ledger`](../packages/compaction/compaction-ledger) | `compaction` | [`compaction`](../packages/compaction/compaction), [`session-ledger`](../packages/session/session-ledger) |
-| [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | `context` | [`agent`](../packages/core/agent), [`agent-instructions`](../packages/context/agent-instructions), [`fs`](../packages/fs/fs), [`message-delivery`](../packages/session/message-delivery), [`session`](../packages/core/session) |
-| [`experimental-auto-review`](../packages/experimental/auto-review) | `experimental` | [`agent`](../packages/core/agent), [`agent-instructions`](../packages/context/agent-instructions), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`webhook`](../packages/experimental/webhook) | `experimental` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`workspace`](../packages/workspace/workspace) |
 | [`tool-cordis`](../packages/extensions/tool-cordis) | `extensions` | [`agent`](../packages/core/agent), [`app-boot`](../packages/boot/app-boot), [`cordis-host-runner`](../packages/extensions/cordis-host-runner), [`tools`](../packages/core/tools) |
 | [`host-plugin-inventory`](../packages/host/plugin-inventory) | `host` | [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`brand`](../packages/util/brand), [`typert-protocol`](../packages/typert/protocol) |
@@ -1881,10 +1888,14 @@ flowchart TD
 | [`client-test-runtime`](../packages/test-support/client-runtime) | `test-support` | [`api-gateway`](../packages/api/gateway), [`api-session-controller`](../packages/api/session-controller), [`api-workspace-controller`](../packages/api/workspace-controller), [`attachment`](../packages/attachment/attachment), [`client-connection`](../packages/client/connection), [`client-hmr`](../packages/client/hmr), [`client-modules`](../packages/client/modules), [`client-store`](../packages/client/store), [`client-ui-chat`](../packages/client/ui-chat), [`client-ui-conversation`](../packages/client/ui-conversation), [`client-ui-renderer`](../packages/client/ui-renderer), [`client-ui-session`](../packages/client/ui-session), [`client-ui-settings`](../packages/client/ui-settings), [`client-ui-slots`](../packages/client/ui-slots), [`client-web`](../packages/client/web), [`remote-mock`](../packages/test-support/remote-mock), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`typert-protocol`](../packages/typert/protocol) |
 | [`seat`](../packages/seat/seat) | `seat` | [`brand`](../packages/util/brand), [`schedule`](../packages/schedule/schedule), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title) |
 | [`tool-schedule`](../packages/schedule/tool-schedule) | `schedule` | [`llm`](../packages/llm/llm), [`schedule`](../packages/schedule/schedule), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools) |
+| [`agent-instructions`](../packages/context/agent-instructions) | `context` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`home-paths`](../packages/util/home-paths), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`seat`](../packages/seat/seat), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`sdk-protocol`](../packages/sdk/protocol) | `sdk` | [`llm`](../packages/llm/llm), [`message-delivery`](../packages/session/message-delivery), [`seat`](../packages/seat/seat), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`ledger-query`](../packages/session/ledger-query) | `session` | [`cmdline`](../packages/boot/cmdline), [`message-delivery`](../packages/session/message-delivery), [`seat`](../packages/seat/seat), [`session-ledger`](../packages/session/session-ledger) |
+| [`tool-seat-messages`](../packages/session/tool-seat-messages) | `session` | [`agent`](../packages/core/agent), [`message-delivery`](../packages/session/message-delivery), [`seat`](../packages/seat/seat), [`tools`](../packages/core/tools) |
 | [`seat-remote`](../packages/seat/seat-remote) | `seat` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat), [`seat-engine`](../packages/seat/seat-engine), [`typert-protocol`](../packages/typert/protocol) |
 | [`ledger-app`](../packages/bundle/ledger-app) | `bundle` | [`cmdline`](../packages/boot/cmdline), [`ledger-query`](../packages/session/ledger-query), [`ledger-watch`](../packages/session/ledger-watch), [`session-ledger`](../packages/session/session-ledger) |
+| [`instruction-subscriptions`](../packages/context/instruction-subscriptions) | `context` | [`agent`](../packages/core/agent), [`agent-instructions`](../packages/context/agent-instructions), [`fs`](../packages/fs/fs), [`message-delivery`](../packages/session/message-delivery), [`session`](../packages/core/session) |
+| [`experimental-auto-review`](../packages/experimental/auto-review) | `experimental` | [`agent`](../packages/core/agent), [`agent-instructions`](../packages/context/agent-instructions), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`sdk-jsonrpc-server`](../packages/sdk/server) | `sdk` | [`agent`](../packages/core/agent), [`agent-preset-registry`](../packages/preset/agent-preset-registry), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`llm-deepseek-api-key`](../packages/llm/llm-deepseek-api-key), [`node-link`](../packages/seat/node-link), [`scope`](../packages/core/scope), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat), [`session`](../packages/core/session), [`session-ledger`](../packages/session/session-ledger), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`seat-app`](../packages/seat/seat-app) | `seat` | [`cmdline`](../packages/boot/cmdline), [`sdk-jsonrpc-server`](../packages/sdk/server), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat) |
 | [`acp`](../packages/acp/acp) | `acp` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`mcp-client`](../packages/mcp/mcp-client), [`message-delivery`](../packages/session/message-delivery), [`sdk-jsonrpc-server`](../packages/sdk/server), [`sdk-protocol`](../packages/sdk/protocol), [`seat`](../packages/seat/seat), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`token-meter`](../packages/llm/token-meter), [`user-approval`](../packages/interaction/user-approval) |

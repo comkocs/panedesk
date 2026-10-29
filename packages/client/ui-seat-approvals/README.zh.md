@@ -7,9 +7,18 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 概要
+## 概述
 
 为[席位子系统](../../../docs/subsystems/seat.zh.md)提供可选启用的审批界面。既有引擎负责准入、授权事务与开窗证据；界面不启动另一个引擎，也不会在已有排队工作旁另发一次开窗。
+
+## 目录
+
+- [配置与使用](#configuration-and-use)
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与后续工作](#known-limitations-and-deferred-work)
+
+<a id="configuration-and-use"></a>
 
 ## 配置与使用
 
@@ -21,13 +30,21 @@ kind: "package-reference"
 
 批准与取消携带观察到的队列版本和新的操作标识。冲突时必须重新检查刷新后的条目。已提交的队列版本在本次挂载中不可再次提交；传输结果未知时保留操作标识供观察，不重放变更。批准仅是确认：容量、策略、时间与预算检查仍然有效。回执跟随持久操作进度；实际开窗卡使用已开结果中的位、标题、节点和预算，不使用待批预览。已创建窗口与首轮完成不同；记录的开窗失败保持可见。
 
+<a id="dev-note"></a>
+
+## 开发备注
+
+既有席位引擎拥有审批变更与持久操作进度；界面只呈现观测并提交所有者的显式操作。
+
+<a id="model-experience"></a>
+
 ## 模型体验
 
 ### 确认与观察
 
 #### 模型可见内容
 
-本插件不提供工具、提示词或会话消息。获批工作仅通过既有引擎执行器到达模型。
+启用 `ui-seat-approvals` 不提供工具、提示词或会话消息。获批工作仅通过既有引擎执行器到达模型。
 
 #### Token 影响
 
@@ -36,6 +53,8 @@ kind: "package-reference"
 #### KV 缓存影响
 
 界面不修改请求前缀，也不刷新缓存。
+
+<a id="known-limitations-and-deferred-work"></a>
 
 ## 已知限制与后续工作
 

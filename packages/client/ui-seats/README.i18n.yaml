@@ -11,21 +11,30 @@
 /panedesk-dsh-client-ui-seats/summary:
   en: 97b86704fa034eaf
   zh: 798168fb6220e677
+/panedesk-dsh-client-ui-seats/table-of-contents:
+  en: cc82388c0008148c
+  zh: 7e805c235fdc0e48
 /panedesk-dsh-client-ui-seats/use-this-package:
   en: fbb61ac219105ccf
-  zh: 209905b86228e678
+  zh: 1a857caa03ffa799
+/panedesk-dsh-client-ui-seats/dev-note:
+  en: 357b646934300573
+  zh: a358efa4dfa75c64
 /panedesk-dsh-client-ui-seats/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
-/panedesk-dsh-client-ui-seats/model-experience/what-the-model-sees:
-  en: 90cc736189bc509f
-  zh: af07e878d65762fd
-/panedesk-dsh-client-ui-seats/model-experience/token-effect:
-  en: 50f1da5bc45ce6d8
-  zh: 99a4c19bef9bd7fe
-/panedesk-dsh-client-ui-seats/model-experience/kv-cache-effect:
-  en: acce0a2132e33e51
-  zh: 21d9aefaf8bb301e
+/panedesk-dsh-client-ui-seats/model-experience/manual-seat-selection:
+  en: 768a3a68ffb6cb65
+  zh: aab67af5c5a9eac2
+/panedesk-dsh-client-ui-seats/model-experience/manual-seat-selection/what-the-model-sees:
+  en: 5f6e0b01170ea179
+  zh: 2f0f39a806f11863
+/panedesk-dsh-client-ui-seats/model-experience/manual-seat-selection/token-effect:
+  en: 7b076d37d1f9105a
+  zh: 84f601a4729250ee
+/panedesk-dsh-client-ui-seats/model-experience/manual-seat-selection/kv-cache-effect:
+  en: 7f610f528cdcf6f0
+  zh: 29a759656a251756
 /panedesk-dsh-client-ui-seats/known-limitations-and-deferred-work:
   en: f740170ee2fe316f
   zh: eeade0b9e9a7be48

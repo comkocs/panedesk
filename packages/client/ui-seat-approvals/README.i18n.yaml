@@ -10,10 +10,16 @@
   zh: 10f46c7441967fe6
 /panedesk-dsh-client-ui-seat-approvals/summary:
   en: 8f5a3d5017a730bb
-  zh: 8fb4e25cd54d8159
+  zh: b3277082e12fa9f2
+/panedesk-dsh-client-ui-seat-approvals/table-of-contents:
+  en: 5e4898a6b0b820d8
+  zh: 55ac87460ca5a51e
 /panedesk-dsh-client-ui-seat-approvals/configuration-and-use:
   en: 3ec49f5a89bd1a6e
-  zh: 655eb6d72b39a93b
+  zh: 28014c4d639c23b7
+/panedesk-dsh-client-ui-seat-approvals/dev-note:
+  en: d7d5c357646ab58b
+  zh: d564fb0458036caf
 /panedesk-dsh-client-ui-seat-approvals/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -21,14 +27,14 @@
   en: ba3abe7d8f66ac11
   zh: f2a1ef505da7bd95
 /panedesk-dsh-client-ui-seat-approvals/model-experience/confirmation-and-observation/what-the-model-sees:
-  en: 3feca5dd8ede9861
-  zh: 1429ad546aa868df
+  en: 8fdf2686358788d8
+  zh: fdf4dae6e43ad1bd
 /panedesk-dsh-client-ui-seat-approvals/model-experience/confirmation-and-observation/token-effect:
   en: 03647b0ecbf2a749
   zh: 4f486390fdb59af9
 /panedesk-dsh-client-ui-seat-approvals/model-experience/confirmation-and-observation/kv-cache-effect:
   en: 323289a54aa3f760
-  zh: 3ad8b5f7ca5fcfdb
+  zh: d131d9f090f3a3c7
 /panedesk-dsh-client-ui-seat-approvals/known-limitations-and-deferred-work:
   en: 3cf29c07983125d6
   zh: 90fe1a49490c5e67

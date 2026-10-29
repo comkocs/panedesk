@@ -11,15 +11,18 @@ English | [中文](README.zh.md)
 
 Local file mailboxes live below the product home at `messages/nodes/<nodeId>`. The plugin registers already-leased Agents, publishes runtime busy/idle/closing observations, and removes their registrations after disposal. Session write leases remain authoritative; registration never acquires or steals a lease. See [Session persistence](../../../docs/subsystems/persistence.md).
 
-With `pagination: true`, provider-issued cursors page unanswered messages without repeating pages when earlier items become terminal. Keep filters unchanged; unavailable cursors and non-positive or unsafe integer limits are rejected. Otherwise, `cursor` is ignored, `limit` uses JavaScript `slice(0, limit)`, `complete` compares matching count with limit, and no cursor is returned.
-
-Set `seatAddressing: true` to enable optional exact-seat resolution and online observations through `seatLocalRead.messageWindows`. Omission leaves seat addressing disabled and preserves Session-ID/title addressing. Only local open windows with known live runtime status participate; a unique primary resolves multiple windows, otherwise the result includes an ambiguity reason and candidates. Missing seats return `seat not open`. See [seat message tools](../tool-seat-messages/README.md) for opt-in composition and timing.
-
 ## Table of Contents
 
+- [Addressing and pagination](#addressing-and-pagination)
 - [Dev Note](#dev-note)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+## Addressing and pagination
+
+With `pagination: true`, provider-issued cursors page unanswered messages without repeating pages when earlier items become terminal. Keep filters unchanged; unavailable cursors and non-positive or unsafe integer limits are rejected. Otherwise, `cursor` is ignored, `limit` uses JavaScript `slice(0, limit)`, `complete` compares matching count with limit, and no cursor is returned.
+
+Set `seatAddressing: true` to enable optional exact-seat resolution and online observations through `seatLocalRead.messageWindows`. Omission leaves seat addressing disabled and preserves Session-ID/title addressing. Only local open windows with known live runtime status participate; a unique primary resolves multiple windows, otherwise the result includes an ambiguity reason and candidates. Missing seats return `seat not open`. See [seat message tools](../tool-seat-messages/README.md) for opt-in composition and timing.
 
 <a id="dev-note"></a>
 ## Dev Note

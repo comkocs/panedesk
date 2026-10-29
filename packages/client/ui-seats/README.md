@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 Optional [seat](../../../docs/subsystems/seat.md) presentation for the new-session picker, sidebar section and occurrence-local header identity. The web composition keeps this plugin disabled until explicitly enabled; no internal seat names are embedded.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
 ## Use this package
 
 The authenticated owner reads definitions and existing-window status through `seatUi`. Manual opening calls the existing seat provider with `openingMode: 'prefill'`, preserving its directory, preset, model and permission stages without starting a model turn. The returned opening sentence initializes the draft and waits for user submission. Missing providers hide the picker and sidebar section; incomplete evidence disables opening.
@@ -19,17 +26,23 @@ Both opening entries confirm differing directories with profile, stay-here and c
 
 Business data uses a Client resource, refreshed by Session lifecycle notifications, connection resets and local opening results. Releasing its last holder or unloading the plugin cancels in-flight overview reads and removes refresh listeners. Header identity reads exact Session binding metadata; missing or rejected metadata stays unknown rather than being inferred from the window list. The sidebar expands existing windows and displays their current seat status rather than adding another busy-state API. Refusals use the shared Toast primitive, including the Session-resource-authorized memory-denial event, which is displayed only in its matching Session.
 
+## Dev Note
+
+The seat provider owns opening policy and Session identity; the Client resource owns observation refresh and cancellation.
+
 ## Model Experience
 
-### What the model sees
+### Manual seat selection
 
-Selecting a seat creates no model request. The opening draft becomes model-visible only after the user submits it; denied writes retain their coded tool result.
+#### What the model sees
 
-### Token effect
+Selecting a seat with `openingMode: 'prefill'` creates no model request. The opening draft becomes model-visible only after the user submits it; denied writes retain their coded tool result.
+
+#### Token effect
 
 Picker, sidebar, identity and Toast content add no model tokens. A submitted opening sentence and tool refusal text consume their normal input/result tokens.
 
-### KV Cache effect
+#### KV Cache effect
 
 UI selection and transient notices do not alter existing model prefixes.
 

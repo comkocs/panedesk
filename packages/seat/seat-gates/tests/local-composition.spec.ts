@@ -23,7 +23,7 @@ it('reads definitions during input preparation, delivers one opening and persist
     await expect(external.definitions({})).rejects.toThrow('Verified authority is required.')
     await expect(external.list({})).rejects.toThrow('Verified authority is required.')
     const read = f.ctx.get('seatLocalRead')!
-    expect(Object.keys(read).sort()).toEqual(['binding', 'definitions', 'list'])
+    expect(Object.keys(read).sort()).toEqual(['binding', 'definitions', 'list', 'messageWindows'])
     const page = await read.definitions({})
     expect(page).toMatchObject({ complete: false, definitions: [{ seat: 'seat-a' }] })
     expect(await read.definitions({ cursor: page.nextCursor! })).toMatchObject({ complete: true, definitions: [{ seat: 'seat-b' }] })

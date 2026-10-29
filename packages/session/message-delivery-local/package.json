@@ -62,6 +62,7 @@
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-host-admin": "workspace:*",
     "@panedesk/dsh-node-link": "workspace:*",
-    "@panedesk/dsh-message-delivery": "workspace:*"
+    "@panedesk/dsh-message-delivery": "workspace:*",
+    "@panedesk/dsh-seat": "workspace:*"
   }
 }

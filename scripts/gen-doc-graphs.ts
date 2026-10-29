@@ -109,6 +109,10 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'seatApprovals', pkg: 'client-ui-seat-approvals', title: 'Owner seat approval observations and actions', mode: 'service',
+    note: 'Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine.',
+  },
+  {
     key: 'nodeWorkChainBusiness', pkg: 'seat', title: 'Durable chain business queries', mode: 'seam',
     implementations: ['node-link'], consumers: ['seat-engine', 'seat-local', 'node-link'],
     note: 'Registers unique business providers and gates exact-key queries and restricted resumption on recovery.',

@@ -16,6 +16,7 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  'packages/client/ui-seats': { category: 'optional', reason: 'Explicit seat navigation and manual opening require installed seat services.' },
   'packages/session/tool-seat-messages': { category: 'optional', reason: 'Explicit same-node seat messaging tools require local seat reads and enabled seat addressing.' },
   'packages/compaction/compaction-ledger': { category: 'optional', reason: 'Optional bounded ledger facts in compaction checkpoints.' },
   'packages/bundle/full': { category: 'optional', reason: 'Published dependency carrier installed beside the launcher for explicitly selected full, Web, ACP, and SDK profiles.' },

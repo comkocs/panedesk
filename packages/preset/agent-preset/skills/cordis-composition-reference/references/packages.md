@@ -93,6 +93,8 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-reference` | no | Unified Web @file and @session reference source |
 | `@panedesk/dsh-client-ui-renderer` | no | Browser UI renderer: React slot bindings, ctx.uiRenderer, and the assembled application root |
 | `@panedesk/dsh-client-ui-schedule` | no | Host task management page and Session reminder catalog |
+| `@panedesk/dsh-client-ui-seat-approvals` | yes | Opt-in owner confirmation and actual opening feedback for pending seats |
+| `@panedesk/dsh-client-ui-seats` | no | Owner-authorized manual seat picker and existing-window browser |
 | `@panedesk/dsh-client-ui-secret-mask` | no | Web display masking for recognized credentials in sent user text |
 | `@panedesk/dsh-client-ui-session` | no | Session Controller adapter for React and session-scoped slots |
 | `@panedesk/dsh-client-ui-settings` | no | Settings domain base plugin: shared configuration forms and the canonical settings slot-type contract |

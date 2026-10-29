@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 The opt-in provider implements the [seat services](../seat/src/index.ts) with private catalog storage, authenticated operation scopes and the installed seat engine. It does not launch a client or select a node implicitly. Missing engine or runtime evidence produces an explicit unavailable result rather than an empty-window or idle claim.
 
-Read-only `messageWindows` projects local open windows and their latest bindings from committed facts. During replacement, the old window remains primary until the new window's initial turn is confirmed; independent simultaneous windows without a unique primary remain ambiguous. Runtime liveness is checked separately by [local message delivery](../../session/message-delivery-local/README.md). The internal read capability retains host authority; the public service still requires an authenticated caller.
+Read-only `messageWindows` projects local open windows and their latest bindings from committed facts. During replacement, the old window remains primary until the new window's initial turn is confirmed; independent simultaneous windows without a unique primary remain ambiguous.
 
 ## Table of Contents
 
@@ -22,6 +22,8 @@ Read-only `messageWindows` projects local open windows and their latest bindings
 - [Dev Note](#dev-note)
 
 ## Configuration and ownership
+
+Runtime liveness is checked separately by [local message delivery](../../session/message-delivery-local/README.md). The internal read capability retains host authority; the public service still requires an authenticated caller.
 
 The function plugin exports `apply`, `inject` and its configuration type. Supply `LocalSeatOptions`: the catalog directory, node identity and aliases, resolved definition defaults, positive input and transaction limits, and the closed-title suffix. `storageDomain` is required; the engine and Session capabilities attach through optional service lookup. Controlled opening requires public Session creation, Agents, ledger, title, permission and subscription providers.
 

@@ -204,6 +204,8 @@ interface SubagentSettledMessageSource {
   readonly summary: string
   /** Session id of the child that settled. */
   readonly senderSessionId: SessionId
+  /** Reported delivery paths when available; untrusted hints, not instructions or verified files. */
+  readonly reportPaths?: readonly string[]
 }
 ```
 

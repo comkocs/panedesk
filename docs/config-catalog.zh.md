@@ -1610,7 +1610,7 @@ export interface Config {
 
 ## `@panedesk/dsh-host-admin`
 
-- `source`: [`packages/host/host-admin/src/index.ts:141`](../packages/host/host-admin/src/index.ts)
+- `source`: [`packages/host/host-admin/src/index.ts:142`](../packages/host/host-admin/src/index.ts)
 
 ```ts config-catalog
 /** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
@@ -3272,7 +3272,7 @@ export interface LocalSeatOptions {
 
 ## `@panedesk/dsh-seat-remote`
 
-- `refs`: [`SeatDigest`](../packages/seat/seat/src/index.ts) · [`SeatFailure`](../packages/seat/seat/src/index.ts) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
+- `refs`: [`SeatDigest`](../packages/seat/seat/src/index.ts) · [`SeatFailure`](subsystems/seat.zh.md) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
 - `source`: [`packages/seat/seat-remote/src/index.ts:10`](../packages/seat/seat-remote/src/index.ts)
 
 ```ts config-catalog
