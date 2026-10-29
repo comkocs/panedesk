@@ -525,7 +525,6 @@ export class WorkspaceRegistry extends Service {
       updatedAt: now,
     }
     const entity = new WorkspaceEntity(this.host, id, record)
-    this.entities.set(id, entity)
     const pendingState: WorkspaceDomainState = {
       ...state,
       pendingMutation: { operation: 'create', workspaceId: id },
@@ -551,6 +550,7 @@ export class WorkspaceRegistry extends Service {
       throw error
     }
 
+    this.entities.set(id, entity)
     try {
       await this.setState({
         ...state,
@@ -889,6 +889,17 @@ export class WorkspaceRegistry extends Service {
   private async setState(state: WorkspaceDomainState): Promise<void> {
     await (this.global as DomainGlobal<WorkspaceDomainState>).set(state)
     this.state = state
+  }
+
+  /**
+   * Run a workspace-dependent operation in registry mutation order. Deletion
+   * waits until the callback settles; the callback must not enqueue registry mutations.
+   * @param id - Workspace identity to resolve inside the operation's queue slot.
+   * @param operation - Work using the entity, or undefined when it no longer exists.
+   * @returns the callback result, propagating its failure without blocking later mutations.
+   */
+  withWorkspace<T>(id: WorkspaceId, operation: (workspace: Workspace | undefined) => Promise<T>): Promise<T> {
+    return this.enqueueOperation(() => operation(this.entities.get(id)))
   }
 
   private enqueueOperation<T>(operation: () => Promise<T>): Promise<T> {

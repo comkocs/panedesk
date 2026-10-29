@@ -115,6 +115,8 @@ async function harness(options: HarnessOptions = {}) {
   const workspace = { id: WORKSPACE, path: cwd, sessionIds: members, attachSession: () => Promise.resolve() }
   ctx.provide('workspaceRegistry', {
     get: (id: WorkspaceId) => id === WORKSPACE ? workspace : undefined,
+    withWorkspace: (id: WorkspaceId, operation: (value: typeof workspace | undefined) => Promise<unknown>) =>
+      operation(id === WORKSPACE ? workspace : undefined),
     list: () => [workspace],
     archivedSessionIds: archived,
   } as never)

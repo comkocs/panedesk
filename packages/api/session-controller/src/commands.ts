@@ -113,15 +113,19 @@ export class SessionCommandController {
     if (request.workspaceId !== undefined && request.cwd !== undefined) {
       throw new RemoteError('gateway/bad-request', 'session.create accepts workspaceId or cwd, not both', {})
     }
-    let workspace: Workspace | undefined
-    if (request.workspaceId !== undefined) {
-      workspace = this.ctx.workspaceRegistry.get(request.workspaceId)
+    const workspaceId = request.workspaceId
+    if (workspaceId === undefined) return this.createInWorkspace(request)
+    return this.ctx.workspaceRegistry.withWorkspace(workspaceId, async (workspace) => {
       if (workspace === undefined) {
-        throw new RemoteError('workspace/not-found', `workspace "${request.workspaceId}" not found`, {
-          workspaceId: request.workspaceId,
+        throw new RemoteError('workspace/not-found', `workspace "${workspaceId}" not found`, {
+          workspaceId,
         })
       }
-    }
+      return this.createInWorkspace(request, workspace)
+    })
+  }
+
+  private async createInWorkspace(request: SessionCreateRequest, workspace?: Workspace): Promise<SessionCreateValue> {
     const cwd = workspace?.path ?? request.cwd ?? this.defaultCwd
     let created: ApiSessionCreated
     try {

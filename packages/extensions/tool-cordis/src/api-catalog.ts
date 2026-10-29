@@ -5798,6 +5798,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'path', description: 'Existing directory path in a fully qualified spelling.' }],
         returns: 'the workspace owning the canonical path, when one exists.',
       },
+      {
+        signature: 'withWorkspace<T>(id: WorkspaceId, operation: (workspace: Workspace | undefined) => Promise<T>): Promise<T>',
+        description: 'Run a workspace-dependent operation in registry mutation order. Deletion waits until the callback settles; the callback must not enqueue registry mutations.',
+        parameters: [{ name: 'id', description: 'Workspace identity to resolve inside the operation\'s queue slot.' }, { name: 'operation', description: 'Work using the entity, or undefined when it no longer exists.' }],
+        returns: 'the callback result, propagating its failure without blocking later mutations.',
+      },
     ],
   },
   {
@@ -9739,7 +9745,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'QueueJournalRecord',
-    declaration: 'export interface QueueJournalRecord {\n    readonly ticketId: SubagentQueued[\'ticketId\'];\n    readonly parentSessionId: SessionId;\n    readonly agentType: string;\n    readonly position: number;\n    readonly queuedAt: number;\n    readonly state: \'queued\' | \'dequeued\' | \'cancelled\';\n    readonly dequeuedAt?: number;\n    readonly cancelledAt?: number;\n    readonly reason?: string;\n}',
+    declaration: 'export interface QueueJournalRecord {\n    readonly ticketId: SubagentQueued[\'ticketId\'];\n    readonly parentSessionId: SessionId;\n    readonly agentType: string;\n    readonly position: number;\n    readonly queuedAt: number;\n    readonly state: \'queued\' | \'dequeued\' | \'cancelled\' | \'notified\';\n    readonly dequeuedAt?: number;\n    readonly cancelledAt?: number;\n    readonly notifiedAt?: number;\n    readonly reason?: string;\n}',
   },
   {
     name: 'ReadFileLine',

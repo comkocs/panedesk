@@ -587,6 +587,15 @@ unpinSession(sessionId: SessionId): Promise<void>
  * @returns the workspace owning the canonical path, when one exists.
  */
 async resolveByPath(path: string): Promise<Workspace | undefined>
+
+/**
+ * Run a workspace-dependent operation in registry mutation order. Deletion
+ * waits until the callback settles; the callback must not enqueue registry mutations.
+ * @param id - Workspace identity to resolve inside the operation's queue slot.
+ * @param operation - Work using the entity, or undefined when it no longer exists.
+ * @returns the callback result, propagating its failure without blocking later mutations.
+ */
+withWorkspace<T>(id: WorkspaceId, operation: (workspace: Workspace | undefined) => Promise<T>): Promise<T>
 ```
 
 Types: [SessionId](core.md)

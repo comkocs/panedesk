@@ -122,7 +122,7 @@ On start, the registry opens the domain, completes a marked mutation if one is p
 
 ### Failure and recovery
 
-A create or delete whose second write fails rolls the cache and the prior order back; when both the operation and its rollback fail, the durable marker still names the interrupted operation and the next startup completes or rolls it back. A committed delete whose marker cleanup fails still reports success, and the next startup clears the marker idempotently.
+A new entity becomes discoverable after its record is durable and before the registry order is committed, so Session attachment finds a stored record and order-change subscribers can resolve the entity. `withWorkspace` resolves an entity inside the registry mutation queue and holds that queue until its callback settles, so deletion cannot remove the record during Session creation and attachment; callbacks must not enqueue registry mutations. A create or delete whose second write fails rolls the cache and the prior order back; when both the operation and its rollback fail, the durable marker still names the interrupted operation and the next startup completes or rolls it back. A committed delete whose marker cleanup fails still reports success, and the next startup clears the marker idempotently.
 
 </details>
 

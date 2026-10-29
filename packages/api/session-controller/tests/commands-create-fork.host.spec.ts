@@ -75,7 +75,10 @@ describe('Session creation failures', () => {
 
   it('maps missing Workspaces and attachment failures', async () => {
     const missing = await baseContext()
-    missing.provide('workspaceRegistry', { get: () => undefined, list: () => [] } as never)
+    missing.provide('workspaceRegistry', {
+      withWorkspace: (_id: WorkspaceId, operation: (workspace: Workspace | undefined) => Promise<unknown>) => operation(undefined),
+      list: () => [],
+    } as never)
     const missingController = new SessionCommandController(
       missing,
       controllerAgents(missing),
@@ -93,7 +96,7 @@ describe('Session creation failures', () => {
       attachSession: () => Promise.reject(new Error('read-only workspace')),
     } as unknown as Workspace
     failed.provide('workspaceRegistry', {
-      get: () => workspace,
+      withWorkspace: (_id: WorkspaceId, operation: (workspace: Workspace | undefined) => Promise<unknown>) => operation(workspace),
       list: () => [workspace],
     } as never)
     const failedController = new SessionCommandController(
