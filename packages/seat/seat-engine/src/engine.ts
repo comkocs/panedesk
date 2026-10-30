@@ -193,7 +193,9 @@ export class SeatEngine extends SeatEngineService {
           status.nodeId === delivery.nodeWorkChain?.route.sourceOwnerNodeId && status.reachable
           && status.linkState === 'connected' && status.capabilities.includes('node-work-chain/v1')
           && Date.parse(status.observedAt) > parkedAt)
-      }, options.config.failureRecovery ? (cause) => { this.failures.record('callback-delivery', cause) } : undefined)
+      }, options.config.failureRecovery ? (cause, observation) => {
+        this.failures.record('callback-delivery', cause, undefined, observation)
+      } : undefined)
     this.replacements = new ReplacementDriver(this.journal, () => this.internalSeats(), options.config.nodeName,
       deliveries => freezeCallbackEvidence(this.journal.projection, deliveries, this.executor?.executionModel))
     this.keepalive = new KeepAliveScheduler(this.journal, () => this.internalSeats(), dependencies.keepalive ?? {

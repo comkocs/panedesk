@@ -21,6 +21,7 @@ export type { SourceProxyInputs, SourceProxyPort, SourceProxySend, SourceProxyOu
 export { EngineJournal, EngineError, frame, digest } from './journal.ts'
 export { validEffect } from './validation.ts'
 export { validAuthorization } from './authorization-storage.ts'
+export { validSourceProxy } from './source-proxy-storage.ts'
 export { redact } from './query.ts'
 /** Loader plugin identity. */
 export const name = 'seat-engine'

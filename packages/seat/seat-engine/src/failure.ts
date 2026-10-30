@@ -1,5 +1,12 @@
 /** Runtime failure supervision never changes durable business identities or replays uncertain writes. */
-import { SEAT_ERROR_CODES, type SeatNodeStatus } from '@panedesk/dsh-seat'
+import { SEAT_ERROR_CODES, type SeatNodeStatus, type SeatCallbackFailureStage, type SeatFailure } from '@panedesk/dsh-seat'
+
+/** Callback observations preserve the sender's effect bound; absence never establishes safe replay. */
+export interface FailureObservation {
+  phase: SeatCallbackFailureStage
+  effectState: SeatFailure['effectState']
+  retryable: boolean
+}
 
 type Failure = NonNullable<SeatNodeStatus['failure']>
 type Site = 'startup-recovery' | 'scheduled-drive' | 'decision-notification' | 'callback-delivery'
@@ -75,8 +82,9 @@ export class EngineFailures {
    * @param site - Fixed engine call site.
    * @param cause - Failure; unknown classifications log bounded identifiers only, never exception text.
    * @param code - Optional fixed site-specific diagnosis for failures without a precise public code.
+   * @param observation - Verified callback phase and effect bound; omitted retains exception-only classification.
    */
-  record(site: Site, cause: unknown, code?: string): void {
+  record(site: Site, cause: unknown, code?: string, observation?: FailureObservation): void {
     const classify = (error: unknown): { code: string; retryable: boolean } => {
       // Cordis waits for every listener and reports their failures together; all must permit retry.
       if (error instanceof AggregateError && error.errors.length) {
@@ -89,6 +97,12 @@ export class EngineFailures {
         return { code: 'LEDGER_LOCK_TIMEOUT', retryable: true }
       }
       const known = typeof raw === 'string' && (Object.hasOwn(SEAT_ERROR_CODES, raw) || transportCodes.has(raw))
+      // A routed refusal describes the business effect, not merely the transport's availability.
+      if (site === 'callback-delivery' && observation) {
+        return { code: known ? raw : 'unclassified-error', retryable: known && observation.effectState === 'none'
+          && observation.retryable && (raw === 'unavailable' || transportCodes.has(raw)
+            || raw === 'source-not-found' && observation.phase === 'retained') }
+      }
       // Never unwrap persistence errors even when their nested cause resembles a transport timeout.
       return { code: known ? raw : 'unclassified-error', retryable: known && transportCodes.has(raw) }
     }
@@ -103,6 +117,7 @@ export class EngineFailures {
     this.current = previous && !previous.retryable ? { ...previous, attempts } : failure
     if (this.initialMs !== undefined) this.nextDue = now + Math.min(300000, this.initialMs * 2 ** Math.min(attempts - 1, 30))
     this.log(`Seat engine failure ${JSON.stringify({ ...failure, action: retryable ? 'retry' : 'stop-and-restart-after-repair',
+      ...(observation ? { phase: observation.phase, effectState: observation.effectState } : {}),
       ...(safeCode === 'unclassified-error' ? { exception: exceptionSummary(cause) } : {}) })}`)
     this.changed()
     if (!previous && !this.closed) {

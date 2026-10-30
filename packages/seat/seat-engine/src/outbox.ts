@@ -2,6 +2,7 @@
 import type { SeatEngineConfig, SeatCallbackDelivery, SeatCallbackDiagnostic, DeliverSourceCallbackRequest } from '@panedesk/dsh-seat'
 import { callbackFailure, callbackObservation, type CallbackAttempt } from './routed-callback-types.ts'
 import { EngineJournal, EngineError } from './journal.ts'
+import type { FailureObservation } from './failure.ts'
 import { callbackEvidenceMatches } from './callback-evidence.ts'
 import { SourceRegistry } from './sources.ts'
 import { fact } from './triggers.ts'
@@ -16,7 +17,7 @@ export class CallbackOutbox {
     private readonly config: SeatEngineConfig,
     private readonly routed?: (request: DeliverSourceCallbackRequest) => Promise<CallbackAttempt>,
     private readonly linkReady?: (delivery: SeatCallbackDelivery, parkedAt: number) => Promise<boolean>,
-    private readonly recordFailure?: (cause: unknown) => void) {}
+    private readonly recordFailure?: (cause: unknown, observation?: FailureObservation) => void) {}
 
   /** Report retained failed deliveries, including attempts not yet due.
    * @returns Whether a failed callback still needs settlement.
@@ -41,6 +42,7 @@ export class CallbackOutbox {
   private async deliverRouted(request: DeliverSourceCallbackRequest): Promise<{
     responseClass: SeatCallbackDelivery['responseClass']
     diagnostic?: SeatCallbackDiagnostic
+    observation?: FailureObservation
   }> {
     const attempt = callbackObservation(request, this.routed ? await this.routed(structuredClone(request))
       : callbackFailure(request, 'retained', 'Callback sender is unavailable'), 'retained')
@@ -54,7 +56,11 @@ export class CallbackOutbox {
     else responseClass = result.status === 'committed' ? 'success' : 'transient'
     if (diagnostic?.cause.reasonCode === 'invalid-diagnostic') responseClass = responseClass === 'unknown'
       || diagnostic.cause.effectState === 'unknown' ? 'unknown' : 'protocol'
-    return { responseClass, ...(diagnostic ? { diagnostic } : {}) }
+    const error = result.status === 'rejected' || result.status === 'paused' ? result.error : undefined
+    const observation: FailureObservation | undefined = diagnostic ? { phase: diagnostic.stage,
+      effectState: error?.effectState !== 'none' ? error?.effectState ?? 'unknown' : diagnostic.cause.effectState,
+      retryable: error?.retryable === true && diagnostic.cause.retryable } : undefined
+    return { responseClass, ...(diagnostic ? { diagnostic } : {}), ...(observation ? { observation } : {}) }
   }
 
   private refusalClass(error: import('@panedesk/dsh-seat').SeatFailure): SeatCallbackDelivery['responseClass'] {
@@ -99,8 +105,10 @@ export class CallbackOutbox {
       if (delivery.nextDue !== null && Date.parse(delivery.nextDue) > now) continue
       let responseClass: SeatCallbackDelivery['responseClass'] = 'success'
       let diagnostic: SeatCallbackDiagnostic | undefined
+      let observation: FailureObservation | undefined
       const started = performance.now()
       let failure: unknown
+      const localDispatch = { started: false }
       try {
         // A timeout cannot cancel arbitrary adapter code; retain ownership until it settles.
         if (delivery.nodeWorkChain) {
@@ -108,8 +116,11 @@ export class CallbackOutbox {
             responseClass = 'protocol'
             diagnostic = callbackFailure(delivery.nodeWorkChain, 'retained', 'Frozen callback evidence did not match',
               'callback-protocol-error', 'none', 'evidence-digest-mismatch').diagnostic
-          } else ({ responseClass, diagnostic } = await this.deliverRouted(delivery.nodeWorkChain))
-        } else await this.sources.use(delivery.payload.sourceId, source => source.callback(delivery.payload))
+          } else ({ responseClass, diagnostic, observation } = await this.deliverRouted(delivery.nodeWorkChain))
+        } else await this.sources.use(delivery.payload.sourceId, (source) => {
+          localDispatch.started = true
+          return source.callback(delivery.payload)
+        })
         if (!delivery.nodeWorkChain && responseClass === 'success'
           && performance.now() - started > this.config.callbackTimeoutMs) {
           responseClass = 'transient'
@@ -117,9 +128,13 @@ export class CallbackOutbox {
         }
       } catch (error) {
         failure = error
+        if (!delivery.nodeWorkChain && !localDispatch.started && error instanceof EngineError && error.code === 'source-not-found') {
+          observation = { phase: 'retained', effectState: 'none', retryable: true }
+        }
         responseClass = error instanceof EngineError && error.code === 'callback-authentication-failed' ? 'authentication'
           : error instanceof EngineError && error.code === 'callback-protocol-error' ? 'protocol' : 'transient'
         if (delivery.nodeWorkChain) {
+          observation = { phase: 'retained', effectState: 'unknown', retryable: false }
           if (error instanceof EngineError && ['source-payload-too-large', 'engine-store-corrupt', 'unavailable'].includes(error.code)) throw error
           if (this.journal.projection.callbacks.get(delivery.payload.callbackId)?.responseClass === 'unknown') responseClass = 'unknown'
           diagnostic = callbackFailure(delivery.nodeWorkChain, 'retained', 'Callback attempt did not complete', 'unavailable',
@@ -155,7 +170,9 @@ export class CallbackOutbox {
         // A matching pending owner receipt is progress, not an exception; the outbox owns its next query.
         if (failure !== undefined || diagnostic || responseClass !== 'transient') {
           this.recordFailure(responseClass === 'unknown' ? { code: 'callback-outcome-unconfirmed' }
-            : failure ?? { code: diagnostic?.cause.code ?? 'callback-outcome-unconfirmed' })
+            : failure ?? { code: diagnostic?.cause.code ?? 'callback-outcome-unconfirmed' },
+          observation ? { ...observation, retryable: observation.retryable && phase === 'retry-due',
+            effectState: responseClass === 'unknown' ? 'unknown' : observation.effectState } : undefined)
         }
         return
       }

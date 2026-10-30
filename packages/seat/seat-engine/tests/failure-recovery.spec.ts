@@ -313,6 +313,49 @@ it('keeps an unclassified callback stopped through the watchdog and requires rep
   } finally { await h.close() }
 })
 
+it.each(['issuer', 'peer-query', 'local-query'] as const)('retries unavailable callbacks before effects at %s', (phase) => {
+  vi.useFakeTimers()
+  const log = vi.fn(), failures = new EngineFailures(2000, log)
+  try {
+    failures.record('callback-delivery', { code: 'unavailable' }, undefined,
+      { phase, effectState: 'none', retryable: true })
+    expect(failures.snapshot()).toMatchObject({ code: 'unavailable', retryable: true, attempts: 1 })
+    expect(failures.runnable()).toBe(false)
+    vi.advanceTimersByTime(1999)
+    expect(failures.runnable()).toBe(false)
+    vi.advanceTimersByTime(1)
+    expect(failures.runnable()).toBe(true)
+    expect(String(log.mock.calls[0]?.[0])).toContain(`"phase":"${phase}"`)
+    failures.succeeded(failures.generation())
+    expect(failures.snapshot()).toBeUndefined()
+  } finally { failures.close() }
+})
+
+it.each(['partial', 'committed', 'unknown'] as const)('does not retry unavailable callbacks with %s effects', (effectState) => {
+  vi.useFakeTimers()
+  const failures = new EngineFailures(2000, () => {})
+  try {
+    failures.record('callback-delivery', { code: 'unavailable' }, undefined,
+      { phase: 'peer-dispatch', effectState, retryable: true })
+    expect(failures.snapshot()).toMatchObject({ code: 'unavailable', retryable: false })
+    vi.advanceTimersByTime(600001)
+    failures.succeeded(failures.generation())
+    expect(failures.runnable()).toBe(false)
+  } finally { failures.close() }
+})
+
+it('does not let callback retry hints override conflicting or unknown evidence', () => {
+  for (const code of ['state-conflict', 'callback-protocol-error', 'unregistered-callback']) {
+    const failures = new EngineFailures(2000, () => {})
+    try {
+      failures.record('callback-delivery', { code }, undefined,
+        { phase: 'peer-query', effectState: 'none', retryable: true })
+      expect(failures.snapshot()).toMatchObject({ retryable: false })
+      expect(failures.runnable()).toBe(false)
+    } finally { failures.close() }
+  }
+})
+
 it('validates the configured owner-release attempt bound', () => {
   for (const ownerReleaseMaxAttempts of [0, -1, 1.5, Number.POSITIVE_INFINITY]) {
     expect(() => validateConfig({ ...config, failureRecovery: { retryInitialMs: 1000, ownerReleaseMaxAttempts } }))
