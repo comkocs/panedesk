@@ -152,7 +152,8 @@ export class SeatEngine extends SeatEngineService {
     this.failures = new EngineFailures(options.config.failureRecovery?.retryInitialMs, (line) => {
       ctx.logger.error(line)
       console.error(line)
-    }, () => { ctx.emit('seat/diagnostics-changed') }, options.config.failureRecovery?.ownerReleaseMaxAttempts)
+    }, () => { ctx.emit('seat/diagnostics-changed') }, options.config.failureRecovery?.ownerReleaseMaxAttempts,
+    () => { ctx.emit('seat/diagnostics-changed') })
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
     this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,

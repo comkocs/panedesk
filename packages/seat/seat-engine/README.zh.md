@@ -27,13 +27,13 @@ kind: "package-reference"
 
 通过 `failureRecovery: { retryInitialMs: 1000 }` 显式启用运行时失败监督；省略时保留状态锁存与既有调度。初始延迟必须是 1 至 300000 毫秒的整数。已知传输码（`ETIMEDOUT`、`ECONNRESET`、`ECONNREFUSED`、`EPIPE`、`node-tunnel-disconnected`、`node-deadline-exceeded`、`callback-timeout`）按指数退避重试，上限五分钟。只有包含回调结算与决定通知的完整 drive 成功，才清除可重试失败。决定监听器可能再次收到同一个已提交决定，必须按其身份去重副作用。监听失败不回滚已提交决定。监听器发起的写入在提交后返回，不等待自身通知；串行发布器在当前监听器结束后继续发布这些决定。通知之外的并发调用仍等待发布器。回调重试保留既有载荷、键与未知结果查询屏障。
 
-路由回调监督保留观测阶段、重试许可与业务效果界限。`unavailable` 拒绝仅在明确给出 `retryable: true` 且 `effectState: none` 时重试，包括路由服务或签发器暂缺。部分生效、已提交、未知或缺失的效果证据均不授权自动重放；诊断不能弱化返回结果的效果界限。即使提供方标记可重试，状态及协议冲突和未登记码仍保持停止。仅携带异常的持久化失败不会被重分类为路由暂缺。本地来源缺席仅在注册处尚未进入回调便拒绝时重试；适配器内部抛出的同码不能证明无效果。这些观测仅进入日志，不新增持久字段或改变节点状态字段。
+路由回调监督保留观测阶段、重试许可与业务效果界限。`unavailable` 拒绝仅在明确给出 `retryable: true` 且 `effectState: none` 时重试，包括路由服务或签发器暂缺。`cross-node-unsupported` 仅在 peer-query 或 peer-dispatch 阶段带有 `peer-capability-missing`、明确重试许可且无效果时重试；不放宽准入及方法拒绝。部分生效、已提交、未知或缺失的效果证据均不授权自动重放；诊断不能弱化返回结果的效果界限。即使提供方标记可重试，状态及协议冲突和未登记码仍保持停止。仅携带异常的持久化失败不会被重分类为路由暂缺。本地来源缺席仅在注册处尚未进入回调便拒绝时重试；适配器内部抛出的同码不能证明无效果。这些观测仅进入日志，不新增持久字段或改变节点状态字段。
 
 账本争用仅在 `LEDGER_UNAVAILABLE` 带有 `lockTimeoutCode: LEDGER_LOCK_TIMEOUT` 时重试；该标记在写事务开始前设置，并穿过账本包装。写入及同步失败保留既有分类。重试保留原开窗与消息身份。运行时失败变化及已提交决定发布不带正文的诊断失效通知；`node.status.openingFailures` 投影每个工位最近的未创建失败，直到后续成功开窗，不将失败意图当作 Session。缺预设失败保留 `details.agentPreset`，供所有者本地化报告。模型配置拒绝保留 `details.provider` 与 `details.model`，也显示于 `openingFailures`，但不把已有 Session 声称为不存在。
 
 未分类失败额外记录 `exception` 数组，包含异常、cause 与聚合成员的构造器名及 `name`/`code` 标识，最多四层、十六项。每个标识最多 48 个字符，仅允许 `[A-Za-z0-9._:-]`；不安全或令牌样标识省略。摘要绝不读入 message、stack、URL 或路径。它仅进入日志，不影响分类，也不扩展 `node.status` 或持久化记录。
 
-每次引擎失败通过 logger 与 stderr 输出一行安全错误，包含位置、细因码、可重试性及处置；`node.status.failure` 提供 `site`、`code`、`since`、`retryable`、`attempts`，不包含异常正文。连续不可用严格超过十分钟时再输出一次错误。状态冲突、证据歧义、持久化不确定、保留注册缺失或歧义、所有者释放重试耗尽及未分类失败会停止受监督的 drive。后续传输暂态不能清除这些失败。修复底层证据或配置、停止准入、排空并重启宿主以重放日志；目前不提供 `engine.recover` 命令。不得通过删日志帧或绕过授权清除状态。诊断仅存在于运行时，不改变业务记录；卸载会取消告警计时器。
+每次引擎失败通过 logger 与 stderr 输出一行安全错误，包含位置、细因码、可重试性及处置；`node.status.failure` 提供 `site`、`code`、`since`、`retryable`、`attempts`，不包含异常正文。连续不可用严格超过十分钟时再输出一次错误，设置 `failure.unavailableOverTenMinutes` 并使所有者诊断失效。本地化告警复用既有工位诊断区，引擎恢复 running 时随 failure 清除。状态冲突、证据歧义、持久化不确定、保留注册缺失或歧义、所有者释放重试耗尽及未分类失败会停止受监督的 drive。后续传输暂态不能清除这些失败。修复底层证据或配置、停止准入、排空并重启宿主以重放日志；目前不提供 `engine.recover` 命令。不得通过删日志帧或绕过授权清除状态。诊断仅存在于运行时，不改变业务记录；卸载会取消告警计时器。
 
 所有者释放保留 `ownerReleaseBudgetMs`，作为每个所有者观察及释放的耗时护栏。超出时结束当前释放批次，并报告 `owner-release-budget-exceeded`。启用监督时，`failureRecovery.ownerReleaseMaxAttempts` 限制连续不可用期间的尝试次数；它是正整数，缺省为三次，沿用配置的指数退避。耗尽后停止自动恢复，并保留即时的引擎停止诊断。已提交的释放不会重复。
 

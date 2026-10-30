@@ -228,6 +228,25 @@ it('caps exponential retry at five minutes and alerts once strictly after ten mi
   failures.close()
 })
 
+it('publishes the ten-minute diagnostic with product retry timing and clears it after recovery', () => {
+  vi.useFakeTimers()
+  const changed = vi.fn(), failures = new EngineFailures(2000, () => {}, changed, 3, changed)
+  try {
+    failures.record('scheduled-drive', { code: 'ETIMEDOUT' })
+    changed.mockClear()
+    vi.advanceTimersByTime(600000)
+    expect(failures.snapshot()).not.toHaveProperty('unavailableOverTenMinutes')
+    expect(changed).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(failures.snapshot()).toMatchObject({ unavailableOverTenMinutes: true })
+    expect(changed).toHaveBeenCalledOnce()
+    failures.record('scheduled-drive', { code: 'ETIMEDOUT' })
+    expect(failures.snapshot()).toMatchObject({ unavailableOverTenMinutes: true })
+    failures.succeeded(failures.generation())
+    expect(failures.snapshot()).toBeUndefined()
+  } finally { failures.close() }
+})
+
 it('retains unknown and persistence failures despite later transient errors or successful rounds', () => {
   const failures = new EngineFailures(1, () => {})
   try {
@@ -341,6 +360,26 @@ it.each(['partial', 'committed', 'unknown'] as const)('does not retry unavailabl
     vi.advanceTimersByTime(600001)
     failures.succeeded(failures.generation())
     expect(failures.runnable()).toBe(false)
+  } finally { failures.close() }
+})
+
+it.each([
+  ['peer-query', 'peer-capability-missing', 'none', true],
+  ['peer-dispatch', 'peer-capability-missing', 'none', true],
+  ['peer-query', 'method-not-allowed', 'none', false],
+  ['local-query', 'peer-capability-missing', 'none', false],
+  ['peer-query', 'peer-capability-missing', 'unknown', false],
+] as const)('classifies capability refusal at %s with %s and %s as retryable=%s', (phase, reasonCode, effectState, retryable) => {
+  vi.useFakeTimers()
+  const failures = new EngineFailures(2000, () => {})
+  try {
+    failures.record('callback-delivery', { code: 'cross-node-unsupported' }, undefined,
+      { phase, reasonCode, effectState, retryable: true })
+    expect(failures.snapshot()).toMatchObject({ code: 'cross-node-unsupported', retryable })
+    vi.advanceTimersByTime(2000)
+    expect(failures.runnable()).toBe(retryable)
+    failures.succeeded(failures.generation())
+    expect(failures.snapshot() === undefined).toBe(retryable)
   } finally { failures.close() }
 })
 

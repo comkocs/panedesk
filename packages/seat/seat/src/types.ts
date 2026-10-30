@@ -676,7 +676,15 @@ export interface SeatNodeStatus {
   limit: number | null
   readyAt: SeatTimestamp | null
   /** Current runtime failure; absent before failure or after a successful supervised retry. */
-  failure?: { site: string; code: string; since: SeatTimestamp; retryable: boolean; attempts: number }
+  failure?: {
+    site: string
+    code: string
+    since: SeatTimestamp
+    retryable: boolean
+    attempts: number
+    /** Present after the continuous unavailable interval exceeds ten minutes; cleared with the failure. */
+    unavailableOverTenMinutes?: true
+  }
   /** Latest prerequisite failure per seat; successful opening or model readmission clears the diagnostic, not audit facts. */
   openingFailures?: readonly {
     sessionId: SessionId

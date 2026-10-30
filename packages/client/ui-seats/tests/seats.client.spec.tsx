@@ -118,6 +118,23 @@ describe('seat entry presentations', () => {
     render(<SeatPicker {...f.props as SeatPickerProps} />)
     expect(screen.getByText('Agent preset agent-a is unavailable. Restore the preset and submit again.')).toBeTruthy()
   })
+  it.each(['en', 'zh'] as const)('shows the ten-minute engine alert in the existing diagnostic location and clears on recovery: %s', (language) => {
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const engine = { site: 'scheduled-drive', code: 'ETIMEDOUT', since: '2026-01-01T00:00:00Z',
+      retryable: true, attempts: 1, unavailableOverTenMinutes: true as const }
+    const f = fixture({ ...data, diagnostics: { engine, openings: [] } })
+    const view = render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    const alerts = screen.getAllByRole('alert')
+    expect(alerts).toHaveLength(2)
+    expect(alerts[0]!.parentElement).toBe(alerts[1]!.parentElement)
+    expect(alerts[1]!.textContent).toBe(language === 'en'
+      ? 'Seat engine has been unavailable for over ten minutes [ETIMEDOUT]. Check the host log and repair the cause; this alert clears when the engine returns to running.'
+      : '工位引擎已持续不可用超过 10 分钟 [ETIMEDOUT]。请查看宿主日志并修复原因；引擎恢复 running 后，本告警清除。')
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('shows a stopped engine and its clearance condition in the seat section', () => {
     const f = fixture({ ...data, diagnostics: { engine: { site: 'scheduled-drive', code: 'unclassified-error',
       since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 }, openings: [] } })

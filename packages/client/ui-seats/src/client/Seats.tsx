@@ -119,6 +119,7 @@ function Diagnostics({ data, t }: { data: SeatOverview | undefined; t: Common['t
   if (!failure && !data?.diagnostics?.openings.length) return null
   return <div className={css.diagnostics}>
     {failure && <p role="alert">{t(failure.retryable ? 'engineRetrying' : 'engineStopped', { code: failure.code })}</p>}
+    {failure?.unavailableOverTenMinutes && <p role="alert">{t('engineUnavailableOverTenMinutes', { code: failure.code })}</p>}
     {data.diagnostics?.openings.map(open => <p role="alert" key={open.sessionId}>
       {open.seat}: {open.model !== undefined
         ? t(open.stage === 'turn' ? 'liveModelUnavailable' : 'modelUnavailable',

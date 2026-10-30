@@ -77,13 +77,23 @@ export class ChainRouter implements ChainRouterService {
       }
     }
     if (!this.available()) return chainFailure(request, 'node-tunnel-disconnected', 'tunnel-disconnected')
+    const beforeCallbackDispatch = (code: 'node-deadline-exceeded' | 'cross-node-unsupported',
+      reason: 'deadline-exceeded' | 'peer-capability-missing'): ChainResponse => {
+      const response = chainFailure(request, code, reason)
+      if (response.status !== 'ok' && (request.method === 'source.deliverCallback'
+        || request.method === 'chain.operation' && request.payload.key.method === 'source.deliverCallback')) {
+        response.error.retryable = true
+        response.error.cause.retryable = true
+      }
+      return response
+    }
     const { local, remote } = this.capabilities()
     if (!local || !remote || !remote.methods.includes(request.method)
       || (request.method === 'seat.definitionRevision' && !local.methods.includes(request.method))) {
-      return chainFailure(request, 'cross-node-unsupported', 'peer-capability-missing')
+      return beforeCallbackDispatch('cross-node-unsupported', 'peer-capability-missing')
     }
     if (Date.parse(request.deadline) <= Date.now() || Date.parse(request.delegation.expiresAt) <= Date.now()) {
-      return chainFailure(request, 'node-deadline-exceeded', 'deadline-exceeded')
+      return beforeCallbackDispatch('node-deadline-exceeded', 'deadline-exceeded')
     }
     const maxFrameBytes = Math.min(this.options.maxFrameBytes, local.maxFrameBytes, remote.maxFrameBytes)
     try { encodeChainFrame(request, [this.options.maxFrameBytes, local.maxFrameBytes, remote.maxFrameBytes]) }
@@ -105,7 +115,7 @@ export class ChainRouter implements ChainRouterService {
       }
       const remaining = Math.min(Date.parse(request.deadline), Date.parse(request.delegation.expiresAt)) - Date.now()
       if (remaining <= 0) {
-        const response = chainFailure(request, 'node-deadline-exceeded', 'deadline-exceeded')
+        const response = beforeCallbackDispatch('node-deadline-exceeded', 'deadline-exceeded')
         if (admitted) await this.store.settle(request, response, true)
         return response
       }

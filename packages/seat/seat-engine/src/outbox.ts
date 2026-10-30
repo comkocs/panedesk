@@ -59,7 +59,8 @@ export class CallbackOutbox {
     const error = result.status === 'rejected' || result.status === 'paused' ? result.error : undefined
     const observation: FailureObservation | undefined = diagnostic ? { phase: diagnostic.stage,
       effectState: error?.effectState !== 'none' ? error?.effectState ?? 'unknown' : diagnostic.cause.effectState,
-      retryable: error?.retryable === true && diagnostic.cause.retryable } : undefined
+      retryable: error?.retryable === true && diagnostic.cause.retryable,
+      ...(diagnostic.cause.reasonCode ? { reasonCode: diagnostic.cause.reasonCode } : {}) } : undefined
     return { responseClass, ...(diagnostic ? { diagnostic } : {}), ...(observation ? { observation } : {}) }
   }
 

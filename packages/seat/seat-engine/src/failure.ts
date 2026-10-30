@@ -6,6 +6,7 @@ export interface FailureObservation {
   phase: SeatCallbackFailureStage
   effectState: SeatFailure['effectState']
   retryable: boolean
+  reasonCode?: import('@panedesk/dsh-seat').NodeWorkChainReasonCode
 }
 
 type Failure = NonNullable<SeatNodeStatus['failure']>
@@ -59,7 +60,8 @@ export class EngineFailures {
   private revision = 0
   private closed = false
   constructor(private readonly initialMs: number | undefined, private readonly log: (line: string) => void,
-    private readonly changed: () => void = () => {}, private readonly ownerReleaseMaxAttempts = 3) {}
+    private readonly changed: () => void = () => {}, private readonly ownerReleaseMaxAttempts = 3,
+    private readonly alertChanged: () => void = () => {}) {}
 
   /** Read a detached diagnostic, absent before a failure or after a verified successful retry.
    * @returns Safe failure fields without exception text.
@@ -101,7 +103,9 @@ export class EngineFailures {
       if (site === 'callback-delivery' && observation) {
         return { code: known ? raw : 'unclassified-error', retryable: known && observation.effectState === 'none'
           && observation.retryable && (raw === 'unavailable' || transportCodes.has(raw)
-            || raw === 'source-not-found' && observation.phase === 'retained') }
+            || raw === 'source-not-found' && observation.phase === 'retained'
+            || raw === 'cross-node-unsupported' && observation.reasonCode === 'peer-capability-missing'
+              && (observation.phase === 'peer-query' || observation.phase === 'peer-dispatch')) }
       }
       // Never unwrap persistence errors even when their nested cause resembles a transport timeout.
       return { code: known ? raw : 'unclassified-error', retryable: known && transportCodes.has(raw) }
@@ -113,7 +117,8 @@ export class EngineFailures {
     const attempts = (previous?.attempts ?? 0) + 1
     const retryable = code === 'owner-release-budget-exceeded'
       ? attempts < this.ownerReleaseMaxAttempts : code === undefined && classification.retryable
-    const failure = { site, code: safeCode, since: previous?.since ?? new Date(now).toISOString(), retryable, attempts }
+    const failure = { site, code: safeCode, since: previous?.since ?? new Date(now).toISOString(), retryable, attempts,
+      ...(previous?.unavailableOverTenMinutes ? { unavailableOverTenMinutes: true as const } : {}) }
     this.current = previous && !previous.retryable ? { ...previous, attempts } : failure
     if (this.initialMs !== undefined) this.nextDue = now + Math.min(300000, this.initialMs * 2 ** Math.min(attempts - 1, 30))
     this.log(`Seat engine failure ${JSON.stringify({ ...failure, action: retryable ? 'retry' : 'stop-and-restart-after-repair',
@@ -123,7 +128,11 @@ export class EngineFailures {
     if (!previous && !this.closed) {
       this.alert = setTimeout(() => {
         this.alert = undefined
-        if (this.current) this.log(`Seat engine unavailable over ten minutes ${JSON.stringify(this.current)}`)
+        if (this.current) {
+          this.current = { ...this.current, unavailableOverTenMinutes: true }
+          this.log(`Seat engine unavailable over ten minutes ${JSON.stringify(this.current)}`)
+          this.alertChanged()
+        }
       }, 600001)
       this.alert.unref()
     }
