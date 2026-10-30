@@ -113,6 +113,20 @@ describe('seat entry presentations', () => {
     view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
   })
+  it.each(['en', 'zh'] as const)('names an invalid definition and its seat-local recovery: %s', (language) => {
+    const value = { ...data, diagnostics: { openings: [{ sessionId: 'invalid-opening' as never,
+      seat: seat.seat, agentPreset: seat.agentPreset, code: 'invalid-definition' as const }] } }
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const view = render(<SeatsSection {...{ ...fixture(value).props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(language === 'en'
+      ? 'seat-a: Seat definition is invalid [invalid-definition]; this seat failed to open. Other seats and the engine continue. Repair the definition and reopen; this alert clears when the definition changes or this seat opens successfully.'
+      : 'seat-a: 工位定义无效 [invalid-definition]，该工位开窗失败，其他工位与引擎继续运行。请修好定义后重开；定义修改或该工位成功开窗后，本告警清除。')
+    expect(screen.getByRole('region', { name: t('seats') }).contains(screen.getByRole('alert'))).toBe(true)
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('shows a missing preset refusal in the cold picker without a Session header', () => {
     const f = fixture(data, undefined, { seq: 1, message: 'Agent preset agent-a is unavailable. Restore the preset and submit again.' })
     render(<SeatPicker {...f.props as SeatPickerProps} />)
@@ -151,6 +165,23 @@ describe('seat entry presentations', () => {
     expect(screen.getByRole('region', { name: t('seats') }).contains(screen.getByRole('alert'))).toBe(true)
     view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it.each(['en', 'zh'] as const)('shows a callback authentication refusal and clears after abandonment: %s', (language) => {
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const value = { ...data, diagnostics: { openings: [], callbacks: [{ callbackId: 'callback-a' as never,
+      seat: seat.seat, code: 'callback-authentication-failed' as const }] } }
+    const view = render(<SeatsSection {...{ ...fixture(value).props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(language === 'en'
+      ? 'seat-a: Callback callback-a authentication was refused [callback-authentication-failed] before processing; it is parked for manual resolution. Other callbacks and the engine continue. Repair callback authentication, then resume or abandon this callback; this alert clears when it leaves the parked state.'
+      : 'seat-a: 回调 callback-a 在处理前认证被拒绝 [callback-authentication-failed]，已停车等待人工处理，其他回调与引擎继续运行。请修复回调认证后恢复或放弃此回调；退出停车状态后，本告警清除。')
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+    const stopped = { ...data, diagnostics: { openings: [], engine: { site: 'callback-delivery',
+      code: 'callback-authentication-failed', since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 } } }
+    view.rerender(<SeatsSection {...{ ...fixture(stopped).props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(t('engineStopped', { code: 'callback-authentication-failed' }))
   })
   it.each(['en', 'zh'] as const)('shows complete journal frame overflow immediately as a stopped engine: %s', (language) => {
     const dictionary = language === 'en' ? en : zh

@@ -93,7 +93,9 @@ export class EngineFailures {
         const errors = error.errors.map((item: unknown) => classify(item))
         return errors.find(item => !item.retryable) ?? classify(error.errors[0])
       }
-      const raw = error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined
+      const local = error !== null && typeof error === 'object' && 'failure' in error ? error.failure : undefined
+      const raw = error !== null && typeof error === 'object' && 'code' in error ? error.code
+        : local !== null && typeof local === 'object' && 'code' in local && local.code === 'invalid-definition' ? local.code : undefined
       if (raw === 'LEDGER_UNAVAILABLE' && error !== null && typeof error === 'object'
         && 'lockTimeoutCode' in error && error.lockTimeoutCode === 'LEDGER_LOCK_TIMEOUT') {
         return { code: 'LEDGER_LOCK_TIMEOUT', retryable: true }

@@ -74,6 +74,70 @@ test.each(['callback-authentication-failed', 'callback-protocol-error'] as const
   expect(JSON.stringify(h.engine.journal.projection.decisions)).not.toContain('PRIVATE_SENTINEL')
 })
 
+test.each(['none', 'partial', 'committed', 'unknown', undefined] as const)('contains callback authentication only with confirmed no effects: %s', async (effectState) => {
+  const h = await harness({ failureRecovery: { retryInitialMs: 1000 } }); cleanups.push(h.close)
+  const payload: T.SeatCallbackPayload = { kind: 'opened', callbackId: 'refused-callback' as T.CallbackId,
+    sourceId, triggerId: 'refused-trigger' as T.TriggerId, stateVersion: 1, seat, title: 'Callback',
+    sessionId: 'callback-session' as NonNullable<T.SeatCallbackPayload['sessionId']>, nodeId, nodeName: 'node-a', budget: {}, relatedTaskIds: [] }
+  const other = { ...payload, callbackId: 'independent-callback' as T.CallbackId, triggerId: 'independent-trigger' as T.TriggerId }
+  const sent: T.CallbackId[] = []
+  h.source.callback = async (input) => {
+    sent.push(input.callbackId)
+    if (input.callbackId === payload.callbackId) throw Object.assign(new EngineError('callback-authentication-failed', 'Refused'),
+      effectState === undefined ? {} : { effectState })
+  }
+  await h.engine.journal.commit(() => [payload, other].map(item => fact({ kind: 'callback/pending', data: {
+    payload: item, payloadDigest: digest(item), attempt: 0, phase: 'pending', nextDue: null, responseClass: null } })))
+  await h.engine.drive()
+  if (effectState !== 'none') {
+    expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'unavailable', failure: {
+      code: 'callback-authentication-failed', retryable: false } })
+    expect(sent).toEqual([payload.callbackId])
+    return
+  }
+  expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'running', callbackFailures: [
+    { callbackId: payload.callbackId, seat, code: 'callback-authentication-failed' },
+  ] })
+  expect((await h.engine.nodeStatus()).failure).toBeUndefined()
+  expect(sent).toEqual([payload.callbackId, other.callbackId])
+  expect(h.engine.journal.projection.callbacks.get(payload.callbackId)).toMatchObject({ phase: 'paused',
+    nextDue: null, lastDiagnostic: { cause: { effectState: 'none' } } })
+  const resolution: T.CallbackResolveRequest = { callbackId: payload.callbackId, expectedAttempt: 2, action: 'abandon' }
+  const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'local-operator', origin: 'manual', nodeId,
+    principalId: 'operator' as T.SeatPrincipalId, taskIds: [], policyRevision: 1 },
+  current: () => ({ decision: 'allowed', reasonCode: 'operator', policyRevision: 1 }) })
+  try {
+    const resume: T.CallbackResolveRequest = { ...resolution, expectedAttempt: 1, action: 'resume' }
+    const resumeGrant = await entry.issuer.check({ operationId: 'resume-callback' as T.SeatOperationId, requestDigest: digest(resume) })
+    if ('status' in resumeGrant) throw new Error('Operator refused')
+    expect(await h.engine.callbackResolve(resume, resumeGrant)).toMatchObject({ status: 'ok', phase: 'retry-due' })
+    await h.engine.drive()
+    expect(await h.engine.nodeStatus()).toMatchObject({ engine: 'running', callbackFailures: [
+      { callbackId: payload.callbackId, seat, code: 'callback-authentication-failed' },
+    ] })
+    const grant = await entry.issuer.check({ operationId: 'abandon-callback' as T.SeatOperationId, requestDigest: digest(resolution) })
+    if ('status' in grant) throw new Error('Operator refused')
+    expect(await h.engine.callbackResolve(resolution, grant)).toMatchObject({ status: 'ok', phase: 'abandoned' })
+    expect((await h.engine.nodeStatus()).callbackFailures).toBeUndefined()
+  } finally { entry.dispose() }
+})
+
+test('does not erase earlier unknown effects with a later callback authentication refusal', async () => {
+  const h = await fixture()
+  let first = true
+  failing(h.sources, async () => {
+    if (first) { first = false; throw new Error('Uncertain delivery') }
+    throw Object.assign(new EngineError('callback-authentication-failed', 'Refused'), { effectState: 'none' })
+  })
+  await h.outbox.deliver()
+  vi.setSystemTime(1001000)
+  await h.outbox.deliver()
+  expect(h.current()).toMatchObject({ phase: 'paused', responseClass: 'authentication',
+    lastDiagnostic: { cause: { code: 'callback-authentication-failed', effectState: 'unknown' } } })
+  expect(h.outbox.hasFailedDelivery()).toBe(true)
+  expect((await h.engine.nodeStatus()).callbackFailures).toBeUndefined()
+})
+
 test('records a fixed timeout with unknown effects after an adapter settles', async () => {
   const h = await fixture()
   failing(h.sources, async () => { vi.advanceTimersByTime(config.callbackTimeoutMs + 1) })

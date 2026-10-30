@@ -160,6 +160,7 @@ export class LocalSeatService extends SeatService {
         if (index < 0) catalog.definitions.push(definition)
         else catalog.definitions[index] = definition
       })
+      this.runtime.context.emit('seat/diagnostics-changed')
       return { status: 'saved' as const, revision }
     })
   }
@@ -167,7 +168,13 @@ export class LocalSeatService extends SeatService {
     return this.result(async () => await this.guard() ?? this.importer.preview(request))
   }
   async commitImport(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult> {
-    return this.result(async () => await this.guard(undefined, request.operationId) ?? this.importer.commit(request))
+    return this.result(async () => {
+      const refusal = await this.guard(undefined, request.operationId)
+      if (refusal !== null) return refusal
+      const result = await this.importer.commit(request)
+      if (result.status === 'committed') this.runtime.context.emit('seat/diagnostics-changed')
+      return result
+    })
   }
   private async windows(): Promise<{ binding: Extract<T.SeatBinding, { kind: 'seat' }>; open: T.EngineOpenData }[]> {
     const effects = (await this.state.read()).effects

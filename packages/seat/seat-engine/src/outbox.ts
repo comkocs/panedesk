@@ -23,6 +23,16 @@ export function isParkedIssuerRefusal(delivery: SeatCallbackDelivery): boolean {
       || ['evidence-missing', 'evidence-revoked', 'hello-policy-not-ready'].includes(diagnostic.cause.reasonCode))
 }
 
+/** Identify only parked authentication refusals with confirmed absent effects.
+ * @param delivery - Committed callback evidence.
+ * @returns Whether the refusal is contained by manual callback resolution.
+ */
+export function isParkedAuthenticationRefusal(delivery: SeatCallbackDelivery): boolean {
+  return isParkedIssuerRefusal(delivery) || delivery.phase === 'paused' && delivery.responseClass === 'authentication'
+    && delivery.lastDiagnostic?.cause.code === 'callback-authentication-failed'
+    && delivery.lastDiagnostic.cause.effectState === 'none'
+}
+
 /** One delivery controller owns all in-flight callbacks until they settle. */
 export class CallbackOutbox {
   private running: Promise<void> | undefined
@@ -37,7 +47,7 @@ export class CallbackOutbox {
    */
   hasFailedDelivery(): boolean {
     return [...this.journal.projection.callbacks.values()].some(delivery => delivery.responseClass !== null
-      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned' && !isParkedIssuerRefusal(delivery))
+      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned' && !isParkedAuthenticationRefusal(delivery))
   }
 
   /** Deliver currently due facts without overtaking a failed earlier state.
@@ -159,6 +169,15 @@ export class CallbackOutbox {
           responseClass === 'authentication' ? 'callback-authentication-failed'
             : responseClass === 'protocol' ? 'callback-protocol-error' : 'callback-unclassified-error',
           'local-dispatch', responseClass === 'transient')
+        if (!delivery.nodeWorkChain && responseClass === 'authentication') {
+          const effect = error !== null && typeof error === 'object' && 'effectState' in error ? error.effectState : undefined
+          const effectState = effect === 'none' || effect === 'partial' || effect === 'committed' ? effect : 'unknown'
+          // A later refusal cannot erase an earlier attempt's uncertain business effects.
+          const retained = delivery.lastDiagnostic?.cause.effectState
+          observation = { phase: 'local-dispatch', retryable: false,
+            effectState: delivery.attempt > 0 && retained !== 'none' ? retained ?? 'unknown' : effectState }
+          diagnostic = { ...diagnostic, cause: { ...diagnostic.cause, effectState: observation.effectState } }
+        }
       }
       if (delivery.nodeWorkChain && responseClass === 'transient'
         && delivery.responseClass === 'unknown') responseClass = 'unknown'
@@ -182,7 +201,7 @@ export class CallbackOutbox {
           ...(delivery.payload.sessionId ? { sessionId: delivery.payload.sessionId } : {}), data: updated })]
       })
       if (phase === 'delivered') blocked.delete(key)
-      else if (failure === undefined && isParkedIssuerRefusal(updated)) continue
+      else if (isParkedAuthenticationRefusal(updated) && (failure === undefined || !delivery.nodeWorkChain)) continue
       else if (this.recordFailure) {
         // A matching pending owner receipt is progress, not an exception; the outbox owns its next query.
         if (failure !== undefined || diagnostic || responseClass !== 'transient') {

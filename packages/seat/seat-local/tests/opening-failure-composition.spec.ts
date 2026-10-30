@@ -4,6 +4,59 @@ import type * as T from '@panedesk/dsh-seat'
 import { createUserMessage, LlmError, type StreamChunk } from '@panedesk/dsh-llm'
 import { admissionHost } from './admission-host.ts'
 import { operation } from './fixtures.ts'
+import { fact } from '@panedesk/dsh-seat-engine/src/triggers.ts'
+import { digest } from '@panedesk/dsh-seat-engine/src/journal.ts'
+import type { SessionId } from '@panedesk/dsh-session'
+
+it('contains an invalid definition from the real executor and clears its alert after repair', async () => {
+  const f = await admissionHost(undefined, { failureRecovery: { retryInitialMs: 1000 }, ownerObserveIntervalMs: 60000 })
+  try {
+    await f.seats.save({ definition: { ...f.definition, opening: { kind: 'text', text: '{{unsupported}}' } },
+      expectedRevision: 2, operationId: operation('invalid-definition') })
+    const definition = await f.seats.resolve(f.definition.seat)
+    if ('status' in definition) throw new Error('Expected the retained definition')
+    const sessionId = 'invalid-window' as SessionId
+    const openingOperationId = operation('invalid-open'), openingDigest = digest('retained-template')
+    // Recovered intents without frozen text reach the real executor's template renderer.
+    const open: T.EngineOpenData = { intentId: 'invalid-intent' as T.OpenIntentId, sessionId,
+      seatRevision: definition.revision, phase: 'intent', completedStages: [], openingOperationId,
+      openingMessageId: null, openingDigest, definition, title: definition.seat, sources: [], failure: null,
+      binding: { kind: 'seat', sessionId, seat: definition.seat, nodeId: f.options.nodeId, projectId: definition.projectId,
+        bindingSource: 'seat-definition', identitySource: 'settings', openOperationId: openingOperationId,
+        seatRevision: definition.revision, relatedTaskIds: [], directories: definition.directories,
+        memoryDirectories: [], subscriptions: [], openingDigest },
+      budget: { sessionId, seat: definition.seat, currency: 'USD', costState: 'known', windowCost: '0' as T.MicroUsd,
+        dailyCost: '0' as T.MicroUsd, limits: {}, dayKey: new Date().toISOString().slice(0, 10), budgetTimeZone: 'UTC',
+        inFlightUnknown: 0, watermark: 0, budgetRevision: 0 } }
+    await f.engine.journal.commit(() => [fact({ kind: 'open/intent', sessionId, data: open }),
+      fact({ kind: 'resource/reserved', sessionId, seat: definition.seat, data: { nodeId: f.options.nodeId,
+        seat: definition.seat, owner: { sessionId, intentId: open.intentId, ownerEpoch: 'invalid-epoch' as T.OwnerEpoch,
+          resourceRevision: 1 }, exclusiveTags: [], engineWindowUnits: 1, seatWindowUnits: 1 } })])
+    await f.engine.drive()
+    expect(f.engine.journal.projection.opens.size).toBe(1)
+    expect(f.engine.journal.projection.opens.get(sessionId)).toMatchObject({
+      phase: 'opening-failed', failure: { code: 'invalid-definition', effectState: 'none' },
+    })
+    expect(await f.engine.nodeStatus()).toMatchObject({ engine: 'running', openingFailures: [
+      { seat: f.definition.seat, code: 'invalid-definition' },
+    ] })
+    const healthySeat = 'healthy-seat' as T.SeatName
+    await f.seats.save({ definition: { ...f.definition, seat: healthySeat }, expectedRevision: 3,
+      operationId: operation('save-independent') })
+    expect(await f.seats.open({ seat: healthySeat, origin: 'manual', operationId: operation('independent-open'),
+      openingMode: 'prefill' })).toMatchObject({ status: 'prefilled' })
+    const changed = vi.fn()
+    const stop = f.ctx.on('seat/diagnostics-changed', changed)
+    await f.seats.save({ definition: f.definition, expectedRevision: 4, operationId: operation('repair-definition') })
+    expect(changed).toHaveBeenCalledOnce()
+    stop()
+    expect((await f.engine.nodeStatus()).openingFailures).toBeUndefined()
+    expect(await f.seats.open({ seat: f.definition.seat, origin: 'manual', operationId: operation('repaired-open'),
+      openingMode: 'prefill' })).toMatchObject({ status: 'prefilled' })
+    expect(await f.engine.nodeStatus()).toMatchObject({ engine: 'running' })
+    expect((await f.engine.nodeStatus()).openingFailures).toBeUndefined()
+  } finally { await f.close() }
+}, 15000)
 
 it.each(['UNKNOWN_MODEL', 'session/model-unavailable'] as const)('reports a live window model failure without stopping other seats: %s', async (code) => {
   const f = await admissionHost(undefined, { ownerObserveIntervalMs: 60000 })
