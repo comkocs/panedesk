@@ -135,6 +135,32 @@ describe('seat entry presentations', () => {
     view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
   })
+  it.each(['en', 'zh'] as const)('shows an issuer-refused callback immediately in the existing alert location: %s', (language) => {
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const value = { ...data, diagnostics: { openings: [], callbacks: [{ callbackId: 'callback-a' as never,
+      seat: seat.seat, code: 'unauthorized' as const }] } }
+    const props = { ...fixture(value).props, t }
+    const view = render(<SeatsSection {...props as SeatsSectionProps} wide={false} />)
+    expect(screen.getByRole('button', { name: t('showAlerts') })).toBeTruthy()
+    view.rerender(<SeatsSection {...props as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(language === 'en'
+      ? 'seat-a: Callback callback-a was refused [unauthorized] and is parked for manual resolution. Other callbacks and the engine continue. Restore the original account, then resume or abandon this callback; this alert clears when it leaves the parked state.'
+      : 'seat-a: 回调 callback-a 被拒绝 [unauthorized]，已停车等待人工处理，其他回调与引擎继续运行。请恢复原账号后恢复或放弃此回调；退出停车状态后，本告警清除。')
+    expect(screen.getByRole('region', { name: t('seats') }).contains(screen.getByRole('alert'))).toBe(true)
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it.each(['en', 'zh'] as const)('shows complete journal frame overflow immediately as a stopped engine: %s', (language) => {
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const value = { ...data, diagnostics: { engine: { site: 'callback-delivery', code: 'source-payload-too-large',
+      since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 }, openings: [] } }
+    render(<SeatsSection {...{ ...fixture(value).props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(t('engineStopped', { code: 'source-payload-too-large' }))
+  })
   it('shows a stopped engine and its clearance condition in the seat section', () => {
     const f = fixture({ ...data, diagnostics: { engine: { site: 'scheduled-drive', code: 'unclassified-error',
       since: '2026-01-01T00:00:00Z', retryable: false, attempts: 1 }, openings: [] } })

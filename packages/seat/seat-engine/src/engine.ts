@@ -10,7 +10,7 @@ import type * as T from '@panedesk/dsh-seat'
 import { EngineJournal, EngineError, digest, decodeFrame, canonical, frame } from './journal.ts'
 import { SourceRegistry } from './sources.ts'
 import { TriggerRegistry, rejected, fact, reminderEffects } from './triggers.ts'
-import { CallbackOutbox } from './outbox.ts'
+import { CallbackOutbox, isParkedIssuerRefusal } from './outbox.ts'
 import { effectiveMode, reserveOpen } from './admission.ts'
 import { externalRuleMiss, triggerRule } from './rules.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
@@ -522,11 +522,14 @@ export class SeatEngine extends SeatEngineService {
             ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : [])
     const diagnostics = [...openingFailures, ...[...this.liveModelFailures.values()].filter(failure =>
       this.journal.projection.opens.get(failure.sessionId)?.phase === 'active')]
+    const callbackFailures = [...this.journal.projection.callbacks.values()].filter(isParkedIssuerRefusal)
+      .map(delivery => ({ callbackId: delivery.payload.callbackId, seat: delivery.payload.seat, code: 'unauthorized' as const }))
     return Promise.resolve({ nodeId: this.options.nodeId, nodeName: this.options.config.nodeName,
       engine: failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),
       limit: this.options.config.nodeEngineWindowLimit ?? null, readyAt: this.readyAt,
-      ...(failure ? { failure } : {}), ...(diagnostics.length ? { openingFailures: diagnostics } : {}) })
+      ...(failure ? { failure } : {}), ...(diagnostics.length ? { openingFailures: diagnostics } : {}),
+      ...(callbackFailures.length ? { callbackFailures } : {}) })
   }
   override wakeSource = async (envelope: T.TriggerEnvelope): Promise<T.WakeSeatResult | undefined> => {
     if (envelope.evidence.kind !== 'external' || !this.options.config.sourceWake?.some(rule =>

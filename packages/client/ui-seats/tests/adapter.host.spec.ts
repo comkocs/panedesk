@@ -67,6 +67,19 @@ describe('manual seat UI adapter', () => {
       expect(await f.ui.overview()).not.toHaveProperty('diagnostics')
     } finally { read.mockRestore(); await f.ctx.fiber.dispose() }
   })
+  it('projects parked issuer refusals without reporting an engine failure', async () => {
+    const f = fixture(), engine = f.ctx.get('seatEngine')!
+    const callback = { callbackId: 'callback-a' as never, seat: 'seat-a' as never, code: 'unauthorized' as const }
+    const read = vi.spyOn(engine, 'nodeStatus').mockResolvedValue({ nodeId: 'node-a' as never, nodeName: 'local',
+      engine: 'running', openEngineWindows: 0, limit: null, readyAt: null, callbackFailures: [callback] })
+    try {
+      expect(await f.ui.overview()).toMatchObject({ diagnostics: { openings: [], callbacks: [callback] } })
+      expect((await f.ui.overview()).diagnostics?.engine).toBeUndefined()
+      read.mockResolvedValue({ nodeId: 'node-a' as never, nodeName: 'local', engine: 'running',
+        openEngineWindows: 0, limit: null, readyAt: null })
+      expect(await f.ui.overview()).not.toHaveProperty('diagnostics')
+    } finally { read.mockRestore(); await f.ctx.fiber.dispose() }
+  })
   it('stops an aborted overview before provider reads', async () => {
     const f = fixture()
     try {

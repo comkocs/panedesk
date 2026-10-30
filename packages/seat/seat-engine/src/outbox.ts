@@ -10,6 +10,19 @@ import { callbackRetentions, callbackLinkFailure, callbackDiagnostic, resolvedCa
 
 const CALLBACK_TRANSIENT_LIMIT_MS = 900000
 
+/** Identify parked authority refusals whose durable evidence confirms no business effects.
+ * @param delivery - Committed callback delivery.
+ * @returns Whether operator resolution contains the refusal without an engine failure.
+ */
+export function isParkedIssuerRefusal(delivery: SeatCallbackDelivery): boolean {
+  const diagnostic = delivery.lastDiagnostic
+  return delivery.phase === 'paused' && delivery.responseClass === 'authentication'
+    && diagnostic?.stage === 'issuer' && diagnostic.cause.code === 'unauthorized'
+    && diagnostic.cause.effectState === 'none'
+    && (diagnostic.cause.reasonCode === undefined
+      || ['evidence-missing', 'evidence-revoked', 'hello-policy-not-ready'].includes(diagnostic.cause.reasonCode))
+}
+
 /** One delivery controller owns all in-flight callbacks until they settle. */
 export class CallbackOutbox {
   private running: Promise<void> | undefined
@@ -24,7 +37,7 @@ export class CallbackOutbox {
    */
   hasFailedDelivery(): boolean {
     return [...this.journal.projection.callbacks.values()].some(delivery => delivery.responseClass !== null
-      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned')
+      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned' && !isParkedIssuerRefusal(delivery))
   }
 
   /** Deliver currently due facts without overtaking a failed earlier state.
@@ -61,7 +74,9 @@ export class CallbackOutbox {
       effectState: error?.effectState !== 'none' ? error?.effectState ?? 'unknown' : diagnostic.cause.effectState,
       retryable: error?.retryable === true && diagnostic.cause.retryable,
       ...(diagnostic.cause.reasonCode ? { reasonCode: diagnostic.cause.reasonCode } : {}) } : undefined
-    return { responseClass, ...(diagnostic ? { diagnostic } : {}), ...(observation ? { observation } : {}) }
+    const retainedDiagnostic = responseClass === 'authentication' && diagnostic && observation
+      ? { ...diagnostic, cause: { ...diagnostic.cause, effectState: observation.effectState } } : diagnostic
+    return { responseClass, ...(retainedDiagnostic ? { diagnostic: retainedDiagnostic } : {}), ...(observation ? { observation } : {}) }
   }
 
   private refusalClass(error: import('@panedesk/dsh-seat').SeatFailure): SeatCallbackDelivery['responseClass'] {
@@ -167,6 +182,7 @@ export class CallbackOutbox {
           ...(delivery.payload.sessionId ? { sessionId: delivery.payload.sessionId } : {}), data: updated })]
       })
       if (phase === 'delivered') blocked.delete(key)
+      else if (failure === undefined && isParkedIssuerRefusal(updated)) continue
       else if (this.recordFailure) {
         // A matching pending owner receipt is progress, not an exception; the outbox owns its next query.
         if (failure !== undefined || diagnostic || responseClass !== 'transient') {

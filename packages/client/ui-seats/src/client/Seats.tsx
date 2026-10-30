@@ -116,10 +116,13 @@ function AddSeat({ open, close, models, prepareAdd, previewAdd, commitAdd, t }: 
 /** Persistent diagnostics do not imply that an absent opening is a Session. */
 function Diagnostics({ data, t }: { data: SeatOverview | undefined; t: Common['t'] }) {
   const failure = data?.diagnostics?.engine
-  if (!failure && !data?.diagnostics?.openings.length) return null
+  if (!failure && !data?.diagnostics?.openings.length && !data?.diagnostics?.callbacks?.length) return null
   return <div className={css.diagnostics}>
     {failure && <p role="alert">{t(failure.retryable ? 'engineRetrying' : 'engineStopped', { code: failure.code })}</p>}
     {failure?.unavailableOverTenMinutes && <p role="alert">{t('engineUnavailableOverTenMinutes', { code: failure.code })}</p>}
+    {data.diagnostics?.callbacks?.map(callback => <p role="alert" key={callback.callbackId}>
+      {callback.seat}: {t('callbackIssuerRefused', { callback: callback.callbackId, code: callback.code })}
+    </p>)}
     {data.diagnostics?.openings.map(open => <p role="alert" key={open.sessionId}>
       {open.seat}: {open.model !== undefined
         ? t(open.stage === 'turn' ? 'liveModelUnavailable' : 'modelUnavailable',
@@ -177,7 +180,7 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
   const [models, setModels] = useState<Awaited<ReturnType<SeatsInjected['loadModels']>>>([])
   const [addFailure, setAddFailure] = useState(false)
   const data = resource.value
-  const hasDiagnostics = Boolean(data?.diagnostics?.engine || data?.diagnostics?.openings.length)
+  const hasDiagnostics = Boolean(data?.diagnostics?.engine || data?.diagnostics?.openings.length || data?.diagnostics?.callbacks?.length)
   if (!wide) return hasDiagnostics
     ? <Button size="sm" icon={<IconWarningOutlineRegular />} aria-label={t('showAlerts')}
       title={t('showAlerts')} onClick={expandSidebar} /> : null
