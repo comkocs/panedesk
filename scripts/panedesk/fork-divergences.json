@@ -2681,19 +2681,6 @@
       "match": { "type": "test-assertion", "paths": ["packages/extensions/tool-cordis/src/api-catalog.ts"], "test": "verify-cordis-catalog" }
     },
     {
-      "id": "child-auto-script-prompt-phases",
-      "description": "Select the synthetic parent script phase from the submitted task marker.",
-      "origin": "Full-ledger Web replay composition",
-      "reason": "A notice-only pre-step rejection can omit a closing model request; a fixed global request count must not swallow the subsequent cold-resume task. Existing expectations and deadlines remain unchanged.",
-      "match": {
-        "type": "test-assertion",
-        "paths": [
-          "apps/web/tests/shipped-composition.e2e.ts"
-        ],
-        "test": "reviews initially authorized, restricted, and cold-resumed child calls independently"
-      }
-    },
-    {
       "id": "sdk-inherited-cache-policy",
       "description": "Carry an optional cache inheritance marker and map SDK cache selection to session policy while retaining strict explicit-value validation.",
       "origin": "SDK child cache capability resolution",
