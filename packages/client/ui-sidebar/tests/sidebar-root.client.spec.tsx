@@ -43,6 +43,7 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
   const startSession = vi.fn()
   const toggleSidebar = vi.fn()
   let regionOwner: SidebarSectionOwnerProps | undefined
+  let seatsOwner: SidebarSectionOwnerProps | undefined
   let settingsOwner: SidebarSettingsOwnerProps | undefined
   let footerActionOwner: SidebarFooterActionOwnerProps | undefined
   const brandMark = <span data-testid="custom-brand-mark">M</span>
@@ -63,7 +64,10 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
         if (key === 'sidebar.brand.mark') return brandMark
         if (key === 'sidebar.brand.name') return brandName
         if (key === 'sidebar.toggle.badge') return null
-        if (key === 'sidebar.seats') return <div data-testid="seats-section" data-wide={owner.wide} />
+        if (key === 'sidebar.seats') {
+          seatsOwner = owner as SidebarSectionOwnerProps
+          return <div data-testid="seats-section" data-wide={owner.wide} />
+        }
         if (key === 'sidebar.settings') {
           settingsOwner = owner
           return <div data-testid="settings-seat" data-wide={owner.wide} />
@@ -81,6 +85,10 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
   return {
     startSession,
     toggleSidebar,
+    seatsOwner: () => {
+      if (seatsOwner === undefined) throw new Error('seats owner not rendered')
+      return seatsOwner
+    },
     regionOwner: () => {
       if (regionOwner === undefined) throw new Error('region owner not rendered')
       return regionOwner
@@ -101,6 +109,15 @@ function mountShell({ collapsed = false, width = 300, shortcuts = [] }: {
 }
 
 describe('SidebarRoot shell', () => {
+  it('lets seat alerts expand the sidebar without collapsing an expanded sidebar', () => {
+    const shell = mountShell({ collapsed: true })
+    shell.seatsOwner().expandSidebar()
+    expect(shell.toggleSidebar).toHaveBeenCalledOnce()
+    shell.rerender({ collapsed: false })
+    shell.seatsOwner().expandSidebar()
+    expect(shell.toggleSidebar).toHaveBeenCalledOnce()
+  })
+
   it('advertises the effective new-session binding', () => {
     const shortcut: ShortcutCatalogEntry = { id: 'session.new' as ShortcutCommandId, label: 'New', aliases: [],
       binding: null, modified: true, conflicts: [], issue: null, keys: ['Ctrl', 'N'], aria: 'Control+N' }

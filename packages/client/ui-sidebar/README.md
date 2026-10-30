@@ -29,7 +29,7 @@ The dsh web client sidebar lets users recognize the active build, start a new se
 
 The sidebar is the navigation shell: users see the brand, start new sessions, collapse the rail, and reach Settings. Feature plugins fill its seats — ui-workspace fills `sidebar.workspaces`, ui-settings registers the trigger row and settings panel at `sidebar.settings`.
 
-The optional root-scoped `sidebar.seats` single slot precedes the workspace browser and receives only `wide`. Without a registrant it adds no visible content; the shell owns neither seat data nor opening actions.
+The optional root-scoped `sidebar.seats` single slot precedes the workspace browser and receives `wide` and the shell-owned `expandSidebar` callback. Without a registrant it adds no visible content; the shell owns neither seat data nor opening actions.
 
 ### Brand and New Session
 

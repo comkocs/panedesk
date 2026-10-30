@@ -1,9 +1,65 @@
 /** Provider errors settle the original opening without replaying a model turn. */
 import { expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
-import type { StreamChunk } from '@panedesk/dsh-llm'
+import { createUserMessage, LlmError, type StreamChunk } from '@panedesk/dsh-llm'
 import { admissionHost } from './admission-host.ts'
 import { operation } from './fixtures.ts'
+
+it.each(['UNKNOWN_MODEL', 'session/model-unavailable'] as const)('reports a live window model failure without stopping other seats: %s', async (code) => {
+  const f = await admissionHost(undefined, { ownerObserveIntervalMs: 60000 })
+  const stream = f.adapter.stream.bind(f.adapter)
+  const resolve = f.adapter.resolveModel.bind(f.adapter)
+  let unavailable = false
+  try {
+    const opened = await f.seats.open({ seat: f.definition.seat, origin: 'manual', operationId: operation('live-model'),
+      openingMode: 'prefill' })
+    expect(opened.status).toBe('prefilled')
+    if (opened.status !== 'prefilled') throw new Error('Expected a prefilled seat')
+    const agent = f.ctx.agents.get(opened.sessionId)!
+    const healthySeat = 'healthy-seat' as T.SeatName
+    await f.seats.save({ definition: { ...f.definition, seat: healthySeat }, expectedRevision: 2,
+      operationId: operation('save-healthy') })
+    const healthy = await f.seats.open({ seat: healthySeat, origin: 'manual', operationId: operation('healthy-model'),
+      openingMode: 'prefill' })
+    if (healthy.status !== 'prefilled') throw new Error('Expected another prefilled seat')
+    f.adapter.listModels = provider => Promise.resolve(['model-a', 'live-model'].map(id => ({ provider, id, name: id })))
+    await f.ctx.sessionController.selectModel({ sessionId: agent.id, provider: 'provider-a', model: 'live-model' })
+    const failure = () => code === 'UNKNOWN_MODEL' ? new LlmError('Model removed', 'UNKNOWN_MODEL')
+      : Object.assign(new Error('Model removed'), { isDSHRemoteError: true, code,
+        details: { provider: 'provider-a', model: 'live-model' } })
+    f.adapter.resolveModel = async (provider, model) => {
+      if (unavailable && model === 'live-model') throw failure()
+      return resolve(provider, model)
+    }
+    f.adapter.stream = async function* (options): AsyncIterable<StreamChunk> {
+      if (unavailable && options.model === 'live-model') throw failure()
+      yield* stream(options)
+    }
+    unavailable = true
+    await f.engine.admitTurn(agent.id)
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Use the selected model.' }], source: { kind: 'user' } }))
+    await agent.whenIdle()
+    const failedSnapshot = await f.ctx.sessionQuery.readSession(agent.id)
+    expect(failedSnapshot.events.filter(event => event.type === 'turn/end').at(-1)).toMatchObject({
+      data: { reason: { kind: 'error', error: { code: code === 'UNKNOWN_MODEL' ? code : 'UNKNOWN', message: 'Model removed' } } },
+    })
+    const status = await f.engine.nodeStatus()
+    expect(status.engine).toBe('running')
+    expect(status.openingFailures).toEqual([expect.objectContaining({ sessionId: agent.id, seat: f.definition.seat,
+      provider: 'provider-a', model: 'live-model' })])
+    const other = f.ctx.agents.get(healthy.sessionId)!
+    other.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue independently.' }], source: { kind: 'user' } }))
+    await other.whenIdle()
+    const otherSnapshot = await f.ctx.sessionQuery.readSession(other.id)
+    expect(otherSnapshot.events.filter(event => event.type === 'turn/end').at(-1)?.data.reason).toEqual({ kind: 'completed' })
+    unavailable = false
+    await f.engine.admitTurn(agent.id)
+    agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Resend after restoring the model.' }], source: { kind: 'user' } }))
+    await agent.whenIdle()
+    expect((await f.engine.nodeStatus()).openingFailures ?? []).toEqual([])
+    expect((await f.engine.nodeStatus()).engine).toBe('running')
+  } finally { await f.close() }
+}, 15000)
 
 it('excludes absent failed openings from dispatchable windows after reload', async () => {
   const f = await admissionHost(undefined, { ownerObserveIntervalMs: 60000 })

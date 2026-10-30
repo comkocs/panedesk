@@ -2,6 +2,17 @@
   padding: 8px;
   color: var(--dsw-alias-label-primary);
 }
+.diagnostics {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 12rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.diagnostics p {
+  margin: 4px 0;
+}
 .heading {
   margin: 4px 8px;
   font-size: 12px;

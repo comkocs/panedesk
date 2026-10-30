@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 /** Optional seat entries and resources use the production Client Loader and reversible registrations. */
 import { expect, vi } from 'vitest'
+import { FiberState } from '@panedesk/cordis'
 import { ok, openStream } from '@panedesk/dsh-remote-mock'
 import type { ISessions } from '@panedesk/dsh-api-session-controller/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -53,6 +54,23 @@ it('restores each slot contribution after declaration reload and removes slots, 
     expect(() => { c.ctx.locale.register('seats', 'en', {})() }).not.toThrow()
     expect(() => { c.ctx.locale.register('seats', 'zh', {})() }).not.toThrow()
   } finally { stop() }
+}, 60_000)
+
+it('keeps an explicitly disabled seat entry disabled across language changes', async ({ mock, start }) => {
+  mock.unary('settings/mutate', ok(undefined))
+  const c = await start()
+  const entry = [...c.ctx.loader.entries()].find(row => row.options.name === SELF)
+  if (!entry) throw new Error('Seat entry is missing')
+  await entry.update({ disabled: true })
+  await c.flush()
+  for (const language of ['zh', 'en']) {
+    c.ctx.locale.setLocale(language)
+    await c.flush()
+    expect(entry.options.disabled).toBe(true)
+    expect(entry.disabled).toBe(true)
+    expect(entry.fiber?.state).toBe(FiberState.DISPOSED)
+    for (const [name] of entries) expect(c.ctx.slots.entries(name).filter(row => row.locale === 'seats')).toHaveLength(0)
+  }
 }, 60_000)
 
 it('refreshes engine diagnostics without a Session event and clears them after recovery', async ({ mock, start }) => {

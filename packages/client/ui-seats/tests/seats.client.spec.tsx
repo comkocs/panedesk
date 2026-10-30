@@ -19,7 +19,7 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
   const openSeat = vi.fn(async () => {})
   const unused = (() => { throw new Error('Unused fixture hook') }) as never
   const props = {
-    wide: true, currentDirectory: cwd,
+    wide: true, expandSidebar: vi.fn(), currentDirectory: cwd,
     sessionId: cwd === undefined ? undefined : 'session-a' as never,
     useSession: unused, useProjection: unused, useAccess: unused, useConversation: unused, useInput: unused,
     useRemoteAccess: unused, useSessionStatus: unused, useSessionRetainInfo: unused, useSessionAccess: unused,
@@ -37,6 +37,80 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
 afterEach(cleanup)
 
 describe('seat entry presentations', () => {
+  it.each(['en', 'zh'] as const)('opens the single diagnostic location from a collapsed warning: %s', (language) => {
+    const f = fixture({ ...data, diagnostics: { openings: [{ sessionId: 'absent-a' as never,
+      seat: seat.seat, agentPreset: seat.agentPreset, code: 'open-create-failed' }] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const expandSidebar = vi.fn()
+    const props = { ...f.props, wide: false, expandSidebar, t }
+    const view = render(<SeatsSection {...props as SeatsSectionProps} />)
+    const label = language === 'en' ? 'Show seat alerts' : '查看工位告警'
+    const indicator = screen.getByRole('button', { name: label })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(indicator.title).toBe(label)
+    fireEvent.click(indicator)
+    expect(expandSidebar).toHaveBeenCalledOnce()
+    view.rerender(<SeatsSection {...{ ...props, wide: true } as SeatsSectionProps} />)
+    expect(screen.queryByRole('button', { name: label })).toBeNull()
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByRole('region', { name: t('seats') }).contains(screen.getByRole('alert'))).toBe(true)
+  })
+  it('adds nothing to the collapsed sidebar when there are no diagnostics', () => {
+    const f = fixture()
+    const view = render(<SeatsSection {...f.props as SeatsSectionProps} wide={false} />)
+    expect(view.container.childElementCount).toBe(0)
+    view.rerender(<SeatsSection {...fixture({ ...data, diagnostics: { openings: [] } }).props as SeatsSectionProps} wide={false} />)
+    expect(view.container.childElementCount).toBe(0)
+  })
+  it.each(['en', 'zh'] as const)('retains long preset and model diagnostics in one scrollable location: %s', (language) => {
+    const preset = (language === 'en' ? 'LongPreset' : '超长预设').repeat(200)
+    const model = (language === 'en' ? 'LongModel' : '超长模型').repeat(200)
+    const f = fixture({ ...data, diagnostics: { openings: [
+      { sessionId: 'preset-failure' as never, seat: seat.seat, agentPreset: preset, code: 'open-create-failed' },
+      { sessionId: 'model-failure' as never, seat: seat.seat, agentPreset: preset, code: 'UNKNOWN_MODEL',
+        stage: 'turn', provider: 'provider-a', model },
+    ] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    const alerts = screen.getAllByRole('alert')
+    expect(alerts).toHaveLength(2)
+    expect(alerts[0]!.textContent).toContain(preset)
+    expect(alerts[1]!.textContent).toContain(model)
+    expect(alerts[0]!.parentElement).toBe(alerts[1]!.parentElement)
+  })
+  it.each(['en', 'zh'] as const)('aggregates diagnostics once across the first-screen entries: %s', (language) => {
+    const f = fixture({ ...data, diagnostics: { openings: [{ sessionId: 'absent-a' as never,
+      seat: seat.seat, agentPreset: seat.agentPreset, code: 'open-create-failed' }] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    render(<>
+      <SeatPicker {...{ ...f.props, t } as SeatPickerProps} />
+      <SeatHeader {...{ ...f.props, t } as SeatHeaderProps} />
+      <SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />
+    </>)
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.getByRole('region', { name: t('seats') }).contains(screen.getByRole('alert'))).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('seat-a')
+    expect(screen.getByRole('button', { name: t('seat') })).toBeTruthy()
+  })
+  it.each(['en', 'zh'] as const)('names a live window model failure and its recovery condition: %s', (language) => {
+    const f = fixture({ ...data, diagnostics: { openings: [{ sessionId: 'live-a' as never,
+      seat: seat.seat, agentPreset: seat.agentPreset, code: 'UNKNOWN_MODEL', stage: 'turn',
+      provider: 'provider-a', model: 'live-model' }] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const view = render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    if (language === 'en') expect(screen.getByRole('alert').textContent).toMatchInlineSnapshot('"seat-a: Model "provider-a/live-model" is unavailable [UNKNOWN_MODEL]; this window’s turn failed. Other seats and the engine continue. Restore the model and resend your message here; this alert clears after a completed resend or when this runtime is closed."')
+    else expect(screen.getByRole('alert').textContent).toMatchInlineSnapshot('"seat-a: 模型“provider-a/live-model”不可用 [UNKNOWN_MODEL]，此窗口回合失败，其他工位与引擎继续运行。请恢复模型后在此窗口重发消息；重发回合成功完成或此运行时关闭后，本告警清除。"')
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('shows a missing preset refusal in the cold picker without a Session header', () => {
     const f = fixture(data, undefined, { seq: 1, message: 'Agent preset agent-a is unavailable. Restore the preset and submit again.' })
     render(<SeatPicker {...f.props as SeatPickerProps} />)
@@ -56,10 +130,10 @@ describe('seat entry presentations', () => {
     const dictionary = language === 'en' ? en : zh
     const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
       dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
-    const view = render(<SeatPicker {...{ ...f.props, t } as SeatPickerProps} />)
+    const view = render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
     if (language === 'en') expect(screen.getByRole('alert').textContent).toMatchInlineSnapshot('"seat-a: Agent preset "agent-a" is unavailable [open-create-failed]; no Session was created. Restore the preset and submit a new opening. This alert clears after that seat opens successfully."')
     else expect(screen.getByRole('alert').textContent).toMatchInlineSnapshot('"seat-a: 代理预设“agent-a”不可用 [open-create-failed]，未创建会话。请恢复预设后重新提交开窗；该工位成功开窗后，本告警清除。"')
-    view.rerender(<SeatPicker {...{ ...fixture(data).props, t } as SeatPickerProps} />)
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
   })
   it.each(['en', 'zh'] as const)('reports bounded owner-release retries and exhaustion: %s', (language) => {

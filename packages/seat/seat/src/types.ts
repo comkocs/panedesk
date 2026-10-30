@@ -682,7 +682,9 @@ export interface SeatNodeStatus {
     sessionId: SessionId
     seat: SeatName
     agentPreset: string
-    code: SeatFailure['code']
+    code: SeatFailure['code'] | 'UNKNOWN_MODEL' | 'session/model-unavailable'
+    /** Live-turn failures clear after a completed resend or runtime disposal, without altering opening state. */
+    stage?: 'turn'
     provider?: string
     model?: string
   }[]

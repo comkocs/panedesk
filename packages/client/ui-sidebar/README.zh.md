@@ -29,7 +29,7 @@ dsh Web 客户端的侧边栏让用户识别当前构建、启动新会话、将
 
 侧边栏是导航外壳：用户看到品牌、启动新会话、折叠轨道并到达 Settings。功能插件填充它的席位——ui-workspace 填充 `sidebar.workspaces`，ui-settings 在 `sidebar.settings` 注册触发行与设置面板。
 
-可选根作用域单槽 `sidebar.seats` 位于工作区浏览器之前，只接收 `wide`。没有注册者时不增加可见内容；外壳不持有工位数据或开窗操作。
+可选根作用域单槽 `sidebar.seats` 位于工作区浏览器之前，接收 `wide` 与外壳持有的 `expandSidebar` 回调。没有注册者时不增加可见内容；外壳不持有工位数据或开窗操作。
 
 ### 品牌与 New Session
 

@@ -318,7 +318,7 @@ export function SidebarRoot({
 
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. */}
-      {renderSlot('sidebar.seats', { wide })}
+      {renderSlot('sidebar.seats', { wide, expandSidebar: () => { if (collapsed) toggleSidebar() } })}
       <div className={css.regionArea}>
         {renderSlot('sidebar.workspaces', {
           wide,

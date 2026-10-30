@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterAll, afterEach, describe, expect, it, onTestFinished } from 'vitest'
-import { Context } from '@panedesk/cordis'
+import { Context, FiberState } from '@panedesk/cordis'
 import Include, { type PatchOptions } from '@panedesk/cordis-plugin-include'
 import Loader from '@panedesk/cordis-plugin-loader'
 import {
@@ -331,6 +331,29 @@ describe('Loader entry disabled interpolation', () => {
 })
 
 describe('profile reconciliation settlement', () => {
+  it('lets an explicit disabled declaration replace a retained runtime enablement', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    writeFileSync(join(dir, 'noop.mjs'), 'export function apply() {}\n')
+    const patches: PatchOptions[] = [{ insert: [{ id: 'ui-seats', name: './noop.mjs' }] }]
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), patches, (host) => {
+      host.provide('profileContext', { name: 'declared-seat', home: dir, cwd: dir, dir,
+        patchPath: join(dir, 'cordis.patch.yml'), installAnchor: join(dir, 'package.json'),
+        startedBundles: [], overlays: [], telemetryDisabledEnv: undefined })
+    })
+    onTestFinished(() => ctx.fiber.dispose())
+    const entry = [...ctx.loader.entries()].find(row => row.options.id === 'ui-seats')
+    if (!entry) throw new Error('Seat entry is missing')
+    await entry.update({ disabled: false })
+    const disabled: PatchOptions[] = [...patches, { id: 'ui-seats', disabled: true }]
+    await reconcileProfilePatches(ctx, disabled, NAME)
+    for (const language of ['zh', 'en']) {
+      await reconcileProfilePatches(ctx, [...disabled, { id: 'ui-seats', config: { language } }], NAME)
+      expect(entry.options.disabled).toBe(true)
+      expect(entry.disabled).toBe(true)
+      expect(entry.fiber?.state).toBe(FiberState.DISPOSED)
+    }
+  })
   it('retains unchanged import diagnostics across profile reconciliation', async () => {
     const dir = tmp()
     writeFileSync(join(dir, 'cordis.yml'), '[]\n')

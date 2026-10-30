@@ -10,6 +10,8 @@ async function main(): Promise<void> {
   await journal.ready()
   const commit = journal.commit.bind(journal)
   const pause = async () => {
+    // Pending promises and the journal file do not keep the child alive for SIGKILL.
+    process.channel?.ref()
     process.send?.({ stage })
     await new Promise<void>(() => {})
   }

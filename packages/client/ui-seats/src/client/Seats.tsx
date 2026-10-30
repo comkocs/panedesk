@@ -1,6 +1,6 @@
 /** Seat entry presentations; all business facts arrive through the shared resource. */
 import { useState } from 'react'
-import { Button, Menu, Modal, StateDot, Toast, IconPlusOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
+import { Button, Menu, Modal, StateDot, Toast, IconPlusOutlineRegular, IconWarningOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { SeatDefinition, SeatName } from '@panedesk/dsh-seat/types'
@@ -49,14 +49,16 @@ function DirectoryConfirmation({ cwd, pending, setPending, openSeat, t }: Direct
 /** Persistent diagnostics do not imply that an absent opening is a Session. */
 function Diagnostics({ data, t }: { data: SeatOverview | undefined; t: Common['t'] }) {
   const failure = data?.diagnostics?.engine
-  return <>
+  if (!failure && !data?.diagnostics?.openings.length) return null
+  return <div className={css.diagnostics}>
     {failure && <p role="alert">{t(failure.retryable ? 'engineRetrying' : 'engineStopped', { code: failure.code })}</p>}
-    {data?.diagnostics?.openings.map(open => <p role="alert" key={open.sessionId}>
+    {data.diagnostics?.openings.map(open => <p role="alert" key={open.sessionId}>
       {open.seat}: {open.model !== undefined
-        ? t('modelUnavailable', { model: open.model, provider: open.provider ?? '', code: open.code })
+        ? t(open.stage === 'turn' ? 'liveModelUnavailable' : 'modelUnavailable',
+          { model: open.model, provider: open.provider ?? '', code: open.code })
         : t('missingPreset', { preset: open.agentPreset, code: open.code })}
     </p>)}
-  </>
+  </div>
 }
 
 /** Render the pre-session picker without selecting a seat implicitly.
@@ -69,7 +71,7 @@ export function SeatPicker({ currentDirectory: cwd, useResource, useSeatNotice, 
   const [menu, setMenu] = useState(false)
   const [pending, setPending] = useState<SeatDefinition | null>(null)
   const data = resource.value
-  if (!data?.available || data.definitions.length === 0) return <Diagnostics data={data} t={t} />
+  if (!data?.available || data.definitions.length === 0) return null
   const pick = (seat: SeatDefinition): void => {
     setMenu(false)
     const startup = seat.directories.find(directory => directory.startup)?.path
@@ -77,7 +79,6 @@ export function SeatPicker({ currentDirectory: cwd, useResource, useSeatNotice, 
     else void openSeat(seat)
   }
   return <>
-    <Diagnostics data={data} t={t} />
     {notice !== null && notice.sessionId === undefined && <Toast key={notice.seq} text={notice.message} onDone={dismiss} />}
     <Menu open={menu} onClose={() => { setMenu(false) }} portal align="start"
       items={data.definitions.map(seat => ({ id: seat.seat, label: seat.seat, disabled: !data.complete }))}
@@ -90,9 +91,9 @@ export function SeatPicker({ currentDirectory: cwd, useResource, useSeatNotice, 
 
 /** Render seat rows and expand only the selected seat's existing windows.
  * @param props - Shell width and injected local opening/navigation actions.
- * @returns The optional seat section; no placeholder space when providers or definitions are absent.
+ * @returns The diagnostic indicator or seat section; absent providers or definitions add no space without diagnostics.
  */
-export function SeatsSection({ wide, useResource, useSessions, openSeat, openWindow, t }: SeatsSectionProps) {
+export function SeatsSection({ wide, expandSidebar, useResource, useSessions, openSeat, openWindow, t }: SeatsSectionProps) {
   const resource = useResource<'seats'>('dsh-resource://seats/local')
   const directory = useSessions((snapshot) => {
     const rows = snapshot.ids.map(id => snapshot.byId[id])
@@ -104,7 +105,12 @@ export function SeatsSection({ wide, useResource, useSessions, openSeat, openWin
   const [pending, setPending] = useState<SeatDefinition | null>(null)
   const [expanded, setExpanded] = useState<SeatName | null>(null)
   const data = resource.value
-  if (!wide || !data?.available || data.definitions.length === 0) return null
+  const hasDiagnostics = Boolean(data?.diagnostics?.engine || data?.diagnostics?.openings.length)
+  if (!wide) return hasDiagnostics
+    ? <Button size="sm" icon={<IconWarningOutlineRegular />} aria-label={t('showAlerts')}
+      title={t('showAlerts')} onClick={expandSidebar} /> : null
+  if (!hasDiagnostics && (!data?.available || data.definitions.length === 0)) return null
+  if (data === undefined) return null
   return <section className={css.section} aria-label={t('seats')}>
     <h2 className={css.heading}>{t('seats')}</h2>
     <Diagnostics data={data} t={t} />
@@ -162,7 +168,6 @@ export function SeatHeader({ sessionId, useResource, useSeatNotice, dismiss, t }
     && (resource.status !== 'live' || !resource.value?.complete || resource.value.identityStatus === 'failed')
   return <>
     <span className={css.identity}>{label}</span>
-    <Diagnostics data={resource.value} t={t} />
     {abnormal && <span role="status">{t(failed ? 'identityFailed' : resource.status === 'live' ? 'unavailable' : 'identityLoading')}</span>}
     {notice !== null && (notice.sessionId === undefined || notice.sessionId === sessionId)
       && <Toast key={notice.seq} text={notice.message} onDone={dismiss} />}

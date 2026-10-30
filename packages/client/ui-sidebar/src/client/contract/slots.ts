@@ -41,7 +41,7 @@ declare module '@panedesk/dsh-client-ui-slots' {
      */
     'sidebar.workspaces': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
     /** Optional seat section before the workspace browser; absent registrations render nothing. */
-    'sidebar.seats': { kind: 'single'; scope: 'root'; owner: Pick<SidebarSectionOwnerProps, 'wide'> }
+    'sidebar.seats': { kind: 'single'; scope: 'root'; owner: SidebarSectionOwnerProps }
     /**
      * The settings seat at the sidebar foot. Declared by this package's
      * 'sidebar' entry; ui-settings registers its trigger row + modal panel.

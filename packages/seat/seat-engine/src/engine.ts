@@ -133,6 +133,8 @@ export class SeatEngine extends SeatEngineService {
   private readonly outbox: CallbackOutbox
   private readonly replacements: ReplacementDriver
   private readonly keepalive: KeepAliveScheduler
+  private readonly liveModelFailures = new Map<SessionId, NonNullable<T.SeatNodeStatus['openingFailures']>[number]>()
+  private readonly requestModels = new Map<SessionId, { provider: string; model: string }>()
   private executor: (T.SeatOpenExecutor & { executionModel?: ExecutionModelReader }) | undefined
   private localAccess: T.SeatEngineLocalAccess | undefined
   private activeDrive: Promise<void> | undefined
@@ -201,6 +203,35 @@ export class SeatEngine extends SeatEngineService {
     ctx.on('agent/status', ({ agent, status }) => {
       if (status !== 'idle' || this.stopped || !this.deferredTurns.has(agent.id)) return
       void this.drive().catch((error: unknown) => { this.failures.record('scheduled-drive', error) })
+    })
+    ctx.on('session/event', (session, event) => {
+      const open = this.journal.projection.opens.get(session.id)
+      if (open?.phase !== 'active') return
+      if (event.type === 'turn/end' && event.data.reason.kind === 'completed'
+        && this.liveModelFailures.delete(session.id)) ctx.emit('seat/diagnostics-changed')
+    })
+    ctx.on('agent/request', async ({ agent }, next) => {
+      const config = await next()
+      if (this.journal.projection.opens.get(agent.id)?.phase === 'active') {
+        this.requestModels.set(agent.id, { provider: config.provider, model: config.model })
+      }
+      return config
+    }, { prepend: true })
+    ctx.on('agent/error', ({ agent, error }) => {
+      const open = this.journal.projection.opens.get(agent.id)
+      if (this.stopped || open?.phase !== 'active' || !open.definition
+        || typeof error !== 'object' || error === null || !('code' in error)
+        || (error.code !== 'UNKNOWN_MODEL' && error.code !== 'session/model-unavailable')) return
+      const selected = this.requestModels.get(agent.id) ?? agent.session.requestHeader()?.config
+      if (!selected) return
+      this.liveModelFailures.set(agent.id, { sessionId: agent.id, seat: open.definition.seat,
+        agentPreset: open.definition.agentPreset, code: error.code, provider: selected.provider,
+        model: selected.model, stage: 'turn' })
+      ctx.emit('seat/diagnostics-changed')
+    })
+    ctx.on('agent/disposed', ({ agent }) => {
+      this.requestModels.delete(agent.id)
+      if (this.liveModelFailures.delete(agent.id)) ctx.emit('seat/diagnostics-changed')
     })
     installFrozenBusiness(ctx, this)
   }
@@ -486,11 +517,13 @@ export class SeatEngine extends SeatEngineService {
           agentPreset: open.definition.agentPreset, code: open.failure.code,
           ...(open.failure.details && 'model' in open.failure.details
             ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : [])
+    const diagnostics = [...openingFailures, ...[...this.liveModelFailures.values()].filter(failure =>
+      this.journal.projection.opens.get(failure.sessionId)?.phase === 'active')]
     return Promise.resolve({ nodeId: this.options.nodeId, nodeName: this.options.config.nodeName,
       engine: failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),
       limit: this.options.config.nodeEngineWindowLimit ?? null, readyAt: this.readyAt,
-      ...(failure ? { failure } : {}), ...(openingFailures.length ? { openingFailures } : {}) })
+      ...(failure ? { failure } : {}), ...(diagnostics.length ? { openingFailures: diagnostics } : {}) })
   }
   override wakeSource = async (envelope: T.TriggerEnvelope): Promise<T.WakeSeatResult | undefined> => {
     if (envelope.evidence.kind !== 'external' || !this.options.config.sourceWake?.some(rule =>
