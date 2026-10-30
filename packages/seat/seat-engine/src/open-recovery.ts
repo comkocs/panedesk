@@ -20,14 +20,18 @@ export function isOpeningObservation(open: EngineOpenData): boolean {
  * @param executor - local provider with persistence observation and never-mint creation.
  * @param createdCallbacks - callback facts committed with the first created observation.
  * @param beforeEffect - Optional supervisor checkpoint; false retains the last durable phase without another external effect.
- * @returns Latest phase; a missing preset fails only an opening confirmed absent. Uncertain first turns remain pending.
+ * @param retryModel - Explicit input retries failed model configuration without sending the original opening.
+ * @returns Latest phase; unavailable prerequisites fail only this opening. Uncertain first turns remain pending.
  */
 export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenData, executor: SeatOpenExecutor,
   createdCallbacks: (open: EngineOpenData) => readonly SeatCallbackDelivery[] | Promise<readonly SeatCallbackDelivery[]>,
-  beforeEffect?: () => Promise<boolean>,
+  beforeEffect?: () => Promise<boolean>, retryModel = false,
 ): Promise<EngineOpenData> {
   let current = journal.projection.opens.get(initial.sessionId) ?? initial
-  if (current.phase === 'active' || current.phase === 'opening-failed') return current
+  const resumingModel = retryModel && current.phase === 'opening-failed'
+    && current.failure?.code === 'open-configuration-failed' && current.failure.details !== undefined
+    && 'model' in current.failure.details
+  if (current.phase === 'active' || current.phase === 'opening-failed' && !resumingModel) return current
   const publish = async (kind: 'open/created' | 'open/configured', updated: EngineOpenData, extra: readonly EngineEffect[] = []) => {
     await journal.commit((view) => {
       const latest = view.opens.get(updated.sessionId)
@@ -73,11 +77,23 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
   for (const stage of configurationStages) {
     if (current.completedStages.includes(stage)) continue
     if (beforeEffect && !await beforeEffect()) return current
-    await executor.configure(current, stage)
-    await publish('open/configured', { ...current, phase: 'configuring', completedStages: [...current.completedStages, stage] })
+    try { await executor.configure(current, stage) } catch (error) {
+      if (stage !== 'model' || !current.definition || error === null || typeof error !== 'object'
+        || !('isDSHRemoteError' in error) || error.isDSHRemoteError !== true
+        || !('code' in error) || error.code !== 'session/model-unavailable') throw error
+      const { provider, model } = current.definition
+      const failed: EngineOpenData = { ...current, phase: 'opening-failed', failure: {
+        details: { provider, model }, code: 'open-configuration-failed',
+        message: `Model "${provider}/${model}" is unavailable for this Session.`,
+        alternative: 'Restore the model and resend your message in this Session.', retryable: false, effectState: 'partial' } }
+      await journal.commit(() => [fact({ kind: 'open/opening-failed', sessionId: failed.sessionId, data: failed })])
+      return failed
+    }
+    await publish('open/configured', { ...current, phase: resumingModel ? 'opening-failed' : 'configuring',
+      completedStages: [...current.completedStages, stage] })
   }
-  if (current.openingMode === 'prefill') {
-    await publish('open/configured', { ...current, phase: 'active' })
+  if (resumingModel || current.openingMode === 'prefill') {
+    await publish('open/configured', { ...current, phase: 'active', failure: null })
     return current
   }
   if (current.phase !== 'opening-pending') await publish('open/configured', { ...current, phase: 'opening-pending' })

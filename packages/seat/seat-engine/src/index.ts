@@ -54,6 +54,10 @@ export function validateConfig(config: Config): Config {
     || config.failureRecovery.retryInitialMs < 1 || config.failureRecovery.retryInitialMs > 300000)) {
     throw new EngineError('invalid-request', 'Invalid engine failure retry delay')
   }
+  const ownerReleaseMaxAttempts = config.failureRecovery?.ownerReleaseMaxAttempts
+  if (ownerReleaseMaxAttempts !== undefined && (!Number.isSafeInteger(ownerReleaseMaxAttempts) || ownerReleaseMaxAttempts < 1)) {
+    throw new EngineError('invalid-request', 'Invalid owner release retry limit')
+  }
   if (config.frozenWakeContext !== undefined && typeof config.frozenWakeContext !== 'boolean'
     || config.sourceWake !== undefined && (!Array.isArray(config.sourceWake) || config.sourceWake.some((rule: unknown) =>
       !rule || typeof rule !== 'object' || !('sourceId' in rule) || typeof rule.sourceId !== 'string' || !rule.sourceId

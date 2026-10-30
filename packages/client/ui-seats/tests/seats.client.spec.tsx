@@ -62,6 +62,38 @@ describe('seat entry presentations', () => {
     view.rerender(<SeatPicker {...{ ...fixture(data).props, t } as SeatPickerProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
   })
+  it.each(['en', 'zh'] as const)('reports bounded owner-release retries and exhaustion: %s', (language) => {
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const failure = { site: 'owner-release', code: 'owner-release-budget-exceeded',
+      since: '2026-01-01T00:00:00Z', retryable: true, attempts: 1 }
+    const f = fixture({ ...data, diagnostics: { engine: failure, openings: [] } })
+    const view = render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(t('engineRetrying', { code: failure.code }))
+    const stopped = fixture({ ...data, diagnostics: { engine: { ...failure, retryable: false, attempts: 3 }, openings: [] } })
+    view.rerender(<SeatsSection {...{ ...stopped.props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(t('engineStopped', { code: failure.code }))
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+  it.each(['en', 'zh'] as const)('names the unavailable model and confines its failure to the seat: %s', (language) => {
+    const failed = { sessionId: 'model-failed' as never, seat: seat.seat, agentPreset: seat.agentPreset,
+      model: seat.model, provider: seat.provider, code: 'open-configuration-failed' as const }
+    const f = fixture({ ...data, diagnostics: { openings: [failed] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const view = render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    const alert = screen.getByRole('alert').textContent
+    expect(alert).toContain('seat-a')
+    expect(alert).toContain('model-a')
+    expect(alert).toContain(language === 'en' ? 'resend' : '重发')
+    expect(alert).toContain(language === 'en' ? 'Other seats continue' : '其他工位继续运行')
+    expect(alert).toContain(language === 'en' ? 'clears' : '清除')
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('shows a cold-start picker and optional sidebar, hiding unavailable, empty and collapsed sections', () => {
     const f = fixture()
     const view = render(<SeatPicker {...f.props as SeatPickerProps} />)

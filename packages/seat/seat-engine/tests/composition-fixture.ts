@@ -26,6 +26,7 @@ export async function composition(cache = false, additions: {
   builtins?: Record<string, unknown>
   entries?: { name: string; config?: object }[]
   sources?: EnginePlugin.Config['sources']
+  engineConfig?: Partial<EnginePlugin.Config>
 } = {}) {
   const home = await mkdtemp(join(tmpdir(), 'seat-engine-composition-'))
   const ctx = new Context()
@@ -58,7 +59,7 @@ export async function composition(cache = false, additions: {
     const nodeId = await ctx.sessionLedger.nodeId()
     const engineProfile = join(home, 'engine.yml')
     await writeFile(engineProfile, JSON.stringify([{ name: 'cordis:engine',
-      config: { ...config, home, nodeAliases: { local: nodeId }, sources: additions.sources } }]))
+      config: { ...config, ...additions.engineConfig, home, nodeAliases: { local: nodeId }, sources: additions.sources } }]))
     const engineEntry = await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(engineProfile).href } })
     await ctx.loader.await()
     await new Promise<void>((resolve) => { ctx.inject(['seatEngine'], () => { resolve() }) })

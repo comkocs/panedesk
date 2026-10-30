@@ -180,8 +180,8 @@ export type SeatErrorCode =
 export interface SeatFailure {
   /** Sanitized original refusal; the outer compatibility code remains unchanged. */
   cause?: SeatFailureCause | SeatCancellationCause
-  /** Retained preset identity for an opening that failed before Session creation; absent for other failures. */
-  details?: { agentPreset: string }
+  /** Retained prerequisite identity: an absent preset or an unavailable model in an existing Session. */
+  details?: { agentPreset: string } | { provider: string; model: string }
   code: SeatErrorCode
   message: string
   alternative: string
@@ -677,8 +677,15 @@ export interface SeatNodeStatus {
   readyAt: SeatTimestamp | null
   /** Current runtime failure; absent before failure or after a successful supervised retry. */
   failure?: { site: string; code: string; since: SeatTimestamp; retryable: boolean; attempts: number }
-  /** Latest absent opening per seat; a subsequent successful opening clears its diagnostic, not its audit facts. */
-  openingFailures?: readonly { sessionId: SessionId; seat: SeatName; agentPreset: string; code: SeatFailure['code'] }[]
+  /** Latest prerequisite failure per seat; successful opening or model readmission clears the diagnostic, not audit facts. */
+  openingFailures?: readonly {
+    sessionId: SessionId
+    seat: SeatName
+    agentPreset: string
+    code: SeatFailure['code']
+    provider?: string
+    model?: string
+  }[]
 }
 /** Reference-price cost includes descendant work and maintenance; missing evidence stays unknown. */
 export interface SeatBudgetSnapshot {
@@ -802,6 +809,8 @@ export interface SeatEngineConfig {
   failureRecovery?: {
     /** Positive initial retry delay, at most 300000 ms; exponential retries cap at five minutes. */
     retryInitialMs: number
+    /** Positive maximum attempts in an owner-release recovery interval; omission permits three attempts. */
+    ownerReleaseMaxAttempts?: number
   }
 }
 /** Policies share one gate registry while validated tunables remain deployment-owned. */

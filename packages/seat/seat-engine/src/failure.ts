@@ -52,7 +52,7 @@ export class EngineFailures {
   private revision = 0
   private closed = false
   constructor(private readonly initialMs: number | undefined, private readonly log: (line: string) => void,
-    private readonly changed: () => void = () => {}) {}
+    private readonly changed: () => void = () => {}, private readonly ownerReleaseMaxAttempts = 3) {}
 
   /** Read a detached diagnostic, absent before a failure or after a verified successful retry.
    * @returns Safe failure fields without exception text.
@@ -94,10 +94,11 @@ export class EngineFailures {
     }
     const classification = classify(cause)
     const safeCode = code ?? classification.code
-    const retryable = code === undefined && classification.retryable
     const now = Date.now(), previous = this.current
     this.revision++
     const attempts = (previous?.attempts ?? 0) + 1
+    const retryable = code === 'owner-release-budget-exceeded'
+      ? attempts < this.ownerReleaseMaxAttempts : code === undefined && classification.retryable
     const failure = { site, code: safeCode, since: previous?.since ?? new Date(now).toISOString(), retryable, attempts }
     this.current = previous && !previous.retryable ? { ...previous, attempts } : failure
     if (this.initialMs !== undefined) this.nextDue = now + Math.min(300000, this.initialMs * 2 ** Math.min(attempts - 1, 30))

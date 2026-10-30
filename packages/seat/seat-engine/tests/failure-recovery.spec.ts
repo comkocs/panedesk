@@ -45,6 +45,29 @@ it('backs off only ledger lock acquisition timeouts and resumes the retained ope
   } finally { await h.close() }
 })
 
+it('bounds owner-release retries and reports exhaustion without an endless retry loop', () => {
+  vi.useFakeTimers()
+  const log = vi.fn(), changed = vi.fn()
+  const failures = new EngineFailures(1000, log, changed, 3)
+  try {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      failures.record('owner-release', new EngineError('unavailable', 'Release budget exceeded'),
+        'owner-release-budget-exceeded')
+      expect(failures.snapshot()).toMatchObject({ code: 'owner-release-budget-exceeded',
+        retryable: attempt < 3, attempts: attempt })
+      expect(failures.runnable()).toBe(false)
+      vi.advanceTimersByTime(1000 * 2 ** (attempt - 1) - 1)
+      expect(failures.runnable()).toBe(false)
+      vi.advanceTimersByTime(1)
+      expect(failures.runnable()).toBe(attempt < 3)
+    }
+    vi.advanceTimersByTime(600000)
+    expect(failures.runnable()).toBe(false)
+    expect(changed).toHaveBeenCalledTimes(3)
+    expect(String(log.mock.calls[2]?.[0])).toContain('stop-and-restart-after-repair')
+  } finally { failures.close() }
+})
+
 it('does not retry ledger errors raised after acquiring the writer lock', async () => {
   const failures = new EngineFailures(1, () => {})
   const h = await harness()
@@ -288,6 +311,15 @@ it('keeps an unclassified callback stopped through the watchdog and requires rep
     expect((await engine.nodeStatus()).failure).toBeUndefined()
     expect(h.callbacks).toHaveLength(1)
   } finally { await h.close() }
+})
+
+it('validates the configured owner-release attempt bound', () => {
+  for (const ownerReleaseMaxAttempts of [0, -1, 1.5, Number.POSITIVE_INFINITY]) {
+    expect(() => validateConfig({ ...config, failureRecovery: { retryInitialMs: 1000, ownerReleaseMaxAttempts } }))
+      .toThrow('Invalid owner release retry limit')
+  }
+  expect(validateConfig({ ...config, failureRecovery: { retryInitialMs: 1000, ownerReleaseMaxAttempts: 3 } })
+    .failureRecovery).toMatchObject({ ownerReleaseMaxAttempts: 3 })
 })
 
 it('preserves the default latched status and validates explicit retry policy', () => {

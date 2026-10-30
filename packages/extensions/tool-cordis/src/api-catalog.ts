@@ -10471,7 +10471,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatFailure',
-    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause | SeatCancellationCause;\n    details?: {\n        agentPreset: string;\n    };\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
+    declaration: 'export interface SeatFailure {\n    cause?: SeatFailureCause | SeatCancellationCause;\n    details?: {\n        agentPreset: string;\n    } | {\n        provider: string;\n        model: string;\n    };\n    code: SeatErrorCode;\n    message: string;\n    alternative: string;\n    retryable: boolean;\n    effectState: \'none\' | \'committed\' | \'partial\' | \'unknown\';\n}',
   },
   {
     name: 'SeatFailureCause',
@@ -10555,7 +10555,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatNodeStatus',
-    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n    };\n    openingFailures?: readonly {\n        sessionId: SessionId;\n        seat: SeatName;\n        agentPreset: string;\n        code: SeatFailure[\'code\'];\n    }[];\n}',
+    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n    };\n    openingFailures?: readonly {\n        sessionId: SessionId;\n        seat: SeatName;\n        agentPreset: string;\n        code: SeatFailure[\'code\'];\n        provider?: string;\n        model?: string;\n    }[];\n}',
   },
   {
     name: 'SeatOpenExecutor',

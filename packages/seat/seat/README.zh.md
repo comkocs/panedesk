@@ -25,7 +25,7 @@ kind: "package-reference"
 
 浏览器消费方通过纯类型 `@panedesk/dsh-seat/types` 子路径导入共享工位数据。其 Session 身份使用 `dsh-session/types`，调度选择器使用 `dsh-schedule/client`，使共享声明独立于 Host Session 服务。根入口仍暴露 Host 服务定义。
 
-`SeatFailure.details.agentPreset` 可选标识在 Session 创建前被拒绝的预设。`SeatNodeStatus.openingFailures` 独立于会话窗口投影尚未解决的未创建开窗；运行时失败仍位于 `failure`。不带正文的 `seat/diagnostics-changed` 事件使已授权读取失效，不泄露诊断字段。[工位引擎](../seat-engine/README.zh.md)拥有投影及清除语义。
+`SeatFailure.details` 可选通过 `agentPreset` 标识 Session 创建前被拒绝的预设，或通过 `provider` 与 `model` 标识不可用模型。`SeatNodeStatus.openingFailures` 独立于会话窗口投影尚未解决的前置条件失败；模型失败携带可选 `provider` 与 `model` 字段，引擎运行时失败仍位于 `failure`。不带正文的 `seat/diagnostics-changed` 事件使已授权读取失效，不泄露诊断字段。[工位引擎](../seat-engine/README.zh.md)拥有投影及清除语义。
 
 可选 `SeatOpeningContexts.registerScopeAdmission` 为来源单项开窗及任务批次安装 `OpeningScopeAdmission` 所有者。所有者串行化评估、持久占位及既有执行器；注销排空在途调用。省略时保持既有评估器查询及拒绝行为。接口不含来源特有的工单字段。
 

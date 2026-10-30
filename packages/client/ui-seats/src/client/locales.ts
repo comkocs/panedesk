@@ -14,6 +14,7 @@ export const en = {
   engineStopped: 'Seat engine stopped [{code}]. Repair the cause and restart the host; this alert clears when the restarted engine reports no failure.',
   engineRetrying: 'Seat engine is retrying [{code}]. Queued work is retained; this alert clears after a complete successful recovery round.',
   missingPreset: 'Agent preset "{preset}" is unavailable [{code}]; no Session was created. Restore the preset and submit a new opening. This alert clears after that seat opens successfully.',
+  modelUnavailable: 'Model "{provider}/{model}" is unavailable [{code}]; this Session failed to open. Other seats continue. Restore the model and resend your message in this Session; this alert clears when model configuration succeeds.',
   existingChoice: 'This seat already has windows. Select an existing window from Seats before opening another.',
 } as const
 /** Locale-owned key set. */
@@ -33,5 +34,6 @@ export const zh: Record<SeatKey, string> = {
   engineStopped: '工位引擎已停止 [{code}]。请修复原因后重启宿主；重启后的引擎报告无故障时，本告警清除。',
   engineRetrying: '工位引擎正在重试 [{code}]，排队工作已保留；完整恢复轮次成功后，本告警清除。',
   missingPreset: '代理预设“{preset}”不可用 [{code}]，未创建会话。请恢复预设后重新提交开窗；该工位成功开窗后，本告警清除。',
+  modelUnavailable: '模型“{provider}/{model}”不可用 [{code}]，此会话开窗失败，其他工位继续运行。请恢复模型后在此会话重发消息；模型配置成功后，本告警清除。',
   existingChoice: '该位已有在开会话，请先从工位列表选择已有会话。',
 }

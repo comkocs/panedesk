@@ -27,7 +27,7 @@ const pendingReason = one('approval', 'project-off', 'time-window', 'node-capaci
   'budget-full', 'budget-unverifiable', 'provider-unavailable')
 const failure = fields({ code: value => typeof value === 'string' && Object.hasOwn(SEAT_ERROR_CODES, value),
   message: text, alternative: text, retryable: boolean, effectState: one('none', 'committed', 'partial', 'unknown'),
-  details: optional(fields({ agentPreset: id })) })
+  details: optional(value => fields({ agentPreset: id })(value) || fields({ provider: id, model: id })(value)) })
 const limits = fields({ windowBudgetUsd: optional(money), dailyBudgetUsd: optional(money) })
 const budget = fields({ sessionId: id, seat: id, currency: one('USD'), costState: one('known', 'unknown'),
   windowCost: nullable(money), dailyCost: nullable(money), limits, dayKey: text, budgetTimeZone: id,

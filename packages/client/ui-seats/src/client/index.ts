@@ -107,7 +107,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       else if (value.status === 'choice-required') notify(t('existingChoice'))
       else if (value.status === 'rejected') {
         const directoryRefused = startupDirectory !== undefined && value.error.code === 'invalid-request'
-        notify(value.error.details?.agentPreset !== undefined
+        notify(value.error.details !== undefined && 'agentPreset' in value.error.details
           ? t('missingPreset', { preset: value.error.details.agentPreset, code: value.error.code })
           : t('openFailed', { reason: `${value.error.code}: ${value.error.message} ${value.error.alternative}${directoryRefused ? ` ${t('directoryRefused')}` : ''}` }))
       }

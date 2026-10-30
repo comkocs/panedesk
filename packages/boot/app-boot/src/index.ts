@@ -8,7 +8,7 @@
 
 import { pathToFileURL } from 'node:url'
 import { readFileSync } from 'node:fs'
-import { inspect, parseEnv } from 'node:util'
+import { inspect, isDeepStrictEqual, parseEnv } from 'node:util'
 import { basename, dirname, isAbsolute, resolve } from 'node:path'
 import * as yaml from 'js-yaml'
 import { Context, type Fiber, type FiberState } from '@panedesk/cordis'
@@ -24,7 +24,7 @@ export {
   PROFILE_COMPATIBILITY_FILENAME, readProfileCompatibility, readProfileVersionExemptions,
   setProfileVersionExemption, type ProfileCompatibility,
 } from './profile-compatibility.ts'
-import { prepareProfilePatches } from './compatibility-preflight.ts'
+import { prepareProfileEntries, prepareProfilePatches } from './compatibility-preflight.ts'
 import { ProfileRuntimeResolution, type RuntimeResolution } from './profile.ts'
 import { ResolutionRestartRequired } from './profile-resolution/resolver.ts'
 import { markKernelBoot, publishKernelStatus } from './kernel-status.ts'
@@ -261,7 +261,42 @@ export function loadLayeredEnv(
   ])
 }
 
-const bootstrapIncludes = new WeakMap<Context, Entry>()
+interface RootIncludeState {
+  entry: Entry
+  declarations?: EntryOptions[]
+  rollback?: { declarations: EntryOptions[]; runtime: EntryOptions[] }
+}
+const bootstrapIncludes = new WeakMap<Context, RootIncludeState>()
+
+/** Preserve temporary switches only where the same declaration still owns the same row. */
+function retainRuntimeSwitches(next: EntryOptions[], previous: EntryOptions[], runtime: EntryOptions[]): void {
+  const index = (rows: EntryOptions[]) => {
+    const entries = new Map<string, { row: EntryOptions; parent: string }>()
+    const duplicates = new Set<string>()
+    const visit = (children: EntryOptions[], parent: string): void => {
+      for (const row of children) {
+        if (entries.has(row.id)) duplicates.add(row.id)
+        entries.set(row.id, { row, parent })
+        if ((row.group === true || row.name === 'cordis:group') && Array.isArray(row.config)) {
+          visit(row.config as EntryOptions[], JSON.stringify([parent, row.id, row.name]))
+        }
+      }
+    }
+    visit(rows, '')
+    for (const id of duplicates) entries.delete(id)
+    return entries
+  }
+  const before = index(previous), live = index(runtime)
+  for (const [id, target] of index(next)) {
+    const prior = before.get(id), current = live.get(id)
+    if (!prior || !current || prior.parent !== target.parent || current.parent !== target.parent
+      || prior.row.name !== target.row.name || current.row.name !== target.row.name
+      || Object.hasOwn(prior.row, 'disabled') !== Object.hasOwn(target.row, 'disabled')
+      || !isDeepStrictEqual(prior.row.disabled, target.row.disabled)) continue
+    if (current.row.disabled !== undefined) target.row.disabled = structuredClone(current.row.disabled)
+    else delete target.row.disabled
+  }
+}
 
 // The include's YAML dialect (`!!js` scalars become expression nodes the
 // Loader interpolates against each entry's injection-ready context), imported
@@ -336,8 +371,9 @@ async function recompose(
   // The rows stopped first, which a failure before the generation applies puts back.
   let stopped: StoppedRow[] = []
   try {
-    const entry = bootstrapIncludes.get(ctx)
-    if (entry === undefined) throw new Error(`${binName}: profile reload requires the root Include entry`)
+    const state = bootstrapIncludes.get(ctx)
+    if (state === undefined) throw new Error(`${binName}: profile reload requires the root Include entry`)
+    const { entry } = state
     // Reading the prior state imports nothing, so plugin code does not run before the next resolution publishes.
     const previousFailures = (await inactiveEntries(ctx, false)).map((failure): RecordedFailure => ({
       entry: failure.entry, fiber: failure.entry.fiber, options: JSON.stringify(failure.entry.options),
@@ -349,6 +385,17 @@ async function recompose(
       fiber: row.fiber, failed: row.fiber.state === FIBER_FAILED || row.fiber.state === FIBER_DISPOSED,
     }])
     const { patches: previous = [], ...includeConfig } = entry.options.config as Include.Config
+    const declarations = state.declarations === undefined ? undefined
+      : applyEntryPatches([], structuredClone(patches), (message: string, ...args: unknown[]) => {
+        let index = 0
+        ctx.logger.warn(message.replace(/%C/g, () => JSON.stringify(args[index++])))
+      })
+    const runtime = structuredClone(entry.subgroup?.data ?? [])
+    const effective = declarations === undefined ? undefined : structuredClone(declarations)
+    if (effective && state.declarations) {
+      const rollback = state.rollback && isDeepStrictEqual(declarations, state.rollback.declarations) ? state.rollback : undefined
+      retainRuntimeSwitches(effective, rollback?.declarations ?? state.declarations, rollback?.runtime ?? runtime)
+    }
     const current = withResolution ? ctx.get('pluginPackages')?.resolution : undefined
     // A plain-data resolution has no inputs to recompute from.
     const successor = current instanceof ProfileRuntimeResolution ? await current.computeLatestResolution() : undefined
@@ -388,7 +435,12 @@ async function recompose(
     }
     // The recomposition judges the rows the launch judged, resolved from the file this Include read.
     const parentURL = new URL('.', new URL(includeConfig.path, entry.parent.tree.ctx.baseUrl)).href
-    const prepared = prepareProfilePatches(ctx, patches, parentURL, binName)
+    const prepared = effective === undefined ? prepareProfilePatches(ctx, patches, parentURL, binName)
+      : [{ insert: prepareProfileEntries(ctx, effective, parentURL, binName) }]
+    if (declarations && state.declarations) {
+      state.rollback ??= { declarations: state.declarations, runtime }
+      state.declarations = structuredClone(declarations)
+    }
     applying = true
     const retried = [...new Set([...running, ...withResolution ? [...ctx.loader.entries()].filter(importFailed) : []])]
     try {
@@ -411,6 +463,7 @@ async function recompose(
     for (const [index, result] of results.entries()) {
       if (result.status === 'rejected' && !previousFibers[index]?.failed) throw result.reason
     }
+    delete state.rollback
     ctx.emit('app-boot/config-reload')
     return { warnings: failures.map(reloadDiagnostic) }
   } finally {
@@ -774,6 +827,8 @@ export async function mountRootInclude(
   // diagnostics unstable across runs (and snapshot fixtures).
   // The launcher's own copy is prepared here: compatibility decisions must be made before the root
   // Include imports anything, and they change no profile patch layer, manifest, or bundle list.
+  const declarations = ctx.get('profileContext') === undefined ? undefined
+    : applyEntryPatches([], structuredClone([...patches]), () => {})
   const prepared = prepareProfilePatches(ctx, [...patches], pathToFileURL(dirname(absoluteConfigPath)).href + '/', binName)
   const includeConfig: Include.Config = {
     path: pathToFileURL(absoluteConfigPath).href,
@@ -788,7 +843,7 @@ export async function mountRootInclude(
   const loader = ctx.get('loader')
   if (loader === undefined) return undefined
   const entry = loader.resolve(includeId)
-  bootstrapIncludes.set(ctx, entry)
+  bootstrapIncludes.set(ctx, { entry, ...(declarations ? { declarations } : {}) })
   return entry
 }
 
@@ -1161,7 +1216,7 @@ export async function auditStartupEntries(
   observed?: readonly InactiveEntry[],
 ): Promise<void> {
   const failures = observed ?? await inactiveEntries(ctx)
-  const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)
+  const required = new Set(failures.filter(({ entry }) => entry === bootstrapIncludes.get(ctx)?.entry
     || requiredStartupEntryIds.has(entry.options.id)).map(({ entry }) => entry))
   if (required.size > 0) {
     throw new StartupError(startupDiagnostic(binName, failures, required), failures.map(({ entry, outcome }) => ({

@@ -52,7 +52,9 @@ function Diagnostics({ data, t }: { data: SeatOverview | undefined; t: Common['t
   return <>
     {failure && <p role="alert">{t(failure.retryable ? 'engineRetrying' : 'engineStopped', { code: failure.code })}</p>}
     {data?.diagnostics?.openings.map(open => <p role="alert" key={open.sessionId}>
-      {open.seat}: {t('missingPreset', { preset: open.agentPreset, code: open.code })}
+      {open.seat}: {open.model !== undefined
+        ? t('modelUnavailable', { model: open.model, provider: open.provider ?? '', code: open.code })
+        : t('missingPreset', { preset: open.agentPreset, code: open.code })}
     </p>)}
   </>
 }

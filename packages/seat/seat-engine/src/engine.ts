@@ -150,7 +150,7 @@ export class SeatEngine extends SeatEngineService {
     this.failures = new EngineFailures(options.config.failureRecovery?.retryInitialMs, (line) => {
       ctx.logger.error(line)
       console.error(line)
-    }, () => { ctx.emit('seat/diagnostics-changed') })
+    }, () => { ctx.emit('seat/diagnostics-changed') }, options.config.failureRecovery?.ownerReleaseMaxAttempts)
     this.journal = new EngineJournal(join(options.home, 'ledger/engine/v1', options.nodeId),
       options.nodeId, options.config.maxDecisionBytes)
     this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,
@@ -477,12 +477,15 @@ export class SeatEngine extends SeatEngineService {
     const latest = new Map<T.SeatName, T.EngineOpenData>()
     for (const open of this.journal.projection.opens.values()) {
       if (open.definition && (open.phase === 'active'
-        || open.phase === 'opening-failed' && open.failure?.effectState === 'none')) latest.set(open.definition.seat, open)
+        || open.phase === 'opening-failed' && (open.failure?.effectState === 'none'
+          || open.failure?.details && 'model' in open.failure.details))) latest.set(open.definition.seat, open)
     }
     const openingFailures = [...latest.values()].flatMap(open =>
-      open.phase === 'opening-failed' && open.failure?.effectState === 'none' && open.definition
+      open.phase === 'opening-failed' && open.failure && open.definition
         ? [{ sessionId: open.sessionId, seat: open.definition.seat,
-          agentPreset: open.definition.agentPreset, code: open.failure.code }] : [])
+          agentPreset: open.definition.agentPreset, code: open.failure.code,
+          ...(open.failure.details && 'model' in open.failure.details
+            ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : [])
     return Promise.resolve({ nodeId: this.options.nodeId, nodeName: this.options.config.nodeName,
       engine: failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),
@@ -986,6 +989,7 @@ export class SeatEngine extends SeatEngineService {
         opening: async (open) => { await this.publish(); return executor.opening(open) },
       }
       for (const open of [...this.journal.projection.opens.values()]) {
+        if (this.deferredTurns.has(open.sessionId)) await this.readmitOwner(open, executor)
         if (!this.journal.projection.resources.has(open.sessionId)) {
           if (open.phase === 'opening-failed') await this.recordCallbacks(open, 'opening-failed')
           continue
@@ -1015,8 +1019,10 @@ export class SeatEngine extends SeatEngineService {
         }
         let recovered: T.EngineOpenData
         try {
+          const retryModel = this.modelReadmissions.delete(open.sessionId)
           recovered = await reconcileOpen(this.journal, open, recoveryExecutor, current => this.callbacks(current, 'opened'),
-            this.options.config.failureRecovery ? async () => { await this.publish(); return this.failures.runnable() } : undefined)
+            this.options.config.failureRecovery ? async () => { await this.publish(); return this.failures.runnable() } : undefined,
+            retryModel)
         }
         catch (error) {
           const replacement = [...this.journal.projection.replacements.values()].find(item => item.newSessionId === open.sessionId)
@@ -1094,8 +1100,11 @@ export class SeatEngine extends SeatEngineService {
           data: { owner: resource.owner, reason: recovered ? 'host-restart-recovery' : 'holder-death', observedAt,
             engineReadyAt: recovered ? this.readyAt : null, releasedAt: new Date().toISOString(), fenced: true },
         })])
-      if (performance.now() - start > this.options.config.ownerReleaseBudgetMs) this.failures.record('owner-release',
-        new EngineError('unavailable', 'Owner release exceeded its configured time budget'), 'owner-release-budget-exceeded')
+      if (performance.now() - start > this.options.config.ownerReleaseBudgetMs) {
+        this.failures.record('owner-release',
+          new EngineError('unavailable', 'Owner release exceeded its configured time budget'), 'owner-release-budget-exceeded')
+        return
+      }
     }
   }
   private async recheckFrozenTarget(item: T.PendingSeatItem): Promise<T.SeatRejected | null> {
@@ -1269,9 +1278,53 @@ export class SeatEngine extends SeatEngineService {
       operationId: `budget:${warning.eventId}` as T.SeatOperationId, messageClass: 'handoff', mode: 'steer', budget: warning.data })
     if (level === 'stopped') await this.recordCallbacks(open, 'budget-stopped', snapshot)
   }
+  private async readmitOwner(open: T.EngineOpenData, executor: T.SeatOpenExecutor): Promise<void> {
+    const view = this.journal.projection, sessionId = open.sessionId
+    const agent = this.ctx.get('agents')?.get(sessionId)
+    if (!agent || view.resources.has(sessionId) || view.closed.has(sessionId) || view.closing.has(sessionId)
+      || !open.definition || open.phase !== 'active' || this.stopped || !this.failures.runnable()) return
+    const effects = view.decisions.flatMap(decision => decision.effects)
+    const released = effects.findLast(effect => effect.kind === 'resource/released' && effect.data.owner.sessionId === sessionId)
+    if (released?.kind !== 'resource/released'
+      || !['holder-death', 'host-restart-recovery'].includes(released.data.reason)) return
+    const retained = effects.findLast(effect => effect.kind === 'resource/reserved'
+      && effect.data.owner.ownerEpoch === released.data.owner.ownerEpoch)
+    if (retained?.kind !== 'resource/reserved' || retained.data.owner.intentId !== open.intentId
+      || !view.fenced.has(retained.data.owner.ownerEpoch) || await executor.observe(open) !== 'matching') return
+    const owner: T.ResourceOwner = { sessionId, intentId: open.intentId, ownerEpoch: randomUUID() as T.OwnerEpoch,
+      resourceRevision: retained.data.owner.resourceRevision + 1 }
+    if (await executor.owner(owner) !== 'alive') return
+    const budget = await this.budget(sessionId)
+    await this.journal.commit((current) => {
+      if (this.stopped || !this.failures.runnable() || this.ctx.get('agents')?.get(sessionId) !== agent
+        || current.resources.has(sessionId) || current.closed.has(sessionId) || current.closing.has(sessionId)
+        || current.opens.get(sessionId) !== open || !current.fenced.has(retained.data.owner.ownerEpoch)
+        || current.budgets.get(sessionId)?.budgetRevision !== budget.budgetRevision) return []
+      const source = open.sources?.[0], definition = open.definition
+      if (!definition) return []
+      const rule = source ? triggerRule(definition, source) : undefined
+      const nodeLimit = this.options.config.nodeEngineWindowLimit
+      const admission = reserveOpen({ projection: current, definition,
+        ...(rule ? { rule } : {}), nodeId: this.options.nodeId,
+        aliases: this.options.config.nodeAliases, engine: retained.data.engineWindowUnits > 0,
+        now: Date.now(), ...(nodeLimit !== undefined ? { nodeLimit } : {}), budget, sessionId })
+      if (admission.status !== 'allowed' || [...current.resources.values()].some(resource =>
+        resource.exclusiveTags.some(tag => retained.data.exclusiveTags.includes(tag)))) return []
+      return [fact({ kind: 'resource/reserved', sessionId, seat: retained.data.seat,
+        data: { ...retained.data, owner } })]
+    })
+  }
   private readonly recoveredOwners = new Set<T.OwnerEpoch>()
   private readonly deferredTurns = new Set<SessionId>()
+  private readonly modelReadmissions = new Set<SessionId>()
   async admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission> {
+    await this.ready()
+    const open = this.journal.projection.opens.get(sessionId)
+    if (!this.stopped && this.failures.runnable() && open?.phase === 'opening-failed'
+      && open.failure?.details && 'model' in open.failure.details) {
+      this.modelReadmissions.add(sessionId)
+      await this.drive()
+    }
     const admission = await this.checkTurnAdmission(sessionId)
     if (admission.status === 'defer') this.deferredTurns.add(sessionId)
     return admission

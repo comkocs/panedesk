@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
 import { auto, definition, harness, seat, trigger } from './fixtures.ts'
 import { fact } from '../src/triggers.ts'
@@ -27,6 +27,35 @@ it('retains executor-frozen opening text and a newer budget through replay', asy
   expect(recovered.journal.projection.opens.get(before.sessionId)?.frozenOpening).toEqual(frozenOpening)
   expect((await recovered.budget(before.sessionId)).budgetRevision).toBe(1)
   expect(h.creates).toHaveLength(1)
+})
+
+it('recovers after a slow release of the previous process owner without releasing it twice', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const h = await harness({ failureRecovery: { retryInitialMs: 2000, ownerReleaseMaxAttempts: 3 } })
+  let clock = 0
+  const timer = vi.spyOn(performance, 'now').mockImplementation(() => clock)
+  try {
+    await auto(h.engine)
+    await h.engine.accept(trigger())
+    await h.engine.drive()
+    const sessionId = h.creates[0]!
+    await h.engine.shutdown()
+    h.executor.owner = async () => { clock += 2001; return 'dead' }
+    const restarted = await h.start()
+    await restarted.drive()
+    expect((await restarted.nodeStatus()).failure).toMatchObject({
+      code: 'owner-release-budget-exceeded', retryable: true, attempts: 1,
+    })
+    await vi.advanceTimersByTimeAsync(1999)
+    expect((await restarted.nodeStatus()).engine).toBe('unavailable')
+    await vi.advanceTimersByTimeAsync(1)
+    await restarted.drive()
+    expect((await restarted.nodeStatus()).engine).toBe('running')
+    const releases = restarted.journal.projection.decisions.flatMap(decision => decision.effects)
+      .filter(effect => effect.kind === 'resource/released' && effect.sessionId === sessionId)
+    expect(releases).toHaveLength(1)
+    expect(releases[0]?.data).toMatchObject({ reason: 'host-restart-recovery', fenced: true })
+  } finally { timer.mockRestore(); await h.close(); vi.useRealTimers() }
 })
 
 const cleanups: (() => Promise<void>)[] = []

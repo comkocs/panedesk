@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "seat-model-failure-catalog",
+      "description": "Project Session-local unavailable-model diagnostics in the generated seat API catalog.",
+      "origin": "Seat model failure isolation",
+      "reason": "Seat failure details and node opening diagnostics retain provider and model identities while unrelated seats continue; the generated API catalog must expose the same fields as the service definition.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/extensions/tool-cordis/src/api-catalog.ts"],
+        "test": "contains an unavailable model during scheduled recovery and opens the healthy seat"
+      }
+    },
+    {
+      "id": "profile-runtime-enablement-reconciliation",
+      "description": "Retain temporary plugin enablement across unrelated profile configuration changes.",
+      "origin": "Profile runtime enablement",
+      "reason": "Language preference changes must not disable a runtime-enabled plugin when its declaration is unchanged; explicit declaration changes and compatibility checks still take precedence, and temporary switches are never persisted.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/boot/app-boot/src/index.ts", "packages/boot/app-boot/README.md", "packages/boot/app-boot/README.zh.md", "packages/boot/app-boot/README.i18n.yaml", "packages/client/locale/tests/config.host.spec.ts"],
+        "test": "preserves runtime enablement across language changes"
+      }
+    },
+    {
       "id": "seat-diagnostic-invalidation",
       "description": "Forward payload-free seat engine diagnostic invalidations to owner-authorized UI resources.",
       "origin": "Seat failure visibility",
