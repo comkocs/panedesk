@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SeatDefinition } from '@panedesk/dsh-seat/types'
 import type { SeatOverview } from '../src/types.ts'
@@ -29,6 +29,8 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
     useSessions: ((select: (snapshot: object) => unknown) => select({ ids: ['session-a'], byId: { 'session-a': { cwd, retainedBy: { mainView: 1 } } } })) as SeatPickerProps['useSessions'],
     useSeatNotice: ((select: (value: typeof notice) => unknown) => select(notice)) as SeatHeaderProps['useSeatNotice'],
     openSeat, openWindow: vi.fn(), dismiss: vi.fn(),
+    loadModels: vi.fn(async () => []), prepareAdd: vi.fn(async () => { throw new Error('Unused source preparation') }),
+    previewAdd: vi.fn(async () => { throw new Error('Unused import preview') }), commitAdd: vi.fn(async () => {}),
     t: (key: keyof typeof en, params?: Record<string, string | number>) =>
       en[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match)),
   }
@@ -168,7 +170,98 @@ describe('seat entry presentations', () => {
     view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
   })
-  it('shows a cold-start picker and optional sidebar, hiding unavailable, empty and collapsed sections', () => {
+  it.each(['en', 'zh'] as const)('shows the available empty section and add entry: %s', (language) => {
+    const f = fixture({ ...data, definitions: [] })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en) => dictionary[key]
+    render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('heading', { name: language === 'en' ? 'Seats' : '工位' })).toBeTruthy()
+    expect(screen.getByText(language === 'en' ? 'No seats yet. Add your first seat.' : '还没有工位，添加第一个工位。')).toBeTruthy()
+    expect(screen.getByRole('button', { name: language === 'en' ? 'Add seat' : '添加工位' })).toBeTruthy()
+  })
+  it.each(['en', 'zh'] as const)('offers exactly four fields and previews one new seat before confirmation: %s', async (language) => {
+    const f = fixture()
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const prepareAdd = vi.fn(async () => ({ format: 'csv' as const, sourcePath: '/host/source.csv', columnMap: {}, defaults: {} }))
+    const previewAdd = vi.fn(async () => ({ planId: 'plan-a' as never, baseRevision: 1,
+      rows: [{ row: 2, seat: 'new-seat', action: 'create' as const, diagnostics: [] }] }))
+    const commitAdd = vi.fn(async () => {})
+    const loadModels = vi.fn(async () => [{ provider: 'provider-a', model: 'model-a', label: 'Model A' }])
+    render(<SeatsSection {...{ ...f.props, t, prepareAdd, previewAdd, commitAdd, loadModels } as SeatsSectionProps} />)
+    fireEvent.click(screen.getByRole('button', { name: language === 'en' ? 'Add seat' : '添加工位' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getAllByRole('textbox')).toHaveLength(3)
+    fireEvent.change(within(dialog).getByLabelText(language === 'en' ? 'Seat name' : '工位名'), { target: { value: 'new-seat' } })
+    fireEvent.change(within(dialog).getByLabelText(language === 'en' ? 'Working directory' : '工作目录'), { target: { value: '/workspace' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: language === 'en' ? 'Select a model' : '选择模型' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Model A' }))
+    fireEvent.change(within(dialog).getByLabelText(language === 'en' ? 'Opening sentence' : '开场句'), { target: { value: 'Hello.' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: language === 'en' ? 'Preview' : '预览' }))
+    expect(await screen.findByText(language === 'en' ? '1 seat will be added.' : '将新增 1 个工位。')).toBeTruthy()
+    expect(commitAdd).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: language === 'en' ? 'Confirm add' : '确认添加' }))
+    await vi.waitFor(() => { expect(commitAdd).toHaveBeenCalledOnce() })
+  })
+  it.each(['en', 'zh'] as const)('localizes missing model, directory, duplicate name and import refusals: %s', async (language) => {
+    const f = fixture()
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en) => dictionary[key]
+    const prepareAdd = vi.fn(async () => ({ format: 'csv' as const, sourcePath: '/host/source.csv', columnMap: {}, defaults: {} }))
+    const previewAdd = vi.fn(async () => ({ planId: 'plan-a' as never, baseRevision: 1,
+      rows: [{ row: 2, action: 'create' as const, diagnostics: [] }] }))
+    const commitAdd = vi.fn(async () => {})
+    const loadModels = vi.fn(async () => [{ provider: 'provider-a', model: 'model-a', label: 'Model A' }])
+    render(<SeatsSection {...{ ...f.props, t, prepareAdd, previewAdd, commitAdd, loadModels } as SeatsSectionProps} />)
+    fireEvent.click(screen.getByRole('button', { name: t('addSeat') }))
+    const dialog = await screen.findByRole('dialog')
+    const form = within(dialog)
+    fireEvent.click(form.getByRole('button', { name: t('preview') }))
+    expect((await form.findByRole('alert')).textContent).toBe(t('modelRequired'))
+    expect(prepareAdd).not.toHaveBeenCalled()
+    fireEvent.change(form.getByLabelText(t('seatName')), { target: { value: 'new-seat' } })
+    fireEvent.change(form.getByLabelText(t('workingDirectory')), { target: { value: '/workspace' } })
+    fireEvent.change(form.getByLabelText(t('openingSentence')), { target: { value: 'Hello.' } })
+    fireEvent.click(form.getByRole('button', { name: t('selectModel') }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Model A' }))
+    for (const [code, key] of [['seat-ui/directory-invalid', 'directoryInvalid'], ['seat-ui/name-exists', 'nameExists']] as const) {
+      prepareAdd.mockRejectedValueOnce(Object.assign(new Error('Refused'), { code }))
+      fireEvent.click(form.getByRole('button', { name: t('preview') }))
+      await vi.waitFor(() => { expect(form.getByRole('alert').textContent).toBe(t(key)) })
+    }
+    previewAdd.mockRejectedValueOnce(new Error('Preview refused'))
+    fireEvent.click(form.getByRole('button', { name: t('preview') }))
+    await vi.waitFor(() => { expect(form.getByRole('alert').textContent).toBe(t('previewRejected')) })
+    commitAdd.mockRejectedValueOnce(new Error('Commit outcome unknown'))
+    fireEvent.click(form.getByRole('button', { name: t('preview') }))
+    await form.findByText(t('oneCreate'))
+    fireEvent.click(form.getByRole('button', { name: t('confirmAdd') }))
+    await vi.waitFor(() => { expect(form.getByRole('alert').textContent).toBe(t('commitRejected')) })
+    expect(form.queryByRole('button', { name: t('confirmAdd') })).toBeNull()
+    expect(commitAdd).toHaveBeenCalledOnce()
+  })
+  it('refuses a preview that would update an existing definition', async () => {
+    const f = fixture()
+    const prepareAdd = vi.fn(async () => ({ format: 'csv' as const, sourcePath: '/host/source.csv', columnMap: {}, defaults: {} }))
+    const previewAdd = vi.fn(async () => ({ planId: 'plan-a' as never, baseRevision: 1,
+      rows: [{ row: 2, action: 'create' as const, diagnostics: [] }, { row: 3, action: 'update' as const, diagnostics: [] }] }))
+    const commitAdd = vi.fn(async () => {})
+    const loadModels = vi.fn(async () => [{ provider: 'provider-a', model: 'model-a', label: 'Model A' }])
+    render(<SeatsSection {...{ ...f.props, prepareAdd, previewAdd, commitAdd, loadModels } as SeatsSectionProps} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add seat' }))
+    const form = within(await screen.findByRole('dialog'))
+    for (const [label, value] of [['Seat name', 'new-seat'], ['Working directory', '/workspace'], ['Opening sentence', 'Hello.']] as const) {
+      fireEvent.change(form.getByLabelText(label), { target: { value } })
+    }
+    fireEvent.click(form.getByRole('button', { name: 'Select a model' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Model A' }))
+    fireEvent.click(form.getByRole('button', { name: 'Preview' }))
+    expect((await form.findByRole('alert')).textContent).toBe(en.previewRejected)
+    expect(form.queryByRole('button', { name: 'Confirm add' })).toBeNull()
+    expect(commitAdd).not.toHaveBeenCalled()
+  })
+  it('shows a cold-start picker and optional sidebar, hiding unavailable and collapsed sections', () => {
     const f = fixture()
     const view = render(<SeatPicker {...f.props as SeatPickerProps} />)
     expect(screen.getByRole('button', { name: 'Seat' })).toBeTruthy()
@@ -179,7 +272,7 @@ describe('seat entry presentations', () => {
     section.rerender(<SeatsSection {...f.props as SeatsSectionProps} wide={false} />)
     expect(screen.queryByRole('region')).toBeNull()
     section.unmount()
-    for (const value of [{ ...data, available: false }, { ...data, definitions: [] }]) {
+    for (const value of [{ ...data, available: false }]) {
       const hidden = fixture(value)
       const entries = render(<>
         <SeatPicker {...hidden.props as SeatPickerProps} /><SeatsSection {...hidden.props as SeatsSectionProps} wide />

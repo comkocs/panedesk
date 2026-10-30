@@ -119,6 +119,43 @@ it('initializes the returned opening draft in the selected real Session binding 
   expect(injected.hooks.seatNotice.getSnapshot()).toBeNull()
 }, 60_000)
 
+it('uses configured models and existing import calls, selects only create and refreshes after commit', async ({ mock, start }) => {
+  const c = await start()
+  mock.unary('seatUi/overview', ok({ available: true, definitions: [], windows: [], complete: true }))
+  mock.unary('session/modelCatalog', ok({ groups: [{ id: 'configured', name: 'Configured', models: [
+    { id: 'model-a', name: 'Model A', reasoning: { defaultEffort: 'high' } },
+    { id: 'model-b', name: 'Model B' },
+  ] }] }))
+  const request = { name: 'new-seat', directory: '/workspace', provider: 'configured', model: 'model-a', opening: 'Hello.' }
+  const sourceRequest = { format: 'csv', sourcePath: '/host/home/seats/imports/source.csv', columnMap: { seat: 'seat' }, defaults: {} }
+  mock.unary('seatUi/prepareAdd', ok(sourceRequest))
+  mock.unary('seats/import.preview', ok({ planId: 'plan-a', baseRevision: 1, rows: [
+    { row: 2, action: 'retain', diagnostics: [] }, { row: 3, action: 'create', diagnostics: [] },
+  ] }))
+  mock.unary('seats/import.commit', ok({ status: 'committed', revision: 2, rows: [] }))
+  const entry = c.ctx.slots.entries('sidebar.seats').find(row => row.locale === 'seats')!
+  const injected = entry.inject?.() as SeatsInjected & Record<string, unknown>
+  expect(await injected.loadModels()).toEqual([
+    { provider: 'configured', model: 'model-a', label: 'Configured / Model A', reasoningEffort: 'high' },
+    { provider: 'configured', model: 'model-b', label: 'Configured / Model B' },
+  ])
+  const source = await injected.prepareAdd(request)
+  expect(source).toEqual(sourceRequest)
+  const plan = await injected.previewAdd(source)
+  const resource = c.ctx.resources.source('dsh-resource://seats/local')
+  const stop = resource.subscribe(() => {})
+  try {
+    await vi.waitFor(() => { expect(resource.getSnapshot().status).toBe('live') })
+    const calls = mock.log.calls('seatUi/overview').length
+    await injected.commitAdd(plan)
+    expect(mock.log.calls('seats/import.commit')[0]).toMatchObject({ args: [{ request: {
+      planId: 'plan-a', expectedRevision: 1, selectedRows: [3],
+    } }] })
+    await vi.waitFor(() => { expect(mock.log.calls('seatUi/overview').length).toBeGreaterThan(calls) })
+    expect(mock.log.calls('session/prompt')).toHaveLength(0)
+  } finally { stop() }
+}, 60_000)
+
 it('retains verified identity through an isolated read failure and recovers after reconnect', async ({ mock, start }) => {
   const sessionId = 'identity-session' as SessionId
   const binding = { kind: 'free', sessionId, nodeId: 'node-a', identitySource: 'free' }

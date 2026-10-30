@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-add-home-source-artifacts",
+      "description": "Record generated configuration references and workspace links for owner-only seat source preparation.",
+      "origin": "Seat creation UI",
+      "reason": "The optional seat UI declares its product home and exercises existing import preview and commit with the real local importer.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["pnpm-lock.yaml", "docs/config-catalog.md", "docs/config-catalog.zh.md", "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md"],
+        "test": "previews exactly one create and commits without changing either existing definition"
+      }
+    },
+    {
       "id": "seat-live-model-diagnostics",
       "description": "Expose active-window model failures without changing turn errors or stopping other seats.",
       "origin": "Seat live model failure visibility",

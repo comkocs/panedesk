@@ -3,6 +3,10 @@ import type { Context } from '@panedesk/cordis'
 import remote from '@panedesk/dsh-client-ui-seats/remote'
 import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import { randomUUID } from '@panedesk/dsh-util-crypto'
+import { z } from 'zod'
+import type { ConnectionHandle } from '@panedesk/dsh-client-connection/client'
+import type { PreviewSeatImportRequest } from '@panedesk/dsh-seat/types'
+import type { SeatAddPlan, SeatAddRequest } from '../types.ts'
 import type {} from '@panedesk/dsh-api-remotes/client'
 import type {} from '@panedesk/dsh-api-remotes/types'
 import type {} from '@panedesk/dsh-client-resources/client'
@@ -19,12 +23,20 @@ import { en, zh, type SeatKey } from './locales.ts'
 
 export type { SeatKey } from './locales.ts'
 
+const addPlan = z.object({
+  planId: z.custom<SeatAddPlan['planId']>(value => typeof value === 'string' && value.length > 0),
+  baseRevision: z.number().int().nonnegative(),
+  rows: z.array(z.object({ row: z.number().int().nonnegative(),
+    action: z.enum(['create', 'update', 'retain', 'conflict', 'tombstone', 'invalid']), diagnostics: z.array(z.unknown()) })),
+})
+const addCommit = z.object({ status: z.literal('committed') })
+
 declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { seats: SeatKey }
 }
 
 /** Explicit service dependencies for resources, navigation and draft initialization. */
-export const inject = ['remote', 'resources', 'slots', 'locale', 'uiWorkspace', 'conversation', 'sessions']
+export const inject = ['remote', 'remote.session', 'connection', 'resources', 'slots', 'locale', 'uiWorkspace', 'conversation', 'sessions']
 
 /** Mount generated calls and reversible seat UI contributions.
  * @param ctx - Owning Client fiber; components never receive it.
@@ -32,6 +44,7 @@ export const inject = ['remote', 'resources', 'slots', 'locale', 'uiWorkspace', 
  */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const sessions = ctx.get('sessions') as ISessions
+  const connection = ctx.get('connection') as ConnectionHandle
   const unmount = await ctx.remote.$mount(remote)
   const mounted = ctx.inject(['remote.seatUi'], (ctx) => {
     ctx.effect(() => ctx.locale.register('seats', { en, zh }), 'ui-seats: locale')
@@ -114,7 +127,34 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       else if (value.status !== 'cancelled') notify(t('openFailed', { reason: value.status }))
       refresh()
     }
-    const injected = (): SeatsInjected => ({ openSeat, openWindow,
+    const loadModels: SeatsInjected['loadModels'] = async () => {
+      const result = await ctx.remote.session.modelCatalog()
+      if (!result.ok) throw new Error(result.error.message)
+      return result.value.groups.flatMap(group => group.models.map(model => ({ provider: group.id, model: model.id,
+        label: `${group.name} / ${model.name}`,
+        ...(model.reasoning?.defaultEffort === undefined ? {} : { reasoningEffort: model.reasoning.defaultEffort }) })))
+    }
+    const prepareAdd = async (request: SeatAddRequest): Promise<PreviewSeatImportRequest> => {
+      const result = await ctx.remote.seatUi.prepareAdd(request)
+      if (!result.ok) throw Object.assign(new Error(result.error.message), { code: result.error.code })
+      return result.value
+    }
+    const previewAdd = async (request: PreviewSeatImportRequest): Promise<SeatAddPlan> => {
+      const result = await connection.rpc.call('/api', 'seats/import.preview', { args: { request } })
+      if (!result.ok) throw new Error(result.error.message)
+      return addPlan.parse(result.value)
+    }
+    const commitAdd = async (plan: SeatAddPlan): Promise<void> => {
+      const request = { planId: plan.planId, expectedRevision: plan.baseRevision,
+        selectedRows: plan.rows.filter(row => row.action === 'create').map(row => row.row),
+        operationId: `seat-ui:${randomUUID()}` as SeatOperationId }
+      try {
+        const result = await connection.rpc.call('/api', 'seats/import.commit', { args: { request } })
+        if (!result.ok) throw new Error(result.error.message)
+        addCommit.parse(result.value)
+      } finally { refresh() }
+    }
+    const injected = (): SeatsInjected => ({ openSeat, openWindow, loadModels, prepareAdd, previewAdd, commitAdd,
       dismiss: () => { notice.set(null) },
       hooks: { seatNotice: notice } })
     ctx.slots.inject('conversation.hero.seat', () => ctx.slots.register({

@@ -593,6 +593,22 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-seat-approvals -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-seats -->
+<a id="panedeskdsh-client-ui-seats"></a>
+
+## `@panedesk/dsh-client-ui-seats`
+
+- `source`: [`packages/client/ui-seats/src/index.ts:14`](../packages/client/ui-seats/src/index.ts)
+
+```ts config-catalog
+/** Product-owned home; omission leaves source preparation unavailable. */
+export interface Config {
+  /** Absolute product home containing private import sources; omission disables preparation. */
+  home?: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-seats -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-settings-account -->
 <a id="panedeskdsh-client-ui-settings-account"></a>
 
@@ -5231,7 +5247,6 @@ export interface Config {
 | `@panedesk/dsh-client-ui-reference` | — | [`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts) |
 | `@panedesk/dsh-client-ui-renderer` | — | [`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts) |
 | `@panedesk/dsh-client-ui-schedule` | — | [`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts) |
-| `@panedesk/dsh-client-ui-seats` | — | [`packages/client/ui-seats/src/index.ts`](../packages/client/ui-seats/src/index.ts) |
 | `@panedesk/dsh-client-ui-secret-mask` | — | [`packages/client/ui-secret-mask/src/index.ts`](../packages/client/ui-secret-mask/src/index.ts) |
 | `@panedesk/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |

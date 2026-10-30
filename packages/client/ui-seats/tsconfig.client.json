@@ -6,6 +6,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../typert/protocol" },
     { "path": "../../seat/seat" },
+    { "path": "../connection/tsconfig.client.json" },
     { "path": "../../core/session" },
     { "path": "../../session/working-directory" },
     { "path": "../store" },

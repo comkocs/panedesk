@@ -3,15 +3,104 @@ import type { Context } from '@panedesk/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type { SeatCallContext, SeatService } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
-import type { SeatOverview, SeatUiOpenRequest, SeatUiOpenResult } from './types.ts'
+import { randomUUID } from 'node:crypto'
+import { lstat, mkdir, open, realpath, rename, rm, stat } from 'node:fs/promises'
+import { isAbsolute, join } from 'node:path'
+import { z } from 'zod'
+import type { PreviewSeatImportRequest, SeatDefinition } from '@panedesk/dsh-seat/types'
+import type { SeatAddRequest, SeatOverview, SeatUiOpenRequest, SeatUiOpenResult } from './types.ts'
+
+/** Product-owned home; omission leaves source preparation unavailable. */
+export interface Config {
+  /** Absolute product home containing private import sources; omission disables preparation. */
+  home?: string
+}
+
+const addRequest = z.object({ name: z.string().trim().min(1), directory: z.string().min(1),
+  provider: z.string().min(1), model: z.string().min(1), opening: z.string().trim().min(1),
+  reasoningEffort: z.string().min(1).optional() }).strict()
+
+function csvCell(value: unknown): string {
+  const text = typeof value === 'string' ? value : JSON.stringify(value)
+  return `"${text.replaceAll('"', '""')}"`
+}
+
+function sourceValues(definition: SeatDefinition): Record<string, unknown> {
+  const { source: _source, revision: _revision, ...values } = definition
+  return values
+}
 
 declare module '@panedesk/dsh-typert-protocol' {
-  interface RemoteErrorDetailsMap { 'seat-ui/unauthorized': Record<string, never> }
+  interface RemoteErrorDetailsMap {
+    'seat-ui/unauthorized': Record<string, never>
+    'seat-ui/name-exists': Record<string, never>
+    'seat-ui/directory-invalid': Record<string, never>
+    'seat-ui/unavailable': Record<string, never>
+  }
 }
 
 /** Host service for the generated seatUi namespace. */
 export default class SeatUi extends TypertRemoteService {
-  constructor(ctx: Context) { super(ctx, 'seatUi', { namespace: 'seatUi' }) }
+  constructor(ctx: Context, private readonly config: Config = {}) { super(ctx, 'seatUi', { namespace: 'seatUi' }) }
+
+  /** Prepare a complete host-owned source snapshot without changing the seat catalog.
+   * @param request - Four form values and the configured provider/model selection, never a source path.
+   * @returns Existing import request; callers preview it and commit only its single create row.
+   */
+  @Remote
+  async prepareAdd(request: SeatAddRequest): Promise<PreviewSeatImportRequest> {
+    const service = await this.service()
+    if (!service) throw new RemoteError('seat-ui/unavailable', 'Seat providers are unavailable', {})
+    const parsed = addRequest.parse(request)
+    if (!this.config.home || !isAbsolute(this.config.home)) throw new Error('Seat import home is unavailable')
+    const catalog = await this.overview()
+    if (!catalog.complete) throw new Error('Seat catalog is incomplete')
+    if (catalog.definitions.some(definition => definition.seat === parsed.name)) {
+      throw new RemoteError('seat-ui/name-exists', 'Seat name already exists', {})
+    }
+    if (!isAbsolute(parsed.directory)) throw new RemoteError('seat-ui/directory-invalid', 'Working directory must be absolute', {})
+    let directory
+    try { directory = await stat(parsed.directory) }
+    catch (_error) { throw new RemoteError('seat-ui/directory-invalid', 'Working directory does not exist or is not accessible', {}) }
+    if (!directory.isDirectory()) throw new RemoteError('seat-ui/directory-invalid', 'Working directory is not a directory', {})
+    const engine = this.ctx.get('seatEngine')
+    if (!engine) throw new RemoteError('seat-ui/unavailable', 'Seat providers are unavailable', {})
+    const node = await engine.nodeStatus()
+    const defaults: Partial<SeatDefinition> = {
+      platform: 'server', node: node.nodeName, projectId: `seat:${parsed.name}` as SeatDefinition['projectId'],
+      directories: [{ path: parsed.directory, startup: true }], opening: { kind: 'text', text: parsed.opening },
+      agentPreset: 'standard', permissionPreset: 'workspace-write', provider: parsed.provider, model: parsed.model,
+      reasoningEffort: parsed.reasoningEffort ?? 'off', autoKeepAlive: false,
+      worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 48 },
+    }
+    const home = await realpath(this.config.home)
+    let parent = home
+    for (const segment of ['seats', 'imports']) {
+      parent = join(parent, segment)
+      try { await mkdir(parent, { mode: 0o700 }) }
+      catch (error) { if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error }
+      const entry = await lstat(parent)
+      if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error('Seat import directory must remain inside home')
+    }
+    const values = [...catalog.definitions.map(sourceValues), { ...defaults, seat: parsed.name }]
+    const columns = [...new Set(values.flatMap(value => Object.keys(value)))]
+    const content = `${columns.map(csvCell).join(',')}\n${values.map(value => columns.map(column =>
+      csvCell(value[column] ?? '')).join(',')).join('\n')}\n`
+    const sourcePath = join(parent, `${randomUUID()}.csv`)
+    const temporary = `${sourcePath}.tmp`
+    const file = await open(temporary, 'wx', 0o600)
+    try {
+      await file.writeFile(content, 'utf8')
+      await file.sync()
+      await file.close()
+      await rename(temporary, sourcePath)
+    } catch (error) {
+      await file.close()
+      await rm(temporary, { force: true })
+      throw error
+    }
+    return { format: 'csv', sourcePath, columnMap: Object.fromEntries(columns.map(column => [column, column])), defaults: {} }
+  }
 
   private async service(): Promise<SeatService | undefined> {
     if (this.ctx.invocation?.peer.principal.kind !== 'owner') {

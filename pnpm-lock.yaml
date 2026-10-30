@@ -5654,6 +5654,9 @@ importers:
       '@panedesk/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../../api/session-controller
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../connection
       '@panedesk/dsh-client-locale':
         specifier: workspace:*
         version: link:../locale
@@ -5690,9 +5693,21 @@ importers:
       '@panedesk/dsh-seat':
         specifier: workspace:*
         version: link:../../seat/seat
+      '@panedesk/dsh-seat-local':
+        specifier: workspace:*
+        version: link:../../seat/seat-local
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@panedesk/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@panedesk/dsh-storage-json':
+        specifier: workspace:*
+        version: link:../../storage/storage-json
       '@panedesk/dsh-util-crypto':
         specifier: workspace:*
         version: link:../../util/crypto

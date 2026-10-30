@@ -1,5 +1,5 @@
 /** Owner-authorized seat facts shared by the Host projection and its Client resource. */
-import type { OpenSeatResult, SeatBinding, SeatDefinition, SeatName, SeatNodeStatus, SeatOperationId, SeatRejected, SeatWindowView } from '@panedesk/dsh-seat/types'
+import type { OpenSeatResult, SeatBinding, SeatDefinition, SeatImportPlan, SeatImportRow, SeatName, SeatNodeStatus, SeatOperationId, SeatRejected, SeatWindowView } from '@panedesk/dsh-seat/types'
 
 /** Read-only projection; missing providers are explicit rather than an empty ready catalog. */
 export interface SeatOverview {
@@ -22,6 +22,22 @@ export interface SeatUiOpenRequest {
   expectedSeatRevision: number
   /** Exact registered directory chosen by the owner; absent uses the profile startup directory. */
   startupDirectory?: string
+}
+
+/** Import fields consumed by the confirmation UI; other wire fields remain with the seat provider. */
+export type SeatAddPlan = Pick<SeatImportPlan, 'planId' | 'baseRevision'> & {
+  rows: readonly (Pick<SeatImportRow, 'row' | 'action'> & { diagnostics: readonly unknown[] })[]
+}
+
+/** Four user-entered values plus the selected configured model route. */
+export interface SeatAddRequest {
+  name: string
+  directory: string
+  provider: string
+  model: string
+  opening: string
+  /** Advertised default effort; absent selects the provider's non-reasoning setting. */
+  reasoningEffort?: string
 }
 
 /** Shared provider result, including a draft that must not be sent automatically. */

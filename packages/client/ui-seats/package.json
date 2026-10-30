@@ -25,6 +25,11 @@
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-seat-local": "workspace:*",
+    "@panedesk/dsh-storage": "workspace:*",
+    "@panedesk/dsh-storage-domain": "workspace:*",
+    "@panedesk/dsh-storage-json": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-working-directory": "workspace:*",
     "@panedesk/dsh-client-store": "workspace:*",
