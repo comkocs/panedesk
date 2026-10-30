@@ -2076,7 +2076,14 @@
           "packages/client/ui-conversation/src/client/skeleton/ConversationHeader.tsx",
           "packages/client/ui-sidebar/src/client/contract/slots.ts",
           "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
-          "packages/client/ui-seats/tests/apply.client.spec.ts"
+          "packages/client/ui-seats/tests/apply.client.spec.ts",
+          "packages/client/ui-conversation/tests/apply-wiring.client.spec.tsx",
+          "packages/client/ui-sidebar/src/client/index.ts",
+          "packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap",
+          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "tsconfig.base.json",
+          "tsconfig.client.json",
+          "tsconfig.host.json"
         ],
         "test": "restores each slot contribution after declaration reload and removes slots, resources and listeners on unload"
       }
@@ -2092,7 +2099,9 @@
           "packages/seat/seat-gates/src/policies.ts",
           "packages/seat/seat-gates/src/consumers.ts",
           "packages/seat/seat-gates/src/events.ts",
-          "packages/seat/seat-gates/tests/consumers.spec.ts"
+          "packages/seat/seat-gates/tests/consumers.spec.ts",
+          "packages/api/remotes/src/client/index.ts",
+          "packages/api/remotes/tests/remote-events.host.spec.ts"
         ],
         "test": "checks bound-seat destinations against its own memory roots and emits a coded refusal"
       }
@@ -2141,7 +2150,18 @@
           "packages/client/ui-seat-approvals/src/client/index.ts",
           "packages/client/ui-seat-approvals/src/client/panel.tsx",
           "packages/bundle/web-app/cordis.patch.yml",
-          "packages/client/ui-seat-approvals/tests/approval.host.spec.ts"
+          "packages/client/ui-seat-approvals/tests/approval.host.spec.ts",
+          "docs/capability-seams.i18n.yaml",
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "packages/bundle/web-app/README.i18n.yaml",
+          "packages/bundle/web-app/README.md",
+          "packages/bundle/web-app/README.zh.md",
+          "packages/bundle/web-app/package.json",
+          "packages/test-support/client-runtime/src/assembly/remote-default-responses.ts",
+          "packages/test-support/client-runtime/src/assembly/test-client.ts",
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts"
         ],
         "test": "records version-bound approval and observes actual opening instead of inventing a receipt"
       }
@@ -2175,7 +2195,12 @@
           "packages/session/tool-seat-messages/src/tools.ts",
           "packages/session/tool-seat-messages/tests/messages.spec.ts",
           "packages/session/message-delivery-local/src/arbitrator.ts",
-          "packages/core/agent-loop/src/agent.ts"
+          "packages/core/agent-loop/src/agent.ts",
+          "docs/tool-catalog.i18n.yaml",
+          "docs/tool-catalog.md",
+          "docs/tool-catalog.zh.md",
+          "scripts/gen-tool-catalog.ts",
+          "scripts/product-package-policy.ts"
         ],
         "test": "wakes an idle recipient, injects at the busy tool boundary, and records delivery and reading"
       }
@@ -2253,7 +2278,18 @@
           "packages/shell/bash-local/src/index.ts",
           "packages/shell/bash-sandbox/src/index.ts",
           "packages/bundle/base/cordis.patch.yml",
-          "packages/shell/bash-local/tests/bash-path.spec.ts"
+          "packages/shell/bash-local/tests/bash-path.spec.ts",
+          "packages/bundle/base/README.i18n.yaml",
+          "packages/bundle/base/README.md",
+          "packages/bundle/base/README.zh.md",
+          "packages/bundle/base/tests/base.spec.ts",
+          "packages/shell/bash-local/README.i18n.yaml",
+          "packages/shell/bash-local/README.md",
+          "packages/shell/bash-local/README.zh.md",
+          "packages/shell/bash-sandbox/README.i18n.yaml",
+          "packages/shell/bash-sandbox/README.md",
+          "packages/shell/bash-sandbox/README.zh.md",
+          "packages/shell/bash-sandbox/tests/sandbox.spec.ts"
         ],
         "test": "passes %s verbatim as the executable"
       }
@@ -2302,7 +2338,21 @@
           "native/system/packages/win32-arm64/package.json",
           "native/system/packages/win32-x64/package.json",
           "packages/host/host-admin/src/windows-private-files-system.ts",
-          "packages/host/host-admin/tests/windows-private-files.spec.ts"
+          "packages/host/host-admin/tests/windows-private-files.spec.ts",
+          ".github/workflows/node-addon-system-release.yml",
+          ".github/workflows/node-addon-system.yml",
+          "native/system/README.i18n.yaml",
+          "native/system/README.md",
+          "native/system/README.zh.md",
+          "native/system/docs/support-matrix.md",
+          "native/system/packages/entry/README.i18n.yaml",
+          "native/system/packages/entry/README.md",
+          "native/system/packages/entry/README.zh.md",
+          "native/system/scripts/github-matrix.mjs",
+          "native/system/scripts/pack-release.mjs",
+          "native/system/scripts/repo.mjs",
+          "native/system/scripts/verify-packed-install.mjs",
+          "scripts/check-workspace-constraints.ts"
         ],
         "test": "secures empty objects before writing and preserves owner-only replacement and locks"
       }
@@ -2336,7 +2386,12 @@
           "packages/subagent/subagent/src/types.ts",
           "packages/subagent/subagent/src/manager.ts",
           "packages/subagent/tool-subagent/src/index.ts",
-          "packages/subagent/subagent/tests/root-admission.spec.ts"
+          "packages/subagent/subagent/tests/root-admission.spec.ts",
+          "docs/subsystems/subagent.md",
+          "docs/subsystems/subagent.zh.md",
+          "packages/subagent/tool-subagent/README.i18n.yaml",
+          "packages/subagent/tool-subagent/README.md",
+          "packages/subagent/tool-subagent/README.zh.md"
         ],
         "test": "runs sixteen fake-model children and queues the seventeenth while composing another admission provider"
       }
@@ -2370,7 +2425,16 @@
           "packages/subagent/subagent/src/manager.ts",
           "packages/session/session-persistence/src/index.ts",
           "packages/session/session-persistence-jsonl/src/index.ts",
-          "packages/subagent/subagent/tests/queue-journal.spec.ts"
+          "packages/subagent/subagent/tests/queue-journal.spec.ts",
+          "docs/subsystems/persistence.i18n.yaml",
+          "docs/subsystems/persistence.md",
+          "docs/subsystems/persistence.zh.md",
+          "packages/session/session-persistence-jsonl/README.i18n.yaml",
+          "packages/session/session-persistence-jsonl/README.md",
+          "packages/session/session-persistence-jsonl/README.zh.md",
+          "packages/session/session-persistence/README.i18n.yaml",
+          "packages/session/session-persistence/README.md",
+          "packages/session/session-persistence/README.zh.md"
         ],
         "test": "records one restart cancellation and one model-visible notice across three cold restores without child ledger starts"
       }
@@ -2405,7 +2469,13 @@
           "packages/context/agent-instructions/src/files.ts",
           "packages/context/agent-instructions/src/index.ts",
           "packages/context/agent-instructions/src/state.ts",
-          "packages/seat/seat-gates/tests/instruction-roots-composition.spec.ts"
+          "packages/seat/seat-gates/tests/instruction-roots-composition.spec.ts",
+          "packages/context/agent-instructions/README.i18n.yaml",
+          "packages/context/agent-instructions/README.md",
+          "packages/context/agent-instructions/README.zh.md",
+          "packages/context/agent-instructions/package.json",
+          "packages/context/agent-instructions/tests/agent-instructions.spec.ts",
+          "packages/context/agent-instructions/tsconfig.json"
         ],
         "test": "loads and refreshes three additional-root instruction files for the bound session"
       }
@@ -2425,7 +2495,20 @@
           "packages/subagent/subagent/src/manager.ts",
           "packages/subagent/subagent/src/continuation-messages.ts",
           "packages/seat/seat-gates/tests/completion-wake-composition.spec.ts",
-          "packages/jobs/jobs-local/tests/seat-notification.spec.ts"
+          "packages/jobs/jobs-local/tests/seat-notification.spec.ts",
+          "docs/persistence-catalog.i18n.yaml",
+          "docs/persistence-catalog.md",
+          "docs/persistence-catalog.zh.md",
+          "docs/persistence-schema.json",
+          "docs/subsystems/jobs.md",
+          "docs/subsystems/jobs.zh.md",
+          "packages/jobs/jobs-local/README.i18n.yaml",
+          "packages/jobs/jobs-local/README.md",
+          "packages/jobs/jobs-local/README.zh.md",
+          "packages/jobs/jobs/README.i18n.yaml",
+          "packages/jobs/jobs/README.md",
+          "packages/jobs/jobs/README.zh.md",
+          "packages/subagent/subagent/tests/continuation-messages.spec.ts"
         ],
         "test": "includes reported paths and intact stream files only when completion hints are enabled"
       }
@@ -2456,7 +2539,10 @@
       "match": {
         "type": "test-assertion",
         "paths": [
-          "packages/schedule/schedule/tests/serial-delivery.spec.ts"
+          "packages/schedule/schedule/tests/serial-delivery.spec.ts",
+          "packages/schedule/schedule/README.i18n.yaml",
+          "packages/schedule/schedule/README.md",
+          "packages/schedule/schedule/README.zh.md"
         ],
         "test": "restores a cold session and starts two fixed-rate turns on the real host clock"
       }
@@ -2536,14 +2622,14 @@
       "description": "Pin the default Web queue's exact additions to the upstream PTC prompt.",
       "origin": "Product delegation defaults",
       "reason": "The assembled Web profile keeps product delegation enabled and compares the complete upstream prompt plus the declared queue fields, while explicitly checking depth three and root overflow queuing.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/subagent-default.expected.e2e.ts", "snapshots/subagent-default.ts"], "test": "the default web subagent queue adds only queue result fields to the upstream prompt" }
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/subagent-default.expected.e2e.ts", "snapshots/subagent-default.ts", "apps/web/tsconfig.json"], "test": "the default web subagent queue adds only queue result fields to the upstream prompt" }
     },
     {
       "id": "subagent-control-queue-schema-capability",
       "description": "Expose queue result metadata only when root overflow queuing is enabled.",
       "origin": "Subagent control tools",
       "reason": "The queue extension previously changed upstream list_agents schemas even with overflow rejection. Conditional schema composition now preserves the upstream prompt when disabled; queue rendering tests explicitly enable the capability.",
-      "match": { "type": "test-assertion", "paths": ["packages/subagent/tool-subagent-control/src/list-agents.ts", "packages/subagent/tool-subagent-control/tests/list-agents.spec.ts"], "test": "adds queue counts, oldest time and positions" }
+      "match": { "type": "test-assertion", "paths": ["packages/subagent/tool-subagent-control/src/list-agents.ts", "packages/subagent/tool-subagent-control/tests/list-agents.spec.ts", "packages/subagent/tool-subagent-control/README.i18n.yaml", "packages/subagent/tool-subagent-control/README.md", "packages/subagent/tool-subagent-control/README.zh.md"], "test": "adds queue counts, oldest time and positions" }
     },
     {
       "id": "shell-composition-empty-environment",
@@ -2585,7 +2671,7 @@
       "description": "Serialize Workspace-targeted Session creation and attachment with registration deletion.",
       "origin": "Workspace lifecycle concurrency",
       "reason": "A Session creation previously retained an entity while deletion could remove its durable record before attachment. The existing registry mutation queue now owns the complete creation and attachment callback, so an earlier creation finishes before deletion and an earlier deletion rejects creation before Agent side effects. Existing browser error assertions remain unchanged.",
-      "match": { "type": "test-assertion", "paths": ["packages/workspace/workspace/src/index.ts", "packages/api/session-controller/src/commands.ts", "packages/api/session-controller/tests/commands-create-fork.host.spec.ts", "packages/api/session-controller/tests/session-presets.host.spec.ts"], "test": "reuses a deleted title for a different new directory without any transient error surface" }
+      "match": { "type": "test-assertion", "paths": ["packages/workspace/workspace/src/index.ts", "packages/api/session-controller/src/commands.ts", "packages/api/session-controller/tests/commands-create-fork.host.spec.ts", "packages/api/session-controller/tests/session-presets.host.spec.ts", "docs/subsystems/workspace.md", "docs/subsystems/workspace.zh.md", "packages/api/session-controller/README.i18n.yaml", "packages/api/session-controller/README.md", "packages/api/session-controller/README.zh.md", "packages/workspace/workspace/README.i18n.yaml", "packages/workspace/workspace/README.md", "packages/workspace/workspace/README.zh.md"], "test": "reuses a deleted title for a different new directory without any transient error surface" }
     },
     {
       "id": "queue-journal-catalog-notification-state",
