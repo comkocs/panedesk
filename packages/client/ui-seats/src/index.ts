@@ -158,8 +158,9 @@ export default class SeatUi extends TypertRemoteService {
     }
     const [identity, catalog] = await Promise.all([readIdentity(), readCatalog()])
     const node = await this.ctx.get('seatEngine')?.nodeStatus()
-    const diagnostics = node?.failure || node?.openingFailures?.length
-      ? { ...(node.failure ? { engine: node.failure } : {}), openings: node.openingFailures ?? [] } : undefined
+    const diagnostics = node?.failure || node?.openingFailures?.length || node?.callbackFailures?.length
+      ? { ...(node.failure ? { engine: node.failure } : {}), openings: node.openingFailures ?? [],
+        ...(node.callbackFailures?.length ? { callbacks: node.callbackFailures } : {}) } : undefined
     return { ...catalog, ...identity, ...(diagnostics ? { diagnostics } : {}) }
   }
 

@@ -685,6 +685,12 @@ export interface SeatNodeStatus {
     /** Present after the continuous unavailable interval exceeds ten minutes; cleared with the failure. */
     unavailableOverTenMinutes?: true
   }
+  /** Issuer refusals parked without effects; leaving the parked state clears the diagnostic, not audit facts. */
+  callbackFailures?: readonly {
+    callbackId: CallbackId
+    seat: SeatName
+    code: 'unauthorized'
+  }[]
   /** Latest prerequisite failure per seat; successful opening or model readmission clears the diagnostic, not audit facts. */
   openingFailures?: readonly {
     sessionId: SessionId

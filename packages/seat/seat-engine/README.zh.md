@@ -27,7 +27,7 @@ kind: "package-reference"
 
 通过 `failureRecovery: { retryInitialMs: 1000 }` 显式启用运行时失败监督；省略时保留状态锁存与既有调度。初始延迟必须是 1 至 300000 毫秒的整数。已知传输码（`ETIMEDOUT`、`ECONNRESET`、`ECONNREFUSED`、`EPIPE`、`node-tunnel-disconnected`、`node-deadline-exceeded`、`callback-timeout`）按指数退避重试，上限五分钟。只有包含回调结算与决定通知的完整 drive 成功，才清除可重试失败。决定监听器可能再次收到同一个已提交决定，必须按其身份去重副作用。监听失败不回滚已提交决定。监听器发起的写入在提交后返回，不等待自身通知；串行发布器在当前监听器结束后继续发布这些决定。通知之外的并发调用仍等待发布器。回调重试保留既有载荷、键与未知结果查询屏障。
 
-路由回调监督保留观测阶段、重试许可与业务效果界限。`unavailable` 拒绝仅在明确给出 `retryable: true` 且 `effectState: none` 时重试，包括路由服务或签发器暂缺。`cross-node-unsupported` 仅在 peer-query 或 peer-dispatch 阶段带有 `peer-capability-missing`、明确重试许可且无效果时重试；不放宽准入及方法拒绝。部分生效、已提交、未知或缺失的效果证据均不授权自动重放；诊断不能弱化返回结果的效果界限。即使提供方标记可重试，状态及协议冲突和未登记码仍保持停止。仅携带异常的持久化失败不会被重分类为路由暂缺。本地来源缺席仅在注册处尚未进入回调便拒绝时重试；适配器内部抛出的同码不能证明无效果。这些观测仅进入日志，不新增持久字段或改变节点状态字段。
+路由回调监督保留观测阶段、重试许可与业务效果界限。`unavailable` 拒绝仅在明确给出 `retryable: true` 且 `effectState: none` 时重试，包括路由服务或签发器暂缺。`cross-node-unsupported` 仅在 peer-query 或 peer-dispatch 阶段带有 `peer-capability-missing`、明确重试许可且无效果时重试；不放宽准入及方法拒绝。部分生效、已提交、未知或缺失的效果证据均不授权自动重放；诊断不能弱化返回结果的效果界限。即使提供方标记可重试，状态及协议冲突和未登记码仍保持停止。仅携带异常的持久化失败不会被重分类为路由暂缺。本地来源缺席仅在注册处尚未进入回调便拒绝时重试；适配器内部抛出的同码不能证明无效果。签发器阶段的 `unauthorized` 拒绝在确认无效果且无身份冲突时，仅将该回调停车等待操作员处置，不停止引擎，也不阻断独立链上的其他回调；同链顺序仍保留。`node.status.callbackFailures` 投影这些停车拒权，供所有者即时告警。恢复原账号后，使用既有 `engine.callbackResolve` 恢复或放弃；退出停车态后清除告警，不删除审计事实。路由服务暂缺仍可重试；效果歧义、身份冲突及持久化失败保留既有监督。
 
 账本争用仅在 `LEDGER_UNAVAILABLE` 带有 `lockTimeoutCode: LEDGER_LOCK_TIMEOUT` 时重试；该标记在写事务开始前设置，并穿过账本包装。写入及同步失败保留既有分类。重试保留原开窗与消息身份。运行时失败变化及已提交决定发布不带正文的诊断失效通知；`node.status.openingFailures` 投影每个工位最近的未创建失败，直到后续成功开窗，不将失败意图当作 Session。缺预设失败保留 `details.agentPreset`，供所有者本地化报告。模型配置拒绝保留 `details.provider` 与 `details.model`，也显示于 `openingFailures`，但不把已有 Session 声称为不存在。
 

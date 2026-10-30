@@ -12,7 +12,11 @@ export interface SeatOverview {
   /** An isolated read failure permits retaining previously verified identity in the same open resource. */
   identityStatus?: 'failed'
   /** Owner-only failures independent of dispatchable Session windows; absence clears prior diagnostics. */
-  diagnostics?: { engine?: SeatNodeStatus['failure']; openings: NonNullable<SeatNodeStatus['openingFailures']> }
+  diagnostics?: {
+    engine?: SeatNodeStatus['failure']
+    openings: NonNullable<SeatNodeStatus['openingFailures']>
+    callbacks?: SeatNodeStatus['callbackFailures']
+  }
 }
 
 /** Manual opening accepts no caller-supplied authority or opening mode. */
