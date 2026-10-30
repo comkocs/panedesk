@@ -98,7 +98,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 <a id="callback-parking-and-operator-resolution"></a>
 ### 回调停车与操作员处置
 
-本机来源异常使用 `lastDiagnostic.stage=local-dispatch`，固定 `cause.code` 为 `callback-unclassified-error`、`callback-timeout`、`callback-authentication-failed` 或 `callback-protocol-error`。不保存异常消息、堆栈或嵌套原因；未分类异常与超时保守报告副作用未知。关联标识先取持久路由操作号，再取开窗操作号，否则以 `callback/` 拼接规范化回调标识的 SHA-256 摘要；无会话回调也使用此规则。
+本机来源缺席且在进入适配器前被拒绝时，若此前每次尝试也均已确认无效果，则持久保存 `lastDiagnostic.stage=retained` 与 `effectState=none`。反复缺源不会把该证据变成未知；随后明确无效果的认证拒绝仍仅影响该回调。先前部分、已提交、未知或缺失的效果证据继续保守保留，来源缺席和重启也不例外。本机来源异常使用 `lastDiagnostic.stage=local-dispatch`，固定 `cause.code` 为 `callback-unclassified-error`、`callback-timeout`、`callback-authentication-failed` 或 `callback-protocol-error`。不保存异常消息、堆栈或嵌套原因；未分类异常与超时保守报告副作用未知。关联标识先取持久路由操作号，再取开窗操作号，否则以 `callback/` 拼接规范化回调标识的 SHA-256 摘要；无会话回调也使用此规则。
 
 每段连续 transient 的内建墙钟上限为 900000 ms，起点是首个已提交 `callback/attempted` 帧的 `observedAt`。重启、离线及暂态细码变化不重置；成功、认证、协议及最终 unknown 中断，attempt 未递增的发前 unknown 屏障既不起段也不断段。在 `nextDue` 与外部 I/O 前检查，调用完成后再核；成功优先于到限。I/O 前停车只追加一帧 attempted 转换，attempt 不变；实际调用后则在该次唯一 attempted 帧递增 attempt 并直接记录停车，不另写转换帧。两者均为 `phase=paused`、`nextDue=null`；保持停车期间，后续 drive 和重启对该回调零新帧。此规则独立于重试退避配置及开窗前保留注册。
 

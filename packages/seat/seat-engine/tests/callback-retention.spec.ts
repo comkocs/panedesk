@@ -6,6 +6,8 @@ import { SourceRegistry } from '../src/sources.ts'
 import { digest, EngineError, frame } from '../src/journal.ts'
 import { fact } from '../src/triggers.ts'
 import { config, harness, nodeId, seat, sourceId } from './fixtures.ts'
+import { composition } from './composition-fixture.ts'
+import { SeatEngine } from '../src/engine.ts'
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => {
@@ -137,6 +139,106 @@ test('does not erase earlier unknown effects with a later callback authenticatio
   expect(h.outbox.hasFailedDelivery()).toBe(true)
   expect((await h.engine.nodeStatus()).callbackFailures).toBeUndefined()
 })
+
+test.each([
+  { missing: 1, uncertain: false, accepted: false },
+  { missing: 2, uncertain: false, accepted: false },
+  { missing: 1, uncertain: false, accepted: true },
+  { missing: 0, uncertain: true, accepted: false },
+  { missing: 1, uncertain: true, accepted: false },
+])('retains callback effect evidence through Loader recovery: %j', async ({ missing, uncertain, accepted }) => {
+  const f = await composition(false, { engineConfig: { failureRecovery: { retryInitialMs: 1000 } } })
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now())
+  const changed = vi.fn()
+  const disposeChanged = f.ctx.on('seat/diagnostics-changed', changed)
+  const sent: T.CallbackId[] = []
+  const initialEngine = f.ctx.seatEngine
+  if (!(initialEngine instanceof SeatEngine)) throw new Error('Missing production engine')
+  let engine: SeatEngine = initialEngine
+  const payload: T.SeatCallbackPayload = { kind: 'opened', callbackId: 'recovered-callback' as T.CallbackId,
+    sourceId, triggerId: 'recovered-trigger' as T.TriggerId, stateVersion: 1, seat, title: 'Retained callback',
+    sessionId: 'recovered-session' as NonNullable<T.SeatCallbackPayload['sessionId']>,
+    nodeId: engine.journal.nodeId, nodeName: 'node-a', budget: {}, relatedTaskIds: [] }
+  const other = { ...payload, callbackId: 'independent-callback' as T.CallbackId, triggerId: 'independent-trigger' as T.TriggerId }
+  const reload = async () => {
+    const entry = [...f.ctx.loader.entries()].find(item => item.options.name === 'cordis:engine')
+    if (!entry) throw new Error('Missing engine entry')
+    await entry.update({ disabled: true })
+    await f.ctx.loader.await()
+    await entry.update({ disabled: false })
+    await f.ctx.loader.await()
+    const restored = f.ctx.seatEngine
+    if (!(restored instanceof SeatEngine)) throw new Error('Missing restored engine')
+    await restored.ready()
+    return restored
+  }
+  try {
+    await engine.journal.commit(() => [payload, other].map(item => fact({ kind: 'callback/pending', data: {
+      payload: item, payloadDigest: digest(item), attempt: 0, phase: 'pending', nextDue: null, responseClass: null } })))
+    if (uncertain) {
+      const dispose = engine.registerSource({ sourceId, kinds: ['external'], maxRedeliveryMs: null,
+        callback: async (input) => { sent.push(input.callbackId); throw new Error('Uncertain delivery') } })
+      await engine.drive()
+      expect(await engine.nodeStatus()).toMatchObject({ engine: 'unavailable', failure: { retryable: false } })
+      expect(engine.journal.projection.callbacks.get(payload.callbackId)?.lastDiagnostic?.cause.effectState).toBe('unknown')
+      await dispose()
+      clock.mockReturnValue(Date.now() + 1000)
+      engine = await reload()
+    }
+    for (let index = 0; index < missing; index++) {
+      await engine.drive()
+      expect((await engine.nodeStatus()).failure).toMatchObject({ code: 'source-not-found' })
+      expect(sent).toEqual(uncertain ? [payload.callbackId] : [])
+      clock.mockReturnValue(Date.now() + 2000)
+      if (uncertain) engine = await reload()
+    }
+    const prior = engine.journal.projection.callbacks.get(payload.callbackId)
+    const dispose = engine.registerSource({ sourceId, kinds: ['external'], maxRedeliveryMs: null, callback: async (input) => {
+      sent.push(input.callbackId)
+      if (input.callbackId === payload.callbackId && !accepted) {
+        throw Object.assign(new EngineError('callback-authentication-failed', 'Refused'), { effectState: 'none' })
+      }
+    } })
+    changed.mockClear()
+    await engine.drive()
+    if (uncertain) {
+      expect(await engine.nodeStatus()).toMatchObject({ engine: 'unavailable', failure: {
+        code: 'callback-authentication-failed', retryable: false } })
+      expect(engine.journal.projection.callbacks.get(payload.callbackId)).toMatchObject({ phase: 'paused',
+        lastDiagnostic: { cause: { effectState: 'unknown' } } })
+      expect(sent).toEqual([payload.callbackId, payload.callbackId])
+      expect(log.mock.calls.flat().join('\n')).toContain('stop-and-restart-after-repair')
+    } else {
+      expect(await engine.nodeStatus()).toMatchObject({ engine: 'running' })
+      expect((await engine.nodeStatus()).failure).toBeUndefined()
+      expect(prior).toMatchObject({ attempt: missing, lastDiagnostic: { stage: 'retained', cause: { effectState: 'none' } } })
+      expect(sent).toEqual([payload.callbackId, other.callbackId])
+      expect(engine.journal.projection.callbacks.get(other.callbackId)?.phase).toBe('delivered')
+      if (accepted) {
+        expect(engine.journal.projection.callbacks.get(payload.callbackId)?.phase).toBe('delivered')
+      } else {
+        expect(await engine.nodeStatus()).toMatchObject({ callbackFailures: [
+          { callbackId: payload.callbackId, seat, code: 'callback-authentication-failed' },
+        ] })
+        expect(engine.journal.projection.callbacks.get(payload.callbackId)).toMatchObject({ phase: 'paused',
+          attempt: missing + 1, nextDue: null, lastDiagnostic: { cause: { effectState: 'none' } } })
+        expect(changed).toHaveBeenCalled()
+        const request: T.CallbackResolveRequest = { callbackId: payload.callbackId, expectedAttempt: missing + 1, action: 'abandon' }
+        const entry = engine.authorizationIssuers.register({ identity: { kind: 'local-operator', origin: 'manual',
+          nodeId: engine.journal.nodeId, principalId: 'operator' as T.SeatPrincipalId, taskIds: [], policyRevision: 1 },
+        current: () => ({ decision: 'allowed', reasonCode: 'operator', policyRevision: 1 }) })
+        try {
+          const grant = await entry.issuer.check({ operationId: 'abandon-retained-callback' as T.SeatOperationId, requestDigest: digest(request) })
+          if ('status' in grant) throw new Error('Operator refused')
+          expect(await engine.callbackResolve(request, grant)).toMatchObject({ status: 'ok', phase: 'abandoned' })
+          expect((await engine.nodeStatus()).callbackFailures).toBeUndefined()
+        } finally { entry.dispose() }
+      }
+    }
+    await dispose()
+  } finally { disposeChanged(); clock.mockRestore(); log.mockRestore(); await f.close() }
+}, 20000)
 
 test('records a fixed timeout with unknown effects after an adapter settles', async () => {
   const h = await fixture()

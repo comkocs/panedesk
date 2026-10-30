@@ -172,11 +172,14 @@ export class CallbackOutbox {
         if (!delivery.nodeWorkChain && responseClass === 'authentication') {
           const effect = error !== null && typeof error === 'object' && 'effectState' in error ? error.effectState : undefined
           const effectState = effect === 'none' || effect === 'partial' || effect === 'committed' ? effect : 'unknown'
-          // A later refusal cannot erase an earlier attempt's uncertain business effects.
+          observation = { phase: 'local-dispatch', retryable: false, effectState }
+        }
+        if (!delivery.nodeWorkChain && observation) {
+          // A no-effect attempt cannot erase an earlier attempt's uncertain business effects.
           const retained = delivery.lastDiagnostic?.cause.effectState
-          observation = { phase: 'local-dispatch', retryable: false,
-            effectState: delivery.attempt > 0 && retained !== 'none' ? retained ?? 'unknown' : effectState }
-          diagnostic = { ...diagnostic, cause: { ...diagnostic.cause, effectState: observation.effectState } }
+          if (delivery.attempt > 0 && retained !== 'none') observation.effectState = retained ?? 'unknown'
+          diagnostic = { ...diagnostic, stage: observation.phase,
+            cause: { ...diagnostic.cause, effectState: observation.effectState } }
         }
       }
       if (delivery.nodeWorkChain && responseClass === 'transient'
