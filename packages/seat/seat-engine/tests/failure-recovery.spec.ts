@@ -45,6 +45,15 @@ it('backs off only ledger lock acquisition timeouts and resumes the retained ope
   } finally { await h.close() }
 })
 
+it.each(['invalid-definition', 'ETIMEDOUT'])('reads only the nested definition code without widening retry supervision: %s', (code) => {
+  const failures = new EngineFailures(1000, () => {})
+  try {
+    failures.record('scheduled-drive', Object.assign(new Error('Local refusal'), { failure: { code } }))
+    expect(failures.snapshot()).toMatchObject({ code: code === 'invalid-definition' ? code : 'unclassified-error', retryable: false })
+    expect(failures.runnable()).toBe(false)
+  } finally { failures.close() }
+})
+
 it('bounds owner-release retries and reports exhaustion without an endless retry loop', () => {
   vi.useFakeTimers()
   const log = vi.fn(), changed = vi.fn()

@@ -57,6 +57,11 @@ it('pauses a receipt rejected with 401 authentication failure', async () => {
     expect(f.delivery()?.responseClass).toBe('authentication')
     await f.engine.drive()
     expect(f.receipts).toHaveLength(1)
+    const payload = f.delivery()?.payload
+    if (!payload) throw new Error('Missing callback payload')
+    await expect(f.callback(payload)).rejects.toMatchObject({ code: 'callback-authentication-failed', effectState: 'none' })
+    expect(f.delivery()?.lastDiagnostic?.cause.effectState).toBe('none')
+    expect(await f.engine.nodeStatus()).toMatchObject({ engine: 'running' })
   } finally { await f.close() }
 }, 20000)
 

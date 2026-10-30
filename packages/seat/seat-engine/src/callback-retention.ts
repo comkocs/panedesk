@@ -75,9 +75,11 @@ export function callbackDiagnostic(view: EngineProjection, delivery: T.SeatCallb
  */
 export function resolvedCallback(view: EngineProjection, delivery: T.SeatCallbackDelivery,
   action: 'resume' | 'abandon', now: number, automatic = false): T.SeatCallbackDelivery {
+  const diagnostic = callbackDiagnostic(view, delivery, automatic ? 'callback-auto-resumed-on-link-ready'
+    : action === 'resume' ? 'callback-manually-resumed' : 'callback-manually-abandoned', 'retained', action === 'resume')
+  if (delivery.lastDiagnostic?.cause.code === 'callback-authentication-failed'
+    && delivery.lastDiagnostic.cause.effectState === 'none') diagnostic.cause.effectState = 'none'
   return { ...delivery, phase: action === 'resume' ? 'retry-due' : 'abandoned',
     nextDue: action === 'resume' ? new Date(now).toISOString() : null,
-    responseClass: action === 'resume' ? 'transient' : delivery.responseClass,
-    lastDiagnostic: callbackDiagnostic(view, delivery, automatic ? 'callback-auto-resumed-on-link-ready'
-      : action === 'resume' ? 'callback-manually-resumed' : 'callback-manually-abandoned', 'retained', action === 'resume') }
+    responseClass: action === 'resume' ? 'transient' : delivery.responseClass, lastDiagnostic: diagnostic }
 }

@@ -10,7 +10,7 @@ import type * as T from '@panedesk/dsh-seat'
 import { EngineJournal, EngineError, digest, decodeFrame, canonical, frame } from './journal.ts'
 import { SourceRegistry } from './sources.ts'
 import { TriggerRegistry, rejected, fact, reminderEffects } from './triggers.ts'
-import { CallbackOutbox, isParkedIssuerRefusal } from './outbox.ts'
+import { CallbackOutbox, isParkedAuthenticationRefusal } from './outbox.ts'
 import { effectiveMode, reserveOpen } from './admission.ts'
 import { externalRuleMiss, triggerRule } from './rules.ts'
 import { accountUsage, budgetLevel, projectBudget } from './budget.ts'
@@ -506,13 +506,19 @@ export class SeatEngine extends SeatEngineService {
     this.executor = executor
     return async () => { if (this.executor === executor) this.executor = undefined; await this.activeDrive }
   }
-  nodeStatus(): Promise<T.SeatNodeStatus> {
+  async nodeStatus(): Promise<T.SeatNodeStatus> {
     const failure = this.failures.snapshot()
     const latest = new Map<T.SeatName, T.EngineOpenData>()
     for (const open of this.journal.projection.opens.values()) {
       if (open.definition && (open.phase === 'active'
         || open.phase === 'opening-failed' && (open.failure?.effectState === 'none'
+          || open.failure?.code === 'invalid-definition'
           || open.failure?.details && 'model' in open.failure.details))) latest.set(open.definition.seat, open)
+    }
+    for (const [seat, open] of latest) {
+      if (open.failure?.code !== 'invalid-definition') continue
+      const definition = await this.dependencies.seats()?.resolve(seat)
+      if (definition && !('status' in definition) && canonical(definition) !== canonical(open.definition)) latest.delete(seat)
     }
     const openingFailures = [...latest.values()].flatMap(open =>
       open.phase === 'opening-failed' && open.failure && open.definition
@@ -522,8 +528,10 @@ export class SeatEngine extends SeatEngineService {
             ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : [])
     const diagnostics = [...openingFailures, ...[...this.liveModelFailures.values()].filter(failure =>
       this.journal.projection.opens.get(failure.sessionId)?.phase === 'active')]
-    const callbackFailures = [...this.journal.projection.callbacks.values()].filter(isParkedIssuerRefusal)
-      .map(delivery => ({ callbackId: delivery.payload.callbackId, seat: delivery.payload.seat, code: 'unauthorized' as const }))
+    const callbackFailures = [...this.journal.projection.callbacks.values()].filter(isParkedAuthenticationRefusal)
+      .map(delivery => ({ callbackId: delivery.payload.callbackId, seat: delivery.payload.seat,
+        code: delivery.lastDiagnostic?.cause.code === 'callback-authentication-failed'
+          ? 'callback-authentication-failed' as const : 'unauthorized' as const }))
     return Promise.resolve({ nodeId: this.options.nodeId, nodeName: this.options.config.nodeName,
       engine: failure || this.stopped ? 'unavailable' : this.readyAt ? 'running' : 'recovering',
       openEngineWindows: [...this.journal.projection.resources.values()].reduce((sum, value) => sum + value.engineWindowUnits, 0),

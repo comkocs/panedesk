@@ -178,7 +178,8 @@ async function deliverCallback(ctx: Context, source: WebhookSource, engine: Seat
     void error
     throw new Error('External source callback could not complete')
   } finally { clearTimeout(timer) }
-  if (status === 401 || status === 403) throw new EngineError('callback-authentication-failed', 'External source callback authentication failed')
+  if (status === 401 || status === 403) throw Object.assign(
+    new EngineError('callback-authentication-failed', 'External source callback authentication failed'), { effectState: 'none' as const })
   if (status >= 500) throw new Error('External source callback is temporarily unavailable')
   if (oversized || status < 200 || status >= 300) throw new EngineError('callback-protocol-error', 'External source callback response violated protocol')
 }

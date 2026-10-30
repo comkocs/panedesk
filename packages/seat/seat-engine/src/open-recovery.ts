@@ -5,6 +5,18 @@ import { fact } from './triggers.ts'
 
 const configurationStages = ['workspace', 'model', 'permission', 'subscriptions', 'title', 'binding'] as const
 
+function invalidDefinition(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false
+  const failure = 'failure' in error ? error.failure : error
+  return failure !== null && typeof failure === 'object' && 'code' in failure && failure.code === 'invalid-definition'
+}
+
+function definitionFailure(open: EngineOpenData, effectState: 'none' | 'partial'): EngineOpenData {
+  return { ...open, phase: 'opening-failed', failure: { code: 'invalid-definition',
+    message: 'The seat definition is invalid; this seat could not open.',
+    alternative: 'Repair the definition and reopen this seat.', retryable: false, effectState } }
+}
+
 /** Identify durable recovery that can only query an already sent opening message.
  * @param open - Persisted opening checkpoint, including completed configuration stages.
  * @returns Whether recovery needs neither creation, configuration nor a first send.
@@ -51,9 +63,11 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     if (observed === 'absent') {
       let id: EngineOpenData['sessionId']
       try { id = await executor.create(current) } catch (error) {
-        if (error === null || typeof error !== 'object' || !('isDSHRemoteError' in error) || error.isDSHRemoteError !== true
-          || !('code' in error) || error.code !== 'agent-preset/not-found' || await executor.observe(current) !== 'absent') throw error
-        const failed: EngineOpenData = { ...(journal.projection.opens.get(current.sessionId) ?? current), phase: 'opening-failed', failure: {
+        const invalid = invalidDefinition(error)
+        if ((!invalid && (error === null || typeof error !== 'object' || !('isDSHRemoteError' in error) || error.isDSHRemoteError !== true
+          || !('code' in error) || error.code !== 'agent-preset/not-found')) || await executor.observe(current) !== 'absent') throw error
+        const retained = journal.projection.opens.get(current.sessionId) ?? current
+        const failed: EngineOpenData = invalid ? definitionFailure(retained, 'none') : { ...retained, phase: 'opening-failed', failure: {
           ...(current.definition ? { details: { agentPreset: current.definition.agentPreset } } : {}),
           code: 'open-create-failed', message: current.definition
             ? `Agent preset "${current.definition.agentPreset}" is unavailable; no Session was created.`
@@ -78,6 +92,11 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
     if (current.completedStages.includes(stage)) continue
     if (beforeEffect && !await beforeEffect()) return current
     try { await executor.configure(current, stage) } catch (error) {
+      if (invalidDefinition(error)) {
+        const failed = definitionFailure(current, 'partial')
+        await journal.commit(() => [fact({ kind: 'open/opening-failed', sessionId: failed.sessionId, data: failed })])
+        return failed
+      }
       if (stage !== 'model' || !current.definition || error === null || typeof error !== 'object'
         || !('isDSHRemoteError' in error) || error.isDSHRemoteError !== true
         || !('code' in error) || error.code !== 'session/model-unavailable') throw error
@@ -98,7 +117,13 @@ export async function reconcileOpen(journal: EngineJournal, initial: EngineOpenD
   }
   if (current.phase !== 'opening-pending') await publish('open/configured', { ...current, phase: 'opening-pending' })
   if (beforeEffect && !await beforeEffect()) return current
-  const opening = await executor.opening(current)
+  let opening: Awaited<ReturnType<SeatOpenExecutor['opening']>>
+  try { opening = await executor.opening(current) } catch (error) {
+    if (!invalidDefinition(error) || current.openingMessageId !== null) throw error
+    const failed = definitionFailure(current, 'partial')
+    await journal.commit(() => [fact({ kind: 'open/opening-failed', sessionId: failed.sessionId, data: failed })])
+    return failed
+  }
   if (opening.state === 'failed') {
     const failed: EngineOpenData = { ...current, openingMessageId: opening.messageId, phase: 'opening-failed', failure: {
       code: 'opening-failed', message: 'The original opening turn failed.', alternative: 'Inspect the existing Session before retrying.', retryable: false, effectState: 'partial' } }
