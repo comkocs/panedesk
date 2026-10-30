@@ -33,7 +33,7 @@ kind: "package-reference"
 
 `callback-authentication-failed` 拒绝只有在保留的效果证据明确为 `none` 时才仅将该回调停车。引擎和独立回调链继续运行，同链顺序不变。修复认证后，通过 `engine.callbackResolve` 恢复或放弃；恢复动作保留已确认的无效果证据，直到下次投递产生自己的结果；离开停车态后清除本地化回调告警。部分、已提交、未知或缺失效果仍按证据歧义停止受监督的驱动；后来的认证拒绝不能抹掉先前的不确定结果。
 
-账本争用仅在 `LEDGER_UNAVAILABLE` 带有 `lockTimeoutCode: LEDGER_LOCK_TIMEOUT` 时重试；该标记在写事务开始前设置，并穿过账本包装。写入及同步失败保留既有分类。重试保留原开窗与消息身份。运行时失败变化及已提交决定发布不带正文的诊断失效通知；`node.status.openingFailures` 投影每个工位最近的未创建失败，直到后续成功开窗，不将失败意图当作 Session。缺预设失败保留 `details.agentPreset`，供所有者本地化报告。模型配置拒绝保留 `details.provider` 与 `details.model`，也显示于 `openingFailures`，但不把已有 Session 声称为不存在。
+账本争用仅在 `LEDGER_UNAVAILABLE` 带有 `lockTimeoutCode: LEDGER_LOCK_TIMEOUT` 时重试；该标记在写事务开始前设置，并穿过账本包装。写入及同步失败保留既有分类。重试保留原开窗与消息身份。启用失败监督时，可重试的回合准入查询异常会登记该会话，待完整恢复轮次后重新检查；获准的排队输入无需新消息即可自动续跑，仅有被动输入仍不起回合。运行时失败变化及已提交决定发布不带正文的诊断失效通知；`node.status.openingFailures` 投影每个工位最近的未创建失败，直到后续成功开窗，不将失败意图当作 Session。缺预设失败保留 `details.agentPreset`，供所有者本地化报告。模型配置拒绝保留 `details.provider` 与 `details.model`，也显示于 `openingFailures`，但不把已有 Session 声称为不存在。
 
 未分类失败额外记录 `exception` 数组，包含异常、cause 与聚合成员的构造器名及 `name`/`code` 标识，最多四层、十六项。每个标识最多 48 个字符，仅允许 `[A-Za-z0-9._:-]`；不安全或令牌样标识省略。摘要绝不读入 message、stack、URL 或路径。它仅进入日志，不影响分类，也不扩展 `node.status` 或持久化记录。
 

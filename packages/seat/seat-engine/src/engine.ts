@@ -1372,7 +1372,16 @@ export class SeatEngine extends SeatEngineService {
       this.modelReadmissions.add(sessionId)
       await this.drive()
     }
-    const admission = await this.checkTurnAdmission(sessionId)
+    let admission: T.SeatTurnAdmission
+    try { admission = await this.checkTurnAdmission(sessionId) }
+    catch (error) {
+      if (!this.stopped && this.options.config.failureRecovery) {
+        this.failures.record('scheduled-drive', error)
+        // A failed query leaves input unclaimed; recovery must retain its original wake.
+        if (this.failures.snapshot()?.retryable) this.deferredTurns.add(sessionId)
+      }
+      throw error
+    }
     if (admission.status === 'defer') this.deferredTurns.add(sessionId)
     return admission
   }
