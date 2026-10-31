@@ -21,6 +21,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}} Now give the same explanation to a human reader. {{clock}}
 - button "Copy"
@@ -30,6 +31,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -38,4 +40,5 @@
 - button "Send message" [disabled]
 - button "2 turns 2 steps · {{throughput}} tok/s": 2 turns 2 steps{{throughput}} tok/s
 - button "15.7K tok · Cache hit 99%": 15.7K tokCache hit 99%
+- button "Cache"
 - button "6% of context used": 6%

@@ -179,6 +179,7 @@ interface FixtureWindow extends Window {
   __DSH_BOOT__?: WebBootGraph
   __ModuleLoader__?: ClientModuleLoaderTarget
   __DSH_TRANSPORT__?: { readonly rpc: RemoteMock['rpc'] }
+  __DSH_BUILD_METADATA__?: Readonly<Record<string, string>>
 }
 
 class ResizeObserverStub {
@@ -253,6 +254,7 @@ export function installAssembledBootEnv(): void {
     delete win.__DSH_BOOT__
     delete win.__ModuleLoader__
     delete win.__DSH_TRANSPORT__
+    delete win.__DSH_BUILD_METADATA__
     document.body.innerHTML = ''
     document.head.querySelectorAll('style[data-plugin]').forEach((style) => { style.remove() })
     document.title = ''
@@ -288,6 +290,17 @@ export function mountAssembledApp(options: AssembledBootOptions = {}): Assembled
   const graph = bootGraph(plugins)
   const bundles = bundleTable(graph, plugins)
   win.__DSH_BOOT__ = graph
+  const metadata: unknown = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/client/modules/lib/build-metadata.json'), 'utf8'))
+  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) throw new Error('Invalid client build metadata')
+  const buildMetadata: Record<string, string> = {}
+  for (const [name, entry] of Object.entries(metadata)) {
+    const value: unknown = entry
+    if (!['DSH_CLIENT_COMMIT_HASH', 'DSH_CLIENT_GIT_DIRTY'].includes(name) || typeof value !== 'string') {
+      throw new Error('Invalid client build metadata entry')
+    }
+    buildMetadata[name] = value
+  }
+  win.__DSH_BUILD_METADATA__ = buildMetadata
   const [facadeRow] = bootInjections(win.__DSH_BOOT__)
   if (facadeRow?.kind !== 'script') throw new Error('missing injected ModuleLoader facade row')
   ;(0, eval)(facadeRow.text)

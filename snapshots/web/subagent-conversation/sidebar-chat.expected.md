@@ -6,6 +6,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -14,4 +15,5 @@
 - button "Send message" [disabled]
 - button "1 turns 1 steps · {{throughput}} tok/s": 1 turns 1 steps{{throughput}} tok/s
 - button "7.9K tok · Cache hit 99%": 7.9K tokCache hit 99%
+- button "Cache"
 - button "6% of context used": 6%
