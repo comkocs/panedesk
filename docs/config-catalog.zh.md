@@ -573,6 +573,32 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-plugin-manager -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-project-onboarding -->
+<a id="panedeskdsh-client-ui-project-onboarding"></a>
+
+## `@panedesk/dsh-client-ui-project-onboarding`
+
+- `inject`: `settings`
+- `refs`: `Volatile` (`@panedesk/cordis`)
+- `source`: [`packages/client/ui-project-onboarding/src/index.ts:11`](../packages/client/ui-project-onboarding/src/index.ts)
+
+```ts config-catalog
+/** Product preferences, never stored inside the user's project. */
+export interface Config {
+  /** Saved opening choices keyed by absolute workspace directory in product settings. */
+  projects: Volatile<Record<string, ProjectSelection>>
+}
+
+/** Absence means remind and not yet selected; chosen records explicit confirmation. */
+export interface ProjectSelection {
+  /** Opening policy applied to matching seat projects after explicit confirmation. */
+  mode: 'off' | 'remind' | 'auto'
+  /** Whether the user explicitly confirmed this workspace choice. */
+  chosen: boolean
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-project-onboarding -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-seat-approvals -->
 <a id="panedeskdsh-client-ui-seat-approvals"></a>
 
@@ -3815,6 +3841,23 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-skill-office -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-skill-workflow-pack -->
+<a id="panedeskdsh-skill-workflow-pack"></a>
+
+## `@panedesk/dsh-skill-workflow-pack`
+
+- `inject`: `skills`
+- `source`: [`packages/skill/skill-workflow-pack/src/index.ts:11`](../packages/skill/skill-workflow-pack/src/index.ts)
+
+```ts config-catalog
+/** Resource override for packaged deployments. */
+export interface Config {
+  /** Absolute directory containing getting-started.md and the complete pack. */
+  assetRoot?: string
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-skill-workflow-pack -->
 
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-spill-local -->
 <a id="panedeskdsh-spill-local"></a>

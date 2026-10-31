@@ -2,12 +2,24 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/skill/skill-workflow-pack/README.md
+/:
+  en: 74aa2d95911cdbc7
+  zh: 87672efcc1e74185
 /bundled-workflow-pack:
   en: 935a1076c3244ca3
   zh: 1bbb7bb6536d08fa
+/bundled-workflow-pack/summary:
+  en: 671bcc930495d790
+  zh: 18f52728ff48e592
+/bundled-workflow-pack/table-of-contents:
+  en: 29fd260d67958928
+  zh: 7e805c235fdc0e48
 /bundled-workflow-pack/use-this-package:
-  en: dd8c6f1dd8bace8f
-  zh: d8ba34460f0a51bc
+  en: e70a876c21621db4
+  zh: c1c91881e9934a02
+/bundled-workflow-pack/dev-note:
+  en: f14d33ce82616b0a
+  zh: ff4f7e18d2526007
 /bundled-workflow-pack/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -25,4 +37,4 @@
   zh: ce77a60b43f47d2e
 /bundled-workflow-pack/known-limitations-and-deferred-work:
   en: 3bd73f5328c97cd7
-  zh: e47b2b664f98544b
+  zh: b6bc8977a6b0dfe5

@@ -11748,12 +11748,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface StatsCallDetail {\n    callId: LedgerCall[\'start\'][\'callId\'];\n    sessionId: LedgerCall[\'start\'][\'sessionId\'];\n    parentSessionId: NonNullable<LedgerCall[\'start\'][\'parentSessionId\']> | null;\n    seat: string;\n    window: string;\n    taskId: string | null;\n    model: string;\n    responseModelReported: NonNullable<LedgerCall[\'finish\']>[\'responseModelReported\'] | null;\n    purpose: string;\n    tokens: LedgerTokenColumns;\n    usageState: string;\n    costUsd: string | null;\n    priceVersion: string | null;\n    startedAt: number;\n    endedAt: number | null;\n    wallMs: number | null;\n    modelInFlightMs: number | null;\n    waits: NonNullable<LedgerCall[\'waitSummary\']>[\'categories\'] | null;\n    peakContextTokens: number | null;\n    compactionCount: number | null;\n    compactionTimes: readonly number[] | null;\n    endReason: string | null;\n    prefixFingerprint: string | null;\n    outputTokensPerSecond: number | null;\n}',
   },
   {
+    name: 'StatsDetailCursor',
+    declaration: 'export interface StatsDetailCursor {\n    startedAt: number;\n    nodeId: LedgerCall[\'start\'][\'nodeId\'];\n    callId: LedgerCall[\'start\'][\'callId\'];\n    asOf: number;\n}',
+  },
+  {
     name: 'StatsRange',
     declaration: 'export type StatsRange = \'today\' | \'6h\' | \'24h\' | \'72h\' | \'168h\' | \'all\';',
   },
   {
     name: 'StatsRequest',
-    declaration: 'export interface StatsRequest {\n    range: StatsRange;\n    bucket: \'hour\' | \'day\';\n    groupBy: \'seat\' | \'taskId\' | \'model\' | \'window\' | \'role\' | \'definition\';\n    seat?: string;\n    taskId?: string;\n    model?: string;\n}',
+    declaration: 'export interface StatsRequest {\n    range: StatsRange;\n    bucket: \'hour\' | \'day\';\n    groupBy: \'seat\' | \'taskId\' | \'model\' | \'window\' | \'role\' | \'definition\';\n    seat?: string;\n    taskId?: string;\n    model?: string;\n    details?: {\n        limit: number;\n        after?: StatsDetailCursor;\n    };\n}',
   },
   {
     name: 'StatsRunningLanes',
@@ -11761,7 +11765,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StatsView',
-    declaration: 'export interface StatsView {\n    asOf: number;\n    from: number | null;\n    complete: boolean;\n    queryMs: number;\n    summary: StatsAggregate;\n    cacheHitRate: LedgerHitRate;\n    keepalive: StatsAggregate;\n    runningLanes: StatsRunningLanes;\n    runningWindows: number | null;\n    alerts: number | null;\n    projects: readonly StatsAggregate[];\n    windows: readonly StatsWindow[];\n    groups: readonly StatsAggregate[];\n    models: readonly StatsAggregate[];\n    buckets: readonly StatsBucket[];\n    details: readonly StatsCallDetail[];\n}',
+    declaration: 'export interface StatsView {\n    asOf: number;\n    from: number | null;\n    complete: boolean;\n    queryMs: number;\n    summary: StatsAggregate;\n    cacheHitRate: LedgerHitRate;\n    keepalive: StatsAggregate;\n    runningLanes: StatsRunningLanes;\n    runningWindows: number | null;\n    alerts: number | null;\n    projects: readonly StatsAggregate[];\n    windows: readonly StatsWindow[];\n    groups: readonly StatsAggregate[];\n    models: readonly StatsAggregate[];\n    buckets: readonly StatsBucket[];\n    details: readonly StatsCallDetail[];\n    nextDetailCursor: StatsDetailCursor | null;\n}',
   },
   {
     name: 'StatsWindow',

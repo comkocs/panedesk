@@ -90,6 +90,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-plan` | no | Plan mode controls, persistent transcript plan cards, and sidebar Markdown previews |
 | `@panedesk/dsh-client-ui-plugin-manager` | yes | Plugin management for the panedesk web client: the sidebar Plugins panel installs, enables, disables, retries, and composes installed plugin packages |
 | `@panedesk/dsh-client-ui-plugin-market` | no | Discover tab of the panedesk web Plugins page: browse configured plugin market indexes and install their bundles |
+| `@panedesk/dsh-client-ui-project-onboarding` | yes | Once-per-project opening guidance and product-owned workspace preferences |
 | `@panedesk/dsh-client-ui-reference` | no | Unified Web @file and @session reference source |
 | `@panedesk/dsh-client-ui-renderer` | no | Browser UI renderer: React slot bindings, ctx.uiRenderer, and the assembled application root |
 | `@panedesk/dsh-client-ui-schedule` | no | Host task management page and Session reminder catalog |
@@ -436,6 +437,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-skill` | yes | Agent skill provider registry for the DeepSeek Harness |
 | `@panedesk/dsh-skill-filesystem` | yes | Local filesystem skill provider for the DeepSeek Harness |
 | `@panedesk/dsh-skill-office` | yes | Bundled Word, PowerPoint, and Excel workflows and LibreOffice Kit operations |
+| `@panedesk/dsh-skill-workflow-pack` | yes | Bundled first-window guide and portable project collaboration rules |
 | `@panedesk/dsh-tool-skill` | yes | Model-facing skill loading tool for the DeepSeek Harness |
 | `@panedesk/dsh-tool-workspace-dependencies` | yes | The load_workspace_dependencies tool: absolute paths into a bundled Python, Node.js, and pnpm payload |
 
