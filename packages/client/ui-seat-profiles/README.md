@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 This optional plugin adds Seat profiles to Settings without adding a cold-start sidebar entry. The authenticated owner can inspect and edit the local [seat](../../seat/seat-local/README.md) catalog, confirm definition deletion, and preview selected rows from a mapped Markdown or CSV source.
 
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
 ## Use this package
 
 Enable both plugin faces with the local seat provider, Settings shell, resources, locale and Remote services. Seat-row navigation opens this section through `seatProfilesNavigation`; withdrawing the section removes that navigation service. Client configuration accepts optional `presets` entries with `id`, localized `label` and a `columnMap`; product-specific header names belong in product configuration, not the parser.

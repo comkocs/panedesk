@@ -7,9 +7,18 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 此可选插件在设置中增加“工位档案”，不新增冷启动侧栏入口。已认证所有者可查看、编辑本机[工位](../../seat/seat-local/README.zh.md)目录，确认删除定义，并预览映射后的 Markdown 或 CSV 源文件勾选行。
+
+## 目录
+
+- [使用本包](#use-this-package)
+- [开发备注](#dev-note)
+- [模型体验](#model-experience)
+- [已知限制与延后工作](#known-limitations-and-deferred-work)
+
+<a id="use-this-package"></a>
 
 ## 使用本包
 
@@ -23,9 +32,13 @@ kind: "package-reference"
 
 写入超时或断连后，保存、删除与导入提交保持禁用，直到刷新取得新的存活观察；仅点击刷新不会解封。同一请求保留操作身份，由宿主重放而不重复生效。
 
-## 开发说明
+<a id="dev-note"></a>
+
+## 开发备注
 
 Host 适配器访问 `seatProfilesLocal` 前核验存活的所有者调用。组件只接收框架资源 / store 属性和普通回调。工位选择由设置分区 store 持有，暂存编辑与导入勾选由各挂载组件持有。
+
+<a id="model-experience"></a>
 
 ## 模型体验
 
@@ -42,6 +55,8 @@ Host 适配器访问 `seatProfilesLocal` 前核验存活的所有者调用。组
 #### KV Cache 影响
 
 档案维护不替换既有 Session 前缀，也不使活跃模型缓存失效。
+
+<a id="known-limitations-and-deferred-work"></a>
 
 ## 已知限制与延后工作
 

@@ -268,6 +268,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Scopes single-use authenticated directory choices and releases temporary creation ownership.',
   },
   {
+    key: 'seatProfiles', pkg: 'client-ui-seat-profiles', title: 'Owner seat profile settings', mode: 'service',
+    note: 'Authenticates owner reads, revision-checked profile changes, and selected import commits.',
+  },
+  {
+    key: 'seatProfilesLocal', pkg: 'seat-local', title: 'Owner-local seat profile access', mode: 'service',
+    consumers: ['client-ui-seat-profiles', 'client-ui-seats'],
+    note: 'Checks observed catalog and engine revisions and retains operation identities for write replay.',
+  },
+  {
     key: 'seatGatesQuery', pkg: 'seat', title: 'Read-only seat policy queries', mode: 'seam',
     implementations: ['seat-gates'], consumers: ['ledger-query'],
     note: 'Reads policy definitions and recorded hits without mounting runtime gate consumers.',
