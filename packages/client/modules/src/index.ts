@@ -542,6 +542,25 @@ export function orderByModuleGraph(entries: readonly WebBootEntry[]): WebBootEnt
 /** Bootstrap package whose ordinary client bundle supplies the module-system implementation. */
 const CLIENT_MODULES_ID = '@panedesk/dsh-client-modules'
 
+/** Read build-owned metadata; source launches use the environment prepared by dev orchestration. */
+function buildMetadata(): Record<string, string> {
+  const value: unknown = import.meta.url.endsWith('.ts')
+    ? Object.fromEntries(['DSH_CLIENT_COMMIT_HASH', 'DSH_CLIENT_GIT_DIRTY']
+      .flatMap(name => process.env[name] === undefined ? [] : [[name, process.env[name]]]))
+    : JSON.parse(readFileSync(new URL('./build-metadata.json', import.meta.url), 'utf8'))
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('client-modules: invalid build metadata')
+  }
+  const metadata: Record<string, string> = {}
+  for (const [name, entry] of Object.entries(value)) {
+    if (!['DSH_CLIENT_COMMIT_HASH', 'DSH_CLIENT_GIT_DIRTY'].includes(name) || typeof entry !== 'string') {
+      throw new Error(`client-modules: invalid build metadata entry ${name}`)
+    }
+    metadata[name] = entry
+  }
+  return metadata
+}
+
 /** Dynamic bundles grouped into the parser bootstrap batch before the Vite shell. */
 const PARSER_PRELOAD_IDS = [CLIENT_MODULES_ID] as const
 
@@ -605,7 +624,7 @@ export class ClientModuleRegistry extends Service {
 
   /**
    * Host release identity published in every graph: this package's version, which releases share
-   * with the CLI, and the source commit the client build fixes into the built Host artifact.
+   * with the CLI, and the source commit read from the adjacent build metadata asset.
    */
   private readonly release: WebBootRelease
   private readonly table = new Map<string, WebPluginRecord>()
@@ -631,8 +650,8 @@ export class ClientModuleRegistry extends Service {
   constructor(ctx: Context) {
     super(ctx, 'clientModules')
     const { version } = createRequire(import.meta.url)('../package.json') as { version: string }
-    // The client build fixes this read into the built Host artifact.
-    const commit = process.env.DSH_CLIENT_COMMIT_HASH
+    const metadata = buildMetadata()
+    const commit = metadata.DSH_CLIENT_COMMIT_HASH
     this.release = commit === undefined ? { version } : { version, commit }
     // Subscribe before seeding so a fiber arriving mid-activation lands in the
     // same dirty set (Set idempotence makes the overlap harmless). An entry-less
@@ -668,7 +687,7 @@ export class ClientModuleRegistry extends Service {
     }
     ctx.inject(['webServer'], registerWebCarrier)
     ctx.on('webserver/index-inject', (table) => {
-      table.push(...bootInjections(this.composed))
+      table.push({ kind: 'global', name: '__DSH_BUILD_METADATA__', value: metadata }, ...bootInjections(this.composed))
     })
   }
 

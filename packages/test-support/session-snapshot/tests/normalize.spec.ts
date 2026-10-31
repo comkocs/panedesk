@@ -779,6 +779,28 @@ describe('normalizeSessionSnapshot', () => {
     ].join('\n')])
   })
 
+  it('normalizes each child cwd without collapsing session identity or relative paths', () => {
+    const logs = (root: string) => ['parent', 'first', 'second'].map((role, index) => [
+      JSON.stringify({
+        type: 'session', id: `${root}-${role}`, createdAt: 1, cwd: `${root}/${role}`,
+        ...index > 0 ? { parentSession: `${root}-parent` } : {},
+      }),
+      JSON.stringify({ type: 'tool/result', data: {
+        path: `${root}/${role}/src/file.ts`, relative: '../shared/file.ts', outside: '/unchanged/file.ts',
+      } }),
+    ].join('\n') + '\n')
+    const fresh = normalizeSessionSnapshots(logs('/fresh'), { sessionIds: [], cwd: '/fresh/parent' })
+    const existing = normalizeSessionSnapshots(logs('/recorded'), { sessionIds: [], cwd: '/recorded/parent' })
+    expect(fresh).toEqual(existing)
+    for (const [index, log] of fresh.entries()) {
+      expect(log).toContain(`"id":"{{session:${index + 1}}}"`)
+      expect(log).toContain('"path":"{{cwd}}/src/file.ts"')
+      expect(log).toContain('"relative":"../shared/file.ts"')
+      expect(log).toContain('"outside":"/unchanged/file.ts"')
+      if (index > 0) expect(log).toContain('"parentSession":"{{session:1}}"')
+    }
+  })
+
   it('normalizes an already-projected snapshot without a released-format field', () => {
     const raw = `${JSON.stringify({
       type: 'session',

@@ -45,6 +45,7 @@ import {
   normalizeSessionLog,
   normalizeSessionSnapshots,
   normalizeStdout,
+  sessionLogContext,
   scrubSessionSnapshot,
   scrubSystemPrompts,
   scrubToolSchemas,
@@ -1134,6 +1135,7 @@ export function stabilizeRefreshLog(
   replacements: FixtureReplacement[],
   freshContext: NormalizeContext,
 ): string {
+  freshContext = sessionLogContext(fresh, freshContext)
   const freshRecords = parseJsonlRecords(fresh)
   const stable = applyFixtureReplacements(fresh, replacements)
   const existingRecords = logicalRecords(parseJsonlRecords(existing))
@@ -1471,11 +1473,8 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
           expect(result.sessionLogs.length, 'this scenario must persist one log per session fixture').toBe(fixtureFiles.length)
           const harvested = result.sessionLogs.map(log => log.content)
           const fixtures = await Promise.all(fixtureFiles.map(file => readFile(join(dir, file), 'utf8')))
-          const fixtureContexts = fixtures.map(fixtureContext)
-          const fixtureCtx: NormalizeContext = {
-            sessionIds: fixtureContexts.flatMap(context => context.sessionIds),
-            cwd: (fixtureContexts[0] as NormalizeContext).cwd,
-          }
+          // Each log selects its own header cwd; identity redaction still spans the whole scenario.
+          const fixtureCtx = fixtureContext(fixtures[0] as string)
           const actualSnapshots = normalizeSessionSnapshots(harvested, ctx, { nativeWriterOutput: true })
           const expectedSnapshots = normalizeSessionSnapshots(fixtures, fixtureCtx, { nativeWriterOutput: true })
           for (const [index, actual] of actualSnapshots.entries()) {

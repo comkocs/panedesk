@@ -1142,6 +1142,20 @@ describe('refreshFixtureReplacements', () => {
 })
 
 describe('stabilizeRefreshLog', () => {
+  it('refreshes each child using its own cwd instead of the parent context', () => {
+    for (const child of ['first', 'second']) {
+      const log = (root: string) => [
+        JSON.stringify({ type: 'session', id: child, cwd: `${root}/${child}`, parentSession: 'parent' }),
+        JSON.stringify({ type: 'tool/result', data: {
+          path: `${root}/${child}/src/file.ts`, relative: '../shared/file.ts', outside: '/unchanged/file.ts',
+        } }),
+      ].join('\n') + '\n'
+      expect(stabilize(log('/fresh'), log('/recorded'), [], {
+        sessionIds: ['parent', 'first', 'second'], cwd: '/fresh/parent',
+      })).toBe(log('/recorded'))
+    }
+  })
+
   it('preserves unpacked member times when refresh first packs a chunk run', () => {
     const fresh = [
       '{"type":"session","id":"same","createdAt":200}',

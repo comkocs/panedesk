@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assertClientBuildEnvironment,
   clientBuildEnvironmentDefines,
+  clientBuildMetadata,
   clientBuildProcessEnvironment,
   clientBuildValueDefines,
   officialClientBuildEnvironment,
@@ -216,6 +217,13 @@ describe('client build environment', () => {
     })
   })
 
+  it('isolates checkout metadata from reusable bundle defines', () => {
+    const environment = { DSH_CLIENT_COMMIT_HASH: 'abc1234', DSH_CLIENT_GIT_DIRTY: 'true', DSH_CLIENT_VERSION: '1.2.3' }
+    expect(clientBuildMetadata(environment)).toEqual({ DSH_CLIENT_COMMIT_HASH: 'abc1234', DSH_CLIENT_GIT_DIRTY: 'true' })
+    expect(clientBuildValueDefines(environment)).toEqual({ 'process.env.DSH_CLIENT_VERSION': '"1.2.3"' })
+    expect(JSON.stringify(clientBuildEnvironmentDefines(environment))).not.toContain('abc1234')
+  })
+
   it('defines only public client values over a non-enumerable fallback', () => {
     const environment = {
       PATH: '/bin',
@@ -228,7 +236,11 @@ describe('client build environment', () => {
       'process.env.DSH_CLIENT_EMPTY': '""',
       'process.env.DSH_CLIENT_VARIANT': '"quoted \\"value\\""',
     }
-    expect(clientBuildEnvironmentDefines(environment)).toEqual({ 'process.env': '{}', ...values })
+    expect(clientBuildEnvironmentDefines(environment)).toEqual({
+      'process.env': '{}', ...values,
+      'process.env.DSH_CLIENT_COMMIT_HASH': 'window.__DSH_BUILD_METADATA__.DSH_CLIENT_COMMIT_HASH',
+      'process.env.DSH_CLIENT_GIT_DIRTY': 'window.__DSH_BUILD_METADATA__.DSH_CLIENT_GIT_DIRTY',
+    })
     // Node faces keep their runtime `process.env` and fix only the public values.
     expect(clientBuildValueDefines(environment)).toEqual(values)
   })
