@@ -11,6 +11,31 @@ function request(seat: T.SeatName): T.SeatDefinitionRevisionRequest {
     ownerEpoch: 'owner-epoch' as T.OwnerEpoch, openingMethod: 'seat.openFrozen', taskIds: [] }
 }
 
+test.each([true, false])('same-node revision reads require a live owner delegation=%s', async (owner) => {
+  const { h } = await frozenHost()
+  try {
+    const catalog = await h.seats.definitions({}), definition = catalog.definitions[0]!
+    if (!definition.remoteAdmission) throw new Error('Expected admission policy')
+    await h.seats.save({ definition: { ...definition, remoteAdmission: { ...definition.remoteAdmission,
+      sourceNodeIds: [...definition.remoteAdmission.sourceNodeIds, h.options.nodeId] } }, expectedRevision: catalog.revision,
+    operationId: 'local-revision-policy' as T.SeatOperationId })
+    const payload = { ...request(h.definition.seat), sourceOwnerNodeId: h.options.nodeId }
+    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
+      nodeId: h.options.nodeId, sourceNodeId: h.options.nodeId, origin: 'manual', seat: payload.seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: owner ? 'trusted-local-owner' : 'generic-human', policyRevision: 1 }) })
+    const authorization = await entry.issuer.check({ operationId: 'local-revision-read' as T.SeatOperationId, requestDigest: digest(payload) })
+    if ('status' in authorization) throw new Error('Expected read grant')
+    const provider = h.ctx.get('seatDefinitionRevisions')!, authority: T.SeatCallContext = {
+      principalId, nodeId: h.options.nodeId, origin: 'manual', authorization }
+    await provider.ready()
+    expect(await provider.read(payload, authority)).toMatchObject(owner ? { status: 'found' }
+      : { status: 'rejected', error: { cause: { reasonCode: 'node-mismatch' } } })
+    entry.dispose()
+    expect(await provider.read(payload, authority)).toMatchObject({ status: 'rejected' })
+    expect(await provider.read(payload, { principalId, nodeId: h.options.nodeId, origin: 'manual' })).toMatchObject({ status: 'rejected' })
+  } finally { await h.close() }
+})
+
 test('reads only the local definition revision with live independent authority and no journal effects', async () => {
   const { h, authorize } = await frozenHost()
   try {

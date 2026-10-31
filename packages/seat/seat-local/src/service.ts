@@ -324,21 +324,23 @@ export class LocalSeatService extends SeatService {
    * @param request - Source reference and original opening parameters.
    * @param authority - Host-authenticated identity.
    * @param resolve - Registry-owned freezer.
+   * @param admit - Optional opener already holding the engine wake admission slot.
    * @returns Original opening result.
    */
   openWithContext(request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext,
     resolve: (request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext) => Promise<T.OpeningContextSnapshot | T.SeatRejected>,
+    admit?: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>,
   ): Promise<T.OpenSeatResult> {
     const scoped = this.withAuthority(authority) as LocalSeatService
     const { openingContext: _reference, relatedTaskIds: _tasks, ...base } = request
     const engine = this.engine()
     return (engine instanceof SeatEngine ? engine.routeSource('seat.openFrozen', request, authority) : Promise.resolve(undefined))
-      .then(routed => routed ?? scoped.openResolved(base, { request, resolve }))
+      .then(routed => routed ?? scoped.openResolved(base, { request, resolve }, admit))
   }
   private async openResolved(request: T.OpenSeatRequest, context?: {
     request: T.OpenSeatWithContextRequest
     resolve: (request: T.OpenSeatWithContextRequest, authority: T.SeatCallContext) => Promise<T.OpeningContextSnapshot | T.SeatRejected>
-  }): Promise<T.OpenSeatResult> {
+  }, admit?: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>): Promise<T.OpenSeatResult> {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const authority = this.caller()
@@ -361,7 +363,8 @@ export class LocalSeatService extends SeatService {
       }
       const engine = this.engine()
       if (!engine) return rejected('unavailable', 'Opening recovery is unavailable.', 'Restore the engine.')
-      return admitLocalOpen(engine, this.state, { ...retained, authority }, this.options.nodeName)
+      return admit ? admit({ ...retained, authority })
+        : admitLocalOpen(engine, this.state, { ...retained, authority }, this.options.nodeName)
     }
     const replay = facts.find(effect => effect.operationId === request.operationId
       && (effect.kind === 'open/intent' || effect.kind === 'open/created' || effect.kind === 'open/configured'))
@@ -421,7 +424,8 @@ export class LocalSeatService extends SeatService {
       : { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
     authority, definition, opening, title: `${definition.seat} ${titleDate}`,
     ...(snapshot ? { openingContext: snapshot } : {}) }
-    return engine.openWindow ? engine.openWindow(input) : admitLocalOpen(engine, this.state, input, this.options.nodeName)
+    return admit ? admit(input) : engine.openWindow ? engine.openWindow(input)
+      : admitLocalOpen(engine, this.state, input, this.options.nodeName)
   }
   /** Check all task scopes before opening any batch member.
    * @param request - Authoritative evidence for every task.
@@ -625,13 +629,53 @@ export class LocalSeatService extends SeatService {
    * @returns Existing wake result or trusted opening result.
    */
   wakeWithContext(request: T.WakeSeatRequest, authority: T.SeatCallContext,
-    open: (request: T.OpenSeatRequest) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
-    return this.frozenWrites.run(() => (this.withAuthority(authority) as LocalSeatService).wakeResolved(request, open))
+    open: (request: T.OpenSeatRequest, authority: T.SeatCallContext,
+      admit?: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
+    const scoped = this.withAuthority(authority) as LocalSeatService
+    return this.frozenWrites.run(() => authority.localWake
+      ? scoped.wakeOwner(request, open) : scoped.wakeResolved(request, input => open(input, authority)))
+  }
+  private async wakeOwner(request: T.WakeSeatRequest,
+    open: (request: T.OpenSeatRequest, authority: T.SeatCallContext,
+      admit: (input: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>) => Promise<T.OpenSeatResult>): Promise<T.WakeSeatResult> {
+    const authority = this.caller(), engine = this.engine(), grant = authority.authorization, opening = authority.localWake?.opening
+    if (!(engine instanceof SeatEngine) || !grant || !opening) {
+      return rejected('unauthorized', 'Local wake requires both owner grants.', 'Use the authenticated owner entry.')
+    }
+    const input: T.OpenSeatRequest = { ...request, origin: authority.origin, openingMode: 'auto' }
+    try {
+      for (const [authorization, payload] of [[grant, request], [opening, input]] as const) {
+        const fact = engine.authorizationIssuers.verify(authorization, { operationId: request.operationId,
+          requestDigest: digest(payload) }, this.options.nodeId)
+        if (fact.kind !== 'node-delegation' || fact.sourceNodeId !== this.options.nodeId || fact.origin !== 'manual'
+          || fact.principalId !== authority.principalId || fact.reasonCode !== 'trusted-local-owner'
+          || fact.decision !== 'allowed' || fact.seat !== request.seat) {
+          return rejected('unauthorized', 'Local wake owner attribution differs.', 'Refresh the owner entry.')
+        }
+      }
+    } catch (_error) {
+      return rejected('unauthorized', 'Local wake owner entry is revoked or mismatched.', 'Refresh the owner entry.')
+    }
+    return engine.wakeLocal(request.operationId, async (admit) => {
+      const retained = engine.wakeDeliveries.find(request, authority)
+      if (retained && 'status' in retained) return retained
+      if (retained) return engine.wakeDeliveries.finish(retained, value => this.runtime.send(value))
+      const openingAuthority = { ...authority, authorization: opening }
+      const accepted = (await this.state.read()).effects.some(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
+        && effect.data.trigger.evidence.kind === 'manual' && effect.data.trigger.evidence.operationId === request.operationId
+        && effect.data.trigger.sourceId === localSourceId)
+      if (accepted) return { status: 'opened', result: await open(input, openingAuthority, admit) }
+      return this.wakeResolved(request, value => open(value, openingAuthority, admit), request)
+    })
   }
   wake(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
     return this.frozenWrites.run(() => this.wakeRouted(request))
   }
   private async wakeRouted(request: T.WakeSeatRequest): Promise<T.WakeSeatResult> {
+    if (this.caller().localWake) return this.wakeOwner(request, (input, authority, admit) => {
+      const scoped = this.withAuthority(authority) as LocalSeatService
+      return scoped.openResolved(input, undefined, admit)
+    })
     const selected = this.runtime.context.get('nodeRouter')
       ? this.store.snapshot().definitions.find(item => item.seat === request.seat) : undefined
     const targetNode = request.nodeId ?? (selected ? this.options.nodeAliases[selected.node] : undefined)

@@ -319,6 +319,29 @@ export class SeatEngine extends SeatEngineService {
       const result = this.localOpenChain.then(async () => {
         await this.ready()
         return work(async (input) => {
+          if (!input.nodeWorkChain && input.authority.localWake && input.request.operationId === operationId) {
+            const grant = input.authority.authorization
+            if (!grant || grant !== input.authority.localWake.opening || grant.fact.kind !== 'node-delegation'
+              || grant.fact.sourceNodeId !== this.options.nodeId || grant.fact.origin !== 'manual'
+              || grant.fact.reasonCode !== 'trusted-local-owner') return rejected('unauthorized', 'Local wake fallback requires its owner grant')
+            this.authorizationIssuers.verify(grant, { operationId, requestDigest: digest(input.request) }, this.options.nodeId)
+            const view = this.journal.projection
+            const retained = view.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'authorization/checked'
+              && effect.data.operationId === operationId && effect.data.principalId === grant.fact.principalId
+              && effect.data.requestDigest === digest(input.request) && effect.data.seat === input.request.seat
+              && effect.data.kind === 'node-delegation' && effect.data.sourceNodeId === this.options.nodeId
+              && effect.data.origin === 'manual' && effect.data.reasonCode === 'trusted-local-owner' && effect.data.decision === 'allowed')
+              && frame.effects.some(effect => effect.kind === 'trigger/accepted'
+                && effect.data.trigger.evidence.kind === 'manual' && effect.data.trigger.evidence.operationId === operationId
+                && effect.data.trigger.seat === input.request.seat && effect.data.trigger.kind === 'manual'))
+            if (!retained && ([...view.pending.values()].some(item => item.seat === input.request.seat)
+              || [...view.opens.values()].some(item => item.binding.kind === 'seat' && item.binding.seat === input.request.seat
+                && !view.closed.has(item.sessionId)
+                && !(item.phase === 'opening-failed' && item.failure?.effectState === 'none' && !view.resources.has(item.sessionId))))) {
+              return rejected('session-busy', 'A window opening for this seat is already admitted')
+            }
+            return this.openLocal(input)
+          }
           if (!input.nodeWorkChain || input.request.operationId !== operationId
             || input.nodeWorkChain.operationKey.method !== 'seat.wakeFrozen') {
             return rejected('unauthorized', 'Wake fallback requires its original frozen identity')
@@ -363,7 +386,8 @@ export class SeatEngine extends SeatEngineService {
           requestDigest: digest(input.request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
           ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
         if (data.decision !== 'allowed' || data.seat !== input.request.seat
-          || input.request.taskId && !data.taskIds.includes(input.request.taskId)) {
+          || input.request.taskId && !data.taskIds.includes(input.request.taskId)
+          || input.authority.localWake && input.openingContext?.taskIds.some(task => !data.taskIds.includes(task))) {
           throw new EngineError('unauthorized', 'Opening attribution does not authorize this seat and task')
         }
         return [...effects, authorizationEffect(data)]
@@ -424,7 +448,7 @@ export class SeatEngine extends SeatEngineService {
           return []
         }
         const authorization = authorizeFrozen(this.authorizationIssuers, grant, chain, definition, this.options.nodeId)
-        const effects = frozenEffects(view, chain, envelope, frozen)
+        const effects = frozenEffects(view, chain, envelope, frozen, undefined, authorization.data)
         if ('status' in effects) { result = effects; return [] }
         const intent = effects.find(effect => effect.kind === 'trigger/accepted')
         if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
@@ -1188,8 +1212,13 @@ export class SeatEngine extends SeatEngineService {
     if (!definition || 'status' in definition) return
     const source = item.sources[0]
     const rule = source ? triggerRule(definition, source) : undefined
-    const livePolicy = item.triggerKind === 'manual' && !item.frozenOpen?.nodeWorkChain
-      ? undefined : await this.dependencies.seats()?.resolve(item.seat)
+    const chain = item.frozenOpen?.nodeWorkChain
+    const manual = item.triggerKind === 'manual' && (!chain || chain.operationKey.method !== 'engine.acceptFrozen'
+      && this.journal.projection.authorizationDecisions.some(frame => frame.effects.some(effect => effect.kind === 'node-route/accepted'
+        && effect.data.authorizationRef === chain.authorizationRef && digest(effect.data) === digest(chain))
+        && frame.effects.some(effect => effect.kind === 'authorization/checked' && effect.data.authorizationId === chain.authorizationRef
+          && effect.data.origin === 'manual' && effect.data.decision === 'allowed')))
+    const livePolicy = manual ? undefined : await this.dependencies.seats()?.resolve(item.seat)
     const currentDefinition = livePolicy && !('status' in livePolicy) ? livePolicy : definition
     const ruleMode = source && externalRuleMiss(currentDefinition, source) ? 'off'
       : source ? triggerRule(currentDefinition, source)?.mode : rule?.mode
@@ -1203,10 +1232,8 @@ export class SeatEngine extends SeatEngineService {
       const current = view.pending.get(item.queueItemId)
       if (!current || canonical(current) !== canonical(item)) return []
       const policy = view.policies.get(item.projectId)
-      const localMode = item.triggerKind === 'manual' && !item.frozenOpen?.nodeWorkChain
-        ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
-      const mode = item.frozenOpen?.nodeWorkChain
-        ? effectiveMode(localMode, item.frozenOpen.nodeWorkChain.route.modeCeiling.mode) : localMode
+      const localMode = manual ? 'auto' : effectiveMode(policy?.mode ?? 'remind', ruleMode)
+      const mode = chain && !manual ? effectiveMode(localMode, chain.route.modeCeiling.mode) : localMode
       const pending = (reason: T.PendingReason, blockedBy: readonly string[] = []): T.EngineEffect[] => {
         if (current.reason === reason && current.effectiveMode === mode && canonical(current.blockedBy) === canonical(blockedBy)) return []
         const next = { ...current, effectiveMode: mode, reason, blockedBy, stateVersion: current.stateVersion + 1 }

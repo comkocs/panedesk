@@ -154,7 +154,11 @@ export class OpeningContexts implements T.SeatOpeningContexts {
     const { openingContext, relatedTaskIds, ...base } = structuredClone(request)
     const caller = Object.freeze({ ...authority })
     return this.service.routeWakeWithContext(request, caller).then(routed => routed
-      ?? this.service.wakeWithContext(base, caller, input => this.open({ ...input, openingContext, relatedTaskIds }, caller)))
+      ?? this.service.wakeWithContext(base, caller, (input, identity, admit) => {
+        const opening = { ...input, openingContext, relatedTaskIds }
+        const execute = () => this.service.openWithContext(opening, identity, (value, owner) => this.resolve(value, owner), admit)
+        return this.scoped(admission => admission ? admission.open(opening, identity, execute) : execute())
+      }))
   }
   openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext): Promise<T.OpenSeatBatchResult> {
     if (!this.active) return Promise.resolve(rejected('unavailable', 'Opening registry is unavailable.', 'Restore the local provider.'))

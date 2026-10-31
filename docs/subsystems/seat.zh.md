@@ -6,7 +6,7 @@
 
 ## 身份与权限
 
-`SeatName` 标识节点本地定义；`SeatOperationId` 标识调用方保留的操作。会话身份仍采用上游 `SessionId`。`SeatCallContext` 包含可信适配器提供的已认证主体、来源与节点身份，不能将请求字段当作权限。`SeatBinding` 是会话日志旁的引擎元数据，区分自由与席位两种变体。
+`SeatName` 标识节点本地定义；`SeatOperationId` 标识调用方保留的操作。会话身份仍采用上游 `SessionId`。`SeatCallContext` 包含可信适配器提供的已认证主体、来源与节点身份，不能将请求字段当作权限。可选且仅宿主可用的 `SeatCallContext.localWake.opening` 携带精确的无窗开窗凭证，与原唤醒 `authorization` 并存；两者均为实例拥有的能力，不能取自请求 JSON。`SeatBinding` 是会话日志旁的引擎元数据，区分自由与席位两种变体。
 
 ## 定义与准入
 

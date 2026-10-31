@@ -43,6 +43,8 @@ Context opening and wake consult the engine's optional [source proxy](../seat-en
 
 Trusted receiving wake is enabled only with explicit chain composition. `seat.wakeFrozen` retains the original snapshot for missing-window fallback, without resolving a source provider or issuing broader authority. Window selection and fallback share the engine opening slot; an already queued opening prevents a second window. Existing-window delivery uses the original grant and the engine's private durable intent, then the existing queue-priority message sender. Recovery resends the same stable delivery identity and retains the first `WakeSeatResult`. Legacy `seat.wake` can use this existing-window path when explicitly assembled, but refuses missing-window fallback without a frozen snapshot; unassembled admission remains unsupported.
 
+A host-captured local owner can use `SeatCallContext.localWake` without remote chain composition. Both exact grants must be live local `node-delegation` grants with equal source/execution nodes, manual origin and `trusted-local-owner` attribution. Existing windows retain durable delivery; missing windows use the separately authorized non-reentrant opener and existing scope admission. Neither missing grants nor copied grant objects select legacy admission. Same-node definition-revision reads admit only this owner attribution and retain all four remote-admission allowlists, exact tasks and revocation rechecks.
+
 ## Window transactions
 
 Opening failures with `effectState: none` retain their engine audit facts but are excluded from window listing and message targets: the reserved identity is not a created Session. Failures with partial effects remain visible for inspection and cleanup.

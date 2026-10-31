@@ -29,7 +29,8 @@ export class WakeDeliveries {
     const original = authority.authorization?.fact
     if (!original || original.kind !== 'node-delegation' || !original.sourceNodeId
       || original.principalId !== authority.principalId || original.nodeId !== authority.nodeId
-      || original.nodeId !== this.journal.nodeId || original.requestDigest !== digest(payload)) {
+      || original.nodeId !== this.journal.nodeId || original.requestDigest !== digest(payload)
+      || original.sourceNodeId === original.nodeId && (original.origin !== 'manual' || original.reasonCode !== 'trusted-local-owner')) {
       return rejected('unauthorized', 'Wake attribution does not match the receiving grant')
     }
     const request = 'request' in payload ? payload.request : payload

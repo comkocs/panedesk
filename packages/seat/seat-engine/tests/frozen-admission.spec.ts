@@ -49,6 +49,47 @@ async function setup() {
   return { h, input, authorize }
 }
 
+test.each(['manual', 'engine'] as const)('uses verified %s authority rather than claimed manual origin under off', async (origin) => {
+  const { h, input } = await setup()
+  try {
+    await h.engine.setProjectMode({ projectId: input.envelope.projectId, mode: 'off', expectedRevision: 0,
+      operationId: 'off-owner-test' as T.SeatOperationId })
+    input.route.modeCeiling.mode = 'off'
+    const payload: T.OpenFrozenSeatRequest = { request: { seat, operationId: input.route.originalOperationId,
+      origin: 'manual', openingMode: 'auto' }, expectedSeatRevision: 1, openingContext: input.openingContext,
+    route: { ...input.route, triggerId: null } }
+    h.definitions.get(seat)!.remoteAdmission!.methods = ['seat.openFrozen']
+    const principalId = 'principal' as T.SeatPrincipalId
+    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
+      nodeId, origin, seat, sourceNodeId: 'sending-node' as T.SeatNodeId, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'trusted-node-chain', policyRevision: 1 }) })
+    const grant = await entry.issuer.check({ operationId: payload.request.operationId, requestDigest: digest(payload) })
+    if ('status' in grant) throw new Error('Expected grant')
+    const authority: T.SeatCallContext = { nodeId, principalId, origin, authorization: grant }
+    const chain = frozenIdentity(payload, authority, 'seat.openFrozen')
+    if ('status' in chain) throw new Error('Expected frozen identity')
+    const result = await h.engine.openWindow({ request: payload.request, authority, nodeWorkChain: chain,
+      definition: structuredClone(h.definitions.get(seat)!), title: 'Owner opening', openingContext: payload.openingContext.snapshot,
+      opening: { text: payload.openingContext.snapshot.text, digest: payload.openingContext.snapshot.digest,
+        variables: { seat, date: '2026-01-01', taskId: null } } })
+    if (origin === 'engine') {
+      expect(result).toMatchObject({ status: 'rejected', error: { code: 'disabled' } })
+      expect(h.creates).toHaveLength(0)
+      return
+    }
+    expect(result).toMatchObject({ status: 'queued' })
+    entry.dispose()
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    restarted.registerLocalAccess(executionAccess(h))
+    restarted.registerPreopenRetention({ projectId: input.envelope.projectId, sourceId: input.route.sourceId,
+      sourceOwnerNodeId: input.route.sourceOwnerNodeId, limitMs: 900000 })
+    await restarted.drive()
+    await restarted.drive()
+    expect(h.creates).toHaveLength(1)
+  } finally { await h.close() }
+})
+
 test('admits a missing replay once and returns its result to the late original after restart', async () => {
   const { h, input, authorize } = await setup()
   try {

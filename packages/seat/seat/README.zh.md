@@ -47,6 +47,8 @@ kind: "package-reference"
 
 可选 `SeatAuthorizationFact.sourceNodeId` 只出现在本地签发的 `node-delegation` 事实上：接收策略将传输层已认证的发送节点写入签发入口身份，绝不取自请求 JSON。旧事实与旧委托保持逐字节不变。可选 `SeatOpeningContexts.registerSourceOwner` 安装唯一受信 `SeatSourceOwner`，其必有的 `prepare`、`checkAdmission`、`deliverCallback` 方法与既有可选挂点签名一致。重复注册抛出异常；注销停止新调用并排空在途调用。未注册所有者时，提供方不暴露这三个方法；本包不安装实现。
 
+仅宿主可用的 `SeatCallContext.localWake` 携带本机所有者唤醒所需的独立精确开窗凭证；`authorization` 携带原唤醒凭证。两者均为进程内签发器拥有的能力，不是 JSON 权限。本地提供方要求两者齐备，缺少任一个时均不回退旧准入。不新增授权种类或 wire 方法。
+
 可选 `seatLocalCallbackOwner: SeatLocalCallbackOwner` 为来源所有者、目标及执行节点均为本地引擎的回调提供 `ready`、`available`、完整键 `query` 与冻结原包 `deliver`。每次查询或交付返回 `SeatCallbackAttemptResult<R>`，可附 `SeatCallbackDiagnostic`；提供方负责独立授权、持久去重、恢复及撤装。导入声明不安装提供方或默认注入，缺席绝不允许来源或对端兜底。`SeatCallbackDelivery.lastDiagnostic` 是可选的交付外层观察，不属于回调正文或业务摘要；旧记录省略该字段，成功交付只清除最新观察。失败阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`；原因保留有界标识与脱敏说明。
 
 可选 `OpenSeatRequest.startupDirectory` 为手动开窗选择精确的已登记目录；省略时保留档案起窗目录。本地提供方冻结所选起窗标记供执行与重放使用，不改档案，也不扩大目录授权；重试须保留相同选择。
