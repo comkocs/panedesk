@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/seat-approval-close/guide.md
+/:
+  en: a016e2aa28d1e3cf
+  zh: d82a6cc5f777941b
+/seat-approval-close-details:
+  en: 769d1aafb66fd0d7
+  zh: 39febb47f1cbb5fb
+/seat-approval-close-details/change:
+  en: 7bba84be1bd75fd5
+  zh: d0eba076d193845a
+/seat-approval-close-details/migration:
+  en: b4067cb71fcb9ebd
+  zh: d6129096ef42c936

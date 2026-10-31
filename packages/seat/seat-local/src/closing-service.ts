@@ -95,7 +95,7 @@ export class LocalCloser {
       }
       const old = closingState(effects, request.sessionId)
       if (old?.phase === 'closed') return { effects: [], result: old }
-      if (authorization && old) return { effects: [], result:
+      if (authorization && old && !old.barrierReleased) return { effects: [], result:
         rejected('state-conflict', 'An admitted close requires local recovery.', 'Reconcile the original close before retrying.') }
       if (old && !old.barrierReleased) return { effects: [], result: old.operationId === request.operationId ? old
         : rejected('state-conflict', 'Another close owns this window.', 'Resume the original close.') }
@@ -103,18 +103,23 @@ export class LocalCloser {
       if (initial.stateVersion !== request.expectedStateVersion) return { effects: [], result: { status: 'conflict',
         expectedStateVersion: request.expectedStateVersion, actualStateVersion: initial.stateVersion,
         ...(busyReasons.length ? { busyReasons } : {}) } }
-      if (busyReasons.length) return { effects: [], result: { status: 'busy', sessionId: request.sessionId, busyReasons } }
+      const cancelApproval = !report && initial.approvals.length > 0
+        && busyReasons.every(reason => reason.kind === 'turn' || reason.kind === 'approval' || reason.kind === 'inbox')
+      if (busyReasons.length && !cancelApproval) return { effects: [], result: { status: 'busy', sessionId: request.sessionId, busyReasons } }
       const current = latestReport(effects, request.sessionId)
       if (report && (current?.reportId !== report.reportId || current.stateVersion !== report.stateVersion || !current.canClose)) {
         return { effects: [], result: rejected('state-conflict', 'Close authorization changed.', 'Read the latest report.') }
       }
       const replacement = effects.findLast(effect => effect.kind === 'window/replacement'
         && (effect.data.oldSessionId === request.sessionId || effect.data.newSessionId === request.sessionId))
-      const reason: T.WindowEndReason = replacement?.kind === 'window/replacement'
+      const approvalDetail = cancelApproval || old?.phase === 'rechecking' && old.detail !== undefined
+      const reason: T.WindowEndReason = approvalDetail ? 'manual' : replacement?.kind === 'window/replacement'
         && replacement.data.phase !== 'completed' && replacement.data.phase !== 'failed'
         ? replacement.data.failure ? 'replacement-failed' : 'replaced' : report ? 'self-report' : 'manual'
       const data: T.EngineCloseData = { sessionId: request.sessionId, operationId: request.operationId,
-        phase: 'admission', reason, stateVersion: initial.stateVersion, endedAt: null,
+        phase: 'admission', reason, ...(approvalDetail
+          ? { detail: 'approval-pending-cancelled' as const } : {}),
+        stateVersion: initial.stateVersion, endedAt: null,
         reportId: current?.reportId ?? null, selfReport: current,
         selfReportStatus: current ? 'submitted' : effects.some(effect => effect.kind === 'report/revoked'
           && effect.data.sessionId === request.sessionId) ? 'revoked' : 'not-submitted' }
@@ -124,13 +129,54 @@ export class LocalCloser {
     if ('status' in admitted) return admitted
     if (admitted.phase === 'closed' && admitted.endedAt) return { status: 'closed', sessionId: request.sessionId,
       phase: 'closed', endedAt: admitted.endedAt, stateVersion: admitted.stateVersion }
+    let closing = admitted
+    const release = async () => {
+      await this.state.mutate(() => ({ result: undefined, effects: [localFact({ kind: 'window/closing',
+        operationId: request.operationId, sessionId: request.sessionId,
+        data: { ...closing, barrierReleased: true } })] }))
+    }
     try {
       const revoked = await validate()
-      if (revoked) return revoked
+      if (revoked) { await release(); return revoked }
+      if (admitted.detail === 'approval-pending-cancelled'
+        && !this.ctx.get('workspaceRegistry')?.archivedSessionIds.includes(request.sessionId)) {
+        const beforeCancel = await this.runtime.evidence(request.sessionId)
+        const busyReasons = readWindowStatus(beforeCancel).busyReasons
+        if (beforeCancel.stateVersion !== admitted.stateVersion) {
+          await release()
+          return { status: 'conflict', expectedStateVersion: admitted.stateVersion,
+            actualStateVersion: beforeCancel.stateVersion, ...(busyReasons.length ? { busyReasons } : {}) }
+        }
+        if (beforeCancel.approvals.length) {
+          if (busyReasons.some(reason => reason.kind !== 'turn' && reason.kind !== 'approval' && reason.kind !== 'inbox')) {
+            await release()
+            return { status: 'busy', sessionId: request.sessionId, busyReasons }
+          }
+          const controller = this.ctx.get('sessionController')
+          const agent = this.ctx.get('agents')?.get(request.sessionId)
+          if (!controller || !agent) {
+            await release()
+            return rejected('owner-unknown', 'Approval cancellation requires the current owner.', 'Restore the Session owner.')
+          }
+          controller.cancel({ sessionId: request.sessionId })
+          await agent.whenIdle()
+        }
+        const settled = await this.runtime.evidence(request.sessionId)
+        closing = { ...admitted, phase: 'rechecking', stateVersion: settled.stateVersion }
+        const remaining = readWindowStatus(settled).busyReasons
+        if (remaining.length) {
+          await release()
+          return { status: 'busy', sessionId: request.sessionId, busyReasons: remaining }
+        }
+        const revokedAfterCancel = await validate()
+        if (revokedAfterCancel) { await release(); return revokedAfterCancel }
+        await this.state.mutate(() => ({ result: undefined, effects: [localFact({ kind: 'window/closing',
+          operationId: request.operationId, sessionId: request.sessionId, data: closing })] }))
+      }
       await createCloseExecutor(this.ctx, this.runtime, this.options).archive(request)
       const endedAt = new Date().toISOString()
-      const closed: T.EngineCloseData = { ...admitted, phase: 'closed', endedAt,
-        stateVersion: admitted.stateVersion + 1 }
+      const closed: T.EngineCloseData = { ...closing, phase: 'closed', endedAt,
+        stateVersion: closing.stateVersion + 1 }
       await engine.recordClosed(closed)
       return { status: 'closed', sessionId: request.sessionId, phase: 'closed',
         endedAt, stateVersion: closed.stateVersion }
@@ -138,7 +184,7 @@ export class LocalCloser {
       if (!this.ctx.get('workspaceRegistry')?.archivedSessionIds.includes(request.sessionId)) {
         await this.state.mutate(() => ({ result: undefined, effects: [localFact({ kind: 'window/closing',
           operationId: request.operationId, sessionId: request.sessionId,
-          data: { ...admitted, barrierReleased: true } })] }))
+          data: { ...closing, barrierReleased: true } })] }))
       }
       throw error
     }

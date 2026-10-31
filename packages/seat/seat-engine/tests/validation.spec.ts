@@ -38,6 +38,14 @@ it('restores old callback frames without materializing an optional diagnostic', 
     .toMatchObject({ data: { lastDiagnostic: diagnostic } })
 })
 
+it.each(['window/closing', 'window/closed'] as const)('retains optional approval close detail in %s frames', (kind) => {
+  const original = examples[kind]
+  expect(decodeFrame(encoded(kind, original), 200000).effects[0]!.data).not.toHaveProperty('detail')
+  expect(decodeFrame(encoded(kind, { ...original, detail: 'approval-pending-cancelled' }), 200000).effects[0])
+    .toMatchObject({ data: { detail: 'approval-pending-cancelled' } })
+  expect(() => decodeFrame(encoded(kind, { ...original, detail: 'unregistered' }), 200000)).toThrow('Invalid engine effect')
+})
+
 const optional = new Set(['definition', 'sources', 'title', 'operationId', 'cleanup', 'replacementId', 'handoffTimeout'])
 it.each(eventKinds)('validates every persisted %s field before replay', (kind) => {
   const sample = examples[kind]

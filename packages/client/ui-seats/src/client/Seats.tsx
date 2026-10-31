@@ -16,6 +16,7 @@ import css from './Seats.module.css'
 export interface SeatsInjected {
   openSeat: (seat: SeatDefinition, startupDirectory?: string) => Promise<void>
   openWindow: (id: SessionId) => void
+  closeWindow: (id: SessionId, stateVersion: number) => Promise<void>
   dismiss: () => void
   loadModels: () => Promise<readonly { provider: string; model: string; label: string; reasoningEffort?: string }[]>
   prepareAdd: (request: SeatAddRequest) => Promise<PreviewSeatImportRequest>
@@ -165,7 +166,7 @@ export function SeatPicker({ currentDirectory: cwd, useResource, useSeatNotice, 
  * @param props - Shell width and injected local opening/navigation actions.
  * @returns The diagnostic indicator or seat section, including an empty catalog; absent providers add no space without diagnostics.
  */
-export function SeatsSection({ wide, expandSidebar, useResource, useSessions, openSeat, openWindow,
+export function SeatsSection({ wide, expandSidebar, useResource, useSessions, openSeat, openWindow, closeWindow,
   loadModels, prepareAdd, previewAdd, commitAdd, t }: SeatsSectionProps) {
   const resource = useResource<'seats'>('dsh-resource://seats/local')
   const directory = useSessions((snapshot) => {
@@ -214,6 +215,7 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
           <span title={t(windows.length > 0 ? 'opened' : 'unopened')} className={css.status}>
             {t(windows.length > 0 ? 'opened' : 'unopened')}
           </span>
+          {windows.some(window => window.status === 'approval-pending') && <span role="status">{t('approvalPending')}</span>}
           {windows.length > 0 && <span title={t(activity)}><StateDot state={unknown ? 'warning' : busy ? 'ongoing' : 'idle'} /></span>}
           <Button size="sm" className={css.add} disabled={!data.complete || resource.status === 'failed' || directory.ambiguous}
             aria-label={t('open')} title={t('open')} icon={<IconPlusOutlineRegular />}
@@ -223,8 +225,11 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
               else void openSeat(seat)
             }} />
         </div>
-        {expanded === seat.seat && windows.map(window => <Button key={window.sessionId} size="sm" className={css.window}
-          onClick={() => { openWindow(window.sessionId) }}>{window.title}</Button>)}
+        {expanded === seat.seat && windows.map(window => <div key={window.sessionId} className={css.row}>
+          <Button size="sm" className={css.window} onClick={() => { openWindow(window.sessionId) }}>{window.title}</Button>
+          <Button size="sm" disabled={!data.complete || resource.status !== 'live' || window.evidence === 'unknown'}
+            onClick={() => { void closeWindow(window.sessionId, window.stateVersion) }}>{t('closeWindow')}</Button>
+        </div>)}
       </div>
     })}
     <DirectoryConfirmation cwd={cwd} pending={pending} setPending={setPending} openSeat={openSeat} t={t} />

@@ -28,7 +28,7 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
     useResource: (() => ({ status: 'live' as const, value, failure: undefined })) as SeatPickerProps['useResource'],
     useSessions: ((select: (snapshot: object) => unknown) => select({ ids: ['session-a'], byId: { 'session-a': { cwd, retainedBy: { mainView: 1 } } } })) as SeatPickerProps['useSessions'],
     useSeatNotice: ((select: (value: typeof notice) => unknown) => select(notice)) as SeatHeaderProps['useSeatNotice'],
-    openSeat, openWindow: vi.fn(), dismiss: vi.fn(),
+    openSeat, openWindow: vi.fn(), closeWindow: vi.fn(async () => {}), dismiss: vi.fn(),
     loadModels: vi.fn(async () => []), prepareAdd: vi.fn(async () => { throw new Error('Unused source preparation') }),
     previewAdd: vi.fn(async () => { throw new Error('Unused import preview') }), commitAdd: vi.fn(async () => {}),
     t: (key: keyof typeof en, params?: Record<string, string | number>) =>
@@ -39,6 +39,33 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
 afterEach(cleanup)
 
 describe('seat entry presentations', () => {
+  it.each(['en', 'zh'] as const)('shows pending approval and closes the exact observed window: %s', (language) => {
+    const f = fixture({ ...data, windows: [{ seat: seat.seat, sessionId: 'approval-window' as never,
+      title: 'Approval window', nodeId: 'local' as never, status: 'approval-pending', engineStatus: 'active',
+      evidence: 'complete', idleMinutes: null, runningSubagents: 0, activeJobs: 0, canRenew: false,
+      renewRejection: null, busyReasons: [{ kind: 'approval', summary: 'Approval pending.' }], stateVersion: 17, seatBinding: null }] })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en) => dictionary[key]
+    render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    expect(screen.getByText(dictionary.approvalPending).textContent).toBe(dictionary.approvalPending)
+    fireEvent.click(screen.getByRole('button', { name: 'seat-a' }))
+    const visible = { status: screen.getByText(dictionary.approvalPending).textContent,
+      close: screen.getByRole('button', { name: dictionary.closeWindow }).textContent }
+    if (language === 'en') expect(visible).toMatchInlineSnapshot(`
+      {
+        "close": "Close seat window",
+        "status": "Pending approval",
+      }
+    `)
+    else expect(visible).toMatchInlineSnapshot(`
+      {
+        "close": "收窗",
+        "status": "待审批",
+      }
+    `)
+    fireEvent.click(screen.getByRole('button', { name: dictionary.closeWindow }))
+    expect(f.props.closeWindow).toHaveBeenCalledWith('approval-window', 17)
+  })
   it.each(['en', 'zh'] as const)('opens the single diagnostic location from a collapsed warning: %s', (language) => {
     const f = fixture({ ...data, diagnostics: { openings: [{ sessionId: 'absent-a' as never,
       seat: seat.seat, agentPreset: seat.agentPreset, code: 'open-create-failed' }] } })

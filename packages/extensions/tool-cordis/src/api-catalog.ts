@@ -7687,7 +7687,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'EngineCloseData',
-    declaration: 'export interface EngineCloseData {\n    operationId?: SeatOperationId;\n    barrierReleased?: boolean;\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
+    declaration: 'export interface EngineCloseData {\n    operationId?: SeatOperationId;\n    barrierReleased?: boolean;\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    detail?: \'approval-pending-cancelled\';\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
   },
   {
     name: 'EngineCursor',
@@ -10363,7 +10363,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCallbackPayload',
-    declaration: 'export type SeatCallbackPayload = SeatCallbackBase & ({\n    kind: \'opened\';\n    sessionId: SessionId;\n    title: string;\n} | {\n    kind: \'opening-failed\';\n    reason: SeatFailure;\n} | {\n    kind: \'window-ended\';\n    reason: WindowEndReason;\n    endedAt: SeatTimestamp;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n    reportId?: CloseReportId;\n} | {\n    kind: \'budget-stopped\';\n    budgetSnapshot: SeatBudgetSnapshot;\n} | {\n    kind: \'rejected\';\n    reason: SeatFailure;\n} | {\n    kind: \'replacement-failed\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    reason: ReplacementFailureCode;\n    cause: SeatFailure;\n    cleanup: \'not-created\' | \'closed\' | \'pending\';\n});',
+    declaration: 'export type SeatCallbackPayload = SeatCallbackBase & ({\n    kind: \'opened\';\n    sessionId: SessionId;\n    title: string;\n} | {\n    kind: \'opening-failed\';\n    reason: SeatFailure;\n} | {\n    kind: \'window-ended\';\n    reason: WindowEndReason;\n    detail?: \'approval-pending-cancelled\';\n    endedAt: SeatTimestamp;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n    reportId?: CloseReportId;\n} | {\n    kind: \'budget-stopped\';\n    budgetSnapshot: SeatBudgetSnapshot;\n} | {\n    kind: \'rejected\';\n    reason: SeatFailure;\n} | {\n    kind: \'replacement-failed\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    reason: ReplacementFailureCode;\n    cause: SeatFailure;\n    cleanup: \'not-created\' | \'closed\' | \'pending\';\n});',
   },
   {
     name: 'SeatCallContext',

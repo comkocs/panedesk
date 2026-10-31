@@ -51,6 +51,8 @@ export interface EngineCloseData {
   sessionId: SessionId
   phase: ClosePhase
   reason: WindowEndReason
+  /** Optional close cause retained across recovery and callback delivery. */
+  detail?: 'approval-pending-cancelled'
   stateVersion: number
   endedAt: SeatTimestamp | null
   reportId: CloseReportId | null

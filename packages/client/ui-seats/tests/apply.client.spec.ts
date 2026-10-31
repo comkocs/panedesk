@@ -97,6 +97,19 @@ it('refreshes engine diagnostics without a Session event and clears them after r
   } finally { stop() }
 }, 60_000)
 
+it('sends the observed close revision through the generated owner API', async ({ mock, start }) => {
+  const c = await start()
+  mock.unary('seatUi/overview', ok({ available: true, definitions: [], windows: [], complete: true }))
+  mock.unary('seatUi/close', ok({ status: 'closed', sessionId: 'approval-window', phase: 'closed',
+    endedAt: '2026-01-01T00:00:00Z', stateVersion: 18 }))
+  const entry = c.ctx.slots.entries('sidebar.seats').find(row => row.locale === 'seats')!
+  const injected = entry.inject?.() as SeatsInjected & Record<string, unknown>
+  await injected.closeWindow('approval-window' as SessionId, 17)
+  expect(mock.log.calls('seatUi/close')).toHaveLength(1)
+  expect(JSON.stringify(mock.log.calls('seatUi/close'))).toContain('expectedStateVersion')
+  expect(injected.hooks.seatNotice.getSnapshot()).toBeNull()
+}, 60_000)
+
 it('initializes the returned opening draft in the selected real Session binding without sending it', async ({ mock, start }) => {
   const sessionId = 'seat-prefilled' as SessionId
   const draft = 'Review the assigned files before making changes.'

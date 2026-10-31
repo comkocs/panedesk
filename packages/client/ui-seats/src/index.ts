@@ -1,7 +1,7 @@
 /** Owner-only manual seat UI adapter; all window configuration remains in SeatService. */
 import type { Context } from '@panedesk/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
-import type { SeatCallContext, SeatService } from '@panedesk/dsh-seat'
+import type { CloseSeatRequest, CloseSeatResult, SeatCallContext, SeatService } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
 import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, realpath, rename, rm, stat } from 'node:fs/promises'
@@ -162,6 +162,17 @@ export default class SeatUi extends TypertRemoteService {
       ? { ...(node.failure ? { engine: node.failure } : {}), openings: node.openingFailures ?? [],
         ...(node.callbackFailures?.length ? { callbacks: node.callbackFailures } : {}) } : undefined
     return { ...catalog, ...identity, ...(diagnostics ? { diagnostics } : {}) }
+  }
+
+  /** Close the observed window through owner-authorized seat admission.
+   * @param request - Stable close identity and the user's observed window revision.
+   * @returns Flushed close or the provider's unchanged refusal evidence.
+   */
+  @Remote
+  async close(request: CloseSeatRequest): Promise<CloseSeatResult> {
+    const service = await this.service()
+    if (!service) throw new RemoteError('seat-ui/unavailable', 'Seat providers are unavailable', {})
+    return service.close(request)
   }
 
   /** Open with the existing manual provider, never sending the opening sentence.

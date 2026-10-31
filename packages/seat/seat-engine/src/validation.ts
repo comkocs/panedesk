@@ -110,7 +110,7 @@ const report = fields({ reportId: id, sessionId: id, canClose: boolean,
 const endReason = one('manual', 'self-report', 'replaced', 'owner-dead', 'replacement-failed')
 const reportStatus = one('submitted', 'not-submitted', 'revoked')
 const close = fields({ operationId: optional(id), barrierReleased: optional(boolean), sessionId: id, phase: one('admission', 'rechecking', 'archiving', 'renaming', 'flushing', 'closed'),
-  reason: endReason, stateVersion: integer, endedAt: nullable(timestamp), reportId: nullable(id),
+  reason: endReason, detail: optional(one('approval-pending-cancelled')), stateVersion: integer, endedAt: nullable(timestamp), reportId: nullable(id),
   selfReport: nullable(report), selfReportStatus: reportStatus })
 const permit = fields({ permitId: id, replacementId: id, oldSessionId: id, newSessionId: id,
   state: one('issued', 'first-turn-running', 'expired-success', 'expired-failure'), issuedAt: timestamp, expiredAt: nullable(timestamp), ownerEpoch: id })
@@ -126,7 +126,7 @@ const callbackPayload = fields({ callbackId: id, sourceId: id, triggerId: nullab
   taskId: optional(id), relatedTaskIds: array(id) })
 const callbackKind = discriminated('kind', {
   opened: fields({ sessionId: id, title: text }), 'opening-failed': fields({ reason: failure }),
-  'window-ended': fields({ reason: endReason, endedAt: timestamp, selfReport: nullable(report), selfReportStatus: reportStatus, reportId: optional(id) }),
+  'window-ended': fields({ reason: endReason, detail: optional(one('approval-pending-cancelled')), endedAt: timestamp, selfReport: nullable(report), selfReportStatus: reportStatus, reportId: optional(id) }),
   'budget-stopped': fields({ budgetSnapshot: budget }), rejected: fields({ reason: failure }),
   'replacement-failed': fields({ replacementId: id, oldSessionId: id, newSessionId: nullable(id),
     reason: replacementFailure, cause: failure, cleanup: one('not-created', 'closed', 'pending') }),
