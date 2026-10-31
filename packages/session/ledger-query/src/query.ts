@@ -1,6 +1,6 @@
 /** Pure selection and coverage-aware projections over public ledger snapshots. */
 import type { LedgerCall, LedgerLifecycle, LedgerRow, LedgerSnapshot, LedgerTokenColumns } from '@panedesk/dsh-session-ledger'
-import type { LedgerCacheEvidence } from '@panedesk/dsh-session-ledger'
+import { includeDescendantSessions, type LedgerCacheEvidence } from '@panedesk/dsh-session-ledger'
 import type { LedgerGroupBy, LedgerHitRate, LedgerQueryOptions, LedgerQueryResult, LedgerTodaySummary, LedgerUsageTotals } from './types.ts'
 
 /** Exact nonnegative decimal addition without binary floating-point rounding.
@@ -115,16 +115,7 @@ function keyOf(call: LedgerCall, key: LedgerGroupBy): string {
 export function selectLedger(source: LedgerSnapshot, options: LedgerQueryOptions): LedgerQueryResult {
   if (options.repriceVersion !== undefined) throw new Error('Historical repricing is not available in the query service')
   const sessions = new Set<string>(options.sessionId === undefined ? [] : [options.sessionId])
-  if (options.includeChildren && options.sessionId !== undefined) {
-    const children = new Map<string, Set<string>>()
-    for (const row of source.rows) {
-      if (row.kind === 'event' || !row.start.parentSessionId) continue
-      const entries = children.get(row.start.parentSessionId) ?? new Set<string>()
-      entries.add(row.start.sessionId)
-      children.set(row.start.parentSessionId, entries)
-    }
-    for (const session of sessions) for (const child of children.get(session) ?? []) sessions.add(child)
-  }
+  if (options.includeChildren && options.sessionId !== undefined) includeDescendantSessions(source.rows, sessions)
   const owners = new Map(source.rows.filter(row => row.kind !== 'event').map(row => [row.start.runId, row.start]))
   const rows = sortRows(source.rows.filter((row) => {
     const time = rowOrder(row)[0]

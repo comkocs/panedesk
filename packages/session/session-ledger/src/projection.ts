@@ -56,6 +56,21 @@ export function foldLedger(events: readonly LedgerEvent[], options: {
   return projection.snapshot({ ...options, complete: (options.complete ?? true) && merged.conflicts.length === 0 })
 }
 
+/** Expand selected sessions through explicit parent links without rescanning rows per generation.
+ * @param rows - Call and lifecycle rows supplying parent-child relationships; event rows add none.
+ * @param sessions - Root sessions, extended in place with every reachable descendant.
+ */
+export function includeDescendantSessions(rows: readonly LedgerRow[], sessions: Set<string>): void {
+  const children = new Map<string, Set<string>>()
+  for (const row of rows) {
+    if (row.kind === 'event' || !row.start.parentSessionId) continue
+    const entries = children.get(row.start.parentSessionId) ?? new Set<string>()
+    entries.add(row.start.sessionId)
+    children.set(row.start.parentSessionId, entries)
+  }
+  for (const session of sessions) for (const child of children.get(session) ?? []) sessions.add(child)
+}
+
 /** Read-owned incremental rows; only committed, nonconflicting facts may be applied. */
 export class LedgerProjection {
   private readonly facts = new Map<string, LedgerEvent>()
@@ -118,16 +133,7 @@ export class LedgerProjection {
     })
     const filter = options.filter ?? {}
     const sessions = new Set<string>(filter.sessionId ? [filter.sessionId] : [])
-    if (filter.includeChildren && filter.sessionId) {
-      const children = new Map<string, Set<string>>()
-      for (const row of rows) {
-        if (row.kind === 'event' || !row.start.parentSessionId) continue
-        const entries = children.get(row.start.parentSessionId) ?? new Set<string>()
-        entries.add(row.start.sessionId)
-        children.set(row.start.parentSessionId, entries)
-      }
-      for (const session of sessions) for (const child of children.get(session) ?? []) sessions.add(child)
-    }
+    if (filter.includeChildren && filter.sessionId) includeDescendantSessions(rows, sessions)
     const selected = projectWaits(rows).filter((row) => {
       const start = row.kind === 'event' ? undefined : row.start
       const at = row.kind === 'event' ? row.event.observedAt : row.start.startedAt
