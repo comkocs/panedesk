@@ -588,7 +588,7 @@ export class LocalSeatService extends SeatService {
     if (routed !== undefined) return routed.status === 'rejected' && !('cacheEvidence' in routed)
       ? { ...routed, cacheEvidence: { lastActivityAt: null, cacheTtlMs: null, prefixDigest: null,
         observedAt: new Date().toISOString(), reusableRequest: false } } : routed
-    const refusal = await this.guard(request.nodeId, request.operationId)
+    const refusal = await this.guard(request.nodeId, request.operationId) ?? this.actionPrincipalRefusal()
     if (refusal !== null) return { ...refusal, cacheEvidence: { lastActivityAt: null, cacheTtlMs: null,
       prefixDigest: null, observedAt: new Date().toISOString(), reusableRequest: false } }
     const cacheEvidence = await this.runtime.cache(request.sessionId)
@@ -605,20 +605,25 @@ export class LocalSeatService extends SeatService {
   async close(request: T.CloseSeatRequest): Promise<T.CloseSeatResult> {
     const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.close', request)
     if (routed !== undefined) return routed
-    const refusal = await this.guard(request.nodeId, request.operationId)
+    const refusal = await this.guard(request.nodeId, request.operationId) ?? this.actionPrincipalRefusal()
     if (refusal !== null) return refusal
     return this.result(() => this.windowCloser.close(request, undefined, this.caller().authorization))
   }
   async replace(request: T.ReplaceSeatRequest): Promise<T.ReplaceSeatResult> {
     const routed = await routeSeat(this.runtime.context, this.options.nodeId, request.nodeId, this.caller(), 'seat.replace', request)
     if (routed !== undefined) return routed
-    const refusal = await this.guard(request.nodeId, request.operationId)
+    const refusal = await this.guard(request.nodeId, request.operationId) ?? this.actionPrincipalRefusal()
     if (refusal !== null) return refusal
     const grant = this.caller().authorization
     if (grant) return this.runtime.context.get('seatAuthorizedEngineActions')?.replace(request, grant)
       ?? rejected('unavailable', 'Audited replacement is unavailable.', 'Restore authorization admission.')
     return this.engine()?.replace(request)
       ?? rejected('unavailable', 'Replacement admission is unavailable.', 'Restore the engine before replacing.')
+  }
+  private actionPrincipalRefusal(): T.SeatRejected | null {
+    const authority = this.caller()
+    return authority.authorization && authority.authorization.fact.principalId !== authority.principalId
+      ? rejected('unauthorized', 'Action authorization does not match the calling principal.', 'Use the authenticated calling identity.') : null
   }
   async rename(request: T.RenameSeatRequest): Promise<T.RenameSeatResult> {
     if (this.caller().authorization) return rejected('unavailable', 'Atomic title authorization is unavailable.', 'Use a supported local entry.')

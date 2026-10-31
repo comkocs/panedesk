@@ -4,6 +4,7 @@ import type { EngineProjection } from './projection.ts'
 import type { AuthorizationDecision } from './authorization-storage.ts'
 import { digest } from './journal.ts'
 import { queryFrozen } from './frozen-admission.ts'
+import { rejected } from './triggers.ts'
 
 /** Historical evidence can be narrowed by a rebuildable startup index without changing durable fields. */
 export type FrozenHistory = Pick<EngineProjection, 'authorizationDecisions' | 'decisions' | 'pending'>
@@ -163,13 +164,24 @@ export function frozenTerminal(view: FrozenHistory, item: FrozenItem): FrozenTer
 /** Read retained execution or pre-open terminal evidence without changing original write receipts.
  * @param view - Complete recovered projection.
  * @param request - Exact original business key and digest.
+ * @param authority - Validated live query caller; omitted only for trusted historical projection.
  * @returns Historical opening evidence (not current liveness), a proven refusal, or the admission receipt.
  * Wake delivery receipts remain owned by the wake query.
  */
-export function queryFrozenExecution(view: EngineProjection, request: T.NodeWorkChainOperationRequest): T.NodeWorkChainOperationResult {
+export function queryFrozenExecution(view: EngineProjection, request: T.NodeWorkChainOperationRequest,
+  authority?: T.SeatCallContext): T.NodeWorkChainOperationResult {
+  const item = frozenItems(view).find(item => digest(item.chain.operationKey) === digest(request.key))
+  if (authority) {
+    const fact = authority.authorization?.fact
+    if (!fact || fact.kind !== 'node-delegation' || fact.sourceNodeId !== request.key.sourceNodeId
+      || fact.principalId !== request.key.principalId || fact.principalId !== authority.principalId
+      || fact.nodeId !== authority.nodeId || item && (fact.nodeId !== item.nodeId || fact.seat !== item.pending.seat
+        || item.pending.relatedTaskIds.some(task => !fact.taskIds.includes(task)))) {
+      return rejected('unauthorized', 'Frozen query attribution does not match')
+    }
+  }
   const original = queryFrozen(view, request)
   if (original.status !== 'settled') return original
-  const item = frozenItems(view).find(item => digest(item.chain.operationKey) === digest(request.key))
   if (item && (original.method === 'seat.openFrozen' || original.method === 'seat.wakeFrozen')) {
     const opens = [...view.opens.values()].filter(open => open.sources?.some(source => sameFrozenSource(item, source)))
     const open = opens.length === 1 ? opens[0] : undefined

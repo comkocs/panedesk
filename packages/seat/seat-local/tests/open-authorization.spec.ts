@@ -99,6 +99,65 @@ for (const entry of entries) test.each(damages)(`${entry} rejects %s authority w
   } finally { for (const dispose of disposers) dispose(); vi.restoreAllMocks(); await f.close() }
 })
 
+for (const entry of ['open', 'openWithContext', 'prefill', 'openBatch'] as const) {
+  test.each(['principal', 'node', 'seat', 'context-tasks'] as const)(`${entry} rejects live grants with mismatched %s without business effects`, async (binding) => {
+    const f = await admissionHost()
+    const disposers: (() => void | Promise<void>)[] = []
+    try {
+      const otherTask = 'task-b' as T.SeatTaskId
+      const request: T.OpenSeatRequest = { seat: f.definition.seat, origin: 'manual',
+        openingMode: entry === 'prefill' ? 'prefill' : 'auto', operationId: operation('bound-opening') }
+      const batch: T.OpenSeatBatchRequest = { seats: [request.seat], origin: 'manual', openingMode: 'auto',
+        operationId: request.operationId }
+      const payload = entry === 'openBatch'
+        ? { ...batch, seat: request.seat, operationId: operation(`${batch.operationId}:${request.seat}`) } : request
+      const issuer = f.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation',
+        principalId: binding === 'principal' ? 'other-user' as T.SeatPrincipalId : f.authority.principalId,
+        nodeId: binding === 'node' ? 'other-node' as T.SeatNodeId : f.authority.nodeId,
+        sourceNodeId: f.authority.nodeId, origin: 'manual',
+        seat: binding === 'seat' ? 'other-seat' as T.SeatName : request.seat, taskIds: [taskId], policyRevision: 1 },
+      current: () => ({ decision: 'allowed', reasonCode: 'trusted-local-owner', policyRevision: 1 }) })
+      disposers.push(() => { issuer.dispose() })
+      const grant = await issuer.issuer.check({ operationId: payload.operationId, requestDigest: digest(payload) })
+      if ('status' in grant) throw new Error('Expected live issued authority')
+      expect(f.engine.authorizationIssuers.verify(grant,
+        { operationId: payload.operationId, requestDigest: digest(payload) }, grant.fact.nodeId)).toEqual(grant.fact)
+      const authority: T.SeatCallContext = { ...f.authority, authorization: grant }
+      const snapshot: T.OpeningContextSnapshot = { reference, text: 'Frozen binding test',
+        digest: digest('Frozen binding test'), revision: '1',
+        taskIds: binding === 'context-tasks' ? [taskId, otherTask] : [taskId], scopeEvidence: [] }
+      const contexts = f.ctx.get('seatOpeningContexts')!
+      disposers.push(contexts.register({ providerId: reference.providerId, resolve: async () => snapshot }))
+      if (binding === 'context-tasks' && entry !== 'openWithContext') {
+        // These public requests have no context field; exercise their shared checked engine entry with a frozen context.
+        const openWindow = f.engine.openWindow.bind(f.engine)
+        vi.spyOn(f.engine, 'openWindow').mockImplementation(input => openWindow({ ...input, openingContext: snapshot }))
+      }
+      const before = (await f.state.read()).effects.filter(effect => effect.kind !== 'source/rejected')
+      const send = vi.spyOn(f.ctx.get('messageDelivery')!, 'send')
+      const seats = f.ctx.get('seats')!.withAuthority(authority)
+      let result: T.OpenSeatResult
+      if (entry === 'openWithContext') {
+        result = await contexts.open({ ...request, openingContext: reference, relatedTaskIds: snapshot.taskIds }, authority)
+      } else if (entry === 'openBatch') {
+        const processed = await seats.openBatch(batch)
+        expect(processed.status).toBe('processed')
+        if (processed.status !== 'processed') throw new Error('Expected member result')
+        result = processed.results[0]!.result
+      } else result = await seats.open(request)
+      expect(result).toMatchObject({ status: 'rejected', error: { code: 'unauthorized',
+        message: binding === 'node' ? 'Authorization grant does not match this action'
+          : 'Opening attribution does not authorize this seat and task', effectState: 'none' } })
+      expect((await f.state.read()).effects.filter(effect => effect.kind !== 'source/rejected')).toEqual(before)
+      expect(f.engine.journal.projection.opens.size).toBe(0)
+      expect(f.engine.journal.projection.pending.size).toBe(0)
+      expect(await f.ctx.sessionPersistence.list()).toEqual([])
+      expect(send).not.toHaveBeenCalled()
+      expect(f.adapter.requests).toEqual([])
+    } finally { for (const dispose of disposers) await dispose(); vi.restoreAllMocks(); await f.close() }
+  })
+}
+
 test.each(['authorization', 'localWake', 'both'] as const)('legacy engine rejects %s without calling accept', async (fields) => {
   const f = await engineFixture()
   try {
