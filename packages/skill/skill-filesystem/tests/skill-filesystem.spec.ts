@@ -181,6 +181,29 @@ describe('dsh-skill-filesystem plugin exports', () => {
 })
 
 describe('FileSystemSkillProvider', () => {
+  it('lists effective built-in, user, and project sources without a session', async () => {
+    const home = await tempDir('skill-page-home')
+    const project = await tempDir('skill-page-project')
+    const bundled = await tempDir('skill-page-bundled')
+    await mkdir(join(project, '.git'), { recursive: true })
+    await writeSkill(bundled, 'shipped', 'Built-in instructions')
+    await writeSkill(join(home, '.panedesk/skills'), 'mine', 'User instructions')
+    await writeSkill(join(project, '.agents/skills'), 'local', 'Project instructions')
+    await writeSkill(bundled, 'same', 'Shadowed built-in instructions')
+    await writeSkill(join(home, '.panedesk/skills'), 'same', 'Shadowed user instructions')
+    await writeSkill(join(project, '.agents/skills'), 'same', 'Effective project instructions')
+    const ctx = await setupLocal(home, { bundledSkillDir: bundled })
+    expect(await SkillFileSystem.listSkillCatalog(ctx, project)).toEqual([
+      { name: 'local', description: 'Project instructions', group: 'project', path: join(project, '.agents/skills/local/SKILL.md') },
+      { name: 'mine', description: 'User instructions', group: 'user', path: join(home, '.panedesk/skills/mine/SKILL.md') },
+      { name: 'same', description: 'Effective project instructions', group: 'project', path: join(project, '.agents/skills/same/SKILL.md') },
+      { name: 'shipped', description: 'Built-in instructions', group: 'builtin', path: join(bundled, 'shipped/SKILL.md') },
+    ])
+    expect((await SkillFileSystem.listSkillCatalog(ctx, undefined)).map(entry => [entry.name, entry.group])).toEqual([
+      ['mine', 'user'], ['same', 'user'], ['shipped', 'builtin'],
+    ])
+  })
+
   it('discovers project, custom, user, and agents skill roots in priority order', async () => {
     const home = await tempDir('skill-home')
     const project = await tempDir('skill-project')

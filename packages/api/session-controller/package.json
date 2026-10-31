@@ -101,6 +101,7 @@
     "@panedesk/dsh-session-title": "workspace:*",
     "@panedesk/dsh-settings": "workspace:*",
     "@panedesk/dsh-skill": "workspace:*",
+    "@panedesk/dsh-skill-filesystem": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/dsh-typert-protocol": "workspace:*",
     "@panedesk/dsh-typert-registry": "workspace:*",

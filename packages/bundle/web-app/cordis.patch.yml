@@ -444,6 +444,11 @@
     - id: ui-settings-plugins
       name: '@panedesk/dsh-client-ui-settings-plugins'
 
+    # Read-only Skills settings section. It lists built-in, user, and project
+    # skills and opens a source file through the host path opener.
+    - id: ui-skills
+      name: '@panedesk/dsh-client-ui-skills'
+
     # The official settings pages: one companion package per host-plane
     # namespace, each registering its page into the Plugins page while the
     # Host serves the namespace.

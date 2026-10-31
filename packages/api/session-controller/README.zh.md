@@ -27,6 +27,8 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
+`skills.catalog(workspaceId, signal)` 无需创建 Session 即可列出内置和用户技能；传入已注册工作区 ID 时还包含项目技能。未知 ID 返回 `workspace/not-found`，缺少技能注册表返回 `skills/unavailable`。此 Remote 在无 ID 时沿用既有全局访问策略；工作区控制器已挂载且传入 ID 时使用工作区资源策略；不接受任意文件系统根目录。打开源文件保留 `session.openWorkspacePath` 的授权和规范路径检查。
+
 可信编排可按已预留的精确 Session 身份创建，并在发布前应用局部模型选择，不保存全局默认模型。准入拒绝先于目录与 setup 副作用，失败时释放临时准备资源的所有权。
 
 历史页与 follow opening 快照为每个持久 Session 事件携带一条 `{ type: 'event', event: SessionWireEvent }` record。Client 把每条已接受 record 保留为一个持久 `SessionEventLikeEntry`；Assistant token 边界保留在 `assistant/message` 或 `assistant/attempt` 的紧凑流内。工具参数、结果内容、失败信息和 `tool/result.data.meta` 原样通过；控制器不解析工具定义、不运行展示转换器，也不附加 UI 数据。

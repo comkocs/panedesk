@@ -1701,6 +1701,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'options', description: 'the full request; `options.provider` selects the adapter.' }],
         returns: 'the chunk stream, possibly wrapped by `llm/stream` listeners.',
       },
+      {
+        signature: 'async probeModel( provider: string, model: string, signal?: AbortSignal, ): Promise<LlmModelProbeResult>',
+        description: 'Send the shortest generation that proves one model answers: one output token, no tools, no session. The credential stays inside the adapter that already serves the route; this method never logs or returns it.',
+        parameters: [{ name: 'provider', description: 'registered provider route.' }, { name: 'model', description: 'model id, including one the catalog does not list.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'success, or the adapter\'s own failure with the message kept and the credential-shaped text removed.',
+      },
+      {
+        signature: '@Remote(\'probeModel\') remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>',
+        description: 'Remote adapter for probeModel.',
+        parameters: [{ name: 'provider', description: 'registered provider route.' }, { name: 'model', description: 'model id to probe.' }, { name: 'signal', description: 'caller cancellation supplied by the Remote carrier.' }],
+        returns: 'the probe result; transport failures stay transport failures.',
+      },
     ],
   },
   {
@@ -4320,6 +4332,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'Session identity whose cwd and preset select the catalog view.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.' }],
         returns: 'user-invocable skill metadata without loading skill bodies.',
         throws: ['RemoteError when the Session cannot be inspected or no registry can serve it.'],
+      },
+      {
+        signature: '@Remote(\'catalog\') async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue>',
+        description: 'List built-in, user, and project skills without a session.',
+        parameters: [{ name: 'workspaceId', description: 'registered workspace identity; omission lists built-in and user skills only.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
+        returns: 'the three directories.',
+        throws: ['RemoteError when no registry is mounted or discovery fails.'],
       },
     ],
   },
@@ -8675,7 +8694,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmAdapter',
-    declaration: 'export abstract class LlmAdapter {\n    static ledgerEvidence?: WeakMap<StreamChunk, {\n        usage?: import(\'./types.ts\').TokenUsage;\n        reportedUsage?: Readonly<Record<string, number>>;\n        usageObserved?: boolean;\n        cacheWriteAccounting?: \'not-applicable\';\n        reportedCacheRetention?: string;\n    }>;\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef): ImageRequestTarget;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
+    declaration: 'export abstract class LlmAdapter {\n    static ledgerEvidence?: WeakMap<StreamChunk, {\n        usage?: import(\'./types.ts\').TokenUsage;\n        reportedUsage?: Readonly<Record<string, number>>;\n        usageObserved?: boolean;\n        cacheWriteAccounting?: \'not-applicable\';\n        reportedCacheRetention?: string;\n    }>;\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    imageRequestTarget(_provider: string, _model: string, image: ImageAttachmentRef): ImageRequestTarget;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n    probe(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
     name: 'LlmAttemptId',
@@ -8707,7 +8726,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmDiscoveredModel',
-    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n}',
+    declaration: 'export interface LlmDiscoveredModel {\n    id: string;\n    createdAt?: number;\n    name?: string;\n    contextWindow?: number;\n    maxTokens?: number;\n    inputModalities?: readonly ModelModality[];\n}',
   },
   {
     name: 'LlmFailure',
@@ -8732,6 +8751,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'LlmModelInfo',
     declaration: 'export interface LlmModelInfo {\n    provider: string;\n    id: string;\n    name: string;\n    description?: string;\n    inputModalities?: readonly ModelModality[];\n}',
+  },
+  {
+    name: 'LlmModelProbeResult',
+    declaration: 'export interface LlmModelProbeResult {\n    readonly ok: boolean;\n    readonly code?: string;\n    readonly message?: string;\n}',
   },
   {
     name: 'LlmModelReasoningInfo',
@@ -11416,6 +11439,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillCandidate',
     declaration: 'export interface SkillCandidate extends SkillSummary {\n    readonly rank: number;\n    readonly locator: unknown;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
+  },
+  {
+    name: 'SkillCatalogGroupName',
+    declaration: 'export type SkillCatalogGroupName = \'builtin\' | \'user\' | \'project\';',
+  },
+  {
+    name: 'SkillCatalogPageEntry',
+    declaration: 'export interface SkillCatalogPageEntry {\n    readonly name: string;\n    readonly description: string;\n    readonly group: SkillCatalogGroupName;\n    readonly path: string;\n}',
+  },
+  {
+    name: 'SkillCatalogPageValue',
+    declaration: 'export interface SkillCatalogPageValue {\n    readonly entries: readonly SkillCatalogPageEntry[];\n}',
   },
   {
     name: 'SkillCatalogSnapshot',

@@ -211,6 +211,10 @@ export const SESSION_SEARCH_SNIPPET_MAX_CODE_POINTS = 240
 
 declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
+    /** No skill registry is mounted, so the settings page cannot list skills. */
+    'skills/unavailable': Record<string, never>
+    /** Skill listing is switched off for this deployment. */
+    'skills/disabled': Record<string, never>
     'session/provider-credentials-unavailable': Record<string, never>
     'session/provider-models-unavailable': { readonly provider: string }
     'session/model-unavailable': { readonly provider: string; readonly model: string }
@@ -274,6 +278,26 @@ export interface SkillEntry {
 /** Human-invocable skills visible through one Session's composition. */
 export interface SkillListValue {
   readonly skills: readonly SkillEntry[]
+}
+
+/** One directory the settings skill page lists. */
+export type SkillCatalogGroupName = 'builtin' | 'user' | 'project'
+
+/** One skill the settings page shows without a session. */
+export interface SkillCatalogPageEntry {
+  /** Kebab-case skill name. */
+  readonly name: string
+  /** Short description. */
+  readonly description: string
+  /** Directory the skill was discovered in. */
+  readonly group: SkillCatalogGroupName
+  /** Absolute source path. */
+  readonly path: string
+}
+
+/** The three directories for one workspace, read without a session. */
+export interface SkillCatalogPageValue {
+  readonly entries: readonly SkillCatalogPageEntry[]
 }
 
 /** Session list request. */

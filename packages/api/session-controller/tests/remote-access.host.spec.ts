@@ -19,6 +19,7 @@ import TypertRegistry from '@panedesk/dsh-typert-registry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type SessionController from '../src/index.ts'
 import { ApiSessionList } from '../src/list.ts'
+import { SessionSkillCatalog } from '../src/skill-catalog.ts'
 import type { SessionControlFrame, SessionRequestId, SessionSearchValue } from '../src/types.ts'
 import { createSessionTestController } from './test-remote.ts'
 
@@ -107,6 +108,31 @@ function message(text: string) {
 }
 
 describe('Session Controller access', () => {
+  it('authorizes session-free skill catalogs against the global or selected workspace resource', async () => {
+    const { ctx } = await harness()
+    await ctx.plugin(TypertGatewayService)
+    if (ctx.get('sessionSkillCatalog') === undefined) new SessionSkillCatalog(ctx)
+    ctx.typert.resources.register('workspace', { field: 'workspaceId' })
+    const workspaceId = 'catalog-workspace' as import('@panedesk/dsh-workspace/types').WorkspaceId
+    ctx.provide('workspaceRegistry', { get: () => ({ path: '/catalog/project' }) } as never)
+    const list = vi.fn(async () => [])
+    ctx.provide('skills', { list } as never)
+    const held = guestPolicy(ctx)
+    const peer: PeerScope = { id: 'skills-access-peer' as PeerId, ctx, principal: GUEST, interactions: 'answer', signal: new AbortController().signal, dispose: async () => {} }
+    const call = (args: Readonly<Record<string, unknown>>) => ctx.typertGateway.invoke({ peer, namespace: 'skills', method: 'catalog', args })
+    await expect(call({})).rejects.toMatchObject({ code: 'remote-access/denied', details: { action: 'skills/catalog' } })
+    expect(list).not.toHaveBeenCalled()
+    held.push({ role: { name: 'test:skill-catalog', resource: 'global', actions: ['skills/catalog'] }, resource: { kind: 'global' } })
+    await expect(call({})).resolves.toEqual({ entries: [] })
+    expect(list).toHaveBeenLastCalledWith({})
+    await expect(call({ workspaceId })).rejects.toMatchObject({ code: 'remote-access/denied' })
+    expect(list).toHaveBeenCalledTimes(1)
+    held.splice(0, held.length, { role: { name: 'test:project-skills', resource: 'workspace', actions: ['skills/catalog'] }, resource: { kind: 'workspace', id: workspaceId } })
+    await expect(call({ workspaceId })).resolves.toEqual({ entries: [] })
+    expect(list).toHaveBeenLastCalledWith({ cwd: '/catalog/project' })
+    await expect(call({})).rejects.toMatchObject({ code: 'remote-access/denied' })
+  })
+
   it('owns the Session resource kind and its default sessionId field', async () => {
     const { ctx } = await harness()
     expect(() => ctx.typert.resources.register('session', { field: 'sessionId' })).toThrow(/already registered/)

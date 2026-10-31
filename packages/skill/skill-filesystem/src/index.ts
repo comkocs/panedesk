@@ -30,7 +30,10 @@ import {
   type SkillProviderControl,
   type SkillProviderObservation,
   type SkillSource,
+  type SkillSummary,
 } from '@panedesk/dsh-skill'
+import { skillCatalogGroup } from './catalog-groups.ts'
+import type { SkillCatalogGroup } from './catalog-groups.ts'
 
 const PROJECT_DSH_RANK = 100
 const PROJECT_AGENTS_RANK = 200
@@ -40,6 +43,49 @@ const USER_AGENTS_RANK = 500
 const DEFAULT_WATCH_STABILITY_THRESHOLD_MS = 200
 const DEFAULT_WATCH_POLL_INTERVAL_MS = 100
 const DEFAULT_WATCH_MAX_PROJECTS = 128
+
+export { skillCatalogGroup } from './catalog-groups.ts'
+export type { SkillCatalogGroup } from './catalog-groups.ts'
+
+/**
+ * One skill the settings page can show without a session: name, description,
+ * source directory, and the file the page may open.
+ */
+export interface SkillCatalogEntry {
+  /** Kebab-case skill name. */
+  readonly name: string
+  /** Short description from the skill file. */
+  readonly description: string
+  /** Which of the three directories this skill belongs to. */
+  readonly group: SkillCatalogGroup
+  /** Absolute path of the skill file. */
+  readonly path: string
+}
+
+/**
+ * Read the three skill directories for one workspace without a session.
+ * Project roots use `cwd`; user and bundled roots do not. Custom and runtime
+ * skills are not one of the three directories and are left out.
+ * @param ctx - host context whose `skills` service lists summaries.
+ * @param cwd - workspace directory whose project skills are included; omission lists built-in and user skills only.
+ * @returns effective entries in registry order; same-name skills retain only the highest-priority source.
+ */
+export async function listSkillCatalog(ctx: Context, cwd: string | undefined): Promise<SkillCatalogEntry[]> {
+  const skills = await ctx.skills.list(cwd === undefined ? {} : { cwd })
+  const entries: SkillCatalogEntry[] = []
+  for (const skill of skills) {
+    const entry = catalogEntry(skill)
+    if (entry !== undefined) entries.push(entry)
+  }
+  return entries
+}
+
+/** Keep one summary when it names a file in one of the three directories. */
+function catalogEntry(skill: SkillSummary): SkillCatalogEntry | undefined {
+  const group = skillCatalogGroup(skill)
+  if (group === undefined || skill.path === undefined) return undefined
+  return { name: skill.name, description: skill.description, group, path: skill.path }
+}
 
 export const name = 'skill-filesystem'
 export const inject = ['skills']

@@ -46,6 +46,8 @@ dsh --profile web --no-open --port 8080
 
 ### 配置
 
+随包客户端组合包含二级[技能设置分区](../../client/ui-skills/README.zh.md)，入口留在设置内部，不向初始会话首屏添加面板。
+
 `ui-seat-approvals` 条目默认惰性。后续档案补丁启用其 `enabled` 字段后，经过认证的所有者可确认待批席位工作；限额、回显及失败行为见[插件参考](../../client/ui-seat-approvals/README.zh.md)。
 
 `minimal` agent preset 使用持久 Shell、`read_image` 工具和固定 persona，支持自动历史压缩以及会话空闲时的 `/compact` 命令。它复用 Host token meter，并拥有隔离的压缩后端。[压缩配置与保留策略](../../compaction/compaction-basic/README.zh.md#use-this-package) 沿用现有后端。图片读取复用 Host 文件系统和附件存储，要求模型支持图片输入；不加载文本读取、写入和编辑工具。

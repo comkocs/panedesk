@@ -259,7 +259,18 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
  * @throws RemoteError when the Session cannot be inspected or no registry can serve it.
  */
 @Remote async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue>
+
+/**
+ * List built-in, user, and project skills without a session.
+ * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
+ * @param signal - caller lifetime carried by the Remote transport.
+ * @returns the three directories.
+ * @throws RemoteError when no registry is mounted or discovery fails.
+ */
+@Remote('catalog') async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue>
 ```
+
+Types: [WorkspaceId](workspace.zh.md)
 
 Source: [`packages/api/session-controller/src/skill-catalog.ts`](../../packages/api/session-controller/src/skill-catalog.ts)
 
