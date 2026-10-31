@@ -1,6 +1,335 @@
 {
   "divergences": [
     {
+      "id": "sidebar-right-visible-session-budget",
+      "description": "Enforce the product's three-visible-session budget at final layout, history, and restore boundaries; reject navigation and cleanup side effects together with the layout.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Enforce the product's three-visible-session budget at final layout, history, and restore boundaries; reject navigation and cleanup side effects together with the layout. The numeric product policy is fork-specific; atomic refusal behavior can be proposed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-sidebar-right/src/client/session-budget.ts",
+          "packages/client/ui-sidebar-right/src/client/stores.ts",
+          "packages/client/ui-sidebar-right/src/client/service.ts",
+          "packages/client/ui-sidebar-right/src/client/persistence.ts",
+          "packages/client/ui-sidebar-right/tests/session-budget.client.spec.ts",
+          "packages/client/ui-sidebar-right/tests/service.client.spec.ts",
+          "packages/client/ui-sidebar-right/README.md",
+          "packages/client/ui-sidebar-right/README.zh.md",
+          "packages/client/ui-sidebar-right/README.i18n.yaml"
+        ],
+        "test": "packages/client/ui-sidebar-right/tests/session-budget.client.spec.ts"
+      }
+    },
+    {
+      "id": "cache-session-keyless-browser-acceptance",
+      "description": "Exercise localized cache and retained-session surfaces without a model or desk connection, and keep the Host scaffold outside the Client compiler program.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Exercise localized cache and retained-session surfaces without a model or desk connection, and keep the Host scaffold outside the Client compiler program. Feature-specific acceptance; the compiler-face registration pattern is upstream-compatible.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/session-tab-cache.e2e.ts",
+          "apps/web/tests/assembled-boot.ts",
+          "apps/web/tests/assembled-remote.ts",
+          "apps/web/tsconfig.json",
+          "tsconfig.host.json",
+          "snapshots/web/subagent-conversation/sidebar-chat.expected.md",
+          "snapshots/web/subagent-conversation/ui.expected.md",
+          "snapshots/web/subagent-conversation/ui-expanded.expected.md"
+        ],
+        "test": "apps/web/tests/session-tab-cache.e2e.ts"
+      }
+    },
+    {
+      "id": "seat-profile-catalog-service-registration",
+      "description": "Register owner seat profile services, referenced types and browser-only navigation ownership in the existing catalog and graph tables.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Register owner seat profile services, referenced types and browser-only navigation ownership in the existing catalog and graph tables. Generic registration updates can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts"
+        ],
+        "test": "verify-cordis-catalog"
+      }
+    },
+    {
+      "id": "seat-profile-generated-catalog-refresh",
+      "description": "Regenerate catalogs for the optional seat profile package, its services and client slot occupants; synchronize the reviewed Chinese graph mirror and bilingual pairing.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Regenerate catalogs for the optional seat profile package, its services and client slot occupants; synchronize the reviewed Chinese graph mirror and bilingual pairing. Generic catalog updates can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "docs/capability-seams.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md"
+        ],
+        "test": "verify-doc-graphs"
+      }
+    },
+    {
+      "id": "seat-profile-readme-standard-sections",
+      "description": "Complete the required contents sections, standard Chinese headings and shared bilingual anchors without changing the documented feature behavior.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Complete the required contents sections, standard Chinese headings and shared bilingual anchors without changing the documented feature behavior. Generic documentation fixes can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-seat-profiles/README.md",
+          "packages/client/ui-seat-profiles/README.zh.md",
+          "packages/client/ui-seat-profiles/README.i18n.yaml"
+        ],
+        "test": "verify-translation-pairing"
+      }
+    },
+    {
+      "id": "received-message-observation-and-retention-alerts",
+      "description": "Optional received-message metadata and exact-mailbox quarantine queries, an owner-only read bridge and post-session inbox surface, runtime retention projections and committed refusal observations, bilingual threshold announcements, and the associated product composition, test fixtures and generated references.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Optional received-message metadata and exact-mailbox quarantine queries, an owner-only read bridge and post-session inbox surface, runtime retention projections and committed refusal observations, bilingual threshold announcements, and the associated product composition, test fixtures and generated references. Suitable for upstream contribution.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/message-delivery",
+          "packages/session/message-delivery-local",
+          "packages/session/ledger-query",
+          "packages/seat/seat",
+          "packages/seat/seat-engine",
+          "packages/client/ui-seat-approvals",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "packages/test-support/client-runtime",
+          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts",
+          "docs/subsystems/persistence.md",
+          "docs/subsystems/persistence.zh.md",
+          "docs/subsystems/persistence.i18n.yaml",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "docs/subsystems/seat.i18n.yaml",
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "docs/capability-seams.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/module-graph.md",
+          "docs/module-graph.zh.md",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ],
+        "test": "packages/session/message-delivery-local/tests"
+      }
+    },
+    {
+      "id": "panedesk-product-package-readme-pairing",
+      "description": "Keep the Panedesk-added package index entries paired across languages and point the Bash setup entry at the existing host-bash-setup package.",
+      "origin": "Integrated optional product features and generated references",
+      "reason": "Keep the Panedesk-added package index entries paired across languages and point the Bash setup entry at the existing host-bash-setup package. The index entries are fork-specific; the documentation-link repair pattern can be shared upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/README.i18n.yaml",
+          "packages/host/README.md",
+          "packages/host/README.zh.md",
+          "packages/host/README.i18n.yaml"
+        ],
+        "test": "verify-translation-pairing"
+      }
+    },
+    {
+      "id": "windows-bash-first-run-probe-gating",
+      "description": "Gate the base-profile Bash and PowerShell rows on the committed Windows Git Bash product selection in addition to the environment override.",
+      "origin": "Windows first-run Git Bash probe",
+      "reason": "Windows keeps Bash disabled by default; the committed ~/.panedesk/windows-bash.json selection enables the Bash rows and disables the PowerShell rows exactly like PANEDESK_BASH_PATH, with bashPath as a third fallback between the environment override and the bare 'bash' default. Scope assertions cover win32/linux baselines, the environment override, the enabled product config, an inert config, and the three-level bashPath fallback.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/bundle/base/cordis.patch.yml",
+          "packages/bundle/slim-base/cordis.patch.yml",
+          "packages/bundle/base/tests/base.spec.ts"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "      disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH"
+            ],
+            "fork": [
+              "      disabled: !!js process.platform === 'win32' && !process.env.PANEDESK_BASH_PATH && ctx.get('windowsBashConfig')?.()?.enabled !== true"
+            ]
+          },
+          {
+            "upstream": [
+              "        bashPath: !!js process.env.PANEDESK_BASH_PATH ?? 'bash'"
+            ],
+            "fork": [
+              "        bashPath: !!js process.env.PANEDESK_BASH_PATH ?? ctx.get('windowsBashConfig')?.()?.bashPath ?? 'bash'"
+            ]
+          },
+          {
+            "upstream": [
+              "      disabled: !!js process.platform !== 'win32' || !!process.env.PANEDESK_BASH_PATH"
+            ],
+            "fork": [
+              "      disabled: !!js process.platform !== 'win32' || !!(process.env.PANEDESK_BASH_PATH || ctx.get('windowsBashConfig')?.()?.enabled === true)"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "windows-bash-config-loader-provision",
+      "description": "Provide the Windows Bash product-config reader to Loader !!js expressions and re-export the windows-bash module from bash-local.",
+      "origin": "Windows first-run Git Bash probe",
+      "reason": "The base-profile gating expressions evaluate during mount decisions before any plugin config is readable, so app-boot provides readWindowsBashConfig as a loader-context helper next to dshHomePath, and bash-local re-exports the new module plus its dependencies.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/boot/app-boot/src/index.ts",
+          "packages/boot/app-boot/package.json",
+          "packages/boot/app-boot/tsconfig.json",
+          "packages/shell/bash-local/package.json",
+          "packages/shell/bash-local/tsconfig.json",
+          "packages/shell/bash-local/src/index.ts"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "import { readWindowsBashConfig, type WindowsBashConfig } from '@panedesk/dsh-bash-local'",
+              "    windowsBashConfig?: () => WindowsBashConfig | undefined",
+              "    ctx.provide('windowsBashConfig', () => readWindowsBashConfig())",
+              "export {",
+              "  WINDOWS_BASH_CONFIG_FILENAME, clearWindowsBashConfig, parseWindowsBashConfig, probeWindowsBash,",
+              "  readWindowsBashConfig, windowsBashCandidates, windowsBashConfigPath, writeWindowsBashConfig,",
+              "} from './windows-bash.ts'",
+              "    \"@panedesk/dsh-bash-local\": \"workspace:*\",",
+              "      \"path\": \"../../shell/bash-local\""
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bash-setup-remote-and-settings-row-wiring",
+      "description": "Wire the bashSetup Remote, the Settings General Windows Git Bash row, and the Panedesk icon/token static library into the aggregates and the web-app bundle.",
+      "origin": "Windows first-run Git Bash probe and Panedesk icons/tokens",
+      "reason": "api/remotes mounts the bashSetup contribution beside pluginRegistryProbe, web-app declares the host and client rows plus the static library dependency, and the root aggregates reference the three new packages (ui-settings-bash, ui-panedesk-icons, host-bash-setup).",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/api/remotes/package.json",
+          "packages/api/remotes/src/client/index.ts",
+          "packages/api/remotes/tsconfig.client.json",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "tsconfig.client.json",
+          "tsconfig.host.json"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "import bashSetupRemote from '@panedesk/dsh-host-bash-setup/remote'",
+              "export type { BashSetupStatus, BashSetupWriteResult } from '@panedesk/dsh-host-bash-setup/types'",
+              "      bashSetupRemote,",
+              "    - id: bash-setup",
+              "      name: '@panedesk/dsh-host-bash-setup'",
+              "    - id: ui-settings-bash",
+              "      name: '@panedesk/dsh-client-ui-settings-bash'",
+              "    \"@panedesk/dsh-host-bash-setup\": \"workspace:*\",",
+              "    \"@panedesk/dsh-client-ui-settings-bash\": \"workspace:*\",",
+              "    \"@panedesk/dsh-client-ui-panedesk-icons\": \"workspace:*\",",
+              "    { \"path\": \"./packages/client/ui-settings-bash\" },",
+              "    { \"path\": \"./packages/client/ui-panedesk-icons\" },",
+              "    { \"path\": \"./packages/host/host-bash-setup\" }"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "plugin-inventory-explicit-switches",
+      "description": "Give addressable global loader rows an explicit enable/disable Switch backed by plugin-manager declarations.",
+      "origin": "Plugin inventory explicit switches",
+      "reason": "Rows with exactly one candidate, a patchId, and no preset provider toggle write through pluginManager.setPluginEnabled into the profile declaration layer (declarations outrank retained runtime switches), with per-card notices for restart-required, overridden, and failed outcomes; the management face missing leaves the tab read-only.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/client/ui-settings-plugin-inventory/src/client/index.ts",
+          "packages/client/ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx",
+          "packages/client/ui-settings-plugin-inventory/src/client/locales.ts",
+          "packages/client/ui-settings-plugin-inventory/tests/browser-plugin.client.spec.tsx",
+          "packages/client/ui-settings-plugin-inventory/tests/components.client.spec.tsx"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "'remote.pluginManager'",
+              "listManaged",
+              "setEnabled",
+              "SwitchNoticeKind",
+              "managedSwitch",
+              "writeSwitch"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "product-setup-translation-pairing-faces",
+      "description": "Regenerated translation records and group maps for the bash probe, its settings row, the icon library, and the inventory switches.",
+      "origin": "Windows first-run Git Bash probe, Panedesk icons, plugin inventory switches",
+      "reason": "Bilingual README faces and their pairing records plus the client/host group maps and the workspace lockfile absorb the new packages and rows; verify-translation-pairing keeps them aligned.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/shell/bash-local/README.md",
+          "packages/shell/bash-local/README.zh.md",
+          "packages/shell/bash-local/README.i18n.yaml",
+          "packages/host/README.md",
+          "packages/host/README.zh.md",
+          "packages/client/README.md",
+          "packages/client/README.zh.md",
+          "packages/client/ui-settings-plugin-inventory/README.md",
+          "packages/client/ui-settings-plugin-inventory/README.zh.md",
+          "packages/client/ui-settings-plugin-inventory/README.i18n.yaml",
+          "pnpm-lock.yaml"
+        ],
+        "test": "verify-translation-pairing"
+      }
+    },
+    {
+      "id": "assembled-build-metadata-single-owner",
+      "description": "Combine build metadata fixture contributions without duplicate declarations or reads.",
+      "origin": "Assembled browser metadata and cache view integration",
+      "reason": "Retain strict metadata field validation and teardown from both contributions with one read, one readonly fixture property and one teardown deletion. Preserve the cache read mock and project-opening settings preconditions. The generic fixture repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/assembled-boot.ts",
+          "apps/web/tests/assembled-remote.ts",
+          "tsconfig.base.json"
+        ],
+        "test": "apps/web/tests/session-tab-cache.e2e.ts"
+      }
+    },
+    {
       "id": "session-tools-project-opening-browser-goldens",
       "description": "Align existing browser goldens with additive Session tools, subagent tree and project opening navigation.",
       "origin": "Integrated secondary Session controls and project workflow settings",
