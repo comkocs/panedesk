@@ -1,6 +1,49 @@
 {
   "divergences": [
     {
+      "id": "owner-registered-embedded-conversation-and-node-catalogs",
+      "description": "Render embedded conversations through their owning factory and classify integrated node services.",
+      "origin": "Integrated package and catalog validation",
+      "reason": "Replace cross-plugin component imports with the session-scoped conversation.embedded factory while preserving phase selection and the fixed Chat view. Publish the exact polling artifact, declare generated host schema dependencies, remove retired assertion baselines, and regenerate node service, configuration and module documentation without broadening package or type-link exemptions.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "docs/capability-seams.i18n.yaml",
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/module-graph.md",
+          "docs/module-graph.zh.md",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "packages/client/resources/tsdown.config.ts",
+          "packages/client/ui-conversation/README.i18n.yaml",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-conversation/src/client/apply.ts",
+          "packages/client/ui-conversation/src/client/contract/slots.ts",
+          "packages/client/ui-conversation/src/client/index.ts",
+          "packages/client/ui-conversation/src/client/skeleton/EmbeddedConversation.tsx",
+          "packages/client/ui-inbox/package.json",
+          "packages/client/ui-nodes/src/index.ts",
+          "packages/client/ui-seat-approvals/package.json",
+          "packages/client/ui-session-tab/src/client/conversation.tsx",
+          "packages/client/ui-session-tab/tests/conversation.client.spec.tsx",
+          "packages/client/ui-subagent/src/client/sidebar-chat/index.tsx",
+          "packages/client/ui-subagent/tests/sidebar-chat.client.spec.tsx",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "pnpm-lock.yaml",
+          "scripts/check-workspace-constraints.ts",
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts",
+          "scripts/no-unknown-casts.baseline.json"
+        ],
+        "test": "embedded phase and Chat routing assertions, client build, package classification and generated catalog freshness"
+      }
+    },
+    {
       "id": "browser-safe-resource-polling-and-ui-evidence",
       "description": "Keep resource polling independent of dynamic plugin entrypoints and exercise visible acceptance states.",
       "origin": "Integrated client bundle and presentation checks",
