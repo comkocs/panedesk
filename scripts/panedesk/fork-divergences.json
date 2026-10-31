@@ -633,6 +633,26 @@
       }
     },
     {
+      "id": "seat-opening-live-grant-binding",
+      "description": "Bind live opening grants to the calling principal, requested seat and complete task set; suitable for upstream submission.",
+      "origin": "Optional seat orchestration",
+      "reason": "Bind each live opening grant to the calling principal, requested seat and every requested or frozen-context task before committing business effects, without weakening trusted legacy admission, checked wake conversion or admitted replay.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-local/tests/open-authorization.spec.ts",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml"
+        ],
+        "test": "open rejects live grants with mismatched %s without business effects"
+      }
+    },
+    {
       "id": "seat-admission-definition-diagnostics",
       "description": "Report definition refusals and recover retained input at seat admission.",
       "origin": "Optional seat orchestration",
