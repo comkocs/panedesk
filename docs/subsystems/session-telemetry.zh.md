@@ -139,6 +139,10 @@ interface SessionTelemetrySink {
 
 `SessionTelemetryBackend`（`ctx.sessionTelemetry`，[签名](#ctxsessiontelemetry--sessiontelemetrybackend-abstract-seam)）是该约定的可加载形态：每个上下文只允许一个实现，重复加载会抛出异常；后端在其构造函数中组合 seam 的 `SessionTelemetryCoordinator`，以此装配捕获侧。
 
+## 账本统计
+
+`StatsRequest` 选择固定范围（`today`、`6h`、`24h`、`72h`、`168h`、`all`）、北京时间小时／日桶及位／单／模型／窗口／主窗与子会话／代理类型分组，可按位、单和模型筛选。`StatsView` 包含同一快照的调用聚合、覆盖率、单列保活合计、缓存读取比例、在跑会话证据、项目／窗口行、模型汇总、时间桶及逐调用明细。[查询包](../../packages/session/ledger-query/README.zh.md)负责数值语义；[统计台插件](../../packages/client/ui-stats/README.zh.md)只提供经过所有者授权的 Remote 读取和二级 GUI 入口。这些是查询投影，不是持久化 Session 格式类型。
+
 ## 脱敏 waterfall：`session-telemetry/record`
 
 每条记录在权威事件副本与 `emit()` 之间都要经过 `session-telemetry/record` [waterfall](../cordis-primer.zh.md#cordis-waterfall-semantics)（[事件条目](#session-telemetryrecord--waterfall)）。seam 自身不带任何规则：未挂载监听器时，记录以捕获时的原样到达后端；导出数据能干净到什么程度，恰恰取决于部署方挂载了什么规则。监听器通过变换 `next()` 的返回值来堆叠；不调用 `next()` 就返回，即替换其下方的全部逻辑；抛出异常的监听器会在协调器的隔离范围内以 fail-closed 方式扣下这一条记录。脱敏只作用于导出副本；权威会话日志永不改写。
@@ -163,6 +167,13 @@ Query providers read ledger snapshots without launching an Agent or model provid
  * @returns source snapshot and coverage-aware grouped totals.
  */
 async query(options: LedgerQueryOptions): Promise<LedgerQueryResult>
+
+/** Compute all five statistics tabs from one deduplicated snapshot.
+ * @param request - Fixed range, grouping and time-bucket selection.
+ * @param asOf - Optional exclusive UTC millisecond instant; omission reads the system clock.
+ * @returns Coverage-aware call totals and child-session lifecycle counts.
+ */
+async stats(request: StatsRequest, asOf?: number): Promise<StatsView>
 
 /** Compute today's overview at the runtime clock or an explicit observation instant.
  * @param asOf - optional UTC millisecond observation time; omission reads the system clock.
@@ -386,6 +397,22 @@ abstract shutdown(): Promise<void>
 ```
 
 Source: [`packages/session/session-telemetry/src/index.ts`](../../packages/session/session-telemetry/src/index.ts)
+
+<a id="ctxstats--statsservice"></a>
+
+### `ctx.stats` — `StatsService`
+
+No write, export, transcript, model, or caller-supplied identity capability is exposed.
+
+```ts cordis-catalog
+/** Read one deduplicated ledger snapshot after authenticating the invocation owner.
+ * @param request - Fixed time range, bucket, grouping and optional attribution filters.
+ * @returns Five-tab projection plus the deployment's refresh cadence.
+ */
+@Remote async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }>
+```
+
+Source: [`packages/client/ui-stats/src/index.ts`](../../packages/client/ui-stats/src/index.ts)
 
 <a id="ledger-watch-events"></a>
 

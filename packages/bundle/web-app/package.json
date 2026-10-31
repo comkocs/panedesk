@@ -118,6 +118,8 @@
     "@panedesk/dsh-client-ui-sidebar-terminal": "workspace:*",
     "@panedesk/dsh-client-ui-skill": "workspace:*",
     "@panedesk/dsh-client-ui-subagent": "workspace:*",
+    "@panedesk/dsh-client-ui-stats": "workspace:*",
+    "@panedesk/dsh-ledger-query": "workspace:*",
     "@panedesk/dsh-client-ui-theme": "workspace:*",
     "@panedesk/dsh-client-ui-tool": "workspace:*",
     "@panedesk/dsh-client-ui-trajectory": "workspace:*",

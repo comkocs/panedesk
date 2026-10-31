@@ -17,6 +17,9 @@
 /sessiontelemetrybackend/the-backend-contract:
   en: 6d4467aeab2822be
   zh: 6a874e8014c34683
+/sessiontelemetrybackend/ledger-statistics:
+  en: 00121b403f9e1349
+  zh: f5d6776e54c06a1c
 /sessiontelemetrybackend/the-redact-waterfall-session-telemetry-record:
   en: 15bd0919a8d4cea0
   zh: 1ddaa1e8d84db66b

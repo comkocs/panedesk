@@ -204,6 +204,8 @@ flowchart LR
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
+  pkg_client_ui_stats["client-ui-stats"]
+  svc_stats["ctx.stats<br/>Owner-authorized ledger statistics"]
   pkg_session_telemetry["session-telemetry"]
   svc_sessionTelemetry["ctx.sessionTelemetry<br/>Session telemetry seam"]
   pkg_storage["storage"]
@@ -394,6 +396,7 @@ flowchart LR
   pkg_client_product_analytics --> svc_productAnalytics
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
+  pkg_client_ui_stats --> svc_stats
   pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
   pkg_compaction --> svc_compaction
@@ -645,6 +648,7 @@ flowchart LR
   svc_jobs --> pkg_tool_pwsh
   svc_jobs --> pkg_tool_terminal
   svc_kernelStatus --> pkg_api_session_controller
+  svc_ledgerQuery --> pkg_client_ui_stats
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
@@ -909,7 +913,8 @@ flowchart LR
 | `ctx.messageDelivery` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | - | - | 抽象的投递、接收策略、持久控制与回执操作；骨架不注册提供方。 |
 | `ctx.sessionLedger` | `seam` | [`session-ledger`](../packages/session/session-ledger) | - | - | - | 抽象的仅追加记账与参考定价操作；骨架不提供存储实现。 |
 | `ctx.messageLedger` | `service` | [`session-ledger`](../packages/session/session-ledger) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | 独立于调用记账存储消息事实，并与完整账本提供方共用持久节点标识。 |
-| `ctx.ledgerQuery` | `seam` | [`ledger-query`](../packages/session/ledger-query) | - | - | - | 抽象的过滤、每日汇总与导出；骨架不提供查询实现。 |
+| `ctx.ledgerQuery` | `service` | [`ledger-query`](../packages/session/ledger-query) | - | [`client-ui-stats`](../packages/client/ui-stats) | - | 筛选可选账本快照，派生带覆盖率的摘要、统计和安全导出。 |
+| `ctx.stats` | `service` | [`client-ui-stats`](../packages/client/ui-stats) | - | - | - | 向统计台 Client 提供只读 Remote 投影，不开放模型、会话正文、导出或修改能力。 |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | 该 seam 捕获会话记录、进行脱敏并交给一个后端；没有其他组件消费该服务，其输出会离开当前进程。 |
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | 各后端以不同名称并列注册；数据形态（领域优先）挂载到枢纽上，并将类型化操作转换为不透明的 KV 单元原语。 |
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace) | - | 等待所有已配置后端就绪，然后将领域形态发布为一个受生命周期约束的服务，用于类型化持久状态。 |

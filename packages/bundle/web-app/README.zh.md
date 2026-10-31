@@ -46,6 +46,8 @@ dsh --profile web --no-open --port 8080
 
 ### 配置
 
+默认启用的 `ui-stats` 条目提供二级“统计台”设置摘要与“在主区打开”操作。会话启动后，会话工具菜单也可打开同一面板；不会增加首屏或左栏面板入口。[统计台插件](../../client/ui-stats/README.zh.md)负责授权、刷新与账本证据语义。
+
 `ui-seat-approvals` 条目默认惰性。后续档案补丁启用其 `enabled` 字段后，经过认证的所有者可确认待批席位工作；限额、回显及失败行为见[插件参考](../../client/ui-seat-approvals/README.zh.md)。
 
 `minimal` agent preset 使用持久 Shell、`read_image` 工具和固定 persona，支持自动历史压缩以及会话空闲时的 `/compact` 命令。它复用 Host token meter，并拥有隔离的压缩后端。[压缩配置与保留策略](../../compaction/compaction-basic/README.zh.md#use-this-package) 沿用现有后端。图片读取复用 Host 文件系统和附件存储，要求模型支持图片输入；不加载文本读取、写入和编辑工具。
