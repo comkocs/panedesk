@@ -3757,6 +3757,76 @@
       "origin": "Plugin installation brand integration",
       "reason": "The mirror and alternative-installation snapshots retain obsolete product names and the old CLI command. Refresh only those intentional localized output changes through the existing snapshot runner; preserve the network, timeout and manifest assertions.",
       "match": { "type": "test-assertion", "paths": ["apps/web/tests/expected/plugin-install-github/mirror.expected.md", "apps/web/tests/expected/plugin-install-github/another-way.expected.md"], "test": "offers a mirror after a GitHub failure, then another way on the mirror, and waits for replacement input" }
+    },
+    {
+      "id": "ledger-statistics-stable-detail-pages",
+      "description": "Preserve stable detail pages and authoritative ledger statistics evidence.",
+      "origin": "Owner-authorized statistics integration",
+      "reason": "Keep call-detail pagination stable without narrowing aggregates, rebuild historical waits from visible evidence, honor newer authoritative residency completion, and replay the owner-only statistics UI without model requests. The query fixes and tests are suitable for upstream contribution.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/ledger-query/src/stats-types.ts",
+          "packages/session/ledger-query/src/stats.ts",
+          "packages/session/ledger-query/tests/stats.spec.ts",
+          "packages/session/ledger-query/README.md",
+          "packages/session/ledger-query/README.zh.md",
+          "packages/session/ledger-query/README.i18n.yaml",
+          "packages/client/ui-stats/src/client/panel.tsx",
+          "packages/client/ui-stats/src/client/selection.ts",
+          "packages/client/ui-stats/src/client/locales.ts",
+          "packages/client/ui-stats/tests/panel.client.spec.tsx",
+          "packages/client/ui-stats/README.md",
+          "packages/client/ui-stats/README.zh.md",
+          "packages/client/ui-stats/README.i18n.yaml",
+          "apps/web/tests/ledger-statistics.e2e.ts",
+          "apps/web/tests/expected/stats-paged-history/ui.expected.md"
+        ],
+        "test": "ledger-statistics.e2e.ts"
+      }
+    },
+    {
+      "id": "workflow-pack-product-onboarding",
+      "description": "Compose portable workflow guidance and saved first-entry project choices.",
+      "origin": "Workflow pack and project onboarding integration",
+      "reason": "Integrate the portable bilingual workflow pack and per-workspace first-entry guidance through owned plugins, product settings, bundle declarations, compiler aggregates, and translation pairing scope. The generic pairing-scope regression is suitable for upstream contribution; product defaults remain downstream policy.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/bundle/full/package.json",
+          "packages/bundle/web-app/package.json",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "tsconfig.base.json",
+          "tsconfig.host.json",
+          "tsconfig.client.json",
+          "scripts/translation-pairing.ts",
+          "scripts/translation-pairing.spec.ts"
+        ],
+        "test": "scripts/workflow-pack.spec.ts"
+      }
+    },
+    {
+      "id": "seat-project-policy-admission-reset",
+      "description": "Restore complete saved project policy and resolve it before first admission.",
+      "origin": "Project policy admission integration",
+      "reason": "Resolve saved project policy synchronously during first admission and restore complete policy with revision CAS; optional reset facts retain old-frame readability. Suitable for upstream contribution.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat/src/index.ts",
+          "packages/seat/seat/src/types.ts",
+          "packages/seat/seat/src/events.ts",
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-engine/src/triggers.ts",
+          "packages/seat/seat-engine/src/frozen-admission.ts",
+          "packages/seat/seat-engine/src/validation.ts",
+          "scripts/gen-cordis-catalog.ts",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
+        "test": "project-policy.spec.ts"
+      }
     }
   ]
 }
