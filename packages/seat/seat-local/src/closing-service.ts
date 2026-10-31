@@ -113,7 +113,10 @@ export class LocalCloser {
       const replacement = effects.findLast(effect => effect.kind === 'window/replacement'
         && (effect.data.oldSessionId === request.sessionId || effect.data.newSessionId === request.sessionId))
       const approvalDetail = cancelApproval || old?.phase === 'rechecking' && old.detail !== undefined
-      const reason: T.WindowEndReason = approvalDetail ? 'manual' : replacement?.kind === 'window/replacement'
+      const orphaned = effects.findLast(effect => effect.kind === 'open/opening-failed' && effect.data.sessionId === request.sessionId)
+      const ownerLost = orphaned?.kind === 'open/opening-failed'
+        && orphaned.data.failure?.cause?.domain === 'seat-local' && orphaned.data.failure.cause.code === 'opening-owner-lost'
+      const reason: T.WindowEndReason = ownerLost ? 'owner-dead' : approvalDetail ? 'manual' : replacement?.kind === 'window/replacement'
         && replacement.data.phase !== 'completed' && replacement.data.phase !== 'failed'
         ? replacement.data.failure ? 'replacement-failed' : 'replaced' : report ? 'self-report' : 'manual'
       const data: T.EngineCloseData = { sessionId: request.sessionId, operationId: request.operationId,

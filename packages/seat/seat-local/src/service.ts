@@ -743,7 +743,14 @@ export class LocalSeatService extends SeatService {
     for (const [sessionId, effect] of released) {
       if (effect.kind === 'resource/released'
         && ['holder-death', 'host-restart-recovery'].includes(effect.data.reason)) {
-        await recordOrphanedOpening(this.ctx, this.state, sessionId)
+        if (await recordOrphanedOpening(this.ctx, this.state, sessionId)) {
+          for (let attempt = 0; attempt < this.options.transactionRetries; attempt++) {
+            const evidence = await this.runtime.evidence(sessionId)
+            const result = await this.windowCloser.close({ sessionId, expectedStateVersion: evidence.stateVersion,
+              operationId: digest(['orphaned-opening-close', sessionId]) as string as T.SeatOperationId })
+            if (result.status !== 'conflict') break
+          }
+        }
       }
     }
     for (const wait of projectedWaits(effects).values()) await this.coordinator.watch(wait)
