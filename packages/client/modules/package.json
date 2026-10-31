@@ -48,8 +48,8 @@
   "files": [
     "locale/*.json",
     "lib/index.js",
-    "lib/build-metadata.json",
     "lib/client.js",
+    "lib/build-metadata.json",
     "lib/types/**/*.d.ts"
   ],
   "peerDependencies": {

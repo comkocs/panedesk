@@ -454,6 +454,19 @@ it('requires the shared Web injection entry in the published payload', () => {
   } })).toEqual([expect.stringContaining('package.json files must be')])
 })
 
+it('requires separate client build metadata and rejects unrelated publication files', () => {
+  const dir = 'packages/client/modules'
+  const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+  for (const files of [
+    manifest.files!.filter(file => file !== 'lib/build-metadata.json'),
+    [...manifest.files!, 'lib/unrelated.json'],
+  ]) {
+    expect(checkWorkspaceManifest({ dir, manifest: { ...manifest, files } }))
+      .toEqual([expect.stringContaining('package.json files must be')])
+  }
+})
+
 it('requires Office skill bodies and helpers in the published payload', () => {
   const manifest = JSON.parse(readFileSync(new URL('../packages/skill/skill-office/package.json', import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
   expect(checkWorkspaceManifest({ dir: 'packages/skill/skill-office', manifest })).toEqual([])

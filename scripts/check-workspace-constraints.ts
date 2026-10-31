@@ -203,6 +203,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@panedesk/dsh-client-ui-sidebar-documentpreview': ['lib/client.*.js'],
   '@panedesk/dsh-client-ui-sidebar-terminal': ['lib/client.*.js'],
   '@panedesk/dsh-client-web': ['lib/**/*.css', 'lib/apply-injections.js'],
+  // Checkout metadata remains separate from reusable module artifacts.
+  '@panedesk/dsh-client-modules': ['lib/build-metadata.json'],
   '@panedesk/dsh-client-ui-theme': ['lib/styles'],
   // The physical-key protocol is a public entry usable without the browser service.
   '@panedesk/dsh-client-shortcuts': ['lib/protocol.js'],
