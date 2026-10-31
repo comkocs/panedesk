@@ -8451,7 +8451,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LedgerCallStart',
-    declaration: 'export interface LedgerCallStart extends LedgerContext {\n    callId: LedgerCallId;\n    runId: LedgerRunId;\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    attemptVisibility: \'physical\' | \'adapter\';\n    provider: string;\n    modelFamily: string;\n    requestedModel: string;\n    purpose: LedgerPurpose;\n    startedAt: number;\n    cache: LedgerCacheEvidence;\n    cacheWriteTiering: LedgerCacheWriteTiering;\n    priceVersion: string;\n    priceKey: string;\n    referencePrice: true;\n    requestArtifact?: string;\n}',
+    declaration: 'export interface LedgerCallStart extends LedgerContext {\n    callId: LedgerCallId;\n    runId: LedgerRunId;\n    logicalRequestId: LedgerRequestId;\n    attemptIndex: number;\n    attemptVisibility: \'physical\' | \'adapter\';\n    provider: string;\n    modelFamily: string;\n    requestedModel: string;\n    purpose: LedgerPurpose;\n    startedAt: number;\n    cache: LedgerCacheEvidence;\n    cacheWriteTiering: LedgerCacheWriteTiering;\n    priceVersion: string;\n    priceKey: string;\n    referencePrice: true;\n    requestHeaderSeq?: number;\n    requestArtifact?: string;\n}',
   },
   {
     name: 'LedgerContext',

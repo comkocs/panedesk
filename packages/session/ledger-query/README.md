@@ -21,7 +21,7 @@ Read-only ledger query and export service definitions. The package exposes an ab
 <a id="use-this-package"></a>
 ## Use this package
 
-Import public types from the package entry. The package is Host-only and does not provide a browser entry.
+Import public types from the package entry. The package is Host-only and does not provide a browser entry. Call queries and exports consume the ledger provider's incrementally maintained snapshot; descendant selection builds one parent-child index, and liveness selection indexes observations once per read. Merge comparison serializes facts only for repeated row identities; unique rows still receive the same wait projection and stable ordering. Integrity rejection, stable ordering, watermarks and export encodings remain unchanged.
 
 `panedesk --profile ledger engine` dispatches `events`, `gates`, `pending`, `export`, and `verify` through optional seat providers. Events retain exclusive cursors, completeness and committed watermarks; engine records remain separate from accounting and message journals. Export requires an explicit JSONL output path; verification never executes imported operations. Missing providers do not change existing accounting or message commands.
 

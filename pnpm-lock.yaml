@@ -14057,6 +14057,9 @@ importers:
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@panedesk/dsh-ledger-query':
+        specifier: workspace:*
+        version: link:../ledger-query
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm

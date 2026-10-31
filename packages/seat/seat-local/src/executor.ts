@@ -98,7 +98,7 @@ export function createOpenExecutor(ctx: Context, runtime: LocalSeatRuntime, opti
     subscribed.add(agent)
   }
   return {
-    executionModel: sessionId => readExecutionModel(ctx, sessionId, options.nodeId),
+    executionModel: sessionId => readExecutionModel(ctx, sessionId, options.nodeId, options.modelEvidenceWaitMs),
     observe: async (open) => {
       const persistence = ctx.get('sessionPersistence')
       if (persistence === undefined) return 'unknown'

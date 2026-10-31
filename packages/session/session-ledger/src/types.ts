@@ -255,6 +255,8 @@ export interface LedgerCallStart extends LedgerContext {
   priceVersion: string
   priceKey: string
   referencePrice: true
+  /** Exact Session request-header sequence; absent for auxiliary calls and older ledger facts. */
+  requestHeaderSeq?: number
   /** Restricted request snapshot for auxiliary calls; absent when the Session log owns reconstruction. */
   requestArtifact?: string
 }

@@ -19,6 +19,7 @@ interface SessionState {
   pending: Promise<void>
   failure?: unknown
   lastStart?: LedgerCallStart
+  requestHeaderSeq?: number
   stopped: boolean
   backoffMs: number
   backoffStarted?: number | undefined
@@ -147,6 +148,8 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
       purpose: request.purpose ?? 'conversation', startedAt, cache: evidence, cacheWriteTiering: { kind: 'unknown' },
       priceVersion: attribution.priceTable?.version ?? attribution.price?.version ?? 'unknown', priceKey: attribution.price?.modelKey ?? 'unknown',
       referencePrice: true,
+      ...request.purpose === undefined && state.requestHeaderSeq !== undefined
+        ? { requestHeaderSeq: state.requestHeaderSeq } : {},
     }
     const signal = AbortSignal.any([lifetime.signal,
       ...(contribution?.signal === undefined ? [] : [contribution.signal]),
@@ -289,6 +292,7 @@ export function installCallAccounting(ctx: Context, service: SessionLedger,
   ctx.on('session/event', (session, event) => {
     const state = states.get(session.id)
     if (state === undefined) return
+    if (event.type === 'request/header') state.requestHeaderSeq = event.seq
     const type: string = event.type
     if (type === 'llm/retry' || type === 'llm/retry-started') {
       state.retryPending = true

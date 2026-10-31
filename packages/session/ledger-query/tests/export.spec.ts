@@ -25,6 +25,16 @@ describe('public ledger export and merge', () => {
     expect(encoded).not.toContain('inputTokens')
     expect(verifyLedger(source, source.asOf, 10000)).toMatchObject({ valid: true, recomputed: { tokens: 0, unknownCostCalls: 1 } })
   })
+  it('preserves exact header associations and rejects invalid sequence values', () => {
+    const row = call('a')
+    row.start.requestHeaderSeq = 0
+    const source = snapshot([row])
+    const text = serializeLedger(source, 'jsonl')
+    expect(parseLedgerExport(text)).toEqual(source)
+    for (const invalid of ['-1', '0.5', '"0"', '9007199254740992']) {
+      expect(() => parseLedgerExport(text.replace('"requestHeaderSeq":0', `"requestHeaderSeq":${invalid}`))).toThrow('row')
+    }
+  })
   it('neutralizes formula-leading and control-prefixed cells and escapes quotes', () => {
     const a = call('a'), b = call('b')
     b.start.seat = '\t=1'; b.start.window = ' \r+1'; b.start.taskId = 'task,"quoted"\nline'

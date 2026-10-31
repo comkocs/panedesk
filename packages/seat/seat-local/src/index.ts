@@ -60,6 +60,11 @@ export function validateConfig(config: Config): Config {
   if (config.importPlanTtlMs !== undefined && (!Number.isSafeInteger(config.importPlanTtlMs) || config.importPlanTtlMs < 1)) {
     throw new Error('Invalid seat setting: importPlanTtlMs')
   }
+  if (config.modelEvidenceWaitMs !== undefined
+    && (!Number.isSafeInteger(config.modelEvidenceWaitMs)
+      || config.modelEvidenceWaitMs < 1 || config.modelEvidenceWaitMs > 2_147_483_647)) {
+    throw new Error('Invalid seat setting: modelEvidenceWaitMs')
+  }
   if (!config.directory || !config.nodeId || !config.nodeName || !config.closedSuffix) throw new Error('Seat placement is incomplete')
   return config
 }
