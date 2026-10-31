@@ -92,7 +92,11 @@ export function usageTotals(calls: readonly LedgerCall[]): LedgerUsageTotals {
     completeUsageCalls: calls.filter(completeUsage).length, totalCalls: calls.length,
   }
 }
-function hitRate(calls: readonly LedgerCall[]): LedgerHitRate {
+/** Compute cache-read share without inventing missing input evidence.
+ * @param calls - Selected unique physical calls, with maintenance selection owned by the caller.
+ * @returns Observed numerator and denominator, and a value only for complete nonempty evidence.
+ */
+export function hitRate(calls: readonly LedgerCall[]): LedgerHitRate {
   const totals = usageTotals(calls)
   const cacheReadTokens = totals.cacheReadTokens ?? 0
   const inputTokensIncludingCache = (totals.inputTokens ?? 0) + cacheReadTokens + (totals.cacheWriteTokens ?? 0)

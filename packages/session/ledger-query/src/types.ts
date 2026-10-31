@@ -1,4 +1,5 @@
 /** Read-only ledger filtering, export, and daily overview vocabulary. */
+export type * from './stats-types.ts'
 import type { LedgerQuery, LedgerSnapshot, LedgerTokenColumns, LedgerWatermark, LedgerRow } from '@panedesk/dsh-session-ledger'
 import type { MessageQuery, MessageStatus, MessageStateData, MessageState, MessageCursor, NodeId } from '@panedesk/dsh-message-delivery'
 

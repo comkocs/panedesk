@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Read-only ledger query and export service definitions. The package exposes an abstract Cordis service and public types. A concrete provider must implement the operations before consumers can use them.
+Read-only ledger selection, coverage-aware statistics and safe exports over the optional session ledger. The concrete Cordis service never launches a model or reads conversation transcripts.
 
 ## Table of Contents
 
@@ -21,7 +21,9 @@ Read-only ledger query and export service definitions. The package exposes an ab
 <a id="use-this-package"></a>
 ## Use this package
 
-Import public types from the package entry. The package is Host-only and does not provide a browser entry.
+Import the Host service from the package entry and wire-safe statistics types from `/types`. `ledgerQuery.stats(request, asOf?)` reads one deduplicated public snapshot for overview, history, model usage, throughput and call details. Ranges are `today`, `6h`, `24h`, `72h`, `168h` and `all`; `today` starts at Beijing midnight, with half-open start-time ownership. Hour/day buckets align to Beijing time. Grouping supports seat, task, model, window, root/child and agent definition; optional seat/task/model filters apply to attribution. The package has no browser runtime entry.
+
+Reference USD sums use decimal strings; missing price, usage, timing, wait or fingerprint evidence remains unknown. Throughput is output tokens divided by ledger model-in-flight seconds, not wall time. Cache hit rate excludes keepalive, whose usage and reference cost remain separate. Running lanes count unique unfinished child sessions, not root windows or process-liveness observations; unresolved remote aliases make the count unknown. Projects use seats because the ledger contains no workspace directory. The [statistics UI](../../client/ui-stats/README.md) owns the authenticated owner-only Remote read and presentation.
 
 `panedesk --profile ledger engine` dispatches `events`, `gates`, `pending`, `export`, and `verify` through optional seat providers. Events retain exclusive cursors, completeness and committed watermarks; engine records remain separate from accounting and message journals. Export requires an explicit JSONL output path; verification never executes imported operations. Missing providers do not change existing accounting or message commands.
 
@@ -36,7 +38,7 @@ Message command exit statuses are 0 for success or durable pending-owner intent,
 <a id="model-experience"></a>
 ## Model Experience
 
-### Inactive scaffold
+### Read-only query service
 
 #### What the model sees
 
@@ -44,17 +46,17 @@ Message command exit statuses are 0 for success or durable pending-owner intent,
 
 #### Token effect
 
-The scaffold dispatches no model requests and adds no input or output tokens.
+The query service dispatches no model requests and adds no input or output tokens.
 
 #### KV Cache effect
 
-The scaffold neither modifies request prefixes nor creates or refreshes cache entries.
+The query service neither modifies request prefixes nor creates or refreshes cache entries.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- This package supplies declarations and a scaffold only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
+- This package supplies declarations and a query service only; storage, network requests, process observation, command execution, and profile composition are not implemented here.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -10,6 +10,9 @@ import { MessageArgumentError } from './messages-cli.ts'
 import { EngineArgumentError } from './engine-cli.ts'
 import { executeEngine } from './engine.ts'
 export type * from './types.ts'
+export type * from './stats-types.ts'
+import type { StatsRequest, StatsView } from './stats-types.ts'
+import { summarizeStats } from './stats.ts'
 
 declare module '@panedesk/cordis' {
   interface Context {
@@ -49,6 +52,14 @@ export class LedgerQueryService extends Service {
    */
   async query(options: LedgerQueryOptions): Promise<LedgerQueryResult> {
     return selectLedger(await this.source(), options)
+  }
+  /** Compute all five statistics tabs from one deduplicated snapshot.
+   * @param request - Fixed range, grouping and time-bucket selection.
+   * @param asOf - Optional exclusive UTC millisecond instant; omission reads the system clock.
+   * @returns Coverage-aware call totals and child-session lifecycle counts.
+   */
+  async stats(request: StatsRequest, asOf?: number): Promise<StatsView> {
+    return summarizeStats(await this.source(), request, asOf ?? Date.now())
   }
   /** Compute today's overview at the runtime clock or an explicit observation instant.
    * @param asOf - optional UTC millisecond observation time; omission reads the system clock.
