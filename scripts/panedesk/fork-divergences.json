@@ -1,6 +1,27 @@
 {
   "divergences": [
     {
+      "id": "cache-popover-above-composer",
+      "description": "Keep cache details clear of the input card and toolbar.",
+      "origin": "Composer dock visual acceptance",
+      "reason": "Use the complete composer as the dock popover positioning container rather than the pill below its toolbar. Retain the above-pill assertion and also require the panel bottom to stay above the input card in both locales. The positioning repair and geometry coverage are upstream-compatible.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/session-tab-cache.e2e.ts",
+          "packages/client/ui-cache-pill/README.i18n.yaml",
+          "packages/client/ui-cache-pill/README.md",
+          "packages/client/ui-cache-pill/README.zh.md",
+          "packages/client/ui-cache-pill/src/client/CachePill.module.css",
+          "packages/client/ui-conversation/README.i18n.yaml",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css"
+        ],
+        "test": "keeps startup clean and renders cache and sidebar session in %s"
+      }
+    },
+    {
       "id": "typed-snapshot-acceptance-fixtures",
       "description": "Keep acceptance fixtures inside the public snapshot and Session list semantics.",
       "origin": "Integrated aggregate and screenshot checks",
