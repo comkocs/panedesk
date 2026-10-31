@@ -110,7 +110,8 @@ test.each(['before-ready', 'after-ready', 'before-timeout', 'after-timeout'] as 
       } else await first
       await expect.poll(() => records.get('/chain-sent/chain-v1.json')).toContain('node-deadline-exceeded')
       expect(executions).toBe(0)
-      expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass)
+      expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
+      expect(outbox.observations().find(delivery => delivery.payload.callbackId === body.callback.callbackId)?.responseClass)
         .toBe(order === 'after-timeout' ? 'unknown' : 'transient')
       runtime.observe(capability)
     }

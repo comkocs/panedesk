@@ -1,6 +1,7 @@
 /** Secondary node settings render framework resources and confirm every existing operator action. */
 import { useState } from 'react'
 import { Button, Modal } from '@panedesk/dsh-client-ui-primitives'
+import { IconPanedeskNode } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { randomUUID } from '@panedesk/dsh-util-crypto'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { NodeAction, NodeActionResult } from '../types.ts'
@@ -46,7 +47,7 @@ export function NodesSection({ useResource, t, act }: Props) {
     <Button variant="outline" disabled={pending} onClick={() => { setConfirmation({ action: abandon, target }) }}>{t('abandon')}</Button>
   </div>
   return <section className={css.section}>
-    <header><h2>{t('title')}</h2><Button disabled={pending} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button></header>
+    <header><h2><IconPanedeskNode size={20} /> {t('title')}</h2><Button disabled={pending} onClick={() => { setRefresh(value => value + 1) }}>{t('refresh')}</Button></header>
     <p>{t('description')}</p>
     <p role={resource.status === 'failed' ? 'alert' : 'status'}>{t(stateKey(resource.status, resource.value, resource.failure?.code))}</p>
     {pending && <p role="status">{t('pending')}</p>}

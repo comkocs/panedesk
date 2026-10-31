@@ -5215,6 +5215,9 @@ importers:
       '@panedesk/dsh-client-test-runtime':
         specifier: workspace:*
         version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
