@@ -29,6 +29,8 @@ kind: "package-reference"
 
 路由回调监督保留观测阶段、重试许可与业务效果界限。`unavailable` 拒绝仅在明确给出 `retryable: true` 且 `effectState: none` 时重试，包括路由服务或签发器暂缺。`cross-node-unsupported` 仅在 peer-query 或 peer-dispatch 阶段带有 `peer-capability-missing`、明确重试许可且无效果时重试；不放宽准入及方法拒绝。部分生效、已提交、未知或缺失的效果证据均不授权自动重放；诊断不能弱化返回结果的效果界限。即使提供方标记可重试，状态及协议冲突和未登记码仍保持停止。仅携带异常的持久化失败不会被重分类为路由暂缺。本地来源缺席仅在注册处尚未进入回调便拒绝时重试；适配器内部抛出的同码不能证明无效果。签发器阶段的 `unauthorized` 拒绝在确认无效果且无身份冲突时，仅将该回调停车等待操作员处置，不停止引擎，也不阻断独立链上的其他回调；同链顺序仍保留。`node.status.callbackFailures` 投影这些停车拒权，供所有者即时告警。恢复原账号后，使用既有 `engine.callbackResolve` 恢复或放弃；退出停车态后清除告警，不删除审计事实。路由服务暂缺仍可重试；效果歧义、身份冲突及持久化失败保留既有监督。
 
+外部开窗准入前，可确认的模板 `invalid-definition` 返回写明工位的中英拒绝，不创建 Session，也不停引擎。未知文件、授权及账本异常保留原分类。回合准入独立检查当前工位解析结果：仅明确不可重试且 `effectState: none` 的 `invalid-definition` 拒绝将该窗口停车为 `configuring`，输入仍未认领。已移除的权限预设是一种具体配置来源。账本证据先检查；账本抛出同码不授权局部隔离。运行时 `openingFailures` 的 `stage: 'turn'` 项在后续准入确认修复或 Agent 释放时清除。查询失败按实际入口记录 `turn-admission`、`agent/turn-admitting`、`seat-local/list` 或 `seat-local/wake`；受监督的调度工作仍用 `scheduled-drive`。
+
 开窗时的 `invalid-definition` 拒绝（包括本地异常嵌套的 `failure.code`）仅将该工位开窗结算为 `opening-failed`。创建失败只有在持久态确认不存在会话后才释放资源；后续阶段保留部分效果。开场消息已发送而定义错误阻止结果观察时，保留消息身份与未解决状态；监督停止，不虚构终态。其他工位和引擎继续运行。告警写明工位，提示修好定义后重开；修改该定义或成功打开同一工位后清除告警，不移除审计事实。
 
 `callback-authentication-failed` 拒绝只有在保留的效果证据明确为 `none` 时才仅将该回调停车。引擎和独立回调链继续运行，同链顺序不变。修复认证后，通过 `engine.callbackResolve` 恢复或放弃；恢复动作保留已确认的无效果证据，直到下次投递产生自己的结果；离开停车态后清除本地化回调告警。部分、已提交、未知或缺失效果仍按证据歧义停止受监督的驱动；后来的认证拒绝不能抹掉先前的不确定结果。

@@ -11,7 +11,8 @@ export interface FailureObservation {
 
 type Failure = NonNullable<SeatNodeStatus['failure']>
 type Site = 'startup-recovery' | 'scheduled-drive' | 'decision-notification' | 'callback-delivery'
-  | 'preopen-retention' | 'owner-release'
+  | 'preopen-retention' | 'owner-release' | 'turn-admission' | 'agent/turn-admitting'
+  | 'seat-local/list' | 'seat-local/wake'
 const transportCodes = new Set(['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'EPIPE',
   'node-tunnel-disconnected', 'node-deadline-exceeded', 'callback-timeout'])
 

@@ -12,6 +12,7 @@ import { deliverRoutedCallback } from './routed-callback.ts'
 import { registerProductionSources, type ProductionSource } from './production-sources.ts'
 
 export { SeatEngine } from './engine.ts'
+export { definitionRefusal } from './admission-definition.ts'
 export { queryRoutedCallback } from './routed-callback.ts'
 export { batchMemberId, queryBatchMember } from './node-batch.ts'
 export { FrozenWriteBarrier } from './frozen-business.ts'
@@ -98,7 +99,8 @@ export function apply(ctx: Context, config: Config): void {
     if (upstream.kind !== 'allow') return upstream
     const engine = ctx.get('seatEngine')
     if (!engine) return upstream
-    const admission = await engine.admitTurn(agent.id)
+    const admission = await (engine instanceof SeatEngine
+      ? engine.admitTurn(agent.id, 'agent/turn-admitting') : engine.admitTurn(agent.id))
     return admission.status === 'allow' ? upstream : { kind: 'defer', reason: admission.reason }
   })
   ctx.inject(['sessionLedger'], (child) => {

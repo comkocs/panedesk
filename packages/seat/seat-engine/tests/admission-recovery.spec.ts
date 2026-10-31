@@ -68,7 +68,7 @@ it('starts exactly one retained queued prompt after complete recovery, never dur
     expect(lock.errors).toContain(lock.error)
     expect(f.active.inbox.nextTurn).toHaveLength(1)
     await expect.poll(async () => (await f.engine.nodeStatus()).failure, { timeout: 5000 })
-      .toMatchObject({ code: 'LEDGER_LOCK_TIMEOUT', retryable: true })
+      .toMatchObject({ site: 'agent/turn-admitting', code: 'LEDGER_LOCK_TIMEOUT', retryable: true })
     lock.snapshot.mockRestore()
     lock.clock.mockReturnValue(lock.time + 1999)
     await f.engine.drive()
@@ -98,7 +98,7 @@ it('coalesces concurrent steering prompts into one recovered turn and consumes b
     await f.active.whenIdle()
     expect(f.active.inbox.nextStep).toHaveLength(2)
     await expect.poll(async () => (await f.engine.nodeStatus()).failure, { timeout: 5000 })
-      .toMatchObject({ code: 'LEDGER_LOCK_TIMEOUT', retryable: true })
+      .toMatchObject({ site: 'agent/turn-admitting', code: 'LEDGER_LOCK_TIMEOUT', retryable: true })
     lock.snapshot.mockRestore()
     lock.clock.mockReturnValue(lock.time + 2000)
     await Promise.all([f.engine.drive(), f.engine.drive()])
@@ -152,6 +152,35 @@ it('keeps a nonretryable admission failure stopped without waking retained input
     expect(turns(f.active)).toHaveLength(0)
     expect(f.adapter.requests).toHaveLength(0)
     expect(f.active.inbox.nextTurn).toHaveLength(1)
+  } finally { vi.restoreAllMocks(); await f.close() }
+}, 20000)
+
+it('leaves input unclaimed during a confirmed definition refusal and admits it once after repair', async () => {
+  const f = await activeSession()
+  try {
+    const seats = f.ctx.get('seats')
+    if (!seats) throw new Error('Expected the configuration provider')
+    const resolve = vi.spyOn(seats, 'resolve').mockResolvedValue({ status: 'rejected', error: {
+      code: 'invalid-definition', message: 'Permission preset is not installed.', alternative: 'Restore the preset.',
+      retryable: false, effectState: 'none',
+    } })
+    expect(await f.prompt('retained configuration input')).toEqual({ accepted: true })
+    await f.active.whenIdle()
+    expect(turns(f.active)).toHaveLength(0)
+    expect(f.active.inbox.nextTurn).toHaveLength(1)
+    expect(await f.engine.nodeStatus()).toMatchObject({ engine: 'running', openingFailures: [
+      { sessionId: f.active.id, code: 'invalid-definition', stage: 'turn' },
+    ] })
+    await f.engine.drive()
+    expect(turns(f.active)).toHaveLength(0)
+    resolve.mockRestore()
+    await f.engine.drive()
+    await f.active.whenIdle()
+    expect(turns(f.active)).toHaveLength(1)
+    expect(f.active.inbox.hasPending).toBe(false)
+    expect((await f.engine.nodeStatus()).openingFailures).toBeUndefined()
+    await f.engine.drive()
+    expect(turns(f.active)).toHaveLength(1)
   } finally { vi.restoreAllMocks(); await f.close() }
 }, 20000)
 

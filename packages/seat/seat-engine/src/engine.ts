@@ -39,6 +39,7 @@ import { preopenCancelledReason } from './frozen-terminal.ts'
 import { recoverPreopenCallbacks } from './preopen-recovery.ts'
 import { resolveCallback } from './callback-resolution.ts'
 import { EngineFailures } from './failure.ts'
+import { definitionRefusal, isDefinitionException } from './admission-definition.ts'
 
 export type { CallbackResolveRequest, CallbackResolveResult } from '@panedesk/dsh-seat'
 
@@ -134,6 +135,7 @@ export class SeatEngine extends SeatEngineService {
   private readonly replacements: ReplacementDriver
   private readonly keepalive: KeepAliveScheduler
   private readonly liveModelFailures = new Map<SessionId, NonNullable<T.SeatNodeStatus['openingFailures']>[number]>()
+  private readonly liveDefinitionFailures = new Map<SessionId, NonNullable<T.SeatNodeStatus['openingFailures']>[number]>()
   private readonly requestModels = new Map<SessionId, { provider: string; model: string }>()
   private executor: (T.SeatOpenExecutor & { executionModel?: ExecutionModelReader }) | undefined
   private localAccess: T.SeatEngineLocalAccess | undefined
@@ -234,7 +236,9 @@ export class SeatEngine extends SeatEngineService {
     })
     ctx.on('agent/disposed', ({ agent }) => {
       this.requestModels.delete(agent.id)
-      if (this.liveModelFailures.delete(agent.id)) ctx.emit('seat/diagnostics-changed')
+      const modelChanged = this.liveModelFailures.delete(agent.id)
+      const definitionChanged = this.liveDefinitionFailures.delete(agent.id)
+      if (modelChanged || definitionChanged) ctx.emit('seat/diagnostics-changed')
     })
     installFrozenBusiness(ctx, this)
   }
@@ -550,7 +554,8 @@ export class SeatEngine extends SeatEngineService {
           agentPreset: open.definition.agentPreset, code: open.failure.code,
           ...(open.failure.details && 'model' in open.failure.details
             ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : [])
-    const diagnostics = [...openingFailures, ...[...this.liveModelFailures.values()].filter(failure =>
+    const liveFailures = [...this.liveModelFailures.values(), ...this.liveDefinitionFailures.values()]
+    const diagnostics = [...openingFailures, ...liveFailures.filter(failure =>
       this.journal.projection.opens.get(failure.sessionId)?.phase === 'active')]
     const callbackFailures = [...this.journal.projection.callbacks.values()].filter(isParkedAuthenticationRefusal)
       .map(delivery => ({ callbackId: delivery.payload.callbackId, seat: delivery.payload.seat,
@@ -627,10 +632,15 @@ export class SeatEngine extends SeatEngineService {
         if (retained) return retained
         if (envelope.openingContext) return this.localAccess?.freezeContext?.(definition, { ...envelope, receivedAt })
           ?? rejected('unavailable', 'Opening context provider is unavailable')
-        return await this.localAccess?.freeze(definition, { ...envelope, receivedAt }) ?? {
-          definition, title: `${envelope.seat} ${new Intl.DateTimeFormat('en-US', {
-            timeZone: this.ctx.get('seatGates')?.getTimeZone() ?? 'UTC', month: '2-digit', day: '2-digit',
-          }).format(new Date(receivedAt)).replace('/', '-')}`, openingMode: 'auto' as const }
+        try {
+          return await this.localAccess?.freeze(definition, { ...envelope, receivedAt }) ?? {
+            definition, title: `${envelope.seat} ${new Intl.DateTimeFormat('en-US', {
+              timeZone: this.ctx.get('seatGates')?.getTimeZone() ?? 'UTC', month: '2-digit', day: '2-digit',
+            }).format(new Date(receivedAt)).replace('/', '-')}`, openingMode: 'auto' as const }
+        } catch (error) {
+          if (!isDefinitionException(error)) throw error
+          return definitionRefusal(definition.seat)
+        }
       })
     } catch (error) {
       if (!(error instanceof EngineError)) throw error
@@ -1391,7 +1401,13 @@ export class SeatEngine extends SeatEngineService {
   private readonly recoveredOwners = new Set<T.OwnerEpoch>()
   private readonly deferredTurns = new Set<SessionId>()
   private readonly modelReadmissions = new Set<SessionId>()
-  async admitTurn(sessionId: SessionId): Promise<T.SeatTurnAdmission> {
+  /** Check this window before input claim; only explicit no-effect configuration refusals stay local.
+   * @param sessionId - Window requesting a model turn.
+   * @param site - Actual query entry, retained in supervised exception diagnostics.
+   * @returns Allow or defer without consuming queued input.
+   */
+  async admitTurn(sessionId: SessionId, site: 'turn-admission' | 'agent/turn-admitting'
+    | 'seat-local/list' | 'seat-local/wake' = 'turn-admission'): Promise<T.SeatTurnAdmission> {
     await this.ready()
     const open = this.journal.projection.opens.get(sessionId)
     if (!this.stopped && this.failures.runnable() && open?.phase === 'opening-failed'
@@ -1403,7 +1419,7 @@ export class SeatEngine extends SeatEngineService {
     try { admission = await this.checkTurnAdmission(sessionId) }
     catch (error) {
       if (!this.stopped && this.options.config.failureRecovery) {
-        this.failures.record('scheduled-drive', error)
+        this.failures.record(site, error)
         // A failed query leaves input unclaimed; recovery must retain its original wake.
         if (this.failures.snapshot()?.retryable) this.deferredTurns.add(sessionId)
       }
@@ -1421,6 +1437,19 @@ export class SeatEngine extends SeatEngineService {
     if (closing && !closing.barrierReleased) return { status: 'defer', reason: 'configuring' }
     if (open.phase !== 'active' && open.phase !== 'opening-pending') return { status: 'defer', reason: 'configuring' }
     const level = budgetLevel(await this.budget(sessionId))
+    const definition = open.definition ? await this.dependencies.seats()?.resolve(open.definition.seat) : undefined
+    if (definition && 'status' in definition && definition.error.code === 'invalid-definition'
+      && !definition.error.retryable && definition.error.effectState === 'none' && open.definition) {
+      if (!this.liveDefinitionFailures.has(sessionId)) {
+        this.liveDefinitionFailures.set(sessionId, { sessionId, seat: open.definition.seat,
+          agentPreset: open.definition.agentPreset, code: 'invalid-definition', stage: 'turn' })
+        this.ctx.emit('seat/diagnostics-changed')
+      }
+      return { status: 'defer', reason: 'configuring' }
+    }
+    if (open.definition && !definition) throw new EngineError('unavailable', 'Seat definition provider is unavailable')
+    if (definition && 'status' in definition) throw new EngineError(definition.error.code, 'Seat definition admission is unconfirmed')
+    if (this.liveDefinitionFailures.delete(sessionId)) this.ctx.emit('seat/diagnostics-changed')
     return level === 'stopped' ? { status: 'defer', reason: 'budget-stopped' }
       : level === 'unverifiable' ? { status: 'defer', reason: 'budget-unverifiable' } : { status: 'allow' }
   }
