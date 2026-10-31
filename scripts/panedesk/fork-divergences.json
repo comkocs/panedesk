@@ -1,6 +1,82 @@
 {
   "divergences": [
     {
+      "id": "integrated-source-aliases-and-setup-package-payload",
+      "description": "Align source aliases and published setup package dependencies.",
+      "origin": "Integrated product setup and cache documentation",
+      "reason": "Resolve added setup packages and static icons from source, publish the existing token API from its emitted runtime file, and retain the repository dependency and launcher classification rules. Generic metadata corrections are upstream-compatible; the icon feature remains fork-owned and no runtime consumer is invented.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "tsconfig.base.json",
+          "pnpm-lock.yaml",
+          "packages/client/ui-panedesk-icons/package.json",
+          "packages/client/ui-settings-bash/package.json",
+          "scripts/verify-application-entrypoints.ts"
+        ],
+        "test": "pnpm exec tsx scripts/run-gates.ts ci-static"
+      }
+    },
+    {
+      "id": "integrated-package-documentation-skeletons",
+      "description": "Align integrated package documentation with existing standards.",
+      "origin": "Integrated product setup and cache documentation",
+      "reason": "Preserve all existing behavior descriptions while placing query details outside summaries, declaring the existing static library kind, and aligning bilingual package headings and model effects. Structural documentation corrections are upstream-compatible.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "scripts/doc-standard.spec.ts",
+          "packages/client/ui-inbox/README.md",
+          "packages/client/ui-inbox/README.zh.md",
+          "packages/client/ui-inbox/README.i18n.yaml",
+          "packages/client/ui-panedesk-icons/README.md",
+          "packages/client/ui-panedesk-icons/README.zh.md",
+          "packages/client/ui-panedesk-icons/README.i18n.yaml",
+          "packages/client/ui-settings-bash/README.md",
+          "packages/client/ui-settings-bash/README.zh.md",
+          "packages/client/ui-settings-bash/README.i18n.yaml",
+          "packages/host/host-bash-setup/README.md",
+          "packages/host/host-bash-setup/README.zh.md",
+          "packages/host/host-bash-setup/README.i18n.yaml",
+          "packages/session/message-delivery/README.md",
+          "packages/session/message-delivery/README.zh.md",
+          "packages/session/message-delivery/README.i18n.yaml",
+          "packages/test-support/client-runtime/README.md",
+          "packages/test-support/client-runtime/README.zh.md",
+          "packages/test-support/client-runtime/README.i18n.yaml"
+        ],
+        "test": "pnpm exec tsx scripts/run-gates.ts ci-static"
+      }
+    },
+    {
+      "id": "cache-view-service-and-integrated-catalog-ownership",
+      "description": "Register cache service ownership and refresh integrated catalogs.",
+      "origin": "Integrated product setup and cache documentation",
+      "reason": "Map the existing cache Remote service and request types to their owners, classify the boot-only Windows Bash configuration accessor, and regenerate the affected references through their existing generators. Ownership registration is upstream-compatible; product-specific entries remain fork-owned.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts",
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "docs/capability-seams.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md",
+          "docs/module-graph.md",
+          "docs/module-graph.zh.md",
+          "docs/subsystems/llm-streaming.md",
+          "docs/subsystems/llm-streaming.zh.md",
+          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md"
+        ],
+        "test": "pnpm exec tsx scripts/run-gates.ts ci-static"
+      }
+    },
+    {
       "id": "sidebar-right-visible-session-budget",
       "description": "Enforce the product's three-visible-session budget at final layout, history, and restore boundaries; reject navigation and cleanup side effects together with the layout.",
       "origin": "Integrated optional product features and generated references",
