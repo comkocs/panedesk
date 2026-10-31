@@ -1,13 +1,40 @@
-/** Explicit read-only CLI projections over the running composition's providers. */
+/** Explicit CLI projections over the running composition's providers. */
 import type { Context } from '@panedesk/cordis'
+import { callHostAdmin, PosixPrivateFiles, type RpcLimits } from '@panedesk/dsh-host-admin'
 import { hostProjection, type HostProjectionMethods } from '@panedesk/dsh-sdk-jsonrpc-server'
 
 /** Handle node and authorization commands without starting a second engine.
  * @param ctx - Trusted launcher context.
  * @param args - Explicit query and long flags.
+ * @param limits - Explicit deployment bounds for an existing-host administration call.
  * @returns Command output, or undefined when an existing seat command owns the input.
  */
-export async function executeHostCommand(ctx: Context, args: readonly string[]): Promise<{ code: number; output: unknown } | undefined> {
+export async function executeHostCommand(ctx: Context, args: readonly string[], limits?: RpcLimits):
+Promise<{ code: number; output: unknown } | undefined> {
+  if (args[0] === 'nodes' && args[1] === 'rebuild') {
+    if (args.length !== 2 && !(args.length === 4 && args[2] === '--directory' && args[3])) {
+      return { code: 2, output: { status: 'rejected', error: { code: 'invalid-request',
+        message: 'Node rebuild accepts only an optional --directory path.' } } }
+    }
+    const directory = args[3]
+    if (args.length === 4 && directory !== undefined) {
+      if (limits === undefined) return { code: 2, output: { status: 'unavailable' } }
+      try {
+        const files = ctx.get('hostAdminFiles')?.(directory) ?? new PosixPrivateFiles(directory, process.getuid?.() ?? -1)
+        const response = await callHostAdmin(files, 'node.rebuild', {}, limits)
+        const output = response.status === 'ok' && response.method === 'node.rebuild' ? response.result : response
+        return { code: 'status' in output && output.status === 'rebuilt' ? 0 : 2, output }
+      } catch (error) {
+        void error
+        return { code: 2, output: { status: 'unavailable' } }
+      }
+    }
+    const transport = ctx.get('hostAdminTransport')
+    if (transport === undefined) return { code: 2, output: { status: 'rejected', error: { code: 'unavailable',
+      message: 'Node transport rebuild is unavailable.' } } }
+    const output = await transport.rebuildTransport()
+    return { code: output.status === 'rebuilt' ? 0 : 2, output }
+  }
   if (!['nodes', 'authorizations'].includes(args[0] ?? '')) return undefined
   try {
     const group = args[0], action = args[1]

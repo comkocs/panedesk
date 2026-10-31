@@ -25,7 +25,9 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
     callbackResolve: (params: import('./index.ts').HostAdminCallbackResolveRequest, grant: Seat.SeatAuthorizationGrant) =>
       (engine.callbackResolve as NonNullable<typeof engine.callbackResolve>)(params, grant),
   } : undefined
-  const optional = { ...(sourceOperator ? { sourceOperator } : {}), ...(callbackResolver ? { callbackResolver } : {}) }
+  const transport = ctx.get('hostAdminTransport')
+  const optional = { ...(sourceOperator ? { sourceOperator } : {}), ...(callbackResolver ? { callbackResolver } : {}),
+    ...(transport ? { rebuildTransport: () => transport.rebuildTransport() } : {}) }
   const executor = createHostAdminExecutor({ nodeId, engine, authorization, queries, ...optional, policy: {
     authorize: async () => {
       let pending: Seat.PendingSeatItem | undefined

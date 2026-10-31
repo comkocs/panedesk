@@ -1,7 +1,7 @@
 /** Optional administration owns credentials, epoch, listener and durable replay until disposal. */
 import { randomBytes, randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
-import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION } from './index.ts'
+import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, hostAdminDetailCode } from './index.ts'
 import type { Config, HostAdminAuthority, HostAdminEndpoint, HostAdminRequest, HostAdminResponse, HostAdminService } from './index.ts'
 import { PosixPrivateFiles } from './private-files.ts'
 import { waitForPrivateFiles, PrivateFilesWaitCancelled, isPrivateFilesContextActive } from './private-files-ready.ts'
@@ -67,14 +67,28 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
         if (!provider || request.method === 'source.resend' && !provider.resend) return {
           version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
           status: 'unavailable', code: 'admin-method-unavailable', reason: 'Source operator capability is unavailable' }
-        if (request.method === 'source.operations') return decodeResponse({ version: HOST_ADMIN_VERSION,
-          requestId: request.requestId, method: request.method, status: 'ok', result: await provider.list(request.params) }, request)
+        if (request.method === 'source.operations') {
+          try {
+            return decodeResponse({ version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
+              status: 'ok', result: await provider.list(request.params) }, request)
+          } catch (error) {
+            const detail = hostAdminDetailCode(error)
+            if (detail === undefined) throw error
+            return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
+              status: 'unavailable' as const, code: 'admin-unavailable' as const, detail, reason: detail }
+          }
+        }
       }
       const executor = ctx.get('hostAdminExecutor')
       if (executor !== undefined) return decodeResponse(await executor.execute(request, authenticatedAuthority), request)
       const engine = ctx.get('seatEngine')
       if (request.method === 'node.status' && engine !== undefined) return { version: HOST_ADMIN_VERSION,
         requestId: request.requestId, method: request.method, status: 'ok', result: await engine.nodeStatus() }
+      if (request.method === 'node.rebuild') {
+        const control = ctx.get('hostAdminTransport')
+        return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method, status: 'ok',
+          result: control ? await control.rebuildTransport() : { status: 'unavailable' as const } }
+      }
       if (request.method === 'engine.pending' && engine !== undefined) return { version: HOST_ADMIN_VERSION,
         requestId: request.requestId, method: request.method, status: 'ok', result: await engine.pending(request.params) }
       if (authenticatedAuthority !== authority) return failure(request, 'admin-unauthorized')

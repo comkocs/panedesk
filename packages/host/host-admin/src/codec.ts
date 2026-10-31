@@ -1,6 +1,6 @@
 /** Administrative frames validate identity separately from provider-owned operation semantics. */
 import { decodeSeatRequest, decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
-import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, HOST_ADMIN_ERROR_CODES } from './index.ts'
+import { HOST_ADMIN_METHODS, HOST_ADMIN_VERSION, HOST_ADMIN_ERROR_CODES, HOST_ADMIN_DETAIL_CODES } from './index.ts'
 import type { HostAdminRequest, HostAdminResponse } from './index.ts'
 import { object, identifier, digest } from './json.ts'
 import { SEAT_ENGINE_EVENT_NAMES, type EngineEventKind } from '@panedesk/dsh-seat'
@@ -36,6 +36,10 @@ export function decodeRequest(value: unknown): HostAdminRequest {
       break
     }
     case 'node.status': decodeSeatRequest('seats/nodeStatus', value.params); break
+    case 'node.rebuild': {
+      if (!object(value.params) || Object.keys(value.params).length > 0) throw new Error('Node rebuild request rejected')
+      break
+    }
     case 'engine.pending': decodeSeatRequest('seats/pending', value.params); break
     case 'engine.approve': decodeSeatRequest('seats/approve', value.params); break
     case 'engine.cancel': decodeSeatRequest('seats/cancel', value.params); break
@@ -79,12 +83,13 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
   }
   if (request.method === 'source.operations' || request.method === 'source.abandon' || request.method === 'source.resend') {
     const allowed = value.status === 'ok' ? ['version', 'requestId', 'method', 'status', 'result']
-      : ['version', 'requestId', 'method', 'status', 'code', 'reason', 'operationId']
+      : ['version', 'requestId', 'method', 'status', 'code', 'detail', 'reason', 'operationId']
     if (Object.keys(value).some(key => !allowed.includes(key))) throw new Error('Source response fields rejected')
   }
   if (value.status !== 'ok') {
     if (!['rejected', 'unavailable', 'uncertain'].includes(String(value.status))
-      || !HOST_ADMIN_ERROR_CODES.some(code => code === value.code) || typeof value.reason !== 'string') {
+      || !HOST_ADMIN_ERROR_CODES.some(code => code === value.code) || typeof value.reason !== 'string'
+      || value.detail !== undefined && !HOST_ADMIN_DETAIL_CODES.some(code => code === value.detail)) {
       throw new Error('Administration failure rejected')
     }
     return value as HostAdminResponse
@@ -99,16 +104,23 @@ export function decodeResponse(value: unknown, request: HostAdminRequest): HostA
     case 'source.abandon':
     case 'source.resend': {
       const result = value.result
-      if (!object(result) || Object.keys(result).some(key => !['status', 'code', 'reason', 'generation'].includes(key))
+      if (!object(result) || Object.keys(result).some(key => !['status', 'code', 'reason', 'generation', 'effect'].includes(key))
         || result.status !== 'ok' && result.status !== 'rejected'
         || result.code !== undefined && !boundedString(result.code, 512)
         || result.reason !== undefined && !boundedString(result.reason, 512)
+        || result.effect !== undefined && (result.effect !== 'none' || result.status !== 'rejected')
         || result.generation !== undefined && (!Number.isSafeInteger(result.generation) || Number(result.generation) < 1)) {
         throw new Error('Source write result rejected')
       }
       break
     }
     case 'node.status': decodeSeatResult('seats/nodeStatus', value.result); break
+    case 'node.rebuild': {
+      const result = value.result
+      if (!object(result) || Object.keys(result).some(key => key !== 'status')
+        || result.status !== 'rebuilt' && result.status !== 'unavailable') throw new Error('Node rebuild result rejected')
+      break
+    }
     case 'engine.pending':
       if (object(value.result) && value.result.status === 'rejected') decodeSeatResult('seats/approve', value.result)
       else decodeSeatResult('seats/pending', value.result)

@@ -13150,6 +13150,9 @@ importers:
       '@panedesk/dsh-workspace':
         specifier: workspace:*
         version: link:../../workspace/workspace
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -13205,6 +13208,9 @@ importers:
       '@panedesk/dsh-fs-local':
         specifier: workspace:*
         version: link:../../fs/fs-local
+      '@panedesk/dsh-host-admin':
+        specifier: workspace:*
+        version: link:../../host/host-admin
       '@panedesk/dsh-host-webserver':
         specifier: workspace:*
         version: link:../../host/webserver

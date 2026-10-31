@@ -221,6 +221,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  hostAdminTransport: 'optional host-owned tunnel rebuild capability — packages/host/host-admin/README.md owns operator authentication and transport lifetime',
   hostAdminFiles: 'deployment-supplied Windows private-file factory — packages/host/host-admin/README.md owns ACL, path and durable-write obligations',
   nodeLinkFiles: 'deployment-supplied Windows private-file factory — packages/seat/node-link/README.md owns ACL, path and durable-write obligations',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',

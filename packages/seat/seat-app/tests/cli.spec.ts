@@ -36,7 +36,7 @@ describe('seat command consumer', () => {
       ready: { onReady(callback) { listener = callback; return () => { listener = undefined } } } })
     const output = vi.spyOn(process.stdout, 'write').mockReturnValue(true)
     try {
-      apply(ctx)
+      apply(ctx, {})
       expect(output).not.toHaveBeenCalled()
       listener!()
       expect(output).toHaveBeenCalledExactlyOnceWith('Usage: seat <command> [--seat <name> | --seats <names>] [--request <json>] [options]\n')

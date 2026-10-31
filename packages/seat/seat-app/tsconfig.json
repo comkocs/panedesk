@@ -10,6 +10,8 @@
   "references": [
     { "path": "../../sdk/server" },
     { "path": "../seat" },
+    { "path": "../../host/host-admin" },
+    { "path": "../../../vendor/schemastery" },
     { "path": "../../sdk/protocol" },
     { "path": "../../boot/cmdline" },
     {

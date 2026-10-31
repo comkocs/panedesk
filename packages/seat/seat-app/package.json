@@ -48,6 +48,8 @@
   "license": "MIT",
   "peerDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/schemastery": "workspace:~",
+    "@panedesk/dsh-host-admin": "workspace:*",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-sdk-protocol": "workspace:*",
     "@panedesk/dsh-sdk-jsonrpc-server": "workspace:*",
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/schemastery": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
@@ -72,6 +75,7 @@
     "@panedesk/dsh-credentials": "workspace:*",
     "@panedesk/dsh-credentials-local": "workspace:*",
     "@panedesk/dsh-fs-local": "workspace:*",
+    "@panedesk/dsh-host-admin": "workspace:*",
     "@panedesk/dsh-host-webserver": "workspace:*",
     "@panedesk/dsh-instruction-subscriptions": "workspace:*",
     "@panedesk/dsh-jobs-local": "workspace:*",

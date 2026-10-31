@@ -196,5 +196,68 @@ test('uses independent bidirectional loopback forwards, strict host checks and o
     terminate()
     await expect.poll(() => tunnel.available, { timeout: 10000 }).toBe(false)
     expect(disconnected).toHaveBeenCalledOnce()
+    expect(spec.argv).not.toContain('-F')
   } finally { await tunnel.close(); await listener.close() }
+})
+
+test('keeps bounded supervision and stderr capture after each exhausted rebuild', async () => {
+  const fixture = supervised(1)
+  try {
+    await fixture.tunnel.start()
+    await fixture.exit()
+    await vi.advanceTimersByTimeAsync(100)
+    await fixture.exit()
+    expect(fixture.tunnel.exhaustedReason).toContain('SSH tunnel exhausted')
+    const first = fixture.tunnel.rebuild()
+    expect(fixture.tunnel.rebuild()).toBe(first)
+    await first
+    expect(fixture.spawn).toHaveBeenCalledTimes(3)
+    expect(fixture.tunnel.exhaustedReason).toBeUndefined()
+    fixture.children[2]!.stderr.write('replacement failed\n')
+    await fixture.exit()
+    expect(fixture.tunnel.available).toBe(false)
+    expect(fixture.messages('exited').at(-1)?.[1]).toContain('replacement failed')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(fixture.spawn).toHaveBeenCalledTimes(4)
+    await fixture.exit()
+    expect(fixture.messages('exhausted')).toHaveLength(2)
+    await fixture.tunnel.rebuild()
+    expect(fixture.spawn).toHaveBeenCalledTimes(5)
+  } finally { await fixture.tunnel.close() }
+})
+
+test('cancels an old retry before rebuilding and never restarts after close', async () => {
+  const fixture = supervised(2)
+  await fixture.tunnel.start()
+  await fixture.exit()
+  await fixture.tunnel.rebuild()
+  expect(fixture.spawn).toHaveBeenCalledTimes(2)
+  await vi.advanceTimersByTimeAsync(100)
+  expect(fixture.spawn).toHaveBeenCalledTimes(2)
+  await fixture.tunnel.close()
+  await expect(fixture.tunnel.rebuild()).rejects.toThrow('SSH tunnel closed')
+  expect(fixture.messages('supervision-failed')).toEqual([])
+})
+
+test('passes an optional ssh config file and rejects an empty path', async () => {
+  const done = Promise.withResolvers<SubprocessOutcome>()
+  const spawn = vi.fn<SubprocessRuntime['spawn']>(() => ({ stdin: undefined, stdout: undefined, stderr: undefined, control: undefined,
+    collected: {}, done: done.promise, terminate: () => { done.resolve({ exitCode: 0, signal: null }) },
+    waitForExit: async () => { await done.promise; return true } }))
+  const options: NodeLinkRuntimeConfig = { nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer', directory: 'unused',
+    listenPort: 0, peerPort: 1, maxFrameBytes: 4096, requestTimeoutMs: 1000, maxPending: 2, maxStoreBytes: 4096,
+    maxOperations: 10, staleMs: 1000, ssh: { alias: 'test-peer', cwd: process.cwd(), remotePort: 1, remoteTargetPort: 1,
+      graceMs: 100, keepAliveSeconds: 5, keepAliveCount: 2, retryMs: 100, maxRetries: 0, sshConfigFile: '/run/ssh/peer.conf' } }
+  const tunnel = new SshTunnel({ resolveExecutable: async () => '/usr/bin/ssh', spawn }, options, 1, vi.fn())
+  try {
+    await tunnel.start()
+    const argv = spawn.mock.calls[0]![0].argv
+    const config = argv.indexOf('-F')
+    expect(argv[config + 1]).toBe('/run/ssh/peer.conf')
+    expect(argv).toContain('RemoteCommand=none')
+    expect(argv).toContain('StrictHostKeyChecking=yes')
+  } finally { await tunnel.close() }
+  const rejected = new SshTunnel({ resolveExecutable: async () => '/usr/bin/ssh', spawn },
+    { ...options, ssh: { ...options.ssh!, sshConfigFile: '' } }, 1, vi.fn())
+  await expect(rejected.start()).rejects.toThrow('SSH config path rejected')
 })

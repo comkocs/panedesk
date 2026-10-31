@@ -34,7 +34,7 @@ kind: "package-reference"
 
 node-link 每次 Host 拒绝记录一行 `host-mismatch`，只含 `expectedPort`（接收端监听端口）和 `actualPort`（Host 端口；非法时 JSON 为 `null`，日志为 `unknown`）。其他接纳条件全部通过且帧限额允许时，HTTP 403 hello 回包包含这三个字段。发送端仅将白名单码 `host-mismatch` 投影到 `safeReason`，不公开地址或凭据，也不把拒绝视为已认证的对端健康证据。其他拒绝回包保留泛化传输失败。
 
-可选 `ssh` 必须填写 `alias`、`cwd`、`remotePort`、`remoteTargetPort`、`graceMs`、`keepAliveSeconds`、`keepAliveCount`、`retryMs`、`maxRetries`，并要求已有 `subprocess` 服务。别名必须是简单名称，禁止命令或任意选项。转发两端显式绑定回环；私有 SSH 配置必须经过运维审核，不得附带额外转发或改变认证身份。
+可选 `ssh` 必须填写 `alias`、`cwd`、`remotePort`、`remoteTargetPort`、`graceMs`、`keepAliveSeconds`、`keepAliveCount`、`retryMs`、`maxRetries`，并要求已有 `subprocess` 服务。可选 `sshConfigFile` 作为单个 `-F` 参数值传入；省略时保持 OpenSSH 原有配置选择。路径须非空、最多4096字符、无控制字符且不以 `-` 开头。别名必须是简单名称，禁止命令或任意选项。转发两端显式绑定回环；私有 SSH 配置必须经过运维审核，不得附带额外转发或改变认证身份。
 
 每节点预置 `inbound.json` 与 `outbound.json`，均含方向节点标识、`epoch` 与随机凭据；两个方向值必须独立。`provisionInbound` 可生成入向私有文件但不打印或返回秘密值。将一端入向文件安全配置为另一端出向文件，禁止通过参数、地址或环境变量传播。
 
@@ -53,7 +53,7 @@ Windows 等证据持久化较慢的节点，席位引擎的 `callbackTimeoutMs` 
 
 断链先于能力协商拒绝新请求。工作链在 TCP 连接建立前失败时，返回 `node-tunnel-disconnected` 与 `effectState: 'none'`，将已接纳的发送意图持久落定，并撤销连接观察与对端能力。经过授权的精确 `chain.operation` 查询即使在断链时也能读回该本地拒绝；它不是推断出的业务证据。TCP 连接建立后丢失响应仍为未知，发送记录保持待决；经过认证的精确查询核对恢复后的业务结果，不重复执行。已发送但无回包不能声称未执行。健康探测校验代次与节点自报身份；超 `staleMs` 标为过期，保留上次窗数，不伪造零窗。SSH 进程存活不等于应用握手成功。
 
-隧道启动、退出、重拉、耗尽与监督异常通过宿主日志记录；stderr 只保留去地址的末尾摘要，最多五行、每行 200 字节、总计 1 KB。原始 stderr 缓冲限于 4 KB；stdout 丢弃。子进程存活至少 `retryMs` 后，下次重拉前清零计数；更短存活的子进程消耗有界的 `maxRetries` 预算，每次重拉均等待 `retryMs`。耗尽后，`nodeRouter.status()` 与节点查询通过 `safeReason` 显示末次退出原因；重启宿主即恢复重拉预算。
+隧道启动、退出、重拉、耗尽与监督异常通过宿主日志记录；stderr 只保留去地址的末尾摘要，最多五行、每行 200 字节、总计 1 KB。原始 stderr 缓冲限于 4 KB；stdout 丢弃。子进程存活至少 `retryMs` 后，下次重拉前清零计数；更短存活的子进程消耗有界的 `maxRetries` 预算，每次重拉均等待 `retryMs`。耗尽后，`nodeRouter.status()` 与节点查询通过 `safeReason` 显示末次退出原因。经过认证的 admin `node.rebuild` 方法只替换自有隧道，恢复有界监督、stderr 捕获及重试预算；并发重拉合并为一次替换。替换前取消旧重试，释放不能重启子进程。宿主及方向凭据不变。常规认证 hello 成功前路由仍断开；子进程创建本身不表示链路恢复。
 
 <a id="model-experience"></a>
 ## 模型体验

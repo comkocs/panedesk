@@ -103,6 +103,14 @@ test('rejects source request length limits and unknown fields without changing c
   expect(() => decodeRequest({ ...frame('source.operations', {}), extra: true })).toThrow()
 })
 
+test('validates registered provider detail codes without accepting arbitrary error text', () => {
+  const request = frame('source.operations', {})
+  const response = { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method,
+    status: 'unavailable', code: 'admin-unavailable', reason: 'source-settlement-pending', detail: 'source-settlement-pending' }
+  expect(decodeResponse(response, request)).toBe(response)
+  expect(() => decodeResponse({ ...response, detail: 'private-error-text' }, request)).toThrow()
+})
+
 test('rejects source result overflow invalid state and unknown fields at every level', () => {
   const request = frame('source.operations', {})
   const valid = resultFrame(request, { items: [item] })
@@ -120,10 +128,12 @@ test('rejects source result overflow invalid state and unknown fields at every l
     const write = frame(method)
     for (const result of [{ status: 'unknown' }, { status: 'ok', generation: 0 }, { status: 'ok', generation: 1.5 },
       { status: 'ok', generation: Number.MAX_SAFE_INTEGER + 1 }, { status: 'ok', extra: true },
-      { status: 'ok', code: 'c'.repeat(513) }, { status: 'rejected', reason: 'r'.repeat(513) }]) {
+      { status: 'ok', code: 'c'.repeat(513) }, { status: 'rejected', reason: 'r'.repeat(513) },
+      { status: 'ok', effect: 'none' }, { status: 'rejected', effect: 'partial' }]) {
       expect(() => decodeResponse(resultFrame(write, result), write)).toThrow()
     }
-    for (const result of [{ status: 'ok' }, { status: 'rejected', code: 'c'.repeat(512), reason: 'r'.repeat(512), generation: 1 }]) {
+    for (const result of [{ status: 'ok' }, { status: 'rejected', code: 'c'.repeat(512), reason: 'r'.repeat(512), generation: 1 },
+      { status: 'rejected', code: 'write-budget-exceeded-before-write', reason: 'write-budget-exceeded-before-write', effect: 'none' }]) {
       expect(decodeResponse(resultFrame(write, result), write)).toBeDefined()
     }
   }

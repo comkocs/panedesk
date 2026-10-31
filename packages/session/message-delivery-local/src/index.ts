@@ -34,7 +34,7 @@ import { RecipientPolicy } from './policy.ts'
 import { broadcast } from './broadcast.ts'
 import { ReceiptStore } from './receipts.ts'
 import { createRoutedMailboxReceiver } from './routed-receiver.ts'
-import { sendRoutedMessage } from './routed-sender.ts'
+import { sendRoutedMessage, recoverRoutedMessages, type RoutedRecoveryScan } from './routed-sender.ts'
 import { inspectWindowsAcl } from './windows-permissions.ts'
 import { policyReason, resolveRecipients, resolveSeatRecipient } from './recipients.ts'
 import type {} from '@panedesk/dsh-seat'
@@ -70,9 +70,11 @@ export default class LocalMessageDelivery extends MessageDelivery {
   private readonly ready: Promise<void> | undefined
   private nodeId!: NodeId
   private stopped = false
+  private readonly recoveryScan: RoutedRecoveryScan
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx)
+    this.recoveryScan = { maxEntries: config.maxBatchSize }
     const limits = [config.maxRecordBytes, config.maxContentBytes, config.maxBatchSize,
       config.scanIntervalMs, config.lockTimeoutMs, config.lockRetryMs]
     for (const value of limits) {
@@ -217,6 +219,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
         for (const watcher of this.watchers.values()) watcher.close()
         this.watchers.clear()
         await scanning
+        await this.recoveryScan.directory?.close()
+        this.recoveryScan.directory = undefined
         await Promise.all([...this.registrations.values()])
         await Promise.all([...this.tasks])
         const owners = [...this.owners.entries()]
@@ -304,6 +308,17 @@ export default class LocalMessageDelivery extends MessageDelivery {
         try { await owner.arbitrator.probe() } catch (error) { this.ctx.logger.error('Mailbox scan failed', error) }
       }
       if (this.owners.size > 0) await this.registry.heartbeat()
+      try {
+        await recoverRoutedMessages(this.ctx, this.mailbox, async (sender, work) => {
+          if (sender.kind !== 'session') return false
+          const owner = this.owners.get(sender.sessionId)
+          if (!owner || owner.closing || !this.canAdopt(owner.agent)) return false
+          const live = () => !this.stopped && this.owners.get(sender.sessionId) === owner
+            && !owner.closing && this.canAdopt(owner.agent)
+          await this.ctx.agents.withInitiator(owner.agent, () => work(live))
+          return true
+        }, () => !this.stopped, this.recoveryScan)
+      } catch (error) { void error; this.ctx.logger.error('Routed message recovery unavailable; uncertain operations remain retained') }
     }
   }
 
