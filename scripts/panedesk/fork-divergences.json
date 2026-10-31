@@ -1,6 +1,39 @@
 {
   "divergences": [
     {
+      "id": "secondary-ui-integration-reference-freshness",
+      "description": "Keep integrated secondary UI references and generated catalogs current.",
+      "origin": "Statistics, provider settings and subagent tree integration",
+      "reason": "Preserve source-equivalent discovery and probe declarations, paired capability diagrams, package README structure and model effects. Regenerate configuration, module and persistence catalogs after composition changes; persistence changes are source-location metadata only. Keep the statistics types alias outside the generated bare-package alias region without changing its target.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "docs/capability-seams.zh.md",
+          "docs/capability-seams.i18n.yaml",
+          "docs/subsystems/llm-streaming.md",
+          "docs/subsystems/llm-streaming.zh.md",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/module-graph.md",
+          "docs/module-graph.zh.md",
+          "docs/persistence-catalog.md",
+          "docs/persistence-catalog.zh.md",
+          "docs/persistence-catalog.i18n.yaml",
+          "docs/persistence-schema.json",
+          "packages/session/ledger-query/README.md",
+          "packages/session/ledger-query/README.zh.md",
+          "packages/client/ui-stats/README.md",
+          "packages/client/ui-stats/README.zh.md",
+          "packages/client/ui-stats/README.i18n.yaml",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md",
+          "packages/client/ui-subagent-tree/README.i18n.yaml",
+          "tsconfig.base.json"
+        ],
+        "test": "keeps every package README on the summary, contents, and Dev Note skeleton"
+      }
+    },
+    {
       "id": "folded-retry-existing-owner-test-integration",
       "description": "Existing callback owner checks follow folded observation ownership.",
       "origin": "Callback folding and existing local-owner diagnostics integration",
