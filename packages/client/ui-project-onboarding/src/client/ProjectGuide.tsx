@@ -5,6 +5,7 @@ import type { ProjectSelection } from '../types.ts'
 import type { GuideProps, SettingsProps } from './props.ts'
 import type { PropsLocale } from '@panedesk/dsh-client-ui-slots'
 import type { ProjectPreferences } from './controller.ts'
+import type { WELCOME_NOTICE_VERSION } from '@panedesk/dsh-client-ui-settings-models/src/onboarding-copy.ts'
 import css from './ProjectGuide.module.css'
 
 type ChoiceProps = PropsLocale<'projectOnboarding'> & {
@@ -38,19 +39,27 @@ function ProjectChoice({ path, state, select, t }: ChoiceProps) {
   </section>
 }
 
-/** Render first-entry guidance only after a workspace-backed Session exists.
+// Keep the preference comparison aligned with the notice without importing another UI plugin at runtime.
+const welcomeVersion: typeof WELCOME_NOTICE_VERSION = '2026-09-28.1'
+
+/** Render project guidance after the welcome notice and the blank main Session.
  * @param props Framework hooks, localized copy, and preference callbacks.
  * @returns A modal for an unchosen project, otherwise no added interface.
  */
 export function ProjectGuide(props: GuideProps) {
-  const { usePreferences, useWorkspaces, useSessions, sessionId, select, retry, inputActions, t } = props
+  const { usePreferences, useWelcome, useWorkspaces, useSessions, sessionId, select, retry, inputActions, t } = props
   const state = usePreferences(value => value)
+  const welcomeComplete = useWelcome(value => value.status === 'ready' && value.value?.welcomeNoticeVersion === welcomeVersion)
+  const projectActive = useSessions(value => {
+    const main = Object.values(value.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)
+    return value.phase === 'ready' && main !== undefined && !main.blank
+  })
   const workspace = useWorkspaces(value => value.items.find(item => item.sessionIds.includes(sessionId)))
   const cwd = useSessions(value => value.byId[sessionId]?.cwd)
   const path = workspace?.path ?? cwd
   const [dismissed, setDismissed] = useState<string | null>(null)
   const [insertFailed, setInsertFailed] = useState(false)
-  if (path === undefined || state.projects[path]?.chosen || dismissed === path) return null
+  if (!welcomeComplete || !projectActive || path === undefined || state.projects[path]?.chosen || dismissed === path) return null
   if (state.status === 'loading') return null
   const close = () => { setDismissed(path) }
   const start = () => {

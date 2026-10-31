@@ -21,7 +21,7 @@ Session-only project guidance and a custom product settings page. Part of the [W
 <a id="behavior"></a>
 ## Behavior
 
-The conversation overlay asks once per workspace path for Off, Remind only, or Automatic; Remind only is the initial draft, not an implicit approval. A successful selection is stored in the product profile's `ui-project-onboarding.projects` dictionary, never in the user's project. Product settings can change confirmed choices. Read-only settings disable writes; failures retain the prior visible selection and offer retry.
+The conversation overlay waits until the current welcome notice is acknowledged and the main Session is ready and no longer blank, then asks once per workspace path for Off, Remind only, or Automatic; Remind only is the initial draft, not an implicit approval. A successful selection is stored in the product profile's `ui-project-onboarding.projects` dictionary, never in the user's project. Product settings can change confirmed choices. Read-only settings disable writes; failures retain the prior visible selection and offer retry.
 
 The owner-only `projectOpening.select` operation resolves matching seat projects from the complete authorized local catalog, applies their engine policies with revision checks, then persists the product preference. A failed save attempts every restoration with the revision owned by that save, including the previous `modeChosen` flag. Concurrent winners are not overwritten; a concurrent restoration already matching the original fields counts as restored. Structured results and localized feedback report each project as restored, conflicted, or unknown after failure.
 

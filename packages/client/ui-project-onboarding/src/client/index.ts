@@ -8,7 +8,7 @@ import contribution from '@panedesk/dsh-client-ui-project-onboarding/remote'
 import { ProjectPreferencesController } from './controller.ts'
 import { ProjectGuide, ProjectSettings } from './ProjectGuide.tsx'
 import { en, zh } from './locales.ts'
-import type { ProjectInjected } from './props.ts'
+import type { GuideInjected, ProjectInjected } from './props.ts'
 
 /** Services used by the preferences projection and its slot contributions. */
 export const inject = ['slots', 'locale', 'remote', 'configForms']
@@ -40,9 +40,11 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       hooks: { preferences: controller.state }, retry: () => controller.load(),
       select: (path, mode) => controller.select(path, mode),
     })
+    const welcome = ctx.configForms.get<Record<string, unknown>>('ui-settings-general')
+    const guideFace = (): GuideInjected => ({ ...face(), hooks: { preferences: controller.state, welcome } })
     ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
       name: 'conversation.input.overlay', id: 'project-onboarding', order: 1,
-      locale: 'projectOnboarding', inject: face,
+      locale: 'projectOnboarding', inject: guideFace,
     }, ProjectGuide))
     ctx.slots.inject('settings.section', () => ctx.slots.register({
       name: 'settings.section', id: 'project-opening', order: 25,

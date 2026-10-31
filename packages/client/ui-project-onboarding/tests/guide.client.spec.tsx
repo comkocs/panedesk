@@ -13,6 +13,17 @@ function fixture(language: 'en' | 'zh', projects: ProjectPreferences['projects']
   const dictionary = language === 'en' ? en : zh
   const state: ProjectPreferences = { status: 'ready', writable: true, projects, revision: 0, error: false, saved: false }
   const unused = (() => { throw new Error('Unused fixture hook') }) as never
+  const welcome: Parameters<Parameters<GuideProps['useWelcome']>[0]>[0] = {
+    status: 'ready', value: { welcomeNoticeVersion: '2026-09-28.1' },
+    base: {}, user: {}, revision: 0, writable: true,
+  }
+  const session = {
+    id: 'session-a' as never, displayTitle: 'Project', cwd: '/project', running: false,
+    retainedBy: { mainView: 1 }, blank: false, updatedAt: 0,
+  }
+  const sessions: Parameters<Parameters<GuideProps['useSessions']>[0]>[0] = {
+    ids: [session.id], byId: { [session.id]: session }, phase: 'ready', projectionsBySession: {},
+  }
   const inputActions = {
     captureInsertion: vi.fn(() => ({ start: 0, end: 0, draftRev: 0 })),
     insertText: vi.fn(() => true), persistDraft: vi.fn(), setDraft: vi.fn(),
@@ -26,14 +37,51 @@ function fixture(language: 'en' | 'zh', projects: ProjectPreferences['projects']
     usePreferences: ((select: (value: ProjectPreferences) => unknown) => select(state)) as GuideProps['usePreferences'],
     useWorkspaces: (() => ({ path: '/project', sessionIds: ['session-a'] })) as GuideProps['useWorkspaces'],
     useProjection: (() => '/project') as GuideProps['useProjection'],
-    useSessions: (() => '/project') as GuideProps['useSessions'],
+    useSessions: ((select) => select(sessions)) as GuideProps['useSessions'],
+    useWelcome: ((select) => select(welcome)) as GuideProps['useWelcome'],
     select: vi.fn(async () => true), retry: vi.fn(async () => {}), close: vi.fn(), inputActions,
     t: (key: keyof typeof en) => dictionary[key],
   }
-  return { props, state, dictionary }
+  return { props, state, dictionary, welcome, sessions, session }
 }
 
 describe('project opening guidance', () => {
+  it.each(['en', 'zh'] as const)('waits for the current welcome and a nonblank main session: %s', (language) => {
+    const { props, dictionary, welcome, sessions, session } = fixture(language)
+    welcome.value = {}
+    const ui = render(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.queryByRole('dialog')).toBeNull()
+    welcome.value = { welcomeNoticeVersion: 'previous-notice' }
+    ui.rerender(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.queryByRole('dialog')).toBeNull()
+    welcome.value = { welcomeNoticeVersion: '2026-09-28.1' }
+    for (const status of ['loading', 'unavailable'] as const) {
+      welcome.status = status
+      ui.rerender(<ProjectGuide {...props as GuideProps} />)
+      expect(ui.queryByRole('dialog')).toBeNull()
+    }
+    welcome.status = 'ready'
+    session.blank = true
+    ui.rerender(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.queryByRole('dialog')).toBeNull()
+    session.blank = false
+    session.retainedBy.mainView = 0
+    ui.rerender(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.queryByRole('dialog')).toBeNull()
+    session.retainedBy.mainView = 1
+    sessions.phase = 'pending'
+    ui.rerender(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.queryByRole('dialog')).toBeNull()
+    sessions.phase = 'ready'
+    ui.rerender(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.getByRole('dialog', { name: dictionary.title })).toBeTruthy()
+    expect(props.select).not.toHaveBeenCalled()
+    expect(props.inputActions.submit).not.toHaveBeenCalled()
+    session.blank = true
+    ui.rerender(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.queryByRole('dialog')).toBeNull()
+  })
+
   it('renders loading, empty, read-only, disabled, saved, and failed states with retry', () => {
     const { props, state, dictionary } = fixture('en')
     state.status = 'loading'
