@@ -1,6 +1,102 @@
 {
   "divergences": [
     {
+      "id": "seat-frozen-orphan-restart-warning",
+      "description": "Frozen orphan restart warnings.",
+      "origin": "Optional seat and host integration",
+      "reason": "Retain distinct manual and source-wake orphan closure details and localized owner warnings after restart without automatically opening a successor; preserve automatic engine-source recovery.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat/src/events.ts",
+          "packages/seat/seat/src/types.ts",
+          "packages/seat/seat-local/src/closing-service.ts",
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-engine/src/validation.ts",
+          "packages/client/ui-seats/src/client/Seats.tsx",
+          "packages/client/ui-seats/src/client/locales.ts",
+          "packages/client/ui-seats/tests/orphaned-frozen.host.spec.ts",
+          "packages/client/ui-seats/tests/seats.client.spec.tsx",
+          "packages/seat/seat/README.md",
+          "packages/seat/seat/README.zh.md",
+          "packages/seat/seat/README.i18n.yaml",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "packages/client/ui-seats/README.md",
+          "packages/client/ui-seats/README.zh.md",
+          "packages/client/ui-seats/README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.zh.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.i18n.yaml",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
+        "test": "%s closes after restart with a visible warning and no second opening"
+      }
+    },
+    {
+      "id": "session-snapshot-per-log-cwd",
+      "description": "Session snapshot working directories.",
+      "origin": "Build and test hygiene",
+      "reason": "Upstreamable: normalize refresh and replay using each session log header cwd while preserving relative paths and cross-session identities.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/test-support/session-snapshot/src/normalize.ts",
+          "packages/test-support/session-snapshot/src/suite.ts",
+          "packages/test-support/session-snapshot/tests/normalize.spec.ts",
+          "packages/test-support/session-snapshot/tests/suite.spec.ts",
+          "packages/test-support/session-snapshot/README.md",
+          "packages/test-support/session-snapshot/README.zh.md",
+          "packages/test-support/session-snapshot/README.i18n.yaml"
+        ],
+        "test": "normalizes each child cwd without collapsing session identity or relative paths"
+      }
+    },
+    {
+      "id": "client-build-path-reproducibility",
+      "description": "Checkout-independent client artifacts.",
+      "origin": "Build and test hygiene",
+      "reason": "Upstreamable: derive CSS module hashes and virtual identifiers from repository-relative paths, emit checkout metadata separately, and read it at runtime so reusable artifacts are identical across checkout paths.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/tsdown.client.ts",
+          "scripts/client-build-environment.ts",
+          "scripts/client-build-environment.client.spec.ts",
+          "scripts/client-bundle-css.spec.ts",
+          "packages/client/modules/tsdown.config.ts",
+          "packages/client/modules/package.json",
+          "packages/client/modules/src/index.ts",
+          "packages/client/modules/tests/node-half.client.spec.ts",
+          "packages/client/modules/README.md",
+          "packages/client/modules/README.zh.md",
+          "packages/client/modules/README.i18n.yaml"
+        ],
+        "test": "registers the source stylesheet as a watch dependency"
+      }
+    },
+    {
+      "id": "client-roster-bundle-own-manifest",
+      "description": "Bundle-owned client roster manifest resolution.",
+      "origin": "Client test runtime integration",
+      "reason": "Upstreamable: resolve bundle-owned roster rows from their loaded manifests without dependency self-links while preserving linked dependency precedence.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/test-support/client-runtime/src/assembly/bundle-roster.ts",
+          "packages/test-support/client-runtime/tests/assembly-bundle-roster.client.spec.ts",
+          "packages/test-support/client-runtime/README.md",
+          "packages/test-support/client-runtime/README.zh.md",
+          "packages/test-support/client-runtime/README.i18n.yaml"
+        ],
+        "test": "resolves a linked bundle own row without a dependency self-link (browser: %s)"
+      }
+    },
+    {
       "id": "host-build-memory-limit",
       "description": "Increase the host compiler heap allowance.",
       "origin": "Build hygiene",
