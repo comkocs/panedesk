@@ -87,10 +87,11 @@ describe('automation-only ACP bridge', () => {
 
     expect(result.stopReason).toBe('end_turn')
     await vi.waitFor(() => { expect(harness!.updates.at(-1)?.sessionUpdate).toBe('usage_update') })
-    expect(harness.updates[0]).toMatchObject({
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: 'hello there' },
-    })
+    // Live deltas arrive per chunk and the committed message adds no duplicate text.
+    const chunks = harness.updates.flatMap(update =>
+      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text' ? [update.content.text] : [])
+    expect(chunks.join('')).toBe('hello there')
+    expect(chunks).toHaveLength('hello there'.length)
     expect('messageId' in harness.updates[0]!).toBe(true)
     if ('messageId' in harness.updates[0]!) expect(typeof harness.updates[0].messageId).toBe('string')
     expect(harness.ctx.agents.get(SessionId(sessionId))?.session.header.cwd).toBe(process.cwd())

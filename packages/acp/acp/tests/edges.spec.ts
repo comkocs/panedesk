@@ -46,12 +46,14 @@ describe('ACP automation output boundary', () => {
     await harness.client.prompt({ sessionId, prompt: [{ type: 'text', text: 'go' }] })
 
     await vi.waitFor(() => { expect(harness!.updates.at(-1)?.sessionUpdate).toBe('usage_update') })
+    // The reasoning delta streams live, the committed reasoning is skipped as covered,
+    // and the final text arrives as live deltas followed by its residual usage update.
     expect(harness.updates.map(update => update.sessionUpdate)).toEqual([
       'agent_thought_chunk',
       'usage_update',
       'tool_call',
       'tool_call_update',
-      'agent_message_chunk',
+      ...Array.from('done', () => 'agent_message_chunk' as const),
       'usage_update',
     ])
     expect(harness.updates[0]).toMatchObject({
@@ -73,17 +75,17 @@ describe('ACP automation output boundary', () => {
       status: 'completed',
       content: [{ type: 'content', content: { type: 'text', text: 'tool result' } }],
     })
-    expect(harness.updates[4]).toMatchObject({
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: 'done' },
-    })
+    const message = harness.updates.slice(4).flatMap(update =>
+      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text' ? [update.content.text] : [])
+    expect(message.join('')).toBe('done')
     expect('messageId' in harness.updates[4]!).toBe(true)
-    expect(harness.updates[5]).toMatchObject({
+    expect(harness.updates.at(-1)).toMatchObject({
       sessionUpdate: 'usage_update',
       size: 1_024,
     })
-    if (harness.updates[5]?.sessionUpdate !== 'usage_update') throw new Error('expected usage update')
-    expect(typeof harness.updates[5].used).toBe('number')
+    const usage = harness.updates.at(-1)
+    if (usage?.sessionUpdate !== 'usage_update') throw new Error('expected usage update')
+    expect(typeof usage.used).toBe('number')
   })
 
   it('ignores events from agents the bridge does not own', async () => {
@@ -109,10 +111,10 @@ describe('ACP automation output boundary', () => {
     await agent.whenIdle()
     await vi.waitFor(() => { expect(harness!.updates.at(-1)?.sessionUpdate).toBe('usage_update') })
 
-    expect(harness.updates[0]).toMatchObject({
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: 'external' },
-    })
+    const chunks = harness.updates.flatMap(update =>
+      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text' ? [update.content.text] : [])
+    expect(chunks.join('')).toBe('external')
+    expect(chunks).toHaveLength('external'.length)
     expect('messageId' in harness.updates[0]!).toBe(true)
   })
 
