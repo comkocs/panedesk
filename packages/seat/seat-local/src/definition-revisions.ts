@@ -32,6 +32,7 @@ export function installDefinitionRevisions(ctx: Context, seats: LocalSeatService
         if (!grant || !fact || !transactions?.validate) return refusal('method-not-allowed', authority)
         if (fact.kind !== 'node-delegation' || fact.nodeId !== seats.options.nodeId || authority.nodeId !== fact.nodeId
           || !fact.sourceNodeId || fact.sourceNodeId === fact.nodeId
+            && (fact.origin !== 'manual' || fact.reasonCode !== 'trusted-local-owner')
           || ![fact.nodeId, fact.sourceNodeId].includes(request.sourceOwnerNodeId)) return refusal('node-mismatch', authority)
         if (fact.principalId !== authority.principalId) return refusal('principal-mismatch', authority)
         if (fact.seat !== request.seat || digest(fact.taskIds) !== digest(request.taskIds)

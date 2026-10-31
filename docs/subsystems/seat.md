@@ -6,7 +6,7 @@ This page owns the types and service semantics declared by the [seat package gro
 
 ## Identity and authority
 
-`SeatName` identifies a node-local definition; `SeatOperationId` identifies a caller-retained operation. Session identity remains the upstream `SessionId`. `SeatCallContext` contains authenticated principal, origin, and node identity supplied by a trusted adapter, not accepted as request authority. `SeatBinding` is engine metadata beside the Session log, with distinct free and seat variants.
+`SeatName` identifies a node-local definition; `SeatOperationId` identifies a caller-retained operation. Session identity remains the upstream `SessionId`. `SeatCallContext` contains authenticated principal, origin, and node identity supplied by a trusted adapter, not accepted as request authority. Optional host-only `SeatCallContext.localWake.opening` holds the exact missing-window opening grant beside the original wake `authorization`; both remain instance-owned capabilities, never request JSON. `SeatBinding` is engine metadata beside the Session log, with distinct free and seat variants.
 
 ## Definitions and admission
 

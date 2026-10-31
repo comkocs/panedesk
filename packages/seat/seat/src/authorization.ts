@@ -158,6 +158,8 @@ declare module './types.ts' {
      * Never serialize this process-local grant into a request or reconstruct it from principalId.
      */
     authorization?: SeatAuthorizationGrant
+    /** Host-only local wake entry. Both grants are required; dropping either never selects legacy admission. */
+    localWake?: { readonly opening: SeatAuthorizationGrant }
   }
 }
 

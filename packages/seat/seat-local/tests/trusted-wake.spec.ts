@@ -26,6 +26,67 @@ async function setup(existing = true) {
   return { ...f, payload, invoke }
 }
 
+test.each(['source', 'owner', 'revoked', 'grant', 'opening-grant', 'digest'] as const)('rejects a local owner wake with invalid %s evidence', async (damage) => {
+  const { h } = await setup()
+  try {
+    const request: T.WakeSeatRequest = { seat: h.definition.seat, operationId: 'local-owner-rejected' as T.SeatOperationId }
+    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
+      nodeId: h.options.nodeId, sourceNodeId: damage === 'source' ? sender : h.options.nodeId,
+      origin: 'manual', seat: request.seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: damage === 'owner' ? 'generic-human' : 'trusted-local-owner', policyRevision: 1 }) })
+    const grant = await entry.issuer.check({ operationId: request.operationId, requestDigest: digest(request) })
+    const opening = await entry.issuer.check({ operationId: request.operationId,
+      requestDigest: digest(damage === 'digest' ? request : { ...request, origin: 'manual', openingMode: 'auto' }) })
+    if ('status' in grant || 'status' in opening) throw new Error('Expected test grants')
+    const authority: T.SeatCallContext = { principalId, nodeId: h.options.nodeId, origin: 'manual',
+      ...(damage === 'grant' ? {} : { authorization: grant }), localWake: { opening } }
+    if (damage === 'opening-grant') authority.localWake = { opening: { ...opening } }
+    if (damage === 'revoked') entry.dispose()
+    const send = vi.spyOn(h.ctx.get('messageDelivery')!, 'send')
+    expect(await h.ctx.get('seats')!.withAuthority(authority).wake(request)).toMatchObject({ status: 'rejected', error: { code: 'unauthorized' } })
+    expect(send).not.toHaveBeenCalled()
+    expect(h.engine.journal.projection.authorizationDecisions.flatMap(frame => frame.effects)
+      .filter(effect => effect.kind === 'node-wake/updated')).toHaveLength(0)
+    entry.dispose()
+  } finally { vi.restoreAllMocks(); await h.close() }
+})
+
+test.each([true, false])('local owner wake preserves its delivery or opening identity after provider reload with an existing window=%s', async (existing) => {
+  const { h, registry } = await setup(existing)
+  const request: T.WakeSeatRequest = { seat: h.definition.seat, operationId: 'local-owner-replay' as T.SeatOperationId }
+  const invoke = async () => {
+    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
+      nodeId: h.options.nodeId, sourceNodeId: h.options.nodeId, origin: 'manual', seat: request.seat, taskIds: [], policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'trusted-local-owner', policyRevision: 1 }) })
+    try {
+      const authorization = await entry.issuer.check({ operationId: request.operationId, requestDigest: digest(request) })
+      const opening = await entry.issuer.check({ operationId: request.operationId,
+        requestDigest: digest({ ...request, origin: 'manual', openingMode: 'auto' }) })
+      if ('status' in authorization || 'status' in opening) throw new Error('Expected owner grants')
+      return await h.ctx.get('seats')!.withAuthority({ principalId, nodeId: h.options.nodeId,
+        origin: 'manual', authorization, localWake: { opening } }).wake(request)
+    } finally { entry.dispose() }
+  }
+  try {
+    const send = vi.spyOn(h.ctx.get('messageDelivery')!, 'send')
+    const first = await invoke()
+    expect(first).toMatchObject(existing ? { status: 'sent' } : { status: 'opened', result: { status: 'opened' } })
+    const count = send.mock.calls.length
+    const identity = (result: T.WakeSeatResult) => {
+      if (result.status !== 'opened' || result.result.status !== 'opened') return result
+      const { stateVersion: _version, ...window } = result.result
+      return { ...result, result: window }
+    }
+    expect(identity(await invoke())).toEqual(identity(first))
+    await h.reload()
+    await expect.poll(() => Boolean(registry.resolve('seat.wakeFrozen'))).toBe(true)
+    await registry.ready(['engine.acceptFrozen', 'seat.openFrozen', 'seat.wakeFrozen'])
+    expect(identity(await invoke())).toEqual(identity(first))
+    expect(send).toHaveBeenCalledTimes(count)
+    if (!existing) expect(h.engine.journal.projection.opens.size).toBe(1)
+  } finally { vi.restoreAllMocks(); await h.close() }
+})
+
 test('authorized existing-window wake sends once and replays the first receipt after reload and input conflict', async () => {
   const { h, registry, payload, invoke, authorize } = await setup()
   try {
