@@ -3299,6 +3299,92 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'seatProfiles',
+    summary: 'Remote profile operations do not accept authority from their request bodies.',
+    description: 'Remote profile operations do not accept authority from their request bodies.',
+    methods: [
+      {
+        signature: '@Remote async read(signal?: AbortSignal): Promise<SeatProfileSnapshot>',
+        description: 'Read the catalog, actual opening history and deletion impact.',
+        parameters: [{ name: 'signal', description: 'Resource or caller cancellation.' }],
+        returns: 'Complete local observations or an explicit failure.',
+      },
+      {
+        signature: '@Remote takeover(request: { expectedRevision: number; operationId: T.SeatOperationId; confirmed: true }): Promise<T.SeatCatalogMutationResult>',
+        description: 'Transfer source-owned editing only after explicit owner confirmation.',
+        parameters: [{ name: 'request', description: 'Observed revision and affirmative confirmation.' }],
+        returns: 'Existing audited authority mutation receipt or refusal.',
+      },
+      {
+        signature: '@Remote save(request: { definitionJson: string expectedRevision: number operationId: T.SeatOperationId }): Promise<T.SeatCatalogMutationResult>',
+        description: 'Save an edited definition without overwriting a changed catalog.',
+        parameters: [{ name: 'request', description: 'Observed catalog revision and next definition revision.' }],
+        returns: 'Existing catalog mutation receipt or refusal.',
+      },
+      {
+        signature: '@Remote deleteProfile(request: RemoveSeatProfileRequest): Promise<T.SeatCatalogMutationResult>',
+        description: 'Delete only after the owner confirms observed windows and approvals.',
+        parameters: [{ name: 'request', description: 'Confirmed impact and catalog CAS revision.' }],
+        returns: 'Catalog mutation receipt; windows and approvals are retained.',
+      },
+      {
+        signature: '@Remote preview(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>',
+        description: 'Preview a generic mapped Markdown or CSV table without changing the catalog.',
+        parameters: [{ name: 'request', description: 'Existing source, mapping and explicit defaults.' }],
+        returns: 'Original row diagnostics and selectable actions.',
+      },
+      {
+        signature: '@Remote commit(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>',
+        description: 'Commit only selected rows of a current preview.',
+        parameters: [{ name: 'request', description: 'Stable preview identity, selections and observed revision.' }],
+        returns: 'Existing import receipt or refusal.',
+      },
+    ],
+  },
+  {
+    key: 'seatProfilesLocal',
+    summary: 'Owner-only capabilities; every call checks live invocation authority.',
+    description: 'Owner-only capabilities; every call checks live invocation authority.',
+    methods: [
+      {
+        signature: 'read(): Promise<SeatProfileSnapshot>',
+        description: 'Read catalog definitions and complete deletion impact.',
+        parameters: [],
+        returns: 'The current catalog and versioned window and approval observations.',
+      },
+      {
+        signature: 'takeover(request: { expectedRevision: number; operationId: T.SeatOperationId; confirmed: true }): Promise<T.SeatCatalogMutationResult>',
+        description: 'Transfer source-owned editing authority after confirmation.',
+        parameters: [{ name: 'request', description: 'Observed catalog revision and replay identity.' }],
+        returns: 'The saved revision or a structured refusal.',
+      },
+      {
+        signature: 'remove(request: RemoveSeatProfileRequest): Promise<T.SeatCatalogMutationResult>',
+        description: 'Remove a confirmed definition while retaining its windows and approvals.',
+        parameters: [{ name: 'request', description: 'Catalog CAS and confirmed versioned impact.' }],
+        returns: 'The saved revision or a structured refusal.',
+      },
+      {
+        signature: 'save(request: { definition: unknown; expectedRevision: number; operationId: T.SeatOperationId }): Promise<T.SeatCatalogMutationResult>',
+        description: 'Save a complete definition under catalog CAS.',
+        parameters: [{ name: 'request', description: 'Definition, observed revision and replay identity.' }],
+        returns: 'The saved revision or a structured refusal.',
+      },
+      {
+        signature: 'preview(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>',
+        description: 'Preview mapped source rows without importing them.',
+        parameters: [{ name: 'request', description: 'Source path, format, mapping and explicit defaults.' }],
+        returns: 'A durable import plan or a structured refusal.',
+      },
+      {
+        signature: 'commit(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>',
+        description: 'Commit explicitly selected rows from an existing plan.',
+        parameters: [{ name: 'request', description: 'Plan identity, selected rows, catalog CAS and replay identity.' }],
+        returns: 'The import receipt or a structured refusal.',
+      },
+    ],
+  },
+  {
     key: 'seatReminderHost',
     summary: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
     description: 'Message delivery owns durable idempotency and maps steer to the existing next-step lane.',
@@ -9929,6 +10015,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RemoteUplinkWindow {\n    readonly maxBytes: number;\n    readonly frameOverheadBytes: number;\n}',
   },
   {
+    name: 'RemoveSeatProfileRequest',
+    declaration: 'export interface RemoveSeatProfileRequest {\n    seat: T.SeatName;\n    expectedRevision: number;\n    operationId: T.SeatOperationId;\n    confirmed: true;\n    windows: readonly SessionId[];\n    pending: readonly T.QueueItemId[];\n    engineSequence: number;\n    windowVersions: readonly Pick<T.SeatWindowView, \'sessionId\' | \'stateVersion\'>[];\n    pendingVersions: readonly Pick<T.PendingSeatItem, \'queueItemId\' | \'stateVersion\'>[];\n}',
+  },
+  {
     name: 'RenameSeatRequest',
     declaration: 'export interface RenameSeatRequest {\n    sessionId: SessionId;\n    title: string;\n    operationId: SeatOperationId;\n    nodeId?: SeatNodeId;\n}',
   },
@@ -10627,6 +10717,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatPrincipalId',
     declaration: 'export type SeatPrincipalId = Branded<\'SeatPrincipalId\'>;',
+  },
+  {
+    name: 'SeatProfileSnapshot',
+    declaration: 'export interface SeatProfileSnapshot {\n    revision: number;\n    authority: T.SeatAuthority;\n    definitions: readonly T.SeatDefinition[];\n    engineSequence: number;\n    windows: readonly Pick<T.SeatWindowView, \'seat\' | \'sessionId\' | \'title\' | \'nodeId\' | \'stateVersion\'>[];\n    pending: readonly Pick<T.PendingSeatItem, \'queueItemId\' | \'seat\' | \'reason\' | \'stateVersion\'>[];\n    recentOpen: Readonly<Record<string, T.SeatTimestamp>>;\n}',
   },
   {
     name: 'SeatProjectId',

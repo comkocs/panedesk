@@ -10,13 +10,16 @@
   zh: f9fc2814f33a7354
 /panedesk-dsh-client-ui-seat-profiles/summary:
   en: b97795c487d33b38
-  zh: d5a29170f7bf0395
+  zh: 6fda0db8e1941614
+/panedesk-dsh-client-ui-seat-profiles/table-of-contents:
+  en: cc82388c0008148c
+  zh: 7e805c235fdc0e48
 /panedesk-dsh-client-ui-seat-profiles/use-this-package:
   en: 6aba19f66029c055
-  zh: b301d1f546eb7d61
+  zh: b074fabaf0c2bf76
 /panedesk-dsh-client-ui-seat-profiles/dev-note:
   en: 6b9c4707af54e136
-  zh: 7313e516f72203f4
+  zh: fd3791d80bbe5ec1
 /panedesk-dsh-client-ui-seat-profiles/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -31,7 +34,7 @@
   zh: 27062d0eac093f64
 /panedesk-dsh-client-ui-seat-profiles/model-experience/profile-maintenance/kv-cache-effect:
   en: f5ed3d7ed2cbb43e
-  zh: cc6852ea4402ecea
+  zh: 8df903f21b18c1a4
 /panedesk-dsh-client-ui-seat-profiles/known-limitations-and-deferred-work:
   en: 8fbb85c20e5f4c8a
   zh: fdfd0d057437a9a3

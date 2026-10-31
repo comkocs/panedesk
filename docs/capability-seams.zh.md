@@ -60,6 +60,10 @@ flowchart LR
   svc_seatLocalSession["ctx.seatLocalSession<br/>Current-Session seat writes"]
   svc_seatLocalWindows["ctx.seatLocalWindows<br/>Invocation-scoped window operations"]
   svc_seatLocalCreation["ctx.seatLocalCreation<br/>Confirmed traditional creation"]
+  pkg_client_ui_seat_profiles["client-ui-seat-profiles"]
+  svc_seatProfiles["ctx.seatProfiles<br/>Owner seat profile settings"]
+  svc_seatProfilesLocal["ctx.seatProfilesLocal<br/>Owner-local seat profile access"]
+  pkg_client_ui_seats["client-ui-seats"]
   svc_seatGatesQuery["ctx.seatGatesQuery<br/>Read-only seat policy queries"]
   svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
   svc_seatDirectories["ctx.seatDirectories<br/>Authorized seat directories"]
@@ -395,6 +399,7 @@ flowchart LR
   pkg_client_product_analytics --> svc_productAnalytics
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
+  pkg_client_ui_seat_profiles --> svc_seatProfiles
   pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
   pkg_compaction --> svc_compaction
@@ -529,6 +534,7 @@ flowchart LR
   pkg_seat_local --> svc_seatLocalSession
   pkg_seat_local --> svc_seatLocalWindows
   pkg_seat_local --> svc_seatOpeningContexts
+  pkg_seat_local --> svc_seatProfilesLocal
   pkg_seat_local --> svc_seats
   pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
@@ -715,6 +721,8 @@ flowchart LR
   svc_seatLocalSession --> pkg_tool_seat
   svc_seatLocalWindows --> pkg_tool_seat
   svc_seatOpeningContexts --> pkg_seat_local
+  svc_seatProfilesLocal --> pkg_client_ui_seat_profiles
+  svc_seatProfilesLocal --> pkg_client_ui_seats
   svc_seatReminderHost --> pkg_seat_gates
   svc_seatWorktreeHost --> pkg_seat_gates
   svc_seats --> pkg_seat_app
@@ -852,6 +860,8 @@ flowchart LR
 | `ctx.seatLocalSession` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | 仅为精确匹配的在线调用会话授权等待和自报。 |
 | `ctx.seatLocalWindows` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | 仅为在线调用会话及其工具调用授权窗口操作。 |
 | `ctx.seatLocalCreation` | `service` | [`seat-local`](../packages/seat/seat-local) | - | - | - | 限定经过身份验证的一次性目录选择的作用域，并释放创建期间的临时所有权。 |
+| `ctx.seatProfiles` | `service` | [`client-ui-seat-profiles`](../packages/client/ui-seat-profiles) | - | - | - | 验证所有者读取、带版本核验的档案变更与勾选导入提交的权限。 |
+| `ctx.seatProfilesLocal` | `service` | [`seat-local`](../packages/seat/seat-local) | - | [`client-ui-seat-profiles`](../packages/client/ui-seat-profiles), [`client-ui-seats`](../packages/client/ui-seats) | - | 核对观察到的目录与引擎版本，并保留写入重放所用的操作身份。 |
 | `ctx.seatGatesQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`ledger-query`](../packages/session/ledger-query) | - | 读取策略定义与已记录的命中，不挂载运行时闸消费者。 |
 | `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | 评估可信操作事实，并通过引擎提交命中计数。 |
 | `ctx.seatDirectories` | `seam` | [`seat`](../packages/seat/seat) | - | [`tool-seat`](../packages/seat/tool-seat) | - | 在工位授权下提供有界的目录读取与编辑。 |

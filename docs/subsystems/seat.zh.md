@@ -1052,6 +1052,97 @@ openBatch(request: T.OpenSeatBatchWithScopeRequest, authority: T.SeatCallContext
 
 Source: [`packages/seat/seat/src/index.ts`](../../packages/seat/seat/src/index.ts)
 
+<a id="ctxseatprofiles--seatprofiles"></a>
+
+### `ctx.seatProfiles` — `SeatProfiles`
+
+Remote profile operations do not accept authority from their request bodies.
+
+```ts cordis-catalog
+/** Read the catalog, actual opening history and deletion impact.
+ * @param signal - Resource or caller cancellation.
+ * @returns Complete local observations or an explicit failure.
+ */
+@Remote async read(signal?: AbortSignal): Promise<SeatProfileSnapshot>
+
+/** Transfer source-owned editing only after explicit owner confirmation.
+ * @param request - Observed revision and affirmative confirmation.
+ * @returns Existing audited authority mutation receipt or refusal.
+ */
+@Remote takeover(request: { expectedRevision: number; operationId: T.SeatOperationId; confirmed: true }): Promise<T.SeatCatalogMutationResult>
+
+/** Save an edited definition without overwriting a changed catalog.
+ * @param request - Observed catalog revision and next definition revision.
+ * @returns Existing catalog mutation receipt or refusal.
+ */
+@Remote save(request: { definitionJson: string expectedRevision: number operationId: T.SeatOperationId }): Promise<T.SeatCatalogMutationResult>
+
+/** Delete only after the owner confirms observed windows and approvals.
+ * @param request - Confirmed impact and catalog CAS revision.
+ * @returns Catalog mutation receipt; windows and approvals are retained.
+ */
+@Remote deleteProfile(request: RemoveSeatProfileRequest): Promise<T.SeatCatalogMutationResult>
+
+/** Preview a generic mapped Markdown or CSV table without changing the catalog.
+ * @param request - Existing source, mapping and explicit defaults.
+ * @returns Original row diagnostics and selectable actions.
+ */
+@Remote preview(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>
+
+/** Commit only selected rows of a current preview.
+ * @param request - Stable preview identity, selections and observed revision.
+ * @returns Existing import receipt or refusal.
+ */
+@Remote commit(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>
+```
+
+Source: [`packages/client/ui-seat-profiles/src/index.ts`](../../packages/client/ui-seat-profiles/src/index.ts)
+
+<a id="ctxseatprofileslocal--seatprofileaccess"></a>
+
+### `ctx.seatProfilesLocal` — `SeatProfileAccess`
+
+Owner-only capabilities; every call checks live invocation authority.
+
+```ts cordis-catalog
+/** Read catalog definitions and complete deletion impact.
+ * @returns The current catalog and versioned window and approval observations.
+ */
+read(): Promise<SeatProfileSnapshot>
+
+/** Transfer source-owned editing authority after confirmation.
+ * @param request - Observed catalog revision and replay identity.
+ * @returns The saved revision or a structured refusal.
+ */
+takeover(request: { expectedRevision: number; operationId: T.SeatOperationId; confirmed: true }): Promise<T.SeatCatalogMutationResult>
+
+/** Remove a confirmed definition while retaining its windows and approvals.
+ * @param request - Catalog CAS and confirmed versioned impact.
+ * @returns The saved revision or a structured refusal.
+ */
+remove(request: RemoveSeatProfileRequest): Promise<T.SeatCatalogMutationResult>
+
+/** Save a complete definition under catalog CAS.
+ * @param request - Definition, observed revision and replay identity.
+ * @returns The saved revision or a structured refusal.
+ */
+save(request: { definition: unknown; expectedRevision: number; operationId: T.SeatOperationId }): Promise<T.SeatCatalogMutationResult>
+
+/** Preview mapped source rows without importing them.
+ * @param request - Source path, format, mapping and explicit defaults.
+ * @returns A durable import plan or a structured refusal.
+ */
+preview(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>
+
+/** Commit explicitly selected rows from an existing plan.
+ * @param request - Plan identity, selected rows, catalog CAS and replay identity.
+ * @returns The import receipt or a structured refusal.
+ */
+commit(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>
+```
+
+Source: [`packages/seat/seat-local/src/profile-access.ts`](../../packages/seat/seat-local/src/profile-access.ts)
+
 <a id="ctxseatreminderhost--seatreminderhost"></a>
 
 ### `ctx.seatReminderHost` — `SeatReminderHost`
