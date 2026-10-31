@@ -157,9 +157,20 @@ export function apply(ctx: Context, config: Config): void {
             if (status === 'idle') schedule(agent.id)
           })
           const offEvent = child.on('session/event', (session, event) => {
+            if (event.type === 'approval/asked' || event.type === 'approval/decided') {
+              running = running.then(async () => {
+                await child.get('sessions')?.flush(session)
+                if (!observing.signal.aborted) child.emit('seat/diagnostics-changed')
+              }).catch((error: unknown) => { child.logger.warn('Seat approval refresh failed', error) })
+            }
             if (event.type === 'job/settled' || event.type === 'approval/decided' || event.type === 'step/end') schedule(session.id)
           })
           const offDecision = child.on('seat/decision', (decision) => {
+            if (decision.effects.some(effect => effect.kind === 'resource/released'
+              && ['holder-death', 'host-restart-recovery'].includes(effect.data.reason))) {
+              running = running.then(async () => { if (!observing.signal.aborted) await installed.recover() })
+                .catch((error: unknown) => { child.logger.warn('Seat recovery failed', error) })
+            }
             for (const effect of decision.effects) {
               if (effect.kind === 'open/configured' && effect.data.completedStages.includes('opening')) {
                 child.get('agents')?.get(effect.data.sessionId)?.wake?.()

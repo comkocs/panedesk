@@ -41,7 +41,7 @@ export function closeEffects(view: EngineProjection, closed: T.EngineCloseData, 
       seat: binding.seat, title: open.title ?? binding.seat, sessionId: closed.sessionId,
       nodeId: binding.nodeId, nodeName, budget: view.budgets.get(closed.sessionId)?.limits ?? open.budget.limits,
       ...(source.taskId ? { taskId: source.taskId } : {}), relatedTaskIds: binding.relatedTaskIds,
-      reason: closed.reason, endedAt: closed.endedAt, selfReport: closed.selfReport,
+      reason: closed.reason, ...(closed.detail ? { detail: closed.detail } : {}), endedAt: closed.endedAt, selfReport: closed.selfReport,
       selfReportStatus: closed.selfReportStatus, ...(closed.reportId ? { reportId: closed.reportId } : {}),
     }
     effects.push(fact({ kind: 'callback/pending', sessionId: closed.sessionId, data: {

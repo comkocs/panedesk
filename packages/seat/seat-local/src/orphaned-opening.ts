@@ -19,27 +19,35 @@ function latestOpen(effects: readonly T.EngineEffect[], sessionId: SessionId): T
  * @param ctx - Local services; no Session is acquired by this observation.
  * @param state - Engine journal adapter.
  * @param sessionId - Original window identity whose owner was observed dead.
+ * @returns Whether the fenced, unclaimed opening can enter automatic close recovery.
  */
-export async function recordOrphanedOpening(ctx: Context, state: LocalEngineState, sessionId: SessionId): Promise<void> {
+export async function recordOrphanedOpening(ctx: Context, state: LocalEngineState, sessionId: SessionId): Promise<boolean> {
   const effects = (await state.read()).effects, open = latestOpen(effects, sessionId)
-  if (!open || open.phase !== 'opening-pending' || !open.openingMessageId || open.openingMode === 'prefill'
-    || ctx.get('agents')?.get(sessionId) || effects.some(effect => effect.kind === 'window/closed' && effect.data.sessionId === sessionId)) return
+  const failed = open?.phase === 'opening-failed' && open.failure?.cause?.domain === 'seat-local'
+    && open.failure.cause.code === 'opening-owner-lost'
+  if (!open || (open.phase !== 'opening-pending' && !failed) || !open.openingMessageId || open.openingMode === 'prefill'
+    || effects.some(effect => effect.kind === 'window/closed' && effect.data.sessionId === sessionId)) return false
+  const resource = effects.findLast(effect => (effect.kind === 'resource/reserved' || effect.kind === 'resource/released')
+    && effect.data.owner.sessionId === sessionId)
+  if (resource?.kind !== 'resource/released'
+    || !['holder-death', 'host-restart-recovery'].includes(resource.data.reason)) return false
   const delivery = ctx.get('messageDelivery'), query = ctx.get('sessionQuery')
-  if (!delivery || !query) return
+  if (!delivery || !query) return false
   const messageId = open.openingMessageId
   const status = await delivery.status(messageId)
-  if (status.state !== 'queued' || status.phase !== 'pending') return
+  if (!(status.state === 'queued' && status.phase === 'pending') && !(failed && status.state === 'withdrawn')) return false
   const snapshot = await query.readSession(sessionId)
   if (snapshot.events.some(event => event.type === 'user/message' && event.data.id === open.openingMessageId
     || event.type === 'agent/input/transition' && event.data.messageIds.includes(messageId)
-      && ['claimed', 'appended', 'dispatched'].includes(event.data.phase))) return
-  await state.mutate((current) => {
+      && ['claimed', 'appended', 'dispatched'].includes(event.data.phase))) return false
+  if (failed) return true
+  return state.mutate((current) => {
     const retained = latestOpen(current, sessionId)
     if (retained?.phase !== 'opening-pending' || retained.openingMessageId !== open.openingMessageId
       || ctx.get('agents')?.get(sessionId) || current.some(effect => effect.kind === 'window/closed' && effect.data.sessionId === sessionId)) {
-      return { result: undefined, effects: [] }
+      return { result: false, effects: [] }
     }
-    return { result: undefined, effects: [localFact({ kind: 'open/opening-failed', sessionId,
+    return { result: true, effects: [localFact({ kind: 'open/opening-failed', sessionId,
       data: { ...retained, phase: 'opening-failed', failure: { code: 'opening-failed', message: restartFailure,
         alternative: 'Close this window normally; use manual resend or wake to reassign the unexecuted work.',
         retryable: false, effectState: 'partial', cause: { domain: 'seat-local', code: 'opening-owner-lost',

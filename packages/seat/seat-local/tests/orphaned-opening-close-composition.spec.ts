@@ -49,7 +49,7 @@ async function closeCurrent(host: Host, sessionId: T.EngineOpenData['sessionId']
   throw new Error('Close never acquired the current revision')
 }
 
-it('withdraws an orphaned queued opening on ordinary close and never replays it after another restart', async () => {
+it('automatically closes an orphaned queued opening and never replays it after another restart', async () => {
   const root = await mkdtemp(join(tmpdir(), 'seat-orphaned-opening-'))
   let host: Host | undefined
   const received: T.SeatCallbackPayload[] = []
@@ -76,7 +76,7 @@ it('withdraws an orphaned queued opening on ordinary close and never replays it 
     expect(await host.engine.admitTurn(opened.sessionId)).toEqual({ status: 'defer', reason: 'owner-unknown' })
     await vi.waitFor(async () => {
       await host!.engine.drive()
-      expect(received.map(payload => payload.kind)).toEqual(['opened', 'opening-failed'])
+      expect(received.map(payload => payload.kind)).toEqual(['opened', 'opening-failed', 'window-ended'])
     })
     const failed = received.find(payload => payload.kind === 'opening-failed')!
     expect(failed).toMatchObject({ reason: { code: 'opening-failed', effectState: 'partial', retryable: false,
@@ -100,12 +100,7 @@ it('withdraws an orphaned queued opening on ordinary close and never replays it 
     await host.engine.drive()
     expect(received.filter(payload => payload.kind === 'opening-failed')).toEqual([failed])
     expect((await host.state.read()).effects.filter(effect => effect.kind === 'open/opening-failed')).toHaveLength(1)
-    const stale = await snapshot(host)
-    expect(await host.seats.close({ sessionId: opened.sessionId, expectedStateVersion: stale.stateVersion - 1,
-      operationId: operation('stale-orphan-close') })).toMatchObject({ status: 'conflict' })
-    expect(await host.ctx.messageDelivery.status(messageId)).toMatchObject({ state: 'queued' })
-    expect(host.ctx.workspaceRegistry.archivedSessionIds).not.toContain(opened.sessionId)
-    expect(await closeCurrent(host, opened.sessionId)).toMatchObject({ status: 'closed' })
+    expect(host.engine.journal.projection.closed.get(opened.sessionId)).toMatchObject({ reason: 'owner-dead' })
     expect(await host.ctx.messageDelivery.status(messageId)).toMatchObject({ state: 'withdrawn' })
     expect(host.ctx.workspaceRegistry.archivedSessionIds).toContain(opened.sessionId)
     await vi.waitFor(async () => {
@@ -126,7 +121,7 @@ it('withdraws an orphaned queued opening on ordinary close and never replays it 
       operationId: operation('closed-replay') })).toMatchObject({ status: 'closed' })
     await host.engine.drive()
     expect(received.filter(payload => payload.kind === 'window-ended')).toHaveLength(1)
-    expect(received.find(payload => payload.kind === 'window-ended')).toMatchObject({ reason: 'manual' })
+    expect(received.find(payload => payload.kind === 'window-ended')).toMatchObject({ reason: 'owner-dead' })
     expect(received.filter(payload => payload.kind === 'opening-failed')).toHaveLength(1)
     expect((await host.state.read()).effects.filter(effect => effect.kind === 'open/opening-failed')).toHaveLength(1)
     expect(host.ctx.agents.get(opened.sessionId)).toBeUndefined()

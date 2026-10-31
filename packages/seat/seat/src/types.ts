@@ -747,7 +747,7 @@ export interface SeatCallbackBase {
 export type SeatCallbackPayload = SeatCallbackBase & (
   | { kind: 'opened'; sessionId: SessionId; title: string }
   | { kind: 'opening-failed'; reason: SeatFailure }
-  | { kind: 'window-ended'; reason: WindowEndReason; endedAt: SeatTimestamp; selfReport: CloseSelfReport | null; selfReportStatus: 'submitted' | 'not-submitted' | 'revoked'; reportId?: CloseReportId }
+  | { kind: 'window-ended'; reason: WindowEndReason; detail?: 'approval-pending-cancelled'; endedAt: SeatTimestamp; selfReport: CloseSelfReport | null; selfReportStatus: 'submitted' | 'not-submitted' | 'revoked'; reportId?: CloseReportId }
   | { kind: 'budget-stopped'; budgetSnapshot: SeatBudgetSnapshot }
   | { kind: 'rejected'; reason: SeatFailure }
   | { kind: 'replacement-failed'; replacementId: ReplacementId; oldSessionId: SessionId; newSessionId: SessionId | null; reason: ReplacementFailureCode; cause: SeatFailure; cleanup: 'not-created' | 'closed' | 'pending' }

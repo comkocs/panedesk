@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.md
+/:
+  en: 92b9d43a6275e96f
+  zh: ea1aecb35bf514c8
+/orphaned-opening-recovery:
+  en: dd42faa970edcca4
+  zh: ffff8424cf546eb3
+/orphaned-opening-recovery/change:
+  en: a11a54579ad2b0d6
+  zh: 6a41f62c067f64c8
+/orphaned-opening-recovery/migration:
+  en: 87a5f3380296a8f6
+  zh: 6ffd74108215cd88

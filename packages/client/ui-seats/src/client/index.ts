@@ -104,6 +104,17 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       notify(t('memoryDenied', { code: failure.code, reason: `${failure.message} ${failure.alternative}` }), sessionId)
     }), 'ui-seats: memory refusal')
     const openWindow = (id: SessionId): void => { ctx.uiWorkspace.openSession(id) }
+    const closeWindow: SeatsInjected['closeWindow'] = async (sessionId, stateVersion) => {
+      const result = await ctx.remote.seatUi.close({ sessionId, expectedStateVersion: stateVersion,
+        operationId: `seat-ui:${randomUUID()}` as SeatOperationId })
+      if (!result.ok) notify(t('closeFailed', { reason: result.error.message }), sessionId)
+      else if (result.value.status !== 'closed') {
+        const value = result.value
+        notify(t('closeFailed', { reason: value.status === 'rejected'
+          ? `${value.error.code}: ${value.error.message} ${value.error.alternative}` : value.status }), sessionId)
+      }
+      refresh()
+    }
     const openSeat = async (seat: SeatDefinition, startupDirectory?: string): Promise<void> => {
       const result = await ctx.remote.seatUi.open({ seat: seat.seat, expectedSeatRevision: seat.revision,
         ...(startupDirectory === undefined ? {} : { startupDirectory }),
@@ -154,7 +165,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
         addCommit.parse(result.value)
       } finally { refresh() }
     }
-    const injected = (): SeatsInjected => ({ openSeat, openWindow, loadModels, prepareAdd, previewAdd, commitAdd,
+    const injected = (): SeatsInjected => ({ openSeat, openWindow, closeWindow, loadModels, prepareAdd, previewAdd, commitAdd,
       dismiss: () => { notice.set(null) },
       hooks: { seatNotice: notice } })
     ctx.slots.inject('conversation.hero.seat', () => ctx.slots.register({
