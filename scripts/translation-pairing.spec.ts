@@ -101,6 +101,14 @@ describe('translation pairing index reads', () => {
 })
 
 describe('translation pairing manifest', () => {
+  it('includes workflow pack pairs without admitting neighboring templates', () => {
+    const source = translationPairSourcePredicate({ excluded: [] })
+    expect(source('templates/workflow-pack/getting-started.md')).toBe(true)
+    expect(source('templates/workflow-pack/nested/guide.md')).toBe(true)
+    expect(source('templates/workflow-pack-other/guide.md')).toBe(false)
+    expect(source('templates/other/guide.md')).toBe(false)
+  })
+
   it('accepts an exclusions-only manifest', () => {
     const manifest = parseTranslationPairingManifest(JSON.stringify({
       excluded: ['docs/generated/'],
