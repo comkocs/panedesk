@@ -4,7 +4,8 @@
  */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, resolve } from 'node:path'
+import { transform } from 'lightningcss'
 import { describe, expect, it } from 'vitest'
 import { clientBundle } from '../packages/client/tsdown.client.ts'
 
@@ -45,6 +46,10 @@ describe('client bundle CSS Modules', () => {
 
       expect(watched).toEqual([stylesheet])
       expect(output).toContain('data-plugin-css')
+      const filename = relative(resolve(import.meta.dirname, '..'), stylesheet).replaceAll('\\', '/')
+      expect(virtualId).toBe(`\0dsh-css:${filename}.mjs`)
+      const expected = transform({ filename, code: Buffer.from('.root { color: red; }\n'), cssModules: { pattern: '[hash]_[local]' }, minify: true })
+      expect(output).toContain(JSON.stringify(expected.exports?.root?.name))
     } finally {
       await rm(root, { recursive: true, force: true })
     }

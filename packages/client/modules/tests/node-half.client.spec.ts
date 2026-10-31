@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { Context, FiberState, type Fiber } from '@panedesk/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { renderIndexInjections, type WebServer, type WebRoute } from '@panedesk/dsh-host-webserver'
+import { renderIndexInjections, type IndexInjection, type WebServer, type WebRoute } from '@panedesk/dsh-host-webserver'
 import * as modulesClient from '../src/client/index.ts'
 import { ClientModuleRegistry, bootInjections, orderByModuleGraph } from '../src/index.ts'
 import type { ClientModuleLoaderTarget, WebBootEntry, WebBootGraph } from '../src/client/index.ts'
@@ -129,6 +129,31 @@ it('publishes this package version and the build commit as the Host release in e
   expect(bootInjections(graph).at(-1)).toEqual({ kind: 'global', name: '__DSH_BOOT__', value: graph })
   expect(modulesClient.parseBootManifest(graph).release).toEqual({ version, commit: 'abc1234' })
   expect((await mount(undefined)).release).toEqual({ version })
+})
+
+it('injects checkout metadata before boot factories and removes it on disposal', async () => {
+  vi.stubEnv('DSH_CLIENT_COMMIT_HASH', 'abc1234')
+  vi.stubEnv('DSH_CLIENT_GIT_DIRTY', 'true')
+  const ctx = new Context()
+  contexts.push({ ctx })
+  ctx.provide('loader', { entries: () => [] })
+  try {
+    const fiber = await ctx.plugin(ClientModuleRegistry)
+    const rows: IndexInjection[] = []
+    ctx.emit('webserver/index-inject', rows)
+    expect(rows[0]).toEqual({
+      kind: 'global',
+      name: '__DSH_BUILD_METADATA__',
+      value: { DSH_CLIENT_COMMIT_HASH: 'abc1234', DSH_CLIENT_GIT_DIRTY: 'true' },
+    })
+    expect(rows.slice(1)).toEqual(bootInjections(ctx.get('clientModules')!.graph()))
+    await fiber.dispose()
+    const disposedRows: IndexInjection[] = []
+    ctx.emit('webserver/index-inject', disposedRows)
+    expect(disposedRows).toEqual([])
+  } finally {
+    vi.unstubAllEnvs()
+  }
 })
 
 /** Create a resolvable package whose client export points at the returned path. */

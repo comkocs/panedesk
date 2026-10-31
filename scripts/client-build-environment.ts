@@ -34,6 +34,7 @@ export const CLIENT_BUILD_RECORD_PATH = '.panedesk-build/client-build-environmen
 const CLIENT_BUILD_RECORD_FORMAT = 1
 const CLIENT_ARTIFACT_PATTERNS = [
   'apps/web/dist/**/*',
+  'packages/client/modules/lib/build-metadata.json',
   'packages/*/*/lib/client.js',
   'packages/*/*/lib/client.js.map',
   'packages/*/*/lib/client.*.js',
@@ -265,11 +266,16 @@ export function assertClientBuildEnvironment(
 export function clientBuildEnvironmentDefines(
   environment: NodeJS.ProcessEnv,
 ): Record<string, string> {
-  return { 'process.env': '{}', ...clientBuildValueDefines(environment) }
+  return {
+    'process.env': '{}',
+    ...clientBuildValueDefines(environment),
+    'process.env.DSH_CLIENT_COMMIT_HASH': 'window.__DSH_BUILD_METADATA__.DSH_CLIENT_COMMIT_HASH',
+    'process.env.DSH_CLIENT_GIT_DIRTY': 'window.__DSH_BUILD_METADATA__.DSH_CLIENT_GIT_DIRTY',
+  }
 }
 
 /**
- * Create Node-face substitutions that fix each public client build value into the artifact.
+ * Create Node-face substitutions for stable public values, excluding checkout metadata.
  * `process.env` itself stays untouched, so Host code keeps reading its other variables at runtime.
  * @param environment - environment inherited by the build process.
  * @returns one deterministic tsdown `define` expression per public value the build sets.
@@ -279,9 +285,20 @@ export function clientBuildValueDefines(
 ): Record<string, string> {
   const defines: Record<string, string> = {}
   for (const [name, value] of Object.entries(clientBuildEnvironment(environment))) {
+    if (name === CLIENT_COMMIT_HASH_VARIABLE || name === 'DSH_CLIENT_GIT_DIRTY') continue
     defines[`process.env.${name}`] = JSON.stringify(value)
   }
   return defines
+}
+
+/**
+ * Select checkout-specific metadata kept outside reusable JavaScript bundles.
+ * @param environment - Public build process values.
+ * @returns Commit and dirty state for the separately emitted metadata asset.
+ */
+export function clientBuildMetadata(environment: NodeJS.ProcessEnv): Record<string, string> {
+  return Object.fromEntries(Object.entries(clientBuildEnvironment(environment))
+    .filter(([name]) => name === CLIENT_COMMIT_HASH_VARIABLE || name === 'DSH_CLIENT_GIT_DIRTY'))
 }
 
 /**
