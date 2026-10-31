@@ -3295,6 +3295,8 @@ export interface LocalSeatOptions {
   maxOpeningBytes: number
   /** Maximum number of explicitly named seats in one batch. */
   maxBatchSeats: number
+  /** Maximum distinct seats, including seats named by source-directory rules. */
+  maxSeats?: number
   /** Maximum entries per catalog, window or engine-fact page. */
   pageSize: number
   /** Maximum attempts for journal compare-and-set transactions. */
