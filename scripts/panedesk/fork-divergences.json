@@ -1,6 +1,23 @@
 {
   "divergences": [
     {
+      "id": "stateless-entry-glyph-bundling",
+      "description": "Allow the exact static entry-glyph library in browser consumers.",
+      "origin": "Integrated client artifact validation",
+      "reason": "The glyph package contains React presentation functions and immutable token data, not a feature plugin or shared runtime identity. Inline only its exact root entry, retain all other purity checks, and use a complete typed Session summary in embedded conversation fixtures.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/tsdown.client.ts",
+          "packages/client/ui-panedesk-icons/README.i18n.yaml",
+          "packages/client/ui-panedesk-icons/README.md",
+          "packages/client/ui-panedesk-icons/README.zh.md",
+          "packages/client/ui-subagent/tests/sidebar-chat.client.spec.tsx"
+        ],
+        "test": "client bundle purity, aggregate compilation and embedded conversation phase assertions"
+      }
+    },
+    {
       "id": "owner-registered-embedded-conversation-and-node-catalogs",
       "description": "Render embedded conversations through their owning factory and classify integrated node services.",
       "origin": "Integrated package and catalog validation",
