@@ -25,7 +25,7 @@ Panedesk 新入口的静态图标与令牌库:自绘单线 glyph 集(16/20/24、
 <a id="using-this-package"></a>
 ## 使用本包
 
-直接导入 glyph 组件(`import { IconPanedeskStats } from '@panedesk/dsh-client-ui-panedesk-icons'`);本包是与 ui-primitives 同类的静态浏览器库——无插件半边、无槽位、无 bundle 步。每个 glyph 颜色继承 `currentColor`,在统一 24 格设计网格上以 1.5 线宽按 `size` 16(缺省)、20、24 渲染。
+直接导入 glyph 组件(`import { IconPanedeskStats } from '@panedesk/dsh-client-ui-panedesk-icons'`);本包是与 ui-primitives 同类的静态浏览器库——无插件半边或槽位。动态消费方按浏览器安全库规则内联其精确根入口；glyph 不持有共享运行时状态。每个 glyph 颜色继承 `currentColor`,在统一 24 格设计网格上以 1.5 线宽按 `size` 16(缺省)、20、24 渲染。
 
 <a id="token-table"></a>
 ## 令牌表

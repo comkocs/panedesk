@@ -23,7 +23,7 @@ Static icon and token library for the Panedesk entry surfaces: the self-drawn mo
 
 ## Using this package
 
-Import glyph components directly (`import { IconPanedeskStats } from '@panedesk/dsh-client-ui-panedesk-icons'`); this is a static browser library like ui-primitives — no plugin half, no slots, no bundle step. Every glyph inherits its color from `currentColor` and renders at `size` 16 (default), 20, or 24 on one 24-unit grid with a 1.5-unit stroke.
+Import glyph components directly (`import { IconPanedeskStats } from '@panedesk/dsh-client-ui-panedesk-icons'`); this is a static browser library like ui-primitives — no plugin half or slots. Dynamic consumers inline its exact root entry through the browser-safe library rule; glyphs hold no shared runtime state. Every glyph inherits its color from `currentColor` and renders at `size` 16 (default), 20, or 24 on one 24-unit grid with a 1.5-unit stroke.
 
 ## Token table
 

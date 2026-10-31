@@ -216,8 +216,9 @@ describe('Sidebar chat components', () => {
       useSession: select => select(snapshot),
       useConversation: select => select(conversationSnapshot()),
       useSessions: select => select({
-        ids: [], byId: { [CHILD]: { blank: summaryBlank } }, phase: 'ready', projectionsBySession: {}, jobsBySession: {},
-      } as SessionListState),
+        ids: [], byId: { [CHILD]: { id: CHILD, displayTitle: 'Child', running: false, retainedBy: {}, updatedAt: 1, blank: summaryBlank } },
+        phase: 'ready', projectionsBySession: {}, jobsBySession: {},
+      }),
       renderFactorySlot,
     } satisfies Pick<Parameters<typeof ConversationSlotPanel>[0], 'sessionId' | 'useSession' | 'useConversation' | 'useSessions' | 'renderFactorySlot'>
     render(<ConversationSlotPanel {...props as Parameters<typeof ConversationSlotPanel>[0]} />)
