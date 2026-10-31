@@ -611,6 +611,28 @@
       }
     },
     {
+      "id": "seat-authorized-opening-no-legacy-downgrade",
+      "description": "Refuse authorized opening downgrade and unchecked local wake admission.",
+      "origin": "Optional seat orchestration",
+      "reason": "Refuse authority-bearing legacy fallback and direct local-wake opening while preserving checked wake conversion, unsigned trusted admission and admitted receipt replay.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/src/open-admission.ts",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-local/tests/open-authorization.spec.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml"
+        ],
+        "test": "legacy engine rejects %s without calling accept"
+      }
+    },
+    {
       "id": "seat-admission-definition-diagnostics",
       "description": "Report definition refusals and recover retained input at seat admission.",
       "origin": "Optional seat orchestration",
