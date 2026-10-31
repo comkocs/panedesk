@@ -11,6 +11,14 @@ kind: "package-reference"
 
 为[会话遥测子系统](../../../docs/subsystems/session-telemetry.zh.md)提供五个只读统计页签：项目总览、历史统计、模型用量、模型吞吐和账本明细。[账本查询服务](../../session/ledger-query/README.zh.md)负责聚合及未知证据语义。
 
+## 目录
+
+- [配置与使用](#configuration-and-use)
+- [模型体验](#model-experience)
+- [已知限制与后续工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="configuration-and-use"></a>
 ## 配置与使用
 
 Web 组合同时加载 Host 和 Client。`enabled` 默认为 true，设为 false 时拒绝读取。`refreshIntervalMs` 默认为 10000，接受 1000 至 2147483647 的整数。只有经过认证的所有者调用才能执行 `stats.read(request)`；调用方不能传入身份。缺少服务、取消和禁用都会明确失败。不开放写入、导出、会话正文或模型操作。
@@ -19,13 +27,14 @@ Web 组合同时加载 Host 和 Client。`enabled` 默认为 true，设为 false
 
 所有页签共用时间范围、分组方式及北京时间小时／日桶。按位选择缩小项目范围；按模型选择缩小全部五页签范围，切换页签后仍显示筛选并可清除。暂停只读一份快照，恢复重新轮询，刷新发起新读取。版面和减少动效控件只影响展示。缺失或不完整证据保持可见，不补零。默认、加载、空、错误、无权限、禁用、成功、刷新失败均有中英文文案；刷新失败不会宣称更新成功。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 账本观测
 
 #### 模型可见内容
 
-插件不注册工具、提示或 Session 消息。统计仅为用户可见的观测。
+`stats.read(request)` 不注册工具、提示或 Session 消息。统计仅为用户可见的观测。
 
 #### Token 影响
 
@@ -35,9 +44,20 @@ Web 组合同时加载 Host 和 Client。`enabled` 默认为 true，设为 false
 
 插件不修改模型请求前缀，也不刷新缓存。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
 
 - 项目使用账本位而非工作区目录；在跑会话来自账本生命周期证据，不是进程存活观测。
 - 参考价不是实付或订阅费用。缺价、用量、时长或远程别名证据保持未知。
 - 读取覆盖可用的公共账本快照。不完整扫描会明确标识；插件无法修复缺失的生产方证据。
 - 选择和版面仅在已挂载面板内保存。界面没有修改或导出流程。
+
+<a id="dev-note"></a>
+### 开发备注
+
+<details>
+<summary>维护者工作上下文——点击展开</summary>
+
+无。
+
+</details>

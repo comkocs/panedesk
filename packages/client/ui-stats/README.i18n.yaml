@@ -11,9 +11,12 @@
 /panedesk-dsh-client-ui-stats/summary:
   en: 81805a42a2db06eb
   zh: 736a4914fc98ae59
+/panedesk-dsh-client-ui-stats/table-of-contents:
+  en: 7a92986f80e6f02b
+  zh: 160cbc632b60555d
 /panedesk-dsh-client-ui-stats/configuration-and-use:
-  en: 3ba0da4326c78428
-  zh: a69814de1bcfa3ec
+  en: 056e9f3c3a3dcf1d
+  zh: d02021d8b5af19d3
 /panedesk-dsh-client-ui-stats/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -21,14 +24,17 @@
   en: 6f7176f56afb38b0
   zh: e40b31ad39b827b2
 /panedesk-dsh-client-ui-stats/model-experience/ledger-observation/what-the-model-sees:
-  en: e2f6fafbbaba10f8
-  zh: 7bdb89e10d2e2d38
+  en: b01ae858741ddcac
+  zh: c95270fd7b204806
 /panedesk-dsh-client-ui-stats/model-experience/ledger-observation/token-effect:
   en: cfb75e201d52fe91
   zh: 1c59f799cf50159d
 /panedesk-dsh-client-ui-stats/model-experience/ledger-observation/kv-cache-effect:
-  en: ee58a77a37450f0a
-  zh: a203fa50af5c16b0
+  en: 95442215734c86f0
+  zh: ec23de37109e8a4a
 /panedesk-dsh-client-ui-stats/known-limitations-and-deferred-work:
-  en: 8cd247c29daa2733
-  zh: e2385095bda495bd
+  en: d797c6a2fe78b651
+  zh: ad9e0570f5bc03c8
+/panedesk-dsh-client-ui-stats/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

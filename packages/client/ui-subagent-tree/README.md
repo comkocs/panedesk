@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Open one session's subagent tree from a session-header pill into a right-sidebar tab. Rows nest by ledger parent-child session facts and show state, model, token totals, and cache hit rate; each row's trailing Monitor button opens a read-only live view with status (running / waiting / end reason), model, the five token columns plus cache hit rate, elapsed time, the latest tool invocation with its time, and the seat and linked task. The view offers no stop or other write operation — stopping keeps its upstream session controls. Model names read only the session transcript; a missing name stays unknown and is never backfilled from the ledger.
+Open a session's subagent tree from its header into a right-sidebar tab. Nested rows show state, model, token totals and cache hit rate. Each Monitor button opens read-only status (running, waiting or end reason), model, five token columns, cache hit rate, elapsed time, latest tool invocation and time, seat and linked task. The view offers no writes; stopping retains existing session controls. Model names come only from session transcripts; missing names stay unknown, never backfilled from the ledger.
 
 ## Table of Contents
 
@@ -47,7 +47,7 @@ The host half exposes exactly one Remote, `subagentTree.read(request)`, after ch
 
 #### What the model sees
 
-Nothing. This package reads the ledger and transcripts and renders client UI; it sends no prompt section and calls no model-facing tool.
+Nothing. `subagentTree.read(request)` reads the ledger and transcripts for client UI; it sends no prompt section and calls no model-facing tool.
 
 #### Token effect
 
