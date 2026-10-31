@@ -8,6 +8,10 @@ import type { NodeWireRequest } from '@panedesk/dsh-node-link'
 import { digest } from '@panedesk/dsh-seat-engine'
 import { sender, principalId } from './frozen-process-fixture.ts'
 
+/** Hold the event loop until the fixture kills this worker.
+ * A message-free IPC channel stays unref'd, so drained fixture handles would otherwise let it exit on its own. */
+function holdUntilKilled(): void { setInterval(() => {}, 2 ** 31 - 1) }
+
 async function batch(root: string, stage: string) {
   const h = await processFixture(root)
   try {
@@ -45,6 +49,7 @@ async function batch(root: string, stage: string) {
           await original.call(this, bytes.subarray(0, Math.floor(bytes.length / 2)), options)
           await this.sync()
           process.send?.({ kind: 'partial-batch', first, pid: process.pid })
+          holdUntilKilled()
           await new Promise<never>(() => {})
         }
         return original.call(this, data, options)
@@ -96,6 +101,7 @@ async function main() {
           await original.call(this, bytes.subarray(0, Math.floor(bytes.length / 2)), options)
           await this.sync()
           process.send?.({ kind: 'partial', pid: process.pid })
+          holdUntilKilled()
           await new Promise<never>(() => {})
         }
         return original.call(this, data, options)
@@ -108,6 +114,7 @@ async function main() {
       : method === 'seat.openFrozen' ? await seats.openFrozen!(input.payload as T.OpenFrozenSeatRequest)
         : await seats.wakeFrozen!(input.payload as T.WakeFrozenSeatRequest)
     process.send?.({ kind: 'accepted', before, result, pid: process.pid })
+    holdUntilKilled()
     await new Promise<never>(() => {})
   } finally { await h.close(); process.disconnect?.() }
 }
