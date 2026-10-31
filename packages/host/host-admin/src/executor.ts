@@ -49,7 +49,7 @@ export function createHostAdminExecutor(dependencies: HostAdminExecutionDependen
       }
       case 'node.status': return { ...base, method: request.method, result: await dependencies.engine.nodeStatus() }
       case 'node.rebuild': return { ...base, method: request.method,
-        result: await dependencies.rebuildTransport?.() ?? { status: 'unavailable' as const } }
+        result: await dependencies.rebuildTransport?.(request.params.peerNodeId) ?? { status: 'unavailable' as const } }
       case 'engine.pending': return { ...base, method: request.method, result: await dependencies.engine.pending(request.params) }
       case 'engine.query':
         if (request.params.nodeId !== undefined && request.params.nodeId !== dependencies.nodeId) return refuse(request)

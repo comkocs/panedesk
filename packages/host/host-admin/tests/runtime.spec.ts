@@ -116,7 +116,11 @@ test('rebuilds one supervised tunnel through administration and reports a missin
   const start = async (directory: string, rebuilds: { count: number } | undefined) => {
     const ctx = new Context()
     cleanups.push(() => ctx.fiber.dispose())
-    if (rebuilds) ctx.provide('hostAdminTransport', { rebuildTransport: async () => { rebuilds.count += 1; return { status: 'rebuilt' } } })
+    if (rebuilds) ctx.provide('hostAdminTransport', { rebuildTransport: async (peerNodeId) => {
+      if (peerNodeId !== undefined && peerNodeId !== 'node-b') return { status: 'unavailable' }
+      rebuilds.count += 1
+      return { status: 'rebuilt' }
+    } })
     await ctx.plugin(Admin, { runtime: { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
       port: 0, maxStoreBytes: 65536, maxOperations: 100 } })
     const files = new PosixPrivateFiles(directory, process.getuid!())
@@ -129,6 +133,11 @@ test('rebuilds one supervised tunnel through administration and reports a missin
   const files = await start(root, rebuilds)
   expect(await callAdmin(files, 'node.rebuild', {}, limits)).toMatchObject({ status: 'ok', result: { status: 'rebuilt' } })
   expect(rebuilds.count).toBe(1)
+  expect(await callAdmin(files, 'node.rebuild', { peerNodeId: 'node-b' as Admin.HostAdminEndpoint['nodeId'] }, limits))
+    .toMatchObject({ status: 'ok', result: { status: 'rebuilt' } })
+  expect(await callAdmin(files, 'node.rebuild', { peerNodeId: 'other-node' as Admin.HostAdminEndpoint['nodeId'] }, limits))
+    .toMatchObject({ status: 'ok', result: { status: 'unavailable' } })
+  expect(rebuilds.count).toBe(2)
   const bareRoot = await mkdtemp(join(tmpdir(), 'admin-rebuild-none-'))
   cleanups.push(() => rm(bareRoot, { recursive: true, force: true }))
   const bare = await start(bareRoot, undefined)

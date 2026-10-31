@@ -159,16 +159,21 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
       const subprocess = ctx.get('subprocess')
       if (subprocess === undefined) throw new Error('Node link requires a local subprocess provider')
       tunnel = new SshTunnel(subprocess, options, listener.port, () => router?.disconnect(),
-        (level, message) => { ctx.logger[level](message) })
+        (level, message) => { ctx.logger[level](message) },
+        (kind, safeReason) => router?.observe(kind, safeReason))
       await tunnel.start()
-      ctx.provide('hostAdminTransport', { rebuildTransport: async () => {
-        if (stopped || tunnel === undefined) return { status: 'unavailable' as const }
+      ctx.provide('hostAdminTransport', { rebuildTransport: async (peerNodeId) => {
+        if (stopped || tunnel === undefined || peerNodeId !== undefined && peerNodeId !== options.peerNodeId) {
+          return { status: 'unavailable' as const }
+        }
         await tunnel.rebuild()
         return { status: 'rebuilt' as const }
       } })
     }
     if (inactive()) return
     ctx.provide('nodeRouter', router)
+    const healthRouter = router
+    ctx.provide('hostAdminNodeHealth', { status: () => healthRouter.status() })
     await router.handshake()
     if (inactive()) return
     const poll = (): void => {

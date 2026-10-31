@@ -36,6 +36,35 @@ function provider(execute: NodeLinkExecutor['execute']): NodeLinkExecutor {
     engine: 'running', openEngineWindows: 3, limit: 4, readyAt: null }) }
 }
 
+test('dates only successful round trips and retains the latest twenty safe link events', async () => {
+  let rejected = false
+  const auth = { credential: randomBytes(32).toString('hex'), epoch: 'epoch-b', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+  const executor = provider(async request => failure(request, 'cross-node-unsupported'))
+  const listener = await listenLoopback(0, limits, () => auth, async (value) => {
+    if (rejected || !object(value)) throw new Error('Synthetic authentication refusal')
+    return { version: NODE_LINK_VERSION, nodeId: 'node-b', epoch: auth.epoch, nonce: value.nonce,
+      status: await executor.status() }
+  })
+  cleanups.push(() => listener.close())
+  const router = new NodeRouter({ ...limits, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer',
+    directory: 'unused', listenPort: 0, peerPort: listener.port, staleMs: 60000 }, auth, await store(), () => true)
+  expect(await router.status()).toMatchObject([{ lastHeartbeatAt: null, events: [] }])
+  const before = Date.now()
+  expect(await router.handshake()).toBe(true)
+  const successful = (await router.status())[0]
+  expect(Date.parse(successful?.lastHeartbeatAt ?? '')).toBeGreaterThanOrEqual(before)
+  expect(successful?.status?.readyAt).toBeNull()
+  expect(successful?.events?.map(event => event.kind)).toEqual(['authentication-succeeded', 'connected'])
+  rejected = true
+  for (let index = 0; index < 24; index++) expect(await router.handshake()).toBe(false)
+  const failed = (await router.status())[0]
+  expect(failed?.lastHeartbeatAt).toBe(successful?.lastHeartbeatAt)
+  expect(failed?.events).toHaveLength(20)
+  expect(failed?.events?.at(-1)).toMatchObject({ kind: 'authentication-failed', safeReason: 'node-authentication-failed' })
+  expect(JSON.stringify(failed?.events)).not.toContain(auth.credential)
+  expect(JSON.stringify(failed?.events)).not.toContain('Synthetic authentication refusal')
+})
+
 test('executes identical operations once, rejects changed arguments and retains results after restart', async () => {
   const durable = await store()
   let calls = 0

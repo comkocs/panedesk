@@ -59,6 +59,8 @@ Windows 等证据持久化较慢的节点，席位引擎的 `callbackTimeoutMs` 
 
 隧道启动、退出、重拉、耗尽与监督异常通过宿主日志记录；stderr 只保留去地址的末尾摘要，最多五行、每行 200 字节、总计 1 KB。原始 stderr 缓冲限于 4 KB；stdout 丢弃。子进程存活至少 `retryMs` 后，下次重拉前清零计数；更短存活的子进程消耗有界的 `maxRetries` 预算，每次重拉均等待 `retryMs`。耗尽后，`nodeRouter.status()` 与节点查询通过 `safeReason` 显示末次退出原因。经过认证的 admin `node.rebuild` 方法只替换自有隧道，恢复有界监督、stderr 捕获及重试预算；并发重拉合并为一次替换。替换前取消旧重试，释放不能重启子进程。宿主及方向凭据不变。常规认证 hello 成功前路由仍断开；子进程创建本身不表示链路恢复。
 
+`NodeLinkStatus.lastHeartbeatAt` 为最近一次认证往返成功的观察时刻，初始未知，探测失败不更新。可选 `events` 每对端仅保留本进程最近 20 条不含凭据的链路及认证事件，启动时重置。可选 `exhausted` 区分监督耗尽和重连中。`node.rebuild({ peerNodeId })` 只接受已配置对端，替换本节点的出站隧道；省略时保留原操作，不重拉对端自身的出站链路。
+
 <a id="model-experience"></a>
 ## 模型体验
 

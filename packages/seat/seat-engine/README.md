@@ -21,6 +21,8 @@ Implements the [seat engine service](../../../docs/subsystems/seat.md) with a se
 <a id="use-this-package"></a>
 ## Use this package
 
+`callbackObservations({ limit, phase? })` reads detached current outbox deliveries after readiness, including process-local folded retry counts and their lower-bound marker after recovery. Filtering precedes limiting and completeness covers the filtered observations. Reads neither deliver callbacks nor flush retry summaries; durable query projections are not a substitute for live retry state.
+
 External rules match `sourceId` exactly and, when present, `eventType` exactly. A configured external rule set with no match cannot fall back to project auto mode; profiles without external rules retain their existing behavior. When external rules are configured, coalescing separates external sources and event types; opening references always remain separate. Optional context references require a registered source and compatible local freezer; accepted snapshots retain text, digest, revision and task associations in the existing decision transaction before acknowledgement. Source cursors remain adapter-owned and must advance only after durable acceptance.
 
 Mount the plugin with a complete `Config` and a `sessionLedger` provider. The ledger supplies node identity; `home` selects isolated storage. Validate positive byte, batch, deduplication, callback, and recovery limits before activation. The owner-observation interval is at most one second; observation, release, and queue-wakeup budgets together must not exceed five seconds. Missing budget or node capacity limits mean unlimited, not an invented quota.

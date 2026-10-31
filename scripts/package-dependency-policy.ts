@@ -61,6 +61,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
 
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
+  '@panedesk/dsh-host-admin': ['readNodeHealth', 'executeNodeOperator', 'decodeHostAdminRequest'],
   // `instanceof` checks need the translator's own class instance.
   '@panedesk/dsh-experimental-translator': ['TranslationError'],
   '@panedesk/dsh-scope': ['carrierKeyOf', 'createScope', 'scopeOf', 'scopeTarget'],

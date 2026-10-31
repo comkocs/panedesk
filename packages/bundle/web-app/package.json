@@ -126,6 +126,7 @@
     "@panedesk/dsh-client-ui-sidebar-terminal": "workspace:*",
     "@panedesk/dsh-client-ui-skill": "workspace:*",
     "@panedesk/dsh-client-ui-stats": "workspace:*",
+    "@panedesk/dsh-client-ui-nodes": "workspace:*",
     "@panedesk/dsh-client-ui-subagent": "workspace:*",
     "@panedesk/dsh-client-ui-subagent-tree": "workspace:*",
     "@panedesk/dsh-ledger-query": "workspace:*",

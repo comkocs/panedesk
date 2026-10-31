@@ -1,6 +1,6 @@
 /** One supervised OpenSSH process owns two explicitly loopback-bound forwards. */
 import type { SubprocessHandle, SubprocessRuntime } from '@panedesk/dsh-subprocess'
-import type { NodeLinkRuntimeConfig } from './index.ts'
+import type { NodeLinkRuntimeConfig, NodeLinkEvent } from './index.ts'
 
 function reasonCategory(error: unknown): string {
   if (error instanceof TypeError) return 'TypeError'
@@ -56,7 +56,8 @@ export class SshTunnel {
   constructor(private readonly runtime: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>,
     private readonly options: NodeLinkRuntimeConfig, private readonly localPort: number,
     private readonly disconnected: () => void,
-    private readonly log: (level: 'info' | 'warn' | 'error', message: string) => void = () => {}) {}
+    private readonly log: (level: 'info' | 'warn' | 'error', message: string) => void = () => {},
+    private readonly observe?: (kind: NodeLinkEvent['kind'], safeReason: string | null) => void) {}
   /** A live process is only transport availability, not peer authentication. */
   get available(): boolean { return this.live }
   /** Local exhausted-state explanation for existing node status diagnostics. */
@@ -104,13 +105,16 @@ export class SshTunnel {
         this.live = false
         this.disconnected()
         if (cancelled()) return
+        this.observe?.('disconnected', 'node-tunnel-disconnected')
         if (aliveMs >= ssh.retryMs) attempt = 0
         if (attempt >= ssh.maxRetries) {
           const firstSentence = summary.split('\n')[0]?.split(/(?<=[.!?])\s/)[0] ?? ''
           this.exhaustion = `SSH tunnel exhausted: exitCode=${outcome?.exitCode ?? 'unknown'} signal=${outcome?.signal ?? 'none'}${category === undefined ? '' : ` category=${category}`}${firstSentence ? `; ${firstSentence}` : ''} Link remains disconnected until it is rebuilt or the host restarts.`
+          this.observe?.('exhausted', 'node-tunnel-exhausted')
           this.log('error', `ssh-tunnel exhausted generation=${this.generation}; link remains disconnected until it is rebuilt or the host restarts`)
           return
         }
+        this.observe?.('reconnecting', 'node-tunnel-retrying')
         this.log('warn', `ssh-tunnel retry attempt=${attempt + 1} maxRetries=${ssh.maxRetries} waitMs=${ssh.retryMs}`)
         await new Promise<void>((resolve) => {
           const abort = (): void => { clearTimeout(timer); resolve() }
@@ -121,7 +125,11 @@ export class SshTunnel {
         spawn()
       }
     })().catch((error: unknown) => {
-      if (!this.lifetime.signal.aborted) this.log('error', `ssh-tunnel supervision-failed category=${reasonCategory(error)}`)
+      if (!cancelled()) {
+        this.exhaustion = 'node-tunnel-supervision-failed'
+        this.observe?.('exhausted', this.exhaustion)
+        this.log('error', `ssh-tunnel supervision-failed category=${reasonCategory(error)}`)
+      }
       this.live = false
       this.disconnected()
     })
@@ -139,6 +147,7 @@ export class SshTunnel {
     return work
   }
   private async replace(): Promise<void> {
+    this.observe?.('rebuild', null)
     this.generationLifetime.abort()
     this.live = false
     this.disconnected()

@@ -59,6 +59,8 @@ Disconnected links reject new requests before capability negotiation. Work-chain
 
 Tunnel starts, exits, retries, exhaustion, and supervision failures use the host logger; stderr retains only an address-redacted tail summary of at most five lines, 200 bytes per line, and 1 KB in total. Raw stderr retention is bounded to 4 KB; stdout is discarded. A child surviving at least `retryMs` resets the retry budget before the next retry; shorter-lived children consume the bounded `maxRetries` budget, and every retry waits `retryMs`. After exhaustion, `nodeRouter.status()` and node queries expose the last exit reason through `safeReason`. The authenticated admin `node.rebuild` method replaces only the owned tunnel and restores its bounded supervision, stderr capture and retry budget; concurrent rebuilds share one replacement. Old retries are cancelled before replacement, and disposal cannot restart a child. The host and directional credentials remain unchanged. Routing remains disconnected until the regular authenticated hello succeeds; child creation alone is not link recovery.
 
+`NodeLinkStatus.lastHeartbeatAt` is the last successful authenticated round-trip observation, initially unknown and unchanged by failed probes. Optional `events` retains the latest 20 credential-free link and authentication events per peer in this process only; it resets at startup. Optional `exhausted` distinguishes exhausted supervision from reconnecting. `node.rebuild({ peerNodeId })` accepts only the configured peer and replaces this node's outbound tunnel; omission preserves the original action. It never rebuilds a peer's own outbound links.
+
 <a id="model-experience"></a>
 ## Model Experience
 

@@ -287,6 +287,15 @@ export class SeatEngine extends SeatEngineService {
     })
     installFrozenBusiness(ctx, this)
   }
+  /** Read the outbox's live retry observations without starting a delivery.
+   * @param request - Maximum observations and optional phase filter applied before the limit.
+   * @returns Detached deliveries and explicit completeness, including unflushed retry counters.
+   */
+  override callbackObservations = async (request: { limit: number; phase?: T.SeatCallbackDelivery['phase'] }): Promise<{ items: readonly T.SeatCallbackDelivery[]; complete: boolean }> => {
+    await this.ready()
+    const observations = this.outbox.observations().filter(item => request.phase === undefined || item.phase === request.phase)
+    return { items: observations.slice(0, request.limit), complete: observations.length <= request.limit }
+  }
   /** Resolve a parked callback without replacing its payload or chain operation.
    * @param request - Callback identity, expected attempt and operator action.
    * @param grant - Current local operator authority for this exact request.

@@ -25,13 +25,14 @@ function supervised(maxRetries = 2) {
     ssh: { alias: 'test-peer', cwd: process.cwd(), remotePort: 1, remoteTargetPort: 1,
       graceMs: 100, keepAliveSeconds: 5, keepAliveCount: 2, retryMs: 100, maxRetries } }
   const log = vi.fn<(level: 'info' | 'warn' | 'error', message: string) => void>()
-  const tunnel = new SshTunnel({ resolveExecutable: async () => '/usr/bin/ssh', spawn }, options, 1, vi.fn(), log)
+  const observe = vi.fn<NonNullable<ConstructorParameters<typeof SshTunnel>[5]>>()
+  const tunnel = new SshTunnel({ resolveExecutable: async () => '/usr/bin/ssh', spawn }, options, 1, vi.fn(), log, observe)
   const messages = (event: string) => log.mock.calls.filter(([, message]) => message.startsWith(`ssh-tunnel ${event} `))
   const exit = async (exitCode: number | null = 255, signal: NodeJS.Signals | null = null) => {
     children.at(-1)!.done.resolve({ exitCode, signal })
     await vi.advanceTimersByTimeAsync(0)
   }
-  return { tunnel, spawn, children, log, messages, exit }
+  return { tunnel, spawn, children, log, messages, exit, observe }
 }
 
 test('logs bounded address-redacted exit facts with generation, pid and lifetime', async () => {
@@ -114,6 +115,8 @@ test('logs only a fixed reason category when retry supervision fails', async () 
     await vi.advanceTimersByTimeAsync(100)
     expect(fixture.messages('supervision-failed')).toEqual([['error', 'ssh-tunnel supervision-failed category=TypeError']])
     expect(fixture.log.mock.calls.flat().join(' ')).not.toContain('sensitive')
+    expect(fixture.observe).toHaveBeenLastCalledWith('exhausted', 'node-tunnel-supervision-failed')
+    expect(fixture.tunnel.exhaustedReason).toBe('node-tunnel-supervision-failed')
   } finally { await fixture.tunnel.close() }
 })
 
