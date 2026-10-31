@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for usage.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write templates/workflow-pack/usage.md
+/usage:
+  en: be49af672d89e182
+  zh: e71e3a706c050c2a
+/usage/what-this-pack-contains:
+  en: e8f5b897963e8375
+  zh: 62d66236ca0a7cfd
+/usage/starting-a-new-project:
+  en: 3047ec87a017c69c
+  zh: ff6f93f39e7316c7
+/usage/how-many-rules-remain:
+  en: 27d06520eee0d372
+  zh: e235d4c55a840e08
+/usage/growing-or-shrinking-the-project:
+  en: 1be794b03d9d977a
+  zh: 59963c9938390e64
+/usage/five-starting-profiles:
+  en: 6a0be6d5d42f76f2
+  zh: 71b886ea847e6aca
