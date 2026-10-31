@@ -3317,6 +3317,48 @@
         "paths": ["docs/event-producer-consumer.md", "docs/event-producer-consumer.zh.md"],
         "test": "wakes an idle parent with retained completion input after admission recovers"
       }
+    },
+    {
+      "id": "ledger-descendant-selection-shared",
+      "description": "Share descendant selection between ledger projections and queries.",
+      "origin": "Session ledger query integration",
+      "reason": "Share the linear descendant-session traversal between journal snapshots and public queries without changing selection semantics; suitable for upstream feedback.",
+      "match": { "type": "test-assertion", "paths": ["packages/session/session-ledger/src/projection.ts", "packages/session/session-ledger/src/index.ts", "packages/session/ledger-query/src/query.ts", "packages/session/session-ledger/README.md", "packages/session/session-ledger/README.zh.md", "packages/session/session-ledger/README.i18n.yaml"], "test": "duplication" }
+    },
+    {
+      "id": "client-relative-css-whale-asset",
+      "description": "Resolve the running whale asset from repository-relative CSS module identifiers.",
+      "origin": "Client CSS bundling",
+      "reason": "Match repository-relative CSS module identifiers when embedding the running whale image; preserve the original data URL and animation behavior; suitable for upstream feedback.",
+      "match": { "type": "test-assertion", "paths": ["packages/client/ui-chat/tsdown.config.ts", "packages/client/ui-chat/README.md", "packages/client/ui-chat/README.zh.md", "packages/client/ui-chat/README.i18n.yaml"], "test": "running whale asset" }
+    },
+    {
+      "id": "client-build-metadata-test-ownership",
+      "description": "Keep assembled Web and HMR fixtures responsible for their build metadata.",
+      "origin": "Client build metadata integration",
+      "reason": "Mirror Host build metadata in assembled boot fixtures and restore the metadata artifact after HMR tests without weakening existing assertions; suitable for upstream feedback.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/assembled-boot.ts", "apps/web/tests/hmr-live.e2e.ts", "apps/web/tests/README.md", "apps/web/tests/README.zh.md", "apps/web/tests/README.i18n.yaml"], "test": "assembled Web boot and live HMR" }
+    },
+    {
+      "id": "acp-live-delta-snapshot-refresh",
+      "description": "Record incremental ACP assistant output while preserving complete content.",
+      "origin": "ACP live incremental projection",
+      "reason": "Refresh recorded ACP expectations for intentional live assistant text and thought deltas while preserving concatenated text, permissions, tool results and final outcomes; suitable for upstream feedback.",
+      "match": { "type": "test-assertion", "paths": ["snapshots/acp/escalation-approved/stdout.expected.jsonl", "snapshots/acp/escalation-rejected/stdout.expected.jsonl", "snapshots/acp/fs-escalation-approved/stdout.expected.jsonl", "snapshots/acp/fs-same-mode/stdout.expected.jsonl"], "test": "ACP escalation snapshots" }
+    },
+    {
+      "id": "web-optional-startup-pending-diagnostic",
+      "description": "Assert pending optional startup entries separately from activation failures.",
+      "origin": "Approved startup diagnostic ruling section I.2, requirement 16",
+      "reason": "Optional entries waiting for services are pending rather than failed. Assert the exact pending warning and absence of did not activate, retaining every required-startup failure and other optional-failure assertion.",
+      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"], "test": "optional startup dependency" }
+    },
+    {
+      "id": "acp-built-profile-live-delta-content",
+      "description": "Assert the complete built ACP reply by concatenating ordered live text deltas.",
+      "origin": "Approved ACP incremental projection requirement 19 and design section V.19d",
+      "reason": "Live assistant updates no longer contain a complete reply in one chunk. Concatenate text deltas in notification order and compare the full original reply exactly, preserving turn completion, message identity, request count and disconnect-exit assertions.",
+      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/built-bin.e2e.ts"], "test": "runs a mock-backed ACP turn through the acp profile and exits on disconnect" }
     }
   ]
 }
