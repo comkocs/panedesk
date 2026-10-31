@@ -135,7 +135,8 @@ export class WakeDeliveries {
   query(request: T.NodeWorkChainOperationRequest, authority: T.SeatCallContext): T.NodeWorkChainOperationResult {
     const fact = authority.authorization?.fact
     if (!fact || fact.kind !== 'node-delegation' || fact.sourceNodeId !== request.key.sourceNodeId
-      || fact.principalId !== request.key.principalId || authority.principalId !== fact.principalId) {
+      || fact.principalId !== request.key.principalId || authority.principalId !== fact.principalId
+      || authority.nodeId !== fact.nodeId || fact.nodeId !== this.journal.nodeId) {
       return rejected('unauthorized', 'Wake query attribution does not match')
     }
     for (const record of wakeRecords(this.journal.projection.authorizationDecisions).values()) {
@@ -144,6 +145,18 @@ export class WakeDeliveries {
         sourceNodeId: record.original.sourceNodeId, principalId: record.original.principalId,
         sourceId: record.payload.route.sourceId, ownerEpoch: record.payload.route.ownerEpoch }
       if (digest(key) !== digest(request.key)) continue
+      let binding = this.journal.projection.opens.get(record.action.sessionId)?.binding
+      for (const frame of this.journal.projection.decisions) for (const effect of frame.effects) {
+        if (effect.kind === 'seat/binding' && effect.data.sessionId === record.action.sessionId) binding = effect.data
+        if ((effect.kind === 'open/created' || effect.kind === 'open/configured')
+          && effect.data.sessionId === record.action.sessionId) binding = effect.data.binding
+      }
+      if (fact.seat !== record.payload.request.seat || binding?.kind !== 'seat' || binding.seat !== fact.seat
+        || binding.nodeId !== fact.nodeId || binding.relatedTaskIds.some(task => !fact.taskIds.includes(task))
+        || binding.taskId !== undefined && !fact.taskIds.includes(binding.taskId)
+        || record.payload.openingContext.snapshot.taskIds.some(task => !fact.taskIds.includes(task))) {
+        return rejected('unauthorized', 'Wake query attribution does not match')
+      }
       if (record.original.requestDigest !== request.payloadDigest) return rejected('operation-id-conflict', 'Wake operation payload conflicts')
       return record.result ? { status: 'settled', method: 'seat.wakeFrozen', result: structuredClone(record.result) }
         : { status: 'pending', effectState: 'unknown' }
