@@ -234,6 +234,7 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@panedesk/dsh-sandbox-windows-acl': ['lib/runner.js', 'lib/types-*.js', 'assets'],
   '@panedesk/dsh-skill-badge': ['assets'],
   '@panedesk/dsh-skill-office': ['assets'],
+  '@panedesk/dsh-skill-workflow-pack': ['lib/workflow-pack'],
   '@panedesk/dsh-subprocess': ['lib/control.js'],
   // SSH launches a private helper and shares wire definitions and TLS setup
   // between that helper and the connection owner.

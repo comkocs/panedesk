@@ -27,7 +27,9 @@ async function openInventory(page: Page, url: string) {
 }
 
 it('places dynamic Session menu rows by order among the shipped ones and removes them with their fiber', async () => {
-  const scaffold = await launchWebScaffold({ extraInstallAnchors: [join(FIXTURE, 'package.json')] })
+  const scaffold = await launchWebScaffold({
+    extraInstallAnchors: [join(FIXTURE, 'package.json')], projectOpeningPending: true,
+  })
   onTestFinished(() => scaffold.close())
   const workspace = await scaffold.ctx.workspaceRegistry.create(scaffold.workspaceCwd)
   const sessionId = await seedSession(scaffold, await readFile(SESSION_SEED, 'utf8'), 'session-c4421b66-252e-44c0-80ed-6e320abeba25')
@@ -43,6 +45,10 @@ it('places dynamic Session menu rows by order among the shipped ones and removes
     const row = page.getByRole('treeitem').filter({ has: page.getByText(SESSION_TITLE, { exact: true }) })
     await row.waitFor({ timeout: 20_000 })
     const trigger = row.getByRole('button', { name: `Session actions for ${SESSION_TITLE}` })
+    const guidance = page.getByRole('dialog', { name: 'Project opening settings', exact: true })
+    await guidance.waitFor()
+    await guidance.getByRole('button', { name: 'Close', exact: true }).click()
+    await guidance.waitFor({ state: 'detached' })
 
     await row.hover()
     await trigger.focus()

@@ -201,12 +201,17 @@ export function probeFreePort(): Promise<number> {
  * product's other half of the same route) is covered by
  * workspace-management.e2e.ts. The default name 'workspace' keeps the session
  * header cwd at <root>/workspace, the materialization proof several scenarios
- * assert.
+ * assert. This non-onboarding helper dismisses first-entry project guidance
+ * through its Close button when it blocks later interaction; no project choice is saved.
  * @param page - the page under test.
  * @param root - host directory the workspace folder is staged in (the scaffold's `workspaceCwd`).
  * @param name - folder name staged and adopted as the workspace.
  */
 export async function connectFreshWorkspace(page: Page, root: string, name = 'workspace'): Promise<void> {
+  const guidance = page.getByRole('dialog', { name: 'Project opening settings', exact: true })
+  await page.addLocatorHandler(guidance, async () => {
+    await guidance.getByRole('button', { name: 'Close', exact: true }).click()
+  })
   mkdirSync(join(root, name), { recursive: true })
   await page.getByRole('textbox', { name: 'Choose workspace' }).click()
   const dialog = page.getByRole('dialog', { name: 'Select Workspace Directory' })
@@ -233,6 +238,10 @@ export async function connectFreshWorkspace(page: Page, root: string, name = 'wo
  * @param modelAvailable - require an editable composer when the selected model is available.
  */
 export async function connectFreshWorkspaceZh(page: Page, root: string, name = 'workspace', modelAvailable = true): Promise<void> {
+  const guidance = page.getByRole('dialog', { name: '项目开窗设置', exact: true })
+  await page.addLocatorHandler(guidance, async () => {
+    await guidance.getByRole('button', { name: '关闭', exact: true }).click()
+  })
   mkdirSync(join(root, name), { recursive: true })
   await page.getByRole('textbox', { name: '选择工作区' }).click()
   const dialog = page.getByRole('dialog', { name: '选择工作区目录' })

@@ -1,9 +1,9 @@
 /** Built panedesk web + the `pnpm run dev:web --no-serve` watchers → browser HMR, with no page reload. */
 
 import { existsSync, globSync, statSync } from 'node:fs'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { chromium } from 'playwright'
 import { expect, it } from 'vitest'
 import { Context } from '@panedesk/cordis'
@@ -15,11 +15,10 @@ import { REPO_ROOT } from './support.ts'
 
 const CLIENT_ARTIFACT_PATTERNS = [
   'apps/web/dist/**/*',
-  'packages/client/modules/lib/build-metadata.json',
-  'packages/*/*/lib/client.js',
-  'packages/*/*/lib/client.js.map',
-  'packages/*/*/lib/client.*.js',
-  'packages/*/*/lib/client.*.js.map',
+  'packages/*/*/lib/**/*',
+  'apps/*/lib/**/*',
+  'vendor/*/lib/**/*',
+  '*.tsbuildinfo',
 ]
 
 /** Return every artifact that `pnpm run dev:web` can rewrite. */
@@ -91,8 +90,10 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
   const binPath = join(REPO_ROOT, 'apps/cli/lib/bin.js')
   if (!existsSync(binPath)) throw new Error('HMR browser test needs the built dsh bin; run pnpm run build first')
   const clientBuildEnvironment = readClientBuildRecord(REPO_ROOT).environment
-  const originalClientArtifacts = await Promise.all(clientArtifactPaths()
-    .map(async path => [path, await readFile(path)] as const))
+  const originalClientArtifacts: Array<readonly [string, Buffer]> = []
+  for (const path of clientArtifactPaths()) {
+    originalClientArtifacts.push([path, await readFile(path)])
+  }
   const originalClientArtifactPaths = new Set(originalClientArtifacts.map(([path]) => path))
   const originalSource = await readFile(sourcePath)
   const oldText = 'Into the Unknown'
@@ -153,13 +154,17 @@ it('hot-reloads a real client-plugin source edit without refreshing the page', a
     if (host !== undefined) await stopTree(host).catch((error: unknown) => failures.push(error))
     await browser?.close().catch((error: unknown) => failures.push(error))
     await subprocessFiber?.dispose().catch((error: unknown) => failures.push(error))
-    await Promise.all(clientArtifactPaths()
-      .filter(path => !originalClientArtifactPaths.has(path))
-      .map(async (path) => { await rm(path, { force: true }) }))
-      .catch((error: unknown) => failures.push(error))
-    await Promise.all(originalClientArtifacts.map(async ([path, content]) => {
-      await writeFile(path, content)
-    })).catch((error: unknown) => failures.push(error))
+    for (const path of clientArtifactPaths().filter(path => !originalClientArtifactPaths.has(path))) {
+      await rm(path, { force: true }).catch((error: unknown) => failures.push(error))
+    }
+    for (const [path, content] of originalClientArtifacts) {
+      try {
+        await mkdir(dirname(path), { recursive: true })
+        await writeFile(path, content)
+      } catch (error) {
+        failures.push(error)
+      }
+    }
     try {
       readClientBuildRecord(REPO_ROOT)
     } catch (error) {

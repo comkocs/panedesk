@@ -467,10 +467,11 @@ it('requires separate client build metadata and rejects unrelated publication fi
   }
 })
 
-it('requires Office skill bodies and helpers in the published payload', () => {
-  const manifest = JSON.parse(readFileSync(new URL('../packages/skill/skill-office/package.json', import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
-  expect(checkWorkspaceManifest({ dir: 'packages/skill/skill-office', manifest })).toEqual([])
-  expect(checkWorkspaceManifest({ dir: 'packages/skill/skill-office', manifest: {
+it.each(['skill-office', 'skill-workflow-pack'])('requires %s bodies and helpers in the published payload', (name) => {
+  const dir = `packages/skill/${name}`
+  const manifest = JSON.parse(readFileSync(new URL(`../${dir}/package.json`, import.meta.url), 'utf8')) as WorkspaceManifest['manifest']
+  expect(checkWorkspaceManifest({ dir, manifest })).toEqual([])
+  expect(checkWorkspaceManifest({ dir, manifest: {
     ...manifest, files: ['lib/index.js', 'lib/types/**/*.d.ts'],
   } })).toEqual([expect.stringContaining('package.json files must be')])
 })

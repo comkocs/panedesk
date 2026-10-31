@@ -4,12 +4,35 @@ import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { expect, it, vi } from 'vitest'
 import type { LedgerCall, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
-import { summarizeStats } from '../../../packages/session/ledger-query/src/stats.ts'
-import type {} from '@panedesk/dsh-client-ui-stats'
+import { summarizeStats } from '@panedesk/dsh-ledger-query/src/stats.ts'
+import type {} from '@panedesk/dsh-client-ui-stats/types'
 import { RemoteError } from '@panedesk/dsh-typert-protocol'
-import { en, zh } from '../../../packages/client/ui-stats/src/client/locales.ts'
 import { launchWebScaffold } from './scaffold.ts'
 import { openSettings } from './support.ts'
+
+// Mirror visible copy from ui-stats/src/client/locales.ts without importing the Client compiler face.
+const en = {
+  title: 'Statistics', overview: 'Project overview', history: 'Historical statistics',
+  models: 'Model usage', throughput: 'Model throughput', ledger: 'Ledger details',
+  open: 'Open in main area', loading: 'Loading ledger statistics…',
+  empty: 'No ledger calls in this selection. Expand the time range or clear filters.',
+  error: 'Statistics could not be read. Check the ledger service and retry.',
+  unauthorized: 'Owner access required. Sign in as the host owner.',
+  disabled: 'Statistics are disabled by the host configuration.', success: 'Statistics updated.',
+  failed: 'Refresh failed. Displayed evidence may be stale; retry after checking the connection.',
+  nextPage: 'Next page', refresh: 'Refresh now', pause: 'Pause refresh', resume: 'Resume refresh',
+}
+const zh: Record<keyof typeof en, string> = {
+  title: '统计台', overview: '项目总览', history: '历史统计',
+  models: '模型用量', throughput: '模型吞吐', ledger: '账本明细',
+  open: '在主区打开', loading: '正在读取账本统计…',
+  empty: '所选范围暂无调用，可扩大时间范围或清除筛选。',
+  error: '统计读取错误，请检查账本服务后重试。',
+  unauthorized: '无权限，请以宿主所有者身份登录。',
+  disabled: '宿主配置已禁用统计台。', success: '统计已更新。',
+  failed: '刷新失败，当前证据可能已过时；请检查连接后重试。',
+  nextPage: '下一页', refresh: '立即刷新', pause: '暂停刷新', resume: '恢复刷新',
+}
 
 it.each(['en', 'zh'] as const)('replays five statistics tabs, cursor navigation and read states in %s', async (language) => {
   const scaffold = await launchWebScaffold({})

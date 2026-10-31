@@ -79,6 +79,7 @@ import {
   type SessionHeader,
 } from '@panedesk/dsh-session'
 import * as JsonlSessionPersistence from '@panedesk/dsh-session-persistence-jsonl'
+import { workspaceRecord } from '@panedesk/dsh-workspace'
 // Empty type imports carry the webServer/agents/sessionPersistence Context merges.
 import type {} from '@panedesk/dsh-host-webserver'
 import type {} from '@panedesk/dsh-agent'
@@ -399,6 +400,8 @@ export interface LaunchOptions {
   deepSeekMissingCredential?: boolean
   /** Leave the current welcome notice pending; ordinary scenarios pre-acknowledge it before browser boot. */
   welcomeNoticePending?: boolean
+  /** Leave all project opening guidance pending; otherwise choose remind-only for the root and ordinary newly registered paths. */
+  projectOpeningPending?: boolean
   /** Leave first-use Workspace initialization eligible; ordinary scenarios start after the default was removed. */
   firstUse?: boolean
   /**
@@ -841,6 +844,37 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       await ctx.settings.mutate(WELCOME_NOTICE_SETTINGS_NAMESPACE, [{
         op: 'set', path: [WELCOME_NOTICE_ACK_FIELD], value: WELCOME_NOTICE_VERSION,
       }])
+    }
+    if (options.projectOpeningPending !== true) {
+      await ctx.settings.mutate('ui-project-onboarding', [{
+        op: 'set', path: ['projects', workspaceCwd], value: { mode: 'remind', chosen: true },
+      }])
+      if (options.firstUse !== true) {
+        const chosenPaths = new Set([workspaceCwd])
+        let pending = Promise.resolve()
+        const failures: unknown[] = []
+        const choose = (path: string) => {
+          if (chosenPaths.has(path)) return
+          chosenPaths.add(path)
+          pending = pending.then(async () => {
+            await ctx.settings.mutate('ui-project-onboarding', [{
+              op: 'set', path: ['projects', path], value: { mode: 'remind', chosen: true },
+            }])
+          }).catch((error: unknown) => { failures.push(error) })
+        }
+        for (const workspace of ctx.workspaceRegistry.list()) choose(workspace.path)
+        const stop = ctx.on('domain/changed', (change) => {
+          if (change.domain !== 'workspace' || change.table !== 'workspaces' || change.operation !== 'put') return
+          choose(workspaceRecord.parse(change.value).path)
+        })
+        ctx.effect(() => async () => {
+          stop()
+          await pending
+          if (failures.length > 0) throw new AggregateError(failures, 'web scaffold project choices failed')
+        })
+        await pending
+        if (failures.length > 0) throw new AggregateError(failures, 'web scaffold project choices failed')
+      }
     }
     if (options.firstUse !== true && ctx.workspaceRegistry.list().length === 0) {
       const initial = await ctx.workspaceRegistry.initializeDefault(async () => workspaceCwd)
