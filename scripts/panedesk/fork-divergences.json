@@ -3404,14 +3404,14 @@
     {
       "id": "web-optional-startup-pending-diagnostic",
       "description": "Assert pending optional startup entries separately from activation failures.",
-      "origin": "Approved startup diagnostic ruling section I.2, requirement 16",
+      "origin": "Optional startup diagnostic integration",
       "reason": "Optional entries waiting for services are pending rather than failed. Assert the exact pending warning and absence of did not activate, retaining every required-startup failure and other optional-failure assertion.",
       "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"], "test": "optional startup dependency" }
     },
     {
       "id": "acp-built-profile-live-delta-content",
       "description": "Assert the complete built ACP reply by concatenating ordered live text deltas.",
-      "origin": "Approved ACP incremental projection requirement 19 and design section V.19d",
+      "origin": "ACP live incremental projection",
       "reason": "Live assistant updates no longer contain a complete reply in one chunk. Concatenate text deltas in notification order and compare the full original reply exactly, preserving turn completion, message identity, request count and disconnect-exit assertions.",
       "match": { "type": "test-assertion", "paths": ["apps/cli/tests/built-bin.e2e.ts"], "test": "runs a mock-backed ACP turn through the acp profile and exits on disconnect" }
     },
