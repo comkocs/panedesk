@@ -51,7 +51,7 @@ function stateKey(status: ResourceStatus, value: SubagentTreeData | undefined, c
  * @returns One toolbar button; it appears only inside an open session's header.
  */
 export function SubagentTreeAction({ sessionId, t, open }: SubagentTreeActionProps) {
-  return <Button variant="toolbar" className={css.pill} onClick={() => { open(sessionId) }}>
+  return <Button variant="toolbar" size="sm" className={css.pill} onClick={() => { open(sessionId) }}>
     <IconPanedeskSubagentTree />{t('title')}
   </Button>
 }

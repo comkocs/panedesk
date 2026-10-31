@@ -21,8 +21,8 @@ export function InboxPanel({ sessionId, useResource, t }: Props) {
     : inbox.status === 'failed' ? value ? 'failed' : 'error' : inbox.status === 'loading' ? 'loading'
       : !value ? 'idle' : !value.complete ? 'partial' : !value.items.length ? 'empty' : 'success'
   return <div className={css.entry}>
-    <Button variant="toolbar" onClick={() => { setReasons(false); setOpen(true) }}><IconPanedeskInbox />{t('title')}</Button>
-    {!!value?.quarantined.length && <span role="alert"><Button variant="toolbar" onClick={() => { setReasons(true); setOpen(true) }}>
+    <Button variant="toolbar" size="sm" onClick={() => { setReasons(false); setOpen(true) }}><IconPanedeskInbox />{t('title')}</Button>
+    {!!value?.quarantined.length && <span role="alert"><Button variant="toolbar" size="sm" onClick={() => { setReasons(true); setOpen(true) }}>
       {t('quarantine', { count: value.quarantined.length })}
     </Button></span>}
     <Modal open={open} onClose={() => { setOpen(false) }} title={t(reasons ? 'reasons' : 'title')} closeLabel={t('close')}>
