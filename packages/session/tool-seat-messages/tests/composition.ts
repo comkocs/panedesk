@@ -40,11 +40,12 @@ class Adapter extends LlmAdapter {
   }
 }
 
-export async function composition(seatAddressing?: boolean) {
-  const home = await mkdtemp(join(tmpdir(), 'seat-messages-'))
+export async function composition(seatAddressing?: boolean, options?: { nodeId: string; directory: string }) {
+  const nodeId = options?.nodeId ?? 'node-a'
+  const home = await mkdtemp(join(options?.directory ?? tmpdir(), 'seat-messages-'))
   const ctx = new Context()
   const windows: SeatMessageWindow[] = ['sender', 'busy', 'idle'].map(name => ({ seat: name,
-    sessionId: SessionId(name), nodeId: 'node-a' as SeatMessageWindow['nodeId'], primary: true }))
+    sessionId: SessionId(name), nodeId: nodeId as SeatMessageWindow['nodeId'], primary: true }))
   const read: SeatLocalReadAccess = {
     definitions: async () => ({ definitions: [], revision: 0, complete: true }),
     list: async () => ({ status: 'listed', sessions: [], unopenedSeats: [], complete: true, snapshotAt: new Date().toISOString() }),
@@ -63,7 +64,7 @@ export async function composition(seatAddressing?: boolean) {
       ...['sessions', 'projections', 'prompt', 'tools', 'llm', 'agents'].map(name => ({ name: `cordis:${name}` })),
       { name: 'cordis:persistence', config: { root: join(home, 'sessions'), compression: 'none' } },
       { name: 'cordis:ledger', config: { dshHome: home } }, { name: 'cordis:seats' },
-      { name: 'cordis:delivery', config: { dshHome: home, nodeId: 'node-a', maxRecordBytes: 1048576,
+      { name: 'cordis:delivery', config: { dshHome: home, nodeId, maxRecordBytes: 1048576,
         maxContentBytes: 4096, maxBatchSize: 100, lockTimeoutMs: 5000, lockRetryMs: 1, scanIntervalMs: 100,
         watch: false, ...(seatAddressing === undefined ? {} : { seatAddressing }) } },
       { name: 'cordis:loop', config: { agents: [] } }, { name: 'cordis:messages' },

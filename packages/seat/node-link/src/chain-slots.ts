@@ -24,7 +24,8 @@ export class ChainSlots {
    */
   run(value: unknown, dispatch: () => Promise<unknown>): Promise<unknown> {
     const control = object(value) && (value.type === 'hello' || value.type === 'receipt'
-      || value.type === 'delegation-evidence' || value.method === 'chain.operation' || value.method === 'source.checkAdmission')
+      || value.type === 'delegation-evidence' || value.type === 'message-delegation-evidence'
+      || value.method === 'chain.operation' || value.method === 'source.checkAdmission')
     if (this.stopped || (control ? this.control >= this.maxControl : this.business >= this.maxBusiness)) {
       return Promise.reject(new Error('Node chain dispatch capacity unavailable'))
     }

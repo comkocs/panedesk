@@ -14,6 +14,8 @@ import { ChainRuntime } from './chain-runtime.ts'
 import { ChainBusinessRegistry } from './chain-business.ts'
 import { decodeChainRequest, encodeChainFrame, isChainMethod } from './chain-codec.ts'
 import { helloCapability, helloRefusal, helloAdvertisement } from './chain-hello.ts'
+import { MessageEvidenceChannel } from './message-evidence.ts'
+import { ChainSlots } from './chain-slots.ts'
 
 /** Mount one explicitly configured peer; importing or mounting empty config performs no I/O.
  * @param ctx - Lifecycle and optional local execution/subprocess services.
@@ -59,6 +61,7 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
   let unlock: (() => Promise<void>) | undefined
   let stopped = false
   let chain: ChainRuntime | undefined
+  let slots: ChainSlots | undefined
   let probe: NodeJS.Timeout | undefined
   let probing: Promise<boolean> | undefined
   const ready = (async () => {
@@ -73,6 +76,9 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
     await store.load(); await outgoing.load()
     if (inactive()) return
     let credentialsReady = true
+    const messageEvidence = new MessageEvidenceChannel(options, () => outbound, () => ctx.get('nodeMessageEvidence'),
+      () => !stopped && credentialsReady && router?.isConnected() === true)
+    ctx.provide('nodeMessageEvidenceRemote', messageEvidence)
     const services = ctx.get('nodeWorkChain'), business = ctx.get('nodeWorkChainBusiness')
     if (services !== undefined) {
       if (!(business instanceof ChainBusinessRegistry)) throw new Error('Node chain registry unavailable')
@@ -125,6 +131,7 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
           digest({ method: request.method, payload: request.payload, principalId: request.delegation.principalId,
             seat: request.delegation.seat ?? null, sessionId: request.delegation.sessionId ?? null, taskIds: request.delegation.taskIds }))
       }
+      if (object(value) && value.type === 'message-delegation-evidence') return messageEvidence.receive(value)
       if (chain && object(value) && (value.type === 'delegation-evidence' || isChainMethod(value.method))) {
         const capability = chain.capability()
         if (!capability) throw new Error('Node chain capability unavailable')
@@ -136,9 +143,10 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
       }
       return receiver.receive(decodeRequest(value))
     }
+    const ingress = slots = chain?.slots ?? new ChainSlots(options.maxPending, options.maxPending)
     listener = await listenAuthenticatedLoopback(options.listenPort,
-      chain ? { ...options, maxPending: chain.slots.capacity() } : options, () => inbound,
-      (value, epoch) => chain ? chain.slots.run(value, () => dispatch(value, epoch)) : dispatch(value, epoch), {
+      { ...options, maxPending: ingress.capacity() }, () => inbound,
+      (value, epoch) => ingress.run(value, () => dispatch(value, epoch)), {
         forwardedHosts: options.forwardedHosts ?? [],
         rejected: (refusal) => {
           ctx.logger.warn(`${refusal.code} expectedPort=${refusal.expectedPort} actualPort=${refusal.actualPort ?? 'unknown'}`)
@@ -195,7 +203,7 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
       async () => {
         if (probe !== undefined) clearTimeout(probe)
         const chainClosed = chain?.close()
-        await drainRuntime([() => probing, () => chainClosed])
+        await drainRuntime([() => probing, () => chainClosed, () => slots?.close()])
       },
       () => tunnel?.close(),
       () => listener?.close(),
