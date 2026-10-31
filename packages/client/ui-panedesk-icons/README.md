@@ -76,7 +76,7 @@ No model calls are involved; no KV-cache impact.
 
 ## Known limitations and deferred work
 
-- **Glyphs unused until their lanes land** — the manifest covers every M8b-2 entry this package owns; the S13 sweep should re-check each entry still matches its landed surface before wider reuse.
+- **Glyphs unused until their lanes land** — the manifest covers every planned entry this package owns; the integration sweep should re-check each entry still matches its landed surface before wider reuse.
 - **Spacing tier is names, not CSS variables** — the theme owns no spacing variables, so consumers use `PANADESK_SPACE` values directly; promoting them into `ui-theme` is upstream work.
 
 <a id="dev-note"></a>

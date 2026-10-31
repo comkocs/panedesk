@@ -1,6 +1,6 @@
 /**
- * Monoline current-color glyphs for the Panedesk entry surfaces added in
- * M8b-2, drawn by this project (no third-party icon set is embedded, so no
+ * Monoline current-color glyphs for the Panedesk entry surfaces,
+ * drawn by this project (no third-party icon set is embedded, so no
  * THIRD_PARTY_NOTICES entry is required). All glyphs share one 24-unit
  * drawing grid, a 1.5-unit stroke, round caps and joins, and inherit their
  * color from `currentColor`; only the rendered size varies (16/20/24).

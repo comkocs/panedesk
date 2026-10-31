@@ -1,5 +1,5 @@
 /**
- * The Panedesk design-token table for the M8b-2 entry surfaces. Color, font,
+ * The Panedesk design-token table for the Panedesk entry surfaces. Color, font,
  * and radius entries are references to upstream DSH theme variables — the
  * table records which upstream token each new surface consumes, it does not
  * mint color values. Spacing is the one genuinely new tier: the upstream
