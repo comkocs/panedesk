@@ -133,7 +133,7 @@ export class EngineJournal {
         }
       }
       for (const [id, delivery] of projection.callbacks) {
-        if (delivery.phase === 'retry-due' && delivery.retrySummary) projection.callbacks.set(id, {
+        if ((delivery.phase === 'retry-due' || delivery.responseClass === 'unknown') && delivery.retrySummary) projection.callbacks.set(id, {
           ...delivery, retrySummary: { ...delivery.retrySummary, attemptsAtLeast: true },
         })
       }

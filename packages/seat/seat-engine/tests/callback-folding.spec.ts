@@ -18,6 +18,107 @@ async function fixture() {
   const current = () => h.engine.journal.projection.callbacks.get(body.callback.callbackId)!
   return { ...h, sources, body, current }
 }
+test('keeps unflushed observations separate from the committed callback projection', async () => {
+  const h = await fixture()
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => unavailable())
+  cleanups.push(() => outbox.close())
+  await outbox.deliver()
+  const committed = structuredClone(h.current())
+  vi.setSystemTime(1000001); await outbox.deliver()
+  expect(h.current()).toEqual(committed)
+})
+
+test('retains the complete summary after one failure followed by success', async () => {
+  const h = await fixture(); let success = false
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => success
+    ? { result: { status: 'committed', callbackId: h.body.callback.callbackId, payloadDigest: h.body.payloadDigest } }
+    : unavailable())
+  cleanups.push(() => outbox.close())
+  await outbox.deliver(); success = true; vi.setSystemTime(1000001); await outbox.deliver()
+  expect(h.current()).toMatchObject({ phase: 'delivered', retrySummary: { count: 1,
+    firstAttemptAt: new Date(1000000).toISOString(), lastAttemptAt: new Date(1000000).toISOString(),
+    lastDiagnostic: { cause: { code: 'unavailable' } } } })
+})
+
+test('preserves an observation updated while its older fold is appending', async () => {
+  const h = await fixture()
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => unavailable())
+  cleanups.push(() => outbox.close())
+  await outbox.deliver(); vi.setSystemTime(1000001); await outbox.deliver()
+  const entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+  const append = h.engine.journal['append'].bind(h.engine.journal)
+  Object.defineProperty(h.engine.journal, 'append', { configurable: true, value: async (...args: Parameters<typeof append>) => {
+    entered.resolve(undefined); await release.promise; await append(...args)
+  } })
+  const folding = outbox.flush()
+  await entered.promise
+  vi.setSystemTime(1000002); await outbox.deliver()
+  expect(h.current().attempt).toBe(1)
+  release.resolve(undefined); await folding; Object.defineProperty(h.engine.journal, 'append', { configurable: true, value: append })
+  expect(h.current().attempt).toBe(2)
+  expect(outbox.observations()[0]?.attempt).toBe(3)
+  await outbox.flush()
+  expect(h.current().attempt).toBe(3)
+})
+
+test.each([false, true])('retains an in-flight result after its input observation is folded: success=%s', async (success) => {
+  const h = await fixture(), entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+  let calls = 0
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => {
+    if (++calls === 3) { entered.resolve(undefined); await release.promise }
+    return success && calls === 3
+      ? { result: { status: 'committed', callbackId: h.body.callback.callbackId, payloadDigest: h.body.payloadDigest } }
+      : unavailable()
+  })
+  cleanups.push(() => outbox.close())
+  await outbox.deliver(); vi.setSystemTime(1000001); await outbox.deliver()
+  const appending = Promise.withResolvers<undefined>(), appendRelease = Promise.withResolvers<undefined>()
+  const append = h.engine.journal['append'].bind(h.engine.journal)
+  Object.defineProperty(h.engine.journal, 'append', { configurable: true, value: async (...args: Parameters<typeof append>) => {
+    appending.resolve(undefined); await appendRelease.promise; await append(...args)
+  } })
+  const folding = outbox.flush(); await appending.promise
+  vi.setSystemTime(1000002); const attempt = outbox.deliver(); await entered.promise
+  appendRelease.resolve(undefined); await folding; Object.defineProperty(h.engine.journal, 'append', { configurable: true, value: append })
+  expect(h.current().attempt).toBe(2)
+  release.resolve(undefined); await attempt; await outbox.flush()
+  expect(h.current()).toMatchObject({ attempt: 3, phase: success ? 'delivered' : 'retry-due',
+    retrySummary: { count: success ? 2 : 3 } })
+})
+
+test('competing folds append the same buffer version only once', async () => {
+  const h = await fixture()
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => unavailable())
+  cleanups.push(() => outbox.close())
+  await outbox.deliver(); vi.setSystemTime(1000001); await outbox.deliver()
+  const before = h.engine.journal.projection.sequence
+  await Promise.all([outbox.flush(), outbox.flush()])
+  expect(h.engine.journal.projection.sequence - before).toBe(1)
+  expect(h.current().retrySummary?.count).toBe(2)
+})
+
+test('close drains an accepted failure and refuses new attempts during its fold', async () => {
+  const h = await fixture(), entered = Promise.withResolvers<undefined>(), release = Promise.withResolvers<undefined>()
+  let calls = 0
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => {
+    if (++calls === 2) { entered.resolve(undefined); await release.promise }
+    return unavailable()
+  })
+  await outbox.deliver(); vi.setSystemTime(1000001)
+  const accepted = outbox.deliver(); await entered.promise
+  const closing = outbox.close(), refused = outbox.deliver()
+  expect(refused).toBe(closing)
+  release.resolve(undefined); await Promise.all([accepted, closing, refused])
+  expect(calls).toBe(2)
+  expect(h.current().retrySummary?.count).toBe(2)
+})
+
 function unavailable(): T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult> {
   return { result: { status: 'rejected', error: { code: 'unavailable', message: 'Transport unavailable',
     alternative: 'Retry the original callback', retryable: true, effectState: 'none' } } }

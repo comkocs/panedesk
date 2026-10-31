@@ -60,14 +60,17 @@ async function bounded<R>(work: () => Promise<R>, milliseconds: number): Promise
  * @param ctx - Explicit composition service store.
  * @param engine - Durable callback owner.
  * @param body - Original persisted delivery, never rebuilt from current model settings.
+ * @param observation - Controller-owned completed attempt; absent after recovery or outside an outbox.
  * @returns Exact owner completion or a conservative failure with one bounded observation.
  */
 export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
-  body: T.DeliverSourceCallbackRequest): Promise<CallbackAttempt> {
+  body: T.DeliverSourceCallbackRequest, observation?: T.SeatCallbackDelivery): Promise<CallbackAttempt> {
   const pending: T.DeliverSourceCallbackResult = { status: 'pending', callbackId: body.callback.callbackId,
     payloadDigest: body.payloadDigest }
   const retained = engine.journal.projection.callbacks.get(body.callback.callbackId)
-  const uncertain = retained?.responseClass === 'unknown'
+  const observed = observation?.nodeWorkChain && canonical(observation.nodeWorkChain) === canonical(body)
+    && observation.attempt >= (retained?.attempt ?? 0) ? observation : retained
+  const uncertain = observed?.responseClass === 'unknown'
   const unknown = (diagnostic?: T.SeatCallbackDiagnostic): CallbackAttempt => ({
     ...callbackFailure(body, 'retained', 'Callback owner outcome is unknown', 'unavailable', 'unknown', 'outcome-unknown'),
     ...(diagnostic ? { diagnostic } : {}),
@@ -174,7 +177,8 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
       const settled = result.result
       if (settled.status !== 'rejected' && settled.callbackId === body.callback.callbackId
         && settled.payloadDigest === body.payloadDigest) {
-        if (!barrier || settled.status === 'committed' || settled.status === 'paused') {
+        if (!barrier || settled.status === 'committed' || settled.status === 'paused'
+          || settled.pendingReason === 'desk-unreachable') {
           return callbackObservation(body,
             { result: settled, ...(attempt.diagnostic ? { diagnostic: attempt.diagnostic } : {}) }, queryStage)
         }
@@ -192,8 +196,11 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
   // Durable uncertainty precedes any business call, including calls into a same-process owner.
   await engine.journal.commit((view) => {
     const delivery = view.callbacks.get(body.callback.callbackId)
-    return delivery ? [fact({ kind: 'callback/attempted', operationId: key.operationId,
-      data: { ...delivery, responseClass: 'unknown' } })] : []
+    return delivery && delivery.responseClass !== 'unknown' ? [fact({ kind: 'callback/attempted', operationId: key.operationId,
+      data: { ...delivery, responseClass: 'unknown', retrySummary: delivery.retrySummary ?? {
+        count: 0, firstAttemptAt: new Date().toISOString(), lastAttemptAt: new Date().toISOString(),
+        transientSince: null, attemptsAtLeast: true,
+      } } })] : []
   })
   let sent: CallbackAttempt
   try { sent = await bounded(deliver, engine.options.config.callbackTimeoutMs) }

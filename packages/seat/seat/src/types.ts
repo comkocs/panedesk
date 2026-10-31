@@ -758,6 +758,7 @@ export interface SeatCallbackDelivery {
   lastDiagnostic?: SeatCallbackDiagnostic
   /** Optional folded failures; absence preserves the legacy one-frame-per-attempt format. */
   retrySummary?: {
+    /** Completed failures; zero denotes a send-ahead barrier with no completed observation. */
     count: number
     firstAttemptAt: SeatTimestamp
     lastAttemptAt: SeatTimestamp

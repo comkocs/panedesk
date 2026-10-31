@@ -155,7 +155,7 @@ export function validCallbackDiagnostic(value: unknown): value is SeatCallbackDi
 }
 const callback = fields({ lastDiagnostic: optional(validCallbackDiagnostic),
   ownerPending: optional(boolean), parkingClass: optional(one('owner-unconfirmed', 'transport-transient')),
-  retrySummary: optional(fields({ count: positive, firstAttemptAt: timestamp, lastAttemptAt: timestamp,
+  retrySummary: optional(fields({ count: integer, firstAttemptAt: timestamp, lastAttemptAt: timestamp,
     lastDiagnostic: optional(validCallbackDiagnostic), attemptsAtLeast: optional(boolean), transientSince: nullable(timestamp) })),
   payload: value => callbackPayload(value) && callbackKind(value), payloadDigest: id,
   attempt: integer, phase: one('pending', 'retry-due', 'paused', 'delivered', 'abandoned'), nextDue: nullable(timestamp),

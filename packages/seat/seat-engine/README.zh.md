@@ -89,7 +89,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 节点批量保留相互独立的成员决策。每个 `node-batch/accepted` 事实要求 `node-work-chain/v1`，在同帧将原批载荷及签发授权绑定到唯一确定性成员动作。恢复拒绝不匹配的绑定并返回首次排队回执；后续成员中断不回滚已提交的前序成员。不签发新的本地凭证。
 
-路由尝试失败时保留可选外层 `lastDiagnostic`；首次失败及后续折叠或终态交付将它在同次日志提交中持久保存，不改变回调正文或业务摘要。八个阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`。原因标识匹配 `[A-Za-z0-9][A-Za-z0-9._/-]{0,127}`；说明非空、最多 512 个 UTF-8 字节且不含控制字符。不复制异常文本。完整决策帧仍受 `maxDecisionBytes` 约束，不截断；未知态写入失败禁止派发，诊断写入失败不能清除已保留的 unknown。成功只移除最新诊断，历史尝试不变；旧记录不补默认字段。既有 `engine.query` 按嵌套席位、关联任务和主任务过滤回调效果，保留有界分页和授权。操作身份冲突暂停而非重试。本地操作员通过 `engine.callbackResolve` 处置暂停的回调。可选观察本身不能作为部署降级依据：已保留的新方法证据仍要求兼容读取器。
+路由尝试失败时保留可选外层 `lastDiagnostic`；折叠或终态交付持久保存最新观察，不改变回调正文或业务摘要。八个阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`。原因标识匹配 `[A-Za-z0-9][A-Za-z0-9._/-]{0,127}`；说明非空、最多 512 个 UTF-8 字节且不含控制字符。不复制异常文本。完整决策帧仍受 `maxDecisionBytes` 约束，不截断；未知态写入失败禁止派发，诊断写入失败不能清除已保留的 unknown。成功只移除最新诊断，历史尝试不变；旧记录不补默认字段。既有 `engine.query` 按嵌套席位、关联任务和主任务过滤回调效果，保留有界分页和授权。操作身份冲突暂停而非重试。本地操作员通过 `engine.callbackResolve` 处置暂停的回调。可选观察本身不能作为部署降级依据：已保留的新方法证据仍要求兼容读取器。
 
 路由回调在首次持久发布前冻结执行节点模型证据。已注册本地执行器提供记录中的模型或明确缺失证据；缺失时绝不退回档案配置。重放保留原证据与摘要，包括缺失观察。日志准入拒绝不一致的回调摘要、执行身份及替换已冻结证据的尝试。
 
@@ -104,7 +104,11 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 <a id="callback-parking-and-operator-resolution"></a>
 ### 回调停车与操作员处置
 
-首次失败立即持久化；路由业务派发仍提交发前未知屏障，这些安全帧不折叠。后续已完成重试由发件箱在内存累计；送达、停车、放弃或正常退出时，在既有回调事件写一帧折叠摘要。可选 `retrySummary` 保留失败次数、首末尝试时刻、最近安全细因与连续传输暂态起点。恢复中的重试次数以 `attemptsAtLeast` 标为下界，崩溃可能丢失尚未刷盘的尝试。旧帧仍可读。owner pending 与最终 unknown 中断传输计时；可选 `ownerPending` 区分正常进展而不改旧响应类别联合，`parkingClass` 区分 `owner-unconfirmed` 与 `transport-transient`，旧码继续有效。不改变正文摘要、wire 方法或会话格式版本。成对升级前停止准入并保留双方持久域；含折叠历史的活动域不得降级到不认折叠计时的实现。
+首次本地失败立即持久化。路由派发对同一原回调、完整业务键及冻结目标持久保存一个发前 unknown 屏障；目标按原键去重，后续已确认无效果的重试可复用该屏障。已完成重试与已提交回调投影分开累计。刷盘使用版本比较，保留追加期间到来的新观察；送达、停车、放弃或正常退出时折叠摘要并了结屏障。正常关闭排空已受理投递并拒绝新工作。一串重试只需一个起始帧和一个折叠帧，不逐次写帧。
+
+可选 `retrySummary` 保留失败次数、首末尝试时刻、最近安全细因及连续传输起点，一次失败后成功也保留摘要。新屏障在尝试完成前计数为零；此时时刻表示屏障，而非已完成失败。恢复以 `attemptsAtLeast` 标记计数下界，并先按原键查询 owner 再结算；未刷盘观察可能丢失。旧帧仍可读，但要求摘要计数为正的旧读取器不能读取零计数屏障。成对升级前停止准入并保留双方持久域，不得降级活动历史。正文摘要、wire 方法和会话格式版本不变。
+
+owner pending 回执（含 `desk-unreachable`）与最终 unknown 中断传输计时。可选 `ownerPending` 区分正常进展而不改旧响应类别联合；`parkingClass` 区分 `owner-unconfirmed` 与 `transport-transient`，旧码继续有效。来源侧台面恢复可通过正常回执轮询完成，无需 worker 停车或人工动作；owner 到限或终局拒绝仍显示人工出口。
 
 本机来源缺席且在进入适配器前被拒绝时，若此前每次尝试也均已确认无效果，则持久保存 `lastDiagnostic.stage=retained` 与 `effectState=none`。反复缺源不会把该证据变成未知；随后明确无效果的认证拒绝仍仅影响该回调。先前部分、已提交、未知或缺失的效果证据继续保守保留，来源缺席和重启也不例外。本机来源异常使用 `lastDiagnostic.stage=local-dispatch`，固定 `cause.code` 为 `callback-unclassified-error`、`callback-timeout`、`callback-authentication-failed` 或 `callback-protocol-error`。不保存异常消息、堆栈或嵌套原因；未分类异常与超时保守报告副作用未知。关联标识先取持久路由操作号，再取开窗操作号，否则以 `callback/` 拼接规范化回调标识的 SHA-256 摘要；无会话回调也使用此规则。
 
