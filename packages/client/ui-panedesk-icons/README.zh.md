@@ -5,12 +5,12 @@ kind: "package-library"
 
 # @panedesk/dsh-client-ui-panedesk-icons
 
+[English](README.md) | 中文
+
 <a id="summary"></a>
 ## 概述
 
 Panedesk 新入口的静态图标与令牌库:自绘单线 glyph 集(16/20/24、currentColor)、应用图标,以及登记新面板所用上游 DSH 主题变量与唯一新增间距档的设计令牌表。
-
-[English](README.md) | 中文
 
 ## 目录
 
@@ -84,7 +84,7 @@ Panedesk 新入口的静态图标与令牌库:自绘单线 glyph 集(16/20/24、
 <a id="what-the-model-sees"></a>
 #### 模型可见内容
 
-本包不改任何模型输入或输出。
+渲染 `PANEDESK_GLYPHS` 不改任何模型输入或输出。
 
 <a id="token-effect"></a>
 #### Token 影响

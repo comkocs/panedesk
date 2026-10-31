@@ -38,7 +38,7 @@ kind: "package-reference"
 <a id="what-the-model-sees"></a>
 #### 模型可见内容
 
-不增加工具、提示词或会话消息。
+`ui-inbox` 插件不增加工具、提示词或会话消息。
 
 <a id="token-effect"></a>
 #### Token 影响

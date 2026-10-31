@@ -5,11 +5,11 @@ kind: "package-library"
 
 # @panedesk/dsh-client-ui-panedesk-icons
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 Static icon and token library for the Panedesk entry surfaces: the self-drawn monoline glyph set (16/20/24, currentColor), the application mark, and the design-token table that records which upstream DSH theme variables the new panels consume plus the one new spacing tier.
-
-English | [中文](README.zh.md)
 
 ## Table of Contents
 
@@ -75,7 +75,7 @@ One shared `Glyph` frame keeps the stroke, joins, caps, and decorative role (`ar
 
 #### What the model sees
 
-This package changes no model input or output.
+Rendering `PANEDESK_GLYPHS` changes no model input or output.
 
 #### Token effect
 

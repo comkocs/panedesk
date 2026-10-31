@@ -5,11 +5,11 @@ kind: "package-reference"
 
 # @panedesk/dsh-host-bash-setup
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 First-run Git Bash discovery Remote: it probes the common Windows install locations and commits the user-confirmed product selection that the base profiles gate their Bash and PowerShell rows on.
-
-English | [中文](README.zh.md)
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ The gateway owns no state: every call re-reads the config file and the probe can
 
 #### What the model sees
 
-This package changes no model inputs or outputs.
+The `bashSetup` Remote methods change no model inputs or outputs.
 
 #### Token effect
 

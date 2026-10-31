@@ -5,11 +5,11 @@ kind: "package-reference"
 
 # @panedesk/dsh-client-ui-settings-bash
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 Settings General row that probes the Windows Git Bash installation through the Host and commits the confirmed selection in one click, with bilingual install instructions when nothing is found.
-
-English | [中文](README.zh.md)
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ The row holds one asynchronous view with three settled outcomes — probe hit, n
 
 #### What the model sees
 
-This package changes no model input or output.
+The `settings.general.item` row changes no model input or output.
 
 #### Token effect
 

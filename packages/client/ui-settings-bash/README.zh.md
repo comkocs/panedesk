@@ -5,12 +5,12 @@ kind: "package-reference"
 
 # @panedesk/dsh-client-ui-settings-bash
 
+[English](README.md) | 中文
+
 <a id="summary"></a>
 ## 概述
 
 设置通用行:经宿主探测 Windows 的 Git Bash 安装,确认后一键提交选择;找不到时给中英安装说明。
-
-[English](README.md) | 中文
 
 ## 目录
 
@@ -57,7 +57,7 @@ kind: "package-reference"
 <a id="what-the-model-sees"></a>
 #### 模型可见内容
 
-本包不改任何模型输入或输出。
+`settings.general.item` 设置行不改任何模型输入或输出。
 
 <a id="token-effect"></a>
 #### Token 影响

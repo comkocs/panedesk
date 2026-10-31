@@ -32,7 +32,7 @@ The panel distinguishes default, loading, empty, error, unauthorized, disabled, 
 
 #### What the model sees
 
-No tools, prompts or Session messages are added.
+The `ui-inbox` plugin adds no tools, prompts or Session messages.
 
 #### Token effect
 
