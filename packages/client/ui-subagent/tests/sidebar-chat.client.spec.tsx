@@ -7,7 +7,9 @@ import type {
   ISessions, SessionListState, SessionReference, SessionSnapshot,
 } from '@panedesk/dsh-api-session-controller/client'
 import type { ResourceProvider } from '@panedesk/dsh-client-resources/client'
-import { sessionSnapshot } from '@panedesk/dsh-client-test-runtime'
+import { conversationSnapshot, sessionSnapshot } from '@panedesk/dsh-client-test-runtime'
+import { EmbeddedConversation } from '../../ui-conversation/src/client/skeleton/EmbeddedConversation.tsx'
+import type { PropsRenderFactories } from '@panedesk/dsh-client-ui-slots'
 import type { ConversationViewsProps } from '@panedesk/dsh-client-ui-conversation/client'
 import type { SidebarRightTabDefinition } from '@panedesk/dsh-client-ui-sidebar-right/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -203,21 +205,28 @@ describe('Sidebar chat components', () => {
     },
   ])('derives the $name embedded phase and fixes the local view to Chat', ({ session: patch, summaryBlank, expected }) => {
     const snapshot = { ...sessionSnapshot(CHILD), ...patch } as SessionSnapshot
-    const renderFactorySlot = vi.fn(() => null)
-    render(<ConversationSlotPanel {...({
+    const calls: Parameters<PropsRenderFactories['renderFactorySlot']>[] = []
+    const renderFactorySlot: PropsRenderFactories['renderFactorySlot'] = (name, owner, options) => {
+      if (name === 'conversation.embedded') return <EmbeddedConversation {...props as Parameters<typeof EmbeddedConversation>[0]} />
+      calls.push([name, owner, options])
+      return null
+    }
+    const props = {
       sessionId: CHILD,
-      useSession: (select: (value: SessionSnapshot) => unknown) => select(snapshot),
-      useConversation: (select: (value: { activeTargets: ReadonlySet<string> }) => unknown) => select({ activeTargets: new Set() }),
-      useSessions: (select: (value: SessionListState) => unknown) => select({
+      useSession: select => select(snapshot),
+      useConversation: select => select(conversationSnapshot()),
+      useSessions: select => select({
         ids: [], byId: { [CHILD]: { blank: summaryBlank } }, phase: 'ready', projectionsBySession: {}, jobsBySession: {},
-      } as unknown as SessionListState),
+      } as SessionListState),
       renderFactorySlot,
-    } as unknown as Parameters<typeof ConversationSlotPanel>[0])} />)
-    expect(renderFactorySlot).toHaveBeenCalledWith(
-      'conversation.content',
-      { variant: 'embedded', ...expected },
-      { slots: { views: FixedChatConversationView } },
-    )
+    } satisfies Pick<Parameters<typeof ConversationSlotPanel>[0], 'sessionId' | 'useSession' | 'useConversation' | 'useSessions' | 'renderFactorySlot'>
+    render(<ConversationSlotPanel {...props as Parameters<typeof ConversationSlotPanel>[0]} />)
+    expect(calls[0]?.slice(0, 2)).toEqual(['conversation.content', { variant: 'embedded', ...expected }])
+    expect(calls).toHaveLength(1)
+    const views = calls[0]?.[2]?.slots as { views: (props: ConversationViewsProps) => ReactNode }
+    const renderSlot = vi.fn(() => null)
+    render(views.views({ renderSlot } as ConversationViewsProps))
+    expect(renderSlot).toHaveBeenCalledWith('conversation.session', { view: 'chat' })
   })
 
   it('routes the fixed local view through the ordinary Conversation Session slot', () => {

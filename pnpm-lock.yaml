@@ -4874,6 +4874,9 @@ importers:
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -5904,6 +5907,9 @@ importers:
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~

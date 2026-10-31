@@ -303,6 +303,10 @@ declare module '@panedesk/dsh-client-ui-slots' {
   }
 
   interface SlotFactoryMap {
+    /** Embedded conversation with phase selection owned by the conversation plugin. */
+    'conversation.embedded': {
+      scope: 'session'
+    }
     /** Reusable Conversation content instantiated by presentation hosts. */
     'conversation.content': {
       scope: 'session-maybe'

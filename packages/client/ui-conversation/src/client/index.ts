@@ -48,7 +48,6 @@ export type {
   ConversationViewSnapshotMap, ConversationViewSnapshotStore, StepLocation, TurnLocation,
 } from './contract/conversation.ts'
 export { EMPTY_CONVERSATION_SNAPSHOT, conversationPhase, embeddedConversationPhase } from './contract/snapshot.ts'
-export { EmbeddedConversation } from './skeleton/EmbeddedConversation.tsx'
 export type { EmbeddedConversationFacts, EmbeddedConversationPhase } from './contract/snapshot.ts'
 export type {
   ConversationPhase, ConversationSnapshot,

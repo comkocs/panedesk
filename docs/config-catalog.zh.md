@@ -573,6 +573,26 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-inbox -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-nodes -->
+<a id="panedeskdsh-client-ui-nodes"></a>
+
+## `@panedesk/dsh-client-ui-nodes`
+
+- `source`: [`packages/client/ui-nodes/src/index.ts:13`](../packages/client/ui-nodes/src/index.ts)
+
+```ts config-catalog
+/** Availability and polling are deployment configuration, not client-owned authority. */
+export interface Config {
+  /** Whether authenticated owners can read observations and submit confirmed operations. */
+  enabled: boolean
+  /** Polling interval in milliseconds returned to browser observation consumers. */
+  refreshIntervalMs: number
+  /** Maximum callback and source-operation rows requested from each provider. */
+  pageSize: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-nodes -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-plugin-manager -->
 <a id="panedeskdsh-client-ui-plugin-manager"></a>
 
@@ -1709,7 +1729,7 @@ export interface Config {
 
 ## `@panedesk/dsh-host-admin`
 
-- `source`: [`packages/host/host-admin/src/index.ts:162`](../packages/host/host-admin/src/index.ts)
+- `source`: [`packages/host/host-admin/src/index.ts:166`](../packages/host/host-admin/src/index.ts)
 
 ```ts config-catalog
 /** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
@@ -2682,7 +2702,7 @@ export interface Config {
 
 ## `@panedesk/dsh-node-link`
 
-- `source`: [`packages/seat/node-link/src/index.ts:184`](../packages/seat/node-link/src/index.ts)
+- `source`: [`packages/seat/node-link/src/index.ts:197`](../packages/seat/node-link/src/index.ts)
 
 ```ts config-catalog
 /** Omission preserves the empty plugin's no-I/O behavior. */

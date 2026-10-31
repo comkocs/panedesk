@@ -1,34 +1,28 @@
-/** Shared body of an embedded conversation occurrence. Each host supplies its blank flag and view. */
+/** Shared embedded conversation rendered through its owning plugin's factory. */
 import type { ReactNode } from 'react'
-import type { FactoryLocalComponent, PropsRenderFactories } from '@panedesk/dsh-client-ui-slots'
+import type { FactoryComponentPropsOf } from '@panedesk/dsh-client-ui-slots'
+import type { ConversationViewsProps } from '../contract/slots.ts'
 import { embeddedConversationPhase } from '../contract/snapshot.ts'
 
-type SessionFact = Parameters<typeof embeddedConversationPhase>[0]
-type ConversationFact = Parameters<typeof embeddedConversationPhase>[1]
-
-/** Subscribed facts and the view component the host owns. */
-interface EmbeddedConversationProps {
-  useSession: (select: (value: SessionFact) => SessionFact) => SessionFact
-  useConversation: (select: (value: ConversationFact) => ConversationFact) => ConversationFact
-  summaryBlank: boolean | undefined
-  renderFactorySlot: PropsRenderFactories['renderFactorySlot']
-  views: FactoryLocalComponent<'conversation.content', 'views'>
+function ChatViews(props: ConversationViewsProps) {
+  return <>{props.renderSlot('conversation.session', { view: 'chat' })}</>
 }
 
 /**
- * Render one embedded conversation through the shared factory.
- * @param props - the host's session hooks, blank flag, and view component.
- * @returns the factory occurrence, including its composer.
+ * Render one embedded conversation with framework-bound session facts.
+ * @param props - Factory scope and renderer capabilities.
+ * @returns The shared content occurrence, including its composer.
  */
 export function EmbeddedConversation({
-  useSession, useConversation, summaryBlank, renderFactorySlot, views,
-}: EmbeddedConversationProps): ReactNode {
+  sessionId, useSession, useConversation, useSessions, renderFactorySlot,
+}: FactoryComponentPropsOf<'conversation.embedded'>): ReactNode {
   const session = useSession(value => value)
   const conversation = useConversation(value => value)
+  const summaryBlank = useSessions(state => state.byId[sessionId]?.blank)
   const phase = embeddedConversationPhase(session, conversation, { summaryBlank })
   return renderFactorySlot(
     'conversation.content',
     { variant: 'embedded', phase, hero: phase === 'hero' },
-    { slots: { views } },
+    { slots: { views: ChatViews } },
   )
 }

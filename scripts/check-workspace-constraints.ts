@@ -208,6 +208,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@panedesk/dsh-client-ui-theme': ['lib/styles'],
   // The physical-key protocol is a public entry usable without the browser service.
   '@panedesk/dsh-client-shortcuts': ['lib/protocol.js'],
+  // Resource providers share an abortable delay without importing the plugin entry.
+  '@panedesk/dsh-client-resources': ['lib/polling.js'],
   // The CPython side ships as source .py files, published as-is rather than built.
   '@panedesk/dsh-experimental-ptc-runtime-python': ['py/**/*.py'],
   '@panedesk/dsh-experimental-speech-to-text-sensevoice': ['runtime/assets.json'],

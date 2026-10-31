@@ -6,6 +6,7 @@ import { conversationSnapshot, sessionSnapshot } from '@panedesk/dsh-client-test
 import type {} from '../src/client/index.ts'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import { SessionConversation, type SessionConversationProps } from '../src/client/conversation.tsx'
+import { EmbeddedConversation } from '../../ui-conversation/src/client/skeleton/EmbeddedConversation.tsx'
 
 afterEach(cleanup)
 
@@ -22,6 +23,7 @@ it.each([
   const conversation = conversationSnapshot()
   const calls: Parameters<SessionConversationProps['renderFactorySlot']>[] = []
   const renderFactorySlot: SessionConversationProps['renderFactorySlot'] = (key, owner, options) => {
+    if (key === 'conversation.embedded') return <EmbeddedConversation {...props as Parameters<typeof EmbeddedConversation>[0]} />
     calls.push([key, owner, options])
     return null
   }

@@ -7,6 +7,8 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_client_ui_nodes["client-ui-nodes"]
+  svc_nodes["ctx.nodes<br/>Owner node observations and operations"]
   pkg_client_ui_inbox["client-ui-inbox"]
   svc_inbox["ctx.inbox<br/>Owner received-message observations"]
   pkg_client_ui_seat_approvals["client-ui-seat-approvals"]
@@ -406,6 +408,7 @@ flowchart LR
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
   pkg_client_ui_inbox --> svc_inbox
+  pkg_client_ui_nodes --> svc_nodes
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
   pkg_client_ui_seat_profiles --> svc_seatProfiles
@@ -842,6 +845,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.nodes` | `service` | [`client-ui-nodes`](../packages/client/ui-nodes) | - | - | - | Reads bounded node and live callback observations and forwards confirmed actions through existing local-operator authorization. |
 | `ctx.inbox` | `service` | [`client-ui-inbox`](../packages/client/ui-inbox) | - | - | - | Reads exact receiving-session metadata and verified mailbox isolation without message mutations. |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine. |
 | `ctx.subagentTree` | `service` | [`client-ui-subagent-tree`](../packages/client/ui-subagent-tree) | - | - | - | Projects one session subagent tree from ledger parent-child facts with per-node monitoring and transcript-derived model ids to authenticated owners. |

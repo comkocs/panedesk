@@ -85,6 +85,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   hostAdmin: 'seat.md',
   hostAdminExecutor: 'seat.md',
   hostAdminSourceOperator: 'seat.md',
+  nodes: 'seat.md',
   hostSdkInvoker: 'seat.md',
   hostSessionCredentials: 'seat.md',
   sdkMethods: 'extensions.md',
@@ -230,6 +231,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  hostAdminNodeHealth: 'optional process-local peer observation provider — packages/host/host-admin/README.md owns bounded events and health evidence',
   windowsBashConfig: 'not a service: boot-provided optional config accessor for Loader expressions — packages/host/host-bash-setup/README.md owns confirmed selection and restart semantics',
   projectOpening: 'feature-local owner-only remote preference service — packages/client/ui-project-onboarding/README.md owns selection and compensation semantics',
   hostAdminTransport: 'optional host-owned tunnel rebuild capability — packages/host/host-admin/README.md owns operator authentication and transport lifetime',
@@ -368,6 +370,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   'GateResult': 'seat.md',
   'HostAdminAuthority': 'seat.md',
   'HostAdminGrant': 'seat.md',
+  'NodeHealthView': 'seat.md',
   'SourceOperatorItem': 'seat.md',
   'SourceOperatorResult': 'seat.md',
   'SourceOperatorWriteParams': 'seat.md',
@@ -1249,6 +1252,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   RemoteAccessBaseline: 'access snapshot frames are owned by packages/api/remote-access/README.md',
   ConnectionIndexRequest: 'frontend authentication request is owned by packages/client/connection/src/rpc.ts',
   ConnectionIndexResponse: 'frontend authentication response is owned by packages/client/connection/src/rpc.ts',
+  NodeAction: 'node operation requests are owned by packages/client/ui-nodes/src/types.ts',
+  NodeActionResult: 'node operation results are owned by packages/client/ui-nodes/src/types.ts',
   SubagentTreeRequest: 'tree read request is owned by packages/client/ui-subagent-tree/src/types.ts',
   SubagentTreeView: 'tree and monitoring view is owned by packages/client/ui-subagent-tree/src/types.ts',
   Profile: 'resolved profile layers are owned by packages/boot/app-boot/README.md',

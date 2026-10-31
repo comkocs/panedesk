@@ -2097,6 +2097,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'nodes',
+    summary: 'The browser cannot supply a principal, grant, host epoch or arbitrary administrative method.',
+    description: 'The browser cannot supply a principal, grant, host epoch or arbitrary administrative method.',
+    methods: [
+      {
+        signature: '@Remote async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number }>',
+        description: 'Read installed node and live callback providers without starting an engine or sending work.',
+        parameters: [],
+        returns: 'Current provider observations and the configured polling interval.',
+      },
+      {
+        signature: '@Remote act(action: NodeAction): Promise<NodeActionResult>',
+        description: 'Execute one explicitly confirmed action under the authenticated owner\'s existing local-operator path.',
+        parameters: [{ name: 'action', description: 'Fixed local tunnel, callback resolution or source-owner action.' }],
+        returns: 'Provider refusal, uncertainty or committed evidence; a transport failure is never success.',
+      },
+    ],
+  },
+  {
     key: 'nodeWorkChain',
     summary: 'Explicit composition supplies every security and local-admission dependency.',
     description: 'Explicit composition supplies every security and local-admission dependency.',
@@ -2937,6 +2956,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Admit a manual opening through the same resource transaction as automatic triggers.',
         parameters: [{ name: 'request', description: 'authenticated operation and already frozen opening data.' }],
         returns: 'durable opening outcome; absence means this provider cannot admit local openings.',
+      },
+      {
+        signature: 'callbackObservations?: (request: { limit: number; phase?: T.SeatCallbackDelivery[\'phase\'] }) => Promise<{ items: readonly T.SeatCallbackDelivery[]; complete: boolean }>',
+        description: 'Read current callback observations, including process-local folded retries, without dispatch.',
+        parameters: [{ name: 'request', description: 'Maximum records and optional phase filter, applied before limiting; completeness covers matching observations.' }],
+        returns: 'Detached live observations; absence means this provider has no callback observation capability.',
       },
       {
         signature: 'callbackResolve?: (request: T.CallbackResolveRequest, grant: import(\'./authorization.ts\').SeatAuthorizationGrant) => Promise<T.CallbackResolveResult>',
@@ -8311,7 +8336,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostAdminMethods',
-    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'node.rebuild\': {\n        request: Record<string, never>;\n        result: {\n            status: \'rebuilt\' | \'unavailable\';\n        };\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.callbackResolve\': {\n        request: HostAdminCallbackResolveRequest;\n        result: HostAdminCallbackResolveResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
+    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'node.rebuild\': {\n        request: {\n            peerNodeId?: Seat.SeatNodeId;\n        };\n        result: {\n            status: \'rebuilt\' | \'unavailable\';\n        };\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.callbackResolve\': {\n        request: HostAdminCallbackResolveRequest;\n        result: HostAdminCallbackResolveResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
   },
   {
     name: 'HostAdminQueryRequest',
@@ -9450,6 +9475,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface NativeFileApplication {\n    readonly id: string;\n    readonly name: string;\n    readonly default: boolean;\n    readonly icon: string | null;\n}',
   },
   {
+    name: 'NodeAction',
+    declaration: 'export type NodeAction = {\n    kind: \'rebuild\';\n    peerNodeId: SeatNodeId;\n} | {\n    kind: \'callback\';\n    request: CallbackResolveRequest;\n} | {\n    kind: \'source\';\n    action: \'resume\' | \'abandon\';\n    key: string;\n    operationId: string;\n    reason: string;\n};',
+  },
+  {
+    name: 'NodeActionResult',
+    declaration: 'export interface NodeActionResult {\n    status: \'ok\' | \'rejected\' | \'unavailable\' | \'uncertain\';\n    code?: string;\n}',
+  },
+  {
     name: 'NodeAuthenticatedPeer',
     declaration: 'export interface NodeAuthenticatedPeer {\n    readonly sourceNodeId: Seat.SeatNodeId;\n    readonly targetNodeId: Seat.SeatNodeId;\n    readonly authenticatedAt: Seat.SeatTimestamp;\n}',
   },
@@ -9470,6 +9503,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type NodeDelegationResult = {\n    readonly status: \'issued\';\n    readonly delegation: Seat.SeatNodeDelegation;\n} | {\n    readonly status: \'rejected\';\n    readonly error: NodeLinkFailure;\n};',
   },
   {
+    name: 'NodeHealthCallback',
+    declaration: 'export interface NodeHealthCallback {\n    callbackId: Seat.CallbackId;\n    source: string;\n    target: string;\n    attempt: number;\n    phase: Seat.SeatCallbackDelivery[\'phase\'];\n    parkingCode: string | null;\n    detail: string | null;\n    firstAttemptAt: string | null;\n    lastAttemptAt: string | null;\n    count: number;\n    attemptsAtLeast: boolean;\n    latestReason: string | null;\n}',
+  },
+  {
+    name: 'NodeHealthEvent',
+    declaration: 'export interface NodeHealthEvent {\n    sequence: number;\n    at: Seat.SeatTimestamp;\n    kind: \'connected\' | \'disconnected\' | \'reconnecting\' | \'exhausted\' | \'rebuild\' | \'authentication-succeeded\' | \'authentication-failed\';\n    safeReason: string | null;\n}',
+  },
+  {
+    name: 'NodeHealthItem',
+    declaration: 'export interface NodeHealthItem {\n    nodeId: Seat.SeatNodeId;\n    nodeName: string;\n    local: boolean;\n    engine: Seat.SeatNodeStatus[\'engine\'];\n    linkState: \'local\' | \'connected\' | \'reconnecting\' | \'exhausted\';\n    safeReason: string | null;\n    openWindows: number | null;\n    limit: number | null;\n    lastHeartbeatAt: string | null;\n    events: readonly NodeHealthEvent[];\n    rebuildable: boolean;\n}',
+  },
+  {
+    name: 'NodeHealthView',
+    declaration: 'export interface NodeHealthView {\n    nodes: NodeHealthItem[];\n    callbacks: readonly NodeHealthCallback[];\n    callbacksAvailable: boolean;\n    callbacksComplete: boolean;\n    sourceOperations: SourceOperatorItem[];\n    sourceAvailable: boolean;\n}',
+  },
+  {
     name: 'NodeId',
     declaration: 'export type NodeId = Branded<\'LedgerNodeId\'>;',
   },
@@ -9478,12 +9527,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type NodeLinkErrorCode = keyof typeof NODE_LINK_ERROR_CODES;',
   },
   {
+    name: 'NodeLinkEvent',
+    declaration: 'export interface NodeLinkEvent {\n    sequence: number;\n    at: Seat.SeatTimestamp;\n    kind: \'connected\' | \'disconnected\' | \'reconnecting\' | \'exhausted\' | \'rebuild\' | \'authentication-succeeded\' | \'authentication-failed\';\n    safeReason: string | null;\n}',
+  },
+  {
     name: 'NodeLinkFailure',
     declaration: 'export interface NodeLinkFailure {\n    code: NodeLinkErrorCode;\n    reason: string;\n    retryable: boolean;\n    effectState: \'none\' | \'unknown\';\n    operationId: Seat.SeatOperationId;\n    targetNodeId: Seat.SeatNodeId;\n}',
   },
   {
     name: 'NodeLinkStatus',
-    declaration: 'export interface NodeLinkStatus {\n    nodeId: Seat.SeatNodeId;\n    nodeName: string;\n    reachable: boolean;\n    linkState: \'connected\' | \'disconnected\' | \'connecting\' | \'stale\';\n    observedAt: Seat.SeatTimestamp;\n    status: Seat.SeatNodeStatus | null;\n    capabilities: readonly string[];\n    safeReason: string | null;\n}',
+    declaration: 'export interface NodeLinkStatus {\n    lastHeartbeatAt?: Seat.SeatTimestamp | null;\n    events?: readonly NodeLinkEvent[];\n    exhausted?: boolean;\n    nodeId: Seat.SeatNodeId;\n    nodeName: string;\n    reachable: boolean;\n    linkState: \'connected\' | \'disconnected\' | \'connecting\' | \'stale\';\n    observedAt: Seat.SeatTimestamp;\n    status: Seat.SeatNodeStatus | null;\n    capabilities: readonly string[];\n    safeReason: string | null;\n}',
   },
   {
     name: 'NodePreparedRequest',
@@ -11843,7 +11896,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SourceOperatorItem',
-    declaration: 'export interface SourceOperatorItem {\n    key: string;\n    state: \'awaiting-manual\' | \'parked-none\';\n    eventId: string;\n    target: string;\n    since: string;\n    ticket?: string;\n    detail?: string;\n}',
+    declaration: 'export interface SourceOperatorItem {\n    key: string;\n    state: \'awaiting-manual\' | \'parked-none\';\n    eventId: string;\n    target: string;\n    since: string;\n    ticket?: string;\n    detail?: string;\n    observation?: {\n        source: string;\n        parkingCode: string;\n        firstAttemptAt: string | null;\n        lastAttemptAt: string | null;\n        count: number | null;\n        attemptsAtLeast: boolean;\n        latestReason: string | null;\n    };\n}',
   },
   {
     name: 'SourceOperatorResult',

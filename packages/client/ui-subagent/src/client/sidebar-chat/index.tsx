@@ -4,7 +4,7 @@ import type {
   ISessions, SessionReference,
 } from '@panedesk/dsh-api-session-controller/client'
 import type { ResourceProvider } from '@panedesk/dsh-client-resources/client'
-import { EmbeddedConversation, type ConversationViewsProps } from '@panedesk/dsh-client-ui-conversation/client'
+import type { ConversationViewsProps } from '@panedesk/dsh-client-ui-conversation/client'
 import type { SidebarRightTabDefinition } from '@panedesk/dsh-client-ui-sidebar-right/client'
 import type {
   PropsRenderFactories, PropsRenderSlots, PropsRuntime, TranslateNS,
@@ -127,18 +127,9 @@ export type ConversationSlotPanelProps = PropsRuntime<'sidebar.chat.conversation
 
 /** Render the shared Conversation content for one explicitly provided child Session. */
 export function ConversationSlotPanel({
-  sessionId, useSession, useConversation, useSessions, renderFactorySlot,
+  renderFactorySlot,
 }: ConversationSlotPanelProps) {
-  const summaryBlank = useSessions(state => state.byId[sessionId]?.blank)
-  return (
-    <EmbeddedConversation
-      useSession={useSession}
-      useConversation={useConversation}
-      summaryBlank={summaryBlank}
-      renderFactorySlot={renderFactorySlot}
-      views={FixedChatConversationView}
-    />
-  )
+  return <>{renderFactorySlot('conversation.embedded', {})}</>
 }
 
 /** Props supplied to the parent-Session Sidebar tab body. */

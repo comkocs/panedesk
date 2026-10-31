@@ -11,8 +11,11 @@ import type { NodeAction, NodeActionResult } from './types.ts'
 
 /** Availability and polling are deployment configuration, not client-owned authority. */
 export interface Config {
+  /** Whether authenticated owners can read observations and submit confirmed operations. */
   enabled: boolean
+  /** Polling interval in milliseconds returned to browser observation consumers. */
   refreshIntervalMs: number
+  /** Maximum callback and source-operation rows requested from each provider. */
   pageSize: number
 }
 

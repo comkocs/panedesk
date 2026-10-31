@@ -304,6 +304,27 @@ status(): Promise<readonly NodeLinkStatus[]>
 
 Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
 
+<a id="ctxnodes--nodesservice"></a>
+
+### `ctx.nodes` — `NodesService`
+
+The browser cannot supply a principal, grant, host epoch or arbitrary administrative method.
+
+```ts cordis-catalog
+/** Read installed node and live callback providers without starting an engine or sending work.
+ * @returns Current provider observations and the configured polling interval.
+ */
+@Remote async read(): Promise<{ view: NodeHealthView; refreshIntervalMs: number }>
+
+/** Execute one explicitly confirmed action under the authenticated owner's existing local-operator path.
+ * @param action - Fixed local tunnel, callback resolution or source-owner action.
+ * @returns Provider refusal, uncertainty or committed evidence; a transport failure is never success.
+ */
+@Remote act(action: NodeAction): Promise<NodeActionResult>
+```
+
+Source: [`packages/client/ui-nodes/src/index.ts`](../../packages/client/ui-nodes/src/index.ts)
+
 <a id="ctxnodeworkchain--chainservices"></a>
 
 ### `ctx.nodeWorkChain` — `ChainServices`

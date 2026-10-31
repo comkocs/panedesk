@@ -187,6 +187,7 @@ flowchart TD
     pkg_client_ui_layout["client-ui-layout"]
     pkg_client_ui_message_feedback["client-ui-message-feedback"]
     pkg_client_ui_model_selection["client-ui-model-selection"]
+    pkg_client_ui_nodes["client-ui-nodes"]
     pkg_client_ui_open_in_app["client-ui-open-in-app"]
     pkg_client_ui_panedesk_icons["client-ui-panedesk-icons"]
     pkg_client_ui_permission_presets["client-ui-permission-presets"]
@@ -498,6 +499,7 @@ flowchart TD
   pkg_attachment --> pkg_brand
   pkg_browser_use --> pkg_brand
   pkg_client_connection --> pkg_scope
+  pkg_client_ui_nodes --> pkg_host_admin
   pkg_computer_use --> pkg_brand
   pkg_authorization --> pkg_credentials
   pkg_authorization --> pkg_llm
@@ -1715,6 +1717,7 @@ flowchart TD
 | [`attachment`](../packages/attachment/attachment) | `attachment` | [`brand`](../packages/util/brand) |
 | [`browser-use`](../packages/browser-use/browser-use) | `browser-use` | [`brand`](../packages/util/brand) |
 | [`client-connection`](../packages/client/connection) | `client` | [`scope`](../packages/core/scope) |
+| [`client-ui-nodes`](../packages/client/ui-nodes) | `client` | [`host-admin`](../packages/host/host-admin) |
 | [`computer-use`](../packages/computer-use/computer-use) | `computer-use` | [`brand`](../packages/util/brand) |
 | [`authorization`](../packages/credentials/authorization) | `credentials` | [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |

@@ -109,6 +109,10 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'nodes', pkg: 'client-ui-nodes', title: 'Owner node observations and operations', mode: 'service',
+    note: 'Reads bounded node and live callback observations and forwards confirmed actions through existing local-operator authorization.',
+  },
+  {
     key: 'inbox', pkg: 'client-ui-inbox', title: 'Owner received-message observations', mode: 'service',
     note: 'Reads exact receiving-session metadata and verified mailbox isolation without message mutations.',
   },
