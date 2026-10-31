@@ -53,6 +53,10 @@ const snapshot = snapshotJsonValue(input) as JsonValue
 
 在封闭可辨识联合类型的 default 分支中使用 `assertNever(value, context?)`。新增变体会让每个穷尽 switch 在 TypeScript 编译时失败；如果某个运行时值逃过了声明类型，该函数会抛出带可选上下文标签的错误。
 
+### 从诊断文本去掉凭据
+
+`redactDiagnostic(message)` 在宿主或传输诊断到达界面或日志之前去掉凭据形态的文本。它替换令牌前缀、授权与 cookie 头、bearer 值以及带名字的密钥，并去掉绝对 HTTP URL 里的用户名、口令和查询串。无法解析的 URL 变成 `<redacted>`。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -67,7 +71,7 @@ JSON 校验器使用显式工作栈，并只跟踪当前祖先链，因此深层
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | JSON 值类型、校验与快照遍历、结构相等、深度冻结、弱键/强值关联和穷尽联合类型失败 |
+| [`src/index.ts`](src/index.ts) | JSON 值类型、校验与快照遍历、结构相等、深度冻结、弱键/强值关联、穷尽联合类型失败，以及诊断文本的凭据剥离 |
 | [`src/partial-json.ts`](src/partial-json.ts) | 懒扫描顶层参数，并检测已读取答案的变化 |
 
 </details>

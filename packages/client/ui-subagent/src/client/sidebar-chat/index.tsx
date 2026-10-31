@@ -4,7 +4,7 @@ import type {
   ISessions, SessionReference,
 } from '@panedesk/dsh-api-session-controller/client'
 import type { ResourceProvider } from '@panedesk/dsh-client-resources/client'
-import type { ConversationViewsProps } from '@panedesk/dsh-client-ui-conversation/client'
+import { EmbeddedConversation, type ConversationViewsProps } from '@panedesk/dsh-client-ui-conversation/client'
 import type { SidebarRightTabDefinition } from '@panedesk/dsh-client-ui-sidebar-right/client'
 import type {
   PropsRenderFactories, PropsRenderSlots, PropsRuntime, TranslateNS,
@@ -129,22 +129,16 @@ export type ConversationSlotPanelProps = PropsRuntime<'sidebar.chat.conversation
 export function ConversationSlotPanel({
   sessionId, useSession, useConversation, useSessions, renderFactorySlot,
 }: ConversationSlotPanelProps) {
-  const session = useSession(value => value)
-  const conversation = useConversation(value => value)
-  const active = conversation.activeTargets.size > 0
-    || (!session.blank && !session.awaitingFirstTurn)
-    || session.running
-  const shellPhase = active ? 'active' : session.promptAttempted ? 'engaging' : 'blank'
   const summaryBlank = useSessions(state => state.byId[sessionId]?.blank)
-  const parentAvailabilityPending = session.subagent?.address.mode === 'continuable'
-    && session.subagent.parentAvailable === undefined
-  const settling = (shellPhase === 'blank' && session.openState === 'loading' && summaryBlank !== true)
-    || parentAvailabilityPending
-  const hero = shellPhase === 'blank' && (session.openState === 'open' || summaryBlank === true)
-  const phase = settling ? 'settling' : hero ? 'hero' : 'active'
-  return renderFactorySlot('conversation.content', { variant: 'embedded', phase, hero }, {
-    slots: { views: FixedChatConversationView },
-  })
+  return (
+    <EmbeddedConversation
+      useSession={useSession}
+      useConversation={useConversation}
+      summaryBlank={summaryBlank}
+      renderFactorySlot={renderFactorySlot}
+      views={FixedChatConversationView}
+    />
+  )
 }
 
 /** Props supplied to the parent-Session Sidebar tab body. */

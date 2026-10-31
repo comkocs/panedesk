@@ -6,6 +6,7 @@
  */
 
 import { Context, Service } from '@panedesk/cordis'
+import Schema from '@panedesk/schemastery'
 import type {
   RemoteWireArgs,
   TypertContextMap,
@@ -482,3 +483,20 @@ function validateName(subject: string, value: string): void {
     throw new TypeError(`typert-protocol: ${subject} must contain only RPC endpoint segment characters`)
   }
 }
+
+/** Availability and bounded read cadence shared by owner-only observation adapters. */
+export interface ObservationConfig {
+  /** Enable the adapter in an explicitly composed product. */
+  enabled: boolean
+  /** Delay between observations, in milliseconds. */
+  pollIntervalMs: number
+  /** Maximum records requested from one provider page. */
+  pageSize: number
+}
+
+/** Config schema for an owner-only observation adapter, disabled until a profile enables it. */
+export const observationConfig: Schema<ObservationConfig> = Schema.object({
+  enabled: Schema.boolean().default(false),
+  pollIntervalMs: Schema.number().min(1).max(2147483647).step(1).default(1000),
+  pageSize: Schema.number().min(1).step(1).default(100),
+})

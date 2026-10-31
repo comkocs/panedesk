@@ -53,6 +53,10 @@ const snapshot = snapshotJsonValue(input) as JsonValue
 
 Use `assertNever(value, context?)` in the default branch of a closed discriminated union. A newly added variant then fails TypeScript compilation at every exhaustive switch, while a runtime value that escaped its declared type throws with the optional context label.
 
+### Strip credentials from a diagnostic
+
+`redactDiagnostic(message)` removes credential-shaped text from a host or transport diagnostic before it reaches a surface or a log. It replaces token prefixes, authorization and cookie headers, bearer values, and named secrets, and it drops usernames, passwords, and queries from absolute HTTP URLs. A URL it cannot parse becomes `<redacted>`.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -67,7 +71,7 @@ The JSON validator uses an explicit work stack and tracks only the active ancest
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | JSON value type, validation and snapshot traversal, structural equality, deep freezing, weak-key/strong-value associations, and exhaustive-union failure |
+| [`src/index.ts`](src/index.ts) | JSON value type, validation and snapshot traversal, structural equality, deep freezing, weak-key/strong-value associations, exhaustive-union failure, and diagnostic credential stripping |
 | [`src/partial-json.ts`](src/partial-json.ts) | Lazy top-level argument scanning and observed-answer change detection |
 
 </details>

@@ -14,6 +14,7 @@
     { "path": "../locale/tsconfig.client.json" },
     { "path": "../resources" },
     { "path": "../ui-slots" },
+    { "path": "../ui-panedesk-icons" },
     { "path": "../ui-primitives" },
     { "path": "../ui-renderer" },
     { "path": "../ui-conversation/tsconfig.client.json" },

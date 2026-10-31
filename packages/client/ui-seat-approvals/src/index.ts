@@ -1,9 +1,9 @@
 /** Opt-in owner-only approval adapter for the running seat engine. */
 import type { Context } from '@panedesk/cordis'
+import type Schema from '@panedesk/schemastery'
 import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import Schema from '@panedesk/schemastery'
-import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
+import { Remote, RemoteError, TypertRemoteService, observationConfig } from '@panedesk/dsh-typert-protocol'
 import type * as Seat from '@panedesk/dsh-seat'
 import type { ApprovalQueueView } from './types.ts'
 
@@ -23,11 +23,7 @@ declare module '@panedesk/cordis' {
 
 /** The authenticated owner may confirm pending work, never bypass engine admission. */
 export default class SeatApprovals extends TypertRemoteService {
-  static Config: Schema<Config> = Schema.object({
-    enabled: Schema.boolean().default(false),
-    pollIntervalMs: Schema.number().min(1).max(2147483647).step(1).default(1000),
-    pageSize: Schema.number().min(1).step(1).default(100),
-  })
+  static Config: Schema<Config> = observationConfig
   private readonly lifetime = new AbortController()
   private readonly active = new Set<Promise<unknown>>()
 

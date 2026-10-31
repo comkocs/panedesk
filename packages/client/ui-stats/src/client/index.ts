@@ -4,7 +4,7 @@ import type {} from '../types.ts'
 import contribution from '@panedesk/dsh-client-ui-stats/remote'
 import type {} from '@panedesk/dsh-api-gateway/client'
 import type {} from '@panedesk/dsh-client-locale/client'
-import type {} from '@panedesk/dsh-client-resources/client'
+import { waitForPoll } from '@panedesk/dsh-client-resources/client'
 import type {} from '@panedesk/dsh-client-ui-layout/client'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
 import type {} from '@panedesk/dsh-client-ui-conversation/client'
@@ -59,12 +59,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
             return
           }
           if (url.searchParams.get('paused') === 'true') return
-          await new Promise<void>((resolve) => {
-            const finish = () => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-            const timer = setTimeout(finish, interval)
-            signal.addEventListener('abort', finish, { once: true })
-            if (signal.aborted) finish()
-          })
+          await waitForPoll(signal, interval)
         }
       },
     }), 'stats: resources')

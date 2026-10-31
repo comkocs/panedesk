@@ -1,8 +1,8 @@
 /** Owner-only inbox observation over the existing message queries; no mutation methods. */
 import type { Context } from '@panedesk/cordis'
-import Schema from '@panedesk/schemastery'
+import type Schema from '@panedesk/schemastery'
 import { setTimeout as delay } from 'node:timers/promises'
-import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
+import { Remote, RemoteError, TypertRemoteService, observationConfig } from '@panedesk/dsh-typert-protocol'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { MessageCursor, MessageQuarantineEvent } from '@panedesk/dsh-message-delivery'
 import type {} from '@panedesk/dsh-seat'
@@ -22,11 +22,7 @@ declare module '@panedesk/cordis' {
 }
 /** Authenticated owners retain their existing local read authority. */
 export default class Inbox extends TypertRemoteService {
-  static Config: Schema<Config> = Schema.object({
-    enabled: Schema.boolean().default(false),
-    pollIntervalMs: Schema.number().min(1).max(2147483647).step(1).default(1000),
-    pageSize: Schema.number().min(1).step(1).default(100),
-  })
+  static Config: Schema<Config> = observationConfig
   private readonly lifetime = new AbortController()
 
   constructor(ctx: Context, private readonly config: Config) {

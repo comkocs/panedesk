@@ -1,5 +1,6 @@
 /** Subagent tree presentation: nested rows with per-node usage and a read-only monitoring modal. */
 import { useState } from 'react'
+import { IconPanedeskSubagentTree } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button, Modal, StateDot } from '@panedesk/dsh-client-ui-primitives'
 import type { ResourceStatus } from '@panedesk/dsh-client-resources/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
@@ -51,7 +52,7 @@ function stateKey(status: ResourceStatus, value: SubagentTreeData | undefined, c
  */
 export function SubagentTreeAction({ sessionId, t, open }: SubagentTreeActionProps) {
   return <Button variant="toolbar" className={css.pill} onClick={() => { open(sessionId) }}>
-    {t('title')}
+    <IconPanedeskSubagentTree />{t('title')}
   </Button>
 }
 

@@ -40,6 +40,10 @@ export const remoteDefaultResponses: RemoteTable = {
     // ui-settings-account bonus notice read and acknowledgement at signing in.
     'account/getUnnotifiedBonuses': ok(null),
     'account/ackBonusNotified': ok(true),
+    // ui-settings-bash reads the first-run probe while the settings shell mounts.
+    'bashSetup/status': ok({ platform: 'linux' }),
+    // ui-cache-pill reads the session cache view when a composer mounts.
+    'cacheView/read': ok({ rows: [], tiers: [], adjustable: false, complete: true }),
   },
   // Stream endpoints the roster opens later than boot; declared so a spec that forgets the script gets a stream miss.
   streams: [

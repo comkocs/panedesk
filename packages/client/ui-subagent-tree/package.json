@@ -31,6 +31,7 @@
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-resources": "workspace:*",
     "@panedesk/dsh-client-ui-conversation": "workspace:*",
+    "@panedesk/dsh-client-ui-panedesk-icons": "workspace:*",
     "@panedesk/dsh-client-ui-primitives": "workspace:*",
     "@panedesk/dsh-client-ui-renderer": "workspace:*",
     "@panedesk/dsh-client-ui-sidebar-right": "workspace:*",

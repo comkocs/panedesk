@@ -85,8 +85,23 @@ it.each(['overview', 'history', 'models', 'throughput', 'ledger'] as const)('han
   incomplete.unmount()
   const empty = render(<StatsPanel {...fixture(en, 'live', []).props} />)
   fireEvent.click(screen.getByRole('button', { name: en[tab] }))
-  expect(screen.getAllByText(en.empty).length).toBeGreaterThan(0)
+  expect(screen.getAllByText(tab === 'overview' ? en.emptyRunning : en.empty).length).toBeGreaterThan(0)
   empty.unmount()
+})
+it.each([['English', en], ['Chinese', zh]])('shows token and price numbers on the overview cards when the ledger has both in %s', (_language, locale) => {
+  const priced: LedgerCall = { kind: 'call', start: call.start, finish: {
+    callId: call.start.callId, endedAt: asOf - 500, observedAt: asOf - 500, responseModelReported: 'same',
+    effectiveModel: 'model-a', usageState: 'complete',
+    usage: { inputTokens: 120, outputTokens: 30, cacheReadTokens: 10, cacheWriteTokens: 0 },
+    costUsd: '0.42', pricingState: 'priced', wallMs: 500, modelInFlightMs: 400, queueMs: 0, backoffMs: 0,
+    waits: [], compactionCount: 0, compactionTimes: [], endReason: 'completed', recovered: false,
+  } }
+  const h = fixture(locale, 'live', [priced])
+  render(<StatsPanel {...h.props} />)
+  expect(screen.getByRole('heading', { name: locale.tokens }).parentElement?.textContent).toContain('160')
+  expect(screen.getByRole('heading', { name: locale.costUsd }).parentElement?.textContent).toContain('0.42')
+  expect(screen.getByRole('heading', { name: locale.tokens }).parentElement?.textContent).not.toContain(locale.unknown)
+  expect(screen.getByText(locale.emptyRunning)).toBeTruthy()
 })
 it.each([['English', en], ['Chinese', zh]])('pages ledger details and resets the cursor on refresh and filtering in %s', (_language, locale) => {
   const h = fixture(locale)

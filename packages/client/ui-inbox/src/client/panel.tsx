@@ -1,5 +1,6 @@
 /** Session-header inbox with resource-owned reads and local disclosure state. */
 import { useState } from 'react'
+import { IconPanedeskInbox } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button, Modal, Tag } from '@panedesk/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { InboxKey } from './locales.ts'
@@ -20,7 +21,7 @@ export function InboxPanel({ sessionId, useResource, t }: Props) {
     : inbox.status === 'failed' ? value ? 'failed' : 'error' : inbox.status === 'loading' ? 'loading'
       : !value ? 'idle' : !value.complete ? 'partial' : !value.items.length ? 'empty' : 'success'
   return <div className={css.entry}>
-    <Button variant="toolbar" onClick={() => { setReasons(false); setOpen(true) }}>{t('title')}</Button>
+    <Button variant="toolbar" onClick={() => { setReasons(false); setOpen(true) }}><IconPanedeskInbox />{t('title')}</Button>
     {!!value?.quarantined.length && <span role="alert"><Button variant="toolbar" onClick={() => { setReasons(true); setOpen(true) }}>
       {t('quarantine', { count: value.quarantined.length })}
     </Button></span>}

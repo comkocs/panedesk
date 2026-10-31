@@ -32,3 +32,33 @@ export function conversationPhase(
     || session.running
   return active ? 'active' : session.promptAttempted ? 'engaging' : 'blank'
 }
+
+/** Presentation phase of one embedded conversation occurrence. */
+export type EmbeddedConversationPhase = 'settling' | 'hero' | 'active'
+
+/** Facts an embedded occurrence reads beyond the two snapshots. */
+export interface EmbeddedConversationFacts {
+  /** The session-list row's blank flag, absent before the list projects the row. */
+  readonly summaryBlank: boolean | undefined
+}
+
+/**
+ * Resolve the embedded occurrence phase shared by every embedded conversation host.
+ * @param session - current Session lifecycle state.
+ * @param conversation - current target-neutral Conversation state.
+ * @param facts - the session-list blank flag for this session.
+ * @returns settling while the first read is pending, hero on an empty open session, otherwise active.
+ */
+export function embeddedConversationPhase(
+  session: SessionSnapshot,
+  conversation: ConversationSnapshot,
+  facts: EmbeddedConversationFacts,
+): EmbeddedConversationPhase {
+  const shellPhase = conversationPhase(session, conversation)
+  const parentAvailabilityPending = session.subagent?.address.mode === 'continuable'
+    && session.subagent.parentAvailable === undefined
+  const settling = (shellPhase === 'blank' && session.openState === 'loading' && facts.summaryBlank !== true)
+    || parentAvailabilityPending
+  const hero = shellPhase === 'blank' && (session.openState === 'open' || facts.summaryBlank === true)
+  return settling ? 'settling' : hero ? 'hero' : 'active'
+}

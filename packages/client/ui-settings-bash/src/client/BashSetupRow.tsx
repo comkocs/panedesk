@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { IconPanedeskBash } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { BashSetupStatus } from '@panedesk/dsh-host-bash-setup/types'
@@ -67,7 +68,7 @@ export function BashSetupRow({ read, enable, disable, t }: BashSetupRowProps) {
 
   return <div className={css.row}>
     <div className={css.main}>
-      <div className={css.title}>{t('title')}</div>
+      <div className={css.title}><IconPanedeskBash />{t('title')}</div>
       <div className={css.description}>{t('description')}</div>
       {view.status === 'loading' && <div>{t('loading')}</div>}
       {view.status === 'error' && <div role="alert">{t('error')}</div>}

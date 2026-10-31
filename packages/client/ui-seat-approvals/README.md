@@ -54,6 +54,6 @@ The surface does not modify request prefixes or refresh caches.
 
 - Scope is the current running node and authenticated owner, not arbitrary delegated or remote operator identities.
 - Non-chain pending items can lack an authenticated node identifier. Missing budgets mean unavailable evidence, not zero or an invented quota.
-- Observation is polling-based; queue snapshots may change between pages, and the engine's version comparison remains authoritative.
+- Observation is polling-based; queue snapshots may change between pages, and the engine's version comparison remains authoritative. A poll that first arrives inside the five-minute window still announces that window once. Terminal announcements persist in local storage under `dsh.seat-approvals.alerts.v1` and survive a plugin rebuild. Alert history keeps the newest 200 announcements and drops the oldest.
 - Receipt selection is local to the mounted surface; closing it does not cancel or replay the durable operation.
 - Physical opening, first-turn completion and source callback delivery remain separately observable engine outcomes.

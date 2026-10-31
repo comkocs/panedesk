@@ -1,5 +1,6 @@
 /** Profile settings with staged edits, impact confirmation and mapped table previews. */
 import { useEffect, useState } from 'react'
+import { IconPanedeskSeatProfile } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button, Checkbox, Input, Menu, Modal } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@panedesk/dsh-client-ui-slots'
 import type * as T from '@panedesk/dsh-seat/types'
@@ -174,7 +175,7 @@ export function Profiles(props: ProfilesProps) {
   const select = (definition: T.SeatDefinition): void => {
     setEditing({ snapshot: data, definition }); actions.select(definition.seat); setImporting(false)
   }
-  return <section className={css.page}><h2>{t('nav')}</h2>
+  return <section className={css.page}><h2><IconPanedeskSeatProfile />{t('nav')}</h2>
     <div className={css.actions}><Button onClick={() => { actions.select(null); setEditing(undefined); setImporting(false) }}>{t('back')}</Button>
       <Button onClick={() => { setRefreshBase(data); refresh() }}>{t('refresh')}</Button>
       <Button onClick={() => { setImporting(!importing) }}>{t('import')}</Button></div>

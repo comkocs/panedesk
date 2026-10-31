@@ -112,7 +112,6 @@
     "@panedesk/dsh-client-ui-settings-plugin-inventory": "workspace:*",
     "@panedesk/dsh-client-ui-settings-plugins": "workspace:*",
     "@panedesk/dsh-client-ui-settings-bash": "workspace:*",
-    "@panedesk/dsh-client-ui-panedesk-icons": "workspace:*",
     "@panedesk/dsh-client-ui-skills": "workspace:*",
     "@panedesk/dsh-client-ui-settings-shell": "workspace:*",
     "@panedesk/dsh-client-ui-settings-agent-loop": "workspace:*",

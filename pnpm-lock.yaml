@@ -3409,9 +3409,6 @@ importers:
       '@panedesk/dsh-client-ui-open-in-app':
         specifier: workspace:*
         version: link:../../client/ui-open-in-app
-      '@panedesk/dsh-client-ui-panedesk-icons':
-        specifier: workspace:*
-        version: link:../../client/ui-panedesk-icons
       '@panedesk/dsh-client-ui-permission-presets':
         specifier: workspace:*
         version: link:../../client/ui-permission-presets
@@ -4874,12 +4871,6 @@ importers:
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
-      '@panedesk/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -4902,6 +4893,9 @@ importers:
       '@panedesk/dsh-client-ui-conversation':
         specifier: workspace:*
         version: link:../ui-conversation
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -4920,6 +4914,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -5831,12 +5828,6 @@ importers:
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
-      '@panedesk/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      zod:
-        specifier: ^4.4.3
-        version: 4.4.3
     devDependencies:
       '@panedesk/cordis':
         specifier: workspace:~
@@ -5874,6 +5865,9 @@ importers:
       '@panedesk/dsh-util-crypto':
         specifier: workspace:*
         version: link:../../util/crypto
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -5917,6 +5911,9 @@ importers:
       '@panedesk/dsh-client-test-runtime':
         specifier: workspace:*
         version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -5996,6 +5993,9 @@ importers:
       '@panedesk/dsh-client-ui-layout':
         specifier: workspace:*
         version: link:../ui-layout
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -6328,6 +6328,9 @@ importers:
       '@panedesk/dsh-client-test-runtime':
         specifier: workspace:*
         version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -7301,6 +7304,9 @@ importers:
       '@panedesk/dsh-client-ui-layout':
         specifier: workspace:*
         version: link:../ui-layout
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -7434,6 +7440,9 @@ importers:
       '@panedesk/dsh-client-ui-conversation':
         specifier: workspace:*
         version: link:../ui-conversation
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../ui-panedesk-icons
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
@@ -17425,6 +17434,9 @@ importers:
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       zod:
         specifier: ^4.4.3
         version: 4.4.3

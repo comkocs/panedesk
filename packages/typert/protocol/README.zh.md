@@ -42,6 +42,8 @@ export class GoalService extends TypertRemoteService {
 }
 ```
 
+`observationConfig` 是仅限 owner 的观察适配器共用的 Config schema：`enabled` 默认 false，`pollIntervalMs` 是 1 到 2147483647 的整数毫秒数、默认 1000，`pageSize` 是从 1 起的整数、默认 100。把同一个对象赋给 `static Config`。
+
 生成会把方法变为服务命名空间下的 wire 端点；Client 通过 `ctx.remote` 以类型化方法调用它（见 [API Gateway 参考](../../../docs/api-gateway.zh.md)）。方法把 `signal: AbortSignal` 声明为最后一个参数即可选择协作式取消——该信号是注入的，绝不会成为 JSON 参数或查找字段。
 
 一元方法可以直接返回 `Uint8Array`，也可以将其放在嵌套对象、数组、元组、可选字段、联合类型和递归类型中。生成器提供可选的结果 codec `encode()` 和 `decode()`：编码仅访问类型可能包含字节的子树，解码则校验还原后的值；Client 声明在每个字节位置使用 `Uint8Array<ArrayBuffer>`，同时保留其他字段类型。纯 JSON 结果不经 Host 字节识别或 Client 解析直接传递。参数、事件与流条目仍仅支持 JSON；不支持运行时对象循环。
@@ -121,7 +123,7 @@ Host 装配以转发给消费方的 Cordis 事件扩展 `TypertRemoteEventSelect
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 装饰器、Gateway 绑定、`remoteMethods`、段校验 |
+| [`src/index.ts`](src/index.ts) | 装饰器、Gateway 绑定、`remoteMethods`、段校验、`observationConfig` |
 | [`src/principal.ts`](src/principal.ts) | `principalOf`：Remote 调用生产者记录的调用方 principal |
 | [`src/remote-access.ts`](src/remote-access.ts) | 基于 `TypertResourceMap` 的 `RemoteAccessResource`、`RemoteAccessResourceKind` 与 `RemoteAccessResourceOf` |
 | [`src/json-value.ts`](src/json-value.ts) | 各载体共享的无损 JSON 校验 `isRemoteJsonValue` 与 `isRemoteUplinkItem` |
