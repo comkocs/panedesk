@@ -17,10 +17,10 @@ async function local() {
   const sources = new SourceRegistry()
   let engine = h.engine
   const outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
-    request => deliverRoutedCallback(h.ctx, engine, request))
+    (request, observation) => deliverRoutedCallback(h.ctx, engine, request, observation))
   return { h, body, sources, outbox, engine: () => engine,
     restart: async () => { await outbox.close(); await engine.shutdown(); engine = await h.start()
-      return new CallbackOutbox(engine.journal, sources, engine.options.config, request => deliverRoutedCallback(h.ctx, engine, request)) },
+      return new CallbackOutbox(engine.journal, sources, engine.options.config, (request, observation) => deliverRoutedCallback(h.ctx, engine, request, observation)) },
     close: async () => { await outbox.close(); await sources.close(); await h.close() } }
 }
 function owner(body: T.DeliverSourceCallbackRequest): T.SeatLocalCallbackOwner {
@@ -210,7 +210,7 @@ test('a withdrawn or failed-ready owner never dispatches through its captured ge
     provider.ready = async () => { throw new Error('Synthetic private ready failure') }
     await f.outbox.deliver(100)
     expect(send).not.toHaveBeenCalled()
-    expect(f.engine().journal.projection.callbacks.get(f.body.callback.callbackId)?.lastDiagnostic?.cause.reason)
+    expect(f.outbox.observations().find(delivery => delivery.payload.callbackId === f.body.callback.callbackId)?.lastDiagnostic?.cause.reason)
       .toBe('Callback owner query did not complete')
   } finally { await f.close() }
 })
@@ -224,7 +224,7 @@ test('a previous unknown remains unknown after issuer refusal and mismatched set
     provider.query = async () => callbackFailure(f.body, 'issuer', 'Callback authority was revoked', 'unauthorized', 'none', 'evidence-revoked')
     f.h.ctx.provide('seatLocalCallbackOwner', provider)
     await f.outbox.deliver(0)
-    expect(f.engine().journal.projection.callbacks.get(f.body.callback.callbackId)).toMatchObject({ responseClass: 'unknown',
+    expect(f.outbox.observations().find(delivery => delivery.payload.callbackId === f.body.callback.callbackId)).toMatchObject({ responseClass: 'unknown',
       lastDiagnostic: { stage: 'issuer', cause: { effectState: 'none', reasonCode: 'evidence-revoked' } } })
     provider.query = async () => ({ result: { status: 'settled', method: 'source.deliverCallback', result: {
       status: 'committed', callbackId: 'other' as T.CallbackId, payloadDigest: f.body.payloadDigest } } })

@@ -47,9 +47,12 @@ test('rejects a diagnostic frame above maxDecisionBytes without truncating the o
     const outbox = new CallbackOutbox(over, sources, h.engine.options.config, async () => ({ result: { status: 'pending',
       callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest }, diagnostic: lastDiagnostic }))
     try {
-      await expect(outbox.deliver(0)).rejects.toMatchObject({ code: 'source-payload-too-large' })
+      await outbox.deliver(0)
       expect(over.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
-    } finally { await outbox.close() }
+    } finally { await expect(outbox.close()).rejects.toMatchObject({ code: 'source-payload-too-large' }) }
+    expect(await readdir(join(over.root, 'events'))).toEqual(beforeNames)
+    expect(await readFile(join(over.root, 'events', beforeNames[0]!), 'utf8')).toBe(before)
+    expect(over.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
     expect(exact.projection.callbacks.get(body.callback.callbackId)?.lastDiagnostic).toEqual(lastDiagnostic)
   } finally { await sources.close(); await exact.close(); await over.close(); await h.close() }
 })
