@@ -305,6 +305,12 @@
     - id: ui-sidebar-files
       name: '@panedesk/dsh-client-ui-sidebar-files'
 
+    - id: skill-workflow-pack
+      name: '@panedesk/dsh-skill-workflow-pack'
+
+    - id: ui-project-onboarding
+      name: '@panedesk/dsh-client-ui-project-onboarding'
+
     - id: ui-settings
       name: '@panedesk/dsh-client-ui-settings'
 

@@ -113,13 +113,15 @@ export function authorizeFrozen(issuers: AuthorizationIssuers, grant: T.SeatAuth
  * @param frozen - Target-local frozen configuration and original source text.
  * @param ruleMode - Current local trigger restriction.
  * @param authorization - Same-transaction verified fact; only explicit opening methods may bypass automatic modes.
+ * @param policy - project policy resolved inside the same admission transaction.
  * @returns Complete intent and route effects, or a policy refusal.
  */
 export function frozenEffects(view: EngineProjection, input: T.NodeWorkChainAcceptedData, envelope: T.TriggerEnvelope,
-  frozen: T.SeatFrozenOpen, ruleMode?: T.EngineMode, authorization?: T.SeatIssuedAuthorizationFact): AuthorizationDecision['effects'] | T.SeatRejected {
+  frozen: T.SeatFrozenOpen, ruleMode?: T.EngineMode, authorization?: T.SeatIssuedAuthorizationFact,
+  policy?: T.SeatProjectPolicy): AuthorizationDecision['effects'] | T.SeatRejected {
   const manual = input.operationKey.method !== 'engine.acceptFrozen' && authorization?.origin === 'manual'
     && authorization.authorizationId === input.authorizationRef && authorization.decision === 'allowed'
-  const mode = manual ? 'auto' : effectiveMode(effectiveMode(view.policies.get(envelope.projectId)?.mode ?? 'remind', ruleMode),
+  const mode = manual ? 'auto' : effectiveMode(effectiveMode((policy ?? view.policies.get(envelope.projectId))?.mode ?? 'remind', ruleMode),
     input.route.modeCeiling.mode)
   if (mode === 'off') return rejected('disabled', 'Automatic triggering is disabled')
   const pending: T.PendingSeatItem = { queueItemId: randomUUID() as T.QueueItemId, seat: envelope.seat,

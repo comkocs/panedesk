@@ -59,6 +59,8 @@ Optional `OpenSeatRequest.startupDirectory` selects an exact registered director
 
 Optional `SeatEngineService.wakeSource` accepts a registered external event with task context; absence or an undefined result preserves ordinary trigger ingress. Optional `SeatEngineConfig.sourceWake` selects source/event pairs, and `frozenWakeContext` enables frozen task text in existing-window delivery. Both are disabled when omitted; [seat-engine](../seat-engine/README.md) owns validation, authorization and durable outcomes. No wire method or existing required field changes.
 
+Host-only `SeatEngineService.registerProjectPolicyResolver` installs one synchronous saved-choice lookup for first admission and returns its disposer. `resetProjectMode` restores both mode and `modeChosen` with revision CAS, never a blind write. The existing `mode/changed` event gains optional `reset: true` for explicit restoration; old chosen frames remain readable. [Seat engine](../seat-engine/README.md) owns atomic admission, replay and downgrade constraints. No wire method or Session event changes.
+
 Stable operation identities, revision comparisons, explicit incomplete pages, and typed refusals preserve observable outcomes across retries. Engine decisions live outside the Session event union. Configuration and execution belong to providers; the declarations supply no deployment defaults.
 
 <a id="model-experience"></a>

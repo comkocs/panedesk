@@ -393,6 +393,16 @@ export abstract class SeatEngineService extends Service {
    * @returns committed modeChosen policy.
    */
   abstract setProjectMode(request: T.SetProjectModeRequest): Promise<T.SetProjectModeResult>
+  /** Restore a previous mode and first-choice flag without overwriting concurrent choices.
+   * @param request - original policy fields and the revision owned by the compensating operation.
+   * @returns committed restoration or a revision conflict.
+   */
+  abstract resetProjectMode(request: T.ResetProjectModeRequest): Promise<T.SetProjectModeResult>
+  /** Register the sole synchronous saved-choice resolver used by first admission.
+   * @param resolver - product-owned lookup for an admitted seat definition; must not write or await.
+   * @returns disposer withdrawing this resolver without deleting committed policy.
+   */
+  abstract registerProjectPolicyResolver(resolver: T.SeatProjectPolicyResolver): () => void
   /** Query project mode without changing the first-choice flag.
    * @param projectId - exact policy owner.
    * @returns resolved policy, defaulting to remind and modeChosen false.

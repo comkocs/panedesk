@@ -2995,6 +2995,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'committed modeChosen policy.',
       },
       {
+        signature: 'abstract resetProjectMode(request: T.ResetProjectModeRequest): Promise<T.SetProjectModeResult>',
+        description: 'Restore a previous mode and first-choice flag without overwriting concurrent choices.',
+        parameters: [{ name: 'request', description: 'original policy fields and the revision owned by the compensating operation.' }],
+        returns: 'committed restoration or a revision conflict.',
+      },
+      {
+        signature: 'abstract registerProjectPolicyResolver(resolver: T.SeatProjectPolicyResolver): () => void',
+        description: 'Register the sole synchronous saved-choice resolver used by first admission.',
+        parameters: [{ name: 'resolver', description: 'product-owned lookup for an admitted seat definition; must not write or await.' }],
+        returns: 'disposer withdrawing this resolver without deleting committed policy.',
+      },
+      {
         signature: 'abstract projectPolicy(projectId: T.SeatProjectId): Promise<T.SeatProjectPolicy>',
         description: 'Query project mode without changing the first-choice flag.',
         parameters: [{ name: 'projectId', description: 'exact policy owner.' }],
@@ -10060,6 +10072,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RequestUserInput {\n    readonly role: \'user\';\n    readonly content: UserMessage[\'content\'];\n    readonly id?: never;\n    readonly source?: never;\n}',
   },
   {
+    name: 'ResetProjectModeRequest',
+    declaration: 'export interface ResetProjectModeRequest extends SetProjectModeRequest {\n    modeChosen: boolean;\n}',
+  },
+  {
     name: 'ResolvedAlwaysRetryPolicy',
     declaration: 'export interface ResolvedAlwaysRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'always\';\n}',
   },
@@ -10690,6 +10706,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatProjectPolicy',
     declaration: 'export interface SeatProjectPolicy {\n    projectId: SeatProjectId;\n    mode: EngineMode;\n    modeChosen: boolean;\n    revision: number;\n}',
+  },
+  {
+    name: 'SeatProjectPolicyResolver',
+    declaration: 'export type SeatProjectPolicyResolver = (definition: SeatDefinition) => EngineMode | undefined;',
   },
   {
     name: 'SeatQueued',

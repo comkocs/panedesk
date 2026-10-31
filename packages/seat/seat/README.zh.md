@@ -59,6 +59,8 @@ kind: "package-reference"
 
 可选 `SeatEngineService.wakeSource` 接收携任务上下文的已注册外部事件；方法缺席或返回 undefined 时保留普通触发入口。可选 `SeatEngineConfig.sourceWake` 选择来源与事件组合，`frozenWakeContext` 启用已有窗投递中的冻结任务正文。二者省略时均不启用；校验、授权与持久结果归 [seat-engine](../seat-engine/README.zh.md) 所有。不改变 wire 方法或已有必填字段。
 
+仅宿主可用的 `SeatEngineService.registerProjectPolicyResolver` 为首次准入安装唯一的同步已存选择查询，并返回注销器。`resetProjectMode` 通过修订 CAS 恢复档位与 `modeChosen`，不能盲写。既有 `mode/changed` 事件增加可选 `reset: true` 表示显式恢复；旧的已选帧仍可读。原子准入、重放与降级限制由[工位引擎](../seat-engine/README.zh.md)负责。不改变 wire 方法或 Session 事件。
+
 稳定的操作标识、版本比较、显式不完整分页和类型化拒绝，使重试期间的结果保持可观测。引擎决策不属于会话事件联合。配置与执行归提供方所有；声明不提供部署默认值。
 
 <a id="model-experience"></a>

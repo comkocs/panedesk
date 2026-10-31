@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for getting-started.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write templates/workflow-pack/getting-started.md
+/:
+  en: f9965ed290caee4b
+  zh: 4a363fc00bb8d141
+/getting-started:
+  en: eafc5135b2acfaab
+  zh: 7c56bf0fd67cfa53
+/getting-started/record-the-original-request:
+  en: a029284e473435f8
+  zh: d1d7e9e3d086f3e8
+/getting-started/check-requirements-in-one-exchange:
+  en: cb77a4d803fcd88c
+  zh: 88efea1ff569a4b3
+/getting-started/start-the-requirement-card-from-the-nearest-profile:
+  en: 2c051d4495028887
+  zh: a0a638a463d93297
+/getting-started/validate-and-generate:
+  en: 9a6821501e012079
+  zh: 370c1f8dc49bef52
+/getting-started/present-the-reduced-set-to-the-decision-maker:
+  en: f68de92d0aa36049
+  zh: 05ee92e11e81fcb1
+/getting-started/present-the-reduced-set-to-the-decision-maker/message-to-the-decision-maker:
+  en: bf66f64ad097fed3
+  zh: 3743b6e3070e5a1e
+/getting-started/place-the-results-and-document-the-reading-order:
+  en: ed0de5d041a9b99a
+  zh: 06134587db8bc439
+/getting-started/restore-rules-as-the-project-grows:
+  en: fe7ea2deefccbd3c
+  zh: 8408fbcb2e4e91f7

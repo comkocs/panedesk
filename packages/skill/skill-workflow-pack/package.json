@@ -1,0 +1,29 @@
+{
+  "name": "@panedesk/dsh-skill-workflow-pack",
+  "description": "Bundled first-window guide and portable project collaboration rules",
+  "version": "0.2.1-rc.2",
+  "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/skill/skill-workflow-pack"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/index.js", "lib/workflow-pack", "lib/types/**/*.d.ts"],
+  "license": "MIT",
+  "peerDependencies": { "@panedesk/dsh-skill": "workspace:*", "@panedesk/cordis": "workspace:~" },
+  "devDependencies": {
+    "@panedesk/dsh-skill": "workspace:*",
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": { "@panedesk/schemastery": "workspace:~" }
+}
