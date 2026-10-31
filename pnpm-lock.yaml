@@ -3409,6 +3409,9 @@ importers:
       '@panedesk/dsh-client-ui-seat-approvals':
         specifier: workspace:*
         version: link:../../client/ui-seat-approvals
+      '@panedesk/dsh-client-ui-seat-profiles':
+        specifier: workspace:*
+        version: link:../../client/ui-seat-profiles
       '@panedesk/dsh-client-ui-seats':
         specifier: workspace:*
         version: link:../../client/ui-seats
@@ -5636,6 +5639,79 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
 
+  packages/client/ui-seat-profiles:
+    dependencies:
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@panedesk/dsh-api-remotes':
+        specifier: workspace:*
+        version: link:../../api/remotes
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../connection
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@panedesk/dsh-client-store':
+        specifier: workspace:*
+        version: link:../store
+      '@panedesk/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-client-web':
+        specifier: workspace:*
+        version: link:../web
+      '@panedesk/dsh-remote-mock':
+        specifier: workspace:*
+        version: link:../../test-support/remote-mock
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-seat-local':
+        specifier: workspace:*
+        version: link:../../seat/seat-local
+      '@panedesk/dsh-typert-registry':
+        specifier: workspace:*
+        version: link:../../typert/registry
+      '@panedesk/dsh-util-crypto':
+        specifier: workspace:*
+        version: link:../../util/crypto
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
   packages/client/ui-seats:
     dependencies:
       '@panedesk/dsh-typert-protocol':
@@ -5672,12 +5748,18 @@ importers:
       '@panedesk/dsh-client-ui-conversation':
         specifier: workspace:*
         version: link:../ui-conversation
+      '@panedesk/dsh-client-ui-layout':
+        specifier: workspace:*
+        version: link:../ui-layout
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
       '@panedesk/dsh-client-ui-renderer':
         specifier: workspace:*
         version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-seat-profiles':
+        specifier: workspace:*
+        version: link:../ui-seat-profiles
       '@panedesk/dsh-client-ui-sidebar':
         specifier: workspace:*
         version: link:../ui-sidebar

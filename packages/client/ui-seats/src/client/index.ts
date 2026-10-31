@@ -20,6 +20,16 @@ import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SeatOverview } from '../types.ts'
 import { SeatHeader, SeatPicker, SeatsSection, type SeatsInjected } from './Seats.tsx'
 import { en, zh, type SeatKey } from './locales.ts'
+import { Overview } from './Overview.tsx'
+import type { MainPanelId } from '@panedesk/dsh-client-ui-layout/client'
+import type {} from '@panedesk/dsh-client-ui-seat-profiles/client'
+import type { SeatName } from '@panedesk/dsh-seat/types'
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    seatDeskNavigation: { openSeat(seat: SeatName): void }
+  }
+}
 
 export type { SeatKey } from './locales.ts'
 
@@ -33,6 +43,7 @@ const addCommit = z.object({ status: z.literal('committed') })
 
 declare module '@panedesk/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { seats: SeatKey }
+  interface ResourceProtocolMap { 'seat-dashboard': import('@panedesk/dsh-seat-local/types').SeatProfileSnapshot }
 }
 
 /** Explicit service dependencies for resources, navigation and draft initialization. */
@@ -165,7 +176,70 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
         addCommit.parse(result.value)
       } finally { refresh() }
     }
+    const dashboardRefreshers = new Set<() => void>()
+    const refreshDashboard = (): void => { for (const listener of dashboardRefreshers) listener() }
+    ctx.on('connection/reset', refreshDashboard)
+    ctx.effect(() => ctx.remote.$on('seat/diagnostics-changed', refreshDashboard))
+    ctx.effect(() => ctx.resources.register<'seat-dashboard'>({
+      protocol: 'seat-dashboard',
+      async *open(_address, { signal }) {
+        let revision = 0, wake: (() => void) | undefined
+        const invalidate = (): void => { revision++; wake?.() }
+        dashboardRefreshers.add(invalidate)
+        signal.addEventListener('abort', invalidate, { once: true })
+        try {
+          while (!signal.aborted) {
+            const observed = revision
+            yield await ctx.remote.seatUi.dashboard(signal)
+            if (revision === observed) await new Promise<void>((resolve) => {
+              wake = resolve
+              if (signal.aborted || revision !== observed) resolve()
+            })
+            wake = undefined
+          }
+        } finally { dashboardRefreshers.delete(invalidate); signal.removeEventListener('abort', invalidate) }
+      },
+    }))
+    ctx.inject(['layout'], (scope) => {
+      scope.slots.inject('main', () => scope.slots.register({ name: 'main', key: 'seat-overview' as MainPanelId,
+        locale: 'seats', inject: () => ({ refresh: refreshDashboard,
+          batch: async (seats: readonly SeatName[]) => {
+            try {
+              const result = await ctx.remote.seatUi.openBatch({ seats, operationId: `seat-ui:${randomUUID()}` as SeatOperationId })
+              if (!result.ok) throw new Error(result.error.message)
+              if (result.value.status === 'rejected') throw new Error(result.value.error.message)
+              let failed = false
+              for (const item of result.value.results) {
+                const value = item.result
+                if (value.status === 'prefilled') {
+                  openWindow(value.sessionId)
+                  const binding = sessions.binding(value.sessionId)
+                  if (!binding || ctx.conversation.input.requestDraftInitialization(binding, { prompt: value.draft }) === 'blocked') failed = true
+                } else if (value.status === 'switched') openWindow(value.window.sessionId)
+                else failed = true
+              }
+              if (failed) throw new Error(t('batchFailed'))
+            } finally { refresh(); refreshDashboard() }
+          },
+        }),
+      }, Overview))
+    })
     const injected = (): SeatsInjected => ({ openSeat, openWindow, closeWindow, loadModels, prepareAdd, previewAdd, commitAdd,
+      openProfiles: (seat) => {
+        const navigation = ctx.get('seatProfilesNavigation')
+        if (navigation) navigation.open(seat)
+        else notify(t('navigationUnavailable'))
+      },
+      openDesk: (seat) => {
+        const navigation = ctx.get('seatDeskNavigation')
+        if (navigation) navigation.openSeat(seat)
+        else notify(t('navigationUnavailable'))
+      },
+      openOverview: () => {
+        const layout = ctx.get('layout')
+        if (layout) layout.selectPanel('seat-overview' as MainPanelId)
+        else notify(t('navigationUnavailable'))
+      },
       dismiss: () => { notice.set(null) },
       hooks: { seatNotice: notice } })
     ctx.slots.inject('conversation.hero.seat', () => ctx.slots.register({

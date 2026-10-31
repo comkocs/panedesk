@@ -45,6 +45,10 @@ Trusted receiving wake is enabled only with explicit chain composition. `seat.wa
 
 A host-captured local owner can use `SeatCallContext.localWake` without remote chain composition. Both exact grants must be live local `node-delegation` grants with equal source/execution nodes, manual origin and `trusted-local-owner` attribution. Existing windows retain durable delivery; missing windows use the separately authorized non-reentrant opener and existing scope admission. Neither missing grants nor copied grant objects select legacy admission. Same-node definition-revision reads admit only this owner attribution and retain all four remote-admission allowlists, exact tasks and revocation rechecks.
 
+The owner-only `seatProfilesLocal` capability exposes catalog observations, existing save and import operations, explicit authority transfer, and confirmed CAS definition removal. Latest opening times come from committed `open/created` decisions, never the observation clock. Removal checks the displayed window and approval identities again before editing the catalog; it preserves those windows and approvals. Engine and catalog persistence are separate transactions, so this check is not an engine-wide activity lock.
+
+Mapped tables accept ordinary definition field names and explicit scalar conversions: `directories:path` makes one startup directory, `opening:text` makes literal opening text, and `model:route` requires a JSON object containing string `model` and `reasoningEffort`, with optional `provider`. Other structured fields use JSON cells. No natural-language model/effort delimiter is inferred. Product column names remain caller-supplied mappings; incomplete defaults produce ordinary row diagnostics.
+
 ## Window transactions
 
 Opening failures with `effectState: none` retain their engine audit facts but are excluded from window listing and message targets: the reserved identity is not a created Session. Failures with partial effects remain visible for inspection and cleanup.

@@ -3,11 +3,12 @@ import type { Context } from '@panedesk/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type { CloseSeatRequest, CloseSeatResult, SeatCallContext, SeatService } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
+import type {} from '@panedesk/dsh-seat-local'
 import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, realpath, rename, rm, stat } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { z } from 'zod'
-import type { PreviewSeatImportRequest, SeatDefinition } from '@panedesk/dsh-seat/types'
+import type { OpenSeatBatchRequest, OpenSeatBatchResult, PreviewSeatImportRequest, SeatDefinition } from '@panedesk/dsh-seat/types'
 import type { SeatAddRequest, SeatOverview, SeatUiOpenRequest, SeatUiOpenResult } from './types.ts'
 
 /** Product-owned home; omission leaves source preparation unavailable. */
@@ -173,6 +174,32 @@ export default class SeatUi extends TypertRemoteService {
     const service = await this.service()
     if (!service) throw new RemoteError('seat-ui/unavailable', 'Seat providers are unavailable', {})
     return service.close(request)
+  }
+
+  /** Read complete editing observations for the middle-column overview.
+   * @param signal - Resource or caller cancellation.
+   * @returns Actual journal timestamps, windows and pending approvals.
+   */
+  @Remote
+  async dashboard(signal?: AbortSignal): Promise<import('@panedesk/dsh-seat-local/types').SeatProfileSnapshot> {
+    signal?.throwIfAborted()
+    await this.service()
+    const profiles = this.ctx.get('seatProfilesLocal')
+    if (!profiles) throw new RemoteError('seat-ui/unavailable', 'Local profile observations are unavailable', {})
+    const value = await profiles.read()
+    signal?.throwIfAborted()
+    return value
+  }
+
+  /** Open the checked seats through batch admission without ticket identities.
+   * @param request - Selected seats and stable batch identity.
+   * @returns Existing batch receipt with manual prefilled drafts only.
+   */
+  @Remote
+  async openBatch(request: Pick<OpenSeatBatchRequest, 'seats' | 'operationId'>): Promise<OpenSeatBatchResult> {
+    const service = await this.service()
+    if (!service) throw new RemoteError('seat-ui/unavailable', 'Seat providers are unavailable', {})
+    return service.openBatch({ seats: request.seats, operationId: request.operationId, origin: 'manual', openingMode: 'prefill' })
   }
 
   /** Open with the existing manual provider, never sending the opening sentence.

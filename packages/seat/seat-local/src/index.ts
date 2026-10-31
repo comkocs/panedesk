@@ -17,6 +17,7 @@ import { localSourceId } from './open-admission.ts'
 import { installOpeningContexts } from './opening-contexts.ts'
 import { installSeatFrozenBusiness } from './frozen-business.ts'
 import { installDefinitionRevisions } from './definition-revisions.ts'
+import { registerProfileAccess } from './profile-access.ts'
 import type { EngineJobData, OwnerEpoch } from '@panedesk/dsh-seat'
 import type { SessionId } from '@panedesk/dsh-session'
 import type { SubagentRunInfo } from '@panedesk/dsh-subagent'
@@ -38,6 +39,7 @@ function observeSubagent(service: LocalSeatService, sessionId: SessionId, info: 
 }
 
 export { LocalSeatService } from './service.ts'
+export type { SeatProfileAccess, SeatProfileSnapshot, RemoveSeatProfileRequest } from './profile-access.ts'
 export { createLocalNodeAdmission } from './node-admission.ts'
 export type { LocalSeatCreation } from './create-admission.ts'
 export type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
@@ -113,6 +115,7 @@ export function apply(ctx: Context, config: Config): void {
           })
         }))
       const openingContexts = installOpeningContexts(ctx, installed)
+      registerProfileAccess(ctx, store, installed, config)
       registerLocalReadAccess(ctx, installed, config)
       registerLocalSessionAccess(ctx, installed, config)
       registerLocalWindowsAccess(ctx, installed, config)

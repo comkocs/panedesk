@@ -1,7 +1,7 @@
 {
   "extends": "../../../tsconfig.base.client.json",
   "compilerOptions": { "rootDir": "src", "outDir": "lib/types", "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo" },
-  "files": ["src/client/index.ts", "src/client/Seats.tsx", "src/client/locales.ts", "src/types.ts", "src/css-modules.d.ts"],
+  "files": ["src/client/index.ts", "src/client/Seats.tsx", "src/client/Overview.tsx", "src/client/locales.ts", "src/types.ts", "src/css-modules.d.ts"],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../typert/protocol" },
@@ -19,6 +19,9 @@
     { "path": "../ui-conversation/tsconfig.client.json" },
     { "path": "../ui-sidebar" },
     { "path": "../ui-workspace" },
+    { "path": "../ui-layout" },
+    { "path": "../ui-seat-profiles/tsconfig.client.json" },
+    { "path": "../../seat/seat-local" },
     { "path": "../../api/remotes/tsconfig.client.json" },
     { "path": "../../api/session-controller/tsconfig.client.json" }
   ]

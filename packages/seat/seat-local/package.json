@@ -18,6 +18,7 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./types": { "types": "./lib/types/types.d.ts" },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },

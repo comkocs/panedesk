@@ -6,6 +6,7 @@
     { "path": "../../../vendor/cordis" },
     { "path": "../../typert/protocol" },
     { "path": "../../seat/seat" },
+    { "path": "../../seat/seat-local" },
     { "path": "../../core/session" }
   ]
 }

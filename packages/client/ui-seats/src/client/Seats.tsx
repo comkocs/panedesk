@@ -1,6 +1,6 @@
 /** Seat entry presentations; all business facts arrive through the shared resource. */
 import { useState } from 'react'
-import { Button, Input, Menu, Modal, StateDot, Toast, IconPlusOutlineRegular, IconWarningOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
+import { Button, Input, Menu, Modal, StateDot, Toast, IconPlusOutlineRegular, IconWarningOutlineRegular, IconEllipsisOutlineRegular, IconFlatListOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { PreviewSeatImportRequest, SeatDefinition, SeatName } from '@panedesk/dsh-seat/types'
@@ -15,6 +15,9 @@ import css from './Seats.module.css'
 /** Interaction callbacks and transient feedback shared by the three entry presentations. */
 export interface SeatsInjected {
   openSeat: (seat: SeatDefinition, startupDirectory?: string) => Promise<void>
+  openProfiles?: (seat: SeatName) => void
+  openOverview?: () => void
+  openDesk?: (seat: SeatName) => void
   openWindow: (id: SessionId) => void
   closeWindow: (id: SessionId, stateVersion: number) => Promise<void>
   dismiss: () => void
@@ -170,7 +173,7 @@ export function SeatPicker({ currentDirectory: cwd, useResource, useSeatNotice, 
  * @returns The diagnostic indicator or seat section, including an empty catalog; absent providers add no space without diagnostics.
  */
 export function SeatsSection({ wide, expandSidebar, useResource, useSessions, openSeat, openWindow, closeWindow,
-  loadModels, prepareAdd, previewAdd, commitAdd, t }: SeatsSectionProps) {
+  loadModels, prepareAdd, previewAdd, commitAdd, openProfiles, openOverview, openDesk, t }: SeatsSectionProps) {
   const resource = useResource<'seats'>('dsh-resource://seats/local')
   const directory = useSessions((snapshot) => {
     const rows = snapshot.ids.map(id => snapshot.byId[id])
@@ -181,6 +184,8 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
   const cwd = directory.cwd
   const [pending, setPending] = useState<SeatDefinition | null>(null)
   const [expanded, setExpanded] = useState<SeatName | null>(null)
+  const [menuSeat, setMenuSeat] = useState<SeatName | null>(null)
+  const [headingHovered, setHeadingHovered] = useState(false)
   const [adding, setAdding] = useState(false)
   const [models, setModels] = useState<Awaited<ReturnType<SeatsInjected['loadModels']>>>([])
   const [addFailure, setAddFailure] = useState(false)
@@ -192,7 +197,11 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
   if (!hasDiagnostics && !data?.available) return null
   if (data === undefined) return null
   return <section className={css.section} aria-label={t('seats')}>
-    <h2 className={css.heading}>{t('seats')}</h2>
+    <h2 className={css.heading} onMouseEnter={() => { setHeadingHovered(true) }} onMouseLeave={() => { setHeadingHovered(false) }}
+      onFocus={() => { setHeadingHovered(true) }} onBlur={() => { setHeadingHovered(false) }} tabIndex={0}>
+      {t('seats')}{headingHovered && <Button size="sm" aria-label={t('overview')} title={t('overview')}
+        disabled={!openOverview} icon={<IconFlatListOutlineRegular />} onClick={openOverview} />}
+    </h2>
     {data.available && <Button size="sm" disabled={!data.complete || resource.status === 'failed'}
       onClick={() => { setAddFailure(false); void loadModels().then((value) => { setModels(value); setAdding(true) },
         () => { setAddFailure(true) }) }}>{t('addSeat')}</Button>}
@@ -220,6 +229,25 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
           </span>
           {windows.some(window => window.status === 'approval-pending') && <span role="status">{t('approvalPending')}</span>}
           {windows.length > 0 && <span title={t(activity)}><StateDot state={unknown ? 'warning' : busy ? 'ongoing' : 'idle'} /></span>}
+          <Menu open={menuSeat === seat.seat} onClose={() => { setMenuSeat(null) }}
+            items={[
+              { id: 'new', label: t('newSession'), disabled: !data.complete || resource.status === 'failed' || directory.ambiguous },
+              { id: 'profile', label: t('seatProfile'), disabled: !openProfiles },
+              { id: 'desk', label: t('viewInDesk'), disabled: !openDesk },
+              { id: 'overview', label: t('overview'), disabled: !openOverview },
+            ]} onSelect={(id) => {
+              setMenuSeat(null)
+              if (id === 'profile') openProfiles?.(seat.seat)
+              else if (id === 'desk') openDesk?.(seat.seat)
+              else if (id === 'overview') openOverview?.()
+              else if (id === 'new') {
+                const startup = seat.directories.find(directory => directory.startup)?.path
+                if (cwd !== undefined && startup !== undefined && cwd !== startup) setPending(seat)
+                else void openSeat(seat)
+              }
+            }} anchor={<Button size="sm" className={css.add} aria-label={t('seatActions')} title={t('seatActions')}
+              aria-haspopup="menu" aria-expanded={menuSeat === seat.seat} icon={<IconEllipsisOutlineRegular />}
+              onClick={() => { setMenuSeat(menuSeat === seat.seat ? null : seat.seat) }} />} />
           <Button size="sm" className={css.add} disabled={!data.complete || resource.status === 'failed' || directory.ambiguous}
             aria-label={t('open')} title={t('open')} icon={<IconPlusOutlineRegular />}
             onClick={() => {

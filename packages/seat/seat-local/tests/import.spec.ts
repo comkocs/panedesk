@@ -45,6 +45,30 @@ describe('seat import previews', () => {
     expect(plan.rows[0]?.action).toBe('create')
   })
 
+  it.each(['csv', 'markdown'] as const)('imports mapped plain paths and opening text from %s with selected rows only', async (format) => {
+    const { importer, sourcePath, store, root } = await setup()
+    await writeFile(sourcePath, format === 'csv'
+      ? `name,path,draft\nseat-a,${root},Opening A\nseat-b,${root},Opening B\n`
+      : `| name | path | draft |\n| --- | --- | --- |\n| seat-a | ${root} | Opening A |\n| seat-b | ${root} | Opening B |\n`)
+    const plan = await importer.preview({ format, sourcePath,
+      columnMap: { name: 'seat', path: 'directories:path', draft: 'opening:text' }, defaults: {} })
+    expect(plan.rows.map(row => row.action)).toEqual(['create', 'create'])
+    const selected = plan.rows[1]!
+    await importer.commit({ planId: plan.planId, selectedRows: [selected.row], expectedRevision: 0, operationId: operation(`plain-${format}`) })
+    expect(store.snapshot().definitions).toHaveLength(1)
+    expect(store.snapshot().definitions[0]).toMatchObject({ seat: 'seat-b', directories: [{ path: root, startup: true }],
+      opening: { kind: 'text', text: 'Opening B' } })
+  })
+
+  it('requires an explicit structured model route instead of guessing a model and effort delimiter', async () => {
+    const { importer, sourcePath } = await setup()
+    await writeFile(sourcePath, '| name | route |\n| --- | --- |\n| seat-a | {"model":"model-a","reasoningEffort":"high"} |\n| seat-b | model-a / high |\n| seat-c | {"model":"model-a"} |\n')
+    const plan = await importer.preview({ format: 'markdown', sourcePath, columnMap: { name: 'seat', route: 'model:route' }, defaults: {} })
+    expect(plan.rows[0]).toMatchObject({ action: 'create', definition: { model: 'model-a', reasoningEffort: 'high' } })
+    expect(plan.rows.slice(1).map(row => row.action)).toEqual(['invalid', 'invalid'])
+    expect(plan.rows.slice(1).every(row => row.diagnostics.some(item => item.code === 'invalid-definition'))).toBe(true)
+  })
+
   it('retains a manually changed seat on source conflict while updating an untouched seat', async () => {
     const { importer, sourcePath, store } = await setup()
     const request = { format: 'csv' as const, sourcePath, columnMap: { seat: 'seat', model: 'model' }, defaults: {} }

@@ -1,6 +1,12 @@
 /** Typed seat UI copy; names and provider refusal details remain verbatim data. */
 export const en = {
   seat: 'Seat', seats: 'Seats', free: 'Free window', open: 'Open seat', opened: 'Open', unopened: 'Not open',
+  node: 'Node', recentOpen: 'Last opened', pendingCount: 'Pending approvals', neverOpened: 'Never opened',
+  batchOpen: 'Open selected seats', batchSuccess: 'Selected seats opened as drafts. No message was sent.',
+  batchFailed: 'Some openings failed or their outcome is unknown. Refresh before retrying.',
+  overviewFailed: 'Seat observations are unavailable or access was denied. No batch was submitted.',
+  loading: 'Loading…', retry: 'Refresh', navigationUnavailable: 'This navigation is unavailable in the current product.',
+  seatActions: 'Seat actions', newSession: 'New session', seatProfile: 'Seat profile', viewInDesk: 'View seat in ticket desk', overview: 'Overview',
   restartManualClosed: 'A window opened before the restart was closed; open it again.',
   restartWakeClosed: 'A window opened by a source wake before the restart was closed; wake it again or open it if needed.',
   approvalPending: 'Pending approval', closeWindow: 'Close seat window', closeFailed: 'Window closing was refused: {reason}',
@@ -43,6 +49,12 @@ export type SeatKey = keyof typeof en
 /** Chinese seat UI copy. */
 export const zh: Record<SeatKey, string> = {
   seat: '位', seats: '工位', free: '自由窗', open: '按位开', opened: '在开', unopened: '未开',
+  node: '节点', recentOpen: '最近开窗时刻', pendingCount: '待批数', neverOpened: '尚未开窗',
+  batchOpen: '批量开窗', batchSuccess: '已按所选工位起草开窗，未自动发句。',
+  batchFailed: '部分开窗失败或结果尚不确定，请刷新后再操作。',
+  overviewFailed: '工位观察数据不可用或无访问权限，未提交批量开窗。',
+  loading: '加载中…', retry: '刷新', navigationUnavailable: '当前产品未提供此导航。',
+  seatActions: '工位操作', newSession: '新会话', seatProfile: '工位档案', viewInDesk: '在工单台看本位', overview: '一览表',
   restartManualClosed: '重启前点过的开窗已收掉，请重新点开窗。',
   restartWakeClosed: '重启前由来源唤醒开的窗已收掉，需要时请重新唤醒或点开窗。',
   approvalPending: '待审批', closeWindow: '收窗', closeFailed: '收窗被拒：{reason}',
