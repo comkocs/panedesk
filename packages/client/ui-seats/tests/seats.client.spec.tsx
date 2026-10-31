@@ -39,6 +39,21 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
 afterEach(cleanup)
 
 describe('seat entry presentations', () => {
+  it.each([
+    ['restart-manual-opening-closed', 'en', 'A window opened before the restart was closed; open it again.'],
+    ['restart-manual-opening-closed', 'zh', '重启前点过的开窗已收掉，请重新点开窗。'],
+    ['restart-source-wake-closed', 'en', 'A window opened by a source wake before the restart was closed; wake it again or open it if needed.'],
+    ['restart-source-wake-closed', 'zh', '重启前由来源唤醒开的窗已收掉，需要时请重新唤醒或点开窗。'],
+  ] as const)('shows one actionable restart warning for %s in %s', (detail, language, message) => {
+    const opening = { sessionId: 'orphan-window' as never, seat: seat.seat, agentPreset: seat.agentPreset,
+      code: 'opening-owner-lost' as const, detail }
+    const f = fixture({ ...data, diagnostics: { openings: [opening] } })
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en) => dictionary[key]
+    render(<SeatsSection {...{ ...f.props, t } as SeatsSectionProps} />)
+    expect(screen.getAllByRole('alert').map(alert => alert.textContent)).toEqual([`seat-a: ${message}`])
+    expect(f.openSeat).not.toHaveBeenCalled()
+  })
   it.each(['en', 'zh'] as const)('shows pending approval and closes the exact observed window: %s', (language) => {
     const f = fixture({ ...data, windows: [{ seat: seat.seat, sessionId: 'approval-window' as never,
       title: 'Approval window', nodeId: 'local' as never, status: 'approval-pending', engineStatus: 'active',

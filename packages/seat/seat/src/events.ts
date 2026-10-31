@@ -52,7 +52,7 @@ export interface EngineCloseData {
   phase: ClosePhase
   reason: WindowEndReason
   /** Optional close cause retained across recovery and callback delivery. */
-  detail?: 'approval-pending-cancelled'
+  detail?: 'approval-pending-cancelled' | 'restart-manual-opening-closed' | 'restart-source-wake-closed'
   stateVersion: number
   endedAt: SeatTimestamp | null
   reportId: CloseReportId | null

@@ -7687,7 +7687,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'EngineCloseData',
-    declaration: 'export interface EngineCloseData {\n    operationId?: SeatOperationId;\n    barrierReleased?: boolean;\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    detail?: \'approval-pending-cancelled\';\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
+    declaration: 'export interface EngineCloseData {\n    operationId?: SeatOperationId;\n    barrierReleased?: boolean;\n    sessionId: SessionId;\n    phase: ClosePhase;\n    reason: WindowEndReason;\n    detail?: \'approval-pending-cancelled\' | \'restart-manual-opening-closed\' | \'restart-source-wake-closed\';\n    stateVersion: number;\n    endedAt: SeatTimestamp | null;\n    reportId: CloseReportId | null;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n}',
   },
   {
     name: 'EngineCursor',
@@ -10363,7 +10363,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCallbackPayload',
-    declaration: 'export type SeatCallbackPayload = SeatCallbackBase & ({\n    kind: \'opened\';\n    sessionId: SessionId;\n    title: string;\n} | {\n    kind: \'opening-failed\';\n    reason: SeatFailure;\n} | {\n    kind: \'window-ended\';\n    reason: WindowEndReason;\n    detail?: \'approval-pending-cancelled\';\n    endedAt: SeatTimestamp;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n    reportId?: CloseReportId;\n} | {\n    kind: \'budget-stopped\';\n    budgetSnapshot: SeatBudgetSnapshot;\n} | {\n    kind: \'rejected\';\n    reason: SeatFailure;\n} | {\n    kind: \'replacement-failed\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    reason: ReplacementFailureCode;\n    cause: SeatFailure;\n    cleanup: \'not-created\' | \'closed\' | \'pending\';\n});',
+    declaration: 'export type SeatCallbackPayload = SeatCallbackBase & ({\n    kind: \'opened\';\n    sessionId: SessionId;\n    title: string;\n} | {\n    kind: \'opening-failed\';\n    reason: SeatFailure;\n} | {\n    kind: \'window-ended\';\n    reason: WindowEndReason;\n    detail?: \'approval-pending-cancelled\' | \'restart-manual-opening-closed\' | \'restart-source-wake-closed\';\n    endedAt: SeatTimestamp;\n    selfReport: CloseSelfReport | null;\n    selfReportStatus: \'submitted\' | \'not-submitted\' | \'revoked\';\n    reportId?: CloseReportId;\n} | {\n    kind: \'budget-stopped\';\n    budgetSnapshot: SeatBudgetSnapshot;\n} | {\n    kind: \'rejected\';\n    reason: SeatFailure;\n} | {\n    kind: \'replacement-failed\';\n    replacementId: ReplacementId;\n    oldSessionId: SessionId;\n    newSessionId: SessionId | null;\n    reason: ReplacementFailureCode;\n    cause: SeatFailure;\n    cleanup: \'not-created\' | \'closed\' | \'pending\';\n});',
   },
   {
     name: 'SeatCallContext',
@@ -10555,7 +10555,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatNodeStatus',
-    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n        unavailableOverTenMinutes?: true;\n    };\n    callbackFailures?: readonly {\n        callbackId: CallbackId;\n        seat: SeatName;\n        code: \'unauthorized\' | \'callback-authentication-failed\';\n    }[];\n    openingFailures?: readonly {\n        sessionId: SessionId;\n        seat: SeatName;\n        agentPreset: string;\n        code: SeatFailure[\'code\'] | \'UNKNOWN_MODEL\' | \'session/model-unavailable\';\n        stage?: \'turn\';\n        provider?: string;\n        model?: string;\n    }[];\n}',
+    declaration: 'export interface SeatNodeStatus {\n    nodeId: SeatNodeId;\n    nodeName: string;\n    engine: \'running\' | \'recovering\' | \'unavailable\';\n    openEngineWindows: number;\n    limit: number | null;\n    readyAt: SeatTimestamp | null;\n    failure?: {\n        site: string;\n        code: string;\n        since: SeatTimestamp;\n        retryable: boolean;\n        attempts: number;\n        unavailableOverTenMinutes?: true;\n    };\n    callbackFailures?: readonly {\n        callbackId: CallbackId;\n        seat: SeatName;\n        code: \'unauthorized\' | \'callback-authentication-failed\';\n    }[];\n    openingFailures?: readonly {\n        sessionId: SessionId;\n        seat: SeatName;\n        agentPreset: string;\n        code: SeatFailure[\'code\'] | \'UNKNOWN_MODEL\' | \'session/model-unavailable\';\n        stage?: \'turn\';\n        detail?: \'restart-manual-opening-closed\' | \'restart-source-wake-closed\';\n        provider?: string;\n        model?: string;\n    }[];\n}',
   },
   {
     name: 'SeatOpenExecutor',

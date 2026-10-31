@@ -112,15 +112,22 @@ export class LocalCloser {
       }
       const replacement = effects.findLast(effect => effect.kind === 'window/replacement'
         && (effect.data.oldSessionId === request.sessionId || effect.data.newSessionId === request.sessionId))
-      const approvalDetail = cancelApproval || old?.phase === 'rechecking' && old.detail !== undefined
+      const approvalDetail = cancelApproval || old?.phase === 'rechecking' && old.detail === 'approval-pending-cancelled'
       const orphaned = effects.findLast(effect => effect.kind === 'open/opening-failed' && effect.data.sessionId === request.sessionId)
       const ownerLost = orphaned?.kind === 'open/opening-failed'
         && orphaned.data.failure?.cause?.domain === 'seat-local' && orphaned.data.failure.cause.code === 'opening-owner-lost'
-      const reason: T.WindowEndReason = ownerLost ? 'owner-dead' : approvalDetail ? 'manual' : replacement?.kind === 'window/replacement'
+      const source = ownerLost ? effects.find(effect => (effect.kind === 'trigger/accepted' || effect.kind === 'trigger/coalesced')
+        && orphaned.data.sources?.some(item => item.sourceId === effect.data.trigger.sourceId
+          && item.triggerId === effect.data.trigger.triggerId)) : undefined
+      const method = source?.kind === 'trigger/accepted' || source?.kind === 'trigger/coalesced'
+        ? source.data.pending.frozenOpen?.nodeWorkChain?.operationKey.method : undefined
+      const restartDetail = method === 'seat.openFrozen' ? 'restart-manual-opening-closed'
+        : method === 'seat.wakeFrozen' ? 'restart-source-wake-closed' : undefined
+      const reason: T.WindowEndReason = restartDetail ? 'manual' : ownerLost ? 'owner-dead' : approvalDetail ? 'manual' : replacement?.kind === 'window/replacement'
         && replacement.data.phase !== 'completed' && replacement.data.phase !== 'failed'
         ? replacement.data.failure ? 'replacement-failed' : 'replaced' : report ? 'self-report' : 'manual'
       const data: T.EngineCloseData = { sessionId: request.sessionId, operationId: request.operationId,
-        phase: 'admission', reason, ...(approvalDetail
+        phase: 'admission', reason, ...(restartDetail ? { detail: restartDetail } : approvalDetail
           ? { detail: 'approval-pending-cancelled' as const } : {}),
         stateVersion: initial.stateVersion, endedAt: null,
         reportId: current?.reportId ?? null, selfReport: current,

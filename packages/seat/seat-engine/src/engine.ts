@@ -510,7 +510,9 @@ export class SeatEngine extends SeatEngineService {
     const failure = this.failures.snapshot()
     const latest = new Map<T.SeatName, T.EngineOpenData>()
     for (const open of this.journal.projection.opens.values()) {
+      const detail = this.journal.projection.closed.get(open.sessionId)?.detail
       if (open.definition && (open.phase === 'active'
+        || detail === 'restart-manual-opening-closed' || detail === 'restart-source-wake-closed'
         || open.phase === 'opening-failed' && (open.failure?.effectState === 'none'
           || open.failure?.code === 'invalid-definition'
           || open.failure?.details && 'model' in open.failure.details))) latest.set(open.definition.seat, open)
@@ -520,12 +522,16 @@ export class SeatEngine extends SeatEngineService {
       const definition = await this.dependencies.seats()?.resolve(seat)
       if (definition && !('status' in definition) && canonical(definition) !== canonical(open.definition)) latest.delete(seat)
     }
-    const openingFailures = [...latest.values()].flatMap(open =>
-      open.phase === 'opening-failed' && open.failure && open.definition
+    const openingFailures = [...latest.values()].flatMap((open) => {
+      const detail = this.journal.projection.closed.get(open.sessionId)?.detail
+      const restartDetail = detail === 'restart-manual-opening-closed' || detail === 'restart-source-wake-closed' ? detail : undefined
+      return open.phase === 'opening-failed' && open.failure && open.definition
         ? [{ sessionId: open.sessionId, seat: open.definition.seat,
           agentPreset: open.definition.agentPreset, code: open.failure.code,
+          ...(restartDetail ? { detail: restartDetail } : {}),
           ...(open.failure.details && 'model' in open.failure.details
-            ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : [])
+            ? { provider: open.definition.provider, model: open.definition.model } : {}) }] : []
+    })
     const diagnostics = [...openingFailures, ...[...this.liveModelFailures.values()].filter(failure =>
       this.journal.projection.opens.get(failure.sessionId)?.phase === 'active')]
     const callbackFailures = [...this.journal.projection.callbacks.values()].filter(isParkedAuthenticationRefusal)
