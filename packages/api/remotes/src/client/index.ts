@@ -12,6 +12,8 @@ import officeToPdfRemote from '@panedesk/dsh-office-to-pdf/remote'
 import goalsRemote from '@panedesk/dsh-goal/remote'
 import scheduleRemote from '@panedesk/dsh-schedule/remote'
 import llmRemote from '@panedesk/dsh-llm/remote'
+import cacheViewRemote from '@panedesk/dsh-llm-cache/remote'
+export type {} from '@panedesk/dsh-llm-cache/remote'
 import dynamicRemote from '@panedesk/dsh-cordis-host-runner/remote'
 import pluginManagerRemote from '@panedesk/dsh-plugin-manager/remote'
 import pluginRegistryProbeRemote from '@panedesk/dsh-client-ui-plugin-manager/remote'
@@ -188,7 +190,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   try {
     for (const contribution of [
       productAnalyticsRemote, agentPresetsRemote, commandsRemote, settingsControllerRemote, accountRemote,
-      goalsRemote, llmRemote, dynamicRemote, scheduleRemote,
+      goalsRemote, llmRemote, cacheViewRemote, dynamicRemote, scheduleRemote,
       pluginInventoryRemote, pluginManagerRemote, pluginMarketRemote, pluginRegistryProbeRemote,
       messageFeedbackRemote, sessionFeedbackRemote,
       fileUploadsRemote, sessionReferencesRemote,

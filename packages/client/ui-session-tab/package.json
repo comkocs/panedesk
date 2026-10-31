@@ -1,0 +1,80 @@
+{
+  "name": "@panedesk/dsh-client-ui-session-tab",
+  "description": "Right-sidebar session tab opened from a session row, plus a per-message pin that survives a restart and never changes what the model sees",
+  "version": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/client/ui-session-tab"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@panedesk/dsh-client-locale",
+        "@panedesk/dsh-client-ui-conversation",
+        "@panedesk/dsh-client-ui-renderer",
+        "@panedesk/dsh-client-ui-sidebar-right",
+        "@panedesk/dsh-client-ui-workspace",
+        "@panedesk/dsh-api-session-controller",
+        "@panedesk/dsh-client-resources"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@panedesk/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-client-ui-chat": "workspace:*",
+    "@panedesk/dsh-client-ui-conversation": "workspace:*",
+    "@panedesk/dsh-client-ui-dockkit": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/dsh-client-ui-renderer": "workspace:*",
+    "@panedesk/dsh-client-ui-session": "workspace:*",
+    "@panedesk/dsh-client-ui-sidebar-right": "workspace:*",
+    "@panedesk/dsh-client-ui-slots": "workspace:*",
+    "@panedesk/dsh-client-ui-workspace": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@panedesk/dsh-api-session-controller": "workspace:*",
+    "@panedesk/dsh-client-resources": "workspace:*",
+    "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-remote-mock": "workspace:*"
+  },
+  "files": [
+    "locale/*.json",
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

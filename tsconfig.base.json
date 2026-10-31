@@ -28,6 +28,10 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@panedesk/dsh-client-ui-cache-pill": ["./packages/client/ui-cache-pill/src/index.ts"],
+      "@panedesk/dsh-client-ui-cache-pill/client": ["./packages/client/ui-cache-pill/src/client/index.ts"],
+      "@panedesk/dsh-client-ui-session-tab": ["./packages/client/ui-session-tab/src/index.ts"],
+      "@panedesk/dsh-client-ui-session-tab/client": ["./packages/client/ui-session-tab/src/client/index.ts"],
       "@panedesk/dsh-seat": ["./packages/seat/seat/src/index.ts"],
       "@panedesk/dsh-node-link": ["./packages/seat/node-link/src/index.ts"],
       "@panedesk/dsh-host-admin": ["./packages/host/host-admin/src/index.ts"],
@@ -140,6 +144,7 @@
       "@panedesk/dsh-api-session-controller": ["./packages/api/session-controller/src/index.ts"],
       "@panedesk/dsh-api-session-controller/client": ["./packages/api/session-controller/src/client/index.ts"],
       "@panedesk/dsh-api-session-controller/types": ["./packages/api/session-controller/src/types.ts"],
+      "@panedesk/dsh-llm-cache/types": ["./packages/llm/llm-cache/src/view-types.ts"],
       "@panedesk/dsh-api-session-controller/remote-events": ["./packages/api/session-controller/src/remote-events.ts"],
       "@panedesk/dsh-api-settings-controller": ["./packages/api/settings-controller/src/index.ts"],
       "@panedesk/dsh-api-settings-controller/types": ["./packages/api/settings-controller/src/types.ts"],

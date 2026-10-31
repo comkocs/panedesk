@@ -416,6 +416,16 @@
     - id: ui-message-feedback
       name: '@panedesk/dsh-client-ui-message-feedback'
 
+    # Composer cache pill: remaining time for the window and its subagents,
+    # and an explicit-route tier stored for the next request.
+    - id: ui-cache-pill
+      name: '@panedesk/dsh-client-ui-cache-pill'
+
+    # Right-sidebar session page opened from a session row, and a browser-local
+    # pin on a finalized assistant message.
+    - id: ui-session-tab
+      name: '@panedesk/dsh-client-ui-session-tab'
+
     # Model selection: the /model popupSelect + composer seat over session.models.
     - id: ui-model-selection
       name: '@panedesk/dsh-client-ui-model-selection'
