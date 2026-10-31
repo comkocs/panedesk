@@ -4579,7 +4579,7 @@ One of:
 
 SHA-256: `3fef2645b829fcbb4a2abeef1078091e0571b475681852ba9afbb5317562392f`
 
-Sources: [`packages/session/message-delivery/src/types.ts:82`](../packages/session/message-delivery/src/types.ts)
+Sources: [`packages/session/message-delivery/src/types.ts:83`](../packages/session/message-delivery/src/types.ts)
 
 | Property | Presence | Type |
 |---|---|---|

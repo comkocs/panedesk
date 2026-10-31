@@ -68,7 +68,8 @@ export class NodeRouter implements NodeRouterService {
       this.chain?.observe(peerChain)
       this.statusValue = { ...this.statusValue, reachable: true, linkState: 'connected', status,
         observedAt: new Date().toISOString(), capabilities: [NODE_LINK_VERSION,
-          ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : [])],
+          ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : []),
+          ...(value.seatMessages === 'seat-messages/v1' ? ['seat-messages/v1'] : [])],
         safeReason: revision && !peerChain?.methods.includes('seat.definitionRevision')
           ? 'peer-capability-missing: The peer does not advertise seat-definition-revision/v1; exact revision reads are unavailable.' : null }
       this.connected = true
@@ -93,14 +94,18 @@ export class NodeRouter implements NodeRouterService {
       return failure(request, 'cross-node-unsupported')
     }
     if (Date.parse(request.deadline) <= Date.now()) return failure(request, 'node-deadline-exceeded')
-    const retained = recovery?.reconcile === true || request.method === 'messages.send' && this.outgoing.query(
+    const retained = recovery?.reconcile === true || (request.method === 'messages.send' || request.method === 'messages.sendSeat') && this.outgoing.query(
       JSON.stringify([request.delegation.principalId, request.operationId])).state === 'pending'
     if (!this.available() || !this.connected || recovery?.active() === false || this.pending >= this.options.maxPending) {
       return failure(request, retained ? 'node-outcome-unknown' : 'node-tunnel-disconnected', retained)
     }
+    if ((request.method === 'messages.sendSeat' || request.method === 'messages.onlineSeats')
+      && !this.statusValue.capabilities.includes('seat-messages/v1')) {
+      return failure(request, retained ? 'node-outcome-unknown' : 'cross-node-unsupported', retained)
+    }
     this.pending++
     try {
-      if (request.method === 'seat.operation') {
+      if (request.method === 'seat.operation' || request.method === 'messages.onlineSeats') {
         return decodeResponse(await callLoopback(this.options.peerPort, this.credential, request, this.bounded(request)), request)
       }
       const identity = JSON.stringify([request.delegation.principalId, request.operationId])
@@ -123,7 +128,7 @@ export class NodeRouter implements NodeRouterService {
           if (object(receipt) && receipt.state === 'missing' && Object.keys(receipt).length === 1) return { state: 'missing' }
           if (!object(receipt) || receipt.state !== 'settled' || !object(receipt.result)) return { state: 'pending' }
           return { state: 'settled', result: decodeResponse({ ...receipt.result, requestId: request.requestId }, request) }
-        }, request.method === 'messages.send' ? deliver : undefined)
+        }, request.method === 'messages.send' || request.method === 'messages.sendSeat' ? deliver : undefined)
         : await this.outgoing.run(identity, fingerprint, deliver)
       if (outcome.state === 'conflict') return failure(request, 'node-operation-conflict')
       if (outcome.state !== 'settled') return failure(request, 'node-outcome-unknown', true)

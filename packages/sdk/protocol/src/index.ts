@@ -39,7 +39,8 @@ const messageClass = oneOf('handoff', 'notice', 'reply')
 const reason = oneOf('target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous',
   'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict',
   'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply',
-  'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt')
+  'message-not-found', 'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt',
+  'offline', 'busy-not-accepting')
 const address: Validator = value => fields({ nodeId: optional(text) })(value) && record(value)
   && ((text(value.sessionId) && value.name === undefined) || (text(value.name) && value.sessionId === undefined))
 const classification: Validator = value => record(value) && (value.messageClass === 'reply'

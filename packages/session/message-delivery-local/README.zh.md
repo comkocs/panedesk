@@ -25,6 +25,8 @@ kind: "package-reference"
 
 设置 `seatAddressing: true`，通过 `seatLocalRead.messageWindows` 启用可选的精确位解析与在线观测。省略时位寻址保持关闭，会话号／标题寻址不变。仅纳入本地在开且运行时存活状态明确的窗口；多窗时解析唯一主窗，否则返回歧义原因及候选。未开位返回 `seat not open`。显式组合与时序参见[位消息工具](../tool-seat-messages/README.zh.md)。
 
+远端精确位入站使用同一显式开关和宿主持有的完整信封验证。缺少定义返回 `target-not-found`；已有位但没有本地存活窗返回 `offline`；忙窗的收件政策拒收时返回 `busy-not-accepting`，忙本身不拒收。接收器先固定解析出的会话再追加信箱，保留原消息身份，不将留存尝试改投替代窗。节点在线查询串行执行，最多检查 `maxBatchSize` 个对端，以委托有效期为超时；失联或超时的对端保持未知。观测不是预留。
+
 <a id="dev-note"></a>
 ## 开发备注
 

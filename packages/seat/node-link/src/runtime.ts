@@ -46,11 +46,13 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
     const localSeats = ctx.get('seats'), localAdmission = ctx.get('nodeAuthorizedLocalAdmission')
     if (!policy || !authorization || !localSeats || !localAdmission) return undefined
     const messages = ctx.get('routedMessageReceiver'), messageAuthority = ctx.get('nodeMessageAuthority')
+    const seatMessages = ctx.get('routedSeatMessageReceiver')
     return createNodeLinkExecutor({ nodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
       peer: { sourceNodeId: options.peerNodeId as import('@panedesk/dsh-seat').SeatNodeId,
         targetNodeId: options.nodeId as import('@panedesk/dsh-seat').SeatNodeId,
         authenticatedAt: new Date().toISOString() }, policy, authorization, localSeats, localAdmission,
-      ...(messages === undefined ? {} : { messages }), ...(messageAuthority === undefined ? {} : { messageAuthority }) })
+      ...(messages === undefined ? {} : { messages }), ...(messageAuthority === undefined ? {} : { messageAuthority }),
+      ...(seatMessages === undefined ? {} : { seatMessages }) })
   }
   const receiver = new NodeReceiver(options.nodeId, options.peerNodeId, store, localExecutor)
   let listener: LoopbackListener | undefined, tunnel: SshTunnel | undefined, router: NodeRouter | undefined
@@ -107,7 +109,10 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
           ? await services.local.seats.nodeStatus() : undefined
         if (status === undefined) throw new Error('Local node provider unavailable')
         return { version: NODE_LINK_VERSION, nodeId: options.nodeId, epoch: authenticatedEpoch,
-          nonce: value.nonce, status, ...helloAdvertisement(capability) }
+          nonce: value.nonce, status, ...helloAdvertisement(capability),
+          ...(executor && ctx.get('routedSeatMessageReceiver') && ctx.get('nodeMessageAuthority')
+            && ctx.get('nodeDelegationReceivingPolicy')
+            ? { seatMessages: 'seat-messages/v1' } : {}) }
       }
       if (object(value) && value.type === 'receipt') {
         const request = decodeRequest(value.request)

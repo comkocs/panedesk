@@ -25,6 +25,8 @@ Optional node transport establishes bidirectional loopback forwarding through a 
 
 The fixed methods are `seat.open`, `seat.openBatch`, `seat.renew`, `seat.close`, `seat.replace`, `seat.wake`, `messages.send`, and `seat.operation`. Requests validate the version, source, target, operation ID, deadline, digest, and single-hop delegation; responses validate every correlated identity. Receivers invoke only a local executor and never forward again.
 
+Optional `messages.sendSeat` carries one exact `{ nodeId, seat }` and the frozen delivery envelope; `messages.onlineSeats` carries only an operation identity. Both require the peer's `seat-messages/v1` advertisement and explicit per-method delegated permission. The authenticated node pair, original sender session and exact payload digest are checked before local execution. Unknown seat sends query their original receipt; only authenticated `missing` permits the original payload to be sent again. Online queries bypass intent storage and never reserve a window. Missing receiver or authority refuses rather than widening permissions. Upgrade both nodes before enabling these methods; old closed-set readers cannot read new-method records, so preserve unresolved stores with a compatible reader before rollback.
+
 <a id="configuration-and-identity"></a>
 ## Configuration and Identity
 

@@ -274,7 +274,7 @@ describe('message CLI commands', () => {
     const reasons: MessageReason[] = ['target-closed-pending', 'target-archived', 'target-not-found', 'target-ambiguous',
       'receive-disabled', 'handoff-only', 'cross-node-unsupported', 'claimed', 'injected', 'revision-conflict',
       'operation-conflict', 'unauthorized', 'invalid-content', 'invalid-priority', 'invalid-reply', 'message-not-found',
-      'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt']
+      'terminal-state', 'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt', 'offline', 'busy-not-accepting']
     const states: MessageState[] = ['queued', 'injected', 'responded', 'withdrawn', 'invalidated', 'rejected']
     for (const reason of reasons) {
       for (const state of states) expect(describeReason(reason, state)).toContain(`current state: ${state}`)

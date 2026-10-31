@@ -29,6 +29,8 @@ kind: "package-reference"
 
 可选 `resolveSeat` 与 `listOnlineSeats` 提供本地位解析及忙闲观测，不扩大既有地址输入。提供方可以省略；消费者必须拒绝缺失能力，不推断可用性。不改变消息或账本格式。
 
+可选 `sendSeat` 精确寻址 `{ nodeId, seat }`；`listSeatNodes` 按节点返回已观测窗口或明确的未知状态。目标核验宿主持有的 `SeatDeliveryEnvelope`，仅解析本节点当前顶层窗，保留原发送人、消息、投递和操作身份。两方法要求显式提供方与委托支持，不开窗、不群发；观测不预留准入。
+
 `message/settings` 是读取时必需的持久事件。`message/state` 只在持久回执提交后发出。消息生命周期记录归独立消息账本命名空间，不进入调用日志。
 
 <a id="dev-note"></a>

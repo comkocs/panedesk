@@ -371,6 +371,17 @@ resolveSeat?(seat: string): Promise<import('./types.ts').SeatRecipientResolution
  */
 listOnlineSeats?(): Promise<readonly import('./types.ts').OnlineSeat[]>
 
+/** Send to an exact remote seat without resolving it on the sending node.
+ * @param request - Exact target node and seat with caller-retained operation identity.
+ * @returns Durable acknowledgement or original target refusal.
+ */
+sendSeat?(request: import('./seat-messages.ts').SendSeatMessageRequest): Promise<SendMessageResult>
+
+/** Observe local and configured remote seats with bounded queries; unreachable nodes remain unknown.
+ * @returns Per-node observations, never delivery reservations.
+ */
+listSeatNodes?(): Promise<readonly import('./seat-messages.ts').SeatNodeObservation[]>
+
 /**
  * Request withdrawal before claim; an offline owner acknowledges only durable intent.
  * @param request - message identity, expected revision, and operation identity.
@@ -474,7 +485,7 @@ The authority owner verifies identity rather than trusting a structurally simila
  * @param envelope - Exact sender-frozen delivery and causal evidence.
  * @returns Whether the capability belongs to this live host and envelope.
  */
-verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope): Promise<boolean>
+verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope | import('./seat-messages.ts').SeatDeliveryEnvelope): Promise<boolean>
 ```
 
 Source: [`packages/session/message-delivery/src/routed.ts`](../../packages/session/message-delivery/src/routed.ts)
@@ -502,6 +513,28 @@ receive(request: RoutedSendMessageRequest, authority: RoutedDeliveryAuthority): 
 ```
 
 Source: [`packages/session/message-delivery/src/routed.ts`](../../packages/session/message-delivery/src/routed.ts)
+
+<a id="ctxroutedseatmessagereceiver--routedseatmessagereceiver"></a>
+
+### `ctx.routedSeatMessageReceiver` — `RoutedSeatMessageReceiver`
+
+Host-authenticated ingress does not route again or create a replacement sender.
+
+```ts cordis-catalog
+/** Commit original identities after rechecking exact-envelope authority and local receive policy.
+ * @param request - Sender-frozen seat target and message.
+ * @param authority - Process-local host capability.
+ * @returns Durable original acknowledgement or safe refusal.
+ */
+receive(request: RoutedSeatMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>
+
+/** Observe only this node's verified windows without reserving delivery.
+ * @returns Current local busy and idle windows.
+ */
+online(): Promise<readonly OnlineSeat[]>
+```
+
+Source: [`packages/session/message-delivery/src/seat-messages.ts`](../../packages/session/message-delivery/src/seat-messages.ts)
 
 <a id="ctxsessionpersistence--sessionpersistence-abstract-seam"></a>
 

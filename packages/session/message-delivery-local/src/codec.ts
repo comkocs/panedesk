@@ -22,6 +22,7 @@ const reason = z.enum([
   'revision-conflict', 'operation-conflict', 'unauthorized', 'invalid-content',
   'invalid-priority', 'invalid-reply', 'message-not-found', 'terminal-state',
   'unavailable', 'delivery-uncertain', 'unsupported', 'interjection', 'record-corrupt',
+  'offline', 'busy-not-accepting',
 ]) satisfies z.ZodType<MessageReason>
 const sender = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('human'), sessionId: z.null() }),

@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="configuration-and-ownership"></a>
 ## 配置与归属
 
-运行时存活性由[本地消息投递](../../session/message-delivery-local/README.zh.md)另行核验。内部只读能力保留宿主权限；公开服务仍要求经过认证的调用者。
+运行时存活性由[本地消息投递](../../session/message-delivery-local/README.zh.md)另行核验。内部只读能力保留宿主权限；公开服务仍要求经过认证的调用者。席位转发仅接受 `seat.*` 方法；远端消息投递与在线观测由消息提供者处理。
 
 函数插件导出 `apply`、`inject` 和配置类型。配置 `LocalSeatOptions`：档案目录、节点身份及别名、已解析的定义默认值、正数输入与事务限制，以及关闭标题后缀。`storageDomain` 为必需项；引擎和会话能力通过可选服务查询接入。受控开窗需要公开会话创建、代理、账本、标题、权限及订阅提供者。
 

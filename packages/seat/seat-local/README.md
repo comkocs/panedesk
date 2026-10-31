@@ -23,7 +23,7 @@ Read-only `messageWindows` projects local open windows and their latest bindings
 
 ## Configuration and ownership
 
-Runtime liveness is checked separately by [local message delivery](../../session/message-delivery-local/README.md). The internal read capability retains host authority; the public service still requires an authenticated caller.
+Runtime liveness is checked separately by [local message delivery](../../session/message-delivery-local/README.md). The internal read capability retains host authority; the public service still requires an authenticated caller. Seat forwarding accepts only `seat.*` methods; remote message delivery and online observations use the message provider.
 
 The function plugin exports `apply`, `inject` and its configuration type. Supply `LocalSeatOptions`: the catalog directory, node identity and aliases, resolved definition defaults, positive input and transaction limits, and the closed-title suffix. `storageDomain` is required; the engine and Session capabilities attach through optional service lookup. Controlled opening requires public Session creation, Agents, ledger, title, permission and subscription providers.
 

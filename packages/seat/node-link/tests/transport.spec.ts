@@ -83,18 +83,20 @@ test('queries receipts without replay after response loss, rejects disconnected 
   expect(await router.route(frame('operation-c'))).toMatchObject({ error: { effectState: 'none' } })
 })
 
-test.each(['retained', 'absent', 'stopped-after-query'] as const)(
-  'retries only a missing remote direct-message receipt and preserves unknown while disconnected: %s', async (mode) => {
+test.each((['messages.send', 'messages.sendSeat'] as const).flatMap(method =>
+  (['retained', 'absent', 'stopped-after-query'] as const).map(mode => ({ method, mode }))))(
+  'retries only a missing remote direct-message receipt and preserves unknown while disconnected: $method / $mode', async ({ method, mode }) => {
     const sent = await store(), received = await store()
     let calls = 0, drop = mode === 'retained', missing = false, active = true
     const legacy = frame()
     const message = { messageId: 'message-a', sender: { kind: 'human', sessionId: null }, senderSessionId: null,
-      target: { nodeId: 'node-b', sessionId: 'session-b' }, priority: 'steer', content: 'Synthetic direct message',
+      target: method === 'messages.send' ? { nodeId: 'node-b', sessionId: 'session-b' } : { nodeId: 'node-b', seat: 'receiver' },
+      priority: 'steer', content: 'Synthetic direct message',
       createdAt: 1, revision: 0, mailboxSequence: 0, stateVersion: 0, operationId: 'operation-a', messageClass: 'handoff' }
     const envelope = { deliveryId: 'delivery-a', sourceNodeId: 'node-a', message }
     const payload = { operationId: 'operation-a', target: message.target, messageClass: 'handoff', content: message.content,
       delivery: { ...envelope, digest: digest(envelope) } }
-    const request = decodeRequest({ ...legacy, method: 'messages.send', payload, payloadDigest: digest(payload),
+    const request = decodeRequest({ ...legacy, method, payload, payloadDigest: digest(payload),
       delegation: { ...legacy.delegation, requestDigest: digest(payload) } })
     const executor = provider(async (input) => {
       calls++
@@ -105,7 +107,7 @@ test.each(['retained', 'absent', 'stopped-after-query'] as const)(
     const auth = { credential: randomBytes(32).toString('hex'), epoch: 'epoch-b', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
     const listener = await listenLoopback(0, limits, () => auth, async (value) => {
       if (object(value) && value.type === 'hello') return { version: NODE_LINK_VERSION, nodeId: 'node-b', epoch: auth.epoch,
-        nonce: value.nonce, status: await executor.status() }
+        nonce: value.nonce, status: await executor.status(), seatMessages: 'seat-messages/v1' }
       if (object(value) && value.type === 'receipt') {
         if (missing && mode === 'stopped-after-query') active = false
         return missing ? { state: 'missing' } : { state: 'pending' }

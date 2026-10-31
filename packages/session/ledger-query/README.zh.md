@@ -31,7 +31,7 @@ kind: "package-reference"
 
 `unanswered --older-than-minutes N` 向账本投影传递交接及回复的超龄筛选；默认排除撤回、作废、被拒及曾回应的消息，终态审计按选项处理。JSONL 导出保留稳定的创建时间／节点／消息排序、格式版本、排他续读游标与全量扫描完整性，不含消息正文。`--output` 新建仅属主可读写的文件；省略时在结构化结果中返回 JSONL。`watch --session ID` 流式输出回执 JSONL，支持排他的 `--cursor`。
 
-消息命令退出码：0 表示成功或等待宿主的持久意图，1 表示执行失败，2 表示参数无效，3 表示能力不可用，4 表示投递或控制被拒，5 表示操作不存在或有类型标记的消息不存在，6 表示账本扫描不完整。stdout 仍是机器可读 JSON。`send`、`send-batch`、`withdraw`、`edit`、`reprioritize`、`invalidate`、`status`、`operation`、`resolve` 另外向 stderr 写一句英文说明；拒绝时写出原因，运行时带回当前状态时一并写出。
+消息命令退出码：0 表示成功或等待宿主的持久意图，1 表示执行失败，2 表示参数无效，3 表示能力不可用，4 表示投递或控制被拒，5 表示操作不存在或有类型标记的消息不存在，6 表示账本扫描不完整。stdout 仍是机器可读 JSON。`send`、`send-batch`、`withdraw`、`edit`、`reprioritize`、`invalidate`、`status`、`operation`、`resolve` 另外向 stderr 写一句英文说明；拒绝时写出原因，运行时带回当前状态时一并写出。精确位结果 `offline` 与 `busy-not-accepting` 保留各自说明，不改变命令寻址。
 
 <a id="model-experience"></a>
 ## 模型体验

@@ -25,6 +25,8 @@ kind: "package-reference"
 
 固定方法为 `seat.open`、`seat.openBatch`、`seat.renew`、`seat.close`、`seat.replace`、`seat.wake`、`messages.send`、`seat.operation`。完整请求校验版本、来源、目标、操作号、期限、摘要与单跳委托；回包校验所有关联身份。接收端只能调用本地执行适配，不再转发。
 
+可选 `messages.sendSeat` 携带一个精确 `{ nodeId, seat }` 和冻结投递信封；`messages.onlineSeats` 只携带操作身份。两者要求对端通告 `seat-messages/v1`，且逐方法显式委托授权。本地执行前核验认证节点对、原发送会话及完整载荷摘要。未知位发送先查原回执，只有认证的 `missing` 才允许再次发送原载荷。在线查询不写意图存储、不预留窗口；缺少收件器或授权能力时拒绝，不扩权。启用前两节点一同升级；旧闭集读取器不能读新方法记录，回退前须通过兼容读取器保留未决存储。
+
 <a id="configuration-and-identity"></a>
 ## 配置与身份
 
