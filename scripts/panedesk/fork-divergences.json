@@ -1,6 +1,35 @@
 {
   "divergences": [
     {
+      "id": "secondary-settings-integrated-browser-goldens",
+      "description": "Keep assembled settings snapshots aligned with secondary navigation and provider controls.",
+      "origin": "Statistics, skills and provider recognition integration with existing settings consumers",
+      "reason": "Regenerate browser goldens for the additive Skills and Statistics settings sections and explicit provider recognition and probe controls. Preserve existing editing, credential handling, locale selection and disabled-state assertions; do not accept unrelated output changes or alter product behavior.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/expected/agent-preset-authoring/section.expected.md",
+          "apps/web/tests/expected/deepseek-messages-settings/cards.expected.md",
+          "apps/web/tests/expected/desktop-locale/automatic.expected.md",
+          "apps/web/tests/expected/desktop-locale/selected.expected.md",
+          "apps/web/tests/expected/models-settings-recovery/stored-error.expected.md",
+          "apps/web/tests/expected/models-settings/catalog-inputs.expected.md",
+          "apps/web/tests/expected/models-settings/configured.expected.md",
+          "apps/web/tests/expected/models-settings/declared-edit.expected.md",
+          "apps/web/tests/expected/models-settings/declared.expected.md",
+          "apps/web/tests/expected/models-settings/empty.expected.md",
+          "apps/web/tests/expected/models-settings/image-only.expected.md",
+          "apps/web/tests/expected/models-settings/native-keyless.expected.md",
+          "apps/web/tests/expected/models-settings/refreshing.expected.md",
+          "apps/web/tests/expected/onboarding-native/models.expected.md",
+          "apps/web/tests/expected/settings-chrome/dialog-en.expected.md",
+          "apps/web/tests/expected/settings-chrome/dialog-no-browser.expected.md",
+          "apps/web/tests/expected/settings-chrome/dialog.expected.md"
+        ],
+        "test": "opens the settings dialog, switches sections, and closes by every path"
+      }
+    },
+    {
       "id": "secondary-ui-integration-reference-freshness",
       "description": "Keep integrated secondary UI references and generated catalogs current.",
       "origin": "Statistics, provider settings and subagent tree integration",
