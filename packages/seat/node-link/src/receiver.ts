@@ -15,7 +15,7 @@ export function failure(request: NodeWireRequest, code: NodeLinkErrorCode, unkno
     sourceNodeId: request.sourceNodeId, targetNodeId: request.targetNodeId, method: request.method,
     status: unknown ? 'uncertain' : code === 'node-delegation-rejected' || code === 'node-operation-conflict' ? 'rejected' : 'unavailable',
     error: { code, reason: code, retryable: code === 'node-tunnel-disconnected', effectState: unknown ? 'unknown' : 'none',
-      operationId: request.operationId, targetNodeId: request.targetNodeId } }
+      operationId: request.operationId, targetNodeId: request.targetNodeId } } as NodeWireResponse
 }
 
 /** Local-only receiver never forwards an accepted operation to another node. */
@@ -35,6 +35,7 @@ export class NodeReceiver {
     if (executor === undefined) return failure(request, 'cross-node-unsupported')
     if (!await executor.authorize(request)) return failure(request, 'node-delegation-rejected')
     const key = (operationId: string): string => JSON.stringify([request.sourceNodeId, request.delegation.principalId, operationId])
+    if (request.method === 'messages.onlineSeats') return decodeResponse(await executor.execute(request), request)
     if (request.method === 'seat.operation') {
       const stored = this.store.query(key(request.payload.operationId))
       if (stored.state === 'pending') return failure(request, 'node-outcome-unknown', true)

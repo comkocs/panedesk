@@ -36,7 +36,7 @@ Tool registrations are disposed with their plugin scope. No Session or message-l
 
 #### What the model sees
 
-`seat_send` accepts `seat` and `text`; `seat_list_online` takes no arguments. Results are JSON rendered as text, and the generic tool card presents arguments and results. Attributed message text enters the recipient's persisted user-message history. Delivery and reading use the existing message ledger.
+`seat_send` accepts `seat`, `text` and optional `node`; `seat_list_online` takes no arguments. Results are JSON rendered as text, and the generic tool card presents arguments and results. Attributed message text enters the recipient's persisted user-message history. Delivery and reading use the existing message ledger.
 
 #### Token effect
 
@@ -48,7 +48,7 @@ Tool availability changes schema context. Delivery appends history without rewri
 
 ## Known Limitations and Deferred Work
 
-- Only the local node is addressable. Wildcards and group sending are unavailable.
+- Optional `node` selects one configured remote node identity; omission preserves local addressing. Remote sending and observation require explicit delegated permission and compatible node-link providers. Wildcards and group sending are unavailable. Remote refusals preserve `target-not-found`, `offline` and `busy-not-accepting`, with English and Chinese explanations. `seat_list_online` includes unreachable nodes as `status: 'unknown'`, not an empty successful snapshot.
 - Online state is an observation, not a reservation: a recipient can close between resolution and durable send. If the send observes closure and the recipient still has durable Session metadata, the existing mailbox retains queued mail and returns `target-closed-pending` with `pending: true`; this is not delivery or reading, and the tool does not reopen the recipient. An empty Session that closes without durable metadata can instead return `target-not-found` without queuing mail. Admission and reading are reported only by the recipient's subsequent message-ledger receipts.
 - A repeated tool call uses the same operation identity; changed target or attribution can be rejected as an operation conflict rather than sent twice.
 - Recipient policies may reject messages or disable idle wake.

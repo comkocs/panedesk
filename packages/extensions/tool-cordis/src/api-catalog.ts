@@ -1784,6 +1784,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'seat bindings paired with runtime busy/idle observations.',
       },
       {
+        signature: 'sendSeat?(request: import(\'./seat-messages.ts\').SendSeatMessageRequest): Promise<SendMessageResult>',
+        description: 'Send to an exact remote seat without resolving it on the sending node.',
+        parameters: [{ name: 'request', description: 'Exact target node and seat with caller-retained operation identity.' }],
+        returns: 'Durable acknowledgement or original target refusal.',
+      },
+      {
+        signature: 'listSeatNodes?(): Promise<readonly import(\'./seat-messages.ts\').SeatNodeObservation[]>',
+        description: 'Observe local and configured remote seats with bounded queries; unreachable nodes remain unknown.',
+        parameters: [],
+        returns: 'Per-node observations, never delivery reservations.',
+      },
+      {
         signature: 'abstract withdraw(request: MessageControlRequest): Promise<ControlResult>',
         description: 'Request withdrawal before claim; an offline owner acknowledges only durable intent.',
         parameters: [{ name: 'request', description: 'message identity, expected revision, and operation identity.' }],
@@ -2447,7 +2459,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'The authority owner verifies identity rather than trusting a structurally similar object.',
     methods: [
       {
-        signature: 'verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope): Promise<boolean>',
+        signature: 'verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope | import(\'./seat-messages.ts\').SeatDeliveryEnvelope): Promise<boolean>',
         description: 'Recheck an exact envelope against the host\'s process-local capability registry.',
         parameters: [{ name: 'authority', description: 'Previously issued host capability.' }, { name: 'envelope', description: 'Exact sender-frozen delivery and causal evidence.' }],
         returns: 'Whether the capability belongs to this live host and envelope.',
@@ -2464,6 +2476,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Recheck authority and durably commit the original message plus deduplication result before ack. Compare all request fields with delivery.message and verify the canonical envelope digest. Same source/message/delivery/operation identity and digest returns the original durable ack; reusing any retained identity with different content or causal evidence rejects operation-conflict. Preserve sender, priority, replyTo and timestamps; only target-owned mailbox/state sequences may advance during local admission. Accepted does not imply injection or a model response. Call only the local mailbox provider, never send(), a router or another node. Hop is one. Storage failure cannot yield accepted; unknown durability requires reconciliation before retry.',
         parameters: [{ name: 'request', description: 'Sender-frozen message, transport identity, digest and matching legacy fields.' }, { name: 'authority', description: 'Host-issued exact-envelope permission, never deserialized request data.' }],
         returns: 'Original correlated acknowledgement after durable admission, or the existing refusal.',
+      },
+    ],
+  },
+  {
+    key: 'routedSeatMessageReceiver',
+    summary: 'Host-authenticated ingress does not route again or create a replacement sender.',
+    description: 'Host-authenticated ingress does not route again or create a replacement sender.',
+    methods: [
+      {
+        signature: 'receive(request: RoutedSeatMessageRequest, authority: RoutedDeliveryAuthority): Promise<SendMessageResult>',
+        description: 'Commit original identities after rechecking exact-envelope authority and local receive policy.',
+        parameters: [{ name: 'request', description: 'Sender-frozen seat target and message.' }, { name: 'authority', description: 'Process-local host capability.' }],
+        returns: 'Durable original acknowledgement or safe refusal.',
+      },
+      {
+        signature: 'online(): Promise<readonly OnlineSeat[]>',
+        description: 'Observe only this node\'s verified windows without reserving delivery.',
+        parameters: [],
+        returns: 'Current local busy and idle windows.',
       },
     ],
   },
@@ -9043,7 +9074,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MessageReason',
-    declaration: 'export type MessageReason = \'target-closed-pending\' | \'target-archived\' | \'target-not-found\' | \'target-ambiguous\' | \'receive-disabled\' | \'handoff-only\' | \'cross-node-unsupported\' | \'claimed\' | \'injected\' | \'revision-conflict\' | \'operation-conflict\' | \'unauthorized\' | \'invalid-content\' | \'invalid-priority\' | \'invalid-reply\' | \'message-not-found\' | \'terminal-state\' | \'unavailable\' | \'delivery-uncertain\' | \'unsupported\' | \'interjection\' | \'record-corrupt\';',
+    declaration: 'export type MessageReason = \'target-closed-pending\' | \'target-archived\' | \'target-not-found\' | \'target-ambiguous\' | \'receive-disabled\' | \'handoff-only\' | \'cross-node-unsupported\' | \'claimed\' | \'injected\' | \'revision-conflict\' | \'operation-conflict\' | \'unauthorized\' | \'invalid-content\' | \'invalid-priority\' | \'invalid-reply\' | \'message-not-found\' | \'terminal-state\' | \'unavailable\' | \'delivery-uncertain\' | \'unsupported\' | \'interjection\' | \'record-corrupt\' | \'offline\' | \'busy-not-accepting\';',
   },
   {
     name: 'MessageRecipient',
@@ -9211,7 +9242,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeRouteMethods',
-    declaration: 'export interface NodeRouteMethods {\n    \'seat.open\': {\n        request: Seat.OpenSeatRequest;\n        result: Seat.OpenSeatResult;\n    };\n    \'seat.openBatch\': {\n        request: Seat.OpenSeatBatchRequest;\n        result: Seat.OpenSeatBatchResult;\n    };\n    \'seat.renew\': {\n        request: Seat.RenewSeatRequest;\n        result: Seat.RenewSeatResult;\n    };\n    \'seat.close\': {\n        request: Seat.CloseSeatRequest;\n        result: Seat.CloseSeatResult;\n    };\n    \'seat.replace\': {\n        request: Seat.ReplaceSeatRequest;\n        result: Seat.ReplaceSeatResult;\n    };\n    \'seat.wake\': {\n        request: Seat.WakeSeatRequest;\n        result: Seat.WakeSeatResult;\n    };\n    \'messages.send\': {\n        request: SendMessageRequest;\n        result: SendMessageResult;\n    };\n    \'seat.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatOperationResult;\n    };\n}',
+    declaration: 'export interface NodeRouteMethods {\n    \'seat.open\': {\n        request: Seat.OpenSeatRequest;\n        result: Seat.OpenSeatResult;\n    };\n    \'seat.openBatch\': {\n        request: Seat.OpenSeatBatchRequest;\n        result: Seat.OpenSeatBatchResult;\n    };\n    \'seat.renew\': {\n        request: Seat.RenewSeatRequest;\n        result: Seat.RenewSeatResult;\n    };\n    \'seat.close\': {\n        request: Seat.CloseSeatRequest;\n        result: Seat.CloseSeatResult;\n    };\n    \'seat.replace\': {\n        request: Seat.ReplaceSeatRequest;\n        result: Seat.ReplaceSeatResult;\n    };\n    \'seat.wake\': {\n        request: Seat.WakeSeatRequest;\n        result: Seat.WakeSeatResult;\n    };\n    \'messages.send\': {\n        request: SendMessageRequest;\n        result: SendMessageResult;\n    };\n    \'messages.sendSeat\': {\n        request: import(\'@panedesk/dsh-message-delivery\').RoutedSeatMessageRequest;\n        result: SendMessageResult;\n    };\n    \'messages.onlineSeats\': {\n        request: import(\'@panedesk/dsh-message-delivery\').OnlineSeatsRequest;\n        result: readonly import(\'@panedesk/dsh-message-delivery\').OnlineSeat[];\n    };\n    \'seat.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatOperationResult;\n    };\n}',
   },
   {
     name: 'NodeWireRequest',
@@ -9328,6 +9359,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OnlineSeat',
     declaration: 'export interface OnlineSeat {\n    readonly seat: string;\n    readonly sessionId: SessionId;\n    readonly nodeId: NodeId;\n    readonly status: \'busy\' | \'idle\';\n    readonly primary: boolean;\n}',
+  },
+  {
+    name: 'OnlineSeatsRequest',
+    declaration: 'export interface OnlineSeatsRequest {\n    readonly operationId: OperationId;\n}',
   },
   {
     name: 'OpenConfigurationStage',
@@ -10054,6 +10089,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RoutedDeliveryId = Branded<\'RoutedDeliveryId\'>;',
   },
   {
+    name: 'RoutedSeatMessageRequest',
+    declaration: 'export type RoutedSeatMessageRequest = SendSeatMessageRequest & {\n    readonly delivery: SeatDeliveryEnvelope;\n};',
+  },
+  {
     name: 'RoutedSendMessageRequest',
     declaration: 'export type RoutedSendMessageRequest = SendMessageRequest & {\n    readonly delivery: RoutedDeliveryEnvelope;\n};',
   },
@@ -10414,6 +10453,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SeatDefinitionRevisionResult = {\n    status: \'found\';\n    nodeId: SeatNodeId;\n    seat: SeatName;\n    revision: number;\n} | SeatRejected;',
   },
   {
+    name: 'SeatDeliveryEnvelope',
+    declaration: 'export type SeatDeliveryEnvelope = Omit<RoutedDeliveryEnvelope, \'message\'> & {\n    readonly message: import(\'./types.ts\').MessageClassification & Omit<DeliveryMessage, \'target\'> & {\n        readonly target: SeatMessageAddress;\n    };\n};',
+  },
+  {
     name: 'SeatDigest',
     declaration: 'export type SeatDigest = Branded<\'SeatDigest\'>;',
   },
@@ -10538,6 +10581,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SeatLocalOpenRequest {\n    nodeWorkChain?: NodeWorkChainAcceptedData;\n    request: OpenSeatRequest;\n    authority: SeatCallContext;\n    definition: SeatDefinition;\n    opening: NonNullable<import(\'./events.ts\').EngineOpenData[\'frozenOpening\']>;\n    title: string;\n    openingContext?: OpeningContextSnapshot;\n}',
   },
   {
+    name: 'SeatMessageAddress',
+    declaration: 'export interface SeatMessageAddress {\n    readonly nodeId: NodeId;\n    readonly seat: string;\n}',
+  },
+  {
     name: 'SeatMessageWindow',
     declaration: 'export interface SeatMessageWindow {\n    readonly seat: string;\n    readonly sessionId: SessionId;\n    readonly nodeId: T.SeatNodeId;\n    readonly primary: boolean;\n}',
   },
@@ -10552,6 +10599,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SeatNodeId',
     declaration: 'export type SeatNodeId = Branded<\'LedgerNodeId\'>;',
+  },
+  {
+    name: 'SeatNodeObservation',
+    declaration: 'export type SeatNodeObservation = {\n    readonly nodeId: NodeId;\n    readonly state: \'observed\';\n    readonly seats: readonly OnlineSeat[];\n} | {\n    readonly nodeId: NodeId;\n    readonly state: \'unknown\';\n    readonly reason: MessageReason;\n};',
   },
   {
     name: 'SeatNodeStatus',
@@ -10732,6 +10783,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SendMessageResult',
     declaration: 'export type SendMessageResult = {\n    readonly cause?: import(\'./routed.ts\').RoutedDeliveryFailureCause;\n    readonly messageId: MessageId;\n    readonly operationId: OperationId;\n} & ({\n    readonly deliveryOutcome: \'accepted\';\n    readonly messageState: \'queued\';\n    readonly pending: boolean;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: \'target-closed-pending\';\n    readonly messageState: \'queued\';\n    readonly pending: true;\n    readonly recipient: MessageRecipient;\n} | {\n    readonly deliveryOutcome: \'rejected\';\n    readonly reason: Exclude<MessageReason, \'target-closed-pending\'>;\n    readonly messageState: \'rejected\';\n    readonly pending: false;\n    readonly candidates: readonly MessageRecipient[];\n});',
+  },
+  {
+    name: 'SendSeatMessageRequest',
+    declaration: 'export type SendSeatMessageRequest = import(\'./types.ts\').MessageClassification & Omit<SendMessageRequest, \'target\'> & {\n    readonly target: SeatMessageAddress;\n};',
   },
   {
     name: 'SendTeamMessageRequest',

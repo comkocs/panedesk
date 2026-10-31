@@ -39,6 +39,15 @@ export abstract class MessageDelivery extends Service {
    * @returns seat bindings paired with runtime busy/idle observations.
    */
   listOnlineSeats?(): Promise<readonly import('./types.ts').OnlineSeat[]>
+  /** Send to an exact remote seat without resolving it on the sending node.
+   * @param request - Exact target node and seat with caller-retained operation identity.
+   * @returns Durable acknowledgement or original target refusal.
+   */
+  sendSeat?(request: import('./seat-messages.ts').SendSeatMessageRequest): Promise<SendMessageResult>
+  /** Observe local and configured remote seats with bounded queries; unreachable nodes remain unknown.
+   * @returns Per-node observations, never delivery reservations.
+   */
+  listSeatNodes?(): Promise<readonly import('./seat-messages.ts').SeatNodeObservation[]>
   /**
    * Request withdrawal before claim; an offline owner acknowledges only durable intent.
    * @param request - message identity, expected revision, and operation identity.
@@ -110,3 +119,4 @@ export abstract class MessageDelivery extends Service {
 
 export default MessageDelivery
 export type * from './routed.ts'
+export type * from './seat-messages.ts'

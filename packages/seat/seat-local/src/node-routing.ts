@@ -6,13 +6,13 @@ import { NODE_LINK_VERSION, type NodeDelegationRequest, type NodeRouteMethods } 
 import { digest } from './store.ts'
 import { rejected } from './errors.ts'
 
-type Method = Exclude<keyof NodeRouteMethods, 'messages.send'>
+type Method = Extract<keyof NodeRouteMethods, `seat.${string}`>
 /** Route one exact remote operation using an entry-captured issuer.
  * @param ctx - Optional router and trusted entry issuer.
  * @param source - Actual local node identity.
  * @param target - Selected owning node, never inferred from a principal name.
  * @param authority - Captured original caller, used only to prevent issuer identity substitution.
- * @param method - Frozen seat method.
+ * @param method - Frozen seat method; message delivery and observations use their own provider.
  * @param payload - Original operation parameters.
  * @returns Remote result, safe refusal, or undefined when routing is not installed or not needed.
  */

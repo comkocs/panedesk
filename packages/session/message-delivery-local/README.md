@@ -24,6 +24,8 @@ With `pagination: true`, provider-issued cursors page unanswered messages withou
 
 Set `seatAddressing: true` to enable optional exact-seat resolution and online observations through `seatLocalRead.messageWindows`. Omission leaves seat addressing disabled and preserves Session-ID/title addressing. Only local open windows with known live runtime status participate; a unique primary resolves multiple windows, otherwise the result includes an ambiguity reason and candidates. Missing seats return `seat not open`. See [seat message tools](../tool-seat-messages/README.md) for opt-in composition and timing.
 
+Remote exact-seat ingress uses the same opt-in and host-owned exact-envelope verification. A missing definition returns `target-not-found`; an existing seat without a live local window returns `offline`; a busy window whose receive policy refuses the message returns `busy-not-accepting`. Busy alone is not a refusal. The receiver pins the resolved Session before mailbox append, retains original message identities and never redirects a retained attempt to a replacement window. Per-node online queries run sequentially, inspect at most `maxBatchSize` peers and use the delegation lifetime as the timeout; unreachable or timed-out peers remain unknown. These observations are not reservations.
+
 <a id="dev-note"></a>
 ## Dev Note
 

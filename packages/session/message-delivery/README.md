@@ -29,6 +29,8 @@ Service Definition for same-node messages, receive settings, durable controls, a
 
 Optional `resolveSeat` and `listOnlineSeats` expose local seat resolution and busy/idle observations without widening existing address inputs. Providers may omit them; consumers must reject missing capabilities rather than infer availability. They do not change message or ledger formats.
 
+Optional `sendSeat` addresses exactly `{ nodeId, seat }`; `listSeatNodes` returns per-node observed windows or explicit unknown state. The target verifies a host-owned `SeatDeliveryEnvelope`, resolves only its own current top-level windows and preserves the original sender, message, delivery and operation identities. These methods require explicit provider and delegation support; they neither open windows nor broadcast. Observations do not reserve admission.
+
 `message/settings` is a required persistent event. `message/state` is emitted only after a durable receipt commits. Message lifecycle records belong to the separate message ledger namespace, not the call journal.
 
 <a id="dev-note"></a>

@@ -1810,7 +1810,7 @@ A fixed foreground workflow starts one fresh structured child per round; the mod
 
 ### `seat_list_online`
 
-List open local seats with their Session, node, primary-window selection, and current busy or idle state. Observations do not reserve delivery.
+List open local and authorized remote seats with their Session, node, primary-window selection, and current busy or idle state. Unreachable nodes are unknown. Observations do not reserve delivery.
 
 ```json
 {
@@ -1823,7 +1823,7 @@ Source: [`packages/session/tool-seat-messages/src/index.ts`](../packages/session
 
 ### `seat_send`
 
-Send text to one open seat on this node. A busy recipient reads it at the next tool-step boundary; an idle recipient starts a turn when handoff wake is enabled. Never opens a closed seat. No broadcast or wildcard targets.
+Send text to one open seat on this node or an explicitly named remote node. A busy recipient reads it at the next tool-step boundary; an idle recipient starts a turn when handoff wake is enabled. Never opens a closed seat. No broadcast or wildcard targets.
 
 ```json
 {
@@ -1831,7 +1831,11 @@ Send text to one open seat on this node. A busy recipient reads it at the next t
   "properties": {
     "seat": {
       "type": "string",
-      "description": "One exact local seat name."
+      "description": "One exact seat name."
+    },
+    "node": {
+      "type": "string",
+      "description": "Exact configured remote node identity. Omit for this node."
     },
     "text": {
       "type": "string",

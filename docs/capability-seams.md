@@ -25,6 +25,7 @@ flowchart LR
   pkg_message_delivery["message-delivery"]
   svc_routedMessageReceiver["ctx.routedMessageReceiver<br/>Durable routed message admission"]
   pkg_message_delivery_local["message-delivery-local"]
+  svc_routedSeatMessageReceiver["ctx.routedSeatMessageReceiver<br/>Exact remote seat messages"]
   svc_nodeMessageAuthority["ctx.nodeMessageAuthority<br/>Exact routed message authorization"]
   svc_routedDeliveryVerifier["ctx.routedDeliveryVerifier<br/>Exact routed delivery verification"]
   svc_hostAdmin["ctx.hostAdmin<br/>Opt-in loopback host administration"]
@@ -456,7 +457,9 @@ flowchart LR
   pkg_message_delivery --> svc_messageDelivery
   pkg_message_delivery --> svc_routedDeliveryVerifier
   pkg_message_delivery --> svc_routedMessageReceiver
+  pkg_message_delivery --> svc_routedSeatMessageReceiver
   pkg_message_delivery_local --> svc_routedMessageReceiver
+  pkg_message_delivery_local --> svc_routedSeatMessageReceiver
   pkg_message_feedback --> svc_messageFeedback
   pkg_node_link --> svc_nodeAuthorizedLocalAdmission
   pkg_node_link --> svc_nodeDelegationIssuer
@@ -674,6 +677,7 @@ flowchart LR
   svc_remoteAccess --> pkg_api_workspace_controller
   svc_routedDeliveryVerifier --> pkg_message_delivery_local
   svc_routedMessageReceiver --> pkg_seat_local
+  svc_routedSeatMessageReceiver --> pkg_node_link
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -821,6 +825,7 @@ flowchart LR
 | `ctx.nodeDelegationIssuer` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`seat-local`](../packages/seat/seat-local) | - | Retains exact operation evidence and limits delegation lifetime and methods. |
 | `ctx.nodeDelegationReceivingPolicy` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Intersects authenticated peer permissions with retained original authority. |
 | `ctx.routedMessageReceiver` | `seam` | [`message-delivery`](../packages/session/message-delivery) | [`message-delivery-local`](../packages/session/message-delivery-local) | [`seat-local`](../packages/seat/seat-local) | - | Retains sender identity and original durable acknowledgements without ordinary-send fallback. |
+| `ctx.routedSeatMessageReceiver` | `seam` | [`message-delivery`](../packages/session/message-delivery) | [`message-delivery-local`](../packages/session/message-delivery-local) | [`node-link`](../packages/seat/node-link) | - | Resolves local seat windows under exact message authority and exposes read-only online observations. |
 | `ctx.nodeMessageAuthority` | `seam` | [`node-link`](../packages/seat/node-link) | - | [`node-link`](../packages/seat/node-link) | - | Binds authenticated message envelopes to process-local delivery authority. |
 | `ctx.routedDeliveryVerifier` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | Checks host-owned envelope capabilities rather than wire authority claims. |
 | `ctx.hostAdmin` | `service` | [`host-admin`](../packages/host/host-admin) | - | - | - | Dispatches fixed authenticated requests against an existing host without starting another engine. |

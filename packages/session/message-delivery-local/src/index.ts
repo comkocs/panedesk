@@ -34,6 +34,8 @@ import { RecipientPolicy } from './policy.ts'
 import { broadcast } from './broadcast.ts'
 import { ReceiptStore } from './receipts.ts'
 import { createRoutedMailboxReceiver } from './routed-receiver.ts'
+import { createSeatMessageReceiver } from './seat-receiver.ts'
+import { observeRemoteSeats } from './seat-observations.ts'
 import { sendRoutedMessage, recoverRoutedMessages, type RoutedRecoveryScan } from './routed-sender.ts'
 import { inspectWindowsAcl } from './windows-permissions.ts'
 import { policyReason, resolveRecipients, resolveSeatRecipient } from './recipients.ts'
@@ -262,6 +264,27 @@ export default class LocalMessageDelivery extends MessageDelivery {
       },
       notify: (recipient) => { const owner = this.owners.get(recipient.sessionId); if (owner) this.track(owner.arbitrator.drain()) },
     })))
+    if (this.config.seatAddressing) this.ctx.effect(() => this.ctx.provide('routedSeatMessageReceiver', createSeatMessageReceiver({
+      mailbox: this.mailbox, maxContentBytes: this.config.maxContentBytes,
+      authorize: async (authority, request) => await this.ctx.get('routedDeliveryVerifier')?.verify(authority, request.delivery) ?? false,
+      resolve: async (request) => {
+        const seats = this.ctx.get('seatLocalRead')
+        if (!seats) return 'unavailable'
+        const definitions = await seats.definitions({})
+        if ('status' in definitions) return 'unavailable'
+        if (!definitions.definitions.some(row => row.seat === request.target.seat)) return definitions.complete ? 'target-not-found' : 'unavailable'
+        const resolution = await this.resolveSeat(request.target.seat)
+        if (resolution.kind === 'rejected') return resolution.reason === 'target-not-found' ? 'offline' : resolution.reason
+        const metadata = (await this.metadata()).find(row => row.sessionId === resolution.recipient.sessionId)
+        if (!metadata) return 'unavailable'
+        const refusal = policyReason(metadata.settings, request.messageClass)
+        if (refusal) return resolution.recipient.status === 'busy' ? 'busy-not-accepting' : refusal
+        if (request.messageClass === 'reply' && (!request.replyTo || !await this.findMessage(request.replyTo))) return 'invalid-reply'
+        return resolution.recipient
+      },
+      online: () => this.listOnlineSeats(),
+      notify: (recipient) => { const owner = this.owners.get(recipient.sessionId); if (owner) this.track(owner.arbitrator.drain()) },
+    })))
     await this.activate()
   }
 
@@ -384,6 +407,18 @@ export default class LocalMessageDelivery extends MessageDelivery {
       }
     }
     return output
+  }
+
+  override async sendSeat(request: import('@panedesk/dsh-message-delivery').SendSeatMessageRequest): Promise<SendMessageResult> {
+    await this.seatWindows()
+    return sendRoutedMessage(this.ctx, this.mailbox, request, this.sender())
+  }
+
+  override async listSeatNodes(): Promise<readonly import('@panedesk/dsh-message-delivery').SeatNodeObservation[]> {
+    const local: import('@panedesk/dsh-message-delivery').SeatNodeObservation = {
+      nodeId: this.nodeId, state: 'observed', seats: await this.listOnlineSeats(),
+    }
+    return [local, ...await observeRemoteSeats(this.ctx, this.nodeId, this.config.maxBatchSize, this.lifetime.signal)]
   }
 
   async send(request: SendMessageRequest): Promise<SendMessageResult> {

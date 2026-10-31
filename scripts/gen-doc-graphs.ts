@@ -155,6 +155,11 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Retains sender identity and original durable acknowledgements without ordinary-send fallback.',
   },
   {
+    key: 'routedSeatMessageReceiver', pkg: 'message-delivery', title: 'Exact remote seat messages', mode: 'seam',
+    implementations: ['message-delivery-local'], consumers: ['node-link'],
+    note: 'Resolves local seat windows under exact message authority and exposes read-only online observations.',
+  },
+  {
     key: 'nodeMessageAuthority', pkg: 'node-link', title: 'Exact routed message authorization', mode: 'seam',
     consumers: ['node-link'], note: 'Binds authenticated message envelopes to process-local delivery authority.',
   },

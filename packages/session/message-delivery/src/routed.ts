@@ -47,7 +47,7 @@ export interface RoutedDeliveryAuthorizer {
    * @param envelope - Validated frozen identity and payload; strings alone never authorize it.
    * @returns Process-local authority or null; absence never falls back to ordinary send.
    */
-  authorize(envelope: RoutedDeliveryEnvelope): Promise<RoutedDeliveryAuthority | null>
+  authorize(envelope: RoutedDeliveryEnvelope | import('./seat-messages.ts').SeatDeliveryEnvelope): Promise<RoutedDeliveryAuthority | null>
 }
 /** This optional receiver never mints a replacement message, delivery, operation or causal identity. */
 export interface RoutedMessageReceiver {
@@ -73,7 +73,7 @@ export interface RoutedDeliveryVerifier {
    * @param envelope - Exact sender-frozen delivery and causal evidence.
    * @returns Whether the capability belongs to this live host and envelope.
    */
-  verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope): Promise<boolean>
+  verify(authority: RoutedDeliveryAuthority, envelope: RoutedDeliveryEnvelope | import('./seat-messages.ts').SeatDeliveryEnvelope): Promise<boolean>
 }
 
 declare module '@panedesk/cordis' {

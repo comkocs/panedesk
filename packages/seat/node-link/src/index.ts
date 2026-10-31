@@ -28,6 +28,8 @@ export interface NodeRouteMethods {
   'seat.replace': { request: Seat.ReplaceSeatRequest; result: Seat.ReplaceSeatResult }
   'seat.wake': { request: Seat.WakeSeatRequest; result: Seat.WakeSeatResult }
   'messages.send': { request: SendMessageRequest; result: SendMessageResult }
+  'messages.sendSeat': { request: import('@panedesk/dsh-message-delivery').RoutedSeatMessageRequest; result: SendMessageResult }
+  'messages.onlineSeats': { request: import('@panedesk/dsh-message-delivery').OnlineSeatsRequest; result: readonly import('@panedesk/dsh-message-delivery').OnlineSeat[] }
   'seat.operation': { request: Seat.SeatOperationQuery; result: Seat.SeatOperationResult }
 }
 /** Mapped frames retain method/payload correlation and prohibit arbitrary RPC forwarding. */
@@ -230,3 +232,4 @@ export { createDelegationIssuer, createDelegationReceivingPolicy } from './deleg
 export type { DelegationEvidence, DelegationIssuanceOptions, DelegationReceivingOptions } from './delegation-policy.ts'
 export { createNodeLinkExecutor, nodeLinkExecutionAdapter } from './executor.ts'
 export { decodeRoutedSend } from './routed-codec.ts'
+export { decodeRoutedSeatSend } from './seat-message-codec.ts'

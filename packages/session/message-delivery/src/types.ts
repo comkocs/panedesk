@@ -27,6 +27,7 @@ export type MessageReason =
   | 'revision-conflict' | 'operation-conflict' | 'unauthorized' | 'invalid-content'
   | 'invalid-priority' | 'invalid-reply' | 'message-not-found' | 'terminal-state'
   | 'unavailable' | 'delivery-uncertain' | 'unsupported' | 'interjection' | 'record-corrupt'
+  | 'offline' | 'busy-not-accepting'
 
 /** Isolated mailbox evidence; message identity is omitted when it cannot be recovered. */
 export interface MessageQuarantineData {

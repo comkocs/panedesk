@@ -1816,7 +1816,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `seat_list_online`
 
-列出本地在开位及其会话、节点、主窗选择与当前忙闲状态。观测不预留投递。
+列出本地及获授权远端的在开位及其会话、节点、主窗选择与当前忙闲状态。不可达节点显示未知。观测不预留投递。
 
 ```json
 {
@@ -1829,7 +1829,7 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 
 ### `seat_send`
 
-向本节点一个在开位发送文本。忙碌收件方在下一工具步骤边界读取；空闲收件方在交接唤醒开启时启动回合。不打开已关闭的位。不提供群发或通配目标。
+向本节点或显式指定的远端节点上的一个在开位发送文本。忙碌收件方在下一工具步骤边界读取；空闲收件方在交接唤醒开启时启动回合。不打开已关闭的位。不提供群发或通配目标。
 
 ```json
 {
@@ -1837,7 +1837,11 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
   "properties": {
     "seat": {
       "type": "string",
-      "description": "One exact local seat name."
+      "description": "One exact seat name."
+    },
+    "node": {
+      "type": "string",
+      "description": "Exact configured remote node identity. Omit for this node."
     },
     "text": {
       "type": "string",

@@ -4,7 +4,7 @@ import { opendir } from 'node:fs/promises'
 import type { Dir } from 'node:fs'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
-import type { MessageSender, SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
+import type { MessageSender, SendMessageRequest, SendMessageResult, SendSeatMessageRequest } from '@panedesk/dsh-message-delivery'
 import type { NodeDelegationRequest, NodeLinkFailure } from '@panedesk/dsh-node-link'
 import { createUserMessage } from '@panedesk/dsh-llm'
 import type { FileMailbox } from './mailbox.ts'
@@ -19,10 +19,12 @@ import { decodeSendResult } from './codec.ts'
  * @param active - Recovery lifetime checked before dispatch; ordinary sends remain active.
  * @returns Target acknowledgement, or an explicit refusal/unknown outcome preserving identity.
  */
-export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, request: SendMessageRequest,
+export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, request: SendMessageRequest | SendSeatMessageRequest,
   sender: MessageSender, active: () => boolean = () => true): Promise<SendMessageResult> {
   // Computed imports keep optional transports out of the default worker image.
-  const { NODE_LINK_VERSION, decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
+  const { NODE_LINK_VERSION, decodeRoutedSend, decodeRoutedSeatSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
+  const seat = 'seat' in request.target
+  const decode = seat ? decodeRoutedSeatSend : decodeRoutedSend
   const { digest } = await import('@panedesk/dsh-'.concat('host-admin')) as typeof import('@panedesk/dsh-host-admin')
   const key = component(request.operationId), fingerprint = digest({ sender, request })
   return mailbox.locked(join(mailbox.root, 'operations', `${key}.lock`), async () => {
@@ -42,25 +44,25 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
     })
     const unknown = object(previous) && previous.phase === 'unknown'
     const router = ctx.get('nodeRouter'), issuer = ctx.get('nodeDelegationIssuer')
-    if (!router || !issuer || request.target.sessionId === undefined || request.target.nodeId === undefined) {
+    if (!router || !issuer || (!('seat' in request.target) && request.target.sessionId === undefined) || request.target.nodeId === undefined) {
       return refuse(unknown ? 'delivery-uncertain' : 'cross-node-unsupported',
-        object(previous) ? decodeRoutedSend(previous.request).delivery.message.messageId : messageId)
+        object(previous) ? decode(previous.request).delivery.message.messageId : messageId)
     }
     if (['callId', 'rootCallId', 'causedByDeliveryId', 'delivery'].some(key => key in request)) return refuse('unauthorized')
     const envelope = { deliveryId: randomUUID(), sourceNodeId: mailbox.options.nodeId,
       message: { messageId, sender, senderSessionId: sender.sessionId,
-        target: { nodeId: request.target.nodeId, sessionId: request.target.sessionId },
+        target: request.target,
         priority: request.priority ?? (request.messageClass === 'notice' ? 'queue' : 'steer'),
         content: request.content, createdAt: Date.now(), revision: 0, mailboxSequence: 0, stateVersion: 0,
         operationId: request.operationId, ...(request.messageClass === 'reply'
           ? { messageClass: request.messageClass, replyTo: request.replyTo } : { messageClass: request.messageClass }) } }
-    const payload = decodeRoutedSend(object(previous) ? previous.request
+    const payload = decode(object(previous) ? previous.request
       : { ...request, delivery: { ...envelope, digest: digest(envelope) } })
     if (previous === undefined) await publish(path, { digest: fingerprint, request: payload }, mailbox.options.maxRecordBytes)
     const prepared = { version: NODE_LINK_VERSION, requestId: randomUUID(), sourceNodeId: mailbox.options.nodeId,
       targetNodeId: String(request.target.nodeId), operationId: String(request.operationId),
       deadline: new Date(Date.now() + issuer.expiry.maxLifetimeMs).toISOString(), hop: 1,
-      method: 'messages.send', payload, payloadDigest: digest(payload) } as NodeDelegationRequest
+      method: seat ? 'messages.sendSeat' : 'messages.send', payload, payloadDigest: digest(payload) } as NodeDelegationRequest
     const issued = await issuer.issue(prepared)
     if (issued.status === 'rejected') {
       if (object(previous) && previous.phase === 'unknown') return refuse('delivery-uncertain', payload.delivery.message.messageId,
@@ -81,7 +83,8 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
     await publish(path, { digest: fingerprint, request: payload, phase: 'unknown', authority }, mailbox.options.maxRecordBytes)
     if (!active()) return refuse('delivery-uncertain', payload.delivery.message.messageId)
     const response = await router.route({ ...prepared, delegation: issued.delegation }, { reconcile: unknown, active })
-    if (response.status !== 'ok' || response.method !== 'messages.send') {
+    if (response.status !== 'ok' || response.method !== prepared.method
+      || (response.method !== 'messages.send' && response.method !== 'messages.sendSeat')) {
       const uncertain = unknown || response.status !== 'ok' && response.error.effectState === 'unknown'
       const result = refuse(uncertain ? 'delivery-uncertain' : 'unavailable',
         payload.delivery.message.messageId, response.status === 'ok' ? undefined
@@ -89,7 +92,7 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
       if (!uncertain) await publish(path, { digest: fingerprint, request: payload, result }, mailbox.options.maxRecordBytes)
       return result
     }
-    const result = response.result
+    const result = decodeSendResult(response.result)
     if (result.messageId !== payload.delivery.message.messageId || result.operationId !== request.operationId) {
       return refuse('delivery-uncertain', payload.delivery.message.messageId)
     }
@@ -117,7 +120,7 @@ export async function recoverRoutedMessages(ctx: Context, mailbox: FileMailbox,
   run: (sender: MessageSender, work: (live?: () => boolean) => Promise<void>) => Promise<boolean>, active: () => boolean,
   scan: RoutedRecoveryScan): Promise<void> {
   if (!ctx.get('nodeRouter') || !ctx.get('nodeDelegationIssuer')) return
-  const { decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
+  const { decodeRoutedSend, decodeRoutedSeatSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
   const directory = join(mailbox.root, 'operations')
   scan.directory ??= await opendir(directory)
   for (let inspected = 0; inspected < scan.maxEntries; inspected++) {
@@ -132,7 +135,8 @@ export async function recoverRoutedMessages(ctx: Context, mailbox: FileMailbox,
     try {
       const value = await readValue(join(directory, entry.name), mailbox.options.maxRecordBytes)
       if (!object(value) || value.phase !== 'unknown' || value.result !== undefined || value.authority === undefined) continue
-      const payload = decodeRoutedSend(value.request)
+      const payload = object(value.request) && object(value.request.target) && 'seat' in value.request.target
+        ? decodeRoutedSeatSend(value.request) : decodeRoutedSend(value.request)
       const { delivery, ...request } = payload
       await run(delivery.message.sender, async (live = active) => {
         const current = () => active() && live()

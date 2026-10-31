@@ -35,6 +35,7 @@ export interface NodeLinkExecutionDependencies {
   readonly authorization: Seat.SeatAuthorizationTransactions
   readonly localSeats: Seat.SeatService
   readonly messages?: RoutedMessageReceiver
+  readonly seatMessages?: import('@panedesk/dsh-message-delivery').RoutedSeatMessageReceiver
   readonly messageAuthority?: RoutedDeliveryAuthorizer
   /** Optional local admission owner that commits the grant and action together; absence refuses seat writes. */
   readonly localAdmission?: NodeAuthorizedLocalAdmission

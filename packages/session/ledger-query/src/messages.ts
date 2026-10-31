@@ -37,6 +37,8 @@ export function describeReason(reason: MessageReason, state: MessageState | unde
     case 'target-closed-pending': return `target is closed; stored as pending delivery${current}`
     case 'target-archived': return `target is archived and does not accept messages${current}`
     case 'target-not-found': return `target not found${current}`
+    case 'offline': return `target seat is offline${current}`
+    case 'busy-not-accepting': return `target seat is busy and does not accept messages${current}`
     case 'target-ambiguous': return `target name is ambiguous; refusing to pick one${current}`
     case 'receive-disabled': return `target does not accept messages${current}`
     case 'handoff-only': return `target accepts handoffs only${current}`

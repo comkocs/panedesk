@@ -61,8 +61,8 @@ export function createDelegationIssuer(options: DelegationIssuanceOptions): Node
       || !options.methods.includes(request.method) || !Number.isFinite(expires) || expires <= now
       || request.payloadDigest !== digest(request.payload)) return { status: 'rejected', error: refusal(request) }
     const result = await options.issuer.check({ operationId: request.operationId, requestDigest: request.payloadDigest,
-      ...(request.method === 'messages.send' && request.payload.delivery.callId ? { callId: request.payload.delivery.callId } : {}),
-      ...(request.method === 'messages.send' && request.payload.delivery.rootCallId ? { rootCallId: request.payload.delivery.rootCallId } : {}) })
+      ...((request.method === 'messages.send' || request.method === 'messages.sendSeat') && request.payload.delivery.callId ? { callId: request.payload.delivery.callId } : {}),
+      ...((request.method === 'messages.send' || request.method === 'messages.sendSeat') && request.payload.delivery.rootCallId ? { rootCallId: request.payload.delivery.rootCallId } : {}) })
     if ('status' in result) return { status: 'rejected', error: refusal(request) }
     const fact = result.fact
     if (fact.decision !== 'allowed' || fact.kind === 'node-delegation' || fact.nodeId !== options.sourceNodeId

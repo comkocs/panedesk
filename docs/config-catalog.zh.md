@@ -2599,7 +2599,7 @@ export interface Config {
 
 ## `@panedesk/dsh-node-link`
 
-- `source`: [`packages/seat/node-link/src/index.ts:182`](../packages/seat/node-link/src/index.ts)
+- `source`: [`packages/seat/node-link/src/index.ts:184`](../packages/seat/node-link/src/index.ts)
 
 ```ts config-catalog
 /** Omission preserves the empty plugin's no-I/O behavior. */
