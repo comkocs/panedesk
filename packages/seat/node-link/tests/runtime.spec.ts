@@ -10,10 +10,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { PosixPrivateFiles, listenLoopback, object } from '@panedesk/dsh-host-admin'
+import { PosixPrivateFiles, listenLoopback, object, digest, OperationStore } from '@panedesk/dsh-host-admin'
 import * as NodeLink from '../src/index.ts'
+import type { NodeLinkExecutor, NodeWireRequest } from '../src/index.ts'
 import { decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
-import { failure } from '../src/receiver.ts'
+import { NodeReceiver, failure } from '../src/receiver.ts'
+import { decodeRequest, decodeResponse } from '../src/codec.ts'
 
 const cleanups: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
@@ -174,3 +176,128 @@ test('leaves node services unregistered without configuration', async () => {
   await ctx.plugin(NodeLink, {})
   expect(ctx.get('nodeRouter')).toBeUndefined()
 })
+
+test('rebuild after exhaustion replays nothing settled and delivers each unresolved item exactly once', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'node-rebuild-delivery-'))
+  cleanups.push(() => rm(root, { recursive: true, force: true }))
+  const peerRoot = await mkdtemp(join(tmpdir(), 'node-rebuild-peer-'))
+  cleanups.push(() => rm(peerRoot, { recursive: true, force: true }))
+  const files = new PosixPrivateFiles(root, process.getuid!())
+  const outbound = { credential: randomBytes(32).toString('hex'), epoch: 'test', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+  await files.write('outbound.json', JSON.stringify(outbound))
+  await files.write('inbound.json', JSON.stringify({ ...outbound, credential: randomBytes(32).toString('hex'),
+    sourceNodeId: 'node-b', targetNodeId: 'node-a' }))
+  const received = new OperationStore(new PosixPrivateFiles(peerRoot, process.getuid!()),
+    limits.maxStoreBytes, limits.maxOperations)
+  await received.load()
+  const executed = new Map<string, number>()
+  const dropResponse = new Set<string>()
+  const status = async () => decodeSeatResult('seats/nodeStatus', { nodeId: 'node-b', nodeName: 'peer',
+    engine: 'running', openEngineWindows: 2, limit: 4, readyAt: null })
+  const executor: NodeLinkExecutor = { authorize: async () => true, status,
+    execute: async (input) => {
+      executed.set(input.operationId, (executed.get(input.operationId) ?? 0) + 1)
+      return decodeResponse({ ...input, status: 'ok', result: { messageId: 'message-a', operationId: input.operationId,
+        deliveryOutcome: 'rejected', messageState: 'rejected', pending: false, reason: 'unavailable', candidates: [] } }, input)
+    } }
+  const receiver = new NodeReceiver('node-b', 'node-a', received, () => executor)
+  let authenticated = false
+  const peer = await listenLoopback(0, limits, () => outbound, async (value) => {
+    if (object(value) && value.type === 'hello') {
+      if (!authenticated) throw new Error('Peer handshake unavailable')
+      return { version: NodeLink.NODE_LINK_VERSION, nodeId: 'node-b', epoch: outbound.epoch, nonce: value.nonce,
+        status: await status(), seatMessages: 'seat-messages/v1' }
+    }
+    if (object(value) && value.type === 'receipt') {
+      const request = decodeRequest(value.request)
+      return received.query(JSON.stringify([request.sourceNodeId, request.delegation.principalId, request.operationId]),
+        digest({ method: request.method, payload: request.payload, principalId: request.delegation.principalId,
+          seat: request.delegation.seat ?? null, sessionId: request.delegation.sessionId ?? null, taskIds: request.delegation.taskIds }))
+    }
+    const result = await receiver.receive(decodeRequest(value))
+    if (object(value) && dropResponse.has(String(value.operationId))) throw new Error('Simulated response loss')
+    return result
+  })
+  cleanups.push(() => peer.close())
+  const messageRequest = (operationId: string, requestId: string): NodeWireRequest => {
+    const message = { messageId: 'message-a', sender: { kind: 'human' as const, sessionId: null }, senderSessionId: null,
+      target: { nodeId: 'node-b', sessionId: 'session-b' }, priority: 'steer' as const, content: 'Synthetic direct message',
+      createdAt: 1, revision: 0, mailboxSequence: 0, stateVersion: 0, operationId, messageClass: 'handoff' as const }
+    const envelope = { deliveryId: `delivery-${operationId}`, sourceNodeId: 'node-a', message }
+    const payload = { operationId, target: message.target, messageClass: 'handoff', content: message.content,
+      delivery: { ...envelope, digest: digest(envelope) } }
+    return decodeRequest({ version: NodeLink.NODE_LINK_VERSION, method: 'messages.send', requestId,
+      sourceNodeId: 'node-a', targetNodeId: 'node-b', operationId,
+      deadline: new Date(Date.now() + 60000).toISOString(), hop: 1, payload, payloadDigest: digest(payload),
+      delegation: { kind: 'node-delegation', hop: 1, principalId: 'principal-a', authorizationRef: 'grant-a',
+        sourceNodeId: 'node-a', targetNodeId: 'node-b', operationId, requestDigest: digest(payload), taskIds: [],
+        expiresAt: new Date(Date.now() + 60000).toISOString() } })
+  }
+  const exits: ReturnType<typeof Promise.withResolvers<SubprocessOutcome>>[] = []
+  const spawn = vi.fn<SubprocessRuntime['spawn']>(() => {
+    const done = Promise.withResolvers<SubprocessOutcome>(), stderr = new PassThrough()
+    exits.push(done)
+    return { stdin: undefined, stdout: undefined, stderr, control: undefined, collected: {}, done: done.promise,
+      terminate: () => { done.resolve({ exitCode: 0, signal: null }) },
+      waitForExit: async () => { await done.promise; return true } }
+  })
+  class RebuildSubprocess extends SubprocessRuntime {
+    resolveExecutable = async () => '/usr/bin/ssh'
+    terminalEnvironment = async () => ({ platform: 'posix' as const })
+    spawn = spawn
+    spawnTerminal = async (): Promise<never> => { throw new Error('Not used') }
+  }
+  const ctx = new Context()
+  cleanups.push(() => ctx.fiber.dispose())
+  await ctx.plugin(RebuildSubprocess)
+  ctx.baseUrl = `${pathToFileURL(root).href}/`
+  await ctx.plugin(Loader)
+  Object.assign(ctx.loader.builtins, { include: Include, nodeLink: NodeLink })
+  const profile = join(root, 'node.yml')
+  await writeFile(profile, JSON.stringify([{ name: 'cordis:nodeLink', config: { runtime: {
+    ...limits, directory: root, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer', listenPort: 0, peerPort: peer.port,
+    ssh: { alias: 'test-peer', cwd: root, remotePort: 1, remoteTargetPort: 1,
+      graceMs: 100, keepAliveSeconds: 5, keepAliveCount: 2, retryMs: 100, maxRetries: 0 },
+  } } }]))
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(profile).href } })
+  await ctx.loader.await()
+  await expect.poll(() => ctx.get('hostAdminTransport') !== undefined && ctx.get('nodeRouter') !== undefined,
+    { timeout: 5000 }).toBe(true)
+  const transport = ctx.get('hostAdminTransport')!, routerService = ctx.get('nodeRouter')!
+  authenticated = true
+  await expect.poll(async () => (await routerService.status())[0]?.reachable, { timeout: 10000 }).toBe(true)
+  expect(await routerService.route(messageRequest('settled-op', 'request-settled')))
+    .toMatchObject({ status: 'ok', result: { operationId: 'settled-op' } })
+  expect(executed.get('settled-op')).toBe(1)
+  dropResponse.add('inflight-op')
+  expect(await routerService.route(messageRequest('inflight-op', 'request-inflight')))
+    .toMatchObject({ status: 'uncertain', error: { code: 'node-outcome-unknown', effectState: 'unknown' } })
+  expect(executed.get('inflight-op')).toBe(1)
+  exits[0]!.resolve({ exitCode: 255, signal: null })
+  await expect.poll(async () => (await routerService.status())[0]?.safeReason, { timeout: 10000 })
+    .toContain('SSH tunnel exhausted')
+  expect((await routerService.status())[0]?.reachable).toBe(false)
+  expect(spawn).toHaveBeenCalledOnce()
+  expect(await routerService.route(messageRequest('queued-op', 'request-queued')))
+    .toMatchObject({ status: 'unavailable', error: { code: 'node-tunnel-disconnected', effectState: 'none' } })
+  expect(executed.has('queued-op')).toBe(false)
+  const first = transport.rebuildTransport(), second = transport.rebuildTransport()
+  await expect(first).resolves.toEqual({ status: 'rebuilt' })
+  await expect(second).resolves.toEqual({ status: 'rebuilt' })
+  expect(spawn).toHaveBeenCalledTimes(2)
+  expect(ctx.get('hostAdminTransport')).toBe(transport)
+  expect(ctx.get('nodeRouter')).toBe(routerService)
+  await expect.poll(async () => (await routerService.status())[0]?.reachable, { timeout: 10000 }).toBe(true)
+  expect(await routerService.route(messageRequest('inflight-op', 'request-inflight-retry')))
+    .toMatchObject({ status: 'ok', result: { operationId: 'inflight-op' } })
+  expect(executed.get('inflight-op')).toBe(1)
+  expect(await routerService.route(messageRequest('settled-op', 'request-settled-retry')))
+    .toMatchObject({ status: 'ok', result: { operationId: 'settled-op' } })
+  expect(executed.get('settled-op')).toBe(1)
+  expect(await routerService.route(messageRequest('queued-op', 'request-queued-retry')))
+    .toMatchObject({ status: 'ok', result: { operationId: 'queued-op' } })
+  expect(executed.get('queued-op')).toBe(1)
+  await ctx.fiber.dispose()
+  await expect(transport.rebuildTransport()).resolves.toEqual({ status: 'unavailable' })
+  expect(spawn).toHaveBeenCalledTimes(2)
+}, 30000)

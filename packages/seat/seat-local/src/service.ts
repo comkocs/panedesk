@@ -702,6 +702,10 @@ export class LocalSeatService extends SeatService {
     const candidates = (await this.windows()).filter(item => item.binding.seat === request.seat)
     if (!candidates.length) {
       if (request.sessionId !== undefined) return rejected('session-not-found', 'Selected window is no longer active.', 'List windows again.')
+      // A half-signed owner entry must not fall back to unverified legacy opening.
+      if (this.caller().authorization && !wire) {
+        return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
+      }
       return { status: 'opened', result: await open({ ...request, origin: this.caller().origin, openingMode: 'auto' }) }
     }
     const target = request.sessionId === undefined ? candidates.length === 1 ? candidates[0] : undefined
