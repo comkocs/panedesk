@@ -77,9 +77,10 @@ export interface NodeLinkStatus {
 export interface NodeRouterService {
   /** Route one bounded authenticated request without offline user-operation queues.
    * @param request - Fixed method, digest, deadline and narrowed delegation.
+   * @param recovery - Trusted local recovery intent and current sender lifetime, never wire authority.
    * @returns Target result or explicit unknown outcome retaining operation identity.
    */
-  route(request: NodeWireRequest): Promise<NodeWireResponse>
+  route(request: NodeWireRequest, recovery?: { reconcile: boolean; active: () => boolean }): Promise<NodeWireResponse>
   /** Read dated health without initiating a model or opening a window.
    * @returns Node aliases and explicit stale/unreachable evidence.
    */
@@ -173,6 +174,8 @@ export interface NodeLinkRuntimeConfig {
     retryMs: number
     /** Maximum reconnection attempts after the initial attempt. */
     maxRetries: number
+    /** Optional OpenSSH configuration file. Omission keeps the user's default configuration. */
+    sshConfigFile?: string | undefined
   } | undefined
 }
 /** Omission preserves the empty plugin's no-I/O behavior. */
@@ -199,6 +202,7 @@ export const Config: Schema<Config> = Schema.object({ runtime: Schema.union([Sch
     graceMs: Schema.number().min(1).step(1).required(), keepAliveSeconds: Schema.number().min(1).step(1).required(),
     keepAliveCount: Schema.number().min(1).step(1).required(), retryMs: Schema.number().min(1).step(1).required(),
     maxRetries: Schema.number().min(0).step(1).required(),
+    sshConfigFile: Schema.union([Schema.const(undefined), Schema.string()]),
   })]),
 })]) })
 /** Mount only explicitly configured transport; absent options remain inert.

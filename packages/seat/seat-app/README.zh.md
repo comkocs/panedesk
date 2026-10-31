@@ -27,6 +27,8 @@ kind: "package-bundle"
 
 `nodes list` 与 `nodes status --node <alias>` 读取带时间的路由健康状态，不为不可达节点虚构容量。`authorizations query` 接受 `--task`、`--seat`、`--node`、`--kind`、`--from`、`--to`、`--limit` 与 JSON `--cursor`，或独占的 `--request` JSON 对象。结果保留 `watermark`、`nextCursor` 与 `complete`；缺少提供方时绝不启动另一宿主。
 
+`nodes rebuild --directory <admin-directory>` 使用经过校验的私有文件提供方，经认证 `node.rebuild` 运维方法联系已有宿主，必须显式配置 `seat-app` 的 `adminClient: { maxFrameBytes, requestTimeoutMs, maxPending }`；省略时返回状态码2且不联系宿主。不通过 argv 传凭据、不启动另一引擎。省略 `--directory` 时使用当前配置方案的可选链路提供方。未知选项拒绝；能力不可用返回状态码2。重拉成功只表示隧道子进程已替换，不证明对端已认证；应在常规握手后读取 `nodes status`。
+
 命令等待 `appReady`。dispose（资源释放）移除就绪监听并排空正在执行的命令。本包不拥有引擎日志，也不绕过提供方就绪条件。
 
 <a id="model-experience"></a>

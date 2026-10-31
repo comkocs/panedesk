@@ -23,7 +23,7 @@ kind: "package-reference"
 <a id="purpose"></a>
 ## 用途
 
-管理方法为 `node.status`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`、`engine.callbackResolve`、`source.operations`、`source.abandon`、`source.resend`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
+管理方法为 `node.status`、`node.rebuild`、`engine.pending`、`engine.approve`、`engine.operation`、`engine.query`、`engine.cancel`、`engine.callbackResolve`、`source.operations`、`source.abandon`、`source.resend`。新增的 `sdk.invoke` 只向已注册 SDK 命名空间分派，依次走其解码、授权、执行和编码函数；未注册或已卸载的命名空间返回 `method-unavailable`。传输限定本机回环，拒绝浏览器来源、请求 cookie、非固定路径、错误 Host、旧进程代次及错误认证头。请求与响应均受完整帧字节上限约束。
 
 <a id="configuration-and-identity"></a>
 ## 配置与身份
@@ -45,7 +45,9 @@ Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，�
 <a id="persistence-and-recovery"></a>
 ## 持久化与恢复
 
-`operations.json` 按主体与操作号保留摘要、待决状态或原始回执。先耐久写待决再执行，结果落盘后才公开；同号同参返回原结果，异参拒绝，丢回包保持未知，不自动重放。容量耗尽拒绝新操作，不淘汰未知记录。此接收记录不替代引擎授权账本。
+`operations.json` 按主体与操作号保留摘要、待决状态或原始回执。先耐久写待决再执行，结果落盘后才公开；同号同参返回原结果，异参拒绝。来源拒绝明确声明 `effect: 'none'` 时保留 `retryable` 指纹而不固化终态回执，允许同一授权请求重试，但不允许改变参数。丢回包保持未知，不自动重放。容量耗尽拒绝新操作，不淘汰未知记录。此接收记录不替代引擎授权账本。旧读取器拒绝 `retryable` 记录；回退前停止准入并保存完整存储供兼容读取器使用，不得删记录强行启动。
+
+已登记提供方失败只公开 `detail: 'source-settlement-pending'` 或 `detail: 'write-budget-exceeded-before-write'`，不返回任意异常文本。来源写拒绝的 `effect: 'none'` 表示提供方未开始操作的持久写，不表示结果未知。`node.rebuild({})` 调用宿主持有的可选链路能力，不启动另一宿主；缺少能力时返回不可用。重拉子进程后仍须通过原有对端认证握手才能路由。
 
 `engine.cancel({ operationId, queueItemId, expectedStateVersion, reason? })` 要求本地操作员授权绑定配置节点、主体、操作号与请求摘要，调用运行中引擎的授权取消能力；节点委托及会话凭据不能取消。可选原因最多 512 个 UTF-8 字节且不能含控制字符。取消与签发的操作员归属同次提交至引擎账本。`engine.operation` 返回已结算取消回执，包含谁、何时、哪项、原因和结果；脱敏查询只公开原因是否存在。未知、已派发和已开窗目标保留 `revision-conflict` 并增加结构化 `cause.reasonCode`；过期版本保留原拒绝结果。传输回执仍支持重启后回放及丢回包时的未知结果；取消不增加远程入口。
 

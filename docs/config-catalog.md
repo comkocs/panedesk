@@ -1624,7 +1624,7 @@ export interface Config {
 
 ## `@panedesk/dsh-host-admin`
 
-- `source`: [`packages/host/host-admin/src/index.ts:142`](../packages/host/host-admin/src/index.ts)
+- `source`: [`packages/host/host-admin/src/index.ts:162`](../packages/host/host-admin/src/index.ts)
 
 ```ts config-catalog
 /** Omitted runtime leaves the plugin inert; explicit runtime enables only loopback administration. */
@@ -2597,7 +2597,7 @@ export interface Config {
 
 ## `@panedesk/dsh-node-link`
 
-- `source`: [`packages/seat/node-link/src/index.ts:179`](../packages/seat/node-link/src/index.ts)
+- `source`: [`packages/seat/node-link/src/index.ts:182`](../packages/seat/node-link/src/index.ts)
 
 ```ts config-catalog
 /** Omission preserves the empty plugin's no-I/O behavior. */
@@ -2656,6 +2656,8 @@ export interface NodeLinkRuntimeConfig {
     retryMs: number
     /** Maximum reconnection attempts after the initial attempt. */
     maxRetries: number
+    /** Optional OpenSSH configuration file. Omission keeps the user's default configuration. */
+    sshConfigFile?: string | undefined
   } | undefined
 }
 ```
@@ -3147,6 +3149,24 @@ export interface JsonRpcConfig {
 }
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-sdk-jsonrpc-server -->
+
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-app -->
+<a id="panedeskdsh-seat-app"></a>
+
+## `@panedesk/dsh-seat-app`
+
+- `inject`: `cmdlineArgs` · `appReady` · `appExit`
+- `refs`: [`RpcLimits`](../packages/host/host-admin/src/index.ts)
+- `source`: [`packages/seat/seat-app/src/index.ts:14`](../packages/seat/seat-app/src/index.ts)
+
+```ts config-catalog
+/** Explicit limits for optional existing-host administration. */
+export interface Config {
+  /** Required only when contacting an existing host through its private directory. */
+  adminClient?: RpcLimits | undefined
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-seat-app -->
 
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-seat-engine -->
 <a id="panedeskdsh-seat-engine"></a>
@@ -5303,7 +5323,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@panedesk/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
 | `@panedesk/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |
 | `@panedesk/dsh-sandbox-ssh` | `ssh` | [`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts) |
-| `@panedesk/dsh-seat-app` | `cmdlineArgs` · `appReady` · `appExit` | [`packages/seat/seat-app/src/index.ts`](../packages/seat/seat-app/src/index.ts) |
 | `@panedesk/dsh-session` | — | [`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts) |
 | `@panedesk/dsh-session-checkpoint-policy` | `llm` · `sessionPersistence` · `sessions` · `tools` | [`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts) |
 | `@panedesk/dsh-session-projection` | — | [`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts) |

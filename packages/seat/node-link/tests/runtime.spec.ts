@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { PosixPrivateFiles, listenLoopback } from '@panedesk/dsh-host-admin'
+import { PosixPrivateFiles, listenLoopback, object } from '@panedesk/dsh-host-admin'
 import * as NodeLink from '../src/index.ts'
 import { decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
 import { failure } from '../src/receiver.ts'
@@ -104,6 +104,68 @@ test('Loader node status retains the exhausted tunnel reason through health prob
     safeReason: 'SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until host restart.' })
   expect(spawn).toHaveBeenCalledOnce()
   expect(messages.filter(message => message.startsWith('ssh-tunnel exhausted '))).toHaveLength(1)
+})
+
+test('rebuilds one exhausted tunnel without restarting the host', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'node-rebuild-'))
+  cleanups.push(() => rm(root, { recursive: true, force: true }))
+  const files = new PosixPrivateFiles(root, process.getuid!())
+  const outbound = { credential: randomBytes(32).toString('hex'), epoch: 'test', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+  await files.write('outbound.json', JSON.stringify(outbound))
+  await files.write('inbound.json', JSON.stringify({ ...outbound, credential: randomBytes(32).toString('hex'),
+    sourceNodeId: 'node-b', targetNodeId: 'node-a' }))
+  let authenticated = false
+  const peer = await listenLoopback(0, limits, () => outbound, async (value) => {
+    if (!authenticated || !object(value) || value.type !== 'hello') throw new Error('Peer handshake unavailable')
+    return { version: NodeLink.NODE_LINK_VERSION, nodeId: 'node-b', epoch: outbound.epoch, nonce: value.nonce,
+      status: { nodeId: 'node-b', nodeName: 'peer', engine: 'running', openEngineWindows: 2, limit: 4, readyAt: null } }
+  })
+  cleanups.push(() => peer.close())
+  const exits: ReturnType<typeof Promise.withResolvers<SubprocessOutcome>>[] = []
+  const spawn = vi.fn<SubprocessRuntime['spawn']>(() => {
+    const done = Promise.withResolvers<SubprocessOutcome>(), stderr = new PassThrough()
+    exits.push(done)
+    return { stdin: undefined, stdout: undefined, stderr, control: undefined, collected: {}, done: done.promise,
+      terminate: () => { done.resolve({ exitCode: 0, signal: null }) },
+      waitForExit: async () => { await done.promise; return true } }
+  })
+  class RebuildSubprocess extends SubprocessRuntime {
+    resolveExecutable = async () => '/usr/bin/ssh'
+    terminalEnvironment = async () => ({ platform: 'posix' as const })
+    spawn = spawn
+    spawnTerminal = async (): Promise<never> => { throw new Error('Not used') }
+  }
+  const ctx = new Context()
+  cleanups.push(() => ctx.fiber.dispose())
+  await ctx.plugin(RebuildSubprocess)
+  ctx.baseUrl = `${pathToFileURL(root).href}/`
+  await ctx.plugin(Loader)
+  Object.assign(ctx.loader.builtins, { include: Include, nodeLink: NodeLink })
+  const profile = join(root, 'node.yml')
+  await writeFile(profile, JSON.stringify([{ name: 'cordis:nodeLink', config: { runtime: {
+    ...limits, directory: root, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer', listenPort: 0, peerPort: peer.port,
+    ssh: { alias: 'test-peer', cwd: root, remotePort: 1, remoteTargetPort: 1,
+      graceMs: 100, keepAliveSeconds: 5, keepAliveCount: 2, retryMs: 100, maxRetries: 0 },
+  } } }]))
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(profile).href } })
+  await ctx.loader.await()
+  await expect.poll(() => ctx.get('hostAdminTransport'), { timeout: 2000 }).toBeDefined()
+  exits[0]!.resolve({ exitCode: 255, signal: null })
+  await expect.poll(async () => (await ctx.get('nodeRouter')?.status())?.[0]?.safeReason, { timeout: 10000 })
+    .toContain('SSH tunnel exhausted')
+  expect(spawn).toHaveBeenCalledOnce()
+  const first = ctx.get('hostAdminTransport')!.rebuildTransport()
+  const second = ctx.get('hostAdminTransport')!.rebuildTransport()
+  await expect(first).resolves.toEqual({ status: 'rebuilt' })
+  await expect(second).resolves.toEqual({ status: 'rebuilt' })
+  expect(spawn).toHaveBeenCalledTimes(2)
+  const restarted = spawn.mock.calls[1]![0].argv as string[]
+  expect(restarted).toContain('-N')
+  expect(restarted).not.toContain('-F')
+  expect((await ctx.get('nodeRouter')!.status())[0]?.reachable).toBe(false)
+  authenticated = true
+  await expect.poll(async () => (await ctx.get('nodeRouter')!.status())[0]?.reachable, { timeout: 10000 }).toBe(true)
+  expect((await ctx.get('nodeRouter')!.status())[0]?.status?.openEngineWindows).toBe(2)
 })
 
 test('leaves node services unregistered without configuration', async () => {

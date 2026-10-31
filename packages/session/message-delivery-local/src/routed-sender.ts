@@ -1,5 +1,7 @@
 /** Remote sends freeze identity durably before issuing a single-hop delegation. */
 import { randomUUID } from 'node:crypto'
+import { opendir } from 'node:fs/promises'
+import type { Dir } from 'node:fs'
 import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { MessageSender, SendMessageRequest, SendMessageResult } from '@panedesk/dsh-message-delivery'
@@ -14,10 +16,11 @@ import { decodeSendResult } from './codec.ts'
  * @param mailbox - Sender-owned durable operation storage.
  * @param request - Legacy send input with an exact remote session address.
  * @param sender - Captured live sender, not wire-supplied identity.
+ * @param active - Recovery lifetime checked before dispatch; ordinary sends remain active.
  * @returns Target acknowledgement, or an explicit refusal/unknown outcome preserving identity.
  */
 export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, request: SendMessageRequest,
-  sender: MessageSender): Promise<SendMessageResult> {
+  sender: MessageSender, active: () => boolean = () => true): Promise<SendMessageResult> {
   // Computed imports keep optional transports out of the default worker image.
   const { NODE_LINK_VERSION, decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
   const { digest } = await import('@panedesk/dsh-'.concat('host-admin')) as typeof import('@panedesk/dsh-host-admin')
@@ -37,8 +40,12 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
         ...('reasonCode' in error ? { reasonCode: error.reasonCode } : {}),
       } }),
     })
+    const unknown = object(previous) && previous.phase === 'unknown'
     const router = ctx.get('nodeRouter'), issuer = ctx.get('nodeDelegationIssuer')
-    if (!router || !issuer || request.target.sessionId === undefined || request.target.nodeId === undefined) return refuse('cross-node-unsupported')
+    if (!router || !issuer || request.target.sessionId === undefined || request.target.nodeId === undefined) {
+      return refuse(unknown ? 'delivery-uncertain' : 'cross-node-unsupported',
+        object(previous) ? decodeRoutedSend(previous.request).delivery.message.messageId : messageId)
+    }
     if (['callId', 'rootCallId', 'causedByDeliveryId', 'delivery'].some(key => key in request)) return refuse('unauthorized')
     const envelope = { deliveryId: randomUUID(), sourceNodeId: mailbox.options.nodeId,
       message: { messageId, sender, senderSessionId: sender.sessionId,
@@ -55,12 +62,32 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
       deadline: new Date(Date.now() + issuer.expiry.maxLifetimeMs).toISOString(), hop: 1,
       method: 'messages.send', payload, payloadDigest: digest(payload) } as NodeDelegationRequest
     const issued = await issuer.issue(prepared)
-    if (issued.status === 'rejected') return refuse('unauthorized', payload.delivery.message.messageId, issued.error)
-    if (sender.kind === 'session' && issued.delegation.sessionId !== sender.sessionId) return refuse('unauthorized', payload.delivery.message.messageId)
-    const response = await router.route({ ...prepared, delegation: issued.delegation })
+    if (issued.status === 'rejected') {
+      if (object(previous) && previous.phase === 'unknown') return refuse('delivery-uncertain', payload.delivery.message.messageId,
+        { ...issued.error, effectState: 'unknown' })
+      const result = refuse('unauthorized', payload.delivery.message.messageId, issued.error)
+      await publish(path, { digest: fingerprint, request: payload, result }, mailbox.options.maxRecordBytes)
+      return result
+    }
+    if (sender.kind === 'session' && issued.delegation.sessionId !== sender.sessionId) {
+      return refuse(unknown ? 'delivery-uncertain' : 'unauthorized', payload.delivery.message.messageId)
+    }
+    const authority = { principalId: issued.delegation.principalId, sessionId: issued.delegation.sessionId ?? null,
+      seat: issued.delegation.seat ?? null, taskIds: issued.delegation.taskIds }
+    if (object(previous) && previous.authority !== undefined && digest(previous.authority) !== digest(authority)) {
+      return refuse('delivery-uncertain', payload.delivery.message.messageId)
+    }
+    if (!active()) return refuse('delivery-uncertain', payload.delivery.message.messageId)
+    await publish(path, { digest: fingerprint, request: payload, phase: 'unknown', authority }, mailbox.options.maxRecordBytes)
+    if (!active()) return refuse('delivery-uncertain', payload.delivery.message.messageId)
+    const response = await router.route({ ...prepared, delegation: issued.delegation }, { reconcile: unknown, active })
     if (response.status !== 'ok' || response.method !== 'messages.send') {
-      return refuse(response.status !== 'ok' && response.error.effectState === 'unknown' ? 'delivery-uncertain' : 'unavailable',
-        payload.delivery.message.messageId, response.status === 'ok' ? undefined : response.error)
+      const uncertain = unknown || response.status !== 'ok' && response.error.effectState === 'unknown'
+      const result = refuse(uncertain ? 'delivery-uncertain' : 'unavailable',
+        payload.delivery.message.messageId, response.status === 'ok' ? undefined
+          : uncertain ? { ...response.error, effectState: 'unknown' } : response.error)
+      if (!uncertain) await publish(path, { digest: fingerprint, request: payload, result }, mailbox.options.maxRecordBytes)
+      return result
     }
     const result = response.result
     if (result.messageId !== payload.delivery.message.messageId || result.operationId !== request.operationId) {
@@ -69,4 +96,51 @@ export async function sendRoutedMessage(ctx: Context, mailbox: FileMailbox, requ
     await publish(path, { digest: fingerprint, request: payload, result }, mailbox.options.maxRecordBytes)
     return result
   })
+}
+
+/** Provider-owned directory cursor; close an unfinished cursor during disposal. */
+export interface RoutedRecoveryScan {
+  /** Maximum directory entries inspected per scan, including non-message records. */
+  readonly maxEntries: number
+  /** Open cursor retained between scans so earlier terminal records cannot starve later messages. */
+  directory?: Dir | undefined
+}
+
+/** Reconcile uncertain direct messages using a live sender and freshly checked entry authority.
+ * @param ctx - Provider-owned context and current delegation issuer.
+ * @param mailbox - Original durable sender storage.
+ * @param run - Re-enters a live sender scope; returns false when its authority is unavailable.
+ * @param active - Lifetime check before each accepted recovery.
+ * @param scan - Provider-owned bounded directory cursor, retained until exhaustion or disposal.
+ */
+export async function recoverRoutedMessages(ctx: Context, mailbox: FileMailbox,
+  run: (sender: MessageSender, work: (live?: () => boolean) => Promise<void>) => Promise<boolean>, active: () => boolean,
+  scan: RoutedRecoveryScan): Promise<void> {
+  if (!ctx.get('nodeRouter') || !ctx.get('nodeDelegationIssuer')) return
+  const { decodeRoutedSend } = await import('@panedesk/dsh-'.concat('node-link')) as typeof import('@panedesk/dsh-node-link')
+  const directory = join(mailbox.root, 'operations')
+  scan.directory ??= await opendir(directory)
+  for (let inspected = 0; inspected < scan.maxEntries; inspected++) {
+    if (!active()) return
+    const entry = await scan.directory.read()
+    if (entry === null) {
+      await scan.directory.close()
+      scan.directory = undefined
+      return
+    }
+    if (!entry.name.endsWith('.json') || entry.name.startsWith('.')) continue
+    try {
+      const value = await readValue(join(directory, entry.name), mailbox.options.maxRecordBytes)
+      if (!object(value) || value.phase !== 'unknown' || value.result !== undefined || value.authority === undefined) continue
+      const payload = decodeRoutedSend(value.request)
+      const { delivery, ...request } = payload
+      await run(delivery.message.sender, async (live = active) => {
+        const current = () => active() && live()
+        if (current()) await sendRoutedMessage(ctx, mailbox, request, delivery.message.sender, current)
+      })
+    } catch (error) {
+      void error
+      ctx.logger.error('Routed message recovery unavailable for one retained operation; continuing the bounded scan')
+    }
+  }
 }

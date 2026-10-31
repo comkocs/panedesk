@@ -5,6 +5,7 @@ import { HOST_ADMIN_METHODS } from '../src/index.ts'
 
 const frames = [
   ['node.status', '{}', '{"nodeId":"node-a","nodeName":"node-a","engine":"running","openEngineWindows":0,"limit":1,"readyAt":null}'],
+  ['node.rebuild', '{}', '{"status":"rebuilt"}'],
   ['engine.pending', '{"limit":10}', '{"items":[],"watermark":0,"complete":true}'],
   ['engine.approve', '{"operationId":"operation-a","queueItemId":"queue-a","expectedStateVersion":1}', '{"status":"approved","queueItemId":"queue-a","stateVersion":2}'],
   ['engine.operation', '{"operationId":"operation-a"}', '{"status":"missing"}'],

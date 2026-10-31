@@ -58,6 +58,21 @@ test('persists duplicate results and refuses pending replay after recovery', asy
   expect(recovered.hasPending).toBe(false)
 })
 
+test('retains the fingerprint of a no-effect refusal across restart before retrying', async () => {
+  const files = new PosixPrivateFiles(await directory(), process.getuid!())
+  const store = new OperationStore(files, 4096, 10)
+  await store.load()
+  const refusal = { status: 'ok', result: { status: 'rejected', effect: 'none' } }
+  expect(await store.run('retry', digest({ a: 1 }), async () => refusal)).toEqual({ state: 'settled', result: refusal })
+  const recovered = new OperationStore(files, 4096, 10)
+  await recovered.load()
+  let calls = 0
+  expect(await recovered.run('retry', digest({ a: 2 }), async () => ++calls)).toEqual({ state: 'conflict' })
+  expect(calls).toBe(0)
+  expect(await recovered.run('retry', digest({ a: 1 }), async () => ++calls)).toEqual({ state: 'settled', result: 1 })
+  expect(calls).toBe(1)
+})
+
 test('accepts authenticated loopback JSON and refuses stale epochs and browser headers', async () => {
   const auth = { credential: randomBytes(32).toString('hex'), epoch: 'epoch-a' }
   let calls = 0

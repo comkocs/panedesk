@@ -83,6 +83,57 @@ test('queries receipts without replay after response loss, rejects disconnected 
   expect(await router.route(frame('operation-c'))).toMatchObject({ error: { effectState: 'none' } })
 })
 
+test.each(['retained', 'absent', 'stopped-after-query'] as const)(
+  'retries only a missing remote direct-message receipt and preserves unknown while disconnected: %s', async (mode) => {
+    const sent = await store(), received = await store()
+    let calls = 0, drop = mode === 'retained', missing = false, active = true
+    const legacy = frame()
+    const message = { messageId: 'message-a', sender: { kind: 'human', sessionId: null }, senderSessionId: null,
+      target: { nodeId: 'node-b', sessionId: 'session-b' }, priority: 'steer', content: 'Synthetic direct message',
+      createdAt: 1, revision: 0, mailboxSequence: 0, stateVersion: 0, operationId: 'operation-a', messageClass: 'handoff' }
+    const envelope = { deliveryId: 'delivery-a', sourceNodeId: 'node-a', message }
+    const payload = { operationId: 'operation-a', target: message.target, messageClass: 'handoff', content: message.content,
+      delivery: { ...envelope, digest: digest(envelope) } }
+    const request = decodeRequest({ ...legacy, method: 'messages.send', payload, payloadDigest: digest(payload),
+      delegation: { ...legacy.delegation, requestDigest: digest(payload) } })
+    const executor = provider(async (input) => {
+      calls++
+      return decodeResponse({ ...input, status: 'ok', result: { messageId: 'message-a', operationId: 'operation-a',
+        deliveryOutcome: 'rejected', messageState: 'rejected', pending: false, reason: 'unavailable', candidates: [] } }, input)
+    })
+    const receiver = new NodeReceiver('node-b', 'node-a', received, () => executor)
+    const auth = { credential: randomBytes(32).toString('hex'), epoch: 'epoch-b', sourceNodeId: 'node-a', targetNodeId: 'node-b' }
+    const listener = await listenLoopback(0, limits, () => auth, async (value) => {
+      if (object(value) && value.type === 'hello') return { version: NODE_LINK_VERSION, nodeId: 'node-b', epoch: auth.epoch,
+        nonce: value.nonce, status: await executor.status() }
+      if (object(value) && value.type === 'receipt') {
+        if (missing && mode === 'stopped-after-query') active = false
+        return missing ? { state: 'missing' } : { state: 'pending' }
+      }
+      if (drop) { drop = false; throw new Error('Lost before receiver admission') }
+      return receiver.receive(decodeRequest(value))
+    })
+    cleanups.push(() => listener.close())
+    const router = new NodeRouter({ ...limits, nodeId: 'node-a', peerNodeId: 'node-b', peerName: 'peer', directory: 'unused',
+      listenPort: 0, peerPort: listener.port, staleMs: 10000 }, auth, sent, () => true)
+    const recovery = { reconcile: mode !== 'retained', active: () => active }
+    expect(await router.handshake()).toBe(true)
+    expect(await router.route(request, recovery)).toMatchObject({ error: { effectState: 'unknown' } })
+    router.disconnect()
+    expect(await router.route(request, recovery)).toMatchObject({ error: { effectState: 'unknown' } })
+    expect(await router.handshake()).toBe(true)
+    expect(await router.route(request, recovery)).toMatchObject({ error: { effectState: 'unknown' } })
+    expect(calls).toBe(0)
+    missing = true
+    if (mode === 'stopped-after-query') {
+      expect(await router.route(request, recovery)).toMatchObject({ error: { effectState: 'unknown' } })
+      expect(calls).toBe(0)
+    } else {
+      expect(await router.route(request, recovery)).toMatchObject({ status: 'ok', result: { messageId: 'message-a' } })
+      expect(calls).toBe(1)
+    }
+  })
+
 test('preserves complete legacy refusal bytes and payload digest without work-chain capability', async () => {
   const request = decodeRequest({ ...frame(), deadline: '2099-01-01T00:00:00.000Z',
     delegation: { ...frame().delegation, expiresAt: '2099-01-01T00:00:00.000Z' } })

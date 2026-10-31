@@ -148,6 +148,11 @@ export async function mountNode(ctx: Context, config: Config, windows = process.
       tunnel = new SshTunnel(subprocess, options, listener.port, () => router?.disconnect(),
         (level, message) => { ctx.logger[level](message) })
       await tunnel.start()
+      ctx.provide('hostAdminTransport', { rebuildTransport: async () => {
+        if (stopped || tunnel === undefined) return { status: 'unavailable' as const }
+        await tunnel.rebuild()
+        return { status: 'rebuilt' as const }
+      } })
     }
     if (inactive()) return
     ctx.provide('nodeRouter', router)

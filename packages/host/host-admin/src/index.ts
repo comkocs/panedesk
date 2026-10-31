@@ -24,13 +24,14 @@ export type { RunningHostOptions } from './sdk-client.ts'
 /** Administration framing never reuses browser launch credentials or Core operation numbers. */
 export const HOST_ADMIN_VERSION = 'host-admin/v1' as const
 /** Fixed administrative methods cannot become a shell or arbitrary file API. */
-export const HOST_ADMIN_METHODS = ['node.status', 'engine.pending', 'engine.approve', 'engine.operation', 'engine.query', 'engine.cancel', 'engine.callbackResolve', 'source.operations', 'source.abandon', 'source.resend'] as const
+export const HOST_ADMIN_METHODS = ['node.status', 'node.rebuild', 'engine.pending', 'engine.approve', 'engine.operation', 'engine.query', 'engine.cancel', 'engine.callbackResolve', 'source.operations', 'source.abandon', 'source.resend'] as const
 /** Request/result pairs reuse provider definitions rather than forking their semantics. */
 export interface HostAdminMethods {
   'source.operations': { request: { limit?: number }; result: { items: SourceOperatorItem[] } }
   'source.abandon': { request: SourceOperatorWriteParams; result: SourceOperatorResult }
   'source.resend': { request: SourceOperatorWriteParams; result: SourceOperatorResult }
   'node.status': { request: Record<string, never>; result: Seat.SeatNodeStatus }
+  'node.rebuild': { request: Record<string, never>; result: { status: 'rebuilt' | 'unavailable' } }
   'engine.pending': { request: Seat.ListPendingSeatsRequest; result: Seat.ListPendingSeatsResult | Seat.SeatRejected }
   'engine.approve': { request: Seat.ApprovePendingSeatRequest; result: Seat.PendingSeatMutationResult }
   'engine.cancel': { request: Seat.CancelPendingSeatRequest; result: Seat.PendingSeatMutationResult }
@@ -79,6 +80,17 @@ export type HostAdminRequest = { [K in keyof HostAdminMethods]: {
 } }[keyof HostAdminMethods]
 /** Safe failure codes do not expose authentication material. */
 export const HOST_ADMIN_ERROR_CODES = ['admin-unavailable', 'admin-unauthorized', 'admin-stale-epoch', 'admin-method-unavailable', 'admin-outcome-unknown'] as const
+/** Provider details an administration response may carry without replacing the fixed error code. */
+export const HOST_ADMIN_DETAIL_CODES = ['source-settlement-pending', 'write-budget-exceeded-before-write'] as const
+/** Read a registered detail code from a provider error. Any other error stays a transport failure.
+ * @param error - Exception thrown by a provider.
+ * @returns The registered code, or undefined when the message is not registered.
+ */
+export function hostAdminDetailCode(error: unknown): typeof HOST_ADMIN_DETAIL_CODES[number] | undefined {
+  if (!(error instanceof Error)) return undefined
+  for (const code of HOST_ADMIN_DETAIL_CODES) if (code === error.message) return code
+  return undefined
+}
 /** Responses echo request IDs and preserve uncertain approval outcomes. */
 export type HostAdminResponse = { [K in keyof HostAdminMethods]: {
   version: typeof HOST_ADMIN_VERSION
@@ -87,6 +99,7 @@ export type HostAdminResponse = { [K in keyof HostAdminMethods]: {
 } & ({ status: 'ok'; result: HostAdminMethods[K]['result'] } | {
   status: 'rejected' | 'unavailable' | 'uncertain'
   code: typeof HOST_ADMIN_ERROR_CODES[number]
+  detail?: typeof HOST_ADMIN_DETAIL_CODES[number]
   reason: string
   operationId?: Seat.SeatOperationId
 }) }[keyof HostAdminMethods]
@@ -129,6 +142,13 @@ declare module '@panedesk/cordis' {
     hostAdminExecutor: HostAdminExecutor
     /** Optional source owner, read at invocation time without a mandatory injection. */
     hostAdminSourceOperator: HostAdminSourceOperator
+    /** Optional supervised-tunnel control. Absence reports node.rebuild as unavailable. */
+    hostAdminTransport: {
+      /** Stop the current tunnel and start one replacement without restarting the host.
+       * @returns Whether a replacement child was started.
+       */
+      rebuildTransport(): Promise<{ status: 'rebuilt' | 'unavailable' }>
+    }
     /** Optional Windows ACL/path implementation; POSIX uses checked owner-only files when absent. */
     hostAdminFiles: (directory: string) => PrivateFiles
   }

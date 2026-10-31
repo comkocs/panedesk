@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@panedesk/cordis'
 import { decodeSeatRequest, isSeatMethod, type SeatRequestMap } from '@panedesk/dsh-sdk-protocol'
+import type { RpcLimits } from '@panedesk/dsh-host-admin'
 import type { SeatCallContext } from '@panedesk/dsh-seat'
 import { executeHostCommand } from './host-cli.ts'
 
@@ -55,10 +56,12 @@ export function parseSeatArgs(args: readonly string[]): SeatCommand {
 /** Run one command with trusted launcher identity, never a wire-supplied principal.
  * @param ctx - launcher-owned service context.
  * @param args - untrusted command arguments.
+ * @param adminClient - Explicit configured bounds for existing-host administration.
  * @returns printable result and process status.
  */
-export async function executeSeatCommand(ctx: Context, args: readonly string[]): Promise<{ code: number; output: unknown }> {
-  const projection = await executeHostCommand(ctx, args)
+export async function executeSeatCommand(ctx: Context, args: readonly string[], adminClient?: RpcLimits):
+Promise<{ code: number; output: unknown }> {
+  const projection = await executeHostCommand(ctx, args, adminClient)
   if (projection !== undefined) return projection
   let command: SeatCommand
   try { command = parseSeatArgs(args) } catch (error) {

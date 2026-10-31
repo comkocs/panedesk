@@ -370,7 +370,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | Package | Config | Description |
 |---|---|---|
 | `@panedesk/dsh-node-link` | yes | Optional authenticated node routing definitions |
-| `@panedesk/dsh-seat-app` | no | Seat application consumer scaffold |
+| `@panedesk/dsh-seat-app` | yes | Seat application consumer scaffold |
 | `@panedesk/dsh-seat-engine` | yes | Seat engine provider scaffold |
 | `@panedesk/dsh-seat-gates` | yes | Seat policy plugin scaffold |
 | `@panedesk/dsh-seat-local` | yes | Local seat provider scaffold |

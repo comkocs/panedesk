@@ -27,6 +27,8 @@ Commands default to `list`. Manual `open` defaults to `prefill`; automatic openi
 
 `nodes list` and `nodes status --node <alias>` read dated router health without synthesizing capacity for unreachable nodes. `authorizations query` accepts `--task`, `--seat`, `--node`, `--kind`, `--from`, `--to`, `--limit`, and a JSON `--cursor`, or an exclusive `--request` JSON object. Results retain `watermark`, `nextCursor`, and `complete`; missing providers never start another host.
 
+`nodes rebuild --directory <admin-directory>` uses the checked private-file provider and authenticated `node.rebuild` administration method against the existing host. It requires explicit `seat-app` configuration `adminClient: { maxFrameBytes, requestTimeoutMs, maxPending }`; omission returns status 2 without contacting the host. It never passes credentials in argv or launches another engine. Without `--directory`, it uses the current profile's optional transport provider. Unknown options reject; unavailable capability returns status 2. A successful rebuild replaces the tunnel child, not proof of peer authentication; read `nodes status` after the regular handshake.
+
 The command waits for `appReady`. Disposal removes the readiness listener and drains the running command. It does not own the engine journal or bypass provider readiness.
 
 <a id="model-experience"></a>

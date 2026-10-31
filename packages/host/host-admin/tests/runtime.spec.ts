@@ -111,3 +111,100 @@ test('empty configuration registers no service and malformed methods never dispa
   expect(ctx.get('hostAdmin')).toBeUndefined()
   expect(() => decodeRequest({ method: 'shell' })).toThrow()
 })
+
+test('rebuilds one supervised tunnel through administration and reports a missing tunnel', async () => {
+  const start = async (directory: string, rebuilds: { count: number } | undefined) => {
+    const ctx = new Context()
+    cleanups.push(() => ctx.fiber.dispose())
+    if (rebuilds) ctx.provide('hostAdminTransport', { rebuildTransport: async () => { rebuilds.count += 1; return { status: 'rebuilt' } } })
+    await ctx.plugin(Admin, { runtime: { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
+      port: 0, maxStoreBytes: 65536, maxOperations: 100 } })
+    const files = new PosixPrivateFiles(directory, process.getuid!())
+    await expect.poll(() => files.read('endpoint.json', 4096)).not.toBeNull()
+    return files
+  }
+  const root = await mkdtemp(join(tmpdir(), 'admin-rebuild-'))
+  cleanups.push(() => rm(root, { recursive: true, force: true }))
+  const rebuilds = { count: 0 }
+  const files = await start(root, rebuilds)
+  expect(await callAdmin(files, 'node.rebuild', {}, limits)).toMatchObject({ status: 'ok', result: { status: 'rebuilt' } })
+  expect(rebuilds.count).toBe(1)
+  const bareRoot = await mkdtemp(join(tmpdir(), 'admin-rebuild-none-'))
+  cleanups.push(() => rm(bareRoot, { recursive: true, force: true }))
+  const bare = await start(bareRoot, undefined)
+  expect(await callAdmin(bare, 'node.rebuild', {}, limits)).toMatchObject({ status: 'ok', result: { status: 'unavailable' } })
+})
+
+test('projects a registered read detail and keeps unknown read failures generic', async () => {
+  const start = async (directory: string, message: string) => {
+    const ctx = new Context()
+    cleanups.push(() => ctx.fiber.dispose())
+    ctx.provide('hostAdminSourceOperator', {
+      list: async () => { throw new Error(message) },
+      abandon: async () => ({ status: 'ok' as const }),
+    })
+    await ctx.plugin(Admin, { runtime: { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
+      port: 0, maxStoreBytes: 65536, maxOperations: 100 } })
+    const files = new PosixPrivateFiles(directory, process.getuid!())
+    await expect.poll(() => files.read('endpoint.json', 4096)).not.toBeNull()
+    return files
+  }
+  const registered = await mkdtemp(join(tmpdir(), 'admin-detail-'))
+  cleanups.push(() => rm(registered, { recursive: true, force: true }))
+  const files = await start(registered, 'source-settlement-pending')
+  expect(await callAdmin(files, 'source.operations', {}, limits)).toMatchObject({
+    status: 'unavailable', code: 'admin-unavailable', detail: 'source-settlement-pending', reason: 'source-settlement-pending',
+  })
+  const unknown = await mkdtemp(join(tmpdir(), 'admin-detail-unknown-'))
+  cleanups.push(() => rm(unknown, { recursive: true, force: true }))
+  const generic = await start(unknown, 'disk failed')
+  const hidden = await callAdmin(generic, 'source.operations', {}, limits)
+  expect(hidden).toMatchObject({ status: 'unavailable', code: 'admin-unavailable' })
+  if (hidden.status !== 'ok') expect(hidden.reason).not.toBe('disk failed')
+})
+
+test('retries one no-effect source refusal and does not replay a lost source write', async () => {
+  expect(Admin.hostAdminDetailCode(new Error('source-settlement-pending'))).toBe('source-settlement-pending')
+  expect(Admin.hostAdminDetailCode(new Error('write-budget-exceeded-before-write'))).toBe('write-budget-exceeded-before-write')
+  expect(Admin.hostAdminDetailCode(new Error('disk failed'))).toBeUndefined()
+  const open = async (directory: string, execute: Admin.HostAdminExecutor['execute']) => {
+    const ctx = new Context()
+    cleanups.push(() => ctx.fiber.dispose())
+    ctx.provide('hostAdminSourceOperator', { list: async () => ({ items: [] }), abandon: async () => ({ status: 'ok' as const }) })
+    ctx.provide('hostAdminExecutor', { execute })
+    await ctx.plugin(Admin, { runtime: { ...limits, directory, nodeId: 'node-a', principalId: 'operator-a',
+      port: 0, maxStoreBytes: 65536, maxOperations: 100 } })
+    const files = new PosixPrivateFiles(directory, process.getuid!())
+    await expect.poll(() => files.read('endpoint.json', 4096)).not.toBeNull()
+    return files
+  }
+  const retryRoot = await mkdtemp(join(tmpdir(), 'admin-retry-'))
+  cleanups.push(() => rm(retryRoot, { recursive: true, force: true }))
+  let retries = 0
+  const retryFiles = await open(retryRoot, async (request) => {
+    if (request.method !== 'source.abandon') return { version: Admin.HOST_ADMIN_VERSION, requestId: request.requestId,
+      method: request.method, status: 'unavailable', code: 'admin-method-unavailable', reason: 'unused' }
+    retries += 1
+    const result = retries === 1
+      ? { status: 'rejected' as const, code: 'write-budget-exceeded-before-write', reason: 'write-budget-exceeded-before-write', effect: 'none' as const }
+      : { status: 'ok' as const }
+    return { version: Admin.HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method, status: 'ok' as const, result }
+  })
+  const write = { operationId: 'source-a', key: 'key-a', reason: 'Reviewed' }
+  expect(await callAdmin(retryFiles, 'source.abandon', write, limits)).toMatchObject({ status: 'ok', result: { status: 'rejected', effect: 'none' } })
+  expect(await callAdmin(retryFiles, 'source.abandon', write, limits)).toMatchObject({ status: 'ok', result: { status: 'ok' } })
+  expect(retries).toBe(2)
+  const lostRoot = await mkdtemp(join(tmpdir(), 'admin-lost-'))
+  cleanups.push(() => rm(lostRoot, { recursive: true, force: true }))
+  let lost = 0
+  const lostFiles = await open(lostRoot, async (request) => {
+    if (request.method !== 'source.abandon') return { version: Admin.HOST_ADMIN_VERSION, requestId: request.requestId,
+      method: request.method, status: 'unavailable', code: 'admin-method-unavailable', reason: 'unused' }
+    lost += 1
+    throw new Error('lost')
+  })
+  const again = { operationId: 'source-b', key: 'key-b', reason: 'Reviewed' }
+  expect(await callAdmin(lostFiles, 'source.abandon', again, limits)).toMatchObject({ status: 'uncertain', code: 'admin-outcome-unknown' })
+  expect(await callAdmin(lostFiles, 'source.abandon', again, limits)).toMatchObject({ status: 'uncertain', code: 'admin-outcome-unknown' })
+  expect(lost).toBe(1)
+})

@@ -24,16 +24,35 @@ function stderrSummary(tail: Buffer): string {
   }).join('\n')
 }
 
+/** Fixed forwarding arguments. An optional config file is the only caller-supplied path.
+ * @param executable - Resolved ssh executable.
+ * @param ssh - Reviewed alias and bounds; the config path is optional.
+ * @param peerPort - Local port reaching the peer.
+ * @param localPort - Local listener reached by the remote forward.
+ * @returns Argv that never carries a remote command.
+ */
+function tunnelArgv(executable: string, ssh: NonNullable<NodeLinkRuntimeConfig['ssh']>, peerPort: number, localPort: number): string[] {
+  return [executable, '-N', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+    '-o', 'ForwardAgent=no', '-o', 'ExitOnForwardFailure=yes', '-o', 'ControlMaster=no', '-o', 'ControlPath=none',
+    '-o', 'PermitLocalCommand=no', '-o', 'RemoteCommand=none',
+    ...(ssh.sshConfigFile === undefined ? [] : ['-F', ssh.sshConfigFile]),
+    '-o', `ServerAliveInterval=${ssh.keepAliveSeconds}`, '-o', `ServerAliveCountMax=${ssh.keepAliveCount}`,
+    '-L', `127.0.0.1:${peerPort}:127.0.0.1:${ssh.remoteTargetPort}`,
+    '-R', `127.0.0.1:${ssh.remotePort}:127.0.0.1:${localPort}`, ssh.alias]
+}
 /** Supervision never executes remote commands or copies identity configuration. */
 export class SshTunnel {
   private child: SubprocessHandle | undefined
   private lifetime = new AbortController()
+  private generationLifetime = new AbortController()
   private supervision: Promise<void> | undefined
   private live = false
   private stderrTail: Buffer = Buffer.alloc(0)
   private generation = 0
   private startedAt = 0
   private exhaustion: string | undefined
+  /** One operator rebuild at a time; a second call waits for the first. */
+  private rebuilding: Promise<void> | undefined
   constructor(private readonly runtime: Pick<SubprocessRuntime, 'resolveExecutable' | 'spawn'>,
     private readonly options: NodeLinkRuntimeConfig, private readonly localPort: number,
     private readonly disconnected: () => void,
@@ -50,16 +69,16 @@ export class SshTunnel {
   async start(): Promise<void> {
     const ssh = this.options.ssh
     if (ssh === undefined || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(ssh.alias)) throw new Error('SSH alias rejected')
+    const configFile = ssh.sshConfigFile
+    if (configFile !== undefined && (configFile.length === 0 || configFile.length > 4096
+      || /[\u0000-\u001f\u007f]/.test(configFile) || configFile.startsWith('-'))) throw new Error('SSH config path rejected')
     const executable = await this.runtime.resolveExecutable('ssh', undefined, this.lifetime.signal)
+    const generationSignal = this.generationLifetime.signal
+    const cancelled = () => this.lifetime.signal.aborted || generationSignal.aborted
     const spawn = (): void => {
       this.lifetime.signal.throwIfAborted()
-      this.child = this.runtime.spawn({ argv: [executable, '-N', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
-        '-o', 'ForwardAgent=no', '-o', 'ExitOnForwardFailure=yes', '-o', 'ControlMaster=no', '-o', 'ControlPath=none',
-        '-o', 'PermitLocalCommand=no', '-o', 'RemoteCommand=none',
-        '-o', `ServerAliveInterval=${ssh.keepAliveSeconds}`, '-o', `ServerAliveCountMax=${ssh.keepAliveCount}`,
-        '-L', `127.0.0.1:${this.options.peerPort}:127.0.0.1:${ssh.remoteTargetPort}`,
-        '-R', `127.0.0.1:${ssh.remotePort}:127.0.0.1:${this.localPort}`, ssh.alias], cwd: ssh.cwd,
-      stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }, graceMs: ssh.graceMs, signal: this.lifetime.signal })
+      this.child = this.runtime.spawn({ argv: tunnelArgv(executable, ssh, this.options.peerPort, this.localPort), cwd: ssh.cwd,
+        stdio: { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' }, graceMs: ssh.graceMs, signal: this.lifetime.signal })
       this.stderrTail = Buffer.alloc(0)
       this.child.stdout?.resume()
       this.child.stderr?.on('data', (chunk: Buffer) => {
@@ -84,7 +103,7 @@ export class SshTunnel {
         this.log('warn', `ssh-tunnel exited generation=${this.generation} exitCode=${outcome?.exitCode ?? 'unknown'} signal=${outcome?.signal ?? 'none'} aliveMs=${aliveMs}${category === undefined ? '' : ` category=${category}`} stderr=${JSON.stringify(summary)}`)
         this.live = false
         this.disconnected()
-        if (this.lifetime.signal.aborted) return
+        if (cancelled()) return
         if (aliveMs >= ssh.retryMs) attempt = 0
         if (attempt >= ssh.maxRetries) {
           const firstSentence = summary.split('\n')[0]?.split(/(?<=[.!?])\s/)[0] ?? ''
@@ -95,10 +114,10 @@ export class SshTunnel {
         this.log('warn', `ssh-tunnel retry attempt=${attempt + 1} maxRetries=${ssh.maxRetries} waitMs=${ssh.retryMs}`)
         await new Promise<void>((resolve) => {
           const abort = (): void => { clearTimeout(timer); resolve() }
-          const timer = setTimeout(() => { this.lifetime.signal.removeEventListener('abort', abort); resolve() }, ssh.retryMs)
-          this.lifetime.signal.addEventListener('abort', abort, { once: true })
+          const timer = setTimeout(() => { generationSignal.removeEventListener('abort', abort); resolve() }, ssh.retryMs)
+          generationSignal.addEventListener('abort', abort, { once: true })
         })
-        this.lifetime.signal.throwIfAborted()
+        if (cancelled()) return
         spawn()
       }
     })().catch((error: unknown) => {
@@ -107,12 +126,39 @@ export class SshTunnel {
       this.disconnected()
     })
   }
+  /** Stop the exhausted child, then start one new supervised generation.
+   * Concurrent calls share one rebuild. A closed tunnel is not restarted.
+   * @returns Completion after the replacement child exists, or after refusal.
+   */
+  rebuild(): Promise<void> {
+    if (this.lifetime.signal.aborted) return Promise.reject(new Error('SSH tunnel closed'))
+    const running = this.rebuilding
+    if (running !== undefined) return running
+    const work = this.replace().finally(() => { if (this.rebuilding === work) this.rebuilding = undefined })
+    this.rebuilding = work
+    return work
+  }
+  private async replace(): Promise<void> {
+    this.generationLifetime.abort()
+    this.live = false
+    this.disconnected()
+    const previous = this.child
+    previous?.terminate()
+    if (previous !== undefined && !await previous.waitForExit()) throw new Error('SSH cleanup incomplete')
+    await this.supervision
+    this.lifetime.signal.throwIfAborted()
+    this.generationLifetime = new AbortController()
+    this.exhaustion = undefined
+    await this.start()
+  }
   /** Stop only the owned process range and await quiescence.
    * @returns Completion after supervision and child exit.
    */
   async close(): Promise<void> {
     this.lifetime.abort()
+    this.generationLifetime.abort()
     this.child?.terminate()
+    await this.rebuilding?.catch((error: unknown) => { void error })
     await this.supervision
     if (this.child !== undefined && !await this.child.waitForExit()) throw new Error('SSH cleanup incomplete')
     this.live = false

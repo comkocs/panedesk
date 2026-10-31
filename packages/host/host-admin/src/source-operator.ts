@@ -17,7 +17,14 @@ export interface SourceOperatorItem {
   detail?: string
 }
 /** Provider-owned outcome; an optional generation identifies a directed resend. */
-export interface SourceOperatorResult { status: 'ok' | 'rejected'; code?: string; reason?: string; generation?: number }
+export interface SourceOperatorResult {
+  status: 'ok' | 'rejected'
+  code?: string
+  reason?: string
+  generation?: number
+  /** Set only when the provider refused before producing an effect, so the same operation may be retried. */
+  effect?: 'none'
+}
 /** Optional local source owner; absence never starts another engine or delivery path. */
 export interface HostAdminSourceOperator {
   /** List source work without changing its state.

@@ -256,9 +256,10 @@ Receiver invokes local providers only; delegation is authenticated again and can
 ```ts cordis-catalog
 /** Route one bounded authenticated request without offline user-operation queues.
  * @param request - Fixed method, digest, deadline and narrowed delegation.
+ * @param recovery - Trusted local recovery intent and current sender lifetime, never wire authority.
  * @returns Target result or explicit unknown outcome retaining operation identity.
  */
-route(request: NodeWireRequest): Promise<NodeWireResponse>
+route(request: NodeWireRequest, recovery?: { reconcile: boolean; active: () => boolean }): Promise<NodeWireResponse>
 
 /** Read dated health without initiating a model or opening a window.
  * @returns Node aliases and explicit stale/unreachable evidence.

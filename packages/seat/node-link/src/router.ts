@@ -84,15 +84,20 @@ export class NodeRouter implements NodeRouterService {
   }
   /** Route an exact operation or reconcile its retained unknown outcome.
    * @param input - Prepared request with entry-issued single-hop delegation.
+   * @param recovery - Local reconciliation intent and live sender check.
    * @returns Correlated peer result or explicit non-execution/unknown failure.
    */
-  async route(input: NodeWireRequest): Promise<NodeWireResponse> {
+  async route(input: NodeWireRequest, recovery?: { reconcile: boolean; active: () => boolean }): Promise<NodeWireResponse> {
     const request = decodeRequest(input)
     if (request.sourceNodeId !== this.options.nodeId || request.targetNodeId !== this.options.peerNodeId) {
       return failure(request, 'cross-node-unsupported')
     }
     if (Date.parse(request.deadline) <= Date.now()) return failure(request, 'node-deadline-exceeded')
-    if (!this.available() || !this.connected || this.pending >= this.options.maxPending) return failure(request, 'node-tunnel-disconnected')
+    const retained = recovery?.reconcile === true || request.method === 'messages.send' && this.outgoing.query(
+      JSON.stringify([request.delegation.principalId, request.operationId])).state === 'pending'
+    if (!this.available() || !this.connected || recovery?.active() === false || this.pending >= this.options.maxPending) {
+      return failure(request, retained ? 'node-outcome-unknown' : 'node-tunnel-disconnected', retained)
+    }
     this.pending++
     try {
       if (request.method === 'seat.operation') {
@@ -104,18 +109,22 @@ export class NodeRouter implements NodeRouterService {
         sessionId: request.delegation.sessionId ?? null, taskIds: request.delegation.taskIds } })
       const previous = this.outgoing.query(identity)
       if (previous.state === 'missing' && this.outgoing.hasPending) return failure(request, 'node-outcome-unknown', true)
-      const outcome = previous.state === 'pending'
+      const deliver = async () => {
+        if (!this.available() || !this.connected || recovery?.active() === false
+          || Date.parse(request.deadline) <= Date.now()) throw new Error('Delivery lifetime ended')
+        const response = decodeResponse(
+          await callLoopback(this.options.peerPort, this.credential, request, this.bounded(request)), request)
+        if (response.status !== 'ok' && response.error.effectState === 'unknown') throw new Error('Remote outcome unresolved')
+        return response
+      }
+      const outcome = previous.state === 'pending' || recovery?.reconcile === true
         ? await this.outgoing.reconcile(identity, fingerprint, async () => {
           const receipt = await callLoopback(this.options.peerPort, this.credential, { type: 'receipt', request }, this.bounded(request))
+          if (object(receipt) && receipt.state === 'missing' && Object.keys(receipt).length === 1) return { state: 'missing' }
           if (!object(receipt) || receipt.state !== 'settled' || !object(receipt.result)) return { state: 'pending' }
           return { state: 'settled', result: decodeResponse({ ...receipt.result, requestId: request.requestId }, request) }
-        })
-        : await this.outgoing.run(identity, fingerprint, async () => {
-          const response = decodeResponse(
-            await callLoopback(this.options.peerPort, this.credential, request, this.bounded(request)), request)
-          if (response.status !== 'ok' && response.error.effectState === 'unknown') throw new Error('Remote outcome unresolved')
-          return response
-        })
+        }, request.method === 'messages.send' ? deliver : undefined)
+        : await this.outgoing.run(identity, fingerprint, deliver)
       if (outcome.state === 'conflict') return failure(request, 'node-operation-conflict')
       if (outcome.state !== 'settled') return failure(request, 'node-outcome-unknown', true)
       if (!object(outcome.result)) return failure(request, 'node-outcome-unknown', true)

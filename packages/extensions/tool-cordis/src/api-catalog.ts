@@ -1977,9 +1977,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
     methods: [
       {
-        signature: 'route(request: NodeWireRequest): Promise<NodeWireResponse>',
+        signature: 'route(request: NodeWireRequest, recovery?: { reconcile: boolean; active: () => boolean }): Promise<NodeWireResponse>',
         description: 'Route one bounded authenticated request without offline user-operation queues.',
-        parameters: [{ name: 'request', description: 'Fixed method, digest, deadline and narrowed delegation.' }],
+        parameters: [{ name: 'request', description: 'Fixed method, digest, deadline and narrowed delegation.' }, { name: 'recovery', description: 'Trusted local recovery intent and current sender lifetime, never wire authority.' }],
         returns: 'Target result or explicit unknown outcome retaining operation identity.',
       },
       {
@@ -8051,7 +8051,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostAdminMethods',
-    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.callbackResolve\': {\n        request: HostAdminCallbackResolveRequest;\n        result: HostAdminCallbackResolveResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
+    declaration: 'export interface HostAdminMethods {\n    \'source.operations\': {\n        request: {\n            limit?: number;\n        };\n        result: {\n            items: SourceOperatorItem[];\n        };\n    };\n    \'source.abandon\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'source.resend\': {\n        request: SourceOperatorWriteParams;\n        result: SourceOperatorResult;\n    };\n    \'node.status\': {\n        request: Record<string, never>;\n        result: Seat.SeatNodeStatus;\n    };\n    \'node.rebuild\': {\n        request: Record<string, never>;\n        result: {\n            status: \'rebuilt\' | \'unavailable\';\n        };\n    };\n    \'engine.pending\': {\n        request: Seat.ListPendingSeatsRequest;\n        result: Seat.ListPendingSeatsResult | Seat.SeatRejected;\n    };\n    \'engine.approve\': {\n        request: Seat.ApprovePendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.cancel\': {\n        request: Seat.CancelPendingSeatRequest;\n        result: Seat.PendingSeatMutationResult;\n    };\n    \'engine.callbackResolve\': {\n        request: HostAdminCallbackResolveRequest;\n        result: HostAdminCallbackResolveResult;\n    };\n    \'engine.operation\': {\n        request: Seat.SeatOperationQuery;\n        result: Seat.SeatEngineOperationResult;\n    };\n    \'engine.query\': {\n        request: HostAdminQueryRequest;\n        result: HostAdminQueryResult | Seat.SeatRejected;\n    };\n}',
   },
   {
     name: 'HostAdminQueryRequest',
@@ -8067,7 +8067,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HostAdminResponse',
-    declaration: 'export type HostAdminResponse = {\n    [K in keyof HostAdminMethods]: {\n        version: typeof HOST_ADMIN_VERSION;\n        requestId: Branded<\'HostAdminRequestId\'>;\n        method: K;\n    } & ({\n        status: \'ok\';\n        result: HostAdminMethods[K][\'result\'];\n    } | {\n        status: \'rejected\' | \'unavailable\' | \'uncertain\';\n        code: typeof HOST_ADMIN_ERROR_CODES[number];\n        reason: string;\n        operationId?: Seat.SeatOperationId;\n    });\n}[keyof HostAdminMethods];',
+    declaration: 'export type HostAdminResponse = {\n    [K in keyof HostAdminMethods]: {\n        version: typeof HOST_ADMIN_VERSION;\n        requestId: Branded<\'HostAdminRequestId\'>;\n        method: K;\n    } & ({\n        status: \'ok\';\n        result: HostAdminMethods[K][\'result\'];\n    } | {\n        status: \'rejected\' | \'unavailable\' | \'uncertain\';\n        code: typeof HOST_ADMIN_ERROR_CODES[number];\n        detail?: typeof HOST_ADMIN_DETAIL_CODES[number];\n        reason: string;\n        operationId?: Seat.SeatOperationId;\n    });\n}[keyof HostAdminMethods];',
   },
   {
     name: 'HostConnectionFetch',
@@ -11487,7 +11487,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SourceOperatorResult',
-    declaration: 'export interface SourceOperatorResult {\n    status: \'ok\' | \'rejected\';\n    code?: string;\n    reason?: string;\n    generation?: number;\n}',
+    declaration: 'export interface SourceOperatorResult {\n    status: \'ok\' | \'rejected\';\n    code?: string;\n    reason?: string;\n    generation?: number;\n    effect?: \'none\';\n}',
   },
   {
     name: 'SourceOperatorWriteParams',
