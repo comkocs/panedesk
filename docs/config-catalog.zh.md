@@ -3379,7 +3379,7 @@ export interface WebhookSource {
 
 ## `@panedesk/dsh-session-ledger`
 
-- `source`: [`packages/session/session-ledger/src/index.ts:39`](../packages/session/session-ledger/src/index.ts)
+- `source`: [`packages/session/session-ledger/src/index.ts:40`](../packages/session/session-ledger/src/index.ts)
 
 ```ts config-catalog
 /** Trusted configuration accepted by concrete ledger providers. */
