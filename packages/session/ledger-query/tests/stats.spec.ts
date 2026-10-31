@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { LedgerCall, LedgerLifecycle, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { projectWaits, type LedgerCall, type LedgerLifecycle, type LedgerSnapshot, type LedgerRow } from '@panedesk/dsh-session-ledger'
+import type { StatsRequest } from '../src/stats-types.ts'
 import { summarizeStats } from '../src/stats.ts'
 
 const midnight = Date.parse('2026-10-30T16:00:00Z')
@@ -42,6 +43,129 @@ function fixture(): LedgerSnapshot {
 }
 
 describe('five-tab ledger statistics', () => {
+  it('concatenates stable cursor pages without dropping or repeating simultaneous calls', () => {
+    const rows = ['z', 'A', 'a', 'b', 'c'].map(id => call(id, 'seat-a', 'job-a', midnight))
+    rows[0]!.start.nodeId = 'remote' as LedgerCall['start']['nodeId']
+    const data = { ...fixture(), rows }
+    const request: StatsRequest = { range: 'all', bucket: 'hour', groupBy: 'seat' }
+    const whole = summarizeStats(data, request, asOf)
+    const first = summarizeStats(data, { ...request, details: { limit: 2 } }, asOf)
+    expect(first.details).toHaveLength(2)
+    expect(first.nextDetailCursor).not.toBeNull()
+    const second = summarizeStats({ ...data, rows: [...rows].reverse() },
+      { ...request, details: { limit: 2, after: first.nextDetailCursor! } }, asOf + 1000)
+    const last = summarizeStats(data, { ...request, details: { limit: 2, after: second.nextDetailCursor! } }, asOf + 2000)
+    expect([...first.details, ...second.details, ...last.details]).toEqual(whole.details)
+    expect(last.details).toHaveLength(1)
+    expect(last.nextDetailCursor).toBeNull()
+    expect(second.asOf).toBe(asOf)
+    expect(first.summary).toEqual(whole.summary)
+    expect(whole.details.map(row => row.callId)).toEqual(['A', 'a', 'b', 'c', 'z'])
+  })
+  it('returns an empty cursor page and no continuation after the final key', () => {
+    const row = call('only', 'seat-a', 'job-a', midnight)
+    const result = summarizeStats({ ...fixture(), rows: [row] }, { range: 'all', bucket: 'hour', groupBy: 'seat',
+      details: { limit: 2, after: { startedAt: midnight, nodeId: row.start.nodeId, callId: row.start.callId, asOf } } }, asOf)
+    expect(result.details).toEqual([])
+    expect(result.nextDetailCursor).toBeNull()
+    expect(result.summary.calls).toBe(1)
+  })
+  it('reprojects late wait summaries at the exclusive historical observation instant', () => {
+    const row = call('wait-owner', 'seat-a', 'job-a', midnight)
+    const toolCallId = 'tool-a' as NonNullable<NonNullable<LedgerCall['finish']>['toolCallIds']>[number]
+    row.finish!.toolCallIds = [toolCallId]
+    const event: LedgerRow = { kind: 'event', event: { schemaVersion: 1,
+      eventId: 'wait-late' as Extract<LedgerRow, { kind: 'event' }>['event']['eventId'],
+      nodeId: row.start.nodeId, sessionId: row.start.sessionId, runId: row.start.runId, callId: row.start.callId,
+      kind: 'wait/end', observedAt: asOf, interval: { kind: 'sleep', toolCallId, startedAt: midnight + 1000, endedAt: midnight + 2000, durationMs: 1000 } } }
+    const data = { ...fixture(), rows: projectWaits([row, event]) }
+    expect(summarizeStats(data, { range: 'all', bucket: 'hour', groupBy: 'seat' }, asOf).details[0]?.waits).toEqual({})
+    expect(summarizeStats(data, { range: 'all', bucket: 'hour', groupBy: 'seat' }, asOf + 1).details[0]?.waits).toEqual({ sleep: { toolCalls: 1, durationMs: 1000 } })
+  })
+  it('uses a newer authoritative residency end without reviving an older unfinished residency', () => {
+    const old = run('child', 'parent')
+    const ended = run('child', 'parent')
+    ended.start.runId = 'new-residency' as typeof ended.start.runId
+    ended.start.startedAt = midnight
+    ended.finish = { runId: ended.start.runId, observedAt: midnight + 1000, endedAt: midnight + 1000,
+      endReason: 'completed', recovered: false, deliveryState: 'not-requested' }
+    const request = { range: 'all', bucket: 'hour', groupBy: 'seat' } as const
+    const data = { ...fixture(), rows: [old, ended] }
+    const result = summarizeStats(data, request, asOf)
+    expect(result.runningLanes.count).toBe(0)
+    expect(result.runningWindows).toBe(0)
+    expect(result.windows[0]?.running).toBe(false)
+    const reopened = run('child', 'parent')
+    reopened.start.runId = 'reopened' as typeof reopened.start.runId
+    reopened.start.startedAt = midnight + 2000
+    expect(summarizeStats({ ...data, rows: [...data.rows, reopened] }, request, asOf).runningLanes.count).toBe(1)
+  })
+  it('independently preserves the Beijing midnight half-open boundary', () => {
+    const rows = [call('before', 'seat-a', 'job-a', midnight - 1), call('at', 'seat-a', 'job-a', midnight)]
+    expect(summarizeStats({ ...fixture(), rows }, { range: 'today', bucket: 'hour', groupBy: 'seat' }, asOf).summary.calls).toBe(1)
+  })
+  it('independently sums reference decimals without inventing missing prices', () => {
+    const rows = [call('a', 'seat-a', 'job-a', midnight), call('b', 'seat-b', 'job-b', midnight)]
+    rows[0]!.finish!.costUsd = '0.000001'
+    const data = { ...fixture(), rows }
+    const request = { range: 'all', bucket: 'hour', groupBy: 'seat' } as const
+    expect(summarizeStats(data, request, asOf).summary.costUsd).toBe('0.100001')
+    delete rows[1]!.finish!.costUsd
+    expect(summarizeStats(data, request, asOf).summary.costUsd).toBeNull()
+  })
+  it('independently retains unknown usage instead of zero-filling call details', () => {
+    const row = call('missing', 'seat-a', 'job-a', midnight)
+    delete row.finish!.usage
+    const result = summarizeStats({ ...fixture(), rows: [row] }, { range: 'all', bucket: 'hour', groupBy: 'seat' }, asOf)
+    expect(result.details[0]?.tokens.outputTokens).toBeUndefined()
+    expect(result.summary.usage.completeUsageCalls).toBe(0)
+  })
+  it('independently divides output by model-in-flight seconds rather than wall time', () => {
+    const row = call('duration', 'seat-a', 'job-a', midnight)
+    row.finish!.modelInFlightMs = 2000
+    expect(summarizeStats({ ...fixture(), rows: [row] }, { range: 'all', bucket: 'hour', groupBy: 'model' }, asOf).models[0]?.outputTokensPerSecond).toBe(10)
+  })
+  it('independently excludes keepalive from cache hit rate while retaining its totals', () => {
+    const result = summarizeStats(fixture(), { range: 'today', bucket: 'hour', groupBy: 'seat' }, asOf)
+    expect(result.cacheHitRate.value).toBe(0.8)
+    expect(result.keepalive.calls).toBe(1)
+  })
+  it('independently counts child sessions once without counting root sessions', () => {
+    const child = run('child', 'parent')
+    const result = summarizeStats({ ...fixture(), rows: [child, child, run('root')] }, { range: 'all', bucket: 'hour', groupBy: 'seat' }, asOf)
+    expect(result.runningLanes.count).toBe(1)
+  })
+  it('independently retains one physical call per row and unknown prefix evidence', () => {
+    const rows = [call('one', 'seat-a', 'job-a', midnight), call('two', 'seat-a', 'job-a', midnight)]
+    rows[1]!.start.logicalRequestId = rows[0]!.start.logicalRequestId
+    delete rows[0]!.start.cache.prefixFingerprint
+    const result = summarizeStats({ ...fixture(), rows }, { range: 'all', bucket: 'hour', groupBy: 'seat' }, asOf)
+    expect(result.details).toHaveLength(2)
+    expect(result.details[0]?.prefixFingerprint).toBeNull()
+    expect(result.details[1]?.prefixFingerprint).toBe('prefix-two')
+  })
+  it.each(['seat', 'taskId'] as const)('independently filters and groups %s attribution', (dimension) => {
+    const filter = dimension === 'seat' ? { seat: 'seat-b' } : { taskId: 'job-b' }
+    const result = summarizeStats(fixture(), { range: 'today', bucket: 'day', groupBy: dimension, ...filter }, asOf)
+    expect(result.groups.map(row => [row.key, row.calls])).toEqual([[dimension === 'seat' ? 'seat-b' : 'job-b', 1]])
+  })
+  it('independently preserves model totals and Beijing day buckets', () => {
+    const result = summarizeStats(fixture(), { range: 'today', bucket: 'day', groupBy: 'model' }, asOf)
+    expect(result.models.map(row => [row.key, row.calls])).toEqual([['model-a', 3], ['model-b', 1]])
+    expect(result.buckets.every(row => row.startedAt === midnight)).toBe(true)
+  })
+  it('independently retains short and long cache-write tokens and window attribution', () => {
+    const result = summarizeStats(fixture(), { range: 'today', bucket: 'hour', groupBy: 'seat' }, asOf)
+    expect(result.details[0]?.tokens).toMatchObject({ cacheWriteShortTokens: 6, cacheWriteLongTokens: 4 })
+    expect(result.windows.find(row => row.sessionId === 'seat-b')).toMatchObject({ seat: 'seat-b', taskIds: ['job-b'] })
+  })
+  it('independently preserves overview token and running-window totals', () => {
+    const result = summarizeStats(fixture(), { range: 'today', bucket: 'hour', groupBy: 'seat' }, asOf)
+    expect(result.summary.usage.knownTokens).toBe(480)
+    expect(result.runningWindows).toBe(3)
+    expect(result.alerts).toBe(0)
+    expect(result.queryMs).toBeGreaterThanOrEqual(0)
+  })
   it('recomputes overview, seat/task/model groups, buckets, throughput and call rows from three seats and two tasks', () => {
     const data = fixture()
     const result = summarizeStats(data, { range: 'today', bucket: 'hour', groupBy: 'seat' }, asOf)

@@ -8,6 +8,7 @@ import { RemoteError } from '@panedesk/dsh-typert-protocol'
 import type {} from '../src/types.ts'
 import { StatsPanel, StatsSettings, StatsTools } from '../src/client/panel.tsx'
 import { en, zh } from '../src/client/locales.ts'
+import { selection } from '../src/client/selection.ts'
 
 const asOf = Date.parse('2026-10-31T01:00:00Z')
 const call: LedgerCall = { kind: 'call', start: {
@@ -86,6 +87,31 @@ it.each(['overview', 'history', 'models', 'throughput', 'ledger'] as const)('han
   fireEvent.click(screen.getByRole('button', { name: en[tab] }))
   expect(screen.getAllByText(en.empty).length).toBeGreaterThan(0)
   empty.unmount()
+})
+it.each([['English', en], ['Chinese', zh]])('pages ledger details and resets the cursor on refresh and filtering in %s', (_language, locale) => {
+  const h = fixture(locale)
+  const rows = Array.from({ length: 101 }, (_, i) => ({ ...call, start: { ...call.start,
+    callId: `call-${String(i).padStart(3, '0')}` as typeof call.start.callId } }))
+  h.useResource.mockImplementation((...args: unknown[]) => {
+    const address = String(args[0])
+    return { status: 'live', value: { ...h.value, view: summarizeStats({ ...source, rows }, selection(new URL(address).searchParams), asOf) }, failure: undefined }
+  })
+  render(<StatsPanel {...h.props} />)
+  fireEvent.click(screen.getByRole('button', { name: locale.ledger }))
+  expect(screen.queryByText('call-100')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: locale.nextPage }))
+  expect(screen.getByText('call-100')).toBeTruthy()
+  expect(screen.queryByText('call-000')).toBeNull()
+  expect(screen.getByRole('button', { name: locale.nextPage }).hasAttribute('disabled')).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: locale.previousPage }))
+  expect(screen.getByText('call-000')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: locale.nextPage }))
+  fireEvent.click(screen.getByRole('button', { name: locale.refresh }))
+  expect(screen.getByText('call-000')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: locale.nextPage }))
+  fireEvent.click(screen.getByRole('button', { name: `${locale.range}: ${locale.today}` }))
+  fireEvent.click(screen.getByRole('menuitem', { name: locale.all }))
+  expect(screen.getByText('call-000')).toBeTruthy()
 })
 it('keeps a shared model filter visible and clearable after switching tabs', () => {
   const h = fixture(en)

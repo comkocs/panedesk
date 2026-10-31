@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Button, Checkbox, Menu } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
-import type { StatsAggregate, StatsRequest } from '@panedesk/dsh-ledger-query/types'
+import type { StatsAggregate, StatsDetailCursor, StatsRequest } from '@panedesk/dsh-ledger-query/types'
 import type { StatsActions, StatsData } from './index.ts'
 import type { StatsKey } from './locales.ts'
 import css from './panel.module.css'
@@ -63,8 +63,13 @@ export function StatsPanel({ useResource, t }: MainProps) {
   const [wide, setWide] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
   const [menu, setMenu] = useState<'range' | 'groupBy' | 'bucket' | 'model' | null>(null)
+  const selectionKey = JSON.stringify([request, refresh])
+  const [paging, setPaging] = useState<{ selection: string; cursors: StatsDetailCursor[] }>({ selection: selectionKey, cursors: [] })
+  const cursors = paging.selection === selectionKey ? paging.cursors : []
+  const after = cursors.at(-1)
   const params = new URLSearchParams({ range: request.range, bucket: request.bucket, groupBy: request.groupBy,
-    paused: String(paused), refresh: String(refresh), ...(request.seat === undefined ? {} : { seat: request.seat }),
+    paused: String(paused || after !== undefined), refresh: String(refresh), detailsLimit: '100',
+    ...(after === undefined ? {} : { after: JSON.stringify(after) }), ...(request.seat === undefined ? {} : { seat: request.seat }),
     ...(request.model === undefined ? {} : { model: request.model }) })
   const resource = useResource<'stats'>(`dsh-resource://stats/view?${params}`)
   const view = resource.value?.view
@@ -159,6 +164,16 @@ export function StatsPanel({ useResource, t }: MainProps) {
           number(row.wallMs), number(row.modelInFlightMs), row.waits === null ? t('unknown') : JSON.stringify(row.waits), number(row.peakContextTokens),
           number(row.compactionCount), row.compactionTimes === null ? t('unknown') : row.compactionTimes.map(time).join(', '), row.endReason ?? t('unknown'),
           row.prefixFingerprint ?? t('unknown'), number(row.outputTokensPerSecond)] })))}
+      {tab === 'ledger' && <nav aria-label={t('pagination')}>
+        <Button disabled={cursors.length === 0 || resource.status === 'loading'} onClick={() => {
+          setPaging({ selection: selectionKey, cursors: cursors.slice(0, -1) })
+        }}>{t('previousPage')}</Button>
+        <span>{t('page', { page: cursors.length + 1 })}</span>
+        <Button disabled={!view.nextDetailCursor || resource.status !== 'live'} onClick={() => {
+          if (view.nextDetailCursor) setPaging({ selection: selectionKey, cursors: [...cursors, view.nextDetailCursor] })
+        }}>{t('nextPage')}</Button>
+        <p>{t('pageNote')}</p>
+      </nav>}
       <footer>{t('queryMs', { ms: view.queryMs.toFixed(2), time: time(view.asOf) })}</footer>
     </div>}
   </section>
