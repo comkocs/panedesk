@@ -1,6 +1,24 @@
 {
   "divergences": [
     {
+      "id": "windows-private-file-refusal-codes",
+      "description": "Stable Windows private-file refusal codes.",
+      "origin": "Private-file diagnostics integration",
+      "reason": "Expose stable path-free Windows private-file refusal codes for consumer-owned localized recovery without changing English messages, checks or their order. Suitable for upstream feedback.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/host/host-admin/src/windows-private-files.ts",
+          "packages/host/host-admin/src/index.ts",
+          "packages/host/host-admin/tests/windows-private-files.spec.ts",
+          "packages/host/host-admin/README.md",
+          "packages/host/host-admin/README.zh.md",
+          "packages/host/host-admin/README.i18n.yaml"
+        ],
+        "test": "exposes stable code"
+      }
+    },
+    {
       "id": "ledger-evidence-config-catalog-integration",
       "description": "Merged ledger evidence configuration documentation.",
       "origin": "Ledger and remote seat catalog integration",
