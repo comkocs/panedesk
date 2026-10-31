@@ -43,7 +43,7 @@ export function installSeatFrozenBusiness(ctx: Context, seats: LocalSeatService,
         const original = querySeatFrozen((await seats.state.read()).effects, request, context)
         if (original.status === 'rejected') return original
         if (engine instanceof SeatEngine) {
-          const execution = queryFrozenExecution(engine.journal.projection, request)
+          const execution = queryFrozenExecution(engine.journal.projection, request, context)
           if (execution.status !== 'missing') return structuredClone(execution)
         }
         return structuredClone(original)

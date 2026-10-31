@@ -100,7 +100,7 @@ for (const entry of entries) test.each(damages)(`${entry} rejects %s authority w
 })
 
 for (const entry of ['open', 'openWithContext', 'prefill', 'openBatch'] as const) {
-  test.each(['principal', 'seat', 'context-tasks'] as const)(`${entry} rejects live grants with mismatched %s without business effects`, async (binding) => {
+  test.each(['principal', 'node', 'seat', 'context-tasks'] as const)(`${entry} rejects live grants with mismatched %s without business effects`, async (binding) => {
     const f = await admissionHost()
     const disposers: (() => void | Promise<void>)[] = []
     try {
@@ -113,14 +113,15 @@ for (const entry of ['open', 'openWithContext', 'prefill', 'openBatch'] as const
         ? { ...batch, seat: request.seat, operationId: operation(`${batch.operationId}:${request.seat}`) } : request
       const issuer = f.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation',
         principalId: binding === 'principal' ? 'other-user' as T.SeatPrincipalId : f.authority.principalId,
-        nodeId: f.authority.nodeId, sourceNodeId: f.authority.nodeId, origin: 'manual',
+        nodeId: binding === 'node' ? 'other-node' as T.SeatNodeId : f.authority.nodeId,
+        sourceNodeId: f.authority.nodeId, origin: 'manual',
         seat: binding === 'seat' ? 'other-seat' as T.SeatName : request.seat, taskIds: [taskId], policyRevision: 1 },
       current: () => ({ decision: 'allowed', reasonCode: 'trusted-local-owner', policyRevision: 1 }) })
       disposers.push(() => { issuer.dispose() })
       const grant = await issuer.issuer.check({ operationId: payload.operationId, requestDigest: digest(payload) })
       if ('status' in grant) throw new Error('Expected live issued authority')
       expect(f.engine.authorizationIssuers.verify(grant,
-        { operationId: payload.operationId, requestDigest: digest(payload) }, f.authority.nodeId)).toEqual(grant.fact)
+        { operationId: payload.operationId, requestDigest: digest(payload) }, grant.fact.nodeId)).toEqual(grant.fact)
       const authority: T.SeatCallContext = { ...f.authority, authorization: grant }
       const snapshot: T.OpeningContextSnapshot = { reference, text: 'Frozen binding test',
         digest: digest('Frozen binding test'), revision: '1',
@@ -145,7 +146,8 @@ for (const entry of ['open', 'openWithContext', 'prefill', 'openBatch'] as const
         result = processed.results[0]!.result
       } else result = await seats.open(request)
       expect(result).toMatchObject({ status: 'rejected', error: { code: 'unauthorized',
-        message: 'Opening attribution does not authorize this seat and task', effectState: 'none' } })
+        message: binding === 'node' ? 'Authorization grant does not match this action'
+          : 'Opening attribution does not authorize this seat and task', effectState: 'none' } })
       expect((await f.state.read()).effects.filter(effect => effect.kind !== 'source/rejected')).toEqual(before)
       expect(f.engine.journal.projection.opens.size).toBe(0)
       expect(f.engine.journal.projection.pending.size).toBe(0)

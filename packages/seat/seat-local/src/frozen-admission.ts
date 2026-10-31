@@ -37,13 +37,18 @@ export function querySeatFrozen(effects: readonly T.EngineEffect[], request: T.N
   authority: T.SeatCallContext): T.NodeWorkChainOperationResult {
   const fact = authority.authorization?.fact
   if (!fact || fact.kind !== 'node-delegation' || !fact.sourceNodeId || fact.sourceNodeId !== request.key.sourceNodeId
-    || fact.principalId !== request.key.principalId || authority.principalId !== fact.principalId) {
+    || fact.principalId !== request.key.principalId || authority.principalId !== fact.principalId
+    || authority.nodeId !== fact.nodeId) {
     return rejected('unauthorized', 'Frozen query attribution does not match.', 'Use an authenticated query entry.')
   }
   for (const effect of effects) {
     if (effect.kind !== 'trigger/accepted' && effect.kind !== 'trigger/coalesced') continue
     const pending = effect.data.pending, chain = pending.frozenOpen?.nodeWorkChain
     if (!chain || digest(chain.operationKey) !== digest(request.key)) continue
+    if (fact.nodeId !== chain.route.targetNodeId || fact.seat !== pending.seat
+      || pending.relatedTaskIds.some(task => !fact.taskIds.includes(task))) {
+      return rejected('unauthorized', 'Frozen query attribution does not match.', 'Use an authenticated query entry.')
+    }
     if (chain.payloadDigest !== request.payloadDigest) {
       return rejected('operation-id-conflict', 'Frozen operation payload conflicts.', 'Use the original payload.')
     }

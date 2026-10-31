@@ -66,6 +66,36 @@ describe('atomic issued authorization', () => {
     expect(h.engine.journal.projection.sequence).toBe(watermark + 1)
   })
 
+  for (const action of ['approve', 'cancel'] as const) {
+    it.each(['node', 'seat', 'tasks'] as const)(`${action} rejects live %s scope mismatch without changing pending work`, async (binding) => {
+      const h = await setup(), tasks: [T.SeatTaskId, T.SeatTaskId] = [taskId, 'task-b' as T.SeatTaskId]
+      expect(await h.engine.accept({ ...trigger(), taskId })).toMatchObject({ status: 'accepted' })
+      expect(await h.engine.accept({ ...trigger('external', 'event-b'), taskId: tasks[1] })).toMatchObject({ status: 'coalesced' })
+      const pending = (await h.engine.pending({ limit: 10 })).items[0]!
+      expect(pending.relatedTaskIds).toEqual(tasks)
+      const input = { queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion,
+        operationId: `bound-${action}` as T.SeatOperationId }
+      const check = { operationId: input.operationId, requestDigest: digest(input) }
+      const registration = h.engine.authorizationIssuers.register({ identity: { ...entry('local-operator').identity,
+        nodeId: binding === 'node' ? 'other-node' as T.SeatNodeId : nodeId,
+        seat: binding === 'seat' ? 'other-seat' as T.SeatName : seat,
+        taskIds: binding === 'tasks' ? tasks.slice(0, 1) : tasks }, current: () => entry().current() })
+      const authorization = await registration.issuer.check(check)
+      if ('status' in authorization) throw new Error('Expected live pending authority')
+      expect(h.engine.authorizationIssuers.verify(authorization, check, authorization.fact.nodeId)).toEqual(authorization.fact)
+      const before = h.engine.journal.projection.sequence, decisions = h.engine.journal.projection.authorizationDecisions.length
+      const result = await h.engine.authorizations[action](input, authorization)
+      expect(result).toMatchObject({ status: 'rejected', error: { code: 'unauthorized', effectState: 'none',
+        message: binding === 'node' ? 'Authorization grant does not match this action'
+          : `${action === 'approve' ? 'Approval' : 'Cancellation'} attribution does not cover this pending seat and its tasks` } })
+      expect(h.engine.journal.projection.sequence).toBe(before)
+      expect(h.engine.journal.projection.authorizationDecisions).toHaveLength(decisions)
+      expect((await h.engine.pending({ limit: 10 })).items).toEqual([pending])
+      expect(h.engine.journal.projection.opens.size).toBe(0)
+      registration.dispose()
+    })
+  }
+
   it('retains no committed authorization after append failure and recovers a complete frame before projection publication', async () => {
     const h = await setup(), input = request(), authorization = await grant(h.engine.authorizationIssuers, input)
     const events = join(h.engine.journal.root, 'events')

@@ -66,6 +66,38 @@ test('reads only the local definition revision with live independent authority a
   } finally { await h.close() }
 })
 
+test.each(['principal', 'node', 'seat', 'tasks'] as const)('revision read rejects a live grant with mismatched %s before resolution', async (binding) => {
+  const { h } = await frozenHost()
+  let dispose: (() => void) | undefined
+  try {
+    const payload = { ...request(h.definition.seat), taskIds: ['task-a', 'task-b'] as T.SeatTaskId[] }
+    const entry = h.engine.authorizationIssuers.register({ identity: { kind: 'node-delegation', principalId,
+      nodeId: h.options.nodeId, sourceNodeId: sender, origin: 'remote',
+      seat: binding === 'seat' ? 'other-seat' as T.SeatName : payload.seat,
+      taskIds: binding === 'tasks' ? payload.taskIds.slice(0, 1) : payload.taskIds, policyRevision: 1 },
+    current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) })
+    dispose = () => { entry.dispose() }
+    const operationId = 'bound-revision' as T.SeatOperationId
+    const authorization = await entry.issuer.check({ operationId, requestDigest: digest(payload) })
+    if ('status' in authorization) throw new Error('Expected live read authority')
+    expect(h.engine.authorizationIssuers.verify(authorization, { operationId, requestDigest: digest(payload) }, h.options.nodeId))
+      .toEqual(authorization.fact)
+    const authority: T.SeatCallContext = { authorization, origin: 'remote',
+      principalId: binding === 'principal' ? 'other-principal' as T.SeatPrincipalId : principalId,
+      nodeId: binding === 'node' ? sender : h.options.nodeId }
+    const provider = h.ctx.get('seatDefinitionRevisions')!
+    await provider.ready()
+    const before = await h.state.read(), resolve = vi.spyOn(h.ctx.get('seats')!, 'resolve')
+    expect(await provider.read(payload, authority)).toMatchObject({ status: 'rejected', error: { code: 'unauthorized',
+      message: 'Exact local revision observation was refused.', effectState: 'none',
+      cause: { reasonCode: binding === 'principal' ? 'principal-mismatch' : binding === 'node' ? 'node-mismatch' : 'evidence-digest-mismatch' } } })
+    expect(await h.state.read()).toEqual(before)
+    expect(resolve).not.toHaveBeenCalled()
+    expect(await h.ctx.sessionPersistence.list()).toEqual([])
+    expect(h.adapter.requests).toEqual([])
+  } finally { dispose?.(); vi.restoreAllMocks(); await h.close() }
+})
+
 test('refuses a remote catalog row without exposing its definition or attempting remote resolution', async () => {
   const { h } = await frozenHost()
   try {

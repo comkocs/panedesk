@@ -64,12 +64,13 @@ export function installFrozenBusiness(ctx: Context, engine: SeatEngine): void {
         const grant = context.authorization, fact = grant?.fact
         if (!grant || !fact || fact.kind !== 'node-delegation' || !fact.sourceNodeId
           || request.key.method !== 'engine.acceptFrozen' || fact.sourceNodeId !== request.key.sourceNodeId
-          || fact.principalId !== request.key.principalId || context.principalId !== fact.principalId) {
+          || fact.principalId !== request.key.principalId || context.principalId !== fact.principalId
+          || context.nodeId !== fact.nodeId) {
           return rejected('unauthorized', 'Frozen query attribution does not match')
         }
         const refusal = await engine.authorizations.validate({ operationId: fact.operationId, requestDigest: digest(request),
           ...(fact.callId ? { callId: fact.callId } : {}), ...(fact.rootCallId ? { rootCallId: fact.rootCallId } : {}) }, grant)
-        return refusal ?? structuredClone(queryFrozenExecution(engine.journal.projection, request))
+        return refusal ?? structuredClone(queryFrozenExecution(engine.journal.projection, request, context))
       }
       const provider: T.NodeWorkChainBusinessProvider = { methods: ['engine.acceptFrozen'], ready: () => {
         recovery ??= engine.ready().then(async () => {
