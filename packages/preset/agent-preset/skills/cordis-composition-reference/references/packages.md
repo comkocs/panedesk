@@ -72,6 +72,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@panedesk/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |
 | `@panedesk/dsh-client-ui-brand-official` | no | Official DeepSeek Harness brand occupants for the Web client's sidebar slots |
+| `@panedesk/dsh-client-ui-cache-pill` | no | Composer cache pill: remaining cache time for the window and its subagents, and an explicit-route tier switch that takes effect on the next request |
 | `@panedesk/dsh-client-ui-chat` | no | Chat Conversation target, node definitions, renderers, and details surface |
 | `@panedesk/dsh-client-ui-commands` | no | Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry |
 | `@panedesk/dsh-client-ui-conversation` | no | Target-neutral Conversation assembly, shell, composer, queue, and view navigation |
@@ -100,9 +101,11 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@panedesk/dsh-client-ui-seats` | yes | Owner-authorized manual seat picker and existing-window browser |
 | `@panedesk/dsh-client-ui-secret-mask` | no | Web display masking for recognized credentials in sent user text |
 | `@panedesk/dsh-client-ui-session` | no | Session Controller adapter for React and session-scoped slots |
+| `@panedesk/dsh-client-ui-session-tab` | no | Right-sidebar session tab opened from a session row, plus a per-message pin that survives a restart and never changes what the model sees |
 | `@panedesk/dsh-client-ui-settings` | no | Settings domain base plugin: shared configuration forms and the canonical settings slot-type contract |
 | `@panedesk/dsh-client-ui-settings-account` | yes | Manage DeepSeek login and open Platform billing pages |
 | `@panedesk/dsh-client-ui-settings-agent-loop` | no | Settings page of the agent loop on the panedesk web client's Plugins page: the parallel tool-call cap of the agent-loop namespace |
+| `@panedesk/dsh-client-ui-settings-bash` | no | Settings General row that probes the Windows Git Bash installation and commits the confirmed product selection the base profiles gate on |
 | `@panedesk/dsh-client-ui-settings-general` | no | Settings ownerless-copy and product onboarding plugin: the General section, shell trigger/header chrome content, settings dictionaries, and the versioned welcome notice |
 | `@panedesk/dsh-client-ui-settings-models` | yes | Models settings and shared product-onboarding dialogs over existing settings and credential joins |
 | `@panedesk/dsh-client-ui-settings-plugin-inventory` | no | Read-only Cordis Loader inventory tab in Web Plugins settings |
@@ -276,6 +279,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | Package | Config | Description |
 |---|---|---|
 | `@panedesk/dsh-host-admin` | yes | Optional authenticated running-host administration definitions |
+| `@panedesk/dsh-host-bash-setup` | no | First-run Git Bash discovery Remote: probes Windows install locations and commits the user-confirmed product config the base profiles gate on |
 | `@panedesk/dsh-host-directory-picker-auto` | no | Adaptive chooser of the directory-picker seam: resolves the host situation at boot and mounts the native or browse backend for the DeepSeek Harness web GUI host |
 | `@panedesk/dsh-host-directory-picker-browse` | yes | In-app browsing backend of the directory-picker seam (listing/creation primitives over the host filesystem) |
 | `@panedesk/dsh-host-directory-picker-native` | no | Native-OS-chooser backend of the directory-picker seam for the DeepSeek Harness web GUI host |

@@ -150,6 +150,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   webApp: 'web-server.md',
   llm: 'llm-streaming.md',
   llmCache: 'llm-streaming.md',
+  cacheView: 'llm-streaming.md',
   lsp: 'lsp.md',
   messageFeedback: 'feedback.md',
   sessionFeedback: 'feedback.md',
@@ -227,6 +228,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  windowsBashConfig: 'not a service: boot-provided optional config accessor for Loader expressions — packages/host/host-bash-setup/README.md owns confirmed selection and restart semantics',
   projectOpening: 'feature-local owner-only remote preference service — packages/client/ui-project-onboarding/README.md owns selection and compensation semantics',
   hostAdminTransport: 'optional host-owned tunnel rebuild capability — packages/host/host-admin/README.md owns operator authentication and transport lifetime',
   hostAdminFiles: 'deployment-supplied Windows private-file factory — packages/host/host-admin/README.md owns ACL, path and durable-write obligations',
@@ -1227,6 +1229,10 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  CacheRoute: 'cache route configuration is owned by docs/config-catalog.md',
+  SessionCacheView: 'authorized cache evidence fields are owned by packages/llm/llm-cache/src/view-types.ts',
+  SessionCacheViewRequest: 'cache read session identity is owned by packages/llm/llm-cache/src/view-types.ts',
+  SessionCacheTierRequest: 'supported cache tier selection is owned by packages/llm/llm-cache/src/view-types.ts',
   ProductEvent: 'Desktop event fields are owned by packages/client/product-analytics/README.md and src/events.ts',
   ConnectionFetchHandler: 'shared Fetch dispatch is owned by packages/client/connection/src/rpc.ts',
   ConnectionRequestRejection: 'transport rejection status is owned by packages/client/connection/src/rpc.ts',

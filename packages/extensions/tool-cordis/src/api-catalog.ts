@@ -580,6 +580,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'cacheView',
+    summary: 'Session-scoped cache evidence and policy operations, independent of transcript control.',
+    description: 'Session-scoped cache evidence and policy operations, independent of transcript control.',
+    methods: [
+      {
+        signature: '@Remote({ resources: { session: request => request.sessionId } }) async read(request: SessionCacheViewRequest): Promise<SessionCacheView>',
+        description: 'Read the named session and its authorized descendants without creating an Agent.',
+        parameters: [{ name: 'request', description: 'session resource owned by the caller.' }],
+        returns: 'ledger-derived readings, explicit supported tiers, and completeness.',
+      },
+      {
+        signature: '@Remote({ resources: { session: request => request.sessionId } }) async setTier(request: SessionCacheTierRequest): Promise<void>',
+        description: 'Store a supported tier while preserving the current stable cache key.',
+        parameters: [{ name: 'request', description: 'live session and a tier supported by its current provider route.' }],
+        returns: 'completion of the cache policy\'s evidence writes; no model request is sent.',
+      },
+    ],
+  },
+  {
     key: 'claudeCodeMods',
     summary: 'The bridge service: loaded mods, their hooks, and the harness listeners that raise their events.',
     description: 'The bridge service: loaded mods, their hooks, and the harness listeners that raise their events. Mods join through ClaudeCodeMods.add, which defineMod calls when a mod plugin mounts. The Remote methods let a Client draw each session\'s band above the prompt and press its buttons.',
@@ -1750,6 +1769,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read the evidence-based remaining estimate without dispatching a model call.',
         parameters: [{ name: 'agent', description: 'session whose cache evidence is requested.' }],
         returns: 'the observed estimate, or unknown when no evidence is available.',
+      },
+      {
+        signature: 'routeFor(provider: string): CacheRoute',
+        description: 'Read the route a provider is judged against, without changing any selection.',
+        parameters: [{ name: 'provider', description: 'registered provider identifier.' }],
+        returns: 'the configured route, or the built-in route when configuration names none.',
+      },
+      {
+        signature: 'policy(agent: Agent): CachePolicy | undefined',
+        description: 'Read the retention the next request of this session will carry, without changing it.',
+        parameters: [{ name: 'agent', description: 'session whose stored selection is requested.' }],
+        returns: 'the selection the cache plugin holds, or undefined before that session has one.',
       },
       {
         signature: 'renewOnce(request: CacheRenewRequest): Promise<CacheRenewResult>',
@@ -7253,6 +7284,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CacheRetention = \'default\' | \'none\' | \'5m\' | \'1h\' | \'30m\' | \'12h\' | \'auto\';',
   },
   {
+    name: 'CacheRoute',
+    declaration: 'export interface CacheRoute {\n    provider: string;\n    modelFamily: string;\n    capability: \'anthropic\' | \'openai-responses\' | \'openai-chat\' | \'automatic\' | \'unsupported\';\n    retention?: RouteRetention;\n}',
+  },
+  {
     name: 'CallbackId',
     declaration: 'export type CallbackId = Branded<\'SeatCallbackId\'>;',
   },
@@ -10301,6 +10336,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RoutedSendMessageRequest = SendMessageRequest & {\n    readonly delivery: RoutedDeliveryEnvelope;\n};',
   },
   {
+    name: 'RouteRetention',
+    declaration: 'export type RouteRetention = Exclude<CacheRetention, \'default\'>;',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
   },
@@ -11075,6 +11114,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionAvailability',
     declaration: 'export type SessionAvailability = \'live\' | \'persisted\';',
+  },
+  {
+    name: 'SessionCacheRemainingRow',
+    declaration: 'export type SessionCacheRemainingRow = {\n    readonly sessionId: SessionId;\n    readonly role: \'main\' | \'subagent\';\n    readonly cacheReadTokens?: number;\n} & ({\n    readonly kind: \'estimated\';\n    readonly seconds: number;\n    readonly evidenceAt: number;\n    readonly ttlSeconds: number;\n} | {\n    readonly kind: \'automatic\' | \'disabled\' | \'unknown\';\n});',
+  },
+  {
+    name: 'SessionCacheTierRequest',
+    declaration: 'export interface SessionCacheTierRequest {\n    readonly sessionId: SessionId;\n    readonly retention: CacheTier;\n}',
+  },
+  {
+    name: 'SessionCacheView',
+    declaration: 'export interface SessionCacheView {\n    readonly rows: readonly SessionCacheRemainingRow[];\n    readonly tiers: readonly CacheTier[];\n    readonly adjustable: boolean;\n    readonly retention?: CacheRetention;\n    readonly complete: boolean;\n}',
+  },
+  {
+    name: 'SessionCacheViewRequest',
+    declaration: 'export interface SessionCacheViewRequest {\n    readonly sessionId: SessionId;\n}',
   },
   {
     name: 'SessionCancelRequest',

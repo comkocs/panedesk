@@ -987,6 +987,28 @@ declare abstract class LlmAdapter {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxcacheview--cacheviewservice"></a>
+
+### `ctx.cacheView` — `CacheViewService`
+
+Session-scoped cache evidence and policy operations, independent of transcript control.
+
+```ts cordis-catalog
+/** Read the named session and its authorized descendants without creating an Agent.
+ * @param request - session resource owned by the caller.
+ * @returns ledger-derived readings, explicit supported tiers, and completeness.
+ */
+@Remote({ resources: { session: request => request.sessionId } }) async read(request: SessionCacheViewRequest): Promise<SessionCacheView>
+
+/** Store a supported tier while preserving the current stable cache key.
+ * @param request - live session and a tier supported by its current provider route.
+ * @returns completion of the cache policy's evidence writes; no model request is sent.
+ */
+@Remote({ resources: { session: request => request.sessionId } }) async setTier(request: SessionCacheTierRequest): Promise<void>
+```
+
+Source: [`packages/llm/llm-cache/src/cache-view.ts`](../../packages/llm/llm-cache/src/cache-view.ts)
+
 <a id="ctxdeepseekllmapiextensions--deepseekllmapiextensionregistry"></a>
 
 ### `ctx.deepseekLlmApiExtensions` — `DeepSeekLlmApiExtensionRegistry`
@@ -1226,6 +1248,18 @@ update(update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy
  * @returns the observed estimate, or unknown when no evidence is available.
  */
 remaining(agent: Agent): Promise<CacheRemaining>
+
+/** Read the route a provider is judged against, without changing any selection.
+ * @param provider - registered provider identifier.
+ * @returns the configured route, or the built-in route when configuration names none.
+ */
+routeFor(provider: string): CacheRoute
+
+/** Read the retention the next request of this session will carry, without changing it.
+ * @param agent - session whose stored selection is requested.
+ * @returns the selection the cache plugin holds, or undefined before that session has one.
+ */
+policy(agent: Agent): CachePolicy | undefined
 
 /**
  * Request at most one maintenance call under a durable operation identity.

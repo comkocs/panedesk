@@ -2025,7 +2025,7 @@ export interface LedgerWatchOptions {
 
 - `inject`: `llm` · `agents` · `systemPrompt`
 - `refs`: [`CacheRetention`](../packages/llm/llm/src/index.ts)
-- `source`: [`packages/llm/llm-cache/src/index.ts:30`](../packages/llm/llm-cache/src/index.ts)
+- `source`: [`packages/llm/llm-cache/src/index.ts:33`](../packages/llm/llm-cache/src/index.ts)
 
 ```ts config-catalog
 /** Session cache and harness-process concurrency configuration. */
@@ -5356,6 +5356,7 @@ export interface Config {
 | `@panedesk/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@panedesk/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
 | `@panedesk/dsh-client-ui-brand-official` | — | [`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts) |
+| `@panedesk/dsh-client-ui-cache-pill` | — | [`packages/client/ui-cache-pill/src/index.ts`](../packages/client/ui-cache-pill/src/index.ts) |
 | `@panedesk/dsh-client-ui-chat` | — | [`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts) |
 | `@panedesk/dsh-client-ui-commands` | — | [`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts) |
 | `@panedesk/dsh-client-ui-conversation` | — | [`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts) |
@@ -5380,8 +5381,10 @@ export interface Config {
 | `@panedesk/dsh-client-ui-seat-profiles` | — | [`packages/client/ui-seat-profiles/src/index.ts`](../packages/client/ui-seat-profiles/src/index.ts) |
 | `@panedesk/dsh-client-ui-secret-mask` | — | [`packages/client/ui-secret-mask/src/index.ts`](../packages/client/ui-secret-mask/src/index.ts) |
 | `@panedesk/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
+| `@panedesk/dsh-client-ui-session-tab` | — | [`packages/client/ui-session-tab/src/index.ts`](../packages/client/ui-session-tab/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings` | — | [`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-agent-loop` | — | [`packages/client/ui-settings-agent-loop/src/index.ts`](../packages/client/ui-settings-agent-loop/src/index.ts) |
+| `@panedesk/dsh-client-ui-settings-bash` | — | [`packages/client/ui-settings-bash/src/index.ts`](../packages/client/ui-settings-bash/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-general` | — | [`packages/client/ui-settings-general/src/index.ts`](../packages/client/ui-settings-general/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-plugin-inventory` | — | [`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts) |
 | `@panedesk/dsh-client-ui-settings-plugins` | — | [`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts) |
@@ -5423,6 +5426,7 @@ export interface Config {
 | `@panedesk/dsh-fs-ssh` | `ssh` · `sandboxPolicy` | [`packages/ssh/fs-ssh/src/index.ts`](../packages/ssh/fs-ssh/src/index.ts) |
 | `@panedesk/dsh-goal-round-driver` | `agents` · `goals` · `sessions` | [`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts) |
 | `@panedesk/dsh-harness-dev-context` | `systemPrompt` · `sessionProjections` · `webApp` | [`packages/context/harness-dev-context/src/index.ts`](../packages/context/harness-dev-context/src/index.ts) |
+| `@panedesk/dsh-host-bash-setup` | — | [`packages/host/host-bash-setup/src/index.ts`](../packages/host/host-bash-setup/src/index.ts) |
 | `@panedesk/dsh-host-directory-picker-auto` | `webServer` · `connection` · `loader` | [`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts) |
 | `@panedesk/dsh-host-directory-picker-native` | — | [`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts) |
 | `@panedesk/dsh-host-plugin-inventory` | `loader` | [`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts) |
@@ -5498,6 +5502,7 @@ export interface Config {
 | `@panedesk/dsh-client-store` | — | [`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts) |
 | `@panedesk/dsh-client-test-runtime` | — | [`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts) |
 | `@panedesk/dsh-client-ui-dockkit` | — | [`packages/client/ui-dockkit/src/index.ts`](../packages/client/ui-dockkit/src/index.ts) |
+| `@panedesk/dsh-client-ui-panedesk-icons` | — | [`packages/client/ui-panedesk-icons/src/index.ts`](../packages/client/ui-panedesk-icons/src/index.ts) |
 | `@panedesk/dsh-client-ui-primitives` | — | [`packages/client/ui-primitives/src/index.ts`](../packages/client/ui-primitives/src/index.ts) |
 | `@panedesk/dsh-client-ui-slots` | — | [`packages/client/ui-slots/src/index.ts`](../packages/client/ui-slots/src/index.ts) |
 | `@panedesk/dsh-client-web` | — | [`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts) |

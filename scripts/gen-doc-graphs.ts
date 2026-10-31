@@ -495,6 +495,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Provides explicit live policy updates and evidence-based remaining-time queries without dispatching model calls.',
   },
   {
+    key: 'cacheView',
+    pkg: 'llm-cache',
+    title: 'Authorized session cache view',
+    mode: 'core',
+    consumers: ['client-ui-cache-pill'],
+    note: 'Exposes session-scoped cache evidence and supported tier selection through the cache-owned Remote service.',
+  },
+  {
     key: 'tokenMeter',
     pkg: 'token-meter',
     title: 'Replay token measurement',
