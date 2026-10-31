@@ -7,9 +7,9 @@ import * as JsonlPersistence from '../../../session/session-persistence-jsonl/sr
 import { harness } from './harness.ts'
 
 const routes = [
-  { provider: 'responses', modelFamily: 'openai', capability: 'openai-responses', retention: '12h', ttl: 43200 },
-  { provider: 'deepseek', modelFamily: 'deepseek', capability: 'automatic', retention: 'auto', ttl: undefined },
-  { provider: 'undeclared', modelFamily: 'undeclared', capability: 'unsupported', retention: 'default', ttl: undefined },
+  { provider: 'responses', modelFamily: 'openai', capability: 'openai-responses', expected: '12h', ttl: 43200 },
+  { provider: 'deepseek', modelFamily: 'deepseek', capability: 'automatic', expected: 'auto', ttl: undefined },
+  { provider: 'undeclared', modelFamily: 'undeclared', capability: 'unsupported', expected: 'default', ttl: undefined },
 ] as const
 
 describe('SDK child cache capability resolution', () => {
@@ -48,15 +48,15 @@ describe('SDK child cache capability resolution', () => {
           }
         }
         expect(adapter.requests).toHaveLength(2)
-        expect(adapter.requests.map(request => request.cache?.retention)).toEqual([route.retention, route.retention])
+        expect(adapter.requests.map(request => request.cache?.retention)).toEqual([route.expected, route.expected])
         expect(ledger!.starts).toHaveLength(2)
         for (const start of ledger!.starts) {
-          expect(start.cache.retention?.retention).toBe(route.retention)
+          expect(start.cache.retention?.retention).toBe(route.expected)
           expect(start.cache.ttlSeconds).toBe(route.ttl)
           expect(start.cache.sessionPolicy?.retention).toBe('default')
         }
         for (const end of ledger!.ends) {
-          expect(end.cache?.retention?.retention).toBe(route.retention)
+          expect(end.cache?.retention?.retention).toBe(route.expected)
           expect(end.cache?.ttlSeconds).toBe(route.ttl)
           expect(end.cacheWriteTiering).toEqual({ kind: 'untiered' })
           expect(end.usage).toMatchObject({ inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 })

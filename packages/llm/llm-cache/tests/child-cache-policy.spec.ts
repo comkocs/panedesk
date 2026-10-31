@@ -6,9 +6,9 @@ import type { LedgerEventId, LedgerRunId } from '@panedesk/dsh-session-ledger'
 import { harness } from './harness.ts'
 
 const routes = [
-  { provider: 'responses', modelFamily: 'openai', capability: 'openai-responses', retention: '12h', ttl: 43200 },
-  { provider: 'deepseek', modelFamily: 'deepseek', capability: 'automatic', retention: 'auto', ttl: undefined },
-  { provider: 'undeclared', modelFamily: 'undeclared', capability: 'unsupported', retention: 'default', ttl: undefined },
+  { provider: 'responses', modelFamily: 'openai', capability: 'openai-responses', expected: '12h', ttl: 43200 },
+  { provider: 'deepseek', modelFamily: 'deepseek', capability: 'automatic', expected: 'auto', ttl: undefined },
+  { provider: 'undeclared', modelFamily: 'undeclared', capability: 'unsupported', expected: 'default', ttl: undefined },
 ] as const
 
 async function send(agent: Agent) {
@@ -62,16 +62,16 @@ describe('child cache inheritance', () => {
         const requests = adapter.requests.filter(request => request.provider === route.provider)
         expect(requests).toHaveLength(2)
         expect(parentPolicy).toBe(raw)
-        expect(requests.map(request => request.cache?.retention)).toEqual([route.retention, route.retention])
+        expect(requests.map(request => request.cache?.retention)).toEqual([route.expected, route.expected])
         const starts = ledger!.starts.filter(start => start.provider === route.provider)
         expect(starts).toHaveLength(2)
         for (const start of starts) {
-          expect(start.cache.retention?.retention).toBe(route.retention)
+          expect(start.cache.retention?.retention).toBe(route.expected)
           expect(start.cache.ttlSeconds).toBe(route.ttl)
           expect(start.cache.sessionPolicy?.retention).toBe('default')
         }
         for (const end of ledger!.ends.filter(end => starts.some(start => start.callId === end.callId))) {
-          expect(end.cache?.retention?.retention).toBe(route.retention)
+          expect(end.cache?.retention?.retention).toBe(route.expected)
           expect(end.cache?.ttlSeconds).toBe(route.ttl)
           expect(end.cacheWriteTiering).toEqual({ kind: 'untiered' })
           expect(end.usage).toMatchObject({ inputTokens: 10, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 })
@@ -79,7 +79,7 @@ describe('child cache inheritance', () => {
         const warnings = warn.mock.calls.filter(([message]) => String(message).startsWith('Inherited cache retention'))
         expect(warnings).toHaveLength(raw === '5m' && !override ? 1 : 0)
         if (warnings.length !== 0) expect(warnings[0]?.[0]).toBe(
-          `Inherited cache retention 5m is unsupported for ${route.provider} (${route.capability}); using ${route.retention}`,
+          `Inherited cache retention 5m is unsupported for ${route.provider} (${route.capability}); using ${route.expected}`,
         )
         await child.dispose()
         if (scenario !== 'recovery') await parent.dispose()

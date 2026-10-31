@@ -21,4 +21,16 @@ describe('cache policy', () => {
     expect(() => resolveCachePolicy({ retention: '1h' }, { ...route, capability: 'automatic' }, 'a')).toThrow('Unsupported')
     expect(resolveCachePolicy({ retention: 'none' }, { ...route, capability: 'unsupported' }, 'a').mode).toBe('disabled')
   })
+  it('serves a route-pinned tier for default selections while explicit selections win', () => {
+    const route: CacheRoute = { provider: 'claude-route', modelFamily: 'anthropic', capability: 'anthropic', retention: '5m' }
+    expect(resolveCachePolicy({ retention: 'default' }, route, 'session-a')).toMatchObject({
+      control: { retention: '5m', key: 'session-a' }, mode: 'explicit', ttlSeconds: 300,
+    })
+    expect(resolveCachePolicy({ retention: '1h' }, route, 'session-a').control.retention).toBe('1h')
+    expect(resolveCachePolicy({ retention: 'default', stableKey: 'custom' }, route, 'session-a').control.key).toBe('custom')
+  })
+  it('rejects a route-pinned tier the route capability does not support', () => {
+    const route: CacheRoute = { provider: 'auto-route', modelFamily: 'auto', capability: 'automatic', retention: '5m' }
+    expect(() => resolveCachePolicy({ retention: 'default' }, route, 'session-a')).toThrow('Unsupported cache retention 5m for auto-route')
+  })
 })

@@ -1146,14 +1146,28 @@ function failureDetail(outcome: Extract<InactiveEntry['outcome'], { kind: 'faile
   return `${outcome.phase === undefined ? '' : `${outcome.phase}: `}${formatActivationError(outcome.error, stacks)}`
 }
 
-/** Render optional-only warnings without changing startup policy. */
+/** Render optional-only warnings without changing startup policy.
+ * Entries still waiting for services are reported as starting, separate from the failed-entry count.
+ */
 function activationDiagnostic(
   binName: string,
   failures: readonly InactiveEntry[],
   stacks = true,
 ): string {
-  const noun = failures.length === 1 ? 'entry' : 'entries'
-  return `${binName}: warning: ${String(failures.length)} ${noun} did not activate\n${failures.map(failure => inactiveDiagnostic(failure, stacks)).join('\n')}\n`
+  const failed = failures.filter(({ outcome }) => outcome.kind === 'failed')
+  const pending = failures.filter(({ outcome }) => outcome.kind === 'pending')
+  const lines: string[] = []
+  if (failed.length > 0) {
+    const noun = failed.length === 1 ? 'entry' : 'entries'
+    lines.push(`${binName}: warning: ${String(failed.length)} ${noun} did not activate`)
+    lines.push(...failed.map(failure => inactiveDiagnostic(failure, stacks)))
+  }
+  if (pending.length > 0) {
+    const noun = pending.length === 1 ? 'entry is' : 'entries are'
+    lines.push(`${binName}: warning: ${String(pending.length)} pending ${noun} starting (waiting for services)`)
+    lines.push(...pending.map(failure => inactiveDiagnostic(failure, stacks)))
+  }
+  return `${lines.join('\n')}\n`
 }
 
 /** Per-entry reload text, which people read through the Web UI and agents, so it carries error messages without stack frames. */

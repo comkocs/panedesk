@@ -101,7 +101,8 @@ async function waitForStartup(
   let settled = false
   const finish = (): void => {
     if (settled || url === undefined) return
-    if (!stderrText.includes('panedesk: warning: 6 entries did not activate')) return
+    if (!stderrText.includes('panedesk: warning: 5 entries did not activate')) return
+    if (!stderrText.includes('panedesk: warning: 1 pending entry is starting (waiting for services)')) return
     if (!stderrText.includes('web async apply failure')) return
     if (!stderrText.includes('webProbeMissingService')) return
     settled = true

@@ -10,14 +10,14 @@ import {
   type SessionNotification,
   type StopReason,
 } from '@agentclientprotocol/sdk'
-import type { Agent, AgentHandle, AgentOptions, AgentStatus, ModelSelection } from '@panedesk/dsh-agent'
+import type { Agent, AgentHandle, AgentOptions, AgentStatus, AssistantStreamFrame, ModelSelection } from '@panedesk/dsh-agent'
 import { createUserMessage, errorChain, type UserMessage } from '@panedesk/dsh-llm'
 import { type Session, type SessionEvent, type SessionId, type TurnEndReason } from '@panedesk/dsh-session'
 import { AcpContentError, admitAcpPrompt } from './content.ts'
 import { turnEndToStopReason } from './codec.ts'
 import { mountAcpMcpServers } from './mcp.ts'
 import { AcpModelControl } from './model-control.ts'
-import { assistantUpdates, toolCallUpdate, toolResultUpdate } from './updates.ts'
+import { assistantUpdates, liveChunkUpdate, toolCallUpdate, toolResultUpdate } from './updates.ts'
 
 /** Subagent completion and teardown without depending on the subagent package. */
 interface SubagentLifecycle {
@@ -106,6 +106,15 @@ export class AcpSession {
   private inflight: InflightPrompt | undefined
   private closing: Promise<void> | undefined
   private readonly pendingSelections = new Map<string, ModelSelection>()
+  /** Live streaming attempts by attempt id; the durable commit consumes their coverage. */
+  private readonly liveAttempts = new Map<string, {
+    turn: number
+    step: number
+    messageId: string
+    deltas: Map<number, { kind: 'text' | 'reasoning'; text: string }>
+  }>()
+  /** Latest live attempt per turn/step position; a replacement attempt overwrites it. */
+  private readonly liveByPosition = new Map<string, string>()
 
   private constructor(
     private readonly ctx: Context,
@@ -342,6 +351,46 @@ export class AcpSession {
   }
 
   /**
+   * Project one live assistant-stream frame ahead of its durable commit.
+   * @param frame - transient frame from the agent-owned streaming attempt.
+   */
+  onAssistantStream(frame: AssistantStreamFrame): void {
+    const key: string = frame.attemptId
+    if (frame.type === 'start') {
+      this.liveAttempts.set(key, { turn: frame.turn, step: frame.step, messageId: key, deltas: new Map() })
+      this.liveByPosition.set(`${frame.turn}:${frame.step}`, key)
+      return
+    }
+    if (frame.type === 'end') {
+      const attempt = this.liveAttempts.get(key)
+      this.liveAttempts.delete(key)
+      if (attempt !== undefined && this.liveByPosition.get(`${attempt.turn}:${attempt.step}`) === key) {
+        this.liveByPosition.delete(`${attempt.turn}:${attempt.step}`)
+      }
+      return
+    }
+    if (frame.chunk.type !== 'text-delta' && frame.chunk.type !== 'reasoning-delta') return
+    const attempt = this.liveAttempts.get(key)
+    if (attempt === undefined || frame.chunk.text.length === 0) return
+    const delta = attempt.deltas.get(frame.chunk.index)
+      ?? { kind: frame.chunk.type === 'text-delta' ? 'text' as const : 'reasoning' as const, text: '' }
+    delta.text += frame.chunk.text
+    attempt.deltas.set(frame.chunk.index, delta)
+    const previous = this.outputTail
+    this.outputTail = previous
+      .then(async () => {
+        for (const update of liveChunkUpdate(attempt.messageId, frame.chunk)) {
+          await this.notify({ sessionId: this.agent.session.id, update })
+        }
+      })
+      /* v8 ignore start -- the bridge notifier contains transport rejection. */
+      .catch((error: unknown) => {
+        this.ctx.logger.warn(`acp: live assistant update delivery failed: ${errorChain(error)}`)
+      })
+    /* v8 ignore stop */
+  }
+
+  /**
    * Process one durable event and enqueue its standard ACP projections.
    * @param session - exact event-owning Session.
    * @param event - committed durable event.
@@ -354,9 +403,11 @@ export class AcpSession {
     try {
       if (event.type === 'assistant/message') {
         const inflight = this.inflight?.turn === event.data.turn ? this.inflight : undefined
+        const latest = this.liveByPosition.get(`${event.data.turn}:${event.data.step}`)
+        const live = latest === undefined ? undefined : this.liveAttempts.get(latest)
         const previous = this.outputTail
         const delivery = previous.then(async () => {
-          for (const update of await assistantUpdates(this.ctx, session, event)) {
+          for (const update of await assistantUpdates(this.ctx, session, event, live)) {
             await this.notify({ sessionId: this.agent.session.id, update })
           }
         })

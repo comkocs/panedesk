@@ -1951,7 +1951,8 @@ export interface Config {
   keepalive: KeepalivePolicy
   /** Admission limits for explicitly configured provider families. */
   concurrency: FamilyConcurrencyLimit[]
-  /** Explicit capabilities for gateway routes; unknown routes never acquire guessed TTL support. */
+  /** Explicit gateway-route capabilities with optional per-route `default` retention;
+   * explicit session selections win and unknown routes never acquire guessed TTL support. */
   routes?: CacheRoute[]
   /** Consecutive failed refreshes before maintenance pauses until a new ordinary call or explicit update. */
   keepaliveFailureBudget?: number
@@ -1993,7 +1994,12 @@ export interface CacheRoute {
   modelFamily: string
   /** Cache controls supported by the serving API. */
   capability: 'anthropic' | 'openai-responses' | 'openai-chat' | 'automatic' | 'unsupported'
+  /** Route-pinned tier for `default` selections; must be supported by {@link CacheRoute.capability}. */
+  retention?: RouteRetention
 }
+
+/** Retention a route pins for selections that did not choose an explicit tier. */
+export type RouteRetention = Exclude<CacheRetention, 'default'>
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-llm-cache -->
 

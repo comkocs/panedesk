@@ -175,12 +175,65 @@ describe('ACP prompt lifecycle', () => {
     expect(harness.updates).toEqual([])
   })
 
-  it('rejects a failed turn and never publishes its partial chunks', async () => {
+  it('rejects a failed turn while its live partial chunk stays visible exactly once', async () => {
     harness = await makeBridgeHarness({ script: [errorResponse('provider boom')] })
     const sessionId = await newSession(harness)
     await expect(harness.client.prompt({ sessionId, prompt: [{ type: 'text', text: 'go' }] }))
       .rejects.toThrow(/turn failed: provider boom/)
-    expect(messageText(harness)).toBe('')
+    // The transient delta streamed live before the failure and no committed duplicate follows.
+    expect(messageText(harness)).toBe('partial')
+    expect(harness.updates.filter(update => update.sessionUpdate === 'agent_message_chunk')).toHaveLength(1)
+  })
+
+  it('delivers a live delta before the durable commit and never duplicates covered text', async () => {
+    harness = await makeBridgeHarness({ script: ['hang', textResponse('next')] })
+    const sessionId = await newSession(harness)
+    const commits: string[] = []
+    harness.ctx.on('session/event', (_session, event) => {
+      if (event.type === 'assistant/message') commits.push(event.data.message.id)
+    })
+    const prompt = harness.client.prompt({ sessionId, prompt: [{ type: 'text', text: 'go' }] })
+    await vi.waitFor(() => { expect(messageText(harness!)).toBe('partial') })
+    // The streamed delta is client-visible while no assistant message has committed yet.
+    expect(commits).toHaveLength(0)
+    await harness.client.cancel({ sessionId })
+    await expect(prompt).resolves.toEqual({ stopReason: 'cancelled' })
+    // The interrupted commit covers the streamed delta, so exactly one text update exists.
+    expect(harness.updates.filter(update => update.sessionUpdate === 'agent_message_chunk')).toHaveLength(1)
+  })
+
+  it('projects uncovered committed blocks once while skipping live-covered deltas', async () => {
+    const script: StreamChunk[][] = []
+    harness = await makeBridgeHarness({ script })
+    const ref = await harness.attachments!.saveImage({ data: Uint8Array.of(3), mediaType: 'image/png' })
+    script.push([
+      { type: 'block-start', index: 0, blockType: 'reasoning' },
+      { type: 'reasoning-delta', index: 0, text: 'inspect' },
+      { type: 'block-end', index: 0, block: { type: 'reasoning', text: 'inspect' } },
+      { type: 'block-start', index: 1, blockType: 'image' },
+      { type: 'block-end', index: 1, block: { type: 'image', attachment: ref } },
+      { type: 'block-start', index: 2, blockType: 'text' },
+      { type: 'text-delta', index: 2, text: 'answer' },
+      { type: 'block-end', index: 2, block: { type: 'text', text: 'answer' } },
+      { type: 'usage', usage: { inputTokens: 5, outputTokens: 6 } },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ])
+    const sessionId = await newSession(harness)
+    await harness.client.prompt({ sessionId, prompt: [{ type: 'text', text: 'go' }] })
+    await vi.waitFor(() => { expect(harness!.updates.at(-1)?.sessionUpdate).toBe('usage_update') })
+    expect(harness.updates.map(update => update.sessionUpdate)).toEqual([
+      'agent_thought_chunk',
+      'agent_message_chunk',
+      'agent_message_chunk',
+      'usage_update',
+    ])
+    // The live reasoning and text deltas arrived once; only the uncovered image projects at commit.
+    expect(harness.updates[0]).toMatchObject({ content: { type: 'text', text: 'inspect' } })
+    expect(harness.updates[1]).toMatchObject({ content: { type: 'text', text: 'answer' } })
+    expect(harness.updates[2]).toMatchObject({ content: { type: 'image', data: 'Aw==', mimeType: 'image/png' } })
+    const text = harness.updates.flatMap(update =>
+      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text' ? [update.content.text] : [])
+    expect(text).toEqual(['answer'])
   })
 
   it('rejects an ordinary plugin failure through the same prompt boundary', async () => {
@@ -578,7 +631,8 @@ describe('ACP prompt lifecycle', () => {
     const sessionId = await newSession(harness)
     const result = await harness.client.prompt({ sessionId, prompt: [{ type: 'text', text: 'go' }] })
     expect(result.stopReason).toBe('end_turn')
-    await vi.waitFor(() => { expect(messageText(harness!)).toBe('recovered') })
+    // The failed attempt's transient delta stays live-visible, then the recovered text streams.
+    await vi.waitFor(() => { expect(messageText(harness!)).toBe('partialrecovered') })
   })
 
   it.each(['completed', 'error'] as const)('waits for descendants and reports the later %s summary turn', async (outcome) => {
