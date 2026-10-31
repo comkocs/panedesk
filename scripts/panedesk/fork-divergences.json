@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "seat-trusted-owner-local-wake-and-manual-frozen-admission",
+      "description": "Accept trusted local owner wake and verified manual frozen admission; suitable for upstream submission.",
+      "origin": "Optional seat orchestration",
+      "reason": "Accept same-node wake delegation only through live owner-issued exact wake and opening grants, preserve same-frame authorization and replay identity, and apply local manual mode exemption to independently verified frozen manual entries without trusting request origin or weakening scope, budget, capacity, or revocation checks.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat/src/authorization.ts", "packages/seat/seat/README.md", "packages/seat/seat/README.zh.md", "packages/seat/seat/README.i18n.yaml", "packages/seat/seat-local/src/service.ts", "packages/seat/seat-local/src/opening-contexts.ts", "packages/seat/seat-local/src/definition-revisions.ts", "packages/seat/seat-local/tests/trusted-wake.spec.ts", "packages/seat/seat-local/tests/definition-revisions.spec.ts", "packages/seat/seat-local/README.md", "packages/seat/seat-local/README.zh.md", "packages/seat/seat-local/README.i18n.yaml", "packages/seat/seat-engine/src/engine.ts", "packages/seat/seat-engine/src/frozen-admission.ts", "packages/seat/seat-engine/src/wake-delivery.ts", "packages/seat/seat-engine/tests/frozen-admission.spec.ts", "packages/seat/seat-engine/README.md", "packages/seat/seat-engine/README.zh.md", "packages/seat/seat-engine/README.i18n.yaml", "docs/subsystems/seat.md", "docs/subsystems/seat.zh.md", "docs/subsystems/seat.i18n.yaml"],
+        "test": "uses verified manual authority rather than claimed manual origin under off"
+      }
+    },
+    {
+      "id": "seat-admission-definition-diagnostics",
+      "description": "Report definition refusals and recover retained input at seat admission.",
+      "origin": "Optional seat orchestration",
+      "reason": "Return bilingual seat-named definition refusals before manual or external Session admission; contain only explicit no-effect current configuration refusals at the affected window, preserve accounting and unknown failure supervision, and record actual turn-admission entry sites with retained-input recovery coverage. Update localized alerts, package documentation and generated configuration source links. Suitable for upstream submission.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["docs/config-catalog.md", "docs/config-catalog.zh.md", "packages/client/ui-seats/README.i18n.yaml", "packages/client/ui-seats/README.md", "packages/client/ui-seats/README.zh.md", "packages/client/ui-seats/src/client/Seats.tsx", "packages/client/ui-seats/src/client/locales.ts", "packages/client/ui-seats/tests/seats.client.spec.tsx", "packages/seat/seat-engine/README.i18n.yaml", "packages/seat/seat-engine/README.md", "packages/seat/seat-engine/README.zh.md", "packages/seat/seat-engine/src/admission-definition.ts", "packages/seat/seat-engine/src/engine.ts", "packages/seat/seat-engine/src/failure.ts", "packages/seat/seat-engine/src/index.ts", "packages/seat/seat-engine/tests/admission-diagnostics.spec.ts", "packages/seat/seat-engine/tests/admission-recovery.spec.ts", "packages/seat/seat-local/README.i18n.yaml", "packages/seat/seat-local/README.md", "packages/seat/seat-local/README.zh.md", "packages/seat/seat-local/src/service.ts", "packages/seat/seat-local/tests/admission-configuration.spec.ts", "packages/seat/seat-local/tests/admission-definition.spec.ts"],
+        "test": "names a bad definition before manual/external opening without stopping the engine"
+      }
+    },
+    {
       "id": "seat-add-home-source-artifacts",
       "description": "Record generated configuration references and workspace links for owner-only seat source preparation.",
       "origin": "Seat creation UI",
