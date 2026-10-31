@@ -1488,6 +1488,9 @@ importers:
       '@panedesk/dsh-goal':
         specifier: workspace:*
         version: link:../../goal/goal
+      '@panedesk/dsh-host-bash-setup':
+        specifier: workspace:*
+        version: link:../../host/host-bash-setup
       '@panedesk/dsh-host-plugin-inventory':
         specifier: workspace:*
         version: link:../../host/plugin-inventory
@@ -1990,6 +1993,9 @@ importers:
       '@panedesk/cordis-plugin-timer':
         specifier: workspace:~
         version: link:../../../vendor/timer
+      '@panedesk/dsh-bash-local':
+        specifier: workspace:*
+        version: link:../../shell/bash-local
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../cmdline
@@ -3391,6 +3397,9 @@ importers:
       '@panedesk/dsh-client-ui-open-in-app':
         specifier: workspace:*
         version: link:../../client/ui-open-in-app
+      '@panedesk/dsh-client-ui-panedesk-icons':
+        specifier: workspace:*
+        version: link:../../client/ui-panedesk-icons
       '@panedesk/dsh-client-ui-permission-presets':
         specifier: workspace:*
         version: link:../../client/ui-permission-presets
@@ -3430,6 +3439,9 @@ importers:
       '@panedesk/dsh-client-ui-settings-agent-loop':
         specifier: workspace:*
         version: link:../../client/ui-settings-agent-loop
+      '@panedesk/dsh-client-ui-settings-bash':
+        specifier: workspace:*
+        version: link:../../client/ui-settings-bash
       '@panedesk/dsh-client-ui-settings-general':
         specifier: workspace:*
         version: link:../../client/ui-settings-general
@@ -3538,6 +3550,9 @@ importers:
       '@panedesk/dsh-harness-dev-context':
         specifier: workspace:*
         version: link:../../context/harness-dev-context
+      '@panedesk/dsh-host-bash-setup':
+        specifier: workspace:*
+        version: link:../../host/host-bash-setup
       '@panedesk/dsh-host-directory-picker-auto':
         specifier: workspace:*
         version: link:../../host/directory-picker-auto
@@ -5103,6 +5118,15 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1
 
+  packages/client/ui-panedesk-icons:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
   packages/client/ui-permission-presets:
     devDependencies:
       '@panedesk/cordis':
@@ -5938,6 +5962,42 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
+
+  packages/client/ui-settings-bash:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-api-remotes':
+        specifier: workspace:*
+        version: link:../../api/remotes
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-host-bash-setup':
+        specifier: workspace:*
+        version: link:../../host/host-bash-setup
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-settings-general:
     dependencies:
@@ -11682,6 +11742,18 @@ importers:
         specifier: workspace:*
         version: link:../../util/brand
 
+  packages/host/host-bash-setup:
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/dsh-bash-local':
+        specifier: workspace:*
+        version: link:../../shell/bash-local
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+
   packages/host/open-in-app:
     dependencies:
       '@panedesk/dsh-launch-environment':
@@ -14834,6 +14906,12 @@ importers:
 
   packages/shell/bash-local:
     dependencies:
+      '@panedesk/dsh-atomic-write':
+        specifier: workspace:*
+        version: link:../../util/atomic-write
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery

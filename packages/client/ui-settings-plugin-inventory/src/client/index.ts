@@ -26,8 +26,8 @@ declare module '@panedesk/dsh-client-ui-slots' {
 /** Dictionary namespace owned by this plugin. */
 export const NS = 'settings.pluginInventory'
 
-/** Services required by the Settings registration and generated Remote face. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 'modules']
+/** Services required by the Settings registration and generated Remote faces. */
+export const inject = ['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.pluginManager', 'modules']
 
 /** Contribute the lazy inventory tab to the Plugins settings section. */
 export function apply(ctx: ClientContext): void {
@@ -41,13 +41,27 @@ export function apply(ctx: ClientContext): void {
     }
     return result.value
   }
+  const listManaged: PluginInventorySettingsTabInjected['listManaged'] = async () => {
+    const result = await ctx.remote.pluginManager.listPlugins()
+    if (!result.ok) {
+      throw new Error(`pluginManager.listPlugins failed: ${result.error.code}: ${result.error.message}`)
+    }
+    return result.value
+  }
+  const setEnabled: PluginInventorySettingsTabInjected['setEnabled'] = async (id, enabled) => {
+    const result = await ctx.remote.pluginManager.setPluginEnabled(id, enabled)
+    if (!result.ok) {
+      throw new Error(`pluginManager.setPluginEnabled failed: ${result.error.code}: ${result.error.message}`)
+    }
+    return result.value
+  }
   // Resolved per call over ui-agent-preset's dictionaries, so a language
   // switch re-resolves shipped names; user-authored metadata passes through.
   const agentPresetCopy = ctx.locale.bind('settings.agentPreset')
   const presetName: PluginInventorySettingsTabInjected['presetName'] = preset =>
     presetDisplayText(preset, agentPresetCopy).name
   const injected = (): PluginInventorySettingsTabInjected => ({
-    list, presetName,
+    list, listManaged, setEnabled, presetName,
     resolveText: text => ctx.locale.resolveText(text),
     hooks: { clientSync: ctx.modules.entries.state },
     retryClient: () => { void ctx.modules.entries.retry().catch((error: unknown) => { ctx.logger.error(error) }) },

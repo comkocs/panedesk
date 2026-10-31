@@ -119,6 +119,11 @@
     - id: plugin-inventory
       name: '@panedesk/dsh-host-plugin-inventory'
 
+    # Windows Git Bash first-run probe and the confirmed product selection the
+    # base profiles gate on; driven by the Settings General row.
+    - id: bash-setup
+      name: '@panedesk/dsh-host-bash-setup'
+
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller
       name: '@panedesk/dsh-api-session-controller'
@@ -310,6 +315,11 @@
 
     - id: ui-settings-general
       name: '@panedesk/dsh-client-ui-settings-general'
+
+    # Windows Git Bash row in Settings General: probes through the bashSetup
+    # Remote and commits the confirmed selection the base profiles gate on.
+    - id: ui-settings-bash
+      name: '@panedesk/dsh-client-ui-settings-bash'
 
     - id: ui-settings-models
       name: '@panedesk/dsh-client-ui-settings-models'

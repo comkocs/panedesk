@@ -1,0 +1,45 @@
+{
+  "name": "@panedesk/dsh-client-ui-panedesk-icons",
+  "description": "Panedesk entry glyphs and the shared design-token table the new panels consume: monoline current-color icons in 16/20/24 plus the spacing tier the upstream theme lacks",
+  "version": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/client/ui-panedesk-icons"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./tokens": {
+      "types": "./lib/types/tokens.d.ts",
+      "default": "./lib/tokens.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "scan:colors": "node scripts/scan-color-literals.mjs"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "react": "^18.2.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/tokens.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

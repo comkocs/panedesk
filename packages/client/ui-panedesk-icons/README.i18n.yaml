@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-panedesk-icons/README.md
+/panedesk-dsh-client-ui-panedesk-icons:
+  en: 6924520cb2e2ed9e
+  zh: 340f5933f96ed150
+/panedesk-dsh-client-ui-panedesk-icons/table-of-contents:
+  en: aa9ae2c595af322f
+  zh: 6a42b42354d5baf0
+/panedesk-dsh-client-ui-panedesk-icons/using-this-package:
+  en: b3df9fabbcbfa294
+  zh: 61a9efa5da96e471
+/panedesk-dsh-client-ui-panedesk-icons/token-table:
+  en: 3eda2725a5d07079
+  zh: 7485fdae2ba1279c
+/panedesk-dsh-client-ui-panedesk-icons/icon-manifest:
+  en: 74b437f4a178db80
+  zh: e27bdfd41fba3bf7
+/panedesk-dsh-client-ui-panedesk-icons/understanding-the-implementation:
+  en: da4b9d8a9cecebb2
+  zh: ee2c5fb2204a43cf
+/panedesk-dsh-client-ui-panedesk-icons/understanding-the-implementation/design-notes:
+  en: ea7dcbd930fe6930
+  zh: 1805e72af8d81f0f
+/panedesk-dsh-client-ui-panedesk-icons/understanding-the-implementation/source-map:
+  en: e279fc07c91fc239
+  zh: fa6da70ac0a819d8
+/panedesk-dsh-client-ui-panedesk-icons/further-reading:
+  en: 74230da4237d4e34
+  zh: 6ac4b5963b3c02ac
+/panedesk-dsh-client-ui-panedesk-icons/model-experience:
+  en: e7d118aa4c23df23
+  zh: a311da3843709f90
+/panedesk-dsh-client-ui-panedesk-icons/model-experience/model-experience-impact:
+  en: 8a007d153c1d1916
+  zh: 719afc8d8ed52469
+/panedesk-dsh-client-ui-panedesk-icons/model-experience/kv-cache-impact:
+  en: 30ee5e2fe65f6dfd
+  zh: bd5ffde144cf2547
+/panedesk-dsh-client-ui-panedesk-icons/known-limitations-and-deferred-work:
+  en: 90ed9aa1d00714db
+  zh: 383061734200872c
+/panedesk-dsh-client-ui-panedesk-icons/known-limitations-and-deferred-work/development-note:
+  en: 3524e0017abf7cfe
+  zh: 2060b1d9b116868c

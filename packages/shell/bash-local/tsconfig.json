@@ -18,7 +18,13 @@
       "path": "../../../vendor/schemastery"
     },
     {
+      "path": "../../util/atomic-write"
+    },
+    {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/home-paths"
     },
     {
       "path": "../../util/timeout"

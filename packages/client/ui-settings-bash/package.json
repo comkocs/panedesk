@@ -1,0 +1,66 @@
+{
+  "name": "@panedesk/dsh-client-ui-settings-bash",
+  "description": "Settings General row that probes the Windows Git Bash installation and commits the confirmed product selection the base profiles gate on",
+  "version": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/client/ui-settings-bash"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@panedesk/dsh-api-remotes",
+        "@panedesk/dsh-client-locale",
+        "@panedesk/dsh-client-ui-settings"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@panedesk/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-remotes": "workspace:*",
+    "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-client-ui-slots": "workspace:*",
+    "@panedesk/dsh-host-bash-setup": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "files": [
+    "locale/*.json",
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}

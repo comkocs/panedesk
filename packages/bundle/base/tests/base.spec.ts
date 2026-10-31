@@ -69,8 +69,13 @@ describe('dsh-base bundle', () => {
     // Symmetric gating: each stack's executor and tool rows carry the same
     // platform fact, inverted between the bash and pwsh twins, so exactly one
     // shell stack mounts per host. Evaluate with a platform-scoped context
-    // (the `with` scope shadows the global `process`) so both outcomes pin on
-    // every host.
+    // (the `with` scope shadows the global `process` and `ctx`) so both
+    // outcomes pin on every host; the windowsBashConfig product selection and
+    // the PANEDESK_BASH_PATH override are two independent enable paths.
+    const scope = (platform: NodeJS.Platform, env: Record<string, string>, windowsBashConfig?: { enabled: boolean; bashPath: string }) => ({
+      process: { platform, env },
+      ctx: { get: (name: string) => (name === 'windowsBashConfig' ? () => windowsBashConfig : undefined) },
+    })
     for (const [id, win32, linux] of [
       ['bash-sandbox', true, false],
       ['tool-bash', true, false],
@@ -81,19 +86,23 @@ describe('dsh-base bundle', () => {
       if (row === undefined) throw new Error(`base patch must mount ${id}`)
       const expression = (row.disabled as { __jsExpr?: string } | undefined)?.__jsExpr
       if (expression === undefined) throw new Error(`${id} must gate on a !!js disabled expression`)
-      expect(Boolean(evaluate({ process: { platform: 'win32', env: {} } }, expression)), `${id} on win32`).toBe(win32)
-      expect(Boolean(evaluate({ process: { platform: 'linux', env: {} } }, expression)), `${id} on linux`).toBe(linux)
+      expect(Boolean(evaluate(scope('win32', {}), expression)), `${id} on win32`).toBe(win32)
+      expect(Boolean(evaluate(scope('linux', {}), expression)), `${id} on linux`).toBe(linux)
     }
     const bashPath = 'C:\\Program Files\\Git\\bin\\bash.exe'
     for (const id of ['bash-sandbox', 'tool-bash', 'pwsh-sandbox', 'tool-pwsh']) {
       const row = rows.find(candidate => candidate.id === id)!
       const expression = (row.disabled as { __jsExpr: string }).__jsExpr
-      expect(Boolean(evaluate({ process: { platform: 'win32', env: { PANEDESK_BASH_PATH: bashPath } } }, expression)))
-        .toBe(id.startsWith('pwsh') || id === 'tool-pwsh')
+      const pwsh = id.startsWith('pwsh') || id === 'tool-pwsh'
+      expect(Boolean(evaluate(scope('win32', { PANEDESK_BASH_PATH: bashPath }), expression)), `${id} env override`).toBe(pwsh)
+      expect(Boolean(evaluate(scope('win32', {}, { enabled: true, bashPath }), expression)), `${id} product config`).toBe(pwsh)
+      // A selection the reader rejects (disabled, no path) keeps the default.
+      expect(Boolean(evaluate(scope('win32', {}, { enabled: false, bashPath: '' }), expression)), `${id} inert config`).toBe(!pwsh)
     }
     const config = rows.find(row => row.id === 'bash-sandbox')?.config as { bashPath: { __jsExpr: string } }
-    expect(evaluate({ process: { env: {} } }, config.bashPath.__jsExpr)).toBe('bash')
-    expect(evaluate({ process: { env: { PANEDESK_BASH_PATH: bashPath } } }, config.bashPath.__jsExpr)).toBe(bashPath)
+    expect(evaluate(scope('linux', {}), config.bashPath.__jsExpr)).toBe('bash')
+    expect(evaluate(scope('linux', { PANEDESK_BASH_PATH: bashPath }), config.bashPath.__jsExpr)).toBe(bashPath)
+    expect(evaluate(scope('win32', {}, { enabled: true, bashPath }), config.bashPath.__jsExpr)).toBe(bashPath)
     // The platform layer folded into these rows: no separate patch file ships.
     expect(existsSync(resolve(root, 'windows.cordis.patch.yml'))).toBe(false)
   })

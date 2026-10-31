@@ -17,6 +17,7 @@ import pluginManagerRemote from '@panedesk/dsh-plugin-manager/remote'
 import pluginRegistryProbeRemote from '@panedesk/dsh-client-ui-plugin-manager/remote'
 import pluginMarketRemote from '@panedesk/dsh-plugin-market/remote'
 import pluginInventoryRemote from '@panedesk/dsh-host-plugin-inventory/remote'
+import bashSetupRemote from '@panedesk/dsh-host-bash-setup/remote'
 import messageFeedbackRemote from '@panedesk/dsh-message-feedback/remote'
 import permissionPresetsRemote from '@panedesk/dsh-permission-presets/remote'
 import sessionFeedbackRemote from '@panedesk/dsh-command-feedback/remote'
@@ -46,6 +47,8 @@ export type {
   MarketQuery, MarketSearchResult, MarketSort,
 } from '@panedesk/dsh-plugin-market/types'
 export type { PluginInventorySnapshot } from '@panedesk/dsh-host-plugin-inventory/types'
+export type { BashSetupStatus, BashSetupWriteResult } from '@panedesk/dsh-host-bash-setup/types'
+export type {} from '@panedesk/dsh-host-bash-setup/remote'
 export type {} from '@panedesk/dsh-agent-preset-registry/remote'
 export type {} from '@panedesk/dsh-user-questions/remote'
 export type {} from '@panedesk/dsh-commands/remote'
@@ -190,6 +193,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       productAnalyticsRemote, agentPresetsRemote, commandsRemote, settingsControllerRemote, accountRemote,
       goalsRemote, llmRemote, dynamicRemote, scheduleRemote,
       pluginInventoryRemote, pluginManagerRemote, pluginMarketRemote, pluginRegistryProbeRemote,
+      bashSetupRemote,
       messageFeedbackRemote, sessionFeedbackRemote,
       fileUploadsRemote, sessionReferencesRemote,
       permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote, terminalRemote,

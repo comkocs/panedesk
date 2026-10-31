@@ -1,5 +1,5 @@
 ---
-description: "Scope-grouped read-only plugin inventory tab in Web Plugins settings for the dsh web client: agent-preset compositions first, the global plane behind a disclosure, search across both."
+description: "Scope-grouped plugin inventory tab in Web Plugins settings for the dsh web client: agent-preset compositions first, the global plane behind a disclosure with explicit enable/disable switches over the profile declaration, search across both."
 kind: "package-reference"
 ---
 
@@ -53,7 +53,7 @@ The Plugin list also shows synchronization failures on the current page. Its ret
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The tab is a read-only projection of a Host-owned snapshot; it performs no Remote read during plugin activation and takes the snapshot on first selection.
+The tab is a read-mostly projection of a Host-owned snapshot; it performs no Remote read during plugin activation and takes the snapshot on first selection. Addressable built-in rows additionally carry an explicit switch backed by `pluginManager.setPluginEnabled`: the click persists the desired enablement in the profile declaration, and the declaration outranks any retained runtime switch at recomposition. Rows without a persistent patch target (management-protected or ambiguous, and preset-provided ones) stay read-only, and the whole switch plane disappears without the managed Remote.
 
 ### Registration
 
@@ -95,8 +95,8 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define the freshness and reach of the inventory view; they are current package constraints.
 
-- **One snapshot per Settings mount or retry** — the tab does not subscribe to Loader changes or automatically refetch after reconnect; switching tabs preserves the current snapshot, while reopening Settings obtains a new one.
-- **Read-only in both planes** — the tab shows global and preset enablement but mutates neither; enable/disable controls that write a custom preset's own composition file are deliberate follow-up work.
+- **One snapshot per Settings mount or retry** — the tab does not subscribe to Loader changes or automatically refetch after reconnect; switching tabs preserves the current snapshot, while reopening Settings obtains a new one (a switch write refetches both planes once).
+- **Preset rows stay read-only** — the explicit switch covers addressable built-in global rows only; enable/disable controls that write a custom preset's own composition file are deliberate follow-up work. Startup-only profiles show the saved-declaration notice because the change applies at the next start.
 
 <a id="dev-note"></a>
 ### Dev Note

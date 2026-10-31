@@ -1,13 +1,14 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import type { ClientEntryState } from '@panedesk/dsh-client-modules/client'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
-import type { PluginInventorySnapshot } from '@panedesk/dsh-api-remotes/client'
+import type { ChangeResult, PluginEntryId, PluginInfo, PluginInventorySnapshot } from '@panedesk/dsh-api-remotes/client'
 import type { LocalizedText } from '@panedesk/dsh-package-manifest'
 import {
   IconChevronDownOutlineRegular,
   IconSearchOutlineRegular,
   Menu,
   StateDot,
+  Switch,
   Tag,
 } from '@panedesk/dsh-client-ui-primitives'
 import type { StateDotState, TagTone } from '@panedesk/dsh-client-ui-primitives'
@@ -34,6 +35,16 @@ export interface PluginInventorySettingsTabInjected {
    * agent-preset dictionaries, user-authored ones keep their own metadata.
    */
   presetName: (preset: AgentPresetGroup) => string
+  /**
+   * Read current-profile plugin rows joined to their persistent patch targets;
+   * a row without `readOnlyReason` is addressable for the explicit switch.
+   */
+  listManaged: () => Promise<PluginInfo[]>
+  /**
+   * Persist one entry's desired enablement in the profile declaration. The
+   * declaration outranks any runtime switch at recomposition time.
+   */
+  setEnabled: (id: PluginEntryId, enabled: boolean) => Promise<ChangeResult>
 }
 type PluginFiberPhase = PluginInventoryEntry['fiberPhase']
 
@@ -49,6 +60,15 @@ type ViewState =
   | { readonly status: 'loading' }
   | { readonly status: 'error' }
   | { readonly status: 'ready'; readonly snapshot: PluginInventorySnapshot }
+
+/** Outcome notice one switch write reports in place. */
+type SwitchNoticeKind = 'failed' | 'restart-required' | 'overridden'
+
+/** The notice attached to one entry's switch while it stays in view. */
+interface SwitchNotice {
+  readonly entryId: PluginEntryId
+  readonly kind: SwitchNoticeKind
+}
 
 const PHASE_KEYS = {
   pending: 'pending',
@@ -122,7 +142,7 @@ function presetLabel(preset: AgentPresetGroup, t: Translate, presetName: (preset
 
 /** One expandable plugin card; the caller owns the trailing status content. */
 function PluginCard({
-  rowKey, moduleName, title, description, metadataError, entryId, trailing, ariaLabel, failed, expanded, onToggle, children,
+  rowKey, moduleName, title, description, metadataError, entryId, trailing, ariaLabel, failed, expanded, onToggle, note, children,
 }: {
   readonly rowKey: string
   readonly moduleName: string
@@ -135,6 +155,8 @@ function PluginCard({
   readonly failed: boolean
   readonly expanded: string | null
   readonly onToggle: (key: string) => void
+  /** Card-level outcome note (a switch write), visible without expanding. */
+  readonly note?: ReactNode
   readonly children: ReactNode
 }): ReactNode {
   const open = expanded === rowKey
@@ -172,6 +194,7 @@ function PluginCard({
         ) : null}
       </button>
       {metadataError === undefined ? null : <p className={css.brokenNote} role="status" data-package-meta-error>{metadataError}</p>}
+      {note}
       {open ? <div className={css.cardDetails} id={detailId}>{children}</div> : null}
     </li>
   )
@@ -248,9 +271,9 @@ function StateTag({ kind, label }: { readonly kind: EnablementKind; readonly lab
   return kind === 'enabled' ? null : <Tag tone={TAG_TONES[kind]}>{label}</Tag>
 }
 
-/** Render the read-only plugin inventory: agent presets first, then the global plane. */
+/** Render the plugin inventory with explicit profile switches: agent presets first, then the global plane. */
 export function PluginInventorySettingsTab(
-  { list, presetName, resolveText, t, useClientSync, retryClient }: PluginInventorySettingsTabProps,
+  { list, listManaged, setEnabled, presetName, resolveText, t, useClientSync, retryClient }: PluginInventorySettingsTabProps,
 ): ReactNode {
   const clientSync = useClientSync(snapshot => snapshot)
   const sectionId = useId()
@@ -262,6 +285,10 @@ export function PluginInventorySettingsTab(
   const [presetOpen, setPresetOpen] = useState<boolean | null>(null)
   const [globalOpen, setGlobalOpen] = useState<boolean | null>(null)
   const [state, setState] = useState<ViewState>({ status: 'loading' })
+  /** Managed-plane rows keyed by entry id; absent rows keep their card read-only. */
+  const [managedRows, setManagedRows] = useState<Map<PluginEntryId, PluginInfo>>()
+  const [busyEntry, setBusyEntry] = useState<PluginEntryId | null>(null)
+  const [notice, setNotice] = useState<SwitchNotice | undefined>()
 
   useEffect(() => {
     let current = true
@@ -269,8 +296,15 @@ export function PluginInventorySettingsTab(
       (snapshot) => { if (current) setState({ status: 'ready', snapshot }) },
       () => { if (current) setState({ status: 'error' }) },
     )
+    // The managed plane never blocks the inventory: without it the cards stay read-only.
+    void Promise.resolve().then(() => listManaged()).then(
+      (rows) => {
+        if (current) setManagedRows(new Map(rows.map(row => [row.entryId, row])))
+      },
+      () => { if (current) setManagedRows(undefined) },
+    )
     return () => { current = false }
-  }, [list, request])
+  }, [list, listManaged, request])
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const searching = normalizedQuery.length > 0
@@ -324,6 +358,21 @@ export function PluginInventorySettingsTab(
   }
   const toggleRow = (key: string): void => {
     setExpanded(current => current === key ? null : key)
+  }
+  /** Persist one entry's declaration through the write port; the outcome shows on its card. */
+  const writeSwitch = (entryId: PluginEntryId, next: boolean): void => {
+    setNotice(undefined)
+    setBusyEntry(entryId)
+    void setEnabled(entryId, next).then(
+      (result) => {
+        setNotice(result.application === 'failed' ? { entryId, kind: 'failed' }
+          : result.application === 'restart-required' ? { entryId, kind: 'restart-required' }
+            : result.application === 'overridden' ? { entryId, kind: 'overridden' }
+              : undefined)
+        setRequest(value => value + 1)
+      },
+      () => { setNotice({ entryId, kind: 'failed' }) },
+    ).finally(() => { setBusyEntry(null) })
   }
 
   /** Trailing status and detail facts for one row of the selected preset. */
@@ -384,6 +433,10 @@ export function PluginInventorySettingsTab(
       ? t('failedTag')
       : providers !== undefined ? t('presetEnabledTag') : t(entry.enabled ? 'enabledTag' : 'disabledTag')
     const kind = failed ? 'failed' : providers !== undefined ? 'preset' : entry.enabled ? 'enabled' : 'disabled'
+    // An addressable managed row carries the explicit declaration switch; preset-provided rows stay read-only.
+    const managed = managedRows?.get(entry.entryId)
+    const addressable = managed?.patchId !== undefined && providers === undefined
+    const rowNotice = notice?.entryId === entry.entryId ? notice : undefined
     return (
       <PluginCard
         key={key}
@@ -396,9 +449,23 @@ export function PluginInventorySettingsTab(
         failed={failed}
         expanded={expanded}
         onToggle={toggleRow}
+        note={rowNotice === undefined ? undefined : (
+          <p className={css.brokenNote} role={rowNotice.kind === 'failed' ? 'alert' : 'status'} data-switch-notice={rowNotice.kind}>
+            {t(rowNotice.kind === 'failed' ? 'managedFailed'
+              : rowNotice.kind === 'restart-required' ? 'managedRestartRequired' : 'managedOverridden')}
+          </p>
+        )}
         ariaLabel={cardLabel(title, entry.entryId, stateText)}
         trailing={(
           <>
+            {addressable ? (
+              <Switch
+                checked={entry.enabled}
+                label={t('managedSwitch', { name: title })}
+                disabled={busyEntry !== null}
+                onChange={(next) => { writeSwitch(entry.entryId, next) }}
+              />
+            ) : null}
             {entry.enabled && showsPhaseDot(entry.fiberPhase)
               ? <PhaseDot phase={entry.fiberPhase} t={t} />
               : null}
