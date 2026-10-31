@@ -246,7 +246,12 @@ describe.skipIf(!built)('Web process failure matrix', () => {
         } else {
           await app.serves()
           await app.wait(() => (app.stderr() + app.logs()).includes(diagnostic))
-          expect(app.stderr()).toContain('warning: 1 entry did not activate')
+          if (failure === 'dependency') {
+            expect(app.stderr()).toContain('panedesk: warning: 1 pending entry is starting (waiting for services)')
+            expect(app.stderr()).not.toContain('did not activate')
+          } else {
+            expect(app.stderr()).toContain('warning: 1 entry did not activate')
+          }
           expect(app.events()).toBe('witness apply 1\n')
         }
         expect(app.stderr() + app.logs()).toContain(diagnostic)

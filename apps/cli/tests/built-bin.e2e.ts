@@ -592,10 +592,8 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         sessionId: session.sessionId,
         prompt: [{ type: 'text', text: 'reply from the built ACP profile' }],
       })).toEqual({ stopReason: 'end_turn' })
-      expect(updates).toContainEqual(expect.objectContaining({
-        sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text: 'ACP BUILT PROFILE OK' },
-      }))
+      expect(updates.flatMap(update => update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+        ? [update.content.text] : []).join('')).toBe('ACP BUILT PROFILE OK')
       const message = updates.find(update => update.sessionUpdate === 'agent_message_chunk')
       expect(message !== undefined && 'messageId' in message && typeof message.messageId === 'string').toBe(true)
       expect(server.requests).toHaveLength(1)

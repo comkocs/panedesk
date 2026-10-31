@@ -189,6 +189,7 @@ function toolAborted(): HarnessError {
 interface StartedJob {
   readonly id: JobId
   readonly process: () => ShellExecution | undefined
+  readonly preparationFailure: () => { error: unknown } | undefined
   readonly stopped: () => string | undefined
 }
 
@@ -265,6 +266,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     /** Register the command as a job; the process spawns inside the starter, after admission. */
     const startJob = (registry: JobRegistry, args: BashToolArgs, exec: ToolExecution, spec: ShellExecSpec): StartedJob => {
       let proc: ShellExecution | undefined
+      let preparationFailure: { error: unknown } | undefined
       let stopped: string | undefined
       const id = registry.start({
         kind: 'bash',
@@ -275,7 +277,12 @@ export function apply(ctx: Context, config: Config = {}): void {
         run: () => {
           const hooks = processJob(
             async (signal) => {
-              proc = await ctx.shell.execute({ ...spec, signal })
+              try {
+                proc = await ctx.shell.execute({ ...spec, signal })
+              } catch (error: unknown) {
+                preparationFailure = { error }
+                throw error
+              }
               return proc
             },
             started => processOutcome(started, escalationModes),
@@ -291,7 +298,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           }
         },
       })
-      return { id, process: () => proc, stopped: () => stopped }
+      return { id, process: () => proc, preparationFailure: () => preparationFailure, stopped: () => stopped }
     }
     /** Wait on a registered foreground command until it settles or the timeout passes. */
     const waitOnJob = async (registry: JobRegistry, attached: StartedJob, exec: ToolExecution, spec: ShellExecSpec) => {
@@ -360,7 +367,11 @@ export function apply(ctx: Context, config: Config = {}): void {
       // No process was published: the starter failed before the spawn, and the
       // job's terminal detail is the failure the foreground projection would
       // have rejected with.
-      if (process === undefined) throw new Error(view.detail)
+      if (process === undefined) {
+        const failure = attached.preparationFailure()
+        if (failure !== undefined) throw failure.error
+        throw new Error(view.detail)
+      }
       const result = await process.result()
       const stopped = attached.stopped()
       return { kind: 'foreground' as const, ...canonicalBashResult(result, spec.workdir), ...stopped !== undefined ? { stopped } : {} }
