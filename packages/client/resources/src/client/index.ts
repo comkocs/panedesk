@@ -19,21 +19,6 @@ export type {
 } from './contract.ts'
 export type { ResourceProtocolMap } from '@panedesk/dsh-client-ui-slots'
 
-/**
- * Wait until a polling interval elapses or the resource consumer leaves.
- * @param signal - abort signal owned by the resource occurrence.
- * @param intervalMs - delay before the next read.
- * @returns a promise that settles on the timeout or on abort, whichever is first.
- */
-export function waitForPoll(signal: AbortSignal, intervalMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    const finish = (): void => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-    const timer = setTimeout(finish, intervalMs)
-    signal.addEventListener('abort', finish, { once: true })
-    if (signal.aborted) finish()
-  })
-}
-
 /** Required browser services. */
 export const inject = ['slots']
 

@@ -48,6 +48,8 @@ it.each(['en', 'zh'] as const)('shows nodes only in secondary settings and confi
     await page.getByText(labels.startup, { exact: true }).waitFor()
     await page.getByRole('button', { name: labels.rebuild, exact: true }).waitFor()
     await page.getByText('Peer fixture · ' + (language === 'zh' ? '远程' : 'Remote'), { exact: true }).waitFor()
+    await page.locator('summary').filter({ hasText: language === 'zh' ? '最近链路事件' : 'Recent link events' }).click()
+    await page.locator('details[open] li').filter({ hasText: 'node-tunnel-exhausted' }).waitFor()
     await shot('health')
     for (const action of ['rebuild', 'resume', 'abandon'] as const) {
       const before = act.mock.calls.length

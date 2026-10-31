@@ -1,5 +1,6 @@
 /** A session-addressed cache reading, refreshed within the display's five-second accuracy budget. */
-import { waitForPoll, type ResourceProvider } from '@panedesk/dsh-client-resources/client'
+import type { ResourceProvider } from '@panedesk/dsh-client-resources/client'
+import { waitForPoll } from '@panedesk/dsh-client-resources/polling'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { CacheRead } from './view.ts'
 

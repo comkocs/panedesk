@@ -5,6 +5,7 @@ import type {} from '../types.ts'
 import type {} from '@panedesk/dsh-api-gateway/client'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-resources/client'
+import { waitForPoll } from '@panedesk/dsh-client-resources/polling'
 import type {} from '@panedesk/dsh-client-ui-settings/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import { RemoteError, remoteErrorOf, type RemoteResult, type TypertClientRemote } from '@panedesk/dsh-typert-protocol'
@@ -61,12 +62,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
               ?? new RemoteError('nodes/unavailable', 'Node settings are unavailable', {}) }
             return
           }
-          await new Promise<void>((resolve) => {
-            const finish = () => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-            const timer = setTimeout(finish, interval)
-            signal.addEventListener('abort', finish, { once: true })
-            if (signal.aborted) finish()
-          })
+          await waitForPoll(signal, interval)
         }
       },
     }), 'nodes: resources')

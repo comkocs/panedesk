@@ -286,6 +286,7 @@
       "@panedesk/dsh-api-workspace-files/client": ["./packages/api/workspace-files/src/client/index.ts"],
       "@panedesk/dsh-client-resources": ["./packages/client/resources/src"],
       "@panedesk/dsh-client-resources/client": ["./packages/client/resources/src/client"],
+      "@panedesk/dsh-client-resources/polling": ["./packages/client/resources/src/client/polling.ts"],
       "@panedesk/dsh-client-ui-sidebar-files": ["./packages/client/ui-sidebar-files/src"],
       "@panedesk/dsh-client-ui-sidebar-files/client": ["./packages/client/ui-sidebar-files/src/client"],
       "@panedesk/dsh-client-store": ["./packages/client/store/src/index.ts"],

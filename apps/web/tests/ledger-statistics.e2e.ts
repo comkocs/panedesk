@@ -49,6 +49,12 @@ it.each(['en', 'zh'] as const)('replays five statistics tabs, cursor navigation 
     provider: 'fixture', modelFamily: 'fixture', requestedModel: 'model-fixture', purpose: 'conversation', startedAt: asOf - 1000,
     cache: { cacheMode: 'unknown', breakReasons: [] }, cacheWriteTiering: { kind: 'unknown' },
     priceVersion: 'fixture', priceKey: 'model-fixture', referencePrice: true,
+  }, finish: {
+    callId: `call-${String(index).padStart(3, '0')}` as LedgerCall['start']['callId'],
+    endedAt: asOf, observedAt: asOf, responseModelReported: 'same', effectiveModel: 'model-fixture',
+    usageState: 'complete', usage: { inputTokens: 10, cacheReadTokens: 80, cacheWriteTokens: 10, outputTokens: 20 },
+    costUsd: '0.1', pricingState: 'priced', wallMs: 1000, modelInFlightMs: 1000, queueMs: 0, backoffMs: 0,
+    waits: [], compactionCount: 0, compactionTimes: [], endReason: 'completed', recovered: false,
   } }))
   let source: LedgerSnapshot = { asOf, complete: true, watermarks: {}, rows }
   let code: 'stats/disabled' | 'stats/unauthorized' | 'stats/unavailable' | undefined
@@ -78,6 +84,12 @@ it.each(['en', 'zh'] as const)('replays five statistics tabs, cursor navigation 
     await page.getByRole('button', { name: locale.pause, exact: true }).click()
     for (const tab of ['overview', 'history', 'models', 'throughput', 'ledger'] as const) {
       await page.getByRole('button', { name: locale[tab], exact: true }).click()
+      if (tab === 'overview') {
+        await page.locator('article').filter({ has: page.getByRole('heading', { name: language === 'zh' ? '总 Token' : 'Total tokens', exact: true }) })
+          .getByText('12120', { exact: true }).waitFor()
+        await page.locator('article').filter({ has: page.getByRole('heading', { name: language === 'zh' ? '参考美元' : 'Reference USD', exact: true }) })
+          .getByText('10.1', { exact: true }).waitFor()
+      }
       await shot(tab)
     }
     expect(await page.getByText('call-100', { exact: true }).count()).toBe(0)
@@ -98,6 +110,8 @@ it.each(['en', 'zh'] as const)('replays five statistics tabs, cursor navigation 
     source = { ...source, rows: [] }
     await page.getByRole('button', { name: locale.refresh, exact: true }).click()
     await page.getByText(locale.empty, { exact: true }).first().waitFor()
+    await page.getByRole('button', { name: locale.overview, exact: true }).click()
+    await page.getByText(language === 'zh' ? '当前没有在跑的子代理' : 'No subagents are running', { exact: true }).waitFor()
     await shot('empty')
     for (const [failure, name] of [['stats/unauthorized', 'unauthorized'], ['stats/disabled', 'disabled'], ['stats/unavailable', 'error']] as const) {
       code = failure
