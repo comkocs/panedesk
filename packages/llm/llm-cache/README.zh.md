@@ -27,6 +27,8 @@ kind: "package-reference"
 
 子会话继承父级原始保留期选择，除非其自身 `cachePolicy` 覆盖。解析使用子通路声明的能力：不支持的继承选择回退到 `default`，每个子 Session 至多警告一次，注明父级选择、子通路和实际保留期。子会话的显式选择仍严格校验。账本缓存控制与 TTL 描述子请求实际取用值；`sessionPolicy` 保留供后续继承与恢复使用的选择。
 
+路由条目可固定一档 `retention`，服务经该通路的 `default` 选择。显式会话或请求选择仍然优先；固定档必须为通路能力所支持，未固定 `retention` 的路由逐字节保持能力缺省。`llmCache.update` 保存显式选择时不参考上一次请求的路由：档位在承载请求的 provider 确定后才判定，会话中途换模型不再因旧路由误报 `Unsupported cache retention`。
+
 从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
 
 运行期间插入收件仍沿用 `interjection` 缓存断点。`interjection` 中止令被打断调用以 `cancelled` 结束，细因写 `upstreamStopReason: 'interjection'`，保留部分响应片段，并在被打断调用与后续调用记断点。普通用户取消保持独立。上游请求开头重组不被抑制：已提交的历史替换沿用 `history-edit`，请求头改变沿用 `request-config-change`；每次调用记录真实开头指纹。

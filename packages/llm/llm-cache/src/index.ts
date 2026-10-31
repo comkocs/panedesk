@@ -14,13 +14,13 @@ import type {
 import type { CachePolicy, FamilyConcurrencyLimit, KeepalivePolicy, ResolvedCachePolicy } from './types.ts'
 import { FamilySemaphore } from './concurrency.ts'
 import { fingerprintPrefix, orderedTools } from './fingerprint.ts'
-import { resolveCachePolicy } from './policy.ts'
+import { resolveCachePolicy, validateCachePolicySelection } from './policy.ts'
 import type { CacheRoute } from './policy.ts'
 import { cacheRemaining, foldCacheState } from './state.ts'
 import type { CacheRemaining, CacheRenewRequest, CacheRenewResult } from './types.ts'
 import { scheduleKeepalive } from './keepalive.ts'
 export type * from './types.ts'
-export type { CacheRoute } from './policy.ts'
+export type { CacheRoute, RouteRetention } from './policy.ts'
 
 /** Loader plugin identity. */
 export const name = 'llm-cache'
@@ -34,7 +34,8 @@ export interface Config {
   keepalive: KeepalivePolicy
   /** Admission limits for explicitly configured provider families. */
   concurrency: FamilyConcurrencyLimit[]
-  /** Explicit capabilities for gateway routes; unknown routes never acquire guessed TTL support. */
+  /** Explicit gateway-route capabilities with optional per-route `default` retention;
+   * explicit session selections win and unknown routes never acquire guessed TTL support. */
   routes?: CacheRoute[]
   /** Consecutive failed refreshes before maintenance pauses until a new ordinary call or explicit update. */
   keepaliveFailureBudget?: number
@@ -101,6 +102,7 @@ export const Config = z.object({
     provider: z.string().required(),
     modelFamily: z.string().required(),
     capability: z.union(['anthropic', 'openai-responses', 'openai-chat', 'automatic', 'unsupported']).required(),
+    retention: z.union(['none', '5m', '1h', '30m', '12h', 'auto']),
   })).default([]),
 })
 
@@ -400,7 +402,7 @@ export function apply(ctx: Context, config: Config): void {
   new CacheService(ctx, async ({ agent, policy, keepalive }) => {
     const state = stateOf(agent.id, agent)
     if (policy !== undefined) {
-      resolveCachePolicy(policy, routeOf(state.request?.provider ?? agent.options.provider ?? ''), agent.id)
+      validateCachePolicySelection(policy)
       state.policy = structuredClone(policy)
       state.policyOverride = true
       state.inheritedPolicy = false
