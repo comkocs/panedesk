@@ -121,7 +121,7 @@
       }
     },
     {
-      "id": "m8b2-s14-embedded-conversation",
+      "id": "embedded-conversation-shared-view",
       "description": "Embedded conversation hosts share one factory renderer.",
       "origin": "Shared client implementation integration",
       "reason": "Embedded conversation hosts share one factory renderer. The new export can move upstream with the phase helper.",
@@ -136,7 +136,7 @@
       }
     },
     {
-      "id": "m8b2-s14-redact-diagnostic",
+      "id": "shared-diagnostic-credential-redaction",
       "description": "Credential redaction of diagnostic text now has one implementation.",
       "origin": "Shared client implementation integration",
       "reason": "Credential redaction of diagnostic text now has one implementation. The llm probe wrapper remains for its existing callers.",
@@ -150,7 +150,7 @@
       }
     },
     {
-      "id": "m8b2-s14-observation-config",
+      "id": "shared-owner-observation-config",
       "description": "Owner-only observation adapters share one Config schema object.",
       "origin": "Shared client implementation integration",
       "reason": "Owner-only observation adapters share one Config schema object. The export can move upstream.",
@@ -163,7 +163,7 @@
       }
     },
     {
-      "id": "m8b2-s14-wait-for-poll",
+      "id": "shared-abortable-polling-timer",
       "description": "Polling waits share one abortable timer.",
       "origin": "Shared client implementation integration",
       "reason": "Polling waits share one abortable timer. The export can move upstream.",
