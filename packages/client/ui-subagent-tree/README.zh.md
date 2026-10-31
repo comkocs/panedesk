@@ -17,7 +17,7 @@ kind: "package-reference"
 - [理解实现](#understand-the-implementation)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
-- [开发者注记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -65,7 +65,7 @@ kind: "package-reference"
 - **等待按等待对计数** —— `waiting` 比较未配对的 `wait/start` 与 `wait/end` 辅助事实；从不配对等待的提供方会显示 `running`。
 
 <a id="dev-note"></a>
-### 开发者注记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文——点击展开</summary>

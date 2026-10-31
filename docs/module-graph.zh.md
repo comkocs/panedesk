@@ -222,6 +222,7 @@ flowchart TD
     pkg_client_ui_slots["client-ui-slots"]
     pkg_client_ui_stats["client-ui-stats"]
     pkg_client_ui_subagent["client-ui-subagent"]
+    pkg_client_ui_subagent_tree["client-ui-subagent-tree"]
     pkg_client_ui_theme["client-ui-theme"]
     pkg_client_ui_tool["client-ui-tool"]
     pkg_client_ui_trajectory["client-ui-trajectory"]
@@ -1640,6 +1641,7 @@ flowchart TD
 | [`client-ui-slots`](../packages/client/ui-slots) | `client` | — |
 | [`client-ui-stats`](../packages/client/ui-stats) | `client` | — |
 | [`client-ui-subagent`](../packages/client/ui-subagent) | `client` | — |
+| [`client-ui-subagent-tree`](../packages/client/ui-subagent-tree) | `client` | — |
 | [`client-ui-theme`](../packages/client/ui-theme) | `client` | — |
 | [`client-ui-tool`](../packages/client/ui-tool) | `client` | — |
 | [`client-ui-trajectory`](../packages/client/ui-trajectory) | `client` | — |

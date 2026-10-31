@@ -44,8 +44,9 @@ Reads and refreshes dispatch no model requests and consume no model tokens.
 
 The plugin neither changes model request prefixes nor refreshes caches.
 
-<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - Projects use ledger seats, not workspace directories; running sessions are ledger lifecycle evidence, not process-liveness observations.
 - Reference prices are not actual payments or subscription charges. Missing prices, usage, duration or remote-alias evidence remain unknown.

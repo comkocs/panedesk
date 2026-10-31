@@ -28,6 +28,7 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@panedesk/dsh-ledger-query/types": ["./packages/session/ledger-query/src/types.ts"],
       "@panedesk/dsh-seat": ["./packages/seat/seat/src/index.ts"],
       "@panedesk/dsh-node-link": ["./packages/seat/node-link/src/index.ts"],
       "@panedesk/dsh-host-admin": ["./packages/host/host-admin/src/index.ts"],
@@ -449,7 +450,6 @@
       "@panedesk/dsh-lazy-require": ["./packages/util/lazy-require/src"],
       "@panedesk/dsh-ledger-app": ["./packages/bundle/ledger-app/src"],
       "@panedesk/dsh-ledger-query": ["./packages/session/ledger-query/src"],
-      "@panedesk/dsh-ledger-query/types": ["./packages/session/ledger-query/src/types.ts"],
       "@panedesk/dsh-ledger-watch": ["./packages/session/ledger-watch/src"],
       "@panedesk/dsh-llm": ["./packages/llm/llm/src"],
       "@panedesk/dsh-llm-cache": ["./packages/llm/llm-cache/src"],

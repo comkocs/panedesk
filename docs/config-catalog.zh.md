@@ -727,6 +727,25 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-stats -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-subagent-tree -->
+<a id="panedeskdsh-client-ui-subagent-tree"></a>
+
+## `@panedesk/dsh-client-ui-subagent-tree`
+
+- `inject`: `typert`
+- `source`: [`packages/client/ui-subagent-tree/src/index.ts:20`](../packages/client/ui-subagent-tree/src/index.ts)
+
+```ts config-catalog
+/** Explicit subagent-tree availability and refresh cadence. */
+export interface Config {
+  /** Permit authenticated owners to read tree and monitoring projections. */
+  enabled: boolean
+  /** Client resource refresh interval in milliseconds. */
+  refreshIntervalMs: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-subagent-tree -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-theme -->
 <a id="panedeskdsh-client-ui-theme"></a>
 

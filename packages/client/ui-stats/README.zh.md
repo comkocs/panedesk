@@ -44,8 +44,9 @@ Web 组合同时加载 Host 和 Client。`enabled` 默认为 true，设为 false
 
 插件不修改模型请求前缀，也不刷新缓存。
 
-<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - 项目使用账本位而非工作区目录；在跑会话来自账本生命周期证据，不是进程存活观测。
 - 参考价不是实付或订阅费用。缺价、用量、时长或远程别名证据保持未知。
