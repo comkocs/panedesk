@@ -140,6 +140,21 @@ const recipients = JSON.stringify([{ sessionId: 'session-a' }, { sessionId: 'ses
 
 describe('message CLI commands', () => {
   beforeEach(() => { stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true) })
+  it('queries isolation separately and preserves legacy capability failures without writes', async () => {
+    const { query, delivery, reader } = await setup()
+    expect(await query.execute(['messages', 'quarantined'])).toMatchObject({ code: 3 })
+    const quarantined = vi.fn<NonNullable<MessageDelivery['quarantined']>>(async () => ({ items: [], complete: true }))
+    delivery.quarantined = quarantined
+    expect(await query.execute(['messages', 'quarantined', '--target-session', 'session-a', '--node', 'node-a', '--limit', '1']))
+      .toEqual({ code: 0, output: { items: [], complete: true } })
+    expect(quarantined).toHaveBeenCalledWith({ targetSessionId: 'session-a', nodeId: 'node-a', limit: 1 })
+    expect((await query.execute(['messages', 'quarantined', '--state', 'queued'])).code).toBe(2)
+    quarantined.mockResolvedValue({ items: [], complete: false })
+    expect((await query.execute(['messages', 'quarantined'])).code).toBe(6)
+    expect(reader.queries).toEqual([])
+    expect(delivery.writes).toBe(0)
+    expect(delivery.wakes).toBe(0)
+  })
   it('sends an explicit three-recipient batch and preserves a closed pending rejection', async () => {
     const { query, delivery } = await setup()
     const result = await query.execute(['messages', 'send-batch', '--recipients', recipients, '--class', 'handoff', '--text', 'Review this item'])

@@ -90,6 +90,11 @@ export abstract class MessageDelivery extends Service {
    * @returns status page with storage completeness.
    */
   abstract list(query: MessageQuery): Promise<MessagePage>
+  /** Query isolated mailbox evidence separately, without interpreting it as a lifecycle state.
+   * @param query - Optional exact mailbox identity, time range and exclusive cursor.
+   * @returns Verified isolation metadata and explicit journal integrity; absent on older providers.
+   */
+  quarantined?(query: import('./types.ts').MessageQuarantineQuery): Promise<import('./types.ts').MessageQuarantinePage>
   /**
    * Resolve exact addresses without publishing messages or opening Sessions.
    * @param addresses - explicit local addresses, without wildcard expansion.

@@ -7,6 +7,8 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg_client_ui_inbox["client-ui-inbox"]
+  svc_inbox["ctx.inbox<br/>Owner received-message observations"]
   pkg_client_ui_seat_approvals["client-ui-seat-approvals"]
   svc_seatApprovals["ctx.seatApprovals<br/>Owner seat approval observations and actions"]
   pkg_client_ui_subagent_tree["client-ui-subagent-tree"]
@@ -395,6 +397,7 @@ flowchart LR
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
+  pkg_client_ui_inbox --> svc_inbox
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
   pkg_client_ui_stats --> svc_stats
@@ -822,6 +825,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.inbox` | `service` | [`client-ui-inbox`](../packages/client/ui-inbox) | - | - | - | Reads exact receiving-session metadata and verified mailbox isolation without message mutations. |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine. |
 | `ctx.subagentTree` | `service` | [`client-ui-subagent-tree`](../packages/client/ui-subagent-tree) | - | - | - | Projects one session subagent tree from ledger parent-child facts with per-node monitoring and transcript-derived model ids to authenticated owners. |
 | `ctx.nodeWorkChainBusiness` | `seam` | [`seat`](../packages/seat/seat) | [`node-link`](../packages/seat/node-link) | [`seat-engine`](../packages/seat/seat-engine), [`seat-local`](../packages/seat/seat-local), [`node-link`](../packages/seat/node-link) | - | Registers unique business providers and gates exact-key queries and restricted resumption on recovery. |

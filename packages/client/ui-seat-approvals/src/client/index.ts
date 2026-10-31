@@ -12,6 +12,7 @@ import type { RemoteResult } from '@panedesk/dsh-typert-protocol'
 import type * as Seat from '@panedesk/dsh-seat'
 import type { ApprovalQueueView } from '../types.ts'
 import { ApprovalPanel } from './panel.tsx'
+import { ApprovalObservations } from './observations.ts'
 import { en, zh, type ApprovalKey } from './locales.ts'
 
 /** Plain business actions injected into the approval panel. */
@@ -37,12 +38,14 @@ export const inject = ['remote', 'slots', 'locale', 'resources']
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
   const ui = ctx.inject(['remote.seatApprovals'], (scope) => {
+    const observations = new ApprovalObservations()
     scope.effect(() => scope.locale.register('seatApprovals', { zh, en }), 'seat-approvals: locale')
     scope.effect(() => scope.resources.register<'seat-approvals'>({
       protocol: 'seat-approvals',
       async *open(_address, { signal }): AsyncIterable<RemoteResult<ApprovalQueueView>> {
-        try { for await (const value of scope.remote.seatApprovals.watchPending(signal)) yield { ok: true, value } }
-        catch (error) {
+        try {
+          for await (const value of scope.remote.seatApprovals.watchPending(signal)) yield { ok: true, value: observations.observe(value) }
+        } catch (error) {
           if (!signal.aborted) yield { ok: false, error: remoteErrorOf(error)
             ?? new RemoteError('seat-approvals/unavailable', 'Approval observation unavailable', {}) }
         }

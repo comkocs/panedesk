@@ -11,7 +11,7 @@ kind: "package-library"
 
 `SlotTestRuntime.create()` 让 Vitest 套件在 jsdom 中驱动生产 slot、store、带类型的 Session 与 Workspace fixture，并对局部 DOM 断言。面向插件激活、重载、重连与清理的测试，`createClientTest` 使用具名端点 Remote mock 启动 web profile 的 bundle roster，无需业务 Host。缺失服务与未打桩调用会明确失败。整机 fixture 拥有启动和销毁，局部 runtime 提供幂等销毁。通过 `devDependencies` 将本包用于客户端测试；它不是产品插件。
 
-bundle 行使用自身清单，无需自链接。依赖优先从 bundle 实际目录解析，再查祖先目录。
+bundle 行使用自身清单，无需自链接。依赖优先从 bundle 实际目录解析，再查祖先目录。默认 Remote 表包含渲染收件会话时使用的禁用收件观察。
 
 ## 目录
 

@@ -42,6 +42,8 @@
 
 `PendingSeatItem` 可选携带从保留开窗证据投影的 `windowName`、`nodeId` 和 `budget`。缺失证据保持缺席；`SeatBudgetLimits` 值为整数微美元字符串。待批响应不公开冻结指令正文或来源原始数据。
 
+`PendingSeatObservation` 为不变的持久 `PendingSeatItem` 增加可选只读 `retention` 时间投影：区间起点、期限、剩余毫秒数及引擎拥有的阈值阶段。`ListPendingSeatsRequest.includeRejected` 可选将已提交的保留到限拒绝并入既有有限额顺序分页；旧请求与日志帧仍有效。计时及终局语义见[引擎](../../packages/seat/seat-engine/README.zh.md)。
+
 `SeatEngineOperationResult` 保留既有操作状态，增加可选批准登记及关联的待决、开窗或取消进度。`HostAdminQueryRequest` 分别使用效果与授权游标；`HostAdminQueryResult` 携带脱正文效果及独立限额的已签发授权分页。历史事实与查询均不授予执行权限。
 
 ## 等待、报告与策略

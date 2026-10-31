@@ -630,10 +630,28 @@ export interface SetProjectModeRequest {
 /** Mode writes expose their committed policy revision. */
 export type SetProjectModeResult = { status: 'saved'; policy: SeatProjectPolicy } | SeatRejected
 /** Queue queries expose pending reasons without source instruction bodies. */
-export interface ListPendingSeatsRequest { projectId?: SeatProjectId; seat?: SeatName; cursor?: EngineCursor; limit: number }
+export interface ListPendingSeatsRequest {
+  projectId?: SeatProjectId
+  seat?: SeatName
+  cursor?: EngineCursor
+  limit: number
+  /** Include committed pre-open retention refusals; omitted by legacy callers. */
+  includeRejected?: boolean
+}
+/** Query-only timing metadata is never part of retained queue facts. */
+export interface PendingSeatObservation extends PendingSeatItem {
+  retention?: {
+    since: number
+    deadline: number
+    remainingMs: number
+    phase: 'retained' | 'expiring' | 'expired'
+  }
+}
 /** Stable pagination does not stop at the first filtered page. */
 export interface ListPendingSeatsResult {
-  items: readonly PendingSeatItem[]
+  /** Optional metadata-only terminal evidence from the existing rejection decision. */
+  rejected?: readonly { item: PendingSeatItem; error: SeatFailure }[]
+  items: readonly PendingSeatObservation[]
   complete: boolean
   watermark: number
   nextCursor?: EngineCursor

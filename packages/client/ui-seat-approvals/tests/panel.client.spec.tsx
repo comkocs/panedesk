@@ -7,6 +7,7 @@ import { RemoteError } from '@panedesk/dsh-typert-protocol'
 import type { ApprovalActions } from '../src/client/index.ts'
 import { ApprovalPanel } from '../src/client/panel.tsx'
 import { en, zh } from '../src/client/locales.ts'
+import { ApprovalObservations } from '../src/client/observations.ts'
 
 afterEach(cleanup)
 const pending: Seat.PendingSeatItem = { queueItemId: 'queue-a' as Seat.QueueItemId, seat: 'seat-a' as Seat.SeatName,
@@ -17,18 +18,62 @@ const pending: Seat.PendingSeatItem = { queueItemId: 'queue-a' as Seat.QueueItem
 const operationId = 'approval-a' as Seat.SeatOperationId
 
 function props(
-  items: readonly Seat.PendingSeatItem[] = [pending], operation?: Seat.SeatEngineOperationResult, complete = true, locale: typeof en = en,
+  items: readonly Seat.PendingSeatObservation[] = [pending], operation?: Seat.SeatEngineOperationResult,
+  complete = true, locale: typeof en = en,
 ) {
   const mutate = vi.fn<ApprovalActions['mutate']>(async () =>
     ({ operationId, result: { ok: true, value: { status: 'approved', queueItemId: pending.queueItemId, stateVersion: 8 } } }))
+  const observations = new ApprovalObservations()
   const view = { mutate,
     t: (key: keyof typeof en, args?: Record<string, string | number>) => Object.entries(args ?? {})
       .reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), locale[key]),
     useResource: (address: string) => address.includes('seat-approval-operation')
-      ? { status: 'live', value: operation } : { status: 'live', value: { enabled: true, items, complete } },
+      ? { status: 'live', value: operation } : { status: 'live', value: observations.observe({ enabled: true, items, complete }) },
   }
   return { view: view as ComponentProps<typeof ApprovalPanel>, mutate }
 }
+
+it.each([
+  [en, '1 windows ready for approval', 'Temporarily retained', '300000 ms remaining', 'Retention expires within five minutes: seat-a'],
+  [zh, '可开 1 窗', '暂态保留中', '剩余 300000 毫秒', '五分钟内到限：seat-a'],
+])('shows projected retention and alerts without calculating a client deadline', (locale, entry, state, remaining, alert) => {
+  const item = { ...pending, reason: 'provider-unavailable' as const,
+    retention: { since: 0, deadline: 900000, remainingMs: 300000, phase: 'expiring' as const } }
+  render(<ApprovalPanel {...props([item], undefined, true, locale).view} />)
+  expect(screen.getByRole('alert').textContent).toBe(alert)
+  fireEvent.click(screen.getByRole('button', { name: entry }))
+  expect(screen.getByText(state)).toBeTruthy()
+  expect(screen.getByText(remaining)).toBeTruthy()
+  expect(screen.getByRole('button', { name: locale.approve }).hasAttribute('disabled')).toBe(true)
+})
+
+it.each([en, zh])('keeps threshold alerts once across modal reopenings and shows committed refusal', (locale) => {
+  const observations = new ApprovalObservations()
+  const item: Seat.PendingSeatObservation = { ...pending, reason: 'provider-unavailable',
+    retention: { since: 0, deadline: 900000, remainingMs: 300000, phase: 'expiring' } }
+  let queue = observations.observe({ enabled: true, items: [item], complete: true })
+  const view = { ...props([], undefined, true, locale).view, useResource: () => ({ status: 'live', value: queue }) }
+  const rendered = render(<ApprovalPanel {...view as ComponentProps<typeof ApprovalPanel>} />)
+  const first = screen.getByRole('alert')
+  for (let index = 0; index < 2; index++) {
+    fireEvent.click(screen.getByRole('button', { name: locale.available.replace('{count}', '1') }))
+    fireEvent.click(screen.getByRole('button', { name: locale.close }))
+    expect(screen.getByRole('alert')).toBe(first)
+  }
+  const error: Seat.SeatFailure = { code: 'gate-denied', message: 'Pre-open retention limit reached',
+    alternative: 'Submit a new operation', retryable: false, effectState: 'none' }
+  queue = observations.observe({ enabled: true, items: [], complete: true, rejected: [{ item: pending, error }] })
+  rendered.rerender(<ApprovalPanel {...view as ComponentProps<typeof ApprovalPanel>} />)
+  const alerts = screen.getAllByRole('alert')
+  expect(alerts).toHaveLength(2)
+  expect(alerts[0]).toBe(first)
+  expect(alerts[1]?.textContent).toBe(locale.expired.replace('{seat}', 'seat-a'))
+  fireEvent.click(screen.getByRole('button', { name: locale.available.replace('{count}', '0') }))
+  expect(screen.getByText(locale.terminal.replace('{code}', error.code).replace('{message}', error.message))).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: locale.close }))
+  fireEvent.click(screen.getByRole('button', { name: locale.available.replace('{count}', '0') }))
+  expect(screen.getAllByRole('alert')).toEqual(alerts)
+})
 
 it('hides the zero-count entry and shows the exact pending count', () => {
   const empty = props([])

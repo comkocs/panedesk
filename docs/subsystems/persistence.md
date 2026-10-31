@@ -328,6 +328,8 @@ interface SessionPersistenceSnapshot {
 
 The optional `eventCount`/`sizeBytes` fields remain cheap backend observations for consumers that explicitly need them. Session listing does not use either field to open cold logs: it reads headers plus identity-checked projection-cache hints only, so a cache or Session-format upgrade never turns startup into a body scan.
 
+`MessageStatus.metadata` is an opt-in routing-only list observation, not a stored message change. Optional `MessageDelivery.quarantined` returns `MessageQuarantinePage` separately from message lifecycle states, retaining cursor and integrity evidence; exact receiver attribution verifies the original mailbox event identity. The [inbox adapter](../../packages/client/ui-inbox/README.md) exposes only owner-authorized reads for the displayed Session.
+
 ## Routed message identity
 
 `RoutedDeliveryEnvelope` freezes the original message, delivery identity, source node, digest, and available causal identifiers before transport. `RoutedSendMessageRequest` requires its legacy fields to match that envelope. `RoutedDeliveryAuthority` is a host-owned process-local capability, not a wire credential. The receiver verifies exact authority and commits the original message plus deduplication result before acknowledgement. Identical retained identity and digest returns the original durable acknowledgement; conflicting content is refused. Missing verification or admission never falls back to ordinary send, invents causal evidence, or forwards another hop.
@@ -345,6 +347,25 @@ The shipped provider implements the abstract `SessionPersistence` contract (`cre
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxinbox--inbox"></a>
+
+### `ctx.inbox` — `Inbox`
+
+Authenticated owners retain their existing local read authority.
+
+```ts cordis-catalog
+/** Observe only received metadata and isolation evidence for the exact on-screen Session.
+ * @param sessionId - Exact receiving Session, never a sender identity or wildcard.
+ * @param signal - Remote stream lifetime.
+ * @returns Ordered read-only inbox observations with explicit completeness.
+ */
+@Remote({ mode: 'stream' }) async *watch(sessionId: SessionId, signal: AbortSignal): AsyncIterable<InboxView>
+```
+
+Types: [SessionId](core.md)
+
+Source: [`packages/client/ui-inbox/src/index.ts`](../../packages/client/ui-inbox/src/index.ts)
 
 <a id="ctxmessagedelivery--messagedelivery-abstract-seam"></a>
 
@@ -430,6 +451,12 @@ abstract operationStatus(operationId: OperationId): Promise<OperationStatus>
  * @returns status page with storage completeness.
  */
 abstract list(query: MessageQuery): Promise<MessagePage>
+
+/** Query isolated mailbox evidence separately, without interpreting it as a lifecycle state.
+ * @param query - Optional exact mailbox identity, time range and exclusive cursor.
+ * @returns Verified isolation metadata and explicit journal integrity; absent on older providers.
+ */
+quarantined?(query: import('./types.ts').MessageQuarantineQuery): Promise<import('./types.ts').MessageQuarantinePage>
 
 /**
  * Resolve exact addresses without publishing messages or opening Sessions.

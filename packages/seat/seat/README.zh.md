@@ -39,6 +39,8 @@ kind: "package-reference"
 
 待批队列元数据可选携带来自保留开窗证据的 `windowName`、`nodeId` 和 `budget`。缺失字段保持缺席；节点别名不是经过认证的节点标识，预算字符串以整数微美元计。旧消费方可忽略这些字段。
 
+`ListPendingSeatsResult.items` 在 `PendingSeatObservation` 上可选携带只读 `retention`：连续区间起点、期限、剩余毫秒数及 `retained`／`expiring`／`expired` 阶段。`includeRejected` 显式纳入已提交的保留到限拒绝，与待批项共用既有顺序游标及分页限额。旧请求仍有效；`PendingSeatItem` 与持久队列事实不变。
+
 可选 `seatAuthorizationTransactions.operation` 返回 `SeatEngineOperationResult`：既有操作结果附加批准登记及关联进度元数据。它只读取已提交事实，不接纳动作；旧提供方可省略此能力。
 
 `node-work-chain/v1` 声明原七方法及独立协商的 `seat.definitionRevision` 读、冻结来源输入、显式远开许可列表、运行模型证据与必需的 `node-route/accepted` 效果。可选 `openFrozen`、`wakeFrozen`、`acceptFrozen` 及来源准备、核验、回调挂点要求另装经过认证的提供方；省略不授予权限。`SeatFrozenOpen.nodeWorkChain` 为派发复核保留准入事实，`SeatBinding.staffBinding` 携带已核名册证据，`SeatCallbackDelivery.nodeWorkChain` 冻结完整远端回调。模型证据缺失时保持缺失，不从配置推断。原拒因经可选 `cause` 传递：code/domain 是最多 128 字节的受控 ASCII 标识，脱敏 reason 最多 512 个 UTF-8 字节。完整协商帧上限为 1,048,576 字节，并取两端与本地限额的最小值；超限拒绝而不截断。导入声明不启用路由、不改变旧载荷。持久化提供方必须在应用帧内任何部分前拒绝不支持的必需效果。

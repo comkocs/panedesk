@@ -9,6 +9,8 @@
 
 ```mermaid
 flowchart LR
+  pkg_client_ui_inbox["client-ui-inbox"]
+  svc_inbox["ctx.inbox<br/>Owner received-message observations"]
   pkg_client_ui_seat_approvals["client-ui-seat-approvals"]
   svc_seatApprovals["ctx.seatApprovals<br/>Owner seat approval observations and actions"]
   pkg_client_ui_subagent_tree["client-ui-subagent-tree"]
@@ -397,6 +399,7 @@ flowchart LR
   pkg_client_file_upload --> svc_fileUploads
   pkg_client_modules --> svc_clientModules
   pkg_client_product_analytics --> svc_productAnalytics
+  pkg_client_ui_inbox --> svc_inbox
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
   pkg_client_ui_stats --> svc_stats
@@ -824,6 +827,7 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.inbox` | `service` | [`client-ui-inbox`](../packages/client/ui-inbox) | - | - | - | 读取精确收件会话的消息元数据与已核验邮箱隔离证据，不变更消息。 |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | 呈现待批开窗与操作进度，并把所有者的显式操作转交给已安装的席位引擎。 |
 | `ctx.subagentTree` | `service` | [`client-ui-subagent-tree`](../packages/client/ui-subagent-tree) | - | - | - | 根据账本父子关系事实，为已认证所有者投影单个会话的子代理树，包含逐节点监测与从转录推导的模型标识。 |
 | `ctx.nodeWorkChainBusiness` | `seam` | [`seat`](../packages/seat/seat) | [`node-link`](../packages/seat/node-link) | [`seat-engine`](../packages/seat/seat-engine), [`seat-local`](../packages/seat/seat-local), [`node-link`](../packages/seat/node-link) | - | 注册唯一业务提供方，并以恢复屏障约束精确键查询与受限续推。 |

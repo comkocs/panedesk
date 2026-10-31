@@ -1,5 +1,7 @@
 /** Typed copy for the seat approval surface. */
 export const zh = {
+  pendingState: '待批', retainedState: '暂态保留中', remaining: '剩余 {amount} 毫秒',
+  expiring: '五分钟内到限：{seat}', expired: '已到限：{seat}', terminal: '已拒：{code}；{message}',
   available: '可开 {count} 窗', title: '待批开窗', close: '关闭', approve: '批准', cancel: '取消待批',
   seat: '位', tasks: '单', window: '窗名', node: '节点', budget: '预算', absent: '未提供', unlimited: '不限',
   windowBudget: '单窗 {amount} 微美元', dailyBudget: '每日 {amount} 微美元',
@@ -15,6 +17,8 @@ export const zh = {
 export type ApprovalKey = keyof typeof zh
 /** English dictionary checked against the Chinese key set. */
 export const en = {
+  pendingState: 'Pending approval', retainedState: 'Temporarily retained', remaining: '{amount} ms remaining',
+  expiring: 'Retention expires within five minutes: {seat}', expired: 'Retention expired: {seat}', terminal: 'Rejected: {code}; {message}',
   available: '{count} windows ready for approval', title: 'Pending window approvals', close: 'Close', approve: 'Approve', cancel: 'Cancel pending',
   seat: 'Seat', tasks: 'Tasks', window: 'Window', node: 'Node', budget: 'Budget', absent: 'Not provided', unlimited: 'Unlimited',
   windowBudget: 'Window {amount} micro-USD', dailyBudget: 'Daily {amount} micro-USD',

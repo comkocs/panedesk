@@ -13,6 +13,8 @@ Service Definition for same-node messages, receive settings, durable controls, a
 
 `list` opts into strict pagination with `pagination: true`, a positive safe-integer `limit`, and a provider-issued exclusive `cursor`; keep the same filters when continuing a live scan. Omitting or disabling pagination preserves the provider's legacy query behavior; see the [local provider](../message-delivery-local/README.md). Unanswered queries select handoff/reply messages without a response and exclude terminal outcomes by default. Read `complete` and `nextCursor` rather than treating an incomplete scan as an empty complete result.
 
+`list({ includeMetadata: true })` optionally returns sender/receiver identities, creation time and priority without message bodies. Optional `quarantined(query)` reads isolation events independently from the six lifecycle states. Exact receiving-Session filters require verified mailbox attribution; missing capabilities remain unavailable. These query-only fields do not change persisted messages or events.
+
 ## Table of Contents
 
 - [Public API](#public-api)

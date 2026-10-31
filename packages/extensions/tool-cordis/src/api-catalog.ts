@@ -1417,6 +1417,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'inbox',
+    summary: 'Authenticated owners retain their existing local read authority.',
+    description: 'Authenticated owners retain their existing local read authority.',
+    methods: [
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *watch(sessionId: SessionId, signal: AbortSignal): AsyncIterable<InboxView>',
+        description: 'Observe only received metadata and isolation evidence for the exact on-screen Session.',
+        parameters: [{ name: 'sessionId', description: 'Exact receiving Session, never a sender identity or wildcard.' }, { name: 'signal', description: 'Remote stream lifetime.' }],
+        returns: 'Ordered read-only inbox observations with explicit completeness.',
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -1854,6 +1867,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Query messages without treating missing evidence as an empty complete result.',
         parameters: [{ name: 'query', description: 'filters and bounded cursor pagination.' }],
         returns: 'status page with storage completeness.',
+      },
+      {
+        signature: 'quarantined?(query: import(\'./types.ts\').MessageQuarantineQuery): Promise<import(\'./types.ts\').MessageQuarantinePage>',
+        description: 'Query isolated mailbox evidence separately, without interpreting it as a lifecycle state.',
+        parameters: [{ name: 'query', description: 'Optional exact mailbox identity, time range and exclusive cursor.' }],
+        returns: 'Verified isolation metadata and explicit journal integrity; absent on older providers.',
       },
       {
         signature: 'abstract resolve(addresses: readonly MessageAddress[]): Promise<ResolvedRecipient[]>',
@@ -6913,7 +6932,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalQueueView',
-    declaration: 'export interface ApprovalQueueView {\n    enabled: boolean;\n    items: readonly import(\'@panedesk/dsh-seat\').PendingSeatItem[];\n    complete: boolean;\n}',
+    declaration: 'export interface ApprovalQueueView {\n    enabled: boolean;\n    items: readonly import(\'@panedesk/dsh-seat\').PendingSeatObservation[];\n    complete: boolean;\n    rejected?: NonNullable<import(\'@panedesk/dsh-seat\').ListPendingSeatsResult[\'rejected\']>;\n    alerts?: readonly {\n        id: string;\n        seat: import(\'@panedesk/dsh-seat\').SeatName;\n        phase: \'expiring\' | \'expired\';\n    }[];\n}',
   },
   {
     name: 'ApprovalRequest',
@@ -8208,6 +8227,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ImageVariantId = Branded<\'ImageVariantId\'>;',
   },
   {
+    name: 'InboxItem',
+    declaration: 'export interface InboxItem {\n    status: MessageStatus;\n    senderSeat?: string;\n}',
+  },
+  {
+    name: 'InboxView',
+    declaration: 'export interface InboxView {\n    enabled: boolean;\n    items: readonly InboxItem[];\n    quarantined: readonly MessageQuarantineEvent[];\n    complete: boolean;\n}',
+  },
+  {
     name: 'IncompatiblePlugin',
     declaration: 'export interface IncompatiblePlugin {\n    name: string;\n    version: string;\n    runtimeVersion: string;\n    requirements: Record<string, string>;\n}',
   },
@@ -8725,11 +8752,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ListPendingSeatsRequest',
-    declaration: 'export interface ListPendingSeatsRequest {\n    projectId?: SeatProjectId;\n    seat?: SeatName;\n    cursor?: EngineCursor;\n    limit: number;\n}',
+    declaration: 'export interface ListPendingSeatsRequest {\n    projectId?: SeatProjectId;\n    seat?: SeatName;\n    cursor?: EngineCursor;\n    limit: number;\n    includeRejected?: boolean;\n}',
   },
   {
     name: 'ListPendingSeatsResult',
-    declaration: 'export interface ListPendingSeatsResult {\n    items: readonly PendingSeatItem[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n}',
+    declaration: 'export interface ListPendingSeatsResult {\n    rejected?: readonly {\n        item: PendingSeatItem;\n        error: SeatFailure;\n    }[];\n    items: readonly PendingSeatObservation[];\n    complete: boolean;\n    watermark: number;\n    nextCursor?: EngineCursor;\n}',
   },
   {
     name: 'ListSeatDefinitionsRequest',
@@ -9124,8 +9151,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MessageQuarantineData {\n    readonly messageId?: MessageId;\n    readonly reason: \'corrupt\' | \'unsupported-version\' | \'invalid-fields\';\n    readonly originalFileName: string;\n}',
   },
   {
+    name: 'MessageQuarantineEvent',
+    declaration: 'export interface MessageQuarantineEvent extends MessageQuarantineData {\n    readonly cursor: MessageCursor;\n    readonly nodeId: NodeId;\n    readonly observedAt: number;\n    readonly targetSessionId?: SessionId;\n}',
+  },
+  {
+    name: 'MessageQuarantinePage',
+    declaration: 'export interface MessageQuarantinePage {\n    readonly items: readonly MessageQuarantineEvent[];\n    readonly complete: boolean;\n    readonly nextCursor?: MessageCursor;\n}',
+  },
+  {
+    name: 'MessageQuarantineQuery',
+    declaration: 'export interface MessageQuarantineQuery {\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
+  },
+  {
     name: 'MessageQuery',
-    declaration: 'export interface MessageQuery {\n    readonly sessionId?: SessionId;\n    readonly senderSessionId?: SessionId;\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly states?: readonly MessageState[];\n    readonly messageClasses?: readonly MessageClass[];\n    readonly unansweredOlderThanMinutes?: number;\n    readonly includeTerminal?: boolean;\n    readonly pagination?: boolean;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
+    declaration: 'export interface MessageQuery {\n    readonly includeMetadata?: boolean;\n    readonly sessionId?: SessionId;\n    readonly senderSessionId?: SessionId;\n    readonly targetSessionId?: SessionId;\n    readonly nodeId?: NodeId;\n    readonly from?: number;\n    readonly to?: number;\n    readonly states?: readonly MessageState[];\n    readonly messageClasses?: readonly MessageClass[];\n    readonly unansweredOlderThanMinutes?: number;\n    readonly includeTerminal?: boolean;\n    readonly pagination?: boolean;\n    readonly cursor?: MessageCursor;\n    readonly limit?: number;\n}',
   },
   {
     name: 'MessageReason',
@@ -9165,7 +9204,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MessageStatus',
-    declaration: 'export interface MessageStatus {\n    readonly messageId: MessageId;\n    readonly state: MessageState;\n    readonly phase: \'pending\' | \'claimed\' | \'appended\' | \'dispatched\' | \'settled\' | \'delivery-uncertain\';\n    readonly revision: number;\n    readonly stateVersion: number;\n    readonly transitions: readonly MessageStateEvent[];\n}',
+    declaration: 'export interface MessageStatus {\n    readonly metadata?: Pick<DeliveryMessage, \'senderSessionId\' | \'priority\' | \'createdAt\'> & {\n        readonly targetSessionId: SessionId;\n    };\n    readonly messageId: MessageId;\n    readonly state: MessageState;\n    readonly phase: \'pending\' | \'claimed\' | \'appended\' | \'dispatched\' | \'settled\' | \'delivery-uncertain\';\n    readonly revision: number;\n    readonly stateVersion: number;\n    readonly transitions: readonly MessageStateEvent[];\n}',
   },
   {
     name: 'MessageSubscriptionRequest',
@@ -9558,6 +9597,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PendingSeatMutationResult',
     declaration: 'export type PendingSeatMutationResult = {\n    status: \'approved\' | \'cancelled\';\n    queueItemId: QueueItemId;\n    stateVersion: number;\n} | SeatRejected;',
+  },
+  {
+    name: 'PendingSeatObservation',
+    declaration: 'export interface PendingSeatObservation extends PendingSeatItem {\n    retention?: {\n        since: number;\n        deadline: number;\n        remainingMs: number;\n        phase: \'retained\' | \'expiring\' | \'expired\';\n    };\n}',
   },
   {
     name: 'PendingUserQuestion',

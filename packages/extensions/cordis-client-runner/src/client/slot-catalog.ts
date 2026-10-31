@@ -1751,6 +1751,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'conversation.session.header\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
       'client-ui-agent-preset AgentPresetLabel id \'agent-preset\'',
+      'client-ui-inbox InboxPanel id \'@panedesk/dsh-client-ui-inbox\'',
       'client-ui-jobs JobListAction id \'job-list\'',
       'client-ui-subagent-tree SubagentTreeAction id \'subagent-tree\'',
       'client-ui-subagent SubagentCatalogAction id \'subagent-catalog\'',

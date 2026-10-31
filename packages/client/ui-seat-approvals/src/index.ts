@@ -55,13 +55,15 @@ export default class SeatApprovals extends TypertRemoteService {
   private async queue(): Promise<ApprovalQueueView> {
     const engine = this.ctx.get('seatEngine')
     if (!engine) return this.unavailable()
-    const items: Seat.PendingSeatItem[] = []
+    const items: Seat.PendingSeatObservation[] = []
+    const rejected: NonNullable<ApprovalQueueView['rejected']>[number][] = []
     let cursor: Seat.EngineCursor | undefined
     do {
-      const page = await engine.pending({ limit: this.config.pageSize, ...(cursor ? { cursor } : {}) })
-      items.push(...page.items.filter(item => item.reason === 'approval'))
-      if (page.complete) return { enabled: true, items, complete: true }
-      if (!page.nextCursor) return { enabled: true, items, complete: false }
+      const page = await engine.pending({ limit: this.config.pageSize, includeRejected: true, ...(cursor ? { cursor } : {}) })
+      items.push(...page.items.filter(item => item.reason === 'approval' || item.retention !== undefined))
+      rejected.push(...page.rejected ?? [])
+      if (page.complete) return { enabled: true, items, rejected, complete: true }
+      if (!page.nextCursor) return { enabled: true, items, rejected, complete: false }
       cursor = page.nextCursor
     } while (!this.lifetime.signal.aborted)
     return this.unavailable()

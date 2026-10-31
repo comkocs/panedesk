@@ -561,6 +561,7 @@ export default class LocalMessageDelivery extends MessageDelivery {
     await this.ready
     if (query.nodeId !== undefined && query.nodeId !== this.nodeId) return { items: [], complete: false }
     const ids = new Set<MessageId>()
+    const metadata = new Map<MessageId, NonNullable<MessageStatus['metadata']>>()
     for (const target of await readdir(join(this.mailbox.root, 'mailboxes'))) {
       for (const record of (await this.mailbox.snapshot(target)).records) {
         const command = decodeCommand(record.value)
@@ -575,6 +576,8 @@ export default class LocalMessageDelivery extends MessageDelivery {
         if (query.unansweredOlderThanMinutes !== undefined && (message.messageClass === 'notice'
           || Date.now() - message.createdAt < query.unansweredOlderThanMinutes * 60000)) continue
         ids.add(message.messageId)
+        if (query.includeMetadata) metadata.set(message.messageId, { senderSessionId: message.senderSessionId,
+          targetSessionId: message.target.sessionId, priority: message.priority, createdAt: message.createdAt })
       }
     }
     const limit = query.limit ?? this.config.maxBatchSize
@@ -589,13 +592,41 @@ export default class LocalMessageDelivery extends MessageDelivery {
       if (query.states && !query.states.includes(status.state)) continue
       if (query.unansweredOlderThanMinutes !== undefined && (status.transitions.some(event => event.data.transition === 'responded')
         || (!query.includeTerminal && ['withdrawn', 'invalidated', 'rejected'].includes(status.state)))) continue
-      items.push(status)
+      const details = metadata.get(id)
+      items.push(details ? { ...status, metadata: details } : status)
     }
     const page = items.slice(0, limit)
     const last = page.at(-1)
     return { items: page, complete: items.length <= limit,
       ...query.pagination && items.length > limit && last !== undefined
         ? { nextCursor: `message-list:${last.messageId}` as MessageCursor } : {} }
+  }
+
+  override async quarantined(query: import('@panedesk/dsh-message-delivery').MessageQuarantineQuery): Promise<import('@panedesk/dsh-message-delivery').MessageQuarantinePage> {
+    await this.ready
+    const ledger = this.ctx.get('messageLedger') ?? await this.ctx.get('sessionLedger')?.messages()
+    if (!ledger || query.nodeId !== undefined && query.nodeId !== this.nodeId) return { items: [], complete: false }
+    const limit = query.limit ?? this.config.maxBatchSize
+    if (!Number.isSafeInteger(limit) || limit < 1) throw new MailboxUnavailableError('Quarantine query limit must be positive')
+    const page = await ledger.read({})
+    const events = page.events.filter((event) => {
+      if (event.kind !== 'message/quarantined' || event.nodeId !== this.nodeId) return false
+      if (query.from !== undefined && event.observedAt < query.from || query.to !== undefined && event.observedAt >= query.to) return false
+      if (query.targetSessionId === undefined) return true
+      const expected = `message/quarantined:${createHash('sha256').update(JSON.stringify([
+        event.nodeId, query.targetSessionId, event.data.originalFileName,
+      ])).digest('hex')}`
+      return event.eventId === expected
+    }).sort((a, b) => a.observedAt - b.observedAt || a.eventId.localeCompare(b.eventId))
+    const position = query.cursor === undefined ? -1 : events.findIndex(event => String(event.eventId) === query.cursor)
+    if (query.cursor !== undefined && position < 0) throw new MailboxUnavailableError('Quarantine cursor is unavailable')
+    const selected = events.slice(position + 1, position + 1 + limit)
+    const last = selected.at(-1), more = events.length > position + 1 + selected.length
+    return { items: selected.flatMap(event => event.kind === 'message/quarantined' ? [{ ...event.data,
+      cursor: event.eventId as string as MessageCursor, nodeId: event.nodeId, observedAt: event.observedAt,
+      ...(query.targetSessionId === undefined ? {} : { targetSessionId: query.targetSessionId }),
+    }] : []), complete: page.complete,
+    ...(more && last ? { nextCursor: last.eventId as string as MessageCursor } : {}) }
   }
 
   async sendBatch(request: SendBatchRequest): Promise<SendBatchResult> {
