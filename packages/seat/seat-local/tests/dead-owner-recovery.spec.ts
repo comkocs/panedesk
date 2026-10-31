@@ -40,8 +40,9 @@ it('A16 releases an acknowledged opening after host SIGKILL and completes its ex
     await kill(first.child, first.pid)
     const recovered = host(root, 'recover'); children.push(recovered)
     const result = await recovered.ready
-    expect(result).toMatchObject({ kind: 'released', opens: 2, sessions: 2, agents: 1, pending: 0,
-      releases: [{ reason: 'host-restart-recovery', fenced: true, owner: { sessionId: held.sessionId } }] })
+    expect(result).toMatchObject({ kind: 'released', opens: 2, sessions: 2, agents: 2, pending: 0,
+      releases: [{ reason: 'host-restart-recovery', fenced: true, owner: { sessionId: held.sessionId } }],
+      closed: [{ sessionId: held.sessionId, reason: 'owner-dead' }], archived: [held.sessionId], requests: 1 })
     expect(result.milliseconds).toBeLessThanOrEqual(5000)
     process.stdout.write(`${JSON.stringify(result)}\n`)
     const exited = once(recovered.child, 'exit')

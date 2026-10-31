@@ -6,6 +6,13 @@ import { operation } from './fixtures.ts'
 const [root, stage] = process.argv.slice(2)
 if (!root || !stage) throw new Error('Missing owner recovery arguments')
 const f = await admissionHost(root)
+// The fixture constructs SeatEngine directly; retain its production turn-admission fence.
+f.ctx.on('agent/turn-admitting', async ({ agent }, next) => {
+  const upstream = await next()
+  if (upstream.kind !== 'allow') return upstream
+  const admission = await f.engine.admitTurn(agent.id)
+  return admission.status === 'allow' ? upstream : { kind: 'defer', reason: admission.reason }
+})
 const sourceId = 'source-a' as T.SeatSourceId
 const second = 'seat-b' as T.SeatName
 f.engine.registerSource({ sourceId, kinds: ['external'], maxRedeliveryMs: null, callback: async () => {} })
@@ -54,7 +61,10 @@ if (stage === 'held') {
     const releases = effects.filter(effect => effect.kind === 'resource/released').map(effect => effect.data)
     process.send?.({ kind: 'released', milliseconds: Date.now() - Date.parse(readyAt), releases,
       opens: f.engine.journal.projection.opens.size, sessions: (await f.ctx.sessionPersistence.list()).length,
-      agents: f.ctx.agents.list().length, pending: f.engine.journal.projection.pending.size })
+      agents: f.ctx.agents.list().length, pending: f.engine.journal.projection.pending.size,
+      closed: [...f.engine.journal.projection.closed.values()].map(close => ({ sessionId: close.sessionId, reason: close.reason })),
+      archived: f.ctx.workspaceRegistry.archivedSessionIds,
+      requests: f.adapter.requests.length })
   } finally { clearTimeout(timer); off() }
   process.on('message', (message: unknown) => {
     if (message === 'stop') void f.close().then(() => { process.disconnect?.() })
