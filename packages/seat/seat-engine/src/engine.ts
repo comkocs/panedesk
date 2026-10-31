@@ -388,7 +388,7 @@ export class SeatEngine extends SeatEngineService {
                 && !(item.phase === 'opening-failed' && item.failure?.effectState === 'none' && !view.resources.has(item.sessionId))))) {
               return rejected('session-busy', 'A window opening for this seat is already admitted')
             }
-            return this.openLocal(input)
+            return this.openLocal(input, true)
           }
           if (!input.nodeWorkChain || input.request.operationId !== operationId
             || input.nodeWorkChain.operationKey.method !== 'seat.wakeFrozen') {
@@ -411,9 +411,12 @@ export class SeatEngine extends SeatEngineService {
       return result
     })
   }
-  private async openLocal(input: T.SeatLocalOpenRequest): Promise<T.OpenSeatResult> {
+  private async openLocal(input: T.SeatLocalOpenRequest, checkedLocalWake = false): Promise<T.OpenSeatResult> {
     await this.ready()
     if (input.nodeWorkChain) return this.openFrozenLocal(input)
+    if (input.authority.localWake && !checkedLocalWake) {
+      return rejected('unauthorized', 'Local wake opening requires the checked wake entry')
+    }
     return openLocalWindow(this, input, async (envelope) => {
       if (this.stopped) return rejected('unavailable', 'Engine is shutting down')
       if (this.options.config.nodeAliases[input.definition.node] !== this.options.nodeId) {

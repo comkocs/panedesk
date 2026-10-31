@@ -347,6 +347,8 @@ export class LocalSeatService extends SeatService {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const authority = this.caller()
+    if (authority.localWake && !admit) return rejected('unauthorized',
+      'Local wake opening requires the checked wake entry', 'Use the authenticated wake entry.')
     if (request.origin !== authority.origin) return rejected('unauthorized', 'Opening origin is not authenticated.', 'Use the trusted adapter origin.')
     if (this.engine() === undefined) return rejected('unavailable', 'Opening admission is unavailable.', 'Install the seat engine.')
     const facts = (await this.state.read()).effects
