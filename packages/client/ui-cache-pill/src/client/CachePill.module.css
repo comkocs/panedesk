@@ -40,6 +40,7 @@
   padding: 10px 12px;
   border-radius: var(--dsw-radius-md);
   background: var(--dsw-specific-menu);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
   color: var(--dsw-alias-label-primary);
   box-shadow: var(--dsw-shadow-lv2);
 }
