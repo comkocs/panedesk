@@ -8,6 +8,7 @@
     - button "Project opening settings"
     - button "Skills"
     - button "Statistics"
+    - button "Nodes"
   - button "Open configuration file"
   - button "Close"
   - text: Permission Choose the default permission mode for new sessions

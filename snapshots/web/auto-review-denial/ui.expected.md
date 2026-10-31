@@ -3,8 +3,9 @@
 - banner:
   - navigation "Session hierarchy": {{workspace}}
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -25,14 +26,16 @@
 - button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
 - button "Send message" [disabled]
 - button "1 turns 2 steps"
+- button "Cache"
 
 ## Expanded
 
 - banner:
   - navigation "Session hierarchy": {{workspace}}
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -57,14 +60,16 @@
 - button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
 - button "Send message" [disabled]
 - button "1 turns 2 steps"
+- button "Cache"
 
 ## Trajectory
 
 - banner:
   - navigation "Session hierarchy": {{workspace}}
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat"
@@ -116,3 +121,4 @@
 - button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
 - button "Send message" [disabled]
 - button "1 turns 2 steps"
+- button "Cache"

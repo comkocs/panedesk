@@ -8,6 +8,7 @@
     - button "项目开窗设置"
     - button "技能"
     - button "统计台"
+    - button "节点"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]

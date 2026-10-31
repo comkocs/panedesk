@@ -1,6 +1,9 @@
 - banner:
   - navigation "会话层级": 只回复 MESSAGES_WEB_READY，不调用
   - text: 标准模式
+  - button "子代理树"
+  - button "收件"
+  - button "会话工具"
   - button "更多操作"
   - button "打开右侧边栏"
   - tablist:
@@ -14,6 +17,7 @@
 - button "复制"
 - button "好的回答"
 - button "有问题的回答"
+- button "钉住"
 - button "在新对话中分支"
 - button "用量 8.2K tok"
 - text: {{clock}}
@@ -24,4 +28,5 @@
 - button "发送消息" [disabled]
 - button "1 轮 1 步 · {{throughput}} tok/s": 1 轮 1 步{{throughput}} tok/s
 - button "8.2K tok · 缓存命中 16%": 8.2K tok缓存命中 16%
+- button "缓存"
 - button "上下文已用 1%": 1%

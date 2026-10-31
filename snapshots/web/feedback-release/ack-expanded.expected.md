@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Reply with the single word
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -16,6 +19,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - 'button "feedback Feedback recorded for session session-{{uuid}} Anonymous user: {{uuid}}."'
@@ -26,4 +30,5 @@
 - button "Send message" [disabled]
 - button "1 turns 1 steps · {{throughput}} tok/s": 1 turns 1 steps{{throughput}} tok/s
 - button "7.8K tok · Cache hit 99%": 7.8K tokCache hit 99%
+- button "Cache"
 - button "6% of context used": 6%

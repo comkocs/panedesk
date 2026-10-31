@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Queue item to remove
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -22,6 +25,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}} Queue item to remove {{clock}}
 - button "Copy"
@@ -32,6 +36,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}} Wake the preserved queue {{clock}}
 - button "Copy"
@@ -41,6 +46,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}} Inactive Goal Keep working after Stop
 - button "Resume goal"
@@ -53,4 +59,5 @@
 - button "Send message" [disabled]
 - button "3 turns 3 steps · {{throughput}} tok/s": 3 turns 3 steps{{throughput}} tok/s
 - button "7.9K tok · Cache hit 99%": 7.9K tokCache hit 99%
+- button "Cache"
 - button "6% of context used": 6%
