@@ -1,9 +1,11 @@
 import { clientBundle } from '../tsdown.client.ts'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { relative } from 'node:path'
 
 const bundle = clientBundle(import.meta.dirname, ['lib/types/index.js'])
-const stylesheet = fileURLToPath(new URL('./src/client/chat/ChatView.module.css', import.meta.url)).replaceAll('\\', '/')
+const stylesheet = relative(fileURLToPath(new URL('../../../', import.meta.url)),
+  fileURLToPath(new URL('./src/client/chat/ChatView.module.css', import.meta.url))).replaceAll('\\', '/')
 const whaleImage = fileURLToPath(new URL('./src/client/chat/running-whale@2x.png', import.meta.url))
 
 export default ((options) => bundle(options).map(config => ({
