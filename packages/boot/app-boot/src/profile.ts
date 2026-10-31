@@ -278,7 +278,9 @@ autoInstallPeers: false
 /**
  * Initialize a profile directory: manifest, empty user patch layer, and the
  * pnpm settings out-of-tree plugins need. Existing files are never touched,
- * so re-running is a no-op on an initialized profile.
+ * so re-running is a no-op on an initialized profile. Every directory this
+ * call creates is explicitly owner-only regardless of the process umask;
+ * pre-existing directories keep their own permissions.
  * @param dir - the profile directory from {@link resolveProfileDir}.
  * @param bundles - the initial `dsh.profile.bundles` layer list.
  */
@@ -286,7 +288,7 @@ export function initProfile(
   dir: string,
   bundles: readonly string[],
 ): void {
-  mkdirSync(dir, { recursive: true })
+  mkdirSync(dir, { recursive: true, mode: 0o700 })
   const manifestPath = join(dir, 'package.json')
   if (!existsSync(manifestPath)) {
     const manifest: ProfileManifest & { private: boolean } = {

@@ -18,13 +18,14 @@
   },
   "files": ["lib/index.js", "lib/types/**/*.d.ts"],
   "license": "MIT",
-  "dependencies": { "@panedesk/node-addon-system": "workspace:~", "@panedesk/schemastery": "workspace:~", "@panedesk/dsh-sdk-protocol": "workspace:*", "@panedesk/dsh-seat": "workspace:*", "@panedesk/dsh-seat-engine": "workspace:*" },
+  "dependencies": { "@panedesk/node-addon-system": "workspace:~", "@panedesk/schemastery": "workspace:~", "@panedesk/dsh-sdk-protocol": "workspace:*", "@panedesk/dsh-seat": "workspace:*", "@panedesk/dsh-seat-engine": "workspace:*", "@panedesk/dsh-home-paths": "workspace:*" },
   "peerDependencies": { "@panedesk/cordis": "workspace:~" },
   "devDependencies": {
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-brand": "workspace:*",
-    "@panedesk/dsh-seat": "workspace:*"
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-app-boot": "workspace:*"
   }
 }
