@@ -69,7 +69,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 本地提供方可在引擎访问能力中注册 `preAdmit`。人工 `openWindow`（包括本地批量逐个发出的开窗）在触发接纳前等待此钩子。拒绝结果原样返回，不产生引擎接纳、资源或会话副作用；策略审计由钩子提供方负责。未注册钩子时原准入路径不变。
 
-可信宿主通过 `seatAuthorizationIssuers` 注册捕获的身份与实时策略检查；调用方取得实例拥有的凭证，不从请求字段推导权限。`seatAuthorizationTransactions.transact` 将授权与匹配意图写入同一同步日志帧。每条提交的效果必须携带签发的操作标识。`approve` 在同帧提交队列变化，不调用旧批准方法；被拒批准重试时保留原拒绝结果，重新获得授权的尝试需要新的操作标识。撤销、外来、过期或不匹配的凭证均被拒绝。本地直接 `openWindow` 拒绝 `localWake`，包括 prefill；只有内部受检唤醒开窗器接受转换后的开窗凭证。精确已准入重放与已结算冻结回执保留原语义。追加失败不接纳投影动作；同步结果不确定时，重试前必须恢复。
+可信宿主通过 `seatAuthorizationIssuers` 注册捕获的身份与实时策略检查；调用方取得实例拥有的凭证，不从请求字段推导权限。`seatAuthorizationTransactions.transact` 将授权与匹配意图写入同一同步日志帧。每条提交的效果必须携带签发的操作标识。`approve` 在同帧提交队列变化，不调用旧批准方法；被拒批准重试时保留原拒绝结果，重新获得授权的尝试需要新的操作标识。撤销、外来、过期或不匹配的凭证均被拒绝。新的本地开窗效果提交前，凭证必须匹配调用主体与请求席，并覆盖请求任务及全部冻结上下文任务；唤醒开窗与普通开窗执行相同检查。本地直接 `openWindow` 拒绝 `localWake`，包括 prefill；只有内部受检唤醒开窗器接受转换后的开窗凭证。精确已准入重放与已结算冻结回执保留原语义。追加失败不接纳投影动作；同步结果不确定时，重试前必须恢复。
 
 授权帧要求 `seat-authorization/v1`；旧解码器拒绝新判别值。支持该能力的恢复与只读快照在既有日志中保留事实。新查询包含 `plugin`；旧 `seatAuthorizationQueries.query` 跳过该种类并推进物理游标，绝不重标种类。查询按单、位、节点、种类及时间过滤，返回已提交水位、排他扫描游标与完整性。无归属的历史决策仍为 `legacy-unknown`。引擎效果查询与导出保留旧词表，不包含授权事实。独立 `seatAuthorizationExports.export` 服务序列化有限的 `seat-authorization/v1` JSON 分页，包含游标、水位、完整性和插件归属；在线引擎与离线读取器均提供此服务。
 
