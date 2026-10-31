@@ -5516,6 +5516,28 @@
         ],
         "test": "live scope binding"
       }
+    },
+    {
+      "id": "project-guide-defers-global-onboarding",
+      "description": "Defer project guidance until the current welcome notice and blank main-session onboarding have finished.",
+      "origin": "Project guidance and global onboarding integration",
+      "reason": "Read the existing welcome preference and main-session projection so project guidance cannot cover the global notice. Preserve the welcome behavior, explicit project choices, and preview assertions; suitable for upstream contribution.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-project-onboarding/README.i18n.yaml",
+          "packages/client/ui-project-onboarding/README.md",
+          "packages/client/ui-project-onboarding/README.zh.md",
+          "packages/client/ui-project-onboarding/package.json",
+          "packages/client/ui-project-onboarding/src/client/ProjectGuide.tsx",
+          "packages/client/ui-project-onboarding/src/client/index.ts",
+          "packages/client/ui-project-onboarding/src/client/props.ts",
+          "packages/client/ui-project-onboarding/tests/guide.client.spec.tsx",
+          "packages/client/ui-project-onboarding/tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ],
+        "test": "waits for the current welcome and a nonblank main session"
+      }
     }
   ]
 }
