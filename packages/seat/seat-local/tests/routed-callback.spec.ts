@@ -27,9 +27,11 @@ async function setup() {
   sources.register({ sourceId: body.callback.sourceId, kinds: ['external'], maxRedeliveryMs: null, callback: local })
   const composition = services(() => h.engine, checks)
   h.ctx.provide('nodeWorkChain', composition); h.ctx.provide('nodeWorkChainRouter', link.router)
-  const outbox = new CallbackOutbox(h.engine.journal, sources, config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+  const outbox = new CallbackOutbox(h.engine.journal, sources, config,
+    (input, observation) => deliverRoutedCallback(h.ctx, h.engine, input, observation))
   return { h, body, state, link, seen, checks, local, composition, outbox,
     delivery: () => h.engine.journal.projection.callbacks.get(body.callback.callbackId)!,
+    observation: () => outbox.observations().find(item => item.payload.callbackId === body.callback.callbackId)!,
     async close() { await outbox.close(); await sources.close(); await link.close(); await h.close() } }
 }
 
@@ -42,9 +44,18 @@ test.each(['committed', 'pending', 'authentication', 'protocol', 'other'] as con
         code: kind === 'authentication' ? 'unauthorized' : kind === 'protocol' ? 'callback-protocol-error' : 'unavailable',
         message: 'Owner refusal', alternative: 'Review owner state', retryable: false, effectState: 'none' } }
       await f.outbox.deliver(0)
-      expect(f.delivery()).toMatchObject({ phase: kind === 'committed' ? 'delivered'
+      const expected = { phase: kind === 'committed' ? 'delivered'
         : ['authentication', 'protocol'].includes(kind) ? 'paused' : 'retry-due',
-      responseClass: kind === 'committed' ? 'success' : kind === 'pending' || kind === 'other' ? 'transient' : kind })
+      responseClass: kind === 'committed' ? 'success' : kind === 'pending' || kind === 'other' ? 'transient' : kind }
+      expect(f.observation()).toMatchObject({ ...expected, attempt: 1 })
+      if (kind === 'pending' || kind === 'other') {
+        expect(f.delivery()).toMatchObject({ phase: 'pending', responseClass: 'unknown', attempt: 0, nextDue: null })
+        const sequence = f.h.engine.journal.projection.sequence
+        await f.outbox.close()
+        expect(f.h.engine.journal.projection.sequence).toBe(sequence + 1)
+        expect(f.delivery()).toMatchObject({ ...expected, attempt: 1, nextDue: new Date(1).toISOString(),
+          retrySummary: { count: 1, firstAttemptAt: new Date(0).toISOString(), lastAttemptAt: new Date(0).toISOString() } })
+      } else expect(f.delivery()).toMatchObject({ ...expected, attempt: 1, nextDue: null })
       expect(f.local).not.toHaveBeenCalled()
       expect(f.seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback'])
       expect(f.seen[1]).toMatchObject({ payload: f.body, payloadDigest: f.body.payloadDigest,
@@ -70,14 +81,19 @@ test('disconnection retains exponential backoff and restores one same-key delive
     await f.outbox.deliver(0)
     await f.outbox.deliver(0)
     expect(f.delivery()).toMatchObject({ attempt: 1, nextDue: new Date(1).toISOString() })
+    const first = structuredClone(f.delivery()), sequence = f.h.engine.journal.projection.sequence
     await f.outbox.deliver(1)
-    expect(f.delivery()).toMatchObject({ attempt: 2, nextDue: new Date(3).toISOString() })
+    expect(f.observation()).toMatchObject({ phase: 'retry-due', responseClass: 'transient', attempt: 2,
+      nextDue: new Date(3).toISOString() })
+    expect(f.delivery()).toEqual(first)
+    expect(f.h.engine.journal.projection.sequence).toBe(sequence)
     f.link.state.connected = true
     await f.outbox.deliver(2)
     expect(f.seen).toEqual([])
     await f.outbox.deliver(3)
     await f.outbox.deliver(100)
-    expect(f.delivery().phase).toBe('delivered')
+    expect(f.delivery()).toMatchObject({ phase: 'delivered', responseClass: 'success', attempt: 3, nextDue: null,
+      retrySummary: { count: 2, firstAttemptAt: new Date(0).toISOString(), lastAttemptAt: new Date(1).toISOString() } })
     expect(f.seen.filter(item => item.method === 'source.deliverCallback')).toHaveLength(1)
   } finally { await f.close() }
 })
@@ -104,11 +120,19 @@ test.each(['missing', 'pending', 'committed'] as const)('queries an unknown tran
       expect(await f.h.engine.authorizations.operation({ operationId: f.body.route.originalOperationId })).toMatchObject({
         status: 'pending', progress: { kind: 'pending', blockedBy: ['callback-outcome-unknown'] },
       })
+      const barrier = structuredClone(f.delivery()), sequence = f.h.engine.journal.projection.sequence
+      expect(barrier).toMatchObject({ phase: 'pending', responseClass: 'unknown', attempt: 0, nextDue: null })
       await f.outbox.deliver(100)
       expect(f.seen.filter(item => item.method === 'source.deliverCallback')).toHaveLength(1)
-      expect(f.delivery().responseClass).toBe('unknown')
-    }
-    expect(f.delivery().phase).toBe(kind === 'committed' ? 'delivered' : 'retry-due')
+      expect(f.delivery()).toEqual(barrier)
+      expect(f.h.engine.journal.projection.sequence).toBe(sequence)
+      expect(f.observation()).toMatchObject({ phase: 'retry-due', responseClass: 'unknown', attempt: 2,
+        nextDue: new Date(102).toISOString() })
+      await f.outbox.close()
+      expect(f.h.engine.journal.projection.sequence).toBe(sequence + 1)
+      expect(f.delivery()).toMatchObject({ phase: 'retry-due', responseClass: 'unknown', attempt: 2,
+        retrySummary: { count: 2, firstAttemptAt: new Date(0).toISOString(), lastAttemptAt: new Date(100).toISOString() } })
+    } else expect(f.delivery()).toMatchObject({ phase: 'delivered', responseClass: 'success', attempt: 1, nextDue: null })
     expect(f.seen.filter(item => item.method === 'chain.operation').every(item => item.payload.key.callbackId === f.body.callback.callbackId)).toBe(true)
   } finally { vi.restoreAllMocks(); await f.close() }
 })
