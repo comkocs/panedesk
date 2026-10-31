@@ -11,6 +11,7 @@ export const en = {
   'codeBlock.wrap': 'Wrap lines',
   'codeBlock.unwrap': 'Do not wrap lines',
   'copy.failed': 'Copy failed',
+  'mermaid.failed': 'Could not render this diagram; showing the source instead',
   'copy.value': 'Copy value',
   'copy.json': 'Copy JSON',
   'copy.path': 'Copy property path',

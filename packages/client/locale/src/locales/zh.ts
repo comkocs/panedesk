@@ -9,6 +9,7 @@ export const zh = {
   'codeBlock.wrap': '自动换行',
   'codeBlock.unwrap': '取消自动换行',
   'copy.failed': '复制失败',
+  'mermaid.failed': '这张图无法渲染，已改回代码块',
   'copy.value': '复制值',
   'copy.json': '复制 JSON',
   'copy.path': '复制属性路径',
