@@ -397,6 +397,14 @@
     - id: ui-subagent
       name: '@panedesk/dsh-client-ui-subagent'
 
+    # Read-only subagent tree with per-node monitoring: the session-header
+    # pill opens the right-sidebar tree tab over the subagentTree Remote.
+    - id: ui-subagent-tree
+      name: '@panedesk/dsh-client-ui-subagent-tree'
+      config:
+        enabled: true
+        refreshIntervalMs: 5000
+
     - id: ui-reference
       name: '@panedesk/dsh-client-ui-reference'
 

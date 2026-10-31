@@ -113,6 +113,10 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine.',
   },
   {
+    key: 'subagentTree', pkg: 'client-ui-subagent-tree', title: 'Owner subagent tree reads', mode: 'service',
+    note: 'Projects one session subagent tree from ledger parent-child facts with per-node monitoring and transcript-derived model ids to authenticated owners.',
+  },
+  {
     key: 'nodeWorkChainBusiness', pkg: 'seat', title: 'Durable chain business queries', mode: 'seam',
     implementations: ['node-link'], consumers: ['seat-engine', 'seat-local', 'node-link'],
     note: 'Registers unique business providers and gates exact-key queries and restricted resumption on recovery.',

@@ -9,6 +9,8 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 flowchart LR
   pkg_client_ui_seat_approvals["client-ui-seat-approvals"]
   svc_seatApprovals["ctx.seatApprovals<br/>Owner seat approval observations and actions"]
+  pkg_client_ui_subagent_tree["client-ui-subagent-tree"]
+  svc_subagentTree["ctx.subagentTree<br/>Owner subagent tree reads"]
   pkg_seat["seat"]
   svc_nodeWorkChainBusiness["ctx.nodeWorkChainBusiness<br/>Durable chain business queries"]
   pkg_node_link["node-link"]
@@ -396,6 +398,7 @@ flowchart LR
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
   pkg_client_ui_stats --> svc_stats
+  pkg_client_ui_subagent_tree --> svc_subagentTree
   pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
   pkg_compaction --> svc_compaction
@@ -820,6 +823,7 @@ flowchart LR
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine. |
+| `ctx.subagentTree` | `service` | [`client-ui-subagent-tree`](../packages/client/ui-subagent-tree) | - | - | - | Projects one session subagent tree from ledger parent-child facts with per-node monitoring and transcript-derived model ids to authenticated owners. |
 | `ctx.nodeWorkChainBusiness` | `seam` | [`seat`](../packages/seat/seat) | [`node-link`](../packages/seat/node-link) | [`seat-engine`](../packages/seat/seat-engine), [`seat-local`](../packages/seat/seat-local), [`node-link`](../packages/seat/node-link) | - | Registers unique business providers and gates exact-key queries and restricted resumption on recovery. |
 | `ctx.seatAuthorizationTransactions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`host-admin`](../packages/host/host-admin), [`node-link`](../packages/seat/node-link) | - | Commits issued facts and action effects together; missing admission rejects audited actions. |
 | `ctx.seatAuthorizationExports` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | - | - | Exports bounded redacted facts without serializing process-local grants. |

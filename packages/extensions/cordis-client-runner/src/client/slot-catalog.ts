@@ -1752,6 +1752,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-agent-preset AgentPresetLabel id \'agent-preset\'',
       'client-ui-jobs JobListAction id \'job-list\'',
+      'client-ui-subagent-tree SubagentTreeAction id \'subagent-tree\'',
       'client-ui-subagent SubagentCatalogAction id \'subagent-catalog\'',
       'experimental-client-ui-agent-team TeamAction id \'agent-team\'',
     ],
@@ -3820,6 +3821,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-sidebar-files FilesBody',
       'client-ui-sidebar-right GuideBody',
       'client-ui-sidebar-terminal LazyTerminalBody',
+      'client-ui-subagent-tree SubagentTreeTab',
       'client-ui-subagent SidebarChatTab',
       'experimental-session-inspector SessionInspectorView',
     ],

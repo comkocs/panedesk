@@ -711,6 +711,22 @@ Types: [Agent](core.zh.md) · [ContentBlock](llm-streaming.zh.md) · [MessageId]
 
 Source: [`packages/subagent/subagent/src/index.ts`](../../packages/subagent/subagent/src/index.ts)
 
+<a id="ctxsubagenttree--subagenttreeservice"></a>
+
+### `ctx.subagentTree` — `SubagentTreeService`
+
+No stop, write, export, or caller-supplied identity capability is exposed.
+
+```ts cordis-catalog
+/** Read one deduplicated ledger snapshot and per-session transcripts after authenticating the invocation owner.
+ * @param request - the on-screen session whose descendant tree is requested.
+ * @returns nested tree with monitoring columns and the deployment's refresh cadence.
+ */
+@Remote async read(request: SubagentTreeRequest): Promise<SubagentTreeView>
+```
+
+Source: [`packages/client/ui-subagent-tree/src/index.ts`](../../packages/client/ui-subagent-tree/src/index.ts)
+
 <a id="subagent-events"></a>
 
 ### `subagent/*` events

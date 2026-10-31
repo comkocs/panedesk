@@ -3487,6 +3487,9 @@ importers:
       '@panedesk/dsh-client-ui-subagent':
         specifier: workspace:*
         version: link:../../client/ui-subagent
+      '@panedesk/dsh-client-ui-subagent-tree':
+        specifier: workspace:*
+        version: link:../../client/ui-subagent-tree
       '@panedesk/dsh-client-ui-theme':
         specifier: workspace:*
         version: link:../../client/ui-theme
@@ -6971,6 +6974,82 @@ importers:
       '@panedesk/dsh-token-meter':
         specifier: workspace:*
         version: link:../../llm/token-meter
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-subagent-tree:
+    dependencies:
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-resources':
+        specifier: workspace:*
+        version: link:../resources
+      '@panedesk/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-conversation':
+        specifier: workspace:*
+        version: link:../ui-conversation
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-sidebar-right':
+        specifier: workspace:*
+        version: link:../ui-sidebar-right
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-remote-mock':
+        specifier: workspace:*
+        version: link:../../test-support/remote-mock
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+      '@panedesk/dsh-session-query':
+        specifier: workspace:*
+        version: link:../../session-query/session-query
+      '@testing-library/react':
+        specifier: ^16.3.3
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.2.0
         version: 18.3.1
