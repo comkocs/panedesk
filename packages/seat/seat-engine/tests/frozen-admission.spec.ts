@@ -206,6 +206,77 @@ async function approveForExecution(h: Awaited<ReturnType<typeof harness>>, pendi
     operationId: 'approve-a' as T.SeatOperationId })).toMatchObject({ status: 'approved' })
 }
 
+test('queries the executed frozen window while preserving its original queued receipt', async () => {
+  const { h, pending, query, original } = await admitForExecution('owner-target')
+  try {
+    await approveForExecution(h, pending)
+    await h.engine.drive()
+    const open = [...h.engine.journal.projection.opens.values()][0]
+    if (!open) throw new Error('Expected retained execution')
+    expect(queryFrozenExecution(h.engine.journal.projection, query)).toMatchObject({ status: 'settled',
+      method: 'seat.openFrozen', result: { status: 'opened', sessionId: open.sessionId } })
+    expect(queryFrozen(h.engine.journal.projection, query)).toEqual(original)
+    expect(queryFrozenExecution(h.engine.journal.projection, { ...query, payloadDigest: digest('different') }))
+      .toMatchObject({ status: 'rejected', error: { code: 'operation-id-conflict' } })
+    await h.engine.shutdown()
+    const restarted = await h.start()
+    expect(queryFrozenExecution(restarted.journal.projection, query)).toMatchObject({ status: 'settled',
+      method: 'seat.openFrozen', result: { status: 'opened', sessionId: open.sessionId } })
+    await restarted.recordClosed({ sessionId: open.sessionId, phase: 'closed', reason: 'manual', stateVersion: 1,
+      endedAt: new Date().toISOString(), reportId: null, selfReport: null, selfReportStatus: 'not-submitted' })
+    expect(restarted.journal.projection.closed.has(open.sessionId)).toBe(true)
+    expect(queryFrozenExecution(restarted.journal.projection, query)).toMatchObject({ result: {
+      status: 'opened', sessionId: open.sessionId, phase: open.phase } })
+    expect(h.creates).toHaveLength(1)
+  } finally { await h.close() }
+})
+
+test.each(['intent', 'creating', 'created', 'configuring', 'opening-pending', 'active', 'opening-failed'] as const)(
+  'queries retained frozen opening phase %s without inventing completion', async (phase) => {
+    const { h, pending, query, original } = await admitForExecution('owner-target')
+    try {
+      await approveForExecution(h, pending)
+      await h.engine.drive()
+      const view = h.engine.journal.projection, open = [...view.opens.values()][0]
+      if (!open) throw new Error('Expected retained execution')
+      view.opens.set(open.sessionId, { ...open, phase })
+      const result = queryFrozenExecution(view, query)
+      if (phase === 'intent' || phase === 'creating') expect(result).toEqual(original)
+      else expect(result).toMatchObject({ status: 'settled', method: 'seat.openFrozen', result: {
+        status: 'opened', sessionId: open.sessionId, phase, nodeName: h.engine.options.nodeId, callbackIds: [] } })
+      expect(queryFrozen(view, query)).toEqual(original)
+      view.opens.set(open.sessionId, open)
+    } finally { await h.close() }
+  })
+
+test('queries prefill, no-effect failure and ambiguous frozen execution from retained evidence', async () => {
+  const { h, pending, query, original } = await admitForExecution('owner-target')
+  try {
+    await approveForExecution(h, pending)
+    await h.engine.drive()
+    const view = h.engine.journal.projection, open = [...view.opens.values()][0]
+    if (!open) throw new Error('Expected retained execution')
+    const prefill = { ...open, openingMode: 'prefill' as const, phase: 'active' as const }
+    view.opens.set(open.sessionId, prefill)
+    expect(queryFrozenExecution(view, query)).toMatchObject({ result: { status: 'prefilled', draft: 'Frozen text' } })
+    const { frozenOpening: _opening, ...withoutDraft } = prefill
+    view.opens.set(open.sessionId, withoutDraft)
+    expect(queryFrozenExecution(view, query)).toMatchObject({ result: { status: 'opened', phase: 'active' } })
+    const failure: T.SeatFailure = { code: 'unavailable', message: 'Creation refused', alternative: 'Inspect the original operation.',
+      retryable: false, effectState: 'none' }
+    view.opens.set(open.sessionId, { ...open, phase: 'opening-failed', failure })
+    expect(queryFrozenExecution(view, query)).toEqual({ status: 'settled', method: 'seat.openFrozen',
+      result: { status: 'rejected', error: failure } })
+    view.opens.set(open.sessionId, { ...open, phase: 'opening-failed', failure: { ...failure, effectState: 'partial' } })
+    expect(queryFrozenExecution(view, query)).toMatchObject({ result: { status: 'opened', phase: 'opening-failed', sessionId: open.sessionId } })
+    const other = 'ambiguous-session' as typeof open.sessionId
+    view.opens.set(other, { ...open, sessionId: other })
+    expect(queryFrozenExecution(view, query)).toEqual(original)
+    view.opens.delete(other)
+    view.opens.set(open.sessionId, open)
+  } finally { await h.close() }
+})
+
 test.each(['remote-source', 'owner-target'] as const)('refuses a changed frozen target revision before dispatch for %s', async (kind) => {
   const { h, pending, query, original, recheck } = await admitForExecution(kind)
   try {
