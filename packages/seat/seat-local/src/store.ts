@@ -168,11 +168,12 @@ export class SeatStore {
    * @param update - pure transform, evaluated only after CAS succeeds.
    * @param conflictCode - import callers invalidate selections rather than allowing revision-only retries.
    * @param maxSeats - optional distinct seat limit, including seats named by source-directory rules.
+   * @param finalize - Optional following CAS check; failure restores the prior catalog at a newer revision before releasing the queue.
    * @returns the revision committed by this operation, including on replay.
    */
   mutate(expectedRevision: number, operationId: SeatOperationId, request: unknown,
     update: (catalog: SeatCatalog) => void, conflictCode: 'revision-conflict' | 'import-preview-stale' = 'revision-conflict',
-    maxSeats?: number): Promise<number> {
+    maxSeats?: number, finalize?: () => Promise<void>): Promise<number> {
     if (this.closing) return Promise.reject(new Error('Catalog is closing'))
     const run = this.tail.then(async () => {
       const current = this.snapshot()
@@ -184,6 +185,7 @@ export class SeatStore {
       }
       if (current.revision !== expectedRevision) refuse(conflictCode, 'Catalog revision changed.',
         conflictCode === 'import-preview-stale' ? 'Preview the source again.' : 'Read the catalog and retry with its revision.')
+      const rollback = structuredClone(current)
       const before = new Map(current.definitions.map(item => [item.seat, item]))
       const beforeAuthority = { authority: current.authority, authorizations: [...current.authorizations] }
       update(current)
@@ -211,6 +213,14 @@ export class SeatStore {
       current.operations[operationId] = { digest: requestDigest, revision: current.revision }
       const committed = catalogSchema.parse(current)
       await this.domain.global.set(committed)
+      if (finalize) {
+        try { await finalize() }
+        catch (error) {
+          if (this.snapshot().revision !== committed.revision) throw new Error('Catalog compensation CAS failed', { cause: error })
+          await this.domain.global.set(catalogSchema.parse({ ...rollback, revision: committed.revision + 1 }))
+          throw error
+        }
+      }
       return committed.revision
     })
     this.tail = run.then(() => {}, () => {})

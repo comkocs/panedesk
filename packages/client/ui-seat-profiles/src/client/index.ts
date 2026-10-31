@@ -77,32 +77,51 @@ export async function apply(ctx: Context, config: Config = {}): Promise<() => Pr
     const accepted = <V extends SeatImportPlan | SeatCatalogMutationResult | CommitSeatImportResult>(
       value: V,
     ): Exclude<V, SeatRejected> => {
-      if ('status' in value && value.status === 'rejected') throw new Error(value.error.code)
+      if ('status' in value && value.status === 'rejected') throw Object.assign(new Error(value.error.code), { name: 'SeatWriteRejected' })
       return value as Exclude<V, SeatRejected>
+    }
+    const pendingWrites = new Map<string, SeatOperationId>()
+    const operation = (request: unknown): SeatOperationId => {
+      const key = JSON.stringify(request)
+      const id = pendingWrites.get(key) ?? randomUUID() as SeatOperationId
+      pendingWrites.set(key, id)
+      return id
+    }
+    const settled = (id: SeatOperationId): void => {
+      for (const [key, value] of pendingWrites) if (value === id) pendingWrites.delete(key)
     }
     const face: ProfileActions = {
       presets: config.presets ?? [], refresh,
       takeover: async (expectedRevision) => {
-        const result = await scope.remote.seatProfiles.takeover({ expectedRevision, confirmed: true,
-          operationId: randomUUID() as SeatOperationId })
+        const operationId = operation({ kind: 'takeover', expectedRevision })
+        const result = await scope.remote.seatProfiles.takeover({ expectedRevision, confirmed: true, operationId })
         if (!result.ok) throw new Error(result.error.code)
+        settled(operationId)
         accepted(result.value)
         refresh()
       },
       save: async (definition, expectedRevision) => {
-        const result = await scope.remote.seatProfiles.save({ definitionJson: JSON.stringify(definition), expectedRevision,
-          operationId: randomUUID() as SeatOperationId })
+        const definitionJson = JSON.stringify(definition)
+        const operationId = operation({ kind: 'save', definitionJson, expectedRevision })
+        const result = await scope.remote.seatProfiles.save({ definitionJson, expectedRevision, operationId })
         if (!result.ok) throw new Error(result.error.code)
+        settled(operationId)
         const receipt = accepted(result.value)
         refresh()
         return receipt.revision
       },
       remove: async (snapshot, seat) => {
-        const result = await scope.remote.seatProfiles.deleteProfile({ seat, expectedRevision: snapshot.revision, confirmed: true,
-          windows: snapshot.windows.filter(item => item.seat === seat).map(item => item.sessionId),
-          pending: snapshot.pending.filter(item => item.seat === seat).map(item => item.queueItemId),
-          operationId: randomUUID() as SeatOperationId })
+        const windows = snapshot.windows.filter(item => item.seat === seat)
+        const pending = snapshot.pending.filter(item => item.seat === seat)
+        const request = { seat, expectedRevision: snapshot.revision, confirmed: true as const,
+          engineSequence: snapshot.engineSequence,
+          windows: windows.map(item => item.sessionId), pending: pending.map(item => item.queueItemId),
+          windowVersions: windows.map(({ sessionId, stateVersion }) => ({ sessionId, stateVersion })),
+          pendingVersions: pending.map(({ queueItemId, stateVersion }) => ({ queueItemId, stateVersion })) }
+        const operationId = operation({ kind: 'remove', ...request })
+        const result = await scope.remote.seatProfiles.deleteProfile({ ...request, operationId })
         if (!result.ok) throw new Error(result.error.code)
+        settled(operationId)
         accepted(result.value)
         refresh()
       },
@@ -116,9 +135,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<() => Pr
         return accepted(result.value)
       },
       commit: async (plan, selectedRows) => {
+        const operationId = operation({ kind: 'commit', planId: plan.planId, selectedRows, expectedRevision: plan.baseRevision })
         const result = await scope.remote.seatProfiles.commit({ planId: plan.planId, selectedRows,
-          expectedRevision: plan.baseRevision, operationId: randomUUID() as SeatOperationId })
+          expectedRevision: plan.baseRevision, operationId })
         if (!result.ok) throw new Error(result.error.code)
+        settled(operationId)
         accepted(result.value)
         refresh()
       },

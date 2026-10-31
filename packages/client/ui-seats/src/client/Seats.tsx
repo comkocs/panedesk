@@ -1,5 +1,5 @@
 /** Seat entry presentations; all business facts arrive through the shared resource. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Input, Menu, Modal, StateDot, Toast, IconPlusOutlineRegular, IconWarningOutlineRegular, IconEllipsisOutlineRegular, IconFlatListOutlineRegular } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
@@ -25,6 +25,7 @@ export interface SeatsInjected {
   prepareAdd: (request: SeatAddRequest) => Promise<PreviewSeatImportRequest>
   previewAdd: (request: PreviewSeatImportRequest) => Promise<SeatAddPlan>
   commitAdd: (plan: SeatAddPlan) => Promise<void>
+  refreshSeats?: () => void
   hooks: { seatNotice: ObservableSnapshot<{ seq: number; message: string; sessionId?: SessionId } | null> }
 }
 
@@ -56,8 +57,10 @@ function DirectoryConfirmation({ cwd, pending, setPending, openSeat, t }: Direct
 }
 
 /** Four-field local draft; no catalog mutation occurs until its preview is confirmed. */
-function AddSeat({ open, close, models, prepareAdd, previewAdd, commitAdd, t }: Pick<SeatsSectionProps,
-  'prepareAdd' | 'previewAdd' | 'commitAdd' | 't'> & {
+function AddSeat({ open, close, models, prepareAdd, previewAdd, commitAdd, refreshSeats, observation, live, t }: Pick<SeatsSectionProps,
+  'prepareAdd' | 'previewAdd' | 'commitAdd' | 'refreshSeats' | 't'> & {
+    observation: SeatOverview
+    live: boolean
     open: boolean
     close: () => void
     models: Awaited<ReturnType<SeatsInjected['loadModels']>>
@@ -70,6 +73,13 @@ function AddSeat({ open, close, models, prepareAdd, previewAdd, commitAdd, t }: 
   const [plan, setPlan] = useState<SeatAddPlan>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [uncertain, setUncertain] = useState(false)
+  const [refreshBase, setRefreshBase] = useState<SeatOverview>()
+  useEffect(() => {
+    if (refreshBase && live && observation !== refreshBase) {
+      setUncertain(false); setRefreshBase(undefined); setError('')
+    }
+  }, [refreshBase, live, observation])
   const preview = async (): Promise<void> => {
     if (!model) { setError(t('modelRequired')); return }
     if (!name.trim() || !directory.trim() || !opening.trim()) { setError(t('fieldsRequired')); return }
@@ -91,13 +101,17 @@ function AddSeat({ open, close, models, prepareAdd, previewAdd, commitAdd, t }: 
     if (!plan) return
     setBusy(true); setError('')
     try { await commitAdd(plan); close() }
-    catch (_failure) { setPlan(undefined); setError(t('commitRejected')) }
+    catch (failure) {
+      setPlan(undefined); setError(t('commitRejected'))
+      if (!(failure instanceof Error && failure.name === 'SeatWriteRejected')) { setRefreshBase(undefined); setUncertain(true) }
+    }
     finally { setBusy(false) }
   }
   const changed = (): void => { setPlan(undefined); setError('') }
   return <Modal open={open} title={t('addSeat')} closeLabel={t('close')} onClose={() => { if (!busy) close() }} footer={<>
     <Button disabled={busy} onClick={close}>{t('cancel')}</Button>
-    <Button variant="primary" disabled={busy} onClick={() => { void (plan ? commit() : preview()) }}>
+    {uncertain && <Button disabled={busy || !refreshSeats} onClick={() => { setRefreshBase(observation); refreshSeats?.() }}>{t('retry')}</Button>}
+    <Button variant="primary" disabled={busy || uncertain || !live} onClick={() => { void (plan ? commit() : preview()) }}>
       {t(plan ? 'confirmAdd' : 'preview')}</Button>
   </>}>
     <label>{t('seatName')}<Input aria-label={t('seatName')} data-modal-autofocus value={name} disabled={busy}
@@ -173,7 +187,7 @@ export function SeatPicker({ currentDirectory: cwd, useResource, useSeatNotice, 
  * @returns The diagnostic indicator or seat section, including an empty catalog; absent providers add no space without diagnostics.
  */
 export function SeatsSection({ wide, expandSidebar, useResource, useSessions, openSeat, openWindow, closeWindow,
-  loadModels, prepareAdd, previewAdd, commitAdd, openProfiles, openOverview, openDesk, t }: SeatsSectionProps) {
+  loadModels, prepareAdd, previewAdd, commitAdd, refreshSeats, openProfiles, openOverview, openDesk, t }: SeatsSectionProps) {
   const resource = useResource<'seats'>('dsh-resource://seats/local')
   const directory = useSessions((snapshot) => {
     const rows = snapshot.ids.map(id => snapshot.byId[id])
@@ -208,7 +222,8 @@ export function SeatsSection({ wide, expandSidebar, useResource, useSessions, op
     {data.available && data.definitions.length === 0 && <p>{t('empty')}</p>}
     {addFailure && <p role="alert">{t('modelsFailed')}</p>}
     {adding && <AddSeat open close={() => { setAdding(false) }} models={models}
-      prepareAdd={prepareAdd} previewAdd={previewAdd} commitAdd={commitAdd} t={t} />}
+      prepareAdd={prepareAdd} previewAdd={previewAdd} commitAdd={commitAdd} {...(refreshSeats ? { refreshSeats } : {})}
+      observation={data} live={resource.status === 'live'} t={t} />}
     <Diagnostics data={data} t={t} />
     {resource.status === 'failed' && <p role="alert">{t('unavailable')}</p>}
     {!data.complete && <p role="alert">{t('incomplete')}</p>}

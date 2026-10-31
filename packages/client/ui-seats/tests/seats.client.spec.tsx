@@ -397,6 +397,8 @@ describe('seat entry presentations', () => {
     fireEvent.click(form.getByRole('button', { name: t('confirmAdd') }))
     await vi.waitFor(() => { expect(form.getByRole('alert').textContent).toBe(t('commitRejected')) })
     expect(form.queryByRole('button', { name: t('confirmAdd') })).toBeNull()
+    expect(form.getByRole('button', { name: t('preview') }).hasAttribute('disabled')).toBe(true)
+    fireEvent.click(form.getByRole('button', { name: t('preview') }))
     expect(commitAdd).toHaveBeenCalledOnce()
   })
   it('refuses a preview that would update an existing definition', async () => {

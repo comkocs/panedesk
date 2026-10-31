@@ -14,7 +14,7 @@ const definition: SeatDefinition = { schemaVersion: 1, revision: 1, seat: 'seat-
   worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 48 } }
 function fixture(language: 'en' | 'zh') {
   const copy = language === 'en' ? en : zh
-  const snapshot: SeatProfileSnapshot = { revision: 7, authority: 'seat-store', definitions: [definition], windows: [{ seat: definition.seat, sessionId: 'window-a' as SeatProfileSnapshot['windows'][number]['sessionId'], nodeId: 'node-a' as SeatProfileSnapshot['windows'][number]['nodeId'], title: 'Active draft' }],
+  const snapshot: SeatProfileSnapshot = { revision: 7, engineSequence: 3, authority: 'seat-store', definitions: [definition], windows: [{ seat: definition.seat, sessionId: 'window-a' as SeatProfileSnapshot['windows'][number]['sessionId'], nodeId: 'node-a' as SeatProfileSnapshot['windows'][number]['nodeId'], title: 'Active draft', stateVersion: 3 }],
     pending: [{ seat: definition.seat, queueItemId: 'approval-a' as SeatProfileSnapshot['pending'][number]['queueItemId'], reason: 'approval', stateVersion: 2 }], recentOpen: {} }
   const save = vi.fn(async () => 8), remove = vi.fn(async () => {})
   const props = { t: (key: keyof typeof en) => copy[key],
@@ -38,6 +38,47 @@ describe('seat profile settings', () => {
     fireEvent.click(within(modal).getByRole('button', { name: f.copy.confirmRemove }))
     expect(f.remove).toHaveBeenCalledWith(f.snapshot, 'seat-a')
     expect(await screen.findByText(f.copy.removed)).toBeTruthy()
+  })
+  it.each(['en', 'zh'] as const)('blocks save and deletion after a timeout until a refreshed observation arrives: %s', async (language) => {
+    const f = fixture(language)
+    f.save.mockRejectedValueOnce(new Error('Timed out'))
+    const view = render(<Profiles {...f.props} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.save }))
+    expect(await screen.findByText(f.copy.failed)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: f.copy.save }))
+    fireEvent.click(screen.getByRole('button', { name: f.copy.remove }))
+    expect(f.save).toHaveBeenCalledTimes(1)
+    expect(f.remove).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: f.copy.refresh }))
+    expect(screen.getByRole('button', { name: f.copy.save }).hasAttribute('disabled')).toBe(true)
+    const useResource = (() => ({ status: 'live', value: { ...f.snapshot, revision: 8 }, failure: undefined })) as ProfilesProps['useResource']
+    view.rerender(<Profiles {...f.props} useResource={useResource} />)
+    expect(screen.getByRole('button', { name: f.copy.save }).hasAttribute('disabled')).toBe(false)
+  })
+  it('does not accept an observation requested before the write became unknown', async () => {
+    const f = fixture('en')
+    const pending = Promise.withResolvers<number>()
+    f.save.mockImplementationOnce(() => pending.promise)
+    const view = render(<Profiles {...f.props} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.save }))
+    fireEvent.click(screen.getByRole('button', { name: f.copy.refresh }))
+    pending.reject(new Error('Timed out'))
+    await screen.findByText(f.copy.failed)
+    const useResource = (() => ({ status: 'live', value: { ...f.snapshot, revision: 8 }, failure: undefined })) as ProfilesProps['useResource']
+    view.rerender(<Profiles {...f.props} useResource={useResource} />)
+    expect(screen.getByRole('button', { name: f.copy.save }).hasAttribute('disabled')).toBe(true)
+    expect(f.save).toHaveBeenCalledOnce()
+  })
+  it.each(['en', 'zh'] as const)('blocks writes after a deletion timeout even when the editor is reselected: %s', async (language) => {
+    const f = fixture(language)
+    f.remove.mockRejectedValueOnce(new Error('Disconnected'))
+    render(<Profiles {...f.props} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.remove }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: f.copy.confirmRemove }))
+    await screen.findByText(f.copy.failed)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: f.copy.confirmRemove }))
+    expect(f.remove).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: f.copy.save }).hasAttribute('disabled')).toBe(true)
   })
   it.each(['en', 'zh'] as const)('keeps the edited draft when CAS rejects it: %s', async (language) => {
     const f = fixture(language)
@@ -88,6 +129,24 @@ describe('seat profile settings', () => {
     fireEvent.click(screen.getByRole('button', { name: f.copy.save }))
     await screen.findByText(f.copy.saved)
     expect(f.save).toHaveBeenLastCalledWith({ ...definition, revision: 3, model: 'model-b', node: 'node-b' }, 8)
+  })
+  it.each(['en', 'zh'] as const)('blocks a timed-out import until refreshed observations arrive: %s', async (language) => {
+    const f = fixture(language)
+    const plan: SeatImportPlan = { planId: 'plan-a' as SeatImportPlanId, sourceFileHash: 'source-a' as SeatDigest,
+      mappingHash: 'mapping-a' as SeatDigest, baseRevision: 7,
+      rows: [{ row: 1, seat: definition.seat, definition, rowHash: 'row-a' as SeatDigest, columnHashes: {}, action: 'create', selected: false, diagnostics: [], differences: [] }] }
+    const commit = vi.fn(async () => { throw new Error('Timed out') })
+    render(<Profiles {...f.props} preview={async () => plan} commit={commit} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.import }))
+    fireEvent.change(screen.getByLabelText(f.copy.sourcePath), { target: { value: '/source.csv' } })
+    fireEvent.click(screen.getByRole('button', { name: f.copy.preview }))
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: f.copy.commit }))
+    await screen.findByText(f.copy.failed)
+    expect(screen.getByRole('button', { name: f.copy.preview }).closest('fieldset')?.disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.refresh }))
+    expect(screen.getByRole('button', { name: f.copy.preview }).closest('fieldset')?.disabled).toBe(true)
+    expect(commit).toHaveBeenCalledOnce()
   })
   it.each(['en', 'zh'] as const)('previews a table and imports only explicitly checked rows: %s', async (language) => {
     const f = fixture(language)

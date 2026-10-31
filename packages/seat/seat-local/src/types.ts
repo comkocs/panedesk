@@ -7,7 +7,8 @@ export interface SeatProfileSnapshot {
   revision: number
   authority: T.SeatAuthority
   definitions: readonly T.SeatDefinition[]
-  windows: readonly Pick<T.SeatWindowView, 'seat' | 'sessionId' | 'title' | 'nodeId'>[]
+  engineSequence: number
+  windows: readonly Pick<T.SeatWindowView, 'seat' | 'sessionId' | 'title' | 'nodeId' | 'stateVersion'>[]
   pending: readonly Pick<T.PendingSeatItem, 'queueItemId' | 'seat' | 'reason' | 'stateVersion'>[]
   recentOpen: Readonly<Record<string, T.SeatTimestamp>>
 }
@@ -20,4 +21,7 @@ export interface RemoveSeatProfileRequest {
   confirmed: true
   windows: readonly SessionId[]
   pending: readonly T.QueueItemId[]
+  engineSequence: number
+  windowVersions: readonly Pick<T.SeatWindowView, 'sessionId' | 'stateVersion'>[]
+  pendingVersions: readonly Pick<T.PendingSeatItem, 'queueItemId' | 'stateVersion'>[]
 }

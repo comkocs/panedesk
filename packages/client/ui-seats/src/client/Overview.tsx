@@ -1,5 +1,5 @@
 /** Middle-column seat facts and manual batch opening. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Checkbox } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { SeatName } from '@panedesk/dsh-seat/types'
@@ -20,17 +20,25 @@ export function Overview({ useResource, batch, refresh, t }: OverviewProps) {
   const [busy, setBusy] = useState(false)
   const [outcome, setOutcome] = useState<'success' | 'failure' | null>(null)
   const data = resource.value
-  if (resource.status === 'failed') return <section><h1>{t('overview')}</h1><p role="alert">{t('overviewFailed')}</p><Button onClick={refresh}>{t('retry')}</Button></section>
+  const [uncertain, setUncertain] = useState(false)
+  const [refreshBase, setRefreshBase] = useState<typeof data>()
+  useEffect(() => {
+    if (refreshBase && data && data !== refreshBase && resource.status === 'live') {
+      setUncertain(false); setRefreshBase(undefined); setOutcome(null)
+    }
+  }, [data, refreshBase, resource.status])
+  const observe = (): void => { setRefreshBase(data); refresh() }
+  if (resource.status === 'failed') return <section><h1>{t('overview')}</h1><p role="alert">{t('overviewFailed')}</p><Button onClick={observe}>{t('retry')}</Button></section>
   if (!data) return <p role="status">{t('loading')}</p>
   const checked = selected.filter(name => data.definitions.some(item => item.seat === name))
   return <section className={css.overview}>
     <h1>{t('overview')}</h1>
-    <Button disabled={busy || checked.length === 0} onClick={() => {
-      setBusy(true); setOutcome(null)
-      void batch(checked).then(() => { setOutcome('success'); setSelected([]) }, () => { setOutcome('failure') })
+    <Button disabled={busy || uncertain || resource.status !== 'live' || checked.length === 0} onClick={() => {
+      setBusy(true); setOutcome(null); setRefreshBase(undefined)
+      void batch(checked).then(() => { setOutcome('success'); setSelected([]) }, (error: unknown) => { setOutcome('failure'); if (!(error instanceof Error && error.name === 'SeatWriteRejected')) setUncertain(true) })
         .finally(() => { setBusy(false) })
     }}>{t(busy ? 'loading' : 'batchOpen')}</Button>
-    <Button disabled={busy} onClick={refresh}>{t('retry')}</Button>
+    <Button disabled={busy} onClick={observe}>{t('retry')}</Button>
     {outcome && <p role={outcome === 'failure' ? 'alert' : 'status'}>{t(outcome === 'success' ? 'batchSuccess' : 'batchFailed')}</p>}
     {data.definitions.length === 0 ? <p>{t('empty')}</p> : <table>
       <thead><tr>{(['seatName', 'node', 'opened', 'model', 'recentOpen', 'pendingCount'] as const).map(key => <th key={key}>{t(key)}</th>)}</tr></thead>

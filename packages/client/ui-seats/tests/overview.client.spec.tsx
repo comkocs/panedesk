@@ -14,6 +14,27 @@ const definition: SeatDefinition = { schemaVersion: 1, revision: 1, seat: 'seat-
   worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 48 } }
 afterEach(cleanup)
 describe('middle-column seat overview', () => {
+  it.each(['en', 'zh'] as const)('blocks a timed-out batch until refresh supplies a new live observation: %s', async (language) => {
+    const copy = language === 'en' ? en : zh
+    const batch = vi.fn(async () => { throw new Error('Timed out') })
+    const value = { revision: 1, engineSequence: 0, authority: 'seat-store' as const, definitions: [definition], windows: [], pending: [], recentOpen: {} }
+    const unused = (() => { throw new Error('Unused fixture hook') }) as never
+    const props: OverviewProps = { batch, refresh: vi.fn(), t: key => Object.entries(copy).find(([name]) => name === key)?.[1] ?? key,
+      useResource: (() => ({ status: 'live', value, failure: undefined })) as OverviewProps['useResource'],
+      usePanelInfo: unused, useRemoteAccess: unused, useSessions: unused, useSessionStatus: unused,
+      useSessionRetainInfo: unused, useSessionAccess: unused, useWorkspaces: unused, useWorkspaceAccess: unused }
+    const view = render(<Overview {...props} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'seat-a' }))
+    fireEvent.click(screen.getByRole('button', { name: copy.batchOpen }))
+    await screen.findByText(copy.batchFailed)
+    fireEvent.click(screen.getByRole('button', { name: copy.batchOpen }))
+    expect(batch).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: copy.retry }))
+    expect(screen.getByRole('button', { name: copy.batchOpen }).hasAttribute('disabled')).toBe(true)
+    const useResource = (() => ({ status: 'live', value: { ...value, engineSequence: 1 }, failure: undefined })) as OverviewProps['useResource']
+    view.rerender(<Overview {...props} useResource={useResource} />)
+    expect(screen.getByRole('button', { name: copy.batchOpen }).hasAttribute('disabled')).toBe(false)
+  })
   it.each(['en', 'zh'] as const)('shows real opening time and opens only checked seats: %s', async (language) => {
     const copy = language === 'en' ? en : zh
     const batch = vi.fn(async () => {})

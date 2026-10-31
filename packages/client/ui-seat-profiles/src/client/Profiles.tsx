@@ -1,5 +1,5 @@
 /** Profile settings with staged edits, impact confirmation and mapped table previews. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Checkbox, Input, Menu, Modal } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@panedesk/dsh-client-ui-slots'
 import type * as T from '@panedesk/dsh-seat/types'
@@ -36,7 +36,12 @@ function message(error: unknown, t: ProfilesProps['t']): string {
   return t(error instanceof Error && error.message === 'revision-conflict' ? 'conflict'
     : error instanceof SyntaxError || error instanceof Error && error.message === 'invalid-definition' ? 'invalid' : 'failed')
 }
-function Editor({ definition, snapshot, save, remove, blocked, t }: Copy & Pick<ProfileActions, 'save' | 'remove'> & {
+function unknownWrite(error: unknown): boolean {
+  return !(error instanceof SyntaxError || error instanceof Error && (error.name === 'SeatWriteRejected'
+    || ['revision-conflict', 'invalid-definition'].includes(error.message)))
+}
+function Editor({ definition, snapshot, save, remove, blocked, onUnknown, t }: Copy & Pick<ProfileActions, 'save' | 'remove'> & {
+  onUnknown(this: void): void
   definition: T.SeatDefinition
   snapshot: SeatProfileSnapshot
   blocked: boolean
@@ -60,7 +65,7 @@ function Editor({ definition, snapshot, save, remove, blocked, t }: Copy & Pick<
   const run = async (action: () => Promise<void>, success: ProfileKey): Promise<void> => {
     setBusy(true); setNotice('')
     try { await action(); setNotice(t(success)); setConfirm(false) }
-    catch (error) { setNotice(message(error, t)) }
+    catch (error) { if (unknownWrite(error)) { setNotice(''); onUnknown() } else setNotice(message(error, t)) }
     finally { setBusy(false) }
   }
   const submit = async (): Promise<void> => {
@@ -79,28 +84,34 @@ function Editor({ definition, snapshot, save, remove, blocked, t }: Copy & Pick<
     <h2>{definition.seat}</h2><p>{t('immutable')}</p>
     {primary.map(field)}
     <details><summary>{t('advanced')}</summary>{advanced.map(field)}</details>
-    <div className={css.actions}><Button disabled={busy || deleted} onClick={() => { void run(submit, 'saved') }}>{t(busy ? 'saving' : 'save')}</Button>
-      <Button disabled={busy || deleted} onClick={() => { setConfirm(true) }}>{t('remove')}</Button></div>
+    <div className={css.actions}><Button disabled={busy || deleted || blocked} onClick={() => { void run(submit, 'saved') }}>{t(busy ? 'saving' : 'save')}</Button>
+      <Button disabled={busy || deleted || blocked} onClick={() => { setConfirm(true) }}>{t('remove')}</Button></div>
     {notice && <p role="status">{notice}</p>}
     <Modal open={confirm} title={t('removeTitle')} closeLabel={t('cancel')} onClose={() => { if (!busy) setConfirm(false) }}
       footer={<><Button disabled={busy} onClick={() => { setConfirm(false) }}>{t('cancel')}</Button>
         <Button disabled={busy || blocked} onClick={() => { if (!blocked) void run(async () => { await remove(base.snapshot, definition.seat); setDeleted(true) }, 'removed') }}>{t('confirmRemove')}</Button></>}>
       <p>{t('removeWarning')}</p><h3>{t('windows')}</h3>
-      {windows.length === 0 ? <p>{t('none')}</p> : <ul>{windows.map(item => <li key={item.sessionId}>{item.title} — {item.sessionId}</li>)}</ul>}
+      {windows.length === 0 ? <p>{t('none')}</p> : <ul>{windows.map(item => <li key={item.sessionId}><span>{item.title} — {item.sessionId}</span> <small>{t('stateVersion')}: {item.stateVersion}</small></li>)}</ul>}
       <h3>{t('pending')}</h3>{pending.length === 0 ? <p>{t('none')}</p>
-        : <ul>{pending.map(item => <li key={item.queueItemId}>{item.queueItemId} — {item.reason}</li>)}</ul>}
+        : <ul>{pending.map(item => <li key={item.queueItemId}><span>{item.queueItemId} — {item.reason}</span> <small>{t('stateVersion')}: {item.stateVersion}</small></li>)}</ul>}
     </Modal>
   </div>
 }
-function Importer({ preview, commit, presets, definition, t }: Copy & Pick<ProfileActions, 'preview' | 'commit' | 'presets'> & { definition: T.SeatDefinition | undefined }) {
+function Importer({ preview, commit, presets, definition, onUnknown, t }: Copy & Pick<ProfileActions, 'preview' | 'commit' | 'presets'> & {
+  definition: T.SeatDefinition | undefined
+  onUnknown(this: void): void
+}) {
   const [sourcePath, setSourcePath] = useState(''), [format, setFormat] = useState<'csv' | 'markdown'>('markdown')
   const [mapping, setMapping] = useState('{"seat":"seat"}'), [defaults, setDefaults] = useState('{}'), [table, setTable] = useState('')
   const [plan, setPlan] = useState<T.SeatImportPlan>(), [selected, setSelected] = useState<readonly number[]>([])
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState(''), [menu, setMenu] = useState(false)
   const changed = (): void => { setPlan(undefined); setSelected([]); setNotice('') }
-  const run = async (action: () => Promise<void>): Promise<void> => {
+  const run = async (action: () => Promise<void>, writing = false): Promise<void> => {
     setBusy(true); setNotice('')
-    try { await action() } catch (error) { setNotice(message(error, t)); setPlan(undefined); setSelected([]) }
+    try { await action() } catch (error) {
+      setPlan(undefined); setSelected([])
+      if (writing && unknownWrite(error)) { setNotice(''); onUnknown() } else setNotice(message(error, t))
+    }
     finally { setBusy(false) }
   }
   return <div className={css.form}><h2>{t('import')}</h2><p>{t('sourceChanged')}</p>
@@ -130,7 +141,7 @@ function Importer({ preview, commit, presets, definition, t }: Copy & Pick<Profi
       {row.differences.map(item => <p key={item.field}>{item.field}: {JSON.stringify(item.local)} → {JSON.stringify(item.source)}</p>)}
     </div>)}</div><Button disabled={busy || selected.length === 0} onClick={() => { void run(async () => {
       await commit(plan, selected); setPlan(undefined); setSelected([]); setNotice(t('imported'))
-    }) }}>{t('commit')}</Button></>}
+    }, true) }}>{t('commit')}</Button></>}
     {notice && <p role="status">{notice}</p>}
   </div>
 }
@@ -146,10 +157,18 @@ export function Profiles(props: ProfilesProps) {
   const [transferring, setTransferring] = useState(false)
   const [transferNotice, setTransferNotice] = useState('')
   const data = resource.value
+  const [uncertain, setUncertain] = useState(false)
+  const [refreshBase, setRefreshBase] = useState<SeatProfileSnapshot>()
+  useEffect(() => {
+    if (refreshBase && data && data !== refreshBase && resource.status === 'live') {
+      setUncertain(false); setRefreshBase(undefined); setEditing(undefined); setReload(value => value + 1)
+    }
+  }, [data, refreshBase, resource.status])
+  const onUnknown = (): void => { setRefreshBase(undefined); setUncertain(true) }
   if (!data) return resource.status === 'failed'
     ? <section><h2>{t('nav')}</h2><p role="alert">{t('unavailable')}</p><Button onClick={refresh}>{t('refresh')}</Button></section>
     : <p role="status">{t('loading')}</p>
-  const blocked = resource.status === 'failed' || transferring
+  const blocked = resource.status !== 'live' || transferring || uncertain
   const definition = data.definitions.find(item => item.seat === seat)
   const current = editing?.definition.seat === seat ? editing : definition ? { snapshot: data, definition } : undefined
   const select = (definition: T.SeatDefinition): void => {
@@ -157,10 +176,11 @@ export function Profiles(props: ProfilesProps) {
   }
   return <section className={css.page}><h2>{t('nav')}</h2>
     <div className={css.actions}><Button onClick={() => { actions.select(null); setEditing(undefined); setImporting(false) }}>{t('back')}</Button>
-      <Button onClick={() => { setEditing(undefined); setReload(reload + 1); refresh() }}>{t('refresh')}</Button>
+      <Button onClick={() => { setRefreshBase(data); refresh() }}>{t('refresh')}</Button>
       <Button onClick={() => { setImporting(!importing) }}>{t('import')}</Button></div>
     {data.authority === 'import-source' && <><p>{t('sourceOwned')}</p><Button disabled={blocked} onClick={() => { setTakeover(true) }}>{t('takeover')}</Button></>}
     {transferNotice && <p role="status">{transferNotice}</p>}
+    {uncertain && <p role="status">{t('failed')}</p>}
     <Modal open={takeover} title={t('takeover')} closeLabel={t('cancel')} onClose={() => { if (!transferring) setTakeover(false) }}
       footer={<><Button disabled={transferring} onClick={() => { setTakeover(false) }}>{t('cancel')}</Button>
         <Button disabled={blocked} onClick={() => {
@@ -172,8 +192,8 @@ export function Profiles(props: ProfilesProps) {
         }}>{t('confirmTakeover')}</Button></>}><p>{t('takeoverWarning')}</p></Modal>
     {resource.status === 'failed' && <p role="alert">{t('unavailable')}</p>}
     <fieldset disabled={blocked}>
-      {importing ? <Importer {...props} definition={current?.definition} /> : current
-        ? <Editor key={`${current.definition.seat}:${reload}`} {...props} {...current} blocked={blocked} />
+      {importing ? <Importer {...props} definition={current?.definition} onUnknown={onUnknown} /> : current
+        ? <Editor key={`${current.definition.seat}:${reload}`} {...props} {...current} blocked={blocked} onUnknown={onUnknown} />
         : data.definitions.length === 0 ? <p>{t('empty')}</p>
           : <ul>{data.definitions.map(item => <li key={item.seat}><Button onClick={() => { select(item) }}>{item.seat}</Button></li>)}</ul>}
     </fieldset>

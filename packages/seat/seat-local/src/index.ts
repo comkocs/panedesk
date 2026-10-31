@@ -115,7 +115,7 @@ export function apply(ctx: Context, config: Config): void {
           })
         }))
       const openingContexts = installOpeningContexts(ctx, installed)
-      registerProfileAccess(ctx, store, installed, config)
+      registerProfileAccess(ctx, store, installed, config, runtime)
       registerLocalReadAccess(ctx, installed, config)
       registerLocalSessionAccess(ctx, installed, config)
       registerLocalWindowsAccess(ctx, installed, config)

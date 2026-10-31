@@ -166,14 +166,22 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       if (!result.ok) throw new Error(result.error.message)
       return addPlan.parse(result.value)
     }
+    const addOperations = new Map<string, SeatOperationId>()
     const commitAdd = async (plan: SeatAddPlan): Promise<void> => {
+      const key = JSON.stringify({ planId: plan.planId, baseRevision: plan.baseRevision })
+      const operationId = addOperations.get(key) ?? `seat-ui:${randomUUID()}` as SeatOperationId
+      addOperations.set(key, operationId)
       const request = { planId: plan.planId, expectedRevision: plan.baseRevision,
-        selectedRows: plan.rows.filter(row => row.action === 'create').map(row => row.row),
-        operationId: `seat-ui:${randomUUID()}` as SeatOperationId }
+        selectedRows: plan.rows.filter(row => row.action === 'create').map(row => row.row), operationId }
       try {
         const result = await connection.rpc.call('/api', 'seats/import.commit', { args: { request } })
         if (!result.ok) throw new Error(result.error.message)
+        if (typeof result.value === 'object' && result.value !== null && 'status' in result.value && result.value.status === 'rejected') {
+          addOperations.delete(key)
+          throw Object.assign(new Error(t('commitRejected')), { name: 'SeatWriteRejected' })
+        }
         addCommit.parse(result.value)
+        addOperations.delete(key)
       } finally { refresh() }
     }
     const dashboardRefreshers = new Set<() => void>()
@@ -201,13 +209,20 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       },
     }))
     ctx.inject(['layout'], (scope) => {
+      const batchOperations = new Map<string, SeatOperationId>()
       scope.slots.inject('main', () => scope.slots.register({ name: 'main', key: 'seat-overview' as MainPanelId,
         locale: 'seats', inject: () => ({ refresh: refreshDashboard,
           batch: async (seats: readonly SeatName[]) => {
             try {
-              const result = await ctx.remote.seatUi.openBatch({ seats, operationId: `seat-ui:${randomUUID()}` as SeatOperationId })
+              const key = JSON.stringify([...seats].sort())
+              const operationId = batchOperations.get(key) ?? `seat-ui:${randomUUID()}` as SeatOperationId
+              batchOperations.set(key, operationId)
+              const result = await ctx.remote.seatUi.openBatch({ seats, operationId })
               if (!result.ok) throw new Error(result.error.message)
-              if (result.value.status === 'rejected') throw new Error(result.value.error.message)
+              if (result.value.status === 'rejected') {
+                batchOperations.delete(key)
+                throw Object.assign(new Error(result.value.error.message), { name: 'SeatWriteRejected' })
+              }
               let failed = false
               for (const item of result.value.results) {
                 const value = item.result
@@ -218,13 +233,15 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
                 } else if (value.status === 'switched') openWindow(value.window.sessionId)
                 else failed = true
               }
-              if (failed) throw new Error(t('batchFailed'))
+              batchOperations.delete(key)
+              if (failed) throw Object.assign(new Error(t('batchFailed')), { name: 'SeatWriteRejected' })
             } finally { refresh(); refreshDashboard() }
           },
         }),
       }, Overview))
     })
     const injected = (): SeatsInjected => ({ openSeat, openWindow, closeWindow, loadModels, prepareAdd, previewAdd, commitAdd,
+      refreshSeats: refresh,
       openProfiles: (seat) => {
         const navigation = ctx.get('seatProfilesNavigation')
         if (navigation) navigation.open(seat)

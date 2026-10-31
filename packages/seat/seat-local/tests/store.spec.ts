@@ -26,6 +26,19 @@ describe('catalog ownership', () => {
     expect((await stat(join(root, 'catalog.lock'))).mode & 0o777).toBe(0o600)
   })
 
+  it('compensates a catalog commit when the following engine CAS fails', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    const saved = definition(root)
+    await store.mutate(0, operation('seed-profile'), {}, (catalog) => { catalog.definitions.push(saved) })
+    const next = store.mutate(1, operation('remove-profile'), {}, (catalog) => { catalog.definitions = [] },
+      'revision-conflict', undefined, async () => { throw new Error('Engine CAS changed') })
+    await expect(next).rejects.toThrow('Engine CAS changed')
+    expect(store.snapshot().definitions).toEqual([saved])
+    expect(store.snapshot().operations['remove-profile']).toBeUndefined()
+    expect(store.snapshot().revision).toBe(3)
+  })
+
   it('does not steal a live writer and releases ownership after draining', async () => {
     const fixture = await storeFixture(); fixtures.push(fixture)
     const error: unknown = await SeatStore.open(fixture.facility, fixture.root).catch((reason: unknown) => reason)

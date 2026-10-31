@@ -5,17 +5,41 @@ import { SeatEngine } from '@panedesk/dsh-seat-engine'
 import type { SeatProfileSnapshot, RemoveSeatProfileRequest } from './types.ts'
 export type { SeatProfileSnapshot, RemoveSeatProfileRequest } from './types.ts'
 import type { SeatStore } from './store.ts'
-import type { LocalSeatOptions } from './service-options.ts'
+import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { refuse, SeatLocalError } from './errors.ts'
 import { parseDefinition } from './schema.ts'
+import { digest } from './store.ts'
 
 /** Owner-only capabilities; every call checks live invocation authority. */
 export interface SeatProfileAccess {
+  /** Read catalog definitions and complete deletion impact.
+   * @returns The current catalog and versioned window and approval observations.
+   */
   read(): Promise<SeatProfileSnapshot>
+  /** Transfer source-owned editing authority after confirmation.
+   * @param request - Observed catalog revision and replay identity.
+   * @returns The saved revision or a structured refusal.
+   */
   takeover(request: { expectedRevision: number; operationId: T.SeatOperationId; confirmed: true }): Promise<T.SeatCatalogMutationResult>
+  /** Remove a confirmed definition while retaining its windows and approvals.
+   * @param request - Catalog CAS and confirmed versioned impact.
+   * @returns The saved revision or a structured refusal.
+   */
   remove(request: RemoveSeatProfileRequest): Promise<T.SeatCatalogMutationResult>
+  /** Save a complete definition under catalog CAS.
+   * @param request - Definition, observed revision and replay identity.
+   * @returns The saved revision or a structured refusal.
+   */
   save(request: { definition: unknown; expectedRevision: number; operationId: T.SeatOperationId }): Promise<T.SeatCatalogMutationResult>
+  /** Preview mapped source rows without importing them.
+   * @param request - Source path, format, mapping and explicit defaults.
+   * @returns A durable import plan or a structured refusal.
+   */
   preview(request: T.PreviewSeatImportRequest): Promise<T.SeatImportPlan | T.SeatRejected>
+  /** Commit explicitly selected rows from an existing plan.
+   * @param request - Plan identity, selected rows, catalog CAS and replay identity.
+   * @returns The import receipt or a structured refusal.
+   */
   commit(request: T.CommitSeatImportRequest): Promise<T.CommitSeatImportResult>
 }
 
@@ -28,8 +52,10 @@ declare module '@panedesk/cordis' {
  * @param store - Catalog CAS owner.
  * @param service - Existing local seat operations.
  * @param options - Deployment-owned pagination and node identity.
+ * @param runtime - Read-only window evidence for confirmation state versions.
  */
-export function registerProfileAccess(ctx: Context, store: SeatStore, service: T.SeatService, options: LocalSeatOptions): void {
+export function registerProfileAccess(ctx: Context, store: SeatStore, service: T.SeatService, options: LocalSeatOptions,
+  runtime: Pick<LocalSeatRuntime, 'evidence'>): void {
   let active = true
   ctx.effect(() => () => { active = false })
   const owner = (): T.SeatService => {
@@ -43,11 +69,17 @@ export function registerProfileAccess(ctx: Context, store: SeatStore, service: T
     const engine = ctx.get('seatEngine')
     if (!(engine instanceof SeatEngine)) refuse('unavailable', 'Opening history is unavailable.', 'Restore the local seat engine.')
     await engine.ready()
+    const engineSequence = engine.journal.projection.sequence
     const windows: SeatProfileSnapshot['windows'] = [...engine.journal.projection.opens.values()].flatMap(open =>
       open.binding.kind === 'seat' && !engine.journal.projection.closed.has(open.sessionId)
         && !(open.phase === 'opening-failed' && open.failure?.effectState === 'none')
         ? [{ seat: open.binding.seat, sessionId: open.sessionId,
-          title: open.title ?? open.binding.seat, nodeId: open.binding.nodeId }] : [])
+          title: open.title ?? open.binding.seat, nodeId: open.binding.nodeId, stateVersion: 0 }] : [])
+    for (const window of windows) {
+      const evidence = await runtime.evidence(window.sessionId)
+      if (!evidence.complete) refuse('unavailable', 'Window state is unavailable.', 'Restore complete window evidence before editing.')
+      window.stateVersion = evidence.stateVersion
+    }
     const pending: SeatProfileSnapshot['pending'][number][] = []
     let cursor: T.EngineCursor | undefined
     do {
@@ -71,7 +103,11 @@ export function registerProfileAccess(ctx: Context, store: SeatStore, service: T
     }
     owner()
     const catalog = store.snapshot()
-    return { revision: catalog.revision, authority: catalog.authority, definitions: catalog.definitions, windows, pending, recentOpen }
+    if (engineSequence !== engine.journal.projection.sequence) {
+      refuse('revision-conflict', 'Engine activity changed during observation.', 'Refresh the profile observations.')
+    }
+    return { revision: catalog.revision, authority: catalog.authority, definitions: catalog.definitions,
+      engineSequence, windows, pending, recentOpen }
   }
   ctx.provide('seatProfilesLocal', Object.freeze({
     read,
@@ -93,6 +129,12 @@ export function registerProfileAccess(ctx: Context, store: SeatStore, service: T
         if (!(engine instanceof SeatEngine)) refuse('unavailable', 'Seat engine is unavailable.', 'Restore the local engine.')
         const observed = await read()
         const sequence = engine.journal.projection.sequence
+        const impact = (): string => digest({
+          windows: [...engine.journal.projection.opens.values()].filter(open => open.binding.kind === 'seat' && open.binding.seat === request.seat)
+            .map(open => ({ open, closed: engine.journal.projection.closed.has(open.sessionId) })),
+          pending: [...engine.journal.projection.pending.values()].filter(item => item.seat === request.seat && item.reason === 'approval'),
+        })
+        const engineImpact = impact()
         const same = (left: readonly string[], right: readonly string[]) =>
           JSON.stringify([...left].sort()) === JSON.stringify([...right].sort())
         const revision = await store.mutate(request.expectedRevision, request.operationId, request, (catalog) => {
@@ -100,13 +142,31 @@ export function registerProfileAccess(ctx: Context, store: SeatStore, service: T
           if (sequence !== engine.journal.projection.sequence) {
             refuse('revision-conflict', 'Engine activity changed during deletion.', 'Review the open windows and pending approvals again.')
           }
-          if (!same(request.windows, observed.windows.filter(item => item.seat === request.seat).map(item => item.sessionId))
-            || !same(request.pending, observed.pending.filter(item => item.seat === request.seat).map(item => item.queueItemId))) {
+          const windows = observed.windows.filter(item => item.seat === request.seat)
+          const pending = observed.pending.filter(item => item.seat === request.seat)
+          if (request.engineSequence !== observed.engineSequence
+            || digest(request.windowVersions) !== digest(windows.map(({ sessionId, stateVersion }) => ({ sessionId, stateVersion })))
+            || digest(request.pendingVersions) !== digest(pending.map(({ queueItemId, stateVersion }) => ({ queueItemId, stateVersion })))
+            || !same(request.windows, windows.map(item => item.sessionId))
+            || !same(request.pending, pending.map(item => item.queueItemId))) {
             refuse('revision-conflict', 'Deletion impact changed.', 'Review the open windows and pending approvals again.')
           }
           if (catalog.authority !== 'seat-store') refuse('import-source-authoritative', 'Import source owns this catalog.', 'Authorize a catalog takeover first.')
           if (!catalog.definitions.some(item => item.seat === request.seat)) refuse('seat-not-found', 'Seat definition is missing.', 'Reload the catalog.')
           catalog.definitions = catalog.definitions.filter(item => item.seat !== request.seat)
+        }, 'revision-conflict', undefined, async () => {
+          for (const window of observed.windows.filter(item => item.seat === request.seat)) {
+            const evidence = await runtime.evidence(window.sessionId)
+            if (!evidence.complete || evidence.stateVersion !== window.stateVersion) {
+              refuse('revision-conflict', 'Window state changed after catalog deletion.', 'The definition was restored. Refresh and confirm again.')
+            }
+          }
+          await engine.journal.commit(() => {
+            owner()
+            if (impact() !== engineImpact) refuse('revision-conflict', 'Engine activity changed after catalog deletion.',
+              'The definition was restored. Refresh and confirm the current impact.')
+            return []
+          })
         })
         ctx.emit('seat/diagnostics-changed')
         return { status: 'saved', revision }

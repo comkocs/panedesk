@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This optional plugin adds Seat profiles to Settings without adding a cold-start sidebar entry. The authenticated owner can inspect and edit the local [seat](../../../../docs/subsystems/seat.md) catalog, confirm definition deletion, and preview selected rows from a mapped Markdown or CSV source.
+This optional plugin adds Seat profiles to Settings without adding a cold-start sidebar entry. The authenticated owner can inspect and edit the local [seat](../../seat/seat-local/README.md) catalog, confirm definition deletion, and preview selected rows from a mapped Markdown or CSV source.
 
 ## Use this package
 
@@ -20,6 +20,8 @@ Select a seat to stage edits. Workspaces, memory directories, opening text or fi
 Source-owned catalogs require a separate owner confirmation to transfer the entire catalog to local editing. This uses the existing audited authority operation; save and delete never transfer ownership implicitly. Deletion displays open windows and pending approvals before confirmation, removes only the definition, and neither closes windows nor cancels approvals. Existing work that still needs that definition can subsequently refuse with `seat-not-found`; review that impact before deletion.
 
 Import reads a Host source path. Choose Markdown or CSV, optionally name a Markdown table, supply a JSON header-to-field mapping and complete definition defaults, then Preview. No row is selected automatically. Invalid, conflicting and unchanged rows cannot be selected; row diagnostics and local/source differences remain visible. Commit submits only selected row numbers through the existing preview/commit protocol. Changing source, mapping or defaults clears the preview. A selected profile can supply defaults, but source identities still require explicit mapping. See the [local provider](../../seat/seat-local/README.md) for mapping conversions, source freshness and CAS behavior.
+
+A timeout or disconnected write blocks saving, deletion and import submission until Refresh obtains a new live observation; clicking Refresh alone does not unblock them. Identical requests retain their operation identity for host-side replay without applying the same write twice.
 
 ## Dev Note
 
@@ -44,6 +46,6 @@ Profile maintenance does not replace existing Session prefixes or invalidate an 
 ## Known Limitations and Deferred Work
 
 - JSON fields require complete valid structured values; this editor does not provide a directory picker or natural-language model parser.
-- Definition deletion and engine activity use distinct storage transactions. Confirmation rechecks observed impact and engine sequence before the catalog mutation, but does not lock future engine activity throughout catalog persistence.
+- Definition deletion and engine activity use distinct storage transactions. Confirmation includes window and approval state versions. The Host checks the catalog revision, writes the deletion, then checks the relevant engine impact inside the journal queue. A failed following check restores the previous catalog at a newer revision before releasing the catalog queue. This is not an atomic cross-store transaction: process termination or a failed compensation write requires recovery and a fresh observation.
 - Resource withdrawal cancels its Remote observation and removes invalidation listeners; it does not undo an already accepted catalog write.
 - Host source files must already exist and be readable. The browser does not upload files or infer missing model, node, preset or permission defaults.

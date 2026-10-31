@@ -13,13 +13,14 @@ import type { PropsRenderSlots } from '@panedesk/dsh-client-ui-slots'
 import type { SeatName } from '@panedesk/dsh-seat/types'
 import { expect, it, vi } from 'vitest'
 import * as profiles from '../src/client/index.ts'
+import type { ProfileActions } from '../src/client/Profiles.tsx'
 
 function Shell({ renderSlot }: PropsRenderSlots<'settings.section'>) { return renderSlot('settings.section', { close() {} }) }
 
 it('loads the settings editor, navigates its declared store and withdraws all registrations', async () => {
   const ctx = new Context()
   const call = vi.fn<ConnectionHandle['rpc']['call']>().mockResolvedValue({ ok: true, value: {
-    revision: 1, authority: 'seat-store', definitions: [], windows: [], pending: [], recentOpen: {},
+    revision: 1, engineSequence: 0, authority: 'seat-store', definitions: [], windows: [], pending: [], recentOpen: {},
   } })
   try {
     await ctx.plugin(TypertRegistry)
@@ -53,6 +54,14 @@ it('loads the settings editor, navigates its declared store and withdraws all re
     const release = source.subscribe(() => {})
     await vi.waitFor(() =>{  expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { revision: 1 } }) })
     release()
+    const face = entry?.inject?.() as ProfileActions | undefined
+    if (!face) throw new Error('Profile actions unavailable')
+    call.mockRejectedValueOnce(new Error('Timed out'))
+    await expect(face.save({ seat: 'seat-a', revision: 2 }, 1)).rejects.toThrow('gateway/internal')
+    const first = call.mock.calls.at(-1)?.[2]
+    call.mockResolvedValueOnce({ ok: true, value: { status: 'saved', revision: 2 } })
+    await expect(face.save({ seat: 'seat-a', revision: 2 }, 1)).resolves.toBe(2)
+    expect(call.mock.calls.at(-1)?.[2]).toEqual(first)
     removeShell()
     expect(ctx.get('seatProfilesNavigation')).toBeUndefined()
     expect(ctx.slots.entries('settings.section')).toHaveLength(0)
