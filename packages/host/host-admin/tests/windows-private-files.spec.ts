@@ -6,6 +6,10 @@ import { join, win32 } from 'node:path'
 import { WindowsPrivateFiles } from '../src/windows-private-files.ts'
 import { inspectWindowsPrivatePath, replaceWindowsPrivatePath, secureWindowsPrivatePath } from '../src/windows-private-files-system.ts'
 
+test('assigns a stable code to a rejected absolute Windows path', () => {
+  expect(() => new WindowsPrivateFiles('relative')).toThrow(expect.objectContaining({ code: 'private-absolute-path' }))
+})
+
 const roots: string[] = []
 afterEach(async () => { for (const root of roots.splice(0)) await fs.rm(root, { recursive: true, force: true }) })
 const root = 'C:\\private'
@@ -73,6 +77,59 @@ async function fixture(mode: 'legacy' | 'native' = 'legacy') {
     : { execute, filesystem, replace, delay })
   return { files, execute, filesystem, replace, delay, values, mapped, events, security }
 }
+
+test.each([
+  ['private-reparse-point', 'Private reparse point rejected', { reparse: true }],
+  ['private-parent-path', 'Private parent path rejected', { parents: false }],
+  ['private-owner-sid', 'Private owner SID rejected', { owner: 'S-1-5-18' }],
+  ['private-acl-inheritance', 'Private ACL inheritance rejected', { protected: false }],
+  ['private-acl-entry-count', 'Private ACL entry count rejected', { rules: [] }],
+  ['private-acl-sid', 'Private ACL SID rejected', { rules: [{ ...rule(), sid: 'S-1-5-18' }] }],
+  ['private-acl-rights', 'Private ACL rights rejected', { rules: [{ ...rule(), rights: 1 }] }],
+])('preserves the original refusal and exposes stable code %s', async (code, message, patch) => {
+  const f = await fixture()
+  await f.files.prepare()
+  f.values.set(root, { ...metadata(), ...patch })
+  await expect(f.files.prepare()).rejects.toMatchObject({ code, message })
+})
+
+test('exposes stable code private-filename without touching the filesystem', async () => {
+  const f = await fixture()
+  await expect(f.files.read('../escape', 64)).rejects.toMatchObject({
+    code: 'private-filename', message: 'Private filename rejected',
+  })
+  expect(f.filesystem.lstat).not.toHaveBeenCalled()
+})
+
+test('exposes stable code private-directory-type for a non-directory root', async () => {
+  const f = await fixture()
+  await fs.writeFile(f.mapped(root), '')
+  await expect(f.files.prepare()).rejects.toMatchObject({
+    code: 'private-directory-type', message: 'Private directory type rejected',
+  })
+})
+
+test.each([
+  ['private-file-type-or-links', 'Private file type or links rejected'],
+  ['private-file-exceeds-limit', 'Private file exceeds limit'],
+  ['private-file-identity', 'Private file identity rejected'],
+])('exposes stable code %s before reading unsafe bytes', async (code, message) => {
+  const f = await fixture(), path = win32.join(root, 'credential')
+  await f.files.write('credential', 'content')
+  if (code === 'private-file-type-or-links') {
+    await fs.link(f.mapped(path), f.mapped(win32.join(root, 'hard')))
+  } else if (code === 'private-file-identity') {
+    const execute = f.execute.getMockImplementation()!
+    f.execute.mockImplementation(async (script) => {
+      const value = await execute(script)
+      await fs.rename(f.mapped(path), f.mapped(win32.join(root, 'old')))
+      await fs.writeFile(f.mapped(path), 'replacement')
+      return value
+    })
+  }
+  await expect(f.files.read('credential', code === 'private-file-exceeds-limit' ? 2 : 64))
+    .rejects.toMatchObject({ code, message })
+})
 
 test('secures empty objects before writing and preserves owner-only replacement and locks', async () => {
   const f = await fixture()

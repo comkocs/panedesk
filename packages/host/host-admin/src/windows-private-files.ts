@@ -9,6 +9,29 @@ import * as native from '@panedesk/node-addon-system/windows-private-files'
 import { inspectWindowsPrivatePath, secureWindowsPrivatePath, replaceWindowsPrivatePath,
   type WindowsPrivateFilesExecutor } from './windows-private-files-system.ts'
 
+/** Stable identifiers for Windows private-file policy refusals. */
+export const WINDOWS_PRIVATE_FILE_CODES = {
+  'Private absolute Windows path rejected': 'private-absolute-path',
+  'Private filename rejected': 'private-filename',
+  'Private reparse point rejected': 'private-reparse-point',
+  'Private parent path rejected': 'private-parent-path',
+  'Private owner SID rejected': 'private-owner-sid',
+  'Private ACL inheritance rejected': 'private-acl-inheritance',
+  'Private ACL entry count rejected': 'private-acl-entry-count',
+  'Private ACL SID rejected': 'private-acl-sid',
+  'Private ACL rights rejected': 'private-acl-rights',
+  'Private directory type rejected': 'private-directory-type',
+  'Private file type or links rejected': 'private-file-type-or-links',
+  'Private file exceeds limit': 'private-file-exceeds-limit',
+  'Private file identity rejected': 'private-file-identity',
+} as const
+/** A Windows private-file policy refusal identifier. */
+export type WindowsPrivateFileCode = typeof WINDOWS_PRIVATE_FILE_CODES[keyof typeof WINDOWS_PRIVATE_FILE_CODES]
+
+function rejected(message: keyof typeof WINDOWS_PRIVATE_FILE_CODES): Error & { readonly code: WindowsPrivateFileCode } {
+  return Object.assign(new Error(message), { code: WINDOWS_PRIVATE_FILE_CODES[message] })
+}
+
 /** Injectable operating-system seams for server-side Windows policy tests. */
 export interface WindowsPrivateFilesOptions {
   /** Legacy metadata-only test oracle; production never executes PowerShell. */
@@ -47,7 +70,7 @@ export class WindowsPrivateFiles implements PrivateFiles {
     if (!win32.isAbsolute(root) || !/^[a-zA-Z]:\\/.test(root) || root.includes('/')
       || root.slice(3).split('\\').some(part => /[<>:"|?*\u0000-\u001f]/.test(part) || /[ .]$/.test(part)
         || /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(part))) {
-      throw new Error('Private absolute Windows path rejected')
+      throw rejected('Private absolute Windows path rejected')
     }
     this.filesystem = options.filesystem ?? fs
     this.execute = options.execute
@@ -64,7 +87,7 @@ export class WindowsPrivateFiles implements PrivateFiles {
   }
   private path(name: string): string {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name) || /[.]$/.test(name)
-      || /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(name)) throw new Error('Private filename rejected')
+      || /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(name)) throw rejected('Private filename rejected')
     return win32.join(this.root, name)
   }
   private async inspect(path: string, acl: boolean, directory?: string): Promise<void> {
@@ -74,37 +97,37 @@ export class WindowsPrivateFiles implements PrivateFiles {
     if (directory !== undefined) this.validate(object(value) ? value.directory : undefined, true)
   }
   private validate(value: unknown, acl: boolean): void {
-    if (!object(value) || value.reparse !== false) throw new Error('Private reparse point rejected')
-    if (value.parents !== true) throw new Error('Private parent path rejected')
+    if (!object(value) || value.reparse !== false) throw rejected('Private reparse point rejected')
+    if (value.parents !== true) throw rejected('Private parent path rejected')
     if (!acl) return
     if (typeof value.sid !== 'string' || !/^S-1-\d+(?:-\d+)+$/.test(value.sid) || value.owner !== value.sid) {
-      throw new Error('Private owner SID rejected')
+      throw rejected('Private owner SID rejected')
     }
-    if (value.protected !== true) throw new Error('Private ACL inheritance rejected')
-    if (!Array.isArray(value.rules) || value.rules.length !== 1) throw new Error('Private ACL entry count rejected')
+    if (value.protected !== true) throw rejected('Private ACL inheritance rejected')
+    if (!Array.isArray(value.rules) || value.rules.length !== 1) throw rejected('Private ACL entry count rejected')
     const rule: unknown = value.rules[0]
-    if (!object(rule) || rule.sid !== value.sid) throw new Error('Private ACL SID rejected')
-    if (rule.inherited !== false) throw new Error('Private ACL inheritance rejected')
-    if (rule.allow !== true || rule.rights !== 2032127 || rule.propagation !== 0) throw new Error('Private ACL rights rejected')
+    if (!object(rule) || rule.sid !== value.sid) throw rejected('Private ACL SID rejected')
+    if (rule.inherited !== false) throw rejected('Private ACL inheritance rejected')
+    if (rule.allow !== true || rule.rights !== 2032127 || rule.propagation !== 0) throw rejected('Private ACL rights rejected')
   }
   private async existingDirectory(): Promise<boolean> {
     let stat
     try { stat = await this.filesystem.lstat(this.root) }
     catch (error) { if (code(error, 'ENOENT')) return false; throw error }
-    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Private directory type rejected')
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw rejected('Private directory type rejected')
     return true
   }
   async prepare(): Promise<void> {
     if (await this.existingDirectory()) { await this.inspect(this.root, true); return }
     const parent = win32.dirname(this.root)
     await this.inspect(parent, false)
-    if (!(await this.filesystem.lstat(parent)).isDirectory()) throw new Error('Private parent path rejected')
+    if (!(await this.filesystem.lstat(parent)).isDirectory()) throw rejected('Private parent path rejected')
     let created = false
     try { await this.filesystem.mkdir(this.root); created = true }
     catch (error) { if (!code(error, 'EEXIST')) throw error }
     try {
       const stat = await this.filesystem.lstat(this.root)
-      if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Private directory type rejected')
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw rejected('Private directory type rejected')
       if (created) await this.secure(this.root, true)
       await this.inspect(this.root, true)
     } catch (error) {
@@ -116,8 +139,8 @@ export class WindowsPrivateFiles implements PrivateFiles {
     let stat
     try { stat = await this.filesystem.lstat(path) }
     catch (error) { if (code(error, 'ENOENT')) return null; throw error }
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error('Private file type or links rejected')
-    if (stat.size > maxBytes) throw new Error('Private file exceeds limit')
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw rejected('Private file type or links rejected')
+    if (stat.size > maxBytes) throw rejected('Private file exceeds limit')
     const handle = await this.filesystem.open(path, 'r')
     try {
       await this.inspect(path, true, this.root)
@@ -125,9 +148,9 @@ export class WindowsPrivateFiles implements PrivateFiles {
       if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== stat.dev || opened.ino !== stat.ino
         || !named.isFile() || named.isSymbolicLink() || named.nlink !== 1
         || named.dev !== opened.dev || named.ino !== opened.ino) {
-        throw new Error('Private file identity rejected')
+        throw rejected('Private file identity rejected')
       }
-      if (opened.size > maxBytes) throw new Error('Private file exceeds limit')
+      if (opened.size > maxBytes) throw rejected('Private file exceeds limit')
       return handle
     } catch (error) { await handle.close(); throw error }
   }
@@ -144,7 +167,7 @@ export class WindowsPrivateFiles implements PrivateFiles {
         const { bytesRead } = await handle.read(chunk, 0, chunk.length, null)
         if (bytesRead === 0) break
         total += bytesRead
-        if (total > maxBytes) throw new Error('Private file exceeds limit')
+        if (total > maxBytes) throw rejected('Private file exceeds limit')
         chunks.push(bytesRead === chunk.length ? chunk : chunk.subarray(0, bytesRead))
       }
       return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))
@@ -161,7 +184,7 @@ export class WindowsPrivateFiles implements PrivateFiles {
       await this.inspect(path, true)
       const stat = await handle.stat(), named = await this.filesystem.lstat(path)
       if (!stat.isFile() || stat.nlink !== 1 || stat.ino !== named.ino || stat.dev !== named.dev) {
-        throw new Error('Private file identity rejected')
+        throw rejected('Private file identity rejected')
       }
       await handle.writeFile(content, 'utf8')
       await handle.sync()

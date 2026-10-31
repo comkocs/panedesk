@@ -34,6 +34,24 @@ Admin endpoints accept only the actual listener's IPv4 loopback Host authority a
 
 `directory` must be an exclusive absolute path with POSIX mode `0700`. Files must be regular, single-link files owned by the current user with mode `0600`. Ancestor paths must contain no symbolic links, and operators must prevent untrusted accounts from replacing ancestor directories. On Windows, explicitly provide `hostAdminFiles: directory => new WindowsPrivateFiles(directory)` from this package (and the same factory as `callHostSdk`'s `privateFiles` option); POSIX defaults are unchanged. Windows startup waits up to `requestTimeoutMs` for an active factory, never falls back to POSIX, and reports missing factories or file failures through Cordis startup errors. Consumer disposal cancels waiting without reporting factory absence; an inactive startup releases its resources without publishing further services. The provider accepts drive-qualified local paths, rejects reparse points throughout the path, and requires a protected DACL with exactly one current-user SID FullControl allow rule and the same owner SID; existing ACLs are rejected, never repaired. New empty objects receive this ACL before content is written and flushed; same-directory replacement uses write-through `MoveFileExW`, with at most five attempts and 10/20/40/40 ms backoff for access/sharing contention. Security operations use the in-process Node-API Win32 binding, require no elevation, and never spawn PowerShell or fall back to it. No identity, ACL or path result is cached: each existing-file read combines fresh file and private-directory ACLs, owner SIDs, and a complete ancestor reparse-point traversal. The read-only handle is opened before inspection; its identity is compared with the pre-open and post-inspection pathname metadata before any bytes are read. Missing files still require directory verification. Operators must prevent concurrent untrusted ancestor replacement; pathname metadata is not a handle-bound Windows security check. Measure deployment latency before choosing non-overlapping probe intervals; process startup time is not a network health deadline.
 
+Windows policy refusals expose a stable `code`; `WINDOWS_PRIVATE_FILE_CODES` maps each unchanged English error message to its code, and `WindowsPrivateFileCode` is the corresponding union. These codes do not include paths or credentials. Consumers own localized recovery guidance; policy messages and check order are unchanged.
+
+| Code | English message |
+| --- | --- |
+| `private-absolute-path` | Private absolute Windows path rejected |
+| `private-filename` | Private filename rejected |
+| `private-reparse-point` | Private reparse point rejected |
+| `private-parent-path` | Private parent path rejected |
+| `private-owner-sid` | Private owner SID rejected |
+| `private-acl-inheritance` | Private ACL inheritance rejected |
+| `private-acl-entry-count` | Private ACL entry count rejected |
+| `private-acl-sid` | Private ACL SID rejected |
+| `private-acl-rights` | Private ACL rights rejected |
+| `private-directory-type` | Private directory type rejected |
+| `private-file-type-or-links` | Private file type or links rejected |
+| `private-file-exceeds-limit` | Private file exceeds limit |
+| `private-file-identity` | Private file identity rejected |
+
 The host creates `credential` and `endpoint.json` and deletes both on exit; each start uses an independent process epoch. Credentials travel only through private files and authentication headers, never arguments, addresses, environment variables, or operation records. `callAdmin` connects only to an already running host; missing endpoints reject without automatically starting a service.
 
 `hostAdminExecutor` receives transport-derived identity and retains the original engine checks. Without a custom executor, the runtime assembles `createHostAdminExecutor` from the running engine's issuers, transactions and queries. Listener-owned identity issues `local-operator` attribution and commits it atomically with queue approval. Self-declared dispatch authority cannot enter this path or read cached receipts; missing capabilities refuse the method. Status and pending retain their read-only engine fallback.
