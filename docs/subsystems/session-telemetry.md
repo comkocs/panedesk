@@ -139,6 +139,10 @@ interface SessionTelemetrySink {
 
 `SessionTelemetryBackend` (`ctx.sessionTelemetry`, [signatures](#ctxsessiontelemetry--sessiontelemetrybackend-abstract-seam)) is the contract's loadable form — one implementation per context, duplicate load throws — and a backend composes the seam's `SessionTelemetryCoordinator` in its constructor to install the capture side.
 
+## Ledger statistics
+
+`StatsRequest` selects a fixed range (`today`, `6h`, `24h`, `72h`, `168h`, `all`), a Beijing hour/day bucket and seat/task/model/window/root-child/definition grouping, with optional seat, task and model filters. `StatsView` carries call aggregates, coverage, separate keepalive totals, cache-read fraction, running-session evidence, project/window rows, model summaries, buckets and per-call details from one snapshot. The [query package](../../packages/session/ledger-query/README.md) owns numeric semantics; the [statistics plugin](../../packages/client/ui-stats/README.md) exposes only owner-authorized Remote reads and secondary GUI entries. These are query projections, not persisted Session-format types.
+
 ## The redact waterfall: `session-telemetry/record`
 
 Every record passes the `session-telemetry/record` [waterfall](../cordis-primer.md#cordis-waterfall-semantics) between the canonical-event copy and `emit()` ([event entry](#session-telemetryrecord--waterfall)). The seam ships NO rules of its own: with no listener mounted, records reach the backend exactly as captured, so exported data is precisely as clean as the rules a deployment mounts. Listeners stack by transforming `next()`'s return value; returning without `next()` replaces everything beneath; a throwing listener withholds that one record fail-closed inside the coordinator's containment. Redaction applies to the exported copy only — the canonical session log is never rewritten.
@@ -163,6 +167,13 @@ Query providers read ledger snapshots without launching an Agent or model provid
  * @returns source snapshot and coverage-aware grouped totals.
  */
 async query(options: LedgerQueryOptions): Promise<LedgerQueryResult>
+
+/** Compute all five statistics tabs from one deduplicated snapshot.
+ * @param request - Fixed range, grouping and time-bucket selection.
+ * @param asOf - Optional exclusive UTC millisecond instant; omission reads the system clock.
+ * @returns Coverage-aware call totals and child-session lifecycle counts.
+ */
+async stats(request: StatsRequest, asOf?: number): Promise<StatsView>
 
 /** Compute today's overview at the runtime clock or an explicit observation instant.
  * @param asOf - optional UTC millisecond observation time; omission reads the system clock.
@@ -386,6 +397,22 @@ abstract shutdown(): Promise<void>
 ```
 
 Source: [`packages/session/session-telemetry/src/index.ts`](../../packages/session/session-telemetry/src/index.ts)
+
+<a id="ctxstats--statsservice"></a>
+
+### `ctx.stats` — `StatsService`
+
+No write, export, transcript, model, or caller-supplied identity capability is exposed.
+
+```ts cordis-catalog
+/** Read one deduplicated ledger snapshot after authenticating the invocation owner.
+ * @param request - Fixed time range, bucket, grouping and optional attribution filters.
+ * @returns Five-tab projection plus the deployment's refresh cadence.
+ */
+@Remote async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }>
+```
+
+Source: [`packages/client/ui-stats/src/index.ts`](../../packages/client/ui-stats/src/index.ts)
 
 <a id="ledger-watch-events"></a>
 

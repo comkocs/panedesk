@@ -1580,6 +1580,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'source snapshot and coverage-aware grouped totals.',
       },
       {
+        signature: 'async stats(request: StatsRequest, asOf?: number): Promise<StatsView>',
+        description: 'Compute all five statistics tabs from one deduplicated snapshot.',
+        parameters: [{ name: 'request', description: 'Fixed range, grouping and time-bucket selection.' }, { name: 'asOf', description: 'Optional exclusive UTC millisecond instant; omission reads the system clock.' }],
+        returns: 'Coverage-aware call totals and child-session lifecycle counts.',
+      },
+      {
         signature: 'async today(asOf?: number): Promise<LedgerTodaySummary>',
         description: 'Compute today\'s overview at the runtime clock or an explicit observation instant.',
         parameters: [{ name: 'asOf', description: 'optional UTC millisecond observation time; omission reads the system clock.' }],
@@ -4724,6 +4730,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'stats',
+    summary: 'No write, export, transcript, model, or caller-supplied identity capability is exposed.',
+    description: 'No write, export, transcript, model, or caller-supplied identity capability is exposed.',
+    methods: [
+      {
+        signature: '@Remote async read(request: StatsRequest): Promise<{ view: StatsView; refreshIntervalMs: number }>',
+        description: 'Read one deduplicated ledger snapshot after authenticating the invocation owner.',
+        parameters: [{ name: 'request', description: 'Fixed time range, bucket, grouping and optional attribution filters.' }],
+        returns: 'Five-tab projection plus the deployment\'s refresh cadence.',
+      },
+    ],
+  },
+  {
     key: 'storage',
     summary: 'The storage hub service.',
     description: 'The storage hub service. Backends register under `backend`; data forms mount under their `StorageForms` key and are reached as `ctx.storage.<form>`.',
@@ -7566,7 +7585,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DeliverSourceCallbackResult',
-    declaration: 'export type DeliverSourceCallbackResult = {\n    status: \'pending\' | \'committed\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n} | {\n    status: \'paused\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n    error: SeatFailure;\n} | SeatRejected;',
+    declaration: 'export type DeliverSourceCallbackResult = {\n    status: \'pending\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n    pendingReason?: \'owner-recovering\' | \'writeback-pending\' | \'writeback-outcome-unknown\' | \'desk-unreachable\';\n} | {\n    status: \'committed\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n} | {\n    status: \'paused\';\n    callbackId: CallbackId;\n    payloadDigest: SeatDigest;\n    error: SeatFailure;\n} | SeatRejected;',
   },
   {
     name: 'DeliveryMessage',
@@ -9294,7 +9313,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeWorkChainOperationResult',
-    declaration: 'export type NodeWorkChainOperationResult = {\n    status: \'missing\';\n} | {\n    status: \'pending\';\n    effectState: \'none\' | \'unknown\';\n} | NodeWorkChainSettledResult | SeatRejected;',
+    declaration: 'export type NodeWorkChainOperationResult = {\n    status: \'missing\';\n} | {\n    status: \'pending\';\n    effectState: \'none\' | \'unknown\';\n    pendingReason?: \'owner-recovering\' | \'writeback-pending\' | \'writeback-outcome-unknown\' | \'desk-unreachable\';\n} | NodeWorkChainSettledResult | SeatRejected;',
   },
   {
     name: 'NodeWorkChainReasonCode',
@@ -10390,7 +10409,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCallbackDelivery',
-    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\' | \'abandoned\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    retrySummary?: {\n        count: number;\n        firstAttemptAt: SeatTimestamp;\n        lastAttemptAt: SeatTimestamp;\n        lastDiagnostic?: SeatCallbackDiagnostic;\n        attemptsAtLeast?: boolean;\n        transientSince: SeatTimestamp | null;\n    };\n    ownerPending?: boolean;\n    parkingClass?: \'owner-unconfirmed\' | \'transport-transient\';\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\' | \'abandoned\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
   },
   {
     name: 'SeatCallbackDiagnostic',
@@ -11647,6 +11666,38 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SshStreamEndpoint',
     declaration: 'export type SshStreamEndpoint = z.infer<typeof streamEndpointSchema>;',
+  },
+  {
+    name: 'StatsAggregate',
+    declaration: 'export interface StatsAggregate {\n    key: string;\n    calls: number;\n    usage: LedgerUsageTotals;\n    costUsd: string | null;\n    unknownCostCalls: number;\n    modelInFlightMs: number | null;\n    outputTokensPerSecond: number | null;\n}',
+  },
+  {
+    name: 'StatsBucket',
+    declaration: 'export interface StatsBucket extends StatsAggregate {\n    startedAt: number;\n    model: string;\n}',
+  },
+  {
+    name: 'StatsCallDetail',
+    declaration: 'export interface StatsCallDetail {\n    callId: LedgerCall[\'start\'][\'callId\'];\n    sessionId: LedgerCall[\'start\'][\'sessionId\'];\n    parentSessionId: NonNullable<LedgerCall[\'start\'][\'parentSessionId\']> | null;\n    seat: string;\n    window: string;\n    taskId: string | null;\n    model: string;\n    responseModelReported: NonNullable<LedgerCall[\'finish\']>[\'responseModelReported\'] | null;\n    purpose: string;\n    tokens: LedgerTokenColumns;\n    usageState: string;\n    costUsd: string | null;\n    priceVersion: string | null;\n    startedAt: number;\n    endedAt: number | null;\n    wallMs: number | null;\n    modelInFlightMs: number | null;\n    waits: NonNullable<LedgerCall[\'waitSummary\']>[\'categories\'] | null;\n    peakContextTokens: number | null;\n    compactionCount: number | null;\n    compactionTimes: readonly number[] | null;\n    endReason: string | null;\n    prefixFingerprint: string | null;\n    outputTokensPerSecond: number | null;\n}',
+  },
+  {
+    name: 'StatsRange',
+    declaration: 'export type StatsRange = \'today\' | \'6h\' | \'24h\' | \'72h\' | \'168h\' | \'all\';',
+  },
+  {
+    name: 'StatsRequest',
+    declaration: 'export interface StatsRequest {\n    range: StatsRange;\n    bucket: \'hour\' | \'day\';\n    groupBy: \'seat\' | \'taskId\' | \'model\' | \'window\' | \'role\' | \'definition\';\n    seat?: string;\n    taskId?: string;\n    model?: string;\n}',
+  },
+  {
+    name: 'StatsRunningLanes',
+    declaration: 'export interface StatsRunningLanes {\n    count: number | null;\n    unknownSessions: number;\n    complete: boolean;\n    bySeat: readonly {\n        seat: string;\n        count: number;\n    }[];\n}',
+  },
+  {
+    name: 'StatsView',
+    declaration: 'export interface StatsView {\n    asOf: number;\n    from: number | null;\n    complete: boolean;\n    queryMs: number;\n    summary: StatsAggregate;\n    cacheHitRate: LedgerHitRate;\n    keepalive: StatsAggregate;\n    runningLanes: StatsRunningLanes;\n    runningWindows: number | null;\n    alerts: number | null;\n    projects: readonly StatsAggregate[];\n    windows: readonly StatsWindow[];\n    groups: readonly StatsAggregate[];\n    models: readonly StatsAggregate[];\n    buckets: readonly StatsBucket[];\n    details: readonly StatsCallDetail[];\n}',
+  },
+  {
+    name: 'StatsWindow',
+    declaration: 'export interface StatsWindow extends StatsAggregate {\n    sessionId: LedgerCall[\'start\'][\'sessionId\'];\n    seat: string;\n    window: string;\n    taskIds: readonly string[];\n    parentSessionId: NonNullable<LedgerCall[\'start\'][\'parentSessionId\']> | null;\n    running: boolean | null;\n}',
   },
   {
     name: 'StorageBackend',

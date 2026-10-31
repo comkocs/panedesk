@@ -709,6 +709,24 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-sidebar-documentpreview -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-stats -->
+<a id="panedeskdsh-client-ui-stats"></a>
+
+## `@panedesk/dsh-client-ui-stats`
+
+- `source`: [`packages/client/ui-stats/src/index.ts:10`](../packages/client/ui-stats/src/index.ts)
+
+```ts config-catalog
+/** Explicit statistics availability and refresh cadence. */
+export interface Config {
+  /** Permit authenticated owners to read aggregate and call projections. */
+  enabled: boolean
+  /** Client resource refresh interval in milliseconds. */
+  refreshIntervalMs: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-stats -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-theme -->
 <a id="panedeskdsh-client-ui-theme"></a>
 
@@ -1895,7 +1913,7 @@ export interface LedgerAppOptions {
 
 ## `@panedesk/dsh-ledger-query`
 
-- `source`: [`packages/session/ledger-query/src/index.ts:21`](../packages/session/ledger-query/src/index.ts)
+- `source`: [`packages/session/ledger-query/src/index.ts:24`](../packages/session/ledger-query/src/index.ts)
 
 ```ts config-catalog
 /** Read-only ledger observation settings. */

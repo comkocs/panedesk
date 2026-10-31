@@ -62,6 +62,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-commands/`](ui-commands/README.md) | Provides session-aware command discovery and dispatch | — |
 | [`ui-input-trigger/`](ui-input-trigger/README.md) | Coordinates inline command and reference suggestions | — |
 | [`ui-skill/`](ui-skill/README.md) | Adds skill references to inline suggestions | — |
+| [`ui-stats/`](ui-stats/README.md) | Presents owner-authorized read-only ledger statistics through secondary settings and session-menu entries | — |
 | [`ui-reference/`](ui-reference/README.md) | Unified Web `@file` / `@session` reference source | — |
 | [`ui-secret-mask/`](ui-secret-mask/README.md) | Masks recognized credentials in sent user text | — |
 | [`ui-subagent/`](ui-subagent/README.md) | Provides subagent navigation, child transcript states, and inline references | — |

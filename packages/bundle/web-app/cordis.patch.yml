@@ -325,6 +325,15 @@
     - id: ui-settings-plugin-inventory
       name: '@panedesk/dsh-client-ui-settings-plugin-inventory'
 
+    - id: ledger-query
+      name: '@panedesk/dsh-ledger-query'
+
+    - id: ui-stats
+      name: '@panedesk/dsh-client-ui-stats'
+      config:
+        enabled: true
+        refreshIntervalMs: 10000
+
     - id: ui-conversation
       name: '@panedesk/dsh-client-ui-conversation'
 

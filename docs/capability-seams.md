@@ -203,6 +203,8 @@ flowchart LR
   svc_sessionLedger["ctx.sessionLedger<br/>Durable call and lifecycle ledger"]
   svc_messageLedger["ctx.messageLedger<br/>Durable message ledger"]
   svc_ledgerQuery["ctx.ledgerQuery<br/>Read-only ledger queries"]
+  pkg_client_ui_stats["client-ui-stats"]
+  svc_stats["ctx.stats<br/>Owner-authorized ledger statistics"]
   pkg_session_telemetry["session-telemetry"]
   svc_sessionTelemetry["ctx.sessionTelemetry<br/>Session telemetry seam"]
   pkg_storage["storage"]
@@ -393,6 +395,7 @@ flowchart LR
   pkg_client_product_analytics --> svc_productAnalytics
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
+  pkg_client_ui_stats --> svc_stats
   pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
   pkg_compaction --> svc_compaction
@@ -646,6 +649,7 @@ flowchart LR
   svc_jobs --> pkg_tool_pwsh
   svc_jobs --> pkg_tool_terminal
   svc_kernelStatus --> pkg_api_session_controller
+  svc_ledgerQuery --> pkg_client_ui_stats
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
@@ -912,7 +916,8 @@ flowchart LR
 | `ctx.messageDelivery` | `seam` | [`message-delivery`](../packages/session/message-delivery) | - | - | - | Abstract delivery, receive policy, durable control, and receipt operations; no provider is registered by the scaffold. |
 | `ctx.sessionLedger` | `seam` | [`session-ledger`](../packages/session/session-ledger) | - | - | - | Abstract append-only accounting and reference-pricing operations; the scaffold supplies no storage provider. |
 | `ctx.messageLedger` | `service` | [`session-ledger`](../packages/session/session-ledger) | - | [`message-delivery-local`](../packages/session/message-delivery-local) | - | Stores message facts independently of call accounting and shares the full ledger provider's persisted node identity. |
-| `ctx.ledgerQuery` | `seam` | [`ledger-query`](../packages/session/ledger-query) | - | - | - | Abstract filtering, daily summaries, and exports; the scaffold supplies no query provider. |
+| `ctx.ledgerQuery` | `service` | [`ledger-query`](../packages/session/ledger-query) | - | [`client-ui-stats`](../packages/client/ui-stats) | - | Filters the optional ledger snapshot and derives coverage-aware summaries, statistics, and safe exports. |
+| `ctx.stats` | `service` | [`client-ui-stats`](../packages/client/ui-stats) | - | - | - | Exposes a read-only Remote projection to the statistics Client; no model, transcript, export, or mutation capability. |
 | `ctx.sessionTelemetry` | `seam` | [`session-telemetry`](../packages/session/session-telemetry) | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | - | - | The seam captures, redacts, and hands session records to one backend; nothing else consumes the service — its output leaves the process. |
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | Backends register side by side under names; data forms (domain first) mount on the hub and translate typed operations into opaque KV-unit primitives. |
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace) | - | Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state. |

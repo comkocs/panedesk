@@ -1,0 +1,25 @@
+.panel {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  overflow: auto;
+  padding: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+.wide { max-inline-size: none; }
+.settings { padding: 16px; color: var(--dsw-alias-label-primary); }
+.tabs, .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; align-items: center; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-block: 16px; }
+.cards article { padding: 16px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-2); overflow-wrap: anywhere; }
+.cards h2 { font-size: 14px; }
+.cards strong { font-size: 24px; }
+.tableWrap { overflow: auto; margin-block: 20px; }
+.tableWrap table { border-collapse: collapse; inline-size: 100%; text-align: start; }
+.tableWrap caption { text-align: start; font-weight: 600; padding-block: 12px; }
+.tableWrap th, .tableWrap td { border-block-end: 0.5px solid var(--dsw-alias-border-l3); padding: 8px 12px; white-space: nowrap; text-align: start; }
+.trend { margin: 20px 0; }
+.trend > div { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(120px, 2fr) auto; gap: 12px; align-items: center; padding-block: 4px; }
+.trend meter { inline-size: 100%; accent-color: var(--dsw-alias-label-primary); }
+.panel footer { color: var(--dsw-alias-label-secondary); padding-block: 16px; }

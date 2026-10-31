@@ -246,7 +246,8 @@ export class TestClient {
       const system = createInProcessModules(graphFromRoster(roster.rows), modules)
       const namespaces = remoteNamespacesOf(modules.values(), mock)
         // This roster plugin mounts its generated namespace through the real Gateway.
-        .filter(namespace => namespace !== 'seatApprovals' || !modules.has('@panedesk/dsh-client-ui-seat-approvals'))
+        .filter(namespace => (namespace !== 'seatApprovals' || !modules.has('@panedesk/dsh-client-ui-seat-approvals'))
+          && (namespace !== 'stats' || !modules.has('@panedesk/dsh-client-ui-stats')))
       ctx.plugin(remoteProxiesPlugin(namespaces, mock) as Plugin)
       // The dropped remote-access row's Hooks: every action is allowed on every resource.
       if (generated.includes(REMOTE_ACCESS_PACKAGE)) ctx.plugin(allowAllAccessPlugin)
