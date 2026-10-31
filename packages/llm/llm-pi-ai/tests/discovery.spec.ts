@@ -504,10 +504,10 @@ const RECORDED_LISTINGS = [
     file: 'openrouter-2026-09-02.json',
     api: 'openai-completions',
     models: [
-      { id: 'anthropic/claude-fable-5.1', name: 'Anthropic: Claude Fable 5.1', contextWindow: 1_000_000, maxTokens: 128_000 },
+      { id: 'anthropic/claude-fable-5.1', name: 'Anthropic: Claude Fable 5.1', createdAt: 1788285838, contextWindow: 1_000_000, maxTokens: 128_000 },
       // The router's own aggregate route reports no completion cap.
-      { id: 'openrouter/auto-beta', name: 'Auto Router (Beta)', contextWindow: 2_000_000 },
-      { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek: DeepSeek V4 Flash 0423', contextWindow: 1_048_576, maxTokens: 384_000 },
+      { id: 'openrouter/auto-beta', name: 'Auto Router (Beta)', createdAt: 1784311165, contextWindow: 2_000_000 },
+      { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek: DeepSeek V4 Flash 0423', createdAt: 1777000666, contextWindow: 1_048_576, maxTokens: 384_000 },
     ],
   },
   {
@@ -536,7 +536,7 @@ const RECORDED_LISTINGS = [
     api: 'anthropic-messages',
     // The reference example fills both capacities with 0, which is not a
     // usable capacity, so the row carries the name alone.
-    models: [{ id: 'claude-opus-5', name: 'Claude Opus 5' }],
+    models: [{ id: 'claude-opus-5', name: 'Claude Opus 5', createdAt: Date.parse('2026-07-24T00:00:00Z') / 1000 }],
   },
 ]
 

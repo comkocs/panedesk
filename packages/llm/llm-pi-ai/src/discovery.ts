@@ -75,6 +75,10 @@ interface ListingEntry {
   name?: unknown
   display_name?: unknown
   displayName?: unknown
+  /** Unix epoch seconds disclosed by OpenAI-compatible listings. */
+  created?: unknown
+  /** ISO timestamp disclosed by Anthropic's native listing. */
+  created_at?: unknown
   contextWindow?: unknown
   context_window?: unknown
   context_length?: unknown
@@ -85,6 +89,22 @@ interface ListingEntry {
   maxTokens?: unknown
   limit?: ListingLimit | null
   top_provider?: ListingTopProvider | null
+}
+
+/**
+ * A creation time in whole seconds since the Unix epoch, or `undefined` when
+ * the listing does not disclose one. Fractional seconds truncate; zero and
+ * negative values are not creation times.
+ * @param candidate - the raw `created` field.
+ * @param iso - the native Anthropic `created_at` field.
+ * @returns the disclosed time, when usable.
+ */
+function createdAtOf(candidate: unknown, iso: unknown): number | undefined {
+  const seconds = typeof candidate === 'number'
+    ? candidate
+    : typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(iso) ? Date.parse(iso) / 1000 : Number.NaN
+  if (!Number.isFinite(seconds) || seconds < 1) return undefined
+  return Math.trunc(seconds)
 }
 
 /** A positive integer field of a listing entry, or `undefined` when absent or unusable. */
@@ -203,6 +223,7 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
     const entry = raw as ListingEntry | null
     const id = label(key, entry?.id)
     if (id === undefined) continue
+    const createdAt = createdAtOf(entry?.created, entry?.created_at)
     const name = label(entry?.name, entry?.display_name, entry?.displayName) ?? id
     const contextWindow = capacity(
       entry?.contextWindow,
@@ -221,6 +242,7 @@ function readListing(body: unknown): LlmDiscoveredModel[] {
     )
     models.push({
       id,
+      ...createdAt === undefined ? {} : { createdAt },
       name,
       ...contextWindow === undefined ? {} : { contextWindow },
       ...maxTokens === undefined ? {} : { maxTokens },

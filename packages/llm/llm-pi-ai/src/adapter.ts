@@ -448,9 +448,22 @@ export class PiAiAdapter extends LlmAdapter {
     return this.streamWithSnapshot(options, this.current())
   }
 
+  override probe(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    const snapshot = this.current()
+    const listed = snapshot.models.getModel(options.provider, options.model)
+    if (listed !== undefined) return this.streamWithSnapshot(options, snapshot)
+    // The route supplies protocol and endpoint, not a claimed catalog entry.
+    // This descriptor exists only for this text-only, one-token probe.
+    const template = snapshot.models.getModels(options.provider)[0]
+    if (template === undefined) throw new LlmError('probe route has no protocol descriptor', 'INVALID_CONFIG')
+    const model: Model<Api> = { ...template, id: options.model, name: options.model, reasoning: false, input: ['text'] }
+    return this.streamWithSnapshot({ ...options, reasoningEffort: ReasoningEffortId('off') }, snapshot, model)
+  }
+
   private async * streamWithSnapshot(
     options: GenerateOptions,
     snapshot: PiAiSnapshot,
+    probeModel?: Model<Api>,
   ): AsyncIterable<StreamChunk> {
     if (options.stop !== undefined) {
       throw new LlmError('llm-pi-ai does not support GenerateOptions.stop', 'UNSUPPORTED_OPTION')
@@ -461,7 +474,7 @@ export class PiAiAdapter extends LlmAdapter {
     // mid-request builds a separate snapshot, so this request finishes under
     // the one it started with and the next call picks up the new one.
     const profile = this.profileOf(snapshot, options.provider)
-    const model = this.modelOf(snapshot, options.provider, options.model)
+    const model = probeModel ?? this.modelOf(snapshot, options.provider, options.model)
     const cache = requestCache(model, options)
     const evidence = new PiResponseEvidence(model.id, model.api, cache.cacheWriteAccounting)
     const updates = conversationUpdates(model)

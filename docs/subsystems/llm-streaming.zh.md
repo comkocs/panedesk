@@ -1175,6 +1175,27 @@ async prepareCall( config: LlmCallConfig, signal?: AbortSignal, configure?: Conf
  * @returns the chunk stream, possibly wrapped by `llm/stream` listeners.
  */
 stream(options: GenerateOptions): AsyncIterable<StreamChunk>
+
+/**
+ * Send the shortest generation that proves one model answers: one output
+ * token, no tools, no session. The credential stays inside the adapter that
+ * already serves the route; this method never logs or returns it.
+ * @param provider - registered provider route.
+ * @param model - model id, including one the catalog does not list.
+ * @param signal - caller cancellation.
+ * @returns success, or the adapter's own failure with the message kept and
+ *   the credential-shaped text removed.
+ */
+async probeModel( provider: string, model: string, signal?: AbortSignal, ): Promise<LlmModelProbeResult>
+
+/**
+ * Remote adapter for {@link probeModel}.
+ * @param provider - registered provider route.
+ * @param model - model id to probe.
+ * @param signal - caller cancellation supplied by the Remote carrier.
+ * @returns the probe result; transport failures stay transport failures.
+ */
+@Remote('probeModel') remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>
 ```
 
 Types: [FileAttachmentRef](attachment.zh.md) · [ImageAttachmentRef](attachment.zh.md) · [ImageRequestTarget](attachment.zh.md)

@@ -207,7 +207,7 @@ function scriptedFace(overrides: {
         { provider: 'broken', displayName: 'broken', settingsNs: 'llm-pi-ai', settingsPath: ['nope', 'x'], active: false },
         { provider: 'plain', displayName: 'plain', settingsNs: 'llm-plain', settingsPath: ['profiles', 'plain'], active: false },
       ].map(({ active: _active, ...entry }) => entry)))),
-      discoverModels: vi.fn(() => Promise.resolve(remoteOk([]))),
+      discoverModels: vi.fn((): ReturnType<PageContext['remote']['llm']['discoverModels']> => Promise.resolve(remoteOk([]))),
     },
     settings: {
       describe: vi.fn(() => Promise.resolve(remoteOk({ writable: true, hasDocument: false, namespaces: wireNamespaces() }))),
@@ -311,6 +311,21 @@ function cardSeatCalls(
       call[2]?.entryKey,
     ])
 }
+
+it.each([
+  { label: 'openai', ns: 'llm-pi-ai', path: ['providers', 'openai', 'models'], existing: [], input: { input: ['text'] } },
+  { label: 'DeepSeek', ns: 'llm-deepseek', path: ['models'], existing: DEFAULT_DEEPSEEK_MODELS, input: { inputModalities: ['text'] } },
+])('adopts recognized $label models through the settings owner and retains inherited metadata', async ({ label, ns, path, existing, input }) => {
+  const scripted = scriptedFace()
+  scripted.face.llm.discoverModels.mockResolvedValue(remoteOk([{ id: 'extra-model', name: 'Extra', inputModalities: ['text'] }]))
+  await mountFace(scripted)
+  const provider = screen.getByText(label, { selector: 'span' }).closest('li')!
+  fireEvent.click(within(provider).getByRole('button', { name: en.recognize }))
+  expect(await within(provider).findByLabelText('Extra')).toBeTruthy()
+  fireEvent.click(within(provider).getByRole('button', { name: en.fetchAdopt }))
+  await waitFor(() => { expect(scripted.mutate).toHaveBeenCalledWith(ns, [{ op: 'set', path, value: [...existing, { id: 'extra-model', name: 'Extra', ...input }] }], 0) })
+  expect(await within(provider).findByText(en.recognizedSaved)).toBeTruthy()
+})
 
 async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
   const { face, update, mutate, set, unset } = scripted

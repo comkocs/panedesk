@@ -65,6 +65,39 @@ export interface ModelsOperations {
    * @returns the candidates, or the refusal.
    */
   discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest): Promise<ModelDiscoveryOutcome>
+  /**
+   * Probe one model with a one-token generation.
+   * @param provider - registered provider route.
+   * @param model - model id, listed or typed by hand.
+   * @returns success, or the host's redacted failure.
+   */
+  probeModel(provider: string, model: string): Promise<{ readonly ok: boolean; readonly message?: string | undefined }>
+}
+
+/**
+ * Remove credentials, header values, and URL queries from surface diagnostics.
+ * @param message - host or transport diagnostic, when supplied.
+ * @returns the sanitized diagnostic, or undefined when absent.
+ */
+export function redactSurface(message: string | undefined): string | undefined {
+  if (message === undefined) return undefined
+  return message
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<redacted>')
+    .replace(/\b(authorization|cookie|set-cookie)\s*[:=][^\r\n]*/gi, '$1=<redacted>')
+    .replace(/\b(bearer)\s+\S+/gi, '$1 <redacted>')
+    .replace(/\b(api[-_ ]?key|x-api-key|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=<redacted>')
+    .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
+      try {
+        const url = new URL(value)
+        url.username = ''
+        url.password = ''
+        url.search = ''
+        url.hash = ''
+        return url.href
+      } catch {
+        return '<redacted>'
+      }
+    })
 }
 
 /**
@@ -94,6 +127,13 @@ export function createModelsOperations(ctx: ClientContext): ModelsOperations {
       return response.ok
         ? { kind: 'found', models: response.value }
         : { kind: 'refused', message: response.error.message }
+    },
+    probeModel: async (provider, model) => {
+      const response = await ctx.remote.llm.probeModel(provider, model)
+      if (!response.ok) return { ok: false, message: redactSurface(response.error.message) }
+      return response.value.ok
+        ? { ok: true }
+        : { ok: false, message: redactSurface(response.value.message) }
     },
   }
 }

@@ -49,6 +49,8 @@ The editor uses redacted `CredentialInfo` to choose the saved-credential placeho
 
 ### Editing a provider
 
+**Recognize models** asks the card's registered route for its catalog, checks the latest three by disclosed creation time, and otherwise preserves and labels server order. Other candidates remain selectable; **Add selected** persists additions without replacing existing model metadata. **Try once** accepts an unlisted identifier and asks the Host for a session-free generation capped at one output token. Failures retain a sanitized reason; credentials, authentication headers, and URL queries are not displayed.
+
 A blank key field offers a saved credential when one is detected, with no status text below the input; otherwise it offers environment authentication. Redacted `credentials.describe` checks distinguish a detected environment reference, no detected variables, and an unconfirmed read. A missing-variable hint uses the warning color and names the first variable to configure. A detected environment reference uses green. Address configuration variables do not count as credentials. Hidden authentication references still participate in detection; a generic detected hint keeps their names hidden. Detection does not validate credentials, test a connection, or inspect provider-managed files such as AWS profiles and Google application-default credentials. A nonempty input shows no authentication status text. The page reads native variable names as well as named references, in batches of at most 64, and never reads their values into the Client.
 
 An endpoint without a fixed catalog default shows the provider's `baseURLEnv` configuration names below the input. A profile endpoint remains the first placeholder choice.
@@ -125,7 +127,7 @@ None, as the package is a browser-side UI plugin layer that registers nothing mo
 
 #### KV Cache effect
 
-None; this package neither assembles nor sends a provider request.
+No conversation KV-cache changes. The explicit one-shot probe asks the Host to generate from a single `.` message with `maxTokens: 1`; it can incur provider usage and is not appended to a Session.
 
 ## Known Limitations and Deferred Work
 

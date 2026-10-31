@@ -43,6 +43,18 @@ async function drain(adapter: PiAiAdapter): Promise<StreamChunk[]> {
 }
 
 describe('pi-ai SDK retry boundary', () => {
+  it('dispatches an unlisted probe id without adding it to the route catalog', async () => {
+    streamSimple.mockImplementation(() => { throw new Error('mock probe reached provider') })
+    const adapter = gatewayAdapter()
+    const chunks: StreamChunk[] = []
+    for await (const chunk of adapter.probe({ provider: 'local-gateway', model: 'unlisted-model', maxTokens: 1, messages: [{ role: 'user', content: [{ type: 'text', text: '.' }] }] })) chunks.push(chunk)
+    expect(streamSimple).toHaveBeenCalledOnce()
+    expect(streamSimple.mock.calls[0]?.[0]).toMatchObject({ id: 'unlisted-model', api: 'openai-completions' })
+    expect(streamSimple.mock.calls[0]?.[2]).toMatchObject({ maxTokens: 1, maxRetries: 0 })
+    expect(chunks.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'error', failure: { message: 'mock probe reached provider' } } })
+    await expect(adapter.resolveModel('local-gateway', 'unlisted-model')).rejects.toMatchObject({ code: 'UNKNOWN_MODEL' })
+  })
+
   it('pins one SDK attempt even when the installed provider currently defaults to zero retries', async () => {
     streamSimple.mockImplementation(() => { throw new Error('mock SDK boundary') })
 

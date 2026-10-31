@@ -328,6 +328,16 @@ declare module '@panedesk/dsh-typert-protocol' {
   }
 }
 
+/** What one shortest generation probe answered. */
+export interface LlmModelProbeResult {
+  /** Whether the model produced or cleanly finished a one-token generation. */
+  readonly ok: boolean
+  /** Adapter failure code when `ok` is false. */
+  readonly code?: string
+  /** Failure text with credential-shaped substrings removed. */
+  readonly message?: string
+}
+
 /**
  * One model an endpoint reports about itself. Every field but the id is
  * optional because most provider listings disclose an id and nothing else;
@@ -336,6 +346,12 @@ declare module '@panedesk/dsh-typert-protocol' {
 export interface LlmDiscoveredModel {
   /** Model id the endpoint accepts. */
   id: string
+  /**
+   * Creation time the listing disclosed, as seconds since the Unix epoch.
+   * Absent when the endpoint or the installed catalog does not disclose one;
+   * callers then keep server order instead of sorting by recency.
+   */
+  createdAt?: number
   /** Human-readable name when the endpoint supplies one. */
   name?: string
   /** Maximum combined request and response context, when disclosed. */
