@@ -12,7 +12,7 @@ pnpm --filter @panedesk/dsh-web-frontend exec playwright install --with-deps chr
 
 在 Linux 上，`--with-deps` 会通过系统包管理器安装依赖。持久化 CI VM 必须通过镜像维护提供这些依赖，CI 只安装浏览器程序，遵循[故障切换手册](../../../.agents/notes/implemented/process/2026-07-26-ci-failover-runbook.zh.md)的要求。
 
-普通场景以没有已登记 Workspace 或 Session、但持久化标记记录默认 Workspace 已被删除的状态启动，使显式文件夹选择场景自行决定 cwd。`launchWebScaffold({ firstUse: true })` 保留初始化资格，供启动场景使用。普通夹具在浏览器启动前以及登记新 Workspace 路径时，通过产品设置持久化明确的只提醒项目选择，辅助页面打开的路径也适用；`firstUse: true` 不为新路径自动选档，`projectOpeningPending: true` 保留所有首次进入引导。实时会话菜单场景验证待处理弹层并将其关闭，再断言菜单交互与插件卸载。独立 CLI 重启场景也先点击关闭来收起引导，不保存策略，再验证重连。新工作区交互辅助函数在首次引导阻挡后续操作时点击对应语言的关闭按钮，不确认项目策略；引导专用场景直接控制界面，不使用这些辅助函数。
+普通场景以没有已登记 Workspace 或 Session、但持久化标记记录默认 Workspace 已被删除的状态启动，使显式文件夹选择场景自行决定 cwd。`launchWebScaffold({ firstUse: true })` 保留初始化资格，供启动场景使用。普通夹具在浏览器启动前以及登记新 Workspace 路径时，通过产品设置持久化明确的只提醒项目选择，辅助页面打开的路径也适用；`firstUse: true` 不为新路径自动选档，`projectOpeningPending: true` 保留所有首次进入引导。实时会话菜单场景验证待处理弹层并将其关闭，再断言菜单交互与插件卸载。移除夹具插件后的精确菜单清单包含产品自带的右侧栏入口。独立 CLI 重启场景也先点击关闭来收起引导，不保存策略，再验证重连。新工作区交互辅助函数在首次引导阻挡后续操作时点击对应语言的关闭按钮，不确认项目策略；引导专用场景直接控制界面，不使用这些辅助函数。
 
 ## 完成状态观察
 
