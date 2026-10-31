@@ -546,7 +546,7 @@
       "reason": "Add optional authenticated message delegation evidence with reserved control capacity and reusable multi-node Loader fixtures.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/README.md", "packages/seat/node-link/src/chain-slots.ts", "packages/seat/node-link/src/index.ts", "packages/seat/node-link/src/message-evidence.ts", "packages/seat/node-link/src/runtime.ts", "packages/seat/node-link/tests/chain-slots.spec.ts", "packages/seat/node-link/tests/message-evidence.spec.ts", "packages/session/tool-seat-messages/tests/composition.ts"],
+        "paths": ["packages/seat/node-link/README.md", "packages/seat/node-link/README.zh.md", "packages/seat/node-link/README.i18n.yaml", "packages/seat/node-link/src/chain-slots.ts", "packages/seat/node-link/src/index.ts", "packages/seat/node-link/src/message-evidence.ts", "packages/seat/node-link/src/runtime.ts", "packages/seat/node-link/tests/chain-slots.spec.ts", "packages/seat/node-link/tests/message-evidence.spec.ts", "packages/session/tool-seat-messages/tests/composition.ts"],
         "test": "rejects unrelated frames and keeps evidence capacity bounded"
       }
     },
@@ -557,7 +557,7 @@
       "reason": "Exact original keys and payload digests may recover a unique historical Session and opening phase. Queries preserve conservative failure and ambiguity handling, while repeated writes retain the first admission receipt.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/src/frozen-terminal.ts", "packages/seat/seat-engine/tests/frozen-admission.spec.ts", "packages/seat/seat-engine/README.md", "packages/seat/seat-local/tests/trusted-wake.spec.ts"],
+        "paths": ["packages/seat/seat-engine/src/frozen-terminal.ts", "packages/seat/seat-engine/tests/frozen-admission.spec.ts", "packages/seat/seat-engine/README.md", "packages/seat/seat-engine/README.zh.md", "packages/seat/seat-engine/README.i18n.yaml", "packages/seat/seat-local/tests/trusted-wake.spec.ts"],
         "test": "queries the executed frozen window while preserving its original queued receipt"
       }
     },
