@@ -51,7 +51,7 @@ it.each(['en', 'zh'] as const)('replays five statistics tabs, cursor navigation 
     priceVersion: 'fixture', priceKey: 'model-fixture', referencePrice: true,
   }, finish: {
     callId: `call-${String(index).padStart(3, '0')}` as LedgerCall['start']['callId'],
-    endedAt: asOf, observedAt: asOf, responseModelReported: 'same', effectiveModel: 'model-fixture',
+    endedAt: asOf - 1, observedAt: asOf - 1, responseModelReported: 'same', effectiveModel: 'model-fixture',
     usageState: 'complete', usage: { inputTokens: 10, cacheReadTokens: 80, cacheWriteTokens: 10, outputTokens: 20 },
     costUsd: '0.1', pricingState: 'priced', wallMs: 1000, modelInFlightMs: 1000, queueMs: 0, backoffMs: 0,
     waits: [], compactionCount: 0, compactionTimes: [], endReason: 'completed', recovered: false,
