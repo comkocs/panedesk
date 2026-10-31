@@ -225,6 +225,7 @@ const chainRequests: Record<NodeWorkChainMethod, Check> = {
   'chain.operation': fields({ key: chainKey, payloadDigest: text }),
 }
 const rejected = fields({ status: choice('rejected'), error: failure })
+const callbackPendingReason = optional(choice('owner-recovering', 'writeback-pending', 'writeback-outcome-unknown', 'desk-unreachable'))
 const chainResults: Record<NodeWorkChainMethod, Check> = {
   'seat.definitionRevision': value => rejected(value) || fields({ status: choice('found'), nodeId: text, seat: explicit,
     revision: value => integer(value) && Number(value) > 0 })(value),
@@ -237,10 +238,11 @@ const chainResults: Record<NodeWorkChainMethod, Check> = {
   'source.checkAdmission': value => fields({ status: choice('allowed'), policyRevision: integer })(value)
     || fields({ status: choice('denied', 'unknown'), policyRevision: nullable(integer), error: failure })(value),
   'source.deliverCallback': value => rejected(value)
-    || fields({ status: choice('pending', 'committed'), callbackId: text, payloadDigest: text })(value)
+    || fields({ status: choice('pending'), callbackId: text, payloadDigest: text, pendingReason: callbackPendingReason })(value)
+    || fields({ status: choice('committed'), callbackId: text, payloadDigest: text })(value)
     || fields({ status: choice('paused'), callbackId: text, payloadDigest: text, error: failure })(value),
   'chain.operation': value => rejected(value) || fields({ status: choice('missing') })(value)
-    || fields({ status: choice('pending'), effectState: choice('none', 'unknown') })(value)
+    || fields({ status: choice('pending'), effectState: choice('none', 'unknown'), pendingReason: callbackPendingReason })(value)
     || (fields({ status: choice('settled'), method: choice(...NODE_WORK_CHAIN_METHODS.filter(method => method !== 'chain.operation' && method !== 'seat.definitionRevision')), result: object })(value)
       && object(value) && chainResults[value.method as Exclude<NodeWorkChainMethod, 'chain.operation'>](value.result)),
 }

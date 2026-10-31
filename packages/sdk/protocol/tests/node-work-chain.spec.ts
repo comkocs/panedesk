@@ -43,6 +43,21 @@ describe('node work chain projection', () => {
     expect(() => decodeNodeWorkChainRequest('chain.operation', { key: { ...key, method: 'seat.definitionRevision' }, payloadDigest: 'digest' })).toThrow()
     expect(() => decodeNodeWorkChainResult('chain.operation', { status: 'settled', method: 'seat.definitionRevision', result })).toThrow()
   })
+  it('accepts only fixed pending details on callback and exact-query receipts', () => {
+    for (const pendingReason of ['owner-recovering', 'writeback-pending', 'writeback-outcome-unknown', 'desk-unreachable']) {
+      const callback = { status: 'pending', callbackId: 'callback-a', payloadDigest: 'digest-a', pendingReason }
+      const query = { status: 'pending', effectState: 'unknown', pendingReason }
+      expect(decodeNodeWorkChainResult('source.deliverCallback', callback)).toBe(callback)
+      expect(decodeNodeWorkChainResult('chain.operation', query)).toBe(query)
+      expect(() => decodeNodeWorkChainResult('source.deliverCallback', { ...callback, status: 'committed' })).toThrow()
+    }
+    for (const pendingReason of ['', 'raw diagnostic', 3, null]) {
+      expect(() => decodeNodeWorkChainResult('source.deliverCallback', {
+        status: 'pending', callbackId: 'callback-a', payloadDigest: 'digest-a', pendingReason,
+      })).toThrow()
+      expect(() => decodeNodeWorkChainResult('chain.operation', { status: 'pending', effectState: 'unknown', pendingReason })).toThrow()
+    }
+  })
   it('preserves legacy payload bytes without materializing optional fields', () => {
     const request = { seat: 'seat-a', operationId: 'operation-a', origin: 'manual' }
     const result = { status: 'rejected', error }

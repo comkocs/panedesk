@@ -53,8 +53,9 @@ test('parks a disconnected chain then auto-resumes once on hello and delivers wi
 
 test('does not auto-resume other-class parking when hello is ready', async () => {
   const h = await fixture(); let calls = 0
-  const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, async (body) => {
-    calls++; return { result: { status: 'pending', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } }
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, async () => {
+    calls++; return { result: { status: 'rejected', error: { code: 'unavailable', message: 'Owner unavailable',
+      alternative: 'Restore the owner', retryable: true, effectState: 'none' } } }
   }, async () => true)
   cleanups.push(() => outbox.close())
   await outbox.deliver(); vi.setSystemTime(1900000); await outbox.deliver()
@@ -209,7 +210,9 @@ test.each([true, false])('automatic resume and operator abandon serialize with a
 test('a late owner committed receipt does not clear other-class seat parking', async () => {
   const h = await fixture(); let committed = false
   const send = vi.fn(async (body: T.DeliverSourceCallbackRequest): Promise<T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>> => ({
-    result: { status: committed ? 'committed' : 'pending', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest },
+    result: committed ? { status: 'committed', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest }
+      : { status: 'rejected', error: { code: 'unavailable', message: 'Owner unavailable',
+        alternative: 'Restore the owner', retryable: true, effectState: 'none' } },
   }))
   const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, send, async () => true)
   cleanups.push(() => outbox.close())

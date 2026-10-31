@@ -59,6 +59,8 @@ Both wire ends share the following core methods, plus optional capability-specif
 
 The opt-in chain decoders also project `seat.definitionRevision`: exactly six request fields (`seat`, `sourceId`, `sourceOwnerNodeId`, `ownerEpoch`, `openingMethod`, `taskIds`) and either `SeatRejected` or a `found` result containing only `nodeId`, `seat` and a positive safe-integer `revision`. Unknown fields, nonpositive or fractional revisions and observation methods inside business queries are rejected. This adds no public JSON-RPC endpoint; node-link owns independent capability negotiation and authorization. Legacy payloads remain unchanged.
 
+Pending callback and exact-operation receipts optionally carry `pendingReason`: `owner-recovering`, `writeback-pending`, `writeback-outcome-unknown`, or `desk-unreachable`. The decoder rejects other values and rejects this field on committed receipts. Omitted fields retain legacy bytes; peers receiving these details must use the updated decoder.
+
 ### Payload semantics
 
 `InitializeParams.cachePolicy` carries the original cache selection. Optional boolean `cachePolicyInherited` requires that selection and marks it as inherited when true; the child cache plugin may then use the child route default for unsupported retention. Omission or false keeps explicit retention validation strict. This adds no method identifier or operation number.

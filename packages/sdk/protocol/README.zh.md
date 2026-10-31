@@ -59,6 +59,8 @@ kind: "package-library"
 
 可选链解码器同时投影 `seat.definitionRevision`：请求严格六字段（`seat`、`sourceId`、`sourceOwnerNodeId`、`ownerEpoch`、`openingMethod`、`taskIds`），结果为 `SeatRejected` 或仅含 `nodeId`、`seat` 与正安全整数 `revision` 的 `found`。未知字段、非正数或小数版本，以及业务查询中的观察方法均拒绝。不新增公开 JSON-RPC 端点；独立能力协商与鉴权归 node-link，旧载荷不变。
 
+pending 回调与精确操作回执可选携带 `pendingReason`：`owner-recovering`、`writeback-pending`、`writeback-outcome-unknown` 或 `desk-unreachable`。解码器拒绝其它值，也拒绝 committed 回执携带该字段。省略字段保持旧字节；接收这些细因的对端须使用更新后的解码器。
+
 ### 载荷语义
 
 `InitializeParams.cachePolicy` 携带原始缓存选择。可选布尔值 `cachePolicyInherited` 要求同时提供该选择，为 true 时将其标记为继承值；子缓存插件可在保留期不受支持时使用子通路缺省值。省略或设为 false 时，显式保留期仍严格校验。不新增方法标识或操作号。
