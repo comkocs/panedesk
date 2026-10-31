@@ -127,6 +127,19 @@ describe('seat entry presentations', () => {
     view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
     expect(screen.queryByRole('alert')).toBeNull()
   })
+  it.each(['en', 'zh'] as const)('names a parked definition admission without claiming an opening failed: %s', (language) => {
+    const value = { ...data, diagnostics: { openings: [{ sessionId: 'parked-turn' as never,
+      seat: seat.seat, agentPreset: seat.agentPreset, code: 'invalid-definition' as const, stage: 'turn' as const }] } }
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en, params?: Record<string, string | number>) =>
+      dictionary[key].replace(/\{(\w+)\}/g, (match, name: string) => String(params?.[name] ?? match))
+    const view = render(<SeatsSection {...{ ...fixture(value).props, t } as SeatsSectionProps} />)
+    expect(screen.getByRole('alert').textContent).toBe(language === 'en'
+      ? 'seat-a: Seat definition is invalid [invalid-definition]; turn admission is parked for this window and input remains unclaimed. Other seats and the engine continue. Repair the configuration; retained input can resume after admission confirms repair. This alert clears when admission confirms the repaired definition or this runtime is closed.'
+      : 'seat-a: 工位定义无效 [invalid-definition]，此窗口回合准入已停车，输入尚未认领，其他工位与引擎继续运行。请修复配置；准入确认修复后，保留输入可继续处理。准入确认定义已修复或此运行时关闭后，本告警清除。')
+    view.rerender(<SeatsSection {...{ ...fixture(data).props, t } as SeatsSectionProps} />)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
   it('shows a missing preset refusal in the cold picker without a Session header', () => {
     const f = fixture(data, undefined, { seq: 1, message: 'Agent preset agent-a is unavailable. Restore the preset and submit again.' })
     render(<SeatPicker {...f.props as SeatPickerProps} />)

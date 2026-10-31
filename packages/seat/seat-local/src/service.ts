@@ -26,7 +26,7 @@ import { readWindowStatus, renewalRefusal } from './status.ts'
 import { formatTemplateDate, readSeatText, renderOpening } from './template.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { seatFrozenIdentity, querySeatFrozen } from './frozen-admission.ts'
-import { SeatEngine, FrozenWriteBarrier, batchMemberId, queryBatchMember } from '@panedesk/dsh-seat-engine'
+import { SeatEngine, FrozenWriteBarrier, batchMemberId, queryBatchMember, definitionRefusal } from '@panedesk/dsh-seat-engine'
 import { validateLocalDefinition } from './paths.ts'
 import { messageWindows } from './message-windows.ts'
 
@@ -193,8 +193,11 @@ export class LocalSeatService extends SeatService {
   private async windowEngineStatus(open: T.EngineOpenData, complete: boolean): Promise<T.SeatEngineStatus> {
     const closing = closingState((await this.state.read()).effects, open.sessionId)
     if (closing && !closing.barrierReleased && closing.phase !== 'closed') return 'closing'
-    const admission = await this.engine()?.admitTurn(open.sessionId)
+    const engine = this.engine()
+    const admission = await (engine instanceof SeatEngine
+      ? engine.admitTurn(open.sessionId, 'seat-local/list') : engine?.admitTurn(open.sessionId))
     if (admission?.status === 'defer' && admission.reason === 'budget-stopped') return 'budget-stopped'
+    if (admission?.status === 'defer' && admission.reason === 'configuring') return 'configuring'
     if (!complete) return 'unknown'
     if (open.phase !== 'active' && open.phase !== 'opening-pending') return 'configuring'
     return open.openingMode === 'prefill' ? 'prefilled' : 'active'
@@ -418,8 +421,14 @@ export class LocalSeatService extends SeatService {
     const snapshot = context ? await context.resolve(context.request, authority) : undefined
     if (snapshot && 'status' in snapshot) return snapshot
     const variables = { seat: definition.seat, date, taskId: request.taskId ?? null }
-    const opening = snapshot ? { text: snapshot.text, digest: snapshot.digest, variables }
-      : renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes), variables, this.options.maxOpeningBytes)
+    let opening: NonNullable<T.EngineOpenData['frozenOpening']>
+    try {
+      opening = snapshot ? { text: snapshot.text, digest: snapshot.digest, variables }
+        : renderOpening(await readSeatText(definition.opening, this.options.maxOpeningBytes), variables, this.options.maxOpeningBytes)
+    } catch (error) {
+      if (!(error instanceof SeatLocalError) || error.failure.code !== 'invalid-definition') throw error
+      return definitionRefusal(definition.seat)
+    }
     const input: T.SeatLocalOpenRequest = { request: authority.authorization ? request
       : { ...request, openingMode: request.origin === 'manual' ? request.openingMode ?? 'auto' : 'auto' },
     authority, definition, opening, title: `${definition.seat} ${titleDate}`,
@@ -710,7 +719,8 @@ export class LocalSeatService extends SeatService {
     if (this.caller().authorization && (!wire || !(engine instanceof SeatEngine))) {
       return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
     }
-    const admission = await engine?.admitTurn(target.open.sessionId)
+    const admission = await (engine instanceof SeatEngine
+      ? engine.admitTurn(target.open.sessionId, 'seat-local/wake') : engine?.admitTurn(target.open.sessionId))
     if (wire && engine instanceof SeatEngine) {
       return engine.wakeDeliveries.deliver(wire, this.caller(), definition, target.binding, {
         sessionId: target.open.sessionId, text,
