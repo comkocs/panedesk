@@ -22,6 +22,7 @@ import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import { SessionTabBody } from './SessionTabBody.tsx'
 import { SessionConversation } from './conversation.tsx'
 import { sessionTabProvider } from './resource.ts'
+import { jumpToPin } from './jump.ts'
 import type {} from '@panedesk/dsh-api-session-controller/client'
 import type {} from '@panedesk/dsh-client-resources/client'
 
@@ -36,19 +37,8 @@ export type { SessionTabBodyProps, SessionTabInjected } from './SessionTabBody.t
 /** Dictionary namespace owned by this plugin. */
 const NS = 'sessionTab'
 
-/** Main area plus the right sidebar's two panes: one screen holds at most this many sessions. */
-const SESSION_LIMIT = 3
-
 /** Required services: slots, copy, the tab registry, and the right sidebar. */
-export const inject = ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight', 'sessions', 'resources']
-
-/** Session tabs already open in the right sidebar, counted from the open-tab inventory. */
-function openSessionTabs(ctx: ClientContext): number {
-  const mounted = ctx.sidebarRight.mounted.getSnapshot()
-  if (mounted === undefined) return 0
-  return ctx.sidebarRight.openTabs.getSnapshot()
-    .filter(tab => (tab.kind === SESSION_KIND || tab.kind === 'subagentchat') && tab.sessionId === mounted).length
-}
+export const inject = ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight', 'sessions', 'resources', 'uiConversation']
 
 /**
  * Client plugin body: the tab type, the row menu item, and the pin action.
@@ -83,13 +73,11 @@ export function apply(ctx: ClientContext): void {
     children: { 'sidebar.session.conversation': { kind: 'single', scope: 'session' } },
     inject: () => ({
       hooks: { pins: pinState },
-      // The transcript marks a message by its id only when a viewer has rendered it.
-      // A pin whose message is not on screen reports that; it does not invent a scroll target.
-      jump: (root: HTMLElement, messageId: string): boolean => {
-        const target = root.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`)
-        if (!(target instanceof HTMLElement)) return false
-        target.scrollIntoView({ block: 'center' })
-        return true
+      jump: (root: HTMLElement, messageId: string, signal?: AbortSignal): Promise<boolean> => {
+        const sessionId = root.dataset.sessionTab as SessionId | undefined
+        const binding = sessionId === undefined ? undefined : ctx.sessions.binding(sessionId)
+        const chat = binding === undefined ? undefined : ctx.uiConversation.binding(binding).target('chat')
+        return jumpToPin(root, messageId, binding, () => chat?.getSnapshot(), signal)
       },
     }),
   }, SessionTabBody)), 'ui-session-tab: session tab body')
@@ -101,10 +89,9 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: () => ({
       open: (sessionId: SessionId): boolean => {
-        // The main area already holds one session, so two right-sidebar panes fill the screen.
-        if (openSessionTabs(ctx) >= SESSION_LIMIT - 1) return false
+        const before = ctx.sidebarRight.openTabs.getSnapshot()
         ctx.sidebarRight.openTab(SESSION_KIND, { params: { sessionId }, preferNewPane: true })
-        return true
+        return ctx.sidebarRight.openTabs.getSnapshot() !== before
       },
     }),
   }, OpenInRightMenuItem)), 'ui-session-tab: open in the right sidebar')

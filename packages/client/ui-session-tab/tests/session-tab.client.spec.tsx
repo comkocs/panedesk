@@ -44,6 +44,24 @@ function memory(): PinStorage {
 
 describe('session tab surfaces', () => {
   it.each([
+    [enT, 'Loading the matching history', 'This entry could not be found; retry loading history'],
+    [zhT, '正在载入对应历史记录', '未能找到这条记录,请重试载入历史'],
+  ] as const)('shows localized paging and retry states', async (t, loading, failed) => {
+    let finish: ((found: boolean) => void) | undefined
+    const jump = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve }))
+    const ui = render(<Body t={t}
+      useTabInfo={() => ({ tab: { navigation: { params: { sessionId: SESSION } } } }) as SidebarRightTabInfo}
+      useResource={() => ({ status: 'loading', value: undefined, failure: undefined })}
+      SessionProvider={({ children }) => children} renderSlot={() => null}
+      usePins={select => select({ status: 'ready', pins: [{ sessionId: SESSION, messageId: 'old', pinnedAt: 1 }] })} jump={jump} />)
+    fireEvent.click(ui.getByRole('button'))
+    expect(ui.getByText(loading)).toBeTruthy()
+    expect(ui.getByRole('button').hasAttribute('disabled')).toBe(true)
+    finish?.(false)
+    await vi.waitFor(() => { expect(ui.getByText(failed)).toBeTruthy() })
+    expect(ui.getByRole('button').hasAttribute('disabled')).toBe(false)
+  })
+  it.each([
     [zhT, '钉住的条目', '这个会话还没有钉住的条目', '正在打开会话', '钉住失败,没有保存', '钉住'],
     [enT, 'Pinned entries', 'This session has no pinned entries', 'Opening the session', 'Pinning failed; nothing was saved', 'Pin'],
   ] as const)('localizes the bookmark body and failed action', (t, title, empty, loading, failed, pin) => {
@@ -51,7 +69,7 @@ describe('session tab surfaces', () => {
       useTabInfo={() => ({ tab: { navigation: { params: { sessionId: SESSION } } } }) as SidebarRightTabInfo}
       useResource={() => ({ status: 'loading', value: undefined, failure: undefined })}
       SessionProvider={({ children }) => children} renderSlot={() => null}
-      usePins={selector => selector({ status: 'empty' })} jump={() => false} />)
+      usePins={selector => selector({ status: 'empty' })} jump={async () => false} />)
     expect(ui.getByText(title)).toBeTruthy()
     expect(ui.getByText(empty)).toBeTruthy()
     expect(ui.getByRole('status').textContent).toBe(loading)
@@ -87,8 +105,8 @@ describe('session tab surfaces', () => {
     expect(ui.queryByText('Pinning failed; nothing was saved')).toBeNull()
   })
 
-  it('lists a stored pin and jumps to the message it names', () => {
-    const jump = vi.fn(() => true)
+  it('lists a stored pin and jumps to the message it names', async () => {
+    const jump = vi.fn(async () => true)
     const ui = render(<Body
       t={enT}
       useTabInfo={() => ({ tab: { navigation: { params: { sessionId: SESSION } } } }) as SidebarRightTabInfo}
@@ -99,7 +117,8 @@ describe('session tab surfaces', () => {
       jump={jump}
     />)
     fireEvent.click(ui.getByRole('button', { name: /Jump to this entry/ }))
-    expect(jump).toHaveBeenCalledWith(ui.container.querySelector('[data-session-tab]'), 'message-9')
+    expect(jump).toHaveBeenCalledWith(ui.container.querySelector('[data-session-tab]'), 'message-9', expect.any(AbortSignal))
+    await vi.waitFor(() => { expect(ui.getByRole('button').textContent).toContain('Jump to this entry') })
   })
 })
 

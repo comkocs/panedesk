@@ -1,5 +1,5 @@
 /** A right-sidebar session transcript and its browser-local bookmark list. */
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { PropsHooks, PropsLocale, PropsRenderSlots, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { PinRead } from './pins.ts'
@@ -14,9 +14,10 @@ export interface SessionTabInjected {
   /** Jump only within this transcript occurrence.
    * @param root - page containing the target transcript.
    * @param messageId - stable message identity.
-   * @returns whether the loaded transcript contains the message.
+   * @param signal - cancel pagination callbacks when this occurrence leaves or starts another jump.
+   * @returns whether the transcript contains the message after loading older pages.
    */
-  jump(root: HTMLElement, messageId: string): boolean
+  jump(root: HTMLElement, messageId: string, signal?: AbortSignal): Promise<boolean>
 }
 
 /** Derived sidebar scope, authorized child slot, and bookmark callbacks. */
@@ -36,18 +37,36 @@ export function SessionTabBody({ t, useTabInfo, useResource, SessionProvider, re
   const list = saved.status === 'ready' && opened !== undefined ? saved.pins.filter(pin => pin.sessionId === opened.sessionId) : []
   const shown = saved.status === 'error' || saved.status === 'unavailable' ? saved.status : (list.length === 0 ? 'empty' as const : undefined)
   const [missing, setMissing] = useState<string | undefined>(undefined)
+  const [loading, setLoading] = useState<string | undefined>(undefined)
+  const pending = useRef<AbortController | undefined>(undefined)
+  useEffect(() => {
+    setMissing(undefined)
+    setLoading(undefined)
+    return () => { pending.current?.abort() }
+  }, [opened?.sessionId])
   return (
     <div className={css.body} data-session-tab={opened?.sessionId}>
       <details className={css.bookmarks}>
         <summary>{t('pin.list')}</summary>
         {shown !== undefined ? <span className={css.muted}>{t(NOTICE[shown])}</span> : null}
         {list.map(pin => (
-          <button key={pin.messageId} type="button" className={css.pin} onClick={(event) => {
+          <button key={pin.messageId} type="button" className={css.pin} disabled={loading === pin.messageId} onClick={(event) => {
             const root = event.currentTarget.closest('[data-session-tab]')
-            setMissing(root instanceof HTMLElement && jump(root, pin.messageId) ? undefined : pin.messageId)
+            pending.current?.abort()
+            const operation = new AbortController()
+            pending.current = operation
+            setMissing(undefined)
+            setLoading(pin.messageId)
+            const settle = (found: boolean): void => {
+              if (operation.signal.aborted) return
+              setLoading(undefined)
+              setMissing(found ? undefined : pin.messageId)
+            }
+            if (root instanceof HTMLElement) void jump(root, pin.messageId, operation.signal).then(settle, () => { settle(false) })
+            else settle(false)
           }}>
             <span>{pin.messageId}</span>
-            <span className={css.muted}>{missing === pin.messageId ? t('body.gone') : t('pin.jump')}</span>
+            <span className={css.muted}>{loading === pin.messageId ? t('pin.loading') : missing === pin.messageId ? t('body.gone') : t('pin.jump')}</span>
           </button>
         ))}
       </details>

@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import { EMPTY_HISTORY, type LayoutState } from '@panedesk/dsh-client-ui-dockkit'
 import type { SurfaceState } from './stores.ts'
+import { fitsSessionBudget } from './session-budget.ts'
 
 /** Persistence namespace shared by scoped stores and startup discovery. */
 export const sidebarPersistence = 'dsh.sidebar-right.v1'
@@ -71,6 +72,7 @@ export function readSidebarLayout(sessionId: string): SurfaceState | undefined {
     if (saved === undefined) return undefined
     const parsed = surface.parse(saved)
     validateReferences(parsed)
+    if (!fitsSessionBudget(parsed.layout)) throw new Error('Saved sidebar exceeds the visible session budget')
     return { layout: parsed.layout as unknown as LayoutState, minted: parsed.minted, history: EMPTY_HISTORY }
   } catch (_invalidLayout) {
     clearSidebarLayout(sessionId)

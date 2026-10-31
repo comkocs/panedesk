@@ -37,6 +37,7 @@ import {
   planSetMode, planSettle, planSplitPane, planUnfloatPane, record, replay, stepBack, stepForward,
 } from '@panedesk/dsh-client-ui-dockkit'
 import { GUIDE_KIND, pageAddress, type SidebarRightSeed } from './contract/seed.ts'
+import { fitsSessionBudget } from './session-budget.ts'
 
 /** One session's docking surface: the layout, its sequence, and the id counter. */
 export interface SurfaceState {
@@ -198,6 +199,7 @@ function advance(surface: SurfaceState, plan: SurfacePlan, seed: () => SidebarRi
   const after = replay(surface.layout, planned)
   const settled = planSettle(after, counter.mint, after.expanded ? makeTab : undefined)
   const stepped = record(surface.history, surface.layout, [...planned, ...settled])
+  if (!fitsSessionBudget(stepped.state)) return surface
   return { layout: stepped.state, history: stepped.history, minted: counter.used() }
 }
 
@@ -229,9 +231,10 @@ type SidebarRightActions = {
     sessionId: string,
     intent: OpenContentIntent,
     settled: (tabId: TabId) => void,
+    beforeRemove?: (tab: TabRecord) => void,
   ) => void
   duplicateTab: (draft: SidebarRightState, sessionId: string, tabId: TabId) => void
-  closeTab: (draft: SidebarRightState, sessionId: string, tabId: TabId) => void
+  closeTab: (draft: SidebarRightState, sessionId: string, tabId: TabId, beforeRemove?: (tab: TabRecord) => void) => void
   focusTab: (draft: SidebarRightState, sessionId: string, tabId: TabId) => void
   focusPane: (draft: SidebarRightState, sessionId: string, paneId: PaneId) => void
   placeTab: (draft: SidebarRightState, sessionId: string, tabId: TabId, toPaneId: PaneId, index: number) => void
@@ -252,7 +255,8 @@ type HistoryStepper =
 /** Step a surface through the history in one direction. */
 function stepped(surface: SurfaceState, step: HistoryStepper): SurfaceState {
   const moved = step(surface.history, surface.layout)
-  return moved === undefined ? surface : { ...surface, layout: moved.state, history: moved.history }
+  return moved === undefined || !fitsSessionBudget(moved.state)
+    ? surface : { ...surface, layout: moved.state, history: moved.history }
 }
 
 /**
@@ -305,51 +309,59 @@ export function createSidebarRightStore(
       // a collapsed panel is not an open), focusing or seating the tab, and
       // closing the tab it replaces. `settled` reports the tab the planner
       // landed on, synchronously, because actions return nothing.
-      openContent: (d, sessionId: string, intent, settled) => {
-        d.bySession = seat(d, sessionId, s => advance(s, (state, mint) => {
-          const { kind, contentId, title, replaceTab: replace } = intent
-          const ops: LayoutOp[] = [...planSetExpanded(state, true)]
-          // A replaced tab lends its pane and slot; one that floats cannot (a
-          // floating pane holds one tab), so the new tab lands as if unplaced.
-          const replaced = replace === undefined ? undefined : findTabPane(state, replace)
-          const lent = replace !== undefined && replaced !== undefined && replaced.host === 'dock' ? replaced : undefined
-          const paneId = lent?.id ?? intent.paneId
-          const index = lent === undefined || replace === undefined ? undefined : lent.tabs.indexOf(replace)
-          // A page is unique per pane, not per surface: the pane it would land
-          // in may already show it, which is then the tab this open settles on.
-          // The same page in another pane never draws the open away — the kit's
-          // cross-pane reveal is for resources only.
-          const page = contentId === pageAddress(kind)
-          const held = page ? panePage(state, paneId ?? activeDockPaneId(state), kind) : undefined
-          const revealed = page
-            ? held
-            : intent.revealIfOpened === false ? undefined : findContentTab(state, contentId, kind)
-          let openedInNewPane: TabId | undefined
-          const split = intent.preferNewPane === true && replace === undefined && revealed === undefined
-            ? planSplitPane(state, mint, paneId, (id) => {
-              openedInNewPane = id
-              return { id, kind, contentId, title }
-            })
-            : []
-          const planned = revealed !== undefined
-            ? { ops: [{ type: 'focusTab' as const, tabId: revealed }], tabId: revealed }
-            : openedInNewPane !== undefined
-              ? { ops: split, tabId: openedInNewPane }
-              : planOpenContent(state, mint, {
-                kind,
-                contentId,
-                title,
-                ...paneId === undefined ? {} : { paneId },
-                ...index === undefined ? {} : { index },
-                ...page
-                  ? { revealIfOpened: false }
-                  : intent.revealIfOpened === undefined ? {} : { revealIfOpened: intent.revealIfOpened },
+      openContent: (d, sessionId: string, intent, settled, beforeRemove) => {
+        let opened: TabId | undefined
+        d.bySession = seat(d, sessionId, (s) => {
+          const next = advance(s, (state, mint) => {
+            const { kind, contentId, title, replaceTab: replace } = intent
+            const ops: LayoutOp[] = [...planSetExpanded(state, true)]
+            // A replaced tab lends its pane and slot; one that floats cannot (a
+            // floating pane holds one tab), so the new tab lands as if unplaced.
+            const replaced = replace === undefined ? undefined : findTabPane(state, replace)
+            const lent = replace !== undefined && replaced !== undefined && replaced.host === 'dock' ? replaced : undefined
+            const paneId = lent?.id ?? intent.paneId
+            const index = lent === undefined || replace === undefined ? undefined : lent.tabs.indexOf(replace)
+            // A page is unique per pane, not per surface: the pane it would land
+            // in may already show it, which is then the tab this open settles on.
+            // The same page in another pane never draws the open away — the kit's
+            // cross-pane reveal is for resources only.
+            const page = contentId === pageAddress(kind)
+            const held = page ? panePage(state, paneId ?? activeDockPaneId(state), kind) : undefined
+            const revealed = page
+              ? held
+              : intent.revealIfOpened === false ? undefined : findContentTab(state, contentId, kind)
+            let openedInNewPane: TabId | undefined
+            const split = intent.preferNewPane === true && replace === undefined && revealed === undefined
+              ? planSplitPane(state, mint, paneId, (id) => {
+                openedInNewPane = id
+                return { id, kind, contentId, title }
               })
-          ops.push(...planned.ops)
-          if (replace !== undefined && replace !== planned.tabId) ops.push({ type: 'closeTab', tabId: replace })
-          settled(planned.tabId)
-          return ops
-        }, seed))
+              : []
+            const planned = revealed !== undefined
+              ? { ops: [{ type: 'focusTab' as const, tabId: revealed }], tabId: revealed }
+              : openedInNewPane !== undefined
+                ? { ops: split, tabId: openedInNewPane }
+                : planOpenContent(state, mint, {
+                  kind,
+                  contentId,
+                  title,
+                  ...paneId === undefined ? {} : { paneId },
+                  ...index === undefined ? {} : { index },
+                  ...page
+                    ? { revealIfOpened: false }
+                    : intent.revealIfOpened === undefined ? {} : { revealIfOpened: intent.revealIfOpened },
+                })
+            ops.push(...planned.ops)
+            if (replace !== undefined && replace !== planned.tabId) ops.push({ type: 'closeTab', tabId: replace })
+            opened = planned.tabId
+            return ops
+          }, seed)
+          if (next === s) opened = undefined
+          const replaced = intent.replaceTab === undefined ? undefined : s.layout.tabs[intent.replaceTab]
+          if (replaced !== undefined && next.layout.tabs[replaced.id] === undefined) beforeRemove?.(replaced)
+          return next
+        })
+        if (opened !== undefined) settled(opened)
       },
       // A page is never copied: the copy would sit beside it in the same pane.
       duplicateTab: (d, sessionId: string, tabId: TabId) => {
@@ -363,14 +375,19 @@ export function createSidebarRightStore(
       // this plan refuses the programmatic path), and anything else closes
       // together with the column, which stays empty until an expansion seeds
       // the then-current default page.
-      closeTab: (d, sessionId: string, tabId: TabId) => {
-        d.bySession = seat(d, sessionId, s => advance(s, (state) => {
-          if (!canCloseTab(s, tabId)) return []
-          if (!soleDockedTab(state, tabId)) return [{ type: 'closeTab', tabId }]
-          // The collapse also leaves fullscreen: the reopened column shows only
-          // the reseeded default page, which never earns the whole window.
-          return [{ type: 'closeTab', tabId }, ...planSetMode(state, 'push'), ...planSetExpanded(state, false)]
-        }, seed))
+      closeTab: (d, sessionId: string, tabId: TabId, beforeRemove) => {
+        d.bySession = seat(d, sessionId, (s) => {
+          const next = advance(s, (state) => {
+            if (!canCloseTab(s, tabId)) return []
+            if (!soleDockedTab(state, tabId)) return [{ type: 'closeTab', tabId }]
+            // The collapse also leaves fullscreen: the reopened column shows only
+            // the reseeded default page, which never earns the whole window.
+            return [{ type: 'closeTab', tabId }, ...planSetMode(state, 'push'), ...planSetExpanded(state, false)]
+          }, seed)
+          const removed = s.layout.tabs[tabId]
+          if (removed !== undefined && next.layout.tabs[tabId] === undefined) beforeRemove?.(removed)
+          return next
+        })
       },
       focusTab: (d, sessionId: string, tabId: TabId) => {
         d.bySession = seat(d, sessionId, s => advance(s, state => planFocusTab(state, tabId), seed))

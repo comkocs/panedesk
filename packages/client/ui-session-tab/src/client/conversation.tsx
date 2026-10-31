@@ -14,12 +14,19 @@ export type SessionConversationProps = PropsRuntime<'sidebar.session.conversatio
  * @param props - the retained session's framework seats.
  * @returns one independent conversation occurrence, including its composer.
  */
-export function SessionConversation({ useSession, useConversation, renderFactorySlot }: SessionConversationProps) {
+export function SessionConversation({ sessionId, useSession, useConversation, useSessions, renderFactorySlot }: SessionConversationProps) {
   const session = useSession(value => value)
   const conversation = useConversation(value => value)
-  const active = conversation.activeTargets.size > 0 || !session.blank || session.running
-  const phase = session.openState === 'loading' ? 'settling' : active ? 'active' : 'hero'
-  return renderFactorySlot('conversation.content', { variant: 'embedded', phase, hero: phase === 'hero' }, {
+  const active = conversation.activeTargets.size > 0 || (!session.blank && !session.awaitingFirstTurn) || session.running
+  const shellPhase = active ? 'active' : session.promptAttempted ? 'engaging' : 'blank'
+  const summaryBlank = useSessions(state => state.byId[sessionId]?.blank)
+  const parentAvailabilityPending = session.subagent?.address.mode === 'continuable'
+    && session.subagent.parentAvailable === undefined
+  const settling = (shellPhase === 'blank' && session.openState === 'loading' && summaryBlank !== true)
+    || parentAvailabilityPending
+  const hero = shellPhase === 'blank' && (session.openState === 'open' || summaryBlank === true)
+  const phase = settling ? 'settling' : hero ? 'hero' : 'active'
+  return renderFactorySlot('conversation.content', { variant: 'embedded', phase, hero }, {
     slots: { views: ChatViews },
   })
 }

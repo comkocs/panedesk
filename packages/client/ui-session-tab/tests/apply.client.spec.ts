@@ -3,7 +3,8 @@
 import { expect, vi } from 'vitest'
 import { ok } from '@panedesk/dsh-remote-mock'
 import { createClientTest, webApp } from '@panedesk/dsh-client-test-runtime/src/assembly/index.ts'
-import { SESSION_FORMAT_VERSION, type SessionId } from '@panedesk/dsh-session/types'
+import { SESSION_FORMAT_VERSION, SessionSeq, type SessionId } from '@panedesk/dsh-session/types'
+import { plainTurn } from '../../../api/session-controller/tests/event-script.client.ts'
 import type {} from '../src/client/index.ts'
 import type { ISessions } from '@panedesk/dsh-api-session-controller/client'
 import type { SessionTabInjected } from '../src/client/SessionTabBody.tsx'
@@ -49,6 +50,79 @@ mounted('renders a retained session conversation with its own composer through t
     expect(page?.textContent).toMatch(/Pinned entries|钉住的条目/)
   })
   expect(mock.log.calls('session/prompt')).toHaveLength(0)
+}, 60_000)
+
+mounted('loads paged history and locates an old pin through the shipped conversation', async ({ mock, start }) => {
+  const older = plainTurn(SessionSeq(0), 0, 'Older question', 'Older pinned answer')
+  const newer = plainTurn(SessionSeq(6), 1, 'Recent question', 'Recent answer')
+  const answer = older.find(event => event.type === 'assistant/message')
+  if (answer?.type !== 'assistant/message') throw new Error('Missing assistant fixture')
+  const messageId = answer.data.message.id
+  mock.unary('session/list', ok({ items: [{ sessionId: SESSION, updatedAt: 1, running: false, blank: false, depth: 0 }] }))
+  mock.stream('session/follow', (_args, stream) => {
+    stream.push({ type: 'snapshot', header: { version: SESSION_FORMAT_VERSION, id: SESSION, createdAt: 0, isSeeded: false },
+      cursor: 11, records: newer.map(event => ({ type: 'event', event })), hasMore: true,
+      projections: { asOfSeq: 11, values: {} }, assistantStream: { revision: 0 } })
+  })
+  mock.unary('session/page', ok({ records: older.map(event => ({ type: 'event', event })), hasMore: false }))
+  mock.stream('job/list', (_args, stream) => { stream.push({ type: 'rows', jobs: [] }) })
+  mock.unary('schedule/list', ok([]))
+  mock.unary('schedule/catalog', ok([]))
+  mock.unary('commands/list', ok([]))
+  mock.unary('skills/list', ok({ skills: [] }))
+  mock.unary('cacheView/read', ok({ rows: [], tiers: [], adjustable: false, complete: true }))
+  vi.stubGlobal('CSS', { escape: (value: string) => value })
+  const scroll = vi.fn()
+  const originalScroll = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, writable: true, value: scroll })
+  try {
+    const c = await start()
+    c.ctx.uiWorkspace.openSession(SESSION)
+    await vi.waitFor(() => { expect(c.ctx.sidebarRight.mounted.getSnapshot()).toBe(SESSION) })
+    c.ctx.sidebarRight.openTab('session', { params: { sessionId: SESSION } })
+    await vi.waitFor(() => { expect(c.container?.querySelector('[data-session-tab]')?.textContent).toContain('Recent answer') })
+    const root = c.container!.querySelector<HTMLElement>('[data-session-tab]')!
+    expect(root.textContent).not.toContain('Older pinned answer')
+    const body = c.ctx.slots.entries('sidebar.right.pane.tab').find(entry => entry.locale === 'sessionTab')!
+    await expect(bodyInjection(body.inject?.()).jump(root, messageId)).resolves.toBe(true)
+    expect(mock.log.requests('session/page')).toMatchObject([{ beforeSeq: 6, maxMessages: 500 }])
+    expect(root.textContent).toContain('Older pinned answer')
+    expect(scroll).toHaveBeenCalledWith({ block: 'center' })
+    expect(mock.log.calls('session/prompt')).toHaveLength(0)
+  } finally {
+    if (originalScroll === undefined) Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+    else Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScroll)
+    vi.unstubAllGlobals()
+  }
+}, 60_000)
+
+it('loads older history before locating a pin outside the rendered window', async ({ mock, start }) => {
+  mock.unary('session/list', ok({ items: [{ sessionId: SESSION, updatedAt: 1, running: false, blank: false, depth: 0 }] }))
+  mock.stream('session/follow', (_args, stream) => {
+    stream.push({ type: 'snapshot', header: { version: SESSION_FORMAT_VERSION, id: SESSION, createdAt: 0, isSeeded: false },
+      cursor: -1, records: [], hasMore: true, projections: { asOfSeq: -1, values: {} }, assistantStream: { revision: 0 } })
+  })
+  mock.unary('commands/list', ok([]))
+  mock.unary('skills/list', ok({ skills: [] }))
+  vi.stubGlobal('CSS', { escape: (value: string) => value })
+  const c = await start()
+  const reference = c.ctx.sessions.retain(SESSION, { source: 'sessionTab' })
+  const binding = await reference.ready
+  const root = document.createElement('div')
+  root.dataset.sessionTab = SESSION
+  document.body.append(root)
+  const target = document.createElement('div')
+  target.dataset.messageId = 'older-message'
+  const scroll = vi.fn()
+  target.scrollIntoView = scroll
+  const loadOlder = vi.spyOn(binding.session, 'loadOlder').mockImplementation(async () => { root.append(target) })
+  try {
+    const body = c.ctx.slots.entries('sidebar.right.pane.tab').find(entry => entry.locale === 'sessionTab')!
+    await expect(bodyInjection(body.inject?.()).jump(root, 'older-message')).resolves.toBe(true)
+    expect(loadOlder).toHaveBeenCalledTimes(1)
+    expect(scroll).toHaveBeenCalledWith({ block: 'center' })
+    expect(mock.log.calls('session/prompt')).toHaveLength(0)
+  } finally { root.remove(); reference.release(); vi.unstubAllGlobals() }
 }, 60_000)
 
 it('loads both shipped contributions and releases cache polling and retained sessions on unload', async ({ mock, start }) => {

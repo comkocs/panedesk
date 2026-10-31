@@ -10,12 +10,15 @@ import { SessionConversation, type SessionConversationProps } from '../src/clien
 afterEach(cleanup)
 
 it.each([
-  ['active', false, 'open'],
-  ['hero', true, 'open'],
-  ['settling', true, 'loading'],
-] as const)('renders the %s embedded phase with its own conversation scope', (phase, blank, openState) => {
+  ['active', false, 'open', false, false],
+  ['hero', true, 'open', false, false],
+  ['settling', true, 'loading', false, false],
+  ['hero', false, 'open', true, false],
+  ['active', true, 'open', false, true],
+  ['active', true, 'open', true, true],
+] as const)('renders the %s embedded phase (blank=%s, open=%s, awaiting=%s, attempted=%s)', (phase, blank, openState, awaitingFirstTurn, promptAttempted) => {
   const sessionId = 'sidebar' as SessionId
-  const session = { ...sessionSnapshot(sessionId), blank, openState }
+  const session = { ...sessionSnapshot(sessionId), blank, openState, awaitingFirstTurn, promptAttempted }
   const conversation = conversationSnapshot()
   const calls: Parameters<SessionConversationProps['renderFactorySlot']>[] = []
   const renderFactorySlot: SessionConversationProps['renderFactorySlot'] = (key, owner, options) => {
@@ -26,8 +29,9 @@ it.each([
     sessionId,
     useSession: select => select(session),
     useConversation: select => select(conversation),
+    useSessions: select => select({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }),
     renderFactorySlot,
-  } satisfies Pick<SessionConversationProps, 'sessionId' | 'useSession' | 'useConversation' | 'renderFactorySlot'>
+  } satisfies Pick<SessionConversationProps, 'sessionId' | 'useSession' | 'useConversation' | 'useSessions' | 'renderFactorySlot'>
   render(<SessionConversation {...props as SessionConversationProps} />)
   expect(calls).toHaveLength(1)
   expect(calls[0]?.slice(0, 2)).toEqual(['conversation.content', {

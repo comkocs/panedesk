@@ -33,18 +33,28 @@ export function sessionTabAddress(sessionId: SessionId): string {
  * @param sessions - injected client session model.
  * @returns a session-tab resource provider.
  */
-export function sessionTabProvider(sessions: ISessions): ResourceProvider<'sessiontab'> {
+export function sessionTabProvider(sessions: Pick<ISessions, 'retain'>): ResourceProvider<'sessiontab'> {
   return {
     protocol: 'sessiontab',
     async *open(address, { signal }) {
-      const id = decodeURIComponent(new URL(address).pathname.slice(1)) as SessionId
       const aborted = (): boolean => signal.aborted
       if (aborted()) return
-      const reference = sessions.retain(id, { source: 'sessionTab', signal })
+      let id: SessionId
+      try { id = decodeURIComponent(new URL(address).pathname.slice(1)) as SessionId }
+      catch (_invalidAddress) {
+        if (!aborted()) yield { ok: false, error: new RemoteError('gateway/bad-request', 'Invalid session resource address', {}) }
+        return
+      }
+      let reference: SessionReference
+      try { reference = sessions.retain(id, { source: 'sessionTab', signal }) }
+      catch (_acquisitionFailed) {
+        if (!aborted()) yield { ok: false, error: new RemoteError('session/not-found', 'The session could not be opened', { sessionId: id }) }
+        return
+      }
       try {
         try { await reference.ready }
         catch (_openFailed) {
-          if (!aborted()) yield { ok: false, error: new RemoteError('session/not-found', 'The session could not be opened', { sessionId: id }) }
+          if (!aborted()) yield { ok: false, error: new RemoteError('session/not-found', 'The session could not be opened', { sessionId: reference.sessionId }) }
           return
         }
         if (aborted()) return
