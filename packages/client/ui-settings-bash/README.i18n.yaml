@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-settings-bash/README.md
+/panedesk-dsh-client-ui-settings-bash:
+  en: 7428da1359241c5d
+  zh: da85c37316a9d4ac
+/panedesk-dsh-client-ui-settings-bash/table-of-contents:
+  en: bb348952b83fa48c
+  zh: 59a68725dbebf7bd
+/panedesk-dsh-client-ui-settings-bash/using-this-package:
+  en: b5940dd7ad937f7c
+  zh: c6d66eae0a7118e1
+/panedesk-dsh-client-ui-settings-bash/using-this-package/what-a-click-commits:
+  en: d31cfe4dd5699519
+  zh: 819047dd80cef066
+/panedesk-dsh-client-ui-settings-bash/understanding-the-implementation:
+  en: da4b9d8a9cecebb2
+  zh: ee2c5fb2204a43cf
+/panedesk-dsh-client-ui-settings-bash/understanding-the-implementation/design-notes:
+  en: f7d953a36e9fe8b1
+  zh: 28d4c2d0841d19c9
+/panedesk-dsh-client-ui-settings-bash/understanding-the-implementation/source-map:
+  en: 65fa295188827b2b
+  zh: 25b877603e5dc486
+/panedesk-dsh-client-ui-settings-bash/further-reading:
+  en: 9b3697c74b2b44a4
+  zh: 97e93af49b373114
+/panedesk-dsh-client-ui-settings-bash/model-experience:
+  en: e7d118aa4c23df23
+  zh: a311da3843709f90
+/panedesk-dsh-client-ui-settings-bash/model-experience/model-experience-impact:
+  en: 8a007d153c1d1916
+  zh: 719afc8d8ed52469
+/panedesk-dsh-client-ui-settings-bash/model-experience/kv-cache-impact:
+  en: 30ee5e2fe65f6dfd
+  zh: 8ce6a75931a677fd
+/panedesk-dsh-client-ui-settings-bash/known-limitations-and-deferred-work:
+  en: c78bb57a1c487080
+  zh: 03ae9616360002cd
+/panedesk-dsh-client-ui-settings-bash/known-limitations-and-deferred-work/development-note:
+  en: 6a973d2b97172399
+  zh: fe0399aeeb512f75

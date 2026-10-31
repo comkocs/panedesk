@@ -1,0 +1,56 @@
+{
+  "name": "@panedesk/dsh-host-bash-setup",
+  "description": "First-run Git Bash discovery Remote: probes Windows install locations and commits the user-confirmed product config the base profiles gate on",
+  "version": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/host/host-bash-setup"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@panedesk/dsh-bash-local": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@panedesk/dsh-bash-local": "workspace:*",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/cordis": "workspace:~"
+  }
+}

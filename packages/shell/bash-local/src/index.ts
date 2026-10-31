@@ -405,3 +405,9 @@ export class LocalBashExecutor extends ShellExecutor {
 }
 
 export default LocalBashExecutor
+
+export {
+  WINDOWS_BASH_CONFIG_FILENAME, clearWindowsBashConfig, parseWindowsBashConfig, probeWindowsBash,
+  readWindowsBashConfig, windowsBashCandidates, windowsBashConfigPath, writeWindowsBashConfig,
+} from './windows-bash.ts'
+export type { WindowsBashCandidate, WindowsBashConfig, WindowsBashFs, WindowsBashSource, WindowsBashWriteFs } from './windows-bash.ts'

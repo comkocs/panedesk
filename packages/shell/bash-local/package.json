@@ -33,6 +33,8 @@
     "@panedesk/cordis": "workspace:~"
   },
   "dependencies": {
+    "@panedesk/dsh-atomic-write": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {

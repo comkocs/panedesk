@@ -38,7 +38,9 @@ async function bench() {
   const list = vi.fn<() => Promise<ListResult>>()
     .mockResolvedValue({ ok: true, value: EMPTY })
   ctx.provide('remote.pluginInventory', { list })
-  return { ctx, retryClient, slots: ctx.get('slots') as SlotRegistry, locale, list }
+  const listPlugins = vi.fn(async () => ({ ok: true, value: [] as never[] }))
+  ctx.provide('remote.pluginManager', { listPlugins })
+  return { ctx, retryClient, slots: ctx.get('slots') as SlotRegistry, locale, list, listPlugins }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -54,7 +56,7 @@ describe('ui-settings-plugin-inventory browser plugin', () => {
   })
 
   it('declares only the services used by the Settings Remote contribution', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'modules'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginInventory', 'remote.pluginManager', 'modules'])
   })
 
   it('registers a localized tab without reading the Remote eagerly', async () => {

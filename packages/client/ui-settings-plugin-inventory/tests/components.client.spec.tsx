@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createSnapshotStore } from '@panedesk/dsh-client-store'
 import type { ClientEntryState } from '@panedesk/dsh-client-modules/client'
-import type { PluginEntryId } from '@panedesk/dsh-api-remotes/client'
+import type { ChangeResult, PluginEntryId, PluginInfo } from '@panedesk/dsh-api-remotes/client'
 import { Context } from '@panedesk/cordis'
 import { LocaleRuntime } from '@panedesk/dsh-client-locale/client'
 import { bindSnapshotSelector } from '@panedesk/dsh-client-test-runtime'
@@ -33,6 +33,9 @@ function props(
     list,
     presetName,
     resolveText,
+    // No managed plane by default: cards stay read-only unless a case provides rows.
+    listManaged: async () => [],
+    setEnabled: vi.fn(async () => ({ changed: false, application: 'applied', stage: 'enable', target: 'unused' })),
     useClientSync: bindSnapshotSelector(createSnapshotStore<ClientEntryState>({ syncing: false, failures: [] })),
     retryClient: vi.fn(),
   } as PluginInventorySettingsTabProps
@@ -104,6 +107,9 @@ async function renderReady(snapshot: Snapshot = SNAPSHOT): Promise<ReturnType<ty
 
 const globalToggle = (): HTMLElement =>
   screen.getByRole('button', { name: (name: string) => name.startsWith(en.globalTitle) })
+/** The same toggle under whichever interface language a case pinned. */
+const globalToggleTitled = (title: string): HTMLElement =>
+  screen.getByRole('button', { name: (name: string) => name.startsWith(title) })
 const presetToggle = (): HTMLElement => screen.getByRole('button', { name: en.presetTitle })
 
 describe('PluginInventorySettingsTab', () => {
@@ -542,6 +548,84 @@ describe('PluginInventorySettingsTab', () => {
     fireEvent.click(globalToggle())
     fireEvent.click(screen.getByRole('button', { name: 'tool-bash, bash-host, Via presets' }))
     expect(screen.getByText('Localized standard · Localized ptc')).toBeTruthy()
+  })
+
+  it('offers the explicit profile switch on addressable built-in rows and reports the saved declaration (en)', async () => {
+    const setEnabled = vi.fn(async (_id: PluginEntryId, enabled: boolean) => ({
+      changed: true, application: 'restart-required', stage: 'enable', target: 'seats-row', enabled,
+    } satisfies ChangeResult))
+    const managed: PluginInfo[] = [
+      { entryId: 'seats-row' as PluginEntryId, moduleName: '@panedesk/dsh-client-ui-seats', enabled: true, fiberPhase: 'active', patchId: 'ui-seats' },
+      { entryId: 'dormant' as PluginEntryId, moduleName: '@fixture/dormant', enabled: false, fiberPhase: null, patchId: 'dormant' },
+      { entryId: 'telemetry' as PluginEntryId, moduleName: '@fixture/telemetry', enabled: true, fiberPhase: 'failed', readOnlyReason: 'management-required' },
+    ]
+    const snapshot: Snapshot = {
+      entries: [
+        { entryId: 'seats-row' as PluginEntryId, moduleName: '@panedesk/dsh-client-ui-seats', enabled: true, fiberPhase: 'active' },
+        { entryId: 'dormant' as PluginEntryId, moduleName: '@fixture/dormant', enabled: false, fiberPhase: null },
+        { entryId: 'telemetry' as PluginEntryId, moduleName: '@fixture/telemetry', enabled: true, fiberPhase: 'failed' },
+      ],
+    }
+    render(<PluginInventorySettingsTab {...props(async () => snapshot)} listManaged={async () => managed} setEnabled={setEnabled} />)
+    await screen.findByRole('searchbox', { name: en.search })
+    fireEvent.click(globalToggle())
+
+    const seatsSwitch = screen.getByRole('switch', { name: 'Enable or disable ui-seats' })
+    expect(seatsSwitch.getAttribute('aria-checked')).toBe('true')
+    const dormantSwitch = screen.getByRole('switch', { name: 'Enable or disable dormant' })
+    expect(dormantSwitch.getAttribute('aria-checked')).toBe('false')
+    // A read-only managed row keeps its card without a switch.
+    expect(screen.queryByRole('switch', { name: /telemetry/ })).toBeNull()
+
+    fireEvent.click(seatsSwitch)
+    await waitFor(() => { expect(setEnabled).toHaveBeenCalledWith('seats-row', false) })
+    expect(await screen.findByText(en.managedRestartRequired, { selector: '[data-switch-notice="restart-required"]' })).toBeTruthy()
+  })
+
+  it('writes through the switch in Chinese and reports an overriding higher layer (zh)', async () => {
+    const setEnabled = vi.fn(async (_id: PluginEntryId, enabled: boolean) => ({
+      changed: true, application: 'overridden', stage: 'enable', target: 'seats-row', enabled,
+    } satisfies ChangeResult))
+    const managed: PluginInfo[] = [
+      { entryId: 'seats-row' as PluginEntryId, moduleName: '@panedesk/dsh-client-ui-seats', enabled: true, fiberPhase: 'active', patchId: 'ui-seats' },
+    ]
+    const snapshot: Snapshot = {
+      entries: [{ entryId: 'seats-row' as PluginEntryId, moduleName: '@panedesk/dsh-client-ui-seats', enabled: true, fiberPhase: 'active' }],
+    }
+    const { locale, pageProps } = localizedProps(async () => snapshot)
+    locale.setLocale('zh')
+    render(<PluginInventorySettingsTab {...pageProps} listManaged={async () => managed} setEnabled={setEnabled} />)
+    await screen.findByRole('searchbox', { name: zh.search })
+    fireEvent.click(globalToggleTitled(zh.globalTitle))
+
+    const seatsSwitch = screen.getByRole('switch', { name: zh.managedSwitch.replaceAll('{name}', 'ui-seats') })
+    fireEvent.click(seatsSwitch)
+    await waitFor(() => { expect(setEnabled).toHaveBeenCalledWith('seats-row', false) })
+    expect(await screen.findByText(zh.managedOverridden, { selector: '[data-switch-notice="overridden"]' })).toBeTruthy()
+  })
+
+  it('reports a failed declaration write in place and keeps the row operable (en)', async () => {
+    const setEnabled = vi.fn(async () => { throw new Error('profile patch locked') })
+    const managed: PluginInfo[] = [
+      { entryId: 'seats-row' as PluginEntryId, moduleName: '@panedesk/dsh-client-ui-seats', enabled: true, fiberPhase: 'active', patchId: 'ui-seats' },
+    ]
+    const snapshot: Snapshot = {
+      entries: [{ entryId: 'seats-row' as PluginEntryId, moduleName: '@panedesk/dsh-client-ui-seats', enabled: true, fiberPhase: 'active' }],
+    }
+    render(<PluginInventorySettingsTab {...props(async () => snapshot)} listManaged={async () => managed} setEnabled={setEnabled} />)
+    await screen.findByRole('searchbox', { name: en.search })
+    fireEvent.click(globalToggle())
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable or disable ui-seats' }))
+    expect(await screen.findByText(en.managedFailed, { selector: '[data-switch-notice="failed"]' })).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Enable or disable ui-seats' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('keeps every card read-only when the managed plane is unavailable (en)', async () => {
+    render(<PluginInventorySettingsTab {...props(async () => SNAPSHOT)} listManaged={async () => { throw new Error('management unavailable') }} />)
+    await screen.findByRole('searchbox', { name: en.search })
+    fireEvent.click(globalToggle())
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('switch')).toBeNull()
   })
 
   it('searches across scopes and points at matches in other presets', async () => {

@@ -24,6 +24,9 @@
       "path": "../../util/launch-environment"
     },
     {
+      "path": "../../shell/bash-local"
+    },
+    {
       "path": "../../util/home-paths"
     },
     {

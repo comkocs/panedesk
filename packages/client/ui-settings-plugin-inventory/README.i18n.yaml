@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-plugin-inventory/README.md
 /:
-  en: 9121298d88fe8ea6
-  zh: 5da705491f951d0e
+  en: f22dfeb9c3986cc9
+  zh: 7a1faef6920756e4
 /panedesk-dsh-client-ui-settings-plugin-inventory:
   en: df42c9ec2fe1aa47
   zh: 57c54ad32e90e35e
@@ -27,8 +27,8 @@
   en: 673c7574e14078be
   zh: b093e897f0341973
 /panedesk-dsh-client-ui-settings-plugin-inventory/understand-the-implementation:
-  en: cab883d26642c932
-  zh: 54e7321bd781b400
+  en: f58edf49b13a2ee0
+  zh: 79e8de187ba3a258
 /panedesk-dsh-client-ui-settings-plugin-inventory/understand-the-implementation/registration:
   en: e4792880c5916ce0
   zh: 4c8171a446dd153f
@@ -45,8 +45,8 @@
   en: ca75c51c89c2c9b0
   zh: de54f3467ef3b9be
 /panedesk-dsh-client-ui-settings-plugin-inventory/known-limitations-and-deferred-work:
-  en: 3d3343d97eb73762
-  zh: 5fc9d1c1f0c4055d
+  en: bcd04c9cf17d66ec
+  zh: 14b29bc97760d4a5
 /panedesk-dsh-client-ui-settings-plugin-inventory/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

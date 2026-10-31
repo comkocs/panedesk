@@ -42,25 +42,27 @@
     "semver": "^7.8.5"
   },
   "peerDependencies": {
+    "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-group": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
-    "@panedesk/dsh-launch-environment": "workspace:*",
+    "@panedesk/dsh-bash-local": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
-    "@panedesk/cordis": "workspace:~"
+    "@panedesk/dsh-launch-environment": "workspace:*"
   },
   "devDependencies": {
-    "@panedesk/dsh-cmdline": "workspace:*",
-    "@panedesk/schemastery": "workspace:~",
+    "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-group": "workspace:~",
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/cordis-plugin-timer": "workspace:~",
-    "@panedesk/dsh-launch-environment": "workspace:*",
+    "@panedesk/dsh-bash-local": "workspace:*",
+    "@panedesk/dsh-cmdline": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-launch-environment": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
+    "@panedesk/schemastery": "workspace:~",
     "@types/js-yaml": "^4.0.9",
-    "@types/semver": "^7.8.0",
-    "@panedesk/cordis": "workspace:~"
+    "@types/semver": "^7.8.0"
   }
 }
