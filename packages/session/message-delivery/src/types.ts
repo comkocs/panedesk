@@ -137,6 +137,8 @@ export interface MessageStateEvent {
 }
 /** Complete status with first-injection time preserved even when response attribution moves to a later successful turn. */
 export interface MessageStatus {
+  /** Opt-in list projection, excluding message content; absent from legacy replies. */
+  readonly metadata?: Pick<DeliveryMessage, 'senderSessionId' | 'priority' | 'createdAt'> & { readonly targetSessionId: SessionId }
   readonly messageId: MessageId
   readonly state: MessageState
   readonly phase: 'pending' | 'claimed' | 'appended' | 'dispatched' | 'settled' | 'delivery-uncertain'
@@ -188,6 +190,8 @@ export type OperationStatus =
   | ControlResult
 /** Half-open time filter; unanswered selects handoff/reply without response and excludes terminal outcomes by default. */
 export interface MessageQuery {
+  /** Include safe routing metadata on list results; never changes stored messages. */
+  readonly includeMetadata?: boolean
   readonly sessionId?: SessionId
   readonly senderSessionId?: SessionId
   readonly targetSessionId?: SessionId
@@ -208,6 +212,28 @@ export interface MessageQuery {
 /** Incomplete storage scans are visible and never masquerade as an empty complete result. */
 export interface MessagePage {
   readonly items: readonly MessageStatus[]
+  readonly complete: boolean
+  readonly nextCursor?: MessageCursor
+}
+/** Isolated records are queried independently of normal message states. */
+export interface MessageQuarantineQuery {
+  readonly targetSessionId?: SessionId
+  readonly nodeId?: NodeId
+  readonly from?: number
+  readonly to?: number
+  readonly cursor?: MessageCursor
+  readonly limit?: number
+}
+/** Metadata-only isolation evidence; session attribution is verified against its original event identity. */
+export interface MessageQuarantineEvent extends MessageQuarantineData {
+  readonly cursor: MessageCursor
+  readonly nodeId: NodeId
+  readonly observedAt: number
+  readonly targetSessionId?: SessionId
+}
+/** Full scan integrity remains distinct from pagination exhaustion. */
+export interface MessageQuarantinePage {
+  readonly items: readonly MessageQuarantineEvent[]
   readonly complete: boolean
   readonly nextCursor?: MessageCursor
 }

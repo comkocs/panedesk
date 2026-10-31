@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-inbox/README.md
+/:
+  en: f9973289c747b113
+  zh: fc20eb950342156b
+/panedesk-dsh-client-ui-inbox:
+  en: 016c13a48d8fd6a1
+  zh: ac1d4d67c26b5ae9
+/panedesk-dsh-client-ui-inbox/summary:
+  en: 7b68998a6dc6f8a8
+  zh: ea74ca8e526b9a97
+/panedesk-dsh-client-ui-inbox/configuration-and-use:
+  en: 852cb228ed9ca7de
+  zh: b88e1765fd802df8
+/panedesk-dsh-client-ui-inbox/model-experience:
+  en: 215e7ba838619b7b
+  zh: 8e10432adebf669d
+/panedesk-dsh-client-ui-inbox/model-experience/read-only-observation:
+  en: af84b2e33cc0aaa4
+  zh: 6270dee287fbe7c3
+/panedesk-dsh-client-ui-inbox/model-experience/read-only-observation/what-the-model-sees:
+  en: 042929953bc9b55f
+  zh: 04cfc4bf567ece51
+/panedesk-dsh-client-ui-inbox/model-experience/read-only-observation/token-effect:
+  en: 5cd18c1852255ab0
+  zh: 24b241a4e79c8c1b
+/panedesk-dsh-client-ui-inbox/model-experience/read-only-observation/kv-cache-effect:
+  en: 32444910ebfe512c
+  zh: 5536d4ac9113cd23
+/panedesk-dsh-client-ui-inbox/known-limitations-and-deferred-work:
+  en: 054fd7736cf90ab1
+  zh: 611731409a992900
+/panedesk-dsh-client-ui-inbox/dev-note:
+  en: 65cc46fa43bc2147
+  zh: 4dc79c3595213b42

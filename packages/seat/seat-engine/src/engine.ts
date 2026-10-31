@@ -878,12 +878,37 @@ export class SeatEngine extends SeatEngineService {
     await this.ready()
     if (!Number.isSafeInteger(request.limit) || request.limit < 1) throw new EngineError('invalid-request',
       'Pending limit must be positive')
-    const all = [...this.journal.projection.pending.values()].sort((a, b) => a.sequence - b.sequence)
-      .filter(item => (!request.projectId || item.projectId === request.projectId) && (!request.seat || item.seat === request.seat)
-        && (!request.cursor || item.sequence > request.cursor.sequence))
-    const items = all.slice(0, request.limit).map(redactPending)
-    const last = items.at(-1)
-    return { items, complete: all.length <= request.limit, watermark: this.journal.projection.sequence,
+    const now = Date.now(), view = this.journal.projection
+    const candidates: { item: T.PendingSeatItem; error?: T.SeatFailure }[] = [...view.pending.values()].map(item => ({ item }))
+    if (request.includeRejected) for (const decision of view.decisions) {
+      const refusal = decision.effects.find(effect => effect.kind === 'open/rejected')
+      if (refusal?.kind !== 'open/rejected' || refusal.data.error.message !== 'Pre-open retention limit reached') continue
+      for (const effect of decision.effects) {
+        if (effect.kind === 'queue/cancelled') candidates.push({ item: effect.data.pending, error: refusal.data.error })
+      }
+    }
+    const all = candidates.filter(({ item }) => (!request.projectId || item.projectId === request.projectId)
+      && (!request.seat || item.seat === request.seat) && (!request.cursor || item.sequence > request.cursor.sequence))
+      .sort((a, b) => a.item.sequence - b.item.sequence)
+    const page = all.slice(0, request.limit), items: T.PendingSeatObservation[] = []
+    const rejected: NonNullable<T.ListPendingSeatsResult['rejected']>[number][] = []
+    for (const { item, error } of page) {
+      const metadata = redactPending(item)
+      if (error) { rejected.push({ item: metadata, error }); continue }
+      const source = item.sources[0], definition = item.frozenOpen?.definition
+      const ruleMode = definition && source && externalRuleMiss(definition, source) ? 'off'
+        : definition && source ? triggerRule(definition, source)?.mode : undefined
+      const route = item.frozenOpen?.nodeWorkChain?.route
+      const mode = effectiveMode(effectiveMode(view.policies.get(item.projectId)?.mode ?? 'remind', ruleMode), route?.modeCeiling.mode)
+      const since = mode !== 'off' && transientCategory(item) && route && item.action === 'open'
+        ? retentionSince(view, item.queueItemId) : undefined
+      if (since === undefined) { items.push(metadata); continue }
+      const deadline = since + this.retentionLimit(item), remainingMs = Math.max(0, deadline - now)
+      items.push({ ...metadata, retention: { since, deadline, remainingMs,
+        phase: remainingMs === 0 ? 'expired' : remainingMs <= 300000 ? 'expiring' : 'retained' } })
+    }
+    const last = page.at(-1)?.item
+    return { items, ...(request.includeRejected ? { rejected } : {}), complete: all.length <= request.limit, watermark: view.sequence,
       ...(last ? { nextCursor: { nodeId: this.options.nodeId, sequence: last.sequence, effectIndex: 0 } } : {}) }
   }
   private async mutatePending(request: T.ApprovePendingSeatRequest, kind: 'queue/approved' | 'queue/cancelled'): Promise<T.PendingSeatMutationResult> {

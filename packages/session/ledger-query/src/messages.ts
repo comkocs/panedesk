@@ -242,6 +242,11 @@ export async function executeMessages(ctx: Context, command: MessagesCommand): P
     }
     const delivery = ctx.get('messageDelivery')
     if (!delivery) return failure(3, 'messages/delivery-unavailable', 'MessageDelivery is unavailable; configure a delivery provider')
+    if (command.action === 'quarantined') {
+      if (!delivery.quarantined) return failure(3, 'messages/query-unavailable', 'Quarantine query is unavailable')
+      const page = await delivery.quarantined(command.query)
+      return { code: page.complete ? 0 : 6, output: page }
+    }
     return await deliver(delivery, command)
   } catch (error) {
     const reason = error instanceof Error && 'code' in error && typeof error.code === 'string' ? error.code : undefined

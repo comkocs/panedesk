@@ -13,6 +13,8 @@ kind: "package-reference"
 
 `list` 通过 `pagination: true` 显式启用严格分页，使用正安全整数 `limit` 和提供方签发的排他续页 `cursor`；继续实时扫描时须保持筛选条件相同。省略或禁用分页时保留提供方的既有查询行为，参见[本地提供方](../message-delivery-local/README.zh.md)。未答查询选择没有回复的 handoff/reply 消息，默认排除终态。应读取 `complete` 与 `nextCursor`，不能把未完成扫描当作完整的空结果。
 
+`list({ includeMetadata: true })` 可选返回发方／收方标识、创建时刻和优先级，不含正文。可选 `quarantined(query)` 独立于六个生命周期状态读取隔离事件。确切收件会话筛选必须有已核验的邮箱归属；缺少能力保持不可用。这些只读查询字段不改变持久消息或事件。
+
 ## 目录
 
 - [公开接口](#public-api)

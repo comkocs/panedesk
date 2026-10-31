@@ -54,15 +54,22 @@ export function ApprovalPanel({ useResource, t, mutate }: Props) {
       }
     } finally { setBusy(false) }
   }
-  if (!items.length && !receipt && !open && queue.status !== 'failed') return null
+  const rejected = queue.value?.rejected ?? []
+  if (!items.length && !rejected.length && !receipt && !open && queue.status !== 'failed') return null
   return <div className={css.surface}>
-    {items.length > 0 && <Button onClick={() => { setOpen(true) }}>{t('available', { count: items.length })}</Button>}
+    {(items.length > 0 || rejected.length > 0) && <Button onClick={() => { setOpen(true) }}>{t('available', { count: items.length })}</Button>}
+    {queue.value?.alerts?.map(alert => <p key={alert.id} role="alert">{t(alert.phase, { seat: alert.seat })}</p>)}
     {queue.status === 'failed' && <p role="alert">{t('failed')}</p>}
     <Modal open={open} onClose={() => { setOpen(false) }} title={t('title')} closeLabel={t('close')}>
       {queue.status !== 'live' && <p role="alert">{t('failed')}</p>}
       {queue.value?.complete === false && <p role="alert">{t('partial')}</p>}
       {!items.length && <p>{t('empty')}</p>}
+      {rejected.map(({ item, error }) => <section key={item.queueItemId} className={css.card}>
+        <h3>{item.seat}</h3><p>{t('terminal', { code: error.code, message: error.message })}</p>
+      </section>)}
       {items.map(item => <section key={item.queueItemId} className={css.card}>
+        <p>{t(item.retention ? 'retainedState' : 'pendingState')}</p>
+        {item.retention && <p>{t('remaining', { amount: item.retention.remainingMs })}</p>}
         <dl>
           <dt>{t('seat')}</dt><dd>{item.seat}</dd>
           <dt>{t('tasks')}</dt><dd>{item.relatedTaskIds.length ? item.relatedTaskIds.join(', ') : t('absent')}</dd>
@@ -70,7 +77,7 @@ export function ApprovalPanel({ useResource, t, mutate }: Props) {
           <dt>{t('node')}</dt><dd>{item.nodeId ?? t('absent')}</dd>
           <dt>{t('budget')}</dt><dd>{budgetText(item.budget)}</dd>
         </dl>
-        <Button disabled={busy || !!receipt && outcome?.status !== 'settled' || submitted.has(`${item.queueItemId}:${item.stateVersion}`) || queue.status !== 'live' || !queue.value?.complete} onClick={() => { void act(item, 'approve') }}>{t('approve')}</Button>
+        <Button disabled={item.reason !== 'approval' || busy || !!receipt && outcome?.status !== 'settled' || submitted.has(`${item.queueItemId}:${item.stateVersion}`) || queue.status !== 'live' || !queue.value?.complete} onClick={() => { void act(item, 'approve') }}>{t('approve')}</Button>
         <Button disabled={busy || !!receipt && outcome?.status !== 'settled' || submitted.has(`${item.queueItemId}:${item.stateVersion}`) || queue.status !== 'live' || !queue.value?.complete} onClick={() => { void act(item, 'cancel') }}>{t('cancel')}</Button>
       </section>)}
       {busy && <p role="status">{t('working')}</p>}

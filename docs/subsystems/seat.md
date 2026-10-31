@@ -42,6 +42,8 @@ This page owns the types and service semantics declared by the [seat package gro
 
 `PendingSeatItem` optionally carries `windowName`, `nodeId` and `budget` projected from retained opening evidence. Missing evidence remains absent; `SeatBudgetLimits` values are integer micro-USD strings. Pending responses do not reveal frozen instruction bodies or raw source data.
 
+`PendingSeatObservation` adds optional query-only `retention` timing to the unchanged persistent `PendingSeatItem`: interval start, deadline, remaining milliseconds and engine-owned threshold phase. `ListPendingSeatsRequest.includeRejected` optionally joins committed retention refusals to the existing bounded sequence pagination; older requests and journal frames remain valid. See the [engine](../../packages/seat/seat-engine/README.md) for timing and terminal semantics.
+
 `SeatEngineOperationResult` preserves the existing operation status while adding optional approval registration and correlated pending/open/cancelled progress. `HostAdminQueryRequest` uses separate effect and authorization cursors; `HostAdminQueryResult` carries redacted effects and an independently bounded issued-authorization page. Neither historical facts nor queries grant execution authority.
 
 ## Waits, reports, and policies

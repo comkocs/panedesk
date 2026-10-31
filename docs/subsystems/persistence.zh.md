@@ -328,6 +328,8 @@ interface SessionPersistenceSnapshot {
 
 可选的 `eventCount`/`sizeBytes` 字段仍是供明确需要它们的 consumer 使用的低成本 backend observation。Session 列表不借助这两个字段打开冷日志，只读取 header 与经过 identity 校验的 projection cache hint，因此 cache 或 Session format 升级不会把启动变成 body scan。
 
+`MessageStatus.metadata` 是显式请求的仅路由列表观察，不改变已存消息。可选 `MessageDelivery.quarantined` 独立于消息生命周期状态返回 `MessageQuarantinePage`，保留游标和完整性证据；确切收件方归属核验原邮箱事件标识。[收件适配器](../../packages/client/ui-inbox/README.zh.md) 只向经过授权的所有者开放当前会话读取。
+
 ## Routed message identity
 
 `RoutedDeliveryEnvelope` freezes the original message, delivery identity, source node, digest, and available causal identifiers before transport. `RoutedSendMessageRequest` requires its legacy fields to match that envelope. `RoutedDeliveryAuthority` is a host-owned process-local capability, not a wire credential. The receiver verifies exact authority and commits the original message plus deduplication result before acknowledgement. Identical retained identity and digest returns the original durable acknowledgement; conflicting content is refused. Missing verification or admission never falls back to ordinary send, invents causal evidence, or forwards another hop.
@@ -345,6 +347,25 @@ interface SessionPersistenceSnapshot {
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxinbox--inbox"></a>
+
+### `ctx.inbox` — `Inbox`
+
+Authenticated owners retain their existing local read authority.
+
+```ts cordis-catalog
+/** Observe only received metadata and isolation evidence for the exact on-screen Session.
+ * @param sessionId - Exact receiving Session, never a sender identity or wildcard.
+ * @param signal - Remote stream lifetime.
+ * @returns Ordered read-only inbox observations with explicit completeness.
+ */
+@Remote({ mode: 'stream' }) async *watch(sessionId: SessionId, signal: AbortSignal): AsyncIterable<InboxView>
+```
+
+Types: [SessionId](core.zh.md)
+
+Source: [`packages/client/ui-inbox/src/index.ts`](../../packages/client/ui-inbox/src/index.ts)
 
 <a id="ctxmessagedelivery--messagedelivery-abstract-seam"></a>
 
@@ -430,6 +451,12 @@ abstract operationStatus(operationId: OperationId): Promise<OperationStatus>
  * @returns status page with storage completeness.
  */
 abstract list(query: MessageQuery): Promise<MessagePage>
+
+/** Query isolated mailbox evidence separately, without interpreting it as a lifecycle state.
+ * @param query - Optional exact mailbox identity, time range and exclusive cursor.
+ * @returns Verified isolation metadata and explicit journal integrity; absent on older providers.
+ */
+quarantined?(query: import('./types.ts').MessageQuarantineQuery): Promise<import('./types.ts').MessageQuarantinePage>
 
 /**
  * Resolve exact addresses without publishing messages or opening Sessions.

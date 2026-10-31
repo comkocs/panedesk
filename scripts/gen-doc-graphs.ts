@@ -109,6 +109,10 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'inbox', pkg: 'client-ui-inbox', title: 'Owner received-message observations', mode: 'service',
+    note: 'Reads exact receiving-session metadata and verified mailbox isolation without message mutations.',
+  },
+  {
     key: 'seatApprovals', pkg: 'client-ui-seat-approvals', title: 'Owner seat approval observations and actions', mode: 'service',
     note: 'Projects pending openings and operation progress and forwards explicit owner actions to the installed seat engine.',
   },

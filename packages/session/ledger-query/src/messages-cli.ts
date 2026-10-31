@@ -4,7 +4,7 @@ import type { MessageAddress, MessageClassification, MessageControlRequest, Mess
 /** Validated message command; identities remain opaque strings after CLI validation. */
 export interface MessagesCommand {
   command: 'messages'
-  action: 'send' | 'withdraw' | 'edit' | 'reprioritize' | 'invalidate' | 'status' | 'operation' | 'query' | 'unanswered' | 'export' | 'resolve' | 'send-batch' | 'watch' | 'help'
+  action: 'send' | 'withdraw' | 'edit' | 'reprioritize' | 'invalidate' | 'status' | 'operation' | 'query' | 'quarantined' | 'unanswered' | 'export' | 'resolve' | 'send-batch' | 'watch' | 'help'
   query: MessageQuery
   target?: MessageAddress
   recipients?: readonly MessageAddress[]
@@ -75,6 +75,7 @@ export function parseMessagesArgs(args: readonly string[]): MessagesCommand {
     send: [...send, '--to-session', '--to-name', '--node', '--operation-id'],
     withdraw: control, edit: [...control, '--text'], reprioritize: [...control, '--priority'], invalidate: [...control, '--reason'],
     status: ['--message-id'], operation: ['--operation-id'], query: [...filters, '--include-terminal'],
+    quarantined: ['--target-session', '--node', '--from', '--to', '--cursor', '--limit'],
     unanswered: [...filters, '--older-than-minutes', '--include-terminal'], export: [...filters, '--include-terminal', '--format', '--output'],
     resolve: ['--recipients'], 'send-batch': [...send, '--recipients', '--dry-run'], watch: ['--session', '--cursor'],
   }
@@ -172,6 +173,7 @@ Commands:
   status        --message-id ID
   operation     --operation-id ID
   query         [filters]
+  quarantined   [--target-session ID] [--node ID] [--from ISO_TIME] [--to ISO_TIME] [--cursor CURSOR] [--limit N]
   unanswered    --older-than-minutes N [filters] [--include-terminal]
   export        --format jsonl [--output PATH] [filters]
   resolve       --recipients JSON

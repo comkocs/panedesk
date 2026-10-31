@@ -551,6 +551,26 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@panedesk/dsh-client-shortcuts -->
 
+<!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-inbox -->
+<a id="panedeskdsh-client-ui-inbox"></a>
+
+## `@panedesk/dsh-client-ui-inbox`
+
+- `source`: [`packages/client/ui-inbox/src/index.ts:12`](../packages/client/ui-inbox/src/index.ts)
+
+```ts config-catalog
+/** Availability and bounded read cadence for the inbox adapter. */
+export interface Config {
+  /** Enable owner-authorized inbox observations in an explicitly composed product. */
+  enabled: boolean
+  /** Host observation interval in milliseconds. */
+  pollIntervalMs: number
+  /** Maximum rows requested from each existing provider page. */
+  pageSize: number
+}
+```
+<!-- END GENERATED config-catalog:@panedesk/dsh-client-ui-inbox -->
+
 <!-- BEGIN GENERATED config-catalog:@panedesk/dsh-client-ui-plugin-manager -->
 <a id="panedeskdsh-client-ui-plugin-manager"></a>
 

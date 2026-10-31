@@ -49,6 +49,8 @@ export const remoteDefaultResponses: RemoteTable = {
   stream: {
     // ui-seat-approvals observes its disabled default on mounting the shell overlay.
     'seatApprovals/watchPending': frames([{ enabled: false, items: [], complete: true }]),
+    // ui-inbox observes its disabled default after a receiving Session is rendered.
+    'inbox/watch': frames([{ enabled: false, items: [], quarantined: [], complete: true }]),
     // api-session-controller client `apply`: the control stream's opening baseline, then open.
     'session/control': openStream([{ type: 'baseline', value: { projections: {} } }]),
     // ui-settings-account shares the account snapshot across settings and the sidebar menu.
