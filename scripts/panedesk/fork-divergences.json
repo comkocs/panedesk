@@ -1,6 +1,21 @@
 {
   "divergences": [
     {
+      "id": "client-build-metadata-publication-policy",
+      "description": "Client metadata publication policy.",
+      "origin": "Build and test hygiene integration",
+      "reason": "Upstreamable: require the separately emitted client checkout metadata in the exact publication payload while rejecting unrelated assets.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "scripts/check-workspace-constraints.ts",
+          "scripts/check-workspace-constraints.spec.ts",
+          "packages/client/modules/package.json"
+        ],
+        "test": "requires separate client build metadata and rejects unrelated publication files"
+      }
+    },
+    {
       "id": "seat-frozen-orphan-restart-warning",
       "description": "Frozen orphan restart warnings.",
       "origin": "Optional seat and host integration",
