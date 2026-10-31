@@ -112,10 +112,50 @@ describe('catalog ownership', () => {
       catalog.definitions[0] = definition(root, { revision: 2, model: 'model-b' })
     })
     const settled = await Promise.allSettled([first, second])
-    expect(settled.filter(item => item.status === 'fulfilled')).toHaveLength(2)
+    expect(settled.filter(item => item.status === 'fulfilled')).toHaveLength(1)
+    expect(settled.filter(item => item.status === 'rejected')).toMatchObject([
+      { reason: { failure: { code: 'revision-conflict' } } },
+    ])
     expect(store.snapshot().revision).toBe(2)
     expect(store.snapshot().definitions).toHaveLength(1)
     expect(['model-a', 'model-b']).toContain(store.snapshot().definitions[0]?.model)
+  })
+
+  it('persists direct revision-only saves and their operation receipt across reopening', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    await store.mutate(0, operation('revision-base'), {}, (catalog) => {
+      catalog.definitions.push(definition(root))
+    })
+    const request = { revision: 2 }
+    expect(await store.mutate(1, operation('revision-only'), request, (catalog) => {
+      catalog.definitions[0] = { ...catalog.definitions[0]!, revision: 2 }
+    })).toBe(2)
+    await store.close()
+    const reopened = await SeatStore.open(fixture.facility, root)
+    try {
+      expect(reopened.snapshot().definitions[0]?.revision).toBe(2)
+      expect(await reopened.mutate(1, operation('revision-only'), request, () => {
+        throw new Error('Replay must not mutate')
+      })).toBe(2)
+    } finally { await reopened.close() }
+  })
+
+  it('persists unchanged import receipts without advancing the catalog revision', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    await store.mutate(0, operation('import-base'), {}, (catalog) => {
+      catalog.definitions.push(definition(root))
+    })
+    const request = { planId: 'unchanged-plan', selectedRows: [] }
+    expect(await store.mutate(1, operation('unchanged-import'), request, () => {})).toBe(1)
+    await store.close()
+    const reopened = await SeatStore.open(fixture.facility, root)
+    try {
+      expect(reopened.snapshot().operations['unchanged-import']?.revision).toBe(1)
+      await expect(reopened.mutate(1, operation('unchanged-import'), { ...request, selectedRows: [1] }, () => {}))
+        .rejects.toMatchObject({ failure: { code: 'operation-id-conflict' } })
+    } finally { await reopened.close() }
   })
 
   it('counts source-directory seat rules toward the configured seat limit', async () => {

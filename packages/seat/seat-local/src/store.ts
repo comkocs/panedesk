@@ -207,12 +207,10 @@ export class SeatStore {
       }
       const authorityChanged = digest({ authority: current.authority, authorizations: current.authorizations })
         !== digest(beforeAuthority)
-      if (contentChanged || authorityChanged) current.revision += 1
+      if (!importCommit || contentChanged || authorityChanged) current.revision += 1
       current.operations[operationId] = { digest: requestDigest, revision: current.revision }
       const committed = catalogSchema.parse(current)
-      if (contentChanged || authorityChanged || committed.revision !== this.snapshot().revision) {
-        await this.domain.global.set(committed)
-      }
+      await this.domain.global.set(committed)
       return committed.revision
     })
     this.tail = run.then(() => {}, () => {})
