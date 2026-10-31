@@ -29,6 +29,7 @@ import type {
 export type * from './types.ts'
 export { loadPriceTable, priceUsage, recomputeUsage, tokenColumns } from './pricing.ts'
 export { projectWaits, withoutWaitProjection } from './waits.ts'
+export { includeDescendantSessions } from './projection.ts'
 export { callWaits } from './call-waits.ts'
 import { callWaits } from './call-waits.ts'
 export type * from './call-contributor.ts'
