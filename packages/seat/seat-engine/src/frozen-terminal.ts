@@ -160,15 +160,35 @@ export function frozenTerminal(view: FrozenHistory, item: FrozenItem): FrozenTer
   return terminal
 }
 
-/** Read current pre-open execution outcome while leaving write replays on their first receipt.
+/** Read retained execution or pre-open terminal evidence without changing original write receipts.
  * @param view - Complete recovered projection.
  * @param request - Exact original business key and digest.
- * @returns Existing settled-rejected on proven terminal, otherwise the original query result.
+ * @returns Historical opening evidence (not current liveness), a proven refusal, or the admission receipt.
+ * Wake delivery receipts remain owned by the wake query.
  */
 export function queryFrozenExecution(view: EngineProjection, request: T.NodeWorkChainOperationRequest): T.NodeWorkChainOperationResult {
   const original = queryFrozen(view, request)
   if (original.status !== 'settled') return original
   const item = frozenItems(view).find(item => digest(item.chain.operationKey) === digest(request.key))
+  if (item && (original.method === 'seat.openFrozen' || original.method === 'seat.wakeFrozen')) {
+    const opens = [...view.opens.values()].filter(open => open.sources?.some(source => sameFrozenSource(item, source)))
+    const open = opens.length === 1 ? opens[0] : undefined
+    if (open && open.phase !== 'intent' && open.phase !== 'creating') {
+      if (open.phase === 'opening-failed' && open.failure?.effectState === 'none') {
+        return { status: 'settled', method: original.method, result: { status: 'rejected', error: structuredClone(open.failure) } }
+      }
+      // This is historical opening evidence, not a claim that the Session remains live after closure.
+      const window: T.OpenedSeatWindow = { sessionId: open.sessionId, seat: item.pending.seat, nodeId: item.nodeId,
+        nodeName: item.nodeId, title: open.title ?? item.pending.seat,
+        budget: view.budgets.get(open.sessionId)?.limits ?? open.budget.limits,
+        phase: open.phase, stateVersion: view.sequence, callbackIds: [] }
+      const result: T.OpenSeatResult = open.openingMode === 'prefill' && open.phase === 'active'
+        && open.frozenOpening !== undefined
+        ? { status: 'prefilled', draft: open.frozenOpening.text, ...window } : { status: 'opened', ...window }
+      return original.method === 'seat.openFrozen' ? { status: 'settled', method: original.method, result }
+        : { status: 'settled', method: original.method, result: { status: 'opened', result } }
+    }
+  }
   const terminal = item && frozenTerminal(view, item)
   if (!terminal) return original
   const result: T.SeatRejected = { status: 'rejected', error: structuredClone(terminal.error) }

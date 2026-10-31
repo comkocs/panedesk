@@ -146,6 +146,38 @@ test('concurrent missing-window frozen wakes share opening admission and preserv
   } finally { await h.close() }
 })
 
+test('queries a missing-window frozen wake execution without replacing its admission receipt', async () => {
+  const { h, registry, payload, invoke, authorize } = await setup(false)
+  const removeScope = h.ctx.get('seatOpeningContexts')!.registerScopeAdmission!({
+    evaluateTaskScopes: async () => ({ outcome: 'allow', revisions: [] }),
+    batch: (_request, _authority, execute) => execute(), open: (_request, _authority, execute) => execute(),
+    recheck: async () => null,
+  })
+  let removeRetention: (() => Promise<void>) | undefined
+  try {
+    const request = payload('wake-execution-query')
+    removeRetention = h.engine.registerPreopenRetention({ sourceId: request.route.sourceId,
+      sourceOwnerNodeId: request.route.sourceOwnerNodeId, limitMs: 900000 })
+    const first = await invoke(request)
+    expect(first).toMatchObject({ status: 'opened', result: { status: 'queued' } })
+    const pending = [...h.engine.journal.projection.pending.values()][0]
+    if (!pending) throw new Error('Expected frozen wake admission')
+    expect(await h.engine.approve({ queueItemId: pending.queueItemId, expectedStateVersion: pending.stateVersion,
+      operationId: 'approve-wake-query' as T.SeatOperationId })).toMatchObject({ status: 'approved' })
+    await h.engine.drive()
+    const open = [...h.engine.journal.projection.opens.values()][0]
+    if (!open) throw new Error('Expected retained wake opening')
+    const query: T.NodeWorkChainOperationRequest = { key: { method: 'seat.wakeFrozen', sourceNodeId: sender, principalId,
+      sourceId: request.route.sourceId, ownerEpoch: request.route.ownerEpoch, operationId: request.request.operationId },
+    payloadDigest: digest(request) }
+    expect(await registry.query(query, await authorize(query, 'query-wake-execution' as T.SeatOperationId)))
+      .toMatchObject({ status: 'settled', method: 'seat.wakeFrozen', result: {
+        status: 'opened', result: { sessionId: open.sessionId, phase: open.phase } } })
+    expect(await invoke(request)).toEqual(first)
+    expect(h.engine.journal.projection.opens.size).toBe(1)
+  } finally { await removeRetention?.(); await removeScope(); await h.close() }
+})
+
 test.each([true, false])('explicit node wake composition preserves existing-window=%s and refuses missing snapshots', async (existing) => {
   const { h, authorize } = await setup(existing)
   try {

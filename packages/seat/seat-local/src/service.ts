@@ -347,6 +347,8 @@ export class LocalSeatService extends SeatService {
     const refusal = await this.guard(request.nodeId, request.operationId)
     if (refusal !== null) return refusal
     const authority = this.caller()
+    if (authority.localWake && !admit) return rejected('unauthorized',
+      'Local wake opening requires the checked wake entry', 'Use the authenticated wake entry.')
     if (request.origin !== authority.origin) return rejected('unauthorized', 'Opening origin is not authenticated.', 'Use the trusted adapter origin.')
     if (this.engine() === undefined) return rejected('unavailable', 'Opening admission is unavailable.', 'Install the seat engine.')
     const facts = (await this.state.read()).effects
@@ -702,6 +704,10 @@ export class LocalSeatService extends SeatService {
     const candidates = (await this.windows()).filter(item => item.binding.seat === request.seat)
     if (!candidates.length) {
       if (request.sessionId !== undefined) return rejected('session-not-found', 'Selected window is no longer active.', 'List windows again.')
+      // A half-signed owner entry must not fall back to unverified legacy opening.
+      if (this.caller().authorization && !wire) {
+        return rejected('unavailable', 'Atomic wake authorization is unavailable.', 'Use a supported local entry.')
+      }
       return { status: 'opened', result: await open({ ...request, origin: this.caller().origin, openingMode: 'auto' }) }
     }
     const target = request.sessionId === undefined ? candidates.length === 1 ? candidates[0] : undefined

@@ -1,6 +1,89 @@
 {
   "divergences": [
     {
+      "id": "seat-local-frozen-worker-hold-until-killed",
+      "description": "Keep the frozen-process test worker alive with an explicit ref'd timer until the fixture kills it.",
+      "origin": "Frozen-process kill-stage reliability",
+      "reason": "The worker never listens for IPC messages, so the channel stays unref'd and drained fixture handles could let a kill-stage worker exit 0 before the expected SIGKILL; an explicit interval removes that environment-dependent liveness.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/tests/frozen-process-worker.ts"
+        ],
+        "test": "reports the kill-stage worker exit as SIGKILL rather than a natural exit 0"
+      }
+    },
+    {
+      "id": "node-message-delegation-evidence",
+      "description": "Authenticate cross-node message delegation through an independent evidence channel.",
+      "origin": "Optional seat and host integration",
+      "reason": "Add optional authenticated message delegation evidence with reserved control capacity and reusable multi-node Loader fixtures.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/node-link/README.md",
+          "packages/seat/node-link/README.zh.md",
+          "packages/seat/node-link/README.i18n.yaml",
+          "packages/seat/node-link/src/chain-slots.ts",
+          "packages/seat/node-link/src/index.ts",
+          "packages/seat/node-link/src/message-evidence.ts",
+          "packages/seat/node-link/src/runtime.ts",
+          "packages/seat/node-link/tests/chain-slots.spec.ts",
+          "packages/seat/node-link/tests/message-evidence.spec.ts",
+          "packages/session/tool-seat-messages/tests/composition.ts",
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts",
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "docs/capability-seams.i18n.yaml",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
+        "test": "rejects unrelated frames and keeps evidence capacity bounded"
+      }
+    },
+    {
+      "id": "frozen-execution-session-query",
+      "description": "Project retained frozen opening sessions without replacing the original write receipt.",
+      "origin": "Optional authenticated seat execution queries",
+      "reason": "Exact original keys and payload digests may recover a unique historical Session and opening phase. Queries preserve conservative failure and ambiguity handling, while repeated writes retain the first admission receipt.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-engine/src/frozen-terminal.ts",
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "packages/seat/seat-local/tests/trusted-wake.spec.ts"
+        ],
+        "test": "queries the executed frozen window while preserving its original queued receipt"
+      }
+    },
+    {
+      "id": "seat-authorized-opening-no-legacy-downgrade",
+      "description": "Refuse authorized opening downgrade and unchecked local wake admission.",
+      "origin": "Optional seat orchestration",
+      "reason": "Refuse authority-bearing legacy fallback and direct local-wake opening while preserving checked wake conversion, unsigned trusted admission and admitted receipt replay.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/src/open-admission.ts",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-local/tests/open-authorization.spec.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml"
+        ],
+        "test": "legacy engine rejects %s without calling accept"
+      }
+    },
+    {
       "id": "integrated-browser-entry-goldens",
       "description": "Refresh browser goldens for integrated inbox pin cache sidebar and setup entries.",
       "origin": "Integrated browser entry coverage",
@@ -934,7 +1017,10 @@
       "reason": "Regenerate the configuration catalog after combining bounded ledger evidence waits with remote seat messaging so both configuration surfaces remain documented.",
       "match": {
         "type": "test-assertion",
-        "paths": ["docs/config-catalog.md", "docs/config-catalog.zh.md"],
+        "paths": [
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md"
+        ],
         "test": "verify-config-catalog"
       }
     },
@@ -1227,7 +1313,9 @@
       "reason": "Hygiene lane: increase the host compiler heap limit for the existing host build without changing compiler options or assertions.",
       "match": {
         "type": "test-assertion",
-        "paths": ["package.json"],
+        "paths": [
+          "package.json"
+        ],
         "test": "--max-old-space-size=8192"
       }
     },
@@ -1482,7 +1570,30 @@
       "reason": "Accept same-node wake delegation only through live owner-issued exact wake and opening grants, preserve same-frame authorization and replay identity, and apply local manual mode exemption to independently verified frozen manual entries without trusting request origin or weakening scope, budget, capacity, or revocation checks.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat/src/authorization.ts", "packages/seat/seat/README.md", "packages/seat/seat/README.zh.md", "packages/seat/seat/README.i18n.yaml", "packages/seat/seat-local/src/service.ts", "packages/seat/seat-local/src/opening-contexts.ts", "packages/seat/seat-local/src/definition-revisions.ts", "packages/seat/seat-local/tests/trusted-wake.spec.ts", "packages/seat/seat-local/tests/definition-revisions.spec.ts", "packages/seat/seat-local/README.md", "packages/seat/seat-local/README.zh.md", "packages/seat/seat-local/README.i18n.yaml", "packages/seat/seat-engine/src/engine.ts", "packages/seat/seat-engine/src/frozen-admission.ts", "packages/seat/seat-engine/src/wake-delivery.ts", "packages/seat/seat-engine/tests/frozen-admission.spec.ts", "packages/seat/seat-engine/README.md", "packages/seat/seat-engine/README.zh.md", "packages/seat/seat-engine/README.i18n.yaml", "docs/subsystems/seat.md", "docs/subsystems/seat.zh.md", "docs/subsystems/seat.i18n.yaml"],
+        "paths": [
+          "packages/seat/seat/src/authorization.ts",
+          "packages/seat/seat/README.md",
+          "packages/seat/seat/README.zh.md",
+          "packages/seat/seat/README.i18n.yaml",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-local/src/opening-contexts.ts",
+          "packages/seat/seat-local/src/definition-revisions.ts",
+          "packages/seat/seat-local/tests/trusted-wake.spec.ts",
+          "packages/seat/seat-local/tests/definition-revisions.spec.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-engine/src/frozen-admission.ts",
+          "packages/seat/seat-engine/src/wake-delivery.ts",
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "docs/subsystems/seat.i18n.yaml"
+        ],
         "test": "uses verified manual authority rather than claimed manual origin under off"
       }
     },
@@ -1493,7 +1604,31 @@
       "reason": "Return bilingual seat-named definition refusals before manual or external Session admission; contain only explicit no-effect current configuration refusals at the affected window, preserve accounting and unknown failure supervision, and record actual turn-admission entry sites with retained-input recovery coverage. Update localized alerts, package documentation and generated configuration source links. Suitable for upstream submission.",
       "match": {
         "type": "test-assertion",
-        "paths": ["docs/config-catalog.md", "docs/config-catalog.zh.md", "packages/client/ui-seats/README.i18n.yaml", "packages/client/ui-seats/README.md", "packages/client/ui-seats/README.zh.md", "packages/client/ui-seats/src/client/Seats.tsx", "packages/client/ui-seats/src/client/locales.ts", "packages/client/ui-seats/tests/seats.client.spec.tsx", "packages/seat/seat-engine/README.i18n.yaml", "packages/seat/seat-engine/README.md", "packages/seat/seat-engine/README.zh.md", "packages/seat/seat-engine/src/admission-definition.ts", "packages/seat/seat-engine/src/engine.ts", "packages/seat/seat-engine/src/failure.ts", "packages/seat/seat-engine/src/index.ts", "packages/seat/seat-engine/tests/admission-diagnostics.spec.ts", "packages/seat/seat-engine/tests/admission-recovery.spec.ts", "packages/seat/seat-local/README.i18n.yaml", "packages/seat/seat-local/README.md", "packages/seat/seat-local/README.zh.md", "packages/seat/seat-local/src/service.ts", "packages/seat/seat-local/tests/admission-configuration.spec.ts", "packages/seat/seat-local/tests/admission-definition.spec.ts"],
+        "paths": [
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "packages/client/ui-seats/README.i18n.yaml",
+          "packages/client/ui-seats/README.md",
+          "packages/client/ui-seats/README.zh.md",
+          "packages/client/ui-seats/src/client/Seats.tsx",
+          "packages/client/ui-seats/src/client/locales.ts",
+          "packages/client/ui-seats/tests/seats.client.spec.tsx",
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/src/admission-definition.ts",
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-engine/src/failure.ts",
+          "packages/seat/seat-engine/src/index.ts",
+          "packages/seat/seat-engine/tests/admission-diagnostics.spec.ts",
+          "packages/seat/seat-engine/tests/admission-recovery.spec.ts",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-local/tests/admission-configuration.spec.ts",
+          "packages/seat/seat-local/tests/admission-definition.spec.ts"
+        ],
         "test": "names a bad definition before manual/external opening without stopping the engine"
       }
     },
@@ -1504,7 +1639,12 @@
       "reason": "The optional seat UI declares its product home and exercises existing import preview and commit with the real local importer.",
       "match": {
         "type": "test-assertion",
-        "paths": ["pnpm-lock.yaml", "docs/config-catalog.md", "docs/config-catalog.zh.md", "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md"],
+        "paths": [
+          "pnpm-lock.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md"
+        ],
         "test": "previews exactly one create and commits without changing either existing definition"
       }
     },
@@ -1536,7 +1676,9 @@
       "reason": "Unrelated configuration recomposition must retain an explicit disable without adding a settings switch.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/boot/app-boot/tests/user-patches.spec.ts"],
+        "paths": [
+          "packages/boot/app-boot/tests/user-patches.spec.ts"
+        ],
         "test": "lets an explicit disabled declaration replace a retained runtime enablement"
       }
     },
@@ -1547,7 +1689,9 @@
       "reason": "Seat failure details and node opening diagnostics retain provider and model identities while unrelated seats continue; the generated API catalog must expose the same fields as the service definition.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/extensions/tool-cordis/src/api-catalog.ts"],
+        "paths": [
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
         "test": "contains an unavailable model during scheduled recovery and opens the healthy seat"
       }
     },
@@ -1558,7 +1702,13 @@
       "reason": "Language preference changes must not disable a runtime-enabled plugin when its declaration is unchanged; explicit declaration changes and compatibility checks still take precedence, and temporary switches are never persisted.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/boot/app-boot/src/index.ts", "packages/boot/app-boot/README.md", "packages/boot/app-boot/README.zh.md", "packages/boot/app-boot/README.i18n.yaml", "packages/client/locale/tests/config.host.spec.ts"],
+        "paths": [
+          "packages/boot/app-boot/src/index.ts",
+          "packages/boot/app-boot/README.md",
+          "packages/boot/app-boot/README.zh.md",
+          "packages/boot/app-boot/README.i18n.yaml",
+          "packages/client/locale/tests/config.host.spec.ts"
+        ],
         "test": "preserves runtime enablement across language changes"
       }
     },
@@ -1569,7 +1719,20 @@
       "reason": "Engine failures and absent openings can change without Session lifecycle events; the UI must refresh its authorized overview immediately.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/api/remotes/package.json", "packages/api/remotes/src/remote-events.ts", "packages/api/remotes/tsconfig.client.json", "packages/api/remotes/tsconfig.host.json", "packages/api/remotes/README.md", "packages/api/remotes/README.zh.md", "packages/api/remotes/README.i18n.yaml", "packages/extensions/tool-cordis/src/api-catalog.ts", "docs/event-producer-consumer.md", "docs/event-producer-consumer.zh.md", "docs/event-producer-consumer.i18n.yaml", "pnpm-lock.yaml"],
+        "paths": [
+          "packages/api/remotes/package.json",
+          "packages/api/remotes/src/remote-events.ts",
+          "packages/api/remotes/tsconfig.client.json",
+          "packages/api/remotes/tsconfig.host.json",
+          "packages/api/remotes/README.md",
+          "packages/api/remotes/README.zh.md",
+          "packages/api/remotes/README.i18n.yaml",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md",
+          "docs/event-producer-consumer.i18n.yaml",
+          "pnpm-lock.yaml"
+        ],
         "test": "refreshes engine diagnostics without a Session event and clears them after recovery"
       }
     },
@@ -1580,7 +1743,14 @@
       "reason": "Linux builders need a Windows x64 prebuild without Microsoft SDK files while retaining the native MSVC path and existing POSIX builds. The private boolean helper avoids the mingw-w64 RPC typedef name.",
       "match": {
         "type": "test-assertion",
-        "paths": ["native/system/scripts/build.ts", "native/system/packages/entry/src/windows-private-files.c", "native/system/packages/win32-x64/README.md", "native/system/packages/win32-x64/README.zh.md", "native/system/packages/win32-x64/README.i18n.yaml", "native/system/test/package-matrix.test.js"],
+        "paths": [
+          "native/system/scripts/build.ts",
+          "native/system/packages/entry/src/windows-private-files.c",
+          "native/system/packages/win32-x64/README.md",
+          "native/system/packages/win32-x64/README.zh.md",
+          "native/system/packages/win32-x64/README.i18n.yaml",
+          "native/system/test/package-matrix.test.js"
+        ],
         "test": "rejects incomplete or unsupported cross compilation"
       }
     },
@@ -1591,7 +1761,12 @@
       "reason": "A matching pending owner receipt must not fabricate an unrecoverable engine failure; unknown exceptions need credential-free identifiers.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/src/failure.ts", "packages/seat/seat-engine/src/outbox.ts", "packages/seat/seat-engine/tests/failure-recovery.spec.ts", "packages/seat/seat-engine/tests/routed-outbox.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/src/failure.ts",
+          "packages/seat/seat-engine/src/outbox.ts",
+          "packages/seat/seat-engine/tests/failure-recovery.spec.ts",
+          "packages/seat/seat-engine/tests/routed-outbox.spec.ts"
+        ],
         "test": "supervises real failures but leaves a matching pending owner receipt to the outbox backoff"
       }
     },
@@ -1602,7 +1777,9 @@
       "reason": "Default and explicit controls preserve legal breakpoint order without changing retention policy or automatic provider request bytes.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"],
+        "paths": [
+          "packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"
+        ],
         "test": "orders Anthropic $retention breakpoints with tools=$tools and catalog=$catalog"
       }
     },
@@ -1613,7 +1790,9 @@
       "reason": "Catalog effort messages require their paired beta while hand-declared routes send neither; gateway header rewriting must not be hidden by deleting valid client fields.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"],
+        "paths": [
+          "packages/llm/llm-pi-ai/tests/response-evidence.spec.ts"
+        ],
         "test": "pairs catalog effort messages with their protocol beta when catalog=%s"
       }
     },
@@ -1624,7 +1803,9 @@
       "reason": "Non-call appends retain upstream process UUID consumption and unchanged event identities without creating a file per fact. Segment names use independent cryptographic identifiers. Readers still accept legacy single-fact files without changing synchronization or watermark semantics.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/src/journal.ts"],
+        "paths": [
+          "packages/session/session-ledger/src/journal.ts"
+        ],
         "test": "replays seat-opening through panedesk --profile headless"
       }
     },
@@ -1635,7 +1816,9 @@
       "reason": "Detect per-fact file growth while checking unchanged event identities, process UUID consumption, and equivalent cold and incremental reads.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/incremental.spec.ts"
+        ],
         "test": "segments non-call facts without changing event identities or process UUID consumption"
       }
     },
@@ -1646,7 +1829,10 @@
       "reason": "Concurrent parent input must not wait behind terminal accounting. Handle cleanup precedes notification; activation result, ownership and capacity still wait for accounting, whose failures remain observable. Non-ledger notification order remains unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/subagent/subagent/src/manager.ts", "packages/subagent/subagent/tests/continuation.spec.ts"],
+        "paths": [
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/tests/continuation.spec.ts"
+        ],
         "test": "processes a concurrent parent prompt and settlement once while terminal accounting waits"
       }
     },
@@ -1657,7 +1843,13 @@
       "reason": "Authorized normalized paths are informational hints, independent of file observations. Parent notification still precedes terminal accounting, while activation results retain the accounting outcome.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/subagent/subagent/src/lifecycle.ts", "packages/subagent/subagent/src/manager.ts", "packages/subagent/subagent/README.md", "packages/subagent/subagent/README.zh.md", "packages/subagent/subagent/README.i18n.yaml"],
+        "paths": [
+          "packages/subagent/subagent/src/lifecycle.ts",
+          "packages/subagent/subagent/src/manager.ts",
+          "packages/subagent/subagent/README.md",
+          "packages/subagent/subagent/README.zh.md",
+          "packages/subagent/subagent/README.i18n.yaml"
+        ],
         "test": "delivers normalized report path hints before terminal accounting finishes"
       }
     },
@@ -1668,7 +1860,9 @@
       "reason": "The same case exceeds the default five seconds on both the pre-optimization baseline (6130/6119 ms) and the merged tree (6355/5919 ms). The coverage lane marker scopes the allowance to this case; unit and other cases retain their existing budgets.",
       "match": {
         "type": "test-assertion",
-        "paths": ["scripts/persistence-schema.spec.ts"],
+        "paths": [
+          "scripts/persistence-schema.spec.ts"
+        ],
         "test": "does not qualify unmarked additions or structurally equal unbound fields"
       }
     },
@@ -1679,7 +1873,16 @@
       "reason": "The original Session cwd and owning workspace path remain unchanged after a directory change; the seat entry must consume the existing projection while workspace selection and composer gating keep their upstream behavior.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx", "packages/client/ui-conversation/tests/skeleton.client.spec.tsx", "packages/client/ui-conversation/README.md", "packages/client/ui-conversation/README.zh.md", "packages/client/ui-conversation/README.i18n.yaml", "packages/client/ui-conversation/package.json", "packages/client/ui-conversation/tsconfig.client.json", "pnpm-lock.yaml"],
+        "paths": [
+          "packages/client/ui-conversation/src/client/skeleton/ConversationContent.tsx",
+          "packages/client/ui-conversation/tests/skeleton.client.spec.tsx",
+          "packages/client/ui-conversation/README.md",
+          "packages/client/ui-conversation/README.zh.md",
+          "packages/client/ui-conversation/README.i18n.yaml",
+          "packages/client/ui-conversation/package.json",
+          "packages/client/ui-conversation/tsconfig.client.json",
+          "pnpm-lock.yaml"
+        ],
         "test": "passes the projected working directory to the seat entry after cd and refresh without moving its workspace"
       }
     },
@@ -1710,7 +1913,9 @@
       "reason": "A concurrent first append may publish after a directory scan and retire the pending entry before the reader resumes; the read must retain its valid empty prefix instead of failing Agent initialization.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-persistence-jsonl/src/storage.ts"],
+        "paths": [
+          "packages/session/session-persistence-jsonl/src/storage.ts"
+        ],
         "test": "opts into Workspace tree grouping and preserves the parent Workspace session"
       }
     },
@@ -1721,7 +1926,15 @@
       "reason": "The previous assembly wrote both the checkpoint plugin's stable event with context peaks and the accounting listener's random event into the same session/summary slot. Explicit instance ownership retains only the checkpoint event when mounted and the accounting event otherwise, without changing journal comparison or existing records.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/src/call-accounting.ts", "packages/compaction/compaction-ledger/src/index.ts", "packages/bundle/base/tests/compaction-accounting.spec.ts", "packages/extensions/tool-cordis/src/api-catalog.ts", "docs/subsystems/session-telemetry.md", "docs/subsystems/session-telemetry.zh.md"],
+        "paths": [
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/src/call-accounting.ts",
+          "packages/compaction/compaction-ledger/src/index.ts",
+          "packages/bundle/base/tests/compaction-accounting.spec.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/session-telemetry.md",
+          "docs/subsystems/session-telemetry.zh.md"
+        ],
         "test": "records one fact per slot and one row per request across two compactions (checkpoint owner: %s)"
       }
     },
@@ -1732,7 +1945,9 @@
       "reason": "Publishing kernel status may dispose the Loader; required failures must retain their original audit frame without reading the Loader twice.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/boot/app-boot/src/index.ts"],
+        "paths": [
+          "packages/boot/app-boot/src/index.ts"
+        ],
         "test": "fails the full Web profile when its required HTTP server cannot bind"
       }
     },
@@ -1743,7 +1958,11 @@
       "reason": "Writer-owned closure hints avoid per-fragment directory enumeration; readers must reject abnormal foreign appends after sealing.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/src/journal.ts", "packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/tests/artifact-append.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/src/journal.ts",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/tests/artifact-append.spec.ts"
+        ],
         "test": "rejects fragments beyond a closure in stream scans, snapshots, queries and imports"
       }
     },
@@ -1754,7 +1973,11 @@
       "reason": "Internal call and artifact identifiers must not consume the UUID sequence used by unrelated seat operations; version 4 format and 122 cryptographic random bits are preserved.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/src/random.ts", "packages/session/session-ledger/src/call-accounting.ts", "packages/session/session-ledger/src/journal.ts"],
+        "paths": [
+          "packages/session/session-ledger/src/random.ts",
+          "packages/session/session-ledger/src/call-accounting.ts",
+          "packages/session/session-ledger/src/journal.ts"
+        ],
         "test": "replays seat-opening through panedesk --profile headless"
       }
     },
@@ -1765,7 +1988,11 @@
       "reason": "Appending a fragment must not reread all previous fragments; disk state remains authoritative across process restarts and writers.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/src/journal.ts", "packages/session/session-ledger/src/index.ts", "packages/session/session-ledger/tests/artifact-append.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/src/journal.ts",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/tests/artifact-append.spec.ts"
+        ],
         "test": "retains equal replay, conflicting digests, closure and gap decisions with append hints"
       }
     },
@@ -1776,7 +2003,9 @@
       "reason": "Opening admission and engine dispatch do not guarantee tool completion within a polling interval; all six route and physical-call assertions remain unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "paths": [
+          "packages/acp/acp/tests/default-ledger.spec.ts"
+        ],
         "test": "%s records main, managed, ACP, seat, engine and SDK tool turns with run starts and physical calls"
       }
     },
@@ -1787,8 +2016,18 @@
       "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/cache-disabled.patch.yml"],
-        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+        "paths": [
+          "snapshots/cache-disabled.patch.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "- id: session-ledger-full",
+              "  disabled: true"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1798,8 +2037,18 @@
       "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["packages/test-support/loader-smoke/tests/fixtures/cache-disabled.patch.yml"],
-        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+        "paths": [
+          "packages/test-support/loader-smoke/tests/fixtures/cache-disabled.patch.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "- id: session-ledger-full",
+              "  disabled: true"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1809,8 +2058,18 @@
       "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["apps/cli/tests/profiles/headless/tests/fixtures/headless-profile.patch.yml"],
-        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+        "paths": [
+          "apps/cli/tests/profiles/headless/tests/fixtures/headless-profile.patch.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "- id: session-ledger-full",
+              "  disabled: true"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1820,8 +2079,18 @@
       "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/acp/escalation-approved/cordis.yml"],
-        "replacements": [{ "upstream": [], "fork": ["- id: session-ledger-full", "  disabled: true"] }]
+        "paths": [
+          "snapshots/acp/escalation-approved/cordis.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "- id: session-ledger-full",
+              "  disabled: true"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1831,7 +2100,9 @@
       "reason": "Pin default behavior with the full ledger enabled: normalized upstream events appear exactly once without ordering comparisons, turn structure is consistent, each physical request has one ledger row, every tool execution has a durable run start, and execution exits within the upstream timeout",
       "match": {
         "type": "test-assertion",
-        "paths": ["snapshots/full-ledger.invariants.ts"],
+        "paths": [
+          "snapshots/full-ledger.invariants.ts"
+        ],
         "test": "${scenario.name} preserves every event once, physical calls, durable tool starts and upstream exit deadline"
       }
     },
@@ -1842,8 +2113,22 @@
       "reason": "The seat engine depends on the full ledger for node identity and run starts; this scenario explicitly retains it after the shared ledger-disabling patch",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/session/seat-opening/cordis.snapshot.yml"],
-        "replacements": [{ "upstream": ["- id: session-ledger-full", "  config:"], "fork": ["- id: session-ledger-full", "  disabled: false", "  config:"] }]
+        "paths": [
+          "snapshots/session/seat-opening/cordis.snapshot.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "- id: session-ledger-full",
+              "  config:"
+            ],
+            "fork": [
+              "- id: session-ledger-full",
+              "  disabled: false",
+              "  config:"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1853,8 +2138,22 @@
       "reason": "The seat engine depends on the full ledger for node identity and run starts; this scenario explicitly retains it after the shared ledger-disabling patch",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/session/seat-windows/cordis.snapshot.yml"],
-        "replacements": [{ "upstream": ["- id: session-ledger-full", "  config:"], "fork": ["- id: session-ledger-full", "  disabled: false", "  config:"] }]
+        "paths": [
+          "snapshots/session/seat-windows/cordis.snapshot.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "- id: session-ledger-full",
+              "  config:"
+            ],
+            "fork": [
+              "- id: session-ledger-full",
+              "  disabled: false",
+              "  config:"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1864,8 +2163,20 @@
       "reason": "Upstream snapshots were recorded without the ledger; the full ledger's durable writes change async ordering",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/session/headless.snapshot.ts"],
-        "replacements": [{ "upstream": ["        ...composition === baseComposition && !replaying ? [] : [compositionPatch],"], "fork": ["        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),", "        ...composition === baseComposition && !replaying ? [] : [compositionPatch],"] }]
+        "paths": [
+          "snapshots/session/headless.snapshot.ts"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "        ...composition === baseComposition && !replaying ? [] : [compositionPatch],"
+            ],
+            "fork": [
+              "        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),",
+              "        ...composition === baseComposition && !replaying ? [] : [compositionPatch],"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1875,10 +2186,24 @@
       "reason": "Repeated synthetic calls must not reuse the durable wait event identity; recorded expectations and assertions stay unchanged.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["apps/cli/tests/profiles/web/tests/fixtures/creator-plugin-manager.mjs"],
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/fixtures/creator-plugin-manager.mjs"
+        ],
         "replacements": [
-          { "upstream": [], "fork": ["      let manageCall = 0"] },
-          { "upstream": ["        callId: `${phase}-manage`, signal: new AbortController().signal })"], "fork": ["        callId: `${phase}-manage-${++manageCall}`, signal: new AbortController().signal })"] }
+          {
+            "upstream": [],
+            "fork": [
+              "      let manageCall = 0"
+            ]
+          },
+          {
+            "upstream": [
+              "        callId: `${phase}-manage`, signal: new AbortController().signal })"
+            ],
+            "fork": [
+              "        callId: `${phase}-manage-${++manageCall}`, signal: new AbortController().signal })"
+            ]
+          }
         ]
       }
     },
@@ -1889,11 +2214,30 @@
       "reason": "Seat engine node identity must come from one ledger service while retaining the scenario-owned home and unchanged recording expectations.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/session/seat-opening/cordis.yml", "snapshots/session/seat-opening/cordis.snapshot.yml", "snapshots/session/seat-windows/cordis.yml", "snapshots/session/seat-windows/cordis.snapshot.yml"],
-        "replacements": [{
-          "upstream": ["- insert:", "    - id: seat-ledger", "      name: '@panedesk/dsh-session-ledger'", "      config:", "        dshHome: !!js \"process.cwd() + '/.panedesk/seat-home'\""],
-          "fork": ["- id: session-ledger-full", "  config:", "    dshHome: !!js \"process.cwd() + '/.panedesk/seat-home'\"", "", "- insert:"]
-        }]
+        "paths": [
+          "snapshots/session/seat-opening/cordis.yml",
+          "snapshots/session/seat-opening/cordis.snapshot.yml",
+          "snapshots/session/seat-windows/cordis.yml",
+          "snapshots/session/seat-windows/cordis.snapshot.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [
+              "- insert:",
+              "    - id: seat-ledger",
+              "      name: '@panedesk/dsh-session-ledger'",
+              "      config:",
+              "        dshHome: !!js \"process.cwd() + '/.panedesk/seat-home'\""
+            ],
+            "fork": [
+              "- id: session-ledger-full",
+              "  config:",
+              "    dshHome: !!js \"process.cwd() + '/.panedesk/seat-home'\"",
+              "",
+              "- insert:"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1903,8 +2247,17 @@
       "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/session/headless.snapshot.ts"],
-        "replacements": [{ "upstream": [], "fork": ["        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),"] }]
+        "paths": [
+          "snapshots/session/headless.snapshot.ts"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "        join(repoRoot, 'snapshots/cache-disabled.patch.yml'),"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1914,11 +2267,33 @@
       "reason": "Upstream snapshots were recorded without the accounting cache layer; dynamic tool additions and removals retain their three recorded headers.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/sdk/sdk.snapshot.ts"],
+        "paths": [
+          "snapshots/sdk/sdk.snapshot.ts"
+        ],
         "replacements": [
-          { "upstream": ["  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? []]"], "fork": ["  const cacheDisabledPatch = join(corpusRoot, 'cache-disabled.patch.yml')", "  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]"] },
-          { "upstream": [], "fork": ["    const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1)"] },
-          { "upstream": ["      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),"], "fork": ["      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch, childCachePatch]),"] }
+          {
+            "upstream": [
+              "  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? []]"
+            ],
+            "fork": [
+              "  const cacheDisabledPatch = join(corpusRoot, 'cache-disabled.patch.yml')",
+              "  const patches = [...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]"
+            ]
+          },
+          {
+            "upstream": [],
+            "fork": [
+              "    const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1)"
+            ]
+          },
+          {
+            "upstream": [
+              "      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch]),"
+            ],
+            "fork": [
+              "      DSH_TEST_CHILD_PATCHES: JSON.stringify([childPatch, childCachePatch]),"
+            ]
+          }
         ]
       }
     },
@@ -1929,8 +2304,19 @@
       "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["snapshots/acp/escalation-approved/cordis.yml"],
-        "replacements": [{ "upstream": [], "fork": ["# Upstream snapshots were recorded without the accounting cache layer.", "- id: llm-cache", "  disabled: true"] }]
+        "paths": [
+          "snapshots/acp/escalation-approved/cordis.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "# Upstream snapshots were recorded without the accounting cache layer.",
+              "- id: llm-cache",
+              "  disabled: true"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1940,10 +2326,24 @@
       "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts"],
+        "paths": [
+          "packages/test-support/loader-smoke/tests/fixtures/headless-driver.ts"
+        ],
         "replacements": [
-          { "upstream": [], "fork": ["import { fileURLToPath } from 'node:url'"] },
-          { "upstream": ["    overlayPaths: [resolveConfigPath(configPath, undefined)],"], "fork": ["    overlayPaths: [resolveConfigPath(configPath, undefined), fileURLToPath(new URL('./cache-disabled.patch.yml', import.meta.url))],"] }
+          {
+            "upstream": [],
+            "fork": [
+              "import { fileURLToPath } from 'node:url'"
+            ]
+          },
+          {
+            "upstream": [
+              "    overlayPaths: [resolveConfigPath(configPath, undefined)],"
+            ],
+            "fork": [
+              "    overlayPaths: [resolveConfigPath(configPath, undefined), fileURLToPath(new URL('./cache-disabled.patch.yml', import.meta.url))],"
+            ]
+          }
         ]
       }
     },
@@ -1954,8 +2354,18 @@
       "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["apps/cli/tests/profiles/headless/tests/fixtures/headless-profile.patch.yml"],
-        "replacements": [{ "upstream": [], "fork": ["- id: llm-cache", "  disabled: true"] }]
+        "paths": [
+          "apps/cli/tests/profiles/headless/tests/fixtures/headless-profile.patch.yml"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "- id: llm-cache",
+              "  disabled: true"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1965,8 +2375,18 @@
       "reason": "Upstream snapshots were recorded without the accounting cache layer; recorded expectations and assertions stay unchanged.",
       "match": {
         "type": "allowed-line-edits",
-        "paths": ["apps/web/tests/scaffold.ts"],
-        "replacements": [{ "upstream": [], "fork": ["    // Upstream snapshots were recorded without the accounting cache layer.", "    { id: 'llm-cache', disabled: true },"] }]
+        "paths": [
+          "apps/web/tests/scaffold.ts"
+        ],
+        "replacements": [
+          {
+            "upstream": [],
+            "fork": [
+              "    // Upstream snapshots were recorded without the accounting cache layer.",
+              "    { id: 'llm-cache', disabled: true },"
+            ]
+          }
+        ]
       }
     },
     {
@@ -1976,7 +2396,9 @@
       "reason": "Default requests differ from the reconstructed upstream request only by cache controls; disabling the plugin keeps ledger call accounting active.",
       "match": {
         "type": "test-assertion",
-        "paths": ["apps/cli/tests/profiles/cache-default.expected.e2e.ts"],
+        "paths": [
+          "apps/cli/tests/profiles/cache-default.expected.e2e.ts"
+        ],
         "test": "%s adds only cache controls and preserves accounting when disabled"
       }
     },
@@ -1987,7 +2409,9 @@
       "reason": "Readiness audits may overlap and must not register the root-owned status service twice or replace its startup evidence.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/boot/app-boot/tests/kernel-status.spec.ts"],
+        "paths": [
+          "packages/boot/app-boot/tests/kernel-status.spec.ts"
+        ],
         "test": "keeps one startup observation across concurrent audits and profile reloads"
       }
     },
@@ -1998,7 +2422,9 @@
       "reason": "First-writer fields remain authoritative in both default profiles; reverse-order retries retain existing or conflict outcomes without disrupting the Agent.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/core/agent-loop/tests/ledger-run.spec.ts"],
+        "paths": [
+          "packages/core/agent-loop/tests/ledger-run.spec.ts"
+        ],
         "test": "logs only differing field names when reusing a start; inherited: %s"
       }
     },
@@ -2009,7 +2435,9 @@
       "reason": "Integrations may bind context and persist launch intent before Agent creation. Reuse requires matching session and node identities and must preserve subagent terminal ownership and strict unique slots.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "paths": [
+          "packages/acp/acp/tests/default-ledger.spec.ts"
+        ],
         "test": "%s reuses a caller-started run for a tool turn and settles it on disposal"
       }
     },
@@ -2020,7 +2448,9 @@
       "reason": "A single ledger must retain identity and physical-call ownership without weakening run-start, budget or request-count assertions.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sdk/server/tests/policy-journal.spec.ts"],
+        "paths": [
+          "packages/sdk/server/tests/policy-journal.spec.ts"
+        ],
         "test": "mounts a controlled SDK preset and commits a fourth-tool denial with %s journal identity"
       }
     },
@@ -2031,7 +2461,9 @@
       "reason": "An unavailable ledger must not be hidden behind historical token readings; the status travels in an optional existing projection without a new protocol operation.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/client/ui-chat/tests/chat-stats.client.spec.tsx"],
+        "paths": [
+          "packages/client/ui-chat/tests/chat-stats.client.spec.tsx"
+        ],
         "test": "replaces usage with the %s ledger warning in both modes"
       }
     },
@@ -2042,7 +2474,9 @@
       "reason": "The full ledger records calls without the cache plugin while preserving the ledger format and pricing algorithm.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/llm/llm-cache/tests/call-accounting.spec.ts"],
+        "paths": [
+          "packages/llm/llm-cache/tests/call-accounting.spec.ts"
+        ],
         "test": "records calls with the session ledger and no cache plugin"
       }
     },
@@ -2053,7 +2487,9 @@
       "reason": "Both loading orders share one call lifecycle without making accounting depend on the optional cache plugin.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/llm/llm-cache/tests/call-accounting.spec.ts"],
+        "paths": [
+          "packages/llm/llm-cache/tests/call-accounting.spec.ts"
+        ],
         "test": "records exactly one call when ledger and cache plugins coexist (%s)"
       }
     },
@@ -2064,7 +2500,9 @@
       "reason": "An isolated child home cannot read the delegator journal. Tool execution requires a durable local run start without weakening the accounting guard or duplicating an existing live residency.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/acp/acp/tests/default-ledger.spec.ts"],
+        "paths": [
+          "packages/acp/acp/tests/default-ledger.spec.ts"
+        ],
         "test": "%s records main, managed, ACP, seat and SDK tool turns with run starts and physical calls"
       }
     },
@@ -2075,7 +2513,9 @@
       "reason": "Default model sessions require durable run and physical-call accounting in the same home as message delivery. The message-only entry remains mounted independently.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/bundle/slim-base/tests/slim-base.spec.ts"],
+        "paths": [
+          "packages/bundle/slim-base/tests/slim-base.spec.ts"
+        ],
         "test": "mounts exactly the 42 slim rows with unique ids"
       }
     },
@@ -2086,7 +2526,9 @@
       "reason": "With the ledger mounted, users receive frozen system and tool prefixes and default Anthropic 1h or DeepSeek automatic cache controls. retention=none disables cache controls but does not disable prefix freezing. Upstream snapshot tests run with both the cache layer and the full ledger disabled; separate cases pin the default profile behavior.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/bundle/slim-base/tests/slim-base.spec.ts"],
+        "paths": [
+          "packages/bundle/slim-base/tests/slim-base.spec.ts"
+        ],
         "test": "mounts exactly the 42 slim rows with unique ids"
       }
     },
@@ -2097,7 +2539,9 @@
       "reason": "Missing, disabled, failed and pending services must not appear healthy. Offline queries report safe main-process causes and stale evidence without replacing it or corrupting JSON stdout.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/boot/app-boot/tests/kernel-status.spec.ts"],
+        "paths": [
+          "packages/boot/app-boot/tests/kernel-status.spec.ts"
+        ],
         "test": "distinguishes disabled and missing entries instead of treating them as mounted"
       }
     },
@@ -2108,7 +2552,9 @@
       "reason": "Late business registration can miss the transport startup recovery attempt. Local recovery now owns its write readiness and starts the dependent engine barrier; incomplete or failed recovery and withdrawn registrations still reject writes. Peer negotiation and retained remote work remain independent.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/local-ready-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/local-ready-composition.spec.ts"
+        ],
         "test": "late frozen providers admit two disjoint local seats after recovery without a remote hello"
       }
     },
@@ -2119,7 +2565,9 @@
       "reason": "Frozen automatic admissions have no approval transition. Original source queries use the retained target and source-trigger pair, preserve callback uncertainty, and return committed opening progress and the journal version instead of an effect count. Independent close operations retain their own identity and result.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/operation.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/operation.spec.ts"
+        ],
         "test": "settles a delivered automatic source instead of returning pending configuring with an effect count"
       }
     },
@@ -2130,7 +2578,10 @@
       "reason": "registerPreopenRetention binds the frozen source and original source owner; optional projectId restricts the match to one project. A unique exact project match precedes a unique route-wide match. Missing or ambiguous registrations never authorize opening and use the 900000 ms fallback, retaining provider-unavailable and engine diagnostics until expiry. Every expiry uses the existing same-frame cancellation and rejected owner callback, including startup reconciliation. Timing starts at the first committed class frame without new public configuration keys or persistent fields and survives restart; expiry is checked without an executor. Public-only deployments can register another limit. Limits above the fallback require continuous registration across hot reload.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts", "packages/seat/seat-engine/tests/execution-recheck.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts",
+          "packages/seat/seat-engine/tests/execution-recheck.spec.ts"
+        ],
         "test": "bounds %s frozen retention with one stable rejected callback at 900000 ms"
       }
     },
@@ -2141,7 +2592,9 @@
       "reason": "Each originally accepted frozen item retains a unique callback identity and its original route. Callback construction or complete-frame write failure must not cancel only the queue entry; ordinary paths without a chain remain unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts"
+        ],
         "test": "commits one rejected owner callback with a pre-open cancellation and keeps the original receipt"
       }
     },
@@ -2152,7 +2605,9 @@
       "reason": "Each of the four terminal classes without execution receives one appended callback referencing the original cancellation event. Historical execution, callback or ambiguous evidence prevents duplicate or speculative reconciliation.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts"
+        ],
         "test": "recovers one rejected callback for old %s cancellation without rewriting history"
       }
     },
@@ -2163,7 +2618,9 @@
       "reason": "Reuse the existing settled-rejected branch without new wire fields. A proven pre-open terminal outcome takes precedence over unknown callback transport outcomes; cancellation operations still return the original audit receipt.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts"
+        ],
         "test": "uses the current frozen queue version and keeps its proven terminal ahead of transport uncertainty"
       }
     },
@@ -2174,7 +2631,9 @@
       "reason": "Publication consumes the existing request and delegation budget. Expired unsent intents settle with no effect; bounded callback query timeouts retain transient retries and the existing deadline diagnostic.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-router.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-router.spec.ts"
+        ],
         "test": "does not dispatch or disconnect when %s publication exhausts the sending deadline"
       }
     },
@@ -2185,7 +2644,9 @@
       "reason": "Legacy deadline and connection refusals recover only for source.deliverCallback; initiating methods are not automatically sent after hello, restart or explicit recovery. Every admitted method without a response retains exact-key verification. Durable owner missing permits one same-key replay with fresh restricted authority; committed evidence repairs eligible receipts. Optional internal recovery history preserves prior refusals and excludes old readers after publication.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-none-recovery.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-none-recovery.spec.ts"
+        ],
         "test": "recovers a legacy %s receipt with one exact missing permit and preserves its audit receipt"
       }
     },
@@ -2196,7 +2657,9 @@
       "reason": "F02 with adjacent F05 reads: same-node frozen callbacks must not fall back to peers or source callbacks. Ordinary callbacks remain unchanged without a provider. Optional observations do not remove rollback restrictions on retained new-method evidence.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/local-callback-owner.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/local-callback-owner.spec.ts"
+        ],
         "test": "calls only the optional owner seam when the frozen callback owner is local"
       }
     },
@@ -2207,7 +2670,9 @@
       "reason": "The seat-local close service automatically resolves the agent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67. A host-restart-recovery release permits guarded owner resolution so close can archive the Session while turn admission remains fenced.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/restart-close-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/restart-close-composition.spec.ts"
+        ],
         "test": "opens, restarts and closes the same window without reviving a fenced turn"
       }
     },
@@ -2218,7 +2683,9 @@
       "reason": "Restart may leave the first handoff queued after its owner is fenced. Preserve opened history, publish an ordered opening-failed diagnosis with the safe seat-local/opening-owner-lost cause, and use durable sender-checked withdrawal without bypassing close revisions or busy barriers. Replay must neither resend the handoff nor duplicate terminal callbacks. The composition also covers actual claimed and injected input, completed replies, unknown owners, and legacy release replay.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/orphaned-opening-close-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/orphaned-opening-close-composition.spec.ts"
+        ],
         "test": "withdraws an orphaned queued opening on ordinary close and never replays it after another restart"
       }
     },
@@ -2229,7 +2696,9 @@
       "reason": "The seat-local close service automatically resolves the agent during dead-window close in packages/seat/seat-local/src/closing-service.ts:56-67, including open/opening-failed effects after holder-death or host-restart-recovery. The composition records the provider error and one opening-failed callback without replaying the turn.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/opening-failure-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/opening-failure-composition.spec.ts"
+        ],
         "test": "records a failed opening and callback after an actual provider error turn"
       }
     },
@@ -2240,7 +2709,9 @@
       "reason": "A durable opening message with completed configuration needs only result observation. Later scope changes must not hide its failure fact or ordered callback; creation, configuration and first sends still require admission rechecks.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/sent-opening-observation.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/sent-opening-observation.spec.ts"
+        ],
         "test": "observes a sent %s opening after scope-stale (restart: %s)"
       }
     },
@@ -2251,7 +2722,9 @@
       "reason": "Queued frozen work must not execute after target permission or revision changes, including when the source owner is the execution target.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts"
+        ],
         "test": "refuses a changed frozen target revision before dispatch for %s"
       }
     },
@@ -2262,7 +2735,9 @@
       "reason": "An editing-authority handover changes persisted source authority, so the affected definition revision advances with the catalog.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/store.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/store.spec.ts"
+        ],
         "test": "advances only the per-seat revision whose source authority actually changes"
       }
     },
@@ -2273,7 +2748,9 @@
       "reason": "Source abandonment and resend require exact local-operator grants without extending session or node-delegation authority.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/source-operator.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/source-operator.spec.ts"
+        ],
         "test": "%s requires every grant binding and passes the original grant"
       }
     },
@@ -2284,7 +2761,9 @@
       "reason": "Provider activation can replace a waiting attachment before its asynchronous startup publishes services.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/startup.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/startup.spec.ts"
+        ],
         "test": "replaces a waiting Windows attachment after provider activation: %s"
       }
     },
@@ -2295,7 +2774,9 @@
       "reason": "Late providers must not cause silent activation without private endpoints; POSIX startup remains unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/startup.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/startup.spec.ts"
+        ],
         "test": "fails visibly when the Windows private-file factory is missing"
       }
     },
@@ -2306,7 +2787,9 @@
       "reason": "TCP forwarding preserves Host while entrance and receiving listener ports may differ; admin remains strict.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/forwarded-host.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/forwarded-host.spec.ts"
+        ],
         "test": "negotiates both runtimes through %s"
       }
     },
@@ -2317,7 +2800,9 @@
       "reason": "Steer delivery may join the opening turn; a held input claim exercises that ordering deterministically.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-app/tests/acceptance.spec.ts"],
+        "paths": [
+          "packages/seat/seat-app/tests/acceptance.spec.ts"
+        ],
         "test": "A19 wakes an all-object schedule wait once within five seconds without polling tools: %s"
       }
     },
@@ -2328,7 +2813,9 @@
       "reason": "Explicit business absence permits one same-key replay while transport uncertainty retains the original intent.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-network.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-network.spec.ts"
+        ],
         "test": "replays a missing original once before its late arrival and retains the result after receiver restart"
       }
     },
@@ -2339,7 +2826,9 @@
       "reason": "Business admission remains durable independently of transport request identifiers.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/frozen-admission.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/frozen-admission.spec.ts"
+        ],
         "test": "admits a missing replay once and returns its result to the late original after restart"
       }
     },
@@ -2350,7 +2839,9 @@
       "reason": "The late original returns the durable first acknowledgement without a second opening admission.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/frozen-admission.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/frozen-admission.spec.ts"
+        ],
         "test": "%s admits a missing replay once before the late original arrives after reload"
       }
     },
@@ -2361,7 +2852,9 @@
       "reason": "A failed owner lookup cannot authorize another callback business send.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/routed-callback.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/routed-callback.spec.ts"
+        ],
         "test": "keeps an unknown callback unsent when its exact query fails by %s"
       }
     },
@@ -2595,7 +3088,9 @@
       "reason": "Avoid rereading and resynchronizing historical facts on every write.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/incremental.spec.ts"
+        ],
         "test": "keeps write read and sync counts equal at fifty and one thousand existing facts"
       }
     },
@@ -2606,7 +3101,9 @@
       "reason": "Exercise incomplete writes and lost synchronization acknowledgements without weakening replay assertions.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/incremental.spec.ts"
+        ],
         "test": "retains acknowledged facts after four kills at %s"
       }
     },
@@ -2617,7 +3114,9 @@
       "reason": "Remove repeated journal byte reads without changing projection algorithms.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/incremental.spec.ts"
+        ],
         "test": "shares synchronized bytes across independent Context instances"
       }
     },
@@ -2628,7 +3127,9 @@
       "reason": "Keep settlement fields equivalent while validating artifact closures only for call IDs in returned hot-read facts; full readers still validate every stream.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/incremental.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/incremental.spec.ts"
+        ],
         "test": "matches every settlement field using keyed waits with %i facts"
       }
     },
@@ -2639,7 +3140,9 @@
       "reason": "Avoid full event copies and full watermark hashing on unobserved write acknowledgements.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/watermark-lazy.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/watermark-lazy.spec.ts"
+        ],
         "test": "defers full watermark hashing and event copying at fifty and one thousand facts"
       }
     },
@@ -3040,7 +3543,9 @@
       "reason": "Contributors own decoding, authorization and disposal; absent registrations leave built-in SDK behavior unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sdk/server/tests/plugin-apply.spec.ts"],
+        "paths": [
+          "packages/sdk/server/tests/plugin-apply.spec.ts"
+        ],
         "test": "loads an opt-in namespace composition and serves its capability and disposal over stdio"
       }
     },
@@ -3051,7 +3556,9 @@
       "reason": "Extension registrations cannot override built-in protocol methods.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sdk/server/tests/method-registry.spec.ts"],
+        "paths": [
+          "packages/sdk/server/tests/method-registry.spec.ts"
+        ],
         "test": "rejects duplicate and reserved namespaces without replacing active methods"
       }
     },
@@ -3062,7 +3569,9 @@
       "reason": "Optional response models retain existing typed request behavior while allowing registered extension results.",
       "match": {
         "type": "test-assertion",
-        "paths": ["python/sdk/tests/test_host.py"],
+        "paths": [
+          "python/sdk/tests/test_host.py"
+        ],
         "test": "test_public_request_accepts_extension_json_without_a_response_model"
       }
     },
@@ -3073,7 +3582,9 @@
       "reason": "Registered providers supply optional context; requests without context retain the existing template path.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/opening-contexts.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/opening-contexts.spec.ts"
+        ],
         "test": "freezes source text, prefills without starting a turn and replays after reload or disposal without rereading"
       }
     },
@@ -3084,7 +3595,9 @@
       "reason": "Explicit external restrictions apply only where configured; older definitions retain their existing rules.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/external-context.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/external-context.spec.ts"
+        ],
         "test": "matches configured external sources and event types exactly without fallback to project automatic mode"
       }
     },
@@ -3095,7 +3608,9 @@
       "reason": "Unknown scopes and unproven disjointness cannot authorize concurrent task batches.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-gates/tests/task-scopes.spec.ts"],
+        "paths": [
+          "packages/seat/seat-gates/tests/task-scopes.spec.ts"
+        ],
         "test": "conservatively rejects directory ancestors, case-insensitive overlap and undecidable patterns"
       }
     },
@@ -3106,7 +3621,9 @@
       "reason": "Transport does not grant authority; omitted configuration creates no service and missing executors reject.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/transport.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/transport.spec.ts"
+        ],
         "test": "executes identical operations once, rejects changed arguments and retains results after restart"
       }
     },
@@ -3117,7 +3634,9 @@
       "reason": "Restarted evidence storage preserves exact peer access and expires facts without evicting live entries.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-retained.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-retained.spec.ts"
+        ],
         "test": "restores exact paired evidence, rejects mismatched grants, and expires entries without evicting live facts"
       }
     },
@@ -3128,7 +3647,9 @@
       "reason": "Provider withdrawal removes capabilities and transport receipt absence never implies business absence.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-runtime.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-runtime.spec.ts"
+        ],
         "test": "Loader advertises only recovered capabilities, queries business truth and withdraws on provider disposal"
       }
     },
@@ -3139,7 +3660,9 @@
       "reason": "Delegation and wrapper bytes count toward the frame ceiling without truncation.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-wire.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-wire.spec.ts"
+        ],
         "test": "measures complete JSON wrappers and multibyte text at the negotiated minimum"
       }
     },
@@ -3150,7 +3673,9 @@
       "reason": "Transport uncertainty cannot become a terminal result or authorize blind replay.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-store.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-store.spec.ts"
+        ],
         "test": "retains complete pending intent across restart and rejects changed payload without replacing it"
       }
     },
@@ -3161,7 +3686,9 @@
       "reason": "Evidence and exact queries remain dispatchable while business execution awaits them.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-slots.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-slots.spec.ts"
+        ],
         "test": "reserves bounded control slots while business execution waits for independent evidence"
       }
     },
@@ -3172,7 +3699,9 @@
       "reason": "Optional chain declarations do not alter legacy refusal fields or materialize new diagnostics.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/transport.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/transport.spec.ts"
+        ],
         "test": "preserves complete legacy refusal bytes and payload digest without work-chain capability"
       }
     },
@@ -3183,7 +3712,9 @@
       "reason": "Administration requires explicit runtime configuration and rejects browser requests and stale process identities.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/security.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/security.spec.ts"
+        ],
         "test": "accepts authenticated loopback JSON and refuses stale epochs and browser headers"
       }
     },
@@ -3194,7 +3725,9 @@
       "reason": "Local operators can cancel pending work without extending node delegation or changing existing administrative frames.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/cancel.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/cancel.spec.ts"
+        ],
         "test": "cancels pending work once and replays the retained receipt after restart"
       }
     },
@@ -3205,7 +3738,9 @@
       "reason": "Local operators can inspect durable cancellation attribution without changing legacy cancellation responses.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/cancellation.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/cancellation.spec.ts"
+        ],
         "test": "keeps legacy cancellation replies and absent attribution byte-for-byte"
       }
     },
@@ -3216,7 +3751,9 @@
       "reason": "Panel registrants may supply count evidence; missing badges leave existing rows unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/client/ui-sidebar/tests/panel-list.client.spec.tsx"],
+        "paths": [
+          "packages/client/ui-sidebar/tests/panel-list.client.spec.tsx"
+        ],
         "test": "renders a subscribed count and hides zero, empty, and unknown values with collapsed=%s"
       }
     },
@@ -3227,7 +3764,9 @@
       "reason": "Queries consume existing optional providers without activating a replacement host.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-app/tests/host-cli.spec.ts"],
+        "paths": [
+          "packages/seat/seat-app/tests/host-cli.spec.ts"
+        ],
         "test": "prints provider health and preserves an advancing empty authorization page"
       }
     },
@@ -3238,7 +3777,9 @@
       "reason": "Missing negotiation or providers rejects explicitly while existing local request semantics remain unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/acp/acp/tests/host-extensions.spec.ts"],
+        "paths": [
+          "packages/acp/acp/tests/host-extensions.spec.ts"
+        ],
         "test": "leaves legacy initialization unchanged and rejects unnegotiated or absent providers"
       }
     },
@@ -3249,7 +3790,9 @@
       "reason": "Absent providers remain unsupported and delegated attribution cannot be self-reported by callers.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sdk/server/tests/host-projections.spec.ts"],
+        "paths": [
+          "packages/sdk/server/tests/host-projections.spec.ts"
+        ],
         "test": "reports unsupported without providers and denies self-reported delegated attribution"
       }
     },
@@ -3260,7 +3803,9 @@
       "reason": "Trusted entry registration and synchronous action builders are opt-in; absent services retain legacy entry behavior.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat/tests/authorization.spec.ts"],
+        "paths": [
+          "packages/seat/seat/tests/authorization.spec.ts"
+        ],
         "test": "requires issued facts in a synchronous action builder without activating a legacy writer"
       }
     },
@@ -3271,7 +3816,9 @@
       "reason": "Audited actions require instance-owned grants and retain task, seat and kind evidence after restart without changing Session events.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/authorization.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/authorization.spec.ts"
+        ],
         "test": "commits action and attribution in one frame and rebuilds task, seat and kind queries after restart"
       }
     },
@@ -3282,7 +3829,9 @@
       "reason": "Issued authorization queries and exports include plugin facts separately while legacy effects retain their closed vocabulary.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/authorization.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/authorization.spec.ts"
+        ],
         "test": "advances scanned cursors across filtered plugin facts without widening the legacy vocabulary"
       }
     },
@@ -3293,7 +3842,9 @@
       "reason": "Historical receipts cannot dispatch a new action; calls without grants retain the original local path.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/authorization-wiring.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/authorization-wiring.spec.ts"
+        ],
         "test": "commits renewal and replacement intents with grants and rejects forged or changed replay evidence"
       }
     },
@@ -3304,7 +3855,9 @@
       "reason": "Failed admission retains neither a close barrier nor a detached authorization fact; legacy uncredentialed paths remain available.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/authorization-wiring.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/authorization-wiring.spec.ts"
+        ],
         "test": "commits close admission and exports issued facts after restarting the writer"
       }
     },
@@ -3315,7 +3868,9 @@
       "reason": "Authenticated peer evidence, expiry and method ceilings cannot be replaced by caller role strings.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/delegation-policy.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/delegation-policy.spec.ts"
+        ],
         "test": "limits expiry, checks retained evidence and rejects widened methods or mismatched peer identity"
       }
     },
@@ -3326,7 +3881,9 @@
       "reason": "Explicit executors remain authoritative; missing local services never enable another routing hop or bypass audited admission.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/node-authorization-wiring.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/node-authorization-wiring.spec.ts"
+        ],
         "test": "routes six methods through Loader peers with real admission or explicit unsupported refusal"
       }
     },
@@ -3337,7 +3894,9 @@
       "reason": "An authenticated local operator uses installed issuer and transaction services; self-declared operator identity cannot grant approval.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/authorization-wiring.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/authorization-wiring.spec.ts"
+        ],
         "test": "authenticates local approval, rejects a self-declared operator and recovers attribution"
       }
     },
@@ -3348,7 +3907,9 @@
       "reason": "Same identity and digest returns the original durable acknowledgement after restart; changed content cannot reuse retained identity. Cross-node transport dependencies are optional and loaded only for routed sends or receives, keeping the default worker bundle independent of node-link and host-admin.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/message-delivery-local/tests/routed.spec.ts"],
+        "paths": [
+          "packages/session/message-delivery-local/tests/routed.spec.ts"
+        ],
         "test": "retains causal identity, returns the original ack after restart and rejects every reused identity with another digest"
       }
     },
@@ -3359,7 +3920,9 @@
       "reason": "Only trusted invocation evidence can establish causal identity; missing evidence must not be fabricated from request fields.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/message-delivery-local/tests/routed-causality.spec.ts"],
+        "paths": [
+          "packages/session/message-delivery-local/tests/routed-causality.spec.ts"
+        ],
         "test": "rejects self-declared %s without route dispatch"
       }
     },
@@ -3370,7 +3933,9 @@
       "reason": "Seat engine, catalog, ledger and mailbox ownership must exclude other writers on Windows without locking readable data files or changing Linux and macOS flock behavior.",
       "match": {
         "type": "test-assertion",
-        "paths": ["native/system/test/lock-file.test.js"],
+        "paths": [
+          "native/system/test/lock-file.test.js"
+        ],
         "test": "Windows exclusive sharing opens only the dedicated lock file and never its data"
       }
     },
@@ -3381,7 +3946,9 @@
       "reason": "Approval registration is distinct from real opening progress; restart retains both progress and issued attribution without exposing instruction bodies.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/persisted-operations.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/persisted-operations.spec.ts"
+        ],
         "test": "queries approval registration, real creation and issued kinds after restart without exposing bodies"
       }
     },
@@ -3392,7 +3959,9 @@
       "reason": "Explicitly injected node-link and host administration storage must stay owner-only under the current user SID on Windows while POSIX private files stay unchanged.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/host/host-admin/tests/windows-private-files.spec.ts"],
+        "paths": [
+          "packages/host/host-admin/tests/windows-private-files.spec.ts"
+        ],
         "test": "secures empty objects before writing and preserves owner-only replacement and locks"
       }
     },
@@ -3403,7 +3972,9 @@
       "reason": "Private opening providers receive durable opened and opening-failed writebacks without changing unreferenced manual openings.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/manual-callback-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/manual-callback-composition.spec.ts"
+        ],
         "test": "retains undelivered callbacks across provider disposal and reload"
       }
     },
@@ -3414,7 +3985,9 @@
       "reason": "Bound wake requests share the trusted opening snapshot and callback route.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/manual-wake-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/manual-wake-composition.spec.ts"
+        ],
         "test": "routes a missing-window wake through its trusted provider exactly once"
       }
     },
@@ -3425,7 +3998,9 @@
       "reason": "Private platform owners retain frozen scope reservations across restart without adding platform rules to public services.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-local/tests/scope-admission-composition.spec.ts"],
+        "paths": [
+          "packages/seat/seat-local/tests/scope-admission-composition.spec.ts"
+        ],
         "test": "injects conflict, unknown and disjoint decisions before creating any batch member and drains disposal"
       }
     },
@@ -3436,7 +4011,9 @@
       "reason": "Negotiated methods preserve source snapshots and original bounded refusal diagnostics without granting authority or changing local operation identifiers.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/sdk/protocol/tests/node-work-chain.spec.ts"],
+        "paths": [
+          "packages/sdk/protocol/tests/node-work-chain.spec.ts"
+        ],
         "test": "preserves legacy payload bytes without materializing optional fields"
       }
     },
@@ -3447,7 +4024,9 @@
       "reason": "Windows hosts may not support directory handles while file durability failures must remain fatal.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/directory-sync.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/directory-sync.spec.ts"
+        ],
         "test": "tolerates unsupported Windows directory open and sync: %s"
       }
     },
@@ -3458,7 +4037,9 @@
       "reason": "Synchronous notification publication must not fail solely because Windows cannot synchronize directory metadata.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/notification-directory-sync.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/notification-directory-sync.spec.ts"
+        ],
         "test": "tolerates unsupported Windows notification directory open and sync: %s"
       }
     },
@@ -3469,7 +4050,9 @@
       "reason": "Initial frozen preparation requires the target definition revision without exposing its directory or reusing execution authority.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/chain-wire.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/chain-wire.spec.ts"
+        ],
         "test": "negotiates exact revision reads outside the legacy seven-method advertisement"
       }
     },
@@ -3502,7 +4085,9 @@
       "reason": "Tunnel failures must remain observable without retaining unbounded child output or exposing literal addresses.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/node-link/tests/tunnel.spec.ts"],
+        "paths": [
+          "packages/seat/node-link/tests/tunnel.spec.ts"
+        ],
         "test": "logs retry number and delay, then exhausts once without further spawns"
       }
     },
@@ -3513,7 +4098,9 @@
       "reason": "Permanent transient failures must not grow the callback journal indefinitely or leave ordered callbacks without an operator exit; transport recovery remains independent of abandonment.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/seat/seat-engine/tests/callback-retention.spec.ts"],
+        "paths": [
+          "packages/seat/seat-engine/tests/callback-retention.spec.ts"
+        ],
         "test": "C11-b parks at 900000 but not 899999 and appends nothing after restart"
       }
     },
@@ -3524,7 +4111,9 @@
       "reason": "Native Windows relative separators must not differ from persisted fragment references or duplicate tail-recovery alerts after a platform change.",
       "match": {
         "type": "test-assertion",
-        "paths": ["packages/session/session-ledger/tests/relative-paths.spec.ts"],
+        "paths": [
+          "packages/session/session-ledger/tests/relative-paths.spec.ts"
+        ],
         "test": "keeps tail recovery identities equal across POSIX and Windows reads without duplicate alerts"
       }
     },
@@ -3545,16 +4134,28 @@
         ],
         "replacements": [
           {
-            "upstream": ["function openMode(flags: string): OpenMode {"],
-            "fork": ["function openMode(flags: string | number): OpenMode {"]
+            "upstream": [
+              "function openMode(flags: string): OpenMode {"
+            ],
+            "fork": [
+              "function openMode(flags: string | number): OpenMode {"
+            ]
           },
           {
-            "upstream": ["export function openSync(path: PathArg, flags = 'r', mode?: number): number {"],
-            "fork": ["export function openSync(path: PathArg, flags: string | number = 'r', mode?: number): number {"]
+            "upstream": [
+              "export function openSync(path: PathArg, flags = 'r', mode?: number): number {"
+            ],
+            "fork": [
+              "export function openSync(path: PathArg, flags: string | number = 'r', mode?: number): number {"
+            ]
           },
           {
-            "upstream": ["  openFileSync(path: string, flags?: string, mode?: number): VfsOpenFile"],
-            "fork": ["  openFileSync(path: string, flags?: string | number, mode?: number): VfsOpenFile"]
+            "upstream": [
+              "  openFileSync(path: string, flags?: string, mode?: number): VfsOpenFile"
+            ],
+            "fork": [
+              "  openFileSync(path: string, flags?: string | number, mode?: number): VfsOpenFile"
+            ]
           }
         ]
       }
@@ -4049,133 +4650,269 @@
       "description": "Replay upstream headless sessions with their recorded delegation defaults.",
       "origin": "Recorded delegation compatibility",
       "reason": "The product enables root overflow queuing and deeper delegation through bundle configuration. An ordinary profile patch restores upstream depth, capacity, overflow and notification settings without changing recorded expectations.",
-      "match": { "type": "test-assertion", "paths": ["snapshots/session/headless.snapshot.ts", "snapshots/subagent-upstream.patch.yml"], "test": "headless recorded-session snapshots" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "snapshots/session/headless.snapshot.ts",
+          "snapshots/subagent-upstream.patch.yml"
+        ],
+        "test": "headless recorded-session snapshots"
+      }
     },
     {
       "id": "upstream-sdk-subagent-defaults",
       "description": "Replay upstream SDK sessions with their recorded delegation defaults.",
       "origin": "Recorded delegation compatibility",
       "reason": "The shipped bundle enables queue result fields and depth three; the upstream SDK recordings retain depth one and immediate overflow rejection through an ordinary patch below scenario overrides.",
-      "match": { "type": "test-assertion", "paths": ["snapshots/sdk/sdk.snapshot.ts", "snapshots/subagent-upstream.patch.yml"], "test": "TypeScript SDK snapshots over the jsonrpc runtime" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "snapshots/sdk/sdk.snapshot.ts",
+          "snapshots/subagent-upstream.patch.yml"
+        ],
+        "test": "TypeScript SDK snapshots over the jsonrpc runtime"
+      }
     },
     {
       "id": "upstream-web-official-subagent-defaults",
       "description": "Preserve the official provider recording's upstream control schemas.",
       "origin": "Recorded delegation compatibility",
       "reason": "Product root queuing extends the PTC prompt; an ordinary Web overlay disables that capability while the existing recorded prompt and transcript stay unchanged.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/official-subagent-bundle.e2e.ts"], "test": "web snapshot: Official native subagent bundle" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/official-subagent-bundle.e2e.ts"
+        ],
+        "test": "web snapshot: Official native subagent bundle"
+      }
     },
     {
       "id": "upstream-web-ptc-subagent-defaults",
       "description": "Preserve the PTC browser recording's upstream control schemas.",
       "origin": "Recorded delegation compatibility",
       "reason": "Product root queuing extends three result declarations; an ordinary Web overlay restores the upstream declarations without refreshing any snapshot.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/ptc-round.e2e.ts"], "test": "web e2e: PTC mode round renders nested sub-calls" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/ptc-round.e2e.ts"
+        ],
+        "test": "web e2e: PTC mode round renders nested sub-calls"
+      }
     },
     {
       "id": "upstream-web-editor-subagent-defaults",
       "description": "Preserve the standalone editor recording's upstream control schemas.",
       "origin": "Recorded delegation compatibility",
       "reason": "The editor scenario predates product root queuing. Its existing overlay stack now includes the upstream delegation patch; prompt and transcript expectations remain unchanged.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/standalone-string-editor.e2e.ts"], "test": "web snapshot: standalone string editor through PTC" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/standalone-string-editor.e2e.ts"
+        ],
+        "test": "web snapshot: standalone string editor through PTC"
+      }
     },
     {
       "id": "upstream-web-fork-depth",
       "description": "Retain recorded depth guidance in the Web fork scenario.",
       "origin": "Recorded delegation compatibility",
       "reason": "The product's configured depth three removes depth-one child warnings. The scenario restores depth one through a profile patch and keeps its complete recorded child comparison.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/subagent-fork-schedule.snapshot.ts"], "test": "replays inherited schedule tools and refusals in a seeded Web fork" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/subagent-fork-schedule.snapshot.ts"
+        ],
+        "test": "replays inherited schedule tools and refusals in a seeded Web fork"
+      }
     },
     {
       "id": "upstream-headless-settlement-depth",
       "description": "Retain upstream child guidance in the settlement notification scenario.",
       "origin": "Recorded delegation compatibility",
       "reason": "The bundle's deeper delegation changes recorded runtime context. The existing scenario patch restores upstream delegation defaults; notification, child and stream assertions remain intact.",
-      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/headless/subagent-settlement-snapshot.patch.yml"], "test": "notifies the parent when a continuable child settles without polling" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/profiles/headless/subagent-settlement-snapshot.patch.yml"
+        ],
+        "test": "notifies the parent when a continuable child settles without polling"
+      }
     },
     {
       "id": "upstream-headless-inheritance-depth",
       "description": "Retain upstream fork guidance in the inherited permission scenario.",
       "origin": "Recorded delegation compatibility",
       "reason": "The bundle's deeper delegation removes the fork depth warning. The existing scenario patch restores upstream runtime defaults without altering the parent-only permission override or either complete transcript assertion.",
-      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/headless/subagent-inheritance-snapshot.patch.yml"], "test": "confines a delegated child through the assembled headless app" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/profiles/headless/subagent-inheritance-snapshot.patch.yml"
+        ],
+        "test": "confines a delegated child through the assembled headless app"
+      }
     },
     {
       "id": "default-headless-subagent-queue-prompt",
       "description": "Pin the default headless queue's exact additions to the upstream PTC prompt.",
       "origin": "Product delegation defaults",
       "reason": "A second keyless replay retains the shipped subagent configuration and compares the whole upstream prompt plus only the queue row and two queued activation result declarations.",
-      "match": { "type": "test-assertion", "paths": ["snapshots/session/headless.snapshot.ts", "snapshots/subagent-default.ts"], "test": "replays ptc-turn with default subagent queue through panedesk --profile headless" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "snapshots/session/headless.snapshot.ts",
+          "snapshots/subagent-default.ts"
+        ],
+        "test": "replays ptc-turn with default subagent queue through panedesk --profile headless"
+      }
     },
     {
       "id": "default-sdk-subagent-queue-prompt",
       "description": "Pin the default SDK queue's exact additions to the upstream PTC prompt.",
       "origin": "Product delegation defaults",
       "reason": "A second keyless SDK replay retains the shipped subagent configuration and compares the complete upstream prompt with precisely the three queue-capable result declarations added.",
-      "match": { "type": "test-assertion", "paths": ["snapshots/sdk/sdk.snapshot.ts", "snapshots/subagent-default.ts"], "test": "replays ptc-turn with default subagent queue through panedesk --profile sdk" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "snapshots/sdk/sdk.snapshot.ts",
+          "snapshots/subagent-default.ts"
+        ],
+        "test": "replays ptc-turn with default subagent queue through panedesk --profile sdk"
+      }
     },
     {
       "id": "default-web-subagent-queue-prompt",
       "description": "Pin the default Web queue's exact additions to the upstream PTC prompt.",
       "origin": "Product delegation defaults",
       "reason": "The assembled Web profile keeps product delegation enabled and compares the complete upstream prompt plus the declared queue fields, while explicitly checking depth three and root overflow queuing.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/subagent-default.expected.e2e.ts", "snapshots/subagent-default.ts", "apps/web/tsconfig.json"], "test": "the default web subagent queue adds only queue result fields to the upstream prompt" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/subagent-default.expected.e2e.ts",
+          "snapshots/subagent-default.ts",
+          "apps/web/tsconfig.json"
+        ],
+        "test": "the default web subagent queue adds only queue result fields to the upstream prompt"
+      }
     },
     {
       "id": "subagent-control-queue-schema-capability",
       "description": "Expose queue result metadata only when root overflow queuing is enabled.",
       "origin": "Subagent control tools",
       "reason": "The queue extension previously changed upstream list_agents schemas even with overflow rejection. Conditional schema composition now preserves the upstream prompt when disabled; queue rendering tests explicitly enable the capability.",
-      "match": { "type": "test-assertion", "paths": ["packages/subagent/tool-subagent-control/src/list-agents.ts", "packages/subagent/tool-subagent-control/tests/list-agents.spec.ts", "packages/subagent/tool-subagent-control/README.i18n.yaml", "packages/subagent/tool-subagent-control/README.md", "packages/subagent/tool-subagent-control/README.zh.md"], "test": "adds queue counts, oldest time and positions" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/subagent/tool-subagent-control/src/list-agents.ts",
+          "packages/subagent/tool-subagent-control/tests/list-agents.spec.ts",
+          "packages/subagent/tool-subagent-control/README.i18n.yaml",
+          "packages/subagent/tool-subagent-control/README.md",
+          "packages/subagent/tool-subagent-control/README.zh.md"
+        ],
+        "test": "adds queue counts, oldest time and positions"
+      }
     },
     {
       "id": "shell-composition-empty-environment",
       "description": "Evaluate shell deployment expressions with an explicit empty environment.",
       "origin": "Platform shell composition",
       "reason": "Configurable Bash path selection reads process.env. The upstream platform-only test process omitted that object; supplying an empty environment preserves every existing platform roster assertion.",
-      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/windows-shell.spec.ts"], "test": "the shipped shell composition (real bundle layers)" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/windows-shell.spec.ts"
+        ],
+        "test": "the shipped shell composition (real bundle layers)"
+      }
     },
     {
       "id": "seat-message-catalog-membership",
       "description": "Include the shipped seat message tools in the complete catalog expectation.",
       "origin": "Seat message tools",
       "reason": "The catalog now includes seat_list_online and seat_send. The exact sorted expected roster adds those two names rather than weakening catalog membership assertions.",
-      "match": { "type": "test-assertion", "paths": ["packages/core/tools/tests/gen-tool-catalog.spec.ts"], "test": "boots every shipped tool package and harvests its model-facing schemas" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/core/tools/tests/gen-tool-catalog.spec.ts"
+        ],
+        "test": "boots every shipped tool package and harvests its model-facing schemas"
+      }
     },
     {
       "id": "web-subagent-product-limits-reset",
       "description": "Expect product-configured delegation limits in the deployment reset form.",
       "origin": "Product delegation defaults",
       "reason": "Product defaults are supplied by bundle configuration, not plugin defaults: depth three and capacity sixteen replace one and eight in the deployment form expectations. Saving two and twelve, resetting, rereading and rejecting fractional depth remain asserted.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/plugin-config.e2e.ts"], "test": "saves subagent limits and resets them to the deployment defaults" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/plugin-config.e2e.ts"
+        ],
+        "test": "saves subagent limits and resets them to the deployment defaults"
+      }
     },
     {
       "id": "web-subagent-product-limits-discard",
       "description": "Expect product-configured depth after discarding an unsaved form edit.",
       "origin": "Product delegation defaults",
       "reason": "The deployment supplies depth three through bundle configuration while the plugin default stays one. The exact reread expectation follows the deployment; keyboard help and unsaved-edit preservation assertions remain unchanged.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/plugin-config.e2e.ts"], "test": "opens field explanations with the keyboard and retains unsaved edits" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/plugin-config.e2e.ts"
+        ],
+        "test": "opens field explanations with the keyboard and retains unsaved edits"
+      }
     },
     {
       "id": "workspace-create-publication-after-durability",
       "description": "Publish new workspace entities after their record is durable and before order notifications.",
       "origin": "Workspace creation and Session attachment",
       "reason": "Previously a discoverable entity could receive Session attachment before its table record existed. Publishing after record persistence but before the order commit prevents that race while keeping the entity resolvable by order-change subscribers, without changing stored formats or weakening browser error assertions.",
-      "match": { "type": "test-assertion", "paths": ["packages/workspace/workspace/src/index.ts", "apps/web/tests/workspace-management.e2e.ts"], "test": "reuses a deleted title for a different new directory without any transient error surface" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/workspace/workspace/src/index.ts",
+          "apps/web/tests/workspace-management.e2e.ts"
+        ],
+        "test": "reuses a deleted title for a different new directory without any transient error surface"
+      }
     },
     {
       "id": "workspace-session-creation-deletion-order",
       "description": "Serialize Workspace-targeted Session creation and attachment with registration deletion.",
       "origin": "Workspace lifecycle concurrency",
       "reason": "A Session creation previously retained an entity while deletion could remove its durable record before attachment. The existing registry mutation queue now owns the complete creation and attachment callback, so an earlier creation finishes before deletion and an earlier deletion rejects creation before Agent side effects. Existing browser error assertions remain unchanged.",
-      "match": { "type": "test-assertion", "paths": ["packages/workspace/workspace/src/index.ts", "packages/api/session-controller/src/commands.ts", "packages/api/session-controller/tests/commands-create-fork.host.spec.ts", "packages/api/session-controller/tests/session-presets.host.spec.ts", "docs/subsystems/workspace.md", "docs/subsystems/workspace.zh.md", "packages/api/session-controller/README.i18n.yaml", "packages/api/session-controller/README.md", "packages/api/session-controller/README.zh.md", "packages/workspace/workspace/README.i18n.yaml", "packages/workspace/workspace/README.md", "packages/workspace/workspace/README.zh.md"], "test": "reuses a deleted title for a different new directory without any transient error surface" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/workspace/workspace/src/index.ts",
+          "packages/api/session-controller/src/commands.ts",
+          "packages/api/session-controller/tests/commands-create-fork.host.spec.ts",
+          "packages/api/session-controller/tests/session-presets.host.spec.ts",
+          "docs/subsystems/workspace.md",
+          "docs/subsystems/workspace.zh.md",
+          "packages/api/session-controller/README.i18n.yaml",
+          "packages/api/session-controller/README.md",
+          "packages/api/session-controller/README.zh.md",
+          "packages/workspace/workspace/README.i18n.yaml",
+          "packages/workspace/workspace/README.md",
+          "packages/workspace/workspace/README.zh.md"
+        ],
+        "test": "reuses a deleted title for a different new directory without any transient error surface"
+      }
     },
     {
       "id": "queue-journal-catalog-notification-state",
       "description": "Keep the generated Cordis type catalog aligned with durable queue notification metadata.",
       "origin": "Queue notification persistence",
       "reason": "The runtime already declares the notified transition and notifiedAt timestamp. The generated declaration now includes those existing fields without changing queue behavior or persisted data.",
-      "match": { "type": "test-assertion", "paths": ["packages/extensions/tool-cordis/src/api-catalog.ts"], "test": "verify-cordis-catalog" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
+        "test": "verify-cordis-catalog"
+      }
     },
     {
       "id": "sdk-inherited-cache-policy",
@@ -4223,7 +4960,10 @@
       "reason": "The event matrix includes the engine's agent/status listener so deferred input can resume when admission evidence recovers without requiring another message. Both generated language variants retain the same listener relation.",
       "match": {
         "type": "test-assertion",
-        "paths": ["docs/event-producer-consumer.md", "docs/event-producer-consumer.zh.md"],
+        "paths": [
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md"
+        ],
         "test": "wakes an idle parent with retained completion input after admission recovers"
       }
     },
@@ -4232,63 +4972,137 @@
       "description": "Share descendant selection between ledger projections and queries.",
       "origin": "Session ledger query integration",
       "reason": "Share the linear descendant-session traversal between journal snapshots and public queries without changing selection semantics; suitable for upstream feedback.",
-      "match": { "type": "test-assertion", "paths": ["packages/session/session-ledger/src/projection.ts", "packages/session/session-ledger/src/index.ts", "packages/session/ledger-query/src/query.ts", "packages/session/session-ledger/README.md", "packages/session/session-ledger/README.zh.md", "packages/session/session-ledger/README.i18n.yaml"], "test": "duplication" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/src/projection.ts",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/ledger-query/src/query.ts",
+          "packages/session/session-ledger/README.md",
+          "packages/session/session-ledger/README.zh.md",
+          "packages/session/session-ledger/README.i18n.yaml"
+        ],
+        "test": "duplication"
+      }
     },
     {
       "id": "client-relative-css-whale-asset",
       "description": "Resolve the running whale asset from repository-relative CSS module identifiers.",
       "origin": "Client CSS bundling",
       "reason": "Match repository-relative CSS module identifiers when embedding the running whale image; preserve the original data URL and animation behavior; suitable for upstream feedback.",
-      "match": { "type": "test-assertion", "paths": ["packages/client/ui-chat/tsdown.config.ts", "packages/client/ui-chat/README.md", "packages/client/ui-chat/README.zh.md", "packages/client/ui-chat/README.i18n.yaml"], "test": "running whale asset" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-chat/tsdown.config.ts",
+          "packages/client/ui-chat/README.md",
+          "packages/client/ui-chat/README.zh.md",
+          "packages/client/ui-chat/README.i18n.yaml"
+        ],
+        "test": "running whale asset"
+      }
     },
     {
       "id": "client-build-metadata-test-ownership",
       "description": "Keep assembled Web and HMR fixtures responsible for their build metadata.",
       "origin": "Client build metadata integration",
       "reason": "Mirror Host build metadata in assembled boot fixtures and restore the metadata artifact after HMR tests without weakening existing assertions; suitable for upstream feedback.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/assembled-boot.ts", "apps/web/tests/hmr-live.e2e.ts", "apps/web/tests/README.md", "apps/web/tests/README.zh.md", "apps/web/tests/README.i18n.yaml"], "test": "assembled Web boot and live HMR" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/assembled-boot.ts",
+          "apps/web/tests/hmr-live.e2e.ts",
+          "apps/web/tests/README.md",
+          "apps/web/tests/README.zh.md",
+          "apps/web/tests/README.i18n.yaml"
+        ],
+        "test": "assembled Web boot and live HMR"
+      }
     },
     {
       "id": "acp-live-delta-snapshot-refresh",
       "description": "Record incremental ACP assistant output while preserving complete content.",
       "origin": "ACP live incremental projection",
       "reason": "Refresh recorded ACP expectations for intentional live assistant text and thought deltas while preserving concatenated text, permissions, tool results and final outcomes; suitable for upstream feedback.",
-      "match": { "type": "test-assertion", "paths": ["snapshots/acp/escalation-approved/stdout.expected.jsonl", "snapshots/acp/escalation-rejected/stdout.expected.jsonl", "snapshots/acp/fs-escalation-approved/stdout.expected.jsonl", "snapshots/acp/fs-same-mode/stdout.expected.jsonl"], "test": "ACP escalation snapshots" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "snapshots/acp/escalation-approved/stdout.expected.jsonl",
+          "snapshots/acp/escalation-rejected/stdout.expected.jsonl",
+          "snapshots/acp/fs-escalation-approved/stdout.expected.jsonl",
+          "snapshots/acp/fs-same-mode/stdout.expected.jsonl"
+        ],
+        "test": "ACP escalation snapshots"
+      }
     },
     {
       "id": "web-optional-startup-pending-diagnostic",
       "description": "Assert pending optional startup entries separately from activation failures.",
-      "origin": "Approved startup diagnostic ruling section I.2, requirement 16",
+      "origin": "Optional startup diagnostic integration",
       "reason": "Optional entries waiting for services are pending rather than failed. Assert the exact pending warning and absence of did not activate, retaining every required-startup failure and other optional-failure assertion.",
-      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"], "test": "optional startup dependency" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/profiles/web/tests/web-failure-matrix.expected.e2e.ts"
+        ],
+        "test": "optional startup dependency"
+      }
     },
     {
       "id": "acp-built-profile-live-delta-content",
       "description": "Assert the complete built ACP reply by concatenating ordered live text deltas.",
-      "origin": "Approved ACP incremental projection requirement 19 and design section V.19d",
+      "origin": "ACP live incremental projection",
       "reason": "Live assistant updates no longer contain a complete reply in one chunk. Concatenate text deltas in notification order and compare the full original reply exactly, preserving turn completion, message identity, request count and disconnect-exit assertions.",
-      "match": { "type": "test-assertion", "paths": ["apps/cli/tests/built-bin.e2e.ts"], "test": "runs a mock-backed ACP turn through the acp profile and exits on disconnect" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/built-bin.e2e.ts"
+        ],
+        "test": "runs a mock-backed ACP turn through the acp profile and exits on disconnect"
+      }
     },
     {
       "id": "bash-foreground-preparation-error-identity",
       "description": "Preserve structured preparation failures while waiting on foreground Bash jobs.",
       "origin": "Foreground Bash job consumer integration",
       "reason": "The job's readable terminal detail must not replace the original preparation error consumed by the foreground tool call. Preserve its type and structured code without changing job outcomes or sandbox policy; suitable for upstream feedback.",
-      "match": { "type": "test-assertion", "paths": ["packages/shell/tool-bash/src/index.ts", "packages/shell/tool-bash/README.md", "packages/shell/tool-bash/README.zh.md", "packages/shell/tool-bash/README.i18n.yaml"], "test": "dispatches a source-profile shell call" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/shell/tool-bash/src/index.ts",
+          "packages/shell/tool-bash/README.md",
+          "packages/shell/tool-bash/README.zh.md",
+          "packages/shell/tool-bash/README.i18n.yaml"
+        ],
+        "test": "dispatches a source-profile shell call"
+      }
     },
     {
       "id": "ledger-export-config-catalog-source-location",
       "description": "Regenerate configuration source locations after the shared ledger export.",
       "origin": "Session ledger generated documentation integration",
       "reason": "The additional ledger export shifts its configuration declaration by one line. Regenerate both catalog languages from source instead of editing generated references manually.",
-      "match": { "type": "test-assertion", "paths": ["docs/config-catalog.md", "docs/config-catalog.zh.md"], "test": "verify-config-catalog" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md"
+        ],
+        "test": "verify-config-catalog"
+      }
     },
     {
       "id": "plugin-install-github-branded-snapshots",
       "description": "Refresh GitHub installation guidance snapshots for the current product name.",
       "origin": "Plugin installation brand integration",
       "reason": "The mirror and alternative-installation snapshots retain obsolete product names and the old CLI command. Refresh only those intentional localized output changes through the existing snapshot runner; preserve the network, timeout and manifest assertions.",
-      "match": { "type": "test-assertion", "paths": ["apps/web/tests/expected/plugin-install-github/mirror.expected.md", "apps/web/tests/expected/plugin-install-github/another-way.expected.md"], "test": "offers a mirror after a GitHub failure, then another way on the mirror, and waits for replacement input" }
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/expected/plugin-install-github/mirror.expected.md",
+          "apps/web/tests/expected/plugin-install-github/another-way.expected.md"
+        ],
+        "test": "offers a mirror after a GitHub failure, then another way on the mirror, and waits for replacement input"
+      }
     },
     {
       "id": "ledger-statistics-stable-detail-pages",

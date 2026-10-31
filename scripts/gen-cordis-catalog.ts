@@ -79,6 +79,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   nodeWorkChain: 'seat.md',
   nodeWorkChainRouter: 'seat.md',
   nodeMessageAuthority: 'persistence.md',
+  nodeMessageEvidence: 'seat.md',
+  nodeMessageEvidenceRemote: 'seat.md',
   nodeLinkExecutor: 'seat.md',
   hostAdmin: 'seat.md',
   hostAdminExecutor: 'seat.md',

@@ -107,8 +107,8 @@ export class SshTunnel {
         if (aliveMs >= ssh.retryMs) attempt = 0
         if (attempt >= ssh.maxRetries) {
           const firstSentence = summary.split('\n')[0]?.split(/(?<=[.!?])\s/)[0] ?? ''
-          this.exhaustion = `SSH tunnel exhausted: exitCode=${outcome?.exitCode ?? 'unknown'} signal=${outcome?.signal ?? 'none'}${category === undefined ? '' : ` category=${category}`}${firstSentence ? `; ${firstSentence}` : ''} Link remains disconnected until host restart.`
-          this.log('error', `ssh-tunnel exhausted generation=${this.generation}; link remains disconnected until host restart`)
+          this.exhaustion = `SSH tunnel exhausted: exitCode=${outcome?.exitCode ?? 'unknown'} signal=${outcome?.signal ?? 'none'}${category === undefined ? '' : ` category=${category}`}${firstSentence ? `; ${firstSentence}` : ''} Link remains disconnected until it is rebuilt or the host restarts.`
+          this.log('error', `ssh-tunnel exhausted generation=${this.generation}; link remains disconnected until it is rebuilt or the host restarts`)
           return
         }
         this.log('warn', `ssh-tunnel retry attempt=${attempt + 1} maxRetries=${ssh.maxRetries} waitMs=${ssh.retryMs}`)

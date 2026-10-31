@@ -69,7 +69,7 @@ test('logs retry number and delay, then exhausts once without further spawns', a
     await fixture.exit(null, 'SIGTERM')
     expect(fixture.messages('exited')[1]![1]).toContain('signal=SIGTERM')
     expect(fixture.messages('exhausted')).toHaveLength(1)
-    expect(fixture.messages('exhausted')[0]).toEqual(['error', expect.stringContaining('link remains disconnected until host restart')])
+    expect(fixture.messages('exhausted')[0]).toEqual(['error', expect.stringContaining('link remains disconnected until it is rebuilt or the host restarts')])
     await vi.advanceTimersByTimeAsync(1000)
     expect(fixture.spawn).toHaveBeenCalledTimes(2)
   } finally { await fixture.tunnel.close() }
