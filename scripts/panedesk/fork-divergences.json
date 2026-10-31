@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "ledger-evidence-config-catalog-integration",
+      "description": "Merged ledger evidence configuration documentation.",
+      "origin": "Ledger and remote seat catalog integration",
+      "reason": "Regenerate the configuration catalog after combining bounded ledger evidence waits with remote seat messaging so both configuration surfaces remain documented.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["docs/config-catalog.md", "docs/config-catalog.zh.md"],
+        "test": "verify-config-catalog"
+      }
+    },
+    {
       "id": "ledger-admitted-request-header-evidence",
       "description": "Ledger admitted request header evidence.",
       "origin": "Ledger and optional remote seat integration",
