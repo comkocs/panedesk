@@ -436,9 +436,9 @@ export class SeatEngine extends SeatEngineService {
         const data = this.authorizationIssuers.verify(grant, { operationId: input.request.operationId,
           requestDigest: digest(input.request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
           ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
-        if (data.decision !== 'allowed' || data.seat !== input.request.seat
+        if (data.decision !== 'allowed' || data.principalId !== input.authority.principalId || data.seat !== input.request.seat
           || input.request.taskId && !data.taskIds.includes(input.request.taskId)
-          || input.authority.localWake && input.openingContext?.taskIds.some(task => !data.taskIds.includes(task))) {
+          || input.openingContext?.taskIds.some(task => !data.taskIds.includes(task))) {
           throw new EngineError('unauthorized', 'Opening attribution does not authorize this seat and task')
         }
         return [...this.absorbedApprovals(view, input), ...effects, authorizationEffect(data)]
