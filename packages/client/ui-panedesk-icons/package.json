@@ -20,7 +20,7 @@
     },
     "./tokens": {
       "types": "./lib/types/tokens.d.ts",
-      "default": "./lib/tokens.js"
+      "default": "./lib/types/tokens.js"
     },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
@@ -30,8 +30,7 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@panedesk/cordis": "workspace:~",
-    "react": "^18.2.0"
+    "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
@@ -39,7 +38,7 @@
   },
   "files": [
     "lib/index.js",
-    "lib/tokens.js",
+    "lib/types/**/*.js",
     "lib/types/**/*.d.ts"
   ]
 }

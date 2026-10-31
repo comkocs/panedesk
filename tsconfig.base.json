@@ -29,6 +29,12 @@
     // under its own tsconfig boundary.
     "paths": {
       "@panedesk/dsh-ledger-query/types": ["./packages/session/ledger-query/src/types.ts"],
+      "@panedesk/dsh-host-bash-setup": ["./packages/host/host-bash-setup/src/index.ts"],
+      "@panedesk/dsh-host-bash-setup/types": ["./packages/host/host-bash-setup/src/types.ts"],
+      "@panedesk/dsh-client-ui-settings-bash": ["./packages/client/ui-settings-bash/src/index.ts"],
+      "@panedesk/dsh-client-ui-settings-bash/client": ["./packages/client/ui-settings-bash/src/client/index.ts"],
+      "@panedesk/dsh-client-ui-panedesk-icons": ["./packages/client/ui-panedesk-icons/src/index.ts"],
+      "@panedesk/dsh-client-ui-panedesk-icons/tokens": ["./packages/client/ui-panedesk-icons/src/tokens.ts"],
       "@panedesk/dsh-client-ui-cache-pill": ["./packages/client/ui-cache-pill/src/index.ts"],
       "@panedesk/dsh-client-ui-cache-pill/client": ["./packages/client/ui-cache-pill/src/client/index.ts"],
       "@panedesk/dsh-client-ui-session-tab": ["./packages/client/ui-session-tab/src/index.ts"],

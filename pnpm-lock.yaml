@@ -6331,6 +6331,9 @@ importers:
       '@panedesk/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
       '@panedesk/dsh-client-ui-settings':
         specifier: workspace:*
         version: link:../ui-settings
