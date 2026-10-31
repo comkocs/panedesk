@@ -1,6 +1,177 @@
 {
   "divergences": [
     {
+      "id": "ledger-admitted-request-header-evidence",
+      "description": "Ledger admitted request header evidence.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Associate conversation call starts with the exact persisted request header and bound evidence reads until matching ledger admission without changing dispatch order.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/src/model-evidence.ts",
+          "packages/seat/seat-local/src/executor.ts",
+          "packages/seat/seat-local/src/index.ts",
+          "packages/seat/seat-local/src/service-options.ts",
+          "packages/seat/seat-local/tests/model-evidence.spec.ts",
+          "packages/session/session-ledger/src/types.ts",
+          "packages/session/session-ledger/src/call-accounting.ts",
+          "packages/session/ledger-query/src/export.ts",
+          "packages/session/ledger-query/tests/export.spec.ts",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ],
+        "test": "waits for the same request header to enter the ledger during a 250 ms acknowledgement delay"
+      }
+    },
+    {
+      "id": "ledger-verified-native-lock-holder",
+      "description": "Ledger verified native lock holder.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Publish diagnostic metadata under the native writer lock and report only a verified live owner on timeout without stealing locks or adding durable acknowledgements.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/src/lock.ts",
+          "packages/session/session-ledger/tests/journal.spec.ts"
+        ],
+        "test": "reports the verified lock holder and elapsed ownership without stealing the lock"
+      }
+    },
+    {
+      "id": "ledger-incremental-complete-projection",
+      "description": "Ledger incremental complete projection.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Fold newly admitted facts into the owned complete projection, index descendant and observation selection, and retain integrity, conflict and watermark semantics with reproducible read measurements.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/src/journal.ts",
+          "packages/session/session-ledger/src/projection.ts",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/src/waits.ts",
+          "packages/session/ledger-query/src/query.ts",
+          "packages/session/session-ledger/tests/incremental.spec.ts",
+          "packages/session/session-ledger/tests/ledger-read.perf.ts",
+          "packages/session/session-ledger/package.json",
+          "pnpm-lock.yaml"
+        ],
+        "test": "folds only new facts after a complete snapshot and detaches returned rows"
+      }
+    },
+    {
+      "id": "ledger-test-system-temporary-directory",
+      "description": "Ledger test system temporary directory.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Keep concurrent ledger test scratch files outside package source scans by owning a system temporary directory and removing it during teardown.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/tests/incremental.spec.ts"
+        ],
+        "test": "folds only new facts after a complete snapshot and detaches returned rows"
+      }
+    },
+    {
+      "id": "ledger-read-admission-documentation",
+      "description": "Ledger read admission documentation.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Document bounded admission evidence, verified lock diagnostics and incremental complete projections together with their remaining read costs.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/session/session-ledger/README.md",
+          "packages/session/session-ledger/README.zh.md",
+          "packages/session/session-ledger/README.i18n.yaml",
+          "packages/session/ledger-query/README.md",
+          "packages/session/ledger-query/README.zh.md",
+          "packages/session/ledger-query/README.i18n.yaml"
+        ],
+        "test": "verify-translation-pairing"
+      }
+    },
+    {
+      "id": "ledger-owned-lock-identity-and-merge-allocation",
+      "description": "Ledger owned lock identity and merge allocation.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Retain immutable lock-holder identity within each ledger service and avoid unused run membership indexes and serialization of unique merge rows without changing durability, conflict handling, or timeout verification.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/src/lock.ts",
+          "packages/session/session-ledger/src/index.ts",
+          "packages/session/session-ledger/src/waits.ts",
+          "packages/session/session-ledger/tests/journal.spec.ts",
+          "packages/session/session-ledger/README.md",
+          "packages/session/session-ledger/README.zh.md",
+          "packages/session/session-ledger/README.i18n.yaml",
+          "packages/session/ledger-query/src/export.ts",
+          "packages/session/ledger-query/README.md",
+          "packages/session/ledger-query/README.zh.md",
+          "packages/session/ledger-query/README.i18n.yaml"
+        ],
+        "test": "reports the verified lock holder and elapsed ownership without stealing the lock"
+      }
+    },
+    {
+      "id": "ledger-slow-holder-metadata-publication",
+      "description": "Ledger slow holder metadata publication.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Publish holder diagnostics only after sustained native lock ownership, retain the original acquisition time, and avoid metadata writes for fast transactions. Cancel unpublished diagnostics and clear attempted publication before descriptor release without changing lock validation or durable journal semantics.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/session-ledger/src/lock.ts",
+          "packages/session/session-ledger/tests/lock-holder.spec.ts",
+          "packages/session/session-ledger/tests/journal.spec.ts",
+          "packages/session/session-ledger/README.md",
+          "packages/session/session-ledger/README.zh.md",
+          "packages/session/session-ledger/README.i18n.yaml"
+        ],
+        "test": "does not write metadata for fast ownership or after early release"
+      }
+    },
+    {
+      "id": "exact-remote-seat-messages",
+      "description": "Exact remote seat messages.",
+      "origin": "Ledger and optional remote seat integration",
+      "reason": "Add opt-in authenticated exact-seat remote delivery and per-node online observations, preserving original identities, explicit refusal codes and original-key recovery. Upstreamable.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/message-delivery/",
+          "packages/session/message-delivery-local/",
+          "packages/session/tool-seat-messages/",
+          "packages/seat/node-link/",
+          "packages/sdk/protocol/",
+          "packages/session/ledger-query/",
+          "packages/seat/seat-local/src/node-routing.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "scripts/gen-cordis-catalog.ts",
+          "scripts/gen-doc-graphs.ts",
+          "docs/capability-seams.md",
+          "docs/capability-seams.zh.md",
+          "docs/capability-seams.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/persistence-catalog.md",
+          "docs/persistence-catalog.zh.md",
+          "docs/persistence-catalog.i18n.yaml",
+          "docs/persistence-schema.json",
+          "docs/subsystems/persistence.md",
+          "docs/subsystems/persistence.zh.md",
+          "docs/tool-catalog.md",
+          "docs/tool-catalog.zh.md",
+          "docs/tool-catalog.i18n.yaml"
+        ],
+        "test": "delivers once to the resolved top-level window and retains sender identity on replay"
+      }
+    },
+    {
       "id": "client-build-metadata-publication-policy",
       "description": "Client metadata publication policy.",
       "origin": "Build and test hygiene integration",
