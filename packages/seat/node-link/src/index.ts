@@ -225,6 +225,7 @@ export function apply(_ctx: Context, _config: Config): void | Promise<() => Prom
   _ctx.effect(() => mountChangingNode(_ctx, _config))
 }
 export type * from './delegation.ts'
+export type * from './message-evidence.ts'
 export type * from './execution.ts'
 export type * from './chain-services.ts'
 export type * from './chain-types.ts'

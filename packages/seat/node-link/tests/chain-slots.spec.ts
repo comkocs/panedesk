@@ -18,7 +18,8 @@ test('reserves bounded control slots while business execution waits for independ
   await expect(slots.run({ method: 'chain.operation' }, async () => 'unexpected')).rejects.toThrow('capacity')
   control.resolve()
   await evidence
-  for (const frame of [{ type: 'hello' }, { type: 'receipt' }, { method: 'chain.operation' }, { method: 'source.checkAdmission' }]) {
+  for (const frame of [{ type: 'hello' }, { type: 'receipt' }, { type: 'message-delegation-evidence' },
+    { method: 'chain.operation' }, { method: 'source.checkAdmission' }]) {
     await expect(slots.run(frame, async () => 'control-result')).resolves.toBe('control-result')
   }
   business.resolve()
