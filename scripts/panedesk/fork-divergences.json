@@ -1,6 +1,20 @@
 {
   "divergences": [
     {
+      "id": "folded-retry-existing-owner-test-integration",
+      "description": "Existing callback owner checks follow folded observation ownership.",
+      "origin": "Callback folding and existing local-owner diagnostics integration",
+      "reason": "Read completed uncommitted attempts from the outbox observation view, forward that view to routed callbacks, and enforce oversized-frame rejection when the buffered fold is persisted. Preserve refusal details, unknown outcomes and unchanged journal bytes.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-engine/tests/local-callback-owner.spec.ts",
+          "packages/seat/seat-engine/tests/chain-storage.spec.ts"
+        ],
+        "test": "rejects a diagnostic frame above maxDecisionBytes without truncating the original or clearing unknown"
+      }
+    },
+    {
       "id": "callback-retry-folding-and-owner-parking",
       "reason": "Fold completed callback retry observations, retain recovery lower bounds, and distinguish owner progress from transport parking with strictly decoded pending details. Routed send-ahead safety frames remain durable. Candidate for upstream feedback after the remaining end-to-end and concurrency work.",
       "description": "Callback retry folding and owner parking.",
