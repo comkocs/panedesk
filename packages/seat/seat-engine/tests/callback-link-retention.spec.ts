@@ -53,8 +53,9 @@ test('parks a disconnected chain then auto-resumes once on hello and delivers wi
 
 test('does not auto-resume other-class parking when hello is ready', async () => {
   const h = await fixture(); let calls = 0
-  const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, async (body) => {
-    calls++; return { result: { status: 'pending', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest } }
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, async () => {
+    calls++; return { result: { status: 'rejected', error: { code: 'unavailable', message: 'Owner unavailable',
+      alternative: 'Restore the owner', retryable: true, effectState: 'none' } } }
   }, async () => true)
   cleanups.push(() => outbox.close())
   await outbox.deliver(); vi.setSystemTime(1900000); await outbox.deliver()
@@ -78,18 +79,18 @@ test('the engine reads cached hello readiness and leaves failed or repeated obse
   const callbackFrames = () => h.engine.journal.projection.decisions.flatMap(frame => frame.effects).filter(effect =>
     effect.kind === 'callback/attempted' && effect.data.payload.callbackId === h.body.callback.callbackId).length
   const parked = callbackFrames()
-  for (let i = 0; i < 3; i++) { await h.engine.drive(); await h.engine['outbox'].close() }
+  for (let i = 0; i < 3; i++) { await h.engine.drive(); await h.engine['outbox'].flush() }
   expect(callbackFrames()).toBe(parked)
   ready = true
-  await h.engine.drive(); await h.engine['outbox'].close()
+  await h.engine.drive(); await h.engine['outbox'].flush()
   expect(callbackFrames()).toBe(parked)
   observedAt++; vi.setSystemTime(observedAt)
-  await h.engine.drive(); await h.engine['outbox'].close()
+  await h.engine.drive(); await h.engine['outbox'].flush()
   expect(h.current().phase).toBe('retry-due')
   const resumed = () => h.engine.journal.projection.decisions.flatMap(frame => frame.effects).filter(effect => effect.kind === 'callback/attempted'
     && effect.data.lastDiagnostic?.cause.code === 'callback-auto-resumed-on-link-ready')
   expect(resumed()).toHaveLength(1)
-  await h.engine.drive(); await h.engine['outbox'].close()
+  await h.engine.drive(); await h.engine['outbox'].flush()
   expect(resumed()).toHaveLength(1)
   expect(router.route).not.toHaveBeenCalled()
 })
@@ -113,7 +114,7 @@ test('a second link parking requires a newer hello than its own parking frame', 
   h.ctx.provide('nodeRouter', { route: vi.fn(), status: async () => [{ nodeId: owner, reachable: true,
     linkState: 'connected', capabilities: ['node-work-chain/v1'], observedAt: new Date(observedAt).toISOString(),
     nodeName: 'owner', status: null, safeReason: null }] })
-  const drive = async () => { await h.engine.drive(); await h.engine['outbox'].close() }
+  const drive = async () => { await h.engine.drive(); await h.engine['outbox'].flush() }
   const resumed = () => h.engine.journal.projection.decisions.flatMap(frame => frame.effects).filter(effect =>
     effect.kind === 'callback/attempted' && effect.data.payload.callbackId === h.body.callback.callbackId
     && effect.data.lastDiagnostic?.cause.code === 'callback-auto-resumed-on-link-ready')
@@ -160,7 +161,8 @@ test('final unknown remains behind the original-key query barrier after the tran
     async (body) => { calls++; return transport(body) })
   cleanups.push(() => outbox.close())
   vi.setSystemTime(3000000); await outbox.deliver()
-  expect(h.current()).toMatchObject({ phase: 'retry-due', responseClass: 'unknown', attempt: 2 })
+  expect(outbox.observations().find(item => item.payload.callbackId === h.body.callback.callbackId))
+    .toMatchObject({ phase: 'retry-due', responseClass: 'unknown', attempt: 2 })
   expect(calls).toBe(1)
 })
 
@@ -209,7 +211,9 @@ test.each([true, false])('automatic resume and operator abandon serialize with a
 test('a late owner committed receipt does not clear other-class seat parking', async () => {
   const h = await fixture(); let committed = false
   const send = vi.fn(async (body: T.DeliverSourceCallbackRequest): Promise<T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>> => ({
-    result: { status: committed ? 'committed' : 'pending', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest },
+    result: committed ? { status: 'committed', callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest }
+      : { status: 'rejected', error: { code: 'unavailable', message: 'Owner unavailable',
+        alternative: 'Restore the owner', retryable: true, effectState: 'none' } },
   }))
   const outbox = new CallbackOutbox(h.engine.journal, h.sources, h.engine.options.config, send, async () => true)
   cleanups.push(() => outbox.close())

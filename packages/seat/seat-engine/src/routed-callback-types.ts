@@ -38,7 +38,10 @@ export function callbackObservation<R extends T.NodeWorkChainOperationResult | T
   stage: T.SeatCallbackFailureStage): T.SeatCallbackAttemptResult<R> {
   const result = attempt.result
   const error = 'error' in result ? result.error : undefined
-  const diagnostic = attempt.diagnostic ?? (error?.cause ? { stage, cause: error.cause }
+  const pending = result.status === 'pending' && result.pendingReason
+    ? callbackFailure(body, stage, 'Callback owner has not confirmed completion', 'unavailable', 'unknown', 'outcome-unknown').diagnostic : undefined
+  if (pending && result.status === 'pending') pending.cause.code = `callback-${result.pendingReason}`
+  const diagnostic = attempt.diagnostic ?? pending ?? (error?.cause ? { stage, cause: error.cause }
     : error ? callbackFailure(body, stage, 'Callback attempt was refused', error.code, error.effectState, 'evidence-missing').diagnostic : undefined)
   if (!diagnostic) return attempt
   if (validCallbackDiagnostic(diagnostic) && diagnostic.cause.operationId === body.route.originalOperationId

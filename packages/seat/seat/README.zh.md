@@ -53,6 +53,8 @@ kind: "package-reference"
 
 可选 `seatLocalCallbackOwner: SeatLocalCallbackOwner` 为来源所有者、目标及执行节点均为本地引擎的回调提供 `ready`、`available`、完整键 `query` 与冻结原包 `deliver`。每次查询或交付返回 `SeatCallbackAttemptResult<R>`，可附 `SeatCallbackDiagnostic`；提供方负责独立授权、持久去重、恢复及撤装。导入声明不安装提供方或默认注入，缺席绝不允许来源或对端兜底。`SeatCallbackDelivery.lastDiagnostic` 是可选的交付外层观察，不属于回调正文或业务摘要；旧记录省略该字段，成功交付只清除最新观察。失败阶段为 `retained`、`issuer`、`local-query`、`local-dispatch`、`peer-query`、`peer-dispatch`、`owner-inbox` 和 `writeback`；原因保留有界标识与脱敏说明。
 
+回调可选 `retrySummary` 保存折叠失败次数、时刻、安全细因与连续暂态计时；恢复次数为下界。`ownerPending` 将 owner 进展排除出传输计时，`parkingClass` 区分 owner 未确认与传输失败而不改变旧码。pending 回调与精确操作回执可携固定 `pendingReason`（`owner-recovering`、`writeback-pending`、`writeback-outcome-unknown`、`desk-unreachable`），不含地址或凭据。旧记录均可省略；配套提供方负责恢复与升级约束。
+
 可选 `OpenSeatRequest.startupDirectory` 为手动开窗选择精确的已登记目录；省略时保留档案起窗目录。本地提供方冻结所选起窗标记供执行与重放使用，不改档案，也不扩大目录授权；重试须保留相同选择。
 
 可选 `SeatEngineService.wakeSource` 接收携任务上下文的已注册外部事件；方法缺席或返回 undefined 时保留普通触发入口。可选 `SeatEngineConfig.sourceWake` 选择来源与事件组合，`frozenWakeContext` 启用已有窗投递中的冻结任务正文。二者省略时均不启用；校验、授权与持久结果归 [seat-engine](../seat-engine/README.zh.md) 所有。不改变 wire 方法或已有必填字段。

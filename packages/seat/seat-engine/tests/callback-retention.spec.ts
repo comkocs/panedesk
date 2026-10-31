@@ -64,8 +64,10 @@ test('C11-c delivers within the window and clears only the latest diagnostic', a
   const h = await fixture(); let fail = true
   failing(h.sources, async () => { if (fail) throw new Error('failure') })
   await h.outbox.deliver(); fail = false
+  const retrySummary = h.current().retrySummary
   vi.setSystemTime(1899999); await h.outbox.deliver()
-  expect(h.current()).toEqual({ ...h.initial, phase: 'delivered', attempt: 2, responseClass: 'success' })
+  expect(h.current()).toEqual({ ...h.initial, phase: 'delivered', attempt: 2, responseClass: 'success', retrySummary })
+  expect(retrySummary).toMatchObject({ count: 1, lastDiagnostic: { cause: { code: 'callback-unclassified-error' } } })
   expect(JSON.stringify(h.engine.journal.projection.decisions)).toContain('callback-unclassified-error')
 })
 
@@ -193,7 +195,8 @@ test.each([
       clock.mockReturnValue(Date.now() + 2000)
       if (uncertain) engine = await reload()
     }
-    const prior = engine.journal.projection.callbacks.get(payload.callbackId)
+    const outbox: CallbackOutbox = engine['outbox']
+    const prior = outbox.observations().find(item => item.payload.callbackId === payload.callbackId)
     const dispose = engine.registerSource({ sourceId, kinds: ['external'], maxRedeliveryMs: null, callback: async (input) => {
       sent.push(input.callbackId)
       if (input.callbackId === payload.callbackId && !accepted) {

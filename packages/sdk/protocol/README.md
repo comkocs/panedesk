@@ -61,6 +61,8 @@ The opt-in chain decoders also project `seat.definitionRevision`: exactly six re
 
 Message result decoding preserves the exact-seat refusal codes `offline` and `busy-not-accepting` alongside `target-not-found`; it does not reinterpret them as a successful empty result. This adds no SDK method or operation number. Exact-seat request authorization remains owned by node-link.
 
+Pending callback and exact-operation receipts optionally carry `pendingReason`: `owner-recovering`, `writeback-pending`, `writeback-outcome-unknown`, or `desk-unreachable`. The decoder rejects other values and rejects this field on committed receipts. Omitted fields retain legacy bytes; peers receiving these details must use the updated decoder.
+
 ### Payload semantics
 
 `InitializeParams.cachePolicy` carries the original cache selection. Optional boolean `cachePolicyInherited` requires that selection and marks it as inherited when true; the child cache plugin may then use the child route default for unsupported retention. Omission or false keeps explicit retention validation strict. This adds no method identifier or operation number.

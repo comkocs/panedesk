@@ -132,6 +132,11 @@ export class EngineJournal {
           projection.applyAuthorization(decision)
         }
       }
+      for (const [id, delivery] of projection.callbacks) {
+        if ((delivery.phase === 'retry-due' || delivery.responseClass === 'unknown') && delivery.retrySummary) projection.callbacks.set(id, {
+          ...delivery, retrySummary: { ...delivery.retrySummary, attemptsAtLeast: true },
+        })
+      }
       this.projection = projection
       this.owner = owner
     } catch (cause) { await owner.close(); throw new EngineError('engine-store-corrupt', 'Engine ownership or recovery is unavailable', { cause }) }

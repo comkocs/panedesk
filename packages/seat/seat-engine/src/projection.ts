@@ -70,7 +70,7 @@ export class EngineProjection {
   readonly opens = new Map<SessionId, EngineOpenData>()
   /** Current reservations retained until matching owner release. */
   readonly resources = new Map<SessionId, ResourceReservation>()
-  /** Latest durable delivery state for each callback. */
+  /** Latest delivery state; the outbox may overlay unflushed retry counters, never terminal outcomes. */
   readonly callbacks = new Map<CallbackId, SeatCallbackDelivery>()
   /** Latest admission state for each child ticket. */
   readonly children = new Map<ChildTicketId, ChildAdmissionTicket>()

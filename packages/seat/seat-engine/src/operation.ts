@@ -7,9 +7,11 @@ import { frozenItems, frozenTerminal } from './frozen-terminal.ts'
  * @param view - Replayed committed journal state.
  * @param request - Exact operation identity.
  * @param nodeName - Configured display name of the journal owner.
+ * @param callbacks - Live retry observations; omitted for committed-only offline reads.
  * @returns Safe registration and progress evidence, never frozen instruction content.
  */
-export function queryOperation(view: EngineProjection, request: T.SeatOperationQuery, nodeName: string): T.SeatEngineOperationResult {
+export function queryOperation(view: EngineProjection, request: T.SeatOperationQuery, nodeName: string,
+  callbacks: readonly T.SeatCallbackDelivery[] = [...view.callbacks.values()]): T.SeatEngineOperationResult {
   const originals = frozenItems(view).filter(item => item.chain.operationKey.operationId === request.operationId)
   const original = originals.length === 1 ? originals[0] : undefined
   if (original) {
@@ -17,7 +19,7 @@ export function queryOperation(view: EngineProjection, request: T.SeatOperationQ
     if (terminal) return { status: 'settled', result: { status: 'rejected', error: structuredClone(terminal.error) },
       progress: { kind: 'cancelled' } }
   }
-  const uncertain = [...view.callbacks.values()].find(item => item.nodeWorkChain?.route.originalOperationId === request.operationId
+  const uncertain = callbacks.find(item => item.nodeWorkChain?.route.originalOperationId === request.operationId
     && item.responseClass === 'unknown' && item.phase !== 'delivered')
   if (uncertain) return { status: 'pending', phase: 'configuring', stateVersion: view.sequence,
     progress: { kind: 'pending', reason: 'provider-unavailable', blockedBy: ['callback-outcome-unknown'] } }
@@ -59,7 +61,7 @@ export function queryOperation(view: EngineProjection, request: T.SeatOperationQ
     if (open.binding.kind === 'seat') return { ...metadata, progress, status: 'settled', result: {
       status: 'opened', sessionId: open.sessionId, seat: open.binding.seat, nodeId: open.binding.nodeId,
       nodeName, title: open.title ?? open.binding.seat, budget: open.budget.limits, phase: open.phase,
-      stateVersion: view.sequence, callbackIds: [...view.callbacks.values()].filter(item =>
+      stateVersion: view.sequence, callbackIds: callbacks.filter(item =>
         item.payload.sessionId === open.sessionId).map(item => item.payload.callbackId),
     } }
   }

@@ -9,6 +9,8 @@ export interface CallbackRetention {
   latest?: T.SeatCallbackDiagnostic
   attempt: number
   parkedAt?: number
+  /** A recovered retrying callback may have lost unflushed attempts. */
+  attemptsAtLeast?: boolean
 }
 /** Fold all callback histories once for one delivery batch.
  * @param decisions - Committed decisions in journal order.
@@ -28,7 +30,13 @@ export function callbackRetentions(decisions: readonly T.EngineDecision[]): Map<
       result.set(id, { attempt: delivery.attempt, since: at })
     } else if (delivery.phase === 'paused' || delivery.phase === 'abandoned') {
       result.set(id, { attempt: delivery.attempt, parkedAt: at })
-    } else if (effect.kind === 'callback/attempted' && delivery.responseClass === 'transient') {
+    } else if (delivery.retrySummary) {
+      result.set(id, { attempt: delivery.attempt,
+        ...(delivery.phase === 'retry-due' ? { attemptsAtLeast: true } : {}),
+        ...(delivery.responseClass === 'transient' && !delivery.ownerPending && delivery.retrySummary.transientSince
+          ? { since: Date.parse(delivery.retrySummary.transientSince) } : {}),
+        ...(delivery.retrySummary.lastDiagnostic ? { latest: delivery.retrySummary.lastDiagnostic } : {}) })
+    } else if (effect.kind === 'callback/attempted' && delivery.responseClass === 'transient' && !delivery.ownerPending) {
       result.set(id, { attempt: delivery.attempt, since: previous.since ?? at,
         ...(delivery.lastDiagnostic ? { latest: delivery.lastDiagnostic } : {}) })
     } else result.set(id, { attempt: delivery.attempt })

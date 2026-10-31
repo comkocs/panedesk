@@ -758,6 +758,22 @@ export type SeatCallbackPayload = SeatCallbackBase & (
 export interface SeatCallbackDelivery {
   /** Latest bounded failure observation; absent on old records and after success. */
   lastDiagnostic?: SeatCallbackDiagnostic
+  /** Optional folded failures; absence preserves the legacy one-frame-per-attempt format. */
+  retrySummary?: {
+    /** Completed failures; zero denotes a send-ahead barrier with no completed observation. */
+    count: number
+    firstAttemptAt: SeatTimestamp
+    lastAttemptAt: SeatTimestamp
+    lastDiagnostic?: SeatCallbackDiagnostic
+    /** Recovery cannot count retries lost before the last flush. */
+    attemptsAtLeast?: boolean
+    /** Null explicitly ends a transport-transient segment on an owner observation. */
+    transientSince: SeatTimestamp | null
+  }
+  /** Owner observations never contribute to a transport-transient window. */
+  ownerPending?: boolean
+  /** Independent of legacy responseClass; old parking codes remain readable. */
+  parkingClass?: 'owner-unconfirmed' | 'transport-transient'
   /** Frozen complete remote callback request; replay retains its original digest. */
   nodeWorkChain?: DeliverSourceCallbackRequest
   payload: SeatCallbackPayload
@@ -1320,7 +1336,8 @@ export interface DeliverSourceCallbackRequest {
 }
 /** Only committed confirms completion of every source-owned callback step. */
 export type DeliverSourceCallbackResult =
-  | { status: 'pending' | 'committed'; callbackId: CallbackId; payloadDigest: SeatDigest }
+  | { status: 'pending'; callbackId: CallbackId; payloadDigest: SeatDigest; pendingReason?: 'owner-recovering' | 'writeback-pending' | 'writeback-outcome-unknown' | 'desk-unreachable' }
+  | { status: 'committed'; callbackId: CallbackId; payloadDigest: SeatDigest }
   | { status: 'paused'; callbackId: CallbackId; payloadDigest: SeatDigest; error: SeatFailure }
   | SeatRejected
 /** Fixed observable callback failure hops; stages never confer execution authority. */
@@ -1390,7 +1407,7 @@ export type NodeWorkChainSettledResult = {
   }
 }[Exclude<NodeWorkChainMethod, 'chain.operation' | 'seat.definitionRevision'>]
 /** Missing is reportable only after recovery; pending is not a terminal cached result. */
-export type NodeWorkChainOperationResult = { status: 'missing' } | { status: 'pending'; effectState: 'none' | 'unknown' } | NodeWorkChainSettledResult | SeatRejected
+export type NodeWorkChainOperationResult = { status: 'missing' } | { status: 'pending'; effectState: 'none' | 'unknown'; pendingReason?: 'owner-recovering' | 'writeback-pending' | 'writeback-outcome-unknown' | 'desk-unreachable' } | NodeWorkChainSettledResult | SeatRejected
 /** Provider-owned business methods exclude the query dispatcher itself. */
 export type NodeWorkChainBusinessMethod = Exclude<NodeWorkChainMethod, 'chain.operation' | 'seat.definitionRevision'>
 /** Durable business owner; registration grants no caller authority. */

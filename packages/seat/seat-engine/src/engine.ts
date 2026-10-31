@@ -53,7 +53,8 @@ export interface EngineDependencies {
   seats(): Pick<SeatService, 'resolve' | 'list' | 'close'> | undefined
   ledger(): Pick<SessionLedger, 'snapshot'> | undefined
   /** Deliver a frozen callback to its retained source owner; absence keeps routed work pending. */
-  deliverCallback?: (request: T.DeliverSourceCallbackRequest) => Promise<T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>>
+  deliverCallback?: (request: T.DeliverSourceCallbackRequest, observation?: T.SeatCallbackDelivery)
+  => Promise<T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>>
   /** Omitted runtime reports unavailable cache evidence and never dispatches maintenance. */
   keepalive?: KeepAliveRuntime
 }
@@ -205,7 +206,7 @@ export class SeatEngine extends SeatEngineService {
     this.wakeDeliveries = new WakeDeliveries(this.journal, this.authorizationIssuers,
       options.config.frozenWakeContext ? options.config.maxSourceBytes : undefined)
     this.authorizations = new AuthorizationTransactions(this.journal, this.authorizationIssuers,
-      () => this.ready(), () => this.publish(), options.config.nodeName)
+      () => this.ready(), () => this.publish(), options.config.nodeName, () => this.outbox.observations())
     ctx.provide('seatAuthorizationIssuers', this.authorizationIssuers)
     ctx.provide('seatAuthorizationTransactions', this.authorizations)
     ctx.provide('seatAuthorizationExports', {

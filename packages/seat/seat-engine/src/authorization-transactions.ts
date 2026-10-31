@@ -12,11 +12,12 @@ import { cancelEffects } from './cancellation.ts'
 export class AuthorizationTransactions implements T.SeatAuthorizationTransactions {
   constructor(private readonly journal: EngineJournal, private readonly issuers: AuthorizationIssuers,
     private readonly ready: () => Promise<void>, private readonly publish: () => Promise<void>,
-    private readonly nodeName: string = journal.nodeId) {}
+    private readonly nodeName: string = journal.nodeId,
+    private readonly callbacks?: () => readonly T.SeatCallbackDelivery[]) {}
 
   async operation(request: T.SeatOperationQuery): Promise<T.SeatEngineOperationResult> {
     await this.ready()
-    return queryOperation(this.journal.projection, request, this.nodeName)
+    return queryOperation(this.journal.projection, request, this.nodeName, this.callbacks?.())
   }
 
   async validate(request: T.SeatAuthorizationCheck, authorization: T.SeatAuthorizationGrant): Promise<T.SeatRejected | null> {

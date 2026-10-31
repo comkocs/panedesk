@@ -25,7 +25,8 @@ test('remote callbacks ignore the local owner and retain issuer refusals with th
     const peer = vi.fn(async () => { throw new Error('Refused issuer must not reach peer') })
     h.ctx.provide('nodeWorkChainRouter', { route: peer })
     h.ctx.provide('nodeWorkChain', { outboxIssuer: async () => ({ check: async () => refuse }) })
-    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, h.engine, input, observation))
     await outbox.deliver(0)
     expect(local).not.toHaveBeenCalled()
     expect(peer).not.toHaveBeenCalled()
@@ -54,7 +55,8 @@ test('pauses a definite remote delivery authentication refusal with its original
         retryable: false, effectState: 'none', cause } }
     } }
     h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
-    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, h.engine, input, observation))
     await outbox.deliver(0)
     expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ phase: 'paused',
       responseClass: 'authentication', attempt: 1, nextDue: null,
@@ -87,10 +89,10 @@ test.each(['pending', 'authentication', 'protocol', 'other'] as const)(
       } }
       h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
       outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config,
-        input => deliverRoutedCallback(h.ctx, h.engine, input))
+        (input, observation) => deliverRoutedCallback(h.ctx, h.engine, input, observation))
       await outbox.deliver(0)
       const paused = kind === 'authentication' || kind === 'protocol'
-      expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({
+      expect(outbox.observations().find(item => item.payload.callbackId === body.callback.callbackId)).toMatchObject({
         phase: paused ? 'paused' : 'retry-due', responseClass: paused ? kind : 'transient', attempt: 1 })
       expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback'])
       query = { status: 'pending', effectState: 'none' }
@@ -98,7 +100,7 @@ test.each(['pending', 'authentication', 'protocol', 'other'] as const)(
       expect(seen.map(item => item.method)).toEqual(paused ? ['chain.operation', 'source.deliverCallback']
         : ['chain.operation', 'source.deliverCallback', 'chain.operation'])
       if (!paused) {
-        expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('transient')
+        expect(outbox.observations().find(item => item.payload.callbackId === body.callback.callbackId)?.responseClass).toBe('transient')
         query = { status: 'missing' }
         await outbox.deliver(200)
         expect(seen.map(item => item.method)).toEqual([
@@ -132,7 +134,8 @@ test('records a local peer-query timeout as deadline-exceeded and retains transi
       kind: 'human', principalId, nodeId: engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
     current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
     h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', { route: peer })
-    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
     await outbox.deliver(0)
     const expected = { phase: 'retry-due', responseClass: 'transient', attempt: 1,
       lastDiagnostic: { stage: 'peer-query', cause: { reasonCode: 'deadline-exceeded', code: 'unavailable',
@@ -142,9 +145,11 @@ test('records a local peer-query timeout as deadline-exceeded and retains transi
     await outbox.close(); await engine.shutdown()
     engine = await h.start()
     expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject(expected)
-    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
     await outbox.deliver(100)
-    expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ ...expected, attempt: 2 })
+    expect(outbox.observations().find(item => item.payload.callbackId === body.callback.callbackId))
+      .toMatchObject({ ...expected, attempt: 2 })
     complete = true
     await outbox.deliver(200)
     expect(engine.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject({ phase: 'delivered', responseClass: 'success' })
@@ -172,7 +177,8 @@ test.each(['throw', 'timeout'] as const)('keeps an unknown callback unsent when 
       return new Promise<never>(() => {})
     } }
     h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
-    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config, input => deliverRoutedCallback(h.ctx, h.engine, input))
+    outbox = new CallbackOutbox(h.engine.journal, sources, h.engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, h.engine, input, observation))
     await outbox.deliver(0)
     await outbox.deliver(100)
     expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback', 'chain.operation', 'chain.operation'])
@@ -201,7 +207,8 @@ test.each(['throw', 'timeout'] as const)('queries during the same %s attempt and
       return new Promise<never>(() => {})
     } }
     h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
-    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
     await outbox.deliver(0)
     expect(seen.map(item => item.method)).toEqual(['chain.operation', 'source.deliverCallback', 'chain.operation'])
     const query = seen[2]
@@ -212,7 +219,8 @@ test.each(['throw', 'timeout'] as const)('queries during the same %s attempt and
     expect(engine.journal.projection.callbacks.get(body.callback.callbackId)?.responseClass).toBe('unknown')
     await outbox.close(); await engine.shutdown()
     engine = await h.start()
-    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config, input => deliverRoutedCallback(h.ctx, engine, input))
+    outbox = new CallbackOutbox(engine.journal, sources, engine.options.config,
+      (input, observation) => deliverRoutedCallback(h.ctx, engine, input, observation))
     await outbox.deliver(100)
     expect(seen.filter(item => item.method === 'source.deliverCallback')).toHaveLength(1)
     expect(await engine.authorizations.operation({ operationId: body.route.originalOperationId })).toMatchObject({
