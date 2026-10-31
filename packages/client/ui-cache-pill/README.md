@@ -25,7 +25,7 @@ This package adds one composer dock pill after the shipped activity and usage pi
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`. The pill appears in the composer dock of an open session and stays off the screen shown before a session starts. The closed pill shows the main window's reading. The open panel lists the main window and each authorized descendant with ledger evidence. Only an explicit route shows tier buttons, and only the tiers that route supports. Choosing one stores it; the following request of that window carries it.
+Mount this plugin alongside `ui-conversation`. The pill appears in the composer dock of an open session and stays off the screen shown before a session starts. The closed pill shows the main window's reading. The open panel sits above the whole composer without covering its input card or toolbar, and lists the main window and each authorized descendant with ledger evidence. Only an explicit route shows tier buttons, and only the tiers that route supports. Choosing one stores it; the following request of that window carries it.
 
 ### Failures
 
