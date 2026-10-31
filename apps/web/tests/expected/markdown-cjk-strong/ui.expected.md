@@ -1,6 +1,8 @@
 - banner:
   - navigation "Session hierarchy": CJK strong emphasis
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]

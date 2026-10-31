@@ -1,6 +1,8 @@
 - banner:
   - navigation "Session hierarchy": Inline code links
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"

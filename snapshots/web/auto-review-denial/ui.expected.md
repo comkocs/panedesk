@@ -2,7 +2,9 @@
 
 - banner:
   - navigation "Session hierarchy": {{workspace}}
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -28,7 +30,9 @@
 
 - banner:
   - navigation "Session hierarchy": {{workspace}}
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -58,7 +62,9 @@
 
 - banner:
   - navigation "Session hierarchy": {{workspace}}
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat"

@@ -1,6 +1,8 @@
 - banner:
   - navigation "Session hierarchy": Reference order target
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]

@@ -1,7 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Stream one TypeScript fence for
   - text: Standard mode
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]

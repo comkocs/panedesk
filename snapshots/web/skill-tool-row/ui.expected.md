@@ -1,6 +1,8 @@
 - banner:
   - navigation "Session hierarchy": Load the editing-cordis-compositions ski
+  - button "Subagent tree"
   - button "More actions"
+  - button "Session tools"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
