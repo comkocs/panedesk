@@ -55,6 +55,8 @@ Default roots are scanned in this provider's rank order:
 
 The project root is the nearest ancestor containing `.git`; without one, the current cwd is used. The user DSH root skips its `.system` child. `includeDefaultRoots: false` omits the project and user rows plus the `$DSH_BUNDLED_SKILL_DIR` default so an isolated provider sees only its own configured roots; `bundledSkillDir` adds a bundled root at rank 600.
 
+`listSkillCatalog(ctx, cwd?)` reads the available catalog without an Agent or Session and returns names, descriptions, source paths, and `builtin` / `user` / `project` groups. Only the effective highest-priority source of each name is listed; shadowed sources are omitted. Custom roots remain outside these three groups. Omitting `cwd` omits project roots; a caller supplying a project directory owns its authorization.
+
 ### Mount and configure
 
 Load the plugin alongside the skill registry; it requires `ctx.skills`.

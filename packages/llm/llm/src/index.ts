@@ -19,6 +19,7 @@ import type {
   LlmModelContext,
   LlmModelDiscoveryRequest,
   LlmModelInfo,
+  LlmModelProbeResult,
   LlmResolvedModelInfo,
   LlmProviderInfo,
   ModelModality,
@@ -309,6 +310,15 @@ export abstract class LlmAdapter {
    * @returns the chunk stream, obeying the adapter contract documented on `StreamChunk`.
    */
   abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>
+
+  /**
+   * Dispatch an explicit connectivity probe without requiring catalog membership.
+   * @param options - the Host-owned minimal probe request.
+   * @returns terminal evidence from the provider, using the route's existing credentials.
+   */
+  probe(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    return this.stream(options)
+  }
 }
 
 /**
@@ -631,6 +641,7 @@ export class LlmRuntime extends TypertRemoteService {
       seen.add(model.id)
       models.push({
         id: model.id,
+        ...model.createdAt === undefined ? {} : { createdAt: model.createdAt },
         ...model.name === undefined ? {} : { name: model.name },
         ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
         ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
@@ -1176,6 +1187,62 @@ export class LlmRuntime extends TypertRemoteService {
     return this.streamWithRegistration(options)
   }
 
+  /**
+   * Send the shortest generation that proves one model answers: one output
+   * token, no tools, no session. The credential stays inside the adapter that
+   * already serves the route; this method never logs or returns it.
+   * @param provider - registered provider route.
+   * @param model - model id, including one the catalog does not list.
+   * @param signal - caller cancellation.
+   * @returns success, or the adapter's own failure with the message kept and
+   *   the credential-shaped text removed.
+   */
+  async probeModel(
+    provider: string,
+    model: string,
+    signal?: AbortSignal,
+  ): Promise<LlmModelProbeResult> {
+    let finish: Extract<StreamChunk, { type: 'finish' }> | undefined
+    try {
+      for await (const chunk of this.registration(provider).adapter.probe({
+        provider,
+        model,
+        maxTokens: 1,
+        messages: [{ role: 'user', content: [{ type: 'text', text: '.' }] }],
+        ...signal === undefined ? {} : { signal },
+      })) {
+        if (chunk.type === 'finish') finish = chunk
+      }
+    } catch (error: unknown) {
+      const failure = normalizeLlmFailure(error)
+      return { ok: false, code: failure.code, message: redactProbeMessage(failure.message) }
+    }
+    if (finish?.type !== 'finish') return { ok: false, code: 'UNKNOWN', message: 'probe produced no finish' }
+    if (finish.reason.kind === 'error') {
+      return {
+        ok: false,
+        code: finish.reason.failure.code,
+        message: redactProbeMessage(finish.reason.failure.message),
+      }
+    }
+    if (finish.reason.kind === 'aborted') {
+      return { ok: false, code: 'ABORTED', message: 'probe aborted' }
+    }
+    return { ok: true }
+  }
+
+  /**
+   * Remote adapter for {@link probeModel}.
+   * @param provider - registered provider route.
+   * @param model - model id to probe.
+   * @param signal - caller cancellation supplied by the Remote carrier.
+   * @returns the probe result; transport failures stay transport failures.
+   */
+  @Remote('probeModel')
+  remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult> {
+    return this.probeModel(provider, model, signal)
+  }
+
   private streamWithRegistration(
     options: GenerateOptions,
     prepared?: PreparedDispatch,
@@ -1187,6 +1254,27 @@ export class LlmRuntime extends TypertRemoteService {
       () => this.adapterStream(options, prepared),
     )
   }
+}
+
+/** Drop credential-shaped text before a probe failure reaches a surface or a log. */
+function redactProbeMessage(message: string): string {
+  return message
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<redacted>')
+    .replace(/\b(authorization|cookie|set-cookie)\s*[:=][^\r\n]*/gi, '$1=<redacted>')
+    .replace(/\b(bearer)\s+\S+/gi, '$1 <redacted>')
+    .replace(/\b(api[-_ ]?key|x-api-key|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=<redacted>')
+    .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
+      try {
+        const url = new URL(value)
+        url.username = ''
+        url.password = ''
+        url.search = ''
+        url.hash = ''
+        return url.href
+      } catch {
+        return '<redacted>'
+      }
+    })
 }
 
 /** Convert one adapter throw into the stream protocol's terminal outcome. */

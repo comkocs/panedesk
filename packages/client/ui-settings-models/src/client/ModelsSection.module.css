@@ -829,3 +829,10 @@ select.input {
   line-height: 20px;
   text-align: center;
 }
+
+.recognize {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}

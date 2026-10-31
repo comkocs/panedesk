@@ -24,6 +24,7 @@ import type {} from 'mdast-util-math'
 import { normalizeUri } from 'micromark-util-sanitize-uri'
 import type { CodeToolbarLabels } from '../CodeToolbar.tsx'
 import { CodeBlock } from './CodeBlock.tsx'
+import { MermaidFence } from './mermaid.tsx'
 import { parseFileLink } from './file-link.ts'
 import { renderTexToReact } from './katex.tsx'
 import { LinkIconMedium, classifyLinkPath } from '../LinkIcon.tsx'
@@ -42,6 +43,8 @@ export interface MarkdownCodeLabels {
   copiedLabel: string
   /** Shared card controls; omitted for custom toolbar layouts. */
   toolbarLabels?: CodeToolbarLabels | undefined
+  /** Notice shown when a mermaid fence cannot be drawn. Omission keeps the fence as code. */
+  mermaidFailed?: string
 }
 
 /** Localized chrome for a Markdown document. */
@@ -385,6 +388,18 @@ function renderCode(node: Md.Code, key: Key, context: MarkdownRenderContext): Re
   // The replaced pipeline recovered the grammar id from the hast class with
   // /language-([\w-]+)/, which truncates at the first non-word character.
   const lang = language === undefined ? undefined : /^[\w-]+/.exec(language)?.[0]
+  if (!context.streaming && lang === 'mermaid' && context.labels.code.mermaidFailed !== undefined) {
+    return (
+      <MermaidFence
+        key={key}
+        code={node.value}
+        failedLabel={context.labels.code.mermaidFailed}
+        copyLabel={context.labels.code.copyLabel}
+        copiedLabel={context.labels.code.copiedLabel}
+        toolbarLabels={context.labels.code.toolbarLabels}
+      />
+    )
+  }
   if (!context.streaming && lang === 'math') {
     // ```math fences render as display TeX once settled (rehype-katex parity);
     // its text extraction saw the code block's trailing newline.

@@ -47,6 +47,42 @@ async function context(): Promise<Context> {
 }
 
 describe('SessionSkillCatalog', () => {
+  it('reads host-only skills without a session and rejects an unregistered workspace', async () => {
+    const ctx = await context()
+    try {
+      const list = vi.fn(async () => [{ name: 'shipped', description: 'Built-in', source: 'bundled' as const, provider: 'filesystem', path: '/app/skills/shipped/SKILL.md', invocation: { modelInvocable: true, userInvocable: true } }])
+      ctx.provide('skills', { list } as never)
+      ctx.provide('workspaceRegistry', { get: () => undefined } as never)
+      const catalog = new SessionSkillCatalog(ctx)
+      await expect(catalog.catalog(undefined, new AbortController().signal)).resolves.toEqual({ entries: [{ name: 'shipped', description: 'Built-in', group: 'builtin', path: '/app/skills/shipped/SKILL.md' }] })
+      expect(list).toHaveBeenCalledWith({})
+      expect(ctx.agents.list()).toEqual([])
+      const missing = 'missing-workspace' as import('@panedesk/dsh-workspace/types').WorkspaceId
+      await expect(catalog.catalog(missing, new AbortController().signal)).rejects.toMatchObject({ code: 'workspace/not-found' })
+      expect(list).toHaveBeenCalledTimes(1)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('resolves registered workspace paths and contains discovery failures', async () => {
+    const ctx = await context()
+    try {
+      const workspaceId = 'skills-workspace' as import('@panedesk/dsh-workspace/types').WorkspaceId
+      ctx.provide('workspaceRegistry', { get: (id: typeof workspaceId) => id === workspaceId ? { path: '/catalog/project' } : undefined } as never)
+      const list = vi.fn(async () => [])
+      ctx.provide('skills', { list } as never)
+      const catalog = new SessionSkillCatalog(ctx)
+      await expect(catalog.catalog(workspaceId, new AbortController().signal)).resolves.toEqual({ entries: [] })
+      expect(list).toHaveBeenCalledWith({ cwd: '/catalog/project' })
+      list.mockRejectedValueOnce(new Error('discovery offline'))
+      await expect(catalog.catalog(workspaceId, new AbortController().signal)).rejects.toMatchObject({ code: 'gateway/internal' })
+      expect(ctx.agents.list()).toEqual([])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('reads a moved cold Session catalog from its recorded current directory without resuming an Agent', async () => {
     const ctx = await context()
     const sessionId = SessionId('cold-skills')

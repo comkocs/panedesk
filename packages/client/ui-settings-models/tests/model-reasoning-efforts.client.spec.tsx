@@ -241,6 +241,7 @@ describe('reasoning-level validation', () => {
 describe('reasoning levels in the model list', () => {
   const operations: ModelsOperations = {
     discoverModels: () => Promise.resolve({ kind: 'found', models: [] }),
+    probeModel: async () => ({ ok: true }),
     storeCredential: vi.fn(),
     removeCredential: vi.fn(),
     writeSettings: vi.fn(),

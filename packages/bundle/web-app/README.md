@@ -48,6 +48,8 @@ Saved model selections override the composition default. The settings card accep
 
 The enabled `ui-stats` row adds a secondary Statistics settings summary and an “Open in main area” action. After a session starts, its session-tools menu offers the same panel; it adds no initial-screen or sidebar panel entry. The [statistics plugin](../../client/ui-stats/README.md) owns authorization, refresh and ledger-evidence semantics.
 
+The shipped client composition includes the secondary [Skills settings section](../../client/ui-skills/README.md). Its entry stays inside Settings rather than adding a panel to the initial conversation screen.
+
 The `ui-seat-approvals` row is inert by default. Enable its `enabled` field in a later profile patch to confirm pending seat work as the authenticated owner; [the plugin reference](../../client/ui-seat-approvals/README.md) owns limits, feedback and failure behavior.
 
 The `minimal` agent preset uses a persistent shell, the `read_image` tool, and a fixed persona, with automatic history compaction and the idle-session `/compact` command. It shares the Host token meter and owns an isolated compaction backend. [Compaction configuration and retention](../../compaction/compaction-basic/README.md#use-this-package) follow the existing backend. Image reads reuse the Host filesystem and attachment store and require an image-capable model; text read, write, and edit tools remain excluded.

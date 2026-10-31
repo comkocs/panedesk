@@ -27,6 +27,8 @@ Desktop analytics follows the [product collection policy](../../client/product-a
 <a id="use-this-package"></a>
 ## Use this package
 
+`skills.catalog(workspaceId, signal)` lists built-in and user skills without creating a Session; a registered workspace ID also includes project skills. An unknown ID returns `workspace/not-found`, and an absent skill registry returns `skills/unavailable`. The Remote uses the existing global access policy without an ID and the workspace resource policy when its controller is mounted and an ID is supplied; it accepts no arbitrary filesystem root. Source-file opening retains `session.openWorkspacePath` authorization and canonical-path checks.
+
 Trusted orchestration can create one exact reserved Session identity with a local model selection before publication. This does not save the global default model. Admission denial precedes directory and setup effects, and failures release temporary preparation ownership.
 
 History pages and follow opening snapshots carry one `{ type: 'event', event: SessionWireEvent }` record per durable Session event. The Client retains each accepted record as one durable `SessionEventLikeEntry`; Assistant token boundaries remain inside the compact stream on `assistant/message` or `assistant/attempt`. Tool arguments, result content, failures, and `tool/result.data.meta` pass through unchanged; the controller does not resolve a Tool definition, run a presenter, or attach UI data.

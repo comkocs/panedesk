@@ -321,6 +321,7 @@
       "@panedesk/dsh-experimental-client-ui-agent-team": ["./packages/experimental/client-ui-agent-team/src"],
       "@panedesk/dsh-experimental-client-ui-agent-team/client": ["./packages/experimental/client-ui-agent-team/src/client/index.ts"],
       "@panedesk/dsh-client-ui-settings-plugins": ["./packages/client/ui-settings-plugins/src"],
+      "@panedesk/dsh-client-ui-skills": ["./packages/client/ui-skills/src"],
       "@panedesk/dsh-client-ui-settings-shell": ["./packages/client/ui-settings-shell/src"],
       "@panedesk/dsh-client-ui-settings-agent-loop": ["./packages/client/ui-settings-agent-loop/src"],
       "@panedesk/dsh-client-ui-settings-session-log": ["./packages/client/ui-settings-session-log/src"],

@@ -3322,6 +3322,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-settings-general GeneralSection id \'general\'',
       'client-ui-settings-models ModelsSection id \'models\'',
       'client-ui-settings-plugins PluginsSettingsSection id \'plugins\'',
+      'client-ui-skills SkillsSection id \'skills\'',
       'client-ui-stats StatsSettings id \'stats\'',
     ],
     replaceRisk: 'none',

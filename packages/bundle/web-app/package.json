@@ -106,6 +106,7 @@
     "@panedesk/dsh-client-ui-settings-models": "workspace:*",
     "@panedesk/dsh-client-ui-settings-plugin-inventory": "workspace:*",
     "@panedesk/dsh-client-ui-settings-plugins": "workspace:*",
+    "@panedesk/dsh-client-ui-skills": "workspace:*",
     "@panedesk/dsh-client-ui-settings-shell": "workspace:*",
     "@panedesk/dsh-client-ui-settings-agent-loop": "workspace:*",
     "@panedesk/dsh-client-ui-settings-subagent": "workspace:*",

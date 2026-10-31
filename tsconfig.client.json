@@ -132,6 +132,7 @@
     { "path": "./packages/client/ui-permission-presets" },
     { "path": "./packages/client/ui-plan" },
     { "path": "./packages/client/ui-settings-plugins" },
+    { "path": "./packages/client/ui-skills" },
     { "path": "./packages/client/ui-settings-shell" },
     { "path": "./packages/client/ui-settings-agent-loop" },
     { "path": "./packages/client/ui-settings-session-log" },

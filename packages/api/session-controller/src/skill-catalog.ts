@@ -4,10 +4,13 @@ import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-agent-preset-registry/types'
 import { SessionQueryError } from '@panedesk/dsh-session-query'
 import { isUserInvocable } from '@panedesk/dsh-skill'
+import { listSkillCatalog } from '@panedesk/dsh-skill-filesystem'
 import type {} from '@panedesk/dsh-working-directory'
 import type { ScopeKey } from '@panedesk/dsh-scope'
+import type { WorkspaceId } from '@panedesk/dsh-workspace/types'
+import type {} from '@panedesk/dsh-workspace'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
-import type { SkillListRequest, SkillListValue } from './types.ts'
+import type { SkillCatalogPageValue, SkillListRequest, SkillListValue } from './types.ts'
 
 declare module '@panedesk/cordis' {
   interface Context {
@@ -85,6 +88,33 @@ export class SessionSkillCatalog extends TypertRemoteService {
           modelInvocable: skill.invocation.modelInvocable,
         })),
       }
+    } catch (error: unknown) {
+      throw new RemoteError('gateway/internal', `skill listing failed: ${String(error)}`, {})
+    }
+  }
+
+  /**
+   * List built-in, user, and project skills without a session.
+   * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
+   * @param signal - caller lifetime carried by the Remote transport.
+   * @returns the three directories.
+   * @throws RemoteError when no registry is mounted or discovery fails.
+   */
+  @Remote('catalog')
+  async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue> {
+    signal.throwIfAborted()
+    const workspace = workspaceId === undefined ? undefined : this.ctx.get('workspaceRegistry')?.get(workspaceId)
+    if (workspaceId !== undefined && workspace === undefined) {
+      throw new RemoteError('workspace/not-found', 'workspace is not registered', { workspaceId })
+    }
+    // The Remote transport checks workspace permission when that resource is
+    // registered, or global permission without an id; raw paths are not ids.
+    if (this.ctx.get('skills') === undefined) {
+      throw new RemoteError('skills/unavailable', 'skill registry is absent', {})
+    }
+    try {
+      const entries = await listSkillCatalog(this.ctx, workspace?.path)
+      return { entries }
     } catch (error: unknown) {
       throw new RemoteError('gateway/internal', `skill listing failed: ${String(error)}`, {})
     }

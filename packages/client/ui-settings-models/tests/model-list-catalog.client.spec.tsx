@@ -11,6 +11,7 @@ afterEach(cleanup)
 function operations(discoverModels: ModelsOperations['discoverModels']): ModelsOperations {
   return {
     discoverModels,
+    probeModel: async () => ({ ok: true }),
     storeCredential: vi.fn(),
     removeCredential: vi.fn(),
     writeSettings: vi.fn(),

@@ -97,6 +97,9 @@
       "path": "../../skill/skill"
     },
     {
+      "path": "../../skill/skill-filesystem"
+    },
+    {
       "path": "../../subagent/subagent"
     },
     {
