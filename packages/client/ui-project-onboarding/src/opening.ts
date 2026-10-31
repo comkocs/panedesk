@@ -10,6 +10,7 @@ import type { JsonValue } from '@panedesk/dsh-util-values'
 declare module '@panedesk/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     'project-opening/unauthorized': Record<string, never>
+    'project-opening/compensation': { outcomes: { projectId: SeatProjectId; status: 'restored' | 'conflict' | 'failed' }[] }
   }
 }
 import type { ProjectSelection } from './types.ts'
@@ -96,13 +97,24 @@ export default class ProjectOpening extends TypertRemoteService {
       check()
       await settings.mutate('ui-project-onboarding', [{ op: 'set', path: ['projects', path], value: { mode: selection.mode, chosen: true } }], revision)
     } catch (error) {
+      const outcomes: { projectId: SeatProjectId; status: 'restored' | 'conflict' | 'failed' }[] = []
       if (engine) for (const policy of previous.reverse()) {
-        const current = await engine.projectPolicy(policy.projectId)
-        if (current.revision !== policy.revision + 1) throw new RemoteError('gateway/internal', 'Opening policy changed concurrently; review engine policy before retrying', {})
-        const restored = await engine.setProjectMode({ projectId: policy.projectId, mode: policy.mode,
-          expectedRevision: current.revision, operationId: randomUUID() as SeatOperationId })
-        if (restored.status !== 'saved') throw new RemoteError('gateway/internal', 'Opening policy rollback failed; review engine policy before retrying', {})
+        try {
+          const restored = await engine.resetProjectMode({ projectId: policy.projectId, mode: policy.mode,
+            modeChosen: policy.modeChosen, expectedRevision: policy.revision + 1, operationId: randomUUID() as SeatOperationId })
+          if (restored.status === 'saved') outcomes.push({ projectId: policy.projectId, status: 'restored' })
+          else if (restored.error.code === 'revision-conflict') {
+            const current = await engine.projectPolicy(policy.projectId)
+            outcomes.push({ projectId: policy.projectId,
+              status: current.mode === policy.mode && current.modeChosen === policy.modeChosen ? 'restored' : 'conflict' })
+          } else outcomes.push({ projectId: policy.projectId, status: 'failed' })
+        } catch (_restoreError) {
+          // An unknown write outcome needs review; it must not prevent other independent restorations.
+          outcomes.push({ projectId: policy.projectId, status: 'failed' })
+        }
       }
+      if (outcomes.length) throw new RemoteError('project-opening/compensation',
+        'Project settings were not saved; review each policy restoration before retrying', { outcomes }, { cause: error })
       throw error
     }
     const committed = settings.describe({ redactSecrets: true }).find(item => item.ns === 'ui-project-onboarding')

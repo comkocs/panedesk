@@ -1,6 +1,8 @@
 /** All six trigger families share durable deduplication, coalescing and project policy. */
 import { randomUUID } from 'node:crypto'
 import type { AcceptTriggerResult, EngineEffect, EngineEventId, PendingSeatItem, QueueItemId, SeatEngineConfig, SeatProjectPolicy, TriggerEnvelope, EngineTriggerData, SeatRejected, SeatErrorCode } from '@panedesk/dsh-seat'
+import type { SeatDefinition, SeatProjectPolicyResolver, SeatPrincipalId } from '@panedesk/dsh-seat'
+import type { EngineProjection } from './projection.ts'
 import { canonical, digest, EngineJournal, EngineError } from './journal.ts'
 import { effectiveMode } from './admission.ts'
 import { SourceRegistry } from './sources.ts'
@@ -38,6 +40,35 @@ export function reminderEffects(pending: PendingSeatItem, previous: PendingSeatI
 }
 /** Authenticated ingress acknowledges only the complete synchronized decision. */
 export class TriggerRegistry {
+  private resolver: SeatProjectPolicyResolver | undefined
+
+  /** Install one product resolver with identity-fenced disposal.
+   * @param resolver - synchronous saved-choice lookup.
+   * @returns disposer for this registration.
+   */
+  registerProjectPolicyResolver(resolver: SeatProjectPolicyResolver): () => void {
+    if (this.resolver) throw new EngineError('invalid-request', 'Project policy resolver is already registered')
+    this.resolver = resolver
+    return () => { if (this.resolver === resolver) this.resolver = undefined }
+  }
+
+  /** Resolve an unchosen policy without mutating the projection before journal commit.
+   * @param view - current serialized writer state.
+   * @param definition - resolved local seat definition.
+   * @returns policy and its same-transaction initialization effects.
+   */
+  resolveProjectPolicy(view: EngineProjection, definition: SeatDefinition): { policy: SeatProjectPolicy; effects: EngineEffect[] } {
+    const previous = view.policies.get(definition.projectId) ?? { projectId: definition.projectId,
+      mode: 'remind' as const, modeChosen: false, revision: 0 }
+    let mode: SeatProjectPolicy['mode'] | undefined
+    try { mode = previous.modeChosen ? undefined : this.resolver?.(definition) }
+    catch (_error) { throw new EngineError('invalid-request', 'Saved project policy cannot be resolved; review workspace choices') }
+    if (mode === undefined) return { policy: previous, effects: [] }
+    const policy = { ...previous, mode, modeChosen: true, revision: previous.revision + 1 }
+    return { policy, effects: [fact({ kind: 'mode/changed', data: { policy, previousMode: previous.mode,
+      previousRevision: previous.revision, principalId: 'engine-policy' as SeatPrincipalId } })] }
+  }
+
   constructor(private readonly journal: EngineJournal, private readonly sources: SourceRegistry,
     private readonly config: SeatEngineConfig) {}
 
@@ -81,13 +112,18 @@ export class TriggerRegistry {
             return [fact({ kind: 'trigger/deduplicated', triggerId: trigger.triggerId, seat: trigger.seat,
               data: { ...existing, trigger, originalTriggerId: existing.trigger.triggerId } })]
           }
-          const policy: SeatProjectPolicy = view.policies.get(trigger.projectId) ?? { projectId: trigger.projectId,
+          if (frozenOpen && frozenOpen.definition.projectId !== trigger.projectId) {
+            result = rejected('invalid-request', 'Trigger project does not match its seat'); return []
+          }
+          const resolved = frozenOpen ? this.resolveProjectPolicy(view, frozenOpen.definition) : undefined
+          const policy: SeatProjectPolicy = resolved?.policy ?? view.policies.get(trigger.projectId) ?? { projectId: trigger.projectId,
             mode: 'remind', modeChosen: false, revision: 0 }
+          const policyEffects = resolved?.effects ?? []
           const localMode = trigger.kind === 'manual' ? 'auto' : effectiveMode(policy.mode, ruleMode)
           const mode = frozenOpen?.nodeWorkChain ? effectiveMode(localMode, frozenOpen.nodeWorkChain.route.modeCeiling.mode) : localMode
           if (mode === 'off') {
             result = rejected('disabled', 'Automatic triggering is disabled')
-            return [...checkpoint, fact({ kind: 'source/rejected', seat: trigger.seat, data: { sourceId: trigger.sourceId,
+            return [...policyEffects, ...checkpoint, fact({ kind: 'source/rejected', seat: trigger.seat, data: { sourceId: trigger.sourceId,
               sourceEventId: trigger.eventId ?? null, digest: contentDigest, error: result.error } })]
           }
           const previous = [...view.pending.values()].find(item => item.seat === trigger.seat
@@ -119,7 +155,7 @@ export class TriggerRegistry {
               eventId: trigger.eventId ?? null } }
           result = { status: previous ? 'coalesced' : 'accepted', triggerId: trigger.triggerId,
             queueItemId: pending.queueItemId, sequence: pending.sequence }
-          const effects = [...checkpoint, fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
+          const effects = [...policyEffects, ...checkpoint, fact({ kind: previous ? 'trigger/coalesced' : 'trigger/accepted', triggerId: trigger.triggerId,
             seat: trigger.seat, data }), ...reminderEffects(pending, previous)]
           return effects
         }

@@ -75,6 +75,18 @@ describe('project preferences', () => {
     expect(readOnly.select).not.toHaveBeenCalled()
   })
 
+  it('retains structured compensation outcomes without marking a failed save chosen', async () => {
+    const outcomes = [{ projectId: 'project-a', status: 'restored' }, { projectId: 'project-b', status: 'conflict' },
+      { projectId: 'project-c', status: 'failed' }]
+    const controller = new ProjectPreferencesController({
+      describe: async () => ({ ok: true, value: { writable: true, hasDocument: true, namespaces: [namespace()] } }),
+      select: async () => ({ ok: false, error: { message: 'Review policies', code: 'project-opening/compensation', details: { outcomes } } }),
+    })
+    await controller.load()
+    expect(await controller.select('/project', 'auto')).toBe(false)
+    expect(controller.state.getSnapshot()).toMatchObject({ projects: {}, error: true, saved: false, compensation: outcomes })
+  })
+
   it('does not publish a read after disposal', async () => {
     let finish!: (value: { ok: boolean; value: { writable: boolean; hasDocument: boolean; namespaces: SettingsNamespaceView[] } }) => void
     const controller = new ProjectPreferencesController({

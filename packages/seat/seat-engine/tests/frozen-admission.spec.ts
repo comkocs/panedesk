@@ -49,6 +49,20 @@ async function setup() {
   return { h, input, authorize }
 }
 
+test.each(['off', 'remind', 'auto'] as const)('inherits saved %s in the frozen admission transaction', async (mode) => {
+  const { h, input, authorize } = await setup()
+  try {
+    input.route.modeCeiling.mode = 'auto'
+    h.engine.registerProjectPolicyResolver(() => mode)
+    expect(await h.engine.acceptFrozen(input, await authorize())).toMatchObject({ status: mode === 'off' ? 'rejected' : 'accepted' })
+    expect(await h.engine.projectPolicy(input.envelope.projectId)).toMatchObject({ mode, modeChosen: true, revision: 1 })
+    const effects = h.engine.journal.projection.authorizationDecisions.at(-1)!.effects
+    expect(effects.some(effect => effect.kind === 'mode/changed')).toBe(true)
+    expect(effects.some(effect => effect.kind === (mode === 'off' ? 'source/rejected' : 'trigger/accepted'))).toBe(true)
+    expect(h.creates).toHaveLength(0)
+  } finally { await h.close() }
+})
+
 test.each(['manual', 'engine'] as const)('uses verified %s authority rather than claimed manual origin under off', async (origin) => {
   const { h, input } = await setup()
   try {

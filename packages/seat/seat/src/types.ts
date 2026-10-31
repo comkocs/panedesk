@@ -627,6 +627,10 @@ export interface SetProjectModeRequest {
   expectedRevision: number
   operationId: SeatOperationId
 }
+/** Compensation restores both policy fields only at the caller's committed revision. */
+export interface ResetProjectModeRequest extends SetProjectModeRequest { modeChosen: boolean }
+/** Resolve a saved choice synchronously inside admission; undefined leaves the project unchosen. */
+export type SeatProjectPolicyResolver = (definition: SeatDefinition) => EngineMode | undefined
 /** Mode writes expose their committed policy revision. */
 export type SetProjectModeResult = { status: 'saved'; policy: SeatProjectPolicy } | SeatRejected
 /** Queue queries expose pending reasons without source instruction bodies. */

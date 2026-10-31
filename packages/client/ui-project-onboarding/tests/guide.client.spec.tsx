@@ -65,6 +65,17 @@ describe('project opening guidance', () => {
     expect(props.retry).toHaveBeenCalledOnce()
   })
 
+  it.each(['en', 'zh'] as const)('reports every compensation outcome: %s', (language) => {
+    const { props, state, dictionary } = fixture(language)
+    state.error = true
+    state.compensation = [{ projectId: 'project-a', status: 'restored' },
+      { projectId: 'project-b', status: 'conflict' }, { projectId: 'project-c', status: 'failed' }]
+    const ui = render(<ProjectGuide {...props as GuideProps} />)
+    expect(ui.getByRole('alert').textContent).toContain(dictionary.compensation)
+    for (const outcome of state.compensation) expect(ui.getByText(`${outcome.projectId}: ${dictionary[outcome.status]}`)).toBeTruthy()
+    expect(props.select).not.toHaveBeenCalled()
+  })
+
   it.each(['en', 'zh'] as const)('defaults to remind and saves only an explicit choice: %s', (language) => {
     const { props, dictionary } = fixture(language)
     const ui = render(<ProjectGuide {...props as GuideProps} />)

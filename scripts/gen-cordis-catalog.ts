@@ -222,6 +222,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  projectOpening: 'feature-local owner-only remote preference service — packages/client/ui-project-onboarding/README.md owns selection and compensation semantics',
   hostAdminTransport: 'optional host-owned tunnel rebuild capability — packages/host/host-admin/README.md owns operator authentication and transport lifetime',
   hostAdminFiles: 'deployment-supplied Windows private-file factory — packages/host/host-admin/README.md owns ACL, path and durable-write obligations',
   nodeLinkFiles: 'deployment-supplied Windows private-file factory — packages/seat/node-link/README.md owns ACL, path and durable-write obligations',
@@ -534,6 +535,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   'T.SeatOperationResult': 'seat.md',
   'T.SeatProjectId': 'seat.md',
   'T.SeatProjectPolicy': 'seat.md',
+  'T.SeatProjectPolicyResolver': 'seat.md',
+  'T.ResetProjectModeRequest': 'seat.md',
   'T.SeatRejected': 'seat.md',
   'T.SeatSourceId': 'seat.md',
   SeatSessionOperations: 'seat.md',

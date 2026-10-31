@@ -1,4 +1,5 @@
 /** Product-owned, path-keyed project opening preferences. */
+import { resolve } from 'node:path'
 import type { Context, Volatile } from '@panedesk/cordis'
 import ProjectOpening from './opening.ts'
 import type {} from '@panedesk/dsh-settings'
@@ -26,8 +27,20 @@ export const inject = ['settings']
 
 /** Hide automatic schema forms in favor of the project-specific page.
  * @param ctx Host context carrying the product settings service.
+ * @param config Live product-owned workspace selections.
  */
-export function apply(ctx: Context): void {
+export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.settings.configure({ auto: false }, ctx.fiber))
+  ctx.inject(['seatEngine'], (ctx) => {
+    ctx.effect(() => ctx.seatEngine.registerProjectPolicyResolver((definition) => {
+      const projects = config.projects.get()
+      const modes = new Set(definition.directories.flatMap((directory) => {
+        const selection = projects[resolve(directory.path)]
+        return selection?.chosen ? [selection.mode] : []
+      }))
+      if (modes.size > 1) throw new Error('Seat directories have conflicting saved project choices')
+      return modes.values().next().value
+    }))
+  })
   ctx.plugin(ProjectOpening)
 }

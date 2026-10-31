@@ -217,7 +217,7 @@ const checks: Record<EngineEventKind, Check> = {
   'resource/released': fields({ owner, reason: one('window-closed', 'holder-death', 'host-restart-recovery', 'open-aborted', 'replacement-handover'),
     observedAt: timestamp, engineReadyAt: nullable(timestamp), releasedAt: timestamp, fenced: one(true) }),
   'mode/changed': fields({ policy: fields({ projectId: id, mode, modeChosen: boolean, revision: integer }),
-    previousMode: mode, previousRevision: integer, principalId: id }),
+    previousMode: mode, previousRevision: integer, principalId: id, reset: optional(one(true)) }),
   'memory/audit': fields({ sessionId: id, paths: array(fields({ path: text, before: nullable(id), after: nullable(id) })),
     attribution: one('authorized', 'unauthorized', 'unknown'), complete: boolean, reason: nullable(text) }),
   'report/submitted': fields({ report, principalId: id, toolCallId: optional(id), rootCallId: optional(id) }),
@@ -304,7 +304,8 @@ function consistent(effect: EngineEffect): boolean {
       && new Set(effect.data.exclusiveTags).size === effect.data.exclusiveTags.length
     case 'resource/released': return Date.parse(effect.data.releasedAt) >= Date.parse(effect.data.observedAt)
       && (effect.data.reason !== 'host-restart-recovery' || effect.data.engineReadyAt !== null)
-    case 'mode/changed': return effect.data.policy.revision === effect.data.previousRevision + 1 && effect.data.policy.modeChosen
+    case 'mode/changed': return effect.data.policy.revision === effect.data.previousRevision + 1
+      && (effect.data.policy.modeChosen || effect.data.reset === true)
     case 'memory/audit': return effect.data.complete || effect.data.attribution === 'unknown'
     case 'report/submitted': return effect.data.report.stateVersion > 0
     case 'report/revoked': return effect.data.stateVersion > 0

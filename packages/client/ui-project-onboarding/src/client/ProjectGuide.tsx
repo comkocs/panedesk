@@ -27,7 +27,10 @@ function ProjectChoice({ path, state, select, t }: ChoiceProps) {
       </div>)}
     </div>
     {!state.writable && <p role="status">{t('readonly')}</p>}
-    {state.error && <p role="alert">{t('error')}</p>}
+    {state.error && <div role="alert"><p>{t(state.compensation ? 'compensation' : 'error')}</p>
+      {state.compensation && <ul>{state.compensation.map(outcome =>
+        <li key={outcome.projectId}>{outcome.projectId}: {t(outcome.status)}</li>)}</ul>}
+    </div>}
     {state.saved && <p role="status">{t('success')}</p>}
     <Button disabled={!state.writable || state.status !== 'ready'} onClick={() => { void select(path, draft) }}>
       {t(state.status === 'saving' ? 'saving' : 'save')}

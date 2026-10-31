@@ -159,7 +159,7 @@ export interface EngineEventDataMap {
   'job/observed': EngineJobData
   'resource/reserved': ResourceReservation
   'resource/released': ResourceRelease
-  'mode/changed': { policy: SeatProjectPolicy; previousMode: EngineMode; previousRevision: number; principalId: SeatPrincipalId }
+  'mode/changed': { policy: SeatProjectPolicy; previousMode: EngineMode; previousRevision: number; principalId: SeatPrincipalId; reset?: true }
   'memory/audit': EngineMemoryAuditData
   'report/submitted': { report: CloseSelfReport; principalId: SeatPrincipalId; toolCallId?: Branded<'ToolCallId'>; rootCallId?: Branded<'ToolCallId'> }
   'report/revoked': { reportId: CloseReportId; sessionId: SessionId; stateVersion: number; principalId: SeatPrincipalId }

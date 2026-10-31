@@ -7,7 +7,7 @@ import type { ProjectSelection } from '../types.ts'
 interface Reply<T> {
   ok: boolean
   value?: T
-  error?: { message: string }
+  error?: { message: string; code?: string; details?: object }
 }
 
 /** Only the settings operations this feature needs. */
@@ -24,6 +24,18 @@ export interface ProjectPreferences {
   revision: number
   error: boolean
   saved: boolean
+  compensation?: readonly { projectId: string; status: 'restored' | 'conflict' | 'failed' }[]
+}
+
+function compensation(error: Reply<never>['error']): ProjectPreferences['compensation'] {
+  if (error?.code !== 'project-opening/compensation') return undefined
+  const details = error.details
+  if (!details || !('outcomes' in details) || !Array.isArray(details.outcomes)) return undefined
+  return details.outcomes.flatMap((outcome: unknown) => {
+    if (!outcome || typeof outcome !== 'object' || !('projectId' in outcome) || typeof outcome.projectId !== 'string'
+      || !('status' in outcome) || (outcome.status !== 'restored' && outcome.status !== 'conflict' && outcome.status !== 'failed')) return []
+    return [{ projectId: outcome.projectId, status: outcome.status }]
+  })
 }
 
 function selections(value: JsonValue): Record<string, ProjectSelection> {
@@ -93,19 +105,23 @@ export class ProjectPreferencesController {
     const before = this.state.getSnapshot()
     if (this.isClosed() || !before.writable || before.status !== 'ready' || path.length === 0) return false
     ++this.generation
-    this.state.set({ ...before, status: 'saving', error: false, saved: false })
+    const { compensation: _previousCompensation, ...retained } = before
+    this.state.set({ ...retained, status: 'saving', error: false, saved: false })
+    let outcomes: ProjectPreferences['compensation']
     try {
       const response = await this.port.select(path, { mode, chosen: true }, before.revision)
       if (this.isClosed()) return false
+      outcomes = compensation(response.error)
       if (!response.ok || response.value === undefined) throw new Error('Settings write refused')
-      this.state.set({ ...before, status: 'ready', projects: selections(response.value.value),
+      this.state.set({ ...retained, status: 'ready', projects: selections(response.value.value),
         revision: response.value.revision, error: false, saved: true })
       return true
     } catch (error) {
       // Keep the prior committed choice; a refused write must not dismiss first-entry guidance.
       if (this.isClosed()) return false
       void error
-      this.state.set({ ...before, status: 'ready', error: true, saved: false })
+      this.state.set({ ...retained, status: 'ready', error: true, saved: false,
+        ...(outcomes ? { compensation: outcomes } : {}) })
       return false
     } finally {
       if (this.reloadPending && !this.isClosed()) { this.reloadPending = false; await this.load() }

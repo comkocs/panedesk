@@ -496,14 +496,15 @@ export class SeatEngine extends SeatEngineService {
           return []
         }
         const authorization = authorizeFrozen(this.authorizationIssuers, grant, chain, definition, this.options.nodeId)
-        const effects = frozenEffects(view, chain, envelope, frozen, undefined, authorization.data)
-        if ('status' in effects) { result = effects; return [] }
+        const resolved = this.triggers.resolveProjectPolicy(view, definition)
+        const effects = frozenEffects(view, chain, envelope, frozen, undefined, authorization.data, resolved.policy)
+        if ('status' in effects) { result = effects; return resolved.effects }
         const intent = effects.find(effect => effect.kind === 'trigger/accepted')
         if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
         const pending = intent.data.pending
         result = { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
           reason: pending.reason, blockedBy: pending.blockedBy }
-        return [...this.absorbedApprovals(view, input), ...effects, authorization]
+        return [...resolved.effects, ...this.absorbedApprovals(view, input), ...effects, authorization]
       })
     } catch (error) {
       return this.frozenCommitFailure(error)
@@ -756,14 +757,17 @@ export class SeatEngine extends SeatEngineService {
         if (original.status === 'rejected') { result = original; return [] }
         if (original.status === 'settled' && original.method === 'engine.acceptFrozen') { result = structuredClone(original.result); return [] }
         const authorization = authorizeFrozen(this.authorizationIssuers, grant, input, definition, this.options.nodeId)
+        const resolved = this.triggers.resolveProjectPolicy(view, definition)
         const effects = frozenEffects(view, input, envelope, frozen,
-          externalRuleMiss(definition, envelope) ? 'off' : triggerRule(definition, envelope)?.mode)
-        if ('status' in effects) { result = effects; return [] }
+          externalRuleMiss(definition, envelope) ? 'off' : triggerRule(definition, envelope)?.mode, undefined, resolved.policy)
+        if ('status' in effects) { result = effects; return resolved.effects.length ? [...resolved.effects, fact({ kind: 'source/rejected',
+          seat: envelope.seat, data: { sourceId: envelope.sourceId, sourceEventId: envelope.eventId ?? null,
+            digest: digest(envelope.data), error: effects.error } })] : [] }
         const intent = effects.find(effect => effect.kind === 'trigger/accepted')
         if (intent?.kind !== 'trigger/accepted') throw new EngineError('invalid-request', 'Frozen intent is unavailable')
         result = { status: 'accepted', triggerId: envelope.triggerId, queueItemId: intent.data.pending.queueItemId,
           sequence: intent.data.pending.sequence }
-        return [...effects, authorization]
+        return [...resolved.effects, ...effects, authorization]
       })
     } catch (error) {
       return this.frozenCommitFailure(error)
@@ -840,21 +844,31 @@ export class SeatEngine extends SeatEngineService {
     }
     return this.transact({ expectedSequence: request.expectedSequence, decision })
   }
+  registerProjectPolicyResolver(resolver: T.SeatProjectPolicyResolver): () => void {
+    return this.triggers.registerProjectPolicyResolver(resolver)
+  }
   async projectPolicy(projectId: T.SeatProjectId): Promise<T.SeatProjectPolicy> {
     await this.ready()
     return this.journal.projection.policies.get(projectId) ?? { projectId, mode: 'remind', modeChosen: false, revision: 0 }
   }
-  async setProjectMode(request: T.SetProjectModeRequest): Promise<T.SetProjectModeResult> {
+  setProjectMode(request: T.SetProjectModeRequest): Promise<T.SetProjectModeResult> {
+    return this.writeProjectMode({ ...request, modeChosen: true }, false)
+  }
+  resetProjectMode(request: T.ResetProjectModeRequest): Promise<T.SetProjectModeResult> {
+    return this.writeProjectMode(request, true)
+  }
+  private async writeProjectMode(request: T.ResetProjectModeRequest, reset: boolean): Promise<T.SetProjectModeResult> {
     await this.ready()
     let result: T.SetProjectModeResult = rejected('revision-conflict', 'Project policy revision changed')
     await this.journal.commit((view) => {
       const previous = view.policies.get(request.projectId) ?? { projectId: request.projectId,
         mode: 'remind', modeChosen: false, revision: 0 }
       if (previous.revision !== request.expectedRevision) return []
-      const policy = { ...previous, mode: request.mode, modeChosen: true, revision: previous.revision + 1 }
+      const policy = { ...previous, mode: request.mode, modeChosen: request.modeChosen, revision: previous.revision + 1 }
       result = { status: 'saved', policy }
       return [fact({ kind: 'mode/changed', operationId: request.operationId, data: { policy,
-        previousMode: previous.mode, previousRevision: previous.revision, principalId: 'engine-policy' as T.SeatPrincipalId } })]
+        previousMode: previous.mode, previousRevision: previous.revision, principalId: 'engine-policy' as T.SeatPrincipalId,
+        ...(reset ? { reset: true as const } : {}) } })]
     })
     await this.publish()
     return result
