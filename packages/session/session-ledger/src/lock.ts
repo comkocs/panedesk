@@ -42,15 +42,34 @@ export class WriterLockIdentity {
   }
 }
 
-function publishHolder(handle: FileHandle, identity: WriterLockIdentity | undefined): void {
-  const acquiredAt = Date.now()
+function publishHolder(handle: FileHandle, acquiredAt: number, pid: number, identity: WriterLockIdentity | undefined): void {
   try {
     const processIdentity = (identity ?? new WriterLockIdentity()).read()
     const bytes = Buffer.alloc(512, ' ')
-    bytes.write(JSON.stringify({ pid: process.pid, acquiredAt, ...processIdentity }))
+    bytes.write(JSON.stringify({ pid, acquiredAt, ...processIdentity }))
     // Diagnostics are not journal facts: no extra fsync or durable acknowledgement is needed.
     writeSync(handle.fd, bytes, 0, bytes.length, 0)
   } catch (_error) { /* An unavailable diagnostic never changes lock ownership or write admission. */ }
+}
+
+/** Ownership shorter than 5 ms adds no diagnostic writes; publication never keeps the process alive. */
+function scheduleHolder(handle: FileHandle, identity: WriterLockIdentity | undefined): () => void {
+  const acquiredAt = Date.now()
+  const pid = process.pid
+  let released = false
+  let published = false
+  const timer = globalThis.setTimeout(() => {
+    if (released) return
+    // Synchronous publication and cleanup cannot interleave on this descriptor's event loop.
+    published = true
+    publishHolder(handle, acquiredAt, pid, identity)
+  }, 5)
+  timer.unref()
+  return () => {
+    released = true
+    globalThis.clearTimeout(timer)
+    if (published) clearHolder(handle)
+  }
 }
 
 async function holderAt(handle: FileHandle): Promise<LedgerLockHolder | undefined> {
@@ -131,8 +150,8 @@ export async function withWriterLock<T>(path: string, options: WriterLockOptions
       if (error instanceof Error && 'code' in error && error.code === 'EAGAIN') throw new LedgerUnavailableError(error)
       throw error
     }
-    publishHolder(handle, options.identity)
-    try { return await operation() } finally { clearHolder(handle); await handle.close() }
+    const releaseHolder = scheduleHolder(handle, options.identity)
+    try { return await operation() } finally { releaseHolder(); await handle.close() }
   }
   const handle = await open(path, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
   try {
@@ -150,11 +169,13 @@ export async function withWriterLock<T>(path: string, options: WriterLockOptions
         await setTimeout(Math.min(remaining, options.lockRetryMs))
       }
     }
-    const held = await handle.stat({ bigint: true })
-    const named = await stat(path, { bigint: true })
-    if (held.ino !== named.ino || held.dev !== named.dev) throw new LedgerUnavailableError(new Error('Writer lock inode changed'))
-    publishHolder(handle, options.identity)
-    try { return await operation() } finally { clearHolder(handle) }
+    const releaseHolder = scheduleHolder(handle, options.identity)
+    try {
+      const held = await handle.stat({ bigint: true })
+      const named = await stat(path, { bigint: true })
+      if (held.ino !== named.ino || held.dev !== named.dev) throw new LedgerUnavailableError(new Error('Writer lock inode changed'))
+      return await operation()
+    } finally { releaseHolder() }
   } finally {
     await handle.close()
   }

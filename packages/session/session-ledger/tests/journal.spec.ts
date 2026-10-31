@@ -173,6 +173,7 @@ describe('journal', () => {
     const path = await root()
     const lock = join(path, 'writer.lock')
     await withWriterLock(lock, options, async () => {
+      await vi.waitFor(async () => { expect((await fs.readFile(lock, 'utf8')).trim()).not.toBe('') })
       const stale: unknown = JSON.parse(await fs.readFile(lock, 'utf8'))
       if (!stale || typeof stale !== 'object') throw new Error('Expected holder metadata')
       await fs.writeFile(lock, JSON.stringify({ ...stale, startIdentity: 'reused-process' }))
