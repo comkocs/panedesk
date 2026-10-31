@@ -76,6 +76,18 @@ describe('ui-settings-general shell', () => {
     expect(row.hooks.desktopUpdate.getSnapshot().presentation).toEqual(status)
   }, COLD_BOOT_TIMEOUT_MS)
 
+  it('opens a contributed section through shell navigation and withdraws the service on unload', async ({ start }) => {
+    const c = await start()
+    c.ctx.settingsNavigation.openSection('models')
+    const entry = c.ctx.slots.entries('sidebar.settings')[0]!
+    const store = entry.store
+    const handle = typeof store === 'function' ? store() : store
+    const state: unknown = handle?.create().getSnapshot()
+    expect(state).toMatchObject({ open: true, activeId: 'models' })
+    await c.unload(SELF)
+    expect(c.ctx.get('settingsNavigation')).toBeUndefined()
+  }, COLD_BOOT_TIMEOUT_MS)
+
   it('declares its services', () => {
     expect(inject).toEqual(['slots', 'locale', 'connection', 'remote', 'remote.settings', 'configForms', 'shortcuts', 'modules'])
   })

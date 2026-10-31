@@ -39,6 +39,35 @@ function fixture(value = data, cwd?: string, notice: { seq: number; message: str
 afterEach(cleanup)
 
 describe('seat entry presentations', () => {
+  it.each(['en', 'zh'] as const)('offers four seat actions only inside the row menu: %s', (language) => {
+    const f = fixture()
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en) => dictionary[key]
+    const openProfiles = vi.fn(), openOverview = vi.fn(), openDesk = vi.fn()
+    render(<SeatsSection {...{ ...f.props, t, openProfiles, openOverview, openDesk } as SeatsSectionProps} />)
+    const more = language === 'en' ? 'Seat actions' : '工位操作'
+    const labels = language === 'en' ? ['New session', 'Seat profile', 'View seat in ticket desk', 'Overview'] as const
+      : ['新会话', '工位档案', '在工单台看本位', '一览表'] as const
+    expect(screen.queryByRole('menu')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: more }))
+    for (const label of labels) expect(screen.getByRole('menuitem', { name: label })).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitem', { name: labels[1] }))
+    expect(openProfiles).toHaveBeenCalledWith(seat.seat)
+  })
+  it.each(['en', 'zh'] as const)('hides the overview header action until pointer hover: %s', (language) => {
+    const f = fixture()
+    const dictionary = language === 'en' ? en : zh
+    const t = (key: keyof typeof en) => dictionary[key]
+    const openOverview = vi.fn()
+    render(<SeatsSection {...{ ...f.props, t, openOverview } as SeatsSectionProps} />)
+    const label = language === 'en' ? 'Overview' : '一览表'
+    expect(screen.queryByRole('button', { name: label })).toBeNull()
+    fireEvent.mouseEnter(screen.getByRole('heading', { name: dictionary.seats }))
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(openOverview).toHaveBeenCalledOnce()
+    fireEvent.mouseLeave(screen.getByRole('heading', { name: dictionary.seats }))
+    expect(screen.queryByRole('button', { name: label })).toBeNull()
+  })
   it.each([
     ['restart-manual-opening-closed', 'en', 'A window opened before the restart was closed; open it again.'],
     ['restart-manual-opening-closed', 'zh', '重启前点过的开窗已收掉，请重新点开窗。'],
@@ -368,6 +397,8 @@ describe('seat entry presentations', () => {
     fireEvent.click(form.getByRole('button', { name: t('confirmAdd') }))
     await vi.waitFor(() => { expect(form.getByRole('alert').textContent).toBe(t('commitRejected')) })
     expect(form.queryByRole('button', { name: t('confirmAdd') })).toBeNull()
+    expect(form.getByRole('button', { name: t('preview') }).hasAttribute('disabled')).toBe(true)
+    fireEvent.click(form.getByRole('button', { name: t('preview') }))
     expect(commitAdd).toHaveBeenCalledOnce()
   })
   it('refuses a preview that would update an existing definition', async () => {

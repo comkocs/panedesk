@@ -85,7 +85,22 @@ export class SeatImporter {
           const value = row.values[column]
           if (value === undefined) refuse('invalid-definition', `Missing mapped column ${column}.`, 'Correct the column mapping.')
           if (value !== '') {
-            if (field === 'autoKeepAlive') {
+            if (field === 'directories:path') values.directories = [{ path: value, startup: true }]
+            else if (field === 'opening:text') values.opening = { kind: 'text', text: value }
+            else if (field === 'model:route') {
+              const route: unknown = JSON.parse(value)
+              if (typeof route !== 'object' || route === null || Array.isArray(route)) {
+                refuse('invalid-definition', 'Model route must be a JSON object.', 'Provide model and reasoningEffort, with an optional provider.')
+              }
+              for (const key of ['provider', 'model', 'reasoningEffort']) {
+                if (key in route) {
+                  const entry: unknown = Object.getOwnPropertyDescriptor(route, key)?.value
+                  if (typeof entry !== 'string' || !entry.trim()) refuse('invalid-definition', 'Model route fields must be nonempty strings.', 'Correct the model route cell.')
+                  values[key] = entry
+                }
+              }
+              if (!('model' in route) || !('reasoningEffort' in route)) refuse('invalid-definition', 'Model route is incomplete.', 'Provide explicit model and reasoningEffort values.')
+            } else if (field === 'autoKeepAlive') {
               if (value !== 'true' && value !== 'false') refuse('invalid-definition', 'Expected true or false.', 'Correct the boolean cell.')
               values[field] = value === 'true'
             } else values[field] = structuredFields.has(field) ? JSON.parse(value) : numericFields.has(field) ? Number(value) : value

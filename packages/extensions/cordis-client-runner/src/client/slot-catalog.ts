@@ -2236,6 +2236,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-conversation ConversationPanel key \'conversation\'',
       'client-ui-plugin-manager PluginManagerPage',
       'client-ui-schedule TaskManagerPage',
+      'client-ui-seats Overview',
       'client-ui-stats StatsPanel',
     ],
     replaceRisk: 'shadows-shipped-ui',
@@ -3321,6 +3322,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-agent-preset AgentPresetSection id \'agent-presets\'',
       'client-ui-project-onboarding ProjectSettings id \'project-opening\'',
+      'client-ui-seat-profiles Profiles id \'seat-profiles\'',
       'client-ui-settings-account AccountSection id \'account\'',
       'client-ui-settings-general GeneralSection id \'general\'',
       'client-ui-settings-models ModelsSection id \'models\'',

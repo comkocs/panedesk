@@ -60,6 +60,10 @@ flowchart LR
   svc_seatLocalSession["ctx.seatLocalSession<br/>Current-Session seat writes"]
   svc_seatLocalWindows["ctx.seatLocalWindows<br/>Invocation-scoped window operations"]
   svc_seatLocalCreation["ctx.seatLocalCreation<br/>Confirmed traditional creation"]
+  pkg_client_ui_seat_profiles["client-ui-seat-profiles"]
+  svc_seatProfiles["ctx.seatProfiles<br/>Owner seat profile settings"]
+  svc_seatProfilesLocal["ctx.seatProfilesLocal<br/>Owner-local seat profile access"]
+  pkg_client_ui_seats["client-ui-seats"]
   svc_seatGatesQuery["ctx.seatGatesQuery<br/>Read-only seat policy queries"]
   svc_seatGates["ctx.seatGates<br/>Seat policy evaluation"]
   svc_seatDirectories["ctx.seatDirectories<br/>Authorized seat directories"]
@@ -397,6 +401,7 @@ flowchart LR
   pkg_client_product_analytics --> svc_productAnalytics
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
+  pkg_client_ui_seat_profiles --> svc_seatProfiles
   pkg_client_ui_stats --> svc_stats
   pkg_client_ui_subagent_tree --> svc_subagentTree
   pkg_command_feedback --> svc_sessionFeedback
@@ -533,6 +538,7 @@ flowchart LR
   pkg_seat_local --> svc_seatLocalSession
   pkg_seat_local --> svc_seatLocalWindows
   pkg_seat_local --> svc_seatOpeningContexts
+  pkg_seat_local --> svc_seatProfilesLocal
   pkg_seat_local --> svc_seats
   pkg_seat_remote --> svc_seatRemote
   pkg_session --> svc_sessions
@@ -720,6 +726,8 @@ flowchart LR
   svc_seatLocalSession --> pkg_tool_seat
   svc_seatLocalWindows --> pkg_tool_seat
   svc_seatOpeningContexts --> pkg_seat_local
+  svc_seatProfilesLocal --> pkg_client_ui_seat_profiles
+  svc_seatProfilesLocal --> pkg_client_ui_seats
   svc_seatReminderHost --> pkg_seat_gates
   svc_seatWorktreeHost --> pkg_seat_gates
   svc_seats --> pkg_seat_app
@@ -858,6 +866,8 @@ flowchart LR
 | `ctx.seatLocalSession` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | Authorizes waits and reports only for the exact live calling Session. |
 | `ctx.seatLocalWindows` | `seam` | [`seat`](../packages/seat/seat) | [`seat-local`](../packages/seat/seat-local) | [`tool-seat`](../packages/seat/tool-seat) | - | Authorizes window operations only for the live calling Session and tool call. |
 | `ctx.seatLocalCreation` | `service` | [`seat-local`](../packages/seat/seat-local) | - | - | - | Scopes single-use authenticated directory choices and releases temporary creation ownership. |
+| `ctx.seatProfiles` | `service` | [`client-ui-seat-profiles`](../packages/client/ui-seat-profiles) | - | - | - | Authenticates owner reads, revision-checked profile changes, and selected import commits. |
+| `ctx.seatProfilesLocal` | `service` | [`seat-local`](../packages/seat/seat-local) | - | [`client-ui-seat-profiles`](../packages/client/ui-seat-profiles), [`client-ui-seats`](../packages/client/ui-seats) | - | Checks observed catalog and engine revisions and retains operation identities for write replay. |
 | `ctx.seatGatesQuery` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`ledger-query`](../packages/session/ledger-query) | - | Reads policy definitions and recorded hits without mounting runtime gate consumers. |
 | `ctx.seatGates` | `seam` | [`seat`](../packages/seat/seat) | [`seat-gates`](../packages/seat/seat-gates) | [`seat-local`](../packages/seat/seat-local), [`seat-remote`](../packages/seat/seat-remote), [`tool-seat`](../packages/seat/tool-seat), [`ledger-query`](../packages/session/ledger-query) | - | Evaluates trusted operation facts and commits hit counters through the engine. |
 | `ctx.seatDirectories` | `seam` | [`seat`](../packages/seat/seat) | - | [`tool-seat`](../packages/seat/tool-seat) | - | Provides bounded directory reads and edits under seat authorization. |

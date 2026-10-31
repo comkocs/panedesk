@@ -44,6 +44,8 @@
     "@panedesk/dsh-client-ui-conversation": "workspace:*",
     "@panedesk/dsh-client-ui-sidebar": "workspace:*",
     "@panedesk/dsh-client-ui-workspace": "workspace:*",
+    "@panedesk/dsh-client-ui-layout": "workspace:*",
+    "@panedesk/dsh-client-ui-seat-profiles": "workspace:*",
     "@panedesk/dsh-api-remotes": "workspace:*",
     "@panedesk/dsh-api-session-controller": "workspace:*",
     "react": "^18.2.0"

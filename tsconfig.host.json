@@ -308,6 +308,7 @@
     { "path": "./packages/credentials/deepseek-account" },
     { "path": "./packages/client/ui-deliverables/tsconfig.host.json" },
     { "path": "./packages/client/ui-seats/tsconfig.host.json" },
+    { "path": "./packages/client/ui-seat-profiles/tsconfig.host.json" },
     { "path": "./vendor/cosmokit" },
     { "path": "./vendor/schemastery" },
     { "path": "./vendor/cordis" },

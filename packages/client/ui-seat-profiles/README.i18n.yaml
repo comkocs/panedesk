@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-seat-profiles/README.md
+/:
+  en: 3adfa1ae0adaab0f
+  zh: 981661c9598b861e
+/panedesk-dsh-client-ui-seat-profiles:
+  en: abf6b0bbdb543f94
+  zh: f9fc2814f33a7354
+/panedesk-dsh-client-ui-seat-profiles/summary:
+  en: b97795c487d33b38
+  zh: 6fda0db8e1941614
+/panedesk-dsh-client-ui-seat-profiles/table-of-contents:
+  en: cc82388c0008148c
+  zh: 7e805c235fdc0e48
+/panedesk-dsh-client-ui-seat-profiles/use-this-package:
+  en: 6aba19f66029c055
+  zh: b074fabaf0c2bf76
+/panedesk-dsh-client-ui-seat-profiles/dev-note:
+  en: 6b9c4707af54e136
+  zh: fd3791d80bbe5ec1
+/panedesk-dsh-client-ui-seat-profiles/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-client-ui-seat-profiles/model-experience/profile-maintenance:
+  en: 7a2d74edcc5be056
+  zh: 9b6241ed2aff860b
+/panedesk-dsh-client-ui-seat-profiles/model-experience/profile-maintenance/what-the-model-sees:
+  en: fa5f09f15e3a87db
+  zh: dd7cfda6ed6577a5
+/panedesk-dsh-client-ui-seat-profiles/model-experience/profile-maintenance/token-effect:
+  en: cc1e9180080c0212
+  zh: 27062d0eac093f64
+/panedesk-dsh-client-ui-seat-profiles/model-experience/profile-maintenance/kv-cache-effect:
+  en: f5ed3d7ed2cbb43e
+  zh: 8df903f21b18c1a4
+/panedesk-dsh-client-ui-seat-profiles/known-limitations-and-deferred-work:
+  en: 8fbb85c20e5f4c8a
+  zh: fdfd0d057437a9a3

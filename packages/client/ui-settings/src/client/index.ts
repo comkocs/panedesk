@@ -24,6 +24,18 @@ export type {
   SettingsDescribeFace, SettingsDescribeView, SettingsMirrorSnapshot,
 } from './settings-mirror.ts'
 
+/** Navigation to a feature-owned settings section in the current shell. */
+export interface SettingsNavigation {
+  /** Open the settings dialog at the registered section.
+   * @param id - Stable settings.section registration identity.
+   */
+  openSection(id: string): void
+}
+
+declare module '@panedesk/cordis' {
+  interface Context { settingsNavigation: SettingsNavigation }
+}
+
 /**
  * Required services: the Remote namespace the mirror reads through and the
  * forwarded settings invalidation it refreshes on.

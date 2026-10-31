@@ -458,6 +458,10 @@
       name: '@panedesk/dsh-client-ui-seats'
       disabled: true
 
+    - id: ui-seat-profiles
+      name: '@panedesk/dsh-client-ui-seat-profiles'
+      disabled: true
+
     - id: ui-settings-session-log
       name: '@panedesk/dsh-client-ui-settings-session-log'
 

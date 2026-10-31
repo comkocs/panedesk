@@ -13,7 +13,17 @@
 .diagnostics p {
   margin: 4px 0;
 }
+.overview {
+  padding: 16px;
+  overflow: auto;
+  color: var(--dsw-alias-label-primary);
+}
+.overview table { width: 100%; border-collapse: collapse; }
+.overview th, .overview td { padding: 8px; text-align: left; }
 .heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin: 4px 8px;
   font-size: 12px;
   color: var(--dsw-alias-label-caption);
