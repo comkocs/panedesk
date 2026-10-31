@@ -5,6 +5,9 @@
     - button "模型"
     - button "内置插件"
     - button "Agent 预设"
+    - button "项目开窗设置"
+    - button "技能"
+    - button "统计台"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -14,6 +17,10 @@
       - text: DeepSeek
       - img "API 密钥缺失"
       - button "编辑 DeepSeek (deepseek-official)": 编辑
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
   - tablist "添加方式":
     - tab "第三方模型提供商" [selected]
     - tab "自定义模型 API"
