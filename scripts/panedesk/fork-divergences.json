@@ -1,6 +1,109 @@
 {
   "divergences": [
     {
+      "id": "m8b2-s14-embedded-conversation",
+      "description": "Embedded conversation hosts share one factory renderer.",
+      "origin": "Shared client implementation integration",
+      "reason": "Embedded conversation hosts share one factory renderer. The new export can move upstream with the phase helper.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-conversation/src/client/skeleton/EmbeddedConversation.tsx",
+          "packages/client/ui-conversation/src/client/index.ts",
+          "packages/client/ui-subagent/src/client/sidebar-chat/index.tsx"
+        ],
+        "test": "shared client behavior and consumer regression checks"
+      }
+    },
+    {
+      "id": "m8b2-s14-redact-diagnostic",
+      "description": "Credential redaction of diagnostic text now has one implementation.",
+      "origin": "Shared client implementation integration",
+      "reason": "Credential redaction of diagnostic text now has one implementation. The llm probe wrapper remains for its existing callers.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/util/values/src/index.ts",
+          "packages/llm/llm/src/index.ts"
+        ],
+        "test": "shared client behavior and consumer regression checks"
+      }
+    },
+    {
+      "id": "m8b2-s14-observation-config",
+      "description": "Owner-only observation adapters share one Config schema object.",
+      "origin": "Shared client implementation integration",
+      "reason": "Owner-only observation adapters share one Config schema object. The export can move upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/typert/protocol/src/index.ts"
+        ],
+        "test": "shared client behavior and consumer regression checks"
+      }
+    },
+    {
+      "id": "m8b2-s14-wait-for-poll",
+      "description": "Polling waits share one abortable timer.",
+      "origin": "Shared client implementation integration",
+      "reason": "Polling waits share one abortable timer. The export can move upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/resources/src/client/index.ts"
+        ],
+        "test": "shared client behavior and consumer regression checks"
+      }
+    },
+    {
+      "id": "owner-authorized-node-settings-and-live-callback-observations",
+      "description": "Owner-authorized node settings and live callback observations.",
+      "origin": "Node health settings integration",
+      "reason": "Add a secondary Settings-only node health page with process-local bounded link events, authenticated round-trip observations, peer-specific local tunnel rebuild and confirmed parked-callback operations through existing owner authorization. Expose optional live callback observations without persistence changes. Preserve legacy calls and decoding. Generic assembly, typing, localization and authorization coverage is upstream-compatible; seat and node administration remains downstream-owned.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tsconfig.json",
+          "apps/web/tests/node-settings.e2e.ts",
+          "packages/bundle/web-app/cordis.patch.yml",
+          "packages/bundle/web-app/package.json",
+          "packages/extensions/cordis-client-runner/src/client/slot-catalog.ts",
+          "packages/test-support/client-runtime/src/assembly/test-client.ts",
+          "scripts/package-dependency-policy.ts",
+          "tsconfig.base.json",
+          "tsconfig.client.json",
+          "tsconfig.host.json",
+          "pnpm-lock.yaml",
+          "packages/client/ui-nodes/**",
+          "packages/host/host-admin/**",
+          "packages/seat/node-link/**",
+          "packages/seat/seat/src/index.ts",
+          "packages/seat/seat-engine/src/engine.ts"
+        ],
+        "test": "node settings, health, transport and parked callback authorization"
+      }
+    },
+    {
+      "id": "node-callback-live-observation-integration",
+      "description": "Keep callback retry assertions separate from the durable uncertainty barrier.",
+      "origin": "Callback retry folding integration",
+      "reason": "Retry response classes are live outbox observations until a folding or terminal frame is committed. Retain the durable unknown barrier assertion and inspect the same outbox controller for the current retry response. Node settings use the shared node glyph.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/node-link/tests/chain-none-callback.spec.ts",
+          "packages/client/ui-nodes/src/client/section.tsx",
+          "packages/client/ui-nodes/package.json",
+          "packages/client/ui-nodes/tsconfig.client.json",
+          "packages/client/ui-nodes/README.md",
+          "packages/client/ui-nodes/README.zh.md",
+          "packages/client/ui-nodes/README.i18n.yaml",
+          "pnpm-lock.yaml"
+        ],
+        "test": "recovers publication and durable callback uncertainty through lifecycle recovery"
+      }
+    },
+    {
       "id": "seat-local-frozen-worker-hold-until-killed",
       "description": "Keep the frozen-process test worker alive with an explicit ref'd timer until the fixture kills it.",
       "origin": "Frozen-process kill-stage reliability",
