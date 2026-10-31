@@ -1,5 +1,6 @@
 /** Five-tab statistics presentation; business data is read only through framework resources. */
 import { useState } from 'react'
+import { IconPanedeskStats } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button, Checkbox, Menu } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { StatsAggregate, StatsDetailCursor, StatsRequest } from '@panedesk/dsh-ledger-query/types'
@@ -83,7 +84,7 @@ export function StatsPanel({ useResource, t }: MainProps) {
     <table><caption>{t(caption)}</caption><thead><tr>{headers.map(header => <th scope="col" key={header}>{t(header)}</th>)}</tr></thead>
       <tbody>{rows.map(row => <tr key={row.id}>
         {row.cells.map((cell, column) => <td key={headers[column]}>{cell}</td>)}</tr>)}</tbody></table>
-    {rows.length === 0 && <p>{t('empty')}</p>}
+    {rows.length === 0 && <p>{t(caption === 'runningLanes' ? 'emptyRunning' : 'empty')}</p>}
   </div>
   const aggregateRows = (rows: readonly StatsAggregate[]) => rows.map(row => ({ id: row.key, cells: [groupName(row.key), row.calls,
     number(row.usage.inputTokens), number(row.usage.cacheReadTokens), number(row.usage.cacheWriteTokens),
@@ -99,7 +100,7 @@ export function StatsPanel({ useResource, t }: MainProps) {
     setMenu(null)
   }
   return <section className={`${css.panel} ${wide ? css.wide : ''}`} data-reduced-motion={reducedMotion}>
-    <header><h1>{t('title')}</h1><nav aria-label={t('title')} className={css.tabs}>{tabIds.map(value =>
+    <header><h1><IconPanedeskStats />{t('title')}</h1><nav aria-label={t('title')} className={css.tabs}>{tabIds.map(value =>
       <Button key={value} variant={tab === value ? 'primary' : 'ghost'} aria-pressed={tab === value} onClick={() => { setTab(value) }}>{t(value)}</Button>)}</nav>
     <div className={css.controls}>
       <Checkbox checked={reducedMotion} onChange={setReducedMotion} label={t('motion')} />

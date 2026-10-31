@@ -44,7 +44,7 @@ describe('CachePill', () => {
 
   it.each([
     ['loading', '正在读取缓存剩余时间', 'Reading the cache time'],
-    ['empty', '还没有缓存记录', 'No cache record yet'],
+    ['empty', '暂无缓存数据', 'No cache data yet'],
     ['error', '缓存剩余时间读取失败', 'The cache time could not be read'],
     ['denied', '无权限读取这个会话的缓存', 'You do not have access to this session cache'],
     ['unavailable', '当前部署没有缓存账本', 'This deployment has no cache ledger'],

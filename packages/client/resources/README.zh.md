@@ -60,6 +60,8 @@ export function apply(ctx) {
 
 一个协议恰有一个提供方；第二次注册会抛错。提供方注册时若其协议的地址已被持有，则立即开流；提供方 dispose（资源释放）时结束这些流并让它们回到 `none`。
 
+`waitForPoll(signal, intervalMs)` 等待一个轮询间隔，并在 `signal` 中止时提前完成，两种情况下都清掉计时器。按计时刷新的提供方在两次读取之间用它，使等待不会比最后一个消费者活得更久。
+
 <a id="hold-a-resource-open"></a>
 ### 钉住资源
 

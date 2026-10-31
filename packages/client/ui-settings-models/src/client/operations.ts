@@ -6,6 +6,7 @@
  */
 
 import type { Context as ClientContext } from '@panedesk/cordis'
+import { redactDiagnostic } from '@panedesk/dsh-util-values'
 import type {
   LlmDiscoveredModel, LlmModelDiscoveryRequest,
   SettingsNamespaceView, SettingsPathOpView,
@@ -80,24 +81,7 @@ export interface ModelsOperations {
  * @returns the sanitized diagnostic, or undefined when absent.
  */
 export function redactSurface(message: string | undefined): string | undefined {
-  if (message === undefined) return undefined
-  return message
-    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<redacted>')
-    .replace(/\b(authorization|cookie|set-cookie)\s*[:=][^\r\n]*/gi, '$1=<redacted>')
-    .replace(/\b(bearer)\s+\S+/gi, '$1 <redacted>')
-    .replace(/\b(api[-_ ]?key|x-api-key|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=<redacted>')
-    .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
-      try {
-        const url = new URL(value)
-        url.username = ''
-        url.password = ''
-        url.search = ''
-        url.hash = ''
-        return url.href
-      } catch {
-        return '<redacted>'
-      }
-    })
+  return message === undefined ? undefined : redactDiagnostic(message)
 }
 
 /**

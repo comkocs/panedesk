@@ -35,13 +35,13 @@ export function PinAction({ sessionId, messageId, usePins, toggle, t }: PinActio
   const [saved, setSaved] = useState<boolean | undefined>(undefined)
   return (
     <span className={css.actionWrap}>
-      <button type="button" className={css.action} aria-pressed={on} onClick={() => {
-        const stored = toggle(messageId)
-        if (stored === 'failed') { setSaved(false); return }
-        setSaved(true)
-      }}>
+      <button type="button" className={css.action} aria-pressed={on} title={on ? t('pin.remove') : t('pin.add')}
+        aria-label={on ? t('pin.remove') : t('pin.add')} onClick={() => {
+          const stored = toggle(messageId)
+          if (stored === 'failed') { setSaved(false); return }
+          setSaved(true)
+        }}>
         <IconPinOutlineRegular />
-        <span>{on ? t('pin.remove') : t('pin.add')}</span>
       </button>
       {saved === true && <span role="status">{t('pin.saved')}</span>}
       {saved === false && <span role="status">{t('pin.failed')}</span>}

@@ -23,6 +23,7 @@
   "dependencies": { "@panedesk/dsh-typert-protocol": "workspace:*", "zod": "^4.4.3" },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-client-ui-panedesk-icons": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "@panedesk/dsh-api-remotes": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",

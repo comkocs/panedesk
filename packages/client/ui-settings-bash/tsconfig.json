@@ -10,6 +10,7 @@
     { "path": "../../api/remotes/tsconfig.client.json" },
     { "path": "../../host/host-bash-setup" },
     { "path": "../locale/tsconfig.client.json" },
+    { "path": "../ui-panedesk-icons" },
     { "path": "../ui-primitives" },
     { "path": "../ui-slots" },
     { "path": "../ui-settings/tsconfig.client.json" }

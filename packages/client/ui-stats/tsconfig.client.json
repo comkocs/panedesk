@@ -12,6 +12,7 @@
     { "path": "../ui-layout" },
     { "path": "../ui-slots" },
     { "path": "../ui-renderer" },
+    { "path": "../ui-panedesk-icons" },
     { "path": "../ui-primitives" },
     { "path": "../ui-settings/tsconfig.client.json" },
     { "path": "../ui-conversation/tsconfig.client.json" }

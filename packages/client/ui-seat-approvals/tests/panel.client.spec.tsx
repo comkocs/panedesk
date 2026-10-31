@@ -40,7 +40,7 @@ it.each([
   const item = { ...pending, reason: 'provider-unavailable' as const,
     retention: { since: 0, deadline: 900000, remainingMs: 300000, phase: 'expiring' as const } }
   render(<ApprovalPanel {...props([item], undefined, true, locale).view} />)
-  expect(screen.getByRole('alert').textContent).toBe(alert)
+  expect(screen.getByText(alert)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: entry }))
   expect(screen.getByText(state)).toBeTruthy()
   expect(screen.getByText(remaining)).toBeTruthy()
@@ -54,25 +54,26 @@ it.each([en, zh])('keeps threshold alerts once across modal reopenings and shows
   let queue = observations.observe({ enabled: true, items: [item], complete: true })
   const view = { ...props([], undefined, true, locale).view, useResource: () => ({ status: 'live', value: queue }) }
   const rendered = render(<ApprovalPanel {...view as ComponentProps<typeof ApprovalPanel>} />)
-  const first = screen.getByRole('alert')
+  const firstText = locale.expiring.replace('{seat}', 'seat-a')
+  const first = screen.getByText(firstText)
   for (let index = 0; index < 2; index++) {
     fireEvent.click(screen.getByRole('button', { name: locale.available.replace('{count}', '1') }))
     fireEvent.click(screen.getByRole('button', { name: locale.close }))
-    expect(screen.getByRole('alert')).toBe(first)
+    expect(screen.getByText(firstText)).toBe(first)
   }
   const error: Seat.SeatFailure = { code: 'gate-denied', message: 'Pre-open retention limit reached',
     alternative: 'Submit a new operation', retryable: false, effectState: 'none' }
   queue = observations.observe({ enabled: true, items: [], complete: true, rejected: [{ item: pending, error }] })
   rendered.rerender(<ApprovalPanel {...view as ComponentProps<typeof ApprovalPanel>} />)
-  const alerts = screen.getAllByRole('alert')
-  expect(alerts).toHaveLength(2)
-  expect(alerts[0]).toBe(first)
-  expect(alerts[1]?.textContent).toBe(locale.expired.replace('{seat}', 'seat-a'))
+  const secondText = locale.expired.replace('{seat}', 'seat-a')
+  expect(screen.getByText(firstText)).toBe(first)
+  expect(screen.getByText(secondText)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: locale.available.replace('{count}', '0') }))
   expect(screen.getByText(locale.terminal.replace('{code}', error.code).replace('{message}', error.message))).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: locale.close }))
   fireEvent.click(screen.getByRole('button', { name: locale.available.replace('{count}', '0') }))
-  expect(screen.getAllByRole('alert')).toEqual(alerts)
+  expect(screen.getByText(firstText)).toBeTruthy()
+  expect(screen.getByText(secondText)).toBeTruthy()
 })
 
 it('hides the zero-count entry and shows the exact pending count', () => {

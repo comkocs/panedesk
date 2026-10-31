@@ -42,7 +42,7 @@ export function apply(ctx: ClientContext): void {
     const result = await ctx.remote.cacheView.read({ sessionId })
     if (!result.ok) return { status: result.error.code === 'session/not-found' || result.error.code === 'remote-access/denied' ? 'denied' : 'error' }
     const view = result.value
-    if (view.rows.length === 0 && !view.adjustable) return { status: 'unavailable' }
+    // A successful read with no rows is an empty ledger, not a failed read.
     if (view.rows.length === 0) return { status: 'empty' }
     const retention = view.retention !== undefined && isTier(view.retention) ? view.retention : undefined
     return {

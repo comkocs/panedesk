@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-client-ui-panedesk-icons": "workspace:*",
     "@panedesk/dsh-api-remotes": "workspace:*",
     "@panedesk/dsh-client-locale": "workspace:*",
     "@panedesk/dsh-client-test-runtime": "workspace:*",

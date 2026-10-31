@@ -1,5 +1,5 @@
 /** A session-addressed cache reading, refreshed within the display's five-second accuracy budget. */
-import type { ResourceProvider } from '@panedesk/dsh-client-resources/client'
+import { waitForPoll, type ResourceProvider } from '@panedesk/dsh-client-resources/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { CacheRead } from './view.ts'
 
@@ -26,12 +26,7 @@ export function cacheProvider(read: (id: SessionId) => Promise<CacheRead>): Reso
         catch (_readFailed) { value = { status: 'error' } }
         if (aborted()) return
         yield { ok: true, value }
-        await new Promise<void>((resolve) => {
-          const finish = (): void => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-          const timer = setTimeout(finish, 4000)
-          signal.addEventListener('abort', finish, { once: true })
-          if (signal.aborted) finish()
-        })
+        await waitForPoll(signal, 4000)
       }
     },
   }

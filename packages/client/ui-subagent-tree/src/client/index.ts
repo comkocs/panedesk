@@ -9,7 +9,7 @@ import type {} from '../types.ts'
 import contribution from '@panedesk/dsh-client-ui-subagent-tree/remote'
 import type {} from '@panedesk/dsh-api-session-controller/client'
 import type {} from '@panedesk/dsh-client-locale/client'
-import type {} from '@panedesk/dsh-client-resources/client'
+import { waitForPoll } from '@panedesk/dsh-client-resources/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
 import type {} from '@panedesk/dsh-client-ui-conversation/client'
 import type { SessionId } from '@panedesk/dsh-session/types'
@@ -112,12 +112,7 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
             }
             return
           }
-          await new Promise<void>((resolve) => {
-            const finish = () => { clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-            const timer = setTimeout(finish, interval)
-            signal.addEventListener('abort', finish, { once: true })
-            if (signal.aborted) finish()
-          })
+          await waitForPoll(signal, interval)
         }
       },
     }), 'subagentTree: resources')

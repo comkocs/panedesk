@@ -1,5 +1,6 @@
 /** Middle-column seat facts and manual batch opening. */
 import { useEffect, useState } from 'react'
+import { IconPanedeskSeatGrid } from '@panedesk/dsh-client-ui-panedesk-icons'
 import { Button, Checkbox } from '@panedesk/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@panedesk/dsh-client-ui-slots'
 import type { SeatName } from '@panedesk/dsh-seat/types'
@@ -28,11 +29,11 @@ export function Overview({ useResource, batch, refresh, t }: OverviewProps) {
     }
   }, [data, refreshBase, resource.status])
   const observe = (): void => { setRefreshBase(data); refresh() }
-  if (resource.status === 'failed') return <section><h1>{t('overview')}</h1><p role="alert">{t('overviewFailed')}</p><Button onClick={observe}>{t('retry')}</Button></section>
+  if (resource.status === 'failed') return <section><h1><IconPanedeskSeatGrid />{t('overview')}</h1><p role="alert">{t('overviewFailed')}</p><Button onClick={observe}>{t('retry')}</Button></section>
   if (!data) return <p role="status">{t('loading')}</p>
   const checked = selected.filter(name => data.definitions.some(item => item.seat === name))
   return <section className={css.overview}>
-    <h1>{t('overview')}</h1>
+    <h1><IconPanedeskSeatGrid />{t('overview')}</h1>
     <Button disabled={busy || uncertain || resource.status !== 'live' || checked.length === 0} onClick={() => {
       setBusy(true); setOutcome(null); setRefreshBase(undefined)
       void batch(checked).then(() => { setOutcome('success'); setSelected([]) }, (error: unknown) => { setOutcome('failure'); if (!(error instanceof Error && error.name === 'SeatWriteRejected')) setUncertain(true) })

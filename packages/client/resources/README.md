@@ -60,6 +60,8 @@ export function apply(ctx) {
 
 A protocol has exactly one provider; a second registration throws. Registering a provider while addresses of its protocol are already held opens them; disposing it ends their streams and returns them to `none`.
 
+`waitForPoll(signal, intervalMs)` waits out one polling interval and resolves early when `signal` aborts, clearing its timer either way. A provider that refreshes on a timer uses it between reads so the wait cannot outlive the last consumer.
+
 <a id="hold-a-resource-open"></a>
 ### Hold a resource open
 

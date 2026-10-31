@@ -58,7 +58,7 @@ export function ApprovalPanel({ useResource, t, mutate }: Props) {
   if (!items.length && !rejected.length && !receipt && !open && queue.status !== 'failed') return null
   return <div className={css.surface}>
     {(items.length > 0 || rejected.length > 0) && <Button onClick={() => { setOpen(true) }}>{t('available', { count: items.length })}</Button>}
-    {queue.value?.alerts?.map(alert => <p key={alert.id} role="alert">{t(alert.phase, { seat: alert.seat })}</p>)}
+    {!!queue.value?.alerts?.length && <ul aria-live="polite">{queue.value.alerts.map(alert => <li key={alert.id}>{t(alert.phase, { seat: alert.seat })}</li>)}</ul>}
     {queue.status === 'failed' && <p role="alert">{t('failed')}</p>}
     <Modal open={open} onClose={() => { setOpen(false) }} title={t('title')} closeLabel={t('close')}>
       {queue.status !== 'live' && <p role="alert">{t('failed')}</p>}

@@ -8,7 +8,7 @@
 
 import { Context } from '@panedesk/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
-import { deepFreeze } from '@panedesk/dsh-util-values'
+import { deepFreeze, redactDiagnostic } from '@panedesk/dsh-util-values'
 import type {
   GenerateOptions,
   RequestMessage,
@@ -1256,25 +1256,12 @@ export class LlmRuntime extends TypertRemoteService {
   }
 }
 
-/** Drop credential-shaped text before a probe failure reaches a surface or a log. */
-function redactProbeMessage(message: string): string {
-  return message
-    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '<redacted>')
-    .replace(/\b(authorization|cookie|set-cookie)\s*[:=][^\r\n]*/gi, '$1=<redacted>')
-    .replace(/\b(bearer)\s+\S+/gi, '$1 <redacted>')
-    .replace(/\b(api[-_ ]?key|x-api-key|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=<redacted>')
-    .replace(/https?:\/\/[^\s<>"']+/gi, (value) => {
-      try {
-        const url = new URL(value)
-        url.username = ''
-        url.password = ''
-        url.search = ''
-        url.hash = ''
-        return url.href
-      } catch {
-        return '<redacted>'
-      }
-    })
+/** Drop credential-shaped text before a probe failure reaches a surface or a log.
+ * @param message - host or transport diagnostic.
+ * @returns the diagnostic with credentials, headers and URL queries removed.
+ */
+export function redactProbeMessage(message: string): string {
+  return redactDiagnostic(message)
 }
 
 /** Convert one adapter throw into the stream protocol's terminal outcome. */
