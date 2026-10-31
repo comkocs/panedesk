@@ -483,6 +483,30 @@ describe('SessionArchiveConfirmDialog', () => {
     expect(settleSessionArchive).toHaveBeenCalledOnce()
   })
 
+  it.each([t, tEn])('orders known activity families independently of provider registration and keeps unknown work', (translate) => {
+    const { ask } = archiveDialog(vi.fn(async () => {}), translate)
+    const activity: SessionArchiveConfirmRequest['activity'] = [
+      { kind: 'probe', items: [{ id: 'first' }] },
+      { kind: 'job', items: [{ id: 'job-1' }] },
+      { kind: 'schedule', items: [{ id: 'schedule-1' }] },
+      { kind: 'turn' },
+      { kind: 'probe', items: [{ id: 'second' }, { id: 'third' }] },
+      { kind: 'subagent', items: [{ id: 'child-1' }] },
+    ]
+    ask(activity)
+    const lines = [...screen.getByRole('list', { name: translate('archive.confirm.activity') }).querySelectorAll('li')]
+      .map(li => li.textContent)
+    expect(lines).toEqual([
+      translate('archive.confirm.turn'),
+      translate('archive.confirm.subagents.one', { n: 1, names: 'child-1' }),
+      translate('archive.confirm.jobs.one', { n: 1, names: 'job-1' }),
+      translate('archive.confirm.schedules.one', { n: 1, names: 'schedule-1' }),
+      translate('archive.confirm.other.one', { kind: 'probe', n: 1 }),
+      translate('archive.confirm.other.other', { kind: 'probe', n: 2 }),
+    ])
+    expect(activity.map(entry => entry.kind)).toEqual(['probe', 'job', 'schedule', 'turn', 'probe', 'subagent'])
+  })
+
   it('describes a family merged by another provider with the generic line', () => {
     const { ask } = archiveDialog(vi.fn(async () => {}))
     ask([{ kind: 'probe', items: [{ id: 'probe-1' }] }])
