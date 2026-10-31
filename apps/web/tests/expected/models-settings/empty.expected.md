@@ -5,6 +5,7 @@
     - button "模型"
     - button "内置插件"
     - button "Agent 预设"
+    - button "项目开窗设置"
     - button "技能"
     - button "统计台"
   - button "打开配置文件"

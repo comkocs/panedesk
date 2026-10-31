@@ -5,6 +5,7 @@
     - button "Models"
     - button "Built-in plugins"
     - button "Agent presets"
+    - button "Project opening settings"
     - button "Skills"
     - button "Statistics"
   - button "Open configuration file"
