@@ -100,10 +100,10 @@ test('Loader node status retains the exhausted tunnel reason through health prob
   stderr.write('Connection to 192.0.2.1 failed. Extra detail\n')
   done.resolve({ exitCode: 255, signal: null })
   await expect.poll(async () => (await ctx.get('nodeRouter')?.status())?.[0]?.safeReason, { timeout: 10000 })
-    .toBe('SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until host restart.')
+    .toBe('SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until it is rebuilt or the host restarts.')
   await new Promise(resolve => setTimeout(resolve, limits.staleMs * 3))
   expect((await ctx.get('nodeRouter')!.status())[0]).toMatchObject({ reachable: false,
-    safeReason: 'SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until host restart.' })
+    safeReason: 'SSH tunnel exhausted: exitCode=255 signal=none; Connection to <addr> failed. Link remains disconnected until it is rebuilt or the host restarts.' })
   expect(spawn).toHaveBeenCalledOnce()
   expect(messages.filter(message => message.startsWith('ssh-tunnel exhausted '))).toHaveLength(1)
 })
