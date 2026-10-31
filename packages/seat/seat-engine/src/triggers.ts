@@ -50,7 +50,7 @@ export class TriggerRegistry {
    */
   async accept(envelope: TriggerEnvelope, ruleMode?: import('@panedesk/dsh-seat').EngineMode,
     frozenOpen?: import('@panedesk/dsh-seat').SeatFrozenOpen,
-    authorize?: (effects: readonly EngineEffect[]) => import('./authorization-storage.ts').AuthorizationDecision['effects']): Promise<AcceptTriggerResult> {
+    authorize?: (effects: readonly EngineEffect[], view: import('./projection.ts').EngineProjection) => import('./authorization-storage.ts').AuthorizationDecision['effects']): Promise<AcceptTriggerResult> {
     try {
       const result = await this.sources.use<AcceptTriggerResult>(envelope.sourceId, async (source): Promise<AcceptTriggerResult> => {
         if (!source.kinds.includes(envelope.kind) || envelope.evidence.kind !== envelope.kind || envelope.callbackRef !== envelope.sourceId) return rejected('unauthorized',
@@ -125,7 +125,7 @@ export class TriggerRegistry {
         }
         if (authorize) await this.journal.commitAuthorization((view) => {
           const effects = build(view)
-          return result.status === 'accepted' || result.status === 'coalesced' ? authorize(effects) : effects
+          return result.status === 'accepted' || result.status === 'coalesced' ? authorize(effects, view) : effects
         })
         else await this.journal.commit(build)
         return result

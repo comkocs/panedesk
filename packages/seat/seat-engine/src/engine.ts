@@ -68,6 +68,50 @@ export class SeatEngine extends SeatEngineService {
   readonly wakeDeliveries: WakeDeliveries
   /** Registration readiness and withdrawal cover complete frozen and batch admissions. */
   readonly frozenWrites = new FrozenWriteBarrier()
+  private readonly approvalAbsorption = new AsyncLocalStorage<{
+    operationId: T.SeatOperationId
+    grant: T.SeatAuthorizationGrant
+    items: readonly Pick<T.PendingSeatItem, 'queueItemId' | 'stateVersion'>[]
+    active: boolean
+  }>()
+  /** Bind a host-verified human opening to exact approval revisions; acceptance owns the atomic commit.
+   * @param grant - Live issuer-owned human opening authorization.
+   * @param items - Same-ticket approvals observed by the scope owner.
+   * @param execute - Existing opening path, including every version and scope check.
+   * @returns The original opening result; refusal leaves approvals untouched.
+   */
+  withApprovalAbsorption<R>(grant: T.SeatAuthorizationGrant,
+    items: readonly Pick<T.PendingSeatItem, 'queueItemId' | 'stateVersion'>[], execute: () => Promise<R>): Promise<R> {
+    const state = { operationId: grant.fact.operationId, grant, items: structuredClone(items), active: true }
+    return this.approvalAbsorption.run(state, execute).finally(() => { state.active = false })
+  }
+  private absorbedApprovals(view: import('./projection.ts').EngineProjection, input: T.SeatLocalOpenRequest): T.EngineEffect[] {
+    const state = this.approvalAbsorption.getStore()
+    if (!state?.active) return []
+    if (state.operationId !== input.request.operationId || state.grant !== input.authority.authorization) {
+      throw new EngineError('unauthorized', 'Approval absorption belongs to another opening')
+    }
+    const grant = state.grant, data = this.authorizationIssuers.verify(grant, {
+      operationId: state.operationId, requestDigest: grant.fact.requestDigest,
+      ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
+      ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
+    const tasks = input.openingContext?.taskIds ?? (input.request.taskId ? [input.request.taskId] : [])
+    const taskId = tasks[0]
+    if (data.kind !== 'human' || data.decision !== 'allowed' || data.seat !== input.request.seat
+      || tasks.length !== 1 || !taskId || !data.taskIds.includes(taskId)) throw new EngineError('unauthorized', 'Human task authorization required')
+    return state.items.map((expected) => {
+      const item = view.pending.get(expected.queueItemId)
+      if (!item || item.stateVersion !== expected.stateVersion || view.approved.has(item.queueItemId)
+        || item.action !== 'open' || item.effectiveMode !== 'remind' || item.reason !== 'approval'
+        || item.seat !== input.request.seat || item.projectId !== input.definition.projectId
+        || item.relatedTaskIds.length !== 1 || item.relatedTaskIds[0] !== tasks[0]) {
+        throw new EngineError('revision-conflict', 'Pending approval changed before absorption')
+      }
+      return fact({ kind: 'queue/cancelled', operationId: state.operationId, seat: item.seat,
+        data: { pending: { ...item, stateVersion: item.stateVersion + 1 }, principalId: data.principalId,
+          previousRevision: item.stateVersion, revision: item.stateVersion + 1 } })
+    })
+  }
   private readonly sources = new SourceRegistry()
   private sourceProxy: SourceProxy | undefined
   /** Install one trusted source composition; disposal drains sends without owning an issuer.
@@ -358,7 +402,7 @@ export class SeatEngine extends SeatEngineService {
         ...(input.openingContext ? { openingContext: input.openingContext } : {}) }
       const rule = input.definition.rules.find(rule => rule.enabled && rule.trigger.kind === 'manual')
       const grant = input.authority.authorization
-      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen, grant ? (effects) => {
+      const result = await this.triggers.accept(envelope, rule?.mode, frozenOpen, grant ? (effects, view) => {
         const data = this.authorizationIssuers.verify(grant, { operationId: input.request.operationId,
           requestDigest: digest(input.request), ...(grant.fact.callId ? { callId: grant.fact.callId } : {}),
           ...(grant.fact.rootCallId ? { rootCallId: grant.fact.rootCallId } : {}) }, this.options.nodeId)
@@ -366,7 +410,7 @@ export class SeatEngine extends SeatEngineService {
           || input.request.taskId && !data.taskIds.includes(input.request.taskId)) {
           throw new EngineError('unauthorized', 'Opening attribution does not authorize this seat and task')
         }
-        return [...effects, authorizationEffect(data)]
+        return [...this.absorbedApprovals(view, input), ...effects, authorizationEffect(data)]
       } : undefined)
       await this.publish()
       return result
@@ -431,7 +475,7 @@ export class SeatEngine extends SeatEngineService {
         const pending = intent.data.pending
         result = { status: 'queued', queueItemId: pending.queueItemId, sequence: pending.sequence,
           reason: pending.reason, blockedBy: pending.blockedBy }
-        return [...effects, authorization]
+        return [...this.absorbedApprovals(view, input), ...effects, authorization]
       })
     } catch (error) {
       return this.frozenCommitFailure(error)
