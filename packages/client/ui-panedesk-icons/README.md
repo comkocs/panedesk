@@ -6,6 +6,8 @@ Static icon and token library for the Panedesk entry surfaces: the self-drawn mo
 
 <!-- /summary -->
 
+English | [中文](README.zh.md)
+
 ## Table of Contents
 
 - [Using this package](#using-this-package)
@@ -27,7 +29,7 @@ The durable home of the table is [`src/tokens.ts`](src/tokens.ts); this section 
 - **Color** — the new surfaces consume upstream semantic aliases only: `--dsw-alias-bg-base`, `--dsw-alias-bg-layer-1/2`, `--dsw-alias-border-l2/l3`, `--dsw-alias-label-primary/secondary/tertiary`, `--dsw-alias-brand-primary`, `--dsw-alias-menu-icon`. Values live in `packages/client/ui-theme/src/styles/design-platform.css`; this package mints no color values.
 - **Font** — `--dsw-font-base-16`, `--dsw-font-s-14`, `--dsw-font-m-18`, `--dsw-font-l-20` (defined in `packages/client/ui-theme/src/styles/gradient-shadow-text.css`).
 - **Radius** — `--dsw-radius-xs/sm/md/lg` (defined in `packages/client/ui-theme/src/styles/base.css`).
-- **Spacing — new tier** — the upstream theme ships no unified spacing variables, so `PANADESK_SPACE` names the 4px steps the new panels already use in their CSS Modules: `x1=4, x2=8, x3=12, x4=16, x6=24`.
+- **Spacing — new tier** — the upstream theme ships no unified spacing variables, so `PANEDESK_SPACE` names the 4px steps the new panels already use in their CSS Modules: `x1=4, x2=8, x3=12, x4=16, x6=24`.
 
 A drift guard (`tests/tokens.client.spec.ts`) fails when a referenced upstream variable no longer exists in the recorded file, and `pnpm run scan:colors` (plus the same spec) fails on any hardcoded color literal under `src/` outside the token table itself.
 
@@ -77,7 +79,7 @@ No model calls are involved; no KV-cache impact.
 ## Known limitations and deferred work
 
 - **Glyphs unused until their lanes land** — the manifest covers every planned entry this package owns; the integration sweep should re-check each entry still matches its landed surface before wider reuse.
-- **Spacing tier is names, not CSS variables** — the theme owns no spacing variables, so consumers use `PANADESK_SPACE` values directly; promoting them into `ui-theme` is upstream work.
+- **Spacing tier is names, not CSS variables** — the theme owns no spacing variables, so consumers use `PANEDESK_SPACE` values directly; promoting them into `ui-theme` is upstream work.
 
 <a id="dev-note"></a>
 ### Development note

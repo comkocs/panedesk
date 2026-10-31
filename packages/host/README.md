@@ -34,7 +34,7 @@ The packages play the host roles; each package README owns its contract and conf
 | [`directory-picker-auto/`](directory-picker-auto/README.md) | Host-adaptive chooser that mounts the matching backend at boot | mounts a backend |
 | [`open-in-app/`](open-in-app/README.md) | Application probe, icon, and launch routes opening the workspace directory in an installed application | consumes `ctx.webServer` |
 | [`plugin-inventory/`](plugin-inventory/README.md) | Read-only projection of current Loader entries | Remote `pluginInventory/list` |
-| [`bash-setup/`](bash-setup/README.md) | Windows Git Bash first-run probe and the confirmed product selection | Remote `bashSetup/status` |
+| [`host-bash-setup/`](host-bash-setup/README.md) | Windows Git Bash first-run probe and the confirmed product selection | Remote `bashSetup/status` |
 | [`product-telemetry-otel/`](product-telemetry-otel/README.md) | Explicit product usage events over OTLP/HTTP | `ctx.productTelemetry` |
 
 -----

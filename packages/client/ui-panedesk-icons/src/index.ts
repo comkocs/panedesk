@@ -14,13 +14,13 @@ export {
   IconPanedeskStats,
   IconPanedeskSubagentTree,
   IconPanedeskWorkflow,
-  PANADESK_GLYPHS,
+  PANEDESK_GLYPHS,
 } from './glyphs.tsx'
-export type { PanadeskGlyphEntry, PanadeskGlyphProps, PanadeskGlyphSize } from './glyphs.tsx'
+export type { PanedeskGlyphEntry, PanedeskGlyphProps, PanedeskGlyphSize } from './glyphs.tsx'
 export {
-  PANADESK_COLOR_TOKENS,
-  PANADESK_FONT_TOKENS,
-  PANADESK_RADIUS_TOKENS,
-  PANADESK_SPACE,
+  PANEDESK_COLOR_TOKENS,
+  PANEDESK_FONT_TOKENS,
+  PANEDESK_RADIUS_TOKENS,
+  PANEDESK_SPACE,
 } from './tokens.ts'
-export type { PanadeskSpace, UpstreamTokenRef } from './tokens.ts'
+export type { PanedeskSpace, UpstreamTokenRef } from './tokens.ts'

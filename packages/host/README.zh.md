@@ -34,7 +34,7 @@ kind: "package-group"
 | [`directory-picker-auto/`](directory-picker-auto/README.zh.md) | 在启动时挂载匹配后端的宿主自适应选择器 | 挂载一个后端 |
 | [`open-in-app/`](open-in-app/README.zh.md) | 在已安装应用中打开 workspace 目录的应用探测、图标与启动路由 | 消费 `ctx.webServer` |
 | [`plugin-inventory/`](plugin-inventory/README.zh.md) | 当前 Loader 条目的只读投影 | Remote `pluginInventory/list` |
-| [`bash-setup/`](bash-setup/README.zh.md) | Windows Git Bash 首启探测与确认后的产品选择 | Remote `bashSetup/status` |
+| [`host-bash-setup/`](host-bash-setup/README.zh.md) | Windows Git Bash 首启探测与确认后的产品选择 | Remote `bashSetup/status` |
 | [`product-telemetry-otel/`](product-telemetry-otel/README.zh.md) | 通过 OTLP/HTTP 显式上报产品使用事件 | `ctx.productTelemetry` |
 
 -----

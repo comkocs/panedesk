@@ -6,6 +6,8 @@ First-run Git Bash discovery Remote: it probes the common Windows install locati
 
 <!-- /summary -->
 
+English | [中文](README.zh.md)
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

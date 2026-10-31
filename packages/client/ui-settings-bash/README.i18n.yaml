@@ -3,17 +3,17 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-bash/README.md
 /panedesk-dsh-client-ui-settings-bash:
-  en: 4438f65386c568b1
-  zh: ddbc431b20aff795
+  en: 7428da1359241c5d
+  zh: da85c37316a9d4ac
 /panedesk-dsh-client-ui-settings-bash/table-of-contents:
   en: bb348952b83fa48c
-  zh: c607fa48ee444a00
+  zh: 59a68725dbebf7bd
 /panedesk-dsh-client-ui-settings-bash/using-this-package:
   en: b5940dd7ad937f7c
   zh: c6d66eae0a7118e1
 /panedesk-dsh-client-ui-settings-bash/using-this-package/what-a-click-commits:
   en: d31cfe4dd5699519
-  zh: 00659af1342b6239
+  zh: 819047dd80cef066
 /panedesk-dsh-client-ui-settings-bash/understanding-the-implementation:
   en: da4b9d8a9cecebb2
   zh: ee2c5fb2204a43cf
@@ -22,10 +22,10 @@
   zh: 28d4c2d0841d19c9
 /panedesk-dsh-client-ui-settings-bash/understanding-the-implementation/source-map:
   en: 65fa295188827b2b
-  zh: d99ab4b343d96544
+  zh: 25b877603e5dc486
 /panedesk-dsh-client-ui-settings-bash/further-reading:
   en: 9b3697c74b2b44a4
-  zh: 05c04b2306779fde
+  zh: 97e93af49b373114
 /panedesk-dsh-client-ui-settings-bash/model-experience:
   en: e7d118aa4c23df23
   zh: a311da3843709f90
@@ -34,7 +34,7 @@
   zh: 719afc8d8ed52469
 /panedesk-dsh-client-ui-settings-bash/model-experience/kv-cache-impact:
   en: 30ee5e2fe65f6dfd
-  zh: bd5ffde144cf2547
+  zh: 8ce6a75931a677fd
 /panedesk-dsh-client-ui-settings-bash/known-limitations-and-deferred-work:
   en: c78bb57a1c487080
   zh: 03ae9616360002cd

@@ -27,6 +27,7 @@ export const zh = {
   'committed.failed': '缺省没能恢复。可在本行重试。',
 } as const
 
+/** Translation keys shared by the Chinese and English dictionaries. */
 export type BashSetupLocaleKey = keyof typeof zh
 
 /** American English dictionary. */

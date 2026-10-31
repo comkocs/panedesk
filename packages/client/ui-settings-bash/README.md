@@ -6,6 +6,8 @@ Settings General row that probes the Windows Git Bash installation through the H
 
 <!-- /summary -->
 
+English | [中文](README.zh.md)
+
 ## Table of Contents
 
 - [Using this package](#using-this-package)

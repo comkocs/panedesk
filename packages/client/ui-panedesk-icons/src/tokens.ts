@@ -16,7 +16,7 @@ export interface UpstreamTokenRef {
 }
 
 /** Semantic color aliases the new entry surfaces consume; values stay upstream. */
-export const PANADESK_COLOR_TOKENS: readonly UpstreamTokenRef[] = [
+export const PANEDESK_COLOR_TOKENS: readonly UpstreamTokenRef[] = [
   { cssName: '--dsw-alias-bg-base', definedIn: 'packages/client/ui-theme/src/styles/design-platform.css' },
   { cssName: '--dsw-alias-bg-layer-1', definedIn: 'packages/client/ui-theme/src/styles/design-platform.css' },
   { cssName: '--dsw-alias-bg-layer-2', definedIn: 'packages/client/ui-theme/src/styles/design-platform.css' },
@@ -30,7 +30,7 @@ export const PANADESK_COLOR_TOKENS: readonly UpstreamTokenRef[] = [
 ]
 
 /** Typography tokens the new surfaces consume (font shorthand values). */
-export const PANADESK_FONT_TOKENS: readonly UpstreamTokenRef[] = [
+export const PANEDESK_FONT_TOKENS: readonly UpstreamTokenRef[] = [
   { cssName: '--dsw-font-base-16', definedIn: 'packages/client/ui-theme/src/styles/gradient-shadow-text.css' },
   { cssName: '--dsw-font-s-14', definedIn: 'packages/client/ui-theme/src/styles/gradient-shadow-text.css' },
   { cssName: '--dsw-font-m-18', definedIn: 'packages/client/ui-theme/src/styles/gradient-shadow-text.css' },
@@ -38,7 +38,7 @@ export const PANADESK_FONT_TOKENS: readonly UpstreamTokenRef[] = [
 ]
 
 /** Corner-radius tokens the new surfaces consume. */
-export const PANADESK_RADIUS_TOKENS: readonly UpstreamTokenRef[] = [
+export const PANEDESK_RADIUS_TOKENS: readonly UpstreamTokenRef[] = [
   { cssName: '--dsw-radius-xs', definedIn: 'packages/client/ui-theme/src/styles/base.css' },
   { cssName: '--dsw-radius-sm', definedIn: 'packages/client/ui-theme/src/styles/base.css' },
   { cssName: '--dsw-radius-md', definedIn: 'packages/client/ui-theme/src/styles/base.css' },
@@ -50,7 +50,7 @@ export const PANADESK_RADIUS_TOKENS: readonly UpstreamTokenRef[] = [
  * the new panels' CSS Modules already use; consumed as literal values because
  * the upstream theme declares no spacing variables to reference.
  */
-export const PANADESK_SPACE = {
+export const PANEDESK_SPACE = {
   /** 4px — inline gaps between a label and its trailing copy. */
   x1: 4,
   /** 8px — gaps between sibling actions. */
@@ -64,4 +64,4 @@ export const PANADESK_SPACE = {
 } as const
 
 /** Type of the spacing tier for consumers that annotate handles. */
-export type PanadeskSpace = typeof PANADESK_SPACE
+export type PanedeskSpace = typeof PANEDESK_SPACE

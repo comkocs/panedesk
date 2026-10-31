@@ -6,14 +6,17 @@
 
 <!-- /summary -->
 
+[English](README.md) | 中文
+
 ## 目录
 
-- [使用本包](#使用本包)
-- [理解实现](#理解实现)
-- [延伸阅读](#延伸阅读)
-- [模型体验](#模型体验)
-- [已知限制与待办](#已知限制与待办)
+- [使用本包](#using-this-package)
+- [理解实现](#understanding-the-implementation)
+- [延伸阅读](#further-reading)
+- [模型体验](#model-experience)
+- [已知限制与待办](#known-limitations-and-deferred-work)
 
+<a id="using-this-package"></a>
 ## 使用本包
 
 把行挂进面向 Web 的档;它注册在设置面板通用区的 `settings.general.item` 槽上,全部事实都经生成的 `bashSetup` 远端面读取。非 Windows 宿主看到一行「只在 Windows 宿主上适用」的说明,没有动作。Windows 上,行报告首个探测命中及其完整路径,按钮点击就是把这个可执行文件提交为 base 档门控所读产品选择的确认动作。探测一无所获时,行改为承载中英安装说明。已提交的选择带一个恢复动作:删掉该文件,宿主回到 PowerShell 缺省。
@@ -22,6 +25,7 @@
 
 按钮点击就是完整的确认流程:前面没有对话框,点击之前不写任何东西。写入本身发生在宿主网关;本包只转发探测到的路径。
 
+<a id="understanding-the-implementation"></a>
 ## 理解实现
 
 ### 设计思路
@@ -34,11 +38,13 @@
 - `src/client/locales.ts` —— 双语词典(zh 为键源)。
 - `src/client/index.ts` —— 槽注册与远端面注入。
 
+<a id="further-reading"></a>
 ## 延伸阅读
 
 - [`@panedesk/dsh-host-bash-setup`](../../host/host-bash-setup/README.zh.md) —— 本行驱动的远端网关。
 - [`@panedesk/dsh-bash-local`](../../shell/bash-local/README.zh.md) —— 候选表与已提交的产品文件。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 #### 模型体验影响
@@ -49,6 +55,7 @@
 
 不涉及模型调用,无 KV 缓存影响。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与待办
 
 - **重启后生效** —— 提交的写入只在档挂载时被读,所以变化在下一次应用启动生效;行内已就地写明。
