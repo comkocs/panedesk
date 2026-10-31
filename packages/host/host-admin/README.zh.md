@@ -34,6 +34,24 @@ Admin 端点仅接受实际监听端口对应的 IPv4 回环 Host authority，�
 
 `directory` 为独占绝对路径，POSIX 目录权限必须为 `0700`，文件必须为当前属主的单硬链接普通文件且权限为 `0600`。祖先路径不得含符号链接；部署者还须保证祖先目录不可被非受信账号替换。Windows 显式注入本包的 `hostAdminFiles: directory => new WindowsPrivateFiles(directory)`，并将同一工厂传给 `callHostSdk` 的 `privateFiles` 选项；POSIX 默认装配不变。Windows 启动最多等待 `requestTimeoutMs`，直到工厂提供者活动；不回退 POSIX，工厂缺失或文件失败进入 Cordis 启动错误链。消费者卸载会取消等待而不误报工厂缺失；失活的启动会释放资源，不再发布服务。实现只接受带盘符的本地绝对路径，拒绝路径各级重解析点，要求关闭 DACL 继承、仅当前用户 SID 一条 FullControl 允许项且属主 SID 一致；既有 ACL 不符即拒，不修复。新建空对象先设 ACL，再写内容并刷盘；同目录以写穿透 `MoveFileExW` 替换，访问或共享冲突最多尝试五次，退避为 10/20/40/40 毫秒。安全操作通过进程内 Node-API Win32 绑定执行，不需提权，绝不启动或回退 PowerShell。不缓存身份、ACL 或路径结果：每次读取既有文件均重新合并核验文件与私有目录的 ACL、属主 SID，并完整遍历祖先重解析点。只读句柄在核验前打开；读取任何字节前，将其身份与打开前及核验后的路径名元数据比对。缺失文件仍须核验目录。部署者须防止非受信方并发替换祖先；路径名元数据不是绑定句柄的 Windows 安全检查。应实测部署延迟后再选择互不重叠的探测周期；进程启动时间不是网络健康期限。
 
+Windows 策略拒绝错误提供稳定的 `code`；`WINDOWS_PRIVATE_FILE_CODES` 将不变的英文错误消息映射为代码，`WindowsPrivateFileCode` 为对应联合类型。这些代码不包含路径或凭据。消费者负责本地化修法；策略消息与检查顺序不变。
+
+| 代码 | 英文消息 |
+| --- | --- |
+| `private-absolute-path` | Private absolute Windows path rejected |
+| `private-filename` | Private filename rejected |
+| `private-reparse-point` | Private reparse point rejected |
+| `private-parent-path` | Private parent path rejected |
+| `private-owner-sid` | Private owner SID rejected |
+| `private-acl-inheritance` | Private ACL inheritance rejected |
+| `private-acl-entry-count` | Private ACL entry count rejected |
+| `private-acl-sid` | Private ACL SID rejected |
+| `private-acl-rights` | Private ACL rights rejected |
+| `private-directory-type` | Private directory type rejected |
+| `private-file-type-or-links` | Private file type or links rejected |
+| `private-file-exceeds-limit` | Private file exceeds limit |
+| `private-file-identity` | Private file identity rejected |
+
 宿主创建 `credential` 与 `endpoint.json`，退出删除两者；每次启动生成独立进程代次。凭据仅通过私有文件和认证头传递，不进入参数、地址、环境变量或操作记录。`callAdmin` 只连接已运行宿主，缺少端点时拒绝，不自动启动服务。
 
 `hostAdminExecutor` 接收传输导出的身份并保留原引擎检查。没有自定义执行器时，运行时从现有引擎的签发器、事务及查询能力装配 `createHostAdminExecutor`。监听器持有的身份签发 `local-operator` 归属，与队列批准原子提交。自报 dispatch 身份不能进入此路径或读取缓存回执；缺少能力时拒绝该方法。状态及待批准查询保留只读引擎回退。
