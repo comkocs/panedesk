@@ -89,6 +89,20 @@ describe('bundleRoster on a scratch installation', () => {
     expect(linked.roster(['@t/base', '@t/linked'])).toEqual(['@t/theme'])
   })
 
+  it.each([false, true])('resolves a linked bundle own row without a dependency self-link (browser: %s)', (browser) => {
+    const linked = new Scratch()
+    onTestFinished(() => { rmSync(linked.root, { recursive: true, force: true }) })
+    const bundle = join(linked.root, 'workspace', 'self-bundle')
+    mkdirSync(bundle, { recursive: true })
+    writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: '@t/self-bundle', dsh: {
+      bundle: { patch: './cordis.patch.yml' }, ...(browser ? { client: { platform: 'web' } } : {}),
+    } }))
+    writeFileSync(join(bundle, 'cordis.patch.yml'), "- insert:\n    - id: self\n      name: '@t/self-bundle'\n")
+    linked.bundle('@t/base', '- insert: []\n')
+    symlinkSync(bundle, join(linked.root, 'app', 'node_modules', '@t', 'self-bundle'), 'junction')
+    expect(linked.roster(['@t/self-bundle'])).toEqual(browser ? ['@t/self-bundle'] : [])
+  })
+
   it('applies the layers in order and keeps enabled browser rows once, with their dsh.client declaration', () => {
     scratch.web('@t/a', { inject: ['@t/b'], immediately: true })
     scratch.web('@t/b')
