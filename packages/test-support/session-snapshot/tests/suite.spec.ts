@@ -1274,6 +1274,33 @@ describe('stabilizeRefreshLog', () => {
     ].join('\n'))
   })
 
+  it('retains inserted skill catalogs while aligning later volatile times', () => {
+    const catalog = { type: 'user/message', seq: 1, time: 202, data: {
+      id: 'catalog', role: 'user', content: [{ type: 'text', text: 'Available: example' }],
+      source: { kind: 'skill-catalog', form: 'catalog', entries: [{ name: 'example', description: 'Example skill' }] },
+    } }
+    const existing = [
+      { type: 'session', id: 'same', createdAt: 100 },
+      { type: 'turn/start', seq: 0, time: 101 },
+      { type: 'user/message', seq: 1, time: 102, data: { source: { kind: 'time-context' }, content: [] } },
+      { type: 'turn/end', seq: 2, time: 103, data: {} },
+    ]
+    const fresh = [
+      { type: 'session', id: 'same', createdAt: 200 },
+      { type: 'turn/start', seq: 0, time: 201 },
+      catalog,
+      { type: 'user/message', seq: 2, time: 203, data: { source: { kind: 'time-context' }, content: [] } },
+      { type: 'turn/end', seq: 3, time: 204, data: { reason: 'fresh' } },
+    ]
+    const jsonl = (rows: object[]) => rows.map(row => JSON.stringify(row)).join('\n') + '\n'
+    const output = stabilize(jsonl(fresh), jsonl(existing))
+    expect(output).toBe(jsonl([
+      existing[0]!, existing[1]!, { ...catalog, time: 101 },
+      { ...fresh[3], time: 102 }, { ...fresh[4], time: 103 },
+    ]))
+    expect(stabilize(jsonl(fresh), output)).toBe(output)
+  })
+
   it('retains unchanged message ids across an unrelated inserted event', () => {
     const freshUserId = '11111111-1111-4111-8111-111111111111'
     const existingUserId = '22222222-2222-4222-8222-222222222222'

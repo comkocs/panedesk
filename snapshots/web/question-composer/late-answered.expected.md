@@ -1,5 +1,8 @@
 - banner:
   - navigation "Session hierarchy": Use the ask_user_question tool to
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:

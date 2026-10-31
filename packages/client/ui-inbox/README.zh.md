@@ -10,7 +10,7 @@ kind: "package-reference"
 <a id="summary"></a>
 ## 概述
 
-在既有会话头增加只读收件入口。启动前首页没有收件入口。[消息交付提供者](../../session/message-delivery-local/README.zh.md)负责消息状态、元数据与隔离证据；本插件不发消息，也不开会话。参见[会话持久化](../../../docs/subsystems/persistence.zh.md)。
+在既有会话头增加只读收件入口。入口和隔离告警控件采用紧凑的 28px 尺寸，保留头部高度。启动前首页没有收件入口。[消息交付提供者](../../session/message-delivery-local/README.zh.md)负责消息状态、元数据与隔离证据；本插件不发消息，也不开会话。参见[会话持久化](../../../docs/subsystems/persistence.zh.md)。
 
 <a id="table-of-contents"></a>
 ## 目录

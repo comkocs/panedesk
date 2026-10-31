@@ -1,5 +1,5 @@
 .page { padding: 16px; color: var(--dsw-alias-label-primary); overflow: auto; }
 .form { display: grid; gap: 12px; }
 .form label { display: grid; gap: 4px; }
-.form textarea { min-height: 72px; width: 100%; box-sizing: border-box; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l2); }
+.form textarea { min-height: 72px; width: 100%; box-sizing: border-box; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); border: 0.5px solid var(--dsw-alias-border-l2); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }

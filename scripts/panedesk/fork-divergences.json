@@ -1,6 +1,76 @@
 {
   "divergences": [
     {
+      "id": "composed-shell-and-settings-consumer-expectations",
+      "description": "Keep shell composition fixtures and settings expectations aligned with registered optional services and sections.",
+      "origin": "Integrated consumer regression checks",
+      "reason": "Supply the optional Windows Bash service lookup in the bundle evaluation fixture without changing platform assertions. Include all composed product settings in their exact order while preserving Account placement. Regenerate runtime license notices from the current dependency graph. The fixture lookup and notice generation are upstream-compatible; added settings remain downstream-owned.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "THIRD_PARTY_NOTICES.md",
+          "apps/cli/tests/windows-shell.spec.ts",
+          "packages/client/ui-settings-general/tests/shell.client.spec.ts"
+        ],
+        "test": "shell platform composition, settings section ledger and generated third-party notice assertions"
+      }
+    },
+    {
+      "id": "worker-lexical-require-and-utf8-decoding",
+      "description": "Collect wrapper module requests without treating local validation helpers as modules and decode streamed UTF-8.",
+      "origin": "Browser preview image assembly",
+      "reason": "Respect lexical require bindings when collecting static requests. Provide UTF-8 StringDecoder for the SDK transport, retaining incomplete byte sequences and BOM characters. Both repairs and their focused regressions are upstream-compatible; unsupported encodings still fail explicitly.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/experimental/webworker-runtime/README.i18n.yaml",
+          "packages/experimental/webworker-runtime/README.md",
+          "packages/experimental/webworker-runtime/README.zh.md",
+          "packages/experimental/webworker-runtime/src/compile/transform.ts",
+          "packages/experimental/webworker-runtime/src/module-proxies.ts",
+          "packages/experimental/webworker-runtime/src/node/builtin_modules/implemented/string_decoder.ts",
+          "packages/experimental/webworker-runtime/src/node/builtins.ts",
+          "packages/experimental/webworker-runtime/tests/compile/transform.spec.ts",
+          "packages/experimental/webworker-runtime/tests/node/string-decoder.spec.ts"
+        ],
+        "test": "wrapper require scope collection and Node-equivalent UTF-8 chunk decoding"
+      }
+    },
+    {
+      "id": "inserted-skill-catalog-refresh-alignment",
+      "description": "Retain inserted durable skill catalogs while aligning later refresh timestamps.",
+      "origin": "Recorded skill catalog refresh",
+      "reason": "A newly inserted skill-catalog message must not consume the next old record during volatile-value alignment. Keep its payload and position in replay comparison and retain subsequent matching event times. The refresh repair and regression are upstream-compatible and do not alter Session formats or remove model-visible events.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/test-support/session-snapshot/README.i18n.yaml",
+          "packages/test-support/session-snapshot/README.md",
+          "packages/test-support/session-snapshot/README.zh.md",
+          "packages/test-support/session-snapshot/src/suite.ts",
+          "packages/test-support/session-snapshot/tests/suite.spec.ts"
+        ],
+        "test": "retains inserted skill catalogs while aligning later volatile times"
+      }
+    },
+    {
+      "id": "stable-archive-activity-presentation",
+      "description": "Display archive activity families consistently across provider registration orders.",
+      "origin": "Composed archive dialog regression",
+      "reason": "Sort only the displayed activity list into turn, subagent, job and schedule families, followed by extension families in received order. Preserve every item and the Host waterfall ordering. The presentation repair and bilingual regressions are upstream-compatible.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-workspace/README.i18n.yaml",
+          "packages/client/ui-workspace/README.md",
+          "packages/client/ui-workspace/README.zh.md",
+          "packages/client/ui-workspace/src/client/session-actions/ArchiveSession.tsx",
+          "packages/client/ui-workspace/tests/session-actions.client.spec.tsx"
+        ],
+        "test": "orders known activity families independently of provider registration and keeps unknown work"
+      }
+    },
+    {
       "id": "cache-popover-above-composer",
       "description": "Keep cache details clear of the input card and toolbar.",
       "origin": "Composer dock visual acceptance",
@@ -121,7 +191,7 @@
       }
     },
     {
-      "id": "m8b2-s14-embedded-conversation",
+      "id": "embedded-conversation-shared-view",
       "description": "Embedded conversation hosts share one factory renderer.",
       "origin": "Shared client implementation integration",
       "reason": "Embedded conversation hosts share one factory renderer. The new export can move upstream with the phase helper.",
@@ -136,7 +206,7 @@
       }
     },
     {
-      "id": "m8b2-s14-redact-diagnostic",
+      "id": "shared-diagnostic-credential-redaction",
       "description": "Credential redaction of diagnostic text now has one implementation.",
       "origin": "Shared client implementation integration",
       "reason": "Credential redaction of diagnostic text now has one implementation. The llm probe wrapper remains for its existing callers.",
@@ -150,7 +220,7 @@
       }
     },
     {
-      "id": "m8b2-s14-observation-config",
+      "id": "shared-owner-observation-config",
       "description": "Owner-only observation adapters share one Config schema object.",
       "origin": "Shared client implementation integration",
       "reason": "Owner-only observation adapters share one Config schema object. The export can move upstream.",
@@ -163,7 +233,7 @@
       }
     },
     {
-      "id": "m8b2-s14-wait-for-poll",
+      "id": "shared-abortable-polling-timer",
       "description": "Polling waits share one abortable timer.",
       "origin": "Shared client implementation integration",
       "reason": "Polling waits share one abortable timer. The export can move upstream.",

@@ -1,8 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Use the read tool twice
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -17,6 +18,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation" [disabled]
 - text: Available only on the last message of a completed turn {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -26,3 +28,4 @@
 - button "Send message" [disabled]
 - button "1 turns 2 steps · {{throughput}} tok/s": 1 turns 2 steps{{throughput}} tok/s
 - button "16K tok · Cache hit 98%": 16K tokCache hit 98%
+- button "Cache"

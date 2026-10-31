@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": "Plan a small change: add"
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - tablist:
     - tab "Chat" [selected]
@@ -23,6 +26,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -32,4 +36,5 @@
 - button "Send message" [disabled]
 - button "1 turns 2 steps · {{throughput}} tok/s": 1 turns 2 steps{{throughput}} tok/s
 - button "10.6K tok · Cache hit 51%": 10.6K tokCache hit 51%
+- button "Cache"
 - button "4% of context used": 4%

@@ -12,7 +12,7 @@
 .settings { padding: 16px; color: var(--dsw-alias-label-primary); }
 .tabs, .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; align-items: center; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-block: 16px; }
-.cards article { padding: 16px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-2); overflow-wrap: anywhere; }
+.cards article { --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2); --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2); padding: 16px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-layer-2); overflow-wrap: anywhere; }
 .cards h2 { font-size: 14px; }
 .cards strong { font-size: 24px; }
 .tableWrap { overflow: auto; margin-block: 20px; }

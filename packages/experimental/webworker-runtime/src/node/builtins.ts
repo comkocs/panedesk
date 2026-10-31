@@ -35,6 +35,7 @@ import * as nodeModule from './builtin_modules/implemented/module.ts'
 import * as nodeOs from './builtin_modules/implemented/os.ts'
 import * as nodePath from './builtin_modules/implemented/path.ts'
 import * as nodePerfHooks from './builtin_modules/implemented/perf_hooks.ts'
+import * as nodeStringDecoder from './builtin_modules/implemented/string_decoder.ts'
 import * as nodeStream from './builtin_modules/implemented/stream.ts'
 import * as nodeStreamPromises from './builtin_modules/implemented/stream/promises.ts'
 import * as nodeTimersPromises from './builtin_modules/implemented/timers/promises.ts'
@@ -82,6 +83,7 @@ const BUILTINS: Record<string, StaticModuleFactory> = {
   'path/posix': () => nodePath,
   perf_hooks: () => nodePerfHooks,
   sqlite: () => nodeSqlite,
+  string_decoder: () => nodeStringDecoder,
   stream: () => nodeStream,
   'stream/promises': () => nodeStreamPromises,
   'timers/promises': () => nodeTimersPromises,

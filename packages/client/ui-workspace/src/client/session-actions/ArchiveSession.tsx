@@ -141,7 +141,7 @@ function ArchiveConfirmForm({ request, stopAndArchiveSession, onSettle, t }: {
       )}
     >
       <ul className={browserCss.archiveActivity} aria-label={t('archive.confirm.activity')}>
-        {request.activity.map((entry, index) => (
+        {request.activity.toSorted((a, b) => activityOrder(a) - activityOrder(b)).map((entry, index) => (
           <li key={`${entry.kind}-${String(index)}`}>{activityLine(entry, t)}</li>
         ))}
       </ul>
@@ -149,6 +149,17 @@ function ArchiveConfirmForm({ request, stopAndArchiveSession, onSettle, t }: {
       {error !== null && <div className={browserCss.renameError} role="alert">{error}</div>}
     </Modal>
   )
+}
+
+/** Known families have a fixed display order; extension families retain their relative order afterwards. */
+function activityOrder(entry: SessionActivity): number {
+  switch (entry.kind) {
+    case 'turn': return 0
+    case 'subagent': return 1
+    case 'job': return 2
+    case 'schedule': return 3
+    default: return 4
+  }
 }
 
 /**

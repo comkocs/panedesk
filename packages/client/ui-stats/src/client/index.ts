@@ -71,7 +71,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       name: 'settings.section', id: 'stats', order: 70, label: () => t('title'), locale: 'stats', inject: () => actions,
     }, StatsSettings))
     scope.slots.inject('conversation.session.header.utilities', () => scope.slots.register({
-      name: 'conversation.session.header.utilities', id: 'stats-tools', order: 70, locale: 'stats', inject: () => actions,
+      name: 'conversation.session.header.utilities', id: 'stats-tools', order: -1, locale: 'stats', inject: () => actions,
     }, StatsTools))
   })
   try { await ui } catch (error) { await ui.dispose(); await disposeRemote(); throw error }

@@ -173,6 +173,32 @@ check(
   check('stored, rebased, and shadowed createRequire calls stay runtime-only', runtimeOnly.moduleRequests, ['node:module'])
 }
 
+test('collects wrapper require calls without treating shadowed bindings as modules', () => {
+  const source = [
+    "require('outer')",
+    "function flags() { require('--before'); const require = flag => flag; require('--after') }",
+    "function parameter(require) { require('--parameter') }",
+    "function hoisted() { if (false) { var require } require('--hoisted') }",
+    "{ require('--block'); function require(value) { return value } }",
+    "try {} catch (require) { require('--caught') }",
+    "for (const require of []) require('--loop')",
+    "switch (0) { case 0: const require = value => value; require('--switch') }",
+    "const named = function require() { require('--self') }",
+    "function destructured({ require }) { require('--destructured') }",
+    "function nested() { require('nested-module') }",
+    "function defaults(value = require('parameter-default')) { var require; require('--body') }",
+    "switch (require('switch-input')) { case 0: let require; require('--case') }",
+    "for (const item of require('iteration-input')) {}",
+    "for (require('loop-init'); false;) {}",
+    "require('after')",
+  ].join('\n')
+  const result = lowerModuleSource({ filename: 'shadowed.cjs', source })
+  expect(result.moduleRequests).toEqual([
+    'outer', 'nested-module', 'parameter-default', 'switch-input', 'iteration-input', 'loop-init', 'after',
+  ])
+  expect(result.code).toBe(source)
+})
+
 // ---------------------------------------------------------------------------
 // 3. Import forms.
 // ---------------------------------------------------------------------------

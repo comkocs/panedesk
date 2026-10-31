@@ -48,7 +48,7 @@ export function StatsSettings({ useResource, t, open, close }: SettingsProps) {
 export function StatsTools({ t, open }: ToolsProps) {
   const [expanded, setExpanded] = useState(false)
   return <Menu open={expanded} onClose={() => { setExpanded(false) }} align="end" autoFocus
-    anchor={<Button variant="toolbar" onClick={() => { setExpanded(value => !value) }} aria-expanded={expanded} aria-haspopup="menu">{t('tools')}</Button>}
+    anchor={<Button variant="toolbar" size="sm" onClick={() => { setExpanded(value => !value) }} aria-expanded={expanded} aria-haspopup="menu">{t('tools')}</Button>}
     items={[{ id: 'stats', label: t('title') }]} onSelect={() => { setExpanded(false); open() }} />
 }
 
