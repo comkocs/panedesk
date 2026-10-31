@@ -620,9 +620,10 @@ describe('auditStartupEntries', () => {
     ]), NAME, warn)
     expect(warn).toHaveBeenCalledOnce()
     expect(warn).toHaveBeenCalledWith([
-      `${NAME}: warning: 3 entries did not activate`,
+      `${NAME}: warning: 2 entries did not activate`,
       'missing-tool (./missing.mjs): failed to import',
       `tool-todo (@panedesk/dsh-tool-todo): ${original.stack!}`,
+      `${NAME}: warning: 1 pending entry is starting (waiting for services)`,
       'waiting-tool (./waiting.mjs): pending (waiting for service: missing)',
       '',
     ].join('\n'))
@@ -711,7 +712,8 @@ describe('auditStartupEntries', () => {
 
     expect(warn).toHaveBeenCalledOnce()
     const diagnostic = String(warn.mock.calls[0]![0])
-    expect(diagnostic).toContain(`${NAME}: warning: 9 entries did not activate`)
+    expect(diagnostic).toContain(`${NAME}: warning: 7 entries did not activate`)
+    expect(diagnostic).toContain(`${NAME}: warning: 2 pending entries are starting (waiting for services)`)
     expect(diagnostic).toContain(`circular (./circular.mjs): ${circular.stack!}`)
     expect(diagnostic).toContain('stackless (./stackless.mjs): stackless failure')
     expect(diagnostic).toContain(`deep-stack (./deep-stack.mjs): ${wrappedStack.stack!}\n${deepestWithStack.stack!}`)
@@ -1130,7 +1132,8 @@ describe('boot', () => {
       }
       expect(entries.find(entry => entry.options.id === 'waiting')?.fiber?.state).toBe(0)
       const warning = write.mock.calls.map(call => String(call[0])).join('')
-      expect(warning).toContain(`${NAME}: warning: 6 entries did not activate`)
+      expect(warning).toContain(`${NAME}: warning: 5 entries did not activate`)
+      expect(warning).toContain(`${NAME}: warning: 1 pending entry is starting (waiting for services)`)
       expect(warning).toContain('import-failure (./missing.mjs): failed to import')
       expect(warning).toContain('disabled-failure (./noop.mjs): disabled expression failed: SyntaxError')
       expect(warning).toContain('SyntaxError: Unexpected token')
