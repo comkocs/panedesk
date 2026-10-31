@@ -19,6 +19,9 @@ import type { CacheRoute } from './policy.ts'
 import { cacheRemaining, foldCacheState } from './state.ts'
 import type { CacheRemaining, CacheRenewRequest, CacheRenewResult } from './types.ts'
 import { scheduleKeepalive } from './keepalive.ts'
+import { CacheViewService } from './cache-view.ts'
+export { CacheViewService } from './cache-view.ts'
+export type * from './view-types.ts'
 export type * from './types.ts'
 export type { CacheRoute, RouteRetention } from './policy.ts'
 
@@ -52,6 +55,8 @@ export class CacheService extends Service {
   constructor(ctx: Context,
     private readonly updateSession: (update: { agent: Agent; policy?: CachePolicy; keepalive?: KeepalivePolicy }) => Promise<void>,
     private readonly remainingFor: (agent: Agent) => Promise<CacheRemaining>,
+    private readonly routeForProvider: (provider: string) => CacheRoute,
+    private readonly policyFor: (agent: Agent) => CachePolicy | undefined,
     private readonly renewSession?: (request: CacheRenewRequest) => Promise<CacheRenewResult>) {
     super(ctx, 'llmCache')
   }
@@ -70,6 +75,22 @@ export class CacheService extends Service {
    */
   remaining(agent: Agent): Promise<CacheRemaining> {
     return this.remainingFor(agent)
+  }
+
+  /** Read the route a provider is judged against, without changing any selection.
+   * @param provider - registered provider identifier.
+   * @returns the configured route, or the built-in route when configuration names none.
+   */
+  routeFor(provider: string): CacheRoute {
+    return this.routeForProvider(provider)
+  }
+
+  /** Read the retention the next request of this session will carry, without changing it.
+   * @param agent - session whose stored selection is requested.
+   * @returns the selection the cache plugin holds, or undefined before that session has one.
+   */
+  policy(agent: Agent): CachePolicy | undefined {
+    return this.policyFor(agent)
   }
 
   /**
@@ -422,7 +443,9 @@ export function apply(ctx: Context, config: Config): void {
     }
     await state.pending
     arm(agent.id, state)
-  }, agent => Promise.resolve(cacheRemaining(states.get(agent.id)?.evidence, Date.now())), renewOnce)
+  }, agent => Promise.resolve(cacheRemaining(states.get(agent.id)?.evidence, Date.now())), routeOf,
+  agent => stateOf(agent.id, agent).policy, renewOnce)
+  ctx.inject(['remoteAccess'], () => { ctx.plugin(CacheViewService) })
   ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
     const assembly = await next()
     if (context.agent === undefined || ledger() === undefined) return assembly

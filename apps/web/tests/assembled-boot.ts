@@ -176,10 +176,10 @@ function bundleTable(graph: WebBootGraph, plugins: readonly AssembledPlugin[]): 
 }
 
 interface FixtureWindow extends Window {
-  __DSH_BUILD_METADATA__?: Record<string, string>
   __DSH_BOOT__?: WebBootGraph
   __ModuleLoader__?: ClientModuleLoaderTarget
   __DSH_TRANSPORT__?: { readonly rpc: RemoteMock['rpc'] }
+  __DSH_BUILD_METADATA__?: Readonly<Record<string, string>>
 }
 
 class ResizeObserverStub {
@@ -251,10 +251,10 @@ export function installAssembledBootEnv(): void {
     unmount = undefined
     mountedRemote = undefined
     cleanup()
-    delete win.__DSH_BUILD_METADATA__
     delete win.__DSH_BOOT__
     delete win.__ModuleLoader__
     delete win.__DSH_TRANSPORT__
+    delete win.__DSH_BUILD_METADATA__
     document.body.innerHTML = ''
     document.head.querySelectorAll('style[data-plugin]').forEach((style) => { style.remove() })
     document.title = ''

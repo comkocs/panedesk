@@ -120,6 +120,8 @@
     { "path": "./packages/client/ui-sidebar-documentpreview/tsconfig.client.json" },
     { "path": "./packages/client/ui-sidebar-browser/tsconfig.client.json" },
     { "path": "./packages/client/ui-sidebar-files" },
+    { "path": "./packages/client/ui-cache-pill" },
+    { "path": "./packages/client/ui-session-tab" },
     { "path": "./packages/client/ui-jobs" },
     { "path": "./packages/client/ui-schedule" },
     { "path": "./packages/client/ui-directory-picker-browse" },

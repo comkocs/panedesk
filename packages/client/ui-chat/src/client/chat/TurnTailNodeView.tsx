@@ -58,6 +58,7 @@ export const TurnTailNodeView = memo(function TurnTailNodeView({
     <div
       className={css.root}
       data-turn-tail={data.turn}
+      {...messageId === undefined ? {} : { 'data-message-id': messageId }}
       data-actions-reveal={endsWithResponse ? 'always' : 'hover'}
     >
       {tail}

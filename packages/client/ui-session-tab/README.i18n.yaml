@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-session-tab/README.md
+/:
+  en: 316a032713b92616
+  zh: 4c08300166a4a612
+/panedesk-dsh-client-ui-session-tab:
+  en: 3cb9baecc8e4f426
+  zh: c6c09866e816003f
+/panedesk-dsh-client-ui-session-tab/summary:
+  en: f740102a30eb45f8
+  zh: b972831fb22f6593
+/panedesk-dsh-client-ui-session-tab/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 1f9a04bdb56aa96d
+/panedesk-dsh-client-ui-session-tab/use-this-package:
+  en: 4048891a29926894
+  zh: e15d718611783c6f
+/panedesk-dsh-client-ui-session-tab/use-this-package/failures:
+  en: 8bdda6b1de387388
+  zh: f9f53575f82b4d2f
+/panedesk-dsh-client-ui-session-tab/understand-the-implementation:
+  en: 4c9a77f697ff7372
+  zh: 3020c1320343ba2c
+/panedesk-dsh-client-ui-session-tab/further-exploration:
+  en: 4bfe81cd7e75e6fb
+  zh: ce0630e7c658541f
+/panedesk-dsh-client-ui-session-tab/model-experience:
+  en: cf6a6457d56a0d9c
+  zh: 801757d2d2194430
+/panedesk-dsh-client-ui-session-tab/model-experience/kv-cache-effect:
+  en: e5adf70a8106ab59
+  zh: f1b56ea922aea137
+/panedesk-dsh-client-ui-session-tab/known-limitations-and-deferred-work:
+  en: 2e6c6223694472de
+  zh: 359afe85b7df441a
+/panedesk-dsh-client-ui-session-tab/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

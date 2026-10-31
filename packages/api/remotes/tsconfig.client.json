@@ -12,6 +12,7 @@
   ],
   "references": [
     { "path": "../../client/product-analytics/tsconfig.client.json" },
+    { "path": "../../llm/llm-cache" },
     {
       "path": "../../../vendor/cordis"
     },

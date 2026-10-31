@@ -37,7 +37,7 @@ import { sidebarTargetFromElement, type SidebarRightTarget } from './focus.ts'
 import { randomUUID } from '@panedesk/dsh-util-crypto'
 import { createSnapshotStore, type ObservableSnapshot } from '@panedesk/dsh-client-store'
 import type { FloatRect, PaneId, TabId, TabRecord } from '@panedesk/dsh-client-ui-dockkit'
-import { activeDockPaneId, canSplit, findContentTab, findPaneContentTab, dockPaneIds, findTabPane, getPane } from '@panedesk/dsh-client-ui-dockkit'
+import { activeDockPaneId, canSplit, dockPaneIds, findTabPane, getPane } from '@panedesk/dsh-client-ui-dockkit'
 import type { BoundActions } from '@panedesk/dsh-client-ui-slots'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type { SidebarRightNavigationParams, SidebarRightResourceParams, SidebarRightTabParamsFor } from './contract/params.ts'
@@ -373,12 +373,7 @@ export class SidebarRightController implements ISidebarRight {
     if (actions === undefined || surface === undefined) return
     const tab = surface.layout.tabs[tabId]
     if (tab === undefined || !canCloseTab(surface, tabId)) return
-    this.removeAfterCleanup(sessionId, tab, () => { actions.closeTab(sessionId, tabId) })
-  }
-
-  private removeAfterCleanup(sessionId: SessionId, tab: TabRecord, commit: () => void): void {
-    this.closeHandlers.get(tab.kind)?.(sessionId, tab)
-    commit()
+    actions.closeTab(sessionId, tabId, () => { this.closeHandlers.get(tab.kind)?.(sessionId, tab) })
   }
 
   /** Claim a resource and place it in one session; an address outside the scheme or one no type claims throws. */
@@ -429,7 +424,7 @@ export class SidebarRightController implements ISidebarRight {
       && dockPaneIds(surface.layout).length < 2
       && this.mounted.getSnapshot() === sessionId
       && this.canSplitPane(sessionId, target.id)
-    const commit = (): void => { actions.openContent(sessionId, {
+    actions.openContent(sessionId, {
       kind: claim.kind,
       contentId: claim.contentId,
       title: claim.title,
@@ -437,16 +432,11 @@ export class SidebarRightController implements ISidebarRight {
       ...preferNewPane ? { preferNewPane: true } : {},
       ...placement.replaceTab === undefined ? {} : { replaceTab: placement.replaceTab },
       ...placement.revealIfOpened === undefined ? {} : { revealIfOpened: placement.revealIfOpened },
-    }, (tabId) => { this.tabDomain.navigate(sessionId, tabId, { address, params }) }) }
-    const layout = surface?.layout
-    const replaced = placement.replaceTab === undefined ? undefined : layout?.tabs[placement.replaceTab]
-    const replacementPane = replaced === undefined || layout === undefined ? undefined : findTabPane(layout, replaced.id)
-    const revealed = layout === undefined ? undefined
-      : claim.contentId === pageAddress(claim.kind)
-        ? findPaneContentTab(layout, replacementPane?.host === 'dock' ? replacementPane.id : placement.paneId ?? activeDockPaneId(layout), claim.contentId, claim.kind)
-        : placement.revealIfOpened === false ? undefined : findContentTab(layout, claim.contentId, claim.kind)
-    if (replaced === undefined || replaced.id === revealed) { commit(); return }
-    this.removeAfterCleanup(sessionId, replaced, commit)
+    }, (tabId) => { this.tabDomain.navigate(sessionId, tabId, { address, params }) },
+    (removed) => {
+      const original = surface?.layout.tabs[removed.id]
+      if (original !== undefined) this.closeHandlers.get(original.kind)?.(sessionId, original)
+    })
   }
 
   /**

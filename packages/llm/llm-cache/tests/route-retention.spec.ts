@@ -58,6 +58,27 @@ describe('route retention selection', () => {
     } finally { await ctx.fiber.dispose() }
   })
 
+  it('keeps the request already being built and applies a stored tier on the next one', async () => {
+    const { ctx, adapter } = await harness()
+    try {
+      const handle = await ctx.agents.create({ sessionId: SessionId('tier-next'),
+        agentOptions: { provider: 'model-provider', model: 'model' } })
+      const signal = new AbortController().signal
+      const first = await ctx.waterfall('agent/request', { agent: handle.agent, turn: 1, step: 1, signal }, async () => ({
+        provider: 'model-provider', model: 'model', messages: [],
+      }))
+      expect(first.cache?.retention).toBe('1h')
+      await ctx.llmCache.update({ agent: handle.agent, policy: { retention: '5m' } })
+      expect(ctx.llmCache.policy(handle.agent)?.retention).toBe('5m')
+      const second = await ctx.waterfall('agent/request', { agent: handle.agent, turn: 2, step: 1, signal }, async () => ({
+        provider: 'model-provider', model: 'model', messages: [],
+      }))
+      expect(second.cache?.retention).toBe('5m')
+      expect(adapter.requests).toEqual([])
+      await handle.dispose()
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('accepts a per-route retention in the plugin schema and rejects unknown tiers', () => {
     const config = Config({ policy: { retention: 'default' }, keepalive: {}, routes: [
       { provider: 'model-provider', modelFamily: 'family-a', capability: 'anthropic', retention: '5m' }] })

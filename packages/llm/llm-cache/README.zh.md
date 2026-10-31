@@ -29,7 +29,7 @@ kind: "package-reference"
 
 路由条目可固定一档 `retention`，服务经该通路的 `default` 选择。显式会话或请求选择仍然优先；固定档必须为通路能力所支持，未固定 `retention` 的路由逐字节保持能力缺省。`llmCache.update` 保存显式选择时不参考上一次请求的路由：档位在承载请求的 provider 确定后才判定，会话中途换模型不再因旧路由误报 `Unsupported cache retention`。
 
-从包入口导入公共类型。本包仅用于 Host，不提供浏览器入口。
+从包入口导入公共类型；缓存视图线类型也使用 `./types`。挂载远程权限时，本包提供显式声明会话资源的 `cacheView.read` 和 `cacheView.setTier`。读取按调用者授权逐项过滤由账本发现的后代，包含已结束的 Agent。写入保留已有稳定键、拒绝缺账本与不支持的档位，只影响后续请求。生成的 `./typert` 与 `./remote` 入口提供 Host 校验器和 Client 桩；缓存实现仍仅用于 Host。
 
 运行期间插入收件仍沿用 `interjection` 缓存断点。`interjection` 中止令被打断调用以 `cancelled` 结束，细因写 `upstreamStopReason: 'interjection'`，保留部分响应片段，并在被打断调用与后续调用记断点。普通用户取消保持独立。上游请求开头重组不被抑制：已提交的历史替换沿用 `history-edit`，请求头改变沿用 `request-config-change`；每次调用记录真实开头指纹。
 

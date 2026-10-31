@@ -84,6 +84,23 @@ function harness() {
 }
 
 describe('SidebarRightController — opening', () => {
+  it('shares the visible budget between ordinary session pages and the subagent resource entry', () => {
+    const h = harness()
+    h.tabs.register({ id: 'test/session', kind: 'session', multiple: true, title: () => 'session' })
+    h.tabs.register({ id: 'test/subagent', kind: 'subagentchat', patterns: ['dsh-resource://subagentchat/**'], title: () => 'child' })
+    h.publish()
+    for (let count = 0; count < 2; count++) {
+      h.controller.openTab('session')
+      h.controller.float(h.controller.active()!.id)
+    }
+    const before = h.layout()
+    h.controller.openTab('session', { preferNewPane: true })
+    expect(h.layout()).toBe(before)
+    h.controller.openResource('dsh-resource://subagentchat/child', { kind: 'subagentchat', preferNewPane: true })
+    expect(h.layout()).toBe(before)
+    expect(h.controller.openTabs.getSnapshot().filter(tab => tab.kind === 'session')).toHaveLength(2)
+    expect(h.controller.openTabs.getSnapshot().some(tab => tab.kind === 'subagentchat')).toBe(false)
+  })
   it('keeps independently opened instances distinct when they return to the same pane', () => {
     const h = harness()
     h.tabs.register({ id: 'test/terminal', kind: 'terminal', multiple: true, title: () => 'terminal' })
@@ -679,6 +696,27 @@ describe('SidebarRightController — the on-screen Session', () => {
 })
 
 describe('explicit tab resource cleanup', () => {
+  it.each(['close', 'replace'] as const)('does not clean up a tab when the budget refuses its %s', (operation) => {
+    const h = harness()
+    h.tabs.register({ id: 'test/session', kind: 'session', multiple: true, title: () => 'session' })
+    h.publish()
+    h.controller.openTab('session')
+    const hidden = h.controller.active()!.id
+    h.controller.openResource('dsh-resource://file/session/s-test/cover')
+    const cover = h.controller.active()!.id
+    for (let count = 0; count < 2; count++) {
+      h.controller.openTab('session')
+      h.controller.float(h.controller.active()!.id)
+    }
+    const handler = vi.fn()
+    h.controller.registerCloseHandler('text', handler)
+    const before = h.layout()
+    if (operation === 'close') h.controller.close(cover)
+    else h.controller.openTab('session', { replaceTab: cover })
+    expect(h.layout()).toBe(before)
+    expect(h.layout().tabs[hidden]).toBeDefined()
+    expect(handler).not.toHaveBeenCalled()
+  })
   it.each(['close', 'replace'] as const)('immediately removes the tab after a synchronous cleanup handler during %s', (operation) => {
     const h = harness()
     const release = h.adopt(SESSION, h.instance)
