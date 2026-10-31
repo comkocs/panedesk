@@ -195,7 +195,8 @@ test.each([
       clock.mockReturnValue(Date.now() + 2000)
       if (uncertain) engine = await reload()
     }
-    const prior = engine['outbox'].observations().find(item => item.payload.callbackId === payload.callbackId)
+    const outbox: CallbackOutbox = engine['outbox']
+    const prior = outbox.observations().find(item => item.payload.callbackId === payload.callbackId)
     const dispose = engine.registerSource({ sourceId, kinds: ['external'], maxRedeliveryMs: null, callback: async (input) => {
       sent.push(input.callbackId)
       if (input.callbackId === payload.callbackId && !accepted) {

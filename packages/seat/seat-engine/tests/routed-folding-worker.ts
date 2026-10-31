@@ -45,6 +45,7 @@ async function main() {
         ? { status: 'settled', method: 'source.deliverCallback', result: { status: 'committed',
           callbackId: receipt.callback.callbackId, payloadDigest: receipt.payloadDigest } } : { status: 'missing' } }
     }
+    if (request.method !== 'source.deliverCallback') throw new Error('Unexpected routed operation')
     dispatches++
     if (stage === 'recover' || receipt) throw new Error('Duplicate business effect')
     if (dispatches < 7) return { method: 'source.deliverCallback', status: 'rejected',
