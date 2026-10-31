@@ -1,6 +1,255 @@
 {
   "divergences": [
     {
+      "id": "host-build-memory-limit",
+      "description": "Increase the host compiler heap allowance.",
+      "origin": "Build hygiene",
+      "reason": "Hygiene lane: increase the host compiler heap limit for the existing host build without changing compiler options or assertions.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["package.json"],
+        "test": "--max-old-space-size=8192"
+      }
+    },
+    {
+      "id": "seat-human-approval-absorption",
+      "description": "Seat human approval absorption.",
+      "origin": "Optional seat and host integration",
+      "reason": "Atomically absorb exact same-task reminder approvals during an issuer-authorized human opening without pre-open cancellation callbacks.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-engine/src/engine.ts",
+          "packages/seat/seat-engine/src/triggers.ts",
+          "packages/seat/seat-engine/tests/approval-absorption.spec.ts",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml"
+        ],
+        "test": "absorbs only the authorized approval: %s"
+      }
+    },
+    {
+      "id": "seat-approval-close",
+      "description": "Seat approval close.",
+      "origin": "Optional seat and host integration",
+      "reason": "Upstreamable: close approval-paused seat turns through owner-authorized cancellation, retain inbox refusals and durable manual close details, and expose localized owner UI controls.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat/src/events.ts",
+          "packages/seat/seat/src/types.ts",
+          "packages/seat/seat/README.md",
+          "packages/seat/seat/README.zh.md",
+          "packages/seat/seat/README.i18n.yaml",
+          "packages/seat/seat-local/src/closing-service.ts",
+          "packages/seat/seat-local/src/index.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-engine/src/closing.ts",
+          "packages/seat/seat-engine/src/validation.ts",
+          "packages/seat/seat-engine/tests/validation.spec.ts",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "packages/client/ui-seats/src/index.ts",
+          "packages/client/ui-seats/src/client/index.ts",
+          "packages/client/ui-seats/src/client/Seats.tsx",
+          "packages/client/ui-seats/src/client/locales.ts",
+          "packages/client/ui-seats/tests/apply.client.spec.ts",
+          "packages/client/ui-seats/tests/seats.client.spec.tsx",
+          "packages/client/ui-seats/README.md",
+          "packages/client/ui-seats/README.zh.md",
+          "packages/client/ui-seats/README.i18n.yaml",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md"
+        ],
+        "test": "retains optional approval close detail in %s frames"
+      }
+    },
+    {
+      "id": "seat-orphaned-opening-recovery",
+      "description": "Seat orphaned opening recovery.",
+      "origin": "Optional seat and host integration",
+      "reason": "Upstreamable: automatically close fenced orphaned openings whose first handoff was never claimed, preserving durable failure and window-ended callbacks without replaying the old turn.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/src/closing-service.ts",
+          "packages/seat/seat-local/src/index.ts",
+          "packages/seat/seat-local/src/orphaned-opening.ts",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-local/tests/orphaned-opening-close-composition.spec.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.zh.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/orphaned-opening-recovery/guide.i18n.yaml"
+        ],
+        "test": "automatically closes an orphaned queued opening and never replays it after another restart"
+      }
+    },
+    {
+      "id": "host-failure-log-instance-home",
+      "description": "Host failure log instance home.",
+      "origin": "Optional seat and host integration",
+      "reason": "Failure-log root resolves through `resolveDshHome` (explicit override, then `PANEDESK_HOME`, then `~/.panedesk`) instead of always `homedir()/.panedesk`, so same-account multi-instance harnesses write separate log roots; `host-admin` gains a `@panedesk/dsh-home-paths` runtime dependency (and a test-only `@panedesk/dsh-app-boot` dev dependency) for this resolution and the combined umask test.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/host/host-admin/src/failure-log.ts",
+          "packages/host/host-admin/package.json",
+          "packages/host/host-admin/tests/failure-log.spec.ts"
+        ],
+        "test": "resolves the log root through PANEDESK_HOME so concurrent instances write separately"
+      }
+    },
+    {
+      "id": "app-boot-profile-owner-only-mkdir",
+      "description": "App boot profile owner only mkdir.",
+      "origin": "Optional seat and host integration",
+      "reason": "`initProfile` creates its directory chain with explicit `mode: 0o700` (Node applies the mode to every newly created level), so a permissive process umask such as 0002 cannot leave profile directories group/other accessible; pre-existing directories keep their own permissions. Upstream-original defect; candidate to contribute back.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/boot/app-boot/src/profile.ts",
+          "packages/boot/app-boot/tests/profile.spec.ts"
+        ],
+        "test": "creates every profile directory owner-only under umask 0002"
+      }
+    },
+    {
+      "id": "app-boot-startup-pending-summary",
+      "description": "App boot startup pending summary.",
+      "origin": "Optional seat and host integration",
+      "reason": "The optional-entry activation warning splits pending entries out of \"N entries did not activate\": failed entries keep the failed count and per-entry detail, while entries waiting for services get their own \"N pending entries are starting (waiting for services)\" line with per-entry diagnostics, so a late-starting dependency no longer inflates the failure count; required-entry startup failure semantics are unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/boot/app-boot/src/index.ts",
+          "apps/cli/tests/profiles/web/tests/web-best-effort-startup.expected.e2e.ts",
+          "packages/boot/app-boot/tests/app-boot.spec.ts"
+        ],
+        "test": "serves the full Web app while unrelated entries fail to start"
+      }
+    },
+    {
+      "id": "llm-cache-retention-validation-point",
+      "description": "Llm cache retention validation point.",
+      "origin": "Optional seat and host integration",
+      "reason": "`llmCache.update` stores an explicit selection after shape validation only (`validateCachePolicySelection`); capability checking stays in the agent/request waterfall that runs after the carrying request's provider resolves, so switching models mid-session no longer misreports `Unsupported cache retention` against the previous request's route. `resolveCachePolicy` additionally serves an optional route-pinned tier for `default` selections before the unchanged capability default table; explicit session/request selections still win, and routes without a pinned tier stay byte-identical.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm-cache/src/index.ts",
+          "packages/llm/llm-cache/src/policy.ts",
+          "packages/llm/llm-cache/tests/route-retention.spec.ts",
+          "packages/llm/llm-cache/README.i18n.yaml",
+          "packages/llm/llm-cache/README.md",
+          "packages/llm/llm-cache/README.zh.md",
+          "packages/llm/llm-cache/tests/child-cache-policy.spec.ts",
+          "packages/llm/llm-cache/tests/policy.spec.ts",
+          "packages/llm/llm-cache/tests/sdk-cache-policy.spec.ts"
+        ],
+        "test": "judges an updated explicit selection against the route of the request that carries it"
+      }
+    },
+    {
+      "id": "acp-live-assistant-stream-projection",
+      "description": "Acp live assistant stream projection.",
+      "origin": "Optional seat and host integration",
+      "reason": "The bridge subscribes to the agent-scoped `agent/assistant-stream` frames and projects live non-empty text/reasoning deltas ahead of the durable commit; the committed `assistant/message` projection skips blocks whose exact text a live attempt already delivered (cursor-matched in block order) and reuses the live message id, so updates stay ordered through the per-session output tail with no post-commit duplication. Replay and resume never see live frames; failure settlement is unchanged while a failed attempt's streamed text stays visible exactly once.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/acp/acp/src/session.ts",
+          "packages/acp/acp/src/updates.ts",
+          "packages/acp/acp/src/index.ts",
+          "packages/acp/acp/tests/turns.spec.ts",
+          "packages/acp/acp/README.i18n.yaml",
+          "packages/acp/acp/README.md",
+          "packages/acp/acp/README.zh.md",
+          "packages/acp/acp/tests/bridge.spec.ts",
+          "packages/acp/acp/tests/edges.spec.ts"
+        ],
+        "test": "delivers a live delta before the durable commit and never duplicates covered text"
+      }
+    },
+    {
+      "id": "host-admin-safe-source-details-and-retryable-refusals",
+      "description": "Host admin safe source details and retryable refusals.",
+      "origin": "Optional seat and host integration",
+      "reason": "Project registered source refusal details without leaking provider text; retain same-identity retryable no-effect refusals and fingerprints across restart. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/host/host-admin/",
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "packages/host/host-admin/tests/source-operator.spec.ts"
+        ],
+        "test": "validates registered provider detail codes without accepting arbitrary error text"
+      }
+    },
+    {
+      "id": "node-link-authenticated-rebuild-and-ssh-config",
+      "description": "Node link authenticated rebuild and ssh config.",
+      "origin": "Optional seat and host integration",
+      "reason": "Rebuild only the owned supervised tunnel through existing-host administration, retain authentication and bounded retries, expose explicit client limits, and map an optional SSH config path without changing omission behavior. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/node-link/",
+          "packages/seat/seat-app/",
+          "pnpm-lock.yaml",
+          "scripts/gen-cordis-catalog.ts",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/subsystems/seat.md",
+          "docs/subsystems/seat.zh.md",
+          "packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md",
+          "packages/seat/node-link/tests/tunnel.spec.ts"
+        ],
+        "test": "passes an optional ssh config file and rejects an empty path"
+      }
+    },
+    {
+      "id": "routed-message-original-identity-reconciliation",
+      "description": "Routed message original identity reconciliation.",
+      "origin": "Optional seat and host integration",
+      "reason": "Retain terminal pre-send refusals and uncertain frozen message identities; recover only under live original authority and authenticated missing receipts, with bounded fair directory scanning and disposal checks. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/session/message-delivery-local/",
+          "packages/seat/node-link/src/router.ts",
+          "packages/host/host-admin/src/operation-store.ts",
+          "packages/session/message-delivery-local/tests/routed-cause.spec.ts"
+        ],
+        "test": "recovers frozen unknown messages only under live original authority: %s"
+      }
+    },
+    {
+      "id": "seat-local-import-plan-release",
+      "description": "Seat local import plan release.",
+      "origin": "Optional seat and host integration",
+      "reason": "Upstreamable: release committed import plans, avoid revision changes for identical content, reject different content at the same version during import commit, and optionally count seats explicitly named by source rules toward limits.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-local/src/import.ts",
+          "packages/seat/seat-local/src/store.ts",
+          "packages/seat/seat-local/src/import-plan.ts",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-local/src/service-options.ts",
+          "packages/seat/seat-local/tests/import.spec.ts"
+        ],
+        "test": "releases a committed preview so the next plan fits the same capacity"
+      }
+    },
+    {
       "id": "seat-trusted-owner-local-wake-and-manual-frozen-admission",
       "description": "Accept trusted local owner wake and verified manual frozen admission; suitable for upstream submission.",
       "origin": "Optional seat orchestration",
