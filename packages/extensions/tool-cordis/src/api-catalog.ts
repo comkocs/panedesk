@@ -1984,6 +1984,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [],
   },
   {
+    key: 'nodeMessageEvidence',
+    summary: 'Host-owned evidence is queried independently of the execution request\'s claimed authority.',
+    description: 'Host-owned evidence is queried independently of the execution request\'s claimed authority.',
+    methods: [
+      {
+        signature: 'query(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<unknown>',
+        description: 'Read retained evidence for the exact request and authenticated peer.',
+        parameters: [{ name: 'request', description: 'Exact decoded message request.' }, { name: 'peer', description: 'Transport-authenticated requester.' }],
+        returns: 'Independently retained evidence or null.',
+      },
+    ],
+  },
+  {
+    key: 'nodeMessageEvidenceRemote',
+    summary: 'Paired transport captures direction and credentials; callers cannot select an endpoint.',
+    description: 'Paired transport captures direction and credentials; callers cannot select an endpoint.',
+    methods: [
+      {
+        signature: 'query(request: NodePreparedRequest): Promise<unknown>',
+        description: 'Query the paired owner without accepting caller-selected transport credentials.',
+        parameters: [{ name: 'request', description: 'Exact request received from this paired peer.' }],
+        returns: 'Independent peer evidence or null.',
+      },
+    ],
+  },
+  {
     key: 'nodeRouter',
     summary: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',
     description: 'Receiver invokes local providers only; delegation is authenticated again and cannot add hops.',

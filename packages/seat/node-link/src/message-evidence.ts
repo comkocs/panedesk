@@ -8,14 +8,19 @@ import { decodeRequest } from './codec.ts'
 
 /** Host-owned evidence is queried independently of the execution request's claimed authority. */
 export interface NodeMessageEvidence {
-  /** @param request - Exact decoded message request.
-   * @param peer - Transport-authenticated requester. @returns Independently retained evidence or null.
+  /** Read retained evidence for the exact request and authenticated peer.
+   * @param request - Exact decoded message request.
+   * @param peer - Transport-authenticated requester.
+   * @returns Independently retained evidence or null.
    */
   query(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<unknown>
 }
 /** Paired transport captures direction and credentials; callers cannot select an endpoint. */
 export interface NodeMessageEvidenceRemote {
-  /** @param request - Exact request received from this paired peer. @returns Independent peer evidence or null. */
+  /** Query the paired owner without accepting caller-selected transport credentials.
+   * @param request - Exact request received from this paired peer.
+   * @returns Independent peer evidence or null.
+   */
   query(request: NodePreparedRequest): Promise<unknown>
 }
 declare module '@panedesk/cordis' {
@@ -47,7 +52,10 @@ export class MessageEvidenceChannel implements NodeMessageEvidenceRemote {
     } finally { this.outgoing-- }
   }
 
-  /** @param value - Authenticated control frame. @returns Correlated evidence from the local owner only. */
+  /** Reject unrelated frames before querying the local evidence owner.
+   * @param value - Authenticated control frame.
+   * @returns Correlated evidence from the local owner only.
+   */
   async receive(value: unknown): Promise<unknown> {
     if (!object(value) || value.type !== 'message-delegation-evidence' || value.version !== 'node-link/v1'
       || typeof value.requestId !== 'string' || !value.requestId || value.requestId.length > 128

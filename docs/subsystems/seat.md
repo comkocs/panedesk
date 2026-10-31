@@ -247,6 +247,39 @@ status(): Promise<Seat.SeatNodeStatus>
 
 Source: [`packages/seat/node-link/src/index.ts`](../../packages/seat/node-link/src/index.ts)
 
+<a id="ctxnodemessageevidence--nodemessageevidence"></a>
+
+### `ctx.nodeMessageEvidence` — `NodeMessageEvidence`
+
+Host-owned evidence is queried independently of the execution request's claimed authority.
+
+```ts cordis-catalog
+/** Read retained evidence for the exact request and authenticated peer.
+ * @param request - Exact decoded message request.
+ * @param peer - Transport-authenticated requester.
+ * @returns Independently retained evidence or null.
+ */
+query(request: NodePreparedRequest, peer: NodeAuthenticatedPeer): Promise<unknown>
+```
+
+Source: [`packages/seat/node-link/src/message-evidence.ts`](../../packages/seat/node-link/src/message-evidence.ts)
+
+<a id="ctxnodemessageevidenceremote--nodemessageevidenceremote"></a>
+
+### `ctx.nodeMessageEvidenceRemote` — `NodeMessageEvidenceRemote`
+
+Paired transport captures direction and credentials; callers cannot select an endpoint.
+
+```ts cordis-catalog
+/** Query the paired owner without accepting caller-selected transport credentials.
+ * @param request - Exact request received from this paired peer.
+ * @returns Independent peer evidence or null.
+ */
+query(request: NodePreparedRequest): Promise<unknown>
+```
+
+Source: [`packages/seat/node-link/src/message-evidence.ts`](../../packages/seat/node-link/src/message-evidence.ts)
+
 <a id="ctxnoderouter--noderouterservice"></a>
 
 ### `ctx.nodeRouter` — `NodeRouterService`

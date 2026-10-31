@@ -164,6 +164,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     consumers: ['node-link'], note: 'Binds authenticated message envelopes to process-local delivery authority.',
   },
   {
+    key: 'nodeMessageEvidence', pkg: 'node-link', title: 'Retained message delegation evidence', mode: 'seam',
+    consumers: ['node-link'], note: 'Host-owned evidence binds the exact message request to its authenticated paired peer.',
+  },
+  {
+    key: 'nodeMessageEvidenceRemote', pkg: 'node-link', title: 'Paired message evidence queries', mode: 'service',
+    implementations: ['node-link'], note: 'Queries the configured peer with independent bounded control capacity.',
+  },
+  {
     key: 'routedDeliveryVerifier', pkg: 'message-delivery', title: 'Exact routed delivery verification', mode: 'seam',
     consumers: ['message-delivery-local'], note: 'Checks host-owned envelope capabilities rather than wire authority claims.',
   },
