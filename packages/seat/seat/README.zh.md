@@ -27,7 +27,7 @@ kind: "package-reference"
 
 `SeatFailure.details` 可选通过 `agentPreset` 标识 Session 创建前被拒绝的预设，或通过 `provider` 与 `model` 标识不可用模型。`SeatNodeStatus.openingFailures` 独立于会话窗口投影尚未解决的前置条件失败；模型失败携带可选 `provider` 与 `model` 字段，引擎运行时失败仍位于 `failure`。其中可选 `unavailableOverTenMinutes: true` 标识连续不可用超过十分钟，恢复后随失败字段一起清除。可选 `stage: 'turn'` 标识活窗的 `UNKNOWN_MODEL` 或 `session/model-unavailable` 诊断，不改变开窗状态。可选 `SeatNodeStatus.callbackFailures` 独立于引擎故障，列出无效果且停车等待操作员处置的签发器拒权或回调认证拒绝。不带正文的 `seat/diagnostics-changed` 事件使已授权读取失效，不泄露诊断字段。[工位引擎](../seat-engine/README.zh.md)拥有投影及清除语义。
 
-`EngineCloseData` 与 `window-ended` 回调可选保留 `detail: 'approval-pending-cancelled'`，配合既有 `manual` 结束原因。细因缺失时保持普通收窗语义；取消与停稳重核由[本地提供方](../seat-local/README.zh.md)负责。
+`EngineCloseData` 与 `window-ended` 回调可选保留细因 `approval-pending-cancelled`、`restart-manual-opening-closed` 或 `restart-source-wake-closed`，配合既有 `manual` 结束原因。两种重启细因也在收窗提交后投影到 `SeatNodeStatus.openingFailures`，保留本地化告警，不授权再次开窗。细因缺失时保持普通收窗语义；取消与停稳重核由[本地提供方](../seat-local/README.zh.md)负责。
 
 可选 `SeatOpeningContexts.registerScopeAdmission` 为来源单项开窗及任务批次安装 `OpeningScopeAdmission` 所有者。所有者串行化评估、持久占位及既有执行器；注销排空在途调用。省略时保持既有评估器查询及拒绝行为。接口不含来源特有的工单字段。
 

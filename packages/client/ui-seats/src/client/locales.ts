@@ -1,6 +1,8 @@
 /** Typed seat UI copy; names and provider refusal details remain verbatim data. */
 export const en = {
   seat: 'Seat', seats: 'Seats', free: 'Free window', open: 'Open seat', opened: 'Open', unopened: 'Not open',
+  restartManualClosed: 'A window opened before the restart was closed; open it again.',
+  restartWakeClosed: 'A window opened by a source wake before the restart was closed; wake it again or open it if needed.',
   approvalPending: 'Pending approval', closeWindow: 'Close seat window', closeFailed: 'Window closing was refused: {reason}',
   busy: 'Busy', idle: 'Idle', unknown: 'Unknown', unavailable: 'Seat data is unavailable.',
   empty: 'No seats yet. Add your first seat.', addSeat: 'Add seat',
@@ -41,6 +43,8 @@ export type SeatKey = keyof typeof en
 /** Chinese seat UI copy. */
 export const zh: Record<SeatKey, string> = {
   seat: '位', seats: '工位', free: '自由窗', open: '按位开', opened: '在开', unopened: '未开',
+  restartManualClosed: '重启前点过的开窗已收掉，请重新点开窗。',
+  restartWakeClosed: '重启前由来源唤醒开的窗已收掉，需要时请重新唤醒或点开窗。',
   approvalPending: '待审批', closeWindow: '收窗', closeFailed: '收窗被拒：{reason}',
   busy: '忙', idle: '闲', unknown: '未知', unavailable: '工位数据不可用。',
   empty: '还没有工位，添加第一个工位。', addSeat: '添加工位',

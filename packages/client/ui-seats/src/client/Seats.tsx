@@ -126,11 +126,13 @@ function Diagnostics({ data, t }: { data: SeatOverview | undefined; t: Common['t
         { callback: callback.callbackId, code: callback.code })}
     </p>)}
     {data.diagnostics?.openings.map(open => <p role="alert" key={open.sessionId}>
-      {open.seat}: {open.code === 'invalid-definition'
-        ? t(open.stage === 'turn' ? 'admissionDefinition' : 'invalidDefinition', { code: open.code }) : open.model !== undefined
-          ? t(open.stage === 'turn' ? 'liveModelUnavailable' : 'modelUnavailable',
-            { model: open.model, provider: open.provider ?? '', code: open.code })
-          : t('missingPreset', { preset: open.agentPreset, code: open.code })}
+      {open.seat}: {open.detail === 'restart-manual-opening-closed' ? t('restartManualClosed')
+        : open.detail === 'restart-source-wake-closed' ? t('restartWakeClosed')
+          : open.code === 'invalid-definition'
+            ? t(open.stage === 'turn' ? 'admissionDefinition' : 'invalidDefinition', { code: open.code }) : open.model !== undefined
+              ? t(open.stage === 'turn' ? 'liveModelUnavailable' : 'modelUnavailable',
+                { model: open.model, provider: open.provider ?? '', code: open.code })
+              : t('missingPreset', { preset: open.agentPreset, code: open.code })}
     </p>)}
   </div>
 }
