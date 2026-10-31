@@ -5,6 +5,8 @@
     - button "模型"
     - button "内置插件"
     - button "Agent 预设"
+    - button "技能"
+    - button "统计台"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -15,13 +17,25 @@
       - button "编辑 openrouter": 编辑
       - button "删除 openrouter": 删除
       - alert: "llm-pi-ai: provider \"openrouter\" model \"111\" needs an api; the installed catalog does not describe it, so set the route's api to the wire protocol its endpoint speaks"
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
     - listitem:
       - text: zai
       - button "编辑 zai": 编辑
       - button "删除 zai": 删除
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
     - listitem:
       - text: acme-gateway 自定义
       - button "编辑 acme-gateway": 编辑
       - button "删除 acme-gateway": 删除
       - alert: "llm-pi-ai: provider \"acme-gateway\" model \"custom-model\" needs an api; the installed catalog does not describe it, so set the route's api to the wire protocol its endpoint speaks"
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
   - button "添加模型提供商"

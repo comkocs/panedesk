@@ -5,6 +5,8 @@
     - button "模型"
     - button "内置插件"
     - button "Agent 预设"
+    - button "技能"
+    - button "统计台"
   - button "打开配置文件"
   - button "关闭"
   - heading "模型" [level=2]
@@ -15,10 +17,18 @@
       - img "API 密钥已配置"
       - button "编辑 minimax-cn": 编辑
       - button "删除 minimax-cn": 删除
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
     - listitem:
       - text: openai
       - button "编辑 openai": 编辑
       - button "删除 openai": 删除
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
       - text: openai API 密钥
       - button "认证说明": "?"
       - textbox "API 密钥":
@@ -61,4 +71,8 @@
       - text: Acme 网关 自定义
       - button "编辑 Acme 网关 (acme-gateway)": 编辑
       - button "删除 Acme 网关 (acme-gateway)": 删除
+      - button "识别模型"
+      - text: 列表外的模型 ID
+      - textbox "列表外的模型 ID"
+      - button "试连一次"
   - button "添加模型提供商"

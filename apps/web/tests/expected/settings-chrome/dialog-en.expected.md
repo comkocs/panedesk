@@ -5,6 +5,8 @@
     - button "Models"
     - button "Built-in plugins"
     - button "Agent presets"
+    - button "Skills"
+    - button "Statistics"
   - button "Open configuration file"
   - button "Close"
   - text: Permission Choose the default permission mode for new sessions
