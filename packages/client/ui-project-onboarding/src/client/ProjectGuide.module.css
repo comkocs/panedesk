@@ -1,0 +1,22 @@
+.page, .choice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.choice {
+  padding: 16px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-md);
+}
+
+.modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.choice p {
+  overflow-wrap: anywhere;
+}

@@ -2770,6 +2770,9 @@ importers:
       '@panedesk/dsh-skill-office':
         specifier: workspace:*
         version: link:../../skill/skill-office
+      '@panedesk/dsh-skill-workflow-pack':
+        specifier: workspace:*
+        version: link:../../skill/skill-workflow-pack
       '@panedesk/dsh-terminal':
         specifier: workspace:*
         version: link:../../terminal/terminal
@@ -3397,6 +3400,9 @@ importers:
       '@panedesk/dsh-client-ui-plugin-manager':
         specifier: workspace:*
         version: link:../../client/ui-plugin-manager
+      '@panedesk/dsh-client-ui-project-onboarding':
+        specifier: workspace:*
+        version: link:../../client/ui-project-onboarding
       '@panedesk/dsh-client-ui-reference':
         specifier: workspace:*
         version: link:../../client/ui-reference
@@ -3589,6 +3595,9 @@ importers:
       '@panedesk/dsh-skill-filesystem':
         specifier: workspace:*
         version: link:../../skill/skill-filesystem
+      '@panedesk/dsh-skill-workflow-pack':
+        specifier: workspace:*
+        version: link:../../skill/skill-workflow-pack
       '@panedesk/dsh-subprocess':
         specifier: workspace:*
         version: link:../../subprocess/subprocess
@@ -5424,6 +5433,82 @@ importers:
       simple-icons:
         specifier: 16.31.0
         version: 16.31.0
+
+  packages/client/ui-project-onboarding:
+    dependencies:
+      '@panedesk/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-api-remotes':
+        specifier: workspace:*
+        version: link:../../api/remotes
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../connection
+      '@panedesk/dsh-client-locale':
+        specifier: workspace:*
+        version: link:../locale
+      '@panedesk/dsh-client-store':
+        specifier: workspace:*
+        version: link:../store
+      '@panedesk/dsh-client-test-runtime':
+        specifier: workspace:*
+        version: link:../../test-support/client-runtime
+      '@panedesk/dsh-client-ui-conversation':
+        specifier: workspace:*
+        version: link:../ui-conversation
+      '@panedesk/dsh-client-ui-primitives':
+        specifier: workspace:*
+        version: link:../ui-primitives
+      '@panedesk/dsh-client-ui-renderer':
+        specifier: workspace:*
+        version: link:../ui-renderer
+      '@panedesk/dsh-client-ui-session':
+        specifier: workspace:*
+        version: link:../ui-session
+      '@panedesk/dsh-client-ui-settings':
+        specifier: workspace:*
+        version: link:../ui-settings
+      '@panedesk/dsh-client-ui-slots':
+        specifier: workspace:*
+        version: link:../ui-slots
+      '@panedesk/dsh-config-editor':
+        specifier: workspace:*
+        version: link:../../boot/config-editor
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../../seat/seat-engine
+      '@panedesk/dsh-settings':
+        specifier: workspace:*
+        version: link:../../settings/settings
+      '@panedesk/dsh-util-values':
+        specifier: workspace:*
+        version: link:../../util/values
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
 
   packages/client/ui-reference:
     devDependencies:
@@ -15115,6 +15200,28 @@ importers:
       '@panedesk/dsh-skill':
         specifier: workspace:*
         version: link:../skill
+
+  packages/skill/skill-workflow-pack:
+    dependencies:
+      '@panedesk/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/dsh-skill':
+        specifier: workspace:*
+        version: link:../skill
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.11)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.4.0))(vite@8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/skill/tool-skill:
     dependencies:

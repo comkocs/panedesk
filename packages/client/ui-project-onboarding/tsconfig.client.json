@@ -1,0 +1,60 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
+  },
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../util/values"
+    },
+    {
+      "path": "../../api/remotes/tsconfig.client.json"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../store"
+    },
+    {
+      "path": "../ui-conversation/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-session"
+    },
+    {
+      "path": "../ui-settings/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../seat/seat"
+    }
+  ],
+  "include": [
+    "src/client",
+    "src/types.ts",
+    "src/css-modules.d.ts"
+  ]
+}

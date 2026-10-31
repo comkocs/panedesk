@@ -89,6 +89,7 @@
     "@panedesk/dsh-skill": "workspace:*",
     "@panedesk/dsh-skill-filesystem": "workspace:*",
     "@panedesk/dsh-skill-office": "workspace:*",
+    "@panedesk/dsh-skill-workflow-pack": "workspace:*",
     "@panedesk/dsh-terminal": "workspace:*",
     "@panedesk/dsh-terminal-bash": "workspace:*",
     "@panedesk/dsh-time-context": "workspace:*",

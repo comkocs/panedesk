@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/skill/skill-workflow-pack/README.md
+/bundled-workflow-pack:
+  en: 935a1076c3244ca3
+  zh: 1bbb7bb6536d08fa
+/bundled-workflow-pack/use-this-package:
+  en: dd8c6f1dd8bace8f
+  zh: d8ba34460f0a51bc
+/bundled-workflow-pack/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/bundled-workflow-pack/model-experience/workflow-pack-guidance:
+  en: 37efef8af154ce9a
+  zh: d5a296581bb3f06e
+/bundled-workflow-pack/model-experience/workflow-pack-guidance/what-the-model-sees:
+  en: 017cf38de8f44412
+  zh: 1d2f5437a32335f8
+/bundled-workflow-pack/model-experience/workflow-pack-guidance/token-effect:
+  en: bc09af02a042f57f
+  zh: ceaf378088f8229e
+/bundled-workflow-pack/model-experience/workflow-pack-guidance/kv-cache-effect:
+  en: 1789be1f0b224ac7
+  zh: ce77a60b43f47d2e
+/bundled-workflow-pack/known-limitations-and-deferred-work:
+  en: 3bd73f5328c97cd7
+  zh: e47b2b664f98544b

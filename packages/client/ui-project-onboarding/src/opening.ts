@@ -1,0 +1,114 @@
+/** Owner-authorized persistence and engine application of workspace opening modes. */
+import { randomUUID } from 'node:crypto'
+import { resolve } from 'node:path'
+import type { Context } from '@panedesk/cordis'
+import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
+import type { SeatCallContext, SeatProjectId, SeatOperationId, SeatProjectPolicy } from '@panedesk/dsh-seat'
+import type { SettingsNamespaceView } from '@panedesk/dsh-settings/types'
+import type { JsonValue } from '@panedesk/dsh-util-values'
+
+declare module '@panedesk/dsh-typert-protocol' {
+  interface RemoteErrorDetailsMap {
+    'project-opening/unauthorized': Record<string, never>
+  }
+}
+import type { ProjectSelection } from './types.ts'
+
+declare module '@panedesk/cordis' {
+  interface Context {
+    /** Owner-only workspace preference operations. */
+    projectOpening: ProjectOpening
+  }
+}
+
+/** Feature-local remote operations; no model or window is started here. */
+export default class ProjectOpening extends TypertRemoteService {
+  static inject = ['settings']
+
+  private readonly lifetime = new AbortController()
+  private readonly active = new Set<Promise<unknown>>()
+
+  constructor(ctx: Context) {
+    super(ctx, 'projectOpening')
+    ctx.effect(() => async () => {
+      this.lifetime.abort()
+      await Promise.allSettled([...this.active])
+    })
+  }
+
+  /** Persist one explicit human selection and apply it to matching local seat projects.
+   * @param path Absolute workspace directory, never a project file to write.
+   * @param selection Human-selected mode and confirmation marker.
+   * @param revision Observed product-settings revision.
+   * @returns Committed product namespace after engine application succeeds.
+   */
+  @Remote
+  async select(path: string, selection: ProjectSelection, revision: number): Promise<SettingsNamespaceView> {
+    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
+      throw new RemoteError('project-opening/unauthorized', 'Authenticated owner required', {})
+    }
+    const signal = this.ctx.invocation.signal
+    const check = () => {
+      if (signal.aborted || this.lifetime.signal.aborted) throw new RemoteError('gateway/internal', 'Project selection was cancelled', {})
+    }
+    check()
+    const operation = this.save(path, selection, revision, check)
+    this.active.add(operation)
+    try { return await operation } finally { this.active.delete(operation) }
+  }
+
+  private async save(path: string, selection: ProjectSelection, revision: number, check: () => void): Promise<SettingsNamespaceView> {
+    if (resolve(path) !== path || !selection.chosen || !['off', 'remind', 'auto'].includes(selection.mode)) {
+      throw new RemoteError('gateway/internal', 'Invalid workspace selection', {})
+    }
+    const settings = this.ctx.settings
+    if (!settings.writable) throw new RemoteError('project-opening/unauthorized', 'Product settings are read-only', {})
+    const before = settings.describe().find(item => item.ns === 'ui-project-onboarding')
+    if (!before || before.revision !== revision) throw new RemoteError('gateway/internal', 'Project settings changed; reload before saving', {})
+    const engine = this.ctx.get('seatEngine'), seats = this.ctx.get('seats')
+    const projectIds = new Set<SeatProjectId>()
+    if (engine && seats) {
+      const node = await engine.nodeStatus()
+      check()
+      const service = seats.withAuthority({ principalId: 'owner' as SeatCallContext['principalId'], origin: 'manual', nodeId: node.nodeId })
+      let cursor: string | undefined
+      for (;;) {
+        const page = await service.definitions(cursor === undefined ? {} : { cursor })
+        check()
+        for (const definition of page.definitions) {
+          if (definition.directories.some(directory => resolve(directory.path) === path)) projectIds.add(definition.projectId)
+        }
+        if (page.complete) break
+        if (!page.nextCursor || page.nextCursor === cursor) throw new RemoteError('gateway/internal', 'Seat catalog is incomplete', {})
+        cursor = page.nextCursor
+      }
+    }
+    const previous: SeatProjectPolicy[] = []
+    try {
+      if (engine) for (const projectId of projectIds) {
+        const policy = await engine.projectPolicy(projectId)
+        check()
+        const result = await engine.setProjectMode({ projectId, mode: selection.mode,
+          expectedRevision: policy.revision, operationId: randomUUID() as SeatOperationId })
+        if (result.status !== 'saved') throw new Error('Opening policy changed; reload before saving')
+        previous.push(policy)
+      }
+      check()
+      await settings.mutate('ui-project-onboarding', [{ op: 'set', path: ['projects', path], value: { mode: selection.mode, chosen: true } }], revision)
+    } catch (error) {
+      if (engine) for (const policy of previous.reverse()) {
+        const current = await engine.projectPolicy(policy.projectId)
+        if (current.revision !== policy.revision + 1) throw new RemoteError('gateway/internal', 'Opening policy changed concurrently; review engine policy before retrying', {})
+        const restored = await engine.setProjectMode({ projectId: policy.projectId, mode: policy.mode,
+          expectedRevision: current.revision, operationId: randomUUID() as SeatOperationId })
+        if (restored.status !== 'saved') throw new RemoteError('gateway/internal', 'Opening policy rollback failed; review engine policy before retrying', {})
+      }
+      throw error
+    }
+    const committed = settings.describe({ redactSecrets: true }).find(item => item.ns === 'ui-project-onboarding')
+    if (!committed) throw new RemoteError('gateway/internal', 'Project settings are unavailable after save', {})
+    return { ns: String(committed.ns), autoGenerate: committed.autoGenerate,
+      schema: committed.schema as JsonValue, value: committed.value as JsonValue,
+      applies: committed.applies, secrets: committed.secrets ?? [], revision: committed.revision }
+  }
+}

@@ -102,6 +102,8 @@
     "@panedesk/dsh-client-ui-session": "workspace:*",
     "@panedesk/dsh-client-ui-schedule": "workspace:*",
     "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-client-ui-project-onboarding": "workspace:*",
+    "@panedesk/dsh-skill-workflow-pack": "workspace:*",
     "@panedesk/dsh-client-ui-settings-general": "workspace:*",
     "@panedesk/dsh-client-ui-settings-models": "workspace:*",
     "@panedesk/dsh-client-ui-settings-plugin-inventory": "workspace:*",

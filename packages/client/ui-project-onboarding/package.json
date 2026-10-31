@@ -1,0 +1,88 @@
+{
+  "name": "@panedesk/dsh-client-ui-project-onboarding",
+  "description": "Once-per-project opening guidance and product-owned workspace preferences",
+  "version": "0.2.1-rc.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./types": { "types": "./lib/types/types.d.ts" },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@panedesk/dsh-api-remotes",
+        "@panedesk/dsh-client-locale",
+        "@panedesk/dsh-client-ui-renderer"
+      ]
+    }
+  },
+  "license": "MIT",
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/*.css",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "peerDependencies": {
+    "@panedesk/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-api-remotes": "workspace:*",
+    "@panedesk/dsh-client-locale": "workspace:*",
+    "@panedesk/dsh-client-store": "workspace:*",
+    "@panedesk/dsh-client-ui-conversation": "workspace:*",
+    "@panedesk/dsh-client-ui-primitives": "workspace:*",
+    "@panedesk/dsh-client-ui-renderer": "workspace:*",
+    "@panedesk/dsh-client-ui-session": "workspace:*",
+    "@panedesk/dsh-client-ui-settings": "workspace:*",
+    "@panedesk/dsh-client-ui-slots": "workspace:*",
+    "@panedesk/dsh-settings": "workspace:*",
+    "@panedesk/dsh-util-values": "workspace:*",
+    "react": "^18.2.0",
+    "@panedesk/dsh-seat": "workspace:*",
+    "@panedesk/dsh-client-test-runtime": "workspace:*",
+    "@panedesk/dsh-client-connection": "workspace:*",
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/cordis-plugin-include": "workspace:~",
+    "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-config-editor": "workspace:*",
+    "@panedesk/dsh-seat-engine": "workspace:*"
+  },
+  "dependencies": {
+    "@panedesk/schemastery": "workspace:~",
+    "@panedesk/dsh-typert-protocol": "workspace:*",
+    "zod": "^4.4.3"
+  }
+}
