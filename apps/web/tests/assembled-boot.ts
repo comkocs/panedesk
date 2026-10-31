@@ -176,6 +176,7 @@ function bundleTable(graph: WebBootGraph, plugins: readonly AssembledPlugin[]): 
 }
 
 interface FixtureWindow extends Window {
+  __DSH_BUILD_METADATA__?: Record<string, string>
   __DSH_BOOT__?: WebBootGraph
   __ModuleLoader__?: ClientModuleLoaderTarget
   __DSH_TRANSPORT__?: { readonly rpc: RemoteMock['rpc'] }
@@ -250,6 +251,7 @@ export function installAssembledBootEnv(): void {
     unmount = undefined
     mountedRemote = undefined
     cleanup()
+    delete win.__DSH_BUILD_METADATA__
     delete win.__DSH_BOOT__
     delete win.__ModuleLoader__
     delete win.__DSH_TRANSPORT__
@@ -287,6 +289,16 @@ export function mountAssembledApp(options: AssembledBootOptions = {}): Assembled
   document.body.appendChild(root)
   const graph = bootGraph(plugins)
   const bundles = bundleTable(graph, plugins)
+  const metadata: unknown = JSON.parse(readFileSync(join(REPO_ROOT, 'packages/client/modules/lib/build-metadata.json'), 'utf8'))
+  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
+    throw new Error('assembled boot: invalid build metadata')
+  }
+  win.__DSH_BUILD_METADATA__ = Object.fromEntries(Object.entries(metadata).map(([name, value]) => {
+    if (!['DSH_CLIENT_COMMIT_HASH', 'DSH_CLIENT_GIT_DIRTY'].includes(name) || typeof value !== 'string') {
+      throw new Error(`assembled boot: invalid build metadata entry ${name}`)
+    }
+    return [name, value]
+  }))
   win.__DSH_BOOT__ = graph
   const [facadeRow] = bootInjections(win.__DSH_BOOT__)
   if (facadeRow?.kind !== 'script') throw new Error('missing injected ModuleLoader facade row')

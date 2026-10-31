@@ -15,6 +15,7 @@ import { REPO_ROOT } from './support.ts'
 
 const CLIENT_ARTIFACT_PATTERNS = [
   'apps/web/dist/**/*',
+  'packages/client/modules/lib/build-metadata.json',
   'packages/*/*/lib/client.js',
   'packages/*/*/lib/client.js.map',
   'packages/*/*/lib/client.*.js',
