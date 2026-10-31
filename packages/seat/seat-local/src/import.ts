@@ -14,7 +14,11 @@ import { refuse, SeatLocalError } from './errors.ts'
 
 function fields(definition: SeatDefinition): Record<string, SeatJson> {
   const { source: _source, revision: _revision, ...values } = definition
-  return JSON.parse(JSON.stringify(values)) as Record<string, SeatJson>
+  const parsed: unknown = JSON.parse(JSON.stringify(values))
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    refuse('invalid-definition', 'Definition fields are not a record.', 'Correct the definition before importing.')
+  }
+  return Object.fromEntries(Object.entries(parsed).sort(([left], [right]) => left.localeCompare(right)))
 }
 function nodeText(node: Nodes): string {
   if ('value' in node) return node.value
@@ -56,7 +60,7 @@ const numericFields = new Set(['revision', 'schemaVersion', 'maxOpenSessions', '
 /** Persists preview selections across callers while source bytes and revision remain current. */
 export class SeatImporter {
   constructor(private readonly store: SeatStore, private readonly catalogs: DefinitionCatalogs,
-    private readonly limits: { maxSourceBytes: number; maxPlans: number; importPlanTtlMs?: number }) {}
+    private readonly limits: { maxSourceBytes: number; maxPlans: number; importPlanTtlMs?: number; maxSeats?: number }) {}
 
   private async source(request: Pick<PreviewSeatImportRequest, 'sourcePath'>): Promise<{ text: string; hash: SeatDigest }> {
     if ((await stat(request.sourcePath)).size > this.limits.maxSourceBytes) refuse('invalid-definition', 'Import source exceeds the configured byte limit.', 'Select a smaller source.')
@@ -108,10 +112,22 @@ export class SeatImporter {
         const conflict = local !== undefined && baseline !== undefined
           && digest(localFields) !== digest(baseline) && digest(normalized) !== digest(baseline)
         const merged = { ...normalized }
+        let retainedLocal = false
         for (const difference of differences) {
-          if (digest(difference.local) !== digest(difference.baseline)) merged[difference.field] = difference.local
+          if (digest(difference.local) !== digest(difference.baseline)) {
+            merged[difference.field] = difference.local
+            retainedLocal = true
+          }
         }
-        const definition = { ...resolved, ...merged, revision: (local?.revision ?? 0) + 1,
+        const mergedContent = { ...resolved, ...merged }
+        const storedFields = local === undefined ? undefined : fields(local)
+        const mergedForFields = local?.source === undefined
+          ? { ...mergedContent, revision: local?.revision ?? 1 }
+          : { ...mergedContent, revision: local.revision, source: local.source }
+        const mergedFields = local === undefined ? undefined : fields(mergedForFields)
+        const contentChanged = storedFields === undefined || mergedFields === undefined || digest(storedFields) !== digest(mergedFields)
+        const added = contentChanged || retainedLocal ? 1 : 0
+        const definition = { ...mergedContent, revision: local === undefined ? 1 : local.revision + added,
           source: { sourcePath: request.sourcePath, sourceFileHash: source.hash, rowHash, mappingHash,
             columnHashes, baseline: normalized, authority: catalog.authority } } as SeatDefinition
         rows.push({ row: row.row, seat: resolved.seat, definition, rowHash, columnHashes,
@@ -141,6 +157,14 @@ export class SeatImporter {
    * @returns committed revision; conflicting rows and tombstones never overwrite data.
    */
   async commit(request: CommitSeatImportRequest): Promise<CommitSeatImportResult> {
+    const replay = this.store.committedImportPlan(request.planId, request.operationId)
+    if (replay !== undefined) {
+      const receipt = this.store.snapshot().operations[request.operationId]
+      if (receipt !== undefined && digest(request) === receipt.digest) {
+        return { status: 'committed', revision: receipt.revision, rows: structuredClone(replay.plan.rows) }
+      }
+      refuse('operation-id-conflict', 'Operation identity has different contents.', 'Use the original request or a new operation identity.')
+    }
     const retained = this.store.importPlan(request.planId)
     if (retained === undefined) refuse('import-preview-stale', 'Import preview is no longer available.', 'Preview the source again.')
     const { plan } = retained
@@ -162,12 +186,17 @@ export class SeatImporter {
     const revision = await this.store.mutate(request.expectedRevision, request.operationId, request, (catalog) => {
       if (catalog.authority !== 'import-source') refuse('seat-store-authoritative', 'The catalog owns editing authority.', 'Edit the catalog instead of importing updates.')
       for (const row of plan.rows) {
-        if (!selected.has(row.row) || row.definition === null || row.action === 'conflict' || row.action === 'invalid' || row.action === 'tombstone') continue
+        if (!selected.has(row.row) || row.definition === null || row.action === 'conflict' || row.action === 'invalid'
+          || row.action === 'tombstone' || row.action === 'retain') continue
         const index = catalog.definitions.findIndex(item => item.seat === row.seat)
-        if (index < 0) catalog.definitions.push(row.definition)
-        else catalog.definitions[index] = row.definition
+        const stored = index < 0 ? undefined : catalog.definitions[index]
+        const next = stored === undefined || row.definition.revision > stored.revision
+          ? row.definition : { ...row.definition, revision: stored.revision + 1 }
+        if (index < 0) catalog.definitions.push(next)
+        else catalog.definitions[index] = next
       }
-    }, 'import-preview-stale')
+    }, 'import-preview-stale', this.limits.maxSeats)
+    await this.store.releaseImportPlan(request.planId, request.operationId)
     return { status: 'committed', revision, rows: structuredClone(plan.rows) }
   }
 }
