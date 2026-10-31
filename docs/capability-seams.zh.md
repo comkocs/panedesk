@@ -11,6 +11,8 @@
 flowchart LR
   pkg_client_ui_seat_approvals["client-ui-seat-approvals"]
   svc_seatApprovals["ctx.seatApprovals<br/>Owner seat approval observations and actions"]
+  pkg_client_ui_subagent_tree["client-ui-subagent-tree"]
+  svc_subagentTree["ctx.subagentTree<br/>Owner subagent tree reads"]
   pkg_seat["seat"]
   svc_nodeWorkChainBusiness["ctx.nodeWorkChainBusiness<br/>Durable chain business queries"]
   pkg_node_link["node-link"]
@@ -398,6 +400,7 @@ flowchart LR
   pkg_client_ui_plugin_manager --> svc_pluginRegistryProbe
   pkg_client_ui_seat_approvals --> svc_seatApprovals
   pkg_client_ui_stats --> svc_stats
+  pkg_client_ui_subagent_tree --> svc_subagentTree
   pkg_command_feedback --> svc_sessionFeedback
   pkg_commands --> svc_commands
   pkg_compaction --> svc_compaction
@@ -822,6 +825,7 @@ flowchart LR
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.seatApprovals` | `service` | [`client-ui-seat-approvals`](../packages/client/ui-seat-approvals) | - | - | - | 呈现待批开窗与操作进度，并把所有者的显式操作转交给已安装的席位引擎。 |
+| `ctx.subagentTree` | `service` | [`client-ui-subagent-tree`](../packages/client/ui-subagent-tree) | - | - | - | 根据账本父子关系事实，为已认证所有者投影单个会话的子代理树，包含逐节点监测与从转录推导的模型标识。 |
 | `ctx.nodeWorkChainBusiness` | `seam` | [`seat`](../packages/seat/seat) | [`node-link`](../packages/seat/node-link) | [`seat-engine`](../packages/seat/seat-engine), [`seat-local`](../packages/seat/seat-local), [`node-link`](../packages/seat/node-link) | - | 注册唯一业务提供方，并以恢复屏障约束精确键查询与受限续推。 |
 | `ctx.seatAuthorizationTransactions` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | [`seat-local`](../packages/seat/seat-local), [`host-admin`](../packages/host/host-admin), [`node-link`](../packages/seat/node-link) | - | Commits issued facts and action effects together; missing admission rejects audited actions. |
 | `ctx.seatAuthorizationExports` | `seam` | [`seat`](../packages/seat/seat) | [`seat-engine`](../packages/seat/seat-engine) | - | - | Exports bounded redacted facts without serializing process-local grants. |

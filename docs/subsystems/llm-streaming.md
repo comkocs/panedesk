@@ -765,6 +765,12 @@ interface LlmModelDiscoveryRequest {
 interface LlmDiscoveredModel {
   /** Model id the endpoint accepts. */
   id: string
+  /**
+   * Creation time the listing disclosed, as seconds since the Unix epoch.
+   * Absent when the endpoint or the installed catalog does not disclose one;
+   * callers then keep server order instead of sorting by recency.
+   */
+  createdAt?: number
   /** Human-readable name when the endpoint supplies one. */
   name?: string
   /** Maximum combined request and response context, when disclosed. */
@@ -962,6 +968,12 @@ declare abstract class LlmAdapter {
    * @returns the chunk stream, obeying the adapter contract documented on `StreamChunk`.
    */
   abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;
+  /**
+   * Dispatch an explicit connectivity probe without requiring catalog membership.
+   * @param options - the Host-owned minimal probe request.
+   * @returns terminal evidence from the provider, using the route's existing credentials.
+   */
+  probe(options: GenerateOptions): AsyncIterable<StreamChunk>;
 }
 ```
 
