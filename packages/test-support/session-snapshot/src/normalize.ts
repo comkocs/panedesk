@@ -97,6 +97,24 @@ export interface NormalizeContext {
   cwdAliases?: readonly string[]
 }
 
+/**
+ * Select a Session's own cwd without treating another Session's directory as an alias.
+ * @param rawLog - Session JSONL whose first record carries its cwd.
+ * @param context - Run identities and aliases for the run's primary cwd.
+ * @returns The per-Session context, retaining aliases only for that same directory.
+ */
+export function sessionLogContext(rawLog: string, context: NormalizeContext): NormalizeContext {
+  const firstLine = rawLog.split('\n').find(line => line.trim().length > 0) ?? '{}'
+  const header = JSON.parse(firstLine) as { cwd?: unknown }
+  const cwd = typeof header.cwd === 'string' ? header.cwd : context.cwd
+  const sameDirectory = cwd === context.cwd || context.cwdAliases?.includes(cwd) === true
+  return {
+    sessionIds: context.sessionIds,
+    cwd,
+    ...sameDirectory ? { cwdAliases: [context.cwd, ...context.cwdAliases ?? []] } : {},
+  }
+}
+
 /** How cwd-rooted path separators are represented after the cwd is tokenized. */
 export type CwdPathMode = 'canonical' | 'native'
 
@@ -473,7 +491,7 @@ export function normalizeSessionSnapshot(
 }
 
 /**
- * Normalize one scenario's primary and child logs with shared typed identity redaction.
+ * Normalize each log's header cwd with shared typed identity redaction across parent and children.
  * Native-writer comparison strictly restores each input before tokenizing its own delivery generation.
  * @param rawLogs - primary-first persisted or projected session JSONL.
  * @param ctx - generated cwd spellings and other volatile run facts.
@@ -492,10 +510,10 @@ export function normalizeSessionSnapshots(
     return normalizeSessionFormatMetadata(currentLog, nativeWriterOutput
       ? sessionHeaderVersion(log, 'source Session snapshot') : undefined)
   })
-  return redactSessionSnapshotIds(comparableLogs).map(log => projectSessionSnapshot(
+  return redactSessionSnapshotIds(comparableLogs).map((log, index) => projectSessionSnapshot(
     scrubSessionSnapshot(normalizeSessionLog(
       log,
-      { ...ctx, sessionIds: [] },
+      { ...sessionLogContext(rawLogs[index] as string, ctx), sessionIds: [] },
       { ...normalizeOptions, identityMode: 'preserve' },
     )),
   ))
