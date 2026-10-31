@@ -47,6 +47,26 @@ function countNewlines(text: string): number {
   return count
 }
 
+interface RequireScope {
+  readonly parent?: RequireScope
+  readonly functionScope: boolean
+  bound: boolean
+}
+
+/** Whether a binding pattern declares a local identifier named require. */
+function bindsRequire(pattern: Node | null): boolean {
+  if (pattern === null) return false
+  switch (pattern.type) {
+    case 'Identifier': return pattern.name === 'require'
+    case 'ObjectPattern': return (pattern.properties as Node[]).some(property =>
+      bindsRequire((property.type === 'RestElement' ? property.argument : property.value) as Node))
+    case 'ArrayPattern': return (pattern.elements as Array<Node | null>).some(bindsRequire)
+    case 'AssignmentPattern': return bindsRequire(pattern.left as Node)
+    case 'RestElement': return bindsRequire(pattern.argument as Node)
+    default: return false
+  }
+}
+
 interface Edit {
   readonly start: number
   readonly end: number
@@ -71,6 +91,81 @@ class Transformer {
   private readonly moduleRequests = new Set<string>()
   private readonly metaResolveRequests = new Set<string>()
   private readonly createRequireBindings = new Set<string>()
+  private readonly requireScopes = new WeakMap<Node, RequireScope>()
+
+  /** Index lexical bindings before reading calls, including hoisted var declarations. */
+  private indexRequireScopes(value: unknown, scope: RequireScope): void {
+    if (value === null || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      for (const child of value) this.indexRequireScopes(child, scope)
+      return
+    }
+    const node = value as Node
+    if (typeof node.type !== 'string') return
+    let current = scope
+    if (node.type === 'FunctionDeclaration' || node.type === 'ClassDeclaration') {
+      if (bindsRequire(node.id as Node | null)) scope.bound = true
+    }
+    switch (node.type) {
+      case 'FunctionDeclaration':
+      case 'FunctionExpression':
+      case 'ArrowFunctionExpression':
+        current = {
+          parent: scope, functionScope: true,
+          bound: bindsRequire((node.id as Node | null | undefined) ?? null)
+            || (node.params as Node[]).some(bindsRequire),
+        }
+        break
+      case 'BlockStatement':
+      case 'SwitchStatement':
+      case 'ForStatement':
+      case 'ForInStatement':
+      case 'ForOfStatement':
+      case 'StaticBlock':
+        current = { parent: scope, functionScope: node.type === 'StaticBlock', bound: false }
+        break
+      case 'CatchClause':
+        current = { parent: scope, functionScope: false, bound: bindsRequire(node.param as Node | null) }
+        break
+      case 'ClassExpression':
+        current = { parent: scope, functionScope: false, bound: bindsRequire(node.id as Node | null) }
+        break
+      case 'VariableDeclaration': {
+        let target = scope
+        if (node.kind === 'var') {
+          while (!target.functionScope && target.parent !== undefined) target = target.parent
+        }
+        if ((node.declarations as Node[]).some(declaration => bindsRequire(declaration.id as Node))) target.bound = true
+        break
+      }
+      case 'ImportDeclaration':
+        if ((node.specifiers as Node[]).some(specifier => bindsRequire(specifier.local as Node))) scope.bound = true
+        break
+      default: break
+    }
+    this.requireScopes.set(node, current)
+    for (const [key, child] of Object.entries(node)) {
+      if (key === 'type' || key === 'start' || key === 'end') continue
+      if (node.type === 'SwitchStatement' && key === 'discriminant') {
+        this.indexRequireScopes(child, scope)
+      } else if (key === 'body' && (
+        node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression'
+      )) {
+        // Body var declarations do not bind names in parameter initializers.
+        this.indexRequireScopes(child, { parent: current, functionScope: true, bound: false })
+      } else {
+        this.indexRequireScopes(child, current)
+      }
+    }
+  }
+
+  private isWrapperRequire(callee: Node): boolean {
+    if (callee.type !== 'Identifier' || callee.name !== 'require') return false
+    for (let scope = this.requireScopes.get(callee); scope !== undefined; scope = scope.parent) {
+      if (scope.bound) return false
+    }
+    return true
+  }
 
   constructor(source: string, private readonly path: string) {
     // A `#!` line is only legal at offset zero, and the prologue takes that spot;
@@ -446,7 +541,7 @@ class Transformer {
   }
 
   private isRequireCall(callee: Node, moduleScope: boolean): boolean {
-    return (callee.type === 'Identifier' && callee.name === 'require')
+    return this.isWrapperRequire(callee)
       || (moduleScope && this.isCreateRequireCall(callee))
   }
 
@@ -480,6 +575,7 @@ class Transformer {
       this.fail(`parse failed: ${(reason as Error).message}`, 0)
     }
     this.indexCreateRequireImports(program)
+    this.indexRequireScopes(program, { functionScope: true, bound: false })
     this.visit(program, { asyncGenerator: false, functionDepth: 0, moduleScope: true })
     if (this.edits.length === 0 && !this.moduleSyntax) return this.source
 

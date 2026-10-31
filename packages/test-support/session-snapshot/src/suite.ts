@@ -1065,6 +1065,13 @@ function collectNormalizedStringMappings(
   return true
 }
 
+/** Newly emitted catalog messages have no predecessor row from which to borrow volatile fields. */
+function insertedSkillCatalog(record: Record<string, unknown>, existing: Record<string, unknown> | undefined): boolean {
+  const catalog = (value: Record<string, unknown> | undefined): boolean => value?.type === 'user/message'
+    && isRecord(value.data) && isRecord(value.data.source) && value.data.source.kind === 'skill-catalog'
+  return catalog(record) && !catalog(existing)
+}
+
 /**
  * Build a log-wide bijection for normalized-equivalent strings.
  * Any unexplained record mismatch or conflicting replacement disables reuse.
@@ -1087,7 +1094,8 @@ function normalizedStringMappings(
     const record = records[recordIndex] as Record<string, unknown>
     const existingRecord = existingRecords[existingIndex]
     const memberCount = packedTimes(record)?.length ?? 1
-    if (record.type === 'session/title' && existingRecord?.type !== 'session/title') continue
+    if (record.type === 'session/title' && existingRecord?.type !== 'session/title'
+      || insertedSkillCatalog(record, existingRecord)) continue
     if (memberCount > 1) {
       const existingMembers = existingRecords.slice(existingIndex, existingIndex + memberCount)
       if (
@@ -1116,8 +1124,10 @@ function normalizedStringMappings(
  * volatile fixture fields. Meaningful event payloads come from `fresh`; the
  * existing fixture lends normalized-equivalent values, including non-message ids, paths,
  * creation/event times, spill locators, and hook durations, only when the
- * complete record layout aligns and volatile strings form a consistent
- * bijection. Complete durable-message ids are excluded because the later
+ * record layout aligns apart from inserted titles or skill catalogs and volatile
+ * strings form a consistent bijection. Inserted preparation events retain their
+ * payloads and borrow the preceding event time without advancing the old log.
+ * Complete durable-message ids are excluded because the later
  * fixture-ready structural pass owns them. Ambiguous layouts or mappings
  * keep fresh strings. Packed timing gaps expand from zero when a projected
  * fixture omits `time0`, so packing does not shift later records;
@@ -1155,9 +1165,9 @@ export function stabilizeRefreshLog(
     const existingRecord = existingRecords[existingIndex]
     const memberCount = packedTimes(record)?.length ?? 1
     const insertedTitle = record.type === 'session/title' && existingRecord?.type !== 'session/title'
-    if (insertedTitle) {
-      /* v8 ignore next -- a title is turn-enclosed, so a preceding event time exists in every valid fixture. */
-      if (typeof previousEventTime !== 'number') throw new Error('acp-snapshot: inserted title has no preceding event time')
+    if (insertedTitle || insertedSkillCatalog(record, existingRecord)) {
+      /* v8 ignore next -- inserted model preparation events follow a turn event in every valid fixture. */
+      if (typeof previousEventTime !== 'number') throw new Error('acp-snapshot: inserted preparation event has no preceding event time')
       record.time = previousEventTime
     } else {
       if (
