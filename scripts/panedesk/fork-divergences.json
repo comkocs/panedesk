@@ -82,6 +82,8 @@
           "packages/seat/seat-local/src/orphaned-opening.ts",
           "packages/seat/seat-local/src/service.ts",
           "packages/seat/seat-local/tests/orphaned-opening-close-composition.spec.ts",
+          "packages/seat/seat-local/tests/dead-owner-recovery.spec.ts",
+          "packages/seat/seat-local/tests/dead-owner-recovery-worker.ts",
           "packages/seat/seat-local/README.md",
           "packages/seat/seat-local/README.zh.md",
           "packages/seat/seat-local/README.i18n.yaml",
@@ -235,7 +237,7 @@
       "id": "seat-local-import-plan-release",
       "description": "Seat local import plan release.",
       "origin": "Optional seat and host integration",
-      "reason": "Upstreamable: release committed import plans, avoid revision changes for identical content, reject different content at the same version during import commit, and optionally count seats explicitly named by source rules toward limits.",
+      "reason": "Upstreamable: release committed import plans, avoid revision changes for identical imported content while persisting replay receipts, preserve direct-save revision advancement for frozen admission rechecks, reject different content at the same version during import commit, and optionally count seats explicitly named by source rules toward limits.",
       "match": {
         "type": "test-assertion",
         "paths": [
@@ -244,7 +246,11 @@
           "packages/seat/seat-local/src/import-plan.ts",
           "packages/seat/seat-local/src/service.ts",
           "packages/seat/seat-local/src/service-options.ts",
-          "packages/seat/seat-local/tests/import.spec.ts"
+          "packages/seat/seat-local/tests/import.spec.ts",
+          "packages/seat/seat-local/tests/store.spec.ts",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/README.i18n.yaml"
         ],
         "test": "releases a committed preview so the next plan fits the same capacity"
       }
