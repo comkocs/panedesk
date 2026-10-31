@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "typed-snapshot-acceptance-fixtures",
+      "description": "Keep acceptance fixtures inside the public snapshot and Session list semantics.",
+      "origin": "Integrated aggregate and screenshot checks",
+      "reason": "Place synthetic completed ledger calls strictly before the query cutoff so priced usage is visible without altering aggregation semantics. Remove the obsolete jobs field from the Session list fixture rather than bypassing its declared type.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["apps/web/tests/ledger-statistics.e2e.ts", "packages/client/ui-subagent/tests/sidebar-chat.client.spec.tsx"],
+        "test": "exact priced token totals and embedded Chat routing with aggregate typechecking"
+      }
+    },
+    {
       "id": "stateless-entry-glyph-bundling",
       "description": "Allow the exact static entry-glyph library in browser consumers.",
       "origin": "Integrated client artifact validation",
