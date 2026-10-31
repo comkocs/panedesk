@@ -11,8 +11,6 @@ English | [中文](README.zh.md)
 
 `SlotTestRuntime.create()` lets Vitest suites drive production slots, stores, typed Session and Workspace fixtures, and local DOM assertions in jsdom. For plugin activation, reload, reconnect, and cleanup tests, `createClientTest` starts the web profile's bundle roster with endpoint-named Remote mocks, without a business Host. Missing services and unstubbed calls fail explicitly. The whole-client fixture owns startup and disposal; the local runtime provides idempotent disposal. Use this package through `devDependencies` for client tests; it is not a product plugin.
 
-Bundle rows use their own manifests without self-links. Dependencies resolve from real bundle directories before ancestor directories. The default Remote table includes the disabled inbox observation used when a receiving Session is rendered.
-
 ## Table of Contents
 
 - [Use this package](#use-this-package)
@@ -26,6 +24,8 @@ Bundle rows use their own manifests without self-links. Dependencies resolve fro
 
 <a id="use-this-package"></a>
 ## Use this package
+
+Bundle rows use their own manifests without self-links. Dependencies resolve from real bundle directories before ancestor directories. The default Remote table includes the disabled inbox observation used when a receiving Session is rendered.
 
 This package gives a browser feature spec a real runtime to mount against: create the bench, declare the slots your feature occupies, mount the feature plugin, render a slot, assert on the local view, and dispose — with no second implementation of production logic.
 

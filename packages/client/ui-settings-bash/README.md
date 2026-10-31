@@ -1,10 +1,13 @@
+---
+description: "Settings row for confirmed Windows Git Bash selection."
+kind: "package-reference"
+---
+
 # @panedesk/dsh-client-ui-settings-bash
 
-<!-- summary -->
+## Summary
 
 Settings General row that probes the Windows Git Bash installation through the Host and commits the confirmed selection in one click, with bilingual install instructions when nothing is found.
-
-<!-- /summary -->
 
 English | [中文](README.zh.md)
 
@@ -13,8 +16,8 @@ English | [中文](README.zh.md)
 - [Using this package](#using-this-package)
 - [Understanding the implementation](#understanding-the-implementation)
 - [Further reading](#further-reading)
-- [Model experience](#model-experience)
-- [Known limitations and deferred work](#known-limitations-and-deferred-work)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
 ## Using this package
 
@@ -41,23 +44,29 @@ The row holds one asynchronous view with three settled outcomes — probe hit, n
 - [`@panedesk/dsh-host-bash-setup`](../../host/host-bash-setup/README.md) — the Remote gateway this row drives.
 - [`@panedesk/dsh-bash-local`](../../shell/bash-local/README.md) — the candidate table and the committed product file.
 
-## Model experience
+## Model Experience
 
-#### Model experience impact
+### User interface
+
+#### What the model sees
 
 This package changes no model input or output.
 
-#### KV-cache impact
+#### Token effect
+
+UI and configuration operations consume no model tokens.
+
+#### KV Cache effect
 
 No model calls are involved; no KV-cache impact.
 
-## Known limitations and deferred work
+## Known Limitations and Deferred Work
 
 - **Applies after restart** — the committed write is read at profile mount time, so the change takes effect on the next app start; the row states this in place.
 - **No session-start hint** — the design also places a one-shot hint after a session starts; the row delivers the whole flow inside Settings and the hint has no clean slot yet.
 
 <a id="dev-note"></a>
-### Development note
+### Dev Note
 
 <details>
 <summary>Maintainer working context — click to expand</summary>

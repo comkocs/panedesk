@@ -1,10 +1,14 @@
+---
+description: "确认 Windows Git Bash 选择的设置行。"
+kind: "package-reference"
+---
+
 # @panedesk/dsh-client-ui-settings-bash
 
-<!-- summary -->
+<a id="summary"></a>
+## 概述
 
 设置通用行:经宿主探测 Windows 的 Git Bash 安装,确认后一键提交选择;找不到时给中英安装说明。
-
-<!-- /summary -->
 
 [English](README.md) | 中文
 
@@ -47,10 +51,20 @@
 <a id="model-experience"></a>
 ## 模型体验
 
-#### 模型体验影响
+<a id="user-interface"></a>
+### 用户界面
+
+<a id="what-the-model-sees"></a>
+#### 模型可见内容
 
 本包不改任何模型输入或输出。
 
+<a id="token-effect"></a>
+#### Token 影响
+
+界面与配置操作不消耗模型 token。
+
+<a id="kv-cache-effect"></a>
 #### KV 缓存影响
 
 不涉及模型调用,无 KV 缓存影响。

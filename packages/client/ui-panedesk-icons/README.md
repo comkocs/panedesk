@@ -1,10 +1,13 @@
+---
+description: "Static browser glyphs and design tokens."
+kind: "package-library"
+---
+
 # @panedesk/dsh-client-ui-panedesk-icons
 
-<!-- summary -->
+## Summary
 
 Static icon and token library for the Panedesk entry surfaces: the self-drawn monoline glyph set (16/20/24, currentColor), the application mark, and the design-token table that records which upstream DSH theme variables the new panels consume plus the one new spacing tier.
-
-<!-- /summary -->
 
 English | [中文](README.zh.md)
 
@@ -15,8 +18,8 @@ English | [中文](README.zh.md)
 - [Icon manifest](#icon-manifest)
 - [Understanding the implementation](#understanding-the-implementation)
 - [Further reading](#further-reading)
-- [Model experience](#model-experience)
-- [Known limitations and deferred work](#known-limitations-and-deferred-work)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 
 ## Using this package
 
@@ -24,7 +27,7 @@ Import glyph components directly (`import { IconPanedeskStats } from '@panedesk/
 
 ## Token table
 
-The durable home of the table is [`src/tokens.ts`](src/tokens.ts); this section is the human-readable projection.
+The durable home of the table is [`src/tokens.ts`](src/tokens.ts); this section is the human-readable projection. The public `./tokens` entry resolves to the emitted `lib/types/tokens.js`; its declarations use the adjacent `.d.ts` file.
 
 - **Color** — the new surfaces consume upstream semantic aliases only: `--dsw-alias-bg-base`, `--dsw-alias-bg-layer-1/2`, `--dsw-alias-border-l2/l3`, `--dsw-alias-label-primary/secondary/tertiary`, `--dsw-alias-brand-primary`, `--dsw-alias-menu-icon`. Values live in `packages/client/ui-theme/src/styles/design-platform.css`; this package mints no color values.
 - **Font** — `--dsw-font-base-16`, `--dsw-font-s-14`, `--dsw-font-m-18`, `--dsw-font-l-20` (defined in `packages/client/ui-theme/src/styles/gradient-shadow-text.css`).
@@ -66,23 +69,29 @@ One shared `Glyph` frame keeps the stroke, joins, caps, and decorative role (`ar
 - [`@panedesk/dsh-client-ui-primitives`](../ui-primitives/README.md) — the upstream icon set the other entries reuse.
 - [`ui-theme` styles](../ui-theme/src/styles/design-platform.css) — the upstream token values this table references.
 
-## Model experience
+## Model Experience
 
-#### Model experience impact
+### User interface
+
+#### What the model sees
 
 This package changes no model input or output.
 
-#### KV-cache impact
+#### Token effect
+
+UI and configuration operations consume no model tokens.
+
+#### KV Cache effect
 
 No model calls are involved; no KV-cache impact.
 
-## Known limitations and deferred work
+## Known Limitations and Deferred Work
 
 - **Glyphs unused until their lanes land** — the manifest covers every planned entry this package owns; the integration sweep should re-check each entry still matches its landed surface before wider reuse.
 - **Spacing tier is names, not CSS variables** — the theme owns no spacing variables, so consumers use `PANEDESK_SPACE` values directly; promoting them into `ui-theme` is upstream work.
 
 <a id="dev-note"></a>
-### Development note
+### Dev Note
 
 <details>
 <summary>Maintainer working context — click to expand</summary>

@@ -2,12 +2,18 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/host/host-bash-setup/README.md
+/:
+  en: 489c9f3219991730
+  zh: 78f82bf1de7fb36b
 /panedesk-dsh-host-bash-setup:
-  en: 1d149a4074e08cb2
-  zh: 7325ca352629ecfb
+  en: f9e6db6e5a961ef7
+  zh: f69cb587665b2c33
+/panedesk-dsh-host-bash-setup/summary:
+  en: b590b02955c19adf
+  zh: 5fb6ed09a4ba64d0
 /panedesk-dsh-host-bash-setup/table-of-contents:
   en: 85ae920690e09162
-  zh: c0a0eb4587f36165
+  zh: 7bf513045c9f0f10
 /panedesk-dsh-host-bash-setup/use-this-package:
   en: 0140a2aa857dd83a
   zh: 1275598ba7190f67
@@ -28,11 +34,17 @@
   zh: cd62162843101934
 /panedesk-dsh-host-bash-setup/model-experience:
   en: 215e7ba838619b7b
-  zh: a311da3843709f90
-/panedesk-dsh-host-bash-setup/model-experience/model-experience-effect:
-  en: bc67dde50a98b303
-  zh: 719afc8d8ed52469
-/panedesk-dsh-host-bash-setup/model-experience/kv-cache-effect:
+  zh: 5ed4d30fc888722a
+/panedesk-dsh-host-bash-setup/model-experience/user-interface:
+  en: 4c10fc221ce3d329
+  zh: b71036df173f2335
+/panedesk-dsh-host-bash-setup/model-experience/user-interface/what-the-model-sees:
+  en: f75132acdf037bc6
+  zh: 91b0146742955f67
+/panedesk-dsh-host-bash-setup/model-experience/user-interface/token-effect:
+  en: b9f84e67c4ddd05f
+  zh: 68742080df4c0193
+/panedesk-dsh-host-bash-setup/model-experience/user-interface/kv-cache-effect:
   en: 61bec8cf21588a63
   zh: 8ce6a75931a677fd
 /panedesk-dsh-host-bash-setup/known-limitations-and-deferred-work:

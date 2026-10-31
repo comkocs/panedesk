@@ -2,18 +2,24 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-panedesk-icons/README.md
+/:
+  en: 39955e2d907e5cd3
+  zh: 9a47129bdb89ed92
 /panedesk-dsh-client-ui-panedesk-icons:
-  en: 7784a2663cccaea2
-  zh: 75e939ab4feb54e2
+  en: e9067e7ea76e1102
+  zh: c7c3f132e525f07d
+/panedesk-dsh-client-ui-panedesk-icons/summary:
+  en: 92b30946a20e784c
+  zh: 79897c1463fddccd
 /panedesk-dsh-client-ui-panedesk-icons/table-of-contents:
-  en: aa9ae2c595af322f
+  en: daacee21cd3a8884
   zh: c2beaeec259d325c
 /panedesk-dsh-client-ui-panedesk-icons/using-this-package:
   en: b3df9fabbcbfa294
   zh: 5e6d40a1d444891e
 /panedesk-dsh-client-ui-panedesk-icons/token-table:
-  en: 877cd198dd6c97c6
-  zh: 3883706e3800673f
+  en: 50b3909fcd177868
+  zh: 17bb11d1453a8017
 /panedesk-dsh-client-ui-panedesk-icons/icon-manifest:
   en: 74b437f4a178db80
   zh: d9ca9b4a16f912b5
@@ -30,17 +36,23 @@
   en: 74230da4237d4e34
   zh: 0fa5ea06e5bb3756
 /panedesk-dsh-client-ui-panedesk-icons/model-experience:
-  en: e7d118aa4c23df23
-  zh: a311da3843709f90
-/panedesk-dsh-client-ui-panedesk-icons/model-experience/model-experience-impact:
-  en: 8a007d153c1d1916
-  zh: 719afc8d8ed52469
-/panedesk-dsh-client-ui-panedesk-icons/model-experience/kv-cache-impact:
-  en: 30ee5e2fe65f6dfd
+  en: 215e7ba838619b7b
+  zh: 5ed4d30fc888722a
+/panedesk-dsh-client-ui-panedesk-icons/model-experience/user-interface:
+  en: 4c10fc221ce3d329
+  zh: b71036df173f2335
+/panedesk-dsh-client-ui-panedesk-icons/model-experience/user-interface/what-the-model-sees:
+  en: 7a23beb47d98bd33
+  zh: 91b0146742955f67
+/panedesk-dsh-client-ui-panedesk-icons/model-experience/user-interface/token-effect:
+  en: b9f84e67c4ddd05f
+  zh: 68742080df4c0193
+/panedesk-dsh-client-ui-panedesk-icons/model-experience/user-interface/kv-cache-effect:
+  en: 55ac56ee06240535
   zh: 8ce6a75931a677fd
 /panedesk-dsh-client-ui-panedesk-icons/known-limitations-and-deferred-work:
-  en: c8c2077f17eaff58
+  en: f5c86573171cf144
   zh: 0c5a502f7852b0d1
-/panedesk-dsh-client-ui-panedesk-icons/known-limitations-and-deferred-work/development-note:
-  en: 3524e0017abf7cfe
+/panedesk-dsh-client-ui-panedesk-icons/known-limitations-and-deferred-work/dev-note:
+  en: ed3d1fdaac6eb7e8
   zh: 2060b1d9b116868c

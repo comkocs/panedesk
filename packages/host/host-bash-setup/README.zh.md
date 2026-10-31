@@ -1,14 +1,18 @@
+---
+description: "确认 Windows Git Bash 选择的宿主网关。"
+kind: "package-reference"
+---
+
 # @panedesk/dsh-host-bash-setup
 
-<!-- summary -->
+<a id="summary"></a>
+## 概述
 
 首启 Git Bash 探测远端:按常见 Windows 安装位置探测,并把用户确认后的产品选择提交为 base 档 Bash 与 PowerShell 行共用的门控依据。
 
-<!-- /summary -->
-
 [English](README.md) | 中文
 
-## Table of Contents
+## 目录
 
 - [使用本包](#use-this-package)
 - [理解实现](#understand-the-implementation)
@@ -47,10 +51,20 @@
 <a id="model-experience"></a>
 ## 模型体验
 
-#### 模型体验影响
+<a id="user-interface"></a>
+### 用户界面
+
+<a id="what-the-model-sees"></a>
+#### 模型可见内容
 
 本包不改任何模型输入或输出。
 
+<a id="token-effect"></a>
+#### Token 影响
+
+界面与配置操作不消耗模型 token。
+
+<a id="kv-cache-effect"></a>
 #### KV 缓存影响
 
 不涉及模型调用,无 KV 缓存影响。

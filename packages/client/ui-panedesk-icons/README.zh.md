@@ -1,10 +1,14 @@
+---
+description: "静态浏览器图标与设计令牌。"
+kind: "package-library"
+---
+
 # @panedesk/dsh-client-ui-panedesk-icons
 
-<!-- summary -->
+<a id="summary"></a>
+## 概述
 
 Panedesk 新入口的静态图标与令牌库:自绘单线 glyph 集(16/20/24、currentColor)、应用图标,以及登记新面板所用上游 DSH 主题变量与唯一新增间距档的设计令牌表。
-
-<!-- /summary -->
 
 [English](README.md) | 中文
 
@@ -26,7 +30,7 @@ Panedesk 新入口的静态图标与令牌库:自绘单线 glyph 集(16/20/24、
 <a id="token-table"></a>
 ## 令牌表
 
-表的持久落点是 [`src/tokens.ts`](src/tokens.ts);本节是给人读的投影。
+表的持久落点是 [`src/tokens.ts`](src/tokens.ts);本节是给人读的投影。公开 `./tokens` 入口指向生成的 `lib/types/tokens.js`，声明使用相邻 `.d.ts` 文件。
 
 - **颜色** —— 新件只消费上游语义别名:`--dsw-alias-bg-base`、`--dsw-alias-bg-layer-1/2`、`--dsw-alias-border-l2/l3`、`--dsw-alias-label-primary/secondary/tertiary`、`--dsw-alias-brand-primary`、`--dsw-alias-menu-icon`。值都在 `packages/client/ui-theme/src/styles/design-platform.css`;本包不自造颜色值。
 - **字号** —— `--dsw-font-base-16`、`--dsw-font-s-14`、`--dsw-font-m-18`、`--dsw-font-l-20`(定义在 `packages/client/ui-theme/src/styles/gradient-shadow-text.css`)。
@@ -74,10 +78,20 @@ Panedesk 新入口的静态图标与令牌库:自绘单线 glyph 集(16/20/24、
 <a id="model-experience"></a>
 ## 模型体验
 
-#### 模型体验影响
+<a id="user-interface"></a>
+### 用户界面
+
+<a id="what-the-model-sees"></a>
+#### 模型可见内容
 
 本包不改任何模型输入或输出。
 
+<a id="token-effect"></a>
+#### Token 影响
+
+界面与配置操作不消耗模型 token。
+
+<a id="kv-cache-effect"></a>
 #### KV 缓存影响
 
 不涉及模型调用,无 KV 缓存影响。

@@ -10,7 +10,10 @@
   zh: ac1d4d67c26b5ae9
 /panedesk-dsh-client-ui-inbox/summary:
   en: 7b68998a6dc6f8a8
-  zh: ea74ca8e526b9a97
+  zh: fff6e4916d709aa6
+/panedesk-dsh-client-ui-inbox/table-of-contents:
+  en: 13916b9f0f60a038
+  zh: 160cbc632b60555d
 /panedesk-dsh-client-ui-inbox/configuration-and-use:
   en: 852cb228ed9ca7de
   zh: b88e1765fd802df8
@@ -32,6 +35,6 @@
 /panedesk-dsh-client-ui-inbox/known-limitations-and-deferred-work:
   en: 054fd7736cf90ab1
   zh: 611731409a992900
-/panedesk-dsh-client-ui-inbox/dev-note:
-  en: 65cc46fa43bc2147
-  zh: 4dc79c3595213b42
+/panedesk-dsh-client-ui-inbox/known-limitations-and-deferred-work/dev-note:
+  en: dc44a3c60ec4ce02
+  zh: a9987c5c6a5c7a03

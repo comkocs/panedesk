@@ -1,10 +1,13 @@
+---
+description: "Host gateway for confirmed Windows Git Bash selection."
+kind: "package-reference"
+---
+
 # @panedesk/dsh-host-bash-setup
 
-<!-- summary -->
+## Summary
 
 First-run Git Bash discovery Remote: it probes the common Windows install locations and commits the user-confirmed product selection that the base profiles gate their Bash and PowerShell rows on.
-
-<!-- /summary -->
 
 English | [中文](README.zh.md)
 
@@ -43,9 +46,15 @@ The gateway owns no state: every call re-reads the config file and the probe can
 
 ## Model Experience
 
-#### Model Experience effect
+### User interface
+
+#### What the model sees
 
 This package changes no model inputs or outputs.
+
+#### Token effect
+
+UI and configuration operations consume no model tokens.
 
 #### KV Cache effect
 

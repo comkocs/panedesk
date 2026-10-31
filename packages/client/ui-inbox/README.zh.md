@@ -12,6 +12,14 @@ kind: "package-reference"
 
 在既有会话头增加只读收件入口。启动前首页没有收件入口。[消息交付提供者](../../session/message-delivery-local/README.zh.md)负责消息状态、元数据与隔离证据；本插件不发消息，也不开会话。参见[会话持久化](../../../docs/subsystems/persistence.zh.md)。
 
+<a id="table-of-contents"></a>
+## 目录
+
+- [配置与使用](#configuration-and-use)
+- [模型体验](#model-experience)
+- [已知限制与后续工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
 <a id="configuration-and-use"></a>
 ## 配置与使用
 
@@ -50,6 +58,6 @@ kind: "package-reference"
 - 轮询观察实时页面，不提供跨页原子快照。缺失的历史位绑定保持未知。
 
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
 
 浏览器只读取标准资源席位。宿主按收件会话过滤既有交付查询，并用既有所有者权限读取可选发方位标签。

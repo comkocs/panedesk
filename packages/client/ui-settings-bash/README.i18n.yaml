@@ -2,11 +2,17 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-settings-bash/README.md
+/:
+  en: ff69fac81ca86e76
+  zh: 9ba85c54dbccb488
 /panedesk-dsh-client-ui-settings-bash:
-  en: 7428da1359241c5d
-  zh: da85c37316a9d4ac
+  en: 5b8f4bd43a66c3f4
+  zh: 7911333ed46c6e8e
+/panedesk-dsh-client-ui-settings-bash/summary:
+  en: fa9e6733e04890d8
+  zh: ff3483d00439c317
 /panedesk-dsh-client-ui-settings-bash/table-of-contents:
-  en: bb348952b83fa48c
+  en: 7b6e0275cc938058
   zh: 59a68725dbebf7bd
 /panedesk-dsh-client-ui-settings-bash/using-this-package:
   en: b5940dd7ad937f7c
@@ -27,17 +33,23 @@
   en: 9b3697c74b2b44a4
   zh: 97e93af49b373114
 /panedesk-dsh-client-ui-settings-bash/model-experience:
-  en: e7d118aa4c23df23
-  zh: a311da3843709f90
-/panedesk-dsh-client-ui-settings-bash/model-experience/model-experience-impact:
-  en: 8a007d153c1d1916
-  zh: 719afc8d8ed52469
-/panedesk-dsh-client-ui-settings-bash/model-experience/kv-cache-impact:
-  en: 30ee5e2fe65f6dfd
+  en: 215e7ba838619b7b
+  zh: 5ed4d30fc888722a
+/panedesk-dsh-client-ui-settings-bash/model-experience/user-interface:
+  en: 4c10fc221ce3d329
+  zh: b71036df173f2335
+/panedesk-dsh-client-ui-settings-bash/model-experience/user-interface/what-the-model-sees:
+  en: 7a23beb47d98bd33
+  zh: 91b0146742955f67
+/panedesk-dsh-client-ui-settings-bash/model-experience/user-interface/token-effect:
+  en: b9f84e67c4ddd05f
+  zh: 68742080df4c0193
+/panedesk-dsh-client-ui-settings-bash/model-experience/user-interface/kv-cache-effect:
+  en: 55ac56ee06240535
   zh: 8ce6a75931a677fd
 /panedesk-dsh-client-ui-settings-bash/known-limitations-and-deferred-work:
-  en: c78bb57a1c487080
+  en: db70501539b98edb
   zh: 03ae9616360002cd
-/panedesk-dsh-client-ui-settings-bash/known-limitations-and-deferred-work/development-note:
-  en: 6a973d2b97172399
+/panedesk-dsh-client-ui-settings-bash/known-limitations-and-deferred-work/dev-note:
+  en: 20aa3da96943ed41
   zh: fe0399aeeb512f75

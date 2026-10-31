@@ -11,6 +11,13 @@ English | [中文](README.zh.md)
 
 Adds a read-only inbox to the existing Session header. The initial home screen has no inbox entry. The [message delivery provider](../../session/message-delivery-local/README.md) owns message states, metadata and isolated evidence; this plugin neither sends messages nor opens Sessions. See [Session persistence](../../../docs/subsystems/persistence.md).
 
+## Table of Contents
+
+- [Configuration and use](#configuration-and-use)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
 ## Configuration and use
 
 The Web bundle includes an inert `ui-inbox` row; a product profile enables it with `config: { enabled: true }`. `enabled` defaults to false, `pollIntervalMs` to 1000 and `pageSize` to 100. The Host exposes only an owner-authorized observation stream for an exact receiving Session. Missing query capabilities report unavailable; a disabled adapter returns an explicit disabled observation. No delegated identities or caller-supplied sender authority are accepted.
@@ -41,6 +48,6 @@ The plugin neither changes request prefixes nor refreshes caches.
 - Older providers without isolation queries report unavailable rather than inventing an empty inbox. Older statuses without metadata retain unknown fields.
 - Polling observes live pages, not an atomic multi-page snapshot. Missing historical seat bindings remain unknown.
 
-## Dev Note
+### Dev Note
 
 The browser reads only the standard resource seat. The Host filters existing delivery queries by receiving Session and uses existing owner authority for optional seat labels.

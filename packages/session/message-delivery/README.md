@@ -11,10 +11,6 @@ English | [中文](README.zh.md)
 
 Service Definition for same-node messages, receive settings, durable controls, and runtime-owned receipts. The abstract `MessageDelivery` service exposes `ctx.messageDelivery`; it does not implement storage or delivery. See [Session persistence](../../../docs/subsystems/persistence.md).
 
-`list` opts into strict pagination with `pagination: true`, a positive safe-integer `limit`, and a provider-issued exclusive `cursor`; keep the same filters when continuing a live scan. Omitting or disabling pagination preserves the provider's legacy query behavior; see the [local provider](../message-delivery-local/README.md). Unanswered queries select handoff/reply messages without a response and exclude terminal outcomes by default. Read `complete` and `nextCursor` rather than treating an incomplete scan as an empty complete result.
-
-`list({ includeMetadata: true })` optionally returns sender/receiver identities, creation time and priority without message bodies. Optional `quarantined(query)` reads isolation events independently from the six lifecycle states. Exact receiving-Session filters require verified mailbox attribution; missing capabilities remain unavailable. These query-only fields do not change persisted messages or events.
-
 ## Table of Contents
 
 - [Public API](#public-api)
@@ -24,6 +20,10 @@ Service Definition for same-node messages, receive settings, durable controls, a
 
 <a id="public-api"></a>
 ## Public API
+
+`list` opts into strict pagination with `pagination: true`, a positive safe-integer `limit`, and a provider-issued exclusive `cursor`; keep the same filters when continuing a live scan. Omitting or disabling pagination preserves the provider's legacy query behavior; see the [local provider](../message-delivery-local/README.md). Unanswered queries select handoff/reply messages without a response and exclude terminal outcomes by default. Read `complete` and `nextCursor` rather than treating an incomplete scan as an empty complete result.
+
+`list({ includeMetadata: true })` optionally returns sender/receiver identities, creation time and priority without message bodies. Optional `quarantined(query)` reads isolation events independently from the six lifecycle states. Exact receiving-Session filters require verified mailbox attribution; missing capabilities remain unavailable. These query-only fields do not change persisted messages or events.
 
 `send`, `withdraw`, `edit`, `reprioritize`, `invalidate`, `status`, `operationStatus`, `list`, `resolve`, `sendBatch`, `configure`, and `subscribe` are declared in `src/index.ts`. Public inputs and results are exported from `src/types.ts`. A closed recipient can reject delivery while retaining a queued message; an offline control acknowledges durable intent, not completed arbitration. Subscription iteration releases resources on return or service disposal.
 
