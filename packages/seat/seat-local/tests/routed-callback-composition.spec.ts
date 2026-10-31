@@ -6,6 +6,7 @@ import { readFile, readdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SeatEngine } from '@panedesk/dsh-seat-engine/src/engine.ts'
+import type { CallbackOutbox } from '@panedesk/dsh-seat-engine/src/outbox.ts'
 import { composition } from '../../seat-engine/tests/composition-fixture.ts'
 import { CompositionSeats } from '../../seat-engine/tests/composition-provider.ts'
 import { admittedDefinition, loopback, persistCallback, response, services } from './routed-callback-fixture.ts'
@@ -64,7 +65,14 @@ test.each(['early', 'late', 'replacement'] as const)('Loader resolves %s chain s
     await new Promise<void>((resolve) => { f.ctx.inject(['nodeWorkChain', 'nodeWorkChainRouter'], () => { resolve() }) })
     await engine.drive()
     await expect.poll(async () => { await engine.drive(); return received }).toBe(1)
-    await expect.poll(() => engine.journal.projection.callbacks.get(original.callback.callbackId)?.phase).toBe('retry-due')
+    const outbox: CallbackOutbox = engine['outbox']
+    await expect.poll(() => outbox.observations().find(item =>
+      item.payload.callbackId === original.callback.callbackId)?.phase).toBe('retry-due')
+    expect(outbox.observations().find(item => item.payload.callbackId === original.callback.callbackId))
+      .toMatchObject({ phase: 'retry-due', responseClass: 'transient', ownerPending: true })
+    expect(engine.journal.projection.callbacks.get(original.callback.callbackId)).toMatchObject(timing === 'early'
+      ? { phase: 'pending', responseClass: 'unknown', attempt: 0 }
+      : { phase: 'retry-due', responseClass: 'unknown', attempt: 1 })
     expect(received, JSON.stringify({ methods, checks })).toBe(1)
     committed = true
     await expect.poll(async () => { await engine.drive(); return engine.journal.projection.callbacks.get(original.callback.callbackId)?.phase }).toBe('delivered')
