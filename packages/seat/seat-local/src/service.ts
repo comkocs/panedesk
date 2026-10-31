@@ -159,7 +159,7 @@ export class LocalSeatService extends SeatService {
         const index = catalog.definitions.findIndex(item => item.seat === definition.seat)
         if (index < 0) catalog.definitions.push(definition)
         else catalog.definitions[index] = definition
-      })
+      }, 'revision-conflict', this.options.maxSeats)
       this.runtime.context.emit('seat/diagnostics-changed')
       return { status: 'saved' as const, revision }
     })

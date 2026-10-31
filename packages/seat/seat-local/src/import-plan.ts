@@ -26,8 +26,11 @@ const plan = z.object({
   })),
 }).transform((value): SeatImportPlan => { const parsed: unknown = value; return parsed as SeatImportPlan })
 
-/** A preview owns its validated selection and original source path until expiry. */
-export const retainedPlanSchema = z.object({ plan, sourcePath: z.string().min(1), expiresAt: z.number().int().nonnegative() })
+/** A preview owns its validated selection and original source path until expiry or commit. */
+export const retainedPlanSchema = z.object({
+  plan, sourcePath: z.string().min(1), expiresAt: z.number().int().nonnegative(),
+  committedOperationId: z.string().min(1).optional(),
+})
 const initialPlans: Record<string, z.infer<typeof retainedPlanSchema>> = {}
 /** Node-local preview state is atomically replaced without changing catalog revision. */
 export const importPlansSpec = defineDomain({ name: 'seat_import_plans', version: 1, layout: 'single', tables: {},

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { SeatDigest } from '@panedesk/dsh-seat'
+import type { SeatDigest, SeatRuleId } from '@panedesk/dsh-seat'
 import { SeatStore, setCatalogAuthority } from '../src/store.ts'
 import { definition, operation, storeFixture } from './fixtures.ts'
 
@@ -79,5 +79,55 @@ describe('catalog ownership', () => {
     expect(store.snapshot().definitions.map(item => item.revision)).toEqual([3, 6, 2])
     expect(store.snapshot().revision).toBe(4)
     await expect(store.mutate(4, operation('authority-back'), { authority: 'seat-store' }, () => {})).rejects.toMatchObject({ failure: { code: 'operation-id-conflict' } })
+  })
+
+  it('rejects a same-numbered definition whose content differs and keeps the stored revision', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    const first = definition(root, { revision: 3, model: 'model-a' })
+    await store.mutate(0, operation('content-a'), { value: 'a' }, (catalog) => {
+      catalog.authority = 'seat-store'
+      catalog.definitions.push(first)
+    })
+    const changed = definition(root, { revision: 3, model: 'model-b' })
+    await expect(store.mutate(1, operation('content-b'), { planId: 'content-plan', selectedRows: [1], value: 'b' }, (catalog) => {
+      catalog.definitions[0] = changed
+    })).rejects.toMatchObject({ failure: { code: 'revision-conflict' } })
+    expect(store.snapshot().definitions[0]?.model).toBe('model-a')
+    expect(store.snapshot().definitions[0]?.revision).toBe(3)
+    expect(store.snapshot().revision).toBe(1)
+  })
+
+  it('serializes overlapping catalog commits so the later writer rereads the conflict', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    await store.mutate(0, operation('race-base'), {}, (catalog) => {
+      catalog.authority = 'seat-store'
+      catalog.definitions.push(definition(root))
+    })
+    const first = store.mutate(1, operation('race-a'), { value: 'a' }, (catalog) => {
+      catalog.definitions[0] = definition(root, { revision: 2, model: 'model-a' })
+    })
+    const second = store.mutate(1, operation('race-b'), { value: 'b' }, (catalog) => {
+      catalog.definitions[0] = definition(root, { revision: 2, model: 'model-b' })
+    })
+    const settled = await Promise.allSettled([first, second])
+    expect(settled.filter(item => item.status === 'fulfilled')).toHaveLength(2)
+    expect(store.snapshot().revision).toBe(2)
+    expect(store.snapshot().definitions).toHaveLength(1)
+    expect(['model-a', 'model-b']).toContain(store.snapshot().definitions[0]?.model)
+  })
+
+  it('counts source-directory seat rules toward the configured seat limit', async () => {
+    const fixture = await storeFixture(); fixtures.push(fixture)
+    const { store, root } = fixture
+    const rule = { id: 'source-rule' as SeatRuleId, enabled: true, trigger: { kind: 'manual' as const, origin: 'manual' as const },
+      timeWindows: [], exclusiveTags: [] as string[] }
+    const sourceSeat = definition(root, { seat: 'source-seat' as never, rules: [rule] })
+    await expect(store.mutate(0, operation('source-rule-limit'), { maxSeats: 1 }, (catalog) => {
+      catalog.definitions.push(sourceSeat, definition(root, { seat: 'local-seat' as never }))
+    }, 'revision-conflict', 1)).rejects.toMatchObject({ failure: { code: 'unavailable' } })
+    expect(store.snapshot().definitions).toHaveLength(0)
+    expect(store.snapshot().revision).toBe(0)
   })
 })

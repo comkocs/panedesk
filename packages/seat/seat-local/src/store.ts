@@ -46,6 +46,30 @@ export function digest(value: unknown): SeatDigest {
   return createHash('sha256').update(canonical(value)).digest('hex') as SeatDigest
 }
 
+/** Compare one definition apart from its own revision number.
+ * @param definition - candidate or stored definition.
+ * @returns canonical content independent of that definition's revision.
+ */
+function definitionContent(definition: SeatDefinition): unknown {
+  const { revision: _revision, source, ...content } = definition
+  return { ...content, ...(source === undefined ? {} : { sourceAuthority: source.authority, sourceBaseline: digest(source.baseline) }) }
+}
+
+/** Count seats named by the catalog and by source-directory rules toward one limit.
+ * @param definitions - candidate catalog contents.
+ * @returns distinct seat names that occupy the configured limit.
+ */
+export function occupiedSeatNames(definitions: readonly SeatDefinition[]): Set<string> {
+  const names = new Set<string>()
+  for (const definition of definitions) {
+    names.add(definition.seat)
+    for (const rule of definition.rules) {
+      if (rule.trigger.kind === 'window-ended') names.add(rule.trigger.seat)
+    }
+  }
+  return names
+}
+
 /** Exclusive owner of the node catalog; callers close it before releasing the storage provider. */
 export class SeatStore {
   private tail: Promise<void> = Promise.resolve()
@@ -81,13 +105,42 @@ export class SeatStore {
    */
   snapshot(): SeatCatalog { return structuredClone(this.domain.global.get()) }
 
-  /** Read a persisted preview; expired identities never authorize a selection.
+  /** Read a persisted preview; expired identities never authorize a new selection.
    * @param planId - opaque preview identity, never a filesystem path.
-   * @returns retained plan or undefined after expiry or absence.
+   * @returns retained plan or undefined after expiry, release or absence.
    */
   importPlan(planId: string): z.infer<typeof retainedPlanSchema> | undefined {
     const retained = this.plans.global.get()[planId]
-    return retained && retained.expiresAt > Date.now() ? structuredClone(retained) : undefined
+    return retained && retained.committedOperationId === undefined && retained.expiresAt > Date.now()
+      ? structuredClone(retained) : undefined
+  }
+
+  /** Read a preview retained only for replay of the operation that committed it.
+   * @param planId - opaque preview identity.
+   * @param operationId - operation recorded when the catalog commit became durable.
+   * @returns the committed preview, or undefined for any other operation.
+   */
+  committedImportPlan(planId: string, operationId: SeatOperationId): z.infer<typeof retainedPlanSchema> | undefined {
+    const retained = this.plans.global.get()[planId]
+    return retained?.committedOperationId === operationId ? structuredClone(retained) : undefined
+  }
+
+  /** Release one preview after its catalog commit is durable, keeping a committed replay marker.
+   * @param planId - preview committed by the named operation.
+   * @param operationId - catalog operation whose receipt authorizes replay.
+   * @returns after the plan document no longer counts toward live capacity.
+   */
+  releaseImportPlan(planId: string, operationId: SeatOperationId): Promise<void> {
+    if (this.closing) return Promise.reject(new Error('Catalog is closing'))
+    const run = this.tail.then(async () => {
+      const current = { ...this.plans.global.get() }
+      const retained = current[planId]
+      if (retained === undefined || retained.committedOperationId === operationId) return
+      current[planId] = retainedPlanSchema.parse({ ...retained, committedOperationId: operationId, expiresAt: 0 })
+      await this.plans.global.set(current)
+    })
+    this.tail = run.then(() => {}, () => {})
+    return run
   }
 
   /** Retain a preview under the catalog writer lease and reclaim expired capacity.
@@ -98,7 +151,8 @@ export class SeatStore {
   retainImportPlan(retained: z.infer<typeof retainedPlanSchema>, maxPlans: number): Promise<void> {
     if (this.closing) return Promise.reject(new Error('Catalog is closing'))
     const run = this.tail.then(async () => {
-      const current = Object.fromEntries(Object.entries(this.plans.global.get()).filter(([, value]) => value.expiresAt > Date.now()))
+      const current = Object.fromEntries(Object.entries(this.plans.global.get()).filter(([, value]) =>
+        value.committedOperationId === undefined && value.expiresAt > Date.now()))
       if (Object.keys(current).length >= maxPlans) refuse('unavailable', 'Import preview capacity reached.', 'Wait for preview expiry before creating another plan.')
       current[retained.plan.planId] = retainedPlanSchema.parse(retained)
       await this.plans.global.set(current)
@@ -113,10 +167,12 @@ export class SeatStore {
    * @param request - request used for idempotency comparison.
    * @param update - pure transform, evaluated only after CAS succeeds.
    * @param conflictCode - import callers invalidate selections rather than allowing revision-only retries.
+   * @param maxSeats - optional distinct seat limit, including seats named by source-directory rules.
    * @returns the revision committed by this operation, including on replay.
    */
   mutate(expectedRevision: number, operationId: SeatOperationId, request: unknown,
-    update: (catalog: SeatCatalog) => void, conflictCode: 'revision-conflict' | 'import-preview-stale' = 'revision-conflict'): Promise<number> {
+    update: (catalog: SeatCatalog) => void, conflictCode: 'revision-conflict' | 'import-preview-stale' = 'revision-conflict',
+    maxSeats?: number): Promise<number> {
     if (this.closing) return Promise.reject(new Error('Catalog is closing'))
     const run = this.tail.then(async () => {
       const current = this.snapshot()
@@ -128,11 +184,36 @@ export class SeatStore {
       }
       if (current.revision !== expectedRevision) refuse(conflictCode, 'Catalog revision changed.',
         conflictCode === 'import-preview-stale' ? 'Preview the source again.' : 'Read the catalog and retry with its revision.')
+      const before = new Map(current.definitions.map(item => [item.seat, item]))
+      const beforeAuthority = { authority: current.authority, authorizations: [...current.authorizations] }
       update(current)
-      current.revision += 1
+      const importCommit = typeof request === 'object' && request !== null && 'planId' in request && 'selectedRows' in request
+      if (importCommit) {
+        for (const definition of current.definitions) {
+          const stored = before.get(definition.seat)
+          if (stored !== undefined && definition.revision === stored.revision
+            && digest(definitionContent(definition)) !== digest(definitionContent(stored))) {
+            refuse('revision-conflict', 'Definition content changed without a new revision.', 'Read the definition and save the next revision.')
+          }
+        }
+      }
+      if (maxSeats !== undefined && occupiedSeatNames(current.definitions).size > maxSeats) {
+        refuse('unavailable', 'Seat definition capacity reached.', 'Remove a seat or source-directory rule before adding another.')
+      }
+      let contentChanged = before.size !== current.definitions.length
+      for (const definition of current.definitions) {
+        const stored = before.get(definition.seat)
+        contentChanged ||= stored === undefined || digest(definitionContent(definition)) !== digest(definitionContent(stored))
+      }
+      const authorityChanged = digest({ authority: current.authority, authorizations: current.authorizations })
+        !== digest(beforeAuthority)
+      if (contentChanged || authorityChanged) current.revision += 1
       current.operations[operationId] = { digest: requestDigest, revision: current.revision }
-      await this.domain.global.set(catalogSchema.parse(current))
-      return current.revision
+      const committed = catalogSchema.parse(current)
+      if (contentChanged || authorityChanged || committed.revision !== this.snapshot().revision) {
+        await this.domain.global.set(committed)
+      }
+      return committed.revision
     })
     this.tail = run.then(() => {}, () => {})
     return run
