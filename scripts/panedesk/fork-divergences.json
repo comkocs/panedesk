@@ -1,6 +1,42 @@
 {
   "divergences": [
     {
+      "id": "integrated-browser-entry-goldens",
+      "description": "Refresh browser goldens for integrated inbox pin cache sidebar and setup entries.",
+      "origin": "Integrated browser entry coverage",
+      "reason": "Regenerate only reviewed user-interface goldens for the shipped Inbox, Pin, Cache, right-sidebar menu and Windows Bash setup information. Preserve all existing content and menu disposal assertions, extending the exact surviving menu by the shipped right-sidebar entry. Reject truncated history output and restore changes outside the selected UI golden scope. Session recordings and header pins are unchanged. Generic exact-menu coverage is upstream-compatible; downstream entry text remains product-owned.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/expected/agent-preset-selection/header.expected.md",
+          "apps/web/tests/expected/clickable-links-gallery/ui.expected.md",
+          "apps/web/tests/expected/client-plugin-live/session-actions.expected.md",
+          "apps/web/tests/expected/cordis-history/ui.expected.md",
+          "apps/web/tests/expected/desktop-locale/automatic.expected.md",
+          "apps/web/tests/expected/desktop-locale/selected.expected.md",
+          "apps/web/tests/expected/github-ready-review/conversation-expanded.expected.md",
+          "apps/web/tests/expected/github-ready-review/conversation.expected.md",
+          "apps/web/tests/expected/goal-command-presentation/ui.expected.md",
+          "apps/web/tests/expected/markdown-cjk-strong/ui.expected.md",
+          "apps/web/tests/expected/markdown-images/ui.expected.md",
+          "apps/web/tests/expected/markdown-inline-code-links/ui.expected.md",
+          "apps/web/tests/expected/math-rendering/ui.expected.md",
+          "apps/web/tests/expected/menu-material/session-menu.expected.md",
+          "apps/web/tests/expected/reference-composer/order.expected.md",
+          "apps/web/tests/expected/settings-chrome/dialog-en.expected.md",
+          "apps/web/tests/expected/settings-chrome/dialog-no-browser.expected.md",
+          "apps/web/tests/expected/settings-chrome/dialog.expected.md",
+          "apps/web/tests/expected/shortcuts-workspace/session-menu.expected.md",
+          "apps/web/tests/snapshots/streaming-fence-highlight/mid-stream.expected.md",
+          "apps/web/tests/client-plugin-live.e2e.ts",
+          "apps/web/tests/README.md",
+          "apps/web/tests/README.zh.md",
+          "apps/web/tests/README.i18n.yaml"
+        ],
+        "test": "places dynamic Session menu rows by order among the shipped ones and removes them with their fiber"
+      }
+    },
+    {
       "id": "integrated-source-aliases-and-setup-package-payload",
       "description": "Align source aliases and published setup package dependencies.",
       "origin": "Integrated product setup and cache documentation",
