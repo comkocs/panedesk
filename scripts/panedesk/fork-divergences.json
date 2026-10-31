@@ -3359,6 +3359,27 @@
       "origin": "Approved ACP incremental projection requirement 19 and design section V.19d",
       "reason": "Live assistant updates no longer contain a complete reply in one chunk. Concatenate text deltas in notification order and compare the full original reply exactly, preserving turn completion, message identity, request count and disconnect-exit assertions.",
       "match": { "type": "test-assertion", "paths": ["apps/cli/tests/built-bin.e2e.ts"], "test": "runs a mock-backed ACP turn through the acp profile and exits on disconnect" }
+    },
+    {
+      "id": "bash-foreground-preparation-error-identity",
+      "description": "Preserve structured preparation failures while waiting on foreground Bash jobs.",
+      "origin": "Foreground Bash job consumer integration",
+      "reason": "The job's readable terminal detail must not replace the original preparation error consumed by the foreground tool call. Preserve its type and structured code without changing job outcomes or sandbox policy; suitable for upstream feedback.",
+      "match": { "type": "test-assertion", "paths": ["packages/shell/tool-bash/src/index.ts", "packages/shell/tool-bash/README.md", "packages/shell/tool-bash/README.zh.md", "packages/shell/tool-bash/README.i18n.yaml"], "test": "dispatches a source-profile shell call" }
+    },
+    {
+      "id": "ledger-export-config-catalog-source-location",
+      "description": "Regenerate configuration source locations after the shared ledger export.",
+      "origin": "Session ledger generated documentation integration",
+      "reason": "The additional ledger export shifts its configuration declaration by one line. Regenerate both catalog languages from source instead of editing generated references manually.",
+      "match": { "type": "test-assertion", "paths": ["docs/config-catalog.md", "docs/config-catalog.zh.md"], "test": "verify-config-catalog" }
+    },
+    {
+      "id": "plugin-install-github-branded-snapshots",
+      "description": "Refresh GitHub installation guidance snapshots for the current product name.",
+      "origin": "Plugin installation brand integration",
+      "reason": "The mirror and alternative-installation snapshots retain obsolete product names and the old CLI command. Refresh only those intentional localized output changes through the existing snapshot runner; preserve the network, timeout and manifest assertions.",
+      "match": { "type": "test-assertion", "paths": ["apps/web/tests/expected/plugin-install-github/mirror.expected.md", "apps/web/tests/expected/plugin-install-github/another-way.expected.md"], "test": "offers a mirror after a GitHub failure, then another way on the mirror, and waits for replacement input" }
     }
   ]
 }
