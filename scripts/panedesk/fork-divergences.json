@@ -3455,6 +3455,36 @@
       "origin": "Plugin installation brand integration",
       "reason": "The mirror and alternative-installation snapshots retain obsolete product names and the old CLI command. Refresh only those intentional localized output changes through the existing snapshot runner; preserve the network, timeout and manifest assertions.",
       "match": { "type": "test-assertion", "paths": ["apps/web/tests/expected/plugin-install-github/mirror.expected.md", "apps/web/tests/expected/plugin-install-github/another-way.expected.md"], "test": "offers a mirror after a GitHub failure, then another way on the mirror, and waits for replacement input" }
+    },
+    {
+      "id": "seat-action-and-receipt-live-scope-binding",
+      "description": "Bind live action callers and retained receipt queries to their principal, node, seat and tasks; suitable for upstream submission.",
+      "origin": "Optional seat orchestration",
+      "reason": "Bind live action callers and retained receipt queries to the independent principal, receiving node, actual seat and every business task before effects or disclosure, while retaining trusted unsigned admission and admitted replay. Suitable for upstream submission.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat-engine/README.i18n.yaml",
+          "packages/seat/seat-engine/README.md",
+          "packages/seat/seat-engine/README.zh.md",
+          "packages/seat/seat-engine/src/frozen-business.ts",
+          "packages/seat/seat-engine/src/frozen-terminal.ts",
+          "packages/seat/seat-engine/src/wake-delivery.ts",
+          "packages/seat/seat-engine/tests/authorization.spec.ts",
+          "packages/seat/seat-local/README.i18n.yaml",
+          "packages/seat/seat-local/README.md",
+          "packages/seat/seat-local/README.zh.md",
+          "packages/seat/seat-local/src/frozen-admission.ts",
+          "packages/seat/seat-local/src/frozen-business.ts",
+          "packages/seat/seat-local/src/service.ts",
+          "packages/seat/seat-local/tests/action-binding.spec.ts",
+          "packages/seat/seat-local/tests/definition-revisions.spec.ts",
+          "packages/seat/seat-local/tests/frozen-query-binding.spec.ts",
+          "packages/seat/seat-local/tests/open-authorization.spec.ts",
+          "packages/seat/seat-local/tests/source-proxy.spec.ts"
+        ],
+        "test": "live scope binding"
+      }
     }
   ]
 }
