@@ -75,9 +75,16 @@ export function projectWaits(input: readonly LedgerRow[]): LedgerRow[] {
     call.waits = assigned.get(call) ?? []
     call.waitSummary = summarize(call.waits)
   }
+  const callsByRun = new Map<string, LedgerCall[]>()
+  for (const call of calls) {
+    const key = scope(call.start)
+    const members = callsByRun.get(key) ?? []
+    members.push(call)
+    callsByRun.set(key, members)
+  }
   for (const row of rows) {
     if (row.kind !== 'run') continue
-    const members = calls.filter(call => scope(call.start) === scope(row.start))
+    const members = callsByRun.get(scope(row.start)) ?? []
     row.waits = members.flatMap(call => call.waits ?? [])
     const categories: LedgerWaitSummary['categories'] = {}
     for (const call of members) for (const [kind, value] of Object.entries(call.waitSummary?.categories ?? {})) {

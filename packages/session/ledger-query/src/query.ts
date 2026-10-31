@@ -116,15 +116,14 @@ export function selectLedger(source: LedgerSnapshot, options: LedgerQueryOptions
   if (options.repriceVersion !== undefined) throw new Error('Historical repricing is not available in the query service')
   const sessions = new Set<string>(options.sessionId === undefined ? [] : [options.sessionId])
   if (options.includeChildren && options.sessionId !== undefined) {
-    let changed = true
-    while (changed) {
-      changed = false
-      for (const row of source.rows) {
-        if (row.kind !== 'event' && row.start.parentSessionId && sessions.has(row.start.parentSessionId) && !sessions.has(row.start.sessionId)) {
-          sessions.add(row.start.sessionId); changed = true
-        }
-      }
+    const children = new Map<string, Set<string>>()
+    for (const row of source.rows) {
+      if (row.kind === 'event' || !row.start.parentSessionId) continue
+      const entries = children.get(row.start.parentSessionId) ?? new Set<string>()
+      entries.add(row.start.sessionId)
+      children.set(row.start.parentSessionId, entries)
     }
+    for (const session of sessions) for (const child of children.get(session) ?? []) sessions.add(child)
   }
   const owners = new Map(source.rows.filter(row => row.kind !== 'event').map(row => [row.start.runId, row.start]))
   const rows = sortRows(source.rows.filter((row) => {
@@ -174,14 +173,19 @@ export interface LedgerLiveResult {
 export function liveSessions(snapshot: LedgerSnapshot, asOf: number, freshnessMs: number): LedgerLiveResult {
   const states = new Map<string, 'confirmed' | 'unknown' | 'dead'>()
   const nodeObservedAt: Record<string, number> = {}
+  const observations = new Map<string, Extract<Extract<LedgerRow, { kind: 'event' }>['event'], { kind: 'process/observed' }>>()
+  for (const row of snapshot.rows) {
+    if (row.kind !== 'event' || row.event.kind !== 'process/observed' || row.event.observedAt > asOf) continue
+    const key = JSON.stringify([row.event.nodeId, row.event.runId])
+    const previous = observations.get(key)
+    if (!previous || row.event.observedAt > previous.observedAt) observations.set(key, row.event)
+  }
   for (const row of snapshot.rows) {
     if (row.kind !== 'run' || row.finish || row.start.startedAt > asOf) continue
     const identity = row.start.processIdentity
     let state: LedgerLifecycle['liveness'] = 'unknown'
-    const observations = snapshot.rows.flatMap(item => item.kind === 'event' && item.event.kind === 'process/observed'
-      && item.event.runId === row.start.runId && item.event.nodeId === row.start.nodeId && item.event.observedAt <= asOf
-      && item.event.observedAt >= row.start.startedAt ? [item.event] : []).sort((a, b) => b.observedAt - a.observedAt)
-    const event = observations[0]
+    const latest = observations.get(JSON.stringify([row.start.nodeId, row.start.runId]))
+    const event = latest && latest.observedAt >= row.start.startedAt ? latest : undefined
     if (row.start.launchState === 'started' && event && identity && identity.nodeId === row.start.nodeId && event.identity.nodeId === identity.nodeId
       && event.identity.pid === identity.pid && event.identity.startIdentity === identity.startIdentity
       && event.identity.bootIdentity === identity.bootIdentity && identity.startIdentity && identity.bootIdentity

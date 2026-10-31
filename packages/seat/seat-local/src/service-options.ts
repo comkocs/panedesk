@@ -34,6 +34,8 @@ export interface LocalSeatOptions {
   transactionRetries: number
   /** Maximum retained directory-choice confirmations. */
   maxConfirmations: number
+  /** Maximum accounting visibility wait for request-header evidence; omitted uses 1000 ms. */
+  modelEvidenceWaitMs?: number
   /** Deployment-supplied suffix pinned to archived window titles. */
   closedSuffix: string
 }

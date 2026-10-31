@@ -51,68 +51,111 @@ export function foldLedger(events: readonly LedgerEvent[], options: {
   complete?: boolean
 }): LedgerSnapshot {
   const merged = mergeLedger([events])
-  const accepted = merged.events
-  const rows: LedgerRow[] = []
-  const filter = options.filter ?? {}
-  const sessions = new Set<string>(filter.sessionId ? [filter.sessionId] : [])
-  if (filter.includeChildren && filter.sessionId) {
-    let changed = true
-    while (changed) {
-      changed = false
-      for (const event of accepted) {
-        if ((event.kind === 'call/start' || event.kind === 'run/start') && event.data.parentSessionId
-          && sessions.has(event.data.parentSessionId) && !sessions.has(event.sessionId)) {
-          sessions.add(event.sessionId)
-          changed = true
+  const projection = new LedgerProjection()
+  projection.apply(merged.events)
+  return projection.snapshot({ ...options, complete: (options.complete ?? true) && merged.conflicts.length === 0 })
+}
+
+/** Read-owned incremental rows; only committed, nonconflicting facts may be applied. */
+export class LedgerProjection {
+  private readonly facts = new Map<string, LedgerEvent>()
+  private readonly rows = new Map<string, LedgerRow>()
+  private readonly observations = new Map<string, Extract<LedgerEvent, { kind: 'process/observed' }>>()
+
+  /** Fold newly synchronized facts, retaining deterministic transport-duplicate selection.
+   * @param events - Newly committed facts from a conflict-free journal.
+   */
+  apply(events: readonly LedgerEvent[]): void {
+    for (const event of events) {
+      const key = uniqueSlot(event) ?? event.eventId
+      const prior = this.facts.get(key)
+      if (prior && compareFacts(prior, event) <= 0) continue
+      this.facts.set(key, event)
+      if (event.kind === 'call/start' || event.kind === 'call/end') {
+        const start = this.facts.get(JSON.stringify(['call/start', event.data.callId]))
+        const end = this.facts.get(JSON.stringify(['call/end', event.data.callId]))
+        if (start?.kind === 'call/start') this.rows.set(`call:${event.data.callId}`, {
+          kind: 'call', start: start.data, ...end?.kind === 'call/end' ? { finish: end.data } : {},
+        })
+      } else if (event.kind === 'run/start' || event.kind === 'run/end') {
+        const start = this.facts.get(JSON.stringify(['run/start', event.data.runId]))
+        const end = this.facts.get(JSON.stringify(['run/end', event.data.runId]))
+        if (start?.kind === 'run/start') this.rows.set(`run:${event.data.runId}`, {
+          kind: 'run', start: start.data, liveness: end ? 'dead' : 'unknown',
+          ...end?.kind === 'run/end' ? { finish: end.data } : {},
+        })
+      } else {
+        this.rows.set(`event:${key}`, { kind: 'event', event })
+        if (event.kind === 'process/observed') {
+          const previous = this.observations.get(event.runId)
+          if (!previous || event.observedAt > previous.observedAt
+            || event.observedAt === previous.observedAt && compareFacts(event, previous) < 0) {
+            this.observations.set(event.runId, event)
+          }
         }
       }
     }
   }
-  const index = rebuildIndex(accepted)
-  for (const event of accepted) {
-    if (event.kind === 'call/start') {
-      const end = index.slots.get(JSON.stringify(['call/end', event.data.callId]))
-      rows.push({ kind: 'call', start: event.data, ...(end?.kind === 'call/end' ? { finish: end.data } : {}) })
-    } else if (event.kind === 'run/start') {
-      const end = index.slots.get(JSON.stringify(['run/end', event.data.runId]))
-      let liveness: LedgerLifecycle['liveness'] = end ? 'dead' : 'unknown'
-      const observations = accepted.filter(item => item.kind === 'process/observed' && item.runId === event.runId)
-        .sort((a, b) => b.observedAt - a.observedAt)
-      const observation = observations[0]
-      if (!end && observation?.kind === 'process/observed'
-        && observation.nodeId === options.localNodeId && observation.identity.nodeId === observation.nodeId
+
+  /** Materialize detached projections with current freshness and immutable fact ownership.
+   * @param options - Read instant, local identity, selection and journal integrity.
+   * @returns Ordered rows; elapsed freshness never mutates retained facts.
+   */
+  snapshot(options: Parameters<typeof foldLedger>[1]): LedgerSnapshot {
+    const rows = [...this.rows.values()].map((row): LedgerRow => {
+      if (row.kind !== 'run' || row.finish) return row
+      let liveness: LedgerLifecycle['liveness'] = 'unknown'
+      const observation = this.observations.get(row.start.runId)
+      if (observation && observation.nodeId === options.localNodeId
+        && observation.identity.nodeId === observation.nodeId
         && observation.identity.verification === 'verified' && observation.identity.startIdentity
         && observation.observedAt <= options.asOf && options.asOf - observation.observedAt <= options.observationMaxAgeMs) {
-        const identity = event.data.processIdentity
+        const identity = row.start.processIdentity
         if (!identity || (identity.pid === observation.identity.pid && identity.startIdentity === observation.identity.startIdentity
           && identity.bootIdentity === observation.identity.bootIdentity)) liveness = observation.liveness
       }
-      rows.push({ kind: 'run', start: event.data, ...(end?.kind === 'run/end' ? { finish: end.data } : {}), liveness })
-    } else if (event.kind !== 'call/end' && event.kind !== 'run/end') rows.push({ kind: 'event', event })
-  }
-  const selected = projectWaits(rows).filter((row) => {
-    const start = row.kind === 'event' ? undefined : row.start
-    const at = row.kind === 'event' ? row.event.observedAt : row.start.startedAt
-    const context = row.kind === 'event' ? row.event : row.start
-    if (filter.from !== undefined && at < filter.from || filter.to !== undefined && at >= filter.to) return false
-    if (filter.sessionId && !sessions.has(context.sessionId)) return false
-    if (filter.nodeId && context.nodeId !== filter.nodeId) return false
-    for (const key of ['seat', 'window', 'taskId', 'accountLabel'] as const) {
-      if (filter[key] !== undefined && start?.[key] !== filter[key]) return false
+      return { ...row, liveness }
+    })
+    const filter = options.filter ?? {}
+    const sessions = new Set<string>(filter.sessionId ? [filter.sessionId] : [])
+    if (filter.includeChildren && filter.sessionId) {
+      const children = new Map<string, Set<string>>()
+      for (const row of rows) {
+        if (row.kind === 'event' || !row.start.parentSessionId) continue
+        const entries = children.get(row.start.parentSessionId) ?? new Set<string>()
+        entries.add(row.start.sessionId)
+        children.set(row.start.parentSessionId, entries)
+      }
+      for (const session of sessions) for (const child of children.get(session) ?? []) sessions.add(child)
     }
-    if (filter.model && (row.kind === 'call' ? row.finish?.effectiveModel ?? row.start.requestedModel : row.kind === 'run' ? row.start.effectiveModel : undefined) !== filter.model) return false
-    if (filter.modelFamily && (row.kind !== 'call' || row.start.modelFamily !== filter.modelFamily)) return false
-    if (filter.purpose && (row.kind !== 'call' || row.start.purpose !== filter.purpose)) return false
-    return true
-  })
-  selected.sort((a, b) => {
-    const at = (row: LedgerRow) => row.kind === 'event' ? row.event.observedAt : row.start.startedAt
-    return at(a) - at(b) || canonicalJson(a).localeCompare(canonicalJson(b))
-  })
-  return {
-    asOf: options.asOf, watermarks: options.watermarks ?? {},
-    complete: (options.complete ?? true) && merged.conflicts.length === 0, rows: selected,
+    const selected = projectWaits(rows).filter((row) => {
+      const start = row.kind === 'event' ? undefined : row.start
+      const at = row.kind === 'event' ? row.event.observedAt : row.start.startedAt
+      const context = row.kind === 'event' ? row.event : row.start
+      if (filter.from !== undefined && at < filter.from || filter.to !== undefined && at >= filter.to) return false
+      if (filter.sessionId && !sessions.has(context.sessionId)) return false
+      if (filter.nodeId && context.nodeId !== filter.nodeId) return false
+      for (const key of ['seat', 'window', 'taskId', 'accountLabel'] as const) {
+        if (filter[key] !== undefined && start?.[key] !== filter[key]) return false
+      }
+      if (filter.model && (row.kind === 'call' ? row.finish?.effectiveModel ?? row.start.requestedModel : row.kind === 'run' ? row.start.effectiveModel : undefined) !== filter.model) return false
+      if (filter.modelFamily && (row.kind !== 'call' || row.start.modelFamily !== filter.modelFamily)) return false
+      if (filter.purpose && (row.kind !== 'call' || row.start.purpose !== filter.purpose)) return false
+      return true
+    })
+    selected.sort((a, b) => {
+      const at = (row: LedgerRow) => row.kind === 'event' ? row.event.observedAt : row.start.startedAt
+      return at(a) - at(b) || canonicalJson(a).localeCompare(canonicalJson(b))
+    })
+    return {
+      asOf: options.asOf, watermarks: options.watermarks ?? {},
+      complete: options.complete ?? true, rows: structuredClone(selected),
+    }
   }
+}
+
+function compareFacts(a: LedgerEvent, b: LedgerEvent): number {
+  return a.observedAt - b.observedAt || a.nodeId.localeCompare(b.nodeId) || a.eventId.localeCompare(b.eventId)
 }
 
 /** Fold message versions before applying current-state filters or pagination.

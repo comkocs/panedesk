@@ -137,6 +137,8 @@ function validRow(value: unknown): value is LedgerRow {
     && (value.finish === undefined || validRunFinish(value.finish) && value.finish.runId === start.runId)
   if (!strings(start, ['callId', 'logicalRequestId', 'provider', 'modelFamily', 'requestedModel', 'purpose', 'priceVersion', 'priceKey']) || !cache(start.cache)
     || !number(start.attemptIndex) || !['physical', 'adapter'].includes(String(start.attemptVisibility)) || start.referencePrice !== true || !object(start.cacheWriteTiering)) return false
+  if (start.requestHeaderSeq !== undefined
+    && (!number(start.requestHeaderSeq) || !Number.isSafeInteger(start.requestHeaderSeq))) return false
   const tier = start.cacheWriteTiering
   if (!(tier.kind === 'untiered' || tier.kind === 'unknown' || tier.kind === 'tiered' && strings(tier, ['short', 'long']))) return false
   return value.finish === undefined || validCallFinish(value.finish) && value.finish.callId === start.callId

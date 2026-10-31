@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 import { Context } from '@panedesk/cordis'
 import { JournalSessionLedger } from '../src/index.ts'
@@ -11,6 +12,9 @@ import { callWaits } from '../src/call-waits.ts'
 import { digest } from '../src/index-store.ts'
 import { randomUUID } from 'node:crypto'
 import * as crypto from 'node:crypto'
+import * as indexStore from '../src/index-store.ts'
+
+vi.mock('../src/index-store.ts', async original => ({ ...await original<typeof indexStore>() }))
 import type { LedgerEvent, LedgerEventId } from '../src/types.ts'
 
 vi.mock('node:crypto', async original => ({ ...await original<typeof crypto>() }))
@@ -26,7 +30,7 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(path => fs.rm(path, { recursive: true, force: true })))
 })
 async function root() {
-  const path = await fs.mkdtemp(join(import.meta.dirname, '.incremental-'))
+  const path = await fs.mkdtemp(join(tmpdir(), 'ledger-incremental-'))
   roots.push(path)
   return path
 }
@@ -197,6 +201,60 @@ it.each([50, 1000])('matches every settlement field using keyed waits with %i fa
   expect(newFinish).toEqual(oldFinish)
   expect(newFinish.waits).toEqual([{ kind: 'sleep', toolCallId, startedAt: 120, endedAt: 150, durationMs: 30 }])
 }, 30000)
+
+it('folds only new facts after a complete snapshot and detaches returned rows', async () => {
+  const home = await root()
+  const ctx = new Context()
+  contexts.push(ctx)
+  const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+  await ledger.beginCall(callStart)
+  const first = await ledger.snapshot()
+  const rebuild = vi.spyOn(indexStore, 'rebuildIndex')
+  const second = await ledger.snapshot()
+  expect(second.rows).toEqual(first.rows)
+  expect(rebuild).not.toHaveBeenCalled()
+  await ledger.finishCall(callFinish)
+  const third = await ledger.snapshot()
+  expect(third.rows[0]).toMatchObject({ kind: 'call', finish: callFinish })
+  expect(first.rows[0]).not.toHaveProperty('finish')
+  expect(rebuild).not.toHaveBeenCalled()
+})
+
+it('matches complete recovery after late facts, duplicate transport envelopes and conflicting imports', async () => {
+  const home = await root()
+  const ctx = new Context()
+  contexts.push(ctx)
+  const ledger = new JournalSessionLedger(ctx, { dshHome: home })
+  const nodeId = await ledger.nodeId()
+  const path = join(home, 'ledger/v1', nodeId)
+  const compare = async () => {
+    const actual = await ledger.snapshot()
+    const scan = await recoverSegments(path, options.maxRecordBytes)
+    expect(actual).toEqual(foldLedger(scan.events, { asOf: actual.asOf, localNodeId: nodeId,
+      observationMaxAgeMs: 10000, complete: scan.complete, watermarks: { [nodeId]: scan.watermark } }))
+  }
+  await appendUnique(path, event('call/end'), options)
+  await compare()
+  await appendUnique(path, event(), options)
+  await compare()
+  const directory = join(path, 'events', '2000-01-01')
+  await fs.mkdir(directory, { recursive: true })
+  const external = async (name: string, payload: LedgerEvent) => {
+    const text = indexStore.canonicalJson(payload)
+    await fs.writeFile(join(directory, name), indexStore.canonicalJson({ version: 1,
+      bytes: Buffer.byteLength(text), digest: digest(text), payload }) + '\n')
+  }
+  const duplicate = { ...event(), eventId: 'duplicate-envelope' as LedgerEventId, observedAt: 0 }
+  await external('duplicate.jsonl', duplicate)
+  await compare()
+  const conflict = event()
+  if (conflict.kind !== 'call/start') throw new Error('Expected call start')
+  conflict.eventId = 'conflicting-envelope' as LedgerEventId
+  conflict.data.requestedModel = 'different-model'
+  await external('conflict.jsonl', conflict)
+  await compare()
+  expect((await ledger.snapshot()).complete).toBe(false)
+})
 
 it('reclaims a shared view only after its last Context releases it', async () => {
   const home = await root()

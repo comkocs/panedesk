@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { ledgerRelative } from './paths.ts'
 import { addToIndex, canonicalJson, digest, rebuildIndex, slotContent, uniqueSlot, type LedgerIndex } from './index-store.ts'
 import { ledgerUuid } from './random.ts'
+import { foldLedger, LedgerProjection } from './projection.ts'
 import { withWriterLock, type WriterLockOptions } from './lock.ts'
 import type { LedgerAppendResult, LedgerArtifactAppend, LedgerArtifactAppendResult, LedgerArtifactFinishResult, LedgerArtifactReference, LedgerEvent, LedgerEventId, LedgerNodeId, LedgerWatermark, MessageLedgerEvent } from './types.ts'
 import type { MessageCursor } from '@panedesk/dsh-message-delivery'
@@ -120,6 +121,10 @@ function assertEvent(value: unknown): asserts value is LedgerEvent {
       if (event.kind === 'call/start') {
         strings(data, ['logicalRequestId', 'provider', 'modelFamily', 'requestedModel', 'purpose', 'priceVersion', 'priceKey'])
         numbers(data, ['attemptIndex', 'startedAt'])
+        if (data.requestHeaderSeq !== undefined
+          && (typeof data.requestHeaderSeq !== 'number' || !Number.isSafeInteger(data.requestHeaderSeq) || data.requestHeaderSeq < 0)) {
+          throw new Error('Invalid request header sequence')
+        }
         stringArray(record(data.cache).breakReasons)
         record(data.cacheWriteTiering)
       } else {
@@ -301,7 +306,23 @@ class JournalView {
   writer: { path: string; date: string } | undefined
 
   private references = 0
+  private projection = new LedgerProjection()
+  private readonly projectedLengths = new Map<string, number>()
   private watermarkSnapshot: (() => LedgerWatermark) | undefined
+
+  snapshot(options: Parameters<typeof foldLedger>[1]): ReturnType<typeof foldLedger> {
+    const complete = ![...this.segments.values()].some(segment => segment.tail || segment.corrupt || segment.importedConflicts)
+    const settings = { ...options, complete,
+      watermarks: { [options.localNodeId ?? '']: this.captureWatermark()() } }
+    if (this.index.conflicts.length) return foldLedger(this.scan('').events, settings)
+    for (const [path, segment] of this.segments) {
+      const length = this.projectedLengths.get(path) ?? 0
+      if (length === segment.events.length) continue
+      this.projection.apply(segment.events.slice(length))
+      this.projectedLengths.set(path, segment.events.length)
+    }
+    return this.projection.snapshot(settings)
+  }
 
   static async forRoot(root: string, options: JournalOptions): Promise<JournalView> {
     const identity = await stat(join(root, 'writer.lock'), { bigint: true })
@@ -354,6 +375,8 @@ class JournalView {
       // Administrative moves invalidate positions; normal writers never remove journal files.
       this.watermarkSnapshot = undefined
       this.segments.clear()
+      this.projection = new LedgerProjection()
+      this.projectedLengths.clear()
       this.index.events.clear(); this.index.slots.clear(); this.index.conflicts.length = 0
       this.eventFiles.clear(); this.waitFacts.clear(); this.latestStarts.clear(); this.openRuns.clear(); this.writer = undefined
     }
@@ -497,6 +520,23 @@ export async function readJournal(root: string, options: JournalOptions): Promis
     const view = await JournalView.forRoot(root, options)
     await view.refresh(root, options.maxRecordBytes)
     return structuredClone(view.scan(root))
+  })
+}
+
+/** Read the complete incremental projection after full artifact integrity validation.
+ * @param root - Existing node directory.
+ * @param options - Storage limits and service-owned view lifetime.
+ * @param projection - Read instant, local identity, freshness and selection.
+ * @returns Detached rows with the unchanged journal watermark and conflict semantics.
+ */
+export async function readJournalSnapshot(root: string, options: JournalOptions,
+  projection: Parameters<typeof foldLedger>[1]): Promise<ReturnType<typeof foldLedger>> {
+  root = await realpath(root)
+  return withWriterLock(join(root, 'writer.lock'), options, async () => {
+    const view = await JournalView.forRoot(root, options)
+    await validateArtifactClosures(root, options.maxRecordBytes, view.artifactClosures)
+    await view.refresh(root, options.maxRecordBytes)
+    return view.snapshot(projection)
   })
 }
 

@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { appendUnique, recoverSegments, appendArtifact, finishArtifact, resolveNodeId } from '../src/journal.ts'
-import { withWriterLock } from '../src/lock.ts'
+import { LedgerUnavailableError, withWriterLock } from '../src/lock.ts'
 import { rebuildIndex } from '../src/index-store.ts'
 import { event, options, callStart } from './fixtures.ts'
 
@@ -124,6 +124,16 @@ describe('journal', () => {
     await expect(appendUnique(path, event('run/start'), options)).rejects.toThrow('corruption')
   })
 
+  it('rejects invalid persisted request-header sequence associations', async () => {
+    const path = await root()
+    for (const sequence of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      const invalid = event()
+      if (invalid.kind !== 'call/start') throw new Error('Expected call start')
+      invalid.data.requestHeaderSeq = sequence
+      await expect(appendUnique(path, invalid, options)).rejects.toThrow('Invalid request header sequence')
+    }
+  })
+
   it('uses stable owner-only lock files and bounds contention without replacing their inode', async () => {
     const path = await root()
     const lock = join(path, 'writer.lock')
@@ -136,6 +146,42 @@ describe('journal', () => {
     expect((await fs.stat(lock)).mode & 0o777).toBe(0o600)
     expect((await fs.stat((await segments(path))[0]!)).mode & 0o777).toBe(0o600)
     expect((await fs.stat(join(path, 'events'))).mode & 0o777).toBe(0o700)
+  })
+
+  it('reports the verified lock holder and elapsed ownership without stealing the lock', async () => {
+    const path = await root()
+    const lock = join(path, 'writer.lock')
+    await withWriterLock(lock, options, async () => {
+      const failure = await withWriterLock(lock, { lockTimeoutMs: 25, lockRetryMs: 2 }, async () => 1)
+        .catch((error: unknown) => error)
+      expect(failure).toMatchObject({ code: 'LEDGER_UNAVAILABLE', lockTimeoutCode: 'LEDGER_LOCK_TIMEOUT' })
+      if (!(failure instanceof LedgerUnavailableError)) throw new Error('Expected ledger lock timeout')
+      if (process.platform === 'linux') {
+        expect(failure.lockHolder?.pid).toBe(process.pid)
+        expect(typeof failure.lockHolder?.heldMs).toBe('number')
+        expect(failure.lockHolder!.heldMs).toBeGreaterThanOrEqual(0)
+        expect(failure.lockHolder!.acquiredAt).toBeLessThanOrEqual(Date.now())
+        expect(new LedgerUnavailableError(failure).lockHolder).toEqual(failure.lockHolder)
+      }
+    })
+  })
+
+  it.skipIf(process.platform !== 'linux')('omits unreadable and reused-process holder identities and clears released metadata', async () => {
+    const path = await root()
+    const lock = join(path, 'writer.lock')
+    await withWriterLock(lock, options, async () => {
+      const stale: unknown = JSON.parse(await fs.readFile(lock, 'utf8'))
+      if (!stale || typeof stale !== 'object') throw new Error('Expected holder metadata')
+      await fs.writeFile(lock, JSON.stringify({ ...stale, startIdentity: 'reused-process' }))
+      const failure = await withWriterLock(lock, { lockTimeoutMs: 10, lockRetryMs: 2 }, async () => 1).catch((error: unknown) => error)
+      expect(failure).toMatchObject({ code: 'LEDGER_UNAVAILABLE', lockTimeoutCode: 'LEDGER_LOCK_TIMEOUT' })
+      expect(failure).not.toHaveProperty('lockHolder', expect.objectContaining({ pid: process.pid }))
+      await fs.writeFile(lock, 'unreadable metadata')
+      const unreadable = await withWriterLock(lock, { lockTimeoutMs: 10, lockRetryMs: 2 }, async () => 1).catch((error: unknown) => error)
+      expect(unreadable).toMatchObject({ code: 'LEDGER_UNAVAILABLE' })
+      expect(unreadable).not.toHaveProperty('lockHolder', expect.objectContaining({ pid: process.pid }))
+    })
+    expect((await fs.readFile(lock, 'utf8')).trim()).toBe('')
   })
 
   it('serializes simultaneous child-process writers into one unique slot', async () => {

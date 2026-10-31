@@ -43,6 +43,7 @@
     "@panedesk/dsh-tools": "workspace:*"
   },
   "devDependencies": {
+    "@panedesk/dsh-ledger-query": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-message-delivery": "workspace:*",

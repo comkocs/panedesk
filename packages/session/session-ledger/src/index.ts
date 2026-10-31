@@ -5,7 +5,7 @@ import { performance } from 'node:perf_hooks'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import type {} from '@panedesk/dsh-tools'
 import {
-  appendUnique, readJournal, resolveNodeId, ensureDirectory, importSegments,
+  appendUnique, readJournalSnapshot, resolveNodeId, ensureDirectory, importSegments,
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
   appendMessageUnique, JournalViewOwner, readJournalFacts, ArtifactAppendCache,
 } from './journal.ts'
@@ -454,11 +454,9 @@ export class JournalSessionLedger extends SessionLedger {
    */
   async snapshot(filter?: LedgerQuery): Promise<LedgerSnapshot> {
     const { root, id } = await this.location()
-    const scan = await readJournal(root, this.options)
-    return foldLedger(scan.events, {
+    return readJournalSnapshot(root, this.options, {
       asOf: Date.now(), localNodeId: id, observationMaxAgeMs: this.freshness,
       ...filter === undefined ? {} : { filter },
-      complete: scan.complete, watermarks: { [id]: scan.watermark },
     })
   }
   /** Price authoritative usage with decimal fixed-point arithmetic, without inventing missing values.
