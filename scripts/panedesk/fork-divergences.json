@@ -1,6 +1,17 @@
 {
   "divergences": [
     {
+      "id": "seat-local-frozen-worker-hold-until-killed",
+      "description": "Keep the frozen-process test worker alive with an explicit ref'd timer until the fixture kills it.",
+      "origin": "Frozen-process kill-stage reliability",
+      "reason": "The worker never listens for IPC messages, so the channel stays unref'd and drained fixture handles could let a kill-stage worker exit 0 before the expected SIGKILL; an explicit interval removes that environment-dependent liveness.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/seat/seat-local/tests/frozen-process-worker.ts"],
+        "test": "reports the kill-stage worker exit as SIGKILL rather than a natural exit 0"
+      }
+    },
+    {
       "id": "windows-private-file-refusal-codes",
       "description": "Stable Windows private-file refusal codes.",
       "origin": "Private-file diagnostics integration",
