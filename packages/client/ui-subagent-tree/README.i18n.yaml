@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-subagent-tree/README.md
+/:
+  en: 52d76c9c29dd2f98
+  zh: 89be255fd5e7776b
+/panedesk-dsh-client-ui-subagent-tree:
+  en: 40f17f06f3fb971d
+  zh: ddf1e2d2761a1a64
+/panedesk-dsh-client-ui-subagent-tree/summary:
+  en: c67747c2d3d9f71a
+  zh: fe26abfd0cbc9f16
+/panedesk-dsh-client-ui-subagent-tree/table-of-contents:
+  en: 76368b6b1da79c80
+  zh: 50e1d3ea20df3c6f
+/panedesk-dsh-client-ui-subagent-tree/use-this-package:
+  en: e3beca555f74b36b
+  zh: 373fc74ed686f4f5
+/panedesk-dsh-client-ui-subagent-tree/understand-the-implementation:
+  en: 9b979cd56a6f6a50
+  zh: b429bb67b0a43ea6
+/panedesk-dsh-client-ui-subagent-tree/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-client-ui-subagent-tree/model-experience/read-only-session-tree:
+  en: 39e57838496bdaf5
+  zh: 8ed8067ccc0a0fc9
+/panedesk-dsh-client-ui-subagent-tree/model-experience/read-only-session-tree/what-the-model-sees:
+  en: 6d4568b51454c345
+  zh: 5e8adf074fb3f2b1
+/panedesk-dsh-client-ui-subagent-tree/model-experience/read-only-session-tree/token-effect:
+  en: 1a9cd0492f466a4b
+  zh: 69b0350ffc0d3478
+/panedesk-dsh-client-ui-subagent-tree/model-experience/read-only-session-tree/kv-cache-effect:
+  en: d12f90edcca2295a
+  zh: 585e4f63cdffa51b
+/panedesk-dsh-client-ui-subagent-tree/known-limitations-and-deferred-work:
+  en: ebd2b095e76fb253
+  zh: ff332d04d1ca5618
+/panedesk-dsh-client-ui-subagent-tree/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: d3bf5328b50f7a25

@@ -4962,6 +4962,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'subagentTree',
+    summary: 'No stop, write, export, or caller-supplied identity capability is exposed.',
+    description: 'No stop, write, export, or caller-supplied identity capability is exposed.',
+    methods: [
+      {
+        signature: '@Remote async read(request: SubagentTreeRequest): Promise<SubagentTreeView>',
+        description: 'Read one deduplicated ledger snapshot and per-session transcripts after authenticating the invocation owner.',
+        parameters: [{ name: 'request', description: 'the on-screen session whose descendant tree is requested.' }],
+        returns: 'nested tree with monitoring columns and the deployment\'s refresh cadence.',
+      },
+    ],
+  },
+  {
     key: 'subprocess',
     summary: 'Abstract subprocess service.',
     description: 'Abstract subprocess service. Subclass, implement spawn, and load the subclass as a plugin — it registers as `ctx.subprocess` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- Executable paths belong to one execution world shared with the mounted filesystem provider.\n- spawn returns a live handle synchronously. Target identity remains provider-private; `done` resolves with the spawned command\'s exit facts and may reject for spawn or provider failures.\n- Collect-mode readers are offset-based and non-consuming, so independent readers never consume one another\'s output; lossy reads report truncation and the spill file holding the complete stream when one exists. Piped streams are handed to the caller raw and never buffered here.\n- SubprocessHandle.terminate (and the spec\'s abort signal) starts the provider\'s documented procedure against its managed range. SubprocessHandle.waitForExit observes that same range so a consumer-owned teardown ladder can hold each tier on real quiescence; each provider documents its signalling and observability limits.\n- Disposal of the service terminates all still-running managed processes and awaits their exit.\n- spawnTerminal owns terminal allocation, text transport, foreground groups, signalling, and whole-session quiescence behind one awaited termination method; readiness and persistent-shell policy stay in the PTY consumer. Its output stream ends after queued terminal output when the top-level process exits.',
@@ -11697,6 +11710,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SubagentDescendantListEntry = SubagentListEntry & {\n    readonly parentId: SessionId;\n    readonly depth: number;\n};',
   },
   {
+    name: 'SubagentEndReason',
+    declaration: 'export type SubagentEndReason = \'completed\' | \'timeout\' | \'killed\' | \'error\' | \'cancelled\';',
+  },
+  {
     name: 'SubagentInterruptAuthority',
     declaration: 'export type SubagentInterruptAuthority = {\n    readonly kind: \'user\';\n    readonly parentSessionId: SessionId;\n} | {\n    readonly kind: \'ancestor\';\n    readonly agent: Agent;\n};',
   },
@@ -11705,8 +11722,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubagentInterruptReceipt {\n    readonly accepted: true;\n}',
   },
   {
+    name: 'SubagentLastToolCall',
+    declaration: 'export interface SubagentLastToolCall {\n    readonly name: string;\n    readonly time: number;\n}',
+  },
+  {
     name: 'SubagentListEntry',
     declaration: 'export type SubagentListEntry = SubagentCatalogRow & {\n    readonly kind: \'child\';\n    readonly hasChildren: boolean;\n} | {\n    readonly kind: \'diagnostic\';\n    readonly id: SessionId;\n    readonly reason: \'corrupt\' | \'unsupported\' | \'unavailable\';\n};',
+  },
+  {
+    name: 'SubagentLiveness',
+    declaration: 'export type SubagentLiveness = \'confirmed\' | \'unknown\' | \'dead\';',
+  },
+  {
+    name: 'SubagentModelSource',
+    declaration: 'export type SubagentModelSource = \'transcript\' | \'unavailable\' | \'unreadable\';',
+  },
+  {
+    name: 'SubagentNodeStatus',
+    declaration: 'export type SubagentNodeStatus = \'running\' | \'waiting\' | \'finished\';',
   },
   {
     name: 'SubagentPromptReceipt',
@@ -11779,6 +11812,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SubagentStopReasonMap',
     declaration: 'export interface SubagentStopReasonMap {\n    completed: \'completed\';\n    aborted: \'aborted\';\n    error: \'error\';\n    \'max-tokens\': \'max-tokens\';\n    refusal: \'refusal\';\n}',
+  },
+  {
+    name: 'SubagentTokenColumns',
+    declaration: 'export interface SubagentTokenColumns {\n    readonly inputTokens: number | null;\n    readonly cacheReadTokens: number | null;\n    readonly cacheWriteShortTokens: number | null;\n    readonly cacheWriteLongTokens: number | null;\n    readonly outputTokens: number | null;\n    readonly cacheWriteTokens: number | null;\n}',
+  },
+  {
+    name: 'SubagentTreeNode',
+    declaration: 'export interface SubagentTreeNode {\n    readonly sessionId: SessionId;\n    readonly parentSessionId: SessionId | null;\n    readonly children: readonly SubagentTreeNode[];\n    readonly status: SubagentNodeStatus;\n    readonly liveness: SubagentLiveness;\n    readonly endReason?: SubagentEndReason | undefined;\n    readonly model: string | null;\n    readonly modelSource: SubagentModelSource;\n    readonly tokens: SubagentTokenColumns;\n    readonly usageState: \'missing\' | \'partial\' | \'complete\';\n    readonly cacheHitRate: number | null;\n    readonly elapsedMs: number | null;\n    readonly runs: number;\n    readonly calls: number;\n    readonly lastToolCall: SubagentLastToolCall | null;\n    readonly seat: string | null;\n    readonly taskId: string | null;\n}',
+  },
+  {
+    name: 'SubagentTreeRequest',
+    declaration: 'export interface SubagentTreeRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SubagentTreeView',
+    declaration: 'export interface SubagentTreeView {\n    readonly asOf: number;\n    readonly complete: boolean;\n    readonly root: SubagentTreeNode;\n    readonly refreshIntervalMs: number;\n}',
   },
   {
     name: 'SubmitCloseReportRequest',

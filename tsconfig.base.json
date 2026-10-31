@@ -316,6 +316,8 @@
       "@panedesk/dsh-client-ui-permission-presets": ["./packages/client/ui-permission-presets/src"],
       "@panedesk/dsh-client-ui-skill": ["./packages/client/ui-skill/src"],
       "@panedesk/dsh-client-ui-subagent": ["./packages/client/ui-subagent/src"],
+      "@panedesk/dsh-client-ui-subagent-tree": ["./packages/client/ui-subagent-tree/src"],
+      "@panedesk/dsh-client-ui-subagent-tree/client": ["./packages/client/ui-subagent-tree/src/client/index.ts"],
       "@panedesk/dsh-experimental-client-ui-agent-team": ["./packages/experimental/client-ui-agent-team/src"],
       "@panedesk/dsh-experimental-client-ui-agent-team/client": ["./packages/experimental/client-ui-agent-team/src/client/index.ts"],
       "@panedesk/dsh-client-ui-settings-plugins": ["./packages/client/ui-settings-plugins/src"],

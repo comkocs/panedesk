@@ -1,0 +1,86 @@
+.pill {
+  min-height: 28px;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.caption {
+  text-align: left;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th,
+.table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.label {
+  margin-left: 6px;
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+}
+
+.monitorButton {
+  min-height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.monitor {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.monitorRow {
+  display: contents;
+}
+
+.monitorRow dt {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.monitorRow dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.monitorNote {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.monitorContent {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
