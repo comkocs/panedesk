@@ -40,6 +40,9 @@ it.each(['local', 'verified-remote', 'other-ticket', 'stale', 'revoked'] as cons
         const replay = await h.engine.withApprovalAbsorption(grant, [pending], () => h.engine.openWindow(input))
         expect(replay).toMatchObject({ status: result.status, ...('sessionId' in result ? { sessionId: result.sessionId } : {}) })
         expect(h.creates).toHaveLength(1)
+        expect(h.engine.journal.projection.decisions.flatMap(row => row.effects)
+          .filter(effect => effect.kind === 'queue/cancelled' && effect.operationId === request.operationId)).toHaveLength(1)
+        expect(h.callbacks.some(callback => callback.kind === 'rejected')).toBe(false)
       } else {
         expect(result.status).toBe('rejected')
         expect(h.engine.journal.projection.pending.has(pending.queueItemId)).toBe(true)
