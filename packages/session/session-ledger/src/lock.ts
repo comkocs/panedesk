@@ -9,6 +9,8 @@ import { acquireExclusiveLockFile, tryLockExclusive } from '@panedesk/node-addon
 export interface WriterLockOptions {
   lockTimeoutMs: number
   lockRetryMs: number
+  /** Service-owned immutable process identity; omitted callers read it for each acquisition. */
+  identity?: WriterLockIdentity
 }
 
 /** Verified diagnostic observation, never authority to release another writer's lock. */
@@ -23,17 +25,29 @@ function processStart(text: string): string | undefined {
   return ['Z', 'X', 'x'].includes(fields[0] ?? '') ? undefined : fields[19]
 }
 
-function publishHolder(handle: FileHandle): void {
-  const acquiredAt = Date.now()
-  let startIdentity: string | undefined
-  let bootIdentity: string | undefined
-  try {
-    if (process.platform === 'linux') {
-      startIdentity = processStart(readFileSync(`/proc/${process.pid}/stat`, 'utf8'))
-      bootIdentity = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
+/** Immutable process identity retained only for its owning ledger service lifetime. */
+export class WriterLockIdentity {
+  private identity: { startIdentity: string | undefined; bootIdentity: string } | undefined
+
+  /** Read the current process incarnation once; unavailable diagnostics may retry on a later acquisition.
+   * @returns Linux process and boot identities, or no readable identity on other platforms.
+   */
+  read(): { startIdentity: string | undefined; bootIdentity: string } | undefined {
+    if (process.platform !== 'linux') return undefined
+    this.identity ??= {
+      startIdentity: processStart(readFileSync(`/proc/${process.pid}/stat`, 'utf8')),
+      bootIdentity: readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim(),
     }
+    return this.identity
+  }
+}
+
+function publishHolder(handle: FileHandle, identity: WriterLockIdentity | undefined): void {
+  const acquiredAt = Date.now()
+  try {
+    const processIdentity = (identity ?? new WriterLockIdentity()).read()
     const bytes = Buffer.alloc(512, ' ')
-    bytes.write(JSON.stringify({ pid: process.pid, acquiredAt, startIdentity, bootIdentity }))
+    bytes.write(JSON.stringify({ pid: process.pid, acquiredAt, ...processIdentity }))
     // Diagnostics are not journal facts: no extra fsync or durable acknowledgement is needed.
     writeSync(handle.fd, bytes, 0, bytes.length, 0)
   } catch (_error) { /* An unavailable diagnostic never changes lock ownership or write admission. */ }
@@ -117,7 +131,7 @@ export async function withWriterLock<T>(path: string, options: WriterLockOptions
       if (error instanceof Error && 'code' in error && error.code === 'EAGAIN') throw new LedgerUnavailableError(error)
       throw error
     }
-    publishHolder(handle)
+    publishHolder(handle, options.identity)
     try { return await operation() } finally { clearHolder(handle); await handle.close() }
   }
   const handle = await open(path, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600)
@@ -139,7 +153,7 @@ export async function withWriterLock<T>(path: string, options: WriterLockOptions
     const held = await handle.stat({ bigint: true })
     const named = await stat(path, { bigint: true })
     if (held.ino !== named.ino || held.dev !== named.dev) throw new LedgerUnavailableError(new Error('Writer lock inode changed'))
-    publishHolder(handle)
+    publishHolder(handle, options.identity)
     try { return await operation() } finally { clearHolder(handle) }
   } finally {
     await handle.close()

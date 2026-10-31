@@ -9,7 +9,7 @@ import {
   appendArtifact as appendSidecar, finishArtifact as finishSidecar, type JournalOptions,
   appendMessageUnique, JournalViewOwner, readJournalFacts, ArtifactAppendCache,
 } from './journal.ts'
-import { LedgerUnavailableError } from './lock.ts'
+import { LedgerUnavailableError, WriterLockIdentity } from './lock.ts'
 import type { LedgerIndex } from './index-store.ts'
 import { foldLedger, foldMessages, joinSessionLedgers, exportMessages } from './projection.ts'
 import { loadPriceTable, priceUsage } from './pricing.ts'
@@ -219,6 +219,7 @@ export class JournalSessionLedger extends SessionLedger {
     ctx.effect(() => () => { viewOwner.dispose() })
     this.options = {
       viewOwner,
+      identity: new WriterLockIdentity(),
       lockTimeoutMs: config.lockTimeoutMs ?? 5000,
       lockRetryMs: config.lockRetryMs ?? 10,
       maxRecordBytes: config.maxRecordBytes ?? 16 * 1024 * 1024,

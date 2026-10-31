@@ -27,7 +27,8 @@ function rowKey(row: LedgerRow): string {
  * @returns stable unique rows, session associations, and excluded conflict sets.
  */
 export function mergeLedger(snapshots: readonly LedgerSnapshot[]): LedgerMergeResult {
-  const slots = new Map<string, Map<string, LedgerRow>>()
+  const slots = new Map<string, LedgerRow>()
+  const duplicates = new Map<string, Map<string, LedgerRow>>()
   const watermarks = new Map<string, LedgerSnapshot['watermarks'][string]>()
   const conflictingNodes = new Set<string>()
   for (const snapshot of snapshots) {
@@ -37,15 +38,19 @@ export function mergeLedger(snapshots: readonly LedgerSnapshot[]): LedgerMergeRe
     }
     for (const row of snapshot.rows) {
       const key = rowKey(row)
-      let variants = slots.get(key)
-      if (!variants) { variants = new Map(); slots.set(key, variants) }
       const fact = withoutWaitProjection(row)
+      const prior = slots.get(key)
+      if (!prior) { slots.set(key, fact); continue }
+      let variants = duplicates.get(key)
+      if (!variants) { variants = new Map([[canonical(prior), prior]]); duplicates.set(key, variants) }
       variants.set(canonical(fact), fact)
     }
   }
   const rows: LedgerRow[] = [], conflicts: LedgerMergeConflict[] = []
-  for (const [key, variants] of [...slots].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
-    const values = [...variants.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, row]) => row)
+  for (const [key, row] of [...slots].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
+    const variants = duplicates.get(key)
+    if (!variants) { rows.push(row); continue }
+    const values = [...variants.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, value]) => value)
     const first = values[0]
     if (values.length === 1 && first) rows.push(first)
     else conflicts.push({ key, variants: values })

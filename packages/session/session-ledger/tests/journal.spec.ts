@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { appendUnique, recoverSegments, appendArtifact, finishArtifact, resolveNodeId } from '../src/journal.ts'
-import { LedgerUnavailableError, withWriterLock } from '../src/lock.ts'
+import { LedgerUnavailableError, withWriterLock, WriterLockIdentity } from '../src/lock.ts'
 import { rebuildIndex } from '../src/index-store.ts'
 import { event, options, callStart } from './fixtures.ts'
 
@@ -151,7 +151,10 @@ describe('journal', () => {
   it('reports the verified lock holder and elapsed ownership without stealing the lock', async () => {
     const path = await root()
     const lock = join(path, 'writer.lock')
-    await withWriterLock(lock, options, async () => {
+    const identity = new WriterLockIdentity()
+    const first = identity.read()
+    expect(identity.read()).toBe(first)
+    await withWriterLock(lock, { ...options, identity }, async () => {
       const failure = await withWriterLock(lock, { lockTimeoutMs: 25, lockRetryMs: 2 }, async () => 1)
         .catch((error: unknown) => error)
       expect(failure).toMatchObject({ code: 'LEDGER_UNAVAILABLE', lockTimeoutCode: 'LEDGER_LOCK_TIMEOUT' })
