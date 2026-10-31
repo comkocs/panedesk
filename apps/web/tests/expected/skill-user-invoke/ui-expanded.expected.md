@@ -2,8 +2,9 @@
   - navigation "Session hierarchy": /user-invoke-demo @"meeting notes-this-i
   - text: Standard mode
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -18,6 +19,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -27,4 +29,5 @@
 - button "Send message" [disabled]
 - button "1 turns 1 steps · {{throughput}} tok/s": 1 turns 1 steps{{throughput}} tok/s
 - button "272 tok · Cache hit 0%": 272 tokCache hit 0%
+- button "Cache"
 - button "0% of context used": 0%

@@ -1,8 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Load the editing-cordis-compositions ski
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
@@ -21,6 +22,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{date}} {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -30,3 +32,4 @@
 - button "Send message" [disabled]
 - button "1 turns 2 steps"
 - button "310 tok · Cache hit 0%": 310 tokCache hit 0%
+- button "Cache"

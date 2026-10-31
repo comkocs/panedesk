@@ -1,8 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Use the read tool twice
   - button "Subagent tree"
-  - button "More actions"
+  - button "Inbox"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
