@@ -36,6 +36,6 @@
   - button "插话发送"
   - text: 性能与用量 选择性能与用量信息展示的详细程度
   - button "详细"
-  - text: 在使用官方模型 API 时上传 Session Log 帮助改进 DeepSeek 模型与产品
+  - text: Bash 工具(Windows) Windows 缺省仍用 PowerShell。检测到 Git Bash 安装后,可改用它运行 Bash 工具。 本行只在 Windows 宿主上适用。 在使用官方模型 API 时上传 Session Log 帮助改进 DeepSeek 模型与产品
   - switch "在使用官方模型 API 时上传 Session Log"
   - text: 当前版本：{{version}}

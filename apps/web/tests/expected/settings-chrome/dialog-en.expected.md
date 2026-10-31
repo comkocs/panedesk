@@ -36,6 +36,6 @@
   - button "Steer"
   - text: Performance & usage Choose how much performance and usage information to show
   - button "Detailed"
-  - text: Upload Session Log when using the official model API Help improve DeepSeek models and products.
+  - text: Bash tools (Windows) Windows keeps PowerShell as the default shell. A detected Git Bash installation can run the Bash tools instead. This row applies to Windows hosts only. Upload Session Log when using the official model API Help improve DeepSeek models and products.
   - switch "Upload Session Log when using the official model API"
   - text: "Current version: {{version}}"

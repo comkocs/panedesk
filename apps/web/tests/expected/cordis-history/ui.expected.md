@@ -1,6 +1,7 @@
 - banner:
   - navigation "Session hierarchy": Use only Cordis tools. First
   - button "Subagent tree"
+  - button "Inbox"
   - button "More actions"
   - button "Session tools"
   - button "Open right sidebar"
@@ -39,6 +40,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: 9/1 {{clock}}
 - button "Plugin status updated 9/1 {{clock}}":
@@ -50,6 +52,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: 9/1 {{clock}} Use only Cordis tools. Call cordis_stop with pluginId "snap-1". After it succeeds, reply exactly CORDIS_UI_DONE and stop. 9/1 {{clock}}
 - button "Copy"
@@ -63,6 +66,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: 9/1 {{clock}}
 - button "Back to bottom"
@@ -73,4 +77,5 @@
 - button "Send message" [disabled]
 - button "3 turns 7 steps"
 - button "66.8K tok · Cache hit 77%": 66.8K tokCache hit 77%
+- button "Cache"
 - button "0% of context used": 0%

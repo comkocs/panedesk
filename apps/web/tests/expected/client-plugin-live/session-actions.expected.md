@@ -6,4 +6,5 @@
   - menuitem "Copy Session ID"
   - separator
   - menuitem "Export session"
+  - menuitem "Open in the right sidebar"
   - menuitem "Copy session ID"

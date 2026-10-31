@@ -1,6 +1,7 @@
 - banner:
   - navigation "Session hierarchy": CJK strong emphasis
   - button "Subagent tree"
+  - button "Inbox"
   - button "More actions"
   - button "Session tools"
   - button "Open right sidebar"
@@ -40,6 +41,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -48,3 +50,4 @@
 - button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
 - button "Send message" [disabled]
 - button "1 turns 1 steps"
+- button "Cache"
