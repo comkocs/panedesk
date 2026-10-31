@@ -1,9 +1,24 @@
+---
+description: "Project-scoped opening preferences and workflow-pack guidance in the Web client."
+kind: "package-reference"
+---
+
 # Project opening guidance
 
 English | [中文](README.zh.md)
 
+## Summary
+
 Session-only project guidance and a custom product settings page. Part of the [Web client subsystem](../../../docs/subsystems/web-client.md).
 
+## Table of Contents
+
+- [Behavior](#behavior)
+- [Dev Note](#dev-note)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+<a id="behavior"></a>
 ## Behavior
 
 The conversation overlay asks once per workspace path for Off, Remind only, or Automatic; Remind only is the initial draft, not an implicit approval. A successful selection is stored in the product profile's `ui-project-onboarding.projects` dictionary, never in the user's project. Product settings can change confirmed choices. Read-only settings disable writes; failures retain the prior visible selection and offer retry.
@@ -14,6 +29,12 @@ With no matching seat, the preference is stored without starting an engine. A li
 
 The workflow-pack action inserts a getting-started request into the current composer and persists the draft. It never submits a message or writes project files. No new entry is added to the session launch screen.
 
+<a id="dev-note"></a>
+## Dev Note
+
+Host preferences and seat policy synchronization live in `src/index.ts` and `src/opening.ts`; the Client entry lives in `src/client/`. Client reads and invalidations use the shared settings describe mirror; successful selection replies fold back into it without a separate describe request.
+
+<a id="model-experience"></a>
 ## Model Experience
 
 ### Project guidance

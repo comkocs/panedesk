@@ -147,6 +147,12 @@ export function createAssembledRemote(options: AssembledRemoteOptions = {}): Ass
           ns: 'ui-settings',
           schema: { type: 'object', dict: { enabled: { type: 'boolean' } } },
           value: { enabled: options.developerTools ?? true }, autoGenerate: false, applies: 'live', secrets: [], revision: 0,
+        }, {
+          ns: 'ui-project-onboarding', schema: {},
+          value: { projects: Object.fromEntries(workspaces.map(workspace => [
+            workspace.path, { mode: 'remind', chosen: true },
+          ])) },
+          autoGenerate: false, applies: 'live', secrets: [], revision: 0,
         }],
       }),
       'credentials/describe': structuredClone(fixture.credentialsDescribe),

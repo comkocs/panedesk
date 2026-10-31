@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/web/tests/README.md
 /apps-web-browser-e2e:
-  en: 3e8ecd3509fa944f
-  zh: 3fd3ff9fcd1e1e90
+  en: ee6c61d7f2fb3f22
+  zh: 26ddd0a5b5a80090
 /apps-web-browser-e2e/completion-observations:
   en: 4a06ba5463b53bb3
   zh: 70863c70e15c6746
 /apps-web-browser-e2e/these-are-host-face-tests:
-  en: 8c406d423c8e2137
-  zh: a66a144fd146f56c
+  en: 95c2fe4ecb5e744c
+  zh: 6dd80c2a7c319a6c
 /apps-web-browser-e2e/do-not-import-panedesk-dsh-client-here:
-  en: 029ff475a6ed235c
-  zh: 57a5c2b42a16ee17
+  en: 32d898604b734b43
+  zh: e63e98ab325b7953

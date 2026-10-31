@@ -3,6 +3,7 @@ import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-api-remotes/client'
 import type {} from '@panedesk/dsh-client-locale/client'
 import type {} from '@panedesk/dsh-client-ui-renderer/client'
+import type {} from '@panedesk/dsh-client-ui-settings/client'
 import contribution from '@panedesk/dsh-client-ui-project-onboarding/remote'
 import { ProjectPreferencesController } from './controller.ts'
 import { ProjectGuide, ProjectSettings } from './ProjectGuide.tsx'
@@ -10,7 +11,7 @@ import { en, zh } from './locales.ts'
 import type { ProjectInjected } from './props.ts'
 
 /** Services used by the preferences projection and its slot contributions. */
-export const inject = ['slots', 'locale', 'remote']
+export const inject = ['slots', 'locale', 'remote', 'configForms']
 
 /** Register the project settings page and an overlay absent from the launch screen.
  * @param ctx Client plugin scope; no service objects reach React components.
@@ -18,11 +19,22 @@ export const inject = ['slots', 'locale', 'remote']
  */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposeRemote = await ctx.remote.$mount(contribution)
-  const ui = ctx.inject(['remote.settings', 'remote.projectOpening'], (ctx) => {
+  const ui = ctx.inject(['remote.projectOpening'], (ctx) => {
     ctx.effect(() => ctx.locale.register('projectOnboarding', { en, zh }))
+    const mirror = ctx.configForms.describe()
     const controller = new ProjectPreferencesController({
-      describe: () => ctx.remote.settings.describe(),
-      select: (path, selection, revision) => ctx.remote.projectOpening.select(path, selection, revision),
+      describe: async () => {
+        await mirror.ensure()
+        const snapshot = mirror.getSnapshot()
+        return snapshot.view === undefined
+          ? { ok: false }
+          : { ok: true, value: { ...snapshot.view, namespaces: [...snapshot.view.namespaces] } }
+      },
+      select: async (path, selection, revision) => {
+        const response = await ctx.remote.projectOpening.select(path, selection, revision)
+        if (response.ok) mirror.acceptView(response.value)
+        return response
+      },
     })
     const face = (): ProjectInjected => ({
       hooks: { preferences: controller.state }, retry: () => controller.load(),
@@ -37,8 +49,10 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       label: () => ctx.locale.bind('projectOnboarding')('title'),
       locale: 'projectOnboarding', inject: face,
     }, ProjectSettings))
-    ctx.on('connection/reset', () => { void controller.load() })
-    ctx.effect(() => ctx.remote.$on('settings/document-updated', () => { void controller.load() }))
+    ctx.effect(() => mirror.subscribe(() => {
+      // Failed initial reads stay retryable without recursively starting another read.
+      if (mirror.getSnapshot().view !== undefined) void controller.load()
+    }))
     ctx.effect(() => () => { controller.dispose() })
     void controller.load()
   })

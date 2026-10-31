@@ -9,6 +9,7 @@ import type { ProjectSelection } from './types.ts'
 
 /** Product preferences, never stored inside the user's project. */
 export interface Config {
+  /** Saved opening choices keyed by absolute workspace directory in product settings. */
   projects: Volatile<Record<string, ProjectSelection>>
 }
 

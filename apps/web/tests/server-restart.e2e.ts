@@ -169,6 +169,10 @@ it.each([false, true])('keeps the same revision, Session and page across a serve
     await saveFailureShot(page, 'web-server-restart-' + scenarioId)
     await writeFile(join(REPO_ROOT, '.artifacts', 'server-restart-' + scenarioId + '.json'), JSON.stringify({ errors, streamErrors, graphs, server: server.logs() }, null, 2))
   })
+  const guidance = page.getByRole('dialog', { name: 'Project opening settings', exact: true })
+  await page.addLocatorHandler(guidance, async (dialog) => {
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  }, { times: 1 })
   await page.goto(url, { waitUntil: 'load' })
   await page.locator('[data-slot="root"]').waitFor({ state: 'attached', timeout: 20_000 })
   const notice = page.getByRole('button', { name: 'Continue', exact: true })

@@ -12,7 +12,7 @@ pnpm --filter @panedesk/dsh-web-frontend exec playwright install --with-deps chr
 
 在 Linux 上，`--with-deps` 会通过系统包管理器安装依赖。持久化 CI VM 必须通过镜像维护提供这些依赖，CI 只安装浏览器程序，遵循[故障切换手册](../../../.agents/notes/implemented/process/2026-07-26-ci-failover-runbook.zh.md)的要求。
 
-普通场景以没有已登记 Workspace 或 Session、但持久化标记记录默认 Workspace 已被删除的状态启动，使显式文件夹选择场景自行决定 cwd。`launchWebScaffold({ firstUse: true })` 保留初始化资格，供启动场景使用。
+普通场景以没有已登记 Workspace 或 Session、但持久化标记记录默认 Workspace 已被删除的状态启动，使显式文件夹选择场景自行决定 cwd。`launchWebScaffold({ firstUse: true })` 保留初始化资格，供启动场景使用。普通夹具在浏览器启动前以及登记新 Workspace 路径时，通过产品设置持久化明确的只提醒项目选择，辅助页面打开的路径也适用；`firstUse: true` 不为新路径自动选档，`projectOpeningPending: true` 保留所有首次进入引导。实时会话菜单场景验证待处理弹层并将其关闭，再断言菜单交互与插件卸载。独立 CLI 重启场景也先点击关闭来收起引导，不保存策略，再验证重连。新工作区交互辅助函数在首次引导阻挡后续操作时点击对应语言的关闭按钮，不确认项目策略；引导专用场景直接控制界面，不使用这些辅助函数。
 
 ## 完成状态观察
 
@@ -26,7 +26,7 @@ pnpm --filter @panedesk/dsh-web-frontend exec playwright install --with-deps chr
 
 ## 这些是 Host 面的测试
 
-它们在根 `tsconfig.host.json` 中做类型检查，而不在 Client aggregate 中，因为它们直接读取 Host 服务：`ctx.connection`、Host 侧 `SessionStore` 与 `ctx.sessionProjectionCache`。运行时驱动浏览器并不使一个文件成为 Client 程序的一部分——两个 face 在相同的键上以不同服务合并 Cordis `Context`，因此单个程序无法同时看见两者。把这些文件挪进 Client aggregate 会让每一处 Host 服务访问都无法编译。
+它们在根 `tsconfig.host.json` 中做类型检查，而不在 Client aggregate 中，因为它们直接读取 Host 服务：`ctx.connection`、Host 侧 `SessionStore` 与 `ctx.sessionProjectionCache`。运行时驱动浏览器并不使一个文件成为 Client 程序的一部分——两个 face 在相同的键上以不同服务合并 Cordis `Context`，因此单个程序无法同时看见两者。把这些文件挪进 Client aggregate 会让每一处 Host 服务访问都无法编译。账本统计浏览器场景也属于此 Host 程序：它通过所有者桥提供合成账本证据，同时走查两种界面语言。
 
 ## 不要在此 import `@panedesk/dsh-client-*`
 
@@ -34,6 +34,6 @@ import 一个 Client 包——无论值还是类型——都会把它整个 Type
 
 当某个场景需要 Client 持有的常量或纯函数时，改为在此处镜像一份，并紧挨着一条注释掉的 import 点明源模块。这样漂移会表现为选择器未命中或镜像值陈旧——是响亮的失败，绝不会是静默通过。`scaffold.ts` 按此规则镜像 welcome-notice 的 namespace、确认字段、版本和被断言的中文文案。
 
-built-client harness 是例外。`assembled-boot.ts` import `AppWebEntry`、boot manifest（元数据清单）类型与 `RemoteMock`；`assembled-remote.ts` import Client test runtime 的默认响应与 `RemoteMock`。这些包是显式的工程引用，用于通过测试持有的 carrier 启动真实 shell。夹具在执行插件 bundle 前提供构建元数据资产，并在拆卸时移除该全局对象。HMR 场景随客户端 bundle 一起恢复该资产，确保清理后完整构建记录仍然有效。chat 场景仍在 `support.ts` 中镜像 `conversationContextKey`，而不 import 其 Client owner。
+built-client harness 是例外。`assembled-boot.ts` import `AppWebEntry`、boot manifest（元数据清单）类型与 `RemoteMock`；`assembled-remote.ts` import Client test runtime 的默认响应与 `RemoteMock`。这些包是显式的工程引用，用于通过测试持有的 carrier 启动真实 shell。夹具在执行插件 bundle 前提供构建元数据资产，并在拆卸时移除该全局对象。其设置响应包含夹具 Workspace 路径已确认的只提醒选择，避免无关组件场景打开项目引导。HMR 场景一起恢复该资产、包与应用的库输出及增量编译元数据，防止后续 bundle 从未恢复的 `lib/types` 输出再次引入测试修改。清理先删除新生成的文件、补回被删的原文件，再校验构建记录。chat 场景仍在 `support.ts` 中镜像 `conversationContextKey`，而不 import 其 Client owner。
 
 没有任何机制强制这条规则；靠 review 守住它。

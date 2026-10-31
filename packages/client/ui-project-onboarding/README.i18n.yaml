@@ -2,12 +2,24 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-project-onboarding/README.md
+/:
+  en: 81c5660d40596263
+  zh: 0cb7d774fdb957a9
 /project-opening-guidance:
-  en: 6fab737b665b8e96
-  zh: 098978bd4706637a
+  en: a091567671fa289f
+  zh: da8f11336122f1f6
+/project-opening-guidance/summary:
+  en: 8845bf65bb2f7f5b
+  zh: 6e20fc7ecbbaf746
+/project-opening-guidance/table-of-contents:
+  en: 6fba6de8ce452dcd
+  zh: deb1c78d3007808b
 /project-opening-guidance/behavior:
-  en: 60a1f05732a683f1
-  zh: 79e15fa24be81610
+  en: 0b154f6c71eac059
+  zh: b71ec4f945e48b75
+/project-opening-guidance/dev-note:
+  en: fdf1f3e980408224
+  zh: b0d1294dafc41627
 /project-opening-guidance/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -25,4 +37,4 @@
   zh: 6e1103ac7e6ffe7a
 /project-opening-guidance/known-limitations-and-deferred-work:
   en: fb722df6a0a2501d
-  zh: 0438398e3cb8a7be
+  zh: 58f4d6fa5ec99e07
