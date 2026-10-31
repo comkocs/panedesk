@@ -258,6 +258,11 @@ export abstract class SeatEngineService extends Service {
    * @returns durable opening outcome; absence means this provider cannot admit local openings.
    */
   openWindow?: (request: T.SeatLocalOpenRequest) => Promise<T.OpenSeatResult>
+  /** Read current callback observations, including process-local folded retries, without dispatch.
+   * @param request - Maximum records and optional phase filter, applied before limiting; completeness covers matching observations.
+   * @returns Detached live observations; absence means this provider has no callback observation capability.
+   */
+  callbackObservations?: (request: { limit: number; phase?: T.SeatCallbackDelivery['phase'] }) => Promise<{ items: readonly T.SeatCallbackDelivery[]; complete: boolean }>
   /** Resolve a parked callback under current local-operator authority; absence refuses resolution.
    * @param request - Callback identity, expected attempt and operator action.
    * @param grant - Live authority bound to this exact request.

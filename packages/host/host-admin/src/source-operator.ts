@@ -15,6 +15,16 @@ export interface SourceOperatorItem {
   since: string
   ticket?: string
   detail?: string
+  /** Optional read-only retry evidence; missing timestamps and counters remain unknown. */
+  observation?: {
+    source: string
+    parkingCode: string
+    firstAttemptAt: string | null
+    lastAttemptAt: string | null
+    count: number | null
+    attemptsAtLeast: boolean
+    latestReason: string | null
+  }
 }
 /** Provider-owned outcome; an optional generation identifies a directed resend. */
 export interface SourceOperatorResult {

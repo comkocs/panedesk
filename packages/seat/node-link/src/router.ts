@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { callLoopback, digest, object, OperationStore, LoopbackHostMismatchError } from '@panedesk/dsh-host-admin'
 import { decodeSeatResult } from '@panedesk/dsh-sdk-protocol'
 import { NODE_LINK_VERSION } from './index.ts'
-import type { NodeLinkRuntimeConfig, NodeRouterService, NodeWireRequest, NodeWireResponse, NodeLinkStatus } from './index.ts'
+import type { NodeLinkRuntimeConfig, NodeRouterService, NodeWireRequest, NodeWireResponse, NodeLinkStatus, NodeLinkEvent } from './index.ts'
 import type { ChannelCredential } from './credentials.ts'
 import { decodeRequest, decodeResponse } from './codec.ts'
 import { failure } from './receiver.ts'
@@ -13,13 +13,23 @@ import { decodeHelloRefusal, helloCapability, helloAdvertisement, type ChainHell
 export class NodeRouter implements NodeRouterService {
   private connected = false
   private pending = 0
+  private sequence = 0
+  private readonly events: NodeLinkEvent[] = []
   private statusValue: NodeLinkStatus
   constructor(private readonly options: NodeLinkRuntimeConfig, private credential: ChannelCredential,
     private readonly outgoing: OperationStore, private readonly available: () => boolean,
     private readonly chain?: ChainHelloHooks, private readonly transportReason?: () => string | undefined) {
     this.statusValue = { nodeId: options.peerNodeId as NodeLinkStatus['nodeId'], nodeName: options.peerName,
       reachable: false, linkState: 'disconnected', observedAt: new Date().toISOString(),
-      status: null, capabilities: [], safeReason: 'node-tunnel-disconnected' }
+      status: null, capabilities: [], safeReason: 'node-tunnel-disconnected', lastHeartbeatAt: null }
+  }
+  /** Retain one safe event in this peer's process-local twenty-entry ring.
+   * @param kind - Fixed transport or authentication observation.
+   * @param safeReason - Fixed safe category; omitted for successful observations.
+   */
+  observe(kind: NodeLinkEvent['kind'], safeReason: string | null = null): void {
+    this.events.push({ sequence: ++this.sequence, at: new Date().toISOString(), kind, safeReason })
+    if (this.events.length > 20) this.events.shift()
   }
   /** Replace outbound authentication only after a checked private-file reload.
    * @param credential - Newly loaded directional credential.
@@ -29,9 +39,14 @@ export class NodeRouter implements NodeRouterService {
     this.credential = credential
   }
   /** Mark only transport state; retained self-reported counts are never rewritten to zero. */
-  disconnect(): void { this.connected = false; this.chain?.observe(undefined); this.statusValue = { ...this.statusValue, reachable: false,
-    linkState: 'disconnected', safeReason: 'node-tunnel-disconnected',
-    capabilities: this.statusValue.capabilities.filter(capability => capability !== 'node-work-chain/v1') } }
+  disconnect(): void {
+    if (this.connected) this.observe('disconnected', 'node-tunnel-disconnected')
+    this.connected = false
+    this.chain?.observe(undefined)
+    this.statusValue = { ...this.statusValue, reachable: false,
+      linkState: 'disconnected', safeReason: 'node-tunnel-disconnected',
+      capabilities: this.statusValue.capabilities.filter(capability => capability !== 'node-work-chain/v1') }
+  }
   /** Read the last authenticated connection observation without starting a probe.
    * @returns Whether routing has observed a connection that has not been withdrawn.
    */
@@ -58,6 +73,7 @@ export class NodeRouter implements NodeRouterService {
       const refusal = this.chain === undefined ? undefined : decodeHelloRefusal(value)
       if (refusal !== undefined) {
         this.disconnect()
+        this.observe('authentication-failed', refusal.reasonCode ?? refusal.code)
         this.statusValue = { ...this.statusValue, safeReason: revision
           ? `${refusal.reasonCode ?? refusal.code}: ${refusal.reason}` : refusal.reasonCode ?? refusal.code }
         return false
@@ -66,8 +82,11 @@ export class NodeRouter implements NodeRouterService {
       if (status.nodeId !== this.options.peerNodeId) throw new Error('Node status identity rejected')
       const peerChain = this.chain === undefined ? undefined : helloCapability(value)
       this.chain?.observe(peerChain)
+      const observedAt = new Date().toISOString()
+      this.observe('authentication-succeeded')
+      if (!this.connected) this.observe('connected')
       this.statusValue = { ...this.statusValue, reachable: true, linkState: 'connected', status,
-        observedAt: new Date().toISOString(), capabilities: [NODE_LINK_VERSION,
+        observedAt, lastHeartbeatAt: observedAt, capabilities: [NODE_LINK_VERSION,
           ...(chain !== undefined && peerChain !== undefined ? ['node-work-chain/v1'] : []),
           ...(value.seatMessages === 'seat-messages/v1' ? ['seat-messages/v1'] : [])],
         safeReason: revision && !peerChain?.methods.includes('seat.definitionRevision')
@@ -76,6 +95,7 @@ export class NodeRouter implements NodeRouterService {
       return true
     } catch (error) {
       this.disconnect()
+      this.observe('authentication-failed', error instanceof LoopbackHostMismatchError ? error.code : 'node-authentication-failed')
       if (error instanceof LoopbackHostMismatchError) this.statusValue = { ...this.statusValue, safeReason: revision
         ? `${error.code}: The peer transport identity does not match; exact revision reads are unavailable.` : error.code }
       else if (revision) this.statusValue = { ...this.statusValue,
@@ -144,7 +164,8 @@ export class NodeRouter implements NodeRouterService {
   status(): Promise<readonly NodeLinkStatus[]> {
     const stale = Date.now() - Date.parse(this.statusValue.observedAt) >= this.options.staleMs
     const exhausted = this.transportReason?.()
-    return Promise.resolve([{ ...this.statusValue, ...(stale ? { linkState: 'stale' as const, reachable: false } : {}),
+    return Promise.resolve([{ ...this.statusValue, events: this.events.map(event => ({ ...event })),
+      exhausted: exhausted !== undefined, ...(stale ? { linkState: 'stale' as const, reachable: false } : {}),
       ...(exhausted === undefined ? {} : { reachable: false, safeReason: exhausted }) }])
   }
 }

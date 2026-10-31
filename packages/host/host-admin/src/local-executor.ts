@@ -27,7 +27,7 @@ export async function executeLocal(ctx: Context, request: HostAdminRequest, auth
   } : undefined
   const transport = ctx.get('hostAdminTransport')
   const optional = { ...(sourceOperator ? { sourceOperator } : {}), ...(callbackResolver ? { callbackResolver } : {}),
-    ...(transport ? { rebuildTransport: () => transport.rebuildTransport() } : {}) }
+    ...(transport ? { rebuildTransport: (peerNodeId?: Seat.SeatNodeId) => transport.rebuildTransport(peerNodeId) } : {}) }
   const executor = createHostAdminExecutor({ nodeId, engine, authorization, queries, ...optional, policy: {
     authorize: async () => {
       let pending: Seat.PendingSeatItem | undefined

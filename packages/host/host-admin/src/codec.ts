@@ -37,7 +37,8 @@ export function decodeRequest(value: unknown): HostAdminRequest {
     }
     case 'node.status': decodeSeatRequest('seats/nodeStatus', value.params); break
     case 'node.rebuild': {
-      if (!object(value.params) || Object.keys(value.params).length > 0) throw new Error('Node rebuild request rejected')
+      if (!object(value.params) || Object.keys(value.params).some(key => key !== 'peerNodeId')
+        || value.params.peerNodeId !== undefined && !identifier(value.params.peerNodeId)) throw new Error('Node rebuild request rejected')
       break
     }
     case 'engine.pending': decodeSeatRequest('seats/pending', value.params); break
@@ -194,13 +195,23 @@ function boundedString(value: unknown, limit: number): value is string {
   return typeof value === 'string' && value.length <= limit
 }
 function validSourceItem(value: unknown): boolean {
-  return object(value) && Object.keys(value).every(key => ['key', 'state', 'eventId', 'target', 'since', 'ticket', 'detail'].includes(key))
+  return object(value) && Object.keys(value).every(key => ['key', 'state', 'eventId', 'target', 'since', 'ticket', 'detail', 'observation'].includes(key))
     && (value.state === 'awaiting-manual' || value.state === 'parked-none')
     && ['key', 'eventId', 'target', 'since'].every(key => boundedString(value[key], 512))
     && typeof value.since === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value.since)
     && Number.isFinite(Date.parse(value.since))
     && (value.ticket === undefined || boundedString(value.ticket, 512))
     && (value.detail === undefined || boundedString(value.detail, 2000))
+    && (value.observation === undefined || validSourceObservation(value.observation))
+}
+function validSourceObservation(value: unknown): boolean {
+  if (!object(value) || Object.keys(value).some(key => !['source', 'parkingCode', 'firstAttemptAt', 'lastAttemptAt', 'count',
+    'attemptsAtLeast', 'latestReason'].includes(key))) return false
+  return boundedString(value.source, 512) && boundedString(value.parkingCode, 512)
+    && [value.firstAttemptAt, value.lastAttemptAt].every(time => time === null
+      || typeof time === 'string' && time.length <= 64 && Number.isFinite(Date.parse(time)))
+    && (value.count === null || Number.isSafeInteger(value.count) && Number(value.count) >= 0)
+    && typeof value.attemptsAtLeast === 'boolean' && (value.latestReason === null || boundedString(value.latestReason, 2000))
 }
 function validCursor(value: unknown): value is Record<string, unknown> {
   return object(value) && identifier(value.nodeId) && Number.isSafeInteger(value.sequence) && Number(value.sequence) >= 0

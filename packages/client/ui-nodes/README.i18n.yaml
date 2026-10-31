@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-nodes/README.md
+/:
+  en: b1b3240fc193da4c
+  zh: c70e5a77a555be72
+/panedesk-dsh-client-ui-nodes:
+  en: 882022eb178d1693
+  zh: 8de9c1cbfc0c64a9
+/panedesk-dsh-client-ui-nodes/summary:
+  en: 9c6872e4ac7919fd
+  zh: 5c303119ad03e887
+/panedesk-dsh-client-ui-nodes/table-of-contents:
+  en: 7a92986f80e6f02b
+  zh: f1d6cc8bf80d0001
+/panedesk-dsh-client-ui-nodes/configuration-and-use:
+  en: 7d675c10f527a3c9
+  zh: 7c4d0b226729347f
+/panedesk-dsh-client-ui-nodes/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/panedesk-dsh-client-ui-nodes/model-experience/node-administration:
+  en: a65dbe7fc58b078a
+  zh: 15acbfaa5ec2bab0
+/panedesk-dsh-client-ui-nodes/model-experience/node-administration/what-the-model-sees:
+  en: 3945ee90d6351da3
+  zh: 7f187ba62045f989
+/panedesk-dsh-client-ui-nodes/model-experience/node-administration/token-effect:
+  en: 84aaeba0bc078c86
+  zh: f2a9364ee6a19ec0
+/panedesk-dsh-client-ui-nodes/model-experience/node-administration/kv-cache-effect:
+  en: f638624d5045ff23
+  zh: 50e72ce55338eed4
+/panedesk-dsh-client-ui-nodes/known-limitations-and-deferred-work:
+  en: a4d4ea7dafd069e4
+  zh: 58332453dded538f
+/panedesk-dsh-client-ui-nodes/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: e88aeb617ffb74ea

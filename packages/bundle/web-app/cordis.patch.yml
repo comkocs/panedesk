@@ -350,6 +350,13 @@
         enabled: true
         refreshIntervalMs: 10000
 
+    - id: ui-nodes
+      name: '@panedesk/dsh-client-ui-nodes'
+      config:
+        enabled: true
+        refreshIntervalMs: 10000
+        pageSize: 200
+
     - id: ui-conversation
       name: '@panedesk/dsh-client-ui-conversation'
 

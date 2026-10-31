@@ -3325,6 +3325,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'sidebar.settings\' (client-ui-settings-general), so it exists while that entry is mounted',
     occupants: [
       'client-ui-agent-preset AgentPresetSection id \'agent-presets\'',
+      'client-ui-nodes NodesSection id \'nodes\'',
       'client-ui-project-onboarding ProjectSettings id \'project-opening\'',
       'client-ui-seat-profiles Profiles id \'seat-profiles\'',
       'client-ui-settings-account AccountSection id \'account\'',

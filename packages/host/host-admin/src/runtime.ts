@@ -87,7 +87,7 @@ export async function mountAdmin(ctx: Context, config: Config): Promise<() => Pr
       if (request.method === 'node.rebuild') {
         const control = ctx.get('hostAdminTransport')
         return { version: HOST_ADMIN_VERSION, requestId: request.requestId, method: request.method, status: 'ok',
-          result: control ? await control.rebuildTransport() : { status: 'unavailable' as const } }
+          result: control ? await control.rebuildTransport(request.params.peerNodeId) : { status: 'unavailable' as const } }
       }
       if (request.method === 'engine.pending' && engine !== undefined) return { version: HOST_ADMIN_VERSION,
         requestId: request.requestId, method: request.method, status: 'ok', result: await engine.pending(request.params) }

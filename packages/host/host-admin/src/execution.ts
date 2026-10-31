@@ -21,8 +21,8 @@ export interface HostAdminExecutionDependencies {
   readonly authorization: Seat.SeatAuthorizationTransactions
   readonly engine: Seat.SeatEngineService
   readonly queries: Seat.SeatAuthorizationQueries
-  /** Optional tunnel rebuild. Absence reports the transport as unavailable and starts nothing. */
-  readonly rebuildTransport?: () => Promise<{ status: 'rebuilt' | 'unavailable' }>
+  /** Optional local-to-peer rebuild; omitted peer retains the configured transport selection. Absence starts nothing. */
+  readonly rebuildTransport?: (peerNodeId?: Seat.SeatNodeId) => Promise<{ status: 'rebuilt' | 'unavailable' }>
 }
 /** Implementations are explicitly installed as hostAdminExecutor by the local host. */
 export interface HostAdminExecutionAdapter {

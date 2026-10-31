@@ -56,6 +56,7 @@
     { "path": "./packages/experimental/client-ui-cot-translation/tsconfig.client.json" },
     { "path": "./packages/client/product-analytics/tsconfig.client.json" },
     { "path": "./packages/client/ui-stats/tsconfig.client.json" },
+    { "path": "./packages/client/ui-nodes/tsconfig.client.json" },
     { "path": "./apps/desktop/tsconfig.client.json" },
     { "path": "./packages/util/atomic-write" },
     { "path": "./packages/experimental/client-ui-voice-input" },

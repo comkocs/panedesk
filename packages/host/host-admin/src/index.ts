@@ -8,6 +8,9 @@ import type { PrivateFiles } from './private-files.ts'
 import type { HostAdminSourceOperator, SourceOperatorItem, SourceOperatorWriteParams, SourceOperatorResult } from './source-operator.ts'
 
 export type * from './source-operator.ts'
+export { readNodeHealth, executeNodeOperator } from './node-health.ts'
+export { decodeRequest as decodeHostAdminRequest } from './codec.ts'
+export type { NodeHealthEvent, NodeHealthPeer, NodeHealthItem, NodeHealthCallback, NodeHealthView } from './node-health.ts'
 
 export { PosixPrivateFiles } from './private-files.ts'
 export type { PrivateFiles } from './private-files.ts'
@@ -31,7 +34,7 @@ export interface HostAdminMethods {
   'source.abandon': { request: SourceOperatorWriteParams; result: SourceOperatorResult }
   'source.resend': { request: SourceOperatorWriteParams; result: SourceOperatorResult }
   'node.status': { request: Record<string, never>; result: Seat.SeatNodeStatus }
-  'node.rebuild': { request: Record<string, never>; result: { status: 'rebuilt' | 'unavailable' } }
+  'node.rebuild': { request: { peerNodeId?: Seat.SeatNodeId }; result: { status: 'rebuilt' | 'unavailable' } }
   'engine.pending': { request: Seat.ListPendingSeatsRequest; result: Seat.ListPendingSeatsResult | Seat.SeatRejected }
   'engine.approve': { request: Seat.ApprovePendingSeatRequest; result: Seat.PendingSeatMutationResult }
   'engine.cancel': { request: Seat.CancelPendingSeatRequest; result: Seat.PendingSeatMutationResult }
@@ -144,10 +147,11 @@ declare module '@panedesk/cordis' {
     hostAdminSourceOperator: HostAdminSourceOperator
     /** Optional supervised-tunnel control. Absence reports node.rebuild as unavailable. */
     hostAdminTransport: {
-      /** Stop the current tunnel and start one replacement without restarting the host.
-       * @returns Whether a replacement child was started.
+      /** Stop the selected local-to-peer tunnel without restarting either host.
+       * @param peerNodeId - Exact peer to rebuild; omitted retains the configured transport selection.
+       * @returns Whether a replacement child was started; an unknown peer is unavailable.
        */
-      rebuildTransport(): Promise<{ status: 'rebuilt' | 'unavailable' }>
+      rebuildTransport(peerNodeId?: Seat.SeatNodeId): Promise<{ status: 'rebuilt' | 'unavailable' }>
     }
     /** Optional Windows ACL/path implementation; POSIX uses checked owner-only files when absent. */
     hostAdminFiles: (directory: string) => PrivateFiles

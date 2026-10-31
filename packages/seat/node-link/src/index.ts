@@ -64,8 +64,21 @@ export type NodeWireResponse = { [K in keyof NodeRouteMethods]: {
   targetNodeId: Seat.SeatNodeId
   method: K
 } & ({ status: 'ok'; result: NodeRouteMethods[K]['result'] } | { status: 'unavailable' | 'rejected' | 'uncertain'; error: NodeLinkFailure }) }[keyof NodeRouteMethods]
+/** One process-local observation never contains transport locations or credentials. */
+export interface NodeLinkEvent {
+  sequence: number
+  at: Seat.SeatTimestamp
+  kind: 'connected' | 'disconnected' | 'reconnecting' | 'exhausted' | 'rebuild' | 'authentication-succeeded' | 'authentication-failed'
+  safeReason: string | null
+}
 /** Stale or unreachable nodes never report invented zero-window counts. */
 export interface NodeLinkStatus {
+  /** Last successful authenticated round trip; null until the first success, absent on older providers. */
+  lastHeartbeatAt?: Seat.SeatTimestamp | null
+  /** Latest twenty observations since this process started; absent on older providers. */
+  events?: readonly NodeLinkEvent[]
+  /** True only after the local transport exhausts its retry budget; absent on older providers. */
+  exhausted?: boolean
   nodeId: Seat.SeatNodeId
   nodeName: string
   reachable: boolean
