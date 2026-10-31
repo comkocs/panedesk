@@ -1,5 +1,5 @@
 /** Statistics over public ledger projections, without transcript reads or ledger writes. */
-import type { LedgerCall, LedgerLifecycle, LedgerRow, LedgerSnapshot } from '@panedesk/dsh-session-ledger'
+import { projectWaits, type LedgerCall, type LedgerLifecycle, type LedgerRow, type LedgerSnapshot } from '@panedesk/dsh-session-ledger'
 import { hitRate, selectLedger, sumUsd, tokenColumns, usageTotals } from './query.ts'
 import type { StatsAggregate, StatsCallDetail, StatsRequest, StatsRunningLanes, StatsView } from './stats-types.ts'
 
@@ -42,11 +42,19 @@ function sessionRuns(runs: readonly LedgerLifecycle[], request: StatsRequest) {
     && !owners.has(run.start.remoteSessionId) && !run.finish && matches(run, request))
   return { sessions, unresolved }
 }
+function unfinishedRuns(runs: readonly LedgerLifecycle[]): LedgerLifecycle[] {
+  const endedThrough = Math.max(-Infinity, ...runs.flatMap(run => run.finish ? [run.start.startedAt] : []))
+  return runs.filter(run => !run.finish && run.start.startedAt > endedThrough)
+}
+function compareDetails(a: LedgerCall['start'], b: Pick<LedgerCall['start'], 'startedAt' | 'nodeId' | 'callId'>): number {
+  const compare = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0
+  return a.startedAt - b.startedAt || compare(a.nodeId, b.nodeId) || compare(a.callId, b.callId)
+}
 function runningLanes(source: LedgerSnapshot, request: StatsRequest): StatsRunningLanes {
   const runs = source.rows.filter((row): row is LedgerLifecycle => row.kind === 'run')
   const { sessions, unresolved } = sessionRuns(runs, request)
   const pending = sessions.flatMap(([, items]) => {
-    const child = items.find(run => run.start.parentSessionId && !run.finish)
+    const child = unfinishedRuns(items).find(run => run.start.parentSessionId)
     return child ? [child] : []
   })
   const unknown = new Set(unresolved.filter(run => run.start.parentSessionId).map(run => run.start.remoteSessionId))
@@ -57,7 +65,7 @@ function runningLanes(source: LedgerSnapshot, request: StatsRequest): StatsRunni
     bySeat: [...bySeat].sort(([a], [b]) => a.localeCompare(b)).map(([seat, count]) => ({ seat, count })) }
 }
 function atInstant(source: LedgerSnapshot, asOf: number): LedgerSnapshot {
-  return { ...source, rows: source.rows.flatMap<LedgerRow>((row) => {
+  return { ...source, rows: projectWaits(source.rows.flatMap<LedgerRow>((row) => {
     if (row.kind === 'event') return row.event.observedAt < asOf ? [row] : []
     if (row.start.startedAt >= asOf) return []
     if (row.finish && row.finish.observedAt >= asOf) {
@@ -65,7 +73,7 @@ function atInstant(source: LedgerSnapshot, asOf: number): LedgerSnapshot {
       return [{ kind: 'run', start: row.start, liveness: 'unknown' }]
     }
     return [row]
-  }) }
+  })) }
 }
 function detail(call: LedgerCall): StatsCallDetail {
   const finish = call.finish, totals = aggregate('', [call])
@@ -90,6 +98,10 @@ function detail(call: LedgerCall): StatsCallDetail {
  */
 export function summarizeStats(source: LedgerSnapshot, request: StatsRequest, asOf: number): StatsView {
   const started = performance.now()
+  asOf = request.details?.after?.asOf ?? asOf
+  if (request.details && (!Number.isSafeInteger(request.details.limit) || request.details.limit <= 0)) {
+    throw new Error('Statistics detail limit must be a positive safe integer')
+  }
   const from = request.range === 'today'
     ? Math.floor((asOf + 8 * 3600000) / 86400000) * 86400000 - 8 * 3600000
     : request.range === 'all' ? null : asOf - Number.parseInt(request.range) * 3600000
@@ -139,16 +151,24 @@ export function summarizeStats(source: LedgerSnapshot, request: StatsRequest, as
     if (!start) throw new Error('Statistics window has neither calls nor lifecycle evidence')
     return { ...aggregate(sessionId, items), sessionId, seat: start.seat, window: start.window,
       taskIds: [...new Set([...items, ...runs].flatMap(row => row.start.taskId === undefined ? [] : [row.start.taskId]))].sort(),
-      parentSessionId: start.parentSessionId ?? null, running: runs.length ? runs.some(row => !row.finish) : null }
+      parentSessionId: start.parentSessionId ?? null, running: runs.length ? unfinishedRuns(runs).length > 0 : null }
   })
   const cacheCalls = calls.filter(call => call.start.purpose !== 'keepalive')
   const observedHitRate = hitRate(cacheCalls)
   const cacheHitRate = source.complete ? observedHitRate : { ...observedHitRate, state: 'partial' as const, value: undefined }
+  const after = request.details?.after
+  const ordered = [...calls].sort((a, b) => compareDetails(a.start, b.start))
+  const remaining = after ? ordered.filter(call => compareDetails(call.start, after) > 0) : ordered
+  const page = remaining.slice(0, request.details?.limit)
+  const last = page.at(-1)?.start
+  const nextDetailCursor = last && page.length < remaining.length
+    ? { startedAt: last.startedAt, nodeId: last.nodeId, callId: last.callId, asOf } : null
   return { asOf, from, complete: source.complete, queryMs: performance.now() - started,
     summary: aggregate('total', calls), keepalive: aggregate('keepalive', calls.filter(call => call.start.purpose === 'keepalive')),
     cacheHitRate, runningLanes: runningLanes(observed, request),
-    runningWindows: source.complete && unresolved.length === 0 ? sessions.filter(([, runs]) => runs.some(run => !run.finish)).length : null,
+    runningWindows: source.complete && unresolved.length === 0
+      ? sessions.filter(([, runs]) => unfinishedRuns(runs).length > 0).length : null,
     alerts: source.complete && request.model === undefined ? selected.rows.filter(row => row.kind === 'event' && row.event.kind === 'alert').length : null,
     projects: groups(calls, call => call.start.seat), windows, groups: groups(calls, by), models: groups(calls, modelOf),
-    buckets, details: calls.map(detail) }
+    buckets, details: page.map(detail), nextDetailCursor }
 }

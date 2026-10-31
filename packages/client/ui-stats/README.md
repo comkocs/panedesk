@@ -19,6 +19,8 @@ Settings contains a secondary Statistics summary and an “Open in main area” 
 
 All tabs share time range, grouping and Beijing hour/day buckets. Seat selection narrows a project; model selection narrows all five tabs and remains visible and clearable after changing tabs. Pause reads one snapshot, resume restores polling, and refresh requests a new read. Layout and reduced-motion controls affect presentation only. Missing or incomplete evidence remains visible rather than becoming zero. Default, loading, empty, error, unauthorized, disabled, success and failed-refresh states have English and Chinese copy; failed refresh never claims an update succeeded.
 
+Ledger details use previous/next controls with 100 calls per page and the query service's stable cursor order. Later pages retain the first observation instant and stop automatic polling; changing filters or refreshing returns to page one. Paging never narrows aggregate cards. Loading disables navigation; read failures retain the standard retry and access states rather than presenting a failed page as successful.
+
 ## Model Experience
 
 ### Ledger observation

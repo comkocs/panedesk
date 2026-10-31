@@ -4,6 +4,14 @@ import type { LedgerHitRate, LedgerUsageTotals } from './types.ts'
 
 /** Fixed Beijing-day and rolling selections supported by the statistics panel. */
 export type StatsRange = 'today' | '6h' | '24h' | '72h' | '168h' | 'all'
+/** Exclusive detail position in ascending startedAt, nodeId, callId order; strings use code-unit order. */
+export interface StatsDetailCursor {
+  startedAt: number
+  nodeId: LedgerCall['start']['nodeId']
+  callId: LedgerCall['start']['callId']
+  /** Reuse this exclusive observation instant on every subsequent page. */
+  asOf: number
+}
 /** Explicit selection shared by all five tabs; absent filters select every authorized row. */
 export interface StatsRequest {
   range: StatsRange
@@ -12,6 +20,8 @@ export interface StatsRequest {
   seat?: string
   taskId?: string
   model?: string
+  /** Omission returns all details; paging never limits aggregate calculations. */
+  details?: { limit: number; after?: StatsDetailCursor }
 }
 /** Observed call-only sums, with unknown price and duration distinguished from zero. */
 export interface StatsAggregate {
@@ -86,4 +96,5 @@ export interface StatsView {
   models: readonly StatsAggregate[]
   buckets: readonly StatsBucket[]
   details: readonly StatsCallDetail[]
+  nextDetailCursor: StatsDetailCursor | null
 }
