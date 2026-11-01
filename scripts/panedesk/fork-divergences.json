@@ -1,6 +1,141 @@
 {
   "divergences": [
     {
+      "id": "web-session-replay-fixtures",
+      "description": "Recorded web session and interface fixtures",
+      "origin": "Web session replay coverage",
+      "reason": "Record session data and interface expectations for the current client behavior. The replay fixture updates can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/expected/fork-mid-turn/ui.expected.md",
+          "apps/web/tests/expected/steer-all/mid-steer.expected.md",
+          "apps/web/tests/expected/steer-all/settled-expanded.expected.md",
+          "apps/web/tests/expected/steer-all/settled.expected.md",
+          "snapshots/web/code-language/session.v4.jsonl",
+          "snapshots/web/collapse-timing/completion-restored.expected.md",
+          "snapshots/web/collapse-timing/completion.expected.md",
+          "snapshots/web/collapse-timing/input-pending.expected.md",
+          "snapshots/web/collapse-timing/next-input.expected.md",
+          "snapshots/web/collapse-timing/next-message.expected.md",
+          "snapshots/web/collapse-timing/verbose.expected.md",
+          "snapshots/web/deepseek-messages-chat/session.v4.jsonl",
+          "snapshots/web/deepseek-messages-chat/ui.expected.md",
+          "snapshots/web/feedback-command/ack-expanded.expected.md",
+          "snapshots/web/feedback-command/ack.expected.md",
+          "snapshots/web/feedback-command/session.v4.jsonl",
+          "snapshots/web/feedback-release/ack-expanded.expected.md",
+          "snapshots/web/feedback-release/ack.expected.md",
+          "snapshots/web/file-upload-round/session.v4.jsonl",
+          "snapshots/web/file-upload-round/ui.expected.md",
+          "snapshots/web/lifecycle-chrome/reloaded-expanded.expected.md",
+          "snapshots/web/lifecycle-chrome/reloaded.expected.md",
+          "snapshots/web/lifecycle-chrome/session.v4.jsonl",
+          "snapshots/web/live-interactions/cancel-expanded.expected.md",
+          "snapshots/web/live-interactions/cancel.expected.md",
+          "snapshots/web/live-interactions/error-auth.expected.md",
+          "snapshots/web/live-interactions/loading.expected.md",
+          "snapshots/web/live-interactions/retry-exhausted.expected.md",
+          "snapshots/web/live-interactions/retry-expanded.expected.md",
+          "snapshots/web/live-interactions/retry.expected.md",
+          "snapshots/web/live-interactions/running-draft.expected.md",
+          "snapshots/web/live-interactions/session.v4.jsonl",
+          "snapshots/web/message-actions/compact.expected.md",
+          "snapshots/web/message-actions/ui.expected.md",
+          "snapshots/web/permission-policy-context/session.v4.jsonl",
+          "snapshots/web/plan-review/approved-expanded.expected.md",
+          "snapshots/web/plan-review/approved.expected.md",
+          "snapshots/web/plan-review/session.v4.jsonl",
+          "snapshots/web/present-svg/session.v4.jsonl",
+          "snapshots/web/present-svg/ui.expected.md",
+          "snapshots/web/question-composer/answered-expanded.expected.md",
+          "snapshots/web/question-composer/answered.expected.md",
+          "snapshots/web/question-composer/cancelled.expected.md",
+          "snapshots/web/question-composer/late-answered.expected.md",
+          "snapshots/web/question-composer/queued.expected.md",
+          "snapshots/web/question-composer/session.v4.jsonl",
+          "snapshots/web/queue-actions/collapsed.expected.md",
+          "snapshots/web/queue-actions/editing.expected.md",
+          "snapshots/web/queue-actions/goal-stop.expected.md",
+          "snapshots/web/queue-actions/layout.expected.md",
+          "snapshots/web/queue-actions/preserved-expanded.expected.md",
+          "snapshots/web/queue-actions/preserved.expected.md",
+          "snapshots/web/queue-actions/sending.expected.md",
+          "snapshots/web/queue-actions/ui.expected.md",
+          "snapshots/web/queued-image/delivered.expected.md",
+          "snapshots/web/queued-image/queued.expected.md",
+          "snapshots/web/steering/mid-steer.expected.md",
+          "snapshots/web/steering/session.v4.jsonl",
+          "snapshots/web/steering/settled-expanded.expected.md",
+          "snapshots/web/steering/settled.expected.md",
+          "snapshots/web/subagent-conversation/nested.expected.md",
+          "snapshots/web/subagent-fork-schedule/session.1.v4.jsonl",
+          "snapshots/web/subagent-fork-schedule/session.v4.jsonl",
+          "snapshots/web/subagent-interrupt/image-queue.expected.md",
+          "snapshots/web/subagent-interrupt/offline-composer.expected.md",
+          "snapshots/web/web-search-round/session.v4.jsonl",
+          "snapshots/web/web-search-round/ui.expected.md",
+          "snapshots/web/workflow-run/ui.expected.md"
+        ],
+        "test": "web replay fixtures"
+      }
+    },
+    {
+      "id": "client-plugin-locale-metadata",
+      "description": "Readable client plugin metadata",
+      "origin": "Client plugin inventory localization",
+      "reason": "Replace placeholder names and add descriptions for client plugin inventory entries. The metadata improvements can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/locale/locale/en.json",
+          "packages/client/modules/locale/en.json",
+          "packages/client/resources/locale/en.json",
+          "packages/client/ui-chat/locale/en.json",
+          "packages/client/ui-conversation/locale/en.json",
+          "packages/client/ui-settings-general/locale/en.json",
+          "packages/client/ui-settings-models/locale/en.json",
+          "packages/client/ui-settings-plugin-inventory/locale/en.json",
+          "packages/client/ui-settings/locale/en.json",
+          "packages/client/ui-sidebar-right/locale/en.json",
+          "packages/client/ui-subagent/locale/en.json",
+          "packages/client/ui-workspace/locale/en.json"
+        ],
+        "test": "client plugin metadata"
+      }
+    },
+    {
+      "id": "model-settings-discovery-support",
+      "description": "Model discovery presentation and test support",
+      "origin": "Model provider discovery interaction",
+      "reason": "Style model recognition and adapt model settings tests to the recognition and probe operations. These improvements can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/models-settings.e2e.ts",
+          "packages/client/ui-settings-models/src/client/ModelsSection.module.css",
+          "packages/client/ui-settings-models/tests/model-list-catalog.client.spec.tsx",
+          "packages/client/ui-settings-models/tests/model-reasoning-efforts.client.spec.tsx",
+          "packages/client/ui-settings-models/tsconfig.json"
+        ],
+        "test": "model settings discovery"
+      }
+    },
+    {
+      "id": "compiler-and-readme-validation-ownership",
+      "description": "Compiler references and package documentation validation",
+      "origin": "Workspace build and documentation checks",
+      "reason": "Declare compiler references needed by the current imports and classify additional browser-only packages for model experience documentation. These corrections can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/typert/protocol/tsconfig.json",
+          "scripts/verify-package-readme-model-experience.ts"
+        ],
+        "test": "workspace compiler references and readme validation"
+      }
+    },
+    {
       "id": "client-cache-resource-failure-read",
       "description": "Keep failed cache reads unavailable to write controls.",
       "origin": "Bilingual interface state audit",
@@ -1196,17 +1331,7 @@
       "origin": "Private desk composition reference; paths are private repository-relative",
       "match": {
         "type": "test-assertion",
-        "paths": [
-          "bundles/project-host/README.md",
-          "bundles/project-host/README.zh.md",
-          "bundles/project-host/README.i18n.yaml",
-          "bundles/project-host/src/source-inbox.ts",
-          "bundles/project-host/tests/source-inbox.spec.ts",
-          "bundles/project-host/tests/node-chain-composition.spec.ts",
-          "bundles/project-host/tests/callback-chain-support.ts",
-          "bundles/project-host/tests/callback-process-worker.ts",
-          "bundles/project-host/tests/same-ticket-composition.spec.ts"
-        ],
+        "paths": [],
         "test": "node-chain-composition.spec.ts"
       }
     },
