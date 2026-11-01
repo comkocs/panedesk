@@ -261,7 +261,7 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
 @Remote async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue>
 
 /**
- * List built-in, user, and project skills without a session.
+ * List global and default-preset built-in, user, and project skills without creating a session.
  * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
  * @param signal - caller lifetime carried by the Remote transport.
  * @returns the three directories.

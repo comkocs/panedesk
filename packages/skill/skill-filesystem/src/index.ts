@@ -26,6 +26,7 @@ import {
   type SkillDefinition,
   type SkillInvocationPolicy,
   type SkillLookupOptions,
+  type SkillViewOptions,
   type SkillProvider,
   type SkillProviderControl,
   type SkillProviderObservation,
@@ -69,12 +70,14 @@ export interface SkillCatalogEntry {
  * @param ctx - host context with an available `skills` service; no injection declaration is required.
  * @throws When the skill registry is unavailable.
  * @param cwd - workspace directory whose project skills are included; omission lists built-in and user skills only.
+ * @param scope - optional preset or agent scope whose provider layers supplement the global catalog.
  * @returns effective entries in registry order; same-name skills retain only the highest-priority source.
  */
-export async function listSkillCatalog(ctx: Context, cwd: string | undefined): Promise<SkillCatalogEntry[]> {
+export async function listSkillCatalog(ctx: Context, cwd: string | undefined,
+  scope?: SkillViewOptions['scope']): Promise<SkillCatalogEntry[]> {
   const registry = ctx.get('skills')
   if (registry === undefined) throw new Error('Skill registry is unavailable')
-  const skills = await registry.list(cwd === undefined ? {} : { cwd })
+  const skills = await registry.list({ ...(cwd === undefined ? {} : { cwd }), ...(scope === undefined ? {} : { scope }) })
   const entries: SkillCatalogEntry[] = []
   for (const skill of skills) {
     const entry = catalogEntry(skill)

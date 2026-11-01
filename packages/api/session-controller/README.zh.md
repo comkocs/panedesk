@@ -27,7 +27,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-`skills.catalog(workspaceId, signal)` 无需创建 Session 即可列出内置和用户技能；传入已注册工作区 ID 时还包含项目技能。未知 ID 返回 `workspace/not-found`，缺少技能注册表返回 `skills/unavailable`。此 Remote 在无 ID 时沿用既有全局访问策略；工作区控制器已挂载且传入 ID 时使用工作区资源策略；不接受任意文件系统根目录。打开源文件保留 `session.openWorkspacePath` 的授权和规范路径检查。
+`skills.catalog(workspaceId, signal)` 无需创建 Session 即可列出内置和用户技能；传入已注册工作区 ID 时还包含项目技能。读取时持有默认 preset 的常驻 scope，将其提供方与全局层合并，结束后释放租约，不创建 Agent。未挂载 preset 注册表时只读全局层；已挂载但无法加载 preset 时读取失败，不返回误导性的空目录。未知 ID 返回 `workspace/not-found`，缺少技能注册表返回 `skills/unavailable`。此 Remote 在无 ID 时沿用既有全局访问策略；工作区控制器已挂载且传入 ID 时使用工作区资源策略；不接受任意文件系统根目录。打开源文件保留 `session.openWorkspacePath` 的授权和规范路径检查。
 
 可信编排可按已预留的精确 Session 身份创建，并在发布前应用局部模型选择，不保存全局默认模型。准入拒绝先于目录与 setup 副作用，失败时释放临时准备资源的所有权。
 
