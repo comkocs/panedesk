@@ -16,10 +16,22 @@ export function queryEngine(decisions: readonly EngineDecision[], request: Engin
   const effects: EngineEffect[] = []
   let nextCursor: EngineCursor | undefined
   const watermark = decisions.at(-1)?.sequence ?? 0
-  for (const decision of decisions) {
-    for (let effectIndex = 0; effectIndex < decision.effects.length; effectIndex++) {
-      if (request.cursor && (decision.sequence < request.cursor.sequence
-        || (decision.sequence === request.cursor.sequence && effectIndex <= request.cursor.effectIndex))) continue
+  let start = 0, end = decisions.length
+  if (request.cursor) {
+    // Sequence numbers are ordered, but need not be contiguous.
+    while (start < end) {
+      const middle = Math.floor((start + end) / 2)
+      const decision = decisions[middle]
+      if (!decision) throw new EngineError('engine-store-corrupt', 'Missing engine decision')
+      if (decision.sequence < request.cursor.sequence) start = middle + 1
+      else end = middle
+    }
+  }
+  for (let index = start; index < decisions.length; index++) {
+    const decision = decisions[index]
+    if (!decision) throw new EngineError('engine-store-corrupt', 'Missing engine decision')
+    const firstEffect = request.cursor && decision.sequence === request.cursor.sequence ? request.cursor.effectIndex + 1 : 0
+    for (let effectIndex = firstEffect; effectIndex < decision.effects.length; effectIndex++) {
       if (effects.length === request.limit) return { effects, complete: false, watermark, ...(nextCursor ? { nextCursor } : {}) }
       nextCursor = { nodeId: decision.nodeId, sequence: decision.sequence, effectIndex }
       const effect = decision.effects[effectIndex]
