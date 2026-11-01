@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-sidebar-right"
+    "title": "Right sidebar",
+    "description": "Manage right sidebar visibility, content and navigation."
   }
 }

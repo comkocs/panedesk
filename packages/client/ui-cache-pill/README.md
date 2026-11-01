@@ -29,7 +29,7 @@ Mount this plugin alongside `ui-conversation`. The pill appears in the composer 
 
 ### Failures
 
-A read failure, an empty record, and a deployment without a cache ledger each show their own line. A tier the route does not support is refused before anything is stored, and the panel says the switch failed.
+A failed resource read shows the read-error line rather than remaining in loading or presenting stale evidence. An empty record and a deployment without a cache ledger each show their own line. Tier buttons are disabled while a write is pending. A refused or rejected write shows failure without claiming the tier was saved.
 
 -----
 

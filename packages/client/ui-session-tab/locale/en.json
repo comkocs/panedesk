@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-session-tab"
+    "title": "Sidebar sessions",
+    "description": "Open sessions in the right sidebar and pin reply bookmarks that survive restarts."
   }
 }

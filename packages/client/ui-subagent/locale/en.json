@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-subagent"
+    "title": "Subagent conversations",
+    "description": "Inspect and navigate subagent sessions, continue conversations and mention them."
   }
 }

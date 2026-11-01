@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-chat"
+    "title": "Chat presentation",
+    "description": "Render chat messages, tool content and related details."
   }
 }

@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-settings-general"
+    "title": "General settings and welcome notice",
+    "description": "Provide general settings, settings dialog copy and first-run notices."
   }
 }

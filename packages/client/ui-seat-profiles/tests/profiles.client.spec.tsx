@@ -25,6 +25,19 @@ function fixture(language: 'en' | 'zh') {
 }
 afterEach(cleanup)
 describe('seat profile settings', () => {
+  it.each(['loading', 'failed', 'empty'] as const)('keeps the %s observation explicit without writing profiles', (state) => {
+    const f = fixture('en')
+    const value = state === 'empty' ? { ...f.snapshot, definitions: [] } : undefined
+    const useResource = (() => ({ status: state === 'failed' ? 'failed' : state === 'empty' ? 'live' : 'loading', value, failure: undefined })) as ProfilesProps['useResource']
+    render(<Profiles {...f.props} useResource={useResource} />)
+    expect(screen.getByText(f.copy[state === 'failed' ? 'unavailable' : state === 'empty' ? 'empty' : 'loading'])).toBeTruthy()
+    expect(f.save).not.toHaveBeenCalled()
+    expect(f.remove).not.toHaveBeenCalled()
+    if (state === 'failed') {
+      fireEvent.click(screen.getByRole('button', { name: f.copy.refresh }))
+      expect(f.props.refresh).toHaveBeenCalledOnce()
+    }
+  })
   it.each(['en', 'zh'] as const)('lists windows and pending approvals before confirmed deletion: %s', async (language) => {
     const f = fixture(language)
     render(<Profiles {...f.props} />)

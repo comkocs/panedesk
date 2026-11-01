@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-conversation"
+    "title": "Conversation interface",
+    "description": "Compose conversation content, the input, message queue and view navigation."
   }
 }

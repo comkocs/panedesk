@@ -1,0 +1,5 @@
+# Opt-in UI surfaces use synthetic observations in the owning browser test.
+- id: ui-seats
+  disabled: false
+- id: ui-seat-profiles
+  disabled: false
