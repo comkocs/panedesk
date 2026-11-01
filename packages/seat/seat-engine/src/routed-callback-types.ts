@@ -7,6 +7,8 @@ import { rejected } from './triggers.ts'
 export type CallbackAttempt = T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult> & {
   /** A definite pending query observed behind an unresolved send barrier; never permits resend. */
   queryOnly?: true
+  /** The original business dispatch returned a matching receipt, not merely a query observation. */
+  completedDispatch?: true
 }
 
 /** Construct a fixed safe observation without copying dynamic exception text.

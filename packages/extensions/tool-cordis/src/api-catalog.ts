@@ -10240,7 +10240,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RemoveSeatProfileRequest',
-    declaration: 'export interface RemoveSeatProfileRequest {\n    seat: T.SeatName;\n    expectedRevision: number;\n    operationId: T.SeatOperationId;\n    confirmed: true;\n    windows: readonly SessionId[];\n    pending: readonly T.QueueItemId[];\n    engineSequence: number;\n    windowVersions: readonly Pick<T.SeatWindowView, \'sessionId\' | \'stateVersion\'>[];\n    pendingVersions: readonly Pick<T.PendingSeatItem, \'queueItemId\' | \'stateVersion\'>[];\n}',
+    declaration: 'export interface RemoveSeatProfileRequest {\n    seat: T.SeatName;\n    expectedRevision: number;\n    operationId: T.SeatOperationId;\n    confirmed: true;\n    windows: readonly SessionId[];\n    pending: readonly T.QueueItemId[];\n    engineSequence: number;\n    windowVersions: readonly {\n        sessionId: SessionId;\n        stateVersion: number | null;\n    }[];\n    pendingVersions: readonly Pick<T.PendingSeatItem, \'queueItemId\' | \'stateVersion\'>[];\n}',
   },
   {
     name: 'RenameSeatRequest',
@@ -10952,7 +10952,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatProfileSnapshot',
-    declaration: 'export interface SeatProfileSnapshot {\n    revision: number;\n    authority: T.SeatAuthority;\n    definitions: readonly T.SeatDefinition[];\n    engineSequence: number;\n    windows: readonly Pick<T.SeatWindowView, \'seat\' | \'sessionId\' | \'title\' | \'nodeId\' | \'stateVersion\'>[];\n    pending: readonly Pick<T.PendingSeatItem, \'queueItemId\' | \'seat\' | \'reason\' | \'stateVersion\'>[];\n    recentOpen: Readonly<Record<string, T.SeatTimestamp>>;\n}',
+    declaration: 'export interface SeatProfileSnapshot {\n    revision: number;\n    authority: T.SeatAuthority;\n    definitions: readonly T.SeatDefinition[];\n    engineSequence: number;\n    windows: readonly SeatProfileWindow[];\n    pending: readonly Pick<T.PendingSeatItem, \'queueItemId\' | \'seat\' | \'reason\' | \'stateVersion\'>[];\n    recentOpen: Readonly<Record<string, T.SeatTimestamp>>;\n}',
+  },
+  {
+    name: 'SeatProfileWindow',
+    declaration: 'export interface SeatProfileWindow extends Pick<T.SeatWindowView, \'seat\' | \'sessionId\' | \'title\' | \'nodeId\'> {\n    stateVersion: number | null;\n    stateKnown: boolean;\n}',
   },
   {
     name: 'SeatProjectId',
