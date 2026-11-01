@@ -515,6 +515,10 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
       await dialog.getByRole('button', { name: '删除模型 1' }).click()
       await dialog.getByRole('button', { name: '获取可用模型' }).click()
       const picker = page.getByRole('dialog', { name: '选择要添加的模型' })
+      // The catalog picker starts with only the three newest models checked, so
+      // selecting everything first is what exposes the deselect-all control the
+      // reset below needs.
+      await picker.getByRole('button', { name: '全选' }).click()
       await picker.getByRole('button', { name: '取消全选' }).click()
       await picker.getByRole('searchbox', { name: '搜索模型' }).fill('gpt-6-astra')
       await picker.getByRole('checkbox', { name: 'gpt-6-astra', exact: true }).check()
