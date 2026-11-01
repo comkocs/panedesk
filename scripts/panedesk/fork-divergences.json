@@ -29,8 +29,7 @@
           "apps/web/tests/seat-locale.overlay.yml",
           "apps/web/tests/private-interface-locale.overlay.yml",
           "apps/web/tsconfig.json",
-          "tsconfig.host.json",
-          "packages/client/ui-settings-models/src/client/locales.ts"
+          "tsconfig.host.json"
         ],
         "test": "interface locale walkthroughs and host compiler ownership"
       }
