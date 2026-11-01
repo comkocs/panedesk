@@ -20,6 +20,10 @@ import { readWindowsBashConfig, type WindowsBashConfig } from '@panedesk/dsh-bas
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
 export { readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
+export {
+  CREDENTIALS_DOC_FILENAME, CREDENTIALS_DOC_VERSION, HOME_PATCH_FILENAME, providerPatchEntries,
+  renderCredentialsRefUpdate, updateHomeProviderPatch, type HomePatchUpdate, type ProviderRoute,
+} from './init-files.ts'
 export { getDshRuntimeVersion, evaluatePluginCompatibility, pluginCompatibilityWarning, type PluginCompatibility } from './plugin-compatibility.ts'
 export {
   PROFILE_COMPATIBILITY_FILENAME, readProfileCompatibility, readProfileVersionExemptions,

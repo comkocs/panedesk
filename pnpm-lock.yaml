@@ -263,6 +263,9 @@ importers:
       '@panedesk/dsh-launch-environment':
         specifier: workspace:*
         version: link:../../packages/util/launch-environment
+      '@panedesk/node-addon-system':
+        specifier: workspace:~
+        version: link:../../native/system/packages/entry
       '@panedesk/slim-base':
         specifier: workspace:*
         version: link:../../packages/bundle/slim-base
