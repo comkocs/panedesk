@@ -192,6 +192,28 @@ export function needsSetup(row: ProviderRow, anyUsable: boolean): boolean {
  * derived half is what keeps the seat consistent with the editor on the
  * add-provider draft, whose dormant row names no reference yet.
  */
+/** Endpoint and protocol a stored profile already names, for route recognition.
+ * @param schema - settings traversal the page reads profiles through.
+ * @param namespace - the route's settings namespace.
+ * @param path - path of the route's profile inside that namespace.
+ * @returns the stored endpoint, omitting a field the profile leaves blank.
+ */
+function storedEndpoint(
+  schema: SettingsSchemaOperations,
+  namespace: SettingsNamespaceView,
+  path: readonly string[],
+): { baseURL?: string; api?: string } {
+  const profile = schema.getPath(namespace.value, path)
+  const textAt = (key: string): string | undefined => {
+    if (typeof profile !== 'object' || profile === null) return undefined
+    const value = (profile as Record<string, unknown>)[key]
+    return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+  }
+  const baseURL = textAt('baseURL')
+  const api = textAt('api')
+  return { ...baseURL === undefined ? {} : { baseURL }, ...api === undefined ? {} : { api } }
+}
+
 function keyConfiguredOf(row: ProviderRow): boolean {
   return row.apiKeyEnv !== undefined
     ? row.credential?.configured === true
@@ -548,6 +570,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               <RecognizeModels
                 settingsNs={row.entry.settingsNs}
                 provider={row.entry.provider}
+                endpoint={storedEndpoint(schema, namespace, row.entry.settingsPath)}
                 operations={operations}
                 t={t}
                 disabled={!state.writable || state.status !== 'ready'}

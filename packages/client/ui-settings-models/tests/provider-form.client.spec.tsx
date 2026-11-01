@@ -602,6 +602,36 @@ describe('endpoint interrogation', () => {
     })
   })
 
+  it('recognizes through the endpoint and protocol the profile already stores', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'old', createdAt: 1 }, { id: 'mid', createdAt: 2 }, { id: 'new', createdAt: 4 },
+    ])))
+    await mountSection({
+      discover,
+      providers: { openai: { baseURL: 'https://proxy.example/v1', api: 'openai-responses' } },
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.recognize }))
+    await screen.findByRole('checkbox', { name: 'new' })
+    expect(lastProbe(discover)).toEqual({
+      settingsNs: 'llm-pi-ai',
+      provider: 'openai',
+      baseURL: 'https://proxy.example/v1',
+      api: 'openai-responses',
+    })
+  })
+
+  it.each([
+    ['a profile that stores nothing', {}],
+    ['a profile that is not an object', 'plain'],
+    ['a blank endpoint and a missing protocol', { baseURL: '   ' }],
+  ])('asks recognition by route name alone for %s', async (_label, profile) => {
+    const discover = vi.fn(() => Promise.resolve(ok([{ id: 'listed' }])))
+    await mountSection({ discover, providers: { openai: profile } })
+    fireEvent.click(screen.getByRole('button', { name: en.recognize }))
+    await screen.findByRole('checkbox', { name: 'listed' })
+    expect(lastProbe(discover)).toEqual({ settingsNs: 'llm-pi-ai', provider: 'openai' })
+  })
+
   it('carries the protocol the profile already names', async () => {
     const discover = vi.fn(() => Promise.resolve(ok([])))
     await mountSection({
@@ -654,6 +684,49 @@ describe('endpoint interrogation', () => {
       { id: 'kept', contextWindow: 111 },
       { id: 'fresh', contextWindow: 4096, maxTokens: 2048, name: 'Fresh', input: ['text', 'image'] },
     ])
+  })
+
+  it('checks the three newest unknown models, leaving older and configured ones unchecked', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'kept', createdAt: 9, contextWindow: 111 },
+      { id: 'oldest', createdAt: 1 },
+      { id: 'third', createdAt: 2 },
+      { id: 'second', createdAt: 3 },
+      { id: 'newest', createdAt: 4 },
+    ])))
+    await mountSection({
+      discover,
+      providers: { openai: { baseURL: 'https://proxy.example/v1', models: [{ id: 'kept', contextWindow: 111 }] } },
+    })
+    openEditor('openai')
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    // The dialog scrolls, so a row past the first viewport is hidden from the
+    // accessibility tree; the box itself still carries the default check.
+    const checked = (id: string): boolean => [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
+      .find(input => input.parentElement?.textContent?.trim() === id)?.checked === true
+    expect(checked('newest')).toBe(true)
+    expect(checked('second')).toBe(true)
+    expect(checked('third')).toBe(true)
+    expect(checked('oldest')).toBe(false)
+    expect(checked('kept')).toBe(false)
+  })
+
+  it('checks the first three unknown models in server order when no creation time is disclosed', async () => {
+    const discover = vi.fn(() => Promise.resolve(ok([
+      { id: 'first' }, { id: 'second' }, { id: 'third' }, { id: 'fourth' },
+    ])))
+    await mountSection({ discover })
+    openEditor('openai')
+
+    fireEvent.click(screen.getByText(en.fetchModels))
+    await screen.findByText(en.fetchTitle)
+    const checked = (id: string): boolean => screen.getByRole<HTMLInputElement>('checkbox', { name: id }).checked
+    expect(checked('first')).toBe(true)
+    expect(checked('second')).toBe(true)
+    expect(checked('third')).toBe(true)
+    expect(checked('fourth')).toBe(false)
   })
 
   it('keeps the rows editable when the provider cannot be interrogated', async () => {

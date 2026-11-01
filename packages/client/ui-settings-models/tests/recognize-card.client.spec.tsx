@@ -13,13 +13,17 @@ afterEach(cleanup)
 
 const SECRET = 'sk-live-secret-value-0001'
 
-function operations(calls: { provider: string }[]): ModelsOperations {
+function operations(calls: { provider: string; baseURL?: string; api?: string }[]): ModelsOperations {
   return {
     storeCredential: async () => undefined,
     removeCredential: async () => undefined,
     writeSettings: async () => ({ kind: 'refused', message: 'unused' }),
     discoverModels: async (_ns, request) => {
-      calls.push({ provider: request.provider ?? '' })
+      calls.push({
+        provider: request.provider ?? '',
+        ...request.baseURL === undefined ? {} : { baseURL: request.baseURL },
+        ...request.api === undefined ? {} : { api: request.api },
+      })
       return {
         kind: 'found',
         models: [
@@ -82,6 +86,42 @@ describe('RecognizeModels card', () => {
     fireEvent.click(screen.getByRole('button', { name: en.recognize }))
     expect(await screen.findByRole('checkbox', { name: 'new' })).toBeTruthy()
     expect(calls.map(call => call.provider)).toEqual(['openai', 'anthropic'])
+  })
+
+  it('asks discovery with the route endpoint and protocol already configured', async () => {
+    const calls: { provider: string; baseURL?: string; api?: string }[] = []
+    render(
+      <RecognizeModels
+        settingsNs="models"
+        provider="acme-gateway"
+        endpoint={{ baseURL: 'https://gateway.acme.example/v1', api: 'anthropic-messages' }}
+        operations={operations(calls)}
+        t={key => en[key]}
+        disabled={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: en.recognize }))
+    await screen.findByRole('checkbox', { name: 'new' })
+    expect(calls).toEqual([{
+      provider: 'acme-gateway', baseURL: 'https://gateway.acme.example/v1', api: 'anthropic-messages',
+    }])
+  })
+
+  it('omits a blank endpoint and a missing protocol from the discovery request', async () => {
+    const calls: { provider: string; baseURL?: string; api?: string }[] = []
+    render(
+      <RecognizeModels
+        settingsNs="models"
+        provider="acme-gateway"
+        endpoint={{ baseURL: '' }}
+        operations={operations(calls)}
+        t={key => en[key]}
+        disabled={false}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: en.recognize }))
+    await screen.findByRole('checkbox', { name: 'new' })
+    expect(calls).toEqual([{ provider: 'acme-gateway' }])
   })
 
   it('reports the probe refusal without the credential text', async () => {

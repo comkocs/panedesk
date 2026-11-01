@@ -19,6 +19,7 @@ import type { ReactNode } from 'react'
 import type { LlmDiscoveredModel } from '@panedesk/dsh-api-remotes/client'
 import { Button, IconPlusOutlineRegular, Modal } from '@panedesk/dsh-client-ui-primitives'
 import { formatCapacity, parseCapacity } from './DeepSeekModelsEditor.tsx'
+import { defaultRecognizedSelection } from './recognize.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { DeepSeekModelDraft } from './DeepSeekModelsEditor.tsx'
 import type { en } from './locales.ts'
@@ -257,12 +258,18 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         setFailure(t('fetchEmpty'))
         return
       }
-      // Everything already configured starts unchecked, so adopting a
-      // selection never silently rewrites a capacity the user corrected.
+      // A configured row starts unchecked and is left out of the default
+      // three, so a model the user already has cannot crowd one out.
       const known = new Set(models.map(model => textOf(model, 'id')))
+      const selection = defaultRecognizedSelection(found.filter(model => !known.has(model.id)))
+      const ranked = new Map(selection.models.map(model => [model.id, model]))
       setCandidateQuery('')
-      setCandidates(found)
-      setPicked(new Set(found.filter(model => !known.has(model.id)).map(model => model.id)))
+      // Creation time reorders the whole listing, newest first. A listing with
+      // no times keeps the endpoint's own order, configured rows included.
+      setCandidates(selection.orderBasis === 'createdAt'
+        ? [...selection.models, ...found.filter(model => known.has(model.id))]
+        : found.map(model => ranked.get(model.id) ?? model))
+      setPicked(new Set(selection.checked))
     } finally {
       setBusy(false)
     }

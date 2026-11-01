@@ -22,6 +22,12 @@ export interface RecognizeModelsProps {
   readonly settingsNs: string
   /** Registered provider route to list and probe. */
   readonly provider: string
+  /**
+   * Endpoint and protocol the route already stores. A route the adapter ships
+   * no catalog for can only be listed through its endpoint, so recognition
+   * forwards both instead of asking with the route name alone.
+   */
+  readonly endpoint?: { readonly baseURL?: string; readonly api?: string } | undefined
   /** Host operations. */
   readonly operations: ModelsOperations
   /** Section copy. */
@@ -45,7 +51,7 @@ interface Recognized {
  * @returns the card controls.
  */
 export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
-  const { settingsNs, provider, operations, t, disabled } = props
+  const { settingsNs, provider, endpoint, operations, t, disabled } = props
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [recognized, setRecognized] = useState<Recognized | undefined>(undefined)
@@ -58,7 +64,11 @@ export function RecognizeModels(props: RecognizeModelsProps): ReactNode {
     setFailure(undefined)
     setSaved(false)
     try {
-      const answer = await operations.discoverModels(settingsNs, { provider })
+      const answer = await operations.discoverModels(settingsNs, {
+        provider,
+        ...endpoint?.baseURL === undefined || endpoint.baseURL.length === 0 ? {} : { baseURL: endpoint.baseURL },
+        ...endpoint?.api === undefined ? {} : { api: endpoint.api },
+      })
       if (answer.kind === 'refused') {
         setFailure(redactSurface(answer.message))
         setRecognized(undefined)
