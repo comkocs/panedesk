@@ -4,7 +4,10 @@ import { validCallbackDiagnostic } from './validation.ts'
 import { rejected } from './triggers.ts'
 
 /** Internal callback consumption carries observations without changing wire results. */
-export type CallbackAttempt = T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult>
+export type CallbackAttempt = T.SeatCallbackAttemptResult<T.DeliverSourceCallbackResult> & {
+  /** A definite pending query observed behind an unresolved send barrier; never permits resend. */
+  queryOnly?: true
+}
 
 /** Construct a fixed safe observation without copying dynamic exception text.
  * @param body - Retained callback identity.

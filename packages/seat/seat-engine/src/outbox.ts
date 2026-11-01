@@ -53,7 +53,7 @@ export class CallbackOutbox {
    * @returns Whether a failed callback still needs settlement.
    */
   hasFailedDelivery(): boolean {
-    return this.observations().some(delivery => delivery.responseClass !== null
+    return this.observations().some(delivery => delivery.responseClass !== null && !delivery.ownerPending
       && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned' && !isParkedAuthenticationRefusal(delivery))
   }
 
@@ -112,8 +112,9 @@ export class CallbackOutbox {
     ownerPending?: boolean
     ownerPaused?: boolean
   }> {
-    const attempt = callbackObservation(request, this.routed ? await this.routed(structuredClone(request), structuredClone(delivery))
-      : callbackFailure(request, 'retained', 'Callback sender is unavailable'), 'retained')
+    const routed: CallbackAttempt = this.routed ? await this.routed(structuredClone(request), structuredClone(delivery))
+      : callbackFailure(request, 'retained', 'Callback sender is unavailable')
+    const attempt = callbackObservation(request, routed, 'retained')
     const result = attempt.result, diagnostic = attempt.diagnostic
     let responseClass: SeatCallbackDelivery['responseClass']
     if (result.status === 'rejected') responseClass = result.error.effectState === 'unknown' ? 'unknown' : this.refusalClass(result.error)
@@ -121,7 +122,7 @@ export class CallbackOutbox {
       return { responseClass: 'protocol', diagnostic: callbackFailure(request, 'retained', 'Callback receipt did not match',
         'callback-protocol-error', 'none', 'operation-payload-conflict').diagnostic }
     } else if (result.status === 'paused') responseClass = this.refusalClass(result.error) === 'authentication' ? 'authentication' : 'protocol'
-    else responseClass = result.status === 'committed' ? 'success' : 'transient'
+    else responseClass = result.status === 'committed' ? 'success' : routed.queryOnly ? 'unknown' : 'transient'
     if (diagnostic?.cause.reasonCode === 'invalid-diagnostic') responseClass = responseClass === 'unknown'
       || diagnostic.cause.effectState === 'unknown' ? 'unknown' : 'protocol'
     const error = result.status === 'rejected' || result.status === 'paused' ? result.error : undefined
@@ -132,7 +133,7 @@ export class CallbackOutbox {
     const retainedDiagnostic = responseClass === 'authentication' && diagnostic && observation
       ? { ...diagnostic, cause: { ...diagnostic.cause, effectState: observation.effectState } } : diagnostic
     return { responseClass, ...(retainedDiagnostic ? { diagnostic: retainedDiagnostic } : {}), ...(observation ? { observation } : {}),
-      ...(result.status === 'pending' ? { ownerPending: true } : {}),
+      ...(result.status === 'pending' && diagnostic?.cause.reasonCode !== 'invalid-diagnostic' ? { ownerPending: true } : {}),
       ...(result.status === 'paused' && responseClass !== 'authentication' ? { ownerPaused: true } : {}) }
   }
 
@@ -254,10 +255,12 @@ export class CallbackOutbox {
       const { lastDiagnostic: _previousDiagnostic, ownerPending: _pending, parkingClass: _parking,
         retrySummary: previousSummary, ...original } = delivery
       const at = new Date(now).toISOString(), latestDiagnostic = diagnostic ?? previousSummary?.lastDiagnostic
-      const summary = responseClass === 'success' ? previousSummary : {
+      const summary = responseClass === 'success' ? previousSummary : ownerPending ? {
+        ...previousSummary ?? { count: 0, firstAttemptAt: at, lastAttemptAt: at }, transientSince: null,
+      } : {
         count: (previousSummary?.count ?? 0) + 1,
         firstAttemptAt: previousSummary?.count ? previousSummary.firstAttemptAt : at, lastAttemptAt: at,
-        transientSince: responseClass === 'transient' && !ownerPending
+        transientSince: responseClass === 'transient'
           ? new Date(retention?.since ?? Date.now()).toISOString() : null,
         ...(latestDiagnostic ? { lastDiagnostic: latestDiagnostic } : {}),
         ...(previousSummary?.attemptsAtLeast ? { attemptsAtLeast: true } : {}),

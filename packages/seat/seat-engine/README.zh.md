@@ -116,7 +116,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 
 可选 `retrySummary` 保留失败次数、首末尝试时刻、最近安全细因及连续传输起点，一次失败后成功也保留摘要。新屏障在尝试完成前计数为零；此时时刻表示屏障，而非已完成失败。恢复以 `attemptsAtLeast` 标记计数下界，并先按原键查询 owner 再结算；未刷盘观察可能丢失。旧帧仍可读，但要求摘要计数为正的旧读取器不能读取零计数屏障。成对升级前停止准入并保留双方持久域，不得降级活动历史。正文摘要、wire 方法和会话格式版本不变。
 
-owner pending 回执（含 `desk-unreachable`）与最终 unknown 中断传输计时。可选 `ownerPending` 区分正常进展而不改旧响应类别联合；`parkingClass` 区分 `owner-unconfirmed` 与 `transport-transient`，旧码继续有效。来源侧台面恢复可通过正常回执轮询完成，无需 worker 停车或人工动作；owner 到限或终局拒绝仍显示人工出口。
+原键精确查询返回确定 pending 时，即使已有持久 unknown 发送屏障，仍属于正常进展。outbox 同时保留 `responseClass: unknown` 与 `ownerPending: true`，退避查询、不停引擎、不重发，W 重启后也不例外。查询失败、未知效果及身份不匹配仍保守停止。pending 观察不增加 `retrySummary`，也不覆盖真实失败首末时刻；零计数时刻仅标识屏障。owner pending 回执（含 `desk-unreachable`）与最终 unknown 中断传输计时。可选 `ownerPending` 区分正常进展而不改旧响应类别联合；`parkingClass` 区分 `owner-unconfirmed` 与 `transport-transient`，旧码继续有效。来源侧台面恢复可通过正常回执轮询完成，无需 worker 停车或人工动作；owner 到限或终局拒绝仍显示人工出口。
 
 本机来源缺席且在进入适配器前被拒绝时，若此前每次尝试也均已确认无效果，则持久保存 `lastDiagnostic.stage=retained` 与 `effectState=none`。反复缺源不会把该证据变成未知；随后明确无效果的认证拒绝仍仅影响该回调。先前部分、已提交、未知或缺失的效果证据继续保守保留，来源缺席和重启也不例外。本机来源异常使用 `lastDiagnostic.stage=local-dispatch`，固定 `cause.code` 为 `callback-unclassified-error`、`callback-timeout`、`callback-authentication-failed` 或 `callback-protocol-error`。不保存异常消息、堆栈或嵌套原因；未分类异常与超时保守报告副作用未知。关联标识先取持久路由操作号，再取开窗操作号，否则以 `callback/` 拼接规范化回调标识的 SHA-256 摘要；无会话回调也使用此规则。
 
