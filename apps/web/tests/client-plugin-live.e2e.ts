@@ -45,10 +45,7 @@ it('places dynamic Session menu rows by order among the shipped ones and removes
     const row = page.getByRole('treeitem').filter({ has: page.getByText(SESSION_TITLE, { exact: true }) })
     await row.waitFor({ timeout: 20_000 })
     const trigger = row.getByRole('button', { name: `Session actions for ${SESSION_TITLE}` })
-    const guidance = page.getByRole('dialog', { name: 'Project opening settings', exact: true })
-    await guidance.waitFor()
-    await guidance.getByRole('button', { name: 'Close', exact: true }).click()
-    await guidance.waitFor({ state: 'detached' })
+    expect(await page.getByRole('dialog', { name: 'Project opening settings', exact: true }).count()).toBe(0)
 
     await row.hover()
     await trigger.focus()

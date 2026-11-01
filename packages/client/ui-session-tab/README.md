@@ -25,7 +25,7 @@ This package adds a session page type to the right sidebar and a pin on each fin
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-workspace`, `ui-sidebar-right`, and `ui-conversation`. A session row's menu gains "Open in the right sidebar". The page type is not on the guide, so it does not appear before a session starts. The pin sits in the action row of a finalized assistant message. The session page lists that session's pins and loads older history when necessary before locating the chosen message.
+Mount this plugin alongside `ui-workspace`, `ui-sidebar-right`, and `ui-conversation`. A session row's menu gains "Open in the right sidebar". The page type is not on the guide, so it does not appear before a session starts. The pin sits in the action row of a finalized assistant message except with the minimal preset. The session page lists that session's pins and loads older history when necessary before locating the chosen message.
 
 ### Failures
 

@@ -66,9 +66,10 @@ function statusLine(read: CacheRead, t: (key: CachePillKey) => string): string |
  * The cache pill. Closed, it shows the main window's reading; open, it lists every window
  * and, only for an explicit route, the tiers that route supports.
  * @param props - slot runtime, copy, and the host bridge.
- * @returns the pill and, while open, its panel.
+ * @returns the pill and its open panel, or null for the minimal preset.
  */
-export function CachePill({ t, sessionId, useResource, write }: CachePillProps): ReactNode {
+export function CachePill({ t, sessionId, useSessions, useResource, write }: CachePillProps): ReactNode {
+  const minimal = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'minimal')
   const [open, setOpen] = useState(false)
   const resource = useResource<'sessioncache'>(`dsh-resource://sessioncache/${encodeURIComponent(sessionId)}`)
   const view: CacheRead = resource.value ?? { status: 'loading' }
@@ -97,6 +98,7 @@ export function CachePill({ t, sessionId, useResource, write }: CachePillProps):
   }
 
   const note = statusLine(view, t)
+  if (minimal) return null
   return (
     <span className={css.anchor}>
       <button type="button" className={css.pill} aria-expanded={open} onClick={toggle}>

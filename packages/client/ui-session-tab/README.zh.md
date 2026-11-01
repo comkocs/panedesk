@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-workspace`、`ui-sidebar-right`、`ui-conversation` 一起挂载。会话行的菜单多出「在右栏打开」。该页类型不在引导页上，因此不会出现在开始会话之前。钉住位于已完成助手回复的动作行。会话页列出该会话的钉住条目，必要时先载入更早历史，再定位选中的消息。
+与 `ui-workspace`、`ui-sidebar-right`、`ui-conversation` 一起挂载。会话行的菜单多出「在右栏打开」。该页类型不在引导页上，因此不会出现在开始会话之前。钉住位于非 minimal 预设的已完成助手回复动作行。会话页列出该会话的钉住条目，必要时先载入更早历史，再定位选中的消息。
 
 ### 失败
 

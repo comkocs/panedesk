@@ -15,9 +15,16 @@ const items = states.map((state, index) => ({ senderSeat: `sender-${index}`, sta
     priority: 'steer' as const, createdAt: Date.parse('2026-01-01T00:00:00Z') + index },
 } }))
 function props(locale: typeof en, value: InboxView | undefined,
-  status = 'live', code?: string) {
+  status = 'live', code?: string, preset = 'standard') {
+  const sessionId = items[0]!.status.metadata.targetSessionId
+  const sessions: Parameters<Parameters<ComponentProps<typeof InboxPanel>['useSessions']>[0]>[0] = { ids: [sessionId], byId: { [sessionId]: {
+    id: sessionId, displayTitle: 'Receiver', running: false, retainedBy: {}, blank: false, updatedAt: 0,
+    projectionValues: { agentPreset: preset },
+  } }, phase: 'ready', projectionsBySession: {} }
+  const useSessions: ComponentProps<typeof InboxPanel>['useSessions'] = select => select(sessions)
   const view = {
     sessionId: 'receiver',
+    useSessions,
     useResource: () => ({ status, value, ...(code ? { failure: { code } } : {}) }),
     t: (key: keyof typeof en, args?: Record<string, string | number>) => Object.entries(args ?? {})
       .reduce((text, [name, argument]) => text.replaceAll(`{${name}}`, String(argument)), locale[key]),
@@ -33,6 +40,14 @@ it.each([en, zh])('shows all existing message states and the received metadata c
   expect(screen.getByText('sender-0')).toBeTruthy()
   expect(screen.getAllByText(locale.steer)).toHaveLength(6)
   expect(screen.getByText('2026-01-01T00:00:00.000Z')).toBeTruthy()
+})
+it.each([en, zh])('keeps the minimal preset header free of inbox and isolation controls', (locale) => {
+  const value: InboxView = { enabled: true, items, complete: true, quarantined: [{
+    cursor: 'isolation-a' as never, nodeId: 'node-a' as never, observedAt: 0, originalFileName: 'record.json', reason: 'corrupt',
+  }] }
+  render(<InboxPanel {...props(locale, value, 'live', undefined, 'minimal')} />)
+  expect(screen.queryByRole('button')).toBeNull()
+  expect(screen.queryByRole('alert')).toBeNull()
 })
 it.each([en, zh])('shows isolation only when evidence exists and reveals its localized reason', (locale) => {
   const value: InboxView = { enabled: true, items: [], complete: true, quarantined: [{

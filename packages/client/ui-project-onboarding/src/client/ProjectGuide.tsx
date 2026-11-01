@@ -50,7 +50,7 @@ export function ProjectGuide(props: GuideProps) {
   const { usePreferences, useWelcome, useWorkspaces, useSessions, sessionId, select, retry, inputActions, t } = props
   const state = usePreferences(value => value)
   const welcomeComplete = useWelcome(value => value.status === 'ready' && value.value?.welcomeNoticeVersion === welcomeVersion)
-  const projectActive = useSessions(value => {
+  const projectActive = useSessions((value) => {
     const main = Object.values(value.byId).find(session => (session.retainedBy.mainView ?? 0) > 0)
     return value.phase === 'ready' && main !== undefined && !main.blank
   })

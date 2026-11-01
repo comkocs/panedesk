@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Adds a read-only inbox to the existing Session header. Its entry and isolation-warning controls use the compact 28px size to preserve the header height. The initial home screen has no inbox entry. The [message delivery provider](../../session/message-delivery-local/README.md) owns message states, metadata and isolated evidence; this plugin neither sends messages nor opens Sessions. See [Session persistence](../../../docs/subsystems/persistence.md).
+Adds a read-only inbox to the existing Session header. Its entry and isolation-warning controls use the compact 28px size to preserve the header height. The initial home screen and Sessions using the `minimal` preset have no inbox entry or isolation-warning controls. The [message delivery provider](../../session/message-delivery-local/README.md) owns message states, metadata and isolated evidence; this plugin neither sends messages nor opens Sessions. See [Session persistence](../../../docs/subsystems/persistence.md).
 
 ## Table of Contents
 

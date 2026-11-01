@@ -10,9 +10,10 @@ type Props = PropsRuntime<'conversation.session.header.actions'> & PropsLocale<'
 
 /** Render only inside an existing Session header, never the initial home screen.
  * @param props - Standard Session identity, framework resource reader and locale seat.
- * @returns Inbox entry, conditional isolation warning and read-only message modal.
+ * @returns Inbox entry, conditional isolation warning and read-only modal, or null for the minimal preset.
  */
-export function InboxPanel({ sessionId, useResource, t }: Props) {
+export function InboxPanel({ sessionId, useSessions, useResource, t }: Props) {
+  const minimal = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'minimal')
   const inbox = useResource<'inbox'>(`dsh-resource://inbox/${encodeURIComponent(sessionId)}`)
   const [open, setOpen] = useState(false), [reasons, setReasons] = useState(false)
   const value = inbox.value
@@ -20,6 +21,7 @@ export function InboxPanel({ sessionId, useResource, t }: Props) {
   const state: InboxKey = code === 'inbox/unauthorized' ? 'unauthorized' : value?.enabled === false ? 'disabled'
     : inbox.status === 'failed' ? value ? 'failed' : 'error' : inbox.status === 'loading' ? 'loading'
       : !value ? 'idle' : !value.complete ? 'partial' : !value.items.length ? 'empty' : 'success'
+  if (minimal) return null
   return <div className={css.entry}>
     <Button variant="toolbar" size="sm" onClick={() => { setReasons(false); setOpen(true) }}><IconPanedeskInbox />{t('title')}</Button>
     {!!value?.quarantined.length && <span role="alert"><Button variant="toolbar" size="sm" onClick={() => { setReasons(true); setOpen(true) }}>

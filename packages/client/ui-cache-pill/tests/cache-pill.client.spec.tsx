@@ -20,8 +20,15 @@ function resource(read: CacheRead): CachePillProps['useResource'] {
   return (() => ({ status: 'live', value: read, failure: undefined })) as CachePillProps['useResource']
 }
 
-function Pill(props: Pick<CachePillProps, 't' | 'sessionId' | 'useResource' | 'write'>) {
-  return <CachePill {...props as CachePillProps} />
+function Pill({ preset = 'standard', ...props }: Pick<CachePillProps, 't' | 'sessionId' | 'useResource' | 'write'> & { preset?: string }) {
+  const sessions: Parameters<Parameters<CachePillProps['useSessions']>[0]>[0] = {
+    ids: [props.sessionId], byId: { [props.sessionId]: {
+      id: props.sessionId, displayTitle: 'Session', running: false, retainedBy: {}, blank: false, updatedAt: 0,
+      projectionValues: { agentPreset: preset },
+    } }, phase: 'ready', projectionsBySession: {},
+  }
+  const useSessions: CachePillProps['useSessions'] = select => select(sessions)
+  return <CachePill {...{ ...props, useSessions } as CachePillProps} />
 }
 
 function mount(read: CacheRead, t: typeof zhT, write: (tier: CacheTier) => Promise<boolean> = async () => true) {
@@ -29,6 +36,11 @@ function mount(read: CacheRead, t: typeof zhT, write: (tier: CacheTier) => Promi
 }
 
 describe('CachePill', () => {
+  it('keeps the minimal preset composer free of the cache entry', () => {
+    const ui = render(<Pill preset="minimal" sessionId={MAIN} t={enT} useResource={resource({ status: 'empty' })} write={async () => true} />)
+    expect(ui.queryByRole('button')).toBeNull()
+    expect(ui.queryByRole('dialog')).toBeNull()
+  })
   it('decrements evidence-backed seconds while closed and replaces them on a new resource snapshot', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1_700_000_000_000)

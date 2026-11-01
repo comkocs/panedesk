@@ -57,12 +57,21 @@ it.each([['English', en], ['Chinese', zh]])('keeps the settings entry secondary 
   fireEvent.click(screen.getByRole('button', { name: locale.open }))
   expect(close).toHaveBeenCalledOnce(); expect(open).toHaveBeenCalledOnce()
   rendered.unmount()
-  const tools = { t: h.t, open } as ComponentProps<typeof StatsTools>
-  render(<StatsTools {...tools} />)
+  const sessionId = call.start.sessionId
+  const row = { id: sessionId, displayTitle: 'Session', running: false, retainedBy: {}, blank: false, updatedAt: 0,
+    projectionValues: { agentPreset: 'standard' } }
+  const sessions: Parameters<Parameters<ComponentProps<typeof StatsTools>['useSessions']>[0]>[0] = { ids: [sessionId], byId: { [sessionId]: row }, phase: 'ready', projectionsBySession: {} }
+  const useSessions: ComponentProps<typeof StatsTools>['useSessions'] = select => select(sessions)
+  const tools = { sessionId, t: h.t, open, useSessions } as ComponentProps<typeof StatsTools>
+  const toolbar = render(<StatsTools {...tools} />)
   expect(screen.queryByRole('menuitem')).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: locale.tools }))
   fireEvent.click(screen.getByRole('menuitem', { name: locale.title }))
   expect(open).toHaveBeenCalledTimes(2)
+  row.projectionValues.agentPreset = 'minimal'
+  toolbar.rerender(<StatsTools {...tools} />)
+  expect(screen.queryByRole('button', { name: locale.tools })).toBeNull()
+  expect(screen.queryByRole('menuitem')).toBeNull()
 })
 it.each(['overview', 'history', 'models', 'throughput', 'ledger'] as const)('handles every read state on %s without pretending a write succeeded', (tab) => {
   const cases = [

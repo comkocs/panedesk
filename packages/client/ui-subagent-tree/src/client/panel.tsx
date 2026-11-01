@@ -48,9 +48,11 @@ function stateKey(status: ResourceStatus, value: SubagentTreeData | undefined, c
 /**
  * Session-header pill that opens this session's tree page.
  * @param props - Session standard props, localized copy, and the open action.
- * @returns One toolbar button; it appears only inside an open session's header.
+ * @returns One toolbar button inside an open session's header, or null for the minimal preset.
  */
-export function SubagentTreeAction({ sessionId, t, open }: SubagentTreeActionProps) {
+export function SubagentTreeAction({ sessionId, useSessions, t, open }: SubagentTreeActionProps) {
+  const minimal = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'minimal')
+  if (minimal) return null
   return <Button variant="toolbar" size="sm" className={css.pill} onClick={() => { open(sessionId) }}>
     <IconPanedeskSubagentTree />{t('title')}
   </Button>

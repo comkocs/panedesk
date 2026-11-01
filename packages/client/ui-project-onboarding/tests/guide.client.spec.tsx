@@ -29,6 +29,7 @@ function fixture(language: 'en' | 'zh', projects: ProjectPreferences['projects']
     insertText: vi.fn(() => true), persistDraft: vi.fn(), setDraft: vi.fn(),
     addAttachments: vi.fn(() => true), removeAttachment: vi.fn(), pruneAttachments: vi.fn(), submit: vi.fn(),
   }
+  const useSessions: GuideProps['useSessions'] = select => select(sessions)
   const props = {
     sessionId: 'session-a' as never,
     useSession: unused, useAccess: unused, useConversation: unused, useInput: unused,
@@ -37,8 +38,8 @@ function fixture(language: 'en' | 'zh', projects: ProjectPreferences['projects']
     usePreferences: ((select: (value: ProjectPreferences) => unknown) => select(state)) as GuideProps['usePreferences'],
     useWorkspaces: (() => ({ path: '/project', sessionIds: ['session-a'] })) as GuideProps['useWorkspaces'],
     useProjection: (() => '/project') as GuideProps['useProjection'],
-    useSessions: ((select) => select(sessions)) as GuideProps['useSessions'],
-    useWelcome: ((select) => select(welcome)) as GuideProps['useWelcome'],
+    useSessions,
+    useWelcome: (select => select(welcome)) as GuideProps['useWelcome'],
     select: vi.fn(async () => true), retry: vi.fn(async () => {}), close: vi.fn(), inputActions,
     t: (key: keyof typeof en) => dictionary[key],
   }

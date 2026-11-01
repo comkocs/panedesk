@@ -26,8 +26,15 @@ function Body(props: Pick<SessionTabBodyProps, 't' | 'useTabInfo' | 'useResource
   return <SessionTabBody {...props as SessionTabBodyProps} />
 }
 
-function Action(props: Pick<PinActionProps, 't' | 'sessionId' | 'messageId' | 'usePins' | 'toggle'>) {
-  return <PinAction {...props as PinActionProps} />
+function Action({ preset = 'standard', ...props }: Pick<PinActionProps, 't' | 'sessionId' | 'messageId' | 'usePins' | 'toggle'> & { preset?: string }) {
+  const sessions: Parameters<Parameters<PinActionProps['useSessions']>[0]>[0] = {
+    ids: [props.sessionId], byId: { [props.sessionId]: {
+      id: props.sessionId, displayTitle: 'Session', running: false, retainedBy: {}, blank: false, updatedAt: 0,
+      projectionValues: { agentPreset: preset },
+    } }, phase: 'ready', projectionsBySession: {},
+  }
+  const useSessions: PinActionProps['useSessions'] = select => select(sessions)
+  return <PinAction {...{ ...props, useSessions } as PinActionProps} />
 }
 
 function Menu(props: Pick<OpenInRightMenuItemProps, 't' | 'sessionId' | 'displayTitle' | 'useShortcuts' | 'useMenuOpenState' | 'open'>) {
@@ -87,6 +94,14 @@ describe('session tab surfaces', () => {
     expect(open).toHaveBeenCalledWith(SESSION)
     expect(ui.getByRole('status').textContent).toBe('主区加右栏最多三个会话,请先关闭一个')
     expect(setOpen).not.toHaveBeenCalled()
+  })
+
+  it('keeps minimal preset replies free of the pin action', () => {
+    const toggle = vi.fn()
+    const ui = render(<Action preset="minimal" sessionId={SESSION} messageId={'message-1' as MessageId}
+      usePins={select => select({ status: 'empty' })} toggle={toggle} t={enT} />)
+    expect(ui.queryByRole('button')).toBeNull()
+    expect(toggle).not.toHaveBeenCalled()
   })
 
   it('pins a message in English and says the pin stays after a restart', () => {

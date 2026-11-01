@@ -43,10 +43,12 @@ export function StatsSettings({ useResource, t, open, close }: SettingsProps) {
 
 /** The session-only tools menu never contributes to the initial sidebar or hero.
  * @param props - Localized labels and main-area navigation.
- * @returns Accessible shared menu with one statistics action.
+ * @returns Accessible shared menu with one statistics action, or null for the minimal preset.
  */
-export function StatsTools({ t, open }: ToolsProps) {
+export function StatsTools({ sessionId, useSessions, t, open }: ToolsProps) {
+  const minimal = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'minimal')
   const [expanded, setExpanded] = useState(false)
+  if (minimal) return null
   return <Menu open={expanded} onClose={() => { setExpanded(false) }} align="end" autoFocus
     anchor={<Button variant="toolbar" size="sm" onClick={() => { setExpanded(value => !value) }} aria-expanded={expanded} aria-haspopup="menu">{t('tools')}</Button>}
     items={[{ id: 'stats', label: t('title') }]} onSelect={() => { setExpanded(false); open() }} />

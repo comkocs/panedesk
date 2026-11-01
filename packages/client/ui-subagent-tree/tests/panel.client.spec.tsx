@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ResourceStatus } from '@panedesk/dsh-client-resources/client'
 import { RemoteError } from '@panedesk/dsh-typert-protocol'
 import type { SessionId } from '@panedesk/dsh-session/types'
+import type { SessionListState } from '@panedesk/dsh-api-session-controller/client'
 import type { SubagentTreeNode, SubagentTreeView } from '../src/types.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { parseSubagentTreeAddress, subagentTreeAddress } from '../src/client/index.ts'
@@ -152,12 +153,19 @@ describe('subagent tree tab', () => {
 describe('subagent tree action pill', () => {
   it('opens this session tree page on click', () => {
     const open = vi.fn()
+    const row = { id: ROOT, displayTitle: 'Root', running: false, retainedBy: {}, blank: false, updatedAt: 0,
+      projectionValues: { agentPreset: 'standard' } }
+    const sessions: SessionListState = { ids: [ROOT], byId: { [ROOT]: row }, phase: 'ready', projectionsBySession: {} }
+    const useSessions: Parameters<typeof SubagentTreeAction>[0]['useSessions'] = select => select(sessions)
     const props = {
       sessionId: ROOT, t: (key: string) => en[key as keyof typeof en] ?? key,
-      open,
+      open, useSessions,
     } as Parameters<typeof SubagentTreeAction>[0]
     const view = render(<SubagentTreeAction {...props} />)
     fireEvent.click(view.getByRole('button'))
     expect(open).toHaveBeenCalledWith(ROOT)
+    row.projectionValues.agentPreset = 'minimal'
+    view.rerender(<SubagentTreeAction {...props} />)
+    expect(view.queryByRole('button')).toBeNull()
   })
 })
