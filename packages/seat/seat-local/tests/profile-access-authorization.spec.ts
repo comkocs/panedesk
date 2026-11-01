@@ -18,7 +18,7 @@ it.each(['guest', 'anonymous', 'session', 'aborted'] as const)('refuses %s direc
     Object.defineProperty(f.ctx, 'invocation', { configurable: true,
       value: { peer: { principal: { kind: kind === 'aborted' ? 'owner' : kind } }, signal: controller.signal } })
     const operationId = 'denied-profile' as T.SeatOperationId
-    const calls = [
+    const calls: (() => Promise<unknown>)[] = [
       () => access.read(),
       () => access.save({ definition: f.definition, expectedRevision: 2, operationId }),
       () => access.preview({ format: 'csv', sourcePath: '/missing', columnMap: {}, defaults: {} }),
