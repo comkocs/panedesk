@@ -36,9 +36,21 @@ describe('probeModel', () => {
       yield { type: 'finish', reason: { kind: 'stop' } }
     })
     const invocation = caller === 'missing' ? undefined : { peer: { principal: { kind: caller === 'anonymous' ? 'anonymous' : 'owner' } }, signal: caller === 'aborted' ? AbortSignal.abort() : new AbortController().signal }
-    Object.defineProperty(llm.ctx, 'invocation', { configurable: true, value: invocation })
-    const refusal = caller === 'aborted' ? { code: 'gateway/cancelled', message: 'Model probe unavailable' } : { code: 'gateway/bad-request', message: 'Authenticated owner required' }
+    Object.defineProperty(llm['ctx'], 'invocation', { configurable: true, value: invocation })
+    const refusal = caller === 'aborted' ? { code: 'gateway/cancelled', message: 'Model probe unavailable' } : {
+      code: 'remote-access/denied', message: 'Authenticated owner required', details: { action: 'llm/probeModel', reason: 'no-allow' },
+    }
     await expect(llm.remoteProbeModel('openai', 'hand-typed', new AbortController().signal)).rejects.toMatchObject(refusal)
+    expect(seen).toEqual([])
+  })
+  it('rejects an independently aborted probe signal before contacting the adapter', async () => {
+    const seen: GenerateOptions[] = []
+    const llm = await runtime(async function * (options) {
+      seen.push(options)
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    })
+    Object.defineProperty(llm['ctx'], 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } }, signal: new AbortController().signal } })
+    await expect(llm.remoteProbeModel('openai', 'hand-typed', AbortSignal.abort())).rejects.toMatchObject({ code: 'gateway/cancelled', message: 'Model probe unavailable' })
     expect(seen).toEqual([])
   })
   it('allows a live owner remote probe', async () => {
@@ -48,7 +60,7 @@ describe('probeModel', () => {
       yield { type: 'finish', reason: { kind: 'stop' } }
     })
     const signal = new AbortController().signal
-    Object.defineProperty(llm.ctx, 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } }, signal } })
+    Object.defineProperty(llm['ctx'], 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } }, signal } })
     await expect(llm.remoteProbeModel('openai', 'hand-typed', signal)).resolves.toEqual({ ok: true })
     expect(seen).toHaveLength(1)
     expect(seen[0]).toMatchObject({ provider: 'openai', model: 'hand-typed', maxTokens: 1 })

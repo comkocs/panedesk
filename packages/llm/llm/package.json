@@ -70,6 +70,7 @@
     "@panedesk/dsh-typert-protocol": "workspace:*"
   },
   "devDependencies": {
+    "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/dsh-attachment": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   }
