@@ -50,7 +50,7 @@ The plugin changes no model request prefixes or caches.
 
 - Events are not persisted and retain only the latest 20 entries per peer since startup. Heartbeats are observation times, not engine readiness timestamps.
 - Callback lists are bounded and label incompleteness. Source-owner pages have no completeness proof; an empty result does not establish that all work is clear.
-- Missing historical attempt timestamps remain unknown. Recovered retry lower bounds display “At least N”; source adapters do not invent timestamps from creation or recovery times.
+- Missing historical attempt timestamps remain unknown. Recovered retry lower bounds display “At least N”; source adapters do not invent timestamps from creation or recovery times. Parked callback rows show failed attempts and direct pending dispatches as separate counts with their own first and last times. A summary written before that split shows “Not recorded” for both groups and never derives them from the combined count.
 - The page cannot rebuild a remote node's own outbound links, repair credentials or reverse an abandonment. An accepted operation still requires a fresh read to inspect its outcome.
 
 <a id="dev-note"></a>

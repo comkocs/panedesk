@@ -78,6 +78,12 @@ export function NodesSection({ useResource, t, act }: Props) {
         <dt>{t('parking')}</dt><dd>{text(item.parkingCode)}</dd><dt>{t('detail')}</dt><dd>{text(item.detail)}</dd>
         <dt>{t('first')}</dt><dd>{text(item.firstAttemptAt)}</dd><dt>{t('last')}</dt><dd>{text(item.lastAttemptAt)}</dd>
         <dt>{t('count')}</dt><dd>{count(item.count, item.attemptsAtLeast)}</dd><dt>{t('latest')}</dt><dd>{text(item.latestReason)}</dd>
+        <dt>{t('failures')}</dt><dd>{item.failures ? count(item.failures.count, item.failures.attemptsAtLeast) : t('notRecorded')}</dd>
+        <dt>{t('failureFirst')}</dt><dd>{item.failures ? text(item.failures.firstAt) : t('notRecorded')}</dd>
+        <dt>{t('failureLast')}</dt><dd>{item.failures ? text(item.failures.lastAt) : t('notRecorded')}</dd>
+        <dt>{t('directPending')}</dt><dd>{item.directPending ? String(item.directPending.count) : t('notRecorded')}</dd>
+        <dt>{t('pendingFirst')}</dt><dd>{item.directPending ? text(item.directPending.firstAt) : t('notRecorded')}</dd>
+        <dt>{t('pendingLast')}</dt><dd>{item.directPending ? text(item.directPending.lastAt) : t('notRecorded')}</dd>
       </dl>{actions({ kind: 'callback', request: { callbackId: item.callbackId, expectedAttempt: item.attempt, action: 'resume' } },
         { kind: 'callback', request: { callbackId: item.callbackId, expectedAttempt: item.attempt, action: 'abandon' } }, item.callbackId)}
     </article>)}

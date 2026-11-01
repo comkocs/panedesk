@@ -220,7 +220,7 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
   if (sent.result.status === 'paused' && sent.result.callbackId === body.callback.callbackId
     && sent.result.payloadDigest === body.payloadDigest) return sent
   if (!self && sent.result.status === 'pending' && sent.result.callbackId === body.callback.callbackId
-    && sent.result.payloadDigest === body.payloadDigest) return { ...sent, completedDispatch: true }
+    && sent.result.payloadDigest === body.payloadDigest) return { ...sent, completedDispatch: true, directPending: true }
   if (!self && sent.result.status === 'rejected' && sent.result.error.effectState === 'none'
     && sent.diagnostic?.stage === 'peer-dispatch') return sent
   const reconciled = outcome(await read(), true) ?? unknown(sent.diagnostic)
