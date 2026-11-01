@@ -67,6 +67,7 @@
     "test:bench:built": "vitest run --config vitest.bench.config.ts",
     "test:bench:memory": "tsx scripts/run-memory-pressure-bench.ts",
     "test:expected": "vitest run --config vitest.expected.config.ts",
+    "test:slim-mock": "vitest run --config vitest.expected.config.ts apps/cli/tests/profiles/slim-mock.expected.e2e.ts",
     "test:expected:refresh": "DSH_SNAPSHOT=refresh vitest run --config vitest.expected.config.ts",
     "test:approval-policy": "node --test .github/review-ownership/check-approval.test.mjs .github/review-ownership/blame-ownership.test.mjs .github/review-ownership/author-weight.test.mjs",
     "test:issue-management": "node .github/issue-management/policy.test.mjs",

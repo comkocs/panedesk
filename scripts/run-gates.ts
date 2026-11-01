@@ -743,6 +743,10 @@ function ciUnitGates(): Gate[] {
       needs: ['native-system'],
       streamOutput: true,
     }),
+    pnpmScript('slim-mock-e2e', 'test:slim-mock', {
+      needs: ['native-system'],
+      env: { DSH_EXAMPLE_MODE: 'lib' },
+    }),
   ]
 }
 
