@@ -41,7 +41,7 @@ export const en = {
     'This catalog is already owned by seat profiles, so the import source cannot change it. Edit the profile directly instead of importing.',
   rejectInvalidDefinition:
     'The profile definition is invalid, so it was not saved or imported. Correct the JSON fields, presets, model, paths and rules, then retry.',
-  rejectInvalidRequest: 'The request does not match the current preview, so nothing was imported. Select rows shown by the latest preview.',
+  rejectInvalidRequest: 'The selection is empty or does not match the current preview, so nothing was imported. Select at least one row shown by the latest preview.',
   rejectUnsupportedSchemaVersion:
     'This profile uses a schema version this editor cannot write, so it was left unchanged. Open it with a build that supports that version.',
   rejectRevisionConflict:
@@ -184,7 +184,7 @@ export const zh: Record<ProfileKey, string> = {
   rejectImportSourceAuthoritative: '导入源仍持有当前目录，档案未保存或删除。请先转交编辑权限，再重试。',
   rejectSeatStoreAuthoritative: '当前目录已由工位档案持有，导入源不能再改它。请直接编辑档案，不要通过导入修改。',
   rejectInvalidDefinition: '档案定义无效，未保存或导入。请修正 JSON 字段、预设、模型、路径和规则后再试。',
-  rejectInvalidRequest: '请求与当前预览不符，未导入任何行。请只勾选最新预览里显示的行。',
+  rejectInvalidRequest: '未选择行或选择与当前预览不符，未导入任何行。请至少勾选一行最新预览中显示的内容。',
   rejectUnsupportedSchemaVersion: '该档案的格式版本本编辑器无法写入，已保持原样。请用支持该版本的构建打开。',
   rejectRevisionConflict: '加载本视图后目录已变化，草稿未写入。请刷新并核对当前档案后再试。',
   rejectOperationIdConflict: '同一请求已以不同内容提交过，未再次执行。请刷新后把当前修改作为新操作提交。',
