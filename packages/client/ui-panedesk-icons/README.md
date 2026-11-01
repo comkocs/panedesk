@@ -38,7 +38,7 @@ A drift guard (`tests/tokens.client.spec.ts`) fails when a referenced upstream v
 
 ## Icon manifest
 
-| Name | Entry surface (design §2 placement table) | Sizes | Source / license |
+| Name | Entry surface | Sizes | Source / license |
 |---|---|---|---|
 | `app` | Application mark for Panedesk surfaces | 16/20/24 | Self-drawn (this package, MIT, same as the repo) |
 | `stats` | Settings stats desk section + main panel header | 16/20/24 | Self-drawn |

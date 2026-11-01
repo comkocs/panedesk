@@ -104,7 +104,7 @@ export const IconPanedeskApp = (props: PanedeskGlyphProps) => <Glyph {...props}>
 export interface PanedeskGlyphEntry {
   /** Stable glyph name, matching the icon manifest in the README. */
   readonly name: string
-  /** The entry surface the glyph serves (design §2 placement table). */
+  /** The entry surface the glyph serves. */
   readonly entry: string
   /** The glyph component. */
   readonly component: (props: PanedeskGlyphProps) => ReactNode
