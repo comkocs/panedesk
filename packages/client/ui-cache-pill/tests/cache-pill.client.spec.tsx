@@ -41,6 +41,38 @@ describe('CachePill', () => {
     expect(ui.queryByRole('button')).toBeNull()
     expect(ui.queryByRole('dialog')).toBeNull()
   })
+  it.each([undefined, { status: 'ready', rows: [], tiers: ['none'] } satisfies CacheRead])('reports a failed resource read without loading or writable stale evidence: %j', (previous) => {
+    const useResource = (() => ({ status: 'failed', value: previous, failure: undefined })) as CachePillProps['useResource']
+    const ui = render(<Pill sessionId={MAIN} t={enT} useResource={useResource} write={async () => true} />)
+    fireEvent.click(ui.getByRole('button', { expanded: false }))
+    expect(ui.getByText(en['panel.error'])).toBeTruthy()
+    expect(ui.queryByText(en['panel.loading'])).toBeNull()
+    expect(ui.queryByRole('group', { name: en['tier.label'] })).toBeNull()
+  })
+
+  it('disables tier changes while saving and reports a refused write without claiming success', async () => {
+    let finish: ((saved: boolean) => void) | undefined
+    const write = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve }))
+    const ui = mount({ status: 'ready', rows: [], tiers: ['none', '5m'], retention: '5m' }, enT, write)
+    fireEvent.click(ui.getByRole('button', { expanded: false }))
+    fireEvent.click(ui.getByRole('button', { name: en['tier.none'] }))
+    expect(ui.getByText(en['tier.pending'])).toBeTruthy()
+    expect(ui.getByRole('button', { name: en['tier.5m'] }).hasAttribute('disabled')).toBe(true)
+    await act(async () => { finish?.(false) })
+    expect(ui.getByText(en['tier.failed'])).toBeTruthy()
+    expect(ui.queryByText(en['tier.saved'])).toBeNull()
+    expect(ui.getByRole('button', { name: en['tier.5m'] }).getAttribute('aria-pressed')).toBe('true')
+    expect(ui.getByRole('button', { name: en['tier.5m'] }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('reports a rejected tier write without claiming success', async () => {
+    const ui = mount({ status: 'ready', rows: [], tiers: ['none'] }, enT, () => Promise.reject(new Error('unavailable')))
+    fireEvent.click(ui.getByRole('button', { expanded: false }))
+    fireEvent.click(ui.getByRole('button', { name: en['tier.none'] }))
+    await waitFor(() => { expect(ui.getByText(en['tier.failed'])).toBeTruthy() })
+    expect(ui.queryByText(en['tier.saved'])).toBeNull()
+  })
+
   it('decrements evidence-backed seconds while closed and replaces them on a new resource snapshot', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1_700_000_000_000)

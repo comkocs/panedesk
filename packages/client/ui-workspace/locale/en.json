@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-workspace"
+    "title": "Workspace selection",
+    "description": "Select a workspace in the sidebar and new-session view."
   }
 }

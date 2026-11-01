@@ -1,0 +1,6 @@
+# Private client shells stay disconnected from every external desk.
+- insert:
+    - id: isolated-ticket-desk-ui
+      name: '@panedesk-private/ticket-desk-ui'
+    - id: isolated-ticket-desk-workflow
+      name: '@panedesk-private/ticket-desk-workflow'

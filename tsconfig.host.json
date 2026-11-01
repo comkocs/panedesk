@@ -8,6 +8,10 @@
     "rewriteRelativeImportExtensions": false
   },
   "include": [
+    "apps/web/tests/interface-locale-walkthrough.e2e.ts",
+    "apps/web/tests/session-interface-locale.e2e.ts",
+    "apps/web/tests/seat-interface-locale.e2e.ts",
+    "apps/web/tests/private-interface-locale.e2e.ts",
     "apps/web/tests/collapse-timing.e2e.ts",
     "apps/web/tests/notice-wake-tail.e2e.ts",
     "apps/web/tests/fold-blank-matrix.e2e.ts",

@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-cache-pill"
+    "title": "Cache pill",
+    "description": "Show remaining cache time for the main session and subagents and switch tiers on explicit routes."
   }
 }

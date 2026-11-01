@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-settings-plugin-inventory"
+    "title": "Built-in plugin inventory",
+    "description": "Inspect global plugins and plugins used by each Agent preset in settings."
   }
 }

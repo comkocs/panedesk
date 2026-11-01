@@ -72,7 +72,7 @@ export function CachePill({ t, sessionId, useSessions, useResource, write }: Cac
   const minimal = useSessions(state => state.byId[sessionId]?.projectionValues?.agentPreset === 'minimal')
   const [open, setOpen] = useState(false)
   const resource = useResource<'sessioncache'>(`dsh-resource://sessioncache/${encodeURIComponent(sessionId)}`)
-  const view: CacheRead = resource.value ?? { status: 'loading' }
+  const view: CacheRead = resource.status === 'failed' ? { status: 'error' } : resource.value ?? { status: 'loading' }
   const [tier, setTier] = useState<TierWrite>({ status: 'idle' })
   const [now, setNow] = useState(Date.now)
   useEffect(() => {

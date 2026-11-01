@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "resources"
+    "title": "Client resources",
+    "description": "Resolve resource addresses into content readable by the interface."
   }
 }

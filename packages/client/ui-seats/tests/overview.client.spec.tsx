@@ -14,6 +14,27 @@ const definition: SeatDefinition = { schemaVersion: 1, revision: 1, seat: 'seat-
   worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 48 } }
 afterEach(cleanup)
 describe('middle-column seat overview', () => {
+  it.each(['loading', 'failed', 'empty'] as const)('keeps the %s observation explicit without opening seats', (state) => {
+    const batch = vi.fn(async () => {})
+    const refresh = vi.fn()
+    const value = state === 'empty' ? { revision: 1, engineSequence: 0, authority: 'seat-store' as const,
+      definitions: [], windows: [], pending: [], recentOpen: {} } : undefined
+    const unused = (() => { throw new Error('Unused fixture hook') }) as never
+    const props: OverviewProps = {
+      useResource: (() => ({ status: state === 'failed' ? 'failed' : state === 'empty' ? 'live' : 'loading', value, failure: undefined })) as OverviewProps['useResource'],
+      batch, refresh, t: key => Object.entries(en).find(([name]) => name === key)?.[1] ?? key,
+      usePanelInfo: unused, useRemoteAccess: unused, useSessions: unused, useSessionStatus: unused,
+      useSessionRetainInfo: unused, useSessionAccess: unused, useWorkspaces: unused, useWorkspaceAccess: unused,
+    }
+    render(<Overview {...props} />)
+    expect(screen.getByText(en[state === 'failed' ? 'overviewFailed' : state === 'empty' ? 'empty' : 'loading'])).toBeTruthy()
+    expect(batch).not.toHaveBeenCalled()
+    if (state === 'failed') {
+      fireEvent.click(screen.getByRole('button', { name: en.retry }))
+      expect(refresh).toHaveBeenCalledOnce()
+    }
+    if (state === 'empty') expect(screen.getByRole('button', { name: en.batchOpen }).hasAttribute('disabled')).toBe(true)
+  })
   it.each(['en', 'zh'] as const)('blocks a timed-out batch until refresh supplies a new live observation: %s', async (language) => {
     const copy = language === 'en' ? en : zh
     const batch = vi.fn(async () => { throw new Error('Timed out') })

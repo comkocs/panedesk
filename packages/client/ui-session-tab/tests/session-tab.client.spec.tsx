@@ -50,6 +50,16 @@ function memory(): PinStorage {
 }
 
 describe('session tab surfaces', () => {
+  it.each(['error', 'unavailable'] as const)('shows the %s pin-storage notice alongside a failed session read', (status) => {
+    const ui = render(<Body t={enT}
+      useTabInfo={() => ({ tab: { navigation: { params: { sessionId: SESSION } } } }) as SidebarRightTabInfo}
+      useResource={() => ({ status: 'failed', value: undefined, failure: undefined })}
+      SessionProvider={({ children }) => children} renderSlot={() => null}
+      usePins={select => select({ status })} jump={async () => false} />)
+    expect(ui.getByText(en[`body.${status}`])).toBeTruthy()
+    expect(ui.getByRole('alert').textContent).toBe(en['session.error'])
+    expect(ui.queryByText(en['body.loading'])).toBeNull()
+  })
   it.each([
     [enT, 'Loading the matching history', 'This entry could not be found; retry loading history'],
     [zhT, '正在载入对应历史记录', '未能找到这条记录,请重试载入历史'],

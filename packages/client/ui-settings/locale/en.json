@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-settings"
+    "title": "Settings framework",
+    "description": "Provide settings forms and plugin extension slots."
   }
 }

@@ -61,6 +61,7 @@ it.each([en, zh])('shows isolation only when evidence exists and reveals its loc
 it.each([
   ['idle', undefined, 'idle', undefined], ['loading', undefined, 'loading', undefined],
   ['live', { enabled: true, items: [], quarantined: [], complete: true }, 'empty', undefined],
+  ['live', { enabled: true, items, quarantined: [], complete: false }, 'partial', undefined],
   ['failed', undefined, 'error', undefined], ['failed', undefined, 'unauthorized', 'inbox/unauthorized'],
   ['live', { enabled: false, items: [], quarantined: [], complete: true }, 'disabled', undefined],
   ['live', { enabled: true, items, quarantined: [], complete: true }, 'success', undefined],

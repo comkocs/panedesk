@@ -1,5 +1,6 @@
 {
   "meta": {
-    "title": "ui-settings-models"
+    "title": "Model settings",
+    "description": "Manage model providers and their connection settings and onboarding."
   }
 }
