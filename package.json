@@ -180,6 +180,7 @@
     "verify-dependency-catalog": "tsx scripts/gen-dependency-catalog.ts --check",
     "gen-doc-graphs": "tsx scripts/gen-doc-graphs.ts",
     "verify-doc-graphs": "tsx scripts/gen-doc-graphs.ts --check",
+    "verify-preset-table": "tsx scripts/panedesk/gen-slim-base.ts --table --check",
     "gen-persistence-catalog": "tsx scripts/gen-persistence-catalog.ts",
     "verify-persistence-catalog": "tsx scripts/gen-persistence-catalog.ts --check",
     "persistence-changes": "tsx scripts/persistence-changes.ts",

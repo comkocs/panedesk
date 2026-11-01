@@ -7,12 +7,13 @@
  * `dependencies` are exactly the packages those rows mount, with dsh-base's own
  * version specifiers. Panedesk-specific defaults live in `@panedesk/slim-headless`.
  *
- * Usage: `pnpm exec tsx scripts/panedesk/gen-slim-base.ts [--check]`
+ * Usage: `pnpm exec tsx scripts/panedesk/gen-slim-base.ts [--check | --table [--check | --write]]`
  * @module scripts/panedesk/gen-slim-base
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { generatedRegions, renderGeneratedRegion } from '../translation-pairing.ts'
 
 /**
  * Rows slim mounts, in dsh-base order. The first group is the minimal set an
@@ -125,8 +126,86 @@ export function renderSlimBase(): { patch: string; dependencies: Record<string, 
   return { patch: `${HEADER}\n- insert:\n${body}\n`, dependencies: Object.fromEntries(Object.entries(dependencies).sort(([a], [b]) => a.localeCompare(b))) }
 }
 
+/**
+ * Render the base plugin rows selected by the slim and full presets, before overlays.
+ * @param basePatch - Full base bundle patch, defaulting to the repository source.
+ * @param slimRows - Row ids selected by slim-base.
+ * @returns A Markdown table with plugin export names and preset membership.
+ * @throws Error when a selected slim row is absent from the full base bundle.
+ */
+export function renderPresetTable(
+  basePatch = readFileSync(resolve(BASE_DIR, 'cordis.patch.yml'), 'utf8').replaceAll('\r\n', '\n'),
+  slimRows: readonly string[] = SLIM_BASE_ROWS,
+): string {
+  const rows = splitRows(basePatch)
+  const ids = new Set(rows.map(row => row.id))
+  for (const id of slimRows) {
+    if (!ids.has(id)) throw new Error(`gen-slim-base: full base has no row ${JSON.stringify(id)}`)
+  }
+  const slim = new Set(slimRows)
+  return [
+    `slim: ${String(slim.size)} rows; full: ${String(rows.length)} rows`,
+    '',
+    '| Row | Plugin export | slim | full |',
+    '| --- | --- | --- | --- |',
+    ...rows.map((row) => {
+      const name = /^ {6}name: '([^']+)'/m.exec(row.text)?.[1]
+      if (name === undefined) throw new Error(`gen-slim-base: row ${row.id} has no quoted plugin name`)
+      return `| \`${row.id}\` | \`${name}\` | ${slim.has(row.id) ? 'yes' : 'no'} | yes |`
+    }),
+  ].join('\n')
+}
+
+/**
+ * Replace only the preset table region, preserving the surrounding authored prose.
+ * @param document - Complete architecture page with exactly one preset-table region.
+ * @param table - Generated Markdown table.
+ * @returns The page containing the current table.
+ * @throws Error if the generated region is missing, duplicated, or malformed.
+ */
+export function updatePresetTable(document: string, table: string): string {
+  let regions: ReturnType<typeof generatedRegions>
+  try {
+    regions = generatedRegions(document).filter(region => region.slug === 'preset-table')
+  } catch (error) {
+    throw new Error('gen-slim-base: malformed preset-table region', { cause: error })
+  }
+  const region = regions[0]
+  if (regions.length !== 1 || region === undefined) {
+    throw new Error('gen-slim-base: expected exactly one preset-table region')
+  }
+  return document.replace(region.text, renderGeneratedRegion('preset-table', table))
+}
+
+function presetTableMain(check: boolean): void {
+  const table = renderPresetTable()
+  if (!check && !process.argv.includes('--write')) {
+    console.log(table)
+    return
+  }
+  const paths = ['architecture.md', 'architecture.zh.md'].map(file => resolve(ROOT, 'docs/panedesk', file))
+  const stale: string[] = []
+  for (const path of paths) {
+    const current = readFileSync(path, 'utf8')
+    const next = updatePresetTable(current, table)
+    if (current === next) continue
+    if (check) stale.push(path)
+    else writeFileSync(path, next)
+  }
+  if (stale.length > 0) {
+    console.error(`gen-slim-base: stale preset table ${stale.join(', ')}; run pnpm exec tsx scripts/panedesk/gen-slim-base.ts --table --write`)
+    process.exitCode = 1
+    return
+  }
+  console.log(`gen-slim-base: preset tables ${check ? 'up to date' : 'written'} (2 pages)`)
+}
+
 function main(): void {
   const check = process.argv.includes('--check')
+  if (process.argv.includes('--table')) {
+    presetTableMain(check)
+    return
+  }
   const { patch, dependencies } = renderSlimBase()
   const patchPath = resolve(SLIM_DIR, 'cordis.patch.yml')
   const manifestPath = resolve(SLIM_DIR, 'package.json')
