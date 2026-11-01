@@ -94,7 +94,7 @@ export class SessionSkillCatalog extends TypertRemoteService {
   }
 
   /**
-   * List built-in, user, and project skills without a session.
+   * List global and default-preset built-in, user, and project skills without creating a session.
    * @param workspaceId - registered workspace identity; omission lists built-in and user skills only.
    * @param signal - caller lifetime carried by the Remote transport.
    * @returns the three directories.
@@ -113,7 +113,10 @@ export class SessionSkillCatalog extends TypertRemoteService {
       throw new RemoteError('skills/unavailable', 'skill registry is absent', {})
     }
     try {
-      const entries = await listSkillCatalog(this.ctx, workspace?.path)
+      await using lease = await this.ctx.get('agentPresets')?.acquireScope()
+      signal.throwIfAborted()
+      const entries = await listSkillCatalog(this.ctx, workspace?.path, lease?.key)
+      signal.throwIfAborted()
       return { entries }
     } catch (error: unknown) {
       throw new RemoteError('gateway/internal', `skill listing failed: ${String(error)}`, {})

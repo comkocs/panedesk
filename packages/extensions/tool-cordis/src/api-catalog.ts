@@ -4571,7 +4571,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote(\'catalog\') async catalog(workspaceId: WorkspaceId | undefined, signal: AbortSignal): Promise<SkillCatalogPageValue>',
-        description: 'List built-in, user, and project skills without a session.',
+        description: 'List global and default-preset built-in, user, and project skills without creating a session.',
         parameters: [{ name: 'workspaceId', description: 'registered workspace identity; omission lists built-in and user skills only.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport.' }],
         returns: 'the three directories.',
         throws: ['RemoteError when no registry is mounted or discovery fails.'],

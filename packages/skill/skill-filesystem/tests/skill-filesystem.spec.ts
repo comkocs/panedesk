@@ -204,6 +204,27 @@ describe('FileSystemSkillProvider', () => {
     ])
   })
 
+  it('lists from an optional consumer without declaring a skills injection', async () => {
+    const home = await tempDir('skill-optional-consumer')
+    await writeSkill(join(home, '.panedesk/skills'), 'mine', 'User instructions')
+    const ctx = await setupLocal(home)
+    try {
+      let entries: SkillFileSystem.SkillCatalogEntry[] | undefined
+      await ctx.plugin({
+        name: 'optional-catalog-consumer',
+        async apply(consumer) { entries = await SkillFileSystem.listSkillCatalog(consumer, undefined) },
+      })
+      expect(entries?.map(entry => [entry.name, entry.group])).toEqual([['mine', 'user']])
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('rejects a catalog request when the optional registry is unavailable', async () => {
+    const ctx = new Context()
+    try {
+      await expect(SkillFileSystem.listSkillCatalog(ctx, undefined)).rejects.toThrow('Skill registry is unavailable')
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('discovers project, custom, user, and agents skill roots in priority order', async () => {
     const home = await tempDir('skill-home')
     const project = await tempDir('skill-project')

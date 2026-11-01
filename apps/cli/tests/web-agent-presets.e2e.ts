@@ -588,6 +588,58 @@ describe('the shipped Web composition', () => {
     expect((await readFile(skill, 'utf8')).startsWith('---\nname: editing-cordis-compositions')).toBe(true)
   })
 
+  it('lists default-preset project skills without creating a session', async () => {
+    const project = await mkdtemp(join(tmpdir(), 'dsh-session-free-skills-'))
+    onTestFinished(() => rm(project, { recursive: true, force: true }))
+    const directory = join(project, '.agents', 'skills', 'cold-project-skill')
+    await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, 'SKILL.md'),
+      '---\nname: cold-project-skill\ndescription: Project catalog fixture\n---\n\nLocal instructions.\n')
+    const workspace = await ctx.workspaceRegistry.create(project)
+    const before = ctx.agents.list()
+    const catalog = ctx.get('sessionSkillCatalog')
+    if (!catalog) throw new Error('Session skill catalog did not load')
+    expect((await ctx.skills.list({ cwd: project })).some(skill => skill.name === 'cold-project-skill')).toBe(false)
+    const result = await catalog.catalog(workspace.id, new AbortController().signal)
+    expect(result.entries).toContainEqual({ name: 'cold-project-skill', description: 'Project catalog fixture',
+      group: 'project', path: join(directory, 'SKILL.md') })
+    expect(ctx.agents.list()).toEqual(before)
+  })
+
+  it('releases session-free catalog scopes on discovery failure and cancellation', async () => {
+    const catalog = ctx.get('sessionSkillCatalog')
+    if (!catalog) throw new Error('Session skill catalog did not load')
+    const dispose = vi.fn(async () => {})
+    const scope = {}
+    const acquire = vi.spyOn(ctx.agentPresets, 'acquireScope')
+    const list = vi.spyOn(ctx.skills, 'list')
+    try {
+      acquire.mockResolvedValueOnce({ key: scope, [Symbol.asyncDispose]: dispose })
+      list.mockRejectedValueOnce(new Error('catalog discovery unavailable'))
+      await expect(catalog.catalog(undefined, new AbortController().signal))
+        .rejects.toMatchObject({ code: 'gateway/internal' })
+      expect(list).toHaveBeenCalledWith({ scope })
+      expect(dispose).toHaveBeenCalledTimes(1)
+
+      const controller = new AbortController()
+      acquire.mockImplementationOnce(async () => {
+        controller.abort()
+        return { key: scope, [Symbol.asyncDispose]: dispose }
+      })
+      await expect(catalog.catalog(undefined, controller.signal)).rejects.toMatchObject({ code: 'gateway/internal' })
+      expect(list).toHaveBeenCalledTimes(1)
+      expect(dispose).toHaveBeenCalledTimes(2)
+
+      acquire.mockRejectedValueOnce(new Error('default preset unavailable'))
+      await expect(catalog.catalog(undefined, new AbortController().signal))
+        .rejects.toThrow('default preset unavailable')
+      expect(list).toHaveBeenCalledTimes(1)
+    } finally {
+      acquire.mockRestore()
+      list.mockRestore()
+    }
+  })
+
   it('merges the global skill layer into a preset agent\'s catalog, keeping local discovery preset-side', async () => {
     const proj = await mkdtemp(join(tmpdir(), 'dsh-preset-skill-proj-'))
     await mkdir(join(proj, '.panedesk', 'skills', 'project-proof'), { recursive: true })
