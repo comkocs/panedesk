@@ -475,6 +475,10 @@ async function bootPreview(site: Site, manifest: ImageManifest, browser: Browser
     expect(await showcase.locator('[data-session-schedule-mark]').count()).toBe(1)
     await showcase.click()
     await page.getByText(SHOWCASE_TAIL, { exact: true }).waitFor({ timeout: 30_000 })
+    const projectGuide = page.getByRole('dialog', { name: 'Project opening settings', exact: true })
+    await projectGuide.waitFor()
+    await projectGuide.getByRole('button', { name: 'Close', exact: true }).click()
+    await projectGuide.waitFor({ state: 'detached' })
     expect(await page.locator('[data-schedule-reminder-entry]').count()).toBe(1)
 
     expect(await page.getByText(SHOWCASE_OLDEST, { exact: true }).count()).toBe(0)
@@ -745,6 +749,10 @@ async function openSessionInspector(page: Page): Promise<void> {
   expect(await setBundle(page, INSPECTOR_BUNDLE, true)).toBe('applied')
   await page.getByRole('tree', { name: 'Sessions' }).getByRole('treeitem').filter({ hasText: SHOWCASE_TITLE }).click()
   await page.getByText(SHOWCASE_TAIL, { exact: true }).waitFor({ timeout: 30_000 })
+  const projectGuide = page.getByRole('dialog', { name: 'Project opening settings', exact: true })
+  await projectGuide.waitFor()
+  await projectGuide.getByRole('button', { name: 'Close', exact: true }).click()
+  await projectGuide.waitFor({ state: 'detached' })
   // The showcase opens with a file tab in the right sidebar; a new tab shows the guide entries.
   await page.getByRole('button', { name: 'New tab', exact: true }).click()
   await page.locator('[data-sidebar-right-guide-entry="session-inspector-log"]').click({ timeout: 30_000 })
