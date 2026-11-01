@@ -9,6 +9,8 @@ export type CallbackAttempt = T.SeatCallbackAttemptResult<T.DeliverSourceCallbac
   queryOnly?: true
   /** The original business dispatch returned a matching receipt, not merely a query observation. */
   completedDispatch?: true
+  /** That receipt was itself pending, so the dispatch counts as direct pending rather than a failure. */
+  directPending?: true
 }
 
 /** Construct a fixed safe observation without copying dynamic exception text.

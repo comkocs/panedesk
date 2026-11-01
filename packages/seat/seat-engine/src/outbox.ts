@@ -125,9 +125,12 @@ export class CallbackOutbox {
     ownerPaused?: boolean
     ownerAbandoned?: boolean
     completedDispatch?: boolean
+    directPending?: boolean
   }> {
     const routed: CallbackAttempt = this.routed ? await this.routed(structuredClone(request), structuredClone(delivery))
       : callbackFailure(request, 'retained', 'Callback sender is unavailable')
+    // A pending receipt observed only by a later owner query proves no completed dispatch.
+    if (routed.queryOnly && routed.result.status === 'pending') delete routed.completedDispatch
     const attempt = callbackObservation(request, routed, 'retained')
     const result = attempt.result, diagnostic = attempt.diagnostic
     let responseClass: SeatCallbackDelivery['responseClass']
@@ -153,7 +156,8 @@ export class CallbackOutbox {
         && diagnostic.cause.operationId === request.route.originalOperationId
         && diagnostic.cause.nodeId === request.route.sourceOwnerNodeId
         ? { ownerPaused: true, ownerAbandoned: diagnostic.cause.code === 'callback-manually-abandoned' } : {}),
-      ...(routed.completedDispatch ? { completedDispatch: true } : {}) }
+      ...(routed.completedDispatch ? { completedDispatch: true } : {}),
+      ...(routed.directPending ? { directPending: true } : {}) }
   }
 
   private refusalClass(error: import('@panedesk/dsh-seat').SeatFailure): SeatCallbackDelivery['responseClass'] {
@@ -211,7 +215,7 @@ export class CallbackOutbox {
       let responseClass: SeatCallbackDelivery['responseClass'] = 'success'
       let diagnostic: SeatCallbackDiagnostic | undefined
       let observation: FailureObservation | undefined
-      let ownerPending = false, ownerPaused = false, ownerAbandoned = false, completedDispatch = false
+      let ownerPending = false, ownerPaused = false, ownerAbandoned = false, completedDispatch = false, directPending = false
       const started = performance.now()
       let failure: unknown
       const localDispatch = { started: false }
@@ -223,7 +227,8 @@ export class CallbackOutbox {
             diagnostic = callbackFailure(delivery.nodeWorkChain, 'retained', 'Frozen callback evidence did not match',
               'callback-protocol-error', 'none', 'evidence-digest-mismatch').diagnostic
           } else ({ responseClass, diagnostic, observation, ownerPending = false, ownerPaused = false,
-            ownerAbandoned = false, completedDispatch = false } = await this.deliverRouted(delivery.nodeWorkChain, delivery))
+            ownerAbandoned = false, completedDispatch = false,
+            directPending = false } = await this.deliverRouted(delivery.nodeWorkChain, delivery))
         } else await this.sources.use(delivery.payload.sourceId, (source) => {
           localDispatch.started = true
           return source.callback(delivery.payload)
@@ -277,16 +282,27 @@ export class CallbackOutbox {
       const { lastDiagnostic: _previousDiagnostic, ownerPending: _pending, parkingClass: _parking,
         retrySummary: previousSummary, ...original } = delivery
       const at = new Date(now).toISOString(), latestDiagnostic = diagnostic ?? previousSummary?.lastDiagnostic
-      const summary = responseClass === 'success' || ownerAbandoned || ownerParked && ownerPaused ? previousSummary
-        : ownerPending && !completedDispatch ? {
-          ...previousSummary ?? { count: 0, firstAttemptAt: at, lastAttemptAt: at }, transientSince: null,
-        } : {
+      const directPendingReceipt = ownerPending && directPending
+      // A pending receipt reached only through an owner query is progress, not a completed attempt.
+      const counted = responseClass !== 'success' && !ownerAbandoned && !(ownerParked && ownerPaused)
+        && !(ownerPending && !completedDispatch)
+      const span = (previous: { count: number; firstAt: string; lastAt: string } | undefined) =>
+        previous?.count ? { count: previous.count + 1, firstAt: previous.firstAt, lastAt: at }
+          : { count: 1, firstAt: at, lastAt: at }
+      const summary = ownerPending && !completedDispatch
+        ? { ...previousSummary ?? { count: 0, firstAttemptAt: at, lastAttemptAt: at }, transientSince: null }
+        : !counted ? previousSummary : {
           count: (previousSummary?.count ?? 0) + 1,
-          firstAttemptAt: previousSummary?.count ? previousSummary.firstAttemptAt : at, lastAttemptAt: at,
+          firstAttemptAt: previousSummary?.count ? previousSummary.firstAttemptAt : at,
+          lastAttemptAt: directPendingReceipt ? previousSummary?.lastAttemptAt ?? at : at,
           transientSince: responseClass === 'transient' && !ownerPending
             ? new Date(retention?.since ?? Date.now()).toISOString() : null,
           ...(latestDiagnostic ? { lastDiagnostic: latestDiagnostic } : {}),
           ...(previousSummary?.attemptsAtLeast ? { attemptsAtLeast: true } : {}),
+          ...(directPendingReceipt ? { ...(previousSummary?.failures ? { failures: previousSummary.failures } : {}),
+            directPending: span(previousSummary?.directPending) }
+            : { failures: span(previousSummary?.failures),
+              ...(previousSummary?.directPending ? { directPending: previousSummary.directPending } : {}) }),
         }
       const updated: SeatCallbackDelivery = { ...original, attempt, responseClass, phase,
         ...(ownerPending ? { ownerPending: true } : {}),
