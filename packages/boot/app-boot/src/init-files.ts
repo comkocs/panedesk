@@ -30,7 +30,7 @@ export interface ProviderRoute {
 }
 
 /** Home patch filename inside the harness home (`cordis.patch.yml`). */
-export const HOME_PATCH_FILENAME = PROFILE_PATCH_FILENAME
+export { PROFILE_PATCH_FILENAME as HOME_PATCH_FILENAME }
 
 /**
  * The patch rows `pdesk init` owns: a `llm-pi-ai` provider profile keyed by
@@ -82,7 +82,7 @@ export interface HomePatchUpdate {
  * @throws when the existing file is not a patch list; the file is then restored from the backup.
  */
 export async function updateHomeProviderPatch(binName: string, home: string, route: ProviderRoute): Promise<HomePatchUpdate> {
-  const patchPath = join(home, HOME_PATCH_FILENAME)
+  const patchPath = join(home, PROFILE_PATCH_FILENAME)
   let backupPath: string | undefined
   let existing: PatchOptions[] = []
   if (existsSync(patchPath)) {

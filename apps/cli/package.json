@@ -7,9 +7,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/comkocs/panedesk.git",
     "directory": "apps/cli"
   },
+  "bugs": {
+    "url": "https://github.com/comkocs/panedesk/issues"
+  },
+  "homepage": "https://github.com/comkocs/panedesk#readme",
   "type": "module",
   "bin": {
     "panedesk": "lib/bin.js",
