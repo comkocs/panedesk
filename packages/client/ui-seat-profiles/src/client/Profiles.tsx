@@ -6,7 +6,7 @@ import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@panedes
 import type * as T from '@panedesk/dsh-seat/types'
 import type { SeatProfileSnapshot } from '../types.ts'
 import type { createProfileStore } from './store.ts'
-import type { ProfileKey } from './locales.ts'
+import { rejectionCopy, type ProfileKey } from './locales.ts'
 import css from './Profiles.module.css'
 
 /** Product-owned mappings remain outside the generic importer. */
@@ -34,8 +34,13 @@ const jsonFields = new Set<string>(['directories', 'memoryDirectories', 'opening
   'checkpointFiles', 'remoteAdmission', 'wakeTemplate', 'worktree', 'autoKeepAlive'])
 const numberFields = new Set<string>(['maxOpenSessions', 'maxActiveSubagents', 'contextThresholdTokens', 'subagentContextThresholdTokens', 'pollingThreshold', 'maxSleepSeconds'])
 function message(error: unknown, t: ProfilesProps['t']): string {
+  if (error instanceof SyntaxError) return t('invalid')
+  if (error instanceof Error && error.name === 'SeatWriteRejected') {
+    const copy = rejectionCopy(error.message)
+    return copy === undefined ? t('rejectUnknown', { code: error.message }) : t(copy)
+  }
   return t(error instanceof Error && error.message === 'revision-conflict' ? 'conflict'
-    : error instanceof SyntaxError || error instanceof Error && error.message === 'invalid-definition' ? 'invalid' : 'failed')
+    : error instanceof Error && error.message === 'invalid-definition' ? 'invalid' : 'failed')
 }
 function unknownWrite(error: unknown): boolean {
   return !(error instanceof SyntaxError || error instanceof Error && (error.name === 'SeatWriteRejected'

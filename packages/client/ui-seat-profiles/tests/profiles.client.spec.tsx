@@ -12,12 +12,18 @@ const definition: SeatDefinition = { schemaVersion: 1, revision: 1, seat: 'seat-
   openingInstructionFiles: ['/charter.md'], agentPreset: 'standard', provider: 'provider-a', model: 'model-a', reasoningEffort: 'high', permissionPreset: 'read-only',
   subscriptions: [], checkpointFiles: [], maxOpenSessions: 1, maxActiveSubagents: 1, subagentContextThresholdTokens: 400000, rules: [],
   worktree: { clientTreesPerSlot: 1, staleOnSettle: 'notify', lightByDefault: true, staleHours: 48 } }
+function text(copy: Record<string, string>, key: string, params?: Record<string, string>): string {
+  const template = copy[key] ?? key
+  return params === undefined ? template : template.replace(/\{(\w+)\}/g, (match, name: string) => params[name] ?? match)
+}
 function fixture(language: 'en' | 'zh') {
   const copy = language === 'en' ? en : zh
   const snapshot: SeatProfileSnapshot = { revision: 7, engineSequence: 3, authority: 'seat-store', definitions: [definition], windows: [{ seat: definition.seat, sessionId: 'window-a' as SeatProfileSnapshot['windows'][number]['sessionId'], nodeId: 'node-a' as SeatProfileSnapshot['windows'][number]['nodeId'], title: 'Active draft', stateVersion: 3 }],
     pending: [{ seat: definition.seat, queueItemId: 'approval-a' as SeatProfileSnapshot['pending'][number]['queueItemId'], reason: 'approval', stateVersion: 2 }], recentOpen: {} }
   const save = vi.fn(async () => 8), remove = vi.fn(async () => {})
-  const props = { t: (key: keyof typeof en) => copy[key],
+  const translate = (key: keyof typeof en, params?: Record<string, unknown>): string =>
+    text(copy, key, params as Record<string, string> | undefined)
+  const props = { t: translate,
     useStore: (select: (state: { seat: typeof definition.seat }) => unknown) => select({ seat: definition.seat }),
     useResource: () => ({ status: 'live', value: snapshot }), actions: { select: vi.fn() },
     takeover: vi.fn(), save, remove, preview: vi.fn(), commit: vi.fn(), refresh: vi.fn(), presets: [] } as ProfilesProps
@@ -181,5 +187,39 @@ describe('seat profile settings', () => {
     expect(commit).toHaveBeenCalledWith(plan, [2])
     expect(await screen.findByText(f.copy.imported)).toBeTruthy()
     expect(preview).toHaveBeenCalledWith({ sourcePath: '/source.csv', format: 'csv', mapping: '{"seat":"seat"}', defaults: '{}', table: '' })
+  })
+
+  it.each(['en', 'zh'] as const)('names the catalog authority refusal when a profile save is rejected: %s', async (language) => {
+    const f = fixture(language)
+    f.save.mockRejectedValueOnce(Object.assign(new Error('import-source-authoritative'), { name: 'SeatWriteRejected' }))
+    render(<Profiles {...f.props} />)
+    fireEvent.change(screen.getByLabelText(f.copy.model), { target: { value: 'model-b' } })
+    fireEvent.click(screen.getByRole('button', { name: f.copy.save }))
+    expect((await screen.findByRole('status')).textContent).toBe(f.copy.rejectImportSourceAuthoritative)
+    expect(screen.getByRole('button', { name: f.copy.save }).hasAttribute('disabled')).toBe(false)
+  })
+  it.each(['en', 'zh'] as const)('names the import source refusal when a selected import is rejected: %s', async (language) => {
+    const f = fixture(language)
+    const plan: SeatImportPlan = { planId: 'plan-a' as SeatImportPlanId, sourceFileHash: 'source-a' as SeatDigest,
+      mappingHash: 'mapping-a' as SeatDigest, baseRevision: 7,
+      rows: [{ row: 1, seat: definition.seat, definition, rowHash: 'row-a' as SeatDigest, columnHashes: {}, action: 'create', selected: false, diagnostics: [], differences: [] }] }
+    const commit = vi.fn(async () => { throw Object.assign(new Error('seat-store-authoritative'), { name: 'SeatWriteRejected' }) })
+    render(<Profiles {...f.props} preview={async () => plan} commit={commit} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.import }))
+    fireEvent.change(screen.getByLabelText(f.copy.sourcePath), { target: { value: '/source.md' } })
+    fireEvent.click(screen.getByRole('button', { name: f.copy.preview }))
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: f.copy.commit }))
+    expect((await screen.findByRole('status')).textContent).toBe(f.copy.rejectSeatStoreAuthoritative)
+    expect(screen.getByRole('button', { name: f.copy.preview }).closest('fieldset')?.disabled).toBe(false)
+  })
+  it.each(['en', 'zh'] as const)('keeps an unrecognized refusal code visible instead of the generic failure: %s', async (language) => {
+    const f = fixture(language)
+    f.save.mockRejectedValueOnce(Object.assign(new Error('not-a-seat-code'), { name: 'SeatWriteRejected' }))
+    render(<Profiles {...f.props} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.save }))
+    const status = await screen.findByRole('status')
+    expect(status.textContent).toBe(text(f.copy, 'rejectUnknown', { code: 'not-a-seat-code' }))
+    expect(status.textContent).not.toBe(f.copy.failed)
   })
 })
