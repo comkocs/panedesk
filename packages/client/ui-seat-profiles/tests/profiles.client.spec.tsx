@@ -18,7 +18,7 @@ function text(copy: Record<string, string>, key: string, params?: Record<string,
 }
 function fixture(language: 'en' | 'zh') {
   const copy = language === 'en' ? en : zh
-  const snapshot: SeatProfileSnapshot = { revision: 7, engineSequence: 3, authority: 'seat-store', definitions: [definition], windows: [{ seat: definition.seat, sessionId: 'window-a' as SeatProfileSnapshot['windows'][number]['sessionId'], nodeId: 'node-a' as SeatProfileSnapshot['windows'][number]['nodeId'], title: 'Active draft', stateVersion: 3 }],
+  const snapshot: SeatProfileSnapshot = { revision: 7, engineSequence: 3, authority: 'seat-store', definitions: [definition], windows: [{ seat: definition.seat, sessionId: 'window-a' as SeatProfileSnapshot['windows'][number]['sessionId'], nodeId: 'node-a' as SeatProfileSnapshot['windows'][number]['nodeId'], title: 'Active draft', stateVersion: 3, stateKnown: true }],
     pending: [{ seat: definition.seat, queueItemId: 'approval-a' as SeatProfileSnapshot['pending'][number]['queueItemId'], reason: 'approval', stateVersion: 2 }], recentOpen: {} }
   const save = vi.fn(async () => 8), remove = vi.fn(async () => {})
   const translate = (key: keyof typeof en, params?: Record<string, unknown>): string =>
@@ -53,10 +53,32 @@ describe('seat profile settings', () => {
     expect(within(modal).getByText(f.copy.removeWarning)).toBeTruthy()
     expect(within(modal).getByText('Active draft — window-a')).toBeTruthy()
     expect(within(modal).getByText('approval-a — approval')).toBeTruthy()
+    expect(within(modal).getByText(`${f.copy.stateVersion}: 3`)).toBeTruthy()
     expect(f.remove).not.toHaveBeenCalled()
     fireEvent.click(within(modal).getByRole('button', { name: f.copy.confirmRemove }))
     expect(f.remove).toHaveBeenCalledWith(f.snapshot, 'seat-a')
     expect(await screen.findByText(f.copy.removed)).toBeTruthy()
+  })
+  it.each(['en', 'zh'] as const)('marks a cold window in the deletion confirmation and keeps other seats selectable: %s', (language) => {
+    const f = fixture(language)
+    const cold = { ...f.snapshot.windows[0]!, stateVersion: null, stateKnown: false }
+    const snapshot = { ...f.snapshot, windows: [cold] }
+    const useResource = (() => ({ status: 'live', value: snapshot, failure: undefined })) as ProfilesProps['useResource']
+    render(<Profiles {...f.props} useResource={useResource} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.remove }))
+    const modal = screen.getByRole('dialog')
+    expect(within(modal).getByText(f.copy.stateUnknown)).toBeTruthy()
+    expect(within(modal).queryByText(`${f.copy.stateVersion}: 0`)).toBeNull()
+    expect(within(modal).getByRole('button', { name: f.copy.confirmRemove }).hasAttribute('disabled')).toBe(false)
+  })
+  it.each(['en', 'zh'] as const)('shows the cold-window refusal and its repair when deletion is rejected: %s', async (language) => {
+    const f = fixture(language)
+    f.remove.mockRejectedValueOnce(Object.assign(new Error('evidence-unavailable'), { name: 'SeatWriteRejected' }))
+    render(<Profiles {...f.props} />)
+    fireEvent.click(screen.getByRole('button', { name: f.copy.remove }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: f.copy.confirmRemove }))
+    expect(await screen.findByText(f.copy.rejectEvidenceUnavailable)).toBeTruthy()
+    expect(f.save).not.toHaveBeenCalled()
   })
   it.each(['en', 'zh'] as const)('blocks save and deletion after a timeout until a refreshed observation arrives: %s', async (language) => {
     const f = fixture(language)

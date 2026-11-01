@@ -76,4 +76,27 @@ describe('middle-column seat overview', () => {
     expect(batch).toHaveBeenCalledWith(['seat-a'])
     expect(await screen.findByText(copy.batchSuccess)).toBeTruthy()
   })
+  it.each(['en', 'zh'] as const)('marks a cold window without blocking a batch of the other seats: %s', async (language) => {
+    const copy = language === 'en' ? en : zh
+    const other: SeatDefinition = { ...definition, seat: 'seat-b' as never }
+    const batch = vi.fn(async () => {})
+    const window = { seat: definition.seat, sessionId: 'window-a' as never, nodeId: 'node-a' as never,
+      title: 'Cold draft', stateVersion: null, stateKnown: false }
+    const value = { revision: 1, engineSequence: 2, authority: 'seat-store' as const, definitions: [definition, other],
+      windows: [window], pending: [], recentOpen: {} }
+    const unused = (() => { throw new Error('Unused fixture hook') }) as never
+    const props: OverviewProps = {
+      useResource: (() => ({ status: 'live', value, failure: undefined })) as OverviewProps['useResource'],
+      batch, refresh: vi.fn(), t: key => Object.entries(copy).find(([name]) => name === key)?.[1] ?? key,
+      usePanelInfo: unused, useRemoteAccess: unused, useSessions: unused, useSessionStatus: unused,
+      useSessionRetainInfo: unused, useSessionAccess: unused, useWorkspaces: unused, useWorkspaceAccess: unused,
+    }
+    render(<Overview {...props} />)
+    expect(screen.getByText(copy.coldWindow)).toBeTruthy()
+    expect(screen.queryByText(`${copy.unknown}: 0`)).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'seat-b' }))
+    fireEvent.click(screen.getByRole('button', { name: copy.batchOpen }))
+    expect(batch).toHaveBeenCalledWith(['seat-b'])
+    expect(await screen.findByText(copy.batchSuccess)).toBeTruthy()
+  })
 })

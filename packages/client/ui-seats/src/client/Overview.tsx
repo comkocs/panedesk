@@ -46,7 +46,8 @@ export function Overview({ useResource, batch, refresh, t }: OverviewProps) {
       <tbody>{data.definitions.map(seat => <tr key={seat.seat}>
         <td><Checkbox label={seat.seat} checked={checked.includes(seat.seat)} disabled={busy}
           onChange={(value) => { setSelected(value ? [...checked, seat.seat] : checked.filter(name => name !== seat.seat)) }} /></td>
-        <td>{seat.node}</td><td>{t(data.windows.some(window => window.seat === seat.seat) ? 'opened' : 'unopened')}</td>
+        <td>{seat.node}</td><td>{t(data.windows.some(window => window.seat === seat.seat) ? 'opened' : 'unopened')}
+          {data.windows.some(window => window.seat === seat.seat && !window.stateKnown) && <small>{t('coldWindow')}</small>}</td>
         <td>{seat.provider} / {seat.model}</td><td>{data.recentOpen[seat.seat] ?? t('neverOpened')}</td>
         <td>{data.pending.filter(item => item.seat === seat.seat).length}</td>
       </tr>)}</tbody>

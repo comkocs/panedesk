@@ -97,7 +97,7 @@ function Editor({ definition, snapshot, save, remove, blocked, onUnknown, t }: C
       footer={<><Button disabled={busy} onClick={() => { setConfirm(false) }}>{t('cancel')}</Button>
         <Button disabled={busy || blocked} onClick={() => { if (!blocked) void run(async () => { await remove(base.snapshot, definition.seat); setDeleted(true) }, 'removed') }}>{t('confirmRemove')}</Button></>}>
       <p>{t('removeWarning')}</p><h3>{t('windows')}</h3>
-      {windows.length === 0 ? <p>{t('none')}</p> : <ul>{windows.map(item => <li key={item.sessionId}><span>{item.title} — {item.sessionId}</span> <small>{t('stateVersion')}: {item.stateVersion}</small></li>)}</ul>}
+      {windows.length === 0 ? <p>{t('none')}</p> : <ul>{windows.map(item => <li key={item.sessionId}><span>{item.title} — {item.sessionId}</span> <small>{item.stateKnown ? `${t('stateVersion')}: ${item.stateVersion}` : t('stateUnknown')}</small></li>)}</ul>}
       <h3>{t('pending')}</h3>{pending.length === 0 ? <p>{t('none')}</p>
         : <ul>{pending.map(item => <li key={item.queueItemId}><span>{item.queueItemId} — {item.reason}</span> <small>{t('stateVersion')}: {item.stateVersion}</small></li>)}</ul>}
     </Modal>
