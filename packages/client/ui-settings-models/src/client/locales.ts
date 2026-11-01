@@ -262,7 +262,7 @@ export const zh: { [Key in keyof typeof en]: string } = {
   fetchDeselectAll: '取消全选',
   fetchAdopt: '添加所选',
   customTag: '自定义',
-  customRoute: '提供商 ID',
+  customRoute: 'Provider ID',
   customRouteHint: '以小写字母开头的标识，在请求中唯一标识该提供商，并用于派生凭据名。',
   customRouteInvalid: '需以小写字母开头，之后可用小写字母、数字和短横线。',
   customRouteTaken: '已有提供商使用了这个 ID。',
