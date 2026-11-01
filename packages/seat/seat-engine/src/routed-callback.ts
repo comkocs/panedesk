@@ -178,17 +178,21 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
       if (settled.status !== 'rejected' && settled.callbackId === body.callback.callbackId
         && settled.payloadDigest === body.payloadDigest) {
         if (!barrier || settled.status === 'committed' || settled.status === 'paused'
-          || settled.pendingReason === 'desk-unreachable') {
-          return callbackObservation(body,
-            { result: settled, ...(attempt.diagnostic ? { diagnostic: attempt.diagnostic } : {}) }, queryStage)
+          || settled.pendingReason === 'desk-unreachable' || settled.pendingReason === 'writeback-pending'
+          || settled.pendingReason === undefined) {
+          return { ...callbackObservation(body,
+            { result: settled, ...(attempt.diagnostic ? { diagnostic: attempt.diagnostic } : {}) }, queryStage),
+          ...(barrier && settled.status === 'pending' ? { queryOnly: true as const } : {}) }
         }
       }
     }
-    if (barrier) return unknown(attempt.diagnostic)
+    if (result.status === 'pending' && result.effectState === 'none') {
+      return { ...attempt, ...(barrier ? { queryOnly: true as const } : {}),
+        result: { ...pending, ...(result.pendingReason ? { pendingReason: result.pendingReason } : {}) } }
+    }
+    if (barrier || result.status === 'pending') return unknown(attempt.diagnostic)
     if (result.status === 'missing') return undefined
     if (result.status === 'rejected') return callbackObservation(body, { ...attempt, result }, queryStage)
-    if (result.status === 'pending') return result.effectState === 'unknown' ? unknown(attempt.diagnostic)
-      : { ...attempt, result: { ...pending, ...(result.pendingReason ? { pendingReason: result.pendingReason } : {}) } }
     return callbackFailure(body, queryStage, 'Callback settled identity did not match', 'callback-protocol-error', 'none', 'operation-payload-conflict')
   }
   const before = outcome(await read(), uncertain)
