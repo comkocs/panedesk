@@ -5538,6 +5538,46 @@
         ],
         "test": "waits for the current welcome and a nonblank main session"
       }
+    },
+    {
+      "id": "minimal-session-secondary-entry-visibility",
+      "description": "Preserve minimal Session surfaces and coordinated project guidance.",
+      "origin": "Secondary Session entry and onboarding integration",
+      "reason": "Keep optional subagent-tree, inbox, statistics, message-pin and cache controls out of minimal-preset surfaces without changing replay goldens. Align the dynamic menu scenario with project guidance yielding to global onboarding, while preserving ordering and disposal assertions. Suitable for upstream contribution.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/web/tests/client-plugin-live.e2e.ts",
+          "packages/client/ui-cache-pill/README.i18n.yaml",
+          "packages/client/ui-cache-pill/README.md",
+          "packages/client/ui-cache-pill/README.zh.md",
+          "packages/client/ui-cache-pill/src/client/CachePill.tsx",
+          "packages/client/ui-cache-pill/tests/cache-pill.client.spec.tsx",
+          "packages/client/ui-session-tab/README.i18n.yaml",
+          "packages/client/ui-session-tab/README.md",
+          "packages/client/ui-session-tab/README.zh.md",
+          "packages/client/ui-session-tab/src/client/PinAction.tsx",
+          "packages/client/ui-session-tab/tests/session-tab.client.spec.tsx",
+          "packages/client/ui-inbox/README.i18n.yaml",
+          "packages/client/ui-inbox/README.md",
+          "packages/client/ui-inbox/README.zh.md",
+          "packages/client/ui-inbox/src/client/panel.tsx",
+          "packages/client/ui-inbox/tests/panel.client.spec.tsx",
+          "packages/client/ui-project-onboarding/src/client/ProjectGuide.tsx",
+          "packages/client/ui-project-onboarding/tests/guide.client.spec.tsx",
+          "packages/client/ui-stats/README.i18n.yaml",
+          "packages/client/ui-stats/README.md",
+          "packages/client/ui-stats/README.zh.md",
+          "packages/client/ui-stats/src/client/panel.tsx",
+          "packages/client/ui-stats/tests/panel.client.spec.tsx",
+          "packages/client/ui-subagent-tree/README.i18n.yaml",
+          "packages/client/ui-subagent-tree/README.md",
+          "packages/client/ui-subagent-tree/README.zh.md",
+          "packages/client/ui-subagent-tree/src/client/panel.tsx",
+          "packages/client/ui-subagent-tree/tests/panel.client.spec.tsx"
+        ],
+        "test": "minimal-preset.snapshot.ts"
+      }
     }
   ]
 }
