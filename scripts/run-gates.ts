@@ -487,6 +487,9 @@ function runningNodeMajor(): number {
 function ciStaticGates(options: { ownsBuild: boolean }): Gate[] {
   return [
     ...ciSharedStaticGates(),
+    pnpmExec('fork-divergences', ['tsx', 'scripts/panedesk/check-fork-divergences.ts'], { label: 'fork divergence ledger' }),
+    pnpmExec('rename-check', ['node', 'scripts/panedesk/rename/rename.mjs', '--check'], { label: 'pending product renames' }),
+    pnpmExec('slim-base', ['tsx', 'scripts/panedesk/gen-slim-base.ts', '--check'], { label: 'slim-base bundle freshness' }),
     ...options.ownsBuild ? [ciBuildGate()] : [],
     ...docSyncLeafGates({
       includeDocTypecheck: options.ownsBuild,

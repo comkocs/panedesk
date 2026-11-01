@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write scripts/panedesk/README.md
+/panedesk-fork-maintenance-scripts:
+  en: cdabcd70f3389054
+  zh: 54a55571b5350514
+/panedesk-fork-maintenance-scripts/fork-divergence-ledger:
+  en: 8ba9965598fd5711
+  zh: f57af23a04b3cb20
+/panedesk-fork-maintenance-scripts/fork-divergence-ledger/permission-bits:
+  en: 4364029509cce9a0
+  zh: 9e71bde0722c12a2
+/panedesk-fork-maintenance-scripts/fork-divergence-ledger/baseline-moves:
+  en: 0baa9ffa6007b19d
+  zh: fcbba3c442f4605b
+/panedesk-fork-maintenance-scripts/pending-rename-and-slim-base-freshness:
+  en: 6c02e1b1bc77a8c4
+  zh: 5535a66bd8aa24ac

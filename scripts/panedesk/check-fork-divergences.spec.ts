@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { checkLedger, compilePathPattern, diffTrees, UPSTREAM_BASELINE_COMMIT } from './check-fork-divergences.ts'
+import { checkLedger, compilePathPattern, diffTrees, resolveBaselineCommit } from './check-fork-divergences.ts'
 import type { LedgerEntry, TreeIndex } from './check-fork-divergences.ts'
 
 function tree(entries: Record<string, string>): TreeIndex {
@@ -106,9 +106,14 @@ describe('checkLedger boundary semantics', () => {
 })
 
 describe('ledger invariants', () => {
-  it('configures the upstream import baseline and a loadable ledger with unique ids', async () => {
+  it('resolves the upstream import baseline as the unique root commit and loads a ledger with unique ids', async () => {
     const { readFileSync } = await import('node:fs')
-    expect(UPSTREAM_BASELINE_COMMIT).toMatch(/^[0-9a-f]{40}$/)
+    const { execFileSync } = await import('node:child_process')
+    const { resolve } = await import('node:path')
+    const root = resolve(import.meta.dirname, '../..')
+    const baseline = resolveBaselineCommit(root)
+    expect(baseline).toMatch(/^[0-9a-f]{40}$/)
+    expect(baseline).toBe(execFileSync('git', ['rev-list', '--max-parents=0', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim())
     const ledger = JSON.parse(readFileSync(new URL('./fork-divergences.json', import.meta.url), 'utf8')) as {
       divergences: LedgerEntry[]
     }

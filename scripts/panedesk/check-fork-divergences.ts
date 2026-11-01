@@ -27,8 +27,11 @@
  * other pattern that no longer tracks a divergence. The import commit itself differs from
  * the upstream tag only in permission bits, so content is the divergence signal.
  *
- * The baseline commit is configured in exactly one place, `UPSTREAM_BASELINE_COMMIT`.
- * An upstream sync moves the baseline by changing that constant alone.
+ * The baseline is the repository's unique root commit — the upstream source
+ * import — resolved from the commit history at run time. That resolution is the
+ * single place the baseline is identified, so maintained sources spell out no
+ * commit hash. An upstream sync moves the baseline by making the new import the
+ * root commit; the resolution then points at it unchanged.
  *
  * Usage: `pnpm exec tsx scripts/panedesk/check-fork-divergences.ts [--head REV]`
  * @module scripts/panedesk/check-fork-divergences
@@ -38,8 +41,22 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-/** Upstream source import this fork diverges from; the single baseline reference point. */
-export const UPSTREAM_BASELINE_COMMIT = '1d0c2b43f64546a6457c84f7c018eaf47b186e6a'
+/**
+ * Resolve the upstream import baseline: the repository's unique root commit.
+ * Run-time resolution keeps the baseline identified in exactly one place while
+ * maintained sources spell out no commit hash.
+ * @param cwd - repository whose history is inspected.
+ * @returns the root commit id.
+ */
+export function resolveBaselineCommit(cwd: string): string {
+  const roots = execFileSync('git', ['rev-list', '--max-parents=0', 'HEAD'], { cwd, encoding: 'utf8' })
+    .split('\n')
+    .filter(line => line !== '')
+  if (roots.length !== 1) {
+    throw new Error(`check-fork-divergences: expected one root commit for the import baseline, found ${String(roots.length)}`)
+  }
+  return roots[0] as string
+}
 
 /** One path of a committed tree with its mode bits and blob object id. */
 export interface TreeEntry {
@@ -230,16 +247,18 @@ function main(argv: readonly string[]): number {
   const ledgerPath = resolve(import.meta.dirname, 'fork-divergences.json')
   let entries: readonly LedgerEntry[]
   let headOid: string
+  let baselineOid: string
   try {
     entries = (JSON.parse(readFileSync(ledgerPath, 'utf8')) as { divergences: LedgerEntry[] }).divergences
     headOid = execFileSync('git', ['rev-parse', '--verify', head], { cwd: root, encoding: 'utf8' }).trim()
+    baselineOid = resolveBaselineCommit(root)
   } catch (error) {
     console.error(`check-fork-divergences: ${error instanceof Error ? error.message : String(error)}`)
     return 2
   }
-  const view = diffTrees(loadTreeIndex(root, UPSTREAM_BASELINE_COMMIT), loadTreeIndex(root, headOid))
+  const view = diffTrees(loadTreeIndex(root, baselineOid), loadTreeIndex(root, headOid))
   const check = checkLedger(entries, view)
-  console.log(`check-fork-divergences: baseline ${UPSTREAM_BASELINE_COMMIT.slice(0, 10)} vs HEAD ${headOid.slice(0, 10)}`)
+  console.log(`check-fork-divergences: baseline ${baselineOid.slice(0, 10)} vs HEAD ${headOid.slice(0, 10)}`)
   console.log(`check-fork-divergences: diverged baseline paths ${String(view.baselineSide.length)}, added ${String(view.all.length - view.baselineSide.length)}, mode-only ${String(view.modeOnly.length)} (informational)`)
   for (const path of check.uncovered) {
     console.log(`uncovered: ${path} — baseline path changed at HEAD and no ledger entry covers it`)
