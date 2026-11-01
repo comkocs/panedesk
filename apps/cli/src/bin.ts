@@ -53,6 +53,11 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       process.exit(await runPlugin(invocation.profile, invocation.args, options.packageManager))
       break
     }
+    case 'init': {
+      const { runInit } = await import('./init.ts')
+      process.exit(await runInit(invocation.args))
+      break
+    }
     case 'dump-config': {
       const { runDumpConfig } = await import('./dump-config.ts')
       runDumpConfig(

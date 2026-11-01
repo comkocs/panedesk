@@ -28,6 +28,7 @@
     "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-http-proxy": "workspace:*",
     "@panedesk/dsh-launch-environment": "workspace:*",
+    "@panedesk/node-addon-system": "workspace:~",
     "@panedesk/slim-base": "workspace:*",
     "@panedesk/slim-headless": "workspace:*",
     "commander": "^15.0.0"

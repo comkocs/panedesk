@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "prepare:primary-runtime": "tsx scripts/primary-runtime/prepare.ts",
+    "setup": "pnpm install --frozen-lockfile && pnpm exec tsx scripts/panedesk/setup.ts",
     "build": "tsx scripts/build.ts",
     "build:artifacts": "tsx scripts/build.ts --scope artifacts",
     "build:check": "tsx scripts/build.ts --scope check",
