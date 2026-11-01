@@ -39,7 +39,7 @@ function observeSubagent(service: LocalSeatService, sessionId: SessionId, info: 
 }
 
 export { LocalSeatService } from './service.ts'
-export type { SeatProfileAccess, SeatProfileSnapshot, RemoveSeatProfileRequest } from './profile-access.ts'
+export type { SeatProfileAccess, SeatProfileSnapshot, SeatProfileWindow, RemoveSeatProfileRequest } from './profile-access.ts'
 export { createLocalNodeAdmission } from './node-admission.ts'
 export type { LocalSeatCreation } from './create-admission.ts'
 export type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'

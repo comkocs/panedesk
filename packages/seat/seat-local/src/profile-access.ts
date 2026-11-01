@@ -3,7 +3,7 @@ import { type Context, Service } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
 import { SeatEngine } from '@panedesk/dsh-seat-engine'
 import type { SeatProfileSnapshot, RemoveSeatProfileRequest } from './types.ts'
-export type { SeatProfileSnapshot, RemoveSeatProfileRequest } from './types.ts'
+export type { SeatProfileSnapshot, SeatProfileWindow, RemoveSeatProfileRequest } from './types.ts'
 import type { SeatStore } from './store.ts'
 import type { LocalSeatOptions, LocalSeatRuntime } from './service-options.ts'
 import { refuse, SeatLocalError } from './errors.ts'
@@ -85,11 +85,12 @@ class LocalSeatProfileAccess extends Service implements SeatProfileAccess {
       open.binding.kind === 'seat' && !engine.journal.projection.closed.has(open.sessionId)
         && !(open.phase === 'opening-failed' && open.failure?.effectState === 'none')
         ? [{ seat: open.binding.seat, sessionId: open.sessionId,
-          title: open.title ?? open.binding.seat, nodeId: open.binding.nodeId, stateVersion: 0 }] : [])
+          title: open.title ?? open.binding.seat, nodeId: open.binding.nodeId, stateVersion: null, stateKnown: false }] : [])
     for (const window of windows) {
       const evidence = await this.runtime.evidence(window.sessionId)
-      if (!evidence.complete) refuse('unavailable', 'Window state is unavailable.', 'Restore complete window evidence before editing.')
+      if (!evidence.complete) continue
       window.stateVersion = evidence.stateVersion
+      window.stateKnown = true
     }
     const pending: SeatProfileSnapshot['pending'][number][] = []
     let cursor: T.EngineCursor | undefined
@@ -162,6 +163,10 @@ class LocalSeatProfileAccess extends Service implements SeatProfileAccess {
         }
         const windows = observed.windows.filter(item => item.seat === request.seat)
         const pending = observed.pending.filter(item => item.seat === request.seat)
+        if (windows.some(item => !item.stateKnown)) {
+          refuse('evidence-unavailable', 'A window for this seat has unknown state.',
+            'Open this window from the session list so it resumes, then retry.')
+        }
         if (request.engineSequence !== observed.engineSequence
           || digest(request.windowVersions) !== digest(windows.map(({ sessionId, stateVersion }) => ({ sessionId, stateVersion })))
           || digest(request.pendingVersions) !== digest(pending.map(({ queueItemId, stateVersion }) => ({ queueItemId, stateVersion })))
@@ -175,7 +180,7 @@ class LocalSeatProfileAccess extends Service implements SeatProfileAccess {
       }, 'revision-conflict', undefined, async () => {
         for (const window of observed.windows.filter(item => item.seat === request.seat)) {
           const evidence = await this.runtime.evidence(window.sessionId)
-          if (!evidence.complete || evidence.stateVersion !== window.stateVersion) {
+          if (!evidence.complete || window.stateVersion === null || evidence.stateVersion !== window.stateVersion) {
             refuse('revision-conflict', 'Window state changed after catalog deletion.', 'The definition was restored. Refresh and confirm again.')
           }
         }

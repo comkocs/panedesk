@@ -1,4 +1,7 @@
 /** Real Loader profile exercises catalog editing, owner checks and adapter withdrawal. */
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type * as T from '@panedesk/dsh-seat'
@@ -80,7 +83,9 @@ it('refuses confirmation after an open window changes state without changing ide
     agent.session.append('session/title', { title: 'Changed window', messageSeqs: [], source: { kind: 'user' } })
     await f.ctx.get('sessions')?.flush(agent.session)
     const current = await access.read()
-    expect(current.windows[0]?.stateVersion).toBeGreaterThan(observed.windows[0]!.stateVersion)
+    const before = observed.windows[0]?.stateVersion, after = current.windows[0]?.stateVersion
+    if (before === null || before === undefined || after === null || after === undefined) throw new Error('Expected known window versions')
+    expect(after).toBeGreaterThan(before)
     expect(await access.remove({ seat: f.definition.seat, expectedRevision: observed.revision,
       operationId: 'changed-window' as T.SeatOperationId, confirmed: true, windows: [opened.sessionId], pending: [],
       engineSequence: current.engineSequence,
@@ -125,6 +130,52 @@ it('replays a timed-out save without applying its durable write twice', async ()
     expect(current.revision).toBe(observed.revision + 1)
     expect(current.definitions).toEqual([request.definition])
   } finally { await f.close() }
+})
+
+it('keeps a restarted dashboard readable and refuses deletion until the cold window is restored', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'seat-cold-window-'))
+  let host: Awaited<ReturnType<typeof admissionHost>> | undefined
+  try {
+    host = await admissionHost(root)
+    const opened = await host.seats.open({ seat: host.definition.seat, origin: 'manual', openingMode: 'prefill',
+      operationId: 'cold-open' as T.SeatOperationId })
+    if (opened.status !== 'prefilled') throw new Error('Expected a prefilled window')
+    const warm = host
+    await warm.close()
+    host = undefined
+    host = await admissionHost(root)
+    const access = host.ctx.get('seatProfilesLocal')
+    if (!access) throw new Error('Profile access unavailable')
+    Object.defineProperty(host.ctx, 'invocation', { configurable: true,
+      value: { peer: { principal: { kind: 'owner' } }, signal: new AbortController().signal } })
+    const cold = await access.read()
+    const coldWindow = cold.windows.find(item => item.sessionId === opened.sessionId)
+    expect(coldWindow).toMatchObject({ seat: host.definition.seat, title: opened.title, nodeId: opened.nodeId, stateKnown: false })
+    expect(coldWindow?.stateVersion).toBeNull()
+    expect(cold.definitions.some(item => item.seat === host!.definition.seat)).toBe(true)
+    const removal = { seat: host.definition.seat, expectedRevision: cold.revision, operationId: 'cold-remove' as T.SeatOperationId,
+      confirmed: true as const, windows: [opened.sessionId], pending: [] as T.QueueItemId[], engineSequence: cold.engineSequence,
+      windowVersions: cold.windows.map(({ sessionId, stateVersion }) => ({ sessionId, stateVersion })), pendingVersions: [] }
+    expect(await access.remove(removal)).toMatchObject({ status: 'rejected', error: {
+      code: 'evidence-unavailable',
+      alternative: 'Open this window from the session list so it resumes, then retry.',
+    } })
+    expect((await access.read()).definitions).toHaveLength(cold.definitions.length)
+    const other = { ...host.definition, seat: 'seat-b' as T.SeatName, revision: 1 }
+    expect(await access.save({ definition: other, expectedRevision: cold.revision, operationId: 'warm-save' as T.SeatOperationId }))
+      .toMatchObject({ status: 'saved' })
+    const resumed = await host.ctx.sessionController.resolveAgent(opened.sessionId)
+    if ('error' in resumed) throw new Error('Expected the historical window to resume')
+    const ready = await access.read()
+    const readyWindow = ready.windows.find(item => item.sessionId === opened.sessionId)
+    expect(readyWindow?.stateKnown).toBe(true)
+    expect(typeof readyWindow?.stateVersion).toBe('number')
+    expect(await access.remove({ seat: host.definition.seat, expectedRevision: ready.revision, operationId: 'restored-remove' as T.SeatOperationId,
+      confirmed: true, windows: [opened.sessionId], pending: [], engineSequence: ready.engineSequence,
+      windowVersions: ready.windows.filter(item => item.seat === host!.definition.seat)
+        .map(({ sessionId, stateVersion }) => ({ sessionId, stateVersion })), pendingVersions: [] }))
+      .toMatchObject({ status: 'saved' })
+  } finally { await host?.close(); await rm(root, { recursive: true, force: true }) }
 })
 
 it('refuses a guest before accessing the catalog provider', async () => {

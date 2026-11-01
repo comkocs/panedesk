@@ -11,7 +11,7 @@ export const en = {
   invalid: 'Some fields are invalid. Check JSON fields and the configured presets, model, paths and rules.',
   back: 'Back to profiles', remove: 'Delete profile', confirmRemove: 'Confirm delete', cancel: 'Cancel',
   removeTitle: 'Delete this seat profile?', removeWarning: 'Only the definition will be deleted. These windows stay open and approvals remain pending, but later actions requiring this definition may fail until it is restored.',
-  stateVersion: 'State version', windows: 'Open windows', pending: 'Pending approvals', none: 'None', removed: 'Profile deleted.',
+  stateVersion: 'State version', stateUnknown: 'State unknown (resume required)', windows: 'Open windows', pending: 'Pending approvals', none: 'None', removed: 'Profile deleted.',
   directories: 'Workspaces (JSON)', memoryDirectories: 'Memory directories (JSON)', opening: 'Opening sentence or file (JSON)',
   openingInstructionFiles: 'Charter / opening required files (JSON)', agentPreset: 'Agent preset', provider: 'Provider', model: 'Model',
   reasoningEffort: 'Reasoning effort', permissionPreset: 'Permission preset', platform: 'Platform', node: 'Node', rules: 'Opening rules (JSON)',
@@ -84,7 +84,7 @@ export const en = {
   rejectSubagentContextLimit:
     'The subagent context limit was reached, so the action was not applied. Reduce the subagent context or raise its profile limit, then retry.',
   rejectEvidenceUnavailable:
-    'Required seat evidence is unavailable, so nothing was changed. Restore complete seat evidence and refresh before retrying.',
+    'A window for this seat has unknown state, so the profile was not changed. Open that window from the session list so it resumes, then retry.',
   rejectPolling: 'The seat is polling, so this action was not applied. Wait for polling to finish and retry.',
   rejectSleepLimitExceeded:
     'The requested sleep is longer than this seat allows, so it was not applied. Lower the sleep duration and retry.',
@@ -161,7 +161,7 @@ export const zh: Record<ProfileKey, string> = {
   invalid: '部分字段无效，请检查 JSON 字段及已配置的预设、模型、路径和规则。',
   back: '返回工位列表', remove: '删除工位', confirmRemove: '确认删除', cancel: '取消',
   removeTitle: '确认删除本位档案？', removeWarning: '仅删除定义；下列窗口保持打开、待批不取消，但依赖本定义的后续操作可能失败，须恢复定义后再处理。',
-  stateVersion: '状态版本', windows: '在开窗', pending: '待批事项', none: '无', removed: '档案已删除。',
+  stateVersion: '状态版本', stateUnknown: '状态未知（需恢复）', windows: '在开窗', pending: '待批事项', none: '无', removed: '档案已删除。',
   directories: '工作区（JSON）', memoryDirectories: '记忆目录（JSON）', opening: '开窗句或文件（JSON）',
   openingInstructionFiles: '章程 / 开窗必读件（JSON）', agentPreset: 'Agent 预设', provider: '提供商', model: '模型',
   reasoningEffort: '推理档位', permissionPreset: '权限预设', platform: '平台', node: '节点', rules: '开窗规则（JSON）',
@@ -208,7 +208,7 @@ export const zh: Record<ProfileKey, string> = {
   rejectRenewalUncertain: '缓存续期没有在已知状态下结束，不能视为已生效。请刷新并核对工位后再试。',
   rejectSubagentRenewalExpired: '子代理缓存续期已过期，未生效。请刷新工位后重新续期。',
   rejectSubagentContextLimit: '已达到子代理上下文上限，操作未执行。请减小子代理上下文或提高档案上限后再试。',
-  rejectEvidenceUnavailable: '所需工位证据不可用，未作任何更改。请恢复完整的工位证据并刷新后再试。',
+  rejectEvidenceUnavailable: '该工位有窗口状态未知，档案未更改。请先在会话列表打开该窗让它恢复，再重试。',
   rejectPolling: '该工位正在轮询，本次操作未执行。请待轮询结束后再试。',
   rejectSleepLimitExceeded: '请求的睡眠时长超过该工位允许值，未执行。请缩短睡眠时长后再试。',
   rejectGateDenied: '工位门禁拒绝了该操作，未作任何更改。请查看该工位的门禁结果，待其放行后再试。',

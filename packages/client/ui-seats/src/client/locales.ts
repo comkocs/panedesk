@@ -43,6 +43,7 @@ export const en = {
   modelUnavailable: 'Model "{provider}/{model}" is unavailable [{code}]; this Session failed to open. Other seats continue. Restore the model and resend your message in this Session; this alert clears when model configuration succeeds.',
   liveModelUnavailable: 'Model "{provider}/{model}" is unavailable [{code}]; this window’s turn failed. Other seats and the engine continue. Restore the model and resend your message here; this alert clears after a completed resend or when this runtime is closed.',
   existingChoice: 'This seat already has windows. Select an existing window from Seats before opening another.',
+  coldWindow: 'State unknown (resume required)',
 } as const
 /** Locale-owned key set. */
 export type SeatKey = keyof typeof en
@@ -89,4 +90,5 @@ export const zh: Record<SeatKey, string> = {
   modelUnavailable: '模型“{provider}/{model}”不可用 [{code}]，此会话开窗失败，其他工位继续运行。请恢复模型后在此会话重发消息；模型配置成功后，本告警清除。',
   liveModelUnavailable: '模型“{provider}/{model}”不可用 [{code}]，此窗口回合失败，其他工位与引擎继续运行。请恢复模型后在此窗口重发消息；重发回合成功完成或此运行时关闭后，本告警清除。',
   existingChoice: '该位已有在开会话，请先从工位列表选择已有会话。',
+  coldWindow: '状态未知（需恢复）',
 }
