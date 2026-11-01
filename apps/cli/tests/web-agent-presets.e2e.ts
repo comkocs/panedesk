@@ -660,9 +660,9 @@ describe('the shipped Web composition', () => {
       setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
     })
     try {
-      // The host (global) view carries the deployment-level provider alone:
-      // local discovery moved behind the presets with `skill-filesystem`.
-      expect((await ctx.skills.list({ cwd: proj })).map(skill => skill.name)).toEqual(['dsh-badge'])
+      // The host view includes the shipped workflow pack and deployment skill;
+      // local discovery stays behind the presets with `skill-filesystem`.
+      expect((await ctx.skills.list({ cwd: proj })).map(skill => skill.name)).toEqual(['dsh-badge', 'workflow-pack'])
 
       // The standard agent's view merges the global layer with its preset's
       // own local discovery over the session cwd.
