@@ -5543,11 +5543,13 @@
       "id": "minimal-session-secondary-entry-visibility",
       "description": "Preserve minimal Session surfaces and coordinated project guidance.",
       "origin": "Secondary Session entry and onboarding integration",
-      "reason": "Keep optional subagent-tree, inbox, statistics, message-pin and cache controls out of minimal-preset surfaces without changing replay goldens. Align the dynamic menu scenario with project guidance yielding to global onboarding, while preserving ordering and disposal assertions. Suitable for upstream contribution.",
+      "reason": "Keep optional subagent-tree, inbox, statistics, message-pin and cache controls out of minimal-preset surfaces while preserving the original minimal replay goldens and aligning the seeded preset header expectation. Align the dynamic menu scenario with project guidance yielding to global onboarding, and dismiss project guidance after opening the seeded preview session, while preserving ordering, disposal and preview assertions. Suitable for upstream contribution.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "apps/web/tests/client-plugin-live.e2e.ts",
+          "apps/web/tests/expected/agent-preset-selection/header.expected.md",
+          "apps/web/tests/preview-boot.e2e.ts",
           "packages/client/ui-cache-pill/README.i18n.yaml",
           "packages/client/ui-cache-pill/README.md",
           "packages/client/ui-cache-pill/README.zh.md",
