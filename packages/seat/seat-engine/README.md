@@ -142,6 +142,8 @@ Before publishing readiness, startup builds a temporary index from the complete 
 The source owner and executor must use versions validated as a pair and the same composition-provided limit. First stop new source admission, back up all persistent domains and watermarks on both sides, restore the owner before starting the executor, and verify the original identities, epochs, authorization and capabilities before normal reconciliation. Resume new work only after callbacks settle. No persistent fields, public configuration keys, wire methods or capability bits are added. Compatible readers can understand the existing frame structures, but older implementations may still cancel incorrectly or omit callbacks; readability does not authorize an operational rollback. While queues are active or callbacks remain unsettled, preserve the complete new ledger and repair by rolling forward. Do not delete appended frames or restore an old backup on only one side; minimum reader-version restrictions for retained new-method evidence still apply.
 
 <a id="model-experience"></a>
+Effect queries locate the exclusive cursor by binary search over ordered decision sequences, then begin after its effect index. Sequences need not be contiguous. Filters, limits, completeness, watermarks and last-examined cursors retain their existing meaning; reading later pages does not revisit earlier decisions. Queries neither prune history nor persist read progress.
+
 ## Model Experience
 
 ### Executor-owned work
