@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Begin your reply with the
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -22,4 +25,5 @@
 - button "Stop generating"
 - button "1 turns 1 steps · {{throughput}} tok/s": 1 turns 1 steps{{throughput}} tok/s
 - button "7.9K tok · Cache hit 0%": 7.9K tokCache hit 0%
+- button "Cache"
 - button "6% of context used": 6%

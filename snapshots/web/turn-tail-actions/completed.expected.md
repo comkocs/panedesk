@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Begin your reply with the
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -14,6 +17,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - button "Usage 15.8K tok"
 - text: {{clock}}
@@ -24,4 +28,5 @@
 - button "Send message" [disabled]
 - button "1 turns 2 steps · {{throughput}} tok/s": 1 turns 2 steps{{throughput}} tok/s
 - button "15.8K tok · Cache hit 50%": 15.8K tokCache hit 50%
+- button "Cache"
 - button "6% of context used": 6%

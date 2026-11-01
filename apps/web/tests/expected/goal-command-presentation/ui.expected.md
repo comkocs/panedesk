@@ -3,8 +3,8 @@
   - text: Standard mode
   - button "Subagent tree"
   - button "Inbox"
-  - button "More actions"
   - button "Session tools"
+  - button "More actions"
   - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]

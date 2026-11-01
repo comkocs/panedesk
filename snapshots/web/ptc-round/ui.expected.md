@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": "Using ONE run_code program: run"
   - text: PTC mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -25,6 +28,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -34,4 +38,5 @@
 - button "Send message" [disabled]
 - button "1 turns 2 steps · {{throughput}} tok/s": 1 turns 2 steps{{throughput}} tok/s
 - button "17.5K tok · Cache hit 52%": 17.5K tokCache hit 52%
+- button "Cache"
 - button "7% of context used": 7%

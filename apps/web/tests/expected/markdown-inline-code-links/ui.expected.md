@@ -2,8 +2,8 @@
   - navigation "Session hierarchy": Inline code links
   - button "Subagent tree"
   - button "Inbox"
-  - button "More actions"
   - button "Session tools"
+  - button "More actions"
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"

@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": workspace
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -46,6 +49,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - button "Continuing goal {{clock}}":
@@ -137,6 +141,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - button "Back to bottom"
@@ -147,4 +152,5 @@
 - button "Send message" [disabled]
 - button "2 turns 12 steps · {{throughput}} tok/s": 2 turns 12 steps{{throughput}} tok/s
 - button "115K tok · Cache hit 91%": 115K tokCache hit 91%
+- button "Cache"
 - button "9% of context used": 9%

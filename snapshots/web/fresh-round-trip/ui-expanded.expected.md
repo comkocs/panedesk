@@ -1,6 +1,9 @@
 - banner:
   - navigation "Session hierarchy": Use the bash tool to
   - text: Standard mode
+  - button "Subagent tree"
+  - button "Inbox"
+  - button "Session tools"
   - button "More actions"
   - button "Open right sidebar"
   - tablist:
@@ -18,6 +21,7 @@
 - button "Copy"
 - button "Good response"
 - button "Bad response"
+- button "Pin"
 - button "Branch into a new conversation"
 - text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
@@ -27,4 +31,5 @@
 - button "Send message" [disabled]
 - button "1 turns 2 steps · {{throughput}} tok/s": 1 turns 2 steps{{throughput}} tok/s
 - button "15.8K tok · Cache hit 99%": 15.8K tokCache hit 99%
+- button "Cache"
 - button "6% of context used": 6%
