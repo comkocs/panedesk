@@ -4,10 +4,10 @@ English | [中文](README.zh.md)
 
 Fork-owned scripts under `scripts/panedesk/` keep the Panedesk divergence from the
 upstream DeepSeek Harness source checkable and replayable. The upstream import
-baseline is the repository's root commit, the "Import DSH 0.2.1-rc.2 source"
-import. `check-fork-divergences.ts` resolves that root commit from the history at
-run time — the single place the baseline is identified, so maintained sources
-spell out no commit hash.
+baseline is the commit titled `Import DSH (DeepSeek Harness) 0.2.1-rc.2 source`.
+`check-fork-divergences.ts` finds that commit in the HEAD history at run time; the
+upstream version constant in the checker is the single place the baseline is
+identified, so maintained sources spell out no commit hash.
 
 ## Fork divergence ledger
 
@@ -43,11 +43,14 @@ divergence signal.
 
 ### Baseline moves
 
-An upstream sync moves the baseline by making the new import the repository root; the
-run-time root resolution in `check-fork-divergences.ts` stays the single place the
-baseline is identified. Settle both directions again after the move: baseline paths
-the sync made identical drop out of the divergence scope (remove their expired
-entries), and paths the sync diverged need entries.
+An upstream sync moves the baseline in two steps: bring the new upstream sources in
+as one import commit titled `Import DSH (DeepSeek Harness) <new version> source`
+without rewriting published history — for example by committing the import on the
+upstream branch and merging it in — then update the upstream version constant in
+`check-fork-divergences.ts`, which stays the single place the baseline is
+identified. Settle both directions again after the move: baseline paths the sync
+made identical drop out of the divergence scope (remove their expired entries), and
+paths the sync diverged need entries.
 
 ## Pending rename and slim-base freshness
 

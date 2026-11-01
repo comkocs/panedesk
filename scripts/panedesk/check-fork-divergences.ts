@@ -27,11 +27,12 @@
  * other pattern that no longer tracks a divergence. The import commit itself differs from
  * the upstream tag only in permission bits, so content is the divergence signal.
  *
- * The baseline is the repository's unique root commit — the upstream source
- * import — resolved from the commit history at run time. That resolution is the
+ * The baseline is the upstream source import — the unique commit whose subject is
+ * `Import DSH (DeepSeek Harness) <version> source` for the `UPSTREAM_IMPORT_VERSION`
+ * constant below, resolved from the HEAD history at run time. That constant is the
  * single place the baseline is identified, so maintained sources spell out no
- * commit hash. An upstream sync moves the baseline by making the new import the
- * root commit; the resolution then points at it unchanged.
+ * commit hash. An upstream sync moves the baseline by importing the new sources
+ * under the new version's import title and updating the constant.
  *
  * Usage: `pnpm exec tsx scripts/panedesk/check-fork-divergences.ts [--head REV]`
  * @module scripts/panedesk/check-fork-divergences
@@ -41,21 +42,70 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+/** The upstream version whose import commit is the divergence baseline. */
+export const UPSTREAM_IMPORT_VERSION = '0.2.1-rc.2'
+
+/** One `git log` commit with its object id and subject line. */
+export interface CommitSubject {
+  readonly oid: string
+  readonly subject: string
+}
+
 /**
- * Resolve the upstream import baseline: the repository's unique root commit.
- * Run-time resolution keeps the baseline identified in exactly one place while
- * maintained sources spell out no commit hash.
+ * The subject every import of upstream version `version` is committed under.
+ * @param version - upstream version string, for example `0.2.1-rc.2`.
+ * @returns the exact import commit subject the baseline is resolved by.
+ */
+export function importCommitTitle(version: string): string {
+  return `Import DSH (DeepSeek Harness) ${version} source`
+}
+
+/**
+ * Select the import baseline among `commits` by its subject. The version naming
+ * the title is the single place the baseline is identified.
+ * @param commits - commit subjects from the history being inspected.
+ * @param version - upstream version whose import title to match.
+ * @returns the import commit id.
+ * @throws when no commit or more than one commit carries the import title.
+ */
+export function selectImportCommit(commits: readonly CommitSubject[], version: string): string {
+  const title = importCommitTitle(version)
+  const matches = commits.filter(commit => commit.subject === title).map(commit => commit.oid)
+  if (matches.length !== 1) {
+    throw new Error(`check-fork-divergences: expected exactly one commit titled ${JSON.stringify(title)} in HEAD history, found ${String(matches.length)}`)
+  }
+  return matches[0] as string
+}
+
+/**
+ * Resolve the import commit for upstream `version` from the HEAD history.
  * @param cwd - repository whose history is inspected.
- * @returns the root commit id.
+ * @param version - upstream version whose import title to match.
+ * @returns the import commit id.
+ * @throws when no commit or more than one commit carries the import title.
+ */
+export function resolveImportCommit(cwd: string, version: string): string {
+  const log = execFileSync('git', ['log', '--format=%H %s', 'HEAD'], { cwd, encoding: 'utf8' })
+  const commits: CommitSubject[] = []
+  for (const line of log.split('\n')) {
+    if (line === '') continue
+    const oid = line.slice(0, 40)
+    if (!/^[0-9a-f]{40}$/.test(oid)) {
+      throw new Error(`check-fork-divergences: malformed git log record ${JSON.stringify(line)}`)
+    }
+    commits.push({ oid, subject: line.slice(41) })
+  }
+  return selectImportCommit(commits, version)
+}
+
+/**
+ * Resolve the upstream import baseline commit for `UPSTREAM_IMPORT_VERSION`.
+ * @param cwd - repository whose history is inspected.
+ * @returns the import commit id.
+ * @throws when no commit or more than one commit carries the import title.
  */
 export function resolveBaselineCommit(cwd: string): string {
-  const roots = execFileSync('git', ['rev-list', '--max-parents=0', 'HEAD'], { cwd, encoding: 'utf8' })
-    .split('\n')
-    .filter(line => line !== '')
-  if (roots.length !== 1) {
-    throw new Error(`check-fork-divergences: expected one root commit for the import baseline, found ${String(roots.length)}`)
-  }
-  return roots[0] as string
+  return resolveImportCommit(cwd, UPSTREAM_IMPORT_VERSION)
 }
 
 /** One path of a committed tree with its mode bits and blob object id. */

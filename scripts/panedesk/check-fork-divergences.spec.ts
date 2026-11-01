@@ -1,13 +1,24 @@
 /**
  * Panedesk fork check: the divergence ledger checker must flag both counterexample
  * shapes from the acceptance criteria — an unregistered upstream-file change and a
- * registered entry that no longer diverges — and must keep permission-bit noise,
- * fork-added paths, and dead references on their documented sides of the line.
+ * registered entry that no longer diverges — must keep permission-bit noise,
+ * fork-added paths, and dead references on their documented sides of the line, and
+ * must resolve the import baseline by its title, failing on unknown versions and
+ * duplicate import titles.
  */
 
 import { describe, expect, it } from 'vitest'
-import { checkLedger, compilePathPattern, diffTrees, resolveBaselineCommit } from './check-fork-divergences.ts'
-import type { LedgerEntry, TreeIndex } from './check-fork-divergences.ts'
+import {
+  UPSTREAM_IMPORT_VERSION,
+  checkLedger,
+  compilePathPattern,
+  diffTrees,
+  importCommitTitle,
+  resolveBaselineCommit,
+  resolveImportCommit,
+  selectImportCommit,
+} from './check-fork-divergences.ts'
+import type { CommitSubject, LedgerEntry, TreeIndex } from './check-fork-divergences.ts'
 
 function tree(entries: Record<string, string>): TreeIndex {
   return new Map(Object.entries(entries).map(([path, oid]) => [path, { mode: '100644', oid }]))
@@ -105,15 +116,50 @@ describe('checkLedger boundary semantics', () => {
   })
 })
 
-describe('ledger invariants', () => {
-  it('resolves the upstream import baseline as the unique root commit and loads a ledger with unique ids', async () => {
-    const { readFileSync } = await import('node:fs')
+describe('baseline resolution', () => {
+  it('builds the import title from the version and selects its unique commit', () => {
+    expect(importCommitTitle('0.2.1-rc.2')).toBe('Import DSH (DeepSeek Harness) 0.2.1-rc.2 source')
+    const commits: CommitSubject[] = [
+      { oid: 'a'.repeat(40), subject: 'Import DSH (DeepSeek Harness) 0.9.0 source' },
+      { oid: 'b'.repeat(40), subject: 'Import DSH (DeepSeek Harness) 0.2.1-rc.2 source' },
+      { oid: 'c'.repeat(40), subject: 'unrelated panedesk change' },
+    ]
+    expect(selectImportCommit(commits, '0.2.1-rc.2')).toBe('b'.repeat(40))
+  })
+
+  it('fails when the version names no import commit', () => {
+    expect(() => selectImportCommit([], '9.9.9')).toThrow(
+      'expected exactly one commit titled "Import DSH (DeepSeek Harness) 9.9.9 source" in HEAD history, found 0',
+    )
+  })
+
+  it('fails when more than one commit carries the import title', () => {
+    const commits: CommitSubject[] = [
+      { oid: 'a'.repeat(40), subject: 'Import DSH (DeepSeek Harness) 0.2.1-rc.2 source' },
+      { oid: 'b'.repeat(40), subject: 'Import DSH (DeepSeek Harness) 0.2.1-rc.2 source' },
+    ]
+    expect(() => selectImportCommit(commits, '0.2.1-rc.2')).toThrow(
+      'expected exactly one commit titled "Import DSH (DeepSeek Harness) 0.2.1-rc.2 source" in HEAD history, found 2',
+    )
+  })
+
+  it('resolves the live baseline by title and fails for a version with no import commit', async () => {
     const { execFileSync } = await import('node:child_process')
     const path = await import('node:path')
     const root = path.resolve(import.meta.dirname, '../..')
     const baseline = resolveBaselineCommit(root)
     expect(baseline).toMatch(/^[0-9a-f]{40}$/)
-    expect(baseline).toBe(execFileSync('git', ['rev-list', '--max-parents=0', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim())
+    expect(execFileSync('git', ['show', '-s', '--format=%s', baseline], { cwd: root, encoding: 'utf8' }).trim())
+      .toBe(importCommitTitle(UPSTREAM_IMPORT_VERSION))
+    expect(() => resolveImportCommit(root, '0.0.0-no-such-version')).toThrow(
+      'expected exactly one commit titled "Import DSH (DeepSeek Harness) 0.0.0-no-such-version source" in HEAD history, found 0',
+    )
+  })
+})
+
+describe('ledger invariants', () => {
+  it('loads a ledger with unique ids and a paths array on every entry', async () => {
+    const { readFileSync } = await import('node:fs')
     const ledger = JSON.parse(readFileSync(new URL('./fork-divergences.json', import.meta.url), 'utf8')) as {
       divergences: LedgerEntry[]
     }

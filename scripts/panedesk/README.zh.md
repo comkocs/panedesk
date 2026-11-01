@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-`scripts/panedesk/` 下的分叉自有脚本让 Panedesk 相对上游 DeepSeek Harness 源码的分叉可查、可回放。上游导入基线是仓库的根提交,即「Import DSH 0.2.1-rc.2 source」导入;`check-fork-divergences.ts` 在运行时从提交历史解析该根提交——基线识别只在这一处,维护源里不拼写任何提交哈希。
+`scripts/panedesk/` 下的分叉自有脚本让 Panedesk 相对上游 DeepSeek Harness 源码的分叉可查、可回放。上游导入基线是标题为 `Import DSH (DeepSeek Harness) 0.2.1-rc.2 source` 的提交;`check-fork-divergences.ts` 在运行时从 HEAD 历史里按标题找到该提交——基线识别只靠 checker 里的上游版本常量这一处,维护源里不拼写任何提交哈希。
 
 ## 分叉台账
 
@@ -23,7 +23,7 @@ pnpm exec tsx scripts/panedesk/check-fork-divergences.ts [--head REV]
 
 ### 换基线
 
-上游同步换基线时,新的导入成为仓库根提交;`check-fork-divergences.ts` 里对根提交的运行时解析仍是基线识别的唯一一处。换基线后把两向收敛:被同步成一致的基线路径退出分叉范围(删掉因此过期的条目),被同步出差异的路径补登记。
+上游同步换基线时分两步:先把新版上游源码作为一笔标题为 `Import DSH (DeepSeek Harness) <新版本> source` 的导入提交引入,不改写已公开历史(例如在上游分支上提交该导入后合并进来),再改 `check-fork-divergences.ts` 里的上游版本常量——基线识别的唯一一处仍是该常量。换基线后把两向收敛:被同步成一致的基线路径退出分叉范围(删掉因此过期的条目),被同步出差异的路径补登记。
 
 ## 改名零待办与 slim-base 新鲜度
 

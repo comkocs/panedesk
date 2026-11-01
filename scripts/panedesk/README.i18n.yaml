@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write scripts/panedesk/README.md
 /panedesk-fork-maintenance-scripts:
-  en: cdabcd70f3389054
-  zh: 54a55571b5350514
+  en: 856a45a312986cc1
+  zh: ad2692c4554caf7d
 /panedesk-fork-maintenance-scripts/fork-divergence-ledger:
   en: 8ba9965598fd5711
   zh: f57af23a04b3cb20
@@ -12,8 +12,8 @@
   en: 4364029509cce9a0
   zh: 9e71bde0722c12a2
 /panedesk-fork-maintenance-scripts/fork-divergence-ledger/baseline-moves:
-  en: 0baa9ffa6007b19d
-  zh: fcbba3c442f4605b
+  en: bda171765355387c
+  zh: 9601426426c236e1
 /panedesk-fork-maintenance-scripts/pending-rename-and-slim-base-freshness:
   en: 6c02e1b1bc77a8c4
   zh: 5535a66bd8aa24ac
