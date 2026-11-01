@@ -1239,7 +1239,13 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns the probe result; transport failures stay transport failures.
    */
   @Remote('probeModel')
-  remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult> {
+  async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult> {
+    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
+      throw new RemoteError('gateway/bad-request', 'Authenticated owner required', {})
+    }
+    if (this.ctx.invocation.signal.aborted || signal.aborted) {
+      throw new RemoteError('gateway/cancelled', 'Model probe unavailable', {})
+    }
     return this.probeModel(provider, model, signal)
   }
 

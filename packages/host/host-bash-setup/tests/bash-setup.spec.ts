@@ -27,6 +27,7 @@ async function harness(env: Record<string, string | undefined> = {}): Promise<Ba
   }
   const ctx = new Context()
   contexts.push(ctx)
+  Object.defineProperty(ctx, 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } }, signal: new AbortController().signal } })
   await ctx.plugin(BashSetupGateway)
   return ctx.get('bashSetup') as BashSetupGateway
 }
@@ -58,6 +59,17 @@ describe('BashSetupGateway', () => {
     expect((await gateway.status()).config).toEqual({ enabled: true, bashPath })
     const cleared = await gateway.disable()
     expect(cleared.config).toBeUndefined()
+    expect(readWindowsBashConfig()).toBeUndefined()
+  })
+
+  it.each(['anonymous', 'missing', 'aborted'] as const)('rejects %s writes without changing the selection', async (caller) => {
+    const gateway = await harness()
+    const ctx = contexts[contexts.length - 1]!
+    const invocation = caller === 'missing' ? undefined : { peer: { principal: { kind: caller === 'anonymous' ? 'anonymous' : 'owner' } }, signal: caller === 'aborted' ? AbortSignal.abort() : new AbortController().signal }
+    Object.defineProperty(ctx, 'invocation', { configurable: true, value: invocation })
+    const refusal = caller === 'aborted' ? { code: 'gateway/cancelled', message: 'Bash setup unavailable' } : { code: 'gateway/bad-request', message: 'Authenticated owner required' }
+    await expect(gateway.enable({ bashPath: 'C:\\Git\\bash.exe' })).rejects.toMatchObject(refusal)
+    await expect(gateway.disable()).rejects.toMatchObject(refusal)
     expect(readWindowsBashConfig()).toBeUndefined()
   })
 

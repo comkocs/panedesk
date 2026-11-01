@@ -29,6 +29,31 @@ async function * finish(chunk: StreamChunk): AsyncIterable<StreamChunk> {
 }
 
 describe('probeModel', () => {
+  it.each(['anonymous', 'missing', 'aborted'] as const)('rejects %s remote probes before contacting the adapter', async (caller) => {
+    const seen: GenerateOptions[] = []
+    const llm = await runtime(async function * (options) {
+      seen.push(options)
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    })
+    const invocation = caller === 'missing' ? undefined : { peer: { principal: { kind: caller === 'anonymous' ? 'anonymous' : 'owner' } }, signal: caller === 'aborted' ? AbortSignal.abort() : new AbortController().signal }
+    Object.defineProperty(llm.ctx, 'invocation', { configurable: true, value: invocation })
+    const refusal = caller === 'aborted' ? { code: 'gateway/cancelled', message: 'Model probe unavailable' } : { code: 'gateway/bad-request', message: 'Authenticated owner required' }
+    await expect(llm.remoteProbeModel('openai', 'hand-typed', new AbortController().signal)).rejects.toMatchObject(refusal)
+    expect(seen).toEqual([])
+  })
+  it('allows a live owner remote probe', async () => {
+    const seen: GenerateOptions[] = []
+    const llm = await runtime(async function * (options) {
+      seen.push(options)
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    })
+    const signal = new AbortController().signal
+    Object.defineProperty(llm.ctx, 'invocation', { configurable: true, value: { peer: { principal: { kind: 'owner' } }, signal } })
+    await expect(llm.remoteProbeModel('openai', 'hand-typed', signal)).resolves.toEqual({ ok: true })
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toMatchObject({ provider: 'openai', model: 'hand-typed', maxTokens: 1 })
+  })
+
   it('reports missing completion instead of success', async () => {
     const llm = await runtime(async function * () {})
     await expect(llm.probeModel('openai', 'unlisted')).resolves.toMatchObject({ ok: false })
