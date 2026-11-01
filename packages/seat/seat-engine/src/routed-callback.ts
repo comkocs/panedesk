@@ -71,6 +71,7 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
   const observed = observation?.nodeWorkChain && canonical(observation.nodeWorkChain) === canonical(body)
     && observation.attempt >= (retained?.attempt ?? 0) ? observation : retained
   const uncertain = observed?.responseClass === 'unknown'
+    || observed?.phase === 'paused' && observed.parkingClass === 'owner-unconfirmed'
   const unknown = (diagnostic?: T.SeatCallbackDiagnostic): CallbackAttempt => ({
     ...callbackFailure(body, 'retained', 'Callback owner outcome is unknown', 'unavailable', 'unknown', 'outcome-unknown'),
     ...(diagnostic ? { diagnostic } : {}),
@@ -219,7 +220,7 @@ export async function deliverRoutedCallback(ctx: Context, engine: SeatEngine,
   if (sent.result.status === 'paused' && sent.result.callbackId === body.callback.callbackId
     && sent.result.payloadDigest === body.payloadDigest) return sent
   if (!self && sent.result.status === 'pending' && sent.result.callbackId === body.callback.callbackId
-    && sent.result.payloadDigest === body.payloadDigest) return sent
+    && sent.result.payloadDigest === body.payloadDigest) return { ...sent, completedDispatch: true }
   if (!self && sent.result.status === 'rejected' && sent.result.error.effectState === 'none'
     && sent.diagnostic?.stage === 'peer-dispatch') return sent
   const reconciled = outcome(await read(), true) ?? unknown(sent.diagnostic)

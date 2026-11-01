@@ -1,7 +1,7 @@
 /** At-least-once callbacks retain their original identities and per-source window ordering. */
 import type { SeatEngineConfig, SeatCallbackDelivery, SeatCallbackDiagnostic, DeliverSourceCallbackRequest } from '@panedesk/dsh-seat'
 import { callbackFailure, callbackObservation, type CallbackAttempt } from './routed-callback-types.ts'
-import { EngineJournal, EngineError } from './journal.ts'
+import { EngineJournal, EngineError, canonical } from './journal.ts'
 import type { FailureObservation } from './failure.ts'
 import { callbackEvidenceMatches } from './callback-evidence.ts'
 import { SourceRegistry } from './sources.ts'
@@ -33,6 +33,17 @@ export function isParkedAuthenticationRefusal(delivery: SeatCallbackDelivery): b
     && delivery.lastDiagnostic.cause.effectState === 'none'
 }
 
+/** Recognize source-owned parking without granting permission to replay business effects.
+ * @param delivery - Retained original callback and validated owner observation.
+ * @returns Whether only exact owner queries may advance this parked callback.
+ */
+export function isParkedOwnerCallback(delivery: SeatCallbackDelivery): boolean {
+  const body = delivery.nodeWorkChain, cause = delivery.lastDiagnostic?.cause
+  return delivery.phase === 'paused' && delivery.parkingClass === 'owner-unconfirmed'
+    && !!body && callbackEvidenceMatches(delivery) && cause?.operationId === body.route.originalOperationId
+    && cause.nodeId === body.route.sourceOwnerNodeId && cause.reasonCode !== 'invalid-diagnostic'
+}
+
 /** One delivery controller owns all in-flight callbacks until they settle. */
 export class CallbackOutbox {
   private running: Promise<void> | undefined
@@ -54,7 +65,8 @@ export class CallbackOutbox {
    */
   hasFailedDelivery(): boolean {
     return this.observations().some(delivery => delivery.responseClass !== null && !delivery.ownerPending
-      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned' && !isParkedAuthenticationRefusal(delivery))
+      && delivery.phase !== 'delivered' && delivery.phase !== 'abandoned'
+      && !isParkedAuthenticationRefusal(delivery) && !isParkedOwnerCallback(delivery))
   }
 
   /** Deliver currently due facts without overtaking a failed earlier state.
@@ -111,6 +123,8 @@ export class CallbackOutbox {
     observation?: FailureObservation
     ownerPending?: boolean
     ownerPaused?: boolean
+    ownerAbandoned?: boolean
+    completedDispatch?: boolean
   }> {
     const routed: CallbackAttempt = this.routed ? await this.routed(structuredClone(request), structuredClone(delivery))
       : callbackFailure(request, 'retained', 'Callback sender is unavailable')
@@ -134,7 +148,12 @@ export class CallbackOutbox {
       ? { ...diagnostic, cause: { ...diagnostic.cause, effectState: observation.effectState } } : diagnostic
     return { responseClass, ...(retainedDiagnostic ? { diagnostic: retainedDiagnostic } : {}), ...(observation ? { observation } : {}),
       ...(result.status === 'pending' && diagnostic?.cause.reasonCode !== 'invalid-diagnostic' ? { ownerPending: true } : {}),
-      ...(result.status === 'paused' && responseClass !== 'authentication' ? { ownerPaused: true } : {}) }
+      ...(result.status === 'paused' && responseClass === 'protocol' && this.refusalClass(result.error) === 'transient' && diagnostic
+        && diagnostic.cause.reasonCode !== 'invalid-diagnostic'
+        && diagnostic.cause.operationId === request.route.originalOperationId
+        && diagnostic.cause.nodeId === request.route.sourceOwnerNodeId
+        ? { ownerPaused: true, ownerAbandoned: diagnostic.cause.code === 'callback-manually-abandoned' } : {}),
+      ...(routed.completedDispatch ? { completedDispatch: true } : {}) }
   }
 
   private refusalClass(error: import('@panedesk/dsh-seat').SeatFailure): SeatCallbackDelivery['responseClass'] {
@@ -163,7 +182,8 @@ export class CallbackOutbox {
         ...(delivery.retrySummary.transientSince ? { since: Date.parse(delivery.retrySummary.transientSince) } : {}),
         ...(delivery.lastDiagnostic ? { latest: delivery.lastDiagnostic } : {}),
       }
-      if (delivery.phase === 'paused') {
+      const ownerParked = isParkedOwnerCallback(delivery)
+      if (delivery.phase === 'paused' && !ownerParked) {
         if (delivery.lastDiagnostic?.cause.code !== 'callback-link-unreachable-limit'
           || retention?.parkedAt === undefined || !await this.linkReady?.(delivery, retention.parkedAt)) continue
         const parked = delivery
@@ -191,7 +211,7 @@ export class CallbackOutbox {
       let responseClass: SeatCallbackDelivery['responseClass'] = 'success'
       let diagnostic: SeatCallbackDiagnostic | undefined
       let observation: FailureObservation | undefined
-      let ownerPending = false, ownerPaused = false
+      let ownerPending = false, ownerPaused = false, ownerAbandoned = false, completedDispatch = false
       const started = performance.now()
       let failure: unknown
       const localDispatch = { started: false }
@@ -202,8 +222,8 @@ export class CallbackOutbox {
             responseClass = 'protocol'
             diagnostic = callbackFailure(delivery.nodeWorkChain, 'retained', 'Frozen callback evidence did not match',
               'callback-protocol-error', 'none', 'evidence-digest-mismatch').diagnostic
-          } else ({ responseClass, diagnostic, observation, ownerPending = false, ownerPaused = false }
-            = await this.deliverRouted(delivery.nodeWorkChain, delivery))
+          } else ({ responseClass, diagnostic, observation, ownerPending = false, ownerPaused = false,
+            ownerAbandoned = false, completedDispatch = false } = await this.deliverRouted(delivery.nodeWorkChain, delivery))
         } else await this.sources.use(delivery.payload.sourceId, (source) => {
           localDispatch.started = true
           return source.callback(delivery.payload)
@@ -245,26 +265,29 @@ export class CallbackOutbox {
       }
       if (delivery.nodeWorkChain && responseClass === 'transient' && !ownerPending
         && delivery.responseClass === 'unknown') responseClass = 'unknown'
+      if (ownerParked && ownerPaused && !ownerAbandoned
+        && canonical(diagnostic) === canonical(delivery.lastDiagnostic)) continue
       const attempt = delivery.attempt + 1
       const limited = responseClass === 'transient' && !ownerPending && retention?.since !== undefined
         && Date.now() - retention.since >= CALLBACK_TRANSIENT_LIMIT_MS
-      const phase = responseClass === 'success' ? 'delivered'
+      const phase = ownerAbandoned ? 'abandoned' : responseClass === 'success' ? 'delivered'
         : limited || responseClass === 'authentication' || responseClass === 'protocol' ? 'paused' : 'retry-due'
       if (limited) diagnostic = callbackDiagnostic(this.journal.projection, delivery,
         callbackLinkFailure(delivery, diagnostic) ? 'callback-link-unreachable-limit' : 'callback-transient-limit-reached')
       const { lastDiagnostic: _previousDiagnostic, ownerPending: _pending, parkingClass: _parking,
         retrySummary: previousSummary, ...original } = delivery
       const at = new Date(now).toISOString(), latestDiagnostic = diagnostic ?? previousSummary?.lastDiagnostic
-      const summary = responseClass === 'success' ? previousSummary : ownerPending ? {
-        ...previousSummary ?? { count: 0, firstAttemptAt: at, lastAttemptAt: at }, transientSince: null,
-      } : {
-        count: (previousSummary?.count ?? 0) + 1,
-        firstAttemptAt: previousSummary?.count ? previousSummary.firstAttemptAt : at, lastAttemptAt: at,
-        transientSince: responseClass === 'transient'
-          ? new Date(retention?.since ?? Date.now()).toISOString() : null,
-        ...(latestDiagnostic ? { lastDiagnostic: latestDiagnostic } : {}),
-        ...(previousSummary?.attemptsAtLeast ? { attemptsAtLeast: true } : {}),
-      }
+      const summary = responseClass === 'success' || ownerAbandoned || ownerParked && ownerPaused ? previousSummary
+        : ownerPending && !completedDispatch ? {
+          ...previousSummary ?? { count: 0, firstAttemptAt: at, lastAttemptAt: at }, transientSince: null,
+        } : {
+          count: (previousSummary?.count ?? 0) + 1,
+          firstAttemptAt: previousSummary?.count ? previousSummary.firstAttemptAt : at, lastAttemptAt: at,
+          transientSince: responseClass === 'transient' && !ownerPending
+            ? new Date(retention?.since ?? Date.now()).toISOString() : null,
+          ...(latestDiagnostic ? { lastDiagnostic: latestDiagnostic } : {}),
+          ...(previousSummary?.attemptsAtLeast ? { attemptsAtLeast: true } : {}),
+        }
       const updated: SeatCallbackDelivery = { ...original, attempt, responseClass, phase,
         ...(ownerPending ? { ownerPending: true } : {}),
         ...(ownerPaused ? { parkingClass: 'owner-unconfirmed' as const } : limited ? { parkingClass: 'transport-transient' as const } : {}),
@@ -277,7 +300,8 @@ export class CallbackOutbox {
       const base = this.journal.projection.callbacks.get(delivery.payload.callbackId)
       const sendingBarrier = !!delivery.nodeWorkChain && base?.responseClass === 'unknown'
         && base.attempt === durable.attempt && base.phase === durable.phase
-      if (phase === 'retry-due' && (delivery.attempt > 0 || sendingBarrier)) {
+      if (phase === 'retry-due' && (delivery.attempt > 0 || sendingBarrier)
+        || ownerParked && ownerPaused && !ownerAbandoned) {
         if (base && (base === durable || base === delivery || sendingBarrier)) {
           this.buffered.set(delivery.payload.callbackId, { base, delivery: updated, version: ++this.version })
         }
@@ -285,17 +309,18 @@ export class CallbackOutbox {
         await this.journal.commit((view) => {
           const current = view.callbacks.get(delivery.payload.callbackId)
           if (!current || current.phase === 'delivered' || current.phase === 'abandoned'
-            || current.phase === 'paused' || current.attempt !== durable.attempt && current !== delivery) return []
+            || current.phase === 'paused' && !(current === durable && isParkedOwnerCallback(current))
+            || current.attempt !== durable.attempt && current !== delivery) return []
           return [fact({ kind: phase === 'delivered' ? 'callback/delivered' : 'callback/attempted',
             ...(delivery.payload.sessionId ? { sessionId: delivery.payload.sessionId } : {}), data: updated })]
         })
         this.buffered.delete(delivery.payload.callbackId)
       }
-      if (phase === 'delivered') blocked.delete(key)
-      else if (isParkedAuthenticationRefusal(updated) && (failure === undefined || !delivery.nodeWorkChain)) continue
+      if (phase === 'delivered' || phase === 'abandoned') blocked.delete(key)
+      else if (ownerPaused || ownerPending
+        || isParkedAuthenticationRefusal(updated) && (failure === undefined || !delivery.nodeWorkChain)) continue
       else if (this.recordFailure) {
-        // A matching pending owner receipt is progress, not an exception; the outbox owns its next query.
-        if (!ownerPending && (failure !== undefined || diagnostic || responseClass !== 'transient')) {
+        if (failure !== undefined || diagnostic || responseClass !== 'transient') {
           this.recordFailure(responseClass === 'unknown' ? { code: 'callback-outcome-unconfirmed' }
             : failure ?? { code: diagnostic?.cause.code ?? 'callback-outcome-unconfirmed' },
           observation ? { ...observation, retryable: observation.retryable && phase === 'retry-due',
