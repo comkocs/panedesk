@@ -299,6 +299,14 @@ describe('gate graph validation', () => {
     expect(scripts['verify-repository-references']).toBe('tsx scripts/verify-repository-references.ts')
   })
 
+  it('checks preset documentation through the documentation aggregate', () => {
+    const gates = withPnpmEntrypoint(() => gatesForMode('doc-sync'))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'preset-table',
+      displayCommand: 'pnpm run verify-preset-table',
+    }))
+  })
+
   it('keeps the public repository link policy in the documentation gate', () => {
     const ids = withPnpmEntrypoint(() => gatesForMode('doc-sync').map(subject => subject.id))
 
