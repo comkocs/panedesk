@@ -124,7 +124,7 @@ function checkCustom(id: string, context: GateContext, definition: GateDefinitio
   if (id === 'seat-choice' && context.hook === 'before-open' && context.candidateSeats.length > 0
     && (context.seat === null || !context.candidateSeats.includes(context.seat))) {
     return refusal('seat-choice-required', 'Choose open-seat, traditional, or cancel.',
-      `Candidates: ${context.candidateSeats.join(', ')}. Run dsh --profile seat open --seat ${context.candidateSeats[0]}; `
+      `Candidates: ${context.candidateSeats.join(', ')}. Run panedesk --profile seat open --seat ${context.candidateSeats[0]}; `
       + 'traditional explicitly creates a free window; cancel creates nothing.')
   }
   if (id === 'explicit-batch' && context.hook === 'before-batch-open' && context.seats.length === 0) {

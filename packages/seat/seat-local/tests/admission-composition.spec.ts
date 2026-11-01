@@ -31,7 +31,7 @@ it('rejects mismatched traditional creation before Session and directory effects
     if (!parentAgent) throw new Error('Parent window is unavailable')
     await expect(f.ctx.agents.create({ sessionId: id, parentAgent, meta: { cwd } }))
       .rejects.toMatchObject({ name: 'SeatDirectoryChoiceError', result: { status: 'choice-required', candidates: [other.seat],
-        choices: ['open-seat', 'traditional', 'cancel'], alternative: `dsh --profile seat open --seat '${other.seat}'` } })
+        choices: ['open-seat', 'traditional', 'cancel'], alternative: `panedesk --profile seat open --seat '${other.seat}'` } })
     expect(f.ctx.agents.get(id)).toBeUndefined()
     expect(await f.ctx.sessionPersistence.stat(id)).toBeUndefined()
     await expect(access(cwd)).rejects.toThrow()
@@ -48,7 +48,7 @@ it('never chooses a shared directory seat and restores explicit free bindings wi
     await expect(f.ctx.agents.create({ sessionId: 'shared-denied' as SessionId, meta: { cwd: f.options.directory } }))
       .rejects.toMatchObject({ result: { status: 'choice-required', candidates: [f.definition.seat, other.seat],
         choices: ['open-seat', 'traditional', 'cancel'],
-        alternative: "dsh --profile seat open --seat 'seat-a' OR dsh --profile seat open --seat 'seat-b'" } })
+        alternative: "panedesk --profile seat open --seat 'seat-a' OR panedesk --profile seat open --seat 'seat-b'" } })
     const creation = f.ctx.get('seatLocalCreation')!
     const confirmation = await creation.confirmTraditional(f.options.directory, f.authority)
     const id = 'traditional-free' as SessionId

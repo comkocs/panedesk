@@ -333,6 +333,22 @@ describe('gate graph validation', () => {
     }
   })
 
+  it('checks the fork divergence ledger, pending product renames, and slim-base freshness in the static CI lane', () => {
+    const gates = withPnpmEntrypoint(() => gatesForMode('ci-static'))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'fork-divergences',
+      displayCommand: 'pnpm exec tsx scripts/panedesk/check-fork-divergences.ts',
+    }))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'rename-check',
+      displayCommand: 'pnpm exec node scripts/panedesk/rename/rename.mjs --check',
+    }))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'slim-base',
+      displayCommand: 'pnpm exec tsx scripts/panedesk/gen-slim-base.ts --check',
+    }))
+  })
+
   it('requires complete Session format references locally and in CI', () => {
     const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
       scripts: Record<string, string>

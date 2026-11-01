@@ -52,7 +52,7 @@ describe('semantic hook executor contracts', () => {
       const denied = await execute(context)
       expect(denied[0]).toMatchObject({ outcome: 'deny', reason: { code: 'seat-choice-required',
         message: 'Choose open-seat, traditional, or cancel.' } })
-      expect(JSON.stringify(denied)).toContain('dsh --profile seat open --seat seat-b')
+      expect(JSON.stringify(denied)).toContain('panedesk --profile seat open --seat seat-b')
       expect(JSON.stringify(denied)).toContain('seat-b')
       expect(create).not.toHaveBeenCalled()
       await execute({ ...context, callId: 'free-a' as GateContext['callId'], candidateSeats: [] })
