@@ -23,6 +23,42 @@ describe('seat import previews', () => {
     expect(plan.rows[3]).toMatchObject({ action: 'invalid', selected: false })
   })
 
+  it('imports structured CSV remote admission and diagnoses invalid cells', async () => {
+    const { importer, sourcePath, store } = await setup()
+    const policy = { allowOpen: true, sourceNodeIds: ['node-a'], sourceIds: ['source-a'], principalIds: ['principal-a'],
+      methods: ['seat.openFrozen'], policyRevision: 1 }
+    const csv = (value: string) => `"${value.replaceAll('"', '""')}"`
+    await writeFile(sourcePath, `seat,admission\nseat-a,${csv(JSON.stringify(policy))}\nseat-b,${csv(JSON.stringify({ ...policy, policyRevision: 0 }))}\nseat-c,{broken\n`)
+    const plan = await importer.preview({ format: 'csv', sourcePath,
+      columnMap: { seat: 'seat', admission: 'remoteAdmission' }, defaults: {} })
+    expect(plan.rows[0]).toMatchObject({ action: 'create', definition: { remoteAdmission: policy } })
+    expect(plan.rows[1]).toMatchObject({ action: 'invalid', diagnostics: [{ code: 'invalid-definition' }] })
+    expect(plan.rows[1]?.diagnostics[0]?.message).toContain('remoteAdmission')
+    expect(plan.rows[2]).toMatchObject({ action: 'invalid', diagnostics: [{ code: 'invalid-definition',
+      message: 'Invalid JSON in column admission (remoteAdmission).' }] })
+    await importer.commit({ planId: plan.planId, selectedRows: plan.rows.map(row => row.row), expectedRevision: 0, operationId: operation('admission') })
+    expect(store.snapshot().definitions).toHaveLength(1)
+    expect(store.snapshot().definitions[0]?.remoteAdmission).toEqual(policy)
+  })
+
+  it.each([0, 1])('rejects empty selection without effects at revision %i and retains the plan', async (revision) => {
+    const { importer, sourcePath, store } = await setup()
+    await writeFile(sourcePath, 'seat\nseat-a\n')
+    const request = { format: 'csv' as const, sourcePath, columnMap: { seat: 'seat' }, defaults: {} }
+    if (revision === 1) {
+      const initial = await importer.preview(request)
+      await importer.commit({ planId: initial.planId, selectedRows: [initial.rows[0]!.row], expectedRevision: 0, operationId: operation('initial-empty') })
+    }
+    const plan = await importer.preview(request)
+    const before = store.snapshot()
+    const operationId = operation(`empty-${revision}`)
+    await expect(importer.commit({ planId: plan.planId, selectedRows: [], expectedRevision: revision, operationId }))
+      .rejects.toMatchObject({ failure: { code: 'invalid-request', effectState: 'none' } })
+    expect(store.snapshot()).toEqual(before)
+    expect(store.snapshot().operations[operationId]).toBeUndefined()
+    expect(store.importPlan(plan.planId)?.plan.planId).toBe(plan.planId)
+  })
+
   it('previews CSV quoted commas and newlines, retains the source hash and commits selected rows only', async () => {
     const { root, importer, sourcePath, store } = await setup()
     await writeFile(sourcePath, 'seat,model\nseat-a,"model,a\nline"\nseat-b,model-b\n')
@@ -159,7 +195,7 @@ describe('seat import previews', () => {
       for (let index = 0; index < 21; index += 1) {
         const plan = await importer.preview(request)
         const series = ['series', String(maxPlans), String(index)].join('-')
-        const committed = await importer.commit({ planId: plan.planId, selectedRows: index === 0 ? [plan.rows[0]!.row] : [],
+        const committed = await importer.commit({ planId: plan.planId, selectedRows: [plan.rows[0]!.row],
           expectedRevision: revision, operationId: operation(series) })
         if (committed.status !== 'committed') throw new Error('Expected committed import')
         revision = committed.revision

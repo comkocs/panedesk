@@ -103,6 +103,12 @@ export class SeatImporter {
             } else if (field === 'autoKeepAlive') {
               if (value !== 'true' && value !== 'false') refuse('invalid-definition', 'Expected true or false.', 'Correct the boolean cell.')
               values[field] = value === 'true'
+            } else if (field === 'remoteAdmission' && request.format === 'csv') {
+              try { values[field] = JSON.parse(value) }
+              catch (error) {
+                if (!(error instanceof SyntaxError)) throw error
+                refuse('invalid-definition', `Invalid JSON in column ${column} (remoteAdmission).`, 'Correct the mapped JSON field.')
+              }
             } else values[field] = structuredFields.has(field) ? JSON.parse(value) : numericFields.has(field) ? Number(value) : value
           }
         }
@@ -195,6 +201,7 @@ export class SeatImporter {
       refuse('import-preview-stale', 'Source bytes or selected revision changed.', 'Preview the source again.')
     }
     const selected = new Set(request.selectedRows)
+    if (selected.size === 0) refuse('invalid-request', 'No import rows were selected.', 'Select at least one row from the preview.')
     if (selected.size !== request.selectedRows.length || request.selectedRows.some(row => !plan.rows.some(item => item.row === row))) {
       refuse('invalid-request', 'The selection contains duplicate or unknown rows.', 'Select row identities from the preview.')
     }
