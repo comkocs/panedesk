@@ -173,7 +173,7 @@ it('A04 rejects a foreign owned directory before creating any physical session',
   const request = { cwd: other.directories[0]!.path, seat: seatName('seat-a'), interactive: false }
   const choice = await f.seats.resolveDirectoryChoice(request)
   expect(choice).toMatchObject({ status: 'choice-required', candidates: ['seat-b'], choices: ['open-seat', 'traditional', 'cancel'] })
-  expect(JSON.stringify(choice)).toContain('dsh --profile seat open --seat')
+  expect(JSON.stringify(choice)).toContain('panedesk --profile seat open --seat')
   const creation = await f.ctx.sessionController.create({ sessionId: 'foreign-window' as never, cwd: request.cwd })
     .then(() => 'created', () => 'rejected')
   expect(creation).toBe('rejected')
