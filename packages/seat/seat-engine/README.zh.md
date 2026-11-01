@@ -170,7 +170,7 @@ Loader 注册 `subagentAdmission`、`subagentNotifications` 与 `jobNotification
 - 开窗和恢复需要注册本地执行器；证据缺失时工作保持待处理，不能虚构窗口。
 - 活跃提供方拥有写入器和协调计时器；它不是离线只读查询提供方。
 - 账户并发统计用于诊断，不是强制执行的账户限流器。
-- M8b：有链回调 abandon 不修改 `chain-sent`，链层仍可对账原 owner 键。晚到的 owner `committed` 回执本身不解除 seat 预算停车：其它类仍需操作员处置，链路类仍需更新的 hello 就绪观察。这两个独立状态不意味着 owner `paused`；abandon 不代表 owner 终态回执。unknown 回调及永不返回的适配器不在暂态限时内。早于 `abandoned` 的读取器不能重放此状态；须保留完整账本并前滚，不删除转换帧。
+- 有链回调 abandon 不修改 `chain-sent`，链层仍可对账原 owner 键。晚到的 owner `committed` 回执本身不解除 seat 预算停车：其它类仍需操作员处置，链路类仍需更新的 hello 就绪观察。这两个独立状态不意味着 owner `paused`；abandon 不代表 owner 终态回执。unknown 回调及永不返回的适配器不在暂态限时内。早于 `abandoned` 的读取器不能重放此状态；须保留完整账本并前滚，不删除转换帧。
 
 <a id="dev-note"></a>
 ### 开发备注
