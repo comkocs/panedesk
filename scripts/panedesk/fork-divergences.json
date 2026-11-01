@@ -5588,7 +5588,7 @@
       "id": "session-header-order-and-bundled-skill-catalog-goldens",
       "description": "Record the settled session header order and the bundled skill catalog in replayed web fixtures.",
       "origin": "Composed web consumer regression repair",
-      "reason": "Session header entries sort by slot then numeric order, so the session tools entry precedes More actions and More actions stays next to the sidebar control. The bundled workflow-pack skill registers in the web host layer, so a replayed session records one skill-catalog message before the first time-context reading, shifting later message tokens and source sequences by one. The refreshed fixtures record only that ordering and that added catalog message. Suitable for upstream contribution.",
+      "reason": "Session header entries sort by slot then numeric order, so the session tools entry precedes More actions and More actions stays next to the sidebar control. The bundled workflow-pack skill registers in the web host layer, so a replayed session records one skill-catalog message before the first time-context reading and the later message tokens renumber by one. The refreshed fixtures record only that ordering and that added catalog message. Suitable for upstream contribution.",
       "match": {
         "type": "test-assertion",
         "paths": [
