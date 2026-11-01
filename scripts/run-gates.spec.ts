@@ -683,7 +683,12 @@ describe('gate graph validation', () => {
     for (const budget of ['15000', undefined]) {
       const gates = withEnv('DSH_COVERAGE_TEST_TIMEOUT_MS', budget, () =>
         withPnpmEntrypoint(() => gatesForMode('ci-unit')))
-      expect(gates.map(gate => gate.id)).toEqual(['native-system', 'unit'])
+      expect(gates.map(gate => gate.id)).toEqual(['native-system', 'unit', 'slim-mock-e2e'])
+      expect(gates[2]).toMatchObject({
+        displayCommand: 'pnpm run test:slim-mock',
+        needs: ['native-system'],
+        env: { DSH_EXAMPLE_MODE: 'lib' },
+      })
       expect(gates[0]).toMatchObject({ displayCommand: nativeBuild })
       expect(gates[1]?.displayCommand).toBe(`pnpm exec ${unitRun}`)
       expect(gates[1]).toMatchObject({

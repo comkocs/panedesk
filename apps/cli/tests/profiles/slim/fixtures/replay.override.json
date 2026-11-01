@@ -1,0 +1,22 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "slim-read", "name": "read", "argumentsDelta": "{\"file_path\":\"message.txt\"}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "slim-read", "name": "read", "arguments": "{\"file_path\":\"message.txt\"}" } },
+      { "type": "usage", "usage": { "inputTokens": 1, "outputTokens": 1 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "text" },
+      { "type": "text-delta", "index": 0, "text": "Read complete: SLIM_FILE_CONTENT" },
+      { "type": "block-end", "index": 0, "block": { "type": "text", "text": "Read complete: SLIM_FILE_CONTENT" } },
+      { "type": "usage", "usage": { "inputTokens": 1, "outputTokens": 1 } },
+      { "type": "finish", "reason": { "kind": "stop" } }
+    ]
+  }
+]
