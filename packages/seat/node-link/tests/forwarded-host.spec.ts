@@ -140,6 +140,8 @@ test('rejects unlisted forwards with a bounded hello reason, one log per refusal
       reachable: false, capabilities: [], safeReason: 'host-mismatch',
     })
   }
+  // Disposal stops the sender's periodic probes and drains any handshake already in flight.
+  await contexts[1]!.fiber.dispose()
   const before = logs[0]!.length
   const response = await hello(entries[0]!, `127.0.0.1:${entries[0]}`, credentials[0]!)
   expect(response.status).toBe(403)
