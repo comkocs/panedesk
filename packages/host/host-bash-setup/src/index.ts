@@ -1,7 +1,8 @@
 /** First-run Git Bash discovery Remote over the bash-local Windows product config. */
 
 import { Context } from '@panedesk/cordis'
-import { TypertRemoteService, Remote } from '@panedesk/dsh-typert-protocol'
+import type {} from '@panedesk/dsh-api-remote-access/types'
+import { TypertRemoteService, Remote, RemoteError } from '@panedesk/dsh-typert-protocol'
 import { probeWindowsBash, readWindowsBashConfig, clearWindowsBashConfig, writeWindowsBashConfig } from '@panedesk/dsh-bash-local'
 import type { BashSetupStatus, BashSetupWriteResult } from './types.ts'
 
@@ -11,6 +12,15 @@ export type { BashSetupStatus, BashSetupWriteResult } from './types.ts'
 export class BashSetupGateway extends TypertRemoteService {
   constructor(ctx: Context) {
     super(ctx, 'bashSetup')
+  }
+
+  private owner(action: string): void {
+    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
+      throw new RemoteError('remote-access/denied', 'Authenticated owner required', { action, reason: 'no-allow' })
+    }
+    if (this.ctx.invocation.signal.aborted) {
+      throw new RemoteError('gateway/cancelled', 'Bash setup unavailable', {})
+    }
   }
 
   /** Read the probe result, the committed selection, and the environment override in one call.
@@ -27,6 +37,7 @@ export class BashSetupGateway extends TypertRemoteService {
    */
   @Remote('enable')
   async enable(params: { bashPath: string }): Promise<BashSetupWriteResult> {
+    this.owner('bashSetup/enable')
     await writeWindowsBashConfig({ enabled: true, bashPath: params.bashPath })
     return this.snapshot()
   }
@@ -36,6 +47,7 @@ export class BashSetupGateway extends TypertRemoteService {
    */
   @Remote('disable')
   async disable(): Promise<BashSetupWriteResult> {
+    this.owner('bashSetup/disable')
     await clearWindowsBashConfig()
     return this.snapshot()
   }

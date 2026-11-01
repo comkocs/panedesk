@@ -7,6 +7,7 @@
  */
 
 import { Context } from '@panedesk/cordis'
+import type {} from '@panedesk/dsh-api-remote-access/types'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import { deepFreeze, redactDiagnostic } from '@panedesk/dsh-util-values'
 import type {
@@ -1239,7 +1240,13 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns the probe result; transport failures stay transport failures.
    */
   @Remote('probeModel')
-  remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult> {
+  async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult> {
+    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
+      throw new RemoteError('remote-access/denied', 'Authenticated owner required', { action: 'llm/probeModel', reason: 'no-allow' })
+    }
+    if (this.ctx.invocation.signal.aborted || signal.aborted) {
+      throw new RemoteError('gateway/cancelled', 'Model probe unavailable', {})
+    }
     return this.probeModel(provider, model, signal)
   }
 

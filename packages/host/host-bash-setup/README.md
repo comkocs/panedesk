@@ -25,7 +25,7 @@ Mount the gateway in a Web-facing profile; the Settings General row calls it ove
 
 ### What a write means
 
-The commit is the effect of the operator's confirmation in the settings row; the Remote itself asks no question. Composition reads the committed selection at the next profile mount, so a write takes effect after the application restarts, and the environment override keeps precedence over the committed selection.
+Writes require a live authenticated owner invocation. The commit is the effect of the operator's confirmation in the settings row; the Remote itself asks no question. Composition reads the committed selection at the next profile mount, so a write takes effect after the application restarts, and the environment override keeps precedence over the committed selection.
 
 ## Understand the implementation
 
