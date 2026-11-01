@@ -66,12 +66,15 @@ export interface SkillCatalogEntry {
  * Read the three skill directories for one workspace without a session.
  * Project roots use `cwd`; user and bundled roots do not. Custom and runtime
  * skills are not one of the three directories and are left out.
- * @param ctx - host context whose `skills` service lists summaries.
+ * @param ctx - host context with an available `skills` service; no injection declaration is required.
+ * @throws When the skill registry is unavailable.
  * @param cwd - workspace directory whose project skills are included; omission lists built-in and user skills only.
  * @returns effective entries in registry order; same-name skills retain only the highest-priority source.
  */
 export async function listSkillCatalog(ctx: Context, cwd: string | undefined): Promise<SkillCatalogEntry[]> {
-  const skills = await ctx.skills.list(cwd === undefined ? {} : { cwd })
+  const registry = ctx.get('skills')
+  if (registry === undefined) throw new Error('Skill registry is unavailable')
+  const skills = await registry.list(cwd === undefined ? {} : { cwd })
   const entries: SkillCatalogEntry[] = []
   for (const skill of skills) {
     const entry = catalogEntry(skill)

@@ -55,7 +55,7 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 
 项目根目录是包含 `.git` 的最近祖先目录；如果不存在，则使用当前 cwd。用户 DSH 根目录会跳过其 `.system` 子目录。`includeDefaultRoots: false` 会省略项目根、用户根以及 `$DSH_BUNDLED_SKILL_DIR` 默认值，使隔离提供方只看到自身配置的根；`bundledSkillDir` 会按 rank 600 添加一个随包提供的根目录。
 
-`listSkillCatalog(ctx, cwd?)` 无需 Agent 或 Session 即可读取可用目录，返回名称、说明、来源路径和 `builtin` / `user` / `project` 分组。同名技能只列实际生效的最高优先级来源，省略被覆盖来源。自定义根不属于这三组。不传 `cwd` 时省略项目根；传入项目目录的调用方负责授权。
+`listSkillCatalog(ctx, cwd?)` 无需 Agent 或 Session 即可读取可用目录，返回名称、说明、来源路径和 `builtin` / `user` / `project` 分组。同名技能只列实际生效的最高优先级来源，省略被覆盖来源。自定义根不属于这三组。不传 `cwd` 时省略项目根；传入项目目录的调用方负责授权。该辅助函数通过 `ctx.get('skills')` 读取注册表，因此将其作为可选服务的调用方无需声明 `skills` 注入；注册表缺失时请求失败，不返回空目录。
 
 ### 挂载与配置
 
