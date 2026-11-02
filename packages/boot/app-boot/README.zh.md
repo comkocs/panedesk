@@ -44,10 +44,10 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 
 主进程 profile 在 Loader 结算后通过不可变的 `ctx.kernelStatus.snapshot()` 发布 `sessionLedger` 与 `llmCache` 观测。服务缺失、禁用、失败或等待依赖时，logger 输出一行错误：账本不可用时为 `Session ledger not mounted: <details>`，否则为 `Accounting cache layer not mounted: <details>`。两者均不可用时细节列出两个服务。仅所有者可读写、原子替换的 `$PANEDESK_HOME/run/kernel-status.json` 只含服务名、可用状态、细因码、pid 与 ISO 时刻，不包含异常消息或配置值。`$PANEDESK_HOME/run/kernel-boot.json` 标记最近一次主进程启动，供离线读取方识别旧状态。离线 `ledger`、`ledger-watch` 与插件管理 profile 不替换这两份文件；持久化失败使启动拒绝。每个根上下文只由 boot 发布一次；重复就绪审计与 profile 重载保留同一观测，直到根上下文释放。发布与 `auditStartupEntries` 使用同一份已收集的激活失败，因此发布期间释放上下文不会因二次读取 Loader 而覆盖原诊断；必需条目失败的堆栈保留该审计帧。这是启动观测，不是持续健康监测。
 
-`ProfileContext` 保留已解析的叠加文件路径，以及本进程读取的 bundle 清单与补丁。[沙盒策略](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)使用这些实际输入，而不是将无关源码目录判为插件。
-
 <a id="profiles"></a>
 ### Profile
+
+`ProfileContext` 持有工作区输入记录，HMR 服务替换不会丢失记录。`$PANEDESK_HOME/windows-workspace-write/protected-inputs` 下的持久记录在授予工作区写权时采集已登记输入，并跨重启保留可信配置副本。目录与链接记录包含目标与树摘要。CLI 配置组合与运行时依赖表共用可信清单读取器，后继代同样沿用。从未授写权的工作区直接读取 owner 改动，不要求确认。`protectedInputCovered` 只查询记录覆盖，不授予信任，也不证明所有加载器均受保护。`PluginPackages` 通过 Node 同步 ESM/CommonJS load 钩子交付验证过的字节，覆盖后续动态 import，并在释放时注销钩子。受保护的原生 addon，以及没有验证字节加载路径的格式会被拒绝。直接 profile 重组在修改运行树前拒绝已变化的输入。[沙盒策略](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)使用实际的 profile、叠加文件、bundle 与已加载插件输入，而不是将无关源码目录判为插件。
 
 显式选择的 `seat` 模板组合 `dsh-base` 与 [seat-app](../../seat/seat-app/README.zh.md)。既有模板保持不变；选择 `seat` 不安装系统服务，引擎条目在显式提供部署策略前保持禁用。
 

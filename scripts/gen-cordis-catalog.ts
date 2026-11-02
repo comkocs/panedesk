@@ -769,6 +769,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   ToolCallId: 'core.md',
   SessionLogSnapshot: 'session-query.md',
   SessionSurfaceSnapshot: 'session-query.md',
+  ProtectedInputApproval: 'approval.md',
+  ApprovalPurpose: 'approval.md',
   ApprovalOutcome: 'approval.md',
   ApprovalPolicy: 'approval.md',
   ApprovalRequest: 'approval.md',

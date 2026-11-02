@@ -1640,7 +1640,7 @@ export interface Config {
 ## `@panedesk/dsh-hmr`
 
 - `refs`: `ChokidarOptions` (`chokidar`)
-- `source`: [`packages/boot/hmr/src/index.ts:56`](../packages/boot/hmr/src/index.ts)
+- `source`: [`packages/boot/hmr/src/index.ts:58`](../packages/boot/hmr/src/index.ts)
 
 ```ts config-catalog
 /** Module roots and watcher timing, with Chokidar deployment options. */
@@ -2827,7 +2827,7 @@ export interface Config {
 
 - `inject`: `shell` · `approval` · `sessions` · `sessionProjections`
 - `refs`: [`ApprovalPolicy`](subsystems/approval.zh.md) · [`SandboxMode`](subsystems/sandbox.zh.md) · `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/interaction/permission-presets/src/index.ts:167`](../packages/interaction/permission-presets/src/index.ts)
+- `source`: [`packages/interaction/permission-presets/src/index.ts:168`](../packages/interaction/permission-presets/src/index.ts)
 
 ```ts config-catalog
 /** The {@link PermissionPresetService} config: preset table and composition default. */
@@ -5043,7 +5043,7 @@ export interface Config {
 
 ## `@panedesk/dsh-user-approval`
 
-- `source`: [`packages/interaction/user-approval/src/index.ts:139`](../packages/interaction/user-approval/src/index.ts)
+- `source`: [`packages/interaction/user-approval/src/index.ts:140`](../packages/interaction/user-approval/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */

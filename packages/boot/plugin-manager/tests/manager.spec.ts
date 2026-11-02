@@ -13,7 +13,7 @@ import { afterAll, beforeAll, expect, it, onTestFinished, vi } from 'vitest'
 import {
   boot, composeEntries, initProfile, loadProfileDirectory, readProfilePatches, readProfileManifest,
   reconcileProfilePatches, OPTIONAL_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG, PluginPackages, readPluginMeta, getDshRuntimeVersion,
-  type ProfileContext, type RuntimeResolution,
+  ProtectedInputIntegrity, type ProfileContext, type RuntimeResolution,
 } from '@panedesk/dsh-app-boot'
 import PluginManager, { type Config, type PluginChange, type PluginInstallLogChunk, type PluginInstallProgress, type PluginInstallRequestId } from '../src/index.ts'
 import Hmr from '@panedesk/dsh-hmr'
@@ -474,6 +474,22 @@ it.each([
     name: 'unnamed', version: '1.0.0', source: 'unnamed@1.0.0', enabled: false, installed: true, official: false, availability: 'profile', optional: false, removable: true,
     rows: [], overrides: [], ...expected,
   })
+})
+
+it('reports failed rather than applied when a protected profile edit is not confirmed', async () => {
+  const { ctx, manager, profile } = await fixture()
+  const home = mkdtempSync(join(tmpdir(), 'plugin-manager-owner-state-'))
+  onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
+  const id = (await manager.listPlugins()).find(row => row.patchId === 'managed')!.entryId
+  const integrity = new ProtectedInputIntegrity(profile.cwd, home)
+  for (const path of [join(profile.dir, 'package.json'), profile.patchPath,
+    join(profile.home, 'cordis.patch.yml'), ...profile.bundleInputPaths ?? []]) integrity.observe(path)
+  integrity.grantWrite()
+  profile.inputIntegrity = integrity
+  const result = await manager.setPluginEnabled(id, false)
+  expect(result.application).toBe('failed')
+  expect(result.error?.diagnostic).toContain('owner confirmation')
+  expect(ctx.get('managedProbe')).toBe(true)
 })
 
 it('turns a plugin off and on without leaving a patch override the bundle already implies', async () => {

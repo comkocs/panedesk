@@ -16,12 +16,14 @@ import {
   composeEntries,
   createRuntimeResolution,
   getDshRuntimeVersion,
+  grantProtectedWorkspace,
   initProfile,
   loadProfile,
   loadProfileDirectory,
   PROFILE_COMPATIBILITY_FILENAME,
   PROFILE_PATCH_FILENAME,
   PROFILE_TEMPLATES,
+  ProtectedInputIntegrity,
   readProfileManifest,
   readProfilePatches,
   removeLinkProjections,
@@ -91,6 +93,43 @@ const tmp = (): string => {
   tempRoots.push(dir)
   return dir
 }
+
+it('loads the approved profile patch after its writable copy is deleted offline', () => {
+  const workspace = tmp()
+  const home = tmp()
+  const installAnchor = stageInstallation({})
+  initProfile(workspace, [])
+  const patch = join(workspace, PROFILE_PATCH_FILENAME)
+  writeFileSync(patch, '- id: trusted\n  disabled: true\n')
+  const integrity = new ProtectedInputIntegrity(workspace, home)
+  integrity.observe(join(workspace, 'package.json'))
+  integrity.observe(patch)
+  integrity.grantWrite()
+  rmSync(patch)
+  const restarted = new ProtectedInputIntegrity(workspace, home)
+  const profile = loadProfileDirectory('panedesk', workspace, installAnchor, { integrity: restarted })
+  expect(profile.patches).toEqual([{ id: 'trusted', disabled: true }])
+})
+
+it('captures live host inputs supplied by the profile owner before granting workspace writes', () => {
+  const workspace = tmp()
+  const home = tmp()
+  const plugin = join(workspace, 'plugin')
+  mkdirSync(plugin)
+  const module = join(plugin, 'entry.js')
+  writeFileSync(module, 'initial')
+  const context = {
+    name: 'test', dir: home, patchPath: join(home, PROFILE_PATCH_FILENAME),
+    installAnchor: join(home, 'package.json'), cwd: workspace, home,
+    startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    protectedInputPaths: () => [plugin],
+  }
+  grantProtectedWorkspace(context, workspace, [])
+  writeFileSync(module, 'unconfirmed')
+  const restarted = new ProtectedInputIntegrity(workspace, home)
+  expect(restarted.covers(module)).toBe(true)
+  expect(() => restarted.readExecutable(module)).toThrow('requires owner confirmation')
+})
 
 /** Stage a fake installed app: package.json with deps and a node_modules holding bundles. */
 function stageInstallation(

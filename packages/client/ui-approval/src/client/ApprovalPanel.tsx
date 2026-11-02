@@ -73,7 +73,9 @@ function ApprovalFlow({ pending, reason, detail, t }: {
         >
           <div className={css.headline}>{pending.purpose?.type === 'workspace-write'
             ? t('workspaceWrite', { workspace: pending.purpose.workspace })
-            : reason ?? t('escalation', { toolName: pending.toolName })}</div>
+            : pending.purpose?.type === 'protected-input'
+              ? t('protectedInput', { path: pending.purpose.path, digest: pending.purpose.current })
+              : reason ?? t('escalation', { toolName: pending.toolName })}</div>
           {detail !== null && <div className={css.command}>{detail}</div>}
         </div>
         <div className={css.actionRow}>
@@ -81,7 +83,8 @@ function ApprovalFlow({ pending, reason, detail, t }: {
             {t('reject')}
           </Button>
           <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
-            {t(pending.purpose?.type === 'workspace-write' ? 'allowWorkspace' : 'allowOnce')}
+            {t(pending.purpose?.type === 'workspace-write' ? 'allowWorkspace'
+              : pending.purpose?.type === 'protected-input' ? 'allowProtectedInput' : 'allowOnce')}
           </Button>
         </div>
       </div>

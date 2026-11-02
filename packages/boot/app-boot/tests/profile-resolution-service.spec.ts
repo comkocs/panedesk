@@ -9,6 +9,7 @@ import { getEnvironmentData } from 'node:worker_threads'
 import { Context } from '@panedesk/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PluginPackages } from '../src/profile-resolution/service.ts'
+import { ProtectedInputIntegrity } from '../src/input-integrity.ts'
 import { createRuntimeResolution, initProfile, loadProfileDirectory, type RuntimeResolution } from '../src/profile.ts'
 
 const roots: string[] = []
@@ -53,6 +54,69 @@ function resolution(
 }
 
 describe('profile package metadata service', () => {
+  it('blocks changed CommonJS bytes without HMR and releases the load hook on disposal', async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-module-load-')))
+    roots.push(root)
+    const workspace = join(root, 'workspace')
+    const home = join(root, 'owner')
+    const entry = join(workspace, 'entry.cjs')
+    file(entry, 'module.exports = "trusted"')
+    const integrity = new ProtectedInputIntegrity(workspace, home)
+    integrity.observe(workspace)
+    integrity.grantWrite()
+    const ctx = new Context()
+    contexts.push(ctx)
+    ctx.provide('profileContext', {
+      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
+      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
+      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+    })
+    await ctx.plugin(PluginPackages)
+    writeFileSync(entry, 'module.exports = "changed"')
+    const require = createRequire(join(workspace, 'caller.cjs'))
+    expect(() => { require(entry) }).toThrow('requires owner confirmation')
+    expect(await integrity.verify({ blocked() {}, confirm: async () => true })).toBe(true)
+    expect(require(entry)).toBe('changed')
+    Reflect.deleteProperty(require.cache, entry)
+    writeFileSync(entry, 'module.exports = "after-disposal"')
+    await ctx.fiber.dispose()
+    expect(require(entry)).toBe('after-disposal')
+    Reflect.deleteProperty(require.cache, entry)
+  })
+
+  it('checks native dynamic imports and newly added modules without HMR', async () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-dynamic-load-')))
+    roots.push(root)
+    const workspace = join(root, 'workspace')
+    const home = join(root, 'owner')
+    const entry = join(workspace, 'entry.mjs')
+    const caller = join(root, 'caller.cjs')
+    file(caller, 'module.exports = (url) => import(url)')
+    file(entry, 'export const value = "trusted"')
+    const integrity = new ProtectedInputIntegrity(workspace, home)
+    integrity.observe(workspace)
+    integrity.grantWrite()
+    const ctx = new Context()
+    contexts.push(ctx)
+    ctx.provide('profileContext', {
+      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
+      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
+      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+    })
+    await ctx.plugin(PluginPackages)
+    const require = createRequire(caller)
+    const load = require(caller) as (url: string) => Promise<{ value: string }>
+    expect(await load(pathToFileURL(entry).href)).toMatchObject({ value: 'trusted' })
+    const dynamic = join(workspace, 'dynamic.mjs')
+    file(dynamic, 'export const value = "new"')
+    await expect(load(pathToFileURL(dynamic).href)).rejects.toThrow('requires owner confirmation')
+    expect(await integrity.verify({ blocked() {}, confirm: async () => true })).toBe(true)
+    expect(await load(pathToFileURL(dynamic).href + '?approved')).toMatchObject({ value: 'new' })
+    writeFileSync(entry, 'export const value = "changed"')
+    await expect(load(pathToFileURL(entry).href + '?changed')).rejects.toThrow('requires owner confirmation')
+    Reflect.deleteProperty(require.cache, caller)
+  })
+
   it('refreshes the installed resolution from its own profile and installation', async () => {
     const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'dsh-package-service-refresh-')))
     roots.push(root)

@@ -426,6 +426,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when no turn is open or either audit event fails before the session append commit point.'],
       },
       {
+        signature: 'async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome>',
+        description: 'Ask an authenticated owner about a host input, including between model turns. Passive inbox notices retain the refusal and decision without starting a model request.',
+        parameters: [{ name: 'agent', description: 'Session whose workspace contains the protected input.' }, { name: 'purpose', description: 'Exact path identity and content digest awaiting consent.' }],
+        returns: 'Only allowed-once authorizes this candidate; unattended sessions never prompt.',
+      },
+      {
         signature: 'overrideOf(session: Session): ApprovalPolicy | undefined',
         description: 'Read the session override without applying the configured default.',
         parameters: [{ name: 'session', description: 'session whose log supplies the override.' }],
@@ -2497,6 +2503,26 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Current profile facts; scheduling and mutation belong to their callers.',
     description: 'Current profile facts; scheduling and mutation belong to their callers.',
     methods: [
+      {
+        signature: 'inputIntegrity?: ProtectedInputIntegrity',
+        description: 'Launcher-owned approvals retained across HMR service replacements.',
+        parameters: [],
+      },
+      {
+        signature: 'inputIntegrities?: Map<string, ProtectedInputIntegrity>',
+        description: 'Workspace-specific records owned by this launched profile, including non-launch session roots.',
+        parameters: [],
+      },
+      {
+        signature: 'protectedInputPaths?: () => readonly string[]',
+        description: 'Launcher-owned live inventory, evaluated before each workspace write grant.',
+        parameters: [],
+      },
+      {
+        signature: 'protectedWorkspaceRoot?: () => string',
+        description: 'Launcher-owned policy root for sessions without an explicit cwd.',
+        parameters: [],
+      },
       {
         signature: 'readonly packageManager?: ProfilePnpmInvocation',
         description: 'Packaged applications supply their bundled runtime instead of a PATH executable.',
@@ -7212,6 +7238,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApprovalPolicy = \'ask\' | \'never\';',
   },
   {
+    name: 'ApprovalPurpose',
+    declaration: 'export type ApprovalPurpose = WorkspaceWriteApproval | ProtectedInputApproval;',
+  },
+  {
     name: 'ApprovalQueueView',
     declaration: 'export interface ApprovalQueueView {\n    enabled: boolean;\n    items: readonly import(\'@panedesk/dsh-seat\').PendingSeatObservation[];\n    complete: boolean;\n    rejected?: NonNullable<import(\'@panedesk/dsh-seat\').ListPendingSeatsResult[\'rejected\']>;\n    alerts?: readonly {\n        id: string;\n        seat: import(\'@panedesk/dsh-seat\').SeatName;\n        phase: \'expiring\' | \'expired\';\n    }[];\n}',
   },
@@ -7221,7 +7251,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalRequestEvent',
-    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly purpose?: WorkspaceWriteApproval;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly purpose?: ApprovalPurpose;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
   },
   {
     name: 'ApprovePendingSeatRequest',
@@ -10148,8 +10178,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PromptSubmitResult = {\n    text: string;\n    context?: readonly string[];\n    drop?: undefined;\n} | {\n    drop: string;\n    text?: undefined;\n    context?: undefined;\n};',
   },
   {
+    name: 'ProtectedInputApproval',
+    declaration: 'export interface ProtectedInputApproval {\n    readonly type: \'protected-input\';\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
+  },
+  {
+    name: 'ProtectedInputChange',
+    declaration: 'export interface ProtectedInputChange {\n    readonly path: string;\n    readonly previous: string;\n    readonly current: string;\n}',
+  },
+  {
     name: 'ProtectedInputEnforcement',
     declaration: 'export type ProtectedInputEnforcement = {\n    path: string;\n} & ({\n    enforcement: \'native\';\n} | {\n    enforcement: \'host-fallback\';\n    reason: \'unrepresentable\' | \'link-name\';\n});',
+  },
+  {
+    name: 'ProtectedInputIntegrity',
+    declaration: 'export class ProtectedInputIntegrity {\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(): void;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
+  },
+  {
+    name: 'ProtectedInputOwner',
+    declaration: 'export interface ProtectedInputOwner {\n    confirm(change: ProtectedInputChange): Promise<boolean>;\n    blocked(change: ProtectedInputChange): void;\n}',
   },
   {
     name: 'ProviderRequestId',

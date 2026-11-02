@@ -14,7 +14,7 @@
 
 ## 平台行为
 
-Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
+Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
 
 | 平台 | 沙盒方式 | 写权限来源 | Bash 缺省 | 已知限制 |
 | --- | --- | --- | --- | --- |

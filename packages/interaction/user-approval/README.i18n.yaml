@@ -24,11 +24,11 @@
   en: 037337b458808a4d
   zh: 8399862e90e7bf8e
 /panedesk-dsh-user-approval/use-this-package/requesting-a-decision:
-  en: 3231972a83ee3eee
-  zh: f6318c37be9342de
+  en: 2f684ee812c195f7
+  zh: 869e5e748d81ddbf
 /panedesk-dsh-user-approval/use-this-package/what-the-model-and-user-see:
-  en: 016bf3cd1891d3d7
-  zh: 33e7e5ffaf95f5e7
+  en: 7ff651fffec560c2
+  zh: 277c1918669a2b07
 /panedesk-dsh-user-approval/understand-the-implementation:
   en: d07be7ba08baf010
   zh: 665e68e9188e5d60
@@ -36,8 +36,8 @@
   en: ac27642b3a91082f
   zh: 769a56eaad4218f7
 /panedesk-dsh-user-approval/understand-the-implementation/dispatch:
-  en: 38c3646e45d3dddd
-  zh: 3363dde8c786d6b2
+  en: 45feb5a39eba032f
+  zh: c703d50c93671943
 /panedesk-dsh-user-approval/understand-the-implementation/policy-and-the-runtime-context-snapshot:
   en: a8df8823aa0b015d
   zh: ed0906f11645e7fd
@@ -75,14 +75,14 @@
   en: fd0c40c0a6b4c967
   zh: c7e18063e11080e9
 /panedesk-dsh-user-approval/model-experience/tool-outcome/token-effect:
-  en: 972a63ca590fecde
-  zh: 217b63d98365dbdb
+  en: ea15f7a78e138b20
+  zh: 45a4c7ff24ae0f5d
 /panedesk-dsh-user-approval/model-experience/tool-outcome/kv-cache-effect:
   en: f5d5f97a153f7c70
   zh: 4db81881ebdcfcc4
 /panedesk-dsh-user-approval/known-limitations-and-deferred-work:
-  en: c3999f52472aeca2
-  zh: deccbb2f7b5bae9f
+  en: a9576e63e4f7c1d2
+  zh: 80b9b6cbd301a828
 /panedesk-dsh-user-approval/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98
