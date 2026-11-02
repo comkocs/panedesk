@@ -2981,6 +2981,9 @@ importers:
       '@panedesk/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../api/gateway
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../../fs/fs
@@ -2990,9 +2993,21 @@ importers:
       '@panedesk/dsh-permission-presets':
         specifier: workspace:*
         version: link:../../interaction/permission-presets
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-session-query':
         specifier: workspace:*
         version: link:../../session-query/session-query
@@ -13659,6 +13674,9 @@ importers:
 
   packages/sandbox/sandbox-local:
     dependencies:
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths

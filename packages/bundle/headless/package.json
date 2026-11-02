@@ -58,7 +58,9 @@
     "@panedesk/dsh-api-gateway": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/dsh-user-approval": "workspace:*",
-    "@panedesk/dsh-permission-presets": "workspace:*"
+    "@panedesk/dsh-permission-presets": "workspace:*",
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
@@ -67,6 +69,9 @@
     "@panedesk/dsh-agent-default-model": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-sandbox-local": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-query": "workspace:*",
@@ -74,7 +79,9 @@
     "@panedesk/dsh-api-gateway": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
     "@panedesk/dsh-user-approval": "workspace:*",
-    "@panedesk/dsh-permission-presets": "workspace:*"
+    "@panedesk/dsh-permission-presets": "workspace:*",
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@panedesk/dsh-api-gateway": {

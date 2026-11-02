@@ -41,13 +41,16 @@ The agent works through the task, streams each non-empty provider reasoning delt
 
 New and resumed unattended headless sessions use the `never` approval policy and do not send approval prompts. A run with an authenticated answering owner event stream already connected during Agent setup retains its configured or stored policy; connecting later does not lift `never`. Windows implicit read-only remains read-only until the owner preauthorizes the workspace in Settings > General > Windows workspace write access; explicit file-access modes are unchanged.
 
-The task and run options are supplied through three settings:
+Inspect confinement without submitting a task using `panedesk --profile headless --sandbox-status en --json` (`zh` selects Chinese). The single `sandbox-status` JSON object reports enforcement, `hostFallbackCount`, a localized count, and the complete `protectedInputs` list with fallback reasons. It creates no Agent, reads no stdin, requests no model, and grants no workspace access. Missing host coverage fails closed; an unconfined permission mode is reported explicitly. Native Windows or older Landlock limitations remain `partial` even when host fallback is covered. Omit `--json` for a readable list; do not combine status with a task or `--session-id`.
+
+The task and diagnostic options are supplied through these settings:
 
 | Field | Default | Meaning |
 |---|---|---|
 | `task` | stdin | The task text; stdin supplies it when omitted or `-` |
 | `sessionId` | `session-<uuid>` | Exact Session identity to adopt; an unknown id fails |
 | `json` | `false` | Project the run as newline-delimited events on stdout |
+| `sandboxStatus` | absent | Inspect sandbox enforcement instead of running a task; `en` or `zh` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-headless) is the exhaustive source for every accepted field and its JSDoc.
 

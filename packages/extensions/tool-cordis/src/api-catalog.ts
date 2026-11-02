@@ -2692,6 +2692,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the argv to spawn instead, plus the enforcement completeness the selected backend achieves for it.',
       },
       {
+        signature: 'inspect?(policy: SandboxPolicy): Pick<ConfinedArgv, \'enforcement\' | \'protectedInputs\'>',
+        description: 'Inspect enforcement without spawning a command or materializing write grants. Providers without this operation cannot supply a read-only status report.',
+        parameters: [{ name: 'policy', description: 'Resolved file policy to inspect.' }],
+        returns: 'Backend completeness and protected-input inventory; rejects unavailable coverage.',
+      },
+      {
         signature: 'hasWorkspaceWriteGrant?(workspaceRoot: string): boolean',
         description: 'Inspect a persistent workspace capability without granting access.',
         parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],

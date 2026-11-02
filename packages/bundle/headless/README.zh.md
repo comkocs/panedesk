@@ -41,13 +41,16 @@ agent 会完成该任务，把提供方的每个非空推理（reasoning）增�
 
 新建与恢复的无人值守 headless 会话使用 `never` 审批策略，不发送审批提示。若 Agent 初始化时已经连接可应答的认证 owner 事件流，则保留配置或存量策略；稍后连接不会解除 `never`。Windows 隐式只读保持只读，直到 owner 在设置 > 通用 > Windows 工作区写权限中预授权该工作区；显式文件访问模式不变。
 
-任务与运行选项通过三个设置提供：
+使用 `panedesk --profile headless --sandbox-status zh --json` 可在不提交任务的情况下检查沙盒（`en` 选择英文）。单个 `sandbox-status` JSON 对象报告强制执行等级、`hostFallbackCount`、本地化的“N 项由宿主兜底”及含兜底原因的完整 `protectedInputs` 清单。它不创建 Agent、不读 stdin、不请求模型、不授予工作区权限。宿主覆盖缺失时拒绝；未隔离权限模式会明确报告。即使宿主兜底已覆盖，Windows 或旧版 Landlock 的原生限制仍为 `partial`。省略 `--json` 可获得可读清单；状态查询不能与任务或 `--session-id` 合用。
+
+任务与诊断选项通过以下设置提供：
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `task` | stdin | 任务文本；省略或传 `-` 时由 stdin 提供 |
 | `sessionId` | `session-<uuid>` | 要沿用的精确 Session 标识；未知 id 会失败 |
 | `json` | `false` | 把本次运行投影为 stdout 上的按行 JSON 事件 |
+| `sandboxStatus` | 未设置 | 检查沙盒强制执行而不运行任务；取值 `en` 或 `zh` |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-headless)是所有受支持字段及其 JSDoc 的完整真源。
 

@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { Context } from '@panedesk/cordis'
+import { coveredContext } from './host-coverage-fixture.ts'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { SessionId } from '@panedesk/dsh-session'
@@ -33,7 +33,7 @@ for (const platform of ['linux', 'darwin', 'win32']) for (const effect of effect
       writeFileSync(target, 'owner')
       symlinkSync(target, input)
     } else if (effect !== 'create absent input') writeFileSync(input, 'owner')
-    const ctx = new Context()
+    const ctx = coveredContext(workspace, input)
     onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
     native.allows = []; native.denies = []
     await ctx.plugin(LocalSandboxProvider)
@@ -43,6 +43,7 @@ for (const platform of ['linux', 'darwin', 'win32']) for (const effect of effect
     const handed = await provider.confine(['node', '-e', ''], {
       mode: 'workspace-write', workspaceRoot: workspace, protectedPaths: [input], sessionId: SessionId('protected-matrix'),
     })
+    expect(handed.enforcement).toBe(platform === 'win32' ? 'partial' : 'full')
     const text = handed.argv.join('\n')
     if (platform === 'linux') {
       expect(text).toContain(['--bind', workspace, workspace].join('\n'))

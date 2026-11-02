@@ -33,6 +33,7 @@ import {
   probe as defaultProbeLandlock,
 } from '@panedesk/node-addon-system/landlock-run'
 import { Context } from '@panedesk/cordis'
+import { protectedInputCovered } from '@panedesk/dsh-app-boot'
 import z from '@panedesk/schemastery'
 import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxExecutionPolicy, SandboxPolicy } from '@panedesk/dsh-sandbox'
@@ -334,29 +335,56 @@ export class LocalSandboxProvider extends SandboxProvider {
       protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
     }
     if (this.runnerCommand !== undefined) {
-      const protectedInputs = protectedInputRecords(policy, 'bwrap')
+      const protectedInputs = this.coveredInputs(policy, 'bwrap')
       return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
-        enforcement: protectedInputs.some(input => input.enforcement === 'host-fallback') ? 'partial' : 'full',
+        enforcement: 'full',
         protectedInputs,
         denialSignatures: DENIAL_SIGNATURES.runnerCommand,
         runnerFailureRules: [{ fatalSignatures: this.configuredRunnerFailureSignatures }],
       })
     }
     const selected = this.selectRunner(policy.mode)
+    const protectedInputs = this.coveredInputs(policy, selected.runner)
     const resolvedPolicy = policy
     const runnerArgv = selected.runner === 'windows-acl' && policy.requiresWorkspaceAuthorization
       ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
         () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
       : this.runnerArgv(selected.runner, policy)
-    const protectedInputs = protectedInputRecords(policy, selected.runner)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
-      enforcement: protectedInputs.some(input => input.enforcement === 'host-fallback') ? 'partial' : selected.enforcement,
+      enforcement: selected.enforcement,
       protectedInputs,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
       runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
     })
+  }
+
+  override inspect(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'> {
+    policy = {
+      ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
+      protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
+    }
+    const selected: SelectedRunner = this.runnerCommand === undefined
+      ? this.selectRunner(policy.mode) : { runner: 'bwrap', enforcement: 'full' }
+    const protectedInputs = this.coveredInputs(policy, selected.runner)
+    if (selected.runner === 'landlock') landlockProfileArgs(policy)
+    if (selected.runner === 'windows-acl' && policy.mode === 'workspace-write') {
+      assertTempRootOutsideWorkspace(policy.workspaceRoot, tmpdir())
+    }
+    return { enforcement: selected.enforcement, protectedInputs }
+  }
+
+  private coveredInputs(policy: SandboxPolicy, runner: SelectedRunner['runner']) {
+    const inputs = protectedInputRecords(policy, runner)
+    const profile = this.ctx.get('profileContext')
+    const uncovered = inputs.filter(input => input.enforcement === 'host-fallback'
+      && (profile === undefined || !protectedInputCovered(profile, input.path)))
+    if (uncovered.length) {
+      throw new SandboxUnavailableError(policy.mode,
+        `Protected host input has no fallback coverage: ${uncovered.map(input => input.path).join(', ')}. Restore owner-approved host input coverage before retrying.`)
+    }
+    return inputs
   }
 
   /**

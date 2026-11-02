@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import { expect, it, onTestFinished } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
+import { coveredContext } from './host-coverage-fixture.ts'
 
 it.each(['linux', 'darwin'])('keeps ordinary workspace writes while protecting nested inputs on %s', async (platform) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-workspace-'))
@@ -44,7 +45,7 @@ it.each(['linux', 'darwin'])('protects a linked input target with executable pla
   mkdirSync(workspace)
   writeFileSync(target, 'plugins: []\n')
   symlinkSync(target, alias)
-  const ctx = new Context()
+  const ctx = coveredContext(workspace, alias)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -67,7 +68,7 @@ it.each(['linux', 'darwin'])('protects a linked input target with executable pla
 it.each(['cordis.patch.yml', 'missing/ancestor/cordis.patch.yml'])('hands an absent input to host validation without creating mount points: %s', async (name) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-absent-'))
   const input = join(root, name)
-  const ctx = new Context()
+  const ctx = coveredContext(root, input)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -75,7 +76,7 @@ it.each(['cordis.patch.yml', 'missing/ancestor/cordis.patch.yml'])('hands an abs
   provider.internals = { platform: 'linux', probeBwrap: () => true }
   const handed = await provider.confine(['true'], { mode: 'workspace-write', workspaceRoot: root, protectedPaths: [input] })
   expect(handed.argv).not.toContain(input)
-  expect(handed.enforcement).toBe('partial')
+  expect(handed.enforcement).toBe('full')
   expect(handed).toHaveProperty('protectedInputs', [
     { path: input, enforcement: 'host-fallback', reason: 'unrepresentable' },
   ])

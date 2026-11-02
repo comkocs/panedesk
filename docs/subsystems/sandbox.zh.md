@@ -209,6 +209,14 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
 abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
 
 /**
+ * Inspect enforcement without spawning a command or materializing write grants.
+ * Providers without this operation cannot supply a read-only status report.
+ * @param policy Resolved file policy to inspect.
+ * @returns Backend completeness and protected-input inventory; rejects unavailable coverage.
+ */
+inspect?(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'>
+
+/**
  * Inspect a persistent workspace capability without granting access.
  * @param workspaceRoot - Absolute native workspace directory.
  * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
