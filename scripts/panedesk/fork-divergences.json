@@ -14042,7 +14042,7 @@
       "id": "protected-host-input-owner-confirmation",
       "description": "Persist granted-workspace input baselines and reject unconfirmed configuration, module, and Client artifact changes",
       "origin": "Host input integrity and owner approval integration",
-      "reason": "Capture registered host inputs before workspace write grants, persist trusted configuration copies outside the writable root, compare canonical targets and directory trees, and retain the running generation on refusal. Node module and Client artifact readers consume the compared bytes; direct profile recomposition rejects unconfirmed changes. Authenticated owner HMR decisions retain passive notices. Startup discovery across different workspace roots, complete write-grant inventories, and unattended non-HMR approval notices remain incomplete; recorded coverage is not a complete host input integrity guarantee.",
+      "reason": "Capture registered host inputs before workspace write grants, persist trusted configuration copies outside the writable root, compare canonical targets and directory trees, and retain the running generation on refusal. Node module and Client artifact readers consume the compared bytes; direct profile recomposition rejects unconfirmed changes. Authenticated owner HMR decisions retain passive notices. Startup opens all granted workspace records under the same owner home and rejects conflicting trusted copies; directory records retain descendant bytes. Complete write-grant inventories and unattended non-HMR approval notices remain incomplete; recorded coverage is not a complete host input integrity guarantee.",
       "match": {
         "type": "behavior",
         "paths": [

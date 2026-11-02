@@ -304,7 +304,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     if (failures.length > 1) throw new AggregateError(failures, 'panedesk: profile cleanup failed')
   })()
   try {
-    const inputIntegrity = new ProtectedInputIntegrity(process.cwd(), resolveDshHome())
+    const inputIntegrity = ProtectedInputIntegrity.openOwnerRecords(process.cwd(), resolveDshHome())
     const composed = await composeProfile(
       options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile, inputIntegrity,
     )
