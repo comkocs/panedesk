@@ -386,7 +386,10 @@ async function recompose(
     if (!await record.verify({
       blocked(change) { ctx.logger.warn('Protected host input requires owner confirmation: %s', change.path) },
       confirm: () => Promise.resolve(false),
-    })) throw new Error('Protected host input requires owner confirmation; the previous generation remains active.')
+    })) {
+      profile?.requestInputReview?.()
+      throw new Error('Protected host input requires owner confirmation; the previous generation remains active.')
+    }
   }
   const { requiredIds = [], running = [] } = options
   let applying = false

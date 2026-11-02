@@ -35,7 +35,7 @@ The base bundle enables HMR with `root: []` when the launcher supplies `profileC
 
 Existing configurations replace the module name `@panedesk/cordis-plugin-hmr` with `@panedesk/dsh-hmr`. The `hmr` service key, `baseDir`, `config`, `getLinked()`, `getOuterStack()`, `hmr/change` and `hmr/reload` remain available. The vendored package remains available; DSH profiles use this package.
 
-For recorded inputs in granted workspaces, HMR compares file bytes, directory trees, link targets, and ancestor identities before reloading; the baseline is captured before granting workspace write access and persists across restarts. A changed candidate requires authenticated owner confirmation; refusal keeps the running generation. Session matching uses its cwd or the launcher's policy workspace root. A matching unattended session receives a passive inbox notice without starting a model turn. Confirmation applies only to the displayed candidate, not general write access.
+For recorded inputs in granted workspaces, HMR compares file bytes, directory trees, link targets, and ancestor identities before reloading; the baseline is captured before granting workspace write access and persists across restarts. A changed candidate requires authenticated owner confirmation; refusal keeps the running generation. Session matching uses its cwd or the launcher's policy workspace root. A matching unattended session receives a passive inbox notice without starting a model turn. Confirmation applies only to the displayed candidate, not general write access. Profile-owned review and reload callbacks share HMR's transaction queue, so a newly ready owner can approve retained offline edits without racing a watcher reload; disposal removes those callbacks.
 
 ### Configuration
 

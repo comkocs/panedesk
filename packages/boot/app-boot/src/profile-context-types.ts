@@ -20,6 +20,12 @@ export interface ProfileContext {
   protectedInputPaths?: () => readonly string[]
   /** Launcher-owned policy root for sessions without an explicit cwd. */
   protectedWorkspaceRoot?: () => string
+  /** Schedule owner review without blocking a refused configuration operation. */
+  requestInputReview?: () => void
+  /** Reload approved inputs through the active HMR transaction queue when available. */
+  reloadProtectedInputs?: () => Promise<void>
+  /** Serialize owner review with the active configuration transaction. */
+  runInputReview?: (operation: () => Promise<void>) => Promise<void>
   /** Packaged applications supply their bundled runtime instead of a PATH executable. */
   readonly packageManager?: ProfilePnpmInvocation
   readonly dir: string
