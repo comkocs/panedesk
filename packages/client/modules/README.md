@@ -41,7 +41,7 @@ The application combo scripts carry only each plugin's `client.js` entry and reg
 
 An open Web page follows the Host's complete module graph through the HMR transport. Enabling an ordinary plugin adds its Loader entry; disabling it removes the entry and waits for its asynchronous effects before evicting unused modules and styles. Re-enabling loads one instance with its styles. Other Loader contributors and shared modules still needed by active entries remain loaded. Settings → Plugins → Plugin list shows page-local synchronization failures and offers retry without changing Host enablement.
 
-When the profile owns a granted protected-input record, initial bundles, rebuilt bundles, and newly requested chunks consume the bytes compared with that record's tree digest. An unconfirmed change rejects the read; a rejected rebuild leaves the published graph and previous artifact bytes unchanged. Package discovery and client declarations use verified manifest bytes; unconfirmed metadata cannot silently hide a client row or redirect its export. Source maps use the same verified-byte reader; a rejected map falls back to an identity map of the published bundle and logs a warning without exposing the unconfirmed map. Unprotected inputs retain asynchronous chunk reads. Owner confirmation and persistent records belong to [app-boot](../../boot/app-boot/README.md#profiles), not the browser registry.
+When the profile owns a granted protected-input record, initial bundles, rebuilt bundles, and newly requested chunks consume the bytes compared with that record's tree digest. An unconfirmed change rejects the read; a rejected rebuild leaves the published graph and previous artifact bytes unchanged. Protected rebuilds verify the tree even when entry metadata is unchanged, so a newly added chunk cannot bypass approval through the unchanged-entry shortcut. Package discovery and client declarations use verified manifest bytes; unconfirmed metadata cannot silently hide a client row or redirect its export. Source maps use the same verified-byte reader; a rejected map falls back to an identity map of the published bundle and logs a warning without exposing the unconfirmed map. Unprotected inputs retain asynchronous chunk reads. Owner confirmation and persistent records belong to [app-boot](../../boot/app-boot/README.md#profiles), not the browser registry.
 
 ### Host release changes
 
@@ -52,6 +52,8 @@ Every graph carries the Host release identity as `release`: this package's `vers
 The shell seeds a frozen module table ([`PLATFORM_MODULES`](../web/README.md#the-shared-module-table)); every dynamic bundle resolves its externals against exactly that baseline. `dsh.client.external` adds only exact non-baseline requests, each answered by the dynamic package row it names or an exact static-table key. Type-only imports are erased and create no request. Composition rejects malformed requests, missing suppliers, self-requests, and synchronous request cycles.
 
 ### Build requirements
+
+The Host registry imports profile-context declarations through app-boot's type-only entry, keeping host Session services out of the Client declaration program.
 
 The host serves built client bundles, so `pnpm run build` must have produced each `lib/client.js` before launch; a missing bundle fails activation loudly with one build instruction and a package/path list. Source launch maps host imports to TypeScript source but still consumes the built client export. The package accepts no plugin config of its own.
 

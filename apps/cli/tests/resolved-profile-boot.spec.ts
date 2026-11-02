@@ -86,7 +86,7 @@ describe('runProfile with an application-owned profile', () => {
     }
   })
 
-  it('boots from durable approved configuration before parsing offline workspace edits', async () => {
+  it.each(['granted-workspace', 'other-workspace'] as const)('boots trusted configuration before offline edits from %s', async (launch) => {
     const workspace = mkdtempSync(join(tmpdir(), 'dsh-protected-startup-'))
     const home = mkdtempSync(join(tmpdir(), 'dsh-protected-owner-'))
     homes.push(workspace, home)
@@ -106,7 +106,7 @@ describe('runProfile with an application-owned profile', () => {
     writeFileSync(patch, '[invalid-yaml')
     writeFileSync(overlay, '[invalid-yaml')
     vi.stubEnv('PANEDESK_HOME', home)
-    vi.spyOn(process, 'cwd').mockReturnValue(workspace)
+    vi.spyOn(process, 'cwd').mockReturnValue(launch === 'granted-workspace' ? workspace : home)
     vi.spyOn(process, 'on').mockReturnValue(process)
     vi.mocked(installProxyFromEnvironment).mockResolvedValue(async () => {})
     const ctx = new Context()

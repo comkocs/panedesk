@@ -1,4 +1,10 @@
 /** Protected-input decisions use authenticated owner transport even between turns. */
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { ClientModuleRegistry } from '../../../client/modules/src/index.ts'
+import { ProtectedInputIntegrity } from '@panedesk/dsh-app-boot'
 import { Context } from '@panedesk/cordis'
 import { SessionId } from '@panedesk/dsh-session'
 import { expect, it, onTestFinished, vi } from 'vitest'
@@ -58,6 +64,137 @@ it.each(['allowed-once', 'rejected'] as const)('records an idle owner decision w
   expect(f.agent.status).toBe('idle')
   expect(f.agent.session.snapshotEvents().some(event => event.type === 'turn/start')).toBe(false)
   expect(f.agent.inbox).toBeDefined()
+})
+
+it.each(['allowed-once', 'rejected'] as const)('reviews offline inputs after owner transport readiness without HMR: %s', async (outcome) => {
+  const f = await fixture()
+  const root = mkdtempSync(join(tmpdir(), 'owner-input-review-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const workspace = join(root, 'workspace')
+  mkdirSync(workspace)
+  const path = join(workspace, 'patch.yml')
+  writeFileSync(path, 'trusted')
+  const integrity = new ProtectedInputIntegrity(workspace, join(root, 'state'))
+  integrity.observe(path)
+  integrity.grantWrite()
+  writeFileSync(path, 'offline edit')
+  const notice = vi.spyOn(f.agent, 'inject')
+  f.ctx.provide('profileContext', {
+    name: 'review', cwd: workspace, dir: workspace, home: join(root, 'state'),
+    patchPath: path, installAnchor: workspace, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    inputIntegrity: integrity,
+  })
+  const frame = await f.events.next()
+  if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected startup input review')
+  expect(frame.value.request.purpose).toMatchObject({ type: 'protected-input', path })
+  expect((await f.reply(frame.value.eventId, outcome)).result.ok).toBe(true)
+  await vi.waitFor(() => {
+    if (outcome === 'allowed-once') expect(integrity.readTrusted(path)?.toString()).toBe('offline edit')
+    else expect(notice.mock.calls.some(([message]) => JSON.stringify(message).includes('rejected'))).toBe(true)
+  })
+  if (outcome === 'rejected') expect(integrity.readTrusted(path)?.toString()).toBe('trusted')
+  expect(f.agent.status).toBe('idle')
+})
+
+it.each([
+  ['new chunk', 'allowed-once'], ['new chunk', 'rejected'],
+  ['package replacement', 'allowed-once'], ['package replacement', 'rejected'],
+] as const)('keeps Client artifacts behind authenticated owner decisions: %s / %s', async (change, outcome) => {
+  const f = await fixture()
+  const root = mkdtempSync(join(tmpdir(), 'owner-client-input-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const workspace = join(root, 'node_modules', '@fixture', 'protected-client')
+  const home = join(root, 'state')
+  const entry = join(workspace, 'lib', 'client.js')
+  const chunk = join(workspace, 'lib', 'client.extra.js')
+  const writePackage = (generation: string): void => {
+    mkdirSync(join(workspace, 'lib'), { recursive: true })
+    writeFileSync(join(workspace, 'package.json'), JSON.stringify({
+      name: '@fixture/protected-client', exports: { './client': './lib/client.js', './package.json': './package.json' },
+      dsh: { client: { platform: 'web' } },
+    }))
+    writeFileSync(entry, `module.exports = { generation: "${generation}" }\n`)
+  }
+  writePackage('trusted')
+  const integrity = new ProtectedInputIntegrity(workspace, home)
+  integrity.observe(workspace)
+  integrity.grantWrite()
+  const client = new Context()
+  onTestFinished(() => client.fiber.dispose())
+  client.baseUrl = pathToFileURL(root).href + '/'
+  client.provide('loader', {
+    *entries() {
+      yield { options: { name: '@fixture/protected-client' }, fiber: {}, disabled: false,
+        parent: { tree: { ctx: { baseUrl: client.baseUrl } } } }
+    },
+  })
+  client.provide('profileContext', {
+    name: 'client-review', cwd: workspace, dir: workspace, home, patchPath: entry,
+    installAnchor: join(workspace, 'package.json'), startedBundles: [], overlays: [],
+    telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+  })
+  const service = new ClientModuleRegistry(client)
+  const before = service.graph()
+  const row = before.entries[0]
+  if (row === undefined) throw new Error('Protected Client row missing')
+  const request = (url: string) => service.fetchBundle(new Request(`http://localhost/${url}`))
+  const chunkUrl = `plugins/${row.id}/client.extra.js?rev=${row.rev}`
+  if (change === 'package replacement') {
+    rmSync(workspace, { recursive: true })
+    writePackage('replacement')
+  }
+  writeFileSync(chunk, 'module.exports = { candidate: true }\n')
+  await expect(request(chunkUrl)).rejects.toThrow('requires owner confirmation')
+  expect(() => service.rebuilt(row.id)).toThrow('requires owner confirmation')
+  expect(service.graph()).toBe(before)
+  expect(await (await request(row.url)).text()).toContain('trusted')
+  const verify = integrity.verify({
+    blocked() {},
+    confirm: async candidate => await f.ctx.approval.requestProtectedInput(f.agent, {
+      type: 'protected-input', ...candidate,
+    }) === 'allowed-once',
+  })
+  const frame = await f.events.next()
+  if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected Client artifact approval')
+  expect(frame.value.request.purpose).toMatchObject({ type: 'protected-input', path: workspace })
+  expect((await f.reply(frame.value.eventId, outcome)).result.ok).toBe(true)
+  expect(await verify).toBe(outcome === 'allowed-once')
+  if (outcome === 'allowed-once') {
+    service.rebuilt(row.id)
+    const approved = service.graph().entries[0]
+    if (approved === undefined) throw new Error('Approved Client row missing')
+    expect(await (await request(`plugins/${row.id}/client.extra.js?rev=${approved.rev}`)).text()).toContain('candidate: true')
+    expect(await (await request(approved.url)).text()).toContain(change === 'package replacement' ? 'replacement' : 'trusted')
+  } else {
+    await expect(request(chunkUrl)).rejects.toThrow('requires owner confirmation')
+    expect(service.graph()).toBe(before)
+    expect(await (await request(row.url)).text()).toContain('trusted')
+    expect(new ProtectedInputIntegrity(workspace, home).readTrusted(entry)?.toString()).toContain('trusted')
+  }
+  expect(f.agent.status).toBe('idle')
+  expect(f.agent.session.snapshotEvents().some(event => event.type === 'turn/start')).toBe(false)
+})
+
+it('retains offline input refusal notices without HMR in an unattended profile', async () => {
+  const f = await fixture()
+  setApprovalPolicy(f.agent.session, 'never')
+  const root = mkdtempSync(join(tmpdir(), 'unattended-input-review-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const path = join(root, 'patch.yml')
+  writeFileSync(path, 'trusted')
+  const integrity = new ProtectedInputIntegrity(root)
+  integrity.observe(path)
+  writeFileSync(path, 'offline edit')
+  const transport = vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent')
+  const notice = vi.spyOn(f.agent, 'inject')
+  f.ctx.provide('profileContext', {
+    name: 'unattended', cwd: root, dir: root, home: root, patchPath: path,
+    installAnchor: root, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+  })
+  await vi.waitFor(() => { expect(notice).toHaveBeenCalled() })
+  expect(transport).not.toHaveBeenCalled()
+  expect(integrity.readTrusted(path)?.toString()).toBe('trusted')
+  expect(f.agent.status).toBe('idle')
 })
 
 it('does not prompt an unattended session and retains a passive refusal notice', async () => {

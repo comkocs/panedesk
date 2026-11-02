@@ -52,7 +52,7 @@ kind: "package-reference"
 
 `request(req)` 指名 agent、工具、原因、可选的调用 id，以及一个中止信号。可选的 `purpose` 标识工作区同意并保留在审计事件中；其 `allowed-once` 结果表示同意该具名用途，不是通用的永久授权。可选的 `displayReason` 提供本地化展示文案，不改写日志中的原因。它要求当前处于尚未结束的轮次中：空闲或在轮次之间调用会在审计前抛出异常。中止会撤回问题——请求以 `cancelled` 结算，迟到的回答被丢弃。若任一审计事件在提交前失败，请求会被拒绝，而不会返回一项未记录的决定。
 
-`requestProtectedInput(agent, purpose)` 在轮次之间接受路径及原版本和候选版本的摘要。它只使用经过认证的 owner 运输，并写入被动、持久的收件提示，不唤醒模型。`never` 保留输入被阻止的提示而不弹确认；其他结果追加决定提示。等待时间使用 `workspaceWriteTimeoutMs`；只有 `allowed-once` 确认该候选版本。
+`requestProtectedInput(agent, purpose)` 在轮次之间接受路径及原版本和候选版本的摘要。它只使用经过认证的 owner 运输，并写入被动、持久的收件提示，不唤醒模型。`never` 保留输入被阻止的提示而不弹确认；其他结果追加决定提示。等待时间使用 `workspaceWriteTimeoutMs`；只有 `allowed-once` 确认该候选版本。对于已挂载的 profile，owner 运输就绪及新根 agent 会调度串行审核已保留的输入记录。有 HMR 时通过其事务应用已确认输入；没有 HMR 时，被动提示要求 owner 重启。直接重组拒绝也会调度同一审核，不阻塞等待弹窗。无人值守会话保留拒绝提示，始终不弹确认。新增 Client 分块及整包替换受同一精确候选版本决定约束；拒绝保留已发布的 Client 代次。
 
 返回经过认证的工作区写入允许结果前，已挂载的 profile 会把已登记的受保护输入捕获到可写根之外的持久 owner 状态中。捕获失败时，请求结算为 `unavailable` 并记录该结果，不授予写权。受保护输入确认独立于工作区授权，不会创建一般工作区写入授权。
 

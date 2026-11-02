@@ -18,6 +18,9 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./profile-context": {
+      "types": "./lib/types/profile-context-types.d.ts"
+    },
     "./worker/profile-resolution-bootstrap": {
       "types": "./lib/types/profile-resolution/worker-bootstrap.d.ts",
       "default": "./lib/worker/profile-resolution-bootstrap.js"

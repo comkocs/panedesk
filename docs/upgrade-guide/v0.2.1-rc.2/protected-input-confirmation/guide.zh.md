@@ -15,4 +15,6 @@ HMR 对启动工作区内已登记输入的变化要求经过认证的 owner 确
 
 编辑已登记宿主输入时保持经过认证的 owner 前端连接，核对展示的路径与摘要，仅对预期的候选版本选择「确认加载此版本」。使用 `never` 的会话不弹确认，保留被动收件提示而不启动模型轮次。owner 状态目录必须位于可写工作区之外；位置重叠会拒绝写授权。工作区记录未覆盖的外部输入保持原有重新加载行为。
 
+在运行中的应用之外修改输入时，使用模型沙盒之外的 owner 编辑器，然后沿用已有 owner home 启动 profile 并连接经过认证的 owner 前端。启动先读取已批准的配置副本，审核等待 owner 事件流就绪。逐件核对变化的已登记路径与候选摘要；有 HMR 时批准会调度重新加载，无 HMR 的 profile 则提示需要重启。不要通过删除或手改持久基线绕过拒绝。该流程不认证 Worker 或任意自定义加载器执行；参见[启动限制](../../../../packages/boot/app-boot/README.zh.md#known-limitations-and-deferred-work)。
+
 参见 [HMR](../../../../packages/boot/hmr/README.zh.md) 与[审批](../../../../packages/interaction/user-approval/README.zh.md)。

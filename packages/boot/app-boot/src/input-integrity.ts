@@ -23,6 +23,7 @@ interface InputSnapshot {
   kind: 'missing' | 'file' | 'directory' | 'link' | 'other'
   target: string | null
   content: string | null
+  files?: readonly { path: string; content: string }[]
 }
 
 function contains(root: string, path: string): boolean {
@@ -53,14 +54,32 @@ function identity(path: string): string {
   }
 }
 
-function snapshot(path: string, root: string, files?: Map<string, Buffer>): InputSnapshot {
+function treeStamp(path: string): string {
+  try {
+    const link = lstatSync(path, { bigint: true })
+    const target = statSync(path, { bigint: true })
+    return [realpathSync(path), ...[link, target].map(stat =>
+      `${stat.dev}:${stat.ino}:${stat.mode}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`)].join('\0')
+  } catch (error) {
+    if (missing(error)) return 'missing'
+    throw error
+  }
+}
+
+function snapshot(path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>()): InputSnapshot {
   const hash = createHash('sha256')
+  const copies: { path: string; content: string }[] = []
+  const capture = (filename: string): void => {
+    if (!stamps.has(filename)) stamps.set(filename, treeStamp(filename))
+  }
   for (let current = path; contains(root, current); current = dirname(current)) {
+    capture(current)
     hash.update(current).update('\0').update(identity(current)).update('\0')
     if (current === dirname(current)) break
   }
   const visited = new Set<string>()
   const walk = (filename: string): Buffer | null => {
+    capture(filename)
     hash.update(filename).update('\0').update(identity(filename)).update('\0')
     let stat: ReturnType<typeof statSync>
     try { stat = statSync(filename) } catch (error) {
@@ -79,6 +98,7 @@ function snapshot(path: string, root: string, files?: Map<string, Buffer>): Inpu
         }
         hash.update(bytes).update('\0')
         files?.set(filename, bytes)
+        copies.push({ path: filename, content: bytes.toString('base64') })
         return bytes
       } finally {
         closeSync(descriptor)
@@ -102,7 +122,10 @@ function snapshot(path: string, root: string, files?: Map<string, Buffer>): Inpu
     if (!missing(error)) throw error
   }
   const content = walk(path)?.toString('base64') ?? null
-  return { digest: hash.digest('hex'), kind, target, content }
+  for (const [filename, before] of stamps) {
+    if (treeStamp(filename) !== before) throw new Error(`Protected host input changed while being read: ${filename}`)
+  }
+  return { digest: hash.digest('hex'), kind, target, content, files: copies }
 }
 
 function parseSnapshot(value: unknown): InputSnapshot {
@@ -116,7 +139,19 @@ function parseSnapshot(value: unknown): InputSnapshot {
   if (kind !== 'missing' && kind !== 'file' && kind !== 'directory' && kind !== 'link' && kind !== 'other') {
     throw new Error('Invalid protected host input type')
   }
-  return { digest: value.digest, kind, target: value.target, content: value.content }
+  const files: { path: string; content: string }[] = []
+  if ('files' in value) {
+    if (!Array.isArray(value.files)) throw new Error('Invalid protected input copies')
+    const entries: unknown[] = value.files
+    for (const file of entries) {
+      if (typeof file !== 'object' || file === null || !('path' in file) || typeof file.path !== 'string'
+        || !('content' in file) || typeof file.content !== 'string') throw new Error('Invalid protected input copy')
+      files.push({ path: file.path, content: file.content })
+    }
+  }
+  return { digest: value.digest, kind, target: value.target, content: value.content,
+    ...'files' in value ? { files } : {},
+  }
 }
 
 /** A workspace's owner-approved input set; rejected reads never replace its baseline. */
@@ -129,6 +164,53 @@ export class ProtectedInputIntegrity {
   private granted: boolean
   private revision: string | undefined
   private verifying = false
+  private readonly ownerRecords: ProtectedInputIntegrity[] = []
+
+  /**
+   * Open every granted workspace for an owner before parsing any launch input.
+   * @param workspace Launch workspace; opening it does not grant write access.
+   * @param home Owner state root containing the durable workspace records.
+   * @returns A reader that rejects inconsistent overlapping records instead of reading current files.
+   */
+  static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity {
+    const reader = new ProtectedInputIntegrity(workspace, home)
+    const directory = join(resolve(home), 'windows-workspace-write', 'protected-inputs')
+    let names: string[]
+    try { names = readdirSync(directory) } catch (error) {
+      if (missing(error)) return reader
+      throw error
+    }
+    for (const name of names.sort()) {
+      if (!name.endsWith('.json')) continue
+      const filename = join(directory, name)
+      const parsed: unknown = JSON.parse(readFileSync(filename, 'utf8'))
+      if (typeof parsed !== 'object' || parsed === null || !('workspace' in parsed)
+        || typeof parsed.workspace !== 'string' || !isAbsolute(parsed.workspace)) {
+        throw new Error('Invalid protected workspace record')
+      }
+      const record = new ProtectedInputIntegrity(parsed.workspace, home)
+      if (record.record !== filename || !record.granted) throw new Error('Invalid protected workspace record location')
+      if (record.root !== reader.root) reader.ownerRecords.push(record)
+    }
+    const records = [reader, ...reader.ownerRecords]
+    const paths = new Set(records.flatMap(record => [...record.approved].flatMap(([path, value]) => [
+      ...value.kind === 'file' || value.content !== null ? [path] : [],
+      ...value.files?.map(file => file.path) ?? [],
+    ])))
+    for (const path of paths) {
+      let approved: Buffer | undefined
+      let found = false
+      for (const record of records.filter(record => record.covers(path))) {
+        const bytes = record.readTrusted(path)
+        if (found && (approved === undefined ? bytes !== undefined : bytes === undefined || !approved.equals(bytes))) {
+          throw new Error(`Conflicting protected host input records: ${path}`)
+        }
+        approved = bytes
+        found = true
+      }
+    }
+    return reader
+  }
 
   /**
    * @param workspace Absolute writable workspace whose executable inputs require confirmation.
@@ -146,20 +228,46 @@ export class ProtectedInputIntegrity {
       if (missing(error)) return
       throw error
     }
+    this.loadRecord(text)
+  }
+
+  private loadRecord(text: string): void {
     this.assertRecordLocation()
-    this.revision = text
     const parsed: unknown = JSON.parse(text)
     if (typeof parsed !== 'object' || parsed === null || !('version' in parsed) || parsed.version !== 1
       || !('workspace' in parsed) || parsed.workspace !== this.root || !('inputs' in parsed)
       || !Array.isArray(parsed.inputs)) throw new Error('Invalid protected workspace record')
     const inputs: unknown[] = parsed.inputs
+    const approved = new Map<string, InputSnapshot>()
     for (const item of inputs) {
       if (typeof item !== 'object' || item === null || !('path' in item) || typeof item.path !== 'string'
         || !contains(this.root, item.path) || !('snapshot' in item)) throw new Error('Invalid protected input path')
-      this.approved.set(item.path, parseSnapshot(item.snapshot))
-      this.observed.add(item.path)
+      const path = item.path
+      const value = parseSnapshot(item.snapshot)
+      if (value.files?.some(file => !isAbsolute(file.path) || !contains(path, file.path)) === true) {
+        throw new Error('Invalid protected input copy path')
+      }
+      approved.set(item.path, value)
     }
+    this.approved.clear()
+    for (const [path, value] of approved) {
+      this.approved.set(path, value)
+      this.observed.add(path)
+    }
+    this.revision = text
     this.granted = true
+  }
+
+  private refreshRecord(): void {
+    if (this.record === undefined || this.verifying) return
+    if (this.revision !== undefined) this.assertRecordLocation()
+    let text: string
+    try { text = readFileSync(this.record, 'utf8') } catch (error) {
+      if (!missing(error)) throw error
+      if (this.revision !== undefined) throw new Error('Protected workspace record disappeared')
+      return
+    }
+    if (text !== this.revision) this.loadRecord(text)
   }
 
   private inputPath(filename: string): string {
@@ -180,6 +288,7 @@ export class ProtectedInputIntegrity {
    */
   observe(filename: string): void {
     const path = this.inputPath(filename)
+    for (const record of this.ownerRecords) record.observe(filename)
     if (!contains(this.root, path)) return
     this.observed.add(path)
     if (this.record === undefined && !this.approved.has(path)) this.approved.set(path, snapshot(path, this.root))
@@ -187,10 +296,19 @@ export class ProtectedInputIntegrity {
 
   /** Capture the current owner inputs before publishing workspace write access; existing grants never reset trust. */
   grantWrite(): void {
+    this.refreshRecord()
     if (this.granted) return
     this.assertRecordLocation()
-    for (const path of this.observed) this.approved.set(path, snapshot(path, this.root))
-    this.persist()
+    const stamps = new Map<string, string>()
+    const candidates = new Map<string, InputSnapshot>()
+    for (const path of this.observed) candidates.set(path, snapshot(path, this.root, undefined, stamps))
+    const previous = new Map(this.approved)
+    for (const [path, value] of candidates) this.approved.set(path, value)
+    try { this.persist() } catch (error) {
+      this.approved.clear()
+      for (const [path, value] of previous) this.approved.set(path, value)
+      throw error
+    }
     this.granted = true
   }
 
@@ -200,9 +318,11 @@ export class ProtectedInputIntegrity {
    * @returns Whether a granted baseline covers the path spelling.
    */
   covers(filename: string): boolean {
+    this.refreshRecord()
     const path = this.inputPath(filename)
-    return this.granted && [...this.approved].some(([root, value]) => root === path
-      || ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)))
+    return this.ownerRecords.some(record => record.covers(filename))
+      || this.granted && [...this.approved].some(([root, value]) => root === path
+        || ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)))
   }
 
   /**
@@ -211,18 +331,42 @@ export class ProtectedInputIntegrity {
    * @returns Approved bytes, current bytes before a grant, or undefined for an approved absent input.
    */
   readTrusted(filename: string): Buffer | undefined {
+    this.refreshRecord()
     const path = this.inputPath(filename)
-    if (!this.granted || !contains(this.root, path)) {
-      try { return readFileSync(path) } catch (error) {
-        if (missing(error)) return undefined
-        throw error
+    const copies = this.ownerRecords.filter(record => record.covers(filename)).map(record => record.readTrusted(filename))
+    if (this.granted && contains(this.root, path)) copies.push(this.readLocalTrusted(path))
+    if (copies.length > 0) {
+      const first = copies[0]
+      if (copies.some(bytes => first === undefined ? bytes !== undefined : bytes === undefined || !first.equals(bytes))) {
+        throw new Error(`Conflicting protected host input records: ${path}`)
+      }
+      return first
+    }
+    try { return readFileSync(path) } catch (error) {
+      if (missing(error)) return undefined
+      throw error
+    }
+  }
+
+  private readLocalTrusted(path: string): Buffer | undefined {
+    const copies: (Buffer | undefined)[] = []
+    for (const [root, value] of this.approved) {
+      if (root === path) {
+        if (value.content !== null) copies.push(Buffer.from(value.content, 'base64'))
+        else if (value.kind === 'missing') copies.push(undefined)
+        else throw new Error(`Protected host input is not a configuration file: ${path}`)
+      } else if ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)) {
+        if (value.files === undefined) throw new Error(`Protected host input has no approved copy: ${path}`)
+        const file = value.files.find(file => file.path === path)
+        copies.push(file === undefined ? undefined : Buffer.from(file.content, 'base64'))
       }
     }
-    const value = this.approved.get(path)
-    if (value === undefined) throw new Error(`Protected host input has no approved copy: ${path}`)
-    if (value.content !== null) return Buffer.from(value.content, 'base64')
-    if (value.kind === 'missing') return undefined
-    throw new Error(`Protected host input is not a configuration file: ${path}`)
+    if (copies.length === 0) throw new Error(`Protected host input has no approved copy: ${path}`)
+    const first = copies[0]
+    if (copies.some(bytes => first === undefined ? bytes !== undefined : bytes === undefined || !first.equals(bytes))) {
+      throw new Error(`Conflicting protected host input records: ${path}`)
+    }
+    return first
   }
 
   /**
@@ -232,6 +376,17 @@ export class ProtectedInputIntegrity {
    * @throws When a protected executable has changed or was not recorded before write access.
    */
   readExecutable(filename: string): Buffer | undefined {
+    this.refreshRecord()
+    const copies = [this.readLocalExecutable(filename), ...this.ownerRecords.map(record => record.readExecutable(filename))]
+      .filter(bytes => bytes !== undefined)
+    const first = copies[0]
+    if (first !== undefined && copies.some(bytes => !first.equals(bytes))) {
+      throw new Error(`Conflicting protected host input records: ${filename}`)
+    }
+    return first
+  }
+
+  private readLocalExecutable(filename: string): Buffer | undefined {
     if (!this.granted) return undefined
     const path = this.inputPath(filename)
     const roots = [...this.approved].flatMap(([root, value]) => {
@@ -246,9 +401,10 @@ export class ProtectedInputIntegrity {
     })
     if (roots.length === 0 && !contains(this.root, path)) return undefined
     let bytes: Buffer | undefined
+    const stamps = new Map<string, string>()
     for (const { root, value, candidate } of roots) {
       const files = new Map<string, Buffer>()
-      const current = snapshot(root, this.root, files)
+      const current = snapshot(root, this.root, files, stamps)
       if (current.digest !== value.digest) throw new Error(`Protected host input requires owner confirmation: ${root}`)
       const content = files.get(candidate)
       if (content !== undefined) {
@@ -294,18 +450,22 @@ export class ProtectedInputIntegrity {
    * @returns Whether every input still matches its approved identity and bytes; ungranted workspaces need no approval.
    */
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
-    if (!this.granted) return true
     if (this.verifying) throw new Error('Protected host input verification is already pending')
+    this.refreshRecord()
     this.verifying = true
-    try { return await this.verifyCandidate(owner) } finally { this.verifying = false }
+    try {
+      for (const record of this.ownerRecords) if (!await record.verify(owner)) return false
+      return !this.granted || await this.verifyCandidate(owner)
+    } finally { this.verifying = false }
   }
 
   private async verifyCandidate(owner: ProtectedInputOwner): Promise<boolean> {
     const changes: ProtectedInputChange[] = []
     const candidates = new Map<string, InputSnapshot>()
+    const captured = new Map<string, string>()
     for (const path of this.observed) {
       const previous = this.approved.get(path)?.digest ?? 'unrecorded'
-      const value = snapshot(path, this.root)
+      const value = snapshot(path, this.root, undefined, captured)
       candidates.set(path, value)
       if (value.digest !== previous) changes.push({ path, previous, current: value.digest })
     }
@@ -313,8 +473,9 @@ export class ProtectedInputIntegrity {
       owner.blocked(change)
       if (!await owner.confirm(change)) return false
     }
+    const checked = new Map<string, string>()
     for (const [path, candidate] of candidates) {
-      const current = snapshot(path, this.root).digest
+      const current = snapshot(path, this.root, undefined, checked).digest
       if (current !== candidate.digest) {
         owner.blocked({ path, previous: candidate.digest, current })
         return false

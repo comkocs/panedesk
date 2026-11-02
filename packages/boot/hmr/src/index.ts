@@ -444,6 +444,15 @@ class Hmr extends Service {
         lastBundles = bundles
         for (const diagnostic of warnings) this.ctx.logger.warn(diagnostic)
       }
+      const reloadProtectedInputs = (): Promise<void> => refresh(false)
+      const runInputReview = (operation: () => Promise<void>): Promise<void> => this.runExclusive(operation)
+      profile.reloadProtectedInputs = reloadProtectedInputs
+      profile.runInputReview = runInputReview
+      yield () => {
+        if (profile.reloadProtectedInputs === reloadProtectedInputs) delete profile.reloadProtectedInputs
+        if (profile.runInputReview === runInputReview) delete profile.runInputReview
+        return Promise.resolve()
+      }
       for (const filename of patchFiles) await this.watchConfig(filename, () => refresh(false))
       await this.watchConfig(manifestPath, () => refresh(true))
     }

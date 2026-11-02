@@ -336,7 +336,7 @@ Source: [`packages/client/ui-plugin-manager/src/index.ts`](../../packages/client
 
 Current profile facts; scheduling and mutation belong to their callers.
 
-Source: [`packages/boot/app-boot/src/profile-context.ts`](../../packages/boot/app-boot/src/profile-context.ts)
+Source: [`packages/boot/app-boot/src/profile-context-types.ts`](../../packages/boot/app-boot/src/profile-context-types.ts)
 
 <a id="app-boot-events"></a>
 

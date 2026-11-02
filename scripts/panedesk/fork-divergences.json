@@ -14042,7 +14042,7 @@
       "id": "protected-host-input-owner-confirmation",
       "description": "Persist granted-workspace input baselines and reject unconfirmed configuration, module, and Client artifact changes",
       "origin": "Host input integrity and owner approval integration",
-      "reason": "Capture registered host inputs before workspace write grants, persist trusted configuration copies outside the writable root, compare canonical targets and directory trees, and retain the running generation on refusal. Node module and Client artifact readers consume the compared bytes; direct profile recomposition rejects unconfirmed changes. Sandbox fallback checks require recorded host coverage before command preparation; real profile reloads reject missing-name creation and link replacement without replacing the running generation. Authenticated owner HMR decisions retain passive notices. Startup discovery across different workspace roots, complete write-grant inventories, and unattended non-HMR approval notices remain incomplete; recorded coverage is not a complete host input integrity guarantee.",
+      "reason": "Capture registered host inputs before workspace write grants, persist trusted configuration copies outside the writable root, compare canonical targets and directory trees, and retain the running generation on refusal. Node module and Client artifact readers consume the compared bytes; direct profile recomposition rejects unconfirmed changes. Sandbox fallback checks require recorded host coverage before command preparation; real profile reloads reject missing-name creation and link replacement without replacing the running generation. Authenticated owner transport readiness schedules input review through the HMR transaction queue; profiles without HMR retain passive refusal or restart notices without waking the model. Startup opens all granted workspace records under the same owner home and rejects conflicting trusted copies; directory records retain descendant bytes and capture checks span registered linked roots. Client chunk additions and whole-package replacement require exact owner decisions, including unchanged-entry rebuilds. Existing readers refresh changed durable records and refuse deletion; in-flight approvals retain compare-and-swap rejection. Complete write-grant inventories, Worker and custom-loader coverage, stale-lock recovery, and atomic multi-record commits remain incomplete; recorded coverage is not a complete host input integrity guarantee.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -14051,6 +14051,13 @@
           "README.i18n.yaml",
           "packages/boot/app-boot/src/index.ts",
           "packages/boot/app-boot/src/input-integrity.ts",
+          "packages/boot/app-boot/src/profile-context-types.ts",
+          "packages/boot/app-boot/package.json",
+          "tsconfig.base.json",
+          "packages/api/gateway/src/types.ts",
+          "packages/api/gateway/src/index.ts",
+          "packages/api/gateway/tests/gateway-stream.host.spec.ts",
+          "packages/api/gateway/README*",
           "apps/cli/src/profile-boot.ts",
           "apps/cli/tests/resolved-profile-boot.spec.ts",
           "docs/module-graph*",
@@ -14101,6 +14108,10 @@
           "packages/extensions/tool-cordis/src/api-catalog.ts",
           "scripts/gen-cordis-catalog.ts",
           "docs/upgrade-guide/v0.2.1-rc.2/protected-input-confirmation/**",
+          "benchmarks/protected-plugin-load/**",
+          "benchmarks/package.json",
+          "benchmarks/tsdown.config.ts",
+          ".agents/notes/implemented/testing/2026-11-03-protected-plugin-load-benchmark*",
           "pnpm-lock.yaml"
         ],
         "test": "packages/boot/hmr/tests/profile.spec.ts"

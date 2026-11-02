@@ -442,6 +442,12 @@ interface TypertGateway {
    */
   hasLiveClient(): boolean
   /**
+   * Observe authenticated owner streams after their opening frame has been consumed.
+   * @param listener Synchronous scheduler; its failure is logged without closing the transport.
+   * @returns Disposer cancelling future notifications, including a queued initial notification.
+   */
+  onOwnerReady(listener: () => void): () => Promise<void>
+  /**
    * Send a scoped interaction directly to authenticated owner Clients, without Host event listeners.
    * @param event - forwarded Client event name.
    * @param request - request carrying the direct Agent and optional cancellation signal.
@@ -669,6 +675,13 @@ Resolve strict generated definitions or conservative SRC markers against current
  * @returns whether an owner stream is open and has not been cancelled.
  */
 hasLiveClient(): boolean
+
+/**
+ * Observe authenticated owner streams after their opening frame has been consumed.
+ * @param listener Synchronous scheduler; its failure is logged without closing the transport.
+ * @returns Disposer cancelling future notifications, including a queued initial notification.
+ */
+onOwnerReady(listener: () => void): () => Promise<void>
 
 /**
  * Send a scoped interaction directly to authenticated owner Clients, without Host event listeners.

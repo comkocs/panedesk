@@ -1032,6 +1032,9 @@ importers:
       '@panedesk/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../packages/api/session-controller
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../packages/boot/app-boot
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../packages/util/brand

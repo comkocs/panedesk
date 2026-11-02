@@ -41,7 +41,7 @@ application combo 脚本只携带每个插件的 `client.js` 入口，并在启�
 
 已打开的 Web 页面通过 HMR 传输跟随 Host 的完整模块图。启用普通插件会添加其 Loader 条目；停用会移除条目，并在其异步 effect 完成清理后回收未使用的模块与样式。再次启用会加载一个带样式的实例。其他 Loader 贡献方的条目及活动条目仍需使用的共享模块会保留。「设置 → 插件 → 插件列表」显示当前页面的同步失败，并提供不改变 Host 启用状态的重试。
 
-当 profile 持有已授写权的受保护输入记录时，初次 bundle、重建 bundle 和新请求的 chunk 消费与记录树摘要比较过的同一份字节。未确认改动会使读取失败；重建被拒绝时，已发布的图与上一版产物字节保持不变。包发现和客户端声明使用已校验的清单字节；未确认的元数据不能静默隐藏客户端条目或重定向其导出。source map 使用同一已校验字节读取器；映射被拒绝时回退到已发布 bundle 的恒等映射并记录警告，不暴露未确认的映射。不受保护的输入仍采用异步 chunk 读取。owner 确认与持久记录归 [app-boot](../../boot/app-boot/README.zh.md#profiles) 管理，不由浏览器注册表管理。
+当 profile 持有已授写权的受保护输入记录时，初次 bundle、重建 bundle 和新请求的 chunk 消费与记录树摘要比较过的同一份字节。未确认改动会使读取失败；重建被拒绝时，已发布的图与上一版产物字节保持不变。受保护重建即使入口元数据未变也会验证整树，新增 chunk 不能通过入口未变的快捷路径绕过审批。包发现和客户端声明使用已校验的清单字节；未确认的元数据不能静默隐藏客户端条目或重定向其导出。source map 使用同一已校验字节读取器；映射被拒绝时回退到已发布 bundle 的恒等映射并记录警告，不暴露未确认的映射。不受保护的输入仍采用异步 chunk 读取。owner 确认与持久记录归 [app-boot](../../boot/app-boot/README.zh.md#profiles) 管理，不由浏览器注册表管理。
 
 <a id="host-release-changes"></a>
 ### Host release 变化
@@ -53,6 +53,8 @@ application combo 脚本只携带每个插件的 `client.js` 入口，并在启�
 外壳初始化一张冻结的模块表（[`PLATFORM_MODULES`](../web/README.zh.md#the-shared-module-table)）；每个动态 bundle 都精确针对该基座解析其 external。`dsh.client.external` 只添加基座之外的精确请求；系统会将每个请求解析到其指定的动态包 row 或完全匹配的静态表键。纯类型 import 会被擦除，不产生请求。组合阶段会拒绝畸形请求、缺失提供方、自请求与同步请求环。
 
 ### 构建要求
+
+宿主注册表通过 app-boot 的纯类型入口导入 profile-context 声明，避免将宿主 Session 服务带入 Client 声明编译面。
 
 宿主提供的是已构建的客户端 bundle，因此启动前 `pnpm run build` 必须已产出每个 `lib/client.js`；缺失 bundle 会明确导致激活失败，并给出一条构建说明及包／路径列表。源码启动会把宿主侧导入映射到 TypeScript 源码，但仍消费这一构建后的客户端导出。本包自身不接受任何插件配置。
 

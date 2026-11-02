@@ -33,7 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Service } from '@panedesk/cordis'
 import type { Context } from '@panedesk/cordis'
 import type { Entry } from '@panedesk/cordis-plugin-loader'
-import type {} from '@panedesk/dsh-app-boot'
+import type {} from '@panedesk/dsh-app-boot/profile-context'
 import type { IndexInjection } from '@panedesk/dsh-host-webserver'
 import { exactPackageSpecifier, parseDshClient, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootBatch, WebBootBatchPhase, WebBootEntry, WebBootGraph, WebBootRelease } from './client/manifest.ts'
@@ -742,7 +742,7 @@ export class ClientModuleRegistry extends Service {
   /**
    * Publish one completed bundle generation (the HMR watch's registration
    * hook — the only entry point through which build changes reach the graph).
-   * Unchanged mtime, ctime and size preserve the graph without reading the bundle.
+   * Unchanged mtime, ctime and size preserve the graph; protected trees are still verified.
    * @param id - entry id (package name).
    * @returns the current artifact rev, or undefined for an unknown id.
    */
@@ -751,8 +751,9 @@ export class ClientModuleRegistry extends Service {
     if (record === undefined) return undefined
     const baseline = this.captureArtifactBaseline(record.meta.clientPath)
     const rev = artifactRevision(baseline)
+    const protectedBundle = this.protectedArtifact(record.meta.clientPath)
     if (rev === record.entry.rev) return rev
-    const bundle = this.protectedArtifact(record.meta.clientPath) ?? readFileSync(record.meta.clientPath)
+    const bundle = protectedBundle ?? readFileSync(record.meta.clientPath)
     record.baseline = baseline
     record.entry = graphRow(id, rev, record.meta)
     record.bundle = bundle

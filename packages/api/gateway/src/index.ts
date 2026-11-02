@@ -130,6 +130,7 @@ interface RemoteEventClient {
   readonly principal: Principal
   /** Only owner streams receive scoped waterfalls they could answer; other Peers receive admitted broadcasts only. */
   readonly answers: boolean
+  ready: boolean
 }
 
 interface PendingRemoteEvent {
@@ -225,6 +226,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
   private remoteEvents: RegisteredRemoteEventSource | undefined
   private readonly remoteEventClients = new Map<RemoteEventClientId, RemoteEventClient>()
   private readonly pendingRemoteEvents = new Map<RemoteEventId, PendingRemoteEvent>()
+  private readonly ownerReadyListeners = new Set<() => void>()
 
   /**
    * Register the Gateway against the active Typert registry.
@@ -324,6 +326,25 @@ export class TypertGatewayService extends Service implements TypertGateway {
       if (client.answers && !client.signal.aborted) return true
     }
     return false
+  }
+
+  /**
+   * Observe authenticated owner streams after their opening frame has been consumed.
+   * @param listener Synchronous scheduler; its failure is logged without closing the transport.
+   * @returns Disposer cancelling future notifications, including a queued initial notification.
+   */
+  onOwnerReady(listener: () => void): () => Promise<void> {
+    return this.ctx.effect(() => {
+      const notify = (): void => {
+        try { listener() } catch (error) { this.ctx.logger.warn('Owner readiness listener failed: %s', error) }
+      }
+      this.ownerReadyListeners.add(notify)
+      queueMicrotask(() => {
+        if (this.ownerReadyListeners.has(notify)
+          && [...this.remoteEventClients.values()].some(client => client.answers && client.ready && !client.signal.aborted)) notify()
+      })
+      return () => { this.ownerReadyListeners.delete(notify) }
+    })
   }
 
   /**
@@ -583,6 +604,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
       principal: peer.principal,
       // oxlint-disable-next-line typescript/no-unnecessary-condition -- other packages merge non-owner kinds into PrincipalMap.
       answers: peer.principal.kind === 'owner',
+      ready: false,
     }
     this.remoteEventClients.set(clientId, client)
     if (client.answers) {
@@ -590,6 +612,10 @@ export class TypertGatewayService extends Service implements TypertGateway {
     }
     try {
       yield { ...REMOTE_EVENT_STREAM_READY, clientId, host: registration.host }
+      client.ready = true
+      if (client.answers && !lifetime.aborted) {
+        for (const notify of this.ownerReadyListeners) notify()
+      }
       yield* client.queue.iterate(lifetime)
     } finally {
       this.removeRemoteEventClient(client)
