@@ -33,6 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Service } from '@panedesk/cordis'
 import type { Context } from '@panedesk/cordis'
 import type { Entry } from '@panedesk/cordis-plugin-loader'
+import type {} from '@panedesk/dsh-app-boot'
 import type { IndexInjection } from '@panedesk/dsh-host-webserver'
 import { exactPackageSpecifier, parseDshClient, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootBatch, WebBootBatchPhase, WebBootEntry, WebBootGraph, WebBootRelease } from './client/manifest.ts'
@@ -751,7 +752,7 @@ export class ClientModuleRegistry extends Service {
     const baseline = this.captureArtifactBaseline(record.meta.clientPath)
     const rev = artifactRevision(baseline)
     if (rev === record.entry.rev) return rev
-    const bundle = readFileSync(record.meta.clientPath)
+    const bundle = this.protectedArtifact(record.meta.clientPath) ?? readFileSync(record.meta.clientPath)
     record.baseline = baseline
     record.entry = graphRow(id, rev, record.meta)
     record.bundle = bundle
@@ -975,6 +976,20 @@ export class ClientModuleRegistry extends Service {
     return `${baseUrl}\0${loaderName}`
   }
 
+  private protectedArtifact(clientPath: string): Buffer | undefined {
+    const profile = this.ctx.get('profileContext')
+    const records = new Set([...(profile?.inputIntegrities?.values() ?? []),
+      ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+    let bytes: Buffer | undefined
+    for (const record of records) {
+      const candidate = record.readExecutable(clientPath)
+      if (candidate === undefined) continue
+      if (bytes !== undefined && !bytes.equals(candidate)) throw new Error('Protected client artifact records disagree')
+      bytes = candidate
+    }
+    return bytes
+  }
+
   /** Capture the bundle stats before reading its bytes. */
   private captureArtifactBaseline(clientPath: string): ClientArtifactBaseline {
     const bundle = statSync(clientPath)
@@ -999,7 +1014,7 @@ export class ClientModuleRegistry extends Service {
   } {
     try {
       const baseline = this.captureArtifactBaseline(clientPath)
-      const bundle = readFileSync(clientPath)
+      const bundle = this.protectedArtifact(clientPath) ?? readFileSync(clientPath)
       return { bundle, baseline }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
@@ -1154,7 +1169,7 @@ export class ClientModuleRegistry extends Service {
       rev: record.entry.rev,
       clientPath,
       fileName,
-      bundle: await readFile(clientPath),
+      bundle: this.protectedArtifact(clientPath) ?? await readFile(clientPath),
     })
     const response: LazyResponse = sourceMap
       ? {

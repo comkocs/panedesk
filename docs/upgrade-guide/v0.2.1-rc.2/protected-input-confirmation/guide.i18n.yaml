@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/protected-input-confirmation/guide.md
+/:
+  en: 6b0a7442a171ef6b
+  zh: fe27356b3054a0fe
+/protected-input-confirmation:
+  en: 4476ba15b535a1c7
+  zh: 673a5d46b3a211bf
+/protected-input-confirmation/change:
+  en: 8048873b1baa2e81
+  zh: dbcb0f13233a2c60
+/protected-input-confirmation/migration:
+  en: 9bb3201e48fb6a75
+  zh: 8575d0772ccb9032

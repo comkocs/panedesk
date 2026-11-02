@@ -28,6 +28,12 @@
     },
     {
       "path": "../cmdline"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../interaction/user-approval"
     }
   ]
 }

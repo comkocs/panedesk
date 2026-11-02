@@ -7,7 +7,7 @@ import { Context } from '@panedesk/cordis'
 import { createLaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
 import {
   boot, composeEntries, createRuntimeResolution,
-  PluginPackages, type Profile,
+  initProfile, loadProfileDirectory, PluginPackages, ProtectedInputIntegrity, type Profile,
 } from '@panedesk/dsh-app-boot'
 import { installProxyFromEnvironment } from '@panedesk/dsh-http-proxy'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -81,6 +81,45 @@ describe('runProfile with an application-owned profile', () => {
       expect(disposeProxy).toHaveBeenCalledOnce()
       expect(boot).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
       expect(dispose).toHaveBeenCalledTimes(stage === 'composition' ? 0 : 1)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('boots from durable approved configuration before parsing offline workspace edits', async () => {
+    const workspace = mkdtempSync(join(tmpdir(), 'dsh-protected-startup-'))
+    const home = mkdtempSync(join(tmpdir(), 'dsh-protected-owner-'))
+    homes.push(workspace, home)
+    const dir = join(workspace, 'profile')
+    initProfile(dir, [])
+    const anchor = join(home, 'package.json')
+    writeFileSync(anchor, '{"name":"test-runtime","version":"1.0.0"}')
+    const patch = join(dir, 'cordis.patch.yml')
+    const overlay = join(workspace, 'overlay.yml')
+    writeFileSync(patch, '- id: target\n  config: { value: approved }\n')
+    writeFileSync(overlay, '- id: target\n  config: { overlay: approved }\n')
+    const profile = loadProfileDirectory('test', dir, anchor)
+    const integrity = new ProtectedInputIntegrity(workspace, home)
+    for (const path of [join(dir, 'package.json'), patch, overlay]) integrity.observe(path)
+    integrity.grantWrite()
+    writeFileSync(join(dir, 'package.json'), 'not-json')
+    writeFileSync(patch, '[invalid-yaml')
+    writeFileSync(overlay, '[invalid-yaml')
+    vi.stubEnv('PANEDESK_HOME', home)
+    vi.spyOn(process, 'cwd').mockReturnValue(workspace)
+    vi.spyOn(process, 'on').mockReturnValue(process)
+    vi.mocked(installProxyFromEnvironment).mockResolvedValue(async () => {})
+    const ctx = new Context()
+    vi.mocked(boot).mockResolvedValue(ctx)
+    try {
+      await runProfile({
+        environment: createLaunchEnvironmentSnapshot([]), profile: 'test',
+        resolvedProfile: { profile, installAnchor: anchor }, patchFiles: [overlay], args: [],
+      })
+      expect(vi.mocked(boot).mock.calls[0]![2]).toEqual([
+        { id: 'target', config: { value: 'approved' } },
+        { id: 'target', config: { overlay: 'approved' } },
+      ])
     } finally {
       await ctx.fiber.dispose()
     }

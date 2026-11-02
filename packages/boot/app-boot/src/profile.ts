@@ -30,8 +30,9 @@ import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import type { DshBundleManifest, DshPackageManifest } from '@panedesk/dsh-package-manifest'
 import { evaluatePluginCompatibility, pluginCompatibilityWarning } from './plugin-compatibility.ts'
 import { readProfileVersionExemptions } from './profile-compatibility.ts'
-import { loadOverlayPatches } from './index.ts'
+import { loadOptionalPatches, loadOverlayPatches } from './index.ts'
 import { realModuleDirectory } from './profile-resolution/legacy-links.ts'
+import type { ProtectedInputIntegrity } from './input-integrity.ts'
 
 /** Directory under the Harness home holding every profile. */
 export const PROFILES_DIR = 'profiles'
@@ -393,7 +394,8 @@ function pointsInto(link: string, root: string): boolean {
 }
 
 /** Read one package manifest while traversing a dependency graph. */
-function readPackageManifest(anchor: string): ProfileManifest {
+function readPackageManifest(anchor: string, integrity?: ProtectedInputIntegrity): ProfileManifest {
+  if (integrity?.covers(anchor) === true) return readProfileManifest('dsh', dirname(anchor), integrity)
   return JSON.parse(readFileSync(anchor, 'utf8')) as ProfileManifest
 }
 
@@ -404,7 +406,7 @@ function profileDependencyNames(manifest: ProfileManifest): string[] {
 
 /** Resolve the installation packages that the runtime resolver supplies to every profile. */
 function collectInstallationScopePackages(
-  installAnchor: string, skippedBundles: ReadonlySet<string>,
+  installAnchor: string, skippedBundles: ReadonlySet<string>, integrity?: ProtectedInputIntegrity,
 ): {
   packageNames: ReadonlySet<string>
   packageDirs: ReadonlyMap<string, string>
@@ -413,7 +415,7 @@ function collectInstallationScopePackages(
 } {
   // Real declaring paths keep workspace symlinks under node_modules from disabling tsx path mappings.
   const canonicalAnchor = join(realModuleDirectory(dirname(installAnchor)), basename(installAnchor))
-  const appManifest = readPackageManifest(canonicalAnchor)
+  const appManifest = readPackageManifest(canonicalAnchor, integrity)
   const links = new Map<string, string>()
   const declarers = new Map<string, string>()
   const versions = new Map<string, string | undefined>()
@@ -442,7 +444,7 @@ function collectInstallationScopePackages(
       const manifestPath = join(realModuleDirectory(dir), 'package.json')
       let manifest: ProfileManifest
       try {
-        manifest = skippedBundles.has(dep) ? readProfileManifest('dsh', dir) : readPackageManifest(manifestPath)
+        manifest = skippedBundles.has(dep) ? readProfileManifest('dsh', dir, integrity) : readPackageManifest(manifestPath, integrity)
       } catch (error) {
         if (!skippedBundles.has(dep)) throw error
         continue
@@ -460,6 +462,8 @@ function collectInstallationScopePackages(
 export interface RuntimeResolutionOptions {
   /** Absolute package.json path of the running dsh installation. */
   installAnchor: string
+  /** Owner-approved configuration reader retained by later resolution generations. */
+  integrity?: ProtectedInputIntegrity
   /** Loaded profile whose selected bundles may carry profile-local plugins. */
   profile?: Profile
   /** Harness home; defaults to {@link resolveDshHome}. */
@@ -474,21 +478,23 @@ export interface RuntimeResolutionOptions {
 export async function createRuntimeResolution(
   options: RuntimeResolutionOptions,
 ): Promise<ProfileRuntimeResolution> {
-  const { installAnchor, profile, home = resolveDshHome() } = options
+  const { installAnchor, profile, integrity, home = resolveDshHome() } = options
   const profilesDir = join(home, PROFILES_DIR)
-  const manifest = readOptionalProfileManifest(profile)
+  const manifest = readOptionalProfileManifest(profile, integrity)
   const { packageNames, packageDirs, declarers, versions } = collectInstallationScopePackages(
-    installAnchor, new Set(profile?.skippedBundles.map(skipped => skipped.packageName)),
+    installAnchor, new Set(profile?.skippedBundles.map(skipped => skipped.packageName)), integrity,
   )
   const profileDeclarers = new Map<string, string>()
   const profileVersions = new Map<string, string | undefined>()
   const localPackageNames = profile === undefined ? [] : installedProfilePackageNames(profile, manifest)
   const profilePackages: ReadonlyMap<string, string> = profile === undefined
     ? new Map<string, string>()
-    : collectProfileScopePackages(profile, packageNames, profileDeclarers, profileVersions)
+    : collectProfileScopePackages(profile, packageNames, profileDeclarers, profileVersions, integrity)
   const linkedRoots = profile === undefined ? [] : linkedProfileRoots(profile, profilesDir)
   // The Promise return type is the pre-stable API; construction has no asynchronous step.
-  return await Promise.resolve(new ProfileRuntimeResolution({ installAnchor, profileDir: profile?.dir, home }, {
+  return await Promise.resolve(new ProfileRuntimeResolution({ installAnchor, profileDir: profile?.dir, home,
+    ...integrity === undefined ? {} : { integrity },
+  }, {
     profilesDir,
     profileDir: profile?.dir,
     localPackageNames: Object.freeze(localPackageNames),
@@ -508,6 +514,7 @@ export async function createRuntimeResolution(
 
 /** Inputs a {@link ProfileRuntimeResolution} reuses to compute its successor. */
 interface ResolutionSource {
+  integrity?: ProtectedInputIntegrity
   installAnchor: string
   home: string
   profileDir: string | undefined
@@ -546,19 +553,20 @@ export class ProfileRuntimeResolution implements RuntimeResolution {
    * @returns a new resolution for the latest generation.
    */
   computeLatestResolution(): Promise<ProfileRuntimeResolution> {
-    const { installAnchor, home, profileDir } = this.#source
+    const { installAnchor, home, profileDir, integrity } = this.#source
+    const trusted = integrity === undefined ? {} : { integrity }
     return createRuntimeResolution({
-      installAnchor, home,
-      ...profileDir === undefined ? {} : { profile: loadProfileDirectory('dsh', profileDir, installAnchor) },
+      installAnchor, home, ...trusted,
+      ...profileDir === undefined ? {} : { profile: loadProfileDirectory('dsh', profileDir, installAnchor, trusted) },
     })
   }
 }
 
 /** Synthetic profiles used by direct callers may have no on-disk manifest. */
-function readOptionalProfileManifest(profile: Profile | undefined): ProfileManifest | undefined {
+function readOptionalProfileManifest(profile: Profile | undefined, integrity?: ProtectedInputIntegrity): ProfileManifest | undefined {
   if (profile === undefined) return undefined
   try {
-    return readPackageManifest(join(profile.dir, 'package.json'))
+    return readPackageManifest(join(profile.dir, 'package.json'), integrity)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
     throw error
@@ -577,12 +585,13 @@ function dependencyClosure(
   anchors: readonly string[], reserved: ReadonlySet<string>,
   declarers?: Map<string, string>,
   versions?: Map<string, string | undefined>,
+  integrity?: ProtectedInputIntegrity,
 ): Map<string, string> {
   const links = new Map<string, string>()
   const visited = new Set(reserved)
   for (const anchor of anchors) {
     const canonicalAnchor = join(realModuleDirectory(dirname(anchor)), basename(anchor))
-    const manifest = readPackageManifest(canonicalAnchor)
+    const manifest = readPackageManifest(canonicalAnchor, integrity)
     /* v8 ignore next -- an installable package manifest always declares its name */
     if (manifest.name === undefined) continue
     if (!visited.has(manifest.name)) {
@@ -604,7 +613,7 @@ function dependencyClosure(
         links.set(dep, dir)
         declarers?.set(dep, next.anchor)
         const manifestPath = join(realModuleDirectory(dir), 'package.json')
-        const dependencyManifest = readPackageManifest(manifestPath)
+        const dependencyManifest = readPackageManifest(manifestPath, integrity)
         versions?.set(dep, dependencyManifest.version)
         queue.push({ anchor: manifestPath, manifest: dependencyManifest })
       }
@@ -618,11 +627,12 @@ function collectProfileScopePackages(
   profile: Profile, installationPackageNames: ReadonlySet<string>,
   declarers?: Map<string, string>,
   versions?: Map<string, string | undefined>,
+  integrity?: ProtectedInputIntegrity,
 ): Map<string, string> {
   const bundleAnchors = profile.layers
     .filter(layer => !installationPackageNames.has(layer.packageName))
     .map(layer => join(layer.packageDir, 'package.json'))
-  const bundleLinks = dependencyClosure(bundleAnchors, installationPackageNames, declarers, versions)
+  const bundleLinks = dependencyClosure(bundleAnchors, installationPackageNames, declarers, versions, integrity)
   for (const layer of profile.layers) bundleLinks.delete(layer.packageName)
   return bundleLinks
 }
@@ -631,13 +641,16 @@ function collectProfileScopePackages(
  * Read a profile's manifest.
  * @param binName - the diagnostic prefix on the thrown error.
  * @param dir - the profile directory.
+ * @param integrity - trusted owner copy reader; omission reads the current file.
  * @returns the parsed manifest.
  */
-export function readProfileManifest(binName: string, dir: string): ProfileManifest {
+export function readProfileManifest(binName: string, dir: string, integrity?: ProtectedInputIntegrity): ProfileManifest {
   const path = join(dir, 'package.json')
   let raw: string
   try {
-    raw = readFileSync(path, 'utf8')
+    const bytes = integrity === undefined ? readFileSync(path) : integrity.readTrusted(path)
+    if (bytes === undefined) throw new Error('Profile manifest has no approved content')
+    raw = bytes.toString('utf8')
   } catch (error) {
     throw new Error(`${binName}: failed to read profile manifest ${path}: ${String(error)}`)
   }
@@ -783,9 +796,9 @@ export function loadProfileDirectory(
   binName: string,
   dir: string,
   installAnchor: string,
-  options: { userLayer?: boolean } = {},
+  options: { userLayer?: boolean; integrity?: ProtectedInputIntegrity } = {},
 ): Profile {
-  const manifest = dropRetiredBundles(dir, readProfileManifest(binName, dir))
+  const manifest = dropRetiredBundles(dir, readProfileManifest(binName, dir, options.integrity))
   const bundles = manifest.dsh?.profile?.bundles ?? []
   const layers: ProfileLayer[] = []
   const skippedBundles: SkippedBundle[] = []
@@ -793,7 +806,7 @@ export function loadProfileDirectory(
   for (const packageName of bundles) {
     try {
       const packageDir = resolveBundleDir(binName, packageName, installAnchor, dir)
-      const bundleManifest = readProfileManifest(binName, packageDir)
+      const bundleManifest = readProfileManifest(binName, packageDir, options.integrity)
       const bundle = bundleManifest.dsh?.bundle
       if (bundle === undefined) {
         throw new Error(`${binName}: profile bundle ${JSON.stringify(packageName)} declares no dsh.bundle in its package.json`)
@@ -802,16 +815,14 @@ export function loadProfileDirectory(
       const issue = evaluatePluginCompatibility(bundleManifest, exemptions)
       if (issue !== undefined && !issue.exempted) throw new Error(pluginCompatibilityWarning(issue))
       const patchPaths = bundlePatchPaths(packageDir, bundle)
-      const patches = patchPaths.flatMap(patchPath => loadOverlayPatches(binName, patchPath))
+      const patches = patchPaths.flatMap(patchPath => loadOverlayPatches(binName, patchPath, options.integrity))
       layers.push({ packageName, packageDir, patchPaths, patches })
     } catch (error) {
       skippedBundles.push({ packageName, reason: String(error) })
     }
   }
   const patchPath = join(dir, PROFILE_PATCH_FILENAME)
-  const patches = options.userLayer !== false && existsSync(patchPath)
-    ? loadOverlayPatches(binName, patchPath)
-    : []
+  const patches = options.userLayer === false ? [] : loadOptionalPatches(binName, patchPath, options.integrity) ?? []
   return { name: basename(dir), dir, layers, patchPath, patches, skippedBundles }
 }
 

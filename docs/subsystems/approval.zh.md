@@ -29,6 +29,8 @@ type ApprovalRequestId = Branded<'ApprovalRequestId'>
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
 
+`ApprovalPurpose` 也接受 `{ type: 'protected-input', path, previous, current }`。路径与摘要标识一个候选宿主输入；`requestProtectedInput()` 在轮次之间使用经过认证的 owner 运输，保留被动收件提示而不唤醒模型。拒绝不授权该候选版本，也不授予工作区写权限。
+
 ## 按会话策略
 
 `ApprovalPolicy` 决定在交互式应答者运行之前发生什么。`ask` 委托给组合的应答者链，链的无应答默认值为 `unavailable`；`never` 确定性地返回 `rejected`，不分发任何应答者。生效值为会话日志中最后一条 `approval/policy` 事件，回退到服务配置。消费方通过 `ctx.approval.effectivePolicy(session)` 读取；`setApprovalPolicy(session, policy)` 是唯一的写入路径，因此回放能重建覆盖值。
@@ -134,6 +136,15 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  *   append commit point.
  */
 async request(req: ApprovalRequest): Promise<ApprovalOutcome>
+
+/**
+ * Ask an authenticated owner about a host input, including between model turns.
+ * Passive inbox notices retain the refusal and decision without starting a model request.
+ * @param agent Session whose workspace contains the protected input.
+ * @param purpose Exact path identity and content digest awaiting consent.
+ * @returns Only allowed-once authorizes this candidate; unattended sessions never prompt.
+ */
+async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome>
 
 /**
  * Read the session override without applying the configured default.

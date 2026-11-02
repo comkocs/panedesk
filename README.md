@@ -14,7 +14,7 @@ Planned next: public-release preparation, then long-running sessions and subagen
 
 ## Platform behavior
 
-Windows defaults to read-only when no permission mode is explicitly selected. The first workspace write requests confirmation from the authenticated owner frontend; Settings can also preauthorize or revoke a workspace. Windows native enforcement has not been validated on a Windows machine. Confined writes exclude the running host's profile, configuration, plugin inputs, and hot-reload roots; unrelated plugin projects and source clones remain writable. `danger-full-access` explicitly grants the host user's full write authority, including configuration and plugins; `plugin_manager` still requires owner approval for each change.
+Windows defaults to read-only when no permission mode is explicitly selected. The first workspace write requests confirmation from the authenticated owner frontend; Settings can also preauthorize or revoke a workspace. Windows native enforcement has not been validated on a Windows machine. Confined writes exclude the running host's profile, configuration, plugin inputs, and hot-reload roots; unrelated plugin projects and source clones remain writable. Registered protected host inputs acquire a persistent baseline when workspace write access is granted; HMR requires authenticated owner confirmation for changes, preserving the running version and reporting blocked changes on refusal or unattended operation. `danger-full-access` explicitly grants the host user's full write authority, including configuration and plugins; `plugin_manager` still requires owner approval for each change.
 
 | Platform | Sandbox | Write access | Bash default | Known limitations |
 | --- | --- | --- | --- | --- |

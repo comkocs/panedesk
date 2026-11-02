@@ -2100,6 +2100,9 @@ importers:
       '@panedesk/cordis-plugin-timer':
         specifier: workspace:~
         version: link:../../../vendor/timer
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../app-boot
@@ -2109,6 +2112,9 @@ importers:
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../cmdline
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
       '@types/babel__code-frame':
         specifier: ^7.27.0
         version: 7.27.0
@@ -3972,6 +3978,9 @@ importers:
       '@panedesk/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-client-store':
         specifier: workspace:*
         version: link:../store
@@ -12525,6 +12534,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-commands':
         specifier: workspace:*
         version: link:../commands
@@ -12596,6 +12608,9 @@ importers:
       '@panedesk/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../api/gateway
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand

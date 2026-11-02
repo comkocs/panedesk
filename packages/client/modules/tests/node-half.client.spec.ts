@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderIndexInjections, type IndexInjection, type WebServer, type WebRoute } from '@panedesk/dsh-host-webserver'
 import * as modulesClient from '../src/client/index.ts'
 import { ClientModuleRegistry, bootInjections, orderByModuleGraph } from '../src/index.ts'
+import { ProtectedInputIntegrity } from '../../../boot/app-boot/src/input-integrity.ts'
 import type { ClientModuleLoaderTarget, WebBootEntry, WebBootGraph } from '../src/client/index.ts'
 
 /**
@@ -725,6 +726,30 @@ describe('client bundle activation', () => {
     expect(consumer.findEntry(2, 0)).toMatchObject({
       originalSource: '/packages/client/generated-1/lib/client.js',
     })
+  })
+
+  it('keeps the old client generation when a protected artifact rebuild is not approved', async () => {
+    const packageName = '@fixture/protected-artifact'
+    writeBuiltPackage(packageName, {})
+    const { context, service } = constructWithRoute([packageName])
+    const clientPath = service.clientPath(packageName)!
+    const workspace = dirname(clientPath)
+    const home = join(root!, 'owner-state')
+    const integrity = new ProtectedInputIntegrity(workspace, home)
+    integrity.observe(workspace)
+    integrity.grantWrite()
+    context.provide('profileContext', {
+      name: 'test', dir: workspace, patchPath: join(workspace, 'cordis.patch.yml'),
+      installAnchor: join(workspace, 'package.json'), cwd: workspace, home,
+      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+    })
+    const before = service.graph()
+    writeFileSync(clientPath, 'module.exports = { unapproved: true }\n')
+    expect(() => service.rebuilt(packageName)).toThrow('requires owner confirmation')
+    expect(service.graph()).toBe(before)
+    expect(await integrity.verify({ blocked() {}, confirm: async () => true })).toBe(true)
+    service.rebuilt(packageName)
+    expect(service.graph()).not.toBe(before)
   })
 
   it('retains one prior immutable batch generation across rebuild recomposition', async () => {

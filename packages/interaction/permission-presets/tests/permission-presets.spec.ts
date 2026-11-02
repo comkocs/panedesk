@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { Context } from '@panedesk/cordis'
 import SessionStore, {
   Session,
@@ -62,6 +66,34 @@ async function mountedStore(options: { approvalDefault?: ApprovalPolicy | undefi
 }
 
 describe('permission preset fold', () => {
+  it('captures the actual session workspace before publishing workspace-write mode', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'preset-protected-input-'))
+    const workspace = join(root, 'session-workspace')
+    const home = join(root, 'owner-state')
+    mkdirSync(workspace)
+    const patch = join(workspace, 'cordis.patch.yml')
+    writeFileSync(patch, 'initial')
+    const ctx = await mounted({ bashDefault: 'read-only', config: { defaultPreset: 'workspace-write' } })
+    try {
+      const profile: ProfileContext = {
+        name: 'test', dir: workspace, patchPath: patch, home, cwd: root,
+        installAnchor: join(root, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+      }
+      ctx.provide('profileContext', profile)
+      const session = ctx.sessions.prepare(SessionId('actual-workspace'), { meta: { cwd: workspace } })
+      ctx.permissionPresets.set(session, 'workspace-write')
+      expect(session.snapshotEvents().some(event => event.type === 'sandbox/mode'
+        && event.data.mode === 'workspace-write')).toBe(true)
+      writeFileSync(patch, 'changed after grant')
+      const restarted = new ProtectedInputIntegrity(workspace, home)
+      expect(restarted.readTrusted(patch)?.toString()).toBe('initial')
+      expect(await restarted.verify({ blocked() {}, confirm: async () => false })).toBe(false)
+    } finally {
+      await ctx.fiber.dispose()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('does not turn an implicit Windows default into an explicit session override', async () => {
     const ctx = new Context()
     try {

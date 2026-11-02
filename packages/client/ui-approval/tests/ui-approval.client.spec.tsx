@@ -348,6 +348,15 @@ function panelProps(
 }
 
 describe('ApprovalPanel', () => {
+  it.each([en, zh])('names the protected input and exact candidate in the active locale', async (messages) => {
+    const purpose = { type: 'protected-input', path: '/project/patch.yml', previous: 'before', current: 'candidate' } as const
+    const pending = new PendingApproval(id('input-owner'), { toolName: 'protected-input', purpose })
+    render(<ApprovalPanel {...panelProps(pending)} t={key => (Object.entries(messages).find(([name]) => name === key)?.[1] ?? key).replace('{path}', purpose.path).replace('{digest}', purpose.current)} />)
+    expect(screen.getByText(messages.protectedInput.replace('{path}', purpose.path).replace('{digest}', purpose.current))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: messages.allowProtectedInput }))
+    await expect(pending.result).resolves.toBe('allowed-once')
+  })
+
   it.each([en, zh])('names the workspace, ACL, and revocation route in the active locale', async (messages) => {
     const workspace = 'C:\\Projects\\example'
     const pending = new PendingApproval(id('first-write'), {
