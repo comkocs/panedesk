@@ -5,6 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@panedesk/cordis'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
 import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRuntime from '@panedesk/dsh-tools'
 import LocalFileSystem from '@panedesk/dsh-fs-local'
@@ -52,6 +55,8 @@ async function mount(hang: boolean, timeoutMs?: number): Promise<Context> {
   provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
   await ctx.plugin(Lsp)
   await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
   await ctx.plugin(LocalSubprocessRuntime)
@@ -79,7 +84,9 @@ function call(ctx: Context, args: unknown) {
     callId: `int-${++seq}` as never,
     name: 'lsp',
     arguments: args,
-    agent: { session: { header: { cwd: ws } } } as never,
+    agent: { session: Session.create(SessionId('lsp-integration'), [], {
+      version: SESSION_FORMAT_VERSION, id: SessionId('lsp-integration'), createdAt: 1, isSeeded: false, cwd: ws,
+    }) } as never,
   })
 }
 

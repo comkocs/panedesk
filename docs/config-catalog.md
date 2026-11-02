@@ -2529,8 +2529,8 @@ export type Config = Readonly<Record<string, never>>
 
 ## `@panedesk/dsh-lsp-stdio`
 
-- `inject`: `fs` · `lsp` · `subprocess`
-- `source`: [`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src/index.ts)
+- `inject`: `fs` · `lsp` · `subprocess` · `sandboxPolicy`
+- `source`: [`packages/lsp/lsp-stdio/src/index.ts:86`](../packages/lsp/lsp-stdio/src/index.ts)
 
 ```ts config-catalog
 /** Plugin configuration: provider id → local language-server configuration. */
@@ -4556,8 +4556,8 @@ export interface Config {
 
 ## `@panedesk/dsh-tool-fs-search`
 
-- `inject`: `tools` · `systemPrompt` · `subprocess` · `workingDirectory`
-- `source`: [`packages/fs/tool-fs-search/src/index.ts:74`](../packages/fs/tool-fs-search/src/index.ts)
+- `inject`: `tools` · `systemPrompt` · `subprocess` · `workingDirectory` · `sandboxPolicy`
+- `source`: [`packages/fs/tool-fs-search/src/index.ts:75`](../packages/fs/tool-fs-search/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config; over-cap glob sampling is an explicit deployment choice and the remaining fields have defaults. */
@@ -4967,7 +4967,7 @@ export interface Config {
 ## `@panedesk/dsh-tool-workspace-dependencies`
 
 - `inject`: `tools`
-- `source`: [`packages/skill/tool-workspace-dependencies/src/index.ts:15`](../packages/skill/tool-workspace-dependencies/src/index.ts)
+- `source`: [`packages/skill/tool-workspace-dependencies/src/index.ts:17`](../packages/skill/tool-workspace-dependencies/src/index.ts)
 
 ```ts config-catalog
 /** Payload location and optional installation directory. */

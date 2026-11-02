@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Deployments that ship their own script runtimes (Desktop's primary runtime, or a container image layer) mount this tool so the agent can ask where the bundled Python, Node.js, and pnpm live instead of discovering a system interpreter. The tool returns absolute paths and recorded distribution versions; it changes neither `PATH` nor package-manager settings. The payload is either copied under the Harness home on first use (Desktop) or used where it lies (read-only carriers).
+Agents can locate bundled Python, Node.js, and pnpm without discovering system interpreters. The tool returns absolute paths and distribution versions without changing `PATH` or package-manager settings. Deployment configuration selects first-use installation under the Harness home or in-place use; model arguments cannot change those paths. With a confined sandbox policy mounted, every call checks that the installation target and recovery directory do not overlap protected host inputs. This application-owned installation grants no general filesystem write access.
 
 ## Table of Contents
 

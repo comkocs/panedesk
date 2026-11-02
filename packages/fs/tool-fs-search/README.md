@@ -31,9 +31,11 @@ Mount the tools after a `ctx.subprocess` backend; no host `rg` install is needed
 
 ### Minimal composition
 
-A subprocess backend, then the tools; the spill backend is optional and makes capped results fully recoverable.
+Load the subprocess and sandbox-policy services before the tools. Restricted calls require a sandbox provider and pass the calling Session's current policy to `confine` before spawning ripgrep; missing or failed confinement prevents launch. Explicit `danger-full-access` runs without confinement. The spill backend is optional and makes capped results fully recoverable.
 
 ```yaml
+- name: '@panedesk/dsh-sandbox-policy'
+- name: '@panedesk/dsh-sandbox-local'
 - name: '@panedesk/dsh-subprocess-local'
 - name: '@panedesk/dsh-tool-fs-search'
   config:

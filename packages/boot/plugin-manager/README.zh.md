@@ -167,6 +167,6 @@ pnpm 执行和组合包校验成功即完成安装，后续发布或启用失败
 <details>
 <summary>维护者的工作上下文——点击展开</summary>
 
-无。
+`tests/write-entry-routes.spec.ts` 中的准入清单为目录中每个包名与工具名组合指定唯一分类和具名可执行测试：A 为模型选定路径的文件写入，B 为受限子进程执行，C 为固定应用存储，D 为 owner 配置的 provider 委托，E 为不写文件且不启动进程。A/B 项还必须登记准入源码。`tests/tool-admission-coverage.spec.ts` 检查实际调用，并拒绝没有执行格的目录项。委托证据使用 provider 的正常行为并检查转发参数，而非注入写入回调。缺证据仍判失败；沙箱后端缺失不构成有效限制的证据。bubblewrap 不可用时，原生执行格在本机跳过并打印原因。CI 运行器必须设置 `PANEDESK_CI_NATIVE_SANDBOX=required`，使后端不可用时判失败；通用的 `CI=true` 不要求原生执行。
 
 </details>

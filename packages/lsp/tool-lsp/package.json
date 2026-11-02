@@ -47,6 +47,8 @@
     "@panedesk/dsh-lsp": "workspace:*",
     "@panedesk/dsh-lsp-stdio": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*",
     "@panedesk/dsh-subprocess-local": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/dsh-timeout": "workspace:*",

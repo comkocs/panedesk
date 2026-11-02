@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-自带脚本运行时的部署（Desktop 的 primary runtime，或容器镜像层）挂载本工具，让 agent 询问随包的 Python、Node.js 与 pnpm 在哪里，而不是自行寻找系统解释器。工具返回绝对路径与记录的发行版版本，不改 `PATH`，不改包管理器设置。payload 或在首次调用时复制到 Harness home 下（Desktop），或原地使用（只读载体）。
+agent 可定位随包的 Python、Node.js 与 pnpm，而不必寻找系统解释器。工具返回绝对路径与发行版版本，不改 `PATH` 或包管理器设置。部署配置选择首次调用时安装到 Harness home 下或原地使用；模型传参不能修改这些路径。挂载受限沙箱策略时，每次调用都检查安装目标及恢复目录不与受保护宿主输入重叠。这种应用自管安装不赋予通用文件写权限。
 
 ## 目录
 

@@ -7,6 +7,7 @@
  * @module @panedesk/dsh-lsp/types
  */
 
+import type { Session } from '@panedesk/dsh-session'
 import type { LspProviderId } from './brand.ts'
 
 /**
@@ -31,9 +32,9 @@ export interface LspRange {
 }
 
 /**
- * A caller's normalized query. Every field is required: `workspaceRoot` is caller-supplied,
- * `languageId` comes from the provider registration (not here), and consumers own timeouts and
- * result limits — so no field needs implementation defaulting and there is no `resolve()` step.
+ * A caller's normalized query. `workspaceRoot` is caller-supplied, `languageId` comes from
+ * provider registration, and consumers own timeouts and result limits. Session-less host calls
+ * use the deployment sandbox policy; model tool calls carry their calling Session.
  */
 export interface LspQueryRequest {
   /** Which semantic query to run. */
@@ -44,6 +45,8 @@ export interface LspQueryRequest {
   readonly position: LspPosition
   /** The workspace root the provider resolves against and indexes; required, never defaulted. */
   readonly workspaceRoot: string
+  /** Calling Session for process policy and ownership; omitted only by host callers. */
+  readonly session?: Session
 }
 
 /**

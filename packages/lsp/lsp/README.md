@@ -47,7 +47,7 @@ Server commands, extension mappings, and the filesystem/subprocess pairing are c
 
 ### The four operations
 
-Each query asks one of four semantic questions at a cursor position in a source file; results are normalized locations or hover content, never raw protocol payloads.
+Each query asks one of four semantic questions at a cursor position in a source file; results are normalized locations or hover content, never raw protocol payloads. Model tools pass their calling `session` to the provider for process policy and ownership. Host callers may omit it to use deployment policy.
 
 | Operation | What the agent gets |
 |---|---|

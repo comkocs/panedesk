@@ -31,7 +31,7 @@ Load this plugin in any composition where the agent should start, observe, and s
 
 - `job_output(job_id, wait?, timeout_ms?)` — Read a job's output. Stream jobs return only the output since the previous read; final-output jobs return their result after settlement. Every response ends with `[status: ...]`. Reads are non-blocking unless `wait: true`, which waits up to the configured cap and leaves a still-running job alive on timeout. A read renders stdout first and stderr in one `[stderr]` section, notes output that left memory before the read, and carries a job's result (a subagent's answer) exactly once, on the first read after settlement.
 - `job_list()` — List your background jobs with their ids, kinds, and statuses, one per line: `<id> [<kind>] <status> — <label>`.
-- `job_kill(job_id, reason?)` — Request cancellation of a running job immediately; the job settles as `killed` once its work actually stops. A terminal job returns its current snapshot, and the optional reason is recorded and forwarded to the job.
+- `job_kill(job_id, reason?)` — Request cancellation of a running job immediately; the job settles as `killed` once its work actually stops. An Agent may cancel only jobs owned by its calling Session, never unowned jobs. Caller-less host invocations retain access to unowned jobs. A terminal job returns its current snapshot, and the optional reason is recorded and forwarded to the job.
 
 The three tools return `{ text, job }`, `PublicJobSnapshot[]`, and `{ outcome: 'cancellation-requested' | 'already-finished', job }` respectively. A public snapshot carries id, kind, label, status with the live progress line or the terminal detail, and start/finish times, and omits ownership and ring offsets. All three render through generic UI cards: `read` for output and list, `execute` for kill.
 
@@ -176,7 +176,7 @@ These limits define when the tools are a poor fit. They are current package cons
 - **A spent wake budget is not restored by time** — with `maxConsecutiveWakes` set, only user-authored input refills it, so an unattended agent whose budget ran out collects its remaining notices on the next turn something else opens, and nothing in the client shows that a notice is waiting.
 - **A notice pending on an idle owner does not survive that owner's disposal** — the disposal cancel clears the unclaimed inbox, and the log keeps the insert/cancel pair as the record.
 - **Model reads are single-consumer** — independent observers use the registry's non-consuming `readAt` (the Web client's `job.follow`), not these tools.
-- **Unowned jobs have no session fence** — external callers must supply policy or avoid them.
+- **Unowned jobs remain readable across sessions** — external callers must supply read policy or avoid them; `job_kill` rejects cancellation of an unowned job by an Agent.
 
 <a id="dev-note"></a>
 ### Dev Note

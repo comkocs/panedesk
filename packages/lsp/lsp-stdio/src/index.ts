@@ -3,15 +3,19 @@
  * of server commands and registers one isolated provider for each entry. Every provider lazily
  * single-flights one server process per canonical workspace target, serves transient-open queries
  * through it, and replaces a selected transport that fails before or during the next read-only
- * query. Providers read sources through `ctx.fs` and launch servers through
- * `ctx.subprocess`, so both local and remote implementations share one host.
+ * query. Reuse requires the same Session and complete policy; restricted launches first pass
+ * through `sandbox.confine`. Filesystem, subprocess, and sandbox providers share one execution world.
  *
  * Namespace plugin (named exports, no default export). Lifecycle is effect-scoped: disposal
  * unregisters from `ctx.lsp` and tears down every live server.
  * @module @panedesk/dsh-lsp-stdio
  */
 
+import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@panedesk/cordis'
+import type { Session } from '@panedesk/dsh-session'
+import type { SandboxExecutionPolicy } from '@panedesk/dsh-sandbox'
+import type {} from '@panedesk/dsh-sandbox-policy'
 import z from '@panedesk/schemastery'
 import { LspError, LspProviderId } from '@panedesk/dsh-lsp'
 import type {
@@ -44,7 +48,7 @@ export { LspConnection } from './connection.ts'
 export const name = 'lsp-stdio'
 
 /** Services required by this plugin. */
-export const inject = ['fs', 'lsp', 'subprocess']
+export const inject = ['fs', 'lsp', 'subprocess', 'sandboxPolicy']
 
 const DEFAULT_MAX_MESSAGE_BYTES = 16_000_000
 const DEFAULT_MAX_STDERR_BYTES = 1_000_000
@@ -87,6 +91,11 @@ export interface Config {
 /** One server config after schemastery fills every default. */
 type ResolvedServerConfig = Required<LspLocalServerConfig>
 type WorkspaceKey = HostWorkspace['target']['targetKey']
+
+interface InstanceAuthority {
+  session: Session | undefined
+  policy: SandboxExecutionPolicy
+}
 
 const LspLocalServerConfig: z<LspLocalServerConfig> = z.object({
   command: z.string().required(),
@@ -155,6 +164,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         resolved,
         executable,
         spec => ctx.subprocess.spawn(spec),
+        ctx,
       )
     })
     try {
@@ -219,6 +229,7 @@ class LocalLspProvider implements LspProvider {
   readonly extensionToLanguage: Readonly<Record<string, string>>
   /** One live instance per stable canonical workspace identity. */
   private readonly instances = new Map<WorkspaceKey, LspInstance>()
+  private readonly authorities = new WeakMap<LspInstance, InstanceAuthority>()
   /** One complete source-read→open→query→close serialization tail per canonical workspace. */
   private readonly queues = new Map<WorkspaceKey, Promise<void>>()
   /** Workspace canonicalizations that have not entered a provider-owned queue yet. */
@@ -232,6 +243,7 @@ class LocalLspProvider implements LspProvider {
     private readonly config: ResolvedServerConfig,
     private readonly executable: string,
     private readonly spawner: ConnectionSpawner,
+    private readonly ctx: Context,
   ) {
     this.id = LspProviderId(providerId)
     this.extensionToLanguage = config.extensionToLanguage
@@ -277,10 +289,8 @@ class LocalLspProvider implements LspProvider {
       // Read inside the workspace queue but before spawning: a queued query sees current bytes when
       // its turn starts, while an invalid source still cannot leave an idle process pooled.
       const source = await readHostSource(this.fs, request.filePath, workspace, this.config.maxDocumentBytes, querySignal)
-      // Disposal may have snapshotted the instance map while host I/O was pending. Re-check before a
-      // synchronous get-or-create so every spawned process remains owned by teardown.
       this.assertActive(querySignal)
-      let instance = this.instanceFor(workspaceKey, workspace)
+      let instance = await this.instanceFor(workspaceKey, workspace, request.session, querySignal)
       let canRetryTransport = true
       for (;;) {
         const [queryOutcome] = await Promise.allSettled([
@@ -309,7 +319,7 @@ class LocalLspProvider implements LspProvider {
         }
         canRetryTransport = false
         this.assertActive(querySignal)
-        instance = this.instanceFor(workspaceKey, workspace)
+        instance = await this.instanceFor(workspaceKey, workspace, request.session, querySignal)
       }
     })
   }
@@ -328,12 +338,34 @@ class LocalLspProvider implements LspProvider {
     return result
   }
 
-  /** Return or synchronously publish the one instance for a canonical workspace. */
-  private instanceFor(workspaceKey: WorkspaceKey, workspace: HostWorkspace): LspInstance {
-    this.assertActive()
+  /** Reuse only the same Session and complete policy; confine before publishing a replacement. */
+  private async instanceFor(
+    workspaceKey: WorkspaceKey, workspace: HostWorkspace, session: Session | undefined, signal: AbortSignal,
+  ): Promise<LspInstance> {
+    this.assertActive(signal)
+    const request = session === undefined ? {} : { session }
+    const policy = this.ctx.sandboxPolicy.resolve(request)
     const existing = this.instances.get(workspaceKey)
-    if (existing !== undefined) return existing
-    const created = this.createInstance(workspace)
+    if (existing !== undefined) {
+      const authority = this.authorities.get(existing)
+      if (authority !== undefined && authority.session === session && isDeepStrictEqual(authority.policy, policy)) return existing
+      await existing.dispose()
+      this.evictIfCurrent(workspaceKey, existing)
+      this.assertActive(signal)
+    }
+    const command = [this.executable, ...this.config.args]
+    let argv = command
+    if (policy.mode !== 'danger-full-access') {
+      const sandbox = this.ctx.get('sandbox')
+      if (sandbox === undefined) throw new LspError('LSP confinement requires a sandbox provider', 'LSP_UNAVAILABLE')
+      argv = (await sandbox.confine(command, { ...policy, mode: policy.mode }, signal)).argv
+    }
+    this.assertActive(signal)
+    if (!isDeepStrictEqual(policy, this.ctx.sandboxPolicy.resolve(request))) {
+      throw new LspError('LSP process policy changed during startup', 'LSP_UNAVAILABLE')
+    }
+    const created = this.createInstance(workspace, argv)
+    this.authorities.set(created, { session, policy })
     this.instances.set(workspaceKey, created)
     return created
   }
@@ -344,10 +376,12 @@ class LocalLspProvider implements LspProvider {
     if (this.instances.get(workspace) === instance) this.instances.delete(workspace)
   }
 
-  private createInstance(workspace: HostWorkspace): LspInstance {
+  private createInstance(workspace: HostWorkspace, argv: readonly string[]): LspInstance {
+    const command = argv[0]
+    if (command === undefined) throw new LspError('LSP confinement returned an empty command', 'LSP_UNAVAILABLE')
     const spec: InstanceSpec = {
-      command: this.executable,
-      args: this.config.args,
+      command,
+      args: argv.slice(1),
       cwd: workspace.canonicalPath,
       workspaceUri: workspace.fileUrl,
       env: this.config.env,

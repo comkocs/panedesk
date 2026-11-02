@@ -31,7 +31,7 @@ kind: "package-reference"
 
 - `job_output(job_id, wait?, timeout_ms?)`——读取任务输出。流任务只返回自上次读取以来的输出；最终输出任务在结算后返回其结果。每个响应都以 `[status: ...]` 结尾。除非 `wait: true`，否则读取是非阻塞的；`wait: true` 最多等待到配置上限，超时时仍让运行中的任务保持存活。一次读取先渲染 stdout，再把 stderr 放进一段 `[stderr]`，标注读取前已离开内存的输出，并在结算后的第一次读取恰好携带一次任务的结果（subagent 的回答）。
 - `job_list()`——列出你的后台任务及其 id、kind 与状态，每行一个：`<id> [<kind>] <status> — <label>`。
-- `job_kill(job_id, reason?)`——立即请求取消运行中的任务；任务在其工作真正停止后以 `killed` 结算。终止任务返回其当前快照，可选的原因会被记录并转发给任务。
+- `job_kill(job_id, reason?)`——立即请求取消运行中的任务；任务在其工作真正停止后以 `killed` 结算。Agent 只能取消归属调用会话的任务，不能取消无 owner 任务。无调用者的宿主调用仍可访问无 owner 任务。终止任务返回其当前快照，可选的原因会被记录并转发给任务。
 
 三个工具依次返回 `{ text, job }`、`PublicJobSnapshot[]` 与 `{ outcome: 'cancellation-requested' | 'already-finished', job }`。公共快照携带 id、kind、label、带实时进度行或终态 detail 的状态，以及开始／结束时间，并省略归属与环偏移。三个工具都通过通用 UI 卡片渲染：output 和 list 用 `read`，kill 用 `execute`。
 
@@ -176,7 +176,7 @@ Track every background job id you start. You are notified in-session when a job 
 - **已花掉的唤醒预算不会随时间恢复**——设置了 `maxConsecutiveWakes` 时，只有用户撰写的输入才能补充，因此预算耗尽的无人值守 agent 要等到其他原因开启下一轮时才收走剩余通知，且客户端不会显示有通知在等待。
 - **待领于空闲所有者的通知无法在该所有者释放后存活**——释放时的取消会清空未领取的 inbox，日志保留插入/取消这一对作为记录。
 - **模型读取只有单一消费方**——独立观察者使用注册表非消耗的 `readAt`（Web 客户端的 `job.follow`），而不是这些工具。
-- **无 owner 的任务没有会话隔离**——外部调用方必须提供策略或避开这些任务。
+- **无 owner 的任务仍可跨会话读取**——外部调用方必须提供读取策略或避开这些任务；`job_kill` 拒绝 Agent 取消无 owner 任务。
 
 <a id="dev-note"></a>
 ### 开发备注

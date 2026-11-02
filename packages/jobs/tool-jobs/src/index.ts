@@ -403,7 +403,12 @@ export function apply(ctx: Context, config: Config): void {
     execute(args, exec) {
       const id = validateJobId(args.job_id)
       const jobs = ctx.jobs
-      const result = jobs.kill(id, exec.agent?.id, args.reason)
+      const caller = exec.agent?.id
+      const current = jobs.get(id, caller)
+      if (caller !== undefined && current.owner !== caller) {
+        throw new Error(`job ${id} does not belong to the calling session`)
+      }
+      const result = jobs.kill(id, caller, args.reason)
       // The model's own kill is its delivery: the settlement notice would only
       // repeat what this tool result already said.
       if (result === 'requested') killedByModel.add(id)
