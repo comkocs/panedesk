@@ -12,7 +12,7 @@
  * @module @panedesk/dsh-sandbox-windows-acl/grant
  */
 
-import { grantWrite, hasWriteGrant, revokeWrite } from './acl.ts'
+import { denyProtectedWrite, grantWrite, hasWriteGrant, revokeWrite } from './acl.ts'
 import { allocPtrSlot, decodePtr, isNullPtr, throwLastError, win32Sync } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { makeWellKnownSid } from './token.ts'
@@ -105,6 +105,15 @@ export class AclWriteGrant {
   add(path: string, standing = false): void {
     ;(standing ? this.standingPaths : this.revocablePaths).push(path)
     grantWrite(this.api, path, this.sidPtr, this.lowLabelSidPtr, this.worldSidPtr)
+  }
+
+  /**
+   * Retain a protected input's deny ACE across provider disposal.
+   * @param path - Existing protected input or its ancestor.
+   * @param recursive - Deny writes below the input; false denies only ancestor deletion.
+   */
+  protect(path: string, recursive = true): void {
+    denyProtectedWrite(this.api, path, this.sidPtr, recursive)
   }
 
   /**

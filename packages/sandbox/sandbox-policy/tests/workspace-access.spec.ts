@@ -17,6 +17,21 @@ function fixture() {
 }
 
 describe('workspace write authorization records', () => {
+  it('records consent for a workspace containing protected inputs without authorizing those inputs', async () => {
+    const { home, workspace } = fixture()
+    const input = join(workspace, '.panedesk', 'cordis.patch.yml')
+    const access = new WorkspaceWriteAccess(home, () => [input])
+    await expect(access.authorize(workspace, 'first-confirmation')).resolves.toMatchObject({ workspace })
+    const materialize = vi.fn(() => 'protected native profile')
+    await expect(access.withAuthorization(workspace, materialize)).resolves.toBe('protected native profile')
+    expect(materialize).toHaveBeenCalledOnce()
+  })
+  it('refuses consent when the entire workspace is a protected input', async () => {
+    const { home, workspace } = fixture()
+    const access = new WorkspaceWriteAccess(home, () => [workspace])
+    await expect(access.authorize(workspace, 'settings-preauthorization')).rejects.toThrow('protected host path')
+    expect(access.find(workspace)).toBeUndefined()
+  })
   it('starts absent and records canonical workspace, time, and first-confirmation source', async () => {
     const { home, workspace, access } = fixture()
     expect(access.find(workspace)).toBeUndefined()

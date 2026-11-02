@@ -30,6 +30,7 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
     constructor(readonly sid: string) {}
     static create(sid: string) { return new AclWriteGrant(sid) }
     add(path: string, standing = false) { native.grants.push({ path, sid: this.sid, standing }) }
+    protect(path: string, recursive = true) { native.grants.push({ path, sid: this.sid, standing: true, deny: recursive ? 'writes' : 'delete' }) }
     has() { return true }
     dispose() {}
   }

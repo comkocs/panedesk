@@ -75,9 +75,17 @@ describe.each([false, true])('loaded host paths, implicit Windows default: %s', 
     }
   })
 
-  it('refuses preauthorization of a root containing live profile inputs', async () => {
-    const { ctx, root } = await fixture(implicit)
+  it('preauthorizes ordinary workspace writes without permitting live profile input writes', async () => {
+    const { ctx, root, profile } = await fixture(implicit)
     await expect(ctx.sandboxPolicy.workspaceAccess.authorize(root, 'settings-preauthorization'))
-      .rejects.toThrow('protected host path')
+      .resolves.toMatchObject({ workspace: root })
+    const input = join(profile, 'cordis.patch.yml')
+    writeFileSync(input, 'owner')
+    await expect(ctx.fs.writeText(await ctx.fs.resolve(input), 'model'))
+      .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
+    expect(readFileSync(input, 'utf8')).toBe('owner')
+    const ordinary = join(root, 'ordinary.txt')
+    await ctx.fs.writeText(await ctx.fs.resolve(ordinary), 'allowed')
+    expect(readFileSync(ordinary, 'utf8')).toBe('allowed')
   })
 })
