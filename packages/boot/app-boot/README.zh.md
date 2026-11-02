@@ -47,6 +47,8 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 <a id="profiles"></a>
 ### Profile
 
+仅使用类型的消费方从 `@panedesk/dsh-app-boot/profile-context` 导入 `ProfileContext` 及其 Cordis 扩充；此声明入口不引入宿主启动服务及其 Session 扩充。
+
 `ProfileContext` 持有工作区输入记录，HMR 服务替换不会丢失记录。`$PANEDESK_HOME/windows-workspace-write/protected-inputs` 下的持久记录在授予工作区写权时采集已登记输入，并跨重启保留可信配置副本。目录与链接记录包含目标、树摘要和后代文件副本。解析启动配置前，CLI 打开同一 home 下全部已授写工作区记录；已确认副本冲突时停止组合，不回落到当前文件。没有后代副本的记录仍需 owner 确认后才能提供这些副本。CLI 配置组合与运行时依赖表共用可信清单读取器，后继代同样沿用。从未授写权的工作区直接读取 owner 改动，不要求确认。`protectedInputCovered` 只查询记录覆盖，不授予信任，也不证明所有加载器均受保护。`PluginPackages` 通过 Node 同步 ESM/CommonJS load 钩子交付验证过的字节，覆盖后续动态 import，并在释放时注销钩子。受保护的原生 addon，以及没有验证字节加载路径的格式会被拒绝。直接 profile 重组在修改运行树前拒绝已变化的输入。[沙盒策略](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)使用实际的 profile、叠加文件、bundle 与已加载插件输入，而不是将无关源码目录判为插件。
 
 显式选择的 `seat` 模板组合 `dsh-base` 与 [seat-app](../../seat/seat-app/README.zh.md)。既有模板保持不变；选择 `seat` 不安装系统服务，引擎条目在显式提供部署策略前保持禁用。

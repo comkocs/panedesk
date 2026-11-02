@@ -53,6 +53,8 @@ The shell seeds a frozen module table ([`PLATFORM_MODULES`](../web/README.md#the
 
 ### Build requirements
 
+The Host registry imports profile-context declarations through app-boot's type-only entry, keeping host Session services out of the Client declaration program.
+
 The host serves built client bundles, so `pnpm run build` must have produced each `lib/client.js` before launch; a missing bundle fails activation loudly with one build instruction and a package/path list. Source launch maps host imports to TypeScript source but still consumes the built client export. The package accepts no plugin config of its own.
 
 -----

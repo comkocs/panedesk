@@ -54,6 +54,8 @@ application combo 脚本只携带每个插件的 `client.js` 入口，并在启�
 
 ### 构建要求
 
+宿主注册表通过 app-boot 的纯类型入口导入 profile-context 声明，避免将宿主 Session 服务带入 Client 声明编译面。
+
 宿主提供的是已构建的客户端 bundle，因此启动前 `pnpm run build` 必须已产出每个 `lib/client.js`；缺失 bundle 会明确导致激活失败，并给出一条构建说明及包／路径列表。源码启动会把宿主侧导入映射到 TypeScript 源码，但仍消费这一构建后的客户端导出。本包自身不接受任何插件配置。
 
 -----
