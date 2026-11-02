@@ -14124,7 +14124,7 @@
     },
     {
       "id": "windows-workspace-write-owner-confirmation",
-      "description": "Windows read-only defaults and owner-managed workspace write access",
+      "description": "Windows read-only defaults, authenticated owner consent, and protected workspace write access",
       "origin": "Windows sandbox safety and approval integration",
       "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, omit overlapping writable temporary roots from native profiles, retain configured protected-path spellings alongside canonical targets, permit ordinary writes around protected inputs using native read-only overlays and capability deny entries, retain protected ancestor names, mount linked inputs only at canonical writable targets without symlink destinations, exercise native Linux mutations, omit missing mount destinations without creating host names, report per-input host validation requirements for link-name replacements and unrepresentable inputs, reject uncovered fallback inputs while retaining native full or partial enforcement, expose a bilingual model-free headless sandbox diagnostic with the complete fallback inventory, preserve direct persistent-process exit facts when control EOF precedes their publication, document missing-name and reparse-point validation requirements, preserve permission initialization event order while suppressing approval prompts for new and resumed unattended headless sessions and retaining policy for authenticated answering owner streams, test deployment-owned dependency installation paths, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
       "match": {
@@ -14241,6 +14241,8 @@
           "packages/interaction/user-approval/package.json",
           "packages/interaction/user-approval/src/index.ts",
           "packages/interaction/user-approval/src/types.ts",
+          "packages/interaction/user-approval/tests/windows-acl-fixture.ts",
+          "packages/interaction/user-approval/tests/windows-owner-write.spec.ts",
           "packages/interaction/user-approval/tsconfig.json",
           "packages/sandbox/sandbox-local/README.i18n.yaml",
           "packages/sandbox/sandbox-local/README.md",

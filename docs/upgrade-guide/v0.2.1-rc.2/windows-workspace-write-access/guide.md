@@ -11,7 +11,7 @@ English | [中文](guide.zh.md)
 
 Windows defaults to `read-only`; Linux and macOS retain `workspace-write`. Explicit environment, sandbox-policy, and session modes are unchanged. Base profiles have no writable fallback.
 
-General settings manages built-in Windows sandbox directory writes. Consent enables writes only under platform defaults; existing ACEs are not consent. First-write approval saves consent and materializes ACLs. Rejection, cancellation, missing answerers, and expiry preserve read-only access. Unattended headless uses `never`, including resumes. Owner streams authenticated and answering at setup preserve policy; later connections do not. Windows native execution remains unvalidated.
+General settings manages built-in Windows sandbox directory writes. Consent enables writes only under platform defaults; existing ACEs are not consent. First-write approval saves consent and materializes ACLs: the workspace becomes writable while protected paths remain non-writable. Rejection, cancellation, missing answerers, and expiry preserve read-only access. Unattended headless uses `never`, including resumes. Owner streams authenticated and answering at setup preserve policy; later connections do not. Windows native execution remains unvalidated.
 
 Dynamic Cordis packages cannot activate under the implicit Windows default, including browser-panel starts and previously approved versions. Their same-process Host and same-origin Client code can access owner approval capabilities. Directory write consent does not enable dynamic code; inspection and definition storage remain available.
 
