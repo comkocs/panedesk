@@ -2514,6 +2514,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'protectedWorkspaceRoot?: () => string',
+        description: 'Launcher-owned policy root for sessions without an explicit cwd.',
+        parameters: [],
+      },
+      {
         signature: 'readonly packageManager?: ProfilePnpmInvocation',
         description: 'Packaged applications supply their bundled runtime instead of a PATH executable.',
         parameters: [],
