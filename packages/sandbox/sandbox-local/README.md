@@ -52,6 +52,10 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 With the provider mounted, a command runs under the mode you resolve per call. Enforcement is a reported fact, not a promise: `full` means the backend governs every promised file effect, while `partial` means it governs only a subset — the Windows ACL rung (hard-link, unconfined-read, and AppContainer-ACL boundaries) and older Landlock ABIs are the current partial cases, so a consumer that requires an absolute boundary can reject or surface them. Denied file effects surface through the backend's denial dialect, and a runner that fails before executing the command reports a structured runner-failure signature.
 
+### Windows workspace revocation
+
+Only the built-in Windows runner advertises `supportsWorkspaceWriteAccess`. Inspection derives the canonical workspace's exact capability SID and reads its ACL without granting access. Explicit revocation removes that capability and forgets its cached materialization only after the native revoke succeeds; other platforms and custom runners reject these management calls. Revocation does not terminate processes or close existing handles. Read-only confinement creates neither workspace nor temporary write grants.
+
 ### Failures and recovery
 
 An unsupported platform or an unusable runner fails closed: `confine()` rejects with `SANDBOX_UNAVAILABLE` and names the runner options for the platform, and the consumer surfaces that error rather than running the command unconfined. A runner that starts but refuses its profile is identified by its fatal stderr signature and exit code, so a broken sandbox is not mistaken for a denied command. The `runnerCommand` override is an operator assertion: it skips functional probes and assumes the configured runner implements the bwrap-compatible profile honestly.

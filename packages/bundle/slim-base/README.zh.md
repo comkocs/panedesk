@@ -11,6 +11,8 @@ kind: "package-bundle"
 
 `@panedesk/slim-base` 是 `@panedesk/dsh-base` 的逐行子集，提供最小 headless 核心、上下文压缩、大输出溢写、工具调用超时保护和 `AGENTS.md` 加载。它面向默认 slim 预设的用户，随 `panedesk` 启动器一同安装，作为核心 bundle 使用。它提供 profile 组合，而非独立命令；`panedesk "task"` 选择 slim，并配合 `@panedesk/slim-headless` 一次性任务 bundle。
 
+沙盒模式由共享的[策略解析器](../../sandbox/sandbox-policy/README.zh.md)决定，包括 Windows 只读缺省值；本组合包不插入可写后备值。
+
 ## 目录
 
 - [模型体验](#model-experience)

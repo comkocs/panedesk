@@ -193,4 +193,20 @@ The selectable process catalog changed. Payload-free by design: consumers subscr
 ```
 
 Source: [`packages/interaction/permission-presets/src/types.ts`](../../packages/interaction/permission-presets/src/types.ts)
+
+<a id="permission-presetsworkspace-write-changed--emit"></a>
+
+#### `permission-presets/workspace-write-changed` — emit
+
+Workspace consent or revocation changed; owners re-read the inventory.
+
+```ts cordis-catalog
+/**
+ * Workspace consent or revocation changed; owners re-read the inventory.
+ * @mode emit
+ */
+'permission-presets/workspace-write-changed'(): void
+```
+
+Source: [`packages/interaction/permission-presets/src/types.ts`](../../packages/interaction/permission-presets/src/types.ts)
 <!-- END GENERATED cordis-surface -->

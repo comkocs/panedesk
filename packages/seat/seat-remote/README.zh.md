@@ -25,6 +25,8 @@ kind: "package-reference"
 
 仅在 `webhook` 配置了路径、有界请求体与响应计时策略、允许时钟偏差和引用凭据的明确来源时，才存在 webhook 入口。每个配置来源以 HTTP 白名单中的同一标识登记到引擎；卸载时排空请求并移除路由与来源注册。正确签名进入持久准入，错误签名只产生拒绝审计。未配置 `callback` 回执地址的外部来源只落引擎账本，不外发回执。来源可登记 `callback: { url, keyVersion }`，地址仅限 HTTP(S)，版本必须位于本来源的 `credentialRefs` 中；拒绝含用户信息的 URL。回执以 POST 发送不增减字段的冻结载荷，带 `idempotency-key: <callbackId>` 及 `x-seat-source`、`x-seat-timestamp`、`x-seat-key-version`、`x-seat-signature` 请求头。签名使用按引用解析的凭据，对 `<timestamp>.` 后接原始 JSON 请求体计算 HMAC-SHA256。投递使用已安装引擎的 `callbackTimeoutMs` 与 `callbackMaxResponseBytes`，不跟随重定向，不保留响应文本。接收方必须在处理前拒绝认证，因此 401/403 报告 `callback-authentication-failed` 与 `effectState: none`。引擎仅将该回调停车等待人工处理，不停止独立回调，除非保留证据包含先前的不确定结果。有界且完整的 2xx 响应成功；401/403 暂停认证投递，其余 4xx 与重定向暂停协议投递；响应超限也暂停协议投递，但 5xx 仍按可重投处理。服务端、传输、超时及凭据提供方故障保留重投。投递至少一次，收件方须按 `callbackId` 去重。被拒来源尝试通过引擎持久审计。不能将凭据值放入来源记录或查询输出。
 
+挂载权限预设服务时，本适配器将分页读取的席位定义目录与记忆目录贡献给仅限所有者访问的旧工作区 ACL 清单。读取仅访问元数据，不打开会话；卸载适配器时移除目录读取器。
+
 <a id="model-experience"></a>
 ## 模型体验
 

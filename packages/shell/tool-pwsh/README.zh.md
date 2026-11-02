@@ -64,6 +64,8 @@ kind: "package-reference"
 
 在沙箱执行器下，被拒绝的命令会报告 `[sandbox: file access denied under <mode> mode]`，并适用相同的单次升权路径：用 `sandbox_permissions` 加一句 `justification`，经用户审批后重试完全相同的命令一次。理由字段提示模型使用用户当前提问的语言。工具还会在其描述中教授两条 Windows 受限令牌约定：只读 pwsh 运行在 ConstrainedLanguage 中（`.NET` 静态调用、`Add-Type`、COM 与反射会以 "only core types" 错误失败）；两种受限模式下程序都无法打开命名管道，因此通过管道 stdio 捕获另一程序输出的命令会以 EPERM 失败——请升权该确切命令一次，或重构命令以避免捕获输出。
 
+Windows 隐式缺省下，只读拒绝会用所有者预授权指引替代升权提示，指向「设置 > 通用 > Windows 工作区写权限」。前台结果、转入后台时的输出及后台终态详情均保留此指引；无人值守任务不能授予权限。预授权不会覆盖会话显式选择的只读模式。工具既不重试命令，也不从命令文本推测写意图。
+
 ### 可能出什么问题
 
 没有 PowerShell 执行器的组合永远不会激活该工具，且注入的服务（`tools`、`shell`、`systemPrompt`、`shellEnv`）必须全部存在。没有任务运行时的后台调用会以 `background jobs unavailable: load @panedesk/dsh-jobs and @panedesk/dsh-tool-jobs` 失败；没有沙箱执行器时的 `sandbox_permissions` 会以 `sandbox_permissions is not available in this composition (no sandboxing executor to escalate)` 失败。

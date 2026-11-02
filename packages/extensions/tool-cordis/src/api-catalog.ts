@@ -6661,6 +6661,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'permission-presets/workspace-write-changed',
+    mode: 'emit',
+    signature: '\'permission-presets/workspace-write-changed\'(): void',
+    summary: 'Workspace consent or revocation changed; owners re-read the inventory.',
+    description: 'Workspace consent or revocation changed; owners re-read the inventory.',
+    parameters: [],
+  },
+  {
     name: 'plugin-manager/changed',
     mode: 'emit',
     signature: '\'plugin-manager/changed\'(change: PluginChange): void',

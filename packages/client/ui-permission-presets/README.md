@@ -33,6 +33,10 @@ A pick submits the `/permission <preset>` command line. The argument-bearing for
 
 When the live catalog withdraws a preset, the composer closes its pending confirmation and shows the Session's current value instead of an unavailable optimistic pick. Every catalog invalidation — the payload-free notification or a connection-generation change — closes an open slash picker or its confirmation without consuming the draft, while publishing the result of a read the picker waits for leaves it open with its failure and retry state; reopening reads the current catalog. A submitted command remains busy until its response settles.
 
+### Windows workspace write access
+
+On supported Windows hosts, General settings also lists canonical workspace directories with their authorization time and source. Choose a directory to preauthorize sandboxed writes, or revoke its record and native product write ACE. Unrecorded legacy ACEs discovered from local session history and registered directory inventories are labeled separately. Incomplete revocations have a separate retry label even when no authorization record remains. Failures remain visible with a refresh action; a failed operation is not reported as a successful authorization change. Connection changes clear the inventory, and a picker result cannot authorize a directory after its connection changes or the row is disposed. Non-Windows hosts hide this row.
+
 ### The Settings row
 
 The row derives its options from the host's dynamic `defaultPreset` enum, uses the same localized built-in labels as the current-session picker, and writes one settings mutation. Current-session-only contributions such as `auto` are absent. The value applies only when a later session is created; changing it never switches or rewrites the current session.
