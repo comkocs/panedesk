@@ -39,6 +39,8 @@ The agent works through the task, streams each non-empty provider reasoning delt
 { echo "Summarize these changes:"; git diff --stat; } | dsh --profile headless
 ```
 
+New and resumed headless sessions use the `never` approval policy: unattended runs do not send approval prompts, even when an owner is connected. Windows implicit read-only remains read-only until the owner preauthorizes the workspace in Settings > General > Windows workspace write access; explicit file-access modes are unchanged.
+
 The task and run options are supplied through three settings:
 
 | Field | Default | Meaning |

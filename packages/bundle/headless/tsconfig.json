@@ -40,6 +40,9 @@
     },
     {
       "path": "../../subagent/subagent"
+    },
+    {
+      "path": "../../interaction/user-approval"
     }
   ]
 }

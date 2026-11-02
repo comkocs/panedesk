@@ -2987,6 +2987,9 @@ importers:
       '@panedesk/dsh-subagent':
         specifier: workspace:*
         version: link:../../subagent/subagent
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
 
   packages/bundle/ledger-app:
     dependencies:

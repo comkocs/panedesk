@@ -1,5 +1,5 @@
 /** Protection follows the running composition, not names of unrelated source trees. */
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -8,6 +8,26 @@ import Loader from '@panedesk/cordis-plugin-loader'
 import { initProfile, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { expect, it, onTestFinished } from 'vitest'
 import { resolveProtectedPaths } from '../src/protected-paths.ts'
+
+it.skipIf(process.platform === 'win32')('retains a watched symlink spelling as well as its target', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'watched-link-'))
+  const workspace = join(root, 'workspace')
+  const target = join(root, 'owner.yml')
+  mkdirSync(workspace)
+  writeFileSync(target, 'owner: true\n')
+  const alias = join(workspace, 'watched.yml')
+  symlinkSync(target, alias)
+  const ctx = new Context()
+  onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
+  const profile: ProfileContext = {
+    name: 'active', dir: join(root, 'profile'), patchPath: alias, home: join(root, 'home'),
+    cwd: workspace, installAnchor: join(root, 'package.json'), startedBundles: [],
+    overlays: [], telemetryDisabledEnv: undefined,
+  }
+  ctx.provide('profileContext', profile)
+  expect(resolveProtectedPaths(ctx)).toContain(target)
+  expect(resolveProtectedPaths(ctx)).toContain(alias)
+})
 
 it('protects actual bundle configuration files outside the profile directory', () => {
   const root = mkdtempSync(join(tmpdir(), 'host-inputs-'))

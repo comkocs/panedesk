@@ -10,11 +10,14 @@ import { canonicalPath } from '@panedesk/dsh-sandbox'
 /**
  * Collect current profile, loaded plugin, and active watcher directories.
  * @param ctx - The running host's service context.
- * @returns Canonical protected directories; unrelated projects are not inspected.
+ * @returns Protected path spellings and canonical targets; unrelated projects are not inspected.
  */
 export function resolveProtectedPaths(ctx: Context): string[] {
   const paths = new Set<string>()
-  const add = (path: string): void => { paths.add(canonicalPath(resolve(path))) }
+  const add = (path: string): void => {
+    paths.add(resolve(path))
+    paths.add(canonicalPath(resolve(path)))
+  }
   const profile = ctx.get('profileContext')
   if (profile !== undefined) {
     add(join(profile.home, 'cordis.patch.yml'))
