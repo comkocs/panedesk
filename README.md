@@ -8,14 +8,24 @@ English | [中文](README.zh.md)
 
 ## Status
 
-Milestone 1 (slim base) is done: the fork builds, runs headless one-shot tasks against Anthropic Messages and OpenAI Chat Completions endpoints, and dispatches subagents. There is no Panedesk UI yet, and nothing is published to npm. Planned next: the automatic window (agent) launcher, ticket desk, workflow panel, a VS Code style dark UI, a subagent map tree, a cache layer with remaining-TTL display, and Claude Code style interjection and withdrawal.
+The public repository includes a headless CLI with model routing and subagents, plus Web and desktop clients. The Web composition provides a session subagent tree with read-only monitoring, ledger statistics, node health and administration, and a read-only skills catalog. Seat orchestration and its UI are opt-in; installing the packages does not enable automatic opening. Separate private plugins also exist; they are not described here.
 
-Linux and macOS are the primary targets; Windows is supported for development.
+Planned next: public-release preparation, then long-running sessions and subagent supervision, then upstream-sync automation. See the [Panedesk architecture](docs/panedesk/architecture.md) for public composition and configuration.
+
+## Platform behavior
+
+The Windows row describes the intended safe default; its permission changes are not yet integrated into this checkout. Until they are integrated, explicitly set `PANEDESK_PERMISSION_MODE=read-only` on Windows to avoid the current workspace-write default. Windows native enforcement has not been validated on a Windows machine.
+
+| Platform | Sandbox | Write access | Bash default | Known limitations |
+| --- | --- | --- | --- | --- |
+| Windows | Restricted token with low integrity and directory capability ACLs. | Target: without an explicit mode, read-only and no ACL changes. The first write in a workspace requests English/Chinese confirmation; allowing records consent and grants that directory write access. Settings can preauthorize or revoke a workspace. Unattended sessions do not prompt: they stay read-only and explain how to enable writes. Explicit modes remain effective. | Disabled without an environment or settings selection; PowerShell is the alternative. | Partial confinement: hard links, unrestricted reads, and AppContainer ACL constraints remain. Revocation does not terminate already-open processes or handles, but new tool calls become read-only immediately. The permission-mode selector does not immediately reflect directory records. These target behaviors are pending integration and Windows-machine validation. |
+| Linux | bubblewrap (`bwrap`), with Landlock as fallback. | Defaults to workspace-write for workspace and temporary roots; explicit mode selection overrides it. | Enabled, using the configured Bash or `bash` on PATH. | No usable runner means refusal. Older Landlock ABIs may provide partial confinement; not every kernel configuration has been validated. |
+| macOS | Seatbelt through `sandbox-exec`. | Defaults to workspace-write for workspace and temporary roots; explicit mode selection overrides it. | Enabled, using the configured Bash or `bash` on PATH. | Paths are normalized on the host. Seatbelt does not hide host processes; platform-injected regressions do not constitute native macOS validation. |
 
 ## What changed from DSH
 
-- **Slim by default.** The launcher depends on 9 packages instead of 86. The default `slim` preset mounts 39 plugin rows: the minimal headless core plus context compaction, large-output spill, the tool-call timeout guard and `AGENTS.md` loading.
-- **Full on demand.** The `full` preset is the upstream DSH headless composition (98 rows). It, and the upstream `web`, `acp` and `sdk` profiles, become available when the `@panedesk/full` package is installed beside the launcher (it is in the development workspace).
+- **Slim by default.** The default `slim` preset provides the headless core, context compaction, large-output spill, the tool-call timeout guard and `AGENTS.md` loading. The [generated preset table](docs/panedesk/architecture.md) owns the current row counts and membership.
+- **Full on demand.** The `full` preset is the upstream DSH headless composition. It, and the upstream `web`, `acp` and `sdk` profiles, become available when the `@panedesk/full` package is installed beside the launcher (it is in the development workspace).
 - **Privacy off by default.** Session-log upload, plugin-inventory upload, session telemetry, anonymous identity headers and Desktop product analytics all default to off and can be switched on.
 - **No brand opener.** The system prompt no longer starts with a "powered by" harness line.
 - **Commands.** The CLI is `panedesk`, with the short name `pdesk`.
@@ -25,30 +35,34 @@ Linux and macOS are the primary targets; Windows is supported for development.
 
 Requirements: Node.js `^22.19 || >=24`, pnpm 11 (via Corepack).
 
+From the repository root, run one setup command:
+
 ```sh
-pnpm install                    # git hooks are opt-in: pnpm run hooks:install
-node_modules/.bin/tsx scripts/compile-referenced-projects.ts host-libraries
+pnpm run setup
 ```
 
-Pick a model provider. The slim preset ships no default model route: until you configure one, a run stops with an error that points here. Any OpenAI-compatible or Anthropic Messages-compatible endpoint works through an overlay (templates in [examples/providers](examples/providers)), passed with `--patch` or copied into `$PANEDESK_HOME/profiles/slim/cordis.patch.yml`; the overlay references the key by environment-variable name only:
+This performs the frozen install, builds the native addon and host libraries (including the CLI runtime), checks the CLI runtime closure, and initializes the default slim profile. You do not need to run `compile-referenced-projects` yourself. Git hooks remain opt-in via `pnpm run hooks:install`.
+
+Run the built CLI directly, or use `pnpm run setup -- --link` to install the `pdesk` and `panedesk` commands globally after configuring `PNPM_HOME`:
 
 ```sh
-export MY_GATEWAY_API_KEY=...   # your own key
-node apps/cli/lib/bin.js --patch examples/providers/openai-chat.yml "summarize this repository"
-node apps/cli/lib/bin.js full "the same task on the full preset"
 node apps/cli/lib/bin.js --help
+node apps/cli/lib/bin.js init
 ```
 
-Launcher flags (`--profile`, `--patch`, dumps) come before app flags such as `--json`. On Windows, prefer `PANEDESK_PERMISSION_MODE=read-only` unless you want the sandbox to grant the workspace write access through directory ACLs.
+With the global command linked, the second command is `pdesk init`. Choose Anthropic Messages, OpenAI Chat Completions, or OpenAI Responses, then enter the base URL and model ID. Reference an environment-variable name for the key (recommended), or type it without echo into the owner-only credentials file. Init writes only the key reference into `$PANEDESK_HOME/cordis.patch.yml` and backs up an existing patch before updating it. Set the referenced variable in the environment when using that option; slim has no model route until you configure one.
+
+```sh
+node apps/cli/lib/bin.js "summarize this repository"
+```
+
+For manual provider overlays, use the [provider examples](examples/providers) and the [patch-order reference](docs/panedesk/architecture.md). Launcher flags (`--profile`, `--patch`, dumps) come before app flags such as `--json`. See the platform table before running tools on Windows.
 
 ## Presets
 
-| Preset | How to run | What it mounts |
-|---|---|---|
-| `slim` (default) | `panedesk "task"` | 39 rows from `@panedesk/slim-base` + `@panedesk/slim-headless`: tools `read`, `write`, `edit`, `glob`, `grep`, `bash`/`pwsh`, `subagent` |
-| `full` | `panedesk full "task"` | upstream `dsh-base` + `dsh-headless`, 98 rows (web tools, skills, goals, workflow, todo, jobs, …) |
+See the [generated preset table and composition notes](docs/panedesk/architecture.md) for current row counts and plugin membership. It is generated by `scripts/panedesk/gen-slim-base.ts --table`; the counts describe base declarations before headless patches, platform conditions, and overlays, not enabled plugins.
 
-`@panedesk/slim-base` is generated row-for-row from upstream `dsh-base` by `scripts/panedesk/gen-slim-base.ts`, so upstream fixes to shared rows carry over.
+For npm dry-runs, active release helpers, and inherited publishing commands, see [release scripts](docs/panedesk/release.md).
 
 ## License
 
