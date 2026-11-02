@@ -54,15 +54,33 @@ function identity(path: string): string {
   }
 }
 
+function treeStamp(path: string): string {
+  try {
+    const link = lstatSync(path, { bigint: true })
+    const target = statSync(path, { bigint: true })
+    return [realpathSync(path), ...[link, target].map(stat =>
+      `${stat.dev}:${stat.ino}:${stat.mode}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`)].join('\0')
+  } catch (error) {
+    if (missing(error)) return 'missing'
+    throw error
+  }
+}
+
 function snapshot(path: string, root: string, files?: Map<string, Buffer>): InputSnapshot {
   const hash = createHash('sha256')
   const copies: { path: string; content: string }[] = []
+  const stamps = new Map<string, string>()
+  const capture = (filename: string): void => {
+    if (!stamps.has(filename)) stamps.set(filename, treeStamp(filename))
+  }
   for (let current = path; contains(root, current); current = dirname(current)) {
+    capture(current)
     hash.update(current).update('\0').update(identity(current)).update('\0')
     if (current === dirname(current)) break
   }
   const visited = new Set<string>()
   const walk = (filename: string): Buffer | null => {
+    capture(filename)
     hash.update(filename).update('\0').update(identity(filename)).update('\0')
     let stat: ReturnType<typeof statSync>
     try { stat = statSync(filename) } catch (error) {
@@ -105,6 +123,9 @@ function snapshot(path: string, root: string, files?: Map<string, Buffer>): Inpu
     if (!missing(error)) throw error
   }
   const content = walk(path)?.toString('base64') ?? null
+  for (const [filename, before] of stamps) {
+    if (treeStamp(filename) !== before) throw new Error(`Protected host input changed while being read: ${filename}`)
+  }
   return { digest: hash.digest('hex'), kind, target, content, files: copies }
 }
 

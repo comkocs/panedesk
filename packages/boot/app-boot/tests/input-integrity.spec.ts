@@ -1,9 +1,12 @@
 /** Exact owner consent cannot authorize a replacement made while a prompt is open. */
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import * as fs from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { ProtectedInputIntegrity } from '../src/input-integrity.ts'
+
+vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'input-integrity-'))
@@ -279,6 +282,31 @@ it('retains descendant configuration copies when only their directory was regist
   const restarted = new ProtectedInputIntegrity(f.workspace, home)
   expect(restarted.covers(manifest)).toBe(true)
   expect(restarted.readTrusted(manifest)?.toString()).toBe('{"name":"trusted"}')
+})
+
+it('rejects a directory snapshot when an earlier descendant changes during traversal', () => {
+  const f = fixture()
+  const directory = join(f.workspace, 'tree')
+  mkdirSync(directory)
+  const first = join(directory, 'a.yml')
+  const second = join(directory, 'b.yml')
+  writeFileSync(first, 'first')
+  writeFileSync(second, 'second')
+  const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
+  integrity.observe(directory)
+  const read = fs.readFileSync
+  let reads = 0
+  const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((...args: Parameters<typeof fs.readFileSync>) => {
+    const bytes = read(...args)
+    if (typeof args[0] === 'number' && ++reads === 2) writeFileSync(first, 'changed during traversal')
+    return bytes
+  })
+  try {
+    expect(() => { integrity.grantWrite() }).toThrow('changed while being read')
+  } finally {
+    spy.mockRestore()
+  }
+  expect(integrity.covers(first)).toBe(false)
 })
 
 it('leaves inputs outside the writable workspace unchanged', async () => {
