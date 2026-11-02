@@ -2,6 +2,7 @@
   "name": "@panedesk/dsh-snapshots",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Scenario replay corpus: workspace membership links the packages scenario runtime fixtures import so a clean checkout resolves them.",
   "dependencies": {
     "@panedesk/cordis": "workspace:~",

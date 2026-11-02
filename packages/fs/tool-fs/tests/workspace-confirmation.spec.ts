@@ -470,7 +470,8 @@ describe('Windows first workspace write confirmation', () => {
     expect((await writing).isError).toBe(true)
     expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
     expect(native.additions).toEqual([])
-  })
+    // The Python arm builds the locked venv on first use; a cold install exceeds the default budget.
+  }, 120_000)
 
   it('does not resurrect a revoked workspace from a previously resolved policy or another provider cache', async () => {
     const { ctx, agent, workspace, sandbox, settings } = await fixture()

@@ -59,10 +59,13 @@ class BoundedTextBuffer {
   private lastCodeUnit = 0
   private dropped = false
 
-  constructor(
-    private readonly maxBytes: number,
-    private readonly maxLines?: number,
-  ) {}
+  private readonly maxBytes: number
+  private readonly maxLines: number | undefined
+
+  constructor(maxBytes: number, maxLines?: number) {
+    this.maxBytes = maxBytes
+    this.maxLines = maxLines
+  }
 
   get truncated(): boolean {
     return this.dropped
@@ -163,11 +166,16 @@ class LocalSendOperation implements TerminalSendOperation {
   private initialForegroundLeftWait: boolean
   private initialForegroundPgid: number | undefined
 
+  readonly startedAt: number
+  private readonly onCancel: () => void
+
   constructor(
     maxBytes: number,
-    readonly startedAt: number,
-    private readonly onCancel: () => void,
+    startedAt: number,
+    onCancel: () => void,
   ) {
+    this.startedAt = startedAt
+    this.onCancel = onCancel
     this.output = new BoundedTextBuffer(maxBytes)
     this.promise = Promise.withResolvers<TerminalSendResult>()
     this.initialForegroundLeftWait = true
@@ -275,11 +283,18 @@ export class LocalPtySession implements TerminalBackendSession {
   private pendingResponseWrites = 0
   private emulatorClosed = false
 
+  private readonly terminal: SubprocessTerminalHandle
+  private readonly config: ResolvedConfig
+  private readonly assertInputPolicy: (() => void) | undefined
+
   constructor(
-    private readonly terminal: SubprocessTerminalHandle,
-    private readonly config: ResolvedConfig,
-    private readonly assertInputPolicy?: () => void,
+    terminal: SubprocessTerminalHandle,
+    config: ResolvedConfig,
+    assertInputPolicy?: () => void,
   ) {
+    this.terminal = terminal
+    this.config = config
+    this.assertInputPolicy = assertInputPolicy
     this.pid = terminal.pid
     const { Terminal: HeadlessTerminal } = requireHeadless()
     this.emulator = new HeadlessTerminal({ cols: config.cols, rows: config.rows, scrollback: 0 })
