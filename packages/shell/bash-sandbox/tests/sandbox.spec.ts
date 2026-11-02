@@ -8,7 +8,8 @@
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { Context } from '@panedesk/cordis'
 import type { CollectedOutput, ShellExecSpec, ShellExecution, ShellRunResult } from '@panedesk/dsh-shell'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
@@ -106,7 +107,19 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 describe('the provider hand-off', () => {
   it.each(['kill', 'none'] as const)('hands protected inputs and writable workspace to the runner before Bash %s spawns', async (onExpiry) => {
     const { ctx, bash } = await setup({ mode: 'workspace-write', workspaceRoot: spillDir })
+    const home = mkdtempSync(join(tmpdir(), 'bash-handoff-owner-'))
+    onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
+    const input = join(spillDir, 'plugin.mjs')
+    const integrity = new ProtectedInputIntegrity(spillDir, home)
+    integrity.observe(input)
+    integrity.grantWrite()
+    const profile: ProfileContext = {
+      name: 'test', dir: spillDir, patchPath: input, cwd: spillDir, home,
+      installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
+      telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+    }
     const providerContext = new Context()
+    providerContext.provide('profileContext', profile)
     await providerContext.plugin(LocalSandboxProvider, {})
     const provider = providerContext.sandbox
     if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')

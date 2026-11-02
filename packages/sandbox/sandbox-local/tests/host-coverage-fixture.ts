@@ -10,13 +10,14 @@ import { onTestFinished } from 'vitest'
  * Record approved inputs without replacing the production coverage query.
  * @param workspace Writable fixture workspace.
  * @param input Protected input whose approved state is captured now.
+ * @param additionalInputs Other protected names approved in the same baseline.
  * @returns Context carrying an owner-local persistent baseline.
  */
-export function coveredContext(workspace: string, input: string): Context {
+export function coveredContext(workspace: string, input: string, ...additionalInputs: string[]): Context {
   const home = mkdtempSync(join(tmpdir(), 'protected-link-owner-'))
   onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
   const integrity = new ProtectedInputIntegrity(workspace, home)
-  integrity.observe(input)
+  for (const path of [input, ...additionalInputs]) integrity.observe(path)
   integrity.grantWrite()
   const profile: ProfileContext = {
     name: 'test', dir: workspace, patchPath: input, cwd: workspace, home,
