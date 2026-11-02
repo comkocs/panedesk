@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { provideWorkingDirectoryFixture, unsupportedInbox } from '@panedesk/dsh-agent-loop-testkit'
 import { PassThrough } from 'node:stream'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { resolve } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
@@ -16,7 +19,7 @@ import { BashTerminalBackend, PWSH_PROMPT_SETUP } from '@panedesk/dsh-terminal-b
 import { ENCODING_PREAMBLE } from '@panedesk/dsh-pwsh-local'
 import * as ptyLocal from '@panedesk/dsh-terminal-bash'
 import type { ResolvedConfig } from '@panedesk/dsh-terminal-bash/src/config.ts'
-import type { LocalPtySession } from '@panedesk/dsh-terminal-bash/src/session.ts'
+import { LocalPtySession } from '@panedesk/dsh-terminal-bash/src/session.ts'
 import { SubprocessRuntime } from '@panedesk/dsh-subprocess'
 import type {
   SubprocessHandle,
@@ -615,6 +618,58 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(spawned.motd).toBe('dsh> ')
     expect(sends).toHaveLength(1)
     expect(sends[0]?.signal).toBe(signal)
+  })
+})
+
+describe('workspace access revocation', () => {
+  it.each(['before-call', 'before-write'] as const)('rejects input after %s revocation without terminating the existing terminal', async (timing) => {
+    const home = mkdtempSync(join(tmpdir(), 'terminal-access-'))
+    const ctx = new Context()
+    const completion = Promise.withResolvers<{ exitCode: number; signal: null }>()
+    const output = new PassThrough()
+    const write = vi.fn<SubprocessTerminalHandle['write']>().mockResolvedValue(undefined)
+    const terminate = vi.fn(async () => {
+      output.end()
+      completion.resolve({ exitCode: 0, signal: null })
+    })
+    try {
+      vi.stubEnv('PANEDESK_HOME', home)
+      vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+      provideWorkingDirectoryFixture(ctx)
+      await ctx.plugin(SessionProjectionRegistry)
+      vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+      await ctx.plugin(SandboxPolicyService, { workspaceRoot: home })
+      vi.restoreAllMocks()
+      await ctx.plugin(RecordingSandbox)
+      await ctx.sandboxPolicy.workspaceAccess.authorize(home, 'settings-preauthorization')
+      const backend = new BashTerminalBackend(ctx, config(), async () => ({
+        ...terminalHandle(), output, done: completion.promise, write, terminate,
+        inspectForeground: async () => {
+          if (timing === 'before-write') await ctx.sandboxPolicy.workspaceAccess.revoke(home, () => {})
+          return undefined
+        },
+      }), (handle, resolved, assertInputPolicy) => {
+        const session = new LocalPtySession(handle, resolved, assertInputPolicy)
+        vi.spyOn(session, 'initialize').mockResolvedValue(undefined)
+        return session
+      })
+      const session = await backend.spawn(spec(agent(ctx, home)))
+      try {
+        if (timing === 'before-call') await ctx.sandboxPolicy.workspaceAccess.revoke(home, () => {})
+        await expect(Promise.resolve().then(() => session.startSend({ text: 'write command', submit: true }).done))
+          .rejects.toThrow('Settings > General > Windows workspace write access')
+        expect(write).not.toHaveBeenCalled()
+        expect(terminate).not.toHaveBeenCalled()
+        expect(session.status()).toEqual({ kind: 'running' })
+      } finally {
+        await session.close('test cleanup')
+      }
+    } finally {
+      await ctx.fiber.dispose()
+      vi.unstubAllEnvs()
+      vi.restoreAllMocks()
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 })
 

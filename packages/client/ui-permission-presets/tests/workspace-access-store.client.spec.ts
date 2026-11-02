@@ -87,6 +87,53 @@ it('discards an inventory response from a replaced connection', async () => {
   controller.dispose()
 })
 
+it('refreshes workspace access after a host notification and stops after disposal', async () => {
+  const ctx = new Context()
+  const generation: ConnectionGeneration = { id: 1, host: { home: '/first' } }
+  const connection: Partial<ConnectionHandle> = {
+    generation: { getSnapshot: () => generation, subscribe: () => () => {} },
+  }
+  ctx.provide('connection', connection as ConnectionHandle)
+  const inventory = vi.fn(async () => ({ ok: true as const, value: { supported: true, entries: [] } }))
+  const remote = new TestRemote(ctx, { permissionPresets: { workspaceWriteAccess: inventory } })
+  const controller = new WorkspaceAccessController(ctx)
+  await controller.load()
+  remote.emit('permission-presets/workspace-write-changed', [])
+  await vi.waitFor(() => { expect(inventory).toHaveBeenCalledTimes(2) })
+  controller.dispose()
+  remote.emit('permission-presets/workspace-write-changed', [])
+  await Promise.resolve()
+  expect(inventory).toHaveBeenCalledTimes(2)
+})
+
+it('re-reads an inventory invalidated while its first read is pending', async () => {
+  const ctx = new Context()
+  const generation: ConnectionGeneration = { id: 1, host: { home: '/first' } }
+  const connection: Partial<ConnectionHandle> = {
+    generation: { getSnapshot: () => generation, subscribe: () => () => {} },
+  }
+  ctx.provide('connection', connection as ConnectionHandle)
+  const first = Promise.withResolvers<{ ok: true; value: { supported: boolean; entries: [] } }>()
+  const requested = Promise.withResolvers<undefined>()
+  let calls = 0
+  const remote = new TestRemote(ctx, { permissionPresets: { workspaceWriteAccess: async () => {
+    calls += 1
+    if (calls === 1) {
+      requested.resolve(undefined)
+      return first.promise
+    }
+    return { ok: true as const, value: { supported: true, entries: [] } }
+  } } })
+  const controller = new WorkspaceAccessController(ctx)
+  const loading = controller.load()
+  await requested.promise
+  remote.emit('permission-presets/workspace-write-changed', [])
+  first.resolve({ ok: true, value: { supported: true, entries: [] } })
+  await loading
+  await vi.waitFor(() => { expect(calls).toBe(2) })
+  controller.dispose()
+})
+
 it('does not call a remote without an active connection', async () => {
   const ctx = new Context()
   const connection: Partial<ConnectionHandle> = {

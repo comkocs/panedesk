@@ -64,6 +64,11 @@ declare module '@panedesk/cordis' {
      * @mode emit
      */
     'permission-presets/catalog-changed'(): void
+    /**
+     * Workspace consent or revocation changed; owners re-read the inventory.
+     * @mode emit
+     */
+    'permission-presets/workspace-write-changed'(): void
   }
 }
 

@@ -359,6 +359,7 @@ export class PermissionPresetService extends TypertRemoteService {
     this.requireWorkspaceOwner()
     const policy = this.requireWorkspaceAccess()
     await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
+    this.emitChanged('permission-presets/workspace-write-changed')
   }
 
   /**
@@ -372,7 +373,11 @@ export class PermissionPresetService extends TypertRemoteService {
     const sandbox = this.ctx.get('sandbox')
     if (sandbox?.revokeWorkspaceWriteGrant === undefined) throw new RemoteError('permission/workspace-unavailable', 'Windows workspace ACL management is unavailable', {})
     const revoke = sandbox.revokeWorkspaceWriteGrant.bind(sandbox)
-    await policy.workspaceAccess.revoke(workspace, revoke)
+    try {
+      await policy.workspaceAccess.revoke(workspace, revoke)
+    } finally {
+      this.emitChanged('permission-presets/workspace-write-changed')
+    }
   }
 
   /**
@@ -417,10 +422,10 @@ export class PermissionPresetService extends TypertRemoteService {
     return this.ctx.effect(() => {
       if (this.autoAdmit !== undefined) throw new Error('permission: preset "auto" is already registered')
       this.autoAdmit = admit
-      this.emitCatalogChanged()
+      this.emitChanged('permission-presets/catalog-changed')
       return () => {
         this.autoAdmit = undefined
-        this.emitCatalogChanged()
+        this.emitChanged('permission-presets/catalog-changed')
       }
     }, 'permissionPresets.registerAuto()')
   }
@@ -565,18 +570,19 @@ export class PermissionPresetService extends TypertRemoteService {
     }
   }
 
-  /** Publish a non-vetoing payload-free catalog invalidation. */
-  private emitCatalogChanged(): void {
-    for (const listener of this.ctx.events.dispatch('emit', ['permission-presets/catalog-changed']) as Array<() => unknown>) {
+  /** Publish non-vetoing inventory or catalog invalidation after a state change. */
+  private emitChanged(event: 'permission-presets/catalog-changed' | 'permission-presets/workspace-write-changed'): void {
+    const label = event === 'permission-presets/catalog-changed' ? 'catalog-changed' : 'workspace-write-changed'
+    for (const listener of this.ctx.events.dispatch('emit', [event]) as Array<() => unknown>) {
       try {
         const returned = listener()
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
           void Promise.resolve(returned as PromiseLike<unknown>).catch((error: unknown) => {
-            this.ctx.logger.warn(`permission: catalog-changed listener failed: ${error instanceof Error ? error.message : String(error)}`)
+            this.ctx.logger.warn(`permission: ${label} listener failed: ${error instanceof Error ? error.message : String(error)}`)
           })
         }
       } catch (error: unknown) {
-        this.ctx.logger.warn(`permission: catalog-changed listener failed: ${error instanceof Error ? error.message : String(error)}`)
+        this.ctx.logger.warn(`permission: ${label} listener failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }

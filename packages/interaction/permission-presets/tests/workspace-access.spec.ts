@@ -56,6 +56,16 @@ describe('Windows workspace settings', () => {
     expect(revoke).toHaveBeenCalledWith(home)
     expect(ctx.sandboxPolicy.workspaceAccess.find(home)).toBeUndefined()
   })
+  it('notifies inventory readers after consent and revocation commit', async () => {
+    const { ctx, home } = await fixture()
+    const states: boolean[] = []
+    ctx.on('permission-presets/workspace-write-changed', () => {
+      states.push(ctx.sandboxPolicy.workspaceAccess.isAuthorized(home))
+    })
+    await ctx.permissionPresets.authorizeWorkspaceWrite(home)
+    await ctx.permissionPresets.revokeWorkspaceWrite(home)
+    expect(states).toEqual([true, false])
+  })
   it('lets the owner remove consent for a deleted directory without a native ACL call', async () => {
     const { ctx, home, revoke } = await fixture()
     const workspace = join(home, 'deleted')

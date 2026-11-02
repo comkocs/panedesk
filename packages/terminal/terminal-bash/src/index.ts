@@ -194,7 +194,8 @@ export class BashTerminalBackend implements TerminalBackend {
     private readonly createSession: (
       terminal: SubprocessTerminalHandle,
       config: ResolvedConfig,
-    ) => LocalPtySession = (terminal, config) => new LocalPtySession(terminal, config),
+      assertInputPolicy: () => void,
+    ) => LocalPtySession = (terminal, config, assertInputPolicy) => new LocalPtySession(terminal, config, assertInputPolicy),
   ) {
     this.type = config.backendType
   }
@@ -218,7 +219,12 @@ export class BashTerminalBackend implements TerminalBackend {
     })
     let session: LocalPtySession
     try {
-      session = this.createSession(terminal, this.config)
+      session = this.createSession(terminal, this.config, () => {
+        const current = this.ctx.sandboxPolicy.resolve({ session: spec.owner.session })
+        if (current.mode === policy.mode && current.workspaceRoot === policy.workspaceRoot) return
+        const hint = this.ctx.sandboxPolicy.writeDenialHint(current.mode)
+        throw new Error(`Terminal input denied: sandbox policy changed; close this terminal and open a new one.${hint === undefined ? '' : ` ${hint}`}`)
+      })
     } catch (error) {
       return rejectAfterStartupCleanup(error, () => terminal.terminate())
     }

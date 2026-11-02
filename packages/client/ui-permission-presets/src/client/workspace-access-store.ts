@@ -21,15 +21,23 @@ export class WorkspaceAccessController {
   private pending: object | undefined
   private readonly connection: ConnectionHandle
   private readonly unsubscribe: () => void
+  private readonly unsubscribeAccess: () => void
+  private refreshPending = false
 
   constructor(private readonly ctx: Context) {
     this.connection = ctx.get('connection') as ConnectionHandle
+    this.unsubscribeAccess = ctx.remote.$on('permission-presets/workspace-write-changed', () => {
+      if (this.disposed) return
+      if (this.pending !== undefined) this.refreshPending = true
+      else void this.load()
+    })
     let generation = this.connection.generation.getSnapshot()
     this.unsubscribe = this.connection.generation.subscribe(() => {
       const next = this.connection.generation.getSnapshot()
       if (this.disposed || next === generation) return
       generation = next
       this.pending = undefined
+      this.refreshPending = false
       this.store.set({ status: 'idle', supported: false, entries: [], error: null })
     })
   }
@@ -68,6 +76,7 @@ export class WorkspaceAccessController {
     if (this.disposed) return
     this.disposed = true
     this.unsubscribe()
+    this.unsubscribeAccess()
   }
 
   private async perform(mutation: boolean, operation: (current: () => boolean) => Promise<void>): Promise<void> {
@@ -91,7 +100,13 @@ export class WorkspaceAccessController {
     } catch (error) {
       if (current()) this.store.update((state) => { state.status = 'error'; state.error = error instanceof Error ? error.message : String(error) })
     } finally {
-      if (this.pending === pending) this.pending = undefined
+      if (this.pending === pending) {
+        this.pending = undefined
+        if (this.refreshPending) {
+          this.refreshPending = false
+          if (current()) void this.load()
+        }
+      }
     }
   }
 }
