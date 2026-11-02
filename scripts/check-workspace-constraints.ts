@@ -62,6 +62,10 @@ const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = 
 }
 /** Public source home recorded in maintained package manifests. */
 const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harness.git'
+/** Source home for release members the fork publishes under its own npm identity. */
+const forkPublishedRepositoryUrl = 'git+https://github.com/comkocs/panedesk.git'
+/** Release member directories whose manifest records the fork repository instead of the upstream one. */
+const forkPublishedReleaseMemberDirectories = new Set(['apps/cli'])
 /** Packages that participate in the experimental policy. */
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** Private reference tool run from the repository; it publishes no files. */
@@ -486,10 +490,13 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     if (manifest.publishConfig?.access !== 'public') {
       errors.push(`${label}: release member must set publishConfig.access to "public"`)
     }
+    const expectedRepositoryUrl = forkPublishedReleaseMemberDirectories.has(dir)
+      ? forkPublishedRepositoryUrl
+      : publishedRepositoryUrl
     if (manifest.repository?.type !== 'git'
-      || manifest.repository.url !== publishedRepositoryUrl
+      || manifest.repository.url !== expectedRepositoryUrl
       || manifest.repository.directory !== dir) {
-      errors.push(`${label}: release member repository must use ${publishedRepositoryUrl} with directory ${dir}`)
+      errors.push(`${label}: release member repository must use ${expectedRepositoryUrl} with directory ${dir}`)
     }
   } else if (!experimentalPackageDirectory.test(dir) && manifest.private !== true) {
     errors.push(`${label}: package.json must set "private": true`)

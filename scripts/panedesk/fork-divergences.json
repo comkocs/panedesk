@@ -13982,6 +13982,48 @@
         ],
         "test": "rescope-vendor:check residue verification"
       }
+    },
+    {
+      "id": "public-bilingual-issue-templates",
+      "description": "English-first bilingual bug, feature, and question issue templates",
+      "origin": "Bilingual issue templates for the public fork",
+      "reason": "Provide English-first bilingual bug, feature, and question templates for the public fork, replacing the upstream task template while keeping blank issues disabled and adding no external contacts. The bilingual guidance is suitable for upstream contribution; the choice of issue categories is fork-specific.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          ".github/ISSUE_TEMPLATE/bug.md",
+          ".github/ISSUE_TEMPLATE/feature.md",
+          ".github/ISSUE_TEMPLATE/task.md",
+          ".github/ISSUE_TEMPLATE/question.md"
+        ]
+      }
+    },
+    {
+      "id": "preset-documentation-freshness",
+      "description": "Preset-table freshness check registered in the documentation aggregate",
+      "origin": "Preset documentation freshness gate",
+      "reason": "Register a preset-table freshness check in the existing documentation aggregate and test its registration, leaving static and unit gate definitions unchanged. Allow the single additional word required by the architecture pointer without rewriting upstream prose. Generated preset documentation freshness is suitable for upstream contribution after adapting the fork-owned generator path; the pointer budget is fork-specific.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "package.json",
+          "scripts/run-gates.ts",
+          "scripts/run-gates.spec.ts",
+          "scripts/doc-budgets.manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "inspector-devtools-relative-css-module-ids",
+      "description": "Make DevTools CSS virtual module ids frontend-relative so packed runtime chunks carry no build-machine paths.",
+      "origin": "Release scan private-path red item",
+      "reason": "Rolldown emits each virtual module id inside //#region comments; building the id from the frontend-relative source path keeps the emitted chunks functionally identical while removing absolute build paths from the packed bytes. Suitable for upstream feedback.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/experimental/inspector/scripts/devtools/vite.ts"
+        ]
+      }
     }
   ]
 }
