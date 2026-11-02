@@ -73,10 +73,10 @@ function offlineInstallRequirements(): string {
 function cachedVenvDirectory(): string | undefined {
   const findLinks = process.env.PIP_FIND_LINKS
   if (findLinks === undefined || findLinks === '') return undefined
-  const cacheRoot = process.env.PANDESK_PY_SDK_VENV_CACHE
+  const cacheRoot = process.env.PANEDESK_PY_SDK_VENV_CACHE
     ?? (process.env.HOME !== undefined && process.env.HOME !== '' ? join(process.env.HOME, '.cache', 'panedesk', 'py-sdk-venv') : undefined)
   if (cacheRoot === undefined) {
-    throw new Error('python-sdk-env: offline seed mode requires HOME or PANDESK_PY_SDK_VENV_CACHE for the persistent venv cache')
+    throw new Error('python-sdk-env: offline seed mode requires HOME or PANEDESK_PY_SDK_VENV_CACHE for the persistent venv cache')
   }
   const lockDigest = createHash('sha256').update(readFileSync(uvLockPath)).digest('hex').slice(0, 16)
   return join(cacheRoot, lockDigest)
