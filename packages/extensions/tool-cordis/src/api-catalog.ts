@@ -661,7 +661,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'rebuilt(id: string): string | undefined',
-        description: 'Publish one completed bundle generation (the HMR watch\'s registration hook — the only entry point through which build changes reach the graph). Unchanged mtime, ctime and size preserve the graph without reading the bundle.',
+        description: 'Publish one completed bundle generation (the HMR watch\'s registration hook — the only entry point through which build changes reach the graph). Unchanged mtime, ctime and size preserve the graph; protected trees are still verified.',
         parameters: [{ name: 'id', description: 'entry id (package name).' }],
         returns: 'the current artifact rev, or undefined for an unknown id.',
       },
@@ -2516,6 +2516,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'protectedWorkspaceRoot?: () => string',
         description: 'Launcher-owned policy root for sessions without an explicit cwd.',
+        parameters: [],
+      },
+      {
+        signature: 'requestInputReview?: () => void',
+        description: 'Schedule owner review without blocking a refused configuration operation.',
+        parameters: [],
+      },
+      {
+        signature: 'reloadProtectedInputs?: () => Promise<void>',
+        description: 'Reload approved inputs through the active HMR transaction queue when available.',
+        parameters: [],
+      },
+      {
+        signature: 'runInputReview?: (operation: () => Promise<void>) => Promise<void>',
+        description: 'Serialize owner review with the active configuration transaction.',
         parameters: [],
       },
       {
@@ -5765,6 +5780,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Check for an active owner Client event stream, the only kind that can answer forwarded waterfalls.',
         parameters: [],
         returns: 'whether an owner stream is open and has not been cancelled.',
+      },
+      {
+        signature: 'onOwnerReady(listener: () => void): () => Promise<void>',
+        description: 'Observe authenticated owner streams after their opening frame has been consumed.',
+        parameters: [{ name: 'listener', description: 'Synchronous scheduler; its failure is logged without closing the transport.' }],
+        returns: 'Disposer cancelling future notifications, including a queued initial notification.',
       },
       {
         signature: 'requestOwnerEvent( event: string, request: object, context: TypertRemoteEventInvocation[\'context\'], ): Promise<TypertRemoteEventOutcome>',
@@ -10182,7 +10203,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(): void;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
+    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(): void;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
   },
   {
     name: 'ProtectedInputOwner',
