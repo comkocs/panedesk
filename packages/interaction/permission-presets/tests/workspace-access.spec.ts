@@ -19,9 +19,11 @@ afterEach(async () => {
 })
 
 async function fixture(platform: NodeJS.Platform = 'win32') {
-  const home = mkdtempSync(join(tmpdir(), 'workspace-settings-'))
-  homes.push(home)
-  vi.stubEnv('PANEDESK_HOME', home)
+  const parent = mkdtempSync(join(tmpdir(), 'workspace-settings-'))
+  homes.push(parent)
+  const home = join(parent, 'workspace')
+  mkdirSync(home)
+  vi.stubEnv('PANEDESK_HOME', join(parent, 'owner-home'))
   vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
   vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
   const ctx = new Context()

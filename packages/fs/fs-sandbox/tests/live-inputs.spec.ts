@@ -13,15 +13,17 @@ import SandboxedFileSystem from '@panedesk/dsh-fs-sandbox'
 import { expect, it, onTestFinished, vi } from 'vitest'
 
 async function fixture(implicit: boolean) {
-  const root = mkdtempSync(join(tmpdir(), 'live-inputs-'))
+  const parent = mkdtempSync(join(tmpdir(), 'live-inputs-'))
+  const root = join(parent, 'workspace')
+  mkdirSync(root)
   const ctx = new Context()
   onTestFinished(async () => {
     await ctx.fiber.dispose()
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
-    rmSync(root, { recursive: true, force: true })
+    rmSync(parent, { recursive: true, force: true })
   })
-  vi.stubEnv('PANEDESK_HOME', join(root, 'home'))
+  vi.stubEnv('PANEDESK_HOME', join(parent, 'home'))
   vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
   await ctx.plugin(SessionProjectionRegistry)
   const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
