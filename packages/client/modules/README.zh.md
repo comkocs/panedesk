@@ -41,7 +41,7 @@ application combo 脚本只携带每个插件的 `client.js` 入口，并在启�
 
 已打开的 Web 页面通过 HMR 传输跟随 Host 的完整模块图。启用普通插件会添加其 Loader 条目；停用会移除条目，并在其异步 effect 完成清理后回收未使用的模块与样式。再次启用会加载一个带样式的实例。其他 Loader 贡献方的条目及活动条目仍需使用的共享模块会保留。「设置 → 插件 → 插件列表」显示当前页面的同步失败，并提供不改变 Host 启用状态的重试。
 
-当 profile 持有已授写权的受保护输入记录时，初次 bundle、重建 bundle 和新请求的 chunk 消费与记录树摘要比较过的同一份字节。未确认改动会使读取失败；重建被拒绝时，已发布的图与上一版产物字节保持不变。不受保护的输入仍采用异步 chunk 读取。owner 确认与持久记录归 [app-boot](../../boot/app-boot/README.zh.md#profiles) 管理，不由浏览器注册表管理。
+当 profile 持有已授写权的受保护输入记录时，初次 bundle、重建 bundle 和新请求的 chunk 消费与记录树摘要比较过的同一份字节。未确认改动会使读取失败；重建被拒绝时，已发布的图与上一版产物字节保持不变。包发现和客户端声明使用已校验的清单字节；未确认的元数据不能静默隐藏客户端条目或重定向其导出。source map 使用同一已校验字节读取器；映射被拒绝时回退到已发布 bundle 的恒等映射并记录警告，不暴露未确认的映射。不受保护的输入仍采用异步 chunk 读取。owner 确认与持久记录归 [app-boot](../../boot/app-boot/README.zh.md#profiles) 管理，不由浏览器注册表管理。
 
 <a id="host-release-changes"></a>
 ### Host release 变化

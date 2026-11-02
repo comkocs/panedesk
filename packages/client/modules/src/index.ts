@@ -321,10 +321,10 @@ function comboScript(input: string, sourceMapUrl?: string): Buffer {
 }
 
 /** Read and parse an optional source map when its combo-map endpoint is requested. */
-function readSourceMap(clientPath: string): Record<string, unknown> | undefined {
+function readSourceMap(clientPath: string, read: (path: string) => Buffer): Record<string, unknown> | undefined {
   let body: Buffer
   try {
-    body = readFileSync(`${clientPath}.map`)
+    body = read(`${clientPath}.map`)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
     throw error
@@ -873,7 +873,7 @@ export class ClientModuleRegistry extends Service {
       return null
     }
     const { packageName, path: pkgPath } = located
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+    const pkg = JSON.parse((this.protectedArtifact(pkgPath) ?? readFileSync(pkgPath)).toString('utf8')) as Record<string, unknown>
     const dsh = pkg.dsh
     const decl = parseDshClient(
       packageName,
@@ -951,12 +951,15 @@ export class ClientModuleRegistry extends Service {
     expectedPackageName?: string,
   ): { path: string; packageName: string } | undefined {
     if (!moduleUrl.startsWith('file:')) return undefined
-    let dir = dirname(fileURLToPath(moduleUrl))
+    const modulePath = fileURLToPath(moduleUrl)
+    this.protectedArtifact(modulePath)
+    let dir = dirname(modulePath)
     while (true) {
       const candidate = join(dir, 'package.json')
       if (existsSync(candidate)) {
+        const verified = this.protectedArtifact(candidate)
         try {
-          const name = (JSON.parse(readFileSync(candidate, 'utf8')) as { name?: unknown }).name
+          const name = (JSON.parse((verified ?? readFileSync(candidate)).toString('utf8')) as { name?: unknown }).name
           if (typeof name === 'string' && (expectedPackageName === undefined || name === expectedPackageName)) {
             return { path: candidate, packageName: name }
           }
@@ -1025,7 +1028,7 @@ export class ClientModuleRegistry extends Service {
   /** Treat a missing, torn, or malformed development map as an identity section. */
   private readonly readSourceMap = (clientPath: string): Record<string, unknown> | undefined => {
     try {
-      return readSourceMap(clientPath)
+      return readSourceMap(clientPath, path => this.protectedArtifact(path) ?? readFileSync(path))
     } catch (error) {
       this.ctx.logger.warn(error)
       return undefined
