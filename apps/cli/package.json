@@ -7,9 +7,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "url": "git+https://github.com/comkocs/panedesk.git",
     "directory": "apps/cli"
   },
+  "bugs": {
+    "url": "https://github.com/comkocs/panedesk/issues"
+  },
+  "homepage": "https://github.com/comkocs/panedesk#readme",
   "type": "module",
   "bin": {
     "panedesk": "lib/bin.js",
@@ -28,6 +32,7 @@
     "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-http-proxy": "workspace:*",
     "@panedesk/dsh-launch-environment": "workspace:*",
+    "@panedesk/node-addon-system": "workspace:~",
     "@panedesk/slim-base": "workspace:*",
     "@panedesk/slim-headless": "workspace:*",
     "commander": "^15.0.0"

@@ -68,8 +68,15 @@ interface PluginInvocation {
   args: string[]
 }
 
+/** Configure a model provider route into the home patch layer. */
+interface InitInvocation {
+  mode: 'init'
+  /** Raw init arguments, parsed by the init command itself. */
+  args: string[]
+}
+
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
-export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation
+export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation | InitInvocation
 
 /** Launcher flags for profile boot and configuration dumps. */
 interface BootOptions {
@@ -247,9 +254,21 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
       })
   }
 
+  if (first === 'init') {
+    const init = program.command('init').description('configure a model provider route: pick the API, endpoint, and model, then reference or store the key')
+    init
+      .helpOption('-h, --help', 'show this help')
+      .passThroughOptions()
+      .allowUnknownOption()
+      .argument('[args...]', 'init flags, parsed by the init command (--api, --base-url, --model, --provider, --api-key-env, --store-key)')
+      .action((args: string[]) => {
+        resolved = { mode: 'init', args }
+      })
+  }
+
   try {
     // A leading token containing whitespace is a task for the default profile, not a profile name.
-    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && !/\s/.test(first)
+    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'init' && !/\s/.test(first)
       ? ['--profile', ...argv]
       : argv
     program.parse(expanded, { from: 'user' })

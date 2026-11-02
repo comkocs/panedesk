@@ -487,6 +487,9 @@ function runningNodeMajor(): number {
 function ciStaticGates(options: { ownsBuild: boolean }): Gate[] {
   return [
     ...ciSharedStaticGates(),
+    pnpmExec('fork-divergences', ['tsx', 'scripts/panedesk/check-fork-divergences.ts'], { label: 'fork divergence ledger' }),
+    pnpmExec('rename-check', ['node', 'scripts/panedesk/rename/rename.mjs', '--check'], { label: 'pending product renames' }),
+    pnpmExec('slim-base', ['tsx', 'scripts/panedesk/gen-slim-base.ts', '--check'], { label: 'slim-base bundle freshness' }),
     ...options.ownsBuild ? [ciBuildGate()] : [],
     ...docSyncLeafGates({
       includeDocTypecheck: options.ownsBuild,
@@ -743,6 +746,10 @@ function ciUnitGates(): Gate[] {
       needs: ['native-system'],
       streamOutput: true,
     }),
+    pnpmScript('slim-mock-e2e', 'test:slim-mock', {
+      needs: ['native-system'],
+      env: { DSH_EXAMPLE_MODE: 'lib' },
+    }),
   ]
 }
 
@@ -870,6 +877,7 @@ function docSyncLeafGates(options: {
       label: 'documentation site checks',
     }),
     pnpmScript('package-readme-limitations', 'verify-package-readme-limitations', { label: 'package README limitations', quick: true }),
+    pnpmScript('preset-table', 'verify-preset-table', { label: 'preset documentation table' }),
   ]
 }
 

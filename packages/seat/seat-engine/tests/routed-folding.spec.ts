@@ -52,6 +52,40 @@ test('folds one hundred real routed dispatch failures into one barrier and one c
   expect(recovered.journal.projection.callbacks.get(body.callback.callbackId)).toMatchObject(expected)
 })
 
+test('keeps failed query times when the original dispatch returns pending directly', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(1000000)
+  const h = await harness(); cleanups.push(h.close)
+  h.definitions.set(seat, admittedDefinition())
+  const body = await persistCallback(h.engine), sources = new SourceRegistry()
+  cleanups.push(() => sources.close())
+  let connected = false
+  const issuer: CallbackIssuerPort = { outboxIssuer: async () => h.engine.authorizationIssuers.register({ identity: {
+    kind: 'human', principalId, nodeId: h.engine.options.nodeId, origin: 'manual', seat, taskIds: [], policyRevision: 1 },
+  current: () => ({ decision: 'allowed', reasonCode: 'allowed', policyRevision: 1 }) }).issuer }
+  const router: CallbackRouterPort = { route: async (request) => {
+    if (!connected) return { method: request.method, status: 'rejected', error: {
+      code: 'unavailable', effectState: 'none', retryable: true } }
+    if (request.method === 'chain.operation') return { method: request.method, status: 'ok', result: { status: 'missing' } }
+    return { method: 'source.deliverCallback', status: 'ok', result: { status: 'pending',
+      callbackId: body.callback.callbackId, payloadDigest: body.payloadDigest, pendingReason: 'writeback-pending' } }
+  } }
+  h.ctx.provide('nodeWorkChain', issuer); h.ctx.provide('nodeWorkChainRouter', router)
+  const outbox = new CallbackOutbox(h.engine.journal, sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 },
+  (input, observation) => deliverRoutedCallback(h.ctx, h.engine, input, observation))
+  cleanups.push(() => outbox.close())
+  for (let index = 0; index < 3; index++) { vi.setSystemTime(1000000 + index); await outbox.deliver() }
+  connected = true; vi.setSystemTime(1000010); await outbox.deliver()
+  await outbox.close()
+  const expected = { count: 4, lastAttemptAt: new Date(1000002).toISOString(),
+    failures: { count: 3, firstAt: new Date(1000000).toISOString(), lastAt: new Date(1000002).toISOString() },
+    directPending: { count: 1, firstAt: new Date(1000010).toISOString(), lastAt: new Date(1000010).toISOString() } }
+  expect(h.engine.journal.projection.callbacks.get(body.callback.callbackId)?.retrySummary).toMatchObject(expected)
+  await h.engine.journal.close()
+  const recovered = await h.start()
+  expect(recovered.journal.projection.callbacks.get(body.callback.callbackId)?.retrySummary).toMatchObject(expected)
+})
+
 test('accounts for transport folding, shutdown, send barrier and terminal delivery across restart', async () => {
   vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(1000000)
   const h = await harness(); cleanups.push(h.close)

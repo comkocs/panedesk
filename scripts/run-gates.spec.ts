@@ -299,6 +299,14 @@ describe('gate graph validation', () => {
     expect(scripts['verify-repository-references']).toBe('tsx scripts/verify-repository-references.ts')
   })
 
+  it('checks preset documentation through the documentation aggregate', () => {
+    const gates = withPnpmEntrypoint(() => gatesForMode('doc-sync'))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'preset-table',
+      displayCommand: 'pnpm run verify-preset-table',
+    }))
+  })
+
   it('keeps the public repository link policy in the documentation gate', () => {
     const ids = withPnpmEntrypoint(() => gatesForMode('doc-sync').map(subject => subject.id))
 
@@ -323,6 +331,22 @@ describe('gate graph validation', () => {
       const ids = withPnpmEntrypoint(() => gatesForMode(mode).map(subject => subject.id))
       expect(ids).toEqual(expect.arrayContaining(['persistence-changes', 'persistence-releases']))
     }
+  })
+
+  it('checks the fork divergence ledger, pending product renames, and slim-base freshness in the static CI lane', () => {
+    const gates = withPnpmEntrypoint(() => gatesForMode('ci-static'))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'fork-divergences',
+      displayCommand: 'pnpm exec tsx scripts/panedesk/check-fork-divergences.ts',
+    }))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'rename-check',
+      displayCommand: 'pnpm exec node scripts/panedesk/rename/rename.mjs --check',
+    }))
+    expect(gates).toContainEqual(expect.objectContaining({
+      id: 'slim-base',
+      displayCommand: 'pnpm exec tsx scripts/panedesk/gen-slim-base.ts --check',
+    }))
   })
 
   it('requires complete Session format references locally and in CI', () => {
@@ -683,7 +707,12 @@ describe('gate graph validation', () => {
     for (const budget of ['15000', undefined]) {
       const gates = withEnv('DSH_COVERAGE_TEST_TIMEOUT_MS', budget, () =>
         withPnpmEntrypoint(() => gatesForMode('ci-unit')))
-      expect(gates.map(gate => gate.id)).toEqual(['native-system', 'unit'])
+      expect(gates.map(gate => gate.id)).toEqual(['native-system', 'unit', 'slim-mock-e2e'])
+      expect(gates[2]).toMatchObject({
+        displayCommand: 'pnpm run test:slim-mock',
+        needs: ['native-system'],
+        env: { DSH_EXAMPLE_MODE: 'lib' },
+      })
       expect(gates[0]).toMatchObject({ displayCommand: nativeBuild })
       expect(gates[1]?.displayCommand).toBe(`pnpm exec ${unitRun}`)
       expect(gates[1]).toMatchObject({

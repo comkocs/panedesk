@@ -1,0 +1,317 @@
+[
+  {
+    "package": "@panedesk/dsh-api-settings-controller",
+    "path": "package/lib/types/credentials.js",
+    "rule": "credentials",
+    "snippet": "types/credentials.js",
+    "reason": "Helper module named for the credentials concept; the packed bytes hold settings types, no credential values."
+  },
+  {
+    "package": "@panedesk/dsh-api-settings-controller",
+    "path": "package/lib/types/credentials.d.ts",
+    "rule": "credentials",
+    "snippet": "types/credentials.d.ts",
+    "reason": "Type declaration named for the credentials concept; the packed bytes hold settings types, no credential values."
+  },
+  {
+    "package": "@panedesk/dsh-node-link",
+    "path": "package/lib/types/credentials.d.ts",
+    "rule": "credentials",
+    "snippet": "types/credentials.d.ts",
+    "reason": "Type declaration named for the credentials concept; the packed bytes hold interface types, no credential values."
+  },
+  {
+    "package": "@panedesk/dsh-atomic-write",
+    "path": "package/README.md",
+    "rule": "privatePath",
+    "snippet": "/home/u/.panedesk/cordis.patch.yml",
+    "reason": "Documented example home path with a fictional user name, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-atomic-write",
+    "path": "package/README.zh.md",
+    "rule": "privatePath",
+    "snippet": "/home/u/.panedesk/cordis.patch.yml",
+    "reason": "Documented example home path with a fictional user name, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-plugin-manager",
+    "path": "package/lib/client.js",
+    "rule": "internal",
+    "snippet": "iNGM0Y2RkMiLz4",
+    "reason": "Inline base64 SVG artwork whose bytes coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-plugin-manager",
+    "path": "package/lib/client.js",
+    "rule": "privatePath",
+    "snippet": "/Users/name/my-plugin",
+    "reason": "Documented example install path with a fictional user, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-plugin-manager",
+    "path": "package/lib/types/client/locales.d.ts",
+    "rule": "privatePath",
+    "snippet": "/Users/name/my-plugin",
+    "reason": "Documented example install-path constant with a fictional user, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-settings-account",
+    "path": "package/lib/client.js",
+    "rule": "internal",
+    "snippet": "m09Im1hdHJpeCgw",
+    "reason": "Inline base64 SVG artwork whose bytes coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-sidebar-documentpreview",
+    "path": "package/lib/client.excel.js",
+    "rule": "internal",
+    "snippet": "NMzgwAABr50cH+OD+Q5+bk4eZm52zv9",
+    "reason": "Compressed spreadsheet preview resource bytes coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-sidebar-documentpreview",
+    "path": "package/lib/client.pdf.js",
+    "rule": "internal",
+    "snippet": "const m1r0 = m1 * r0;",
+    "reason": "Minified PDF.js matrix arithmetic identifier coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-sidebar-documentpreview",
+    "path": "package/lib/client.pdf.js",
+    "rule": "privatePath",
+    "snippet": "HOME:\\\"/home/web_user\\\"",
+    "reason": "PDF.js sandbox default environment string naming a virtual user home, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-sidebar-right",
+    "path": "package/lib/client.js",
+    "rule": "privatePath",
+    "snippet": "s1/home/me/b.md",
+    "reason": "Documented example resource URI with a fictional user segment, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-client-ui-sidebar-right",
+    "path": "package/lib/types/client/tab-registry.d.ts",
+    "rule": "privatePath",
+    "snippet": "s1/home/me/notes.md",
+    "reason": "Documented example resource URI with a fictional user segment, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-llm-mock-server",
+    "path": "package/README.md",
+    "rule": "fixtureKey",
+    "snippet": "DEEPSEEK_API_KEY=mock-key",
+    "reason": "Explicit mock-server example value in README documentation; the documented server accepts any placeholder."
+  },
+  {
+    "package": "@panedesk/dsh-llm-mock-server",
+    "path": "package/README.zh.md",
+    "rule": "fixtureKey",
+    "snippet": "DEEPSEEK_API_KEY=mock-key",
+    "reason": "Explicit mock-server example value in README documentation; the documented server accepts any placeholder."
+  },
+  {
+    "package": "@panedesk/dsh-pwsh-sandbox",
+    "path": "package/lib/index.js",
+    "rule": "internal",
+    "snippet": "ruling out",
+    "reason": "Ordinary English phrase in a diagnostic comment, not an internal marker."
+  },
+  {
+    "package": "@panedesk/dsh-pwsh-sandbox",
+    "path": "package/lib/types/helpers.d.ts",
+    "rule": "internal",
+    "snippet": "ruling out",
+    "reason": "Ordinary English phrase in a diagnostic comment, not an internal marker."
+  },
+  {
+    "package": "@panedesk/dsh-sandbox",
+    "path": "package/lib/index.js",
+    "rule": "internal",
+    "snippet": "ruling out",
+    "reason": "Ordinary English phrase in a diagnostic comment, not an internal marker."
+  },
+  {
+    "package": "@panedesk/dsh-sandbox",
+    "path": "package/lib/types/diagnostics.d.ts",
+    "rule": "internal",
+    "snippet": "ruling out",
+    "reason": "Ordinary English phrase in a diagnostic comment, not an internal marker."
+  },
+  {
+    "package": "@panedesk/dsh-skill-workflow-pack",
+    "path": "package/lib/workflow-pack/entries.jsonl",
+    "rule": "internal",
+    "snippet": "records the ruling",
+    "reason": "Ordinary English phrase in the workflow entry body, not an internal marker."
+  },
+  {
+    "package": "@panedesk/dsh-skill-workflow-pack",
+    "path": "package/lib/workflow-pack/entries.md",
+    "rule": "internal",
+    "snippet": "records the ruling",
+    "reason": "Ordinary English phrase in the workflow entry body, not an internal marker."
+  },
+  {
+    "package": "@panedesk/dsh-util-workspace-path",
+    "path": "package/lib/types/file-address.d.ts",
+    "rule": "privatePath",
+    "snippet": "absolute/home/ys/notes.txt",
+    "reason": "Documented example resource URI with a fictional user segment, not a build-machine path."
+  },
+  {
+    "package": "@panedesk/dsh-web-frontend",
+    "path": "package/dist/assets/vendor-DV2921Zo.css",
+    "rule": "internal",
+    "snippet": "F6RPWnM9cN6DJ0AdD",
+    "reason": "Base64 font and data-URI bytes inside a text stylesheet coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-web-frontend",
+    "path": "package/dist/assets/mermaid.core-1H9SdfPe.js",
+    "rule": "internal",
+    "snippet": "wardleyDiagram-VM6X3IG4-DRa0hwmr.js",
+    "reason": "Bundled asset hash in an import specifier coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-web-frontend",
+    "path": "package/dist/assets/wardleyDiagram-VM6X3IG4-DRa0hwmr.js",
+    "rule": "internal",
+    "snippet": "wardleyDiagram-VM6X3IG4",
+    "reason": "Bundled asset hash in the file's own name coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/Images/lighthouse_logo.svg",
+    "rule": "internal",
+    "snippet": "m3gZ9SXmkarDCI",
+    "reason": "Inline base64 image data inside the SVG text coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/codemirror-CENmPHF2.js",
+    "rule": "internal",
+    "snippet": "O1G0m1G0mO",
+    "reason": "Minified CodeMirror grammar state tables coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/common-DMSVbaSb.js",
+    "rule": "internal",
+    "snippet": "updateVersionFrom0To1",
+    "reason": "Upstream DevTools identifier coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/cpp-DaQzQ7EV.js",
+    "rule": "internal",
+    "snippet": "QQ1G0m1G0mO",
+    "reason": "Minified CodeMirror grammar state tables coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/java-62KG1Vpd.js",
+    "rule": "internal",
+    "snippet": "'m3Z3Z",
+    "reason": "Minified CodeMirror grammar state tables coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/php-DVXaM5js.js",
+    "rule": "internal",
+    "snippet": "OOQ1G2m1G2mO",
+    "reason": "Minified CodeMirror grammar state tables coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/sass-CIsRpUiU.js",
+    "rule": "internal",
+    "snippet": "Q#S1G1m1G1mO",
+    "reason": "Minified CodeMirror grammar state tables coincidentally match the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/performance_monitor-DM5b9ASW.js",
+    "rule": "internal",
+    "snippet": "DM5b9ASW",
+    "reason": "Rolldown content hash in the chunk file name coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/settings-BS2IewSf.js",
+    "rule": "internal",
+    "snippet": "aiAssistanceWhenOnItem1V2",
+    "reason": "Upstream DevTools settings item identifier coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/third-party-web-Dm5IRT3g.js",
+    "rule": "internal",
+    "snippet": "d1m6l9dfulcyw7.cloudfront.net",
+    "reason": "Third-party analytics domain in upstream lighthouse data coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/entrypoints/devtools_app/devtools_app.js",
+    "rule": "internal",
+    "snippet": "performance_monitor-DM5b9ASW",
+    "reason": "Chunk import referencing a content hash that coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/entrypoints/lighthouse_worker/lighthouse_worker.js",
+    "rule": "internal",
+    "snippet": "d1m6l9dfulcyw7.cloudfront.net",
+    "reason": "Third-party analytics domain in upstream lighthouse data coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/entrypoints/lighthouse_worker/lighthouse_worker.js",
+    "rule": "privatePath",
+    "snippet": "chromium.org/Home/chromium-security",
+    "reason": "Upstream lighthouse audit text links to chromium.org whose URL path contains /Home/, not a machine home directory."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/chunks/issues_manager-znGSXhyq.js",
+    "rule": "privatePath",
+    "snippet": "chromium.org/Home/chromium-security",
+    "reason": "Upstream lighthouse audit text links to chromium.org whose URL path contains /Home/, not a machine home directory."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/models/issues_manager/descriptions/sriInvalidSignatureHeader.md",
+    "rule": "internal",
+    "snippet": "gHim9e5Pk2H7c9BStOmxSmkyc8",
+    "reason": "Subresource-integrity signature example in upstream issue descriptions coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/models/issues_manager/descriptions/sriSignatureHeaderValueIsIncorrectLength.md",
+    "rule": "internal",
+    "snippet": "gHim9e5Pk2H7c9BStOmxSmkyc8",
+    "reason": "Subresource-integrity signature example in upstream issue descriptions coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/models/issues_manager/descriptions/sriSignatureHeaderValueIsNotByteSequence.md",
+    "rule": "internal",
+    "snippet": "gHim9e5Pk2H7c9BStOmxSmkyc8",
+    "reason": "Subresource-integrity signature example in upstream issue descriptions coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/models/issues_manager/descriptions/sriSignatureHeaderValueIsParameterized.md",
+    "rule": "internal",
+    "snippet": "gHim9e5Pk2H7c9BStOmxSmkyc8",
+    "reason": "Subresource-integrity signature example in upstream issue descriptions coincidentally matches the internal-word pattern."
+  },
+  {
+    "package": "@panedesk/dsh-experimental-inspector",
+    "path": "package/lib/devtools/resource-manifest.json",
+    "rule": "internal",
+    "snippet": "performance_monitor-DM5b9ASW",
+    "reason": "Resource manifest entry whose chunk content hash coincidentally matches the internal-word pattern."
+  }
+]

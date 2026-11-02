@@ -991,7 +991,7 @@ export class SeatEngine extends SeatEngineService {
   }
   async accountUsage(request: T.SeatAccountUsageRequest): Promise<T.SeatAccountUsageResult> {
     const ledger = this.dependencies.ledger()
-    if (!ledger) return { accounts: [], watermark: 0, complete: false, queryCommand: 'dsh --profile ledger query --group-by account' }
+    if (!ledger) return { accounts: [], watermark: 0, complete: false, queryCommand: 'panedesk --profile ledger query --group-by account' }
     return accountUsage(await ledger.snapshot({ from: Date.parse(request.from), to: Date.parse(request.to),
       ...(request.nodeId ? { nodeId: request.nodeId } : {}) }))
   }

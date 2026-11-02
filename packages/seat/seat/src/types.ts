@@ -782,15 +782,21 @@ export interface SeatCallbackDelivery {
   lastDiagnostic?: SeatCallbackDiagnostic
   /** Optional folded failures; absence preserves the legacy one-frame-per-attempt format. */
   retrySummary?: {
-    /** Completed failures; zero denotes a send-ahead barrier with no completed observation. */
+    /** Completed attempts not yet delivered: failures plus direct pending dispatches. Zero is a send barrier. */
     count: number
+    /** First completed attempt, or the barrier time when count is zero. Not rewritten by a later direct pending receipt. */
     firstAttemptAt: SeatTimestamp
+    /** Last transport failure. A direct pending receipt does not replace it; barrier time only while count is zero. */
     lastAttemptAt: SeatTimestamp
     lastDiagnostic?: SeatCallbackDiagnostic
     /** Recovery cannot count retries lost before the last flush. */
     attemptsAtLeast?: boolean
     /** Null explicitly ends a transport-transient segment on an owner observation. */
     transientSince: SeatTimestamp | null
+    /** Transport and query failures. Absent on records written before the split; never derived from `count`. */
+    failures?: { count: number; firstAt: SeatTimestamp; lastAt: SeatTimestamp }
+    /** Original dispatches that returned a matching pending receipt. Absent on records written before the split. */
+    directPending?: { count: number; firstAt: SeatTimestamp; lastAt: SeatTimestamp }
   }
   /** Owner observations never contribute to a transport-transient window. */
   ownerPending?: boolean

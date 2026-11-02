@@ -53,7 +53,7 @@ export class DirectoryAdmission {
     }
     if (owners.length === 0) return { status: 'allowed', identity: 'free' }
     if (request.seat !== undefined && owners.some(owner => owner.seat === request.seat)) return { status: 'allowed', identity: 'seat', seat: request.seat }
-    const alternative = owners.map(owner => `dsh --profile seat open --seat ${shellQuote(owner.seat)}`).join(' OR ')
+    const alternative = owners.map(owner => `panedesk --profile seat open --seat ${shellQuote(owner.seat)}`).join(' OR ')
     return { status: 'choice-required', candidates: candidates.map(item => item.seat), choices: ['open-seat', 'traditional', 'cancel'], alternative }
   }
 

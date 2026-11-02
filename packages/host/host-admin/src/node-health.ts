@@ -57,6 +57,9 @@ export interface NodeHealthCallback {
   count: number
   attemptsAtLeast: boolean
   latestReason: string | null
+  /** Split groups. Absent when the stored summary predates the split; never derived from `count`. */
+  failures?: { count: number; firstAt: string | null; lastAt: string | null; attemptsAtLeast: boolean }
+  directPending?: { count: number; firstAt: string | null; lastAt: string | null }
 }
 /** Engine observations retain their own revision; source work keeps the existing operator key. */
 export interface NodeHealthView {
@@ -100,7 +103,12 @@ export async function readNodeHealth(ctx: Context, limit: number): Promise<NodeH
       detail: diagnostic?.cause.reasonCode ?? diagnostic?.cause.code ?? null,
       firstAttemptAt: item.retrySummary?.firstAttemptAt ?? null, lastAttemptAt: item.retrySummary?.lastAttemptAt ?? null,
       count: item.retrySummary?.count ?? item.attempt, attemptsAtLeast: item.retrySummary?.attemptsAtLeast ?? false,
-      latestReason: diagnostic?.cause.reason ?? null }
+      latestReason: diagnostic?.cause.reason ?? null,
+      ...(item.retrySummary?.failures ? { failures: { count: item.retrySummary.failures.count,
+        firstAt: item.retrySummary.failures.firstAt, lastAt: item.retrySummary.failures.lastAt,
+        attemptsAtLeast: item.retrySummary.attemptsAtLeast ?? false } } : {}),
+      ...(item.retrySummary?.directPending ? { directPending: { count: item.retrySummary.directPending.count,
+        firstAt: item.retrySummary.directPending.firstAt, lastAt: item.retrySummary.directPending.lastAt } } : {}) }
   }) ?? []
   return { nodes, callbacks: parked, callbacksAvailable: callbacks !== undefined,
     callbacksComplete: callbacks?.complete ?? false, sourceOperations: sources?.items ?? [], sourceAvailable: source !== undefined }

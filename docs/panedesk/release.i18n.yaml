@@ -1,0 +1,13 @@
+# Bilingual-pair consistency record for release.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/panedesk/release.md
+/panedesk-release-scripts:
+  en: c11543bdb5a917d3
+  zh: 4a52655776ecef50
+/panedesk-release-scripts/local-rehearsal:
+  en: 5a8f4749a718fc86
+  zh: 506119bcfb4ec5ea
+/panedesk-release-scripts/script-reference:
+  en: 0ae755ce883e99c5
+  zh: 25a5b4156f7e51a6

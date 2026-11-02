@@ -1,3 +1,5 @@
+[Panedesk](panedesk/architecture.md)
+
 # DeepSeek Harness Architecture
 
 English | [中文](architecture.zh.md)

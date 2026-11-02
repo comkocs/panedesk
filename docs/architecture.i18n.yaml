@@ -2,6 +2,9 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/architecture.md
+/:
+  en: f054efa1b1a65c79
+  zh: f054efa1b1a65c79
 /deepseek-harness-architecture:
   en: 20678ed3f962afba
   zh: 87a2b81675d93346

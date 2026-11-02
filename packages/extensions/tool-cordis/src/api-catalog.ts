@@ -1746,7 +1746,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'success, or the adapter\'s own failure with the message kept and the credential-shaped text removed.',
       },
       {
-        signature: '@Remote(\'probeModel\') remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>',
+        signature: '@Remote(\'probeModel\') async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>',
         description: 'Remote adapter for probeModel.',
         parameters: [{ name: 'provider', description: 'registered provider route.' }, { name: 'model', description: 'model id to probe.' }, { name: 'signal', description: 'caller cancellation supplied by the Remote carrier.' }],
         returns: 'the probe result; transport failures stay transport failures.',
@@ -9582,7 +9582,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'NodeHealthCallback',
-    declaration: 'export interface NodeHealthCallback {\n    callbackId: Seat.CallbackId;\n    source: string;\n    target: string;\n    attempt: number;\n    phase: Seat.SeatCallbackDelivery[\'phase\'];\n    parkingCode: string | null;\n    detail: string | null;\n    firstAttemptAt: string | null;\n    lastAttemptAt: string | null;\n    count: number;\n    attemptsAtLeast: boolean;\n    latestReason: string | null;\n}',
+    declaration: 'export interface NodeHealthCallback {\n    callbackId: Seat.CallbackId;\n    source: string;\n    target: string;\n    attempt: number;\n    phase: Seat.SeatCallbackDelivery[\'phase\'];\n    parkingCode: string | null;\n    detail: string | null;\n    firstAttemptAt: string | null;\n    lastAttemptAt: string | null;\n    count: number;\n    attemptsAtLeast: boolean;\n    latestReason: string | null;\n    failures?: {\n        count: number;\n        firstAt: string | null;\n        lastAt: string | null;\n        attemptsAtLeast: boolean;\n    };\n    directPending?: {\n        count: number;\n        firstAt: string | null;\n        lastAt: string | null;\n    };\n}',
   },
   {
     name: 'NodeHealthEvent',
@@ -10790,7 +10790,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SeatCallbackDelivery',
-    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    retrySummary?: {\n        count: number;\n        firstAttemptAt: SeatTimestamp;\n        lastAttemptAt: SeatTimestamp;\n        lastDiagnostic?: SeatCallbackDiagnostic;\n        attemptsAtLeast?: boolean;\n        transientSince: SeatTimestamp | null;\n    };\n    ownerPending?: boolean;\n    parkingClass?: \'owner-unconfirmed\' | \'transport-transient\';\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\' | \'abandoned\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
+    declaration: 'export interface SeatCallbackDelivery {\n    lastDiagnostic?: SeatCallbackDiagnostic;\n    retrySummary?: {\n        count: number;\n        firstAttemptAt: SeatTimestamp;\n        lastAttemptAt: SeatTimestamp;\n        lastDiagnostic?: SeatCallbackDiagnostic;\n        attemptsAtLeast?: boolean;\n        transientSince: SeatTimestamp | null;\n        failures?: {\n            count: number;\n            firstAt: SeatTimestamp;\n            lastAt: SeatTimestamp;\n        };\n        directPending?: {\n            count: number;\n            firstAt: SeatTimestamp;\n            lastAt: SeatTimestamp;\n        };\n    };\n    ownerPending?: boolean;\n    parkingClass?: \'owner-unconfirmed\' | \'transport-transient\';\n    nodeWorkChain?: DeliverSourceCallbackRequest;\n    payload: SeatCallbackPayload;\n    payloadDigest: SeatDigest;\n    attempt: number;\n    phase: \'pending\' | \'retry-due\' | \'paused\' | \'delivered\' | \'abandoned\';\n    nextDue: SeatTimestamp | null;\n    responseClass: \'success\' | \'transient\' | \'authentication\' | \'protocol\' | \'unknown\' | null;\n}',
   },
   {
     name: 'SeatCallbackDiagnostic',

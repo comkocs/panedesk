@@ -60,7 +60,7 @@ Windows 策略拒绝错误提供稳定的 `code`；`WINDOWS_PRIVATE_FILE_CODES` 
 
 `source.operations({ limit? })` 读取可选 `hostAdminSourceOperator.list` 提供方，原样返回条目；`limit` 为 1 至 200 的整数。`source.abandon` 和 `source.resend` 接受 `{ operationId, key, reason }`，要求本地操作员身份及签发器允许的授权，并核对节点、主体、操作号和请求摘要。提供方收到原始授权，负责审计、释放和重发语义。`key` 长度为 1–512 个字符，`reason` 为 1–500；未知字段拒绝。结果最多包含 200 条 `awaiting-manual` 或 `parked-none` 项，字符串有界、时刻为 ISO 格式；写结果为 `ok` 或 `rejected`，可带正整数代次。缺少提供方或可选 `resend` 时返回 `unavailable` 和 `admin-method-unavailable`。该服务不列为注入依赖。`callAdmin` 及其 SDK 导出 `callHostAdmin` 只使用操作员通道；`sdk.invoke` 与会话凭据不增加来源方法。
 
-`readNodeHealth(ctx, limit)` 仅聚合已安装的本机引擎、对端健康及来源操作员提供方。本机身份来自引擎节点标识，未知对端容量保持 null。回调行来自可选实时 `callbackObservations`，先筛停车态再限条数，不从持久重试投影推断。行内不含冻结回调正文或凭据。来源可选 `observation` 携带安全停车码、尝试次数及可空的真实尝试时刻；缺失历史时刻保持 null。浏览器消费方通过纯类型 `/types` 入口导入观察数据。`executeNodeOperator` 要求捕获的本地操作员身份，复用运行中引擎既有执行器与授权核验，不安装监听器。`decodeHostAdminRequest` 为经过认证的适配器提供既有请求校验。`node.rebuild` 的可选 `peerNodeId` 选择本宿主已配置的出站对端；`{}` 保留旧行为。
+`readNodeHealth(ctx, limit)` 仅聚合已安装的本机引擎、对端健康及来源操作员提供方。本机身份来自引擎节点标识，未知对端容量保持 null。回调行来自可选实时 `callbackObservations`，先筛停车态再限条数，不从持久重试投影推断。行内不含冻结回调正文或凭据。持久摘要已带分项时，行内同时给出可选 `failures` 与 `directPending` 两组，各自含次数与首末时刻；分项前写入的摘要省略两组，合计次数事后不再拆分。来源可选 `observation` 携带安全停车码、尝试次数及可空的真实尝试时刻；缺失历史时刻保持 null。浏览器消费方通过纯类型 `/types` 入口导入观察数据。`executeNodeOperator` 要求捕获的本地操作员身份，复用运行中引擎既有执行器与授权核验，不安装监听器。`decodeHostAdminRequest` 为经过认证的适配器提供既有请求校验。`node.rebuild` 的可选 `peerNodeId` 选择本宿主已配置的出站对端；`{}` 保留旧行为。
 
 <a id="persistence-and-recovery"></a>
 ## 持久化与恢复
@@ -123,7 +123,7 @@ console.log(result);
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- M8b：回调 abandon 不改 `chain-sent`，也不生成 owner 终态回执；既有链层恢复保持独立。
+- 回调 abandon 不改 `chain-sent`，也不生成 owner 终态回执；既有链层恢复保持独立。
 - 取消要求引擎提供可选的授权取消能力；能力缺失时拒绝，不调用无授权旧入口。外部改面占位释放仍归其提供方，不由运维传输实现。
 - `engine.operation` 要求引擎提供可选操作投影；旧提供方缺少此能力时仍不可用。已接纳意图若无已提交创建或失败事实，保持待决，不能报告成功。旧自定义执行器可省略授权分页；调用者不能将缺页当成空授权历史。
 

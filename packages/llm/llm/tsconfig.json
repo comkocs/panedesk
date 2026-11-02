@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../../api/remote-access/tsconfig.host.json"
+    },
+    {
       "path": "../../../vendor/cosmokit"
     },
     {

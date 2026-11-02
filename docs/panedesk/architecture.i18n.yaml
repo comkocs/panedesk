@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for architecture.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/panedesk/architecture.md
+/panedesk-architecture:
+  en: 1fceff3a2aeb682b
+  zh: 9d19f194da50c6ba
+/panedesk-architecture/presets:
+  en: 7226976884ce656b
+  zh: 518f245f2cb8de8c
+/panedesk-architecture/patch-order:
+  en: 7dc50ff480324da5
+  zh: 6ff6197e9dc26a1d
+/panedesk-architecture/provider-overlay-fields:
+  en: a5fb3e384ed0385b
+  zh: b77c1f65d9e65d8c

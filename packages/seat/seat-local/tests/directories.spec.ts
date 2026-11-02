@@ -18,7 +18,7 @@ describe('directory admission', () => {
     const definitions = [definition(root)]
     const result = await admission.resolve({ cwd: root, seat: 'seat-b' as SeatName, interactive: true }, principal, definitions)
     expect(result).toEqual({ status: 'choice-required', candidates: [seat], choices: ['open-seat', 'traditional', 'cancel'],
-      alternative: "dsh --profile seat open --seat 'seat-a'" })
+      alternative: "panedesk --profile seat open --seat 'seat-a'" })
     const headless = await admission.resolve({ cwd: root, interactive: false }, principal, definitions)
     expect(headless).toEqual(result)
     expect(await admission.resolve({ cwd: root, seat, interactive: false }, principal, definitions)).toEqual({ status: 'allowed', identity: 'seat', seat })

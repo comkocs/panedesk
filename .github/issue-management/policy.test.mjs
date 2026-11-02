@@ -155,11 +155,11 @@ const reviewedPull = (labels) => ({
   issues: new Map([[2, { priority: null }]]),
 })
 
-test('keeps only Bug, Feature, and Task Issue templates with used frontmatter', () => {
+test('keeps only Bug, Feature, and Question Issue templates with used frontmatter', () => {
   const directory = new URL('../ISSUE_TEMPLATE/', import.meta.url)
-  assert.deepEqual(readdirSync(directory).sort(), ['bug.md', 'config.yml', 'feature.md', 'task.md'])
+  assert.deepEqual(readdirSync(directory).sort(), ['bug.md', 'config.yml', 'feature.md', 'question.md'])
 
-  for (const file of ['bug.md', 'feature.md', 'task.md']) {
+  for (const file of ['bug.md', 'feature.md', 'question.md']) {
     const source = readFileSync(new URL(file, directory), 'utf8')
     const frontmatter = source.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? ''
     const keys = frontmatter
@@ -167,7 +167,7 @@ test('keeps only Bug, Feature, and Task Issue templates with used frontmatter', 
       .filter(Boolean)
       .map((line) => line.slice(0, line.indexOf(':')))
       .sort()
-    assert.deepEqual(keys, ['about', 'name', 'type'], file)
+    assert.deepEqual(keys, ['about', 'name'], file)
     assert.match(source, /^## /m, file)
     assert.match(source, /<!-- [^\n]+ -->/, file)
     assert.doesNotMatch(source, /<details\b/i, file)
@@ -185,7 +185,7 @@ test('keeps Feature Issues limited to motivation and behavior', () => {
   )
   assert.deepEqual(
     [...source.matchAll(/^## .+$/gm)].map(([heading]) => heading),
-    ['## Motivation', '## Behavior'],
+    ['## Problem and motivation / 问题与动机', '## Proposed behavior / 建议行为', '## Alternatives and context / 替代方案与背景'],
   )
 })
 
@@ -193,15 +193,15 @@ test('keeps Bug Issues limited to the problem report', () => {
   const source = readFileSync(new URL('../ISSUE_TEMPLATE/bug.md', import.meta.url), 'utf8')
   assert.deepEqual(
     [...source.matchAll(/^## .+$/gm)].map(([heading]) => heading),
-    ['## Summary', '## Reproduction', '## Current behavior', '## Expected behavior', '## Environment'],
+    ['## Summary / 概述', '## Reproduction / 复现步骤', '## Actual and expected behavior / 实际与预期行为', '## Environment / 环境'],
   )
 })
 
-test('keeps Task Issues limited to summary and deliverables', () => {
-  const source = readFileSync(new URL('../ISSUE_TEMPLATE/task.md', import.meta.url), 'utf8')
+test('keeps Question Issues limited to the question and its context', () => {
+  const source = readFileSync(new URL('../ISSUE_TEMPLATE/question.md', import.meta.url), 'utf8')
   assert.deepEqual(
     [...source.matchAll(/^## .+$/gm)].map(([heading]) => heading),
-    ['## Summary', '## Deliverables'],
+    ['## Question / 问题', '## What you tried / 已尝试的方法', '## Environment and context / 环境与背景'],
   )
 })
 
