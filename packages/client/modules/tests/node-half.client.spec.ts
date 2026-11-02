@@ -14,6 +14,7 @@ import { renderIndexInjections, type IndexInjection, type WebServer, type WebRou
 import * as modulesClient from '../src/client/index.ts'
 import { ClientModuleRegistry, bootInjections, orderByModuleGraph } from '../src/index.ts'
 import { ProtectedInputIntegrity } from '../../../boot/app-boot/src/input-integrity.ts'
+import type { ProfileContext } from '../../../boot/app-boot/src/profile-context.ts'
 import type { ClientModuleLoaderTarget, WebBootEntry, WebBootGraph } from '../src/client/index.ts'
 
 /**
@@ -191,7 +192,7 @@ function constructWithRoute(
     contextBaseUrl?: string
     entryBaseUrl?: string
     internal?: NonNullable<Context['loader']['internal']>
-    profileContext?: Context['profileContext']
+    profileContext?: ProfileContext
   } = {},
 ): { context: Context; service: ClientModuleRegistry; route: Promise<WebRoute> } {
   const ctx = new Context()
