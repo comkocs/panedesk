@@ -13879,6 +13879,151 @@
           "website/public/wordmark.svg"
         ]
       }
+    },
+    {
+      "id": "seat-retry-summary-failure-pending-split",
+      "description": "Split callback retry summaries into failures and direct pending.",
+      "origin": "Seat callback retry summary split",
+      "reason": "Add optional failure and direct-pending summaries while allowing older records to omit them. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat/src/types.ts"
+        ],
+        "test": "seat engine retry summary behavior coverage"
+      }
+    },
+    {
+      "id": "owner-check-bash-setup",
+      "description": "Owner-only Bash configuration writes reuse the existing remote access denial code.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Use the existing remote access denial code for owner-only Bash configuration writes and verify denied writes preserve existing bytes. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/host/host-bash-setup/src/index.ts",
+          "packages/host/host-bash-setup/tests/bash-setup.spec.ts",
+          "packages/host/host-bash-setup/package.json",
+          "packages/host/host-bash-setup/tsconfig.json",
+          "packages/host/host-bash-setup/README.i18n.yaml"
+        ],
+        "test": "bash-setup authorization denial coverage"
+      }
+    },
+    {
+      "id": "owner-check-llm-remote-probe",
+      "description": "Owner-only model probes reuse the existing remote access denial code and report cancelled signals independently.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Use the existing remote access denial code for owner-only probes and test independently cancelled signals. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm/src/index.ts",
+          "packages/llm/llm/tests/probe-model.spec.ts",
+          "packages/llm/llm/package.json",
+          "packages/llm/llm/tsconfig.json",
+          "packages/llm/llm/README.i18n.yaml"
+        ],
+        "test": "probe-model authorization and cancellation coverage"
+      }
+    },
+    {
+      "id": "seat-ui-profile-denial-tests",
+      "description": "Cover profile authorization refusal from the owner dashboard.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Cover profile authorization refusal from the owner dashboard without catalog reads. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-seats/tests/dashboard-profile.host.spec.ts"
+        ],
+        "test": "dashboard profile denial coverage"
+      }
+    },
+    {
+      "id": "owner-denial-dependencies",
+      "description": "Workspace dependencies for the structured remote access denial details.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Record workspace type dependencies for structured remote access denial details. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "pnpm-lock.yaml"
+        ],
+        "test": "verify-package-dependencies"
+      }
+    },
+    {
+      "id": "generated-cordis-catalog-sync",
+      "description": "Regenerated Cordis API catalog and event documentation from current declarations.",
+      "origin": "Generated catalog and documentation refresh",
+      "reason": "Regenerate Cordis API and event documentation from the current service declarations and seat callback types. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/llm-streaming.md",
+          "docs/subsystems/llm-streaming.zh.md",
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md"
+        ],
+        "test": "verify-cordis-catalog and gen-doc-graphs checks"
+      }
+    },
+    {
+      "id": "rescope-cordis-product-identifiers",
+      "description": "Cordis preset identifiers and event topics are product data rather than vendor package references.",
+      "origin": "Generated catalog and documentation refresh",
+      "reason": "Preserve Cordis preset identifiers and event topics that are product data rather than vendor package references. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "scripts/rescope-vendor.ts"
+        ],
+        "test": "rescope-vendor:check residue verification"
+      }
+    },
+    {
+      "id": "public-bilingual-issue-templates",
+      "description": "English-first bilingual bug, feature, and question issue templates",
+      "origin": "Bilingual issue templates for the public fork",
+      "reason": "Provide English-first bilingual bug, feature, and question templates for the public fork, replacing the upstream task template while keeping blank issues disabled and adding no external contacts. The bilingual guidance is suitable for upstream contribution; the choice of issue categories is fork-specific.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          ".github/ISSUE_TEMPLATE/bug.md",
+          ".github/ISSUE_TEMPLATE/feature.md",
+          ".github/ISSUE_TEMPLATE/task.md",
+          ".github/ISSUE_TEMPLATE/question.md"
+        ]
+      }
+    },
+    {
+      "id": "preset-documentation-freshness",
+      "description": "Preset-table freshness check registered in the documentation aggregate",
+      "origin": "Preset documentation freshness gate",
+      "reason": "Register a preset-table freshness check in the existing documentation aggregate and test its registration, leaving static and unit gate definitions unchanged. Allow the single additional word required by the architecture pointer without rewriting upstream prose. Generated preset documentation freshness is suitable for upstream contribution after adapting the fork-owned generator path; the pointer budget is fork-specific.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "package.json",
+          "scripts/run-gates.ts",
+          "scripts/run-gates.spec.ts",
+          "scripts/doc-budgets.manifest.json"
+        ]
+      }
+    },
+    {
+      "id": "inspector-devtools-relative-css-module-ids",
+      "description": "Make DevTools CSS virtual module ids frontend-relative so packed runtime chunks carry no build-machine paths.",
+      "origin": "Release scan private-path red item",
+      "reason": "Rolldown emits each virtual module id inside //#region comments; building the id from the frontend-relative source path keeps the emitted chunks functionally identical while removing absolute build paths from the packed bytes. Suitable for upstream feedback.",
+      "match": {
+        "type": "allowed-line-edits",
+        "paths": [
+          "packages/experimental/inspector/scripts/devtools/vite.ts"
+        ]
+      }
     }
   ]
 }

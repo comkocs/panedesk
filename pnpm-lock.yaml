@@ -12201,6 +12201,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
       '@panedesk/dsh-bash-local':
         specifier: workspace:*
         version: link:../../shell/bash-local
@@ -12621,6 +12624,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment

@@ -85,7 +85,7 @@ export function accountUsage(ledger: LedgerSnapshot): SeatAccountUsageResult {
     const label = row.finish?.accountLabel ?? null
     const group = groups.get(label) ?? []; group.push(row); groups.set(label, group)
   }
-  return { watermark: ledger.asOf, complete: ledger.complete, queryCommand: 'dsh --profile ledger query --group-by account',
+  return { watermark: ledger.asOf, complete: ledger.complete, queryCommand: 'panedesk --profile ledger query --group-by account',
     accounts: [...groups].map(([accountLabel, rows]) => {
       let attempts429 = 0, attempts503 = 0, uniqueCalls429 = 0, uniqueCalls503 = 0, active = 0, peak = 0
       const points: { time: number; delta: number }[] = [], seen = new Set<string>()

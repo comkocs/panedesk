@@ -1,6 +1,7 @@
 /** Retry summaries retain exact completed attempts without one frame per retry. */
 import { afterEach, expect, test, vi } from 'vitest'
 import type * as T from '@panedesk/dsh-seat'
+import { fact } from '../src/triggers.ts'
 import { CallbackOutbox } from '../src/outbox.ts'
 import { callbackRetentions } from '../src/callback-retention.ts'
 import { SourceRegistry } from '../src/sources.ts'
@@ -164,6 +165,71 @@ test('folds retries into the delivery frame and retains the latest safe failure'
   expect(h.engine.journal.projection.sequence - before).toBe(2)
   expect(h.current()).toMatchObject({ phase: 'delivered', attempt: 101,
     retrySummary: { count: 100, lastDiagnostic: { cause: { code: 'unavailable' } } } })
+})
+
+test('keeps the last failure time when a direct pending receipt follows failed attempts', async () => {
+  const h = await fixture(); let pending = false
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => pending
+    ? { result: { status: 'pending', callbackId: h.body.callback.callbackId, payloadDigest: h.body.payloadDigest },
+      completedDispatch: true, directPending: true }
+    : unavailable())
+  cleanups.push(() => outbox.close())
+  for (let index = 0; index < 3; index++) { vi.setSystemTime(1000000 + index); await outbox.deliver() }
+  pending = true; vi.setSystemTime(1000010); await outbox.deliver()
+  await outbox.close()
+  const summary = h.current().retrySummary
+  expect(summary).toMatchObject({ count: 4,
+    firstAttemptAt: new Date(1000000).toISOString(), lastAttemptAt: new Date(1000002).toISOString(),
+    failures: { count: 3, firstAt: new Date(1000000).toISOString(), lastAt: new Date(1000002).toISOString() },
+    directPending: { count: 1, firstAt: new Date(1000010).toISOString(), lastAt: new Date(1000010).toISOString() } })
+  await h.engine.journal.close()
+  const recovered = await h.start()
+  expect(recovered.journal.projection.callbacks.get(h.body.callback.callbackId)?.retrySummary)
+    .toMatchObject({ count: 4, lastAttemptAt: new Date(1000002).toISOString(),
+      failures: { count: 3, lastAt: new Date(1000002).toISOString() },
+      directPending: { count: 1, lastAt: new Date(1000010).toISOString() } })
+})
+
+test('reads a legacy summary without split fields as unknown rather than deriving them from count', async () => {
+  const h = await fixture()
+  const legacy = { count: 5, firstAttemptAt: new Date(1000000).toISOString(),
+    lastAttemptAt: new Date(1000004).toISOString(), transientSince: null }
+  const delivery = h.current()
+  await h.engine.journal.commit(() => [fact({ kind: 'callback/attempted', data: { ...delivery, attempt: 5,
+    phase: 'paused', responseClass: 'transient', parkingClass: 'transport-transient', nextDue: null, retrySummary: legacy } })])
+  const stored = h.current().retrySummary
+  expect(stored).toMatchObject(legacy)
+  expect(stored?.failures).toBeUndefined()
+  expect(stored?.directPending).toBeUndefined()
+  await h.engine.journal.close()
+  const recovered = await h.start()
+  const restored = recovered.journal.projection.callbacks.get(h.body.callback.callbackId)?.retrySummary
+  expect(restored).toMatchObject(legacy)
+  expect(restored?.failures).toBeUndefined()
+  expect(restored?.directPending).toBeUndefined()
+})
+
+test('a lost dispatch reconciled by a pending query is not a direct pending dispatch', async () => {
+  const h = await fixture(); let phase: 'fail' | 'lost' | 'query' = 'fail'
+  const outbox = new CallbackOutbox(h.engine.journal, h.sources, { ...h.engine.options.config,
+    callbackRetryInitialMs: 1, callbackRetryMaxMs: 1 }, async () => {
+    if (phase === 'fail') return unavailable()
+    if (phase === 'lost') return { result: { status: 'rejected', error: { code: 'unavailable',
+      message: 'Dispatch response lost', alternative: 'Query the owner', retryable: false, effectState: 'unknown' } } }
+    return { result: { status: 'pending', callbackId: h.body.callback.callbackId, payloadDigest: h.body.payloadDigest },
+      queryOnly: true }
+  })
+  cleanups.push(() => outbox.close())
+  for (let index = 0; index < 3; index++) { vi.setSystemTime(1000000 + index); await outbox.deliver() }
+  phase = 'lost'; vi.setSystemTime(1000010); await outbox.deliver()
+  phase = 'query'; vi.setSystemTime(1000020); await outbox.deliver()
+  await outbox.close()
+  // The lost response stays an unknown outcome; only the later pending query adds nothing.
+  expect(h.current().retrySummary).toMatchObject({ count: 4,
+    lastAttemptAt: new Date(1000010).toISOString(),
+    failures: { count: 4, lastAt: new Date(1000010).toISOString() } })
+  expect(h.current().retrySummary?.directPending).toBeUndefined()
 })
 
 test('pending owner observations reset the transient segment and never become transport parking', async () => {
