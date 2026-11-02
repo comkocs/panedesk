@@ -1223,7 +1223,7 @@ async probeModel( provider: string, model: string, signal?: AbortSignal, ): Prom
  * @param signal - caller cancellation supplied by the Remote carrier.
  * @returns the probe result; transport failures stay transport failures.
  */
-@Remote('probeModel') remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>
+@Remote('probeModel') async remoteProbeModel(provider: string, model: string, signal: AbortSignal): Promise<LlmModelProbeResult>
 ```
 
 Types: [FileAttachmentRef](attachment.md) · [ImageAttachmentRef](attachment.md) · [ImageRequestTarget](attachment.md)
