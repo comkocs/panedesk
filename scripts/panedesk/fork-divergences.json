@@ -14265,7 +14265,8 @@
           "pnpm-workspace.yaml",
           "pnpm-lock.yaml",
           "packages/test-support/session-snapshot/src/manifest.ts",
-          "snapshots/session/plugin-manager-mcp/session.v4.jsonl"
+          "snapshots/session/plugin-manager-mcp/session.v4.jsonl",
+          "packages/terminal/terminal-bash/src/sanitize.ts"
         ]
       }
     }
