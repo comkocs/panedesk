@@ -34,6 +34,20 @@ it('protects actual bundle configuration files outside the profile directory', (
   expect(resolveProtectedPaths(ctx)).not.toContain(installation)
 })
 
+it('protects an absolute loaded plugin without a Loader base URL', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'absolute-host-input-'))
+  const ctx = new Context()
+  onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
+  const path = join(root, 'plugin.mjs')
+  writeFileSync(path, 'export function apply() {}\n')
+  ctx.baseUrl = pathToFileURL(root + '/').href
+  await ctx.plugin(Loader)
+  await ctx.loader.create({ name: path })
+  await ctx.loader.await()
+  for (const entry of ctx.loader.entries()) Reflect.set(entry.parent.tree.ctx, 'baseUrl', undefined)
+  expect(resolveProtectedPaths(ctx)).toContain(root)
+})
+
 it('does not protect a disabled source clone that has never loaded', async () => {
   const root = mkdtempSync(join(tmpdir(), 'disabled-host-input-'))
   const ctx = new Context()

@@ -1,6 +1,6 @@
 /** Resolve executable inputs from the running host, never from workspace directory conventions. */
 import { dirname, isAbsolute, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@panedesk/cordis'
 import type {} from '@panedesk/dsh-app-boot'
 import type {} from '@panedesk/dsh-hmr'
@@ -40,7 +40,7 @@ export function resolveProtectedPaths(ctx: Context): string[] {
       const owner = base === undefined ? undefined : packages?.packageOf(name, base)
       if (owner !== undefined) add(owner.dir)
       else if (name.startsWith('file:') || name.startsWith('.') || isAbsolute(name)) {
-        const url = new URL(name, base)
+        const url = isAbsolute(name) ? pathToFileURL(name) : new URL(name, base)
         if (url.protocol === 'file:') add(dirname(fileURLToPath(url)))
       }
     }
