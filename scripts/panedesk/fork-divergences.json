@@ -13821,6 +13821,19 @@
       }
     },
     {
+      "id": "optional-bundle-carrier-installed-isolation",
+      "description": "Installed product isolation admits optional bundles carried through the launcher's optional peer.",
+      "origin": "Optional bundles carried by @panedesk/full",
+      "reason": "The launcher's optional peer edge to @panedesk/full carries the optional bundles beside the default product, and the installed-product gate applies the same exception the source gate already declares.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "scripts/optional-bundle-carriers.ts",
+          "scripts/release/installed-product-isolation.ts"
+        ]
+      }
+    },
+    {
       "id": "product-fork-scripts",
       "description": "Upstream files under scripts diverged by Panedesk product development.",
       "origin": "Panedesk product development since the upstream import",
