@@ -26,8 +26,9 @@ export function ApprovalRequestId(id: string): ApprovalRequestId {
 }
 
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes: consent to the requested purpose, explicit rejection,
+ * withdrawal, or unavailable answerer. Without a purpose, consent covers one action.
+ * Callers fail closed on `unavailable`.
  */
 export type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 
@@ -46,6 +47,7 @@ declare module '@panedesk/dsh-session/types' {
       toolName: string
       callId?: ToolCallId
       reason?: string
+      purpose?: WorkspaceWriteApproval
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
@@ -59,6 +61,14 @@ declare module '@panedesk/dsh-session/types' {
   }
 }
 
+/** A question requesting durable workspace consent, distinct from one-operation approval. */
+export interface WorkspaceWriteApproval {
+  /** Identifies owner consent to persistent workspace access. */
+  readonly type: 'workspace-write'
+  /** Canonical directory whose product write ACL will be enabled. */
+  readonly workspace: string
+}
+
 /** Client-safe payload declared for the approval answerer waterfall. */
 export interface ApprovalRequestEvent {
   /** Agent identity projected to the corresponding Client Context in transit. */
@@ -69,6 +79,8 @@ export interface ApprovalRequestEvent {
   readonly callId?: ToolCallId
   /** Human-readable reason supplied by the asker. */
   readonly reason?: string
+  /** Persistent workspace consent; absence retains ordinary one-operation approval. */
+  readonly purpose?: WorkspaceWriteApproval
   /** Localized presentation only; never persisted in approval audit events. */
   readonly displayReason?: { readonly en: string; readonly [locale: string]: string }
   /** Cancellation lifetime of the pending request. */

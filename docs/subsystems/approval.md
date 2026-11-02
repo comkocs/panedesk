@@ -18,12 +18,13 @@ Every request receives a fresh `ApprovalRequestId`. The brand pairs the `approva
 type ApprovalRequestId = Branded<'ApprovalRequestId'>
 ```
 
-`ApprovalOutcome` is closed and fail-closed. `allowed-once` grants only the asked-about action; callers deny on `rejected`, `cancelled`, and `unavailable`. A missing, non-owning, throwing, or non-conforming answerer becomes `unavailable` rather than opening the gate.
+`ApprovalOutcome` is closed and fail-closed. `allowed-once` consents to the declared purpose, or one action when no purpose is declared; callers deny on `rejected`, `cancelled`, and `unavailable`. A missing, non-owning, throwing, or non-conforming answerer becomes `unavailable` rather than granting access. `purpose: { type: 'workspace-write', workspace }` identifies the canonical directory for persistent consent; the [sandbox policy consumer](../../packages/sandbox/sandbox-policy/README.md#windows-workspace-records) owns persistence and revocation.
 
 ```ts type-equiv
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes: consent to the requested purpose, explicit rejection,
+ * withdrawal, or unavailable answerer. Without a purpose, consent covers one action.
+ * Callers fail closed on `unavailable`.
  */
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
@@ -50,7 +51,7 @@ Both policies contribute their complete current meaning to the cache-safe runtim
 
 ## Approval request
 
-`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. Optional `displayReason` carries requester-owned locale strings to presentation; `reason` remains the audit text.
+`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. Optional `displayReason` carries requester-owned locale strings to presentation; `reason` remains the audit text. `ownerOnly: true` selects the authenticated owner transport instead of Host waterfall listeners; workspace consent always uses that transport. This routing does not isolate arbitrary code already running in the Host process.
 
 ```ts type-equiv
 /**
@@ -78,6 +79,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
    * immediately and a late answer from a still-pending answerer is discarded.
    */
   readonly signal?: AbortSignal
+  /** Require the authenticated owner event transport rather than Host answerers. */
+  readonly ownerOnly?: boolean
 }
 ```
 
@@ -112,7 +115,7 @@ Approval service that applies session policy before answerers and logs every ask
 setPolicy(agent: Agent, policy: ApprovalPolicy): void
 
 /**
- * Ask the composed answerers to decide one readonly same-process request.
+ * Ask ordinary composed answerers, or authenticated owner Clients for workspace consent.
  * The service borrows the request, agent, session, and live signal directly.
  * The request requires an open turn because the audit pair must be enclosed
  * by the durable log's commit/replay boundary; an idle ask rejects before
@@ -124,8 +127,9 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
- * @param req - the pending decision (agent, tool identity, reason, signal).
- * @returns the closed outcome; `'allowed-once'` is the only grant.
+ * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+ * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
+ *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */

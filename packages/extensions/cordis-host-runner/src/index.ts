@@ -28,6 +28,7 @@ import type {
   DynamicCordisReference, DynamicCordisRun,
 } from './registry.ts'
 import { createSandbox, evaluateHostCode, precheckCode } from './sandbox.ts'
+import type {} from '@panedesk/dsh-sandbox-policy'
 import type {
   ApprovalRequestId, CordisDynamicPackageId, CordisDynamicPluginId, CordisDynamicPluginRunId, CordisErrorDetails,
   CordisDynamicRunMode, CordisInspectProviderManifest, CordisInspectQueryResolution,
@@ -272,6 +273,8 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
   ): Promise<DynamicCordisRunResponse> {
     const plan = this.resolvePlan(agent, pluginId, packageId, mode)
     if (!plan.ok) return plan.response
+    const denial = this.activationDenial()
+    if (denial !== undefined) return { ok: false, reason: 'host-half-failed', message: denial }
     if (signal?.aborted === true) {
       return {
         ok: false,
@@ -350,6 +353,8 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
   ): Promise<DynamicCordisHostHalfResult> {
     const plan = this.resolvePlan(agent, pluginId, packageId, mode, requestId === null)
     if (!plan.ok) return { ok: false, message: plan.response.message }
+    const denial = this.activationDenial()
+    if (denial !== undefined) return { ok: false, message: denial }
     let attempt: DynamicCordisRunAttempt
     if (requestId !== null) {
       const pending = this.registry.peekRequest(requestId)
@@ -784,6 +789,19 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
     }
   }
 
+  private activationDenial(): string | undefined {
+    const policy = this.ctx.get('sandboxPolicy')
+    if (policy?.windowsDefault === true) {
+      return 'Dynamic packages are unavailable under the implicit Windows read-only default. '
+        + 'Their Host and Client code can access owner approval capabilities. '
+        + 'An owner must explicitly configure a permission mode before enabling dynamic packages.'
+    }
+    if (policy === undefined && process.platform === 'win32') {
+      return 'Dynamic packages are unavailable while the Windows sandbox policy is unavailable.'
+    }
+    return undefined
+  }
+
   private resolvePlan(
     agent: Agent,
     pluginId: CordisDynamicPluginId,
@@ -846,6 +864,8 @@ export class DynamicCordisRunnerService extends TypertRemoteService {
     attempt: DynamicCordisRunAttempt,
   ): Promise<DynamicCordisHostHalfResult> {
     const { plugin, definition, mode } = plan
+    const denial = this.activationDenial()
+    if (denial !== undefined) return { ok: false, message: denial }
     if (allowActiveAttach
       && plugin.run?.packageId === definition.packageId
       && plugin.run.pluginRunId === attempt.pluginRunId) {

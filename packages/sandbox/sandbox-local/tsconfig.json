@@ -30,6 +30,12 @@
       "path": "../sandbox-windows-acl"
     },
     {
+      "path": "../sandbox-policy"
+    },
+    {
+      "path": "../../util/home-paths"
+    },
+    {
       "path": "../../core/session"
     }
   ]

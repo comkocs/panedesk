@@ -8,6 +8,10 @@
     "src"
   ],
   "references": [
+    { "path": "../../llm/llm" },
+    { "path": "../../interaction/user-approval" },
+    { "path": "../../util/atomic-write" },
+    { "path": "../../util/home-paths" },
     {
       "path": "../../../vendor/cosmokit"
     },

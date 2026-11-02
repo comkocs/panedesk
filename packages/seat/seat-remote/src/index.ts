@@ -3,6 +3,7 @@ import { Context } from '@panedesk/cordis'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import { decodeSeatRequest, type SeatRequestMap } from '@panedesk/dsh-sdk-protocol'
 import type { SeatCallContext, SeatService } from '@panedesk/dsh-seat'
+import type {} from '@panedesk/dsh-permission-presets'
 import z from '@panedesk/schemastery'
 import { registerWebhook, type WebhookOptions } from './webhook.ts'
 
@@ -34,6 +35,24 @@ export class SeatRemote extends TypertRemoteService {
 
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'seatRemote', { namespace: 'seats' })
+    ctx.inject(['permissionPresets', 'seats'], (child) => {
+      child.effect(() => child.permissionPresets.registerWorkspaceDirectories(async () => {
+        const node = await child.seats.nodeStatus?.()
+        if (node === undefined) throw new RemoteError('seat/unavailable', 'Workspace inventory requires the local node identity', {})
+        const seats = child.seats.withAuthority({ principalId: 'owner' as SeatCallContext['principalId'], origin: 'manual', nodeId: node.nodeId })
+        const directories: string[] = []
+        let cursor: string | undefined
+        do {
+          const page = await seats.definitions(cursor === undefined ? {} : { cursor })
+          for (const definition of page.definitions) {
+            directories.push(...definition.directories.map(directory => directory.path), ...definition.memoryDirectories)
+          }
+          if (page.complete) return directories
+          if (page.nextCursor === undefined || page.nextCursor === cursor) throw new Error('Seat workspace inventory did not advance')
+          cursor = page.nextCursor
+        } while (true)
+      }))
+    })
     if (config.webhook) registerWebhook(ctx, { ...config.webhook, audit: async (fact) => {
       const engine = ctx.get('seatEngine')
       if (!engine) throw new Error('Seat audit provider is unavailable')

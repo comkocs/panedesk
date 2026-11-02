@@ -16,15 +16,21 @@ import type { JobChunk, JobHooks, JobOutcome, JobOutputSource } from '@panedesk/
  * command, or a denial (with the escalation hint this composition offers).
  * @param sandbox - settled sandbox facts, when this was a confined process.
  * @param escalationModes - escalation targets advertised by this composition.
+ * @param readOnlyHint - Optional owner guidance replacing escalation guidance only for read-only denials.
  * @returns the markers to append, oldest first.
  */
-function sandboxNotes(sandbox: ShellSandboxInfo | undefined, escalationModes: readonly SandboxMode[]): string[] {
+function sandboxNotes(
+  sandbox: ShellSandboxInfo | undefined,
+  escalationModes: readonly SandboxMode[],
+  readOnlyHint: string | undefined,
+): string[] {
   if (sandbox?.runnerFailed) {
     return [`[sandbox: the sandbox runner itself failed under ${sandbox.mode} mode — the command did not run; this is a sandbox problem, not a command failure]`]
   }
   if (sandbox?.denied) {
     const notes = [sandboxDenialMarker(sandbox.mode)]
-    if (escalationModes.length > 0) notes.push(escalationHintMarker('command'))
+    if (sandbox.mode === 'read-only' && readOnlyHint !== undefined) notes.push(readOnlyHint)
+    else if (escalationModes.length > 0) notes.push(escalationHintMarker('command'))
     return notes
   }
   return []
@@ -39,9 +45,10 @@ function sandboxNotes(sandbox: ShellSandboxInfo | undefined, escalationModes: re
  * reader — the model's status line, the roster row — shows.
  * @param proc - the settled process handle.
  * @param escalationModes - escalation targets advertised by this composition.
+ * @param readOnlyHint - Optional owner guidance replacing escalation guidance only for read-only denials.
  * @returns the outcome for the `ctx.jobs` registration.
  */
-export function processOutcome(proc: ShellProcess, escalationModes: readonly SandboxMode[] = []): JobOutcome {
+export function processOutcome(proc: ShellProcess, escalationModes: readonly SandboxMode[] = [], readOnlyHint?: string): JobOutcome {
   // TODO(background-infrastructure-outcome): widen ShellProcess with an explicit
   // infrastructure-failure outcome, then map it to job `failed`. Restricted
   // runner failures expose sandbox.runnerFailed, but unconfined spawn failures
@@ -50,7 +57,7 @@ export function processOutcome(proc: ShellProcess, escalationModes: readonly San
   const base: JobOutcome = proc.status === 'killed'
     ? { status: 'killed', detail: proc.signal !== null ? `signal: ${proc.signal}` : 'killed before exit' }
     : { status: 'completed', detail: `exit code: ${proc.exitCode ?? 0}` }
-  const notes = sandboxNotes(proc.sandbox, escalationModes)
+  const notes = sandboxNotes(proc.sandbox, escalationModes, readOnlyHint)
   return notes.length === 0 ? base : { ...base, detail: `${base.detail}; ${notes.join(' ')}` }
 }
 

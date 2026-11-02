@@ -18,12 +18,13 @@
 type ApprovalRequestId = Branded<'ApprovalRequestId'>
 ```
 
-`ApprovalOutcome` 是闭合的，且失败时拒绝。`allowed-once` 仅授权所询问的那一个操作；调用方对 `rejected`、`cancelled` 和 `unavailable` 均执行拒绝。缺失、不负责该请求、抛异常或不合规的应答者会产生 `unavailable`，而非放行。
+`ApprovalOutcome` 是闭合的，且失败时拒绝。`allowed-once` 同意所声明的用途，未声明用途时仅授权单次操作；调用方对 `rejected`、`cancelled` 和 `unavailable` 均执行拒绝。缺失、不负责该请求、抛异常或不合规的应答者会产生 `unavailable`，而非授予访问。`purpose: { type: 'workspace-write', workspace }` 标识请求持久同意的规范化目录；[沙箱策略消费方](../../packages/sandbox/sandbox-policy/README.zh.md#windows-workspace-records)拥有持久化与撤销。
 
 ```ts type-equiv
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes: consent to the requested purpose, explicit rejection,
+ * withdrawal, or unavailable answerer. Without a purpose, consent covers one action.
+ * Callers fail closed on `unavailable`.
  */
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
@@ -50,7 +51,7 @@ type ApprovalPolicy = 'ask' | 'never'
 
 ## 审批请求
 
-`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。可选的 `displayReason` 向界面传递请求方提供的本地化字符串；`reason` 仍是审计文本。
+`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。可选的 `displayReason` 向界面传递请求方提供的本地化字符串；`reason` 仍是审计文本。`ownerOnly: true` 选择经认证的 owner 运输而非 Host waterfall 监听；工作区同意始终使用该运输。该路由不隔离已经在 Host 进程内运行的任意代码。
 
 ```ts type-equiv
 /**
@@ -78,6 +79,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
    * immediately and a late answer from a still-pending answerer is discarded.
    */
   readonly signal?: AbortSignal
+  /** Require the authenticated owner event transport rather than Host answerers. */
+  readonly ownerOnly?: boolean
 }
 ```
 
@@ -112,7 +115,7 @@ Approval service that applies session policy before answerers and logs every ask
 setPolicy(agent: Agent, policy: ApprovalPolicy): void
 
 /**
- * Ask the composed answerers to decide one readonly same-process request.
+ * Ask ordinary composed answerers, or authenticated owner Clients for workspace consent.
  * The service borrows the request, agent, session, and live signal directly.
  * The request requires an open turn because the audit pair must be enclosed
  * by the durable log's commit/replay boundary; an idle ask rejects before
@@ -124,8 +127,9 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
- * @param req - the pending decision (agent, tool identity, reason, signal).
- * @returns the closed outcome; `'allowed-once'` is the only grant.
+ * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+ * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
+ *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */

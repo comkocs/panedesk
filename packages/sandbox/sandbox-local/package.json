@@ -36,6 +36,8 @@
   },
   "dependencies": {
     "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-util-values": "workspace:*",
     "@panedesk/node-addon-system": "workspace:~",
     "@panedesk/schemastery": "workspace:~"

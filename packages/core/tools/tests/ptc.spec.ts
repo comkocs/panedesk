@@ -2225,6 +2225,39 @@ class ConfinedFakeRuntime extends FakeRuntime {
 }
 
 describe('PTC standing file policy and sandbox outcomes', () => {
+  it.each([false, true])('retains Windows owner guidance after a denied program with error=%s without retrying', async (failed) => {
+    const { ctx } = await setup({ runtime: false })
+    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    try {
+      await ctx.plugin(SessionProjections)
+      await ctx.plugin(SandboxPolicy, {})
+      platform.mockRestore()
+      await ctx.plugin(ConfinedFakeRuntime)
+      await ctx.plugin(ApprovalService, { policy: 'never' })
+      const runtime = ctx.ptcRuntime as ConfinedFakeRuntime
+      const run = vi.spyOn(runtime, 'run')
+      const approve = vi.spyOn(ctx.approval, 'request')
+      runtime.behavior = async () => ({
+        logs: ['earlier output'], sandbox: { mode: 'read-only', denied: true },
+        ...failed ? { error: { kind: 'exception' as const, message: 'write denied' } } : {},
+      })
+      const result = await runCode(ctx, 'attemptWrite()')
+      const text = result.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+      expect(text).toContain('Windows defaults to read-only.')
+      expect(text).toContain('Settings > General > Windows workspace write access.')
+      expect(text).toContain('Unattended tasks cannot grant this access.')
+      expect(text).toContain('earlier output')
+      expect(text).not.toContain('A sandbox escalation approves')
+      expect(run).toHaveBeenCalledOnce()
+      expect(approve).not.toHaveBeenCalled()
+      expect(result.isError).toBe(failed)
+    } finally {
+      await ctx.fiber.dispose()
+      vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+    }
+  })
   it('requires a policy owner before dispatching a confined runtime', async () => {
     const { ctx } = await setup({ runtime: false })
     try {

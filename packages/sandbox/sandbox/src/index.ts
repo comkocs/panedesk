@@ -50,6 +50,8 @@ export interface SandboxExecutionPolicy {
    * for agentless calls, which fall back to per-call backend state.
    */
   sessionId?: SessionId
+  /** Workspace access derives from a durable record and must be rechecked before native grants. */
+  requiresWorkspaceAuthorization?: true
 }
 
 /**
@@ -175,6 +177,30 @@ export abstract class SandboxProvider extends Service {
    *   the selected backend achieves for it.
    */
   abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
+
+  /** Whether this configured provider manages native local Windows workspace capabilities. */
+  get supportsWorkspaceWriteAccess(): boolean { return false }
+
+  /**
+   * Inspect a persistent workspace capability without granting access.
+   * @param workspaceRoot - Absolute native workspace directory.
+   * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
+   */
+  hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
+
+  /**
+   * Materialize an approved workspace capability without starting a process.
+   * @param policy - Current policy with its authorization source and session identity.
+   * @param signal - Cancellation checked before native mutation.
+   * @returns After the provider has materialized the approved capability.
+   */
+  materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>
+
+  /**
+   * Revoke a persistent workspace capability and invalidate provider caches.
+   * @param workspaceRoot - Absolute native workspace directory.
+   */
+  revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 }
 
 export default SandboxProvider

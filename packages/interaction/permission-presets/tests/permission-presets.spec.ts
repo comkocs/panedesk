@@ -62,6 +62,26 @@ async function mountedStore(options: { approvalDefault?: ApprovalPolicy | undefi
 }
 
 describe('permission preset fold', () => {
+  it('does not turn an implicit Windows default into an explicit session override', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SessionStore)
+      await ctx.plugin(SessionProjectionRegistry)
+      ctx.provide('sandboxPolicy', { windowsDefault: true })
+      ctx.provide('shell', { sandboxMode: 'read-only' })
+      ctx.provide('approval', { config: { policy: 'ask' } })
+      await ctx.plugin(PermissionPresetService, { presets: {
+        'read-only': { sandbox: 'read-only', approval: 'ask' },
+        'workspace-write': { sandbox: 'workspace-write', approval: 'ask' },
+      } })
+      const session = ctx.sessions.create(SessionId('implicit-windows'))
+      expect(session.snapshotEvents().filter(event => event.type === 'sandbox/mode')).toEqual([])
+      ctx.permissionPresets.set(session, 'read-only')
+      expect(session.snapshotEvents().filter(event => event.type === 'sandbox/mode').map(event => event.data))
+        .toEqual([{ mode: 'read-only' }])
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('folds the latest preset selection and steps over unrelated events', async () => {
     const ctx = await mounted()
     const session = freshSession('sess-fold')

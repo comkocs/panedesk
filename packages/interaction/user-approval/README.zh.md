@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用本包可要求敏感工具操作在继续前取得一次性决定。`ask` 策略将每个请求发送给部署中的人类或机器应答者；`never` 则直接拒绝，不发出提示。应答者缺失或失败时返回 `unavailable`，使操作以拒绝方式关闭；每项批准也只适用于对应请求。每个请求与结果都会记录在发起请求的会话审计日志中。模型会看到最终工具结果与当前策略，但不会看到人类权限 UI 或审计事件。
+要求敏感工具操作在继续前取得决定：`ask` 咨询人类或机器应答者，`never` 则直接拒绝，不发出提示。应答者缺失或失败时返回 `unavailable`，以拒绝方式关闭。普通审批只涵盖单次操作；工作区用途审批请求持久的 Windows 目录访问，由沙箱策略消费方保存。请求与结果进入会话审计日志。模型会看到工具结果与当前策略，不会看到人类权限 UI 或审计事件。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 组合应答者
 
-应答者是 `approval/request` waterfall（瀑布式事件）监听器：返回一个结果即为所负责的 agent（智能体）作答，否则调用 `next()` 委托。限定到 agent 的监听器只接收该 agent 的请求，且每项部署应组合一个最终应答者——同级监听器的顺序不是策略优先级机制。没有最终应答者时，请求解析为 `unavailable` 并以拒绝方式关闭；服务自身绝不会提示人类。
+普通应答者是 `approval/request` waterfall（瀑布式事件）监听器：返回结果为所负责的 agent（智能体）作答，或调用 `next()` 委托。限定到 agent 的监听器只接收该 agent 的请求；同级顺序不是策略优先级。工作区用途请求及 `ownerOnly: true` 的请求绕过 Host waterfall，经 Gateway 直接发往经过认证的 owner 答复流；没有这样的流时返回 `unavailable`，Host 监听器的返回值不能批准它。服务自身不提示人类。
 
 ### 设置策略
 
@@ -44,12 +44,13 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `policy` | `ask` | 没有 `approval/policy` 覆盖的会话的默认策略 |
+| `workspaceWriteTimeoutMs` | `60_000` | 工作区同意的最长等待时间；到期即取消请求 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-user-approval)是每个受支持字段及其 JSDoc 的穷尽式真源。`setPolicy(agent, policy)` 切换运行中的 agent 的策略，并为它的下一个模型步骤排队一条「由用户更改」消息；`setApprovalPolicy(session, policy)` 是会话初始化使用的直接持久写入路径。
 
 ### 请求决定
 
-`request(req)` 指名 agent、工具、原因、可选的调用 id，以及一个中止信号。可选的 `displayReason` 提供本地化展示文案，不改写日志中的原因。它要求当前处于尚未结束的轮次中：空闲或在轮次之间调用会在审计前抛出异常。中止会撤回问题——请求以 `cancelled` 结算，迟到的回答被丢弃。若任一审计事件在提交前失败，请求会被拒绝，而不会返回一项未记录的决定。
+`request(req)` 指名 agent、工具、原因、可选的调用 id，以及一个中止信号。可选的 `purpose` 标识工作区同意并保留在审计事件中；其 `allowed-once` 结果表示同意该具名用途，不是通用的永久授权。可选的 `displayReason` 提供本地化展示文案，不改写日志中的原因。它要求当前处于尚未结束的轮次中：空闲或在轮次之间调用会在审计前抛出异常。中止会撤回问题——请求以 `cancelled` 结算，迟到的回答被丢弃。若任一审计事件在提交前失败，请求会被拒绝，而不会返回一项未记录的决定。
 
 ### 模型与用户看到什么
 
@@ -151,7 +152,7 @@ Approval prompts are disabled in this session: actions that require approval are
 这些限制说明该 seam 不适用的场景，以及组合时需要特别注意的场景。它们是当前包约束，不是通用权限对比。
 
 - **请求只在尚未结束的轮次内有效**：在空闲时或轮次之间发起调用，会在审计前抛出异常；持久化的轮次外审批工作流仍属延期工作。
-- **仅存在一次性授权**：结果词汇包含 `allowed-once`，但不含 `allow-always`、已记住的规则、撤销或授权存储；会话策略只有 `ask`／`never`。
+- **没有通用授权存储**：`allowed-once` 同意请求声明的用途；未声明用途时只涵盖单次操作。工作区持久化与撤销属于[沙箱策略消费方](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)，不属于本服务。会话策略仍是 `ask`／`never`。
 - **请求不携带工具参数**：应答者会看到工具名称、原因和可选调用 id；ACP（Agent Client Protocol）机器通道要求调用 id，并会委托不含 id 的请求。
 - **没有内置应答者**：无头或组合不完整的部署会返回 `unavailable` 并以拒绝方式关闭；服务自身绝不会提示人类。
 

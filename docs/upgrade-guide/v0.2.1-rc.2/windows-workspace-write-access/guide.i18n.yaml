@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.md
+/:
+  en: 7f0be6a09442fd74
+  zh: 1fc3b8c30e25a79d
+/windows-workspace-write-access:
+  en: 954cd39ce57fbdfd
+  zh: cd1cb2658efaa234
+/windows-workspace-write-access/change:
+  en: 471ffcb9983a50fc
+  zh: 1ecdfe049bfcd8f5
+/windows-workspace-write-access/migration:
+  en: 00f6ddaf418f7663
+  zh: 0746055a725e7401

@@ -39,6 +39,7 @@ export class FsSandboxController {
   readonly escalationModes: readonly SandboxMode[]
   /** Shared per-session policy resolver, required by a confining backend. */
   private readonly policy: SandboxPolicyService | undefined
+  private readonly escalatedPolicies = new WeakSet<SandboxExecutionPolicy>()
 
   constructor(private readonly ctx: Context) {
     const defaultMode = ctx.fs.sandboxMode
@@ -75,9 +76,10 @@ export class FsSandboxController {
    * The policy to stamp onto this mutation: an approved escalation grant (a
    * strictly wider retry resolved through `ctx.approval` before anything
    * executes), else the Session's standing mode. Repeating the standing mode
-   * requires no approval. The workspace root is the original Session
-   * directory, or the deployment fallback when absent. Validates the escalation argument
-   * pairing first.
+   * requires no approval. Without escalation arguments, the implicit Windows
+   * default requests persistent workspace consent before the first mutation.
+   * The workspace root is the original Session directory, or the deployment
+   * fallback when absent. Validates the escalation argument pairing first.
    * @param toolName - the mutating tool's name, for the approval audit trail.
    * @param args - the call's escalation arguments.
    * @param exec - the tool-execution context (agent, callId, signal).
@@ -86,7 +88,9 @@ export class FsSandboxController {
    */
   async resolvePolicy(toolName: string, args: FsEscalationArgs, exec: ToolExecution): Promise<SandboxExecutionPolicy | undefined> {
     validateEscalationArgs(args.sandbox_permissions, args.justification)
-    const standingPolicy = this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
+    const standingPolicy = args.sandbox_permissions === undefined
+      ? await this.policy?.requestWrite({ ...exec.agent ? { agent: exec.agent } : {}, toolName, callId: exec.callId, signal: exec.signal })
+      : this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
     if (args.sandbox_permissions === undefined || args.justification === undefined) {
       return standingPolicy
     }
@@ -104,7 +108,20 @@ export class FsSandboxController {
         signal: exec.signal,
       },
     )
-    return { ...policy, mode: approvedMode }
+    const resolved = { ...policy, mode: approvedMode }
+    if (approvedMode !== policy.mode) this.escalatedPolicies.add(resolved)
+    return resolved
+  }
+
+  /**
+   * Refresh standing permission after asynchronous mutation preparation without asking again.
+   * @param policy - Policy admitted before preparation.
+   * @param exec - Calling agent whose standing permission may have changed.
+   * @returns Current standing policy, or the explicitly approved policy for this call.
+   */
+  refreshPolicy(policy: SandboxExecutionPolicy | undefined, exec: ToolExecution): SandboxExecutionPolicy | undefined {
+    if (policy !== undefined && this.escalatedPolicies.has(policy)) return policy
+    return this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
   }
 
   /**
@@ -114,9 +131,9 @@ export class FsSandboxController {
    * WHILE keeping the structured `FS_SANDBOX_DENIED` code — `ToolRuntime`
    * populates `result.error` only for `HarnessError` instances, so a plain
    * `Error` would strip the code retry/observers key off. Any other error
-   * passes through unchanged. A `FS_SANDBOX_DENIED` only arises under a
-   * confining backend, which always advertises the escalation fields, so the
-   * hint always applies here.
+   * passes through unchanged. Windows implicit-default read-only denials name
+   * owner preauthorization instead of suggesting an unattended approval retry.
+   * The result text is retained by the caller's ordinary tool/result event.
    * @param error - the error thrown by the mutation.
    * @param policy - the policy stamped onto the call (names the mode in the marker).
    * @returns the error to throw — the marker `FsError` for a sandbox denial, else the original.
@@ -126,6 +143,7 @@ export class FsSandboxController {
     // A FS_SANDBOX_DENIED only arises under a confining backend, whose tool
     // path always resolves a policy before mutation.
     const mode = (policy as SandboxExecutionPolicy).mode
-    return new FsError(`${sandboxDenialMarker(mode)}\n${escalationHintMarker('operation')}`, 'FS_SANDBOX_DENIED', { cause: error })
+    const hint = this.policy?.writeDenialHint(mode) ?? escalationHintMarker('operation')
+    return new FsError(`${sandboxDenialMarker(mode)}\n${hint}`, 'FS_SANDBOX_DENIED', { cause: error })
   }
 }

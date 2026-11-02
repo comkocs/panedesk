@@ -37,6 +37,7 @@ import { installProxyFromEnvironment } from '@panedesk/dsh-http-proxy'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
 import { provideCmdline, type AppReady } from '@panedesk/dsh-cmdline'
 import { createProcessShutdown, type ProcessShutdown } from './process-shutdown.ts'
+import { windowsPermissionNotice } from './windows-permission-notice.ts'
 
 /** Plugin commands may call a running host without booting an engine in their profile. */
 export { callHostSdk as requestRunningHost } from '@panedesk/dsh-host-admin'
@@ -348,6 +349,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     if (!signalShutdown.signal.aborted
       && ctx.fiber.state === FiberState.ACTIVE
       && ctx.get('loader') !== undefined) {
+      const notice = windowsPermissionNotice(process.platform, options.args, ctx.get('sandboxPolicy'))
+      if (notice !== undefined) process.stderr.write(notice)
       appReady.commit()
     }
     return { ctx, shutdown }

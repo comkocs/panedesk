@@ -33,7 +33,7 @@ Choose it for every composition with confined capabilities (bash, filesystem, te
 
 ### Minimal configuration
 
-Load the package with a default mode; the fail-safe default is `read-only`, and a deployment that wants a workspace-writable agent opts into `workspace-write` explicitly.
+Without an explicit configured mode or `PANEDESK_PERMISSION_MODE`, Windows defaults to `read-only` and Linux/macOS default to `workspace-write`. Explicit deployment and session choices take precedence over these platform defaults.
 
 ```yaml
 - name: '@panedesk/dsh-sandbox-policy'
@@ -44,7 +44,7 @@ Load the package with a default mode; the fail-safe default is `read-only`, and 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `mode` | `read-only` | The deployment default mode a session starts from, validated at load |
+| `mode` | Windows: `read-only`; Linux/macOS: `workspace-write` | Explicit configuration or `PANEDESK_PERMISSION_MODE` overrides the platform default; validated at load |
 | `workspaceRoot` | `process.cwd()` | Absolute fallback root for agentless calls or sessions without a cwd; relative values fail at load. Normal agent calls use the session's immutable cwd |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-sandbox-policy) is the exhaustive source for every accepted field and its JSDoc.
@@ -52,6 +52,13 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 ### Switching a session's mode
 
 A session's mode can be switched at runtime through a UI policy control or an explicit switch; the switch is recorded in the session log and takes effect on the session's next confined call. The switch survives restart through replay, and each session keeps its own mode — two sessions never see each other's state. A switched session keeps its immutable workspace cwd as the writable boundary.
+
+<a id="windows-workspace-records"></a>
+### Windows workspace records
+
+Under the implicit Windows default, a valid authorization in the product home's `windows-workspace-write` directory enables `workspace-write` for that canonical directory. Records contain the directory, ISO authorization time, and a source: settings write `settings-preauthorization`, while an accepted first-workspace-write approval writes `first-confirmation`. `requestWrite()` asks only under the implicit Windows default without a record or explicit session mode; acceptance persists consent before materializing the native grant. Rejection, cancellation, unavailable answerers, and the approval deadline leave access read-only. `never` does not dispatch a prompt. Record-derived access is resolved on each call rather than stored as a session override, so revocation also affects the consenting session. Reading or writing a record alone does not modify ACLs. Explicit deployment, session, and approved call modes remain authoritative. Record writers share a per-file cross-process lock. Revocation first persists a `.revoking` deny marker, then removes the native capability, record, and marker in order. An interrupted revocation blocks record-based writes and reauthorization until a retry completes; an ACL failure retains the inventory record for retry. `pendingRevocations()` validates and lists interrupted markers even without a consent record. Revoking an exact recorded directory that no longer exists removes its record and marker without a native ACL call, after checking the nearest existing ancestor. A replacement symlink, non-directory, or inaccessible path fails closed and retains consent for recovery; the check does not protect against concurrent filesystem replacement. `withAuthorization()` revalidates consent under the same lock immediately before record-derived native ACL materialization, including cached policies. Its callback must not recursively authorize or revoke the same directory. The lock does not cover process lifetime or subsequent file operations; revocation does not terminate running processes or invalidate already-open handles. These records describe local Windows directories, not remote execution paths.
+
+`writeDenialHint(mode)` supplies owner preauthorization guidance for settled read-only denials under the implicit Windows default. Filesystem and command tools retain it in their ordinary results; other platforms, explicit deployment modes, and wider settled modes receive no replacement hint.
 
 ### Failures and recovery
 
@@ -69,11 +76,11 @@ This section explains policy resolution, the per-session store, and the model-vi
 
 ### Resolution precedence
 
-`resolve({ session, mode })` returns one complete per-call policy: an approved explicit mode outranks the session's last `sandbox/mode` event, which outranks the deployment default. The session's immutable `cwd` supplies the workspace root; otherwise the configured fallback applies. Absolute execution-world spelling is preserved. Enforcing providers canonicalize the root on their own filesystem, so remote `symlink/..` paths are never resolved on the Harness host.
+`resolve({ session, mode })` returns one complete per-call policy: an approved explicit mode outranks the session's last `sandbox/mode` event, which outranks the effective deployment default. Only the implicit Windows default consults the home-level workspace authorization, after native canonicalization; explicit deployment choices do not. The session's immutable `cwd` supplies the workspace root; otherwise the configured fallback applies. The returned root preserves its execution-world spelling. Enforcing providers canonicalize it on their own filesystem. The supported SSH composition requires POSIX hosts at both ends and does not consult Windows records.
 
 ### The per-session store
 
-A runtime switch is one log-only `sandbox/mode` event on the session it applies to — the switch IS its event, and nothing mutates mode state out of band. `effective = explicit grant ?? fold(events) ?? deployment default`, so an override survives restart by replay and two sessions never see each other's state. Workspace identity needs no event: the immutable `SessionHeader.cwd` recorded at creation is the root for every call in that session. The event stays log-only; before each request, the owner contributes the current fact to the full runtime-context snapshot, and the agent loop logs that snapshot as a sourced `user/message`.
+A runtime session switch is one log-only `sandbox/mode` event on the session it applies to. `effective = approved call mode ?? fold(events) ?? authorized Windows workspace/default`, so a session override survives restart by replay. Session overrides are independent; home-level Windows workspace authorizations are intentionally shared between sessions using that directory. Workspace identity needs no event: the immutable `SessionHeader.cwd` recorded at creation is the root for every call in that session. The event stays log-only; before each request, the owner contributes the current fact to the full runtime-context snapshot, and the agent loop logs that snapshot as a sourced `user/message`.
 
 ### Model-visible text
 

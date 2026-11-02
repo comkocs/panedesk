@@ -943,7 +943,7 @@ export interface ToolResultPruneConfig {
 ## `@panedesk/dsh-cordis-host-runner`
 
 - `inject`: `tools`
-- `source`: [`packages/extensions/cordis-host-runner/src/index.ts:103`](../packages/extensions/cordis-host-runner/src/index.ts)
+- `source`: [`packages/extensions/cordis-host-runner/src/index.ts:104`](../packages/extensions/cordis-host-runner/src/index.ts)
 
 ```ts config-catalog
 /** Runner configuration. */
@@ -2827,7 +2827,7 @@ export interface Config {
 
 - `inject`: `shell` · `approval` · `sessions` · `sessionProjections`
 - `refs`: [`ApprovalPolicy`](subsystems/approval.zh.md) · [`SandboxMode`](subsystems/sandbox.zh.md) · `Volatile` (`@panedesk/cordis`)
-- `source`: [`packages/interaction/permission-presets/src/index.ts:159`](../packages/interaction/permission-presets/src/index.ts)
+- `source`: [`packages/interaction/permission-presets/src/index.ts:167`](../packages/interaction/permission-presets/src/index.ts)
 
 ```ts config-catalog
 /** The {@link PermissionPresetService} config: preset table and composition default. */
@@ -3129,7 +3129,7 @@ export interface Config {
 
 ## `@panedesk/dsh-sandbox-local`
 
-- `source`: [`packages/sandbox/sandbox-local/src/index.ts:45`](../packages/sandbox/sandbox-local/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-local/src/index.ts:47`](../packages/sandbox/sandbox-local/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -3165,18 +3165,17 @@ export interface Config {
 
 - `inject`: `sessionProjections`
 - `refs`: [`SandboxMode`](subsystems/sandbox.zh.md)
-- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:71`](../packages/sandbox/sandbox-policy/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:80`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 ```ts config-catalog
 /**
- * Plugin config: the deployment's sandbox default. All optional — `Config`
- * supplies the defaults (`mode: 'read-only'` is the fail-safe default; a
- * deployment that wants a workspace-writable agent opts in explicitly). The
+ * Plugin config: the deployment's sandbox default. Without an explicit mode
+ * or environment choice, Windows is read-only and Linux/macOS are workspace-writable. The
  * runner choice is NOT here (it is the `ctx.sandbox` provider's config), nor
  * is any per-family knob: this is the one shared policy home.
  */
 export interface Config {
-  /** File-sandbox mode a session starts from (default: `read-only`). */
+  /** Explicit file-sandbox mode; otherwise the environment or platform default applies. */
   mode?: SandboxMode
   /**
    * Absolute fallback root for agentless calls and sessions without a cwd (default:
@@ -3422,7 +3421,7 @@ export interface LocalSeatOptions {
 ## `@panedesk/dsh-seat-remote`
 
 - `refs`: [`SeatDigest`](../packages/seat/seat/src/index.ts) · [`SeatFailure`](subsystems/seat.zh.md) · [`SeatName`](../packages/seat/seat/src/index.ts) · [`SeatProjectId`](../packages/seat/seat/src/index.ts) · [`SeatSourceId`](../packages/seat/seat/src/index.ts)
-- `source`: [`packages/seat/seat-remote/src/index.ts:10`](../packages/seat/seat-remote/src/index.ts)
+- `source`: [`packages/seat/seat-remote/src/index.ts:11`](../packages/seat/seat-remote/src/index.ts)
 
 ```ts config-catalog
 /** Optional external ingress is disabled unless explicit source policy is configured. */
@@ -5044,7 +5043,7 @@ export interface Config {
 
 ## `@panedesk/dsh-user-approval`
 
-- `source`: [`packages/interaction/user-approval/src/index.ts:135`](../packages/interaction/user-approval/src/index.ts)
+- `source`: [`packages/interaction/user-approval/src/index.ts:139`](../packages/interaction/user-approval/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -5056,6 +5055,8 @@ export interface Config {
    * prompting (the deterministic CI/unattended stance).
    */
   readonly policy?: ApprovalPolicy
+  /** Maximum wait for first-workspace-write consent before cancelling; defaults to 60 seconds. */
+  readonly workspaceWriteTimeoutMs?: number
 }
 
 /**

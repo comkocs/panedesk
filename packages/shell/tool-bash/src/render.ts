@@ -23,11 +23,13 @@ function streamText(output: CollectedOutput): string {
  * @param escalationModes - the escalation targets this composition advertises;
  *   non-empty adds the same-turn escalation hint after a denial marker
  *   (default `[]`: no hint).
+ * @param readOnlyHint - Optional owner guidance replacing escalation guidance only for read-only denials.
  * @returns the model-facing text: output body (or `(no output)`), then any timeout/stopped/signal/exit markers, each on its own line.
  */
 export function renderResult(
   result: ShellRunResult & { stopped?: string },
   escalationModes: readonly SandboxMode[] = [],
+  readOnlyHint?: string,
 ): string {
   const out = streamText(result.stdout)
   const err = streamText(result.stderr)
@@ -44,8 +46,10 @@ export function renderResult(
   // Keep the exit marker last because parseExitStatus anchors there.
   if (result.sandbox?.denied) {
     markers.push(sandboxDenialMarker(result.sandbox.mode))
-    // Hint only when the composition exposes escalation, before the final exit marker.
-    if (escalationModes.length > 0) {
+    // Owner guidance takes precedence over escalation, before the final exit marker.
+    if (result.sandbox.mode === 'read-only' && readOnlyHint !== undefined) {
+      markers.push(readOnlyHint)
+    } else if (escalationModes.length > 0) {
       markers.push(escalationHintMarker('command'))
     }
   }
@@ -94,6 +98,7 @@ export function renderPromoted(promoted: { jobId: string; timeoutMs: number; out
  * @param spillPaths - the complete-stream files the job currently advertises.
  * @param sandbox - settled sandbox facts, when this was a confined process.
  * @param escalationModes - escalation targets advertised by this composition.
+ * @param readOnlyHint - Optional owner guidance replacing escalation guidance only for read-only denials.
  * @returns the delta text with any loss or sandbox notice appended.
  */
 export function renderJobRead(
@@ -102,6 +107,7 @@ export function renderJobRead(
   spillPaths: readonly string[],
   sandbox?: ShellSandboxInfo,
   escalationModes: readonly SandboxMode[] = [],
+  readOnlyHint?: string,
 ): string {
   const notices: string[] = []
   if (lossy) {
@@ -111,7 +117,9 @@ export function renderJobRead(
     notices.push(`[sandbox: the sandbox runner itself failed under ${sandbox.mode} mode — the command did not run; this is a sandbox problem, not a command failure]`)
   } else if (sandbox?.denied) {
     notices.push(sandboxDenialMarker(sandbox.mode))
-    if (escalationModes.length > 0) {
+    if (sandbox.mode === 'read-only' && readOnlyHint !== undefined) {
+      notices.push(readOnlyHint)
+    } else if (escalationModes.length > 0) {
       notices.push(escalationHintMarker('command'))
     }
   }

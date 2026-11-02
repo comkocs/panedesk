@@ -9,8 +9,8 @@
   en: 1387c4505dde2faf
   zh: 48570fa1c13d6910
 /session-persistence-event-catalog/persistence-type-fingerprints:
-  en: c336d97e7ffbfe4d
-  zh: 037255f0de1ef162
+  en: 985d729c21faa68d
+  zh: b16b4aad6ab427c5
 /session-persistence-event-catalog/event-envelope:
   en: 56b5dec434b0a7b5
   zh: c63f94665eb2803d
@@ -36,14 +36,14 @@
   en: 9d2ec4c4c3664b9f
   zh: 9d2ec4c4c3664b9f
 /session-persistence-event-catalog/events/approval/approval-asked-log-only:
-  en: 505ab9e383babcae
-  zh: f6b29ec434746160
+  en: 449f36c9fcb711d0
+  zh: 68496597eb7bc7e3
 /session-persistence-event-catalog/events/approval/approval-decided-log-only:
-  en: 1e65aa4c24a595ee
-  zh: fe7f527c5e45d6a6
+  en: 684a4f9f36e05fce
+  zh: 259f807a436263d4
 /session-persistence-event-catalog/events/approval/approval-policy-log-only:
-  en: d520080fbb669b54
-  zh: a4459a534c1c96c5
+  en: a1b6948ce48e856c
+  zh: b6762f8613b6de59
 /session-persistence-event-catalog/events/assistant:
   en: 44426b6cd0dc01cf
   zh: 44426b6cd0dc01cf
@@ -156,8 +156,8 @@
   en: 19917bc5438e60af
   zh: 19917bc5438e60af
 /session-persistence-event-catalog/events/permission/permission-preset-log-only:
-  en: 41de5f6e1dad8620
-  zh: 92cb5d5e87a23405
+  en: 435611821af9cd68
+  zh: 77567711837914f8
 /session-persistence-event-catalog/events/plan:
   en: 4294f78d26ed985b
   zh: 4294f78d26ed985b
@@ -1065,11 +1065,11 @@
   en: a1f024101085f6f1
   zh: eedf4dc28c048838
 /session-persistence-event-catalog/resolved-persistence-types/approvaloutcome:
-  en: bb7b3652609ac651
-  zh: bdde4e652413c5eb
+  en: bc7799c898cba002
+  zh: 28e59d2af641a171
 /session-persistence-event-catalog/resolved-persistence-types/approvalpolicy:
-  en: 670f484e05d50fa7
-  zh: 7c107f338ea6cf81
+  en: 5341a464a13a03e4
+  zh: 24646b10e58ba2cd
 /session-persistence-event-catalog/resolved-persistence-types/assistantmessage:
   en: 5470f3cd6fb60f7a
   zh: 078756dcaa15472b
@@ -1449,8 +1449,11 @@
   en: d0a3f9aab18c3de5
   zh: 76ac69a835ca4e29
 /session-persistence-event-catalog/resolved-persistence-types/workflowstopreason:
-  en: a0d0018c68abc564
-  zh: 299d86dbba56b528
+  en: 8c195294eb6dcf7b
+  zh: 530f5b7c42c65cb0
+/session-persistence-event-catalog/resolved-persistence-types/workspacewriteapproval:
+  en: cf06f55e7055583f
+  zh: a6b35106680f45ff
 /session-persistence-event-catalog/resolved-persistence-types/boolean:
   en: 40616917f0b8f9cc
   zh: 40616917f0b8f9cc
@@ -1554,11 +1557,11 @@
   en: 251a3a24d185c74f
   zh: 86a3c3b24fdb28b4
 /session-persistence-event-catalog/resolved-persistence-types/callid-files-turn:
-  en: 5f4d3f66ed86a14d
-  zh: 7c729360fa1279e6
-/session-persistence-event-catalog/resolved-persistence-types/callid-id-reason-toolname:
-  en: a17ad16afcf069eb
-  zh: 41b695736c4322e5
+  en: 530dc45f85d1e1d9
+  zh: a5b9348fe09599ed
+/session-persistence-event-catalog/resolved-persistence-types/callid-id-purpose-reason:
+  en: a093874ccd33bb01
+  zh: 54b2005eb6f4f70b
 /session-persistence-event-catalog/resolved-persistence-types/cancellation-error-message-meta:
   en: d276420005e6df00
   zh: 8be8056873e0f4c6
@@ -1662,8 +1665,8 @@
   en: a5df50710083ac25
   zh: aad3ccf6f6de70e4
 /session-persistence-event-catalog/resolved-persistence-types/id-outcome:
-  en: 6a4a45ec415442ee
-  zh: 360f6ed2f30d16b1
+  en: 790d94b55d17e1dd
+  zh: 826f53a040eb1a3e
 /session-persistence-event-catalog/resolved-persistence-types/ignorable-seq-sourceeventseqs-surfaceop:
   en: 26ee37a85c770942
   zh: 0ae916ed57cb8470
@@ -2058,11 +2061,11 @@
   en: 3028b222670ce5ad
   zh: cae4c9437e560d61
 /session-persistence-event-catalog/resolved-persistence-types/policy-source:
-  en: 00f1d435f82d2753
-  zh: c2ab108ad2748a6c
+  en: 1411d51bae8b8772
+  zh: 3f0a93ecc815c900
 /session-persistence-event-catalog/resolved-persistence-types/preset:
-  en: 72f55a715deb7014
-  zh: d9bdc6d9e2907ede
+  en: 0830c1b7fa266bad
+  zh: 47bb8062b41df584
 /session-persistence-event-catalog/resolved-persistence-types/reason-turn:
   en: 190bdfd46bdd4799
   zh: 3203ee74843f87db
@@ -2100,11 +2103,11 @@
   en: a3e8783bacc2c529
   zh: ea7b013c160f544e
 /session-persistence-event-catalog/resolved-persistence-types/type-agent-input-transition:
-  en: ca2c6570bf6c07a0
-  zh: b571a67c8fdb39a1
+  en: 0c490de1dacbee3b
+  zh: d0e6df668b8862a4
 /session-persistence-event-catalog/resolved-persistence-types/type-approval-asked:
-  en: 9c77f18b0dad22f0
-  zh: 8894cf2878fe90db
+  en: d76ba1f46dae6a58
+  zh: ad915e42ff693102
 /session-persistence-event-catalog/resolved-persistence-types/type-approval-decided:
   en: 5ded6f8ecbb0bc7d
   zh: 0165bc0d0f247f74

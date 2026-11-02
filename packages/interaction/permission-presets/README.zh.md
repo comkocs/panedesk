@@ -59,6 +59,10 @@ kind: "package-reference"
 
 客户端从进程级目录渲染可选条目：先按表顺序列出配置预设，再在 Auto integration 存活时列出 Auto。客户端把这份快照与 Session 当前值合并；不匹配的 `custom` 值可以标记当前控件，但绝不会成为可选目录行。Auto 的身份与旋钮组合（Full access 沙箱加 `ask` 审批策略）固定在本服务内部；已记录的 Auto 选择也匹配委派子会话固定的 `never` 策略。shipped 客户端的 locale 字典拥有 Auto 的 label 与 description，而配置预设保留 Host 提供的展示信息。调用方不能通过通用 contribution API 发布其他预设；他们可以从 `custom` 切换出去，但不能通过此服务选中或持久化一个具名 custom 预设。
 
+### Windows 工作区授权
+
+仅限所有者调用的 `workspaceWriteAccess`、`authorizeWorkspaceWrite` 和 `revokeWorkspaceWrite` Remote 方法通过 sandbox-policy 管理规范化工作区记录，并通过挂载的沙盒提供方管理原生 ACE。读取涵盖本机活会话、冷历史会话目录和 effect 管理的 `registerWorkspaceDirectories` 贡献，不恢复智能体。没有记录的精确产品写权限 ACE 标为 `legacy`。中断的撤销标为 `revocation-pending`，即使没有授权记录、历史条目或残留 ACE 也会列出，供所有者重试。已有记录的目录删除后仍会列出，可不调用原生 ACL 完成撤销；sandbox-policy 会拒绝路径身份已改变的情况。已不存在的旧 ACE 候选目录会跳过；元数据不可读或 ACL 检查失败会拒绝清单读取，而不是返回空列表。不支持的平台不能修改 Windows 授权。
+
 ### 会话默认值
 
 `permission` 设置命名空间为未来会话持有 `defaultPreset`，且只接受配置预设。创建会话时读取它，将其应用于沙箱模式与审批策略，并把应用的预设记录为一次 `permission/preset` 选择。之后的设置变更绝不会改变现有会话。恢复的 seed（包括由 `session/end-seed` 明确标记的空 seed）会保留其有效权限，并只接收缺失的持久事实，而不会接收最新用户默认值；持久化的 `auto` 身份在发布前必须存在 live Auto 注册并通过准入。

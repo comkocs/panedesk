@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@panedesk/dsh-ptc-runtime": "workspace:*",
+    "@panedesk/dsh-tool-pwsh": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",

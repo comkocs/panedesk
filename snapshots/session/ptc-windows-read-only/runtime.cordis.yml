@@ -1,0 +1,36 @@
+# Substitute native program denial; retain the real policy, dispatch, and session writer.
+- id: sandbox-policy
+  disabled: true
+
+- insert:
+    - id: windows-policy
+      name: ../fs-windows-read-only/windows-policy.mjs
+      config: {}
+
+- id: approval
+  config:
+    policy: never
+
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: never
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+
+- id: ptc-runtime
+  disabled: true
+
+- insert:
+    - id: denied-runtime
+      name: ./denied-runtime.mjs
+
+- id: tools
+  config:
+    mode: ptc

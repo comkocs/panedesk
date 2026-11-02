@@ -37,6 +37,7 @@
     "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-permission-presets": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-seat": "workspace:*",
     "@panedesk/dsh-seat-engine": "workspace:*",

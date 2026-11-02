@@ -48,6 +48,7 @@
   "devDependencies": {
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-terminal": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",

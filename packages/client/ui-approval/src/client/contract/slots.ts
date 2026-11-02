@@ -1,5 +1,6 @@
 /** Approval composer and optional correlated-detail contracts. */
 import type { ToolCallId } from '@panedesk/dsh-llm'
+import type { WorkspaceWriteApproval } from '@panedesk/dsh-user-approval/types'
 import type { SessionId } from '@panedesk/dsh-session/types'
 import type {
   PropsLocale, PropsRenderSlots, PropsRuntime,
@@ -56,6 +57,8 @@ export interface ApprovalPresentationRequest {
   readonly callId?: ToolCallId
   /** Human-readable reason supplied by the requester. */
   readonly reason?: string
+  /** Persistent workspace consent; absent for ordinary one-operation approvals. */
+  readonly purpose?: WorkspaceWriteApproval
   /** Localized presentation copy; the audit reason remains unchanged. */
   readonly displayReason?: { readonly en: string; readonly [locale: string]: string }
   /** Cancellation projected from the Host waterfall. */
@@ -82,6 +85,8 @@ export class PendingApproval {
   readonly callId: ToolCallId | undefined
   /** Human-readable reason supplied by the asker. */
   readonly reason: string | undefined
+  /** Distinguishes persistent workspace consent from one-operation approval. */
+  readonly purpose: WorkspaceWriteApproval | undefined
   /** Localized presentation copy, when supplied by the asker. */
   readonly displayReason: ApprovalPresentationRequest['displayReason']
   /** Result returned by the Remote Event listener to the Host waterfall. */
@@ -105,6 +110,7 @@ export class PendingApproval {
     this.toolName = request.toolName
     this.callId = request.callId
     this.reason = request.reason
+    this.purpose = request.purpose
     this.displayReason = request.displayReason
     const completion = Promise.withResolvers<ApprovalDecision>()
     this.result = completion.promise

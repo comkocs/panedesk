@@ -442,6 +442,14 @@ interface TypertGateway {
    */
   hasLiveClient(): boolean
   /**
+   * Send a scoped interaction directly to authenticated owner Clients, without Host event listeners.
+   * @param event - forwarded Client event name.
+   * @param request - request carrying the direct Agent and optional cancellation signal.
+   * @param context - Agent Context and identity used for projection and disposal.
+   * @returns the owner result, or delegation when no interactive owner is connected.
+   */
+  requestOwnerEvent(event: string, request: object, context: TypertRemoteEventContext): Promise<TypertRemoteEventOutcome>
+  /**
    * Register the application-selected forwarded-event source.
    * @param source - stream factory installed by the Remote assembly.
    * @param host - stable Host facts included in each Client generation's opening frame.
@@ -661,6 +669,15 @@ Resolve strict generated definitions or conservative SRC markers against current
  * @returns whether an owner stream is open and has not been cancelled.
  */
 hasLiveClient(): boolean
+
+/**
+ * Send a scoped interaction directly to authenticated owner Clients, without Host event listeners.
+ * @param event - forwarded Client event name.
+ * @param request - request carrying the direct Agent and optional cancellation signal.
+ * @param context - Agent Context and identity used for projection and disposal.
+ * @returns the owner result, or delegation when no interactive owner is connected.
+ */
+requestOwnerEvent( event: string, request: object, context: TypertRemoteEventInvocation['context'], ): Promise<TypertRemoteEventOutcome>
 
 /**
  * Register the sole application-selected forwarded-event source.

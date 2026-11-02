@@ -89,6 +89,11 @@ describe('dsh-base bundle', () => {
       expect(Boolean(evaluate(scope('win32', {}), expression)), `${id} on win32`).toBe(win32)
       expect(Boolean(evaluate(scope('linux', {}), expression)), `${id} on linux`).toBe(linux)
     }
+    const policyConfig = rows.find(row => row.id === 'sandbox-policy')?.config as { mode: { __jsExpr: string } }
+    for (const platform of ['win32', 'linux', 'darwin'] as const) {
+      expect(evaluate(scope(platform, {}), policyConfig.mode.__jsExpr)).toBeUndefined()
+      expect(evaluate(scope(platform, { PANEDESK_PERMISSION_MODE: 'read-only' }), policyConfig.mode.__jsExpr)).toBe('read-only')
+    }
     const bashPath = 'C:\\Program Files\\Git\\bin\\bash.exe'
     for (const id of ['bash-sandbox', 'tool-bash', 'pwsh-sandbox', 'tool-pwsh']) {
       const row = rows.find(candidate => candidate.id === id)!

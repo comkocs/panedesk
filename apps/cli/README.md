@@ -19,6 +19,8 @@ The `dsh` command is the sole supported Node application launcher: profiles are 
 
 The invoking directory is the default workspace root. The `web`, `headless`, `sdk`, `sdk-minimal`, and `acp` profiles auto-initialize on first use from shipped templates. Create or reset another profile at a non-shipped name with `--from-default-profile`, or initialize a base-backed profile through `dsh plugin`. The `desktop` name is reserved for the Electron-owned profile, so the CLI rejects boot and config-dump requests for it. The npm CLI also rejects its plugin-management requests; the [Desktop-installed command](../desktop/README.md#bundled-command-runtime) can manage the initialized Desktop profile using that installation’s runtime.
 
+On Windows, a booted profile with sandbox policy prints its configured default mode, default/explicit source, and settings guidance to stderr. `--json`, `--quiet`, `-q`, and configuration dumps suppress this notice; other platforms do not print it. Directory authorization and per-session overrides are resolved later by [sandbox policy](../../packages/sandbox/sandbox-policy/README.md).
+
 ## App arguments
 
 The launcher parses only its own flags and hands everything after them to the booted profile, where any injected app plugin may parse the shared immutable snapshot ([`dsh-cmdline`](../../packages/boot/cmdline/README.md)). The first token the launcher does not recognize starts the app's arguments:

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to require a one-shot decision before a sensitive tool action proceeds. The `ask` policy sends each request to the deployment's human or machine answerers; `never` rejects it without prompting. Missing or failed answerers return `unavailable`, so the action fails closed, and an approval applies only to that request. Every request and outcome is recorded in the requesting session's audit log. The model sees the resulting tool outcome and current policy, but not the human permission UI or audit events.
+Require a decision before a sensitive tool action proceeds: `ask` consults human or machine answerers, while `never` rejects without prompting. Missing or failed answerers return `unavailable`, failing closed. Ordinary approval covers one action; workspace-purpose approval requests persistent Windows directory access, stored by the sandbox policy consumer. Requests and outcomes enter the session audit log. The model sees tool outcomes and current policy, not the human permission UI or audit events.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Compose this service when sensitive tool actions should pause for a human or mac
 
 ### Composing answerers
 
-Answerers are `approval/request` waterfall listeners: return an outcome to answer for an owned agent, or call `next()` to delegate. Agent-scoped listeners receive only that agent's requests, and a deployment composes one terminal answerer — sibling listener order is not a policy-priority mechanism. Without a terminal answerer, requests resolve `unavailable` and fail closed; the service itself never prompts a human.
+Ordinary answerers are `approval/request` waterfall listeners: return an outcome for an owned agent, or call `next()` to delegate. Agent-scoped listeners receive only that agent's requests; sibling order is not policy priority. Workspace-purpose requests and requests with `ownerOnly: true` bypass this Host waterfall and go directly through Gateway to authenticated owner answering streams. They return `unavailable` without such a stream; a Host listener's return cannot approve them. The service itself never prompts a human.
 
 ### Setting the policy
 
@@ -44,12 +44,13 @@ The effective policy is the one set for the session, falling back to the configu
 | Field | Default | Meaning |
 |---|---|---|
 | `policy` | `ask` | Default for sessions without an `approval/policy` override |
+| `workspaceWriteTimeoutMs` | `60_000` | Maximum wait for workspace consent; expiry cancels the request |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#panedeskdsh-user-approval) is the exhaustive source for every accepted field and its JSDoc. `setPolicy(agent, policy)` switches a live agent and queues a "changed by the user" message for its next model step; `setApprovalPolicy(session, policy)` is the direct durable write path used by session initialization.
 
 ### Requesting a decision
 
-`request(req)` names the agent, tool, optional call id and reason, and an abort signal. Optional `displayReason` supplies localized presentation text without changing the logged reason. It requires an open turn: an idle or between-turn caller throws before auditing anything. Aborting withdraws the question — the request settles `cancelled` and a late answer is discarded. A failure that prevents either audit append from committing rejects instead of returning an unlogged decision.
+`request(req)` names the agent, tool, optional call id and reason, and an abort signal. Optional `purpose` identifies workspace consent and is retained in the audit event; its `allowed-once` outcome consents to that named purpose, not a generic permanent grant. Optional `displayReason` supplies localized presentation text without changing the logged reason. It requires an open turn: an idle or between-turn caller throws before auditing anything. Aborting withdraws the question — the request settles `cancelled` and a late answer is discarded. A failure that prevents either audit append from committing rejects instead of returning an unlogged decision.
 
 ### What the model and user see
 
@@ -151,7 +152,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 These limits define when the seam is a poor fit or needs special composition care. They are current package constraints, not a general permission comparison.
 
 - **Requests are valid only inside an open turn** — an idle or between-turn caller throws before auditing; a durable out-of-turn approval workflow is deferred.
-- **Only one-shot grants exist** — the outcome vocabulary has `allowed-once` but no `allow-always`, remembered rule, revocation, or grant store; session policy is only `ask` / `never`.
+- **No generic grant store** — `allowed-once` consents to the request's declared purpose; without a purpose it covers one action. Workspace persistence and revocation belong to the [sandbox policy consumer](../../sandbox/sandbox-policy/README.md#windows-workspace-records), not this service. Session policy remains `ask` / `never`.
 - **The request carries no tool arguments** — an answerer sees the tool name, reason, and optional call id; the ACP machine channel requires a call id and delegates requests without one.
 - **No built-in answerer** — headless or incompletely composed deployments resolve `unavailable` and fail closed; the service itself never prompts a human.
 

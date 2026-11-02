@@ -74,6 +74,7 @@
     "@panedesk/dsh-typert-protocol": "workspace:*",
     "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/cordis": "workspace:~",
-    "@panedesk/dsh-settings": "workspace:*"
+    "@panedesk/dsh-settings": "workspace:*",
+    "@panedesk/dsh-session-persistence": "workspace:*"
   }
 }

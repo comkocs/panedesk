@@ -278,6 +278,7 @@ export class LocalPtySession implements TerminalBackendSession {
   constructor(
     private readonly terminal: SubprocessTerminalHandle,
     private readonly config: ResolvedConfig,
+    private readonly assertInputPolicy?: () => void,
   ) {
     this.pid = terminal.pid
     const { Terminal: HeadlessTerminal } = requireHeadless()
@@ -326,6 +327,7 @@ export class LocalPtySession implements TerminalBackendSession {
   }
 
   startSend(request: TerminalSendRequest): TerminalSendOperation {
+    this.assertInputPolicy?.()
     if (this.closing) throw new Error('PTY session is closing')
     if (this.statusValue.kind === 'exited') throw new Error('PTY session has exited')
     if (this.active !== undefined) {
@@ -390,6 +392,7 @@ export class LocalPtySession implements TerminalBackendSession {
       operation.setInitialForeground(foreground)
       const input = `${request.text}${request.submit ? '\r' : ''}`
       if (input.length > 0 && !operation.cancelRequested) {
+        this.assertInputPolicy?.()
         this.resetReadinessEvidence()
         const write = this.terminal.write(input)
         this.activeWrite = write.then(() => true, () => false)

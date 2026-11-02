@@ -1,0 +1,41 @@
+# Substitute native command denial; retain the real tool and session writer.
+- id: sandbox-policy
+  disabled: true
+
+- insert:
+    - id: windows-policy
+      name: ../fs-windows-read-only/windows-policy.mjs
+      config: {}
+
+- id: approval
+  config:
+    policy: never
+
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: never
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+
+- id: bash-sandbox
+  disabled: true
+
+- id: pwsh-sandbox
+  disabled: true
+
+- insert:
+    - id: denied-shell
+      name: ../bash-windows-read-only/denied-shell.mjs
+
+- id: tool-bash
+  disabled: false
+
+- id: tool-pwsh
+  disabled: true

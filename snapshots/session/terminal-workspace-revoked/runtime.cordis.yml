@@ -1,0 +1,30 @@
+- id: sandbox-policy
+  disabled: true
+- id: sandbox
+  disabled: true
+- id: approval
+  config:
+    policy: ask
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+- insert:
+    - id: workspace-write-runtime
+      name: ../workspace-write-allowed/windows-runtime.mjs
+      config:
+        outcome: allowed-once
+    - id: pty
+      name: '@panedesk/dsh-terminal'
+    - id: terminal-bash
+      name: '@panedesk/dsh-terminal-bash'
+      disabled: true
+    - id: terminal-workspace-runtime
+      name: ./terminal-runtime.mjs
+    - id: tool-terminal
+      name: '@panedesk/dsh-tool-terminal'

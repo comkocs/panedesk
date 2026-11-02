@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../../api/gateway/tsconfig.host.json"
+    },
+    {
       "path": "../../../vendor/cosmokit"
     },
     {

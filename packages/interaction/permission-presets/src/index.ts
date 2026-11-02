@@ -19,7 +19,7 @@ import { Context } from '@panedesk/cordis'
 import { CommandDefinitionId } from '@panedesk/dsh-commands/brand'
 import z from '@panedesk/schemastery'
 import { z as zod } from 'zod'
-import { Remote, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
+import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type { Session, SessionEvent } from '@panedesk/dsh-session'
 import type { SandboxMode } from '@panedesk/dsh-sandbox'
 import { SANDBOX_MODES, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
@@ -31,9 +31,17 @@ import { APPROVAL_POLICIES, setApprovalPolicy } from '@panedesk/dsh-user-approva
 // Type-only: resolves the required projection service and optional settings/command children.
 import type {} from '@panedesk/dsh-session-projection'
 import type {} from '@panedesk/dsh-commands'
-import type { PermissionCatalog, PermissionSelection, PresetOption } from './types.ts'
+import type {} from '@panedesk/dsh-session-persistence'
+import type { PermissionCatalog, PermissionSelection, PresetOption, WorkspaceWriteView } from './types.ts'
 
 export type * from './types.ts'
+
+declare module '@panedesk/dsh-typert-protocol' {
+  interface RemoteErrorDetailsMap {
+    'permission/owner-required': Record<string, never>
+    'permission/workspace-unavailable': Record<string, never>
+  }
+}
 
 declare module '@panedesk/cordis' {
   interface Context {
@@ -203,6 +211,8 @@ export class PermissionPresetService extends TypertRemoteService {
   private readonly presets: Record<string, PresetSpec>
   private autoAdmit: (() => void) | undefined
   private defaultSettings: () => PermissionSettings
+  private readonly implicitWindowsDefault: () => boolean
+  private readonly workspaceDirectorySources = new Set<() => Promise<readonly string[]>>()
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'permissionPresets')
@@ -219,6 +229,8 @@ export class PermissionPresetService extends TypertRemoteService {
     if (ctx.shell.sandboxMode === undefined) {
       throw new Error('permission: the mounted bash executor does not confine (no sandboxMode) — presets bundle a sandbox mode, so composing this plugin over an unconfined executor is a misconfiguration')
     }
+    this.implicitWindowsDefault = () => ctx.get('sandboxPolicy')?.windowsDefault === true
+      && config.defaultPreset.get() === undefined
     const inferredDefault = this.derive(EMPTY_KNOBS)
     const defaultPreset = config.defaultPreset.get() ?? inferredDefault
     if (defaultPreset === CUSTOM_PRESET) {
@@ -299,6 +311,108 @@ export class PermissionPresetService extends TypertRemoteService {
   }
 
   /**
+   * List durable Windows workspace grants without materializing native permissions.
+   * @returns The authenticated owner's authorization inventory.
+   */
+  @Remote('workspaceWriteAccess')
+  async workspaceWriteAccess(): Promise<WorkspaceWriteView> {
+    this.requireWorkspaceOwner()
+    const policy = this.ctx.get('sandboxPolicy')
+    if (!this.supportsWorkspaceAccess() || policy === undefined) return { supported: false, entries: [] }
+    const entries: WorkspaceWriteView['entries'] = policy.workspaceAccess.list()
+    for (const workspace of policy.workspaceAccess.pendingRevocations()) {
+      const entry = entries.find(entry => entry.workspace === workspace)
+      if (entry === undefined) entries.push({ workspace, source: 'revocation-pending' })
+      else entry.source = 'revocation-pending'
+    }
+    const recorded = new Set(entries.map(entry => entry.workspace))
+    const candidates = new Set(this.ctx.sessions.list().flatMap(session => session.header.cwd === undefined ? [] : [session.header.cwd]))
+    const persistence = this.ctx.get('sessionPersistence')
+    if (persistence !== undefined) {
+      for (const snapshot of await persistence.list()) {
+        if (snapshot.header.cwd !== undefined) candidates.add(snapshot.header.cwd)
+      }
+    }
+    for (const directories of this.workspaceDirectorySources) {
+      for (const directory of await directories()) candidates.add(directory)
+    }
+    const sandbox = this.ctx.get('sandbox')
+    for (const candidate of candidates) {
+      let workspace: string
+      try { workspace = policy.workspaceAccess.canonical(candidate) } catch (error) {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
+        throw error
+      }
+      if (recorded.has(workspace)) continue
+      recorded.add(workspace)
+      if (sandbox?.hasWorkspaceWriteGrant?.(workspace)) entries.push({ workspace, source: 'legacy' })
+    }
+    return { supported: true, entries: entries.sort((left, right) => left.workspace.localeCompare(right.workspace)) }
+  }
+
+  /**
+   * Record explicit settings consent; an executor materializes the ACE only when needed.
+   * @param workspace - Existing absolute directory selected by the owner.
+   */
+  @Remote('authorizeWorkspaceWrite')
+  async authorizeWorkspaceWrite(workspace: string): Promise<void> {
+    this.requireWorkspaceOwner()
+    const policy = this.requireWorkspaceAccess()
+    await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
+    this.emitChanged('permission-presets/workspace-write-changed')
+  }
+
+  /**
+   * Revoke the directory's native write capability and its durable authorization.
+   * @param workspace - Exact recorded directory identity (possibly deleted), or an existing legacy directory.
+   */
+  @Remote('revokeWorkspaceWrite')
+  async revokeWorkspaceWrite(workspace: string): Promise<void> {
+    this.requireWorkspaceOwner()
+    const policy = this.requireWorkspaceAccess()
+    const sandbox = this.ctx.get('sandbox')
+    if (sandbox?.revokeWorkspaceWriteGrant === undefined) throw new RemoteError('permission/workspace-unavailable', 'Windows workspace ACL management is unavailable', {})
+    const revoke = sandbox.revokeWorkspaceWriteGrant.bind(sandbox)
+    try {
+      await policy.workspaceAccess.revoke(workspace, revoke)
+    } finally {
+      this.emitChanged('permission-presets/workspace-write-changed')
+    }
+  }
+
+  /**
+   * Include a provider's cold-readable directory inventory in legacy ACL discovery.
+   * @param directories - Metadata reader that never activates sessions or grants access.
+   * @returns Disposer for this contribution.
+   */
+  registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void> {
+    return this.ctx.effect(() => {
+      this.workspaceDirectorySources.add(directories)
+      return () => { this.workspaceDirectorySources.delete(directories) }
+    }, 'permissionPresets.registerWorkspaceDirectories()')
+  }
+
+  private requireWorkspaceOwner(): void {
+    if (this.ctx.invocation?.peer.principal.kind !== 'owner') {
+      throw new RemoteError('permission/owner-required', 'Workspace write access requires the authenticated owner', {})
+    }
+  }
+
+  private supportsWorkspaceAccess(): boolean {
+    const sandbox = this.ctx.get('sandbox')
+    return process.platform === 'win32' && sandbox?.supportsWorkspaceWriteAccess === true && sandbox.hasWorkspaceWriteGrant !== undefined
+      && sandbox.revokeWorkspaceWriteGrant !== undefined
+  }
+
+  private requireWorkspaceAccess() {
+    const policy = this.ctx.get('sandboxPolicy')
+    if (!this.supportsWorkspaceAccess() || policy === undefined) {
+      throw new RemoteError('permission/workspace-unavailable', 'Windows workspace ACL management is unavailable', {})
+    }
+    return policy
+  }
+
+  /**
    * Publish the fixed current-session Auto preset for the calling
    * integration's effect lifetime.
    * @param admit - synchronous gate run before live Auto selection or restore.
@@ -308,10 +422,10 @@ export class PermissionPresetService extends TypertRemoteService {
     return this.ctx.effect(() => {
       if (this.autoAdmit !== undefined) throw new Error('permission: preset "auto" is already registered')
       this.autoAdmit = admit
-      this.emitCatalogChanged()
+      this.emitChanged('permission-presets/catalog-changed')
       return () => {
         this.autoAdmit = undefined
-        this.emitCatalogChanged()
+        this.emitChanged('permission-presets/catalog-changed')
       }
     }, 'permissionPresets.registerAuto()')
   }
@@ -406,7 +520,8 @@ export class PermissionPresetService extends TypertRemoteService {
     const current = this.current(session)
     const knobs = this.permissionState(session)
     const updateKnobs = (): void => {
-      if (spec.sandbox !== (knobs.sandbox ?? this.ctx.shell.sandboxMode)) {
+      if (spec.sandbox !== (knobs.sandbox ?? this.ctx.shell.sandboxMode)
+        || (knobs.sandbox === null && this.ctx.get('sandboxPolicy')?.windowsDefault === true)) {
         setSandboxMode(session, spec.sandbox)
       }
       if (spec.approval !== (knobs.approval ?? this.ctx.approval.config.policy ?? 'ask')) {
@@ -438,7 +553,7 @@ export class PermissionPresetService extends TypertRemoteService {
       const name = this.defaultPreset
       const spec = this.resolve(name)
       session.append('permission/preset', { preset: name })
-      setSandboxMode(session, spec.sandbox)
+      if (!this.implicitWindowsDefault()) setSandboxMode(session, spec.sandbox)
       setApprovalPolicy(session, spec.approval)
       return
     }
@@ -447,7 +562,7 @@ export class PermissionPresetService extends TypertRemoteService {
     if (preset === null && effective !== CUSTOM_PRESET) {
       session.append('permission/preset', { preset: effective })
     }
-    if (sandbox === null) {
+    if (sandbox === null && !this.implicitWindowsDefault()) {
       setSandboxMode(session, this.ctx.shell.sandboxMode as SandboxMode)
     }
     if (approval === null) {
@@ -455,18 +570,19 @@ export class PermissionPresetService extends TypertRemoteService {
     }
   }
 
-  /** Publish a non-vetoing payload-free catalog invalidation. */
-  private emitCatalogChanged(): void {
-    for (const listener of this.ctx.events.dispatch('emit', ['permission-presets/catalog-changed']) as Array<() => unknown>) {
+  /** Publish non-vetoing inventory or catalog invalidation after a state change. */
+  private emitChanged(event: 'permission-presets/catalog-changed' | 'permission-presets/workspace-write-changed'): void {
+    const label = event === 'permission-presets/catalog-changed' ? 'catalog-changed' : 'workspace-write-changed'
+    for (const listener of this.ctx.events.dispatch('emit', [event]) as Array<() => unknown>) {
       try {
         const returned = listener()
         if (returned != null && typeof (returned as PromiseLike<unknown>).then === 'function') {
           void Promise.resolve(returned as PromiseLike<unknown>).catch((error: unknown) => {
-            this.ctx.logger.warn(`permission: catalog-changed listener failed: ${error instanceof Error ? error.message : String(error)}`)
+            this.ctx.logger.warn(`permission: ${label} listener failed: ${error instanceof Error ? error.message : String(error)}`)
           })
         }
       } catch (error: unknown) {
-        this.ctx.logger.warn(`permission: catalog-changed listener failed: ${error instanceof Error ? error.message : String(error)}`)
+        this.ctx.logger.warn(`permission: ${label} listener failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }

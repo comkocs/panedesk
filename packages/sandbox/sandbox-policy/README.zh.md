@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-用默认模式加载本包；故障安全默认值是 `read-only`，需要 agent（智能体）可写入工作区的部署必须显式选择 `workspace-write`。
+未显式配置模式或设置 `PANEDESK_PERMISSION_MODE` 时，Windows 缺省为 `read-only`，Linux/macOS 缺省为 `workspace-write`。显式部署配置与会话选择优先于平台缺省值。
 
 ```yaml
 - name: '@panedesk/dsh-sandbox-policy'
@@ -44,7 +44,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `mode` | `read-only` | 会话起始的部署默认模式，加载时验证 |
+| `mode` | Windows：`read-only`；Linux/macOS：`workspace-write` | 显式配置或 `PANEDESK_PERMISSION_MODE` 覆盖平台缺省值；加载时验证 |
 | `workspaceRoot` | `process.cwd()` | 无 agent 调用或没有 cwd 的会话所用的绝对回退根目录；相对值在加载时拒绝。普通 agent 调用使用会话的不可变 cwd |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#panedeskdsh-sandbox-policy)是每个受支持字段及其 JSDoc 的穷尽式真源。
@@ -52,6 +52,13 @@ kind: "package-reference"
 ### 切换会话模式
 
 会话的模式可以在运行时通过 UI 策略控件或显式切换来更改；切换记录在会话日志中，并在该会话的下一次受限调用时生效。切换通过回放跨重启保留，每个会话保持自己的模式——两个会话绝不会看到彼此状态。切换后的会话继续以不可变的工作区 cwd 作为写入边界。
+
+<a id="windows-workspace-records"></a>
+### Windows 工作区记录
+
+在 Windows 隐式缺省模式下，产品 home 的 `windows-workspace-write` 目录中的有效授权记录会为对应规范化目录启用 `workspace-write`。记录包含目录、ISO 授权时刻及来源：设置页写入 `settings-preauthorization`，首次工作区写入审批获准后写入 `first-confirmation`。`requestWrite()` 仅在 Windows 隐式缺省、无记录且无显式会话模式时询问；允许后先保存同意，再物化原生授权。拒绝、取消、应答者不可用及审批期限到期均保持只读。`never` 不派发提示。记录授权在每次调用时解析，不保存为会话覆盖，因此撤销同样影响同意授权的会话。读写记录本身不修改 ACL。显式部署、会话和已批准调用模式仍优先。记录写者共用逐文件跨进程锁。撤销先持久化 `.revoking` 拒绝标记，再依次撤原生能力、删除记录和标记。撤销中断会阻止基于记录的写入及重新授权，直到重试完成；ACL 失败会保留清单记录以便重试。`pendingRevocations()` 校验并列出中断标记，即使没有授权记录也会列出。撤销已经不存在、且路径与记录完全相同的目录时，先核最近的现存祖先，再删除记录和标记，不调用原生 ACL。路径被替换为符号链接、非目录或不可访问时拒绝操作，并保留授权供恢复；此检查不防御并发文件系统替换。`withAuthorization()` 在基于记录物化原生 ACL 前立即持同一把锁重验同意，包括缓存策略；其回调不得对同一目录递归授权或撤销。锁不覆盖进程生命周期或后续文件操作；撤销不会终止正在运行的进程，也不会使已打开的句柄失效。这些记录描述本机 Windows 目录，不描述远端执行路径。
+
+`writeDenialHint(mode)` 为 Windows 隐式缺省下已经发生的只读拒绝提供所有者预授权指引。文件和命令工具通过普通结果保留指引；其他平台、显式部署模式及更宽的已执行模式不返回替代提示。
 
 ### 失败与恢复
 
@@ -69,11 +76,11 @@ kind: "package-reference"
 
 ### 解析优先级
 
-`resolve({ session, mode })` 返回一份完整的逐调用策略：已批准的显式模式优先于会话最后一条 `sandbox/mode` 事件，后者又优先于部署默认值。会话的不可变 `cwd` 提供工作区根目录；否则使用配置的回退值。执行环境中的绝对路径写法保持不变。执行限制的提供方在自己的文件系统上规范化根目录，因此远端 `symlink/..` 路径绝不会在 Harness 主机上解析。
+`resolve({ session, mode })` 返回一份完整的逐调用策略：已批准的显式模式优先于会话最后一条 `sandbox/mode` 事件，后者又优先于有效部署默认值。仅 Windows 隐式缺省会在本机规范化后查询 home 级工作区授权，显式部署选择不会查询。会话的不可变 `cwd` 提供工作区根目录；否则使用配置的回退值。返回根目录保留执行环境中的路径写法，执行限制的提供方在自己的文件系统上规范化它。受支持的 SSH 组合要求两端均为 POSIX 主机，不查询 Windows 记录。
 
 ### 逐会话存储
 
-运行时切换是在对应会话日志中追加的一条仅写入日志的 `sandbox/mode` 事件——切换本身就是事件，任何机制都不会在带外修改模式状态。`effective = explicit grant ?? fold(events) ?? deployment default`，因此覆盖通过回放跨重启保留，两个会话也绝不会看到彼此状态。工作区标识无需事件：创建时记录的不可变 `SessionHeader.cwd` 是该会话每次调用使用的根。事件仍只进入日志；在每次请求前，归属方会把当前事实贡献给完整运行时上下文快照，agent loop（智能体循环）将该快照记录为一条带来源的 `user/message`。
+运行时会话切换是在对应会话日志中追加的一条仅写入日志的 `sandbox/mode` 事件。`effective = approved call mode ?? fold(events) ?? authorized Windows workspace/default`，因此会话覆盖通过回放跨重启保留。会话覆盖彼此独立；home 级 Windows 工作区授权则有意在使用该目录的会话间共享。工作区标识无需事件：创建时记录的不可变 `SessionHeader.cwd` 是该会话每次调用使用的根。事件仍只进入日志；在每次请求前，归属方会把当前事实贡献给完整运行时上下文快照，agent loop（智能体循环）将该快照记录为一条带来源的 `user/message`。
 
 ### 模型可见文本
 

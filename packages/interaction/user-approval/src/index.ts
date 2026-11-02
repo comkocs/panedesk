@@ -1,6 +1,7 @@
 /**
  * Service Definition for the approval capability seam, covering requests, cancellation, audit, and per-session policy. Missing
- * answerers fail closed; grants apply only to the requested action.
+ * answerers fail closed. Ordinary grants cover one action; workspace-purpose consent
+ * lets its policy consumer persist the named directory authorization.
  * @module @panedesk/dsh-user-approval
  */
 
@@ -8,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-api-gateway'
 import { createUserMessage, type ToolCallId } from '@panedesk/dsh-llm'
 import type { ContextFormed } from '@panedesk/dsh-llm'
 declare module '@panedesk/dsh-llm' {
@@ -49,7 +51,7 @@ import { ApprovalRequestId } from './types.ts'
 import type { ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutcome } from './types.ts'
+export type { ApprovalOutcome, WorkspaceWriteApproval } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalOutcome[] = ['allowed-once', 'rejected', 'cancelled', 'unavailable']
@@ -129,6 +131,8 @@ export interface ApprovalRequest extends ApprovalRequestEvent {
    * immediately and a late answer from a still-pending answerer is discarded.
    */
   readonly signal?: AbortSignal
+  /** Require the authenticated owner event transport rather than Host answerers. */
+  readonly ownerOnly?: boolean
 }
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -140,6 +144,8 @@ export interface Config {
    * prompting (the deterministic CI/unattended stance).
    */
   readonly policy?: ApprovalPolicy
+  /** Maximum wait for first-workspace-write consent before cancelling; defaults to 60 seconds. */
+  readonly workspaceWriteTimeoutMs?: number
 }
 
 /**
@@ -150,6 +156,7 @@ export interface Config {
 export class ApprovalService extends Service {
   static Config: z<Config> = z.object({
     policy: z.union(['ask', 'never'] as const).default('ask'),
+    workspaceWriteTimeoutMs: z.number().min(1).max(2_147_483_647).default(60_000),
   })
 
   constructor(ctx: Context, public config: Config) {
@@ -195,7 +202,7 @@ export class ApprovalService extends Service {
   }
 
   /**
-   * Ask the composed answerers to decide one readonly same-process request.
+   * Ask ordinary composed answerers, or authenticated owner Clients for workspace consent.
    * The service borrows the request, agent, session, and live signal directly.
    * The request requires an open turn because the audit pair must be enclosed
    * by the durable log's commit/replay boundary; an idle ask rejects before
@@ -207,8 +214,9 @@ export class ApprovalService extends Service {
    * violate the pair. Session contains post-commit observer failures, so an
    * authoritative append cannot reject the request or suppress its matching
    * audit event.
-   * @param req - the pending decision (agent, tool identity, reason, signal).
-   * @returns the closed outcome; `'allowed-once'` is the only grant.
+   * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+   * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
+   *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
    * @throws when no turn is open or either audit event fails before the session
    *   append commit point.
    */
@@ -227,8 +235,21 @@ export class ApprovalService extends Service {
       toolName: req.toolName,
       ...req.callId !== undefined ? { callId: req.callId } : {},
       ...req.reason !== undefined ? { reason: req.reason } : {},
+      ...req.purpose !== undefined ? { purpose: req.purpose } : {},
     })
-    const outcome = await this.decide(req, session)
+    const timeout = req.purpose === undefined ? undefined : new AbortController()
+    const timer = timeout === undefined ? undefined : setTimeout(() => {
+      timeout.abort(new Error('Workspace write confirmation timed out'))
+    }, this.config.workspaceWriteTimeoutMs)
+    let outcome: ApprovalOutcome
+    try {
+      outcome = await this.decide(timeout === undefined ? req : {
+        ...req,
+        signal: req.signal === undefined ? timeout.signal : AbortSignal.any([req.signal, timeout.signal]),
+      }, session)
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+    }
     session.append('approval/decided', { id, outcome })
     return outcome
   }
@@ -277,15 +298,23 @@ export class ApprovalService extends Service {
     // SYNCHRONOUSLY (before its first await) must land in the same rejection
     // path as an async one — `Promise.resolve(call())` would let it escape
     // the containment into the caller.
-    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(
-      () => this.ctx.waterfall(
+    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(async () => {
+      if (req.ownerOnly === true || req.purpose?.type === 'workspace-write') {
+        const gateway = this.ctx.get('typertGateway')
+        if (gateway === undefined) return 'unavailable'
+        const outcome = await gateway.requestOwnerEvent('approval/request', req, {
+          value: req.agent.ctx, subject: req.agent, agentId: req.agent.id,
+        })
+        return outcome.kind === 'result' ? outcome.value : 'unavailable'
+      }
+      return this.ctx.waterfall(
         scopeTarget(req.agent, req.agent), 'approval/request', req,
         () => Promise.resolve<ApprovalOutcome>('unavailable'),
-      ),
-    ).then(
+      )
+    }).then(
       // Normalize a rogue (non-vocabulary) answerer return to the fail-closed
       // outcome instead of leaking it into callers' closed-union switches.
-      outcome => OUTCOMES.includes(outcome) ? outcome : 'unavailable',
+      outcome => OUTCOMES.find(candidate => candidate === outcome) ?? 'unavailable',
       // A throwing answerer must fail the QUESTION closed, not the caller's
       // tool call open — the seam contains its callbacks.
       () => 'unavailable',

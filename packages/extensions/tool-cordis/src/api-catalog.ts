@@ -420,9 +420,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async request(req: ApprovalRequest): Promise<ApprovalOutcome>',
-        description: 'Ask the composed answerers to decide one readonly same-process request. The service borrows the request, agent, session, and live signal directly. The request requires an open turn because the audit pair must be enclosed by the durable log\'s commit/replay boundary; an idle ask rejects before appending anything. The answerer phase always produces an outcome: an aborted signal yields `\'cancelled\'`, a missing or throwing answerer yields `\'unavailable\'` (fail closed), and a rogue non-vocabulary return value is normalized to `\'unavailable\'`. A failure that prevents either audit append from committing still rejects because returning an unlogged decision would violate the pair. Session contains post-commit observer failures, so an authoritative append cannot reject the request or suppress its matching audit event.',
-        parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, reason, signal).' }],
-        returns: 'the closed outcome; `\'allowed-once\'` is the only grant.',
+        description: 'Ask ordinary composed answerers, or authenticated owner Clients for workspace consent. The service borrows the request, agent, session, and live signal directly. The request requires an open turn because the audit pair must be enclosed by the durable log\'s commit/replay boundary; an idle ask rejects before appending anything. The answerer phase always produces an outcome: an aborted signal yields `\'cancelled\'`, a missing or throwing answerer yields `\'unavailable\'` (fail closed), and a rogue non-vocabulary return value is normalized to `\'unavailable\'`. A failure that prevents either audit append from committing still rejects because returning an unlogged decision would violate the pair. Session contains post-commit observer failures, so an authoritative append cannot reject the request or suppress its matching audit event.',
+        parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, purpose, reason, signal).' }],
+        returns: 'the closed outcome; only `\'allowed-once\'` consents to the declared purpose. Without a purpose it grants one action; workspace persistence belongs to the consumer.',
         throws: ['when no turn is open or either audit event fails before the session append commit point.'],
       },
       {
@@ -2245,6 +2245,28 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'every currently selectable preset in contribution order.',
       },
       {
+        signature: '@Remote(\'workspaceWriteAccess\') async workspaceWriteAccess(): Promise<WorkspaceWriteView>',
+        description: 'List durable Windows workspace grants without materializing native permissions.',
+        parameters: [],
+        returns: 'The authenticated owner\'s authorization inventory.',
+      },
+      {
+        signature: '@Remote(\'authorizeWorkspaceWrite\') async authorizeWorkspaceWrite(workspace: string): Promise<void>',
+        description: 'Record explicit settings consent; an executor materializes the ACE only when needed.',
+        parameters: [{ name: 'workspace', description: 'Existing absolute directory selected by the owner.' }],
+      },
+      {
+        signature: '@Remote(\'revokeWorkspaceWrite\') async revokeWorkspaceWrite(workspace: string): Promise<void>',
+        description: 'Revoke the directory\'s native write capability and its durable authorization.',
+        parameters: [{ name: 'workspace', description: 'Exact recorded directory identity (possibly deleted), or an existing legacy directory.' }],
+      },
+      {
+        signature: 'registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void>',
+        description: 'Include a provider\'s cold-readable directory inventory in legacy ACL discovery.',
+        parameters: [{ name: 'directories', description: 'Metadata reader that never activates sessions or grants access.' }],
+        returns: 'Disposer for this contribution.',
+      },
+      {
         signature: 'registerAuto(admit: () => void): () => Promise<void>',
         description: 'Publish the fixed current-session Auto preset for the calling integration\'s effect lifetime.',
         parameters: [{ name: 'admit', description: 'synchronous gate run before live Auto selection or restore.' }],
@@ -2622,6 +2644,23 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'argv', description: 'the exact argv the caller is about to spawn (program plus arguments), NOT a shell string — a shell-shaped consumer passes `[\'bash\', \'-c\', command]`.' }, { name: 'policy', description: 'the file-effect policy this execution runs under, carried per call (see {@link SandboxPolicy}).' }, { name: 'signal', description: 'cancellation while the provider resolves the policy and runner.' }],
         returns: 'the argv to spawn instead, plus the enforcement completeness the selected backend achieves for it.',
       },
+      {
+        signature: 'hasWorkspaceWriteGrant?(workspaceRoot: string): boolean',
+        description: 'Inspect a persistent workspace capability without granting access.',
+        parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
+        returns: 'Whether this provider\'s workspace write ACE exists; absence of the method means unsupported.',
+      },
+      {
+        signature: 'materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>',
+        description: 'Materialize an approved workspace capability without starting a process.',
+        parameters: [{ name: 'policy', description: 'Current policy with its authorization source and session identity.' }, { name: 'signal', description: 'Cancellation checked before native mutation.' }],
+        returns: 'After the provider has materialized the approved capability.',
+      },
+      {
+        signature: 'revokeWorkspaceWriteGrant?(workspaceRoot: string): void',
+        description: 'Revoke a persistent workspace capability and invalidate provider caches.',
+        parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
+      },
     ],
   },
   {
@@ -2635,6 +2674,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'readonly defaultSource: EffectivePermissionMode[\'source\']',
+        description: 'Whether configuration or the environment explicitly selected the deployment mode.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly windowsDefault: boolean',
+        description: 'True only when Windows is using the implicit platform default.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly workspaceAccess: WorkspaceWriteAccess',
+        description: 'Product-home workspace authorizations, read afresh at each policy resolution.',
+        parameters: [],
+      },
+      {
         signature: 'readonly workspaceRoot: string',
         description: 'The absolute `workspace-write` fallback root for calls without a session cwd.',
         parameters: [],
@@ -2644,6 +2698,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session cwd is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
         returns: 'the fully resolved per-call mode and absolute workspace root.',
+      },
+      {
+        signature: 'async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>',
+        description: 'Request persistent workspace consent before a potentially writing operation. Explicit modes and non-Windows defaults never prompt. Missing, unattended, rejected, withdrawn, or unavailable answerers leave the policy read-only.',
+        parameters: [{ name: 'request', description: 'Calling agent, tool identity, and cancellation lifetime.' }],
+        returns: 'The freshly resolved policy after consent, or the unchanged standing policy.',
+      },
+      {
+        signature: 'writeDenialHint(mode: SandboxMode): string | undefined',
+        description: 'Explain owner-managed workspace access after a Windows default read-only denial.',
+        parameters: [{ name: 'mode', description: 'The settled operation\'s mode, not a fresh policy resolution.' }],
+        returns: 'Settings guidance for implicit Windows read-only, otherwise undefined.',
       },
       {
         signature: 'overrideOf(session: Session): SandboxMode | undefined',
@@ -5659,6 +5725,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'whether an owner stream is open and has not been cancelled.',
       },
       {
+        signature: 'requestOwnerEvent( event: string, request: object, context: TypertRemoteEventInvocation[\'context\'], ): Promise<TypertRemoteEventOutcome>',
+        description: 'Send a scoped interaction directly to authenticated owner Clients, without Host event listeners.',
+        parameters: [{ name: 'event', description: 'forwarded Client event name.' }, { name: 'request', description: 'request carrying the direct Agent and optional cancellation signal.' }, { name: 'context', description: 'Agent Context and identity used for projection and disposal.' }],
+        returns: 'the owner result, or delegation when no interactive owner is connected.',
+      },
+      {
         signature: 'registerRemoteEvents( source: TypertRemoteEventSource, host: RemoteEventHostInfo, ): () => Promise<void>',
         description: 'Register the sole application-selected forwarded-event source.',
         parameters: [{ name: 'source', description: 'stream factory installed by the Remote assembly.' }, { name: 'host', description: 'stable Host facts included in each Client generation\'s opening frame.' }],
@@ -6607,6 +6679,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'permission-presets/workspace-write-changed',
+    mode: 'emit',
+    signature: '\'permission-presets/workspace-write-changed\'(): void',
+    summary: 'Workspace consent or revocation changed; owners re-read the inventory.',
+    description: 'Workspace consent or revocation changed; owners re-read the inventory.',
+    parameters: [],
+  },
+  {
     name: 'plugin-manager/changed',
     mode: 'emit',
     signature: '\'plugin-manager/changed\'(change: PluginChange): void',
@@ -7116,11 +7196,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalRequest',
-    declaration: 'export interface ApprovalRequest extends ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface ApprovalRequest extends ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n    readonly ownerOnly?: boolean;\n}',
   },
   {
     name: 'ApprovalRequestEvent',
-    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly purpose?: WorkspaceWriteApproval;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
   },
   {
     name: 'ApprovePendingSeatRequest',
@@ -7957,6 +8037,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EditMessageRequest',
     declaration: 'export interface EditMessageRequest extends MessageControlRequest {\n    readonly content: string;\n}',
+  },
+  {
+    name: 'EffectivePermissionMode',
+    declaration: 'export interface EffectivePermissionMode {\n    mode: SandboxMode;\n    source: \'default\' | \'explicit\';\n}',
   },
   {
     name: 'EncodedFileAttachment',
@@ -10432,7 +10516,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    sessionId?: SessionId;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
   },
   {
     name: 'SandboxMode',
@@ -13257,6 +13341,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceView',
     declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
+    name: 'WorkspaceWriteAccess',
+    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+  },
+  {
+    name: 'WorkspaceWriteApproval',
+    declaration: 'export interface WorkspaceWriteApproval {\n    readonly type: \'workspace-write\';\n    readonly workspace: string;\n}',
+  },
+  {
+    name: 'WorkspaceWriteEntry',
+    declaration: 'export interface WorkspaceWriteEntry {\n    workspace: string;\n    source: \'first-confirmation\' | \'settings-preauthorization\' | \'legacy\' | \'revocation-pending\';\n    grantedAt?: string;\n}',
+  },
+  {
+    name: 'WorkspaceWriteRecord',
+    declaration: 'export type WorkspaceWriteRecord = z.infer<typeof recordSchema>;',
+  },
+  {
+    name: 'WorkspaceWriteView',
+    declaration: 'export interface WorkspaceWriteView {\n    supported: boolean;\n    entries: WorkspaceWriteEntry[];\n}',
   },
 ]
 

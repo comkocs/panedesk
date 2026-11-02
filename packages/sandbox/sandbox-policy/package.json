@@ -34,9 +34,13 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*"
   },
   "dependencies": {
+    "@panedesk/dsh-atomic-write": "workspace:*",
+    "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3"
   },
@@ -46,6 +50,8 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*"
   }
 }

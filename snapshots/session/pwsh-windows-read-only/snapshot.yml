@@ -1,0 +1,10 @@
+version: 1
+scenario: pwsh-windows-read-only
+profile: headless
+composition: default
+recording: authored
+header:
+  class: windows-pwsh-denial
+  pin: true
+workspace:
+  final: true

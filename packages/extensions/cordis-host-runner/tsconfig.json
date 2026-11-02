@@ -33,6 +33,9 @@
       "path": "../../core/scope"
     },
     {
+      "path": "../../sandbox/sandbox-policy"
+    },
+    {
       "path": "../../core/session"
     },
     {

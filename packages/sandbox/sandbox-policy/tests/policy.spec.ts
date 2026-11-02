@@ -43,9 +43,9 @@ async function policyContext(ctx: Context, activeSession: Session): Promise<stri
 }
 
 describe('SandboxPolicyService', () => {
-  it('defaults to read-only under the process cwd', async () => {
+  it('uses the platform default under the process cwd', async () => {
     const ctx = await mounted()
-    expect(ctx.sandboxPolicy.defaultMode).toBe('read-only')
+    expect(ctx.sandboxPolicy.defaultMode).toBe(process.platform === 'win32' ? 'read-only' : 'workspace-write')
     expect(ctx.sandboxPolicy.workspaceRoot).toBe(resolve(process.cwd()))
   })
 
@@ -151,7 +151,7 @@ describe('SandboxPolicyService', () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(SessionProjectionRegistry)
-    const fiber = await ctx.plugin(SandboxPolicyService, {})
+    const fiber = await ctx.plugin(SandboxPolicyService, { mode: 'read-only' })
     expect(ctx.sandboxPolicy).toBeDefined()
     expect(await policyContext(ctx, session('sess-hmr'))).toContain('read-only')
     await fiber.dispose()

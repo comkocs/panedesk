@@ -59,6 +59,10 @@ Definitions are session-scoped and process-local: other sessions read them as ab
 
 ### Trust stance
 
+Under the implicit Windows read-only default, activation refuses both Host-only and dual-half dynamic packages, including panel starts and previously approved Client versions. Same-process Host and same-origin Client code can reach owner approval capabilities; granting workspace writes does not enable dynamic code. An operator must explicitly configure a permission mode to enable it. Inspection and definition storage remain available.
+
+When returning from an explicit deployment that ran dynamic code to the implicit default, restarting the Host and reloading connected pages is recommended housekeeping, not a prerequisite for first-write confirmation.
+
 The sandbox isolates globals but is not a security boundary: Node globals are absent or redirect to Cordis services (`ctx.fs`, `ctx.web`, `ctx.bash`, the timer helpers), and a host half receives a façade without framework internals, yet the services it declares reach the live runtime. Treat a dynamic package like bash access — see the [self-referential toolset reference](README.md).
 
 -----

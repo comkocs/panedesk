@@ -1,0 +1,10 @@
+version: 1
+scenario: ptc-windows-read-only
+profile: headless
+composition: default
+recording: authored
+header:
+  class: windows-ptc-denial
+  pin: true
+workspace:
+  final: true

@@ -314,6 +314,25 @@ function hasExactGrant(oldAcl: NativePtr, sidPtr: NativePtr): boolean {
 }
 
 /**
+ * Inspect the product's exact workspace capability without modifying security descriptors.
+ * @param api - Native binding table.
+ * @param path - Canonical workspace directory.
+ * @param sidPtr - Workspace-derived capability SID.
+ * @returns Whether the product's inheritable write ACE is present.
+ */
+export function hasWriteGrant(api: Win32Bindings, path: string, sidPtr: NativePtr): boolean {
+  const { oldAcl, descriptor } = readCurrentSecurity(api, path)
+  try {
+    return oldAcl !== null && hasExactGrant(oldAcl, sidPtr)
+  } finally {
+    if (descriptor !== null) {
+      const freed = api.localFree(descriptor)
+      if (!isNullPtr(freed)) throwLastError(api, 'LocalFree', `hasWriteGrant(${path}) descriptor`)
+    }
+  }
+}
+
+/**
  * True when the explicit DACL already carries the EXACT ambient-delete deny:
  * the container-inherited Deny ACE for {@link abi.FILE_DELETE_CHILD} naming
  * the world SID. It is part of the idempotent skip, so a root granted by an

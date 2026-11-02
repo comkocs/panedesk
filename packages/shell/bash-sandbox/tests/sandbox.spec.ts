@@ -80,7 +80,7 @@ async function setup(
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(FakeSandboxProvider)
   await ctx.plugin(SandboxPolicyService, {
-    ...mode !== undefined ? { mode } : {},
+    mode: mode ?? 'read-only',
     ...workspaceRoot !== undefined ? { workspaceRoot } : {},
   })
   await ctx.plugin(LocalSubprocessRuntime)

@@ -119,7 +119,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.approval.detail\', () => ctx.slots.register(\n      { name: \'conversation.approval.detail\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-approval/src/client/contract/slots.ts:37',
+    source: 'packages/client/ui-approval/src/client/contract/slots.ts:38',
   },
   {
     key: 'conversation.chat.assistant-actions',
@@ -2974,6 +2974,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-chat TranscriptViewRow id \'transcript-view\'',
       'client-ui-conversation EnterBehaviorRow id \'composer-enter\'',
       'client-ui-permission-presets PermissionRow id \'permission\'',
+      'client-ui-permission-presets WorkspaceAccessRow id \'windows-workspace-access\'',
       'client-ui-settings-bash BashSetupRow id \'bash-setup\'',
       'client-ui-settings-general DeveloperToolsRow id \'developer-tools\'',
       'client-ui-settings-general CurrentVersionRow id \'current-version\'',

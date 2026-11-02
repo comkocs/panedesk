@@ -71,6 +71,8 @@ kind: "package-reference"
 
 当已挂载的执行器约束命令（例如 `dsh-bash-sandbox`）时，被阻止的文件操作会报告为 `[sandbox: file access denied under <mode> mode]`——这是策略拒绝，不是命令失败。模型随后可以在同一轮次中用 `sandbox_permissions`（满足需要的最窄更宽模式）与一句 `justification` 重试完全相同的命令一次；该重试引发的审批提示就是用户同意的方式。只有发生真实拒绝后才请求更宽权限；被拒绝的升权对该命令即为最终结果。重复当前模式无需审批即可执行，更窄目标则在执行前失败。未提供 `sandbox_permissions` 时，`justification` 可以省略、为空字符串或仅含空白；未指定模式却提供非空理由会被拒绝。重复当前生效模式时也可省略理由或提供空白理由。请求不同模式时必须提供非空理由；升权仍需审批。
 
+Windows 隐式缺省且无目录同意记录时，未指定 `sandbox_permissions` 的前后台调用会先请求[工作区授权](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)。该问题针对工作区，而非单条命令。只读拒绝会用所有者预授权指引替代升权提示，指向「设置 > 通用 > Windows 工作区写权限」。前台结果、转入后台时的输出及后台终态详情均保留此指引；无人值守任务不能授予权限。预授权不会覆盖会话显式选择的只读模式。工具既不重试命令，也不从命令文本推测写意图。
+
 ### 可能出什么问题
 
 没有执行器提供方的组合永远不会激活该工具。没有任务运行时的后台调用会以 `background jobs unavailable: load @panedesk/dsh-jobs and @panedesk/dsh-tool-jobs` 失败；没有沙箱执行器时的 `sandbox_permissions` 会以 `sandbox_permissions is not available in this composition (no sandboxing executor to escalate)` 失败。`enableRunInBackground: false` 会移除该参数，并在执行时拒绝强制后台调用。

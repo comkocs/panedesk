@@ -61,6 +61,8 @@ interface SandboxExecutionPolicy {
    * for agentless calls, which fall back to per-call backend state.
    */
   sessionId?: SessionId
+  /** Workspace access derives from a durable record and must be rechecked before native grants. */
+  requiresWorkspaceAuthorization?: true
 }
 ```
 
@@ -185,6 +187,27 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
  *   the selected backend achieves for it.
  */
 abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
+
+/**
+ * Inspect a persistent workspace capability without granting access.
+ * @param workspaceRoot - Absolute native workspace directory.
+ * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
+ */
+hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
+
+/**
+ * Materialize an approved workspace capability without starting a process.
+ * @param policy - Current policy with its authorization source and session identity.
+ * @param signal - Cancellation checked before native mutation.
+ * @returns After the provider has materialized the approved capability.
+ */
+materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>
+
+/**
+ * Revoke a persistent workspace capability and invalidate provider caches.
+ * @param workspaceRoot - Absolute native workspace directory.
+ */
+revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 ```
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)
@@ -208,6 +231,22 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
 
 /**
+ * Request persistent workspace consent before a potentially writing operation.
+ * Explicit modes and non-Windows defaults never prompt. Missing, unattended,
+ * rejected, withdrawn, or unavailable answerers leave the policy read-only.
+ * @param request - Calling agent, tool identity, and cancellation lifetime.
+ * @returns The freshly resolved policy after consent, or the unchanged standing policy.
+ */
+async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>
+
+/**
+ * Explain owner-managed workspace access after a Windows default read-only denial.
+ * @param mode - The settled operation's mode, not a fresh policy resolution.
+ * @returns Settings guidance for implicit Windows read-only, otherwise undefined.
+ */
+writeDenialHint(mode: SandboxMode): string | undefined
+
+/**
  * Read the session override without applying the deployment default.
  * @param session - session whose log supplies the override.
  * @returns the last logged mode, or `undefined` without one.
@@ -215,7 +254,7 @@ resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
 overrideOf(session: Session): SandboxMode | undefined
 ```
 
-Types: [Session](session.zh.md)
+Types: [Agent](core.zh.md) · [Session](session.zh.md) · [ToolCallId](core.zh.md)
 
 Source: [`packages/sandbox/sandbox-policy/src/index.ts`](../../packages/sandbox/sandbox-policy/src/index.ts)
 <!-- END GENERATED cordis-surface -->
