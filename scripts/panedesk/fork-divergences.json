@@ -14058,6 +14058,7 @@
           "packages/boot/app-boot/src/profile-resolution/service.ts",
           "packages/boot/app-boot/tests/profile.spec.ts",
           "packages/boot/app-boot/tests/profile-resolution-service.spec.ts",
+          "packages/boot/app-boot/tests/user-patches.spec.ts",
           "packages/client/modules/src/index.ts",
           "packages/client/modules/tests/node-half.client.spec.ts",
           "packages/client/modules/package.json",
