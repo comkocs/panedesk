@@ -66,10 +66,9 @@ function treeStamp(path: string): string {
   }
 }
 
-function snapshot(path: string, root: string, files?: Map<string, Buffer>): InputSnapshot {
+function snapshot(path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>()): InputSnapshot {
   const hash = createHash('sha256')
   const copies: { path: string; content: string }[] = []
-  const stamps = new Map<string, string>()
   const capture = (filename: string): void => {
     if (!stamps.has(filename)) stamps.set(filename, treeStamp(filename))
   }
@@ -229,13 +228,17 @@ export class ProtectedInputIntegrity {
       if (missing(error)) return
       throw error
     }
+    this.loadRecord(text)
+  }
+
+  private loadRecord(text: string): void {
     this.assertRecordLocation()
-    this.revision = text
     const parsed: unknown = JSON.parse(text)
     if (typeof parsed !== 'object' || parsed === null || !('version' in parsed) || parsed.version !== 1
       || !('workspace' in parsed) || parsed.workspace !== this.root || !('inputs' in parsed)
       || !Array.isArray(parsed.inputs)) throw new Error('Invalid protected workspace record')
     const inputs: unknown[] = parsed.inputs
+    const approved = new Map<string, InputSnapshot>()
     for (const item of inputs) {
       if (typeof item !== 'object' || item === null || !('path' in item) || typeof item.path !== 'string'
         || !contains(this.root, item.path) || !('snapshot' in item)) throw new Error('Invalid protected input path')
@@ -244,10 +247,27 @@ export class ProtectedInputIntegrity {
       if (value.files?.some(file => !isAbsolute(file.path) || !contains(path, file.path)) === true) {
         throw new Error('Invalid protected input copy path')
       }
-      this.approved.set(item.path, value)
-      this.observed.add(item.path)
+      approved.set(item.path, value)
     }
+    this.approved.clear()
+    for (const [path, value] of approved) {
+      this.approved.set(path, value)
+      this.observed.add(path)
+    }
+    this.revision = text
     this.granted = true
+  }
+
+  private refreshRecord(): void {
+    if (this.record === undefined || this.verifying) return
+    if (this.revision !== undefined) this.assertRecordLocation()
+    let text: string
+    try { text = readFileSync(this.record, 'utf8') } catch (error) {
+      if (!missing(error)) throw error
+      if (this.revision !== undefined) throw new Error('Protected workspace record disappeared')
+      return
+    }
+    if (text !== this.revision) this.loadRecord(text)
   }
 
   private inputPath(filename: string): string {
@@ -276,10 +296,19 @@ export class ProtectedInputIntegrity {
 
   /** Capture the current owner inputs before publishing workspace write access; existing grants never reset trust. */
   grantWrite(): void {
+    this.refreshRecord()
     if (this.granted) return
     this.assertRecordLocation()
-    for (const path of this.observed) this.approved.set(path, snapshot(path, this.root))
-    this.persist()
+    const stamps = new Map<string, string>()
+    const candidates = new Map<string, InputSnapshot>()
+    for (const path of this.observed) candidates.set(path, snapshot(path, this.root, undefined, stamps))
+    const previous = new Map(this.approved)
+    for (const [path, value] of candidates) this.approved.set(path, value)
+    try { this.persist() } catch (error) {
+      this.approved.clear()
+      for (const [path, value] of previous) this.approved.set(path, value)
+      throw error
+    }
     this.granted = true
   }
 
@@ -289,6 +318,7 @@ export class ProtectedInputIntegrity {
    * @returns Whether a granted baseline covers the path spelling.
    */
   covers(filename: string): boolean {
+    this.refreshRecord()
     const path = this.inputPath(filename)
     return this.ownerRecords.some(record => record.covers(filename))
       || this.granted && [...this.approved].some(([root, value]) => root === path
@@ -301,6 +331,7 @@ export class ProtectedInputIntegrity {
    * @returns Approved bytes, current bytes before a grant, or undefined for an approved absent input.
    */
   readTrusted(filename: string): Buffer | undefined {
+    this.refreshRecord()
     const path = this.inputPath(filename)
     const copies = this.ownerRecords.filter(record => record.covers(filename)).map(record => record.readTrusted(filename))
     if (this.granted && contains(this.root, path)) copies.push(this.readLocalTrusted(path))
@@ -345,6 +376,7 @@ export class ProtectedInputIntegrity {
    * @throws When a protected executable has changed or was not recorded before write access.
    */
   readExecutable(filename: string): Buffer | undefined {
+    this.refreshRecord()
     const copies = [this.readLocalExecutable(filename), ...this.ownerRecords.map(record => record.readExecutable(filename))]
       .filter(bytes => bytes !== undefined)
     const first = copies[0]
@@ -369,9 +401,10 @@ export class ProtectedInputIntegrity {
     })
     if (roots.length === 0 && !contains(this.root, path)) return undefined
     let bytes: Buffer | undefined
+    const stamps = new Map<string, string>()
     for (const { root, value, candidate } of roots) {
       const files = new Map<string, Buffer>()
-      const current = snapshot(root, this.root, files)
+      const current = snapshot(root, this.root, files, stamps)
       if (current.digest !== value.digest) throw new Error(`Protected host input requires owner confirmation: ${root}`)
       const content = files.get(candidate)
       if (content !== undefined) {
@@ -418,6 +451,7 @@ export class ProtectedInputIntegrity {
    */
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
     if (this.verifying) throw new Error('Protected host input verification is already pending')
+    this.refreshRecord()
     this.verifying = true
     try {
       for (const record of this.ownerRecords) if (!await record.verify(owner)) return false
@@ -428,9 +462,10 @@ export class ProtectedInputIntegrity {
   private async verifyCandidate(owner: ProtectedInputOwner): Promise<boolean> {
     const changes: ProtectedInputChange[] = []
     const candidates = new Map<string, InputSnapshot>()
+    const captured = new Map<string, string>()
     for (const path of this.observed) {
       const previous = this.approved.get(path)?.digest ?? 'unrecorded'
-      const value = snapshot(path, this.root)
+      const value = snapshot(path, this.root, undefined, captured)
       candidates.set(path, value)
       if (value.digest !== previous) changes.push({ path, previous, current: value.digest })
     }
@@ -438,8 +473,9 @@ export class ProtectedInputIntegrity {
       owner.blocked(change)
       if (!await owner.confirm(change)) return false
     }
+    const checked = new Map<string, string>()
     for (const [path, candidate] of candidates) {
-      const current = snapshot(path, this.root).digest
+      const current = snapshot(path, this.root, undefined, checked).digest
       if (current !== candidate.digest) {
         owner.blocked({ path, previous: candidate.digest, current })
         return false

@@ -49,7 +49,7 @@ const ctx = await boot('dsh', resolveConfigPath(argv[2], process.env.DSH_SNAPSHO
 
 仅使用类型的消费方从 `@panedesk/dsh-app-boot/profile-context` 导入 `ProfileContext` 及其 Cordis 扩充；此声明入口不引入宿主启动服务及其 Session 扩充。
 
-`ProfileContext` 持有工作区输入记录，HMR 服务替换不会丢失记录。`$PANEDESK_HOME/windows-workspace-write/protected-inputs` 下的持久记录在授予工作区写权时采集已登记输入，并跨重启保留可信配置副本。目录与链接记录包含目标、树摘要和后代文件副本。快照读取在遍历结束后复核所有已遍历路径的规范目标、inode、大小及修改/状态时间戳；后代文件或链接被并发替换时拒绝采集。解析启动配置前，CLI 打开同一 home 下全部已授写工作区记录；已确认副本冲突时停止组合，不回落到当前文件。没有后代副本的记录仍需 owner 确认后才能提供这些副本。CLI 配置组合与运行时依赖表共用可信清单读取器，后继代同样沿用。从未授写权的工作区直接读取 owner 改动，不要求确认。`protectedInputCovered` 只查询记录覆盖，不授予信任，也不证明所有加载器均受保护。`PluginPackages` 通过 Node 同步 ESM/CommonJS load 钩子交付验证过的字节，覆盖后续动态 import，并在释放时注销钩子。受保护的原生 addon，以及没有验证字节加载路径的格式会被拒绝。直接 profile 重组在修改运行树前拒绝已变化的输入。[沙盒策略](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)使用实际的 profile、叠加文件、bundle 与已加载插件输入，而不是将无关源码目录判为插件。
+`ProfileContext` 持有工作区输入记录，HMR 服务替换不会丢失记录。`$PANEDESK_HOME/windows-workspace-write/protected-inputs` 下的持久记录在授予工作区写权时采集已登记输入，并跨重启保留可信配置副本。目录与链接记录包含目标、树摘要和后代文件副本。快照读取在遍历结束后复核所有已遍历路径的规范目标、inode、大小及修改/状态时间戳；后代文件或链接被并发替换时拒绝采集。同一轮采集或验证在已登记根之间共用这些复核，读取后续根不能掩盖较早链接树的变化。解析启动配置前，CLI 打开同一 home 下全部已授写工作区记录；已确认副本冲突时停止组合，不回落到当前文件。没有后代副本的记录仍需 owner 确认后才能提供这些副本。现有读器在覆盖查询、读取、授写及验证前重载已变化的持久记录；已加载记录被删除时拒绝访问。进行中的审批保留已捕获的记录版本，遇到竞争提交时拒绝覆盖。CLI 配置组合与运行时依赖表共用可信清单读取器，后继代同样沿用。从未授写权的工作区直接读取 owner 改动，不要求确认。`protectedInputCovered` 只查询记录覆盖，不授予信任，也不证明所有加载器均受保护。`PluginPackages` 通过 Node 同步 ESM/CommonJS load 钩子交付验证过的字节，覆盖后续动态 import，并在释放时注销钩子。受保护的原生 addon，以及没有验证字节加载路径的格式会被拒绝。直接 profile 重组在修改运行树前拒绝已变化的输入。[沙盒策略](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)使用实际的 profile、叠加文件、bundle 与已加载插件输入，而不是将无关源码目录判为插件。
 
 显式选择的 `seat` 模板组合 `dsh-base` 与 [seat-app](../../seat/seat-app/README.zh.md)。既有模板保持不变；选择 `seat` 不安装系统服务，引擎条目在显式提供部署策略前保持禁用。
 
@@ -206,6 +206,7 @@ Loader 结算后，app-boot 在仅 optional 条目未激活时输出警告。如
 这些限制说明此启动库在何时不合适，或何时需要特别注意。它们是当前包约束，不是任务积压。
 
 - **运行时解析依赖 Node 内部机制**——受支持的 Node 版本需要 native builtin access addon 和可执行兼容验证。只有构建后的 Harness 自有 Worker 接收 runtime resolution bootstrap；第三方 Worker 与自定义 `vm` linker 保持原生解析。
+- **受保护输入覆盖不等于完整进程约束**——Worker bootstrap 传递解析信息，不传递已批准输入字节。在完整性钩子之后注册的自定义加载器可以替换其结果。持久记录集合在启动时打开；读取器刷新已有记录，但不发现新获授写的根。多记录审批不是原子事务，遗留锁目录不会自动恢复。覆盖查询不得视为对这些路径的认证。
 - **移动 profile 包需要先卸载**——`replace()` 以 `ResolutionRestartRequired` 拒绝移动到其他目录或链接目标的保留 profile 映射；卸载该包后重新安装，即映射到新目录。linked root 的 profile 映射被移除后，它可以指向其他目录。Node 保留其解析过的每个链接的真实路径；链接指向别处后，或其名称作为目录重新安装后，原生查询为原目标之外的导入方选中原目标之下的文件时，若当前目标之下存在同一文件，会改为选中该文件，包括指向原目标的显式绝对路径。安装映射和本地覆盖仍需要重启。
 - **链接作用域以记录的真实目录为准**——提升后的依赖若在所有 linked root 之外，就使用原生 Node。每次读取 peer 都不会使 Node 缓存失效，也不会改变被监视的文件。
 - **源码启动只安装 ESM 钩子**——CommonJS 请求仍需要 package exports 选中的 JavaScript 文件，解析器不会补出缺失的构建产物。

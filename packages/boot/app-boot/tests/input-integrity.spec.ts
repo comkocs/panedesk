@@ -1,4 +1,5 @@
 /** Exact owner consent cannot authorize a replacement made while a prompt is open. */
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import * as fs from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -101,6 +102,19 @@ it('reports coverage only after a durable write grant and rejects state inside t
   const unsafe = new ProtectedInputIntegrity(f.workspace, join(f.workspace, 'owner-state'))
   unsafe.observe(f.path)
   expect(() => { unsafe.grantWrite() }).toThrow('outside the writable workspace')
+})
+
+it('reads an ungranted workspace with nested home without permitting a durable grant', async () => {
+  const f = fixture()
+  const integrity = new ProtectedInputIntegrity(f.workspace, join(f.workspace, 'owner-state'))
+  integrity.observe(f.path)
+  expect(integrity.covers(f.path)).toBe(false)
+  expect(integrity.readTrusted(f.path)?.toString()).toBe('initial')
+  expect(integrity.readExecutable(f.path)).toBeUndefined()
+  const confirm = vi.fn(async () => false)
+  expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
+  expect(confirm).not.toHaveBeenCalled()
+  expect(() => { integrity.grantWrite() }).toThrow('outside the writable workspace')
 })
 
 it('rejects an owner-state directory linked into the writable workspace', () => {
@@ -307,6 +321,86 @@ it('rejects a directory snapshot when an earlier descendant changes during trave
     spy.mockRestore()
   }
   expect(integrity.covers(first)).toBe(false)
+})
+
+it('rejects an earlier linked root changed while a later root is captured', () => {
+  const f = fixture()
+  const firstTarget = join(f.root, 'first-target')
+  const secondTarget = join(f.root, 'second-target')
+  mkdirSync(firstTarget)
+  mkdirSync(secondTarget)
+  const first = join(firstTarget, 'index.js')
+  writeFileSync(first, 'first')
+  writeFileSync(join(secondTarget, 'index.js'), 'second')
+  const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
+  for (const [name, target] of [['first', firstTarget], ['second', secondTarget]] as const) {
+    const link = join(f.workspace, name)
+    symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir')
+    integrity.observe(link)
+  }
+  const read = fs.readFileSync
+  let reads = 0
+  const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((...args: Parameters<typeof fs.readFileSync>) => {
+    const bytes = read(...args)
+    if (typeof args[0] === 'number' && ++reads === 2) writeFileSync(first, 'changed while reading another root')
+    return bytes
+  })
+  try {
+    expect(() => { integrity.grantWrite() }).toThrow('changed while being read')
+  } finally {
+    spy.mockRestore()
+  }
+  expect(integrity.covers(join(f.workspace, 'first', 'index.js'))).toBe(false)
+  expect(new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state')).covers(first)).toBe(false)
+})
+
+it('refreshes an existing reader after another host commits an owner-approved revision', async () => {
+  const f = fixture()
+  const home = join(f.root, 'owner-state')
+  const writer = new ProtectedInputIntegrity(f.workspace, home)
+  writer.observe(f.path)
+  writer.grantWrite()
+  const reader = new ProtectedInputIntegrity(f.workspace, home)
+  writeFileSync(f.path, 'approved by another host')
+  expect(await writer.verify({ blocked: vi.fn(), confirm: async () => true })).toBe(true)
+  expect(reader.readTrusted(f.path)?.toString()).toBe('approved by another host')
+  expect(reader.readExecutable(f.path)?.toString()).toBe('approved by another host')
+  const confirm = vi.fn(async () => false)
+  expect(await reader.verify({ blocked: vi.fn(), confirm })).toBe(true)
+  expect(confirm).not.toHaveBeenCalled()
+})
+
+it('refreshes trusted bytes after a separate owner process approves the replacement', () => {
+  const f = fixture()
+  const home = join(f.root, 'owner-state')
+  const reader = new ProtectedInputIntegrity(f.workspace, home)
+  reader.observe(f.path)
+  reader.grantWrite()
+  writeFileSync(f.path, 'approved in another process')
+  // This filesystem fixture imports no Cordis or profile composition.
+  const entry = new URL('../src/input-integrity.ts', import.meta.url).href
+  const child = spawnSync(process.execPath, ['--input-type=module', '--eval', `
+    import { ProtectedInputIntegrity } from ${JSON.stringify(entry)}
+    const integrity = new ProtectedInputIntegrity(process.argv[1], process.argv[2])
+    const accepted = await integrity.verify({ blocked() {}, confirm: async () => true })
+    if (!accepted) throw new Error('Owner approval did not commit')
+  `, f.workspace, home], { encoding: 'utf8', timeout: 10_000 })
+  expect(child.error).toBeUndefined()
+  expect(child.status, child.stderr).toBe(0)
+  expect(reader.readTrusted(f.path)?.toString()).toBe('approved in another process')
+  expect(reader.readExecutable(f.path)?.toString()).toBe('approved in another process')
+})
+
+it('refuses deletion of an already granted durable record instead of trusting current files', () => {
+  const f = fixture()
+  const home = join(f.root, 'owner-state')
+  const integrity = new ProtectedInputIntegrity(f.workspace, home)
+  integrity.observe(f.path)
+  integrity.grantWrite()
+  rmSync(join(home, 'windows-workspace-write', 'protected-inputs'), { recursive: true })
+  writeFileSync(f.path, 'untrusted after record loss')
+  expect(() => integrity.readTrusted(f.path)).toThrow('Protected workspace record disappeared')
+  expect(() => integrity.readExecutable(f.path)).toThrow('Protected workspace record disappeared')
 })
 
 it('leaves inputs outside the writable workspace unchanged', async () => {
