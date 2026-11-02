@@ -9,13 +9,13 @@ English | [中文](guide.zh.md)
 
 ## Change
 
-Windows defaults to `read-only`; Linux and macOS retain `workspace-write`. Explicit environment, sandbox-policy, or session modes retain their meaning. Base profiles supply no writable fallback.
+Windows defaults to `read-only`; Linux and macOS retain `workspace-write`. Explicit environment, sandbox-policy, and session modes are unchanged. Base profiles have no writable fallback.
 
-The General settings page manages directory-specific Windows workspace write access for the built-in local Windows sandbox. A saved authorization enables workspace writes only while the platform default applies. Existing workspace ACEs do not count as saved consent. The first potentially writing tool call can request dedicated workspace consent; acceptance saves the directory authorization and materializes its ACL. Rejection, cancellation, missing answerers, and expiry keep the workspace read-only. Unattended `never` sessions do not prompt.
+General settings manages built-in Windows sandbox directory writes. Consent enables writes only under platform defaults; existing ACEs are not consent. First-write approval saves consent and materializes ACLs. Rejection, cancellation, missing answerers, and expiry preserve read-only access. New and resumed headless sessions use `never`: no prompts, even with an owner connected. Windows native execution has not been validated on a Windows machine.
 
 Dynamic Cordis packages cannot activate under the implicit Windows default, including browser-panel starts and previously approved versions. Their same-process Host and same-origin Client code can access owner approval capabilities. Directory write consent does not enable dynamic code; inspection and definition storage remain available.
 
-Confined writes exclude the running host's profile, configuration, plugin inputs, and hot-reload roots. Workspace authorization cannot include these paths; unrelated plugin development projects and source clones remain writable. Protection includes active configuration watches and missing symlink-prefixed inputs. Overlapping temporary-root grants are omitted; use workspace output. Tightening permissions does not terminate existing processes or handles; new calls immediately use the new policy. `danger-full-access` explicitly grants the host user's full write authority, including configuration and plugins; `plugin_manager` still requires owner approval for each change.
+Confined writes exclude host profiles, configuration, plugin inputs, and hot-reload roots, including active watches and missing symlink-prefixed inputs. Workspace authorization cannot include protected inputs. Unrelated development clones remain writable. Overlapping temporary-root grants are omitted; use workspace output. Tightening permissions affects new calls, not existing processes or handles; close and reopen persistent model terminals that reject input afterward. The permission-mode selector does not immediately reflect directory records. `danger-full-access` grants the host user's full write authority, including configuration and plugins; each `plugin_manager` change still requires owner approval.
 
 ## Migration
 
