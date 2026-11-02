@@ -11437,6 +11437,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
@@ -11717,9 +11720,15 @@ importers:
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
+      '@panedesk/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
       '@panedesk/dsh-client-connection':
         specifier: workspace:*
         version: link:../../client/connection
+      '@panedesk/dsh-cordis-host-runner':
+        specifier: workspace:*
+        version: link:../../extensions/cordis-host-runner
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../fs
@@ -11741,6 +11750,9 @@ importers:
       '@panedesk/dsh-llm-deepseek-api-key':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek-api-key
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
       '@panedesk/dsh-permission-presets':
         specifier: workspace:*
         version: link:../../interaction/permission-presets
@@ -11762,15 +11774,42 @@ importers:
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
+      '@panedesk/dsh-sdk-client':
+        specifier: workspace:*
+        version: link:../../sdk/client
+      '@panedesk/dsh-sdk-jsonrpc-server':
+        specifier: workspace:*
+        version: link:../../sdk/server
+      '@panedesk/dsh-sdk-protocol':
+        specifier: workspace:*
+        version: link:../../sdk/protocol
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../../session/session-projection
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
+      '@panedesk/dsh-subagent-spawn-in-process':
+        specifier: workspace:*
+        version: link:../../subagent/subagent-spawn-in-process
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt
+      '@panedesk/dsh-tool-seat-messages':
+        specifier: workspace:*
+        version: link:../../session/tool-seat-messages
+      '@panedesk/dsh-tool-subagent-control':
+        specifier: workspace:*
+        version: link:../../subagent/tool-subagent-control
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
@@ -13521,6 +13560,12 @@ importers:
 
   packages/sandbox/sandbox-local:
     dependencies:
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../sandbox-policy
       '@panedesk/dsh-sandbox-windows-acl':
         specifier: workspace:*
         version: link:../sandbox-windows-acl

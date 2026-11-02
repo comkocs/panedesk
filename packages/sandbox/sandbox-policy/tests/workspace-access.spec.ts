@@ -83,6 +83,52 @@ describe('workspace write authorization records', () => {
       await Promise.all([holder, authorizing, revoking])
     }
   })
+  it('serializes native materialization with revocation and rechecks consent after waiting', async () => {
+    const { home, workspace, access } = fixture()
+    await access.authorize(workspace, 'settings-preauthorization')
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const order: string[] = []
+    const materializing = access.withAuthorization(workspace, async () => {
+      order.push('materializing')
+      entered.resolve(undefined)
+      await release.promise
+      order.push('materialized')
+    })
+    await entered.promise
+    const other = new WorkspaceWriteAccess(home)
+    const revoking = other.revoke(workspace, () => { order.push('revoked') })
+    try {
+      await new Promise(resolve => setTimeout(resolve, 80))
+      expect(order).toEqual(['materializing'])
+    } finally {
+      release.resolve(undefined)
+      await Promise.all([materializing, revoking])
+    }
+    expect(order).toEqual(['materializing', 'materialized', 'revoked'])
+    const forbidden = vi.fn()
+    await expect(access.withAuthorization(workspace, forbidden)).rejects.toThrow('authorization')
+    expect(forbidden).not.toHaveBeenCalled()
+  })
+  it('does not materialize when consent disappears during lock contention', async () => {
+    const { workspace, access } = fixture()
+    await access.authorize(workspace, 'first-confirmation')
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const holding = withFileLock(access.recordPath(workspace), async () => {
+      entered.resolve(undefined)
+      await release.promise
+      rmSync(access.recordPath(workspace))
+    })
+    await entered.promise
+    const materialize = vi.fn()
+    const result = access.withAuthorization(workspace, materialize)
+    const rejected = expect(result).rejects.toThrow('authorization')
+    release.resolve(undefined)
+    await holding
+    await rejected
+    expect(materialize).not.toHaveBeenCalled()
+  })
   it('retains orphan revocation markers across restart until retry completes', async () => {
     const { home, workspace, access } = fixture()
     await expect(access.revoke(workspace, () => { throw new Error('ACL unavailable') })).rejects.toThrow('ACL unavailable')

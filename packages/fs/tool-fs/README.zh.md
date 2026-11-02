@@ -263,6 +263,6 @@ Read a file before editing it (the default fs-observation-policy requires it), u
 <details>
 <summary>维护者的工作上下文——点击展开</summary>
 
-无。
+工作区确认集成测试还会驱动 Python SDK 连接隔离的本地协议中继。运行前安装 Python SDK 锁定依赖；解释器不是 `python3` 时设置 `PYTHON`，依赖位置可通过继承的 `PYTHONPATH` 提供。中继仅传递字节，不发送提供方请求。
 
 </details>

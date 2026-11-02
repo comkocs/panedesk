@@ -263,6 +263,6 @@ These limits define when the tool suite is a poor fit or needs special operation
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+The workspace-confirmation integration suite also drives the Python SDK against an isolated local protocol relay. Run it with the Python SDK's locked dependencies installed and set `PYTHON` when the interpreter is not `python3`; `PYTHONPATH` is inherited for dependency locations. The relay carries bytes only, and no provider request is sent.
 
 </details>

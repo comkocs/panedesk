@@ -95,6 +95,25 @@ export class WorkspaceWriteAccess {
     return !this.revocationPending(this.recordPath(workspace)) && this.find(workspace) !== undefined
   }
 
+  /**
+   * Recheck durable consent and materialize a native capability under the revocation lock.
+   * The operation must not recursively authorize or revoke the same workspace.
+   * @param workspace - Existing absolute workspace directory.
+   * @param operation - Native materialization, kept inside the record lock until settled.
+   * @param signal - Cancellation while waiting or before native materialization.
+   * @returns The materialized capability; rejects absent or interrupted authorization.
+   */
+  async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T> {
+    const canonical = this.canonical(workspace)
+    mkdirSync(this.directory, { recursive: true, mode: 0o700 })
+    const path = this.identityPath(canonical)
+    return withFileLock(path, async () => {
+      signal?.throwIfAborted()
+      if (!this.isAuthorized(canonical)) throw new Error('Workspace write authorization is absent or revoked')
+      return operation()
+    }, signal === undefined ? {} : { signal })
+  }
+
   private revocationPending(path: string): boolean {
     try { statSync(`${path}.revoking`) } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false

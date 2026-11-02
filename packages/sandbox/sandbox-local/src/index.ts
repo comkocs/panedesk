@@ -39,6 +39,8 @@ import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnfor
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
 import { assertNever } from '@panedesk/dsh-util-values'
+import { WorkspaceWriteAccess } from '@panedesk/dsh-sandbox-policy'
+import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from './profiles.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -274,9 +276,11 @@ export class LocalSandboxProvider extends SandboxProvider {
    */
   private readonly workspaceGrants = new Map<string, AclWriteGrant>()
   private readonly tempCapabilities = new Map<string, AclTempCapability>()
+  private readonly workspaceAccess: WorkspaceWriteAccess
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
+    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome())
     // The schema (static Config) defaults every field — the casts record
     // those runtime facts. An empty runnerCommand means "not configured":
     // use the platform chain.
@@ -334,7 +338,11 @@ export class LocalSandboxProvider extends SandboxProvider {
       })
     }
     const selected = this.selectRunner(policy.mode)
-    const runnerArgv = this.runnerArgv(selected.runner, policy)
+    const resolvedPolicy = policy
+    const runnerArgv = selected.runner === 'windows-acl' && policy.requiresWorkspaceAuthorization
+      ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
+        () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
+      : this.runnerArgv(selected.runner, policy)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
       enforcement: selected.enforcement,
@@ -372,15 +380,20 @@ export class LocalSandboxProvider extends SandboxProvider {
     }
   }
 
-  override materializeWorkspaceWriteGrant(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void> {
-    return Promise.resolve().then(() => {
-      this.requireWindowsAclManagement()
-      signal?.throwIfAborted()
-      if (policy.mode !== 'workspace-write' || policy.sessionId === undefined) {
-        throw new Error('Workspace write materialization requires an approved session policy')
-      }
-      this.materializeAclGrant(policy.sessionId, canonicalPath(policy.workspaceRoot))
-    })
+  override async materializeWorkspaceWriteGrant(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void> {
+    this.requireWindowsAclManagement()
+    signal?.throwIfAborted()
+    const { sessionId } = policy
+    if (policy.mode !== 'workspace-write' || sessionId === undefined) {
+      throw new Error('Workspace write materialization requires an approved session policy')
+    }
+    const workspace = canonicalPath(policy.workspaceRoot)
+    const materialize = (): void => { this.materializeAclGrant(sessionId, workspace) }
+    if (policy.requiresWorkspaceAuthorization) {
+      await this.workspaceAccess.withAuthorization(workspace, materialize, signal)
+    } else {
+      materialize()
+    }
   }
 
   override get supportsWorkspaceWriteAccess(): boolean {
@@ -453,7 +466,9 @@ export class LocalSandboxProvider extends SandboxProvider {
   private materializeAclGrant(sessionId: SessionId, workspaceRoot: string): AclTempCapability {
     assertTempRootOutsideWorkspace(workspaceRoot, tmpdir())
     const writeSid = workspaceWriteSid(workspaceRoot)
-    if (!this.workspaceGrants.has(workspaceRoot)) {
+    const cached = this.workspaceGrants.get(workspaceRoot)
+    if (cached !== undefined && !cached.has(workspaceRoot)) cached.add(workspaceRoot, true)
+    if (cached === undefined) {
       const grant = AclWriteGrant.create(writeSid)
       try {
         grant.add(workspaceRoot, true)

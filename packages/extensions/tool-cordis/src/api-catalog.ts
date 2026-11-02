@@ -13338,7 +13338,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceWriteAccess',
-    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
   },
   {
     name: 'WorkspaceWriteApproval',

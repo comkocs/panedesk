@@ -283,6 +283,18 @@ describe('first workspace confirmation for shell tools', () => {
       expect(result.isError, text(result)).toBe(false)
       await vi.waitFor(() => { expect(bash.modes).toEqual(['workspace-write']) })
       expect(ctx.sandboxPolicy.workspaceAccess.list()).toMatchObject([{ source: 'first-confirmation' }])
+      const workspace = ctx.sandboxPolicy.resolve({ session: owner.session }).workspaceRoot
+      await ctx.sandboxPolicy.workspaceAccess.revoke(workspace, () => {})
+      expect(ctx.sandboxPolicy.resolve({ session: owner.session }).mode).toBe('read-only')
+      listener.mockResolvedValue('rejected')
+      const denied = await call(ctx, name, {
+        command: 'test-only next command', description: 'Attempt after revocation', run_in_background: background,
+      }, owner)
+      expect(denied.isError).toBe(true)
+      expect(text(denied)).toContain('access remains read-only')
+      expect(listener).toHaveBeenCalledTimes(2)
+      expect(bash.modes).toEqual(['workspace-write'])
+      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
     } finally {
       await context?.fiber.dispose()
       platform.mockRestore()

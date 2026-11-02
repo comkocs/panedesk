@@ -59,6 +59,8 @@ Definitions are session-scoped and process-local: other sessions read them as ab
 
 ### Trust stance
 
+Under the implicit Windows read-only default, activation refuses both Host-only and dual-half dynamic packages, including panel starts and previously approved Client versions. Same-process Host and same-origin Client code can reach owner approval capabilities; granting workspace writes does not enable dynamic code. An operator must explicitly configure a permission mode to enable it. Inspection and definition storage remain available.
+
 The sandbox isolates globals but is not a security boundary: Node globals are absent or redirect to Cordis services (`ctx.fs`, `ctx.web`, `ctx.bash`, the timer helpers), and a host half receives a façade without framework internals, yet the services it declares reach the live runtime. Treat a dynamic package like bash access — see the [self-referential toolset reference](README.md).
 
 -----
@@ -133,6 +135,7 @@ None of its own. A host half that registers tools changes the next request's too
 
 These limits define when the runner needs special care. They are current package constraints, not a task backlog.
 
+- **Hot policy changes do not recover executed-code authority** — returning from an explicit deployment mode to the implicit Windows default requires restarting the Host and reloading connected pages. Existing Host listeners and already-delivered Client code cannot be treated as isolated by the new activation check.
 - **A successful run does not mean the UI rendered** — React renders after the load receipt; failures reach the owning session through steering and appear in the browser panel.
 - **A browser-half package suspends where no page is connected** — headless and ACP deployments hold the run until the asking turn is cancelled; host-only packages are unaffected.
 - **A suspended run request has no timeout** — it waits for a person until the asking turn is cancelled, so unattended automation cannot use packages with a browser half.

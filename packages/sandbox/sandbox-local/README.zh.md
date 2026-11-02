@@ -56,6 +56,8 @@ kind: "package-reference"
 
 仅内置 Windows runner 声明 `supportsWorkspaceWriteAccess`。检查从规范化工作区推导精确能力 SID，只读 ACL，不授予权限。显式撤销移除该能力，且仅在原生撤销成功后清除其物化缓存；其他平台和自定义 runner 拒绝这些管理调用。撤销不终止进程或关闭已有句柄。只读隔离既不创建工作区写授权，也不创建临时写授权。`materializeWorkspaceWriteGrant()` 供策略消费方在已同意会话的首次文件变更前物化工作区及私有临时目录能力，无需启动进程。
 
+对基于记录的策略，隔离与直接物化授权都会在接触原生权限前持跨进程记录锁重验同意。撤销共用同一把锁；陈旧策略或提供方缓存不能重建已撤授权。显式策略仍独立于目录记录。
+
 ### 失败与恢复
 
 不受支持的平台或不可用的 runner 会拒绝执行：`confine()` 以 `SANDBOX_UNAVAILABLE` 拒绝 并列出该平台的 runner 选项，消费方会呈现该错误，而不是让命令不受限制地运行。启动后拒绝自身 profile 的 runner 由其致命 stderr 签名与退出码识别，因此损坏的沙箱不会被误认为被拒绝的命令。`runnerCommand` 覆盖是操作方断言：它跳过功能探测，并假定配置的 runner 诚实实现与 bwrap 兼容的 profile。
