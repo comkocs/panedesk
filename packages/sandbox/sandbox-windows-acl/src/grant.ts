@@ -12,7 +12,7 @@
  * @module @panedesk/dsh-sandbox-windows-acl/grant
  */
 
-import { grantWrite, revokeWrite } from './acl.ts'
+import { grantWrite, hasWriteGrant, revokeWrite } from './acl.ts'
 import { allocPtrSlot, decodePtr, isNullPtr, throwLastError, win32Sync } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { makeWellKnownSid } from './token.ts'
@@ -105,6 +105,28 @@ export class AclWriteGrant {
   add(path: string, standing = false): void {
     ;(standing ? this.standingPaths : this.revocablePaths).push(path)
     grantWrite(this.api, path, this.sidPtr, this.lowLabelSidPtr, this.worldSidPtr)
+  }
+
+  /**
+   * Inspect an existing grant, including one left by an earlier product version.
+   * @param path - Canonical directory whose ACL is inspected without mutation.
+   * @returns Whether this capability's exact write ACE is present.
+   */
+  has(path: string): boolean {
+    return hasWriteGrant(this.api, path, this.sidPtr)
+  }
+
+  /**
+   * Explicitly revoke a workspace or temporary grant; failed removal remains retryable.
+   * @param path - Canonical directory whose capability ACE is removed.
+   */
+  revoke(path: string): void {
+    revokeWrite(this.api, path, this.sidPtr)
+    for (const paths of [this.standingPaths, this.revocablePaths]) {
+      for (let index = paths.length - 1; index >= 0; index--) {
+        if (paths[index] === path) paths.splice(index, 1)
+      }
+    }
   }
 
   /** Every directory currently carrying the grant, in grant order. */

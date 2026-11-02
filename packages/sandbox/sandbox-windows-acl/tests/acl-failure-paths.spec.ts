@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import koffi from 'koffi'
 
-import { grantWrite, revokeWrite, withPathLock } from '../src/acl.ts'
+import { grantWrite, hasWriteGrant, revokeWrite, withPathLock } from '../src/acl.ts'
 import { allocBytes, ptrAddress } from '../src/ffi.ts'
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
 import * as abi from '../src/win32-abi.ts'
@@ -171,6 +171,33 @@ function readStub(dacl: NativePtr | null, label: NativePtr | null, descriptor: b
     return 0
   })
 }
+
+describe('read-only legacy workspace grant inspection', () => {
+  it.each([true, false])('matches only the exact capability SID: %s', (matches) => {
+    const sid = craftSid(1, 0)
+    const acl = craftAcl(abi.ACCESS_ALLOWED_ACE_TYPE, abi.GRANT_MASK, sid, matches)
+    const localFree = vi.fn(() => 0n as NativePtr)
+    const setNamedSecurityInfoW = vi.fn(() => 0)
+    const setEntriesInAclW = vi.fn(() => 0)
+    const api = aclApi({ getNamedSecurityInfoW: readStub(acl, null, 17n), localFree, setNamedSecurityInfoW, setEntriesInAclW })
+    expect(hasWriteGrant(api, 'C:\\workspace', sid)).toBe(matches)
+    expect(localFree).toHaveBeenCalledWith(17n)
+    expect(setNamedSecurityInfoW).not.toHaveBeenCalled()
+    expect(setEntriesInAclW).not.toHaveBeenCalled()
+  })
+  it('reports an absent DACL without making a grant', () => {
+    const localFree = vi.fn(() => 0n as NativePtr)
+    const setNamedSecurityInfoW = vi.fn(() => 0)
+    const api = aclApi({ localFree, setNamedSecurityInfoW })
+    expect(hasWriteGrant(api, 'C:\\workspace', craftSid(1, 0))).toBe(false)
+    expect(localFree).not.toHaveBeenCalled()
+    expect(setNamedSecurityInfoW).not.toHaveBeenCalled()
+  })
+  it('does not hide descriptor cleanup failures', () => {
+    const api = aclApi({ getNamedSecurityInfoW: readStub(null, null, 17n), localFree: vi.fn(() => 17n as NativePtr) })
+    expect(() => hasWriteGrant(api, 'C:\\workspace', craftSid(1, 0))).toThrow(Win32Error)
+  })
+})
 
 describe('withPathLock failure paths', () => {
   it('fails closed when CreateFileW returns an invalid handle', () => {
