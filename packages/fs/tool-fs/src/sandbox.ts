@@ -39,6 +39,7 @@ export class FsSandboxController {
   readonly escalationModes: readonly SandboxMode[]
   /** Shared per-session policy resolver, required by a confining backend. */
   private readonly policy: SandboxPolicyService | undefined
+  private readonly escalatedPolicies = new WeakSet<SandboxExecutionPolicy>()
 
   constructor(private readonly ctx: Context) {
     const defaultMode = ctx.fs.sandboxMode
@@ -104,7 +105,20 @@ export class FsSandboxController {
         signal: exec.signal,
       },
     )
-    return { ...policy, mode: approvedMode }
+    const resolved = { ...policy, mode: approvedMode }
+    if (approvedMode !== policy.mode) this.escalatedPolicies.add(resolved)
+    return resolved
+  }
+
+  /**
+   * Refresh standing permission after asynchronous mutation preparation without asking again.
+   * @param policy - Policy admitted before preparation.
+   * @param exec - Calling agent whose standing permission may have changed.
+   * @returns Current standing policy, or the explicitly approved policy for this call.
+   */
+  refreshPolicy(policy: SandboxExecutionPolicy | undefined, exec: ToolExecution): SandboxExecutionPolicy | undefined {
+    if (policy !== undefined && this.escalatedPolicies.has(policy)) return policy
+    return this.policy?.resolve({ ...exec.agent ? { session: exec.agent.session } : {} })
   }
 
   /**

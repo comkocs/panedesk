@@ -120,7 +120,7 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
       const input = parseEditArgs(args)
       // Resolve the per-call sandbox policy (approved mode > session override
       // > backend default, plus the session cwd root) BEFORE anything executes.
-      const sandboxPolicy = await sandbox.resolvePolicy('edit', args, exec)
+      let sandboxPolicy = await sandbox.resolvePolicy('edit', args, exec)
       const target = await ctx.fs.resolve(input.filePath, await sessionResolveOptions(ctx, exec))
       // Single-slot decision: the policy plugin returns { version: vObserved } or
       // throws FS_NOT_OBSERVED; the bare default is undefined (unconditional edit).
@@ -131,6 +131,7 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
       let outcome
       try {
         const intent = await ctx.waterfall('fs/edit-intent', target, exec, () => undefined)
+        sandboxPolicy = sandbox.refreshPolicy(sandboxPolicy, exec)
         outcome = await ctx.fs.editText(
           target,
           { oldString: input.oldString, newString: input.newString, replaceAll: input.replaceAll },

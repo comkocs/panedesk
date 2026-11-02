@@ -873,7 +873,7 @@ describe('sandbox escalation API (write/edit)', () => {
   }
 
   /** A fake agent whose session records appends (the approval audit trail), mid-turn, carrying the given events for the fold. */
-  function escalationAgent(records: Array<{ type: string; data?: Record<string, unknown> }> = []): object {
+  function escalationAgent(records: Array<{ type: string; data?: Record<string, unknown> }> = []) {
     const id = SessionId('sess-fs-esc')
     const events: Array<{
       type: string
@@ -968,6 +968,40 @@ describe('sandbox escalation API (write/edit)', () => {
       workspaceRoot: '/session-project',
       sessionId: SessionId('sess-fs-esc'),
     }])
+  })
+
+  it.each([
+    { name: 'write', repeatMode: false }, { name: 'edit', repeatMode: false },
+    { name: 'write', repeatMode: true }, { name: 'edit', repeatMode: true },
+  ] as const)('rechecks $name policy after its asynchronous mutation intent (repeatMode=$repeatMode)', async ({ name, repeatMode }) => {
+    const { ctx, fs } = await setupConfining()
+    try {
+      const agent = escalationAgent()
+      await call(ctx, 'write', { file_path: 'a.txt', content: 'original' }, agent)
+      fs.stamped = []
+      if (name === 'write') {
+        ctx.on('fs/write-intent', async (_target, _actor, next) => {
+          const intent = await next()
+          agent.session.append('sandbox/mode', { mode: 'read-only' })
+          return intent
+        }, { prepend: true })
+      } else {
+        ctx.on('fs/edit-intent', async (_target, _actor, next) => {
+          const intent = await next()
+          agent.session.append('sandbox/mode', { mode: 'read-only' })
+          return intent
+        }, { prepend: true })
+      }
+      await call(ctx, name, {
+        ...name === 'write'
+          ? { file_path: 'a.txt', content: 'changed' }
+          : { file_path: 'a.txt', old_string: 'original', new_string: 'changed' },
+        ...repeatMode ? { sandbox_permissions: 'workspace-write', justification: 'Repeat the current mode' } : {},
+      }, agent)
+      expect(fs.stamped).toEqual([{
+        mode: 'read-only', workspaceRoot: '/session-project', sessionId: SessionId('sess-fs-esc'),
+      }])
+    } finally { await ctx.fiber.dispose(); vi.restoreAllMocks() }
   })
 
   it('a denied write maps to the shared marker plus the escalation hint (isError)', async () => {
