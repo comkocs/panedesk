@@ -1,9 +1,17 @@
-/** Experimental-package isolation for the installed default product's dependency graph. */
+/**
+ * Experimental-package isolation for the installed default product's dependency graph.
+ *
+ * Panedesk fork divergence: optional bundles may be carried by @panedesk/full instead of apps/cli.
+ * Only the launcher's optional peer edge to that carrier is outside the default installation graph;
+ * default runtime dependencies, imports, and compositions must still exclude experimental packages.
+ * Manually reconcile this exception and OPTIONAL_BUNDLES with upstream during merges.
+ */
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { hasExperimentalPackageReference } from '../experimental-package-policy.ts'
+import { isOptionalBundleCarrierEdge } from '../optional-bundle-carriers.ts'
 import { OPTIONAL_BUNDLES } from '../../packages/boot/app-boot/src/profile.ts'
 
 interface InstalledManifest {
@@ -22,7 +30,7 @@ interface InstalledManifest {
  */
 export function verifyInstalledProductIsolation(directory: string, optionalBundles: readonly string[] = OPTIONAL_BUNDLES): number {
   const visited = new Set<string>()
-  const queue = [{ directory, chain: [] as string[] }]
+  const queue = [{ directory, chain: [] as string[], optionalPeer: false }]
   for (const item of queue) {
     const canonical = realpathSync(item.directory)
     if (visited.has(canonical)) continue
@@ -30,8 +38,11 @@ export function verifyInstalledProductIsolation(directory: string, optionalBundl
     const manifest = JSON.parse(readFileSync(join(canonical, 'package.json'), 'utf8')) as InstalledManifest
     const chain = [...item.chain, manifest.name]
     rejectExperimental(manifest.name, chain)
-    // The bundles the entry package ships switched off are installed beside the product, not required by it.
-    const offered = item.chain.length === 0 ? new Set(optionalBundles) : new Set<string>()
+    // The bundles the entry package ships switched off are installed beside the product, not required by it,
+    // whether the entry depends on them directly or reaches a declared carrier through its own optional peer edge.
+    const offered = item.chain.length === 0
+      || (item.chain.length === 1 && isOptionalBundleCarrierEdge(manifest.name, item.optionalPeer))
+      ? new Set(optionalBundles) : new Set<string>()
     for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies'] as const) {
       for (const [name, range] of Object.entries(manifest[section] ?? {})) {
         if (section === 'dependencies' && offered.has(name)) {
@@ -49,7 +60,11 @@ export function verifyInstalledProductIsolation(directory: string, optionalBundl
             || section === 'peerDependencies' && manifest.peerDependenciesMeta?.[name]?.optional === true) continue
           throw new Error(`default product dependency is missing: ${[...chain, name].join(' -> ')}`)
         }
-        queue.push({ directory: dependency, chain })
+        queue.push({
+          directory: dependency,
+          chain,
+          optionalPeer: section === 'peerDependencies' && manifest.peerDependenciesMeta?.[name]?.optional === true,
+        })
       }
     }
   }

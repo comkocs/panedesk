@@ -7,3 +7,4 @@ header:
   class: default
 workspace:
   final: true
+  home: outside-workspace

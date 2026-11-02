@@ -13821,6 +13821,19 @@
       }
     },
     {
+      "id": "optional-bundle-carrier-installed-isolation",
+      "description": "Installed product isolation admits optional bundles carried through the launcher's optional peer.",
+      "origin": "Optional bundles carried by @panedesk/full",
+      "reason": "The launcher's optional peer edge to @panedesk/full carries the optional bundles beside the default product, and the installed-product gate applies the same exception the source gate already declares.",
+      "match": {
+        "type": "product-development",
+        "paths": [
+          "scripts/optional-bundle-carriers.ts",
+          "scripts/release/installed-product-isolation.ts"
+        ]
+      }
+    },
+    {
       "id": "product-fork-scripts",
       "description": "Upstream files under scripts diverged by Panedesk product development.",
       "origin": "Panedesk product development since the upstream import",
@@ -14250,6 +14263,22 @@
           "packages/fs/tool-fs/tests/headless-approval.spec.ts",
           "packages/skill/tool-workspace-dependencies/tests/tool-workspace-dependencies.spec.ts",
           "tsconfig.host.json"
+        ]
+      }
+    },
+    {
+      "id": "m8c-k1-ci-replay-fixtures",
+      "description": "Link the snapshot replay corpus into the workspace so replayed scenario fixtures resolve harness packages.",
+      "origin": "K1 integration replay fixture repair",
+      "reason": "Scenario runtime `.mjs` fixtures import workspace packages through real ESM resolution; registering `snapshots` as a workspace member links them on a clean checkout. Generated through pnpm install; suitable for upstream once the corpus ships as a package.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "pnpm-workspace.yaml",
+          "pnpm-lock.yaml",
+          "packages/test-support/session-snapshot/src/manifest.ts",
+          "snapshots/session/plugin-manager-mcp/session.v4.jsonl",
+          "packages/terminal/terminal-bash/src/sanitize.ts"
         ]
       }
     }

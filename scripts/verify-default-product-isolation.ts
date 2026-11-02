@@ -26,9 +26,9 @@ import {
 } from './verify-client-packages.ts'
 
 import { isExperimentalPackageName } from './experimental-package-policy.ts'
+import { OPTIONAL_BUNDLE_CARRIERS } from './optional-bundle-carriers.ts'
 // The independently published entry package owns platform-engine dependencies.
 const EXTERNAL_KIT_PACKAGES = new Set(['@deepseek-ai/libreoffice-kit'])
-const OPTIONAL_BUNDLE_CARRIERS = new Set(['@panedesk/full'])
 const PROFILE_SOURCE = 'packages/boot/app-boot/src/profile.ts'
 const PRESET_PATTERN = 'packages/bundle/web-app/presets/*.patch.yml'
 const RUNTIME_SECTIONS = ['dependencies', 'optionalDependencies', 'peerDependencies'] as const

@@ -389,11 +389,11 @@ function packageDirFromPatch(source: string, packageName: string): string | unde
  * profile. This mirrors `dsh plugin` while retaining the bare entry
  * name and package identity used by request metadata.
  */
-function linkProfilePackage(source: string, cwd: string, profile: string, packageName: string): void {
+function linkProfilePackage(source: string, home: string, profile: string, packageName: string): void {
   const packageDir = packageDirFromPatch(source, packageName)
   // The package may instead belong to the dsh installation; profile boot heals those links.
   if (packageDir === undefined) return
-  const link = join(cwd, '.panedesk', 'profiles', profile, 'node_modules', packageName)
+  const link = join(home, 'profiles', profile, 'node_modules', packageName)
   mkdirSync(dirname(link), { recursive: true })
   if (existsSync(link)) {
     if (realpathSync(link) !== packageDir) {
@@ -408,14 +408,16 @@ function linkProfilePackage(source: string, cwd: string, profile: string, packag
 /**
  * Copy one authored patch into the launch cwd with relative plugin names made absolute.
  * @param source - authored profile patch path.
- * @param cwd - isolated process cwd whose profile receives package links.
+ * @param cwd - isolated process cwd; the default home location for package links.
  * @param profile - profile whose local package lookup receives the test links.
  * @param targetDir - existing directory that owns the materialized patch.
  * @param index - stable patch ordinal used in the output filename.
+ * @param home - resolved product home that actually receives the package links.
  * @returns absolute materialized patch path.
  */
 export function materializeProfilePatch(
   source: string, cwd: string, profile: string, targetDir: string, index: number,
+  home: string = join(cwd, '.panedesk'),
 ): string {
   const parsed = yaml.load(readFileSync(source, 'utf8'), { schema: entryListSchema })
   if (!Array.isArray(parsed)) throw new Error(`snapshot profile patch must be a top-level array: ${source}`)
@@ -423,7 +425,7 @@ export function materializeProfilePatch(
   const baseDir = dirname(source)
   const resolveName = (value: string): string => {
     const packageName = barePackageName(value)
-    if (packageName !== undefined) linkProfilePackage(source, cwd, profile, packageName)
+    if (packageName !== undefined) linkProfilePackage(source, home, profile, packageName)
     return value.startsWith('./') || value.startsWith('../')
       ? pathToFileURL(resolve(baseDir, value)).href
       : value

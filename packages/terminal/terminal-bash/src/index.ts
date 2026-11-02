@@ -185,18 +185,34 @@ async function rejectAfterStartupCleanup(error: unknown, cleanup: () => Promise<
 export class BashTerminalBackend implements TerminalBackend {
   readonly type: string
 
+  private readonly ctx: Context
+  private readonly config: ResolvedConfig
+  private readonly spawnTerminal: (
+    spec: SubprocessTerminalSpawnSpec,
+  ) => Promise<SubprocessTerminalHandle>
+  private readonly createSession: (
+    terminal: SubprocessTerminalHandle,
+    config: ResolvedConfig,
+    assertInputPolicy: () => void,
+  ) => LocalPtySession
+
   constructor(
-    private readonly ctx: Context,
-    private readonly config: ResolvedConfig,
-    private readonly spawnTerminal: (
+    ctx: Context,
+    config: ResolvedConfig,
+    spawnTerminal?: (
       spec: SubprocessTerminalSpawnSpec,
-    ) => Promise<SubprocessTerminalHandle> = spec => ctx.subprocess.spawnTerminal(spec),
-    private readonly createSession: (
+    ) => Promise<SubprocessTerminalHandle>,
+    createSession?: (
       terminal: SubprocessTerminalHandle,
       config: ResolvedConfig,
       assertInputPolicy: () => void,
-    ) => LocalPtySession = (terminal, config, assertInputPolicy) => new LocalPtySession(terminal, config, assertInputPolicy),
+    ) => LocalPtySession,
   ) {
+    this.ctx = ctx
+    this.config = config
+    this.spawnTerminal = spawnTerminal ?? (spec => ctx.subprocess.spawnTerminal(spec))
+    this.createSession = createSession
+      ?? ((terminal, config, assertInputPolicy) => new LocalPtySession(terminal, config, assertInputPolicy))
     this.type = config.backendType
   }
 

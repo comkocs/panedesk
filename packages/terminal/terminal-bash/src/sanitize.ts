@@ -28,7 +28,11 @@ export class TerminalSanitizer {
   private trailingCarriageReturn = false
   private trackingPromptTail = false
 
-  constructor(private readonly maxPendingBytes: number) {}
+  private readonly maxPendingBytes: number
+
+  constructor(maxPendingBytes: number) {
+    this.maxPendingBytes = maxPendingBytes
+  }
 
   /**
    * Consume one decoded `node-pty` data chunk.

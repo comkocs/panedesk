@@ -13,6 +13,10 @@ packages:
   # Deploy root of the single-exe build: a pure dependency manifest whose
   # closure is what the exe bundles and what the Python runtime distributes.
   - python/sdk-runtime
+  # Scenario replay corpus: its runtime fixture `.mjs` modules are loaded by
+  # replayed child processes through real ESM resolution, so the corpus itself
+  # must be a workspace member to link the packages those fixtures import.
+  - snapshots
 
 overrides:
   'extract-zip>yauzl': '3.4.0'
