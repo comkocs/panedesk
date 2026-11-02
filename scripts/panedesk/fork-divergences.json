@@ -14042,7 +14042,7 @@
       "id": "windows-workspace-write-owner-confirmation",
       "description": "Windows read-only defaults and owner-managed workspace write access",
       "origin": "Windows sandbox safety and approval integration",
-      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
+      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, omit overlapping writable temporary roots from native profiles, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [

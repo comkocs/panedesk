@@ -52,7 +52,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 With the provider mounted, a command runs under the mode you resolve per call. Enforcement is a reported fact, not a promise: `full` means the backend governs every promised file effect, while `partial` means it governs only a subset — the Windows ACL rung (hard-link, unconfined-read, and AppContainer-ACL boundaries) and older Landlock ABIs are the current partial cases, so a consumer that requires an absolute boundary can reject or surface them. Denied file effects surface through the backend's denial dialect, and a runner that fails before executing the command reports a structured runner-failure signature.
 
-For [protected host inputs](../sandbox-policy/README.md#protected-host-inputs), confinement combines the supplied paths with the current local policy. Bubblewrap binds existing protected inputs read-only, never their ancestors. A missing input that overlaps a writable root rejects the grant; otherwise the read-only filesystem root protects it. Seatbelt adds write denials. Landlock omits a shared temporary-root grant when it overlaps a protected input and refuses an overlapping workspace grant. Windows refuses overlapping workspace grants before creating ACLs. These checks do not revoke existing processes or open handles when the protected set changes.
+For [protected host inputs](../sandbox-policy/README.md#protected-host-inputs), confinement combines the supplied paths with the current local policy. Bubblewrap binds existing protected inputs read-only, never their ancestors. Bubblewrap, Seatbelt, and Landlock omit shared temporary-root writes when they overlap a protected input and reject overlapping workspace grants. Missing inputs outside writable roots remain protected by the read-only default. Seatbelt also adds explicit write denials. Windows refuses overlapping workspace grants before creating ACLs. These checks do not revoke existing processes or open handles when the protected set changes.
 
 ### Windows workspace revocation
 
@@ -80,11 +80,11 @@ Selection is by platform first, probes second: each platform has a runner chain 
 
 ### Platform profiles
 
-The bwrap profile combines a read-only host root, a fresh `/dev`, and `/proc` from a private PID namespace — commands manage their descendants but cannot see host processes, so procfs magic links cannot bypass the mounts; `workspace-write` adds an ephemeral `/tmp` and a writable workspace bind. The [historical private-PID note](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md) records the boundary.
+The bwrap profile combines a read-only host root, a fresh `/dev`, and `/proc` from a private PID namespace — commands manage their descendants but cannot see host processes, so procfs magic links cannot bypass the mounts; `workspace-write` adds a writable workspace bind and, when it does not overlap protected inputs, an ephemeral `/tmp`. The [historical private-PID note](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md) records the boundary.
 
 The `@panedesk/node-addon-system/landlock-run` API supplies the platform launcher, functional probe, and grant vocabulary; this provider maps mode to grants only, keeping path resolution and probe parsing with the versioned binary.
 
-The Seatbelt profile is allow-default with `(deny file-write*)` plus write allow-lists derived from the shared `writableRoots` helper, so exactly the mode's promised file effects are governed; every root is canonicalized because Seatbelt matches resolved paths (`/tmp` IS `/private/tmp`).
+The Seatbelt profile is allow-default with `(deny file-write*)` plus write allow-lists derived from `writableRoots` after excluding protected-root overlaps; every root is canonicalized because Seatbelt matches resolved paths (`/tmp` IS `/private/tmp`).
 
 The Windows rung keeps one deterministic write SID and standing ACE per workspace, while every live session/workspace pair gets a random private temp directory with a distinct SID and revocable ACE — sessions sharing a workspace share its intended write authority without inheriting one another's temp authority. A fresh provider always chooses a new temp path and SID, so crash residue cannot block or authorize a resumed session. The rung reports `partial` enforcement because NTFS hard links alias one file object across paths, reads stay unconfined, and a tree another AppContainer tool has ACL'd with a package SID is unreadable to the Low-integrity child.
 

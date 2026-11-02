@@ -15,7 +15,7 @@ Windows 缺省为 `read-only`；Linux 和 macOS 保持 `workspace-write`。显�
 
 Windows 隐式默认模式不允许激活动态 Cordis 包，包括浏览器面板启动和此前批准过的版本。同进程 Host 与同源 Client 代码可触达 owner 审批能力。目录写权限不会启用动态代码；检查和定义存储仍可用。
 
-受沙盒约束的写入排除运行宿主的 profile、配置、插件输入与热加载根。工作区授权不能包含这些路径；无关的插件开发项目与源码克隆仍可写。保护包括活动配置监听及经符号链接前缀访问的缺失输入。权限收紧不终止既有进程与句柄；新调用即刻按新策略走。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
+受沙盒约束的写入排除运行宿主的 profile、配置、插件输入与热加载根。工作区授权不能包含这些路径；无关的插件开发项目与源码克隆仍可写。保护包括活动配置监听及经符号链接前缀访问的缺失输入。重叠的临时根写授权被省略；输出请使用工作区。权限收紧不终止既有进程与句柄；新调用即刻按新策略走。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
 
 ## 迁移
 
@@ -25,4 +25,4 @@ Windows 隐式默认模式不允许激活动态 Cordis 包，包括浏览器面�
 4. 撤销失败时，请在设置中重试。持久撤销标记会阻止按目录授权，直到清理成功。显式部署或会话模式仍独立生效；如需只读运行，必须另行移除这些模式覆盖。
 5. 保持隐式默认值即可禁用动态 Cordis 激活。显式部署模式不等于允许模型安装插件：每次 `plugin_manager` 变更现在都询问经认证的 owner，即使在 `danger-full-access` 下也如此。清单读取保留原权限检查。从运行过动态代码的部署返回隐式默认值时，建议重启 Host 并重新加载已连接页面，以清理运行状态；这不是首次写确认的前提。
 
-当前行为与限制见[策略参考](../../../../packages/sandbox/sandbox-policy/README.zh.md)及[权限设置参考](../../../../packages/client/ui-permission-presets/README.zh.md)。
+见[策略](../../../../packages/sandbox/sandbox-policy/README.zh.md)及[权限设置](../../../../packages/client/ui-permission-presets/README.zh.md)。

@@ -17,13 +17,15 @@ import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent']
   if (policy.mode === 'workspace-write') {
-    args.push('--tmpfs', '/tmp')
+    const temporary = !(policy.protectedPaths ?? []).some(path => rootsOverlap('/tmp', path))
+    assertUnprotectedRoots([policy.workspaceRoot], policy.protectedPaths)
+    if (temporary) args.push('--tmpfs', '/tmp')
     args.push('--bind', policy.workspaceRoot, policy.workspaceRoot)
     for (const input of policy.protectedPaths ?? []) {
       const path = canonicalPath(input)
       if (!existsSync(path)) {
         // A missing input outside writable mounts is already protected by the root mount.
-        assertUnprotectedRoots([policy.workspaceRoot, '/tmp'], [path])
+        assertUnprotectedRoots([policy.workspaceRoot, ...temporary ? ['/tmp'] : []], [path])
         continue
       }
       args.push('--ro-bind', path, path)
@@ -54,16 +56,16 @@ function sbplString(path: string): string {
 }
 
 /**
- * Build the sandbox-exec arguments and SBPL profile for one policy. The
- * writable roots come from the shared {@link writableRoots} helper (canonical,
- * deduplicated) so the Seatbelt grant and the in-process fs fence
- * (`@panedesk/dsh-fs-sandbox`) can never drift apart.
+ * Build the sandbox-exec arguments and SBPL profile for one policy.
+ * Shared temporary roots overlapping host inputs are omitted; an overlapping
+ * workspace is rejected before handing a writable profile to the runner.
  * @param policy - file-effect policy to express as an SBPL profile.
  * @returns sandbox-exec arguments before the trailing separator and command argv.
  */
 export function seatbeltProfileArgs(policy: SandboxPolicy): string[] {
   const forms = ['(version 1)', '(allow default)', '(deny file-write*)', `(allow file-write* (literal ${sbplString('/dev/null')}))`]
-  const roots = writableRoots(policy)
+  if (policy.mode === 'workspace-write') assertUnprotectedRoots([policy.workspaceRoot], policy.protectedPaths)
+  const roots = writableRoots(policy).filter(root => !(policy.protectedPaths ?? []).some(path => rootsOverlap(root, path)))
   if (roots.length > 0) {
     forms.push(`(allow file-write* ${roots.map(root => `(subpath ${sbplString(root)})`).join(' ')})`)
   }
