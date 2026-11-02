@@ -36,7 +36,7 @@ it.each(['linux', 'darwin'])('keeps ordinary workspace writes while protecting n
   }
 })
 
-it.each(['linux', 'darwin'])('retains a protected symlink name against replacement on %s', async (platform) => {
+it.each(['linux', 'darwin'])('protects a linked input target with executable platform parameters on %s', async (platform) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-link-'))
   const workspace = join(root, 'project')
   const target = join(root, 'owner.yml')
@@ -54,7 +54,10 @@ it.each(['linux', 'darwin'])('retains a protected symlink name against replaceme
     mode: 'workspace-write', workspaceRoot: workspace, protectedPaths: [alias, target],
   })
   if (platform === 'linux') {
-    expect(handed.argv.join('\n')).toContain(['--ro-bind', target, alias].join('\n'))
+    expect(handed.argv.slice(1, 4)).toEqual(['--ro-bind', '/', '/'])
+    expect(handed.argv).not.toContain(alias)
+    expect(handed.argv).not.toContain(target)
+    expect(handed.argv.join('\n')).toContain(['--bind', workspace, workspace].join('\n'))
   } else {
     expect(handed.argv[2]).toContain(`(deny file-write* (subpath ${JSON.stringify(alias)}))`)
     expect(handed.argv[2]).toContain(`(deny file-write* (subpath ${JSON.stringify(target)}))`)

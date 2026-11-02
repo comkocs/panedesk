@@ -46,9 +46,15 @@ for (const platform of ['linux', 'darwin', 'win32']) for (const effect of effect
     const text = handed.argv.join('\n')
     if (platform === 'linux') {
       expect(text).toContain(['--bind', workspace, workspace].join('\n'))
-      expect(text).toContain(['--bind', parent, parent].join('\n'))
-      if (effect === 'create absent input') expect(text).toContain(['--tmpfs', input, '--remount-ro', input].join('\n'))
-      else expect(text).toContain(['--ro-bind', effect === 'replace symlink/junction' ? join(root, 'owner.yml') : input, input].join('\n'))
+      if (effect === 'replace symlink/junction') {
+        expect(handed.argv.slice(1, 4)).toEqual(['--ro-bind', '/', '/'])
+        expect(handed.argv).not.toContain(input)
+        expect(handed.argv).not.toContain(join(root, 'owner.yml'))
+      } else {
+        expect(text).toContain(['--bind', parent, parent].join('\n'))
+        if (effect === 'create absent input') expect(text).toContain(['--tmpfs', input, '--remount-ro', input].join('\n'))
+        else expect(text).toContain(['--ro-bind', input, input].join('\n'))
+      }
     } else if (platform === 'darwin') {
       expect(handed.argv[2]).toContain(`(allow file-write* (subpath ${JSON.stringify(workspace)}))`)
       expect(handed.argv[2]).toContain(`(deny file-write* (subpath ${JSON.stringify(input)}))`)

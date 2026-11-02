@@ -5,7 +5,7 @@
  */
 
 import { grantArgs as landlockGrantArgs } from '@panedesk/node-addon-system/landlock-run'
-import { existsSync } from 'node:fs'
+import { existsSync, lstatSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { assertUnprotectedRoots, canonicalPath, rootsOverlap, writableRoots } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
@@ -26,27 +26,58 @@ function protectedParents(root: string, path: string): string[] {
   return parents
 }
 
+/** Unresolvable names and link replacements require host-side input validation. */
+function mountPath(path: string): string | undefined {
+  let canonical: string
+  try { canonical = canonicalPath(path) }
+  catch (error) {
+    // An inaccessible or cyclic input must not make unrelated commands unavailable.
+    if ((error as NodeJS.ErrnoException).code === undefined) throw error
+    return undefined
+  }
+  for (let prefix = canonical; ; prefix = dirname(prefix)) {
+    let stat
+    try { stat = lstatSync(prefix) }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT') return undefined
+    }
+    // canonicalPath preserves a dangling link's spelling when realpath cannot resolve it.
+    if (stat?.isSymbolicLink()) return undefined
+    if (stat !== undefined && prefix === canonical && !stat.isFile() && !stat.isDirectory()) return undefined
+    if (dirname(prefix) === prefix) return canonical
+  }
+}
+
 /**
  * Build the bwrap profile arguments for one file-effect policy.
+ * Mount destinations use real paths; unrepresentable inputs and link-name changes
+ * require host-side validation rather than a profile that prevents all commands.
  * @param policy - file-effect policy to express as bwrap mounts.
  * @returns profile arguments before the trailing separator and command argv.
  */
 export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent']
   if (policy.mode === 'workspace-write') {
-    const temporary = !(policy.protectedPaths ?? []).some(path => rootsOverlap('/tmp', path))
+    const workspace = canonicalPath(policy.workspaceRoot)
+    const protectedPaths = policy.protectedPaths ?? []
+    const canonical = protectedPaths.map(mountPath).filter(path => path !== undefined)
+    const temporary = ![...protectedPaths.map(path => resolve(path)), ...canonical]
+      .some(path => contains('/tmp', path) || contains(path, '/tmp'))
     if (temporary) args.push('--tmpfs', '/tmp')
-    args.push('--bind', policy.workspaceRoot, policy.workspaceRoot)
-    const paths = [...new Set((policy.protectedPaths ?? []).flatMap(path => [resolve(path), canonicalPath(path)]))]
-    const parents = [...new Set(paths.flatMap(path => protectedParents(policy.workspaceRoot, path)))].sort((a, b) => a.length - b.length)
+    args.push('--bind', workspace, workspace)
+    const paths = [...new Set(canonical.flatMap(path => contains(path, workspace) ? [workspace] : contains(workspace, path) ? [path] : []))]
+      .sort((a, b) => a.length - b.length)
+      .filter((path, index, sorted) => !sorted.slice(0, index).some(parent => contains(parent, path)))
+    const parents = [...new Set(paths.flatMap(path => protectedParents(workspace, path)))].sort((a, b) => a.length - b.length)
     for (const parent of parents) {
       // A mount point cannot be renamed or unlinked, but its ordinary children remain writable.
       if (existsSync(parent)) args.push('--bind', parent, parent)
       else args.push('--tmpfs', parent)
     }
     for (const path of paths) {
-      if (existsSync(path)) args.push('--ro-bind', canonicalPath(path), path)
-      else if (contains(policy.workspaceRoot, path)) args.push('--tmpfs', path, '--remount-ro', path)
+      if (existsSync(path)) args.push('--ro-bind', path, path)
+      else args.push('--tmpfs', path, '--remount-ro', path)
     }
   }
   return args
