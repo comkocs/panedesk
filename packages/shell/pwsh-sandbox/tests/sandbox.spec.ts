@@ -19,6 +19,7 @@ import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { SandboxPolicyService } from '@panedesk/dsh-sandbox-policy'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import { SandboxPwshExecutor } from '../src/index.ts'
+import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { classifyRunnerFailure, isRunnerSpawnFailure, matchesSignature } from '../src/helpers.ts'
 import type { ShellExecSpec, ShellExecution, ShellRunResult } from '@panedesk/dsh-shell'
 
@@ -87,6 +88,23 @@ async function setup(
   await ctx.plugin(SandboxPwshExecutor, { graceMs: 200 })
   return { ctx, executor: ctx.shell as SandboxPwshExecutor, calls }
 }
+
+it.each(['kill', 'none'] as const)('refuses protected workspace roots before PowerShell %s can spawn', async (onExpiry) => {
+  const { ctx, executor } = await setup()
+  const providerContext = new Context()
+  await providerContext.plugin(LocalSandboxProvider, {})
+  const provider = providerContext.sandbox
+  if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
+  provider.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
+  const spawn = vi.spyOn(ctx.subprocess, 'spawn')
+  const confine = vi.spyOn(ctx.sandbox, 'confine').mockImplementation((argv, policy, signal) => provider.confine(argv, policy, signal))
+  try {
+    await expect(executor.execute(executor.resolve({ command: 'Set-Content plugin.mjs plugin', onExpiry,
+      sandboxPolicy: { mode: 'workspace-write', workspaceRoot: spillDir, protectedPaths: [join(spillDir, 'plugin.mjs')] },
+    }))).rejects.toThrow('protected host path')
+    expect(spawn).not.toHaveBeenCalled()
+  } finally { confine.mockRestore(); spawn.mockRestore(); await ctx.fiber.dispose(); await providerContext.fiber.dispose() }
+})
 
 describe('helpers (pure)', () => {
   const workdir = mkdtempSync(join(tmpdir(), 'dsh-pwsh-sandbox-helpers-'))

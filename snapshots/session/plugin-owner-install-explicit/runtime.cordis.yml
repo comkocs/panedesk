@@ -1,0 +1,10 @@
+- id: sandbox-policy
+  disabled: true
+- id: approval
+  config:
+    policy: ask
+- insert:
+    - id: plugin-owner-runtime
+      name: '../plugin-owner-install-implicit/runtime.mjs'
+      config:
+        mode: workspace-write

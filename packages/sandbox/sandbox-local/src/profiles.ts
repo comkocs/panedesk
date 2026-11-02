@@ -5,7 +5,9 @@
  */
 
 import { grantArgs as landlockGrantArgs } from '@panedesk/node-addon-system/landlock-run'
-import { writableRoots } from '@panedesk/dsh-sandbox'
+import { existsSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { assertUnprotectedRoots, rootsOverlap, writableRoots } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 
 /**
@@ -18,6 +20,11 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   if (policy.mode === 'workspace-write') {
     args.push('--tmpfs', '/tmp')
     args.push('--bind', policy.workspaceRoot, policy.workspaceRoot)
+    for (const path of policy.protectedPaths ?? []) {
+      let existing = path
+      while (!existsSync(existing) && dirname(existing) !== existing) existing = dirname(existing)
+      args.push('--ro-bind', existing, existing)
+    }
   }
   return args
 }
@@ -30,7 +37,10 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
 export function landlockProfileArgs(policy: SandboxPolicy): string[] {
   const readWrite = ['/dev/null']
   if (policy.mode === 'workspace-write') {
-    readWrite.push('/tmp', policy.workspaceRoot)
+    // Landlock grants are additive: omit shared temp rather than denying an unrelated workspace.
+    if (!(policy.protectedPaths ?? []).some(path => rootsOverlap('/tmp', path))) readWrite.push('/tmp')
+    readWrite.push(policy.workspaceRoot)
+    assertUnprotectedRoots(readWrite, policy.protectedPaths)
   }
   return landlockGrantArgs({ readOnly: ['/'], readWrite })
 }
@@ -53,6 +63,9 @@ export function seatbeltProfileArgs(policy: SandboxPolicy): string[] {
   const roots = writableRoots(policy)
   if (roots.length > 0) {
     forms.push(`(allow file-write* ${roots.map(root => `(subpath ${sbplString(root)})`).join(' ')})`)
+  }
+  for (const path of policy.protectedPaths ?? []) {
+    forms.push(`(deny file-write* (subpath ${sbplString(path)}))`)
   }
   return ['-p', forms.join(' ')]
 }

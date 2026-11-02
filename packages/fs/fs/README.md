@@ -31,6 +31,8 @@ You rarely load `dsh-fs` directly: you mount a backend that registers as `ctx.fs
 
 Pick [`fs-local`](../fs-local/README.md) for ordinary host files or [`fs-sandbox`](../fs-sandbox/README.md) when a session's mutations must be confined to its workspace and temp roots. Mounting any backend populates `ctx.fs`; swapping backends changes nothing for the policy plugin, the tools, or the tool schemas. A composition that mounts no backend has no `ctx.fs` at all, and the tools fail at registration.
 
+Sandbox providers can attach a specific denial classification to `FsError`; consumers preserve actionable protected-path reasons. The [error taxonomy](../../../docs/subsystems/filesystem.md#error-taxonomy-provider-contract) defines the shared fields.
+
 ### What the service lets you do
 
 Through `ctx.fs` you can resolve any path to a stable target identity, read a whole text file or stream it in chunks, read raw bytes up to an explicit cap, list one directory level, atomically create or replace a file, and apply a literal text edit atomically. The version guard on both mutations is optional: omit it for unconditional create-or-overwrite, or supply it to fail when the file changed since you last observed it. Read, listing, and mutation failures are typed `FsError`s with stable codes such as `FS_NOT_FOUND`, `FS_STALE_VERSION`, or `FS_AMBIGUOUS_EDIT`, so callers branch on the code, never on message text.

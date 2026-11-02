@@ -15,6 +15,8 @@ description: 未显式选择权限模式的 Windows 部署现在以只读模式�
 
 Windows 隐式默认模式不允许激活动态 Cordis 包，包括浏览器面板启动和此前批准过的版本。同进程 Host 与同源 Client 代码可触达 owner 审批能力。目录写权限不会启用动态代码；检查和定义存储仍可用。
 
+受沙盒约束的写入排除运行宿主的 profile、配置、插件输入与热加载根。工作区授权不能包含这些路径；无关的插件开发项目与源码克隆仍可写。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
+
 ## 迁移
 
 1. 不设置模式即可使用 Windows 只读缺省值。若不再需要之前配置的 `PANEDESK_PERMISSION_MODE=workspace-write`，请删除该覆盖。已有显式会话模式也优先于目录授权。

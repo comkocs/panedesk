@@ -29,6 +29,8 @@ This nonexperimental standalone plugin is intended for custom compositions. It i
 
 Mount the tool alongside a `ctx.fs` backend (and, for guarded mutations, the policy plugin) when the model should edit files through the familiar `view`/`create`/`str_replace`/`insert` command vocabulary on absolute paths.
 
+A `protected-host-path` refusal retains the filesystem provider's specific reason rather than the generic mode-escalation hint. See [protected host inputs](../../sandbox/sandbox-policy/README.md#protected-host-inputs).
+
 ### Minimal composition
 
 A backend, optionally the policy plugin, then the tool; the editor composes with any terminal surface.

@@ -79,6 +79,8 @@ kind: "package-reference"
 
 采用 Windows 隐式缺省且无目录同意记录时，`write` 与 `edit` 在变更前请求[工作区授权](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)。允许后保存目录授权；其他结果保持只读，并提示所有者前往「设置 > 通用 > Windows 工作区写权限」。无人值守任务不能自行授予权限。普通工具结果会将拒绝指引持久化到 Session，并在工具详情中显示；显式选择的会话只读模式仍优先于目录授权。
 
+`protected-host-path` 拒绝保留文件系统提供方的具体原因，而不是通用模式提权指引；工作区同意不授权写入运行宿主的输入。
+
 ### 失败与恢复
 
 失败被规范化为 `Error: <message>`，并为调用方保留结构化错误码。稳定消息包括 `file_path must be a non-empty string`、`limit must be less than or equal to <max>`、`cannot read "<path>": not found`、`cannot read "<path>": not a regular file`，以及图像路由拒绝 `cannot read "<path>" as an image: model "<model>" does not declare image input; switch to an image-capable model to read images`。无论拒绝来自策略还是提供方，`FS_NOT_OBSERVED` 都规范化为 `cannot modify "<path>": file has not been read — read the file, then retry`；`FS_STALE_VERSION` 保留提供方原因并追加 `— re-read the file, then retry`。该次重新读取确认缺失后，`edit` 报告 `FS_NOT_FOUND` 而不会重复陈旧恢复指令，`write` 则使用防护创建。

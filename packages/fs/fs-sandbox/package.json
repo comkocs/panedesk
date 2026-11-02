@@ -36,6 +36,7 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-fs-local": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",

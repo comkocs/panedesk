@@ -47,6 +47,8 @@ Main-process profiles publish immutable `ctx.kernelStatus.snapshot()` observatio
 <a id="profiles"></a>
 ### Profiles
 
+`ProfileContext` retains the resolved overlay file paths and the bundle manifests and patches read during this process. The [sandbox policy](../../sandbox/sandbox-policy/README.md#protected-host-inputs) uses these actual inputs rather than classifying unrelated source trees as plugins.
+
 The opt-in `seat` template composes `dsh-base` with [seat-app](../../seat/seat-app/README.md). Existing templates are unchanged; selecting `seat` does not install a system service, and its engine entry remains disabled until deployment policy is supplied explicitly.
 
 Import profile and bundle declaration types from [`@panedesk/dsh-package-manifest`](../../util/package-manifest/README.md). App-boot adapts `DshPackageManifest` to `ProfileManifest` with optional package identity because local profiles need no published version. App-boot owns profile loading, JSON validation, and resolved runtime data.

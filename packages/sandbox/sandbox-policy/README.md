@@ -60,6 +60,12 @@ Under the implicit Windows default, a valid authorization in the product home's 
 
 `writeDenialHint(mode)` supplies owner preauthorization guidance for settled read-only denials under the implicit Windows default. Filesystem and command tools retain it in their ordinary results; other platforms, explicit deployment modes, and wider settled modes receive no replacement hint.
 
+### Protected host inputs
+
+`resolve()` collects `protectedPaths` from the running profile, home patch and authorization records, bundle manifests and patches read by boot, command-line overlays, imported plugin directories, Host HMR roots, and Client artifact directories. It does not inspect unrelated workspaces for plugin-like files. Confined filesystem writes reject overlapping paths; local process providers exclude protected inputs or refuse a workspace grant that includes them. Windows record creation and locked ACL materialization reject overlapping roots. `danger-full-access` retains the host user's write authority; plugin management still requires separate owner consent.
+
+Protection is checked at operation admission. A changed set prevents reuse of a retained Node kernel or terminal on its next call, but does not terminate already-running processes or invalidate open handles. Host paths are local filesystem identities, not a declaration of remote SSH paths.
+
 ### Failures and recovery
 
 An invalid configured mode is rejected when the plugin loads, so a typo fails loud instead of silently changing policy. A session without a cwd, and agentless calls, fall back to the configured workspace root; a call with an approved explicit mode uses that mode for exactly that call.

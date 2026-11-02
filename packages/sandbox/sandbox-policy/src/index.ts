@@ -36,6 +36,7 @@ import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { resolveEffectivePermissionMode } from './effective-mode.ts'
 import type { EffectivePermissionMode } from './effective-mode.ts'
 import { WorkspaceWriteAccess } from './workspace-access.ts'
+import { resolveProtectedPaths } from './protected-paths.ts'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 export { resolveEffectivePermissionMode } from './effective-mode.ts'
@@ -143,7 +144,7 @@ export class SandboxPolicyService extends Service {
     this.defaultMode = effective.mode
     this.defaultSource = effective.source
     this.windowsDefault = process.platform === 'win32' && effective.source === 'default'
-    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome())
+    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome(), () => resolveProtectedPaths(this.ctx))
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 
     ctx.sessionProjections.register({
@@ -175,7 +176,7 @@ export class SandboxPolicyService extends Service {
    * configured root is the fallback for agentless calls and sessions without a
    * cwd.
    * @param request - optional session and approved mode override.
-   * @returns the fully resolved per-call mode and absolute workspace root.
+   * @returns The per-call mode, absolute workspace root, and current protected host inputs when present.
    */
   resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy {
     const { session } = request
@@ -183,9 +184,11 @@ export class SandboxPolicyService extends Service {
     const explicit = request.mode ?? (session === undefined ? undefined : this.overrideOf(session))
     const mode = explicit ?? (this.windowsDefault && this.workspaceAccess.isAuthorized(workspaceRoot)
       ? 'workspace-write' : this.defaultMode)
+    const protectedPaths = resolveProtectedPaths(this.ctx)
     return {
       mode,
       workspaceRoot,
+      ...protectedPaths.length === 0 ? {} : { protectedPaths },
       ...session === undefined ? {} : { sessionId: session.id },
       ...this.windowsDefault && explicit === undefined && mode === 'workspace-write'
         ? { requiresWorkspaceAuthorization: true as const } : {},
@@ -208,6 +211,7 @@ export class SandboxPolicyService extends Service {
       || (session !== undefined && this.overrideOf(session) !== undefined)) return policy
     const approval = this.ctx.get('approval')
     if (request.agent === undefined || approval === undefined) return policy
+    if ((approval.overrideOf(request.agent.session) ?? approval.config.policy) === 'never') return policy
     const workspace = this.workspaceAccess.canonical(policy.workspaceRoot)
     const outcome = await approval.request({
       ...request, agent: request.agent,

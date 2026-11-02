@@ -25,6 +25,10 @@ export interface ProfileContext {
   readonly startedBundles: readonly string[]
   /** Parsed command-line overlays, applied above profile and home patches. */
   readonly overlays: readonly PatchOptions[]
+  /** Command-line patch files read at launch; their parsed contents remain frozen. */
+  readonly overlayPaths?: readonly string[]
+  /** Bundle manifests and patches read by this process, retained across recompositions. */
+  bundleInputPaths?: readonly string[]
   /** Launch-time PANEDESK_TELEMETRY_DISABLED value; any non-empty value opts out. */
   readonly telemetryDisabledEnv: string | undefined
 }
@@ -62,6 +66,10 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
  */
 export function readBundlePatches(binName: string, context: ProfileContext, initialProfile?: Profile): PatchOptions[] {
   const profile = initialProfile ?? loadProfileDirectory(binName, context.dir, context.installAnchor, { userLayer: false })
+  context.bundleInputPaths = [...new Set([
+    ...context.bundleInputPaths ?? [],
+    ...profile.layers.flatMap(layer => [join(layer.packageDir, 'package.json'), ...layer.patchPaths]),
+  ])]
   return profile.layers.flatMap(layer => layer.patches)
 }
 

@@ -24,6 +24,16 @@ import * as operations from '../src/operations.ts'
 import * as githubConnection from '../src/github-connection.ts'
 import { parse, parseDocument } from 'yaml'
 import { isolateGitCommandLineConfig } from './git-environment.ts'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
+import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import ApprovalService, { type ApprovalOutcome } from '@panedesk/dsh-user-approval'
+import { SessionId } from '@panedesk/dsh-session'
+import { ToolCallId } from '@panedesk/dsh-llm'
+import * as ManagerTool from '../src/tools.ts'
+import SandboxedFileSystem from '@panedesk/dsh-fs-sandbox'
+import * as ToolFs from '@panedesk/dsh-tool-fs'
+import * as StrReplaceEditor from '@panedesk/dsh-tool-str-replace-editor'
 
 // These cases install through real Git and pnpm, so the host's command-line configuration group must not reach their children.
 let restoreGitCommandLineConfig: () => void
@@ -515,6 +525,134 @@ it('refuses self-disable, unknown entries and removal of installation-owned bund
   expect(await manager.removeBundle('core')).toMatchObject({ changed: false, application: 'failed', error: { code: 'not-removable' } })
   // A name no bundle directory answers to fails with the resolver's own diagnostic.
   expect(await manager.setBundleEnabled('unknown', true)).toMatchObject({ changed: false, application: 'failed', error: { code: 'operation-error' } })
+})
+
+for (const implicit of [false, true]) for (const tool of ['write', 'edit', 'str_replace_editor']) {
+  for (const location of ['profile patch', 'home patch', 'bundle manifest', 'plugin source', 'host watch', 'plugin development', 'source clone']) {
+    const unrelated = location === 'plugin development' || location === 'source clone'
+    it(`${unrelated ? 'allows' : 'denies'} ${tool} at ${location} without Loader changes, implicit Windows: ${implicit}`, async () => {
+      const { ctx, dir, profile, manager, stopHmr } = await fixture()
+      const workspace = join(profile.home, 'independent-project')
+      mkdirSync(workspace)
+      const hostRoot = join(profile.home, 'watched-host')
+      if (location === 'host watch') {
+        mkdirSync(hostRoot)
+        writeFileSync(join(hostRoot, 'plugin.mjs'), 'export function apply() {}\n')
+        await ctx.loader.create({ name: pathToFileURL(join(hostRoot, 'plugin.mjs')).href })
+        await ctx.loader.await()
+        await stopHmr()
+        await ctx.plugin(Hmr, { root: [hostRoot], ignored: [], debounce: 0 })
+      }
+      if (unrelated) {
+        writeFileSync(join(workspace, 'package.json'), JSON.stringify({ name: location === 'source clone' ? 'panedesk-monorepo' : 'unloaded-addon', dsh: { bundle: { patch: './cordis.patch.yml' } } }))
+        writeFileSync(join(workspace, 'cordis.patch.yml'), '[{"insert":[{"name":"./plugin.mjs"}]}]\n')
+      }
+      await mountAgentLoopTestDependencies(ctx)
+      provideWorkingDirectoryFixture(ctx)
+      vi.stubEnv('PANEDESK_HOME', profile.home)
+      vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+      onTestFinished(() => { vi.unstubAllEnvs() })
+      const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+      try {
+        await ctx.plugin(SandboxPolicy, { workspaceRoot: workspace, ...implicit ? {} : { mode: 'workspace-write' } })
+      } finally { platform.mockRestore() }
+      await ctx.plugin(ApprovalService, { policy: 'ask' })
+      await ctx.plugin(SandboxedFileSystem, { cwd: workspace })
+      Object.assign(ctx.loader.builtins, { fileTools: ToolFs, editorTool: StrReplaceEditor })
+      await ctx.loader.create({ name: 'cordis:fileTools' })
+      await ctx.loader.create({ name: 'cordis:editorTool' })
+      await ctx.loader.await()
+      const harness = await mountAgentLoopTestHarness(ctx)
+      const agent = await harness.create(SessionId('protected-plugin-write'), {}, { cwd: workspace })
+      agent.session.append('turn/start', { turn: 1 })
+      const asked = vi.fn(async () => 'allowed-once' as const)
+      await ownerAnswer(ctx, asked)
+      if (implicit) {
+        expect((await ctx.sandboxPolicy.requestWrite({ agent, toolName: 'write' })).mode).toBe('workspace-write')
+        expect(asked).toHaveBeenCalledOnce()
+      }
+      const target = location === 'host watch' ? join(hostRoot, 'plugin.mjs')
+        : unrelated ? join(workspace, 'plugin.mjs') : location === 'profile patch' ? profile.patchPath
+          : location === 'home patch' ? join(profile.home, 'cordis.patch.yml')
+            : location === 'bundle manifest' ? join(dir, 'package.json')
+              : join(dir, 'node_modules', 'extra', 'plugin.mjs')
+      if (!existsSync(target)) writeFileSync(target, '[]\n')
+      const original = readFileSync(target, 'utf8')
+      const payload = unrelated || location === 'plugin source' || location === 'host watch' ? 'export function apply(ctx) { ctx.provide("modelInstalledProbe", true) }\n'
+        : location === 'bundle manifest' ? JSON.stringify({ name: 'model-owned', dsh: { profile: { bundles: [] } } })
+          : JSON.stringify([{ id: 'managed', disabled: true }])
+      const plugins = await manager.listPlugins()
+      const bundles = await manager.listBundles()
+      const recompose = vi.spyOn(ctx.hmr, 'reconcileProfile')
+      onTestFinished(() => { recompose.mockRestore() })
+      const args = tool === 'write' ? { file_path: target, content: payload }
+        : tool === 'edit' ? { file_path: target, old_string: original, new_string: payload }
+          : { command: 'str_replace', path: target, old_str: original, new_str: payload }
+      const result = await ctx.tools.execute({ name: tool, arguments: args, agent,
+        callId: ToolCallId('protected-write'), signal: new AbortController().signal })
+      if (unrelated) {
+        expect(result.isError).not.toBe(true)
+        expect(readFileSync(target, 'utf8')).toBe(payload)
+      } else {
+        expect(result.isError).toBe(true)
+        expect(result.content.some(part => part.type === 'text' && part.text.includes('protected host path'))).toBe(true)
+        expect(readFileSync(target, 'utf8')).toBe(original)
+      }
+      await ctx.hmr.runExclusive(async () => {})
+      expect(recompose).not.toHaveBeenCalled()
+      expect(await manager.listPlugins()).toEqual(plugins)
+      expect(await manager.listBundles()).toEqual(bundles)
+    })
+  }
+}
+
+it.each([false, true])('waits for owner refusal and approval before real Loader installation, implicit Windows: %s', async (implicit) => {
+  const { ctx, dir, manager, bundle } = await fixture()
+  await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
+  vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+  onTestFinished(() => { vi.unstubAllEnvs() })
+  const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+  try {
+    await ctx.plugin(SandboxPolicy, { workspaceRoot: dir, ...implicit ? {} : { mode: 'workspace-write' } })
+  } finally { platform.mockRestore() }
+  await ctx.plugin(ApprovalService, { policy: 'ask' })
+  const harness = await mountAgentLoopTestHarness(ctx)
+  const agent = await harness.create(SessionId('owner-plugin-install'))
+  agent.session.append('turn/start', { turn: 1 })
+  ctx.loader.builtins.managerTool = ManagerTool
+  await ctx.loader.create({ name: 'cordis:managerTool' })
+  await ctx.loader.await()
+  const install = vi.spyOn(operations, 'runProfilePnpm').mockImplementation(async () => {
+    bundle('owner-addon', [{ id: 'owner-addon', name: './plugin.mjs', config: { service: 'ownerAddonProbe' } }])
+    const manifest = readProfileManifest('test', dir)
+    manifest.dependencies = { ...manifest.dependencies, 'owner-addon': '1.0.0' }
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+    return { exitCode: 0, output: 'installed', truncated: false, logPath: join(dir, 'pnpm.log') }
+  })
+  onTestFinished(() => { install.mockRestore() })
+  let answer = Promise.withResolvers<ApprovalOutcome>()
+  const asked = vi.fn(() => answer.promise)
+  await ownerAnswer(ctx, asked)
+  const call = () => ctx.tools.execute({ name: 'plugin_manager', arguments: { action: 'install_bundle', target: 'owner-addon' },
+    agent, callId: ToolCallId('owner-install'), signal: new AbortController().signal })
+  const before = readFileSync(join(dir, 'package.json'), 'utf8')
+  const rejected = call()
+  await vi.waitFor(() => { expect(asked).toHaveBeenCalledTimes(1) })
+  expect(install).not.toHaveBeenCalled()
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
+  answer.resolve('rejected')
+  expect((await rejected).isError).toBe(true)
+  expect(install).not.toHaveBeenCalled()
+  answer = Promise.withResolvers<ApprovalOutcome>()
+  const allowed = call()
+  await vi.waitFor(() => { expect(asked).toHaveBeenCalledTimes(2) })
+  expect(install).not.toHaveBeenCalled()
+  answer.resolve('allowed-once')
+  expect((await allowed).isError).toBe(false)
+  expect(install).toHaveBeenCalledOnce()
+  expect((await manager.listBundles()).find(row => row.name === 'owner-addon')?.enabled).toBe(true)
+  expect((await manager.listPlugins()).find(row => row.patchId === 'owner-addon')?.fiberPhase).toBe('active')
 })
 
 it('installs only valid bundle declarations and honors installation without activation', async () => {

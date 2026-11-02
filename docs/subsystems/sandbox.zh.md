@@ -53,6 +53,8 @@ interface SandboxExecutionPolicy {
   mode: SandboxMode
   /** Absolute root directory `workspace-write` may write under. */
   workspaceRoot: string
+  /** Current host executable-input roots, excluded from confined writes; absent means no registered host inputs. */
+  protectedPaths?: readonly string[]
   /**
    * Opaque identity of the calling session (the branded `dsh-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
@@ -226,7 +228,7 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
  * configured root is the fallback for agentless calls and sessions without a
  * cwd.
  * @param request - optional session and approved mode override.
- * @returns the fully resolved per-call mode and absolute workspace root.
+ * @returns The per-call mode, absolute workspace root, and current protected host inputs when present.
  */
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
 

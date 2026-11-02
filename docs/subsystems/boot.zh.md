@@ -30,6 +30,10 @@
 
 `MarketQuery` 选择索引的一页：模糊匹配的 `text`、一个 `category`、必须全部具备的 `labels`、一个 `MarketSort`、`offset`、不超过 100 的 `limit`、表示重新获取而不使用缓存文档的 `refresh`，以及用于继续读取同一文档后续页的 `fetchedAt`。`MarketSearchResult` 携带索引 URL、`title`、可选的 `description`、市场 `metadata`、该文档的 `fetchedAt`、本页的 `entries`、匹配总数 `total` 和 `nextOffset`。每个 `MarketListingEntry` 额外携带 `defaultVersion`，即默认安装的版本，以及 `installation`，即该包名在当前 profile 中的状态；其 `versions` 中的每个版本额外携带 `install`，即交给 `installBundle` 的精确 spec 和可选的首选 registry，以及 `compatibility`，即包含版本豁免在内的 `engines.dsh` 评估结果。
 
+## Profile 输入路径
+
+`ProfileContext.overlayPaths` 可选记录命令行补丁的绝对路径，其解析内容在启动时固定。`bundleInputPaths` 记录本进程读取的 bundle 清单与补丁，并在重新组合后保留早先输入。启动器提供叠加路径，`readBundlePatches()` 扩充 bundle 集合。[沙盒策略](../../packages/sandbox/sandbox-policy/README.zh.md#protected-host-inputs)消费这些路径，不会将无关项目清单视为宿主输入。
+
 ## Profile 重新组合
 
 <a id="profile-reconciliation"></a>

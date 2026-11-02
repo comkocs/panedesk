@@ -14,6 +14,7 @@
  */
 
 import { realpathSync } from 'node:fs'
+import { isAbsolute, relative, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { SandboxExecutionPolicy } from './index.ts'
 
@@ -41,13 +42,36 @@ export function canonicalPath(path: string): string {
 }
 
 /**
- * The roots one confined execution may WRITE under — the mode's meaning as a
- * canonical, deduplicated allow-list. `read-only` allows nothing;
- * `workspace-write` allows the policy's workspace root, the host `/tmp`, and
- * the per-user platform temp dir (`os.tmpdir()` — the real temp area for
- * mkstemp-family tools; omitting it would deny what the mode promises).
- * @param policy - the file-effect policy to derive the allow-list from.
- * @returns the canonical writable roots; empty exactly under `read-only`.
+ * Test whether two recursive filesystem roots share any writable path.
+ * @param left - First file or directory root.
+ * @param right - Second file or directory root.
+ * @returns Whether either canonical root contains the other.
+ */
+export function rootsOverlap(left: string, right: string): boolean {
+  const contains = (root: string, path: string): boolean => {
+    const suffix = relative(canonicalPath(root), canonicalPath(path))
+    return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
+  }
+  return contains(left, right) || contains(right, left)
+}
+
+/**
+ * Refuse a broad native grant that could cover a current host input.
+ * @param roots - Directories the backend would grant recursively.
+ * @param protectedPaths - Current executable-input roots; absent means none were registered.
+ */
+export function assertUnprotectedRoots(roots: readonly string[], protectedPaths: readonly string[] = []): void {
+  for (const root of roots) for (const path of protectedPaths) {
+    if (rootsOverlap(root, path)) {
+      throw new Error(`Cannot grant sandbox writes across protected host path ${JSON.stringify(path)}`)
+    }
+  }
+}
+
+/**
+ * Derive canonical writable roots before applying protected-host exclusions.
+ * @param policy - Per-call file policy.
+ * @returns Workspace and platform temporary roots in workspace-write; otherwise empty.
  */
 export function writableRoots(policy: SandboxExecutionPolicy): string[] {
   if (policy.mode !== 'workspace-write') return []

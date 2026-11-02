@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
-import { dirname, isAbsolute, join } from 'node:path'
+import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { z } from 'zod'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
 
@@ -19,9 +19,24 @@ export type WorkspaceWriteRecord = z.infer<typeof recordSchema>
 export class WorkspaceWriteAccess {
   private readonly directory: string
 
-  /** @param home - Resolved product home, never the current workspace. */
-  constructor(home: string) {
+  /**
+   * @param home - Resolved product home, never the current workspace.
+   * @param protectedPaths - Live host inputs; omitted for record-only inventory and revocation consumers.
+   */
+  constructor(home: string, private readonly protectedPaths: () => readonly string[] = () => []) {
     this.directory = join(home, 'windows-workspace-write')
+  }
+
+  private assertUnprotected(workspace: string): void {
+    const contains = (root: string, path: string): boolean => {
+      const suffix = relative(root, path)
+      return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
+    }
+    for (const path of this.protectedPaths()) {
+      if (contains(workspace, path) || contains(path, workspace)) {
+        throw new Error(`Workspace write authorization overlaps protected host path ${JSON.stringify(path)}`)
+      }
+    }
   }
 
   /**
@@ -110,6 +125,7 @@ export class WorkspaceWriteAccess {
     return withFileLock(path, async () => {
       signal?.throwIfAborted()
       if (!this.isAuthorized(canonical)) throw new Error('Workspace write authorization is absent or revoked')
+      this.assertUnprotected(canonical)
       return operation()
     }, signal === undefined ? {} : { signal })
   }
@@ -171,6 +187,7 @@ export class WorkspaceWriteAccess {
     const path = this.recordPath(canonical)
     return withFileLock(path, async () => {
       signal?.throwIfAborted()
+      this.assertUnprotected(canonical)
       if (this.revocationPending(path)) throw new Error('Workspace revocation is incomplete; retry revocation before authorizing')
       const previous = this.find(canonical)
       const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }

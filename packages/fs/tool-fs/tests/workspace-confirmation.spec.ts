@@ -802,11 +802,12 @@ describe('Windows first workspace write confirmation', () => {
   })
 
   it('does not prompt an unattended session', async () => {
-    const { ctx, write } = await fixture('never')
+    const { ctx, agent, write } = await fixture('never')
     const listener = vi.fn(async (): Promise<ApprovalOutcome> => 'allowed-once')
     await ownerAnswer(ctx, listener)
     expect((await write()).isError).toBe(true)
     expect(listener).not.toHaveBeenCalled()
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'approval/asked')).toEqual([])
     expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
   })
 

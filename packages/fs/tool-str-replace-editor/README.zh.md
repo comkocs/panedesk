@@ -29,6 +29,8 @@ kind: "package-reference"
 
 当模型应通过熟悉的 `view`/`create`/`str_replace`/`insert` 命令词汇在绝对路径上编辑文件时，把工具与 `ctx.fs` 后端（以及需要防护变更时的策略插件）一起挂载。
 
+`protected-host-path` 拒绝保留文件系统提供方的具体原因，而不是通用模式提权指引。见[受保护宿主输入](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)。
+
 ### 最小组合
 
 一个后端、可选地加策略插件，然后是工具；编辑器可与任何终端接口组合。
