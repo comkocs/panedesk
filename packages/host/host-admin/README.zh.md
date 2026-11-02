@@ -123,7 +123,7 @@ console.log(result);
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- M8b：回调 abandon 不改 `chain-sent`，也不生成 owner 终态回执；既有链层恢复保持独立。
+- 回调 abandon 不改 `chain-sent`，也不生成 owner 终态回执；既有链层恢复保持独立。
 - 取消要求引擎提供可选的授权取消能力；能力缺失时拒绝，不调用无授权旧入口。外部改面占位释放仍归其提供方，不由运维传输实现。
 - `engine.operation` 要求引擎提供可选操作投影；旧提供方缺少此能力时仍不可用。已接纳意图若无已提交创建或失败事实，保持待决，不能报告成功。旧自定义执行器可省略授权分页；调用者不能将缺页当成空授权历史。
 

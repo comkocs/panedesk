@@ -123,7 +123,7 @@ Existing session history and cache prefixes remain unchanged.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- M8b: callback abandon does not alter `chain-sent` or create an owner terminal receipt; retained transport recovery remains independent.
+- Callback abandon does not alter `chain-sent` or create an owner terminal receipt; retained transport recovery remains independent.
 - Cancellation requires the engine's optional authorized cancellation capability; missing capability refuses rather than invoking the unaudited path. External scope-reservation release remains owned by its provider and is not implemented by the administration transport.
 - `engine.operation` requires the engine's optional operation projection; older providers without it remain unavailable. An admitted intent with no committed creation or failure remains pending, not successful. Legacy custom executors may omit the authorization page; callers must not interpret an absent page as empty authorization history.
 - Linux tests with doubles do not cover Windows ACL execution, real SSH, or multi-process crash injection. Executors must ensure their own calls terminate; unloading waits for accepted calls and cannot forcibly cancel arbitrary provider side effects. Nonce sets and operation records have explicit capacity limits; exhaustion requires controlled restart or operational recovery.
