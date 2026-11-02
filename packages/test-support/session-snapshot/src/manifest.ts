@@ -49,6 +49,8 @@ export interface SnapshotWorkspaceManifest {
   final?: true
   /** Place the generated cwd outside automatically writable temporary roots. */
   parent?: 'outside-temp'
+  /** Place the product home beside the generated cwd so a workspace authorization never overlaps host inputs. */
+  home?: 'outside-workspace'
 }
 
 /** Controller input that cannot enter a session because admission rejects it. */
@@ -318,17 +320,21 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
     let workspace: SnapshotWorkspaceManifest | undefined
     if (root.workspace !== undefined) {
       const value = record(root.workspace, 'manifest.workspace')
-      exactKeys(value, ['setup', 'final', 'parent'], 'manifest.workspace')
+      exactKeys(value, ['setup', 'final', 'parent', 'home'], 'manifest.workspace')
       if (value.final !== undefined && value.final !== true) {
         throw new Error('manifest.workspace.final must equal true when present')
       }
       if (value.parent !== undefined && value.parent !== 'outside-temp') {
         throw new Error('manifest.workspace.parent must equal outside-temp')
       }
+      if (value.home !== undefined && value.home !== 'outside-workspace') {
+        throw new Error('manifest.workspace.home must equal outside-workspace')
+      }
       workspace = {
         ...(value.setup === undefined ? {} : { setup: name(value.setup, 'manifest.workspace.setup') }),
         ...(value.final === true ? { final: true as const } : {}),
         ...(value.parent === 'outside-temp' ? { parent: 'outside-temp' as const } : {}),
+        ...(value.home === 'outside-workspace' ? { home: 'outside-workspace' as const } : {}),
       }
       if (Object.keys(workspace).length === 0) throw new Error('manifest.workspace must not be empty')
     }

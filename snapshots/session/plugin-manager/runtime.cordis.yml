@@ -1,0 +1,23 @@
+# Owner consent over the authenticated event transport; every plugin change still requires an approved owner decision.
+- id: approval
+  config:
+    policy: ask
+
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: never
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: ask
+
+- insert:
+    - id: plugin-owner-approval
+      name: ./owner-approval.mjs
+      config:
+        outcome: allowed-once
