@@ -36,6 +36,9 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/cordis-plugin-loader": "workspace:~",
+    "@panedesk/cordis-plugin-timer": "workspace:~",
+    "@panedesk/dsh-hmr": "workspace:*",
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
     "@panedesk/dsh-fs-local": "workspace:*",

@@ -14029,7 +14029,7 @@
       "id": "windows-workspace-write-owner-confirmation",
       "description": "Windows read-only defaults and owner-managed workspace write access",
       "origin": "Windows sandbox safety and approval integration",
-      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs from confined writes, and document platform behavior. These safety changes can be contributed upstream.",
+      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -14216,7 +14216,28 @@
           "packages/shell/pwsh-sandbox/tests/sandbox.spec.ts",
           "snapshots/session/headless.snapshot.ts",
           "pnpm-lock.yaml",
-          "scripts/gen-cordis-catalog.ts"
+          "scripts/gen-cordis-catalog.ts",
+          "docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md",
+          "packages/boot/hmr/README.i18n.yaml",
+          "packages/boot/hmr/README.md",
+          "packages/boot/hmr/README.zh.md",
+          "packages/boot/hmr/src/index.ts",
+          "packages/sandbox/sandbox-policy/src/protected-paths.ts",
+          "packages/ssh/ssh/README.i18n.yaml",
+          "packages/ssh/ssh/README.md",
+          "packages/ssh/ssh/README.zh.md",
+          "packages/ssh/ssh/src/helper.ts",
+          "packages/ssh/ssh/src/index.ts",
+          "packages/ssh/ssh/src/schemas.ts",
+          "packages/fs/fs-sandbox/tests/live-inputs.spec.ts",
+          "packages/sandbox/sandbox-local/tests/missing-protected-paths.spec.ts",
+          "packages/ssh/ssh/tests/local-protection.spec.ts",
+          "packages/ssh/ssh/tests/local-write-admission.spec.ts",
+          "packages/boot/plugin-manager/tests/live-input-matrix.spec.ts",
+          "packages/boot/plugin-manager/tests/source-clone-writes.spec.ts",
+          "tsconfig.host.json"
         ]
       }
     }

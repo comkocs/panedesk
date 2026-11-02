@@ -281,6 +281,13 @@ class Hmr extends Service {
     })
   }
 
+  /** Active configuration inputs, including registrations whose watchers are starting or draining.
+   * @returns A snapshot of registered path spellings; callers cannot mutate registrations.
+   */
+  configurationPaths(): readonly string[] {
+    return [...this.configPaths]
+  }
+
   /** Watch a configuration path through the same queue as module replacement.
    * @param filename Absolute path, which may not exist yet.
    * @param refresh Rebuilds configuration from its current files and awaits Loader completion.
@@ -294,10 +301,10 @@ class Hmr extends Service {
       const dispose = await this.executing.exit(() => watchExactConfig(
         this.ownerContext, filename, this.config, () => this.runReload(refresh), () => this.executing.getStore() === true,
       ))
-      return async () => {
+      return this.ownerContext.effect(() => async () => {
         await dispose()
         for (const path of paths) this.configPaths.delete(path)
-      }
+      }, 'hmr.configurationPaths()')
     } catch (error) {
       for (const path of paths) this.configPaths.delete(path)
       throw error

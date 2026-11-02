@@ -21,7 +21,7 @@ export const infoSchema = z.object({ version: z.string(), type: z.enum(['file', 
 /** Metadata that preserves a final symlink. */
 export const pathInfoSchema = infoSchema.extend({ type: z.enum(['file', 'directory', 'symlink', 'other']) })
 /** A resolved file-effect policy; the remote helper owns path canonicalization. */
-export const policySchema = z.object({ mode: z.enum(['read-only', 'workspace-write', 'danger-full-access']), workspaceRoot: remotePath, sessionId: z.string().optional() }).strict()
+export const policySchema = z.object({ mode: z.enum(['read-only', 'workspace-write', 'danger-full-access']), workspaceRoot: remotePath, sessionId: z.string().transform(value => value as Branded<'SessionId'>).optional(), protectedPaths: z.array(remotePath).optional() }).strict()
 /** Complete directory entries. */
 export const entriesSchema = z.array(z.object({ name: z.string(), type: z.enum(['file', 'directory', 'other']), target: targetSchema, version: z.string().optional(), size: z.number().nonnegative().optional() }).strict())
 /** Guarded write intent. */
@@ -59,6 +59,7 @@ export const helloSchema = z.object({
   protocol: z.literal(SSH_PROTOCOL_VERSION), hash: z.string().regex(/^[0-9a-f]{64}$/),
   kind: z.enum(['node-script', 'executable']), platform: z.enum(['linux', 'darwin']),
   nodeVersion: z.string(), executable: remotePath, root: remotePath, workspace: remotePath,
+  serverAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
   bootstrapHash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
 }).strict()
 /** A prepared process publishes its sockets before target code may execute. */

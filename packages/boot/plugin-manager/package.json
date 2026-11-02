@@ -91,6 +91,13 @@
   },
   "devDependencies": {
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-bash-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-local": "workspace:*",
+    "@panedesk/dsh-subprocess-local": "workspace:*",
+    "@panedesk/dsh-ptc-runtime-node": "workspace:*",
+    "@panedesk/dsh-client-modules": "workspace:*",
+    "@panedesk/dsh-client-hmr": "workspace:*",
+    "@panedesk/dsh-host-webserver": "workspace:*",
     "@panedesk/dsh-fs-sandbox": "workspace:*",
     "@panedesk/dsh-tool-fs": "workspace:*",
     "@panedesk/dsh-tool-str-replace-editor": "workspace:*",

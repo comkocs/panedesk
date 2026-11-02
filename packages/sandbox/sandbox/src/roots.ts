@@ -14,7 +14,7 @@
  */
 
 import { realpathSync } from 'node:fs'
-import { isAbsolute, relative, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { SandboxExecutionPolicy } from './index.ts'
 
@@ -24,20 +24,24 @@ import type { SandboxExecutionPolicy } from './index.ts'
  * fence's containment check match resolved paths — `/tmp` IS `/private/tmp`
  * on darwin, and an as-spelled grant would match nothing.
  * @param path - the root as configured or platform-reported.
- * @returns the canonical path, or the spelling as-is when resolution fails
- *   (a missing root matches nothing until it exists — the conservative
- *   outcome; inventing a fallback would grant a path the caller never named).
+ * @returns The nearest existing ancestor's native realpath followed by missing components.
+ * @throws When an existing prefix cannot be resolved because of an access or filesystem error.
  */
 export function canonicalPath(path: string): string {
-  try {
-    // Node's JavaScript realpath implementation lexically collapses `..`
-    // before resolving a preceding symlink on some platforms. The native
-    // implementation follows the filesystem's component-by-component lookup,
-    // matching chdir/spawn and the enforcement layers this identity feeds.
-    return realpathSync.native(path)
-  } catch {
-    // realpathSync.native failed: the path (or a prefix) is missing or unreadable.
-    return path
+  let ancestor = path
+  const suffix: string[] = []
+  while (true) {
+    try {
+      // Native lookup preserves filesystem ordering for symlinks followed by `..`.
+      return join(realpathSync.native(ancestor), ...suffix)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
+      const parent = dirname(ancestor)
+      if (parent === ancestor) throw error
+      suffix.unshift(basename(ancestor))
+      ancestor = parent
+    }
   }
 }
 

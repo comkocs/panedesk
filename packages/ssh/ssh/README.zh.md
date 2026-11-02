@@ -65,6 +65,8 @@ OpenSSH 主连接承载私有管理 RPC。每条程序流使用独立转发的 U
 
 终端启用 shell 活动观察时，根进程退出会保留 reservation 及其剩余工作。活动 RPC 继续访问 provider；明确终止时先等待进程范围完全停稳，再释放端点并记录完成结果。helper 连接卸载和租约到期仍保留原有的终止权限。
 
+对受限写入，经过认证的 helper 报告实际 OpenSSH 服务端地址。回环、本机接口地址及等价的 IPv4 映射 IPv6 地址保留调用宿主当前的保护输入；不按别名拼写判断本机。远端不接收本机保护路径。未报告地址的 helper 保守保留本机排除项。不支持 Windows 端点及 Windows 目录授权；消费方仍在 RPC 前执行原有权限与审批检查。
+
 连接会禁用 helper 的 SIGUSR1 调试器激活：脚本调用使用 `--disable-sigusr1`，可执行文件调用通过 `NODE_OPTIONS` 提供该标志。
 
 </details>

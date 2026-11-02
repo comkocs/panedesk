@@ -1327,6 +1327,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'The operation result after its asynchronous work completes.',
       },
       {
+        signature: 'configurationPaths(): readonly string[]',
+        description: 'Active configuration inputs, including registrations whose watchers are starting or draining.',
+        parameters: [],
+        returns: 'A snapshot of registered path spellings; callers cannot mutate registrations.',
+      },
+      {
         signature: 'async watchConfig(filename: string, refresh: () => Promise<void>): Promise<() => Promise<void>>',
         description: 'Watch a configuration path through the same queue as module replacement.',
         parameters: [{ name: 'filename', description: 'Absolute path, which may not exist yet.' }, { name: 'refresh', description: 'Rebuilds configuration from its current files and awaits Loader completion.' }],

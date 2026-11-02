@@ -3,13 +3,15 @@
 import { spawn, execFile, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createConnection, type Socket } from 'node:net'
+import { BlockList, createConnection, isIP, type Socket } from 'node:net'
+import { networkInterfaces } from 'node:os'
+import { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { Context, Service } from '@panedesk/cordis'
 import schema from '@panedesk/schemastery'
 import { z } from 'zod'
 import { assertNever } from '@panedesk/dsh-util-values'
 import { SshRpcPeer, SSH_PROTOCOL_VERSION } from './protocol.ts'
-import { helloSchema, type SshStreamEndpoint } from './schemas.ts'
+import { helloSchema, policySchema, type SshStreamEndpoint } from './schemas.ts'
 import { authenticateStream } from './stream-security.ts'
 
 type Hello = z.infer<typeof helloSchema>
@@ -89,7 +91,7 @@ export class SshConnection extends Service {
     super(ctx, 'ssh')
     if (process.platform !== 'linux' && process.platform !== 'darwin') throw new Error('SSH runtime requires a POSIX client')
     this.config = z.object({
-      host: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/),
+      host: z.string().refine(value => /^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/.test(value) || isIP(value) !== 0, 'expected an SSH alias or address'),
       launch: z.discriminatedUnion('kind', [
         z.object({ kind: z.literal('node-script'), node: z.string().startsWith('/'),
           bootstrapPath: z.string().startsWith('/').optional(), bootstrapHash: z.string().regex(/^[0-9a-f]{64}$/).optional(),
@@ -140,6 +142,17 @@ export class SshConnection extends Service {
     const bounded = wait ? signal : signal === undefined
       ? AbortSignal.timeout(this.config.requestTimeoutMs)
       : AbortSignal.any([signal, AbortSignal.timeout(this.config.requestTimeoutMs)])
+    if (method === 'sandbox' || method === 'fs.write' || method === 'fs.edit') {
+      const input = z.looseObject({
+        policy: z.looseObject({ requiresWorkspaceAuthorization: z.boolean().optional() }),
+      }).parse(params)
+      const { requiresWorkspaceAuthorization: _authorization, ...rawPolicy } = input.policy
+      const policy = policySchema.parse(rawPolicy)
+      const { protectedPaths, ...remotePolicy } = policy
+      params = { ...input, policy: this.targetsLocalHost()
+        ? { ...remotePolicy, protectedPaths: [...new Set([...protectedPaths ?? [], ...resolveProtectedPaths(this.ctx)])] }
+        : remotePolicy }
+    }
     return (this.rpc as SshRpcPeer).request(method, params, result, bounded)
   }
 
@@ -227,6 +240,19 @@ export class SshConnection extends Service {
       while (this.operations.size > 0) await Promise.allSettled([...this.operations])
       if (this.directory !== undefined) await rm(this.directory, { recursive: true, force: true })
     }
+  }
+
+  private targetsLocalHost(): boolean {
+    const address = this.remote?.serverAddress
+    // Older helpers do not report the endpoint: retain local exclusions rather than infer remote trust.
+    if (address === undefined) return true
+    const local = new BlockList()
+    local.addSubnet('127.0.0.0', 8, 'ipv4')
+    local.addAddress('::1', 'ipv6')
+    for (const entries of Object.values(networkInterfaces())) {
+      for (const entry of entries ?? []) local.addAddress(entry.address, entry.family === 'IPv4' ? 'ipv4' : 'ipv6')
+    }
+    return local.check(address, isIP(address) === 4 ? 'ipv4' : 'ipv6')
   }
 
   private controlPath(): string { return join(this.directory as string, 'master') }

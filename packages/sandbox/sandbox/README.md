@@ -49,7 +49,7 @@ Mount the service with a backend and a confined executor; the [base bundle](../.
 
 With this composition, a bash call runs confined under `workspace-write`: writes inside the workspace succeed, writes outside it are denied, and the model can recover through the escalation flow below.
 
-Per-call policies can carry protected host inputs, excluded from confined write grants. The shared root helpers compare canonical overlap; providers may exclude the inputs or refuse an overlapping recursive grant. [Sandbox policy](../sandbox-policy/README.md#protected-host-inputs) owns their collection.
+Per-call policies can carry protected host inputs, excluded from confined write grants. The shared root helpers compare canonical overlap, resolving the nearest existing ancestor and appending any missing suffix so symlink prefixes cannot hide overlap; providers may exclude the inputs or refuse an overlapping recursive grant. [Sandbox policy](../sandbox-policy/README.md#protected-host-inputs) owns their collection.
 
 ### Modes and enforcement
 

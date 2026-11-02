@@ -2158,9 +2158,18 @@ importers:
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-bash-sandbox':
+        specifier: workspace:*
+        version: link:../../shell/bash-sandbox
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@panedesk/dsh-client-hmr':
+        specifier: workspace:*
+        version: link:../../client/hmr
+      '@panedesk/dsh-client-modules':
+        specifier: workspace:*
+        version: link:../../client/modules
       '@panedesk/dsh-fs-sandbox':
         specifier: workspace:*
         version: link:../../fs/fs-sandbox
@@ -2170,12 +2179,21 @@ importers:
       '@panedesk/dsh-host-plugin-inventory':
         specifier: workspace:*
         version: link:../../host/plugin-inventory
+      '@panedesk/dsh-host-webserver':
+        specifier: workspace:*
+        version: link:../../host/webserver
       '@panedesk/dsh-package-manifest':
         specifier: workspace:*
         version: link:../../util/package-manifest
+      '@panedesk/dsh-ptc-runtime-node':
+        specifier: workspace:*
+        version: link:../../ptc-runtime/ptc-runtime-node
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
       '@panedesk/dsh-sandbox-policy':
         specifier: workspace:*
         version: link:../../sandbox/sandbox-policy
@@ -2188,6 +2206,9 @@ importers:
       '@panedesk/dsh-subprocess':
         specifier: workspace:*
         version: link:../../subprocess/subprocess
+      '@panedesk/dsh-subprocess-local':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess-local
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt
@@ -11674,6 +11695,12 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
+      '@panedesk/cordis-plugin-timer':
+        specifier: workspace:~
+        version: link:../../../vendor/timer
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../../boot/app-boot
@@ -11683,6 +11710,9 @@ importers:
       '@panedesk/dsh-fs-local':
         specifier: workspace:*
         version: link:../fs-local
+      '@panedesk/dsh-hmr':
+        specifier: workspace:*
+        version: link:../../boot/hmr
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../../sandbox/sandbox
