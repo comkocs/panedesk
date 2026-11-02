@@ -14112,7 +14112,12 @@
           "benchmarks/package.json",
           "benchmarks/tsdown.config.ts",
           ".agents/notes/implemented/testing/2026-11-03-protected-plugin-load-benchmark*",
-          "pnpm-lock.yaml"
+          "pnpm-lock.yaml",
+          "packages/acp/acp/tests/default-ledger.spec.ts",
+          "docs/subsystems/client-modules.md",
+          "docs/subsystems/client-modules.zh.md",
+          "packages/web/web-fetch-http/tests/fetch-http.spec.ts",
+          "packages/web/web-search-exa/tests/exa.spec.ts"
         ],
         "test": "packages/boot/hmr/tests/profile.spec.ts"
       }

@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { AddressInfo } from 'node:net'
 import { Context } from '@panedesk/cordis'
@@ -51,6 +54,22 @@ afterEach(async () => {
 function provider(overrides: Partial<HttpFetchLimits> = {}): HttpFetchProvider {
   return new HttpFetchProvider({ ...limits, ...overrides })
 }
+
+it('returns an attachment response in memory without honoring a file destination', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'fetch-no-file-output-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const target = join(root, 'protected.txt')
+  writeFileSync(target, 'original')
+  handler = (_req, res) => {
+    res.writeHead(200, { 'content-type': 'text/plain', 'content-disposition': `attachment; filename="${target}"` })
+    res.end('retrieved')
+  }
+  const request = { url: base, file_path: target, output_path: target }
+  const result = await provider().fetch(request)
+  expect(result.body).toEqual({ kind: 'text', content: 'retrieved' })
+  expect(readFileSync(target, 'utf8')).toBe('original')
+  expect(readdirSync(root)).toEqual(['protected.txt'])
+})
 
 describe('policy helpers', () => {
   it('validates scheme, credentials, and length', () => {
