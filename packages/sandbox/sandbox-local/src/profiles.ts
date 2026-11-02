@@ -89,9 +89,9 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
   return (policy.protectedPaths ?? []).map((input) => {
     const path = resolve(input)
     if (policy.mode === 'read-only' || runner === 'landlock' || runner === 'seatbelt') return { path, enforcement: 'native' }
-    // bwrap keeps names outside its writable workspace under the read-only root;
-    // a protected temporary path also suppresses the writable temporary mount.
-    if (runner === 'bwrap' && !contains(canonicalPath(policy.workspaceRoot), path)) {
+    // bwrap keeps external names under the read-only root; the Windows workspace
+    // SID grants no external writes, and private temp capabilities are disjoint.
+    if (!contains(canonicalPath(policy.workspaceRoot), path)) {
       let target: string
       try { target = canonicalPath(path) }
       catch (error) {

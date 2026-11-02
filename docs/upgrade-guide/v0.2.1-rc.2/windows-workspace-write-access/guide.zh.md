@@ -11,7 +11,7 @@ description: 未显式选择权限模式的 Windows 部署现在以只读模式�
 
 Windows 缺省为 `read-only`；Linux 和 macOS 保持 `workspace-write`。显式环境变量、sandbox-policy 和会话模式不变。基础配置没有可写回退值。
 
-通用设置管理内置 Windows 沙盒的目录写入。同意仅在平台缺省模式下启用写入；已有 ACE 不算同意。首次写入获批后保存同意并物化 ACL。拒绝、取消、无应答者及到期均保持只读。无人值守 headless 使用 `never`，恢复会话也如此。初始化时已认证且可应答的 owner 流保留策略；稍后连接不会解除 `never`。Windows 原生执行仍未经验证。
+通用设置管理内置 Windows 沙盒的目录写入。同意仅在平台缺省模式下启用写入；已有 ACE 不算同意。首次写入获批后保存同意并物化 ACL：工作区可写，受保护路径仍拒写。拒绝、取消、无应答者及到期均保持只读。无人值守 headless 使用 `never`，恢复会话也如此。初始化时已认证且可应答的 owner 流保留策略；稍后连接不会解除 `never`。Windows 原生执行仍未经验证。
 
 Windows 隐式默认模式不允许激活动态 Cordis 包，包括浏览器面板启动和此前批准过的版本。同进程 Host 与同源 Client 代码可触达 owner 审批能力。目录写权限不会启用动态代码；检查和定义存储仍可用。
 
