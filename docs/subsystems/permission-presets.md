@@ -167,9 +167,22 @@ optionOf(name: string): PresetOption
  * @param name - the preset to switch to; unknown names throw.
  */
 set(session: Session, name: string): void
+
+/**
+ * Fill every missing permission fact before a session is published. A
+ * genuinely fresh session uses the current user default; seeded or partially
+ * initialized sessions preserve their effective knob values and only gain
+ * the missing durable facts. A stored Auto identity requires its live
+ * integration and passes its admission check before
+ * publication. An unattended override uses the same initial event positions;
+ * an already initialized session records only a changed approval policy.
+ * @param session - Session being prepared or restored.
+ * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
+ */
+initialize(session: Session, approvalOverride?: ApprovalPolicy): void
 ```
 
-Types: [Session](session.md)
+Types: [ApprovalPolicy](approval.md) · [Session](session.md)
 
 Source: [`packages/interaction/permission-presets/src/index.ts`](../../packages/interaction/permission-presets/src/index.ts)
 

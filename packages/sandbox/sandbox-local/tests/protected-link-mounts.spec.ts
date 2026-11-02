@@ -20,7 +20,7 @@ function mountDestinations(argv: readonly string[]): { kind: string; path: strin
   return mounts
 }
 
-it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('does not emit an unusable mount for a %s', (kind) => {
+it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('marks every unrepresentable input for host validation: %s', async (kind) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-unrepresentable-'))
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
   const input = join(root, 'input')
@@ -28,8 +28,17 @@ it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('does not em
   else if (kind === 'cyclic link') symlinkSync(input, input)
   else writeFileSync(input, 'owner')
   const path = kind === 'non-directory ancestor' ? join(input, 'config.yml') : input
-  const argv = ['bwrap', ...bwrapProfileArgs({ mode: 'workspace-write', workspaceRoot: root, protectedPaths: [path] }), '--', 'true']
-  const mounts = mountDestinations(argv)
+  const ctx = new Context()
+  onTestFinished(async () => { await ctx.fiber.dispose() })
+  await ctx.plugin(LocalSandboxProvider)
+  const provider = ctx.sandbox
+  if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
+  provider.internals = { platform: 'linux', probeBwrap: () => true }
+  const handed = await provider.confine(['true'], { mode: 'workspace-write', workspaceRoot: root, protectedPaths: [path] })
+  expect(handed).toHaveProperty('protectedInputs', [
+    { path, enforcement: 'host-fallback', reason: 'unrepresentable' },
+  ])
+  const mounts = mountDestinations(handed.argv)
   expect(mounts).toContainEqual({ kind: '--bind', path: root })
   expect(mounts.some(mount => mount.path === path)).toBe(false)
 })

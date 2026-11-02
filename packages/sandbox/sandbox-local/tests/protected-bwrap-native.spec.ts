@@ -51,6 +51,22 @@ for (const [action, command] of actions) it(`native bwrap protected inputs: ${ac
     mode: 'workspace-write', workspaceRoot: workspace, protectedPaths: [input],
   })
   expect(handed.argv[0]).toBe('bwrap')
+  if (action === 'create absent input') {
+    const separator = handed.argv.indexOf('--')
+    const startup = spawnSync(handed.argv[0]!, [...handed.argv.slice(1, separator), '--', '/bin/true'], { encoding: 'utf8', timeout: 10_000 })
+    expect(startup.status, startup.stderr).toBe(0)
+    expect(existsSync(input)).toBe(false)
+    expect(handed.protectedInputs).toContainEqual({ path: input, enforcement: 'host-fallback', reason: 'unrepresentable' })
+    const missingAncestor = join(workspace, 'missing')
+    const nestedInput = join(missingAncestor, 'ancestor', 'config.yml')
+    const nested = await provider.confine(['/bin/true'], {
+      mode: 'workspace-write', workspaceRoot: workspace, protectedPaths: [nestedInput],
+    })
+    const nestedStartup = spawnSync(nested.argv[0]!, nested.argv.slice(1), { encoding: 'utf8', timeout: 10_000 })
+    expect(nestedStartup.status, nestedStartup.stderr).toBe(0)
+    expect(existsSync(missingAncestor)).toBe(false)
+    expect(nested.protectedInputs).toContainEqual({ path: nestedInput, enforcement: 'host-fallback', reason: 'unrepresentable' })
+  }
   const result = spawnSync(handed.argv[0]!, handed.argv.slice(1), { encoding: 'utf8', timeout: 10_000 })
   expect(result.error).toBeUndefined()
   expect(result.status, result.stderr).toBe(0)
@@ -63,8 +79,9 @@ for (const [action, command] of actions) it(`native bwrap protected inputs: ${ac
     expect(readlinkSync(input)).toBe(replacement)
     console.info('native bwrap: link-name replacement succeeds; host input-integrity verification must reject the unapproved target before loading')
   } else if (action === 'create absent input') {
-    expect(result.stdout).not.toBe('mutation=0\n')
-    expect(existsSync(input)).toBe(false)
+    expect(result.stdout).toBe('mutation=0\n')
+    expect(readFileSync(input, 'utf8')).toBe('premature')
+    console.info('native bwrap: absent-name creation requires host input-integrity validation before loading')
   } else {
     expect(result.stdout).not.toBe('mutation=0\n')
     expect(readFileSync(input, 'utf8')).toBe('owner\n')

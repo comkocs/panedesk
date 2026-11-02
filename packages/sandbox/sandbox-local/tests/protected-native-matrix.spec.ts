@@ -50,10 +50,12 @@ for (const platform of ['linux', 'darwin', 'win32']) for (const effect of effect
         expect(handed.argv.slice(1, 4)).toEqual(['--ro-bind', '/', '/'])
         expect(handed.argv).not.toContain(input)
         expect(handed.argv).not.toContain(join(root, 'owner.yml'))
+      } else if (effect === 'create absent input') {
+        expect(handed.argv).not.toContain(input)
+        expect(handed.protectedInputs).toContainEqual({ path: input, enforcement: 'host-fallback', reason: 'unrepresentable' })
       } else {
         expect(text).toContain(['--bind', parent, parent].join('\n'))
-        if (effect === 'create absent input') expect(text).toContain(['--tmpfs', input, '--remount-ro', input].join('\n'))
-        else expect(text).toContain(['--ro-bind', input, input].join('\n'))
+        expect(text).toContain(['--ro-bind', input, input].join('\n'))
       }
     } else if (platform === 'darwin') {
       expect(handed.argv[2]).toContain(`(allow file-write* (subpath ${JSON.stringify(workspace)}))`)

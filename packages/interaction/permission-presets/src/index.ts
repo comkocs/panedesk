@@ -255,10 +255,10 @@ export class PermissionPresetService extends TypertRemoteService {
       wire: { viewSchema: selectionSchema, view: state => ({ currentValue: this.derive(state) }) },
     })
     ctx.on('session/created', (session) => {
-      this.pinInitialPermission(session)
+      this.initialize(session)
     })
     for (const session of ctx.sessions.list()) {
-      this.pinInitialPermission(session)
+      this.initialize(session)
     }
 
     // The /permission command: the one write path a web client uses (the
@@ -538,9 +538,12 @@ export class PermissionPresetService extends TypertRemoteService {
    * initialized sessions preserve their effective knob values and only gain
    * the missing durable facts. A stored Auto identity requires its live
    * integration and passes its admission check before
-   * publication.
+   * publication. An unattended override uses the same initial event positions;
+   * an already initialized session records only a changed approval policy.
+   * @param session - Session being prepared or restored.
+   * @param approvalOverride - Explicit caller policy; absent preserves the configured or stored policy.
    */
-  private pinInitialPermission(session: Session): void {
+  initialize(session: Session, approvalOverride?: ApprovalPolicy): void {
     const state = this.permissionState(session)
     const { preset, sandbox, approval, seeded } = state
     if (preset === AUTO_PRESET) {
@@ -554,7 +557,7 @@ export class PermissionPresetService extends TypertRemoteService {
       const spec = this.resolve(name)
       session.append('permission/preset', { preset: name })
       if (!this.implicitWindowsDefault()) setSandboxMode(session, spec.sandbox)
-      setApprovalPolicy(session, spec.approval)
+      setApprovalPolicy(session, approvalOverride ?? spec.approval)
       return
     }
 
@@ -565,7 +568,9 @@ export class PermissionPresetService extends TypertRemoteService {
     if (sandbox === null && !this.implicitWindowsDefault()) {
       setSandboxMode(session, this.ctx.shell.sandboxMode as SandboxMode)
     }
-    if (approval === null) {
+    if (approvalOverride !== undefined && approvalOverride !== approval) {
+      setApprovalPolicy(session, approvalOverride)
+    } else if (approval === null) {
       setApprovalPolicy(session, this.ctx.approval.config.policy ?? 'ask')
     }
   }

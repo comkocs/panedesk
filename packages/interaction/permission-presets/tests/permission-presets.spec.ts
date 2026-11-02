@@ -62,6 +62,20 @@ async function mountedStore(options: { approvalDefault?: ApprovalPolicy | undefi
 }
 
 describe('permission preset fold', () => {
+  it('pins unattended approval in the ordinary initialization order without duplicate events', async () => {
+    const ctx = await mounted()
+    try {
+      const session = ctx.sessions.prepare(SessionId('unattended-initialization'))
+      ctx.permissionPresets.initialize(session, 'never')
+      ctx.permissionPresets.initialize(session)
+      expect(session.snapshotEvents().map(event => [event.type, event.data])).toEqual([
+        ['permission/preset', { preset: 'workspace-write' }],
+        ['sandbox/mode', { mode: 'workspace-write' }],
+        ['approval/policy', { policy: 'never' }],
+      ])
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it('does not turn an implicit Windows default into an explicit session override', async () => {
     const ctx = new Context()
     try {

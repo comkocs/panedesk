@@ -64,9 +64,9 @@ it.each(['linux', 'darwin'])('protects a linked input target with executable pla
   }
 })
 
-it('uses an unwritable placeholder for an absent input without making its parent read-only', async () => {
+it.each(['cordis.patch.yml', 'missing/ancestor/cordis.patch.yml'])('hands an absent input to host validation without creating mount points: %s', async (name) => {
   const root = mkdtempSync(join(tmpdir(), 'protected-absent-'))
-  const input = join(root, 'cordis.patch.yml')
+  const input = join(root, name)
   const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
@@ -74,6 +74,10 @@ it('uses an unwritable placeholder for an absent input without making its parent
   if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
   provider.internals = { platform: 'linux', probeBwrap: () => true }
   const handed = await provider.confine(['true'], { mode: 'workspace-write', workspaceRoot: root, protectedPaths: [input] })
-  expect(handed.argv.join('\n')).toContain(['--tmpfs', input, '--remount-ro', input].join('\n'))
+  expect(handed.argv).not.toContain(input)
+  expect(handed.enforcement).toBe('partial')
+  expect(handed).toHaveProperty('protectedInputs', [
+    { path: input, enforcement: 'host-fallback', reason: 'unrepresentable' },
+  ])
   expect(handed.argv.join('\n')).not.toContain(['--ro-bind', root, root].join('\n'))
 })

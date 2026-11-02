@@ -65,7 +65,7 @@ The owner-only `workspaceWriteAccess`, `authorizeWorkspaceWrite`, and `revokeWor
 
 ### Session defaults
 
-The `permission` settings namespace holds `defaultPreset` for future sessions and accepts configured presets only. Session creation reads it, applies it to the sandbox mode and approval policy, and records the applied preset as a `permission/preset` selection. Later settings changes never alter an existing session. A resumed seed, including an explicitly empty one marked by `session/end-seed`, preserves its effective permission and receives only missing durable facts rather than the latest user default; a persisted `auto` identity requires the live Auto registration and its admission before publication.
+The `permission` settings namespace holds `defaultPreset` for future sessions and accepts configured presets only. Session creation reads it, applies it to the sandbox mode and approval policy, and records the applied preset as a `permission/preset` selection. Before publication, `initialize(session, approvalOverride)` lets an unattended caller pin its approval policy in the ordinary preset, sandbox, approval event order rather than prepend an approval event. Repeated initialization adds no duplicate facts. Later settings changes never alter an existing session. A resumed seed, including an explicitly empty one marked by `session/end-seed`, preserves its effective permission and receives only missing durable facts rather than the latest user default; a persisted `auto` identity requires the live Auto registration and its admission before publication.
 
 -----
 

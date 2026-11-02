@@ -7,6 +7,7 @@ import type { Agent } from '@panedesk/dsh-agent'
 import { expect, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { canonicalPath, rootsOverlap } from '@panedesk/dsh-sandbox'
+import type { ProtectedInputEnforcement } from '@panedesk/dsh-sandbox'
 import Subprocess from '@panedesk/dsh-subprocess-local'
 import Bash from '@panedesk/dsh-bash-sandbox'
 import Pwsh from '@panedesk/dsh-pwsh-sandbox'
@@ -25,9 +26,11 @@ export interface WriteAce { path: string; sid: string; standing: boolean; deny?:
  * @param protectedPaths Current protected host inputs.
  * @param grants Calls to the native ACL adapter during confinement.
  * @param workspace Writable workspace whose unrelated children remain writable.
+ * @param records Per-input native protection or required host validation from the same hand-off.
  */
 export function assertNativeProfile(
   platform: string, argv: readonly string[], protectedPaths: readonly string[], grants: readonly WriteAce[], workspace: string,
+  records: readonly ProtectedInputEnforcement[],
 ): void {
   expect(argv.length).toBeGreaterThan(3)
   if (platform === 'linux') {
@@ -45,6 +48,12 @@ export function assertNativeProfile(
     }
     expect(mounts[0]).toEqual({ kind: '--ro-bind', path: '/' })
     for (const root of protectedPaths) {
+      const record = records.find(record => record.path === root)
+      expect(record, `missing protection record for ${root}`).toBeDefined()
+      if (record?.enforcement === 'host-fallback') {
+        expect(record.reason).toMatch(/^(unrepresentable|link-name)$/u)
+        continue
+      }
       const covering = mounts.filter(mount => root === mount.path || root.startsWith(`${mount.path === '/' ? '' : mount.path}/`))
       expect(covering.at(-1), `writable mount covers ${root}`).toMatchObject({ kind: '--ro-bind' })
     }
@@ -105,6 +114,13 @@ export async function captureProcessProfile(
   expect(paths.some(path => rootsOverlap(path, target))).toBe(true)
   const subprocessFiber = await host.plugin(Subprocess)
   let handed: readonly string[] | undefined
+  let records: readonly ProtectedInputEnforcement[] = []
+  const confine = provider.confine.bind(provider)
+  const capture = vi.spyOn(provider, 'confine').mockImplementation(async (...args) => {
+    const result = await confine(...args)
+    records = result.protectedInputs ?? []
+    return result
+  })
   const stop = new Error('Native backend unavailable: captured invocation only')
   const spawn = vi.spyOn(host.subprocess, 'spawn').mockImplementation((spec) => { handed = [...spec.argv]; throw stop })
   let consumer: Awaited<ReturnType<Context['plugin']>> | undefined
@@ -158,8 +174,9 @@ export async function captureProcessProfile(
     if (process.env.TEST_CAPTURE_NATIVE_PROFILES === '1') {
       console.info(JSON.stringify({ entry, platform, argv: handed, grants, protectedPaths: paths }))
     }
-    assertNativeProfile(platform, handed!, paths.map(canonicalPath), grants, canonicalPath(policy.workspaceRoot))
+    assertNativeProfile(platform, handed!, paths, grants, canonicalPath(policy.workspaceRoot), records)
   } finally {
+    capture.mockRestore()
     spawn.mockRestore()
     await consumer?.dispose()
     await subprocessFiber.dispose()

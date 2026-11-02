@@ -41,7 +41,7 @@ import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkil
 import { assertNever } from '@panedesk/dsh-util-values'
 import { WorkspaceWriteAccess } from '@panedesk/dsh-sandbox-policy'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from './profiles.ts'
+import { bwrapProfileArgs, landlockProfileArgs, protectedInputRecords, seatbeltProfileArgs } from './profiles.ts'
 import { protectAclInputs } from './protected-acl.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -334,9 +334,11 @@ export class LocalSandboxProvider extends SandboxProvider {
       protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
     }
     if (this.runnerCommand !== undefined) {
+      const protectedInputs = protectedInputRecords(policy, 'bwrap')
       return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
-        enforcement: 'full',
+        enforcement: protectedInputs.some(input => input.enforcement === 'host-fallback') ? 'partial' : 'full',
+        protectedInputs,
         denialSignatures: DENIAL_SIGNATURES.runnerCommand,
         runnerFailureRules: [{ fatalSignatures: this.configuredRunnerFailureSignatures }],
       })
@@ -347,9 +349,11 @@ export class LocalSandboxProvider extends SandboxProvider {
       ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
         () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
       : this.runnerArgv(selected.runner, policy)
+    const protectedInputs = protectedInputRecords(policy, selected.runner)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
-      enforcement: selected.enforcement,
+      enforcement: protectedInputs.some(input => input.enforcement === 'host-fallback') ? 'partial' : selected.enforcement,
+      protectedInputs,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
       runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
     })

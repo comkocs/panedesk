@@ -55,8 +55,10 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-query": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
+    "@panedesk/dsh-api-gateway": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
-    "@panedesk/dsh-user-approval": "workspace:*"
+    "@panedesk/dsh-user-approval": "workspace:*",
+    "@panedesk/dsh-permission-presets": "workspace:*"
   },
   "devDependencies": {
     "@panedesk/cordis": "workspace:~",
@@ -69,10 +71,18 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-session-query": "workspace:*",
     "@panedesk/dsh-fs": "workspace:*",
+    "@panedesk/dsh-api-gateway": "workspace:*",
     "@panedesk/dsh-subagent": "workspace:*",
-    "@panedesk/dsh-user-approval": "workspace:*"
+    "@panedesk/dsh-user-approval": "workspace:*",
+    "@panedesk/dsh-permission-presets": "workspace:*"
   },
   "peerDependenciesMeta": {
+    "@panedesk/dsh-api-gateway": {
+      "optional": true
+    },
+    "@panedesk/dsh-permission-presets": {
+      "optional": true
+    },
     "@panedesk/dsh-subagent": {
       "optional": true
     }

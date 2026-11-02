@@ -250,12 +250,36 @@ describe('headless runner', () => {
     await test.ctx.plugin(ApprovalService, { policy: 'ask' })
     if (resume) test.ctx.sessions.create(brandString<SessionId>('session-unattended'), { meta: { cwd: process.cwd() } })
     test.ctx.provide('typertGateway', {
+      hasLiveClient: () => false,
       requestOwnerEvent: async () => { questions++; return { kind: 'result', value: 'allowed-once' } },
     } as never)
     try {
       expect(await test.run()).toMatchObject({ code: 0 })
       expect(questions).toBe(0)
       expect(outcome).toBe('rejected')
+    } finally { await test.ctx.fiber.dispose() }
+  })
+
+  it('preserves attended approval when an authenticated owner event stream is connected', async () => {
+    let questions = 0
+    let outcome: string | undefined
+    const test = await bench({
+      async afterPrompt(session, message, agent) {
+        session.append('turn/start', { turn: 1 })
+        outcome = await test.ctx.approval.request({ agent, toolName: 'write', purpose: { type: 'workspace-write', workspace: process.cwd() } })
+        session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+        appendTurn(session, 2, message, 'owner answered', true)
+      },
+    })
+    await test.ctx.plugin(ApprovalService, { policy: 'ask' })
+    test.ctx.provide('typertGateway', {
+      hasLiveClient: () => true,
+      requestOwnerEvent: async () => { questions++; return { kind: 'result', value: 'allowed-once' } },
+    } as never)
+    try {
+      expect(await test.run()).toMatchObject({ code: 0 })
+      expect(questions).toBe(1)
+      expect(outcome).toBe('allowed-once')
     } finally { await test.ctx.fiber.dispose() }
   })
 

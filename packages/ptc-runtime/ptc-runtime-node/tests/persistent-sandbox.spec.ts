@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { spawnSync } from 'node:child_process'
 import { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
-import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { SessionId } from '@panedesk/dsh-session'
@@ -22,20 +23,34 @@ async function setup(mode: 'read-only' | 'workspace-write' = 'read-only', execut
   return { root, cwd, ctx, runtime, owner, run }
 }
 
-it.each(['per-call', 'persistent-in-memory'] as const)('refuses protected workspace roots before %s Node can spawn', async (executionMode) => {
+it.for(['per-call', 'persistent-in-memory'] as const)('starts %s Node with protected inputs read-only and ordinary workspace writes allowed', async (executionMode, { skip }) => {
+  const probe = spawnSync('bwrap', ['--ro-bind', '/', '/', '--unshare-pid', '--proc', '/proc', '--', 'true'])
+  if (probe.status !== 0) skip('native bubblewrap unavailable')
   const { ctx, cwd, runtime, owner } = await setup('workspace-write', executionMode)
+  const input = join(cwd, 'plugin.mjs')
+  await writeFile(input, 'owner')
   const sandbox = ctx.sandbox
   if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
-  sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
+  sandbox.internals = { platform: 'linux', probeBwrap: () => true }
   const spawn = vi.spyOn(ctx.subprocess, 'spawn')
   onTestFinished(() => { spawn.mockRestore() })
-  const result = await runtime.run(runtime.resolve({
-    program: 'await (await import("node:fs/promises")).writeFile("plugin.mjs", "export function apply() {}")',
-    bindings: [], stateOwner: owner,
-    sandboxPolicy: { mode: 'workspace-write', workspaceRoot: cwd, protectedPaths: [join(cwd, 'plugin.mjs')] },
+  const policy = { mode: 'workspace-write', workspaceRoot: cwd, protectedPaths: [input] } as const
+  const allowed = await runtime.run(runtime.resolve({
+    program: `await (await import('node:fs/promises')).writeFile(${JSON.stringify(join(cwd, 'ordinary.txt'))}, 'allowed')`,
+    bindings: [], stateOwner: owner, sandboxPolicy: policy,
   }))
-  expect(result.error?.message).toContain('protected host path')
-  expect(spawn).not.toHaveBeenCalled()
+  expect(allowed.error).toBeUndefined()
+  expect(await readFile(join(cwd, 'ordinary.txt'), 'utf8')).toBe('allowed')
+  const argv = spawn.mock.calls[0]![0].argv
+  expect(argv[0]).toBe('bwrap')
+  expect(argv.join('\n')).toContain(['--bind', cwd, cwd].join('\n'))
+  expect(argv.join('\n')).toContain(['--ro-bind', input, input].join('\n'))
+  const denied = await runtime.run(runtime.resolve({
+    program: `await (await import('node:fs/promises')).writeFile(${JSON.stringify(input)}, 'model')`,
+    bindings: [], stateOwner: owner, sandboxPolicy: policy,
+  }))
+  expect(denied.sandbox).toMatchObject({ mode: 'workspace-write', denied: true })
+  expect(await readFile(input, 'utf8')).toBe('owner')
 })
 
 it('retains variables under read-only confinement and denies writes across calls', async () => {

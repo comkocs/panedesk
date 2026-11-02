@@ -8,7 +8,7 @@ import { grantArgs as landlockGrantArgs } from '@panedesk/node-addon-system/land
 import { existsSync, lstatSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { assertUnprotectedRoots, canonicalPath, rootsOverlap, writableRoots } from '@panedesk/dsh-sandbox'
-import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
+import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
 
 /** Test containment after callers have canonicalized both paths. */
 function contains(root: string, path: string): boolean {
@@ -39,12 +39,12 @@ function mountPath(path: string): string | undefined {
     let stat
     try { stat = lstatSync(prefix) }
     catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
-      if (code !== 'ENOENT') return undefined
+      if ((error as NodeJS.ErrnoException).code === undefined) throw error
+      return undefined
     }
     // canonicalPath preserves a dangling link's spelling when realpath cannot resolve it.
-    if (stat?.isSymbolicLink()) return undefined
-    if (stat !== undefined && prefix === canonical && !stat.isFile() && !stat.isDirectory()) return undefined
+    if (stat.isSymbolicLink()) return undefined
+    if (prefix === canonical && !stat.isFile() && !stat.isDirectory()) return undefined
     if (dirname(prefix) === prefix) return canonical
   }
 }
@@ -72,15 +72,28 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
     const parents = [...new Set(paths.flatMap(path => protectedParents(workspace, path)))].sort((a, b) => a.length - b.length)
     for (const parent of parents) {
       // A mount point cannot be renamed or unlinked, but its ordinary children remain writable.
-      if (existsSync(parent)) args.push('--bind', parent, parent)
-      else args.push('--tmpfs', parent)
+      args.push('--bind', parent, parent)
     }
-    for (const path of paths) {
-      if (existsSync(path)) args.push('--ro-bind', path, path)
-      else args.push('--tmpfs', path, '--remount-ro', path)
-    }
+    for (const path of paths) args.push('--ro-bind', path, path)
   }
   return args
+}
+
+/**
+ * Describe native input protection and names that require host validation.
+ * @param policy - Resolved policy whose inputs the profile protects.
+ * @param runner - Native profile dialect selected for this execution.
+ * @returns One record per input, including every unrepresentable name.
+ */
+export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | 'landlock' | 'seatbelt' | 'windows-acl'): ProtectedInputEnforcement[] {
+  return (policy.protectedPaths ?? []).map((input) => {
+    const path = resolve(input)
+    if (policy.mode === 'read-only' || runner === 'landlock' || runner === 'seatbelt') return { path, enforcement: 'native' }
+    const canonical = mountPath(path)
+    if (canonical === undefined || !existsSync(path)) return { path, enforcement: 'host-fallback', reason: 'unrepresentable' }
+    if (canonical !== path) return { path, enforcement: 'host-fallback', reason: 'link-name' }
+    return { path, enforcement: 'native' }
+  })
 }
 
 /**
