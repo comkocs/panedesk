@@ -1347,6 +1347,17 @@ describe('headless recorded-session snapshots', () => {
               expect(saved).toContain('id: demo')
               expect(saved).toContain('disabled: false')
             }
+            if (scenario.name.startsWith('plugin-owner-install-')) {
+              const results = parseSessionLog(actualLogs[0]!.content).flatMap(event => event.type === 'tool/result' ? [event.data.message] : [])
+              expect(results).toHaveLength(2)
+              expect(results[0]?.isError).toBe(true)
+              expect(results[0]?.content).toEqual(expect.arrayContaining([
+                expect.objectContaining({ type: 'text', text: expect.stringContaining('owner approval was rejected') }),
+              ]))
+              expect(results[1]?.isError).toBe(false)
+              expect(JSON.parse(await readFile(join(cwd, '.panedesk/profiles/headless/package.json'), 'utf8')))
+                .toMatchObject({ dependencies: { 'owner-addon': '1.0.0' }, dsh: { profile: { bundles: expect.arrayContaining(['owner-addon']) } } })
+            }
             if (scenario.name.startsWith('office-progressive-')) {
               const log = actualLogs[0]!.content
               const results = parseSessionLog(log).flatMap(event => event.type === 'tool/result' ? [event.data.message] : [])

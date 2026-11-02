@@ -2502,6 +2502,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'readonly overlayPaths?: readonly string[]',
+        description: 'Command-line patch files read at launch; their parsed contents remain frozen.',
+        parameters: [],
+      },
+      {
+        signature: 'bundleInputPaths?: readonly string[]',
+        description: 'Bundle manifests and patches read by this process, retained across recompositions.',
+        parameters: [],
+      },
+      {
         signature: 'readonly telemetryDisabledEnv: string | undefined',
         description: 'Launch-time PANEDESK_TELEMETRY_DISABLED value; any non-empty value opts out.',
         parameters: [],
@@ -2697,7 +2707,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy',
         description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session cwd is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
-        returns: 'the fully resolved per-call mode and absolute workspace root.',
+        returns: 'The per-call mode, absolute workspace root, and current protected host inputs when present.',
       },
       {
         signature: 'async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>',
@@ -10516,7 +10526,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    protectedPaths?: readonly string[];\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
   },
   {
     name: 'SandboxMode',
@@ -13344,7 +13354,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceWriteAccess',
-    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string, private readonly protectedPaths: () => readonly string[] = () => []);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
   },
   {
     name: 'WorkspaceWriteApproval',

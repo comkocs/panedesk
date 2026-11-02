@@ -130,6 +130,14 @@ export class SandboxedFileSystem extends LocalFileSystem {
     // symlink ancestor swapped since the tool resolved this target), and the
     // mutation delegates with THIS fresh target — never the stale one.
     const fresh = await this.resolve(target.displayPath)
+    const protectedPaths = new Set([...policy.protectedPaths ?? [], ...this.ctx.sandboxPolicy.resolve().protectedPaths ?? []])
+    for (const root of protectedPaths) {
+      if (await isPathUnder(fresh.targetKey, root) || await isPathUnder(root, fresh.targetKey)) {
+        throw new FsError(`cannot write "${target.displayPath}": protected host path ${JSON.stringify(root)}`, 'FS_SANDBOX_DENIED', {
+          sandboxDenial: 'protected-host-path',
+        })
+      }
+    }
     let contained = false
     for (const root of writableRoots(policy)) {
       if (await isPathUnder(fresh.targetKey, root)) {

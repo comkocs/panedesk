@@ -52,6 +52,8 @@ kind: "package-reference"
 
 挂载提供方后，命令在你逐调用解析的模式下运行。强制执行是报告的事实，而非承诺：`full` 表示后端管辖模式承诺的每个文件操作，`partial` 表示它只管辖子集——Windows ACL 档（硬链接、读取不受限与 AppContainer ACL 边界）与较旧的 Landlock ABI 是当前的部分强制执行情形，因此需要绝对边界的消费方可以拒绝或向上暴露它们。被拒绝的文件操作通过后端的拒绝方言呈现，执行命令前失败的 runner 会报告结构化的 runner 失败签名。
 
+针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并。Bubblewrap 增加只读绑定，Seatbelt 增加写入拒绝。Landlock 在共享临时根与保护输入重叠时省略该授权，并拒绝重叠工作区授权。Windows 在创建 ACL 前拒绝重叠工作区授权。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
+
 ### Windows 工作区撤销
 
 仅内置 Windows runner 声明 `supportsWorkspaceWriteAccess`。检查从规范化工作区推导精确能力 SID，只读 ACL，不授予权限。显式撤销移除该能力，且仅在原生撤销成功后清除其物化缓存；其他平台和自定义 runner 拒绝这些管理调用。撤销不终止进程或关闭已有句柄。只读隔离既不创建工作区写授权，也不创建临时写授权。`materializeWorkspaceWriteGrant()` 供策略消费方在已同意会话的首次文件变更前物化工作区及私有临时目录能力，无需启动进程。

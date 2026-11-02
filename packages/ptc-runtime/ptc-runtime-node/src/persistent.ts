@@ -335,7 +335,9 @@ export class InMemoryExecution {
     kernel?.assertIdle()
     if (kernel && !kernel.closed && (kernel.policy.mode !== spec.sandboxPolicy.mode
       || kernel.policy.workspaceRoot !== spec.sandboxPolicy.workspaceRoot
-      || kernel.policy.sessionId !== spec.sandboxPolicy.sessionId)) {
+      || kernel.policy.sessionId !== spec.sandboxPolicy.sessionId
+      || (spec.sandboxPolicy.mode !== 'danger-full-access'
+        && JSON.stringify(kernel.policy.protectedPaths ?? []) !== JSON.stringify(spec.sandboxPolicy.protectedPaths ?? [])))) {
       throw new Error('persistent PTC: release the retained environment before changing its sandbox policy')
     }
     let code: string

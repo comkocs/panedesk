@@ -46,6 +46,7 @@
     "@xterm/headless": "^6.0.0"
   },
   "devDependencies": {
+    "@panedesk/dsh-sandbox-local": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",
     "@panedesk/dsh-user-approval": "workspace:*",

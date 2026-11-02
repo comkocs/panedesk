@@ -1,0 +1,8 @@
+version: 1
+scenario: plugin-owner-install-implicit
+profile: headless
+composition: plugin-manager-mcp
+recording: authored
+header:
+  class: plugin-owner-install-implicit
+  pin: true

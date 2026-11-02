@@ -38,6 +38,18 @@ describe('persistent Node REPL', () => {
     expect(spawn).not.toHaveBeenCalled()
   })
 
+  it('refuses to reuse a process after the protected host roots change', async () => {
+    const { ctx, run, cwd } = await setup()
+    // Isolate reuse admission from the host's availability of a native sandbox.
+    vi.spyOn(ctx.sandbox, 'confine').mockImplementation(async argv => ({
+      argv: [...argv], enforcement: 'full', denialSignatures: [], runnerFailureRules: [],
+    }))
+    const policy = { mode: 'workspace-write' as const, workspaceRoot: cwd }
+    expect((await run('const retained = 1; retained', { sandboxPolicy: policy })).value).toBe(1)
+    await expect(run('retained', { sandboxPolicy: { ...policy, protectedPaths: [join(cwd, 'active-plugin')] } }))
+      .rejects.toThrow('release the retained environment')
+  })
+
   it('retains declarations, closures, object identity, and imports across evaluations', async () => {
     const { run, cwd } = await setup()
     expect(await run('const box: { count: number } = { count: 1 }; let alias = box; function increment() { return ++box.count }; const path = await import("node:path");')).toMatchObject({ logs: [] })

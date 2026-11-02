@@ -11,6 +11,7 @@ import Loader from '@panedesk/cordis-plugin-loader'
 import SessionStore, { SESSION_FORMAT_VERSION, Session, SessionId } from '@panedesk/dsh-session'
 import AgentRegistry, { type Agent } from '@panedesk/dsh-agent'
 import SandboxProvider from '@panedesk/dsh-sandbox'
+import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import type { ConfinedArgv, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import SandboxPolicyService, { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 import ApprovalService from '@panedesk/dsh-user-approval'
@@ -229,6 +230,27 @@ describe('BashTerminalBackend startup rollback', () => {
     await expect(spawning).rejects.toBe(reason)
     expect(close).toHaveBeenCalledWith('PTY startup failed')
     initialization.resolve(undefined)
+  })
+
+  it('refuses protected workspace roots before allocating a terminal', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'protected-terminal-'))
+    const ctx = new Context()
+    provideWorkingDirectoryFixture(ctx)
+    await ctx.plugin(LocalSandboxProvider, {})
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicyService, { mode: 'workspace-write', workspaceRoot: root })
+    const sandbox = ctx.sandbox
+    if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
+    sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
+    const resolvePolicy = vi.spyOn(ctx.sandboxPolicy, 'resolve').mockReturnValue({
+      mode: 'workspace-write', workspaceRoot: root, protectedPaths: [join(root, 'plugin.mjs')],
+    })
+    const spawnTerminal = vi.fn(async () => terminalHandle())
+    const backend = new BashTerminalBackend(ctx, config(), spawnTerminal)
+    try {
+      await expect(backend.spawn(spec(agent(ctx, root)))).rejects.toThrow('protected host path')
+      expect(spawnTerminal).not.toHaveBeenCalled()
+    } finally { resolvePolicy.mockRestore(); await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) }
   })
 
   it('does not allocate a terminal when confinement resolves after cancellation', async () => {
@@ -676,6 +698,41 @@ describe('first workspace confirmation for model terminals', () => {
 })
 
 describe('workspace access revocation', () => {
+  it('rejects input when a new protected host root changes the confinement policy', async () => {
+    const ctx = new Context()
+    try {
+      provideWorkingDirectoryFixture(ctx)
+      await ctx.plugin(SessionProjectionRegistry)
+      await ctx.plugin(SandboxPolicyService, { mode: 'workspace-write', workspaceRoot: '/workspace' })
+      await ctx.plugin(RecordingSandbox)
+      const write = vi.fn<SubprocessTerminalHandle['write']>().mockResolvedValue(undefined)
+      const completion = Promise.withResolvers<{ exitCode: number; signal: null }>()
+      const handle = terminalHandle()
+      const backend = new BashTerminalBackend(ctx, config(), async () => ({
+        ...handle, write, done: completion.promise,
+        terminate: async () => { await handle.terminate(); completion.resolve({ exitCode: 0, signal: null }) },
+      }),
+      (handle, resolved, assertInputPolicy) => {
+        const session = new LocalPtySession(handle, resolved, assertInputPolicy)
+        vi.spyOn(session, 'initialize').mockResolvedValue(undefined)
+        return session
+      })
+      const session = await backend.spawn(spec(agent(ctx)))
+      const resolvePolicy = ctx.sandboxPolicy.resolve.bind(ctx.sandboxPolicy)
+      vi.spyOn(ctx.sandboxPolicy, 'resolve').mockImplementation(request => ({
+        ...resolvePolicy(request), protectedPaths: ['/workspace/active-plugin'],
+      }))
+      try {
+        await expect(Promise.resolve().then(() => session.startSend({ text: 'write command', submit: true }).done))
+          .rejects.toThrow('sandbox policy changed')
+        expect(write).not.toHaveBeenCalled()
+      } finally { await session.close('test cleanup') }
+    } finally {
+      await ctx.fiber.dispose()
+      vi.restoreAllMocks()
+    }
+  })
+
   it.each(['before-call', 'before-write'] as const)('rejects input after %s revocation without terminating the existing terminal', async (timing) => {
     const home = mkdtempSync(join(tmpdir(), 'terminal-access-'))
     const ctx = new Context()

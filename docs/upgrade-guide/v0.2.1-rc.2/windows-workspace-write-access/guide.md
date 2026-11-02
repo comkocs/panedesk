@@ -15,6 +15,8 @@ The General settings page manages directory-specific Windows workspace write acc
 
 Dynamic Cordis packages cannot activate under the implicit Windows default, including browser-panel starts and previously approved versions. Their same-process Host and same-origin Client code can access owner approval capabilities. Directory write consent does not enable dynamic code; inspection and definition storage remain available.
 
+Confined writes exclude the running host's profile, configuration, plugin inputs, and hot-reload roots. Workspace authorization cannot include these paths; unrelated plugin development projects and source clones remain writable. `danger-full-access` explicitly grants the host user's full write authority, including configuration and plugins; `plugin_manager` still requires owner approval for each change.
+
 ## Migration
 
 1. Leave the mode unset to use the Windows read-only default. Remove a previously configured `PANEDESK_PERMISSION_MODE=workspace-write` if that override is no longer intended. Existing explicit session modes also take precedence over directory authorization.

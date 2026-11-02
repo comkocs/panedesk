@@ -34,7 +34,7 @@ import {
 } from '@panedesk/node-addon-system/landlock-run'
 import { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
-import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@panedesk/dsh-sandbox'
+import { SandboxProvider, SandboxUnavailableError, assertUnprotectedRoots, canonicalPath } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxExecutionPolicy, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
@@ -328,7 +328,10 @@ export class LocalSandboxProvider extends SandboxProvider {
    */
   async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
     signal?.throwIfAborted()
-    policy = { ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot) }
+    policy = {
+      ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
+      protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
+    }
     if (this.runnerCommand !== undefined) {
       return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
@@ -388,6 +391,9 @@ export class LocalSandboxProvider extends SandboxProvider {
       throw new Error('Workspace write materialization requires an approved session policy')
     }
     const workspace = canonicalPath(policy.workspaceRoot)
+    assertUnprotectedRoots([workspace], [
+      ...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
+    ])
     const materialize = (): void => { this.materializeAclGrant(sessionId, workspace) }
     if (policy.requiresWorkspaceAuthorization) {
       await this.workspaceAccess.withAuthorization(workspace, materialize, signal)
@@ -431,6 +437,7 @@ export class LocalSandboxProvider extends SandboxProvider {
    */
   private windowsAclRunnerArgv(policy: SandboxPolicy): string[] {
     const sessionId = policy.sessionId
+    if (policy.mode === 'workspace-write') assertUnprotectedRoots([policy.workspaceRoot], policy.protectedPaths)
     if (sessionId === undefined || policy.mode === 'read-only') {
       return [
         ...this.windowsAclRunnerInvocation(),

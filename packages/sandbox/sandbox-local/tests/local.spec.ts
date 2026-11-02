@@ -84,6 +84,16 @@ describe('profile dialects', () => {
     ])
   })
 
+  it('landlock keeps an unrelated workspace writable when host inputs occupy shared temp', () => {
+    expect(landlockProfileArgs({ ...WW, protectedPaths: ['/tmp/active-host/plugin.js'] }))
+      .toEqual(['--ro', '/', '--rw', '/dev/null', '--rw', '/ws'])
+  })
+
+  it('landlock rejects a recursive workspace grant containing an active host input', () => {
+    expect(() => landlockProfileArgs({ ...WW, protectedPaths: ['/ws/active-host/plugin.js'] }))
+      .toThrow('protected host path')
+  })
+
   it('landlock read-only: readable tree plus a writable /dev/null, nothing else', () => {
     // /dev/null specifically, NOT /dev: a whole-/dev grant would let confined
     // commands write real host paths beneath it (/dev/shm) under read-only.

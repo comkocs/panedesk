@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { SessionId } from '@panedesk/dsh-session'
 import { Context } from '@panedesk/cordis'
 import { SandboxUnavailableError } from '@panedesk/dsh-sandbox'
+import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { mountRuntime } from './setup.ts'
 
@@ -20,6 +21,22 @@ async function setup(mode: 'read-only' | 'workspace-write' = 'read-only', execut
   const run = (program: string) => runtime.run(runtime.resolve({ program, bindings: [], stateOwner: owner }))
   return { root, cwd, ctx, runtime, owner, run }
 }
+
+it.each(['per-call', 'persistent-in-memory'] as const)('refuses protected workspace roots before %s Node can spawn', async (executionMode) => {
+  const { ctx, cwd, runtime, owner } = await setup('workspace-write', executionMode)
+  const sandbox = ctx.sandbox
+  if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
+  sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
+  const spawn = vi.spyOn(ctx.subprocess, 'spawn')
+  onTestFinished(() => { spawn.mockRestore() })
+  const result = await runtime.run(runtime.resolve({
+    program: 'await (await import("node:fs/promises")).writeFile("plugin.mjs", "export function apply() {}")',
+    bindings: [], stateOwner: owner,
+    sandboxPolicy: { mode: 'workspace-write', workspaceRoot: cwd, protectedPaths: [join(cwd, 'plugin.mjs')] },
+  }))
+  expect(result.error?.message).toContain('protected host path')
+  expect(spawn).not.toHaveBeenCalled()
+})
 
 it('retains variables under read-only confinement and denies writes across calls', async () => {
   const { cwd, run } = await setup()

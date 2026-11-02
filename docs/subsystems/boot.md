@@ -30,6 +30,10 @@ The [boot package group](../../packages/boot/README.md) owns launcher-provided p
 
 `MarketQuery` selects one page of an index: fuzzy `text`, a `category`, `labels` that must all be present, a `MarketSort`, `offset`, `limit` up to 100, `refresh` to fetch again instead of using a cached document, and `fetchedAt` to continue the pages of one document. `MarketSearchResult` carries the index URL, `title`, optional `description`, market `metadata`, the document's `fetchedAt`, the page's `entries`, the `total` number of matches, and the `nextOffset`. Each `MarketListingEntry` adds `defaultVersion`, the version installed by default, and `installation`, the profile's status for the package name; each of its `versions` adds `install`, the exact spec and optional first registry for `installBundle`, and `compatibility`, the evaluation of its `engines.dsh` including a version exemption.
 
+## Profile input paths
+
+`ProfileContext.overlayPaths` optionally records absolute command-line patch paths whose parsed contents are frozen at launch. `bundleInputPaths` records bundle manifests and patches read by the process, retaining earlier inputs across recompositions. The launcher supplies overlay paths; `readBundlePatches()` extends the bundle set. The [sandbox policy](../../packages/sandbox/sandbox-policy/README.md#protected-host-inputs) consumes these paths without treating unrelated project manifests as host inputs.
+
 ## Profile reconciliation
 
 <a id="profile-reconciliation"></a>

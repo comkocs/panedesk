@@ -90,6 +90,10 @@
     }
   },
   "devDependencies": {
+    "@panedesk/dsh-agent-loop-testkit": "workspace:*",
+    "@panedesk/dsh-fs-sandbox": "workspace:*",
+    "@panedesk/dsh-tool-fs": "workspace:*",
+    "@panedesk/dsh-tool-str-replace-editor": "workspace:*",
     "chokidar": "^4.0.3",
     "@panedesk/dsh-package-manifest": "workspace:*",
     "@panedesk/cordis": "workspace:~",

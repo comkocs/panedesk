@@ -82,6 +82,7 @@ class MutationPolicy {
 
   mapError(error: unknown, policy: SandboxExecutionPolicy | undefined): unknown {
     if (!(error instanceof FsError) || error.code !== 'FS_SANDBOX_DENIED') return error
+    if (error.sandboxDenial === 'protected-host-path') return error
     const mode = (policy as SandboxExecutionPolicy).mode
     return new FsError(sandboxDenialMarker(mode), 'FS_SANDBOX_DENIED', { cause: error })
   }

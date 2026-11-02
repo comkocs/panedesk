@@ -45,6 +45,8 @@ kind: "package-reference"
 
 有效模式来自调用会话的覆盖值或升级授权，两者都未生效时才回退到部署默认值。`read-only` 以结构化 `FS_SANDBOX_DENIED` 拒绝所有变更。`workspace-write` 只允许目标规范化后位于工作区根目录或平台临时区域（`/tmp`、`os.tmpdir()`）之下的变更——与 Seatbelt profile 授权的可写集合相同。`danger-full-access` 不加围栏直接委托。
 
+`workspace-write` 还拒绝包含[受保护宿主输入](../../sandbox/sandbox-policy/README.zh.md#protected-host-inputs)或位于其中的目标，即使目标位于已授权工作区内。执行变更前，它将传入策略与当前宿主的保护路径合并。这些拒绝保留 `sandboxDenial: 'protected-host-path'` 及具体原因，而不是通用提权提示。
+
 ### 可观察的成功与失败
 
 读取、列出、元数据操作与只读监听均与 `fs-local` 完全一致；变更围栏不限制观察。被拒绝的变更返回携带有效模式的 `FS_SANDBOX_DENIED` 错误；经工具，模型会看到 `[sandbox: file access denied under <mode> mode]` 及唯一一次获批更宽权限的重试提示，与 bash 的拒绝完全相同。获得批准升级的会话可以在该次调用中以严格更宽的模式重试同一操作。

@@ -8,6 +8,9 @@
     "src"
   ],
   "references": [
+    { "path": "../../boot/app-boot" },
+    { "path": "../../boot/hmr" },
+    { "path": "../../client/modules" },
     { "path": "../../llm/llm" },
     { "path": "../../interaction/user-approval" },
     { "path": "../../util/atomic-write" },
