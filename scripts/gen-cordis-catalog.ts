@@ -1196,6 +1196,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   DirectoryListing: 'workspace.md',
   TypertContribution: 'typert.md',
   TypertRemoteEventSource: 'typert.md',
+  TypertRemoteEventInvocation: 'typert.md',
+  TypertRemoteEventOutcome: 'typert.md',
   RemoteEventHostInfo: 'typert.md',
   TypertFace: 'typert.md',
   TypertPackageFilter: 'typert.md',

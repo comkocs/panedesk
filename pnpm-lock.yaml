@@ -12527,6 +12527,9 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand

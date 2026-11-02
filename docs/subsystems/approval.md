@@ -51,7 +51,7 @@ Both policies contribute their complete current meaning to the cache-safe runtim
 
 ## Approval request
 
-`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. Optional `displayReason` carries requester-owned locale strings to presentation; `reason` remains the audit text.
+`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. Optional `displayReason` carries requester-owned locale strings to presentation; `reason` remains the audit text. `ownerOnly: true` selects the authenticated owner transport instead of Host waterfall listeners; workspace consent always uses that transport. This routing does not isolate arbitrary code already running in the Host process.
 
 ```ts type-equiv
 /**
@@ -79,6 +79,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
    * immediately and a late answer from a still-pending answerer is discarded.
    */
   readonly signal?: AbortSignal
+  /** Require the authenticated owner event transport rather than Host answerers. */
+  readonly ownerOnly?: boolean
 }
 ```
 
@@ -113,7 +115,7 @@ Approval service that applies session policy before answerers and logs every ask
 setPolicy(agent: Agent, policy: ApprovalPolicy): void
 
 /**
- * Ask the composed answerers to decide one readonly same-process request.
+ * Ask ordinary composed answerers, or authenticated owner Clients for workspace consent.
  * The service borrows the request, agent, session, and live signal directly.
  * The request requires an open turn because the audit pair must be enclosed
  * by the durable log's commit/replay boundary; an idle ask rejects before

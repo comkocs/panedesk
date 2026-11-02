@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
+import type {} from '@panedesk/dsh-api-gateway'
 import { createUserMessage, type ToolCallId } from '@panedesk/dsh-llm'
 import type { ContextFormed } from '@panedesk/dsh-llm'
 declare module '@panedesk/dsh-llm' {
@@ -130,6 +131,8 @@ export interface ApprovalRequest extends ApprovalRequestEvent {
    * immediately and a late answer from a still-pending answerer is discarded.
    */
   readonly signal?: AbortSignal
+  /** Require the authenticated owner event transport rather than Host answerers. */
+  readonly ownerOnly?: boolean
 }
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -199,7 +202,7 @@ export class ApprovalService extends Service {
   }
 
   /**
-   * Ask the composed answerers to decide one readonly same-process request.
+   * Ask ordinary composed answerers, or authenticated owner Clients for workspace consent.
    * The service borrows the request, agent, session, and live signal directly.
    * The request requires an open turn because the audit pair must be enclosed
    * by the durable log's commit/replay boundary; an idle ask rejects before
@@ -295,15 +298,23 @@ export class ApprovalService extends Service {
     // SYNCHRONOUSLY (before its first await) must land in the same rejection
     // path as an async one — `Promise.resolve(call())` would let it escape
     // the containment into the caller.
-    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(
-      () => this.ctx.waterfall(
+    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(async () => {
+      if (req.ownerOnly === true || req.purpose?.type === 'workspace-write') {
+        const gateway = this.ctx.get('typertGateway')
+        if (gateway === undefined) return 'unavailable'
+        const outcome = await gateway.requestOwnerEvent('approval/request', req, {
+          value: req.agent.ctx, subject: req.agent, agentId: req.agent.id,
+        })
+        return outcome.kind === 'result' ? outcome.value : 'unavailable'
+      }
+      return this.ctx.waterfall(
         scopeTarget(req.agent, req.agent), 'approval/request', req,
         () => Promise.resolve<ApprovalOutcome>('unavailable'),
-      ),
-    ).then(
+      )
+    }).then(
       // Normalize a rogue (non-vocabulary) answerer return to the fail-closed
       // outcome instead of leaking it into callers' closed-union switches.
-      outcome => OUTCOMES.includes(outcome) ? outcome : 'unavailable',
+      outcome => OUTCOMES.find(candidate => candidate === outcome) ?? 'unavailable',
       // A throwing answerer must fail the QUESTION closed, not the caller's
       // tool call open — the seam contains its callbacks.
       () => 'unavailable',

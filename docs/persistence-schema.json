@@ -23910,7 +23910,7 @@
         "packages/interaction/user-approval/src/index.ts#ApprovalPolicy"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/index.ts:68"
+        "packages/interaction/user-approval/src/index.ts:69"
       ]
     },
     {
@@ -24091,7 +24091,7 @@
       "digest": "11f70b595aa76897fc4e25a352bfa718c659f44b799e5aa14e84e5a38fe72912",
       "names": [],
       "sources": [
-        "packages/interaction/user-approval/src/index.ts:41"
+        "packages/interaction/user-approval/src/index.ts:42"
       ]
     },
     {

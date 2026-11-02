@@ -102,7 +102,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 }
 
 function connectionOf(ctx: Context): SessionLogConnection {
-  return Reflect.get(ctx, 'connection') as SessionLogConnection
+  return Reflect.get(ctx, 'connection')
 }
 
 async function sessionLogExportResponse(

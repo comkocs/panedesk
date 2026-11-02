@@ -1,5 +1,6 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
+import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -273,7 +274,7 @@ describe('first workspace confirmation for shell tools', () => {
       await ctx.agents.register(owner)
       const answer = Promise.withResolvers<ApprovalOutcome>()
       const listener = vi.fn(() => answer.promise)
-      ctx.on('approval/request', listener)
+      await ownerAnswer(ctx, listener)
       const running = call(ctx, name, { command: 'test-only command', description: 'Confirm workspace access', run_in_background: background }, owner)
       await vi.waitFor(() => { expect(listener).toHaveBeenCalledOnce() })
       expect(bash.modes).toEqual([])

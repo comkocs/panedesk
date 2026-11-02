@@ -46,6 +46,7 @@
     "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-api-gateway": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",

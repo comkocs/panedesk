@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { provideWorkingDirectoryFixture, unsupportedInbox } from '@panedesk/dsh-agent-loop-testkit'
+import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
 import { PassThrough } from 'node:stream'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -641,7 +642,9 @@ describe('first workspace confirmation for model terminals', () => {
       owner.session.append('turn/start', { turn: 1 })
       const answer = Promise.withResolvers<ApprovalOutcome>()
       const listener = vi.fn(() => answer.promise)
-      ctx.on('approval/request', listener)
+      await ctx.plugin(AgentRegistry)
+      await ctx.agents.register(owner)
+      await ownerAnswer(ctx, listener)
       const spawn = vi.fn(async () => terminalHandle())
       const backend = new BashTerminalBackend(ctx, config(), spawn, (handle, resolved, assertInputPolicy) => {
         const session = new LocalPtySession(handle, resolved, assertInputPolicy)

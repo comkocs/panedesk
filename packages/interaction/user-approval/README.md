@@ -29,7 +29,7 @@ Compose this service when sensitive tool actions should pause for a human or mac
 
 ### Composing answerers
 
-Answerers are `approval/request` waterfall listeners: return an outcome to answer for an owned agent, or call `next()` to delegate. Agent-scoped listeners receive only that agent's requests, and a deployment composes one terminal answerer — sibling listener order is not a policy-priority mechanism. Without a terminal answerer, requests resolve `unavailable` and fail closed; the service itself never prompts a human.
+Ordinary answerers are `approval/request` waterfall listeners: return an outcome for an owned agent, or call `next()` to delegate. Agent-scoped listeners receive only that agent's requests; sibling order is not policy priority. Workspace-purpose requests and requests with `ownerOnly: true` bypass this Host waterfall and go directly through Gateway to authenticated owner answering streams. They return `unavailable` without such a stream; a Host listener's return cannot approve them. The service itself never prompts a human.
 
 ### Setting the policy
 

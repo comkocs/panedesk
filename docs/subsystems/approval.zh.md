@@ -51,7 +51,7 @@ type ApprovalPolicy = 'ask' | 'never'
 
 ## 审批请求
 
-`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。可选的 `displayReason` 向界面传递请求方提供的本地化字符串；`reason` 仍是审计文本。
+`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。可选的 `displayReason` 向界面传递请求方提供的本地化字符串；`reason` 仍是审计文本。`ownerOnly: true` 选择经认证的 owner 运输而非 Host waterfall 监听；工作区同意始终使用该运输。该路由不隔离已经在 Host 进程内运行的任意代码。
 
 ```ts type-equiv
 /**
@@ -79,6 +79,8 @@ interface ApprovalRequest extends ApprovalRequestEvent {
    * immediately and a late answer from a still-pending answerer is discarded.
    */
   readonly signal?: AbortSignal
+  /** Require the authenticated owner event transport rather than Host answerers. */
+  readonly ownerOnly?: boolean
 }
 ```
 
@@ -113,7 +115,7 @@ Approval service that applies session policy before answerers and logs every ask
 setPolicy(agent: Agent, policy: ApprovalPolicy): void
 
 /**
- * Ask the composed answerers to decide one readonly same-process request.
+ * Ask ordinary composed answerers, or authenticated owner Clients for workspace consent.
  * The service borrows the request, agent, session, and live signal directly.
  * The request requires an open turn because the audit pair must be enclosed
  * by the durable log's commit/replay boundary; an idle ask rejects before

@@ -1,13 +1,13 @@
 import { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 /** Agent controls use the same manager methods as the Web and bound inventory reads. */
 import { Context } from '@panedesk/cordis'
-import SystemPrompt from '@panedesk/dsh-system-prompt'
-import ToolRuntime from '@panedesk/dsh-tools'
+import type ToolRuntime from '@panedesk/dsh-tools'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
+import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
 import { ToolCallId } from '@panedesk/dsh-llm'
 import type { Agent } from '@panedesk/dsh-agent'
 import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
 import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
-import SessionProjections from '@panedesk/dsh-session-projection'
 import ApprovalService, { type ApprovalOutcome } from '@panedesk/dsh-user-approval'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type PluginManager from '../src/index.ts'
@@ -33,16 +33,19 @@ async function fixture(mode: 'read-only' | 'workspace-write' | 'danger-full-acce
     setVersionExemption: vi.fn(async () => ({ changed: true, application: 'applied' })),
   }
   ctx.provide('pluginManager', manager as unknown as PluginManager)
-  await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRuntime)
-  await ctx.plugin(SessionProjections)
+  await mountAgentLoopTestDependencies(ctx)
+  provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(SandboxPolicy, { mode })
-  if (approval !== undefined) await ctx.plugin(ApprovalService, { policy: approval })
+  const defaultOwner = mode === 'danger-full-access' && approval === undefined
+  if (approval !== undefined || defaultOwner) await ctx.plugin(ApprovalService, { policy: approval ?? 'ask' })
+  const harness = await mountAgentLoopTestHarness(ctx)
+  const agent = await harness.create(SessionId('manager-approval'))
+  agent.session.append('turn/start', { turn: 1 })
+  if (defaultOwner) await ownerAnswer(ctx, async () => 'allowed-once')
   const fiber = await ctx.plugin(tool)
-  const call = (args: unknown, agent?: Agent, signal = new AbortController().signal) => ctx.tools.execute({ name: 'plugin_manager', arguments: args,
-    ...agent === undefined ? {} : { agent },
-    callId: ToolCallId('manager-call'), signal })
-  return { ctx, manager, call, fiber }
+  const call = (args: unknown, caller: Agent = agent, signal = new AbortController().signal) => ctx.tools.execute({ name: 'plugin_manager', arguments: args,
+    agent: caller, callId: ToolCallId('manager-call'), signal })
+  return { ctx, manager, call, fiber, agent }
 }
 
 it.each(['read-only', 'workspace-write'] as const)('denies every management action in %s before accessing the manager', async (mode) => {
@@ -50,9 +53,19 @@ it.each(['read-only', 'workspace-write'] as const)('denies every management acti
   for (const action of ['list_plugins', 'list_bundles', 'set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'list_version_exemptions', 'set_version_exemption']) {
     const result = await call({ action, target: 'bundle', enabled: true })
     expect(result.isError).toBe(true)
-    expect(JSON.stringify(result.content)).toContain('requires approval, but no approval service is composed')
+    expect(JSON.stringify(result.content)).toContain(action.startsWith('list_')
+      ? 'requires approval, but no approval service is composed'
+      : 'Plugin changes require owner approval, but no approval service is composed')
   }
   for (const method of Object.values(manager)) expect(method).not.toHaveBeenCalled()
+})
+
+it.each(['workspace-write', 'danger-full-access'] as const)('does not install model code in %s without an owner decision', async (mode) => {
+  const { ctx, call, manager } = await fixture(mode, 'ask')
+  ctx.on('approval/request', async () => 'allowed-once', { prepend: true })
+  const result = await call({ action: 'install_bundle', target: 'model-defined-bundle' }, activeAgent())
+  expect(result.isError).toBe(true)
+  expect(manager.installBundle).not.toHaveBeenCalled()
 })
 
 it('preserves selected bundle load errors in the agent list result', async () => {
@@ -139,9 +152,9 @@ function activeAgent(): Agent {
 }
 
 it.each(['read-only', 'workspace-write'] as const)('approves each action once in %s without changing session permissions', async (mode) => {
-  const { ctx, call, manager } = await fixture(mode, 'ask')
-  const agent = activeAgent()
+  const { ctx, call, manager, agent } = await fixture(mode, 'ask')
   const prompted = vi.fn(async () => 'allowed-once' as const)
+  const closeOwner = await ownerAnswer(ctx, prompted)
   const dispose = ctx.on('approval/request', prompted)
   for (const action of ['list_plugins', 'list_bundles', 'set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'list_version_exemptions', 'set_version_exemption']) {
     expect((await call({ action, target: 'bundle@1.0.0', enabled: true, runtimeVersion: '0.1.7-alpha.1', acceptRisk: true }, agent)).isError).toBe(false)
@@ -159,21 +172,21 @@ it.each(['read-only', 'workspace-write'] as const)('approves each action once in
   expect(request.data.reason).toContain('"action":"list_plugins"')
   expect(audit[1]).toMatchObject({ type: 'approval/decided', data: { outcome: 'allowed-once' } })
   dispose()
+  await closeOwner()
   expect((await call({ action: 'list_plugins' }, agent)).isError).toBe(true)
   expect(manager.listPlugins).toHaveBeenCalledTimes(1)
 })
 
 it.each(['rejected', 'cancelled', 'unavailable'] as const)('does not mutate the profile when approval is %s', async (outcome) => {
-  const { ctx, call, manager } = await fixture('workspace-write', 'ask')
-  ctx.on('approval/request', async () => outcome)
-  const agent = activeAgent()
+  const { ctx, call, manager, agent } = await fixture('workspace-write', 'ask')
+  await ownerAnswer(ctx, async () => outcome)
   expect((await call({ action: 'install_bundle', target: 'bundle' }, agent)).isError).toBe(true)
   expect(manager.installBundle).not.toHaveBeenCalled()
   expect(agent.session.snapshotEvents().filter(event => event.type === 'approval/decided')
     .map(event => event.data.outcome)).toEqual([outcome])
 })
 
-it('rejects never policy without prompting and keeps full-access calls prompt-free', async () => {
+it('rejects changes under never policy even after full-access is selected', async () => {
   const { ctx, call, manager } = await fixture('workspace-write', 'never')
   const prompted = vi.fn(async () => 'allowed-once' as const)
   ctx.on('approval/request', prompted, { prepend: true })
@@ -181,18 +194,18 @@ it('rejects never policy without prompting and keeps full-access calls prompt-fr
   expect((await call({ action: 'set_plugin', target: 'include:demo', enabled: true }, agent)).isError).toBe(true)
   expect(manager.setPluginEnabled).not.toHaveBeenCalled()
   setSandboxMode(agent.session, 'danger-full-access')
-  expect((await call({ action: 'set_plugin', target: 'include:demo', enabled: true }, agent)).isError).toBe(false)
-  expect(manager.setPluginEnabled).toHaveBeenCalledTimes(1)
+  expect((await call({ action: 'set_plugin', target: 'include:demo', enabled: true }, agent)).isError).toBe(true)
+  expect(manager.setPluginEnabled).not.toHaveBeenCalled()
   expect(prompted).not.toHaveBeenCalled()
 })
 
 it('cancels an approval wait before any manager operation', async () => {
-  const { ctx, call, manager } = await fixture('workspace-write', 'ask')
+  const { ctx, call, manager, agent } = await fixture('workspace-write', 'ask')
   const asked = Promise.withResolvers<undefined>()
   const answer = Promise.withResolvers<ApprovalOutcome>()
-  ctx.on('approval/request', () => { asked.resolve(undefined); return answer.promise })
+  await ownerAnswer(ctx, () => { asked.resolve(undefined); return answer.promise })
   const controller = new AbortController()
-  const result = call({ action: 'install_bundle', target: 'bundle' }, activeAgent(), controller.signal)
+  const result = call({ action: 'install_bundle', target: 'bundle' }, agent, controller.signal)
   await asked.promise
   expect(manager.installBundle).not.toHaveBeenCalled()
   controller.abort()

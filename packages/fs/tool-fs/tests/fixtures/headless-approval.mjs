@@ -46,17 +46,16 @@ export function apply(ctx) {
     let pending
     let session
     scope.on('agent/pre-step', ({ agent }, next) => { session = agent.session; return next() })
-    scope.on('approval/request', request => new Promise((resolve) => {
-      setTimeout(() => {
-        pending = {
-          asked: request.agent.session.snapshotEvents().filter(event => event.type === 'approval/asked').length,
-          decided: request.agent.session.snapshotEvents().filter(event => event.type === 'approval/decided').length,
-          records: scope.sandboxPolicy.workspaceAccess.list(),
-          additions: [...additions],
-        }
-        resolve('unavailable')
-      }, 100)
-    }), { prepend: true })
+    scope.on('session/event', (subject, event) => {
+      if (event.type !== 'approval/asked') return
+      pending = {
+        asked: subject.snapshotEvents().filter(item => item.type === 'approval/asked').length,
+        decided: subject.snapshotEvents().filter(item => item.type === 'approval/decided').length,
+        records: scope.sandboxPolicy.workspaceAccess.list(),
+        additions: [...additions],
+      }
+    })
+    scope.on('approval/request', () => Promise.resolve('allowed-once'), { prepend: true })
     scope.effect(() => () => {
       const events = session?.snapshotEvents() ?? []
       writeFileSync(join(process.env.PANEDESK_HOME, 'approval-evidence.json'), JSON.stringify({

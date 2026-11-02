@@ -84,7 +84,7 @@ export const inject = ['tools', 'pluginManager', 'sandboxPolicy']
 export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'plugin_manager',
-    description: 'List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Every action requires danger-full-access permission or approval for this call. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately, including upgrades of installed packages; a change result that is not applied carries nextStep, which says what to do or tell the user. Unmet Panedesk version requirements (engines.dsh, else Panedesk peer dependencies) block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.',
+    description: 'List plugins or bundles in the current profile, enable or disable them, install a bundle, or remove an installed bundle. Inventory reads require danger-full-access permission or approval for this call. Every change requires an authenticated owner decision, even with danger-full-access permission. Approval does not change the session permission mode. Changes affect every session in this profile. List first to obtain exact identifiers. Package installation can execute allowed build scripts. Live profiles apply changes immediately, including upgrades of installed packages; a change result that is not applied carries nextStep, which says what to do or tell the user. Unmet Panedesk version requirements (engines.dsh, else Panedesk peer dependencies) block installation and activation. Version exemptions risk crashes and data loss: warn the user and obtain explicit permission for the exact plugin and runtime versions before granting one.',
     parameters: {
       action: { type: 'string', required: true, enum: ['list_plugins', 'list_bundles', 'set_plugin', 'set_bundle', 'install_bundle', 'remove_bundle', 'list_version_exemptions', 'set_version_exemption'], description: 'Management operation.' },
       target: { type: 'string', description: 'Plugin entry id, bundle package name, or installation spec, according to action. For an Official catalog entry, pass list_bundles installTarget.spec to install_bundle.' },
@@ -102,11 +102,23 @@ export function apply(ctx: Context): void {
     },
     async execute(args, exec) {
       const policy = ctx.sandboxPolicy.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
-      await approveEscalation({
-        requestedMode: 'danger-full-access', effectiveMode: policy.mode, subject: 'plugin management operation',
-        justification: `plugin_manager ${JSON.stringify(args)}. Profile changes persist across sessions; installed Host code runs outside the workspace sandbox.`,
-      }, { approver: ctx.get('approval'), agent: exec.agent, callId: exec.callId,
-        toolName: 'plugin_manager', signal: exec.signal })
+      const justification = `plugin_manager ${JSON.stringify(args)}. Profile changes persist across sessions; installed Host code runs outside the workspace sandbox.`
+      if (args.action.startsWith('list_')) {
+        await approveEscalation({
+          requestedMode: 'danger-full-access', effectiveMode: policy.mode, subject: 'plugin management operation',
+          justification,
+        }, { approver: ctx.get('approval'), agent: exec.agent, callId: exec.callId,
+          toolName: 'plugin_manager', signal: exec.signal })
+      } else {
+        const approver = ctx.get('approval')
+        if (approver === undefined) throw new Error('Plugin changes require owner approval, but no approval service is composed')
+        if (exec.agent === undefined) throw new Error('Plugin changes require an agent for owner approval')
+        const outcome = await approver.request({
+          agent: exec.agent, callId: exec.callId, toolName: 'plugin_manager',
+          reason: justification, signal: exec.signal, ownerOnly: true,
+        })
+        if (outcome !== 'allowed-once') throw new Error(`Plugin change owner approval was ${outcome}`)
+      }
       exec.signal.throwIfAborted()
       const manager = ctx.pluginManager
       switch (args.action) {

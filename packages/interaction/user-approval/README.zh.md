@@ -29,7 +29,7 @@ kind: "package-reference"
 
 ### 组合应答者
 
-应答者是 `approval/request` waterfall（瀑布式事件）监听器：返回一个结果即为所负责的 agent（智能体）作答，否则调用 `next()` 委托。限定到 agent 的监听器只接收该 agent 的请求，且每项部署应组合一个最终应答者——同级监听器的顺序不是策略优先级机制。没有最终应答者时，请求解析为 `unavailable` 并以拒绝方式关闭；服务自身绝不会提示人类。
+普通应答者是 `approval/request` waterfall（瀑布式事件）监听器：返回结果为所负责的 agent（智能体）作答，或调用 `next()` 委托。限定到 agent 的监听器只接收该 agent 的请求；同级顺序不是策略优先级。工作区用途请求及 `ownerOnly: true` 的请求绕过 Host waterfall，经 Gateway 直接发往经过认证的 owner 答复流；没有这样的流时返回 `unavailable`，Host 监听器的返回值不能批准它。服务自身不提示人类。
 
 ### 设置策略
 
