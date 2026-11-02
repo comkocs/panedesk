@@ -277,6 +277,7 @@ export class LocalSandboxProvider extends SandboxProvider {
    * dispose).
    */
   private readonly workspaceGrants = new Map<string, AclWriteGrant>()
+  private readonly workspaceProtectedPaths = new Map<string, Set<string>>()
   private readonly tempCapabilities = new Map<string, AclTempCapability>()
   private readonly workspaceAccess: WorkspaceWriteAccess
 
@@ -410,6 +411,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     const grant = cached ?? AclWriteGrant.create(workspaceWriteSid(root))
     try {
       grant.revoke(root)
+      const paths = this.workspaceProtectedPaths.get(root) ?? new Set<string>()
+      for (const path of paths) grant.revoke(path)
+      this.workspaceProtectedPaths.delete(root)
       this.workspaceGrants.delete(root)
     } finally {
       if (cached === undefined || !this.workspaceGrants.has(root)) grant.dispose()
@@ -531,7 +535,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     }
     const workspaceGrant = this.workspaceGrants.get(workspaceRoot)
     if (workspaceGrant === undefined) throw new Error('Workspace capability was not materialized')
-    protectAclInputs(workspaceGrant, workspaceRoot, protectedPaths)
+    const protectedGrants = this.workspaceProtectedPaths.get(workspaceRoot) ?? new Set<string>()
+    this.workspaceProtectedPaths.set(workspaceRoot, protectedGrants)
+    protectAclInputs(workspaceGrant, workspaceRoot, protectedPaths, (path) => { protectedGrants.add(path) })
     const key = JSON.stringify([String(sessionId), workspaceRoot])
     const existing = this.tempCapabilities.get(key)
     if (existing !== undefined) return existing

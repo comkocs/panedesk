@@ -9,8 +9,14 @@ import type { AclWriteGrant } from '@panedesk/dsh-sandbox-windows-acl'
  * @param grant - Workspace capability holding the broad write grant.
  * @param workspace - Canonical writable workspace.
  * @param paths - Live protected names and targets.
+ * @param record - Capture each path before native mutation so partial failures remain revocable.
  */
-export function protectAclInputs(grant: AclWriteGrant, workspace: string, paths: readonly string[]): void {
+export function protectAclInputs(
+  grant: AclWriteGrant,
+  workspace: string,
+  paths: readonly string[],
+  record: (path: string) => void = () => {},
+): void {
   const contains = (root: string, path: string): boolean => {
     const suffix = relative(root, path)
     return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
@@ -19,10 +25,16 @@ export function protectAclInputs(grant: AclWriteGrant, workspace: string, paths:
   const parents = new Set<string>()
   for (const path of inputs) {
     if (!contains(workspace, path) && !contains(path, workspace)) continue
-    if (existsSync(path)) grant.protect(path)
+    if (existsSync(path)) {
+      record(path)
+      grant.protect(path)
+    }
     for (let parent = dirname(path); parent !== workspace && contains(workspace, parent); parent = dirname(parent)) {
       parents.add(parent)
     }
   }
-  for (const parent of parents) if (existsSync(parent)) grant.protect(parent, false)
+  for (const parent of parents) if (existsSync(parent)) {
+    record(parent)
+    grant.protect(parent, false)
+  }
 }

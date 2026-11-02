@@ -72,6 +72,15 @@ it('keeps absent inputs outside writable mounts natively protected', async () =>
   expect(status).toEqual({ enforcement: 'full', protectedInputs: [{ path: outside, enforcement: 'native' }] })
 })
 
+it('refuses an uncovered absent input in a writable temporary root outside the workspace', async () => {
+  const f = await fixture(false)
+  const outside = join(f.workspace, '..', 'absent.yml')
+  f.provider.internals = { platform: 'win32', windowsAclRunnerArgs: ['windows-acl-runner'] }
+  await expect(f.provider.confine(['true'], {
+    mode: 'workspace-write', workspaceRoot: f.workspace, protectedPaths: [outside],
+  })).rejects.toThrow('Protected host input has no fallback coverage')
+})
+
 it('refuses an uncovered external cyclic input with a coverage diagnostic', async () => {
   const f = await fixture(false)
   const outside = join(f.workspace, '..', 'cyclic.yml')

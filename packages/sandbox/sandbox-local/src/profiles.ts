@@ -89,16 +89,17 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
   return (policy.protectedPaths ?? []).map((input) => {
     const path = resolve(input)
     if (policy.mode === 'read-only' || runner === 'landlock' || runner === 'seatbelt') return { path, enforcement: 'native' }
-    // bwrap keeps external names under the read-only root; the Windows workspace
-    // SID grants no external writes, and private temp capabilities are disjoint.
-    if (!contains(canonicalPath(policy.workspaceRoot), path)) {
+    // bwrap omits its temporary mount when it overlaps a protected input.
+    const roots = runner === 'bwrap'
+      ? [canonicalPath(policy.workspaceRoot)] : writableRoots(policy)
+    if (!roots.some(root => contains(root, path))) {
       let target: string
       try { target = canonicalPath(path) }
       catch (error) {
         if ((error as NodeJS.ErrnoException).code === undefined) throw error
         return { path, enforcement: 'host-fallback', reason: 'unrepresentable' }
       }
-      if (!contains(canonicalPath(policy.workspaceRoot), target)) return { path, enforcement: 'native' }
+      if (!roots.some(root => contains(root, target))) return { path, enforcement: 'native' }
     }
     const canonical = mountPath(path)
     if (canonical === undefined || !existsSync(path)) return { path, enforcement: 'host-fallback', reason: 'unrepresentable' }
