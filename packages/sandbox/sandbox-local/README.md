@@ -54,7 +54,7 @@ With the provider mounted, a command runs under the mode you resolve per call. E
 
 ### Windows workspace revocation
 
-Only the built-in Windows runner advertises `supportsWorkspaceWriteAccess`. Inspection derives the canonical workspace's exact capability SID and reads its ACL without granting access. Explicit revocation removes that capability and forgets its cached materialization only after the native revoke succeeds; other platforms and custom runners reject these management calls. Revocation does not terminate processes or close existing handles. Read-only confinement creates neither workspace nor temporary write grants.
+Only the built-in Windows runner advertises `supportsWorkspaceWriteAccess`. Inspection derives the canonical workspace's exact capability SID and reads its ACL without granting access. Explicit revocation removes that capability and forgets its cached materialization only after the native revoke succeeds; other platforms and custom runners reject these management calls. Revocation does not terminate processes or close existing handles. Read-only confinement creates neither workspace nor temporary write grants. `materializeWorkspaceWriteGrant()` lets the policy consumer materialize a consenting session's workspace and private-temp capabilities before its first filesystem mutation, without starting a process.
 
 ### Failures and recovery
 

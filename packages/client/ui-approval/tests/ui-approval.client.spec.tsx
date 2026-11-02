@@ -10,6 +10,7 @@ import type { ApprovalComposerProps, ApprovalInjected } from '../src/client/cont
 import { PendingApproval } from '../src/client/contract/slots.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as nodeApply } from '../src/index.ts'
+import { en, zh } from '../src/client/locales.ts'
 
 type ApprovalListener = (
   this: Context,
@@ -18,6 +19,7 @@ type ApprovalListener = (
     callId?: string
     reason?: string
     displayReason?: PendingApproval['displayReason']
+    purpose?: PendingApproval['purpose']
     signal?: AbortSignal
   },
   next: () => Promise<'unavailable'>,
@@ -202,6 +204,20 @@ describe('PendingApproval', () => {
 })
 
 describe('approval Remote Event consumer', () => {
+  it('preserves the dedicated workspace purpose from the Remote waterfall to the panel', async () => {
+    const bench = await setupPlugin()
+    const scope = createScope(bench.ctx, id('workspace-owner'))
+    await scope.fiber.await()
+    const purpose = { type: 'workspace-write', workspace: 'C:\\Projects\\example' } as const
+    const result = bench.listener.call(scope.ctx, { toolName: 'write', purpose }, async () => 'unavailable')
+    const pending = bench.pending.getSnapshot()[0]
+    expect(pending?.purpose).toEqual(purpose)
+    await pending?.answer('rejected')
+    await expect(result).resolves.toBe('rejected')
+    await scope.fiber.dispose()
+    await bench.ctx.fiber.dispose()
+  })
+
   it('delegates an event that has no Agent scope', async () => {
     const bench = await setupPlugin()
     const next = vi.fn(() => Promise.resolve<'unavailable'>('unavailable'))
@@ -332,6 +348,19 @@ function panelProps(
 }
 
 describe('ApprovalPanel', () => {
+  it.each([en, zh])('names the workspace, ACL, and revocation route in the active locale', async (messages) => {
+    const workspace = 'C:\\Projects\\example'
+    const pending = new PendingApproval(id('first-write'), {
+      toolName: 'write', purpose: { type: 'workspace-write', workspace },
+    })
+    const props = panelProps(pending)
+    render(<ApprovalPanel {...props} t={key => (Object.entries(messages).find(([name]) => name === key)?.[1] ?? key).replace('{workspace}', workspace)} />)
+    expect(screen.getByText(messages.workspaceWrite.replace('{workspace}', workspace))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: messages.allowOnce })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: messages.allowWorkspace }))
+    await expect(pending.result).resolves.toBe('allowed-once')
+  })
+
   it('renders fallback copy without detail and returns rejection', async () => {
     const pending = new PendingApproval(id('s1'), { toolName: 'bash' })
     const props = panelProps(pending)

@@ -11,7 +11,7 @@ English | [中文](guide.zh.md)
 
 Windows deployments that do not select a sandbox mode now use `read-only`. Linux and macOS retain `workspace-write`. An explicit `PANEDESK_PERMISSION_MODE`, sandbox-policy configuration, or session mode keeps its existing meaning. The base profiles no longer insert a writable fallback before policy resolution.
 
-The General settings page manages directory-specific Windows workspace write access for the built-in local Windows sandbox. A saved authorization enables workspace writes only while the platform default applies. Existing workspace ACEs do not count as saved consent. First-write confirmation is not available; an unapproved workspace remains read-only.
+The General settings page manages directory-specific Windows workspace write access for the built-in local Windows sandbox. A saved authorization enables workspace writes only while the platform default applies. Existing workspace ACEs do not count as saved consent. The first potentially writing tool call can request dedicated workspace consent; acceptance saves the directory authorization and materializes its ACL. Rejection, cancellation, missing answerers, and expiry keep the workspace read-only. Unattended `never` sessions do not prompt.
 
 ## Migration
 

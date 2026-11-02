@@ -60,6 +60,7 @@
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-typert-protocol": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*",
     "react": "^18.2.0",
     "@panedesk/dsh-client-shortcuts": "workspace:*"
   },

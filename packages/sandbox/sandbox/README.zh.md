@@ -65,6 +65,8 @@ kind: "package-reference"
 
 受限调用被拒绝时，操作会报告指明模式的拒绝标记——`[sandbox: file access denied under <mode> mode]`——组合声明升权能力时还会给出升权提示。模型可以用 `sandbox_permissions`（足以放行的最窄更宽模式）加 `justification` 重试一次完全相同的调用；审批服务为操作取得同意。请求保留审计原因，同时提供英文和中文展示文案，模型给出的理由保持原样。缺失的译文遵循语言服务的回退链，最终回退到英文；请求方负责自己的展示译文。更宽的模式需要审批，且只作用于该次调用。重复指定调用的生效模式无需审批即可成功；更窄的目标仍然无效。
 
+首次工作区写入同意与单次升权不同：[策略服务](../sandbox-policy/README.zh.md#windows-workspace-records)可为具名 Windows 目录保存授权。提供方可通过 `materializeWorkspaceWriteGrant()` 应用已批准的会话策略，无需启动进程。
+
 ### Windows 工作区管理
 
 提供方通过 `supportsWorkspaceWriteAccess` 声明本机原生工作区管理能力，缺省为 false。支持此能力的提供方实现只读检查 `hasWorkspaceWriteGrant`，以及显式原生撤销和缓存失效 `revokeWorkspaceWriteGrant`。设置消费方同时要求配置后的实际能力与检查、撤销方法存在；自定义 runner 不会仅因使用本地提供方就获得 Windows ACL 管理能力。

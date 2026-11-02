@@ -23,6 +23,7 @@ import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import { escalationHintMarker, sandboxDenialMarker } from '@panedesk/dsh-sandbox'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import * as ToolBash from '@panedesk/dsh-tool-bash'
+import * as ToolPwsh from '@panedesk/dsh-tool-pwsh'
 import * as BashEnvPlugin from '@panedesk/dsh-shell-env'
 import { processOutcome } from '../src/background.ts'
 import { renderJobRead, renderResult } from '../src/render.ts'
@@ -253,6 +254,43 @@ function sandboxAgent(
     },
   } as unknown as Agent
 }
+
+describe('first workspace confirmation for shell tools', () => {
+  it.each([
+    ['bash', false], ['bash', true], ['pwsh', false], ['pwsh', true],
+  ] as const)('confirms %s before starting with background=%s', async (name, background) => {
+    const home = mkdtempSync(join(tmpdir(), 'shell-first-write-'))
+    vi.stubEnv('PANEDESK_HOME', home)
+    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    let context: Context | undefined
+    try {
+      const { ctx, bash } = await setupSandboxed(true, true)
+      context = ctx
+      platform.mockRestore()
+      await ctx.plugin(ToolPwsh)
+      const owner = sandboxAgent(undefined, ctx)
+      await ctx.agents.register(owner)
+      const answer = Promise.withResolvers<ApprovalOutcome>()
+      const listener = vi.fn(() => answer.promise)
+      ctx.on('approval/request', listener)
+      const running = call(ctx, name, { command: 'test-only command', description: 'Confirm workspace access', run_in_background: background }, owner)
+      await vi.waitFor(() => { expect(listener).toHaveBeenCalledOnce() })
+      expect(bash.modes).toEqual([])
+      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+      answer.resolve('allowed-once')
+      const result = await running
+      expect(result.isError, text(result)).toBe(false)
+      await vi.waitFor(() => { expect(bash.modes).toEqual(['workspace-write']) })
+      expect(ctx.sandboxPolicy.workspaceAccess.list()).toMatchObject([{ source: 'first-confirmation' }])
+    } finally {
+      await context?.fiber.dispose()
+      platform.mockRestore()
+      vi.unstubAllEnvs()
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('bash tool', () => {
   it('returns stdout for a successful command', async () => {

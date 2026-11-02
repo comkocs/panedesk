@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../interaction/user-approval" },
     {
       "path": "../../../vendor/cordis"
     },

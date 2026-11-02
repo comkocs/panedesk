@@ -54,7 +54,7 @@ kind: "package-reference"
 
 ### Windows 工作区撤销
 
-仅内置 Windows runner 声明 `supportsWorkspaceWriteAccess`。检查从规范化工作区推导精确能力 SID，只读 ACL，不授予权限。显式撤销移除该能力，且仅在原生撤销成功后清除其物化缓存；其他平台和自定义 runner 拒绝这些管理调用。撤销不终止进程或关闭已有句柄。只读隔离既不创建工作区写授权，也不创建临时写授权。
+仅内置 Windows runner 声明 `supportsWorkspaceWriteAccess`。检查从规范化工作区推导精确能力 SID，只读 ACL，不授予权限。显式撤销移除该能力，且仅在原生撤销成功后清除其物化缓存；其他平台和自定义 runner 拒绝这些管理调用。撤销不终止进程或关闭已有句柄。只读隔离既不创建工作区写授权，也不创建临时写授权。`materializeWorkspaceWriteGrant()` 供策略消费方在已同意会话的首次文件变更前物化工作区及私有临时目录能力，无需启动进程。
 
 ### 失败与恢复
 

@@ -506,7 +506,9 @@ export function apply(ctx: Context, config: Config = {}): void {
       async execute(args: PwshToolArgs, exec) {
         validatePwshArgs(args)
         // Description is display metadata; workdir defaults to the caller's session.
-        const standingPolicy = resolveSandboxPolicy(exec)
+        const standingPolicy = args.sandbox_permissions === undefined
+          ? await sandboxPolicy?.requestWrite({ ...exec.agent === undefined ? {} : { agent: exec.agent }, toolName: 'pwsh', callId: exec.callId, signal: exec.signal })
+          : resolveSandboxPolicy(exec)
         const approvedMode = args.sandbox_permissions !== undefined && args.justification !== undefined
           ? await approvePwshEscalation(args.sandbox_permissions, args.justification, exec, standingPolicy)
           : undefined

@@ -33,7 +33,7 @@ None; approval request and response rendering does not alter a model request.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **The panel exposes transient decisions only** — it supports allow-once and reject; persistent permission policy remains owned by Host-side approval packages. Requester-supplied localized presentation copy follows the UI language without changing the audit reason or translating model-generated text.
+- **The Host owns permission persistence** — the panel supports allow-once, reject, and dedicated workspace-write consent. Workspace requests name the directory, explain the ACL and revocation route, and use “Allow workspace writes” rather than “Allow once”; the Host policy consumer persists accepted consent. Requester-supplied localized presentation copy follows the UI language without changing the audit reason or translating model-generated text.
 
 
 <a id="dev-note"></a>

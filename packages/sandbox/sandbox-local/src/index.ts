@@ -35,7 +35,7 @@ import {
 import { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@panedesk/dsh-sandbox'
-import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
+import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxExecutionPolicy, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
 import { assertNever } from '@panedesk/dsh-util-values'
@@ -370,6 +370,17 @@ export class LocalSandboxProvider extends SandboxProvider {
     } finally {
       if (cached === undefined || !this.workspaceGrants.has(root)) grant.dispose()
     }
+  }
+
+  override materializeWorkspaceWriteGrant(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void> {
+    return Promise.resolve().then(() => {
+      this.requireWindowsAclManagement()
+      signal?.throwIfAborted()
+      if (policy.mode !== 'workspace-write' || policy.sessionId === undefined) {
+        throw new Error('Workspace write materialization requires an approved session policy')
+      }
+      this.materializeAclGrant(policy.sessionId, canonicalPath(policy.workspaceRoot))
+    })
   }
 
   override get supportsWorkspaceWriteAccess(): boolean {

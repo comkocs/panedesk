@@ -18,12 +18,13 @@
 type ApprovalRequestId = Branded<'ApprovalRequestId'>
 ```
 
-`ApprovalOutcome` 是闭合的，且失败时拒绝。`allowed-once` 仅授权所询问的那一个操作；调用方对 `rejected`、`cancelled` 和 `unavailable` 均执行拒绝。缺失、不负责该请求、抛异常或不合规的应答者会产生 `unavailable`，而非放行。
+`ApprovalOutcome` 是闭合的，且失败时拒绝。`allowed-once` 同意所声明的用途，未声明用途时仅授权单次操作；调用方对 `rejected`、`cancelled` 和 `unavailable` 均执行拒绝。缺失、不负责该请求、抛异常或不合规的应答者会产生 `unavailable`，而非授予访问。`purpose: { type: 'workspace-write', workspace }` 标识请求持久同意的规范化目录；[沙箱策略消费方](../../packages/sandbox/sandbox-policy/README.zh.md#windows-workspace-records)拥有持久化与撤销。
 
 ```ts type-equiv
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes: consent to the requested purpose, explicit rejection,
+ * withdrawal, or unavailable answerer. Without a purpose, consent covers one action.
+ * Callers fail closed on `unavailable`.
  */
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
@@ -124,8 +125,9 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
- * @param req - the pending decision (agent, tool identity, reason, signal).
- * @returns the closed outcome; `'allowed-once'` is the only grant.
+ * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+ * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
+ *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */

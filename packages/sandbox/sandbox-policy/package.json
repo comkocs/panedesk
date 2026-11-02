@@ -34,6 +34,8 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*"
   },
   "dependencies": {
@@ -48,6 +50,8 @@
     "@panedesk/dsh-session": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*"
   }
 }

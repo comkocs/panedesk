@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-11-02-workspace-write-approval.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-11-02-workspace-write-approval.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-11-02-workspace-write-approval:
+  en: db6157258e5892d4
+  zh: 654cdf46ee68d85d
+/2026-11-02-workspace-write-approval/summary:
+  en: 6a44a28004e63301
+  zh: b275ba36d04df35d
+/2026-11-02-workspace-write-approval/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-11-02-workspace-write-approval/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-11-02-workspace-write-approval/compatibility:
+  en: c2b83db7e1b7eb48
+  zh: 4ee227ae838f1870
+/2026-11-02-workspace-write-approval/verification:
+  en: 8fc974e5264ae67f
+  zh: 13f011b8e0d76621
+/2026-11-02-workspace-write-approval/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

@@ -490,8 +490,10 @@ export function apply(ctx: Context, config: Config = {}): void {
       },
       async execute(args: BashToolArgs, exec) {
         // Description is display metadata; workdir defaults to the caller's session.
-        const standingPolicy = resolveSandboxPolicy(exec)
-        validateBashArgs(args, standingPolicy?.mode)
+        validateBashArgs(args, resolveSandboxPolicy(exec)?.mode)
+        const standingPolicy = args.sandbox_permissions === undefined
+          ? await sandboxPolicy?.requestWrite({ ...exec.agent === undefined ? {} : { agent: exec.agent }, toolName: 'bash', callId: exec.callId, signal: exec.signal })
+          : resolveSandboxPolicy(exec)
         const approvedMode = args.sandbox_permissions !== undefined && args.justification !== undefined
           ? await approveBashEscalation(args.sandbox_permissions, args.justification, exec, standingPolicy)
           : undefined

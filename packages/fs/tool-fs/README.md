@@ -77,7 +77,7 @@ Path authorization for `read` and `read_image` belongs entirely to `ctx.fs`; med
 
 With the policy plugin mounted, `write` and `edit` obtain their guard from the `fs/*` intent slots, so an unread target or a stale observation fails with `FS_NOT_OBSERVED` or `FS_STALE_VERSION` and a recovery instruction. Under a confining backend (`fs-sandbox`), `write`/`edit` additionally advertise `sandbox_permissions` and `justification`; a denied mutation returns the `[sandbox: file access denied under <mode> mode]` marker with the same-turn escalation hint, and an approved retry may stamp a strictly wider mode for that one call. The justification asks the model to use the language of the current user request.
 
-Under the implicit Windows default, a read-only mutation denial instead points the owner to Settings > General > Windows workspace write access for preauthorization and states that unattended tasks cannot grant access. This diagnostic does not open an approval prompt or retry the mutation. The ordinary tool result persists it in the Session and exposes it in the conversation's tool details; an explicit read-only session choice still wins over a directory grant.
+Under the implicit Windows default without directory consent, `write` and `edit` request [workspace authorization](../../sandbox/sandbox-policy/README.md#windows-workspace-records) before mutation. Acceptance persists the directory grant; other outcomes remain read-only and point the owner to Settings > General > Windows workspace write access. Unattended tasks cannot grant access. The ordinary tool result persists denial guidance in the Session and exposes it in tool details; an explicit read-only session choice still wins over a directory grant.
 
 ### Failures and recovery
 

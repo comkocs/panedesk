@@ -203,7 +203,9 @@ export class BashTerminalBackend implements TerminalBackend {
   async spawn(spec: TerminalBackendSpawnSpec): Promise<LocalPtySession> {
     spec.signal?.throwIfAborted()
     ensureSandboxModeFence(this.ctx, spec.owner)
-    const policy = this.ctx.sandboxPolicy.resolve({ session: spec.owner.session })
+    const policy = await this.ctx.sandboxPolicy.requestWrite({
+      agent: spec.owner, toolName: 'terminal-bash', ...spec.signal === undefined ? {} : { signal: spec.signal },
+    })
     const argv = await spawnArgv(this.ctx, this.config, policy, spec.signal)
     spec.signal?.throwIfAborted()
     if (argv[0] === undefined) throw new Error('terminal-bash: sandbox returned empty argv')

@@ -1,6 +1,7 @@
 /**
  * Service Definition for the approval capability seam, covering requests, cancellation, audit, and per-session policy. Missing
- * answerers fail closed; grants apply only to the requested action.
+ * answerers fail closed. Ordinary grants cover one action; workspace-purpose consent
+ * lets its policy consumer persist the named directory authorization.
  * @module @panedesk/dsh-user-approval
  */
 
@@ -49,7 +50,7 @@ import { ApprovalRequestId } from './types.ts'
 import type { ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutcome } from './types.ts'
+export type { ApprovalOutcome, WorkspaceWriteApproval } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalOutcome[] = ['allowed-once', 'rejected', 'cancelled', 'unavailable']
@@ -140,6 +141,8 @@ export interface Config {
    * prompting (the deterministic CI/unattended stance).
    */
   readonly policy?: ApprovalPolicy
+  /** Maximum wait for first-workspace-write consent before cancelling; defaults to 60 seconds. */
+  readonly workspaceWriteTimeoutMs?: number
 }
 
 /**
@@ -150,6 +153,7 @@ export interface Config {
 export class ApprovalService extends Service {
   static Config: z<Config> = z.object({
     policy: z.union(['ask', 'never'] as const).default('ask'),
+    workspaceWriteTimeoutMs: z.number().min(1).max(2_147_483_647).default(60_000),
   })
 
   constructor(ctx: Context, public config: Config) {
@@ -207,8 +211,9 @@ export class ApprovalService extends Service {
    * violate the pair. Session contains post-commit observer failures, so an
    * authoritative append cannot reject the request or suppress its matching
    * audit event.
-   * @param req - the pending decision (agent, tool identity, reason, signal).
-   * @returns the closed outcome; `'allowed-once'` is the only grant.
+   * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+   * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
+   *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
    * @throws when no turn is open or either audit event fails before the session
    *   append commit point.
    */
@@ -227,8 +232,21 @@ export class ApprovalService extends Service {
       toolName: req.toolName,
       ...req.callId !== undefined ? { callId: req.callId } : {},
       ...req.reason !== undefined ? { reason: req.reason } : {},
+      ...req.purpose !== undefined ? { purpose: req.purpose } : {},
     })
-    const outcome = await this.decide(req, session)
+    const timeout = req.purpose === undefined ? undefined : new AbortController()
+    const timer = timeout === undefined ? undefined : setTimeout(() => {
+      timeout.abort(new Error('Workspace write confirmation timed out'))
+    }, this.config.workspaceWriteTimeoutMs)
+    let outcome: ApprovalOutcome
+    try {
+      outcome = await this.decide(timeout === undefined ? req : {
+        ...req,
+        signal: req.signal === undefined ? timeout.signal : AbortSignal.any([req.signal, timeout.signal]),
+      }, session)
+    } finally {
+      if (timer !== undefined) clearTimeout(timer)
+    }
     session.append('approval/decided', { id, outcome })
     return outcome
   }

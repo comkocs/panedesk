@@ -421,8 +421,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async request(req: ApprovalRequest): Promise<ApprovalOutcome>',
         description: 'Ask the composed answerers to decide one readonly same-process request. The service borrows the request, agent, session, and live signal directly. The request requires an open turn because the audit pair must be enclosed by the durable log\'s commit/replay boundary; an idle ask rejects before appending anything. The answerer phase always produces an outcome: an aborted signal yields `\'cancelled\'`, a missing or throwing answerer yields `\'unavailable\'` (fail closed), and a rogue non-vocabulary return value is normalized to `\'unavailable\'`. A failure that prevents either audit append from committing still rejects because returning an unlogged decision would violate the pair. Session contains post-commit observer failures, so an authoritative append cannot reject the request or suppress its matching audit event.',
-        parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, reason, signal).' }],
-        returns: 'the closed outcome; `\'allowed-once\'` is the only grant.',
+        parameters: [{ name: 'req', description: 'the pending decision (agent, tool identity, purpose, reason, signal).' }],
+        returns: 'the closed outcome; only `\'allowed-once\'` consents to the declared purpose. Without a purpose it grants one action; workspace persistence belongs to the consumer.',
         throws: ['when no turn is open or either audit event fails before the session append commit point.'],
       },
       {
@@ -2651,6 +2651,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Whether this provider\'s workspace write ACE exists; absence of the method means unsupported.',
       },
       {
+        signature: 'materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>',
+        description: 'Materialize an approved workspace capability without starting a process.',
+        parameters: [{ name: 'policy', description: 'Current policy with its authorization source and session identity.' }, { name: 'signal', description: 'Cancellation checked before native mutation.' }],
+        returns: 'After the provider has materialized the approved capability.',
+      },
+      {
         signature: 'revokeWorkspaceWriteGrant?(workspaceRoot: string): void',
         description: 'Revoke a persistent workspace capability and invalidate provider caches.',
         parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
@@ -2692,6 +2698,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session cwd is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
         returns: 'the fully resolved per-call mode and absolute workspace root.',
+      },
+      {
+        signature: 'async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>',
+        description: 'Request persistent workspace consent before a potentially writing operation. Explicit modes and non-Windows defaults never prompt. Missing, unattended, rejected, withdrawn, or unavailable answerers leave the policy read-only.',
+        parameters: [{ name: 'request', description: 'Calling agent, tool identity, and cancellation lifetime.' }],
+        returns: 'The freshly resolved policy after consent, or the unchanged standing policy.',
       },
       {
         signature: 'writeDenialHint(mode: SandboxMode): string | undefined',
@@ -7182,7 +7194,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApprovalRequestEvent',
-    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
+    declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly purpose?: WorkspaceWriteApproval;\n    readonly displayReason?: {\n        readonly en: string;\n        readonly [locale: string]: string;\n    };\n    readonly signal?: AbortSignal;\n}',
   },
   {
     name: 'ApprovePendingSeatRequest',
@@ -10498,7 +10510,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    sessionId?: SessionId;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
   },
   {
     name: 'SandboxMode',
@@ -13326,7 +13338,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceWriteAccess',
-    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\']): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+  },
+  {
+    name: 'WorkspaceWriteApproval',
+    declaration: 'export interface WorkspaceWriteApproval {\n    readonly type: \'workspace-write\';\n    readonly workspace: string;\n}',
   },
   {
     name: 'WorkspaceWriteEntry',

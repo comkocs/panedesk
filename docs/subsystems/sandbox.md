@@ -61,6 +61,8 @@ interface SandboxExecutionPolicy {
    * for agentless calls, which fall back to per-call backend state.
    */
   sessionId?: SessionId
+  /** Workspace access derives from a durable record and must be rechecked before native grants. */
+  requiresWorkspaceAuthorization?: true
 }
 ```
 
@@ -194,6 +196,14 @@ abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortS
 hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
 
 /**
+ * Materialize an approved workspace capability without starting a process.
+ * @param policy - Current policy with its authorization source and session identity.
+ * @param signal - Cancellation checked before native mutation.
+ * @returns After the provider has materialized the approved capability.
+ */
+materializeWorkspaceWriteGrant?(policy: SandboxExecutionPolicy, signal?: AbortSignal): Promise<void>
+
+/**
  * Revoke a persistent workspace capability and invalidate provider caches.
  * @param workspaceRoot - Absolute native workspace directory.
  */
@@ -221,6 +231,15 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
 
 /**
+ * Request persistent workspace consent before a potentially writing operation.
+ * Explicit modes and non-Windows defaults never prompt. Missing, unattended,
+ * rejected, withdrawn, or unavailable answerers leave the policy read-only.
+ * @param request - Calling agent, tool identity, and cancellation lifetime.
+ * @returns The freshly resolved policy after consent, or the unchanged standing policy.
+ */
+async requestWrite( request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal }, ): Promise<SandboxExecutionPolicy>
+
+/**
  * Explain owner-managed workspace access after a Windows default read-only denial.
  * @param mode - The settled operation's mode, not a fresh policy resolution.
  * @returns Settings guidance for implicit Windows read-only, otherwise undefined.
@@ -235,7 +254,7 @@ writeDenialHint(mode: SandboxMode): string | undefined
 overrideOf(session: Session): SandboxMode | undefined
 ```
 
-Types: [Session](session.md)
+Types: [Agent](core.md) · [Session](session.md) · [ToolCallId](core.md)
 
 Source: [`packages/sandbox/sandbox-policy/src/index.ts`](../../packages/sandbox/sandbox-policy/src/index.ts)
 <!-- END GENERATED cordis-surface -->

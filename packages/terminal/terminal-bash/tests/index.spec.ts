@@ -12,6 +12,8 @@ import AgentRegistry, { type Agent } from '@panedesk/dsh-agent'
 import SandboxProvider from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import SandboxPolicyService, { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import ApprovalService from '@panedesk/dsh-user-approval'
+import type { ApprovalOutcome } from '@panedesk/dsh-user-approval'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import TerminalSessionService, { TerminalBackendCleanupError, TerminalSessionId } from '@panedesk/dsh-terminal'
 import type { TerminalSendRequest, TerminalWaitReason } from '@panedesk/dsh-terminal'
@@ -618,6 +620,55 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(spawned.motd).toBe('dsh> ')
     expect(sends).toHaveLength(1)
     expect(sends[0]?.signal).toBe(signal)
+  })
+})
+
+describe('first workspace confirmation for model terminals', () => {
+  it.each(['allowed-once', 'rejected'] as const)('waits for %s before starting the terminal backend', async (outcome) => {
+    const home = mkdtempSync(join(tmpdir(), 'terminal-first-write-'))
+    const ctx = new Context()
+    try {
+      vi.stubEnv('PANEDESK_HOME', home)
+      vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+      provideWorkingDirectoryFixture(ctx)
+      await ctx.plugin(SessionProjectionRegistry)
+      const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+      await ctx.plugin(SandboxPolicyService, { workspaceRoot: home })
+      platform.mockRestore()
+      await ctx.plugin(ApprovalService)
+      await ctx.plugin(RecordingSandbox)
+      const owner = agent(ctx, home)
+      owner.session.append('turn/start', { turn: 1 })
+      const answer = Promise.withResolvers<ApprovalOutcome>()
+      const listener = vi.fn(() => answer.promise)
+      ctx.on('approval/request', listener)
+      const spawn = vi.fn(async () => terminalHandle())
+      const backend = new BashTerminalBackend(ctx, config(), spawn, (handle, resolved, assertInputPolicy) => {
+        const session = new LocalPtySession(handle, resolved, assertInputPolicy)
+        vi.spyOn(session, 'initialize').mockResolvedValue(undefined)
+        return session
+      })
+      const spawning = backend.spawn(spec(owner))
+      await vi.waitFor(() => { expect(listener).toHaveBeenCalledOnce() })
+      expect(spawn).not.toHaveBeenCalled()
+      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+      answer.resolve(outcome)
+      if (outcome === 'allowed-once') {
+        const session = await spawning
+        expect(spawn).toHaveBeenCalledOnce()
+        expect(ctx.sandboxPolicy.workspaceAccess.list()).toMatchObject([{ source: 'first-confirmation' }])
+        await session.close('test cleanup')
+      } else {
+        await expect(spawning).rejects.toThrow('Settings > General > Windows workspace write access')
+        expect(spawn).not.toHaveBeenCalled()
+        expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+      }
+    } finally {
+      await ctx.fiber.dispose()
+      vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 })
 

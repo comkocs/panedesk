@@ -143,18 +143,26 @@ export class WorkspaceWriteAccess {
    * Persist consent before a caller can obtain a writable policy. No ACL is changed here.
    * @param workspace - Existing absolute workspace directory.
    * @param source - Human confirmation or settings preauthorization.
+   * @param signal - Cancellation before consent commits; prior consent is preserved on withdrawal.
    * @returns The atomically committed authorization.
    */
-  async authorize(workspace: string, source: WorkspaceWriteRecord['source']): Promise<WorkspaceWriteRecord> {
+  async authorize(workspace: string, source: WorkspaceWriteRecord['source'], signal?: AbortSignal): Promise<WorkspaceWriteRecord> {
     const canonical = this.canonical(workspace)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
     const path = this.recordPath(canonical)
     return withFileLock(path, async () => {
+      signal?.throwIfAborted()
       if (this.revocationPending(path)) throw new Error('Workspace revocation is incomplete; retry revocation before authorizing')
+      const previous = this.find(canonical)
       const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }
       await writeFileAtomic(path, `${JSON.stringify(record)}\n`, { mode: 0o600 })
+      if (signal?.aborted) {
+        if (previous === undefined) await rm(path, { force: true })
+        else await writeFileAtomic(path, `${JSON.stringify(previous)}\n`, { mode: 0o600 })
+        signal.throwIfAborted()
+      }
       return record
-    })
+    }, signal === undefined ? {} : { signal })
   }
 
   /**

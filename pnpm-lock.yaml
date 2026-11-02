@@ -4145,6 +4145,9 @@ importers:
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -11684,6 +11687,12 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/cordis-plugin-include':
+        specifier: workspace:~
+        version: link:../../../vendor/include
+      '@panedesk/cordis-plugin-loader':
+        specifier: workspace:~
+        version: link:../../../vendor/loader
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
@@ -11693,9 +11702,24 @@ importers:
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-api-gateway':
+        specifier: workspace:*
+        version: link:../../api/gateway
+      '@panedesk/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
+      '@panedesk/dsh-api-remotes':
+        specifier: workspace:*
+        version: link:../../api/remotes
+      '@panedesk/dsh-atomic-write':
+        specifier: workspace:*
+        version: link:../../util/atomic-write
       '@panedesk/dsh-attachment':
         specifier: workspace:*
         version: link:../../attachment/attachment
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../fs
@@ -11705,6 +11729,9 @@ importers:
       '@panedesk/dsh-fs-observation-policy':
         specifier: workspace:*
         version: link:../fs-observation-policy
+      '@panedesk/dsh-fs-sandbox':
+        specifier: workspace:*
+        version: link:../fs-sandbox
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -11714,15 +11741,24 @@ importers:
       '@panedesk/dsh-llm-deepseek-api-key':
         specifier: workspace:*
         version: link:../../llm/llm-deepseek-api-key
+      '@panedesk/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../interaction/permission-presets
       '@panedesk/dsh-ptc-runtime':
         specifier: workspace:*
         version: link:../../ptc-runtime/ptc-runtime
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
       '@panedesk/dsh-sandbox-policy':
         specifier: workspace:*
         version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-sandbox-windows-acl':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-windows-acl
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
@@ -11738,6 +11774,9 @@ importers:
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
+      '@panedesk/dsh-typert-registry':
+        specifier: workspace:*
+        version: link:../../typert/registry
       '@panedesk/dsh-user-approval':
         specifier: workspace:*
         version: link:../../interaction/user-approval
@@ -13529,6 +13568,9 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../sandbox
@@ -13541,6 +13583,9 @@ importers:
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
 
   packages/sandbox/sandbox-windows-acl:
     dependencies:
@@ -15592,6 +15637,9 @@ importers:
       '@panedesk/dsh-tool-jobs':
         specifier: workspace:*
         version: link:../../jobs/tool-jobs
+      '@panedesk/dsh-tool-pwsh':
+        specifier: workspace:*
+        version: link:../tool-pwsh
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
@@ -17127,6 +17175,9 @@ importers:
       '@panedesk/dsh-terminal':
         specifier: workspace:*
         version: link:../terminal
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
       '@panedesk/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory

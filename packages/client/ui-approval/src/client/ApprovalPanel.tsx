@@ -71,7 +71,9 @@ function ApprovalFlow({ pending, reason, detail, t }: {
           role="group"
           aria-label={t('detail.aria')}
         >
-          <div className={css.headline}>{reason ?? t('escalation', { toolName: pending.toolName })}</div>
+          <div className={css.headline}>{pending.purpose?.type === 'workspace-write'
+            ? t('workspaceWrite', { workspace: pending.purpose.workspace })
+            : reason ?? t('escalation', { toolName: pending.toolName })}</div>
           {detail !== null && <div className={css.command}>{detail}</div>}
         </div>
         <div className={css.actionRow}>
@@ -79,7 +81,7 @@ function ApprovalFlow({ pending, reason, detail, t }: {
             {t('reject')}
           </Button>
           <Button variant="primary" disabled={answered} onClick={() => { answer('allowed-once') }}>
-            {t('allowOnce')}
+            {t(pending.purpose?.type === 'workspace-write' ? 'allowWorkspace' : 'allowOnce')}
           </Button>
         </div>
       </div>

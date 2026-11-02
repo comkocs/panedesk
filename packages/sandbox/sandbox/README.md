@@ -65,6 +65,8 @@ Enforcement is reported per call: `full` means the backend governs every promise
 
 When a confined call is denied, the operation reports a denial marker naming the mode — `[sandbox: file access denied under <mode> mode]` — and, when the composition advertises escalation, an escalation hint. The model may retry the exact call once with `sandbox_permissions` (the narrowest wider mode that suffices) plus a `justification`; the approval service obtains consent for the operation. The request retains its audit reason and supplies English and Chinese presentation copy with the model's justification unchanged. Missing translations follow the locale service's fallback chain, ultimately English; requesters own their translated presentation text. A wider mode requires approval and applies to that one call only. Repeating the call's effective mode succeeds without approval; narrower targets remain invalid.
 
+First-workspace-write consent is separate from one-call escalation: the [policy service](../sandbox-policy/README.md#windows-workspace-records) can persist authorization for the named Windows directory. Providers may expose `materializeWorkspaceWriteGrant()` to apply an accepted session policy without launching a process.
+
 ### Windows workspace management
 
 Providers advertise native local workspace management through `supportsWorkspaceWriteAccess`, which defaults to false. A supported provider implements `hasWorkspaceWriteGrant` for read-only inspection and `revokeWorkspaceWriteGrant` for explicit native revocation and cache invalidation. Settings consumers require both the configured capability and the inspection/revocation methods; a custom runner does not acquire Windows ACL management merely by using the local provider.

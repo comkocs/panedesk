@@ -18,12 +18,13 @@ Every request receives a fresh `ApprovalRequestId`. The brand pairs the `approva
 type ApprovalRequestId = Branded<'ApprovalRequestId'>
 ```
 
-`ApprovalOutcome` is closed and fail-closed. `allowed-once` grants only the asked-about action; callers deny on `rejected`, `cancelled`, and `unavailable`. A missing, non-owning, throwing, or non-conforming answerer becomes `unavailable` rather than opening the gate.
+`ApprovalOutcome` is closed and fail-closed. `allowed-once` consents to the declared purpose, or one action when no purpose is declared; callers deny on `rejected`, `cancelled`, and `unavailable`. A missing, non-owning, throwing, or non-conforming answerer becomes `unavailable` rather than granting access. `purpose: { type: 'workspace-write', workspace }` identifies the canonical directory for persistent consent; the [sandbox policy consumer](../../packages/sandbox/sandbox-policy/README.md#windows-workspace-records) owns persistence and revocation.
 
 ```ts type-equiv
 /**
- * Closed approval outcomes: a one-shot grant, explicit rejection, withdrawn
- * request, or unavailable answerer. Callers fail closed on `unavailable`.
+ * Closed approval outcomes: consent to the requested purpose, explicit rejection,
+ * withdrawal, or unavailable answerer. Without a purpose, consent covers one action.
+ * Callers fail closed on `unavailable`.
  */
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
@@ -124,8 +125,9 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
- * @param req - the pending decision (agent, tool identity, reason, signal).
- * @returns the closed outcome; `'allowed-once'` is the only grant.
+ * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+ * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
+ *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */

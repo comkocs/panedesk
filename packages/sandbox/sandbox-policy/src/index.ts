@@ -24,7 +24,9 @@ import { isAbsolute } from 'node:path'
 import { Context, Service } from '@panedesk/cordis'
 import { z as zod } from 'zod'
 import z from '@panedesk/schemastery'
-import type {} from '@panedesk/dsh-agent'
+import type { Agent } from '@panedesk/dsh-agent'
+import type { ToolCallId } from '@panedesk/dsh-llm'
+import type {} from '@panedesk/dsh-user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
 import type { Session } from '@panedesk/dsh-session'
 import type {} from '@panedesk/dsh-session-projection'
@@ -185,7 +187,50 @@ export class SandboxPolicyService extends Service {
       mode,
       workspaceRoot,
       ...session === undefined ? {} : { sessionId: session.id },
+      ...this.windowsDefault && explicit === undefined && mode === 'workspace-write'
+        ? { requiresWorkspaceAuthorization: true as const } : {},
     }
+  }
+
+  /**
+   * Request persistent workspace consent before a potentially writing operation.
+   * Explicit modes and non-Windows defaults never prompt. Missing, unattended,
+   * rejected, withdrawn, or unavailable answerers leave the policy read-only.
+   * @param request - Calling agent, tool identity, and cancellation lifetime.
+   * @returns The freshly resolved policy after consent, or the unchanged standing policy.
+   */
+  async requestWrite(
+    request: { agent?: Agent; toolName: string; callId?: ToolCallId; signal?: AbortSignal },
+  ): Promise<SandboxExecutionPolicy> {
+    const session = request.agent?.session
+    const policy = this.resolve(session === undefined ? {} : { session })
+    if (!this.windowsDefault || policy.mode !== 'read-only'
+      || (session !== undefined && this.overrideOf(session) !== undefined)) return policy
+    const approval = this.ctx.get('approval')
+    if (request.agent === undefined || approval === undefined) return policy
+    const workspace = this.workspaceAccess.canonical(policy.workspaceRoot)
+    const outcome = await approval.request({
+      ...request, agent: request.agent,
+      purpose: { type: 'workspace-write', workspace },
+      reason: `Allow sandboxed writes to ${workspace}? This adds a Windows directory write ACL. Revoke in Settings > General > Windows workspace write access.`,
+      displayReason: {
+        en: `Allow sandboxed writes to ${workspace}? This adds a Windows directory write ACL. Revoke in Settings > General > Windows workspace write access.`,
+        zh: `允许向目录 ${workspace} 写入吗？这会添加 Windows 目录写入 ACL。可在设置 > 通用 > Windows 工作区写权限中撤销。`,
+      },
+    })
+    if (outcome !== 'allowed-once' || request.signal?.aborted) {
+      throw new Error(`Workspace write confirmation ${outcome}; access remains read-only. ${this.writeDenialHint('read-only')}`)
+    }
+    // An explicit policy change while the owner answers remains authoritative.
+    if (session !== undefined && this.overrideOf(session) !== undefined) return this.resolve({ session })
+    await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal)
+    request.signal?.throwIfAborted()
+    const granted = this.resolve(session === undefined ? {} : { session })
+    const sandbox = this.ctx.get('sandbox')
+    if (sandbox?.supportsWorkspaceWriteAccess === true) {
+      await sandbox.materializeWorkspaceWriteGrant?.(granted, request.signal)
+    }
+    return granted
   }
 
   /**
