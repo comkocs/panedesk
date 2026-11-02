@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { provideWorkingDirectoryFixture, unsupportedInbox } from '@panedesk/dsh-agent-loop-testkit'
 import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
 import { PassThrough } from 'node:stream'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
@@ -232,8 +232,10 @@ describe('BashTerminalBackend startup rollback', () => {
     initialization.resolve(undefined)
   })
 
-  it('refuses protected workspace roots before allocating a terminal', async () => {
+  it('allocates a terminal with protected inputs read-only and ordinary workspace writes allowed', async () => {
     const root = mkdtempSync(join(tmpdir(), 'protected-terminal-'))
+    const input = join(root, 'plugin.mjs')
+    writeFileSync(input, 'export function apply() {}')
     const ctx = new Context()
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(LocalSandboxProvider, {})
@@ -241,15 +243,21 @@ describe('BashTerminalBackend startup rollback', () => {
     await ctx.plugin(SandboxPolicyService, { mode: 'workspace-write', workspaceRoot: root })
     const sandbox = ctx.sandbox
     if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
-    sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
+    sandbox.internals = { platform: 'linux', probeBwrap: () => true }
     const resolvePolicy = vi.spyOn(ctx.sandboxPolicy, 'resolve').mockReturnValue({
-      mode: 'workspace-write', workspaceRoot: root, protectedPaths: [join(root, 'plugin.mjs')],
+      mode: 'workspace-write', workspaceRoot: root, protectedPaths: [input],
     })
-    const spawnTerminal = vi.fn(async () => terminalHandle())
-    const backend = new BashTerminalBackend(ctx, config(), spawnTerminal)
+    const spawnTerminal = vi.fn(async (_spec: SubprocessTerminalSpawnSpec) => terminalHandle())
+    const backend = new BashTerminalBackend(ctx, config(), spawnTerminal, () => stubLocalSession())
     try {
-      await expect(backend.spawn(spec(agent(ctx, root)))).rejects.toThrow('protected host path')
-      expect(spawnTerminal).not.toHaveBeenCalled()
+      const session = await backend.spawn(spec(agent(ctx, root)))
+      expect(spawnTerminal).toHaveBeenCalledOnce()
+      const argv = spawnTerminal.mock.calls[0]![0].argv
+      expect(argv[0]).toBe('bwrap')
+      expect(argv.join('\n')).toContain(['--bind', root, root].join('\n'))
+      expect(argv.join('\n')).toContain(['--ro-bind', input, input].join('\n'))
+      expect(argv.join('\n')).not.toContain(['--ro-bind', root, root].join('\n'))
+      await session.close('test complete')
     } finally { resolvePolicy.mockRestore(); await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) }
   })
 

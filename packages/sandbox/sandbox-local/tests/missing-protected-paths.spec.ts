@@ -30,9 +30,13 @@ it('writes a sibling workspace through the native bubblewrap runner', ({ skip })
   expect(readFileSync(join(workspace, 'output'), 'utf8')).toBe('allowed')
 })
 
-it('refuses a native grant containing a missing protected input instead of protecting its ancestor', () => {
+it('omits absent mount destinations while retaining writable siblings', () => {
   const root = mkdtempSync(join(homedir(), '.sandbox-missing-'))
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
-  expect(() => bwrapProfileArgs({ mode: 'workspace-write', workspaceRoot: root, protectedPaths: [join(root, 'host', 'config.yml')] }))
-    .toThrow('protected host path')
+  const input = join(root, 'host', 'config.yml')
+  const args = bwrapProfileArgs({ mode: 'workspace-write', workspaceRoot: root, protectedPaths: [input] })
+  expect(args).not.toContain(input)
+  expect(args).not.toContain(join(root, 'host'))
+  expect(args.join('\n')).toContain(['--bind', root, root].join('\n'))
+  expect(args.join('\n')).not.toContain(['--ro-bind', root, root].join('\n'))
 })

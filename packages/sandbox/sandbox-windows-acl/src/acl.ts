@@ -433,6 +433,31 @@ export function grantWrite(
 }
 
 /**
+ * Deny a capability writes to a protected input, or deletion of one ancestor.
+ * Parent FILE_DELETE_CHILD permissions and absent names require separate protection.
+ * @param api - Native binding table.
+ * @param path - Existing protected input or ancestor.
+ * @param sidPtr - Workspace capability denied by this entry.
+ * @param recursive - Deny inherited writes when true; deny only this object's deletion otherwise.
+ */
+export function denyProtectedWrite(api: Win32Bindings, path: string, sidPtr: NativePtr, recursive: boolean): void {
+  withPathLock(api, path, () => {
+    const { oldAcl, descriptor } = readCurrentSecurity(api, path)
+    const mask = recursive ? abi.GRANT_MASK : abi.DELETE
+    const inheritance = recursive ? abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT : 0
+    if (oldAcl !== null && hasExactEntry(oldAcl, abi.ACCESS_DENIED_ACE_TYPE, inheritance, mask, sidPtr)) {
+      if (descriptor !== null) {
+        const freed = api.localFree(descriptor)
+        if (!isNullPtr(freed)) throwLastError(api, 'LocalFree', `denyProtectedWrite(${path}) descriptor`)
+      }
+      return
+    }
+    mergeAndApply(api, path, buildExplicitAccess(sidPtr, abi.DENY_ACCESS, mask, inheritance),
+      oldAcl, { kind: 'keep' }, descriptor, 'denyProtectedWrite')
+  })
+}
+
+/**
  * Remove every ACE for the capability SID from the directory DACL (REVOKE_ACCESS
  * merge — other entries are preserved). The shared Low label is cleared only
  * when no other capability grant remains on the directory: two grants may

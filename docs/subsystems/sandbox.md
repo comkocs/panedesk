@@ -124,6 +124,22 @@ interface RunnerFailureRule {
 `ConfinedArgv` is what the consumer spawns. Besides the replacement argv, it carries the backend's enforcement fact and two orthogonal stderr classifiers. `denialSignatures` identify the confined command being blocked while the sandbox works correctly. `runnerFailureRules` identify the sandbox runner refusing or failing before it executes the command; consumers check these first and surface a sandbox infrastructure failure, never an ordinary task failure.
 
 ```ts type-equiv
+/** Native enforcement or required host validation for one protected input. */
+type ProtectedInputEnforcement = {
+  /** Absolute input spelling supplied by the host. */
+  path: string
+} & ({
+  /** The native profile prevents changes to this input. */
+  enforcement: 'native'
+} | {
+  /** The host must reject unapproved input before loading it. */
+  enforcement: 'host-fallback'
+  /** Why native enforcement cannot preserve the input name. */
+  reason: 'unrepresentable' | 'link-name'
+})
+```
+
+```ts type-equiv
 /**
  * A {@link SandboxProvider.confine} result: the argv to spawn in place of
  * the caller's own, plus the enforcement completeness the selected backend
@@ -134,6 +150,8 @@ interface ConfinedArgv {
   argv: string[]
   /** How completely the selected backend enforces the policy's file effects. */
   enforcement: SandboxEnforcement
+  /** Per-input native protection or required host validation; omitted by providers without input records. */
+  protectedInputs?: readonly ProtectedInputEnforcement[]
   /**
    * The selected backend's denial DIALECT: the case-insensitive stderr
    * substrings a file effect denied by THIS backend produces (EROFS text

@@ -16,6 +16,8 @@ import z from '@panedesk/schemastery'
 import { brandString } from '@panedesk/dsh-brand'
 import { installModelSelection } from '@panedesk/dsh-agent'
 import { setApprovalPolicy } from '@panedesk/dsh-user-approval'
+import type {} from '@panedesk/dsh-permission-presets'
+import type {} from '@panedesk/dsh-api-gateway'
 import type { Agent, ModelSelectionRef } from '@panedesk/dsh-agent'
 import type {} from '@panedesk/dsh-agent-default-model'
 import type {} from '@panedesk/dsh-fs'
@@ -341,7 +343,11 @@ async function run(ctx: Context, config: Config, io: HeadlessIo): Promise<void> 
   const setup = (agentCtx: Context, agent: Agent): void => {
     const selected: ModelSelectionRef = { current: selection, assembled: undefined }
     installModelSelection(agentCtx, selected)
-    setApprovalPolicy(agent.session, 'never')
+    if (agentCtx.get('typertGateway')?.hasLiveClient() !== true) {
+      const permissions = agentCtx.get('permissionPresets')
+      if (permissions === undefined) setApprovalPolicy(agent.session, 'never')
+      else permissions.initialize(agent.session, 'never')
+    }
   }
   const sessionId = brandString<SessionId>(config.sessionId ?? `session-${randomUUID()}`)
   const fs = ctx.get('fs')

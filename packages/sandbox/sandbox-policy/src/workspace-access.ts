@@ -33,7 +33,7 @@ export class WorkspaceWriteAccess {
       return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
     }
     for (const path of this.protectedPaths()) {
-      if (contains(workspace, path) || contains(path, workspace)) {
+      if (contains(path, workspace)) {
         throw new Error(`Workspace write authorization overlaps protected host path ${JSON.stringify(path)}`)
       }
     }

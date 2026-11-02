@@ -44,10 +44,10 @@
  */
 
 import { existsSync, statSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { Win32Error } from '@panedesk/dsh-win32-process'
 
-import { grantWrite, revokeWrite } from './acl.ts'
+import { denyProtectedWrite, grantWrite, revokeWrite } from './acl.ts'
 import { allocPtrSlot, decodePtr, isNullPtr, throwLastError, win32 } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { assertPrivateTempDisjoint } from './path-boundary.ts'
@@ -63,6 +63,8 @@ export { ACL_DIAGNOSIS_SKILL, registerAclDiagnosisSkill } from './acl-skill.ts'
 export interface AclSandboxOptions {
   /** Directories the confined child may write into (must exist and be caller-owned). */
   writableDirs: readonly string[]
+  /** Protected names excluded from workspace grants; absent names require host-side validation. */
+  protectedPaths?: readonly string[]
   /**
    * Existing private temp directory to grant. Workspace-write callers must
    * pass it explicitly or pass null to disable temp writes; the ambient temp
@@ -171,6 +173,7 @@ export class AclSandbox {
   readonly mode: 'read-only' | 'workspace-write'
   private readonly tempDirOption: string | null | undefined
   private readonly manageDacls: boolean
+  private readonly protectedPaths: readonly string[]
   private tempDirResolved: string | null | undefined
   private api: Win32Bindings | undefined
   private token: NativePtr | undefined
@@ -183,6 +186,7 @@ export class AclSandbox {
   constructor(options: AclSandboxOptions) {
     this.mode = options.mode
     this.manageDacls = options.manageDacls ?? true
+    this.protectedPaths = options.protectedPaths ?? []
     this.writableDirs = options.writableDirs.map((directory) => {
       const absolute = resolve(directory)
       if (!existsSync(absolute) || !statSync(absolute).isDirectory()) {
@@ -276,6 +280,21 @@ export class AclSandbox {
             // revoke that path (revoking an ungranted path is a no-op merge).
             this.grantedPaths.push({ path: tempDir, sidPtr: this.tempWriteSidPtr })
             grantWrite(api, tempDir, this.tempWriteSidPtr, lowLabelSid, worldSid)
+          }
+        }
+      }
+      if (this.writeSidPtr !== undefined) {
+        const contains = (root: string, path: string): boolean => {
+          const suffix = relative(root, path)
+          return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
+        }
+        for (const input of this.protectedPaths) {
+          for (const workspace of this.writableDirs) {
+            if (!contains(workspace, input) && !contains(input, workspace)) continue
+            if (existsSync(input)) denyProtectedWrite(api, input, this.writeSidPtr, true)
+            for (let parent = dirname(input); parent !== workspace && contains(workspace, parent); parent = dirname(parent)) {
+              if (existsSync(parent)) denyProtectedWrite(api, parent, this.writeSidPtr, false)
+            }
           }
         }
       }

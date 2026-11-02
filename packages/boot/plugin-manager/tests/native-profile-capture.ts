@@ -1,10 +1,13 @@
 /** Capture native hand-offs without executing a platform sandbox on the test host. */
 import { PassThrough } from 'node:stream'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { expect, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { canonicalPath, rootsOverlap } from '@panedesk/dsh-sandbox'
+import type { ProtectedInputEnforcement } from '@panedesk/dsh-sandbox'
 import Subprocess from '@panedesk/dsh-subprocess-local'
 import Bash from '@panedesk/dsh-bash-sandbox'
 import Pwsh from '@panedesk/dsh-pwsh-sandbox'
@@ -15,16 +18,19 @@ import { TerminalSessionId } from '@panedesk/dsh-terminal'
 import type { SubprocessTerminalHandle } from '@panedesk/dsh-subprocess'
 
 /** Platform authorization calls, observed at the native ACL adapter. */
-export interface WriteAce { path: string; sid: string; standing: boolean }
+export interface WriteAce { path: string; sid: string; standing: boolean; deny?: 'writes' | 'delete' }
 
 /** Assert the actual argv and ACL list prepared for a native backend.
  * @param platform Injected backend platform.
  * @param argv Exact subprocess hand-off, not separately regenerated arguments.
  * @param protectedPaths Current protected host inputs.
  * @param grants Calls to the native ACL adapter during confinement.
+ * @param workspace Writable workspace whose unrelated children remain writable.
+ * @param records Per-input native protection or required host validation from the same hand-off.
  */
 export function assertNativeProfile(
-  platform: string, argv: readonly string[], protectedPaths: readonly string[], grants: readonly WriteAce[],
+  platform: string, argv: readonly string[], protectedPaths: readonly string[], grants: readonly WriteAce[], workspace: string,
+  records: readonly ProtectedInputEnforcement[],
 ): void {
   expect(argv.length).toBeGreaterThan(3)
   if (platform === 'linux') {
@@ -36,14 +42,24 @@ export function assertNativeProfile(
         mounts.push({ kind, path: argv[i + 2]! }); i += 2
       } else if (kind === '--tmpfs' || kind === '--dev' || kind === '--proc') {
         mounts.push({ kind, path: argv[++i]! })
+      } else if (kind === '--remount-ro') {
+        mounts.push({ kind: '--ro-bind', path: argv[++i]! })
       }
     }
     expect(mounts[0]).toEqual({ kind: '--ro-bind', path: '/' })
     for (const root of protectedPaths) {
+      const record = records.find(record => record.path === root)
+      expect(record, `missing protection record for ${root}`).toBeDefined()
+      if (record?.enforcement === 'host-fallback') {
+        expect(record.reason).toMatch(/^(unrepresentable|link-name)$/u)
+        continue
+      }
       const covering = mounts.filter(mount => root === mount.path || root.startsWith(`${mount.path === '/' ? '' : mount.path}/`))
       expect(covering.at(-1), `writable mount covers ${root}`).toMatchObject({ kind: '--ro-bind' })
-      expect(mounts.filter(mount => mount.kind !== '--ro-bind' && rootsOverlap(mount.path, root))).toEqual([])
     }
+    const ordinary = join(workspace, 'ordinary-output.txt')
+    const covering = mounts.filter(mount => ordinary === mount.path || ordinary.startsWith(`${mount.path === '/' ? '' : mount.path}/`))
+    expect(covering.at(-1)).toMatchObject({ kind: '--bind', path: workspace })
   } else if (platform === 'darwin') {
     expect(argv[0]).toBe('sandbox-exec')
     const profile = argv[argv.indexOf('-p') + 1]!
@@ -52,18 +68,26 @@ export function assertNativeProfile(
       .flatMap(match => [...match[1]!.matchAll(/\((?:subpath|literal) ("(?:\\.|[^"\\])*")\)/gu)]
         .map(path => String(JSON.parse(path[1]!))))
     expect(allows.length).toBeGreaterThan(0)
+    expect(allows).toContain(workspace)
     for (const root of protectedPaths) {
-      expect(allows.filter(path => rootsOverlap(path, root)), `write allow covers ${root}: ${profile}`).toEqual([])
+      expect(profile).toContain(`(deny file-write* (subpath ${JSON.stringify(root)}))`)
     }
+    expect(profile).not.toContain(`(deny file-write* (subpath ${JSON.stringify(workspace)}))`)
   } else {
     expect(platform).toBe('win32')
     expect(argv).toContain('--write-sid')
     expect(argv).toContain('--temp-write-sid')
     expect(grants.some(grant => grant.standing)).toBe(true)
     expect(grants.some(grant => !grant.standing)).toBe(true)
+    expect(grants).toContainEqual(expect.objectContaining({ path: workspace, standing: true }))
     for (const root of protectedPaths) {
-      expect(grants.filter(grant => rootsOverlap(grant.path, root)), `write ACE covers ${root}`).toEqual([])
+      const overlaps = grants.filter(grant => grant.deny === undefined && rootsOverlap(grant.path, root))
+      if (overlaps.length > 0 && existsSync(root)) {
+        expect(grants).toContainEqual(expect.objectContaining({ path: root, deny: 'writes' }))
+      }
+      expect(argv).toContain(root)
     }
+    expect(grants.some(grant => grant.path === workspace && grant.deny === 'writes')).toBe(false)
     for (const grant of grants) expect(argv).toContain(grant.sid)
   }
 }
@@ -90,6 +114,13 @@ export async function captureProcessProfile(
   expect(paths.some(path => rootsOverlap(path, target))).toBe(true)
   const subprocessFiber = await host.plugin(Subprocess)
   let handed: readonly string[] | undefined
+  let records: readonly ProtectedInputEnforcement[] = []
+  const confine = provider.confine.bind(provider)
+  const capture = vi.spyOn(provider, 'confine').mockImplementation(async (...args) => {
+    const result = await confine(...args)
+    records = result.protectedInputs ?? []
+    return result
+  })
   const stop = new Error('Native backend unavailable: captured invocation only')
   const spawn = vi.spyOn(host.subprocess, 'spawn').mockImplementation((spec) => { handed = [...spec.argv]; throw stop })
   let consumer: Awaited<ReturnType<Context['plugin']>> | undefined
@@ -143,8 +174,9 @@ export async function captureProcessProfile(
     if (process.env.TEST_CAPTURE_NATIVE_PROFILES === '1') {
       console.info(JSON.stringify({ entry, platform, argv: handed, grants, protectedPaths: paths }))
     }
-    assertNativeProfile(platform, handed!, paths.map(canonicalPath), grants)
+    assertNativeProfile(platform, handed!, paths, grants, canonicalPath(policy.workspaceRoot), records)
   } finally {
+    capture.mockRestore()
     spawn.mockRestore()
     await consumer?.dispose()
     await subprocessFiber.dispose()

@@ -104,7 +104,7 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 }
 
 describe('the provider hand-off', () => {
-  it.each(['kill', 'none'] as const)('refuses protected workspace roots before Bash %s can spawn', async (onExpiry) => {
+  it.each(['kill', 'none'] as const)('hands protected inputs and writable workspace to the runner before Bash %s spawns', async (onExpiry) => {
     const { ctx, bash } = await setup({ mode: 'workspace-write', workspaceRoot: spillDir })
     const providerContext = new Context()
     await providerContext.plugin(LocalSandboxProvider, {})
@@ -112,12 +112,23 @@ describe('the provider hand-off', () => {
     if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
     provider.internals = { platform: 'win32', windowsAclRunnerArgs: ['unused-runner'] }
     const spawn = vi.spyOn(ctx.subprocess, 'spawn')
-    const confine = vi.spyOn(ctx.sandbox, 'confine').mockImplementation((argv, policy, signal) => provider.confine(argv, policy, signal))
+    const handoffs: ConfinedArgv[] = []
+    const confine = vi.spyOn(ctx.sandbox, 'confine').mockImplementation(async (argv, policy, signal) => {
+      const handed = await provider.confine(argv, policy, signal)
+      handoffs.push(handed)
+      return handed
+    })
     try {
-      await expect(bash.execute(bash.resolve({ command: 'printf plugin > plugin.mjs', onExpiry,
+      const execution = await bash.execute(bash.resolve({ command: 'printf plugin > plugin.mjs', onExpiry,
         sandboxPolicy: { mode: 'workspace-write', workspaceRoot: spillDir, protectedPaths: [join(spillDir, 'plugin.mjs')] },
-      }))).rejects.toThrow('protected host path')
-      expect(spawn).not.toHaveBeenCalled()
+      }))
+      await execution.done
+      expect(spawn).toHaveBeenCalledOnce()
+      const handed = handoffs[0]
+      expect(handed?.argv).toEqual(expect.arrayContaining([
+        '--workspace', spillDir, '--mode', 'workspace-write', '--protected-path', join(spillDir, 'plugin.mjs'),
+      ]))
+      expect(handed?.argv[0]).toBe('unused-runner')
     } finally { confine.mockRestore(); spawn.mockRestore(); await ctx.fiber.dispose(); await providerContext.fiber.dispose() }
   })
 

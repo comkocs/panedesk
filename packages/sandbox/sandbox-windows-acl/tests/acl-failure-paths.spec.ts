@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import koffi from 'koffi'
 
-import { grantWrite, hasWriteGrant, revokeWrite, withPathLock } from '../src/acl.ts'
+import { denyProtectedWrite, grantWrite, hasWriteGrant, revokeWrite, withPathLock } from '../src/acl.ts'
 import { allocBytes, ptrAddress } from '../src/ffi.ts'
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
 import * as abi from '../src/win32-abi.ts'
@@ -171,6 +171,64 @@ function readStub(dacl: NativePtr | null, label: NativePtr | null, descriptor: b
     return 0
   })
 }
+
+describe('protected input capability denies', () => {
+  it.each([true, false])('merges the exact deny without changing the integrity label: recursive=%s', (recursive) => {
+    const sid = craftSid(1, 0)
+    const entries: Buffer[] = []
+    const addMandatoryAce = vi.fn(() => 1)
+    const unlockFileEx = vi.fn(() => 1)
+    const closeHandle = vi.fn(() => 1)
+    const api = aclApi({
+      addMandatoryAce, unlockFileEx, closeHandle,
+      setEntriesInAclW: vi.fn((_count, entry, _old, result) => {
+        if (!Buffer.isBuffer(entry)) throw new Error('Expected packed explicit access')
+        entries.push(Buffer.from(entry))
+        koffi.encode(result, PVOID, 9n)
+        return 0
+      }),
+    })
+    denyProtectedWrite(api, 'C:\\workspace\\input', sid, recursive)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.readUInt32LE(0)).toBe(recursive ? abi.GRANT_MASK : abi.DELETE)
+    expect(entries[0]?.readUInt32LE(4)).toBe(abi.DENY_ACCESS)
+    expect(entries[0]?.readUInt32LE(8)).toBe(recursive ? abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT : 0)
+    expect(entries[0]?.readBigUInt64LE(40)).toBe(ptrAddress(sid))
+    expect(addMandatoryAce).not.toHaveBeenCalled()
+    expect(unlockFileEx).toHaveBeenCalledOnce()
+    expect(closeHandle).toHaveBeenCalledOnce()
+  })
+
+  it('keeps an existing exact deny without rewriting its descriptor', () => {
+    const sid = craftSid(1, 0)
+    const acl = craftAcl(abi.ACCESS_DENIED_ACE_TYPE, abi.GRANT_MASK, sid, true)
+    const setEntriesInAclW = vi.fn(() => 0)
+    const setNamedSecurityInfoW = vi.fn(() => 0)
+    const localFree = vi.fn(() => 0n as NativePtr)
+    const api = aclApi({ getNamedSecurityInfoW: readStub(acl, null, 17n), setEntriesInAclW, setNamedSecurityInfoW, localFree })
+    denyProtectedWrite(api, 'C:\\workspace\\input', sid, true)
+    expect(setEntriesInAclW).not.toHaveBeenCalled()
+    expect(setNamedSecurityInfoW).not.toHaveBeenCalled()
+    expect(localFree).toHaveBeenCalledWith(17n)
+  })
+
+  it('propagates a failed deny merge and releases the descriptor and lock', () => {
+    const localFree = vi.fn(() => 0n as NativePtr)
+    const unlockFileEx = vi.fn(() => 1)
+    const closeHandle = vi.fn(() => 1)
+    const setNamedSecurityInfoW = vi.fn(() => 0)
+    const api = aclApi({
+      getNamedSecurityInfoW: readStub(null, null, 17n),
+      setEntriesInAclW: vi.fn(() => 5),
+      localFree, unlockFileEx, closeHandle, setNamedSecurityInfoW,
+    })
+    expect(() => { denyProtectedWrite(api, 'C:\\workspace\\input', craftSid(1, 0), true) }).toThrow(Win32Error)
+    expect(localFree).toHaveBeenCalledWith(17n)
+    expect(unlockFileEx).toHaveBeenCalledOnce()
+    expect(closeHandle).toHaveBeenCalledOnce()
+    expect(setNamedSecurityInfoW).not.toHaveBeenCalled()
+  })
+})
 
 describe('read-only legacy workspace grant inspection', () => {
   it.each([true, false])('matches only the exact capability SID: %s', (matches) => {

@@ -140,6 +140,7 @@ describe('runnerCommand config', () => {
     expect(confined).toEqual({
       argv: ['fake-runner', '--flag', ...bwrapProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
+      protectedInputs: [],
       // An operator runner's kernel mechanism is unknown: both Linux
       // file-denial dialects, never bare EPERM.
       denialSignatures: ['read-only file system', 'permission denied'],
@@ -188,6 +189,7 @@ describe('the platform chains', () => {
     expect(confined).toEqual({
       argv: ['bwrap', ...bwrapProfileArgs(RO), '--', 'true'],
       enforcement: 'full',
+      protectedInputs: [],
       denialSignatures: ['read-only file system'],
       runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }],
     })
@@ -203,6 +205,7 @@ describe('the platform chains', () => {
     expect(confined).toEqual({
       argv: [launcher, ...landlockProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
+      protectedInputs: [],
       denialSignatures: ['permission denied'],
       runnerFailureRules: [{
         allowedExitCodes: [LAUNCHER_FAILURE_EXIT],
@@ -223,6 +226,7 @@ describe('the platform chains', () => {
     expect(confined).toEqual({
       argv: ['sandbox-exec', ...seatbeltProfileArgs(RO), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
+      protectedInputs: [],
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
     })
@@ -388,6 +392,7 @@ describe('the default seatbelt probe (sandbox-exec contract)', () => {
     expect(confined).toEqual({
       argv: [exec, ...seatbeltProfileArgs(RO), '--', 'true'],
       enforcement: 'full',
+      protectedInputs: [],
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
     })

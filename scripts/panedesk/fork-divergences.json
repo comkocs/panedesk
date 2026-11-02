@@ -14042,7 +14042,7 @@
       "id": "windows-workspace-write-owner-confirmation",
       "description": "Windows read-only defaults and owner-managed workspace write access",
       "origin": "Windows sandbox safety and approval integration",
-      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, omit overlapping writable temporary roots from native profiles, retain configured protected-path spellings alongside canonical targets, suppress approval prompts for new and resumed headless sessions, test deployment-owned dependency installation paths, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
+      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, omit overlapping writable temporary roots from native profiles, retain configured protected-path spellings alongside canonical targets, permit ordinary writes around protected inputs using native read-only overlays and capability deny entries, retain protected ancestor names, mount linked inputs only at canonical writable targets without symlink destinations, exercise native Linux mutations, omit missing mount destinations without creating host names, report per-input host validation requirements for link-name replacements and unrepresentable inputs, document missing-name and reparse-point validation requirements, preserve permission initialization event order while suppressing approval prompts for new and resumed unattended headless sessions and retaining policy for authenticated answering owner streams, test deployment-owned dependency installation paths, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -14262,6 +14262,19 @@
           "packages/bundle/headless/tsconfig.json",
           "packages/fs/tool-fs/tests/headless-approval.spec.ts",
           "packages/skill/tool-workspace-dependencies/tests/tool-workspace-dependencies.spec.ts",
+          "packages/boot/plugin-manager/tests/complete-input-matrix.spec.ts",
+          "packages/boot/plugin-manager/tests/native-profile-capture.ts",
+          "packages/fs/fs-sandbox/tests/protected-paths.spec.ts",
+          "packages/sandbox/sandbox-policy/src/workspace-access.ts",
+          "packages/sandbox/sandbox-policy/tests/workspace-access.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/src/index.ts",
+          "packages/sandbox/sandbox-windows-acl/src/runner.ts",
+          "packages/sandbox/sandbox-local/src/protected-acl.ts",
+          "packages/sandbox/sandbox-local/tests/protected-native-matrix.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-workspace-holes.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-link-mounts.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-bwrap-native.spec.ts",
+          "scripts/type-equiv.manifest.json",
           "tsconfig.host.json"
         ]
       }

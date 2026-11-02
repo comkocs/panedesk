@@ -124,6 +124,22 @@ interface RunnerFailureRule {
 `ConfinedArgv` 是消费方实际 spawn 的内容。除了替换后的 argv，它还携带后端的强制执行事实和两种正交的 stderr 分类器。`denialSignatures` 用于识别沙箱正常工作时受限命令被阻止的情况。`runnerFailureRules` 用于识别沙箱 runner 在执行命令之前拒绝或失败的情况；消费方应先检查后者，将其作为沙箱基础设施故障上报，而非普通任务失败。
 
 ```ts type-equiv
+/** Native enforcement or required host validation for one protected input. */
+type ProtectedInputEnforcement = {
+  /** Absolute input spelling supplied by the host. */
+  path: string
+} & ({
+  /** The native profile prevents changes to this input. */
+  enforcement: 'native'
+} | {
+  /** The host must reject unapproved input before loading it. */
+  enforcement: 'host-fallback'
+  /** Why native enforcement cannot preserve the input name. */
+  reason: 'unrepresentable' | 'link-name'
+})
+```
+
+```ts type-equiv
 /**
  * A {@link SandboxProvider.confine} result: the argv to spawn in place of
  * the caller's own, plus the enforcement completeness the selected backend
@@ -134,6 +150,8 @@ interface ConfinedArgv {
   argv: string[]
   /** How completely the selected backend enforces the policy's file effects. */
   enforcement: SandboxEnforcement
+  /** Per-input native protection or required host validation; omitted by providers without input records. */
+  protectedInputs?: readonly ProtectedInputEnforcement[]
   /**
    * The selected backend's denial DIALECT: the case-insensitive stderr
    * substrings a file effect denied by THIS backend produces (EROFS text

@@ -2303,6 +2303,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Record a changed preset, then update each changed knob through its own setter. Selecting the effective preset again appends nothing.',
         parameters: [{ name: 'session', description: 'the session the switch belongs to.' }, { name: 'name', description: 'the preset to switch to; unknown names throw.' }],
       },
+      {
+        signature: 'initialize(session: Session, approvalOverride?: ApprovalPolicy): void',
+        description: 'Fill every missing permission fact before a session is published. A genuinely fresh session uses the current user default; seeded or partially initialized sessions preserve their effective knob values and only gain the missing durable facts. A stored Auto identity requires its live integration and passes its admission check before publication. An unattended override uses the same initial event positions; an already initialized session records only a changed approval policy.',
+        parameters: [{ name: 'session', description: 'Session being prepared or restored.' }, { name: 'approvalOverride', description: 'Explicit caller policy; absent preserves the configured or stored policy.' }],
+      },
     ],
   },
   {
@@ -7660,7 +7665,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConfinedArgv',
-    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
+    declaration: 'export interface ConfinedArgv {\n    argv: string[];\n    enforcement: SandboxEnforcement;\n    protectedInputs?: readonly ProtectedInputEnforcement[];\n    denialSignatures: readonly string[];\n    runnerFailureRules: readonly RunnerFailureRule[];\n}',
   },
   {
     name: 'ConfinedSandboxMode',
@@ -10141,6 +10146,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PromptSubmitResult',
     declaration: 'export type PromptSubmitResult = {\n    text: string;\n    context?: readonly string[];\n    drop?: undefined;\n} | {\n    drop: string;\n    text?: undefined;\n    context?: undefined;\n};',
+  },
+  {
+    name: 'ProtectedInputEnforcement',
+    declaration: 'export type ProtectedInputEnforcement = {\n    path: string;\n} & ({\n    enforcement: \'native\';\n} | {\n    enforcement: \'host-fallback\';\n    reason: \'unrepresentable\' | \'link-name\';\n});',
   },
   {
     name: 'ProviderRequestId',

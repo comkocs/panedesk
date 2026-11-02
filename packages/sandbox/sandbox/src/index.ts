@@ -92,6 +92,20 @@ export interface RunnerFailureRule {
   informationalLines?: readonly string[]
 }
 
+/** Native enforcement or required host validation for one protected input. */
+export type ProtectedInputEnforcement = {
+  /** Absolute input spelling supplied by the host. */
+  path: string
+} & ({
+  /** The native profile prevents changes to this input. */
+  enforcement: 'native'
+} | {
+  /** The host must reject unapproved input before loading it. */
+  enforcement: 'host-fallback'
+  /** Why native enforcement cannot preserve the input name. */
+  reason: 'unrepresentable' | 'link-name'
+})
+
 /**
  * A {@link SandboxProvider.confine} result: the argv to spawn in place of
  * the caller's own, plus the enforcement completeness the selected backend
@@ -102,6 +116,8 @@ export interface ConfinedArgv {
   argv: string[]
   /** How completely the selected backend enforces the policy's file effects. */
   enforcement: SandboxEnforcement
+  /** Per-input native protection or required host validation; omitted by providers without input records. */
+  protectedInputs?: readonly ProtectedInputEnforcement[]
   /**
    * The selected backend's denial DIALECT: the case-insensitive stderr
    * substrings a file effect denied by THIS backend produces (EROFS text
