@@ -46,7 +46,10 @@ export function resolveProtectedPaths(ctx: Context): string[] {
     }
   }
   const hmr = ctx.get('hmr')
-  if (hmr !== undefined) for (const root of hmr.config.root) add(resolve(hmr.baseDir, root))
+  if (hmr !== undefined) {
+    for (const root of hmr.config.root) add(resolve(hmr.baseDir, root))
+    for (const path of hmr.configurationPaths()) add(path)
+  }
   const modules = ctx.get('clientModules')
   if (modules !== undefined) {
     for (const entry of modules.graph().entries) {

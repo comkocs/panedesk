@@ -63,7 +63,7 @@ kind: "package-reference"
 <a id="protected-host-inputs"></a>
 ### 受保护的宿主输入
 
-`resolve()` 从运行中的 profile、home patch 与授权记录、启动时读取的 bundle 清单与补丁、命令行叠加文件、已导入插件目录、Host HMR 根及 Client 产物目录收集 `protectedPaths`。它不会在无关工作区内按文件形状寻找插件。受限文件系统写入拒绝重叠路径；本机进程提供方排除受保护输入，或拒绝包含它们的工作区授权。Windows 记录创建及持锁 ACL 物化均拒绝重叠根。`danger-full-access` 保留宿主用户的写权；插件管理仍单独要求 owner 同意。
+`resolve()` 从运行中的 profile、home patch 与授权记录、启动时读取的 bundle 清单与补丁、命令行叠加文件、已导入插件目录、Host HMR 根与活动的 `watchConfig()` 注册及 Client 产物目录收集 `protectedPaths`。它不会在无关工作区内按文件形状寻找插件。受限文件系统写入拒绝重叠路径；本机进程提供方排除受保护输入，或拒绝包含它们的工作区授权。Windows 记录创建及持锁 ACL 物化均拒绝重叠根。`danger-full-access` 保留宿主用户的写权；插件管理仍单独要求 owner 同意。
 
 保护在操作准入时检查。集合发生变化后，下一次调用不能复用已有 Node 内核或终端，但不会终止已在运行的进程，也不会使已打开的句柄失效。宿主路径是本机文件系统标识，不是远端 SSH 路径声明。
 

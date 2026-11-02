@@ -246,6 +246,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/client/hmr" },
     { "path": "./packages/seat/seat" },
     { "path": "./packages/seat/node-link" },
     { "path": "./packages/host/host-admin" },

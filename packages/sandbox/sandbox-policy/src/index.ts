@@ -40,6 +40,7 @@ import { resolveProtectedPaths } from './protected-paths.ts'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 export { resolveEffectivePermissionMode } from './effective-mode.ts'
+export { resolveProtectedPaths } from './protected-paths.ts'
 export { WorkspaceWriteAccess } from './workspace-access.ts'
 export type { WorkspaceWriteRecord } from './workspace-access.ts'
 

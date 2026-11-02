@@ -88,7 +88,11 @@ export async function runSshHelper(transport: HelperTransport): Promise<void> {
   const policy = async (raw: unknown, signal: AbortSignal): Promise<SandboxExecutionPolicy> => {
     const parsed = policySchema.parse(raw)
     const target = await ctx.fs.resolve(parsed.workspaceRoot, { signal })
-    return { ...parsed, workspaceRoot: ctx.fs.processPath(target) } as SandboxExecutionPolicy
+    return {
+      mode: parsed.mode, workspaceRoot: ctx.fs.processPath(target),
+      ...(parsed.sessionId === undefined ? {} : { sessionId: parsed.sessionId }),
+      ...(parsed.protectedPaths === undefined ? {} : { protectedPaths: parsed.protectedPaths }),
+    }
   }
   const asTarget = (raw: unknown): FsTarget => targetSchema.parse(raw) as FsTarget
   const peer = new SshRpcPeer(transport.input, transport.output, MAX_FRAME_BYTES, 128, async (method, raw, requestSignal) => {
@@ -107,6 +111,7 @@ export async function runSshHelper(transport: HelperTransport): Promise<void> {
       return {
         protocol: SSH_PROTOCOL_VERSION, hash: createHash('sha256').update(readFileSync(transport.entryPath)).digest('hex'),
         kind: transport.kind, platform: process.platform, nodeVersion: process.version, executable: process.execPath, root, workspace,
+        ...(process.env.SSH_CONNECTION === undefined ? {} : { serverAddress: process.env.SSH_CONNECTION.split(' ')[2] }),
         ...(input.bootstrapPath === undefined ? {} : { bootstrapHash: createHash('sha256').update(readFileSync(input.bootstrapPath)).digest('hex') }),
       }
     }

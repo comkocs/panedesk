@@ -6,8 +6,7 @@
 
 import { grantArgs as landlockGrantArgs } from '@panedesk/node-addon-system/landlock-run'
 import { existsSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { assertUnprotectedRoots, rootsOverlap, writableRoots } from '@panedesk/dsh-sandbox'
+import { assertUnprotectedRoots, canonicalPath, rootsOverlap, writableRoots } from '@panedesk/dsh-sandbox'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 
 /**
@@ -20,10 +19,14 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   if (policy.mode === 'workspace-write') {
     args.push('--tmpfs', '/tmp')
     args.push('--bind', policy.workspaceRoot, policy.workspaceRoot)
-    for (const path of policy.protectedPaths ?? []) {
-      let existing = path
-      while (!existsSync(existing) && dirname(existing) !== existing) existing = dirname(existing)
-      args.push('--ro-bind', existing, existing)
+    for (const input of policy.protectedPaths ?? []) {
+      const path = canonicalPath(input)
+      if (!existsSync(path)) {
+        // A missing input outside writable mounts is already protected by the root mount.
+        assertUnprotectedRoots([policy.workspaceRoot, '/tmp'], [path])
+        continue
+      }
+      args.push('--ro-bind', path, path)
     }
   }
   return args

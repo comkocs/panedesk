@@ -45,7 +45,7 @@ The backend's config is unchanged from the local backend's (`cwd` resolution def
 
 The effective mode comes from the calling session's override or escalation grant, falling back to the deployment default when neither is in force. `read-only` denies every mutation with the structured `FS_SANDBOX_DENIED`. `workspace-write` allows a mutation only when the target canonicalizes under the workspace root or a platform temp area (`/tmp`, `os.tmpdir()`) — the same writable set the Seatbelt profile grants. `danger-full-access` delegates unfenced.
 
-`workspace-write` also rejects targets that contain, or lie within, a [protected host input](../../sandbox/sandbox-policy/README.md#protected-host-inputs), including targets inside an authorized workspace. It combines the supplied policy with the current host's protected paths immediately before mutation. These denials retain `sandboxDenial: 'protected-host-path'` and the specific reason instead of the generic escalation hint.
+`workspace-write` also rejects targets that contain, or lie within, a [protected host input](../../sandbox/sandbox-policy/README.md#protected-host-inputs), including targets inside an authorized workspace. It combines the supplied policy with the current host's protected paths immediately before mutation and canonicalizes missing paths through their nearest existing ancestor, including symlink prefixes. These denials retain `sandboxDenial: 'protected-host-path'` and the specific reason instead of the generic escalation hint.
 
 ### Observable success and failures
 

@@ -52,7 +52,7 @@ kind: "package-reference"
 
 挂载提供方后，命令在你逐调用解析的模式下运行。强制执行是报告的事实，而非承诺：`full` 表示后端管辖模式承诺的每个文件操作，`partial` 表示它只管辖子集——Windows ACL 档（硬链接、读取不受限与 AppContainer ACL 边界）与较旧的 Landlock ABI 是当前的部分强制执行情形，因此需要绝对边界的消费方可以拒绝或向上暴露它们。被拒绝的文件操作通过后端的拒绝方言呈现，执行命令前失败的 runner 会报告结构化的 runner 失败签名。
 
-针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并。Bubblewrap 增加只读绑定，Seatbelt 增加写入拒绝。Landlock 在共享临时根与保护输入重叠时省略该授权，并拒绝重叠工作区授权。Windows 在创建 ACL 前拒绝重叠工作区授权。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
+针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并。Bubblewrap 将现存保护输入绑定为只读，不绑定其祖先。缺失输入与可写根重叠时拒绝授权；否则由只读文件系统根保护。Seatbelt 增加写入拒绝。Landlock 在共享临时根与保护输入重叠时省略该授权，并拒绝重叠工作区授权。Windows 在创建 ACL 前拒绝重叠工作区授权。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
 
 ### Windows 工作区撤销
 
