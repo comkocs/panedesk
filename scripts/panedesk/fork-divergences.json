@@ -5896,6 +5896,109 @@
         ],
         "test": "apps/web/tests web browser snapshot replay goldens"
       }
+    },
+    {
+      "id": "seat-retry-summary-failure-pending-split",
+      "description": "Split callback retry summaries into failures and direct pending.",
+      "origin": "Seat callback retry summary split",
+      "reason": "Add optional failure and direct-pending summaries while allowing older records to omit them. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/seat/seat/src/types.ts"
+        ],
+        "test": "seat engine retry summary behavior coverage"
+      }
+    },
+    {
+      "id": "owner-check-bash-setup",
+      "description": "Owner-only Bash configuration writes reuse the existing remote access denial code.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Use the existing remote access denial code for owner-only Bash configuration writes and verify denied writes preserve existing bytes. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/host/host-bash-setup/src/index.ts",
+          "packages/host/host-bash-setup/tests/bash-setup.spec.ts",
+          "packages/host/host-bash-setup/package.json",
+          "packages/host/host-bash-setup/tsconfig.json",
+          "packages/host/host-bash-setup/README.i18n.yaml"
+        ],
+        "test": "bash-setup authorization denial coverage"
+      }
+    },
+    {
+      "id": "owner-check-llm-remote-probe",
+      "description": "Owner-only model probes reuse the existing remote access denial code and report cancelled signals independently.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Use the existing remote access denial code for owner-only probes and test independently cancelled signals. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/llm/llm/src/index.ts",
+          "packages/llm/llm/tests/probe-model.spec.ts",
+          "packages/llm/llm/package.json",
+          "packages/llm/llm/tsconfig.json",
+          "packages/llm/llm/README.i18n.yaml"
+        ],
+        "test": "probe-model authorization and cancellation coverage"
+      }
+    },
+    {
+      "id": "seat-ui-profile-denial-tests",
+      "description": "Cover profile authorization refusal from the owner dashboard.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Cover profile authorization refusal from the owner dashboard without catalog reads. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/client/ui-seats/tests/dashboard-profile.host.spec.ts"
+        ],
+        "test": "dashboard profile denial coverage"
+      }
+    },
+    {
+      "id": "owner-denial-dependencies",
+      "description": "Workspace dependencies for the structured remote access denial details.",
+      "origin": "Owner denial guards for host setup and probes",
+      "reason": "Record workspace type dependencies for structured remote access denial details. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "pnpm-lock.yaml"
+        ],
+        "test": "verify-package-dependencies"
+      }
+    },
+    {
+      "id": "generated-cordis-catalog-sync",
+      "description": "Regenerated Cordis API catalog and event documentation from current declarations.",
+      "origin": "Generated catalog and documentation refresh",
+      "reason": "Regenerate Cordis API and event documentation from the current service declarations and seat callback types. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/extensions/tool-cordis/src/api-catalog.ts",
+          "docs/subsystems/llm-streaming.md",
+          "docs/subsystems/llm-streaming.zh.md",
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md"
+        ],
+        "test": "verify-cordis-catalog and gen-doc-graphs checks"
+      }
+    },
+    {
+      "id": "rescope-cordis-product-identifiers",
+      "description": "Cordis preset identifiers and event topics are product data rather than vendor package references.",
+      "origin": "Generated catalog and documentation refresh",
+      "reason": "Preserve Cordis preset identifiers and event topics that are product data rather than vendor package references. Suitable for upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "scripts/rescope-vendor.ts"
+        ],
+        "test": "rescope-vendor:check residue verification"
+      }
     }
   ]
 }
