@@ -18684,6 +18684,49 @@ importers:
         specifier: workspace:*
         version: link:../../apps/cli
 
+  snapshots:
+
+    dependencies:
+      '@panedesk/cordis':
+        specifier: workspace:~
+        version: link:../vendor/cordis
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../packages/core/agent
+      '@panedesk/dsh-experimental-browser-use-chrome-devtools-mcp':
+        specifier: workspace:*
+        version: link:../packages/experimental/browser-use-chrome-devtools-mcp
+      '@panedesk/dsh-experimental-browser-use-playwright-mcp':
+        specifier: workspace:*
+        version: link:../packages/experimental/browser-use-playwright-mcp
+      '@panedesk/dsh-experimental-browser-use-stagehand-native':
+        specifier: workspace:*
+        version: link:../packages/experimental/browser-use-stagehand-native
+      '@panedesk/dsh-experimental-computer-use-cua-driver-native':
+        specifier: workspace:*
+        version: link:../packages/experimental/computer-use-cua-driver-native
+      '@panedesk/dsh-mcp-client':
+        specifier: workspace:*
+        version: link:../packages/mcp/mcp-client
+      '@panedesk/dsh-ptc-runtime':
+        specifier: workspace:*
+        version: link:../packages/ptc-runtime/ptc-runtime
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../packages/sandbox/sandbox-local
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../packages/sandbox/sandbox-policy
+      '@panedesk/dsh-sandbox-windows-acl':
+        specifier: workspace:*
+        version: link:../packages/sandbox/sandbox-windows-acl
+      '@panedesk/dsh-shell':
+        specifier: workspace:*
+        version: link:../packages/shell/shell
+      '@panedesk/dsh-web-fetch-http':
+        specifier: workspace:*
+        version: link:../packages/web/web-fetch-http
+
   vendor/cordis:
     dependencies:
       '@panedesk/cordis-plugin-include':

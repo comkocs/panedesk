@@ -45,6 +45,7 @@ import SubagentRuntime from '@panedesk/dsh-subagent'
 import * as SubagentControl from '@panedesk/dsh-tool-subagent-control'
 import type { PtcRunRequest, PtcRunSpec, PtcRunResult } from '@panedesk/dsh-ptc-runtime'
 import { mountWorkingDirectoryFixture } from '../../../subagent/subagent/tests/working-directory-fixture.ts'
+import { pythonSdkInterpreter } from './python-sdk-env.ts'
 
 declare module '@panedesk/dsh-typert-protocol' {
   interface PrincipalMap {
@@ -448,7 +449,7 @@ describe('Windows first workspace write confirmation', () => {
         }
       } else {
         const source = fileURLToPath(new URL('../../../../python/sdk/src', import.meta.url))
-        const { stdout } = await promisify(execFile)(process.env.PYTHON ?? 'python3', [
+        const { stdout } = await promisify(execFile)(await pythonSdkInterpreter(), [
           fileURLToPath(new URL('../../../../python/sdk/tests/approval_loopback.py', import.meta.url)),
           process.execPath, fileURLToPath(new URL('./sdk-loopback.mjs', import.meta.url)), String(address.port), workspace,
         ], { env: { PATH: process.env.PATH, LANG: 'C.UTF-8', CI: 'true',

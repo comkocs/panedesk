@@ -34,6 +34,8 @@ export const remoteDefaultResponses: RemoteTable = {
     'credentials/describe': ok({}),
     // ui-permission-presets `PermissionCatalogDirectory` on its first read for a connection generation.
     'permissionPresets/catalog': ok({ options: [] }),
+    // ui-permission-presets `WorkspaceAccessRow` refreshes the owner inventory when the settings shell mounts.
+    'permissionPresets/workspaceWriteAccess': ok({ supported: false, entries: [] }),
     // ui-settings-account refreshes details after a stored-grant snapshot.
     'account/getProfile': ok(null),
     'account/getBalance': ok(null),

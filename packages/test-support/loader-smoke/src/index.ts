@@ -28,6 +28,15 @@ const DEFAULT_PROCESS_TIMEOUT_MS = 30_000
 /** Vitest deadline that leaves room for the subprocess-owned 30-second diagnostic timeout. */
 export const LOADER_SMOKE_TEST_TIMEOUT_MS = DEFAULT_PROCESS_TIMEOUT_MS + 15_000
 
+/**
+ * Sibling directory that hosts `PANEDESK_HOME` for smokes that keep the home outside the workspace.
+ * @param cwd - The smoke's isolated process cwd.
+ * @returns The sibling home directory path.
+ */
+export function dshHomeOutsideWorkspacePath(cwd: string): string {
+  return `${cwd}-dsh-home`
+}
+
 /** Which artifact an example bin is booted from: unbuilt `src` via tsx, or built `lib` via plain Node. */
 export type ExampleMode = 'src' | 'lib'
 
@@ -163,6 +172,12 @@ interface LoaderSmokeBaseOptions {
    * way — including succeeding — still fails the smoke.
    */
   readonly expectedExitCode?: number
+  /**
+   * Place `PANEDESK_HOME` in a sibling of the isolated cwd instead of inside
+   * it. A workspace write authorization covering the cwd would otherwise
+   * overlap the home's protected host inputs.
+   */
+  readonly dshHomeOutsideWorkspace?: boolean
 }
 
 /**
@@ -226,7 +241,7 @@ export async function runLoaderSmoke(options: LoaderSmokeOptions): Promise<Loade
       ...options.sourceImport !== undefined ? { sourceImport: options.sourceImport } : {},
       tsconfigPath: options.tsconfigPath,
       env: {
-        PANEDESK_HOME: join(cwd, '.panedesk'),
+        PANEDESK_HOME: options.dshHomeOutsideWorkspace === true ? dshHomeOutsideWorkspacePath(cwd) : join(cwd, '.panedesk'),
         PANEDESK_AGENTS_HOME: join(cwd, '.agents'),
         ...options.env,
       },
@@ -254,6 +269,9 @@ export async function runLoaderSmoke(options: LoaderSmokeOptions): Promise<Loade
     await options.inspect?.(cwd)
     return { stdout: result.stdout, stderr: result.stderr }
   } finally {
+    if (options.dshHomeOutsideWorkspace === true) {
+      await rm(dshHomeOutsideWorkspacePath(cwd), { recursive: true, force: true })
+    }
     if (!providedCwd) await rm(cwd, { recursive: true, force: true })
   }
 }

@@ -14219,6 +14219,21 @@
           "scripts/gen-cordis-catalog.ts"
         ]
       }
+    },
+    {
+      "id": "m8c-k1-ci-replay-fixtures",
+      "description": "Link the snapshot replay corpus into the workspace so replayed scenario fixtures resolve harness packages.",
+      "origin": "K1 integration replay fixture repair",
+      "reason": "Scenario runtime `.mjs` fixtures import workspace packages through real ESM resolution; registering `snapshots` as a workspace member links them on a clean checkout. Generated through pnpm install; suitable for upstream once the corpus ships as a package.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "pnpm-workspace.yaml",
+          "pnpm-lock.yaml",
+          "packages/test-support/session-snapshot/src/manifest.ts",
+          "snapshots/session/plugin-manager-mcp/session.v4.jsonl"
+        ]
+      }
     }
   ]
 }

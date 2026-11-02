@@ -51,7 +51,7 @@ import {
   type SnapshotManifest,
   type WorkspaceSnapshotEntry,
 } from '@panedesk/dsh-session-snapshot'
-import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
+import { dshHomeOutsideWorkspacePath, LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@panedesk/dsh-loader-smoke'
 import { resolvePwshPath } from '@panedesk/dsh-pwsh-local'
 import { parseSessionLog, prepareSessionSnapshotFixtureForComparison } from '@panedesk/dsh-llm-replay'
 
@@ -199,8 +199,10 @@ function contextOf(logs: readonly string[]): NormalizeContext {
   }
 }
 
-async function persistedSessions(cwd: string): Promise<SessionLog[]> {
-  const root = join(cwd, '.panedesk', 'sessions')
+async function persistedSessions(cwd: string, homeOutsideWorkspace = false): Promise<SessionLog[]> {
+  const root = homeOutsideWorkspace
+    ? join(dshHomeOutsideWorkspacePath(cwd), 'sessions')
+    : join(cwd, '.panedesk', 'sessions')
   const files = latestPersistedSessionPaths(await readdir(root, { recursive: true }))
   const logs = await Promise.all(files.map(async (file): Promise<SessionLog> => {
     const content = await readFile(join(root, file), 'utf8')
@@ -1264,7 +1266,14 @@ describe('headless recorded-session snapshots', () => {
         join(baseComposition.dir, 'model.cordis.yml'),
         ...existsSync(join(scenario.dir, 'runtime.cordis.yml')) ? [join(scenario.dir, 'runtime.cordis.yml')] : [],
       ]
-      const patchRoot = '.snapshot-patches'
+      const homeOutsideWorkspace = scenario.manifest.workspace?.home === 'outside-workspace'
+      // Outside-workspace-home scenarios own their cwd and place the product home beside it,
+      // keeping the materialized launch patches and package links out of the authorized workspace.
+      const scenarioCwd = homeOutsideWorkspace
+        ? await mkdtemp(join(tmpdir(), 'dsh-log-snap-'))
+        : undefined
+      const scenarioHome = scenarioCwd === undefined ? undefined : dshHomeOutsideWorkspacePath(scenarioCwd)
+      const patchRoot = scenarioHome === undefined ? '.snapshot-patches' : join(scenarioHome, 'snapshot-patches')
       const patches = patchSources.map((source, index) => join(patchRoot, `${String(index)}-${basename(source)}`))
 
       let actualLogs: SessionLog[] = []
@@ -1277,9 +1286,12 @@ describe('headless recorded-session snapshots', () => {
       try {
         result = await runLoaderSmoke({
           label: `${scenario.name} headless snapshot`,
-          tempDirPrefix: 'dsh-log-snap-',
-          ...(scenario.name === 'compaction-recovery' ? await compactionWorkspaceOptions() : {}),
-          ...(scenario.manifest.workspace?.parent === 'outside-temp' ? { tempDirParent: outsideTempWorkspaceParent() } : {}),
+          ...scenarioCwd === undefined ? { tempDirPrefix: 'dsh-log-snap-' } : { cwd: scenarioCwd },
+          ...homeOutsideWorkspace ? { dshHomeOutsideWorkspace: true } : {},
+          ...(scenarioCwd === undefined && scenario.name === 'compaction-recovery' ? await compactionWorkspaceOptions() : {}),
+          ...(scenarioCwd === undefined && scenario.manifest.workspace?.parent === 'outside-temp'
+            ? { tempDirParent: outsideTempWorkspaceParent() }
+            : {}),
           binScript: dshBin,
           sourceImport: 'tsx/esm',
           configPath: join(baseComposition.dir, 'cordis.yml'),
@@ -1319,9 +1331,11 @@ describe('headless recorded-session snapshots', () => {
           },
           prepare: async (cwd) => {
             if (scenario.manifest.workspace?.parent === 'outside-temp') assertWorkspaceOutsideTemp(cwd)
-            await mkdir(join(cwd, patchRoot), { recursive: true })
+            const materializedDir = isAbsolute(patchRoot) ? patchRoot : join(cwd, patchRoot)
+            await mkdir(materializedDir, { recursive: true })
             patchSources.forEach((source, index) => {
-              materializeProfilePatch(source, cwd, 'headless', join(cwd, patchRoot), index)
+              materializeProfilePatch(source, cwd, 'headless', materializedDir, index,
+                scenarioHome === undefined ? join(cwd, '.panedesk') : scenarioHome)
             })
             if (mcpDemo !== undefined) {
               const profileDir = join(cwd, '.panedesk/profiles/headless')
@@ -1334,7 +1348,7 @@ describe('headless recorded-session snapshots', () => {
             })
           },
           inspect: async (cwd) => {
-            actualLogs = await persistedSessions(cwd)
+            actualLogs = await persistedSessions(cwd, homeOutsideWorkspace)
             if (retainedToolInput !== undefined) {
               verifyToolResultWriterParity(primaryFixture, actualLogs[0]!.content)
             }
@@ -1401,6 +1415,10 @@ describe('headless recorded-session snapshots', () => {
       } finally {
         await mcpDemo?.close()
         await rm(spillRoot, { recursive: true, force: true })
+        if (scenarioCwd !== undefined) {
+          await rm(isAbsolute(patchRoot) ? patchRoot : join(scenarioCwd, patchRoot), { recursive: true, force: true })
+          await rm(scenarioCwd, { recursive: true, force: true })
+        }
       }
 
       const stderrLog = mode === 'replay' ? primaryFixture : actualLogs[0]?.content
