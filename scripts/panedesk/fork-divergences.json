@@ -14029,7 +14029,7 @@
       "id": "windows-workspace-write-owner-confirmation",
       "description": "Windows read-only defaults and owner-managed workspace write access",
       "origin": "Windows sandbox safety and approval integration",
-      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, omit overlapping writable temporary roots from native profiles, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
+      "reason": "Keep implicit Windows execution read-only until owner consent, serialize persistent grants and revocation, reject model approval replies, exclude running host inputs and active configuration watches from confined writes, canonicalize missing symlink-prefixed inputs without protecting unrelated ancestors, omit overlapping writable temporary roots from native profiles, retain configured protected-path spellings alongside canonical targets, suppress approval prompts for new and resumed headless sessions, test deployment-owned dependency installation paths, preserve local exclusions for SSH endpoints on this host, and document platform behavior. These safety changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -14237,6 +14237,18 @@
           "packages/ssh/ssh/tests/local-write-admission.spec.ts",
           "packages/boot/plugin-manager/tests/live-input-matrix.spec.ts",
           "packages/boot/plugin-manager/tests/source-clone-writes.spec.ts",
+          "docs/module-graph.md",
+          "docs/module-graph.zh.md",
+          "packages/sandbox/sandbox-policy/tests/protected-paths.spec.ts",
+          "packages/bundle/headless/README.i18n.yaml",
+          "packages/bundle/headless/README.md",
+          "packages/bundle/headless/README.zh.md",
+          "packages/bundle/headless/package.json",
+          "packages/bundle/headless/src/index.ts",
+          "packages/bundle/headless/tests/headless.spec.ts",
+          "packages/bundle/headless/tsconfig.json",
+          "packages/fs/tool-fs/tests/headless-approval.spec.ts",
+          "packages/skill/tool-workspace-dependencies/tests/tool-workspace-dependencies.spec.ts",
           "tsconfig.host.json"
         ]
       }

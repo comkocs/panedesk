@@ -1619,7 +1619,7 @@ export interface Config {
 ## `@panedesk/dsh-headless`
 
 - `inject`: `agentDefaultModel` · `agents` · `sessions`
-- `source`: [`packages/bundle/headless/src/index.ts:43`](../packages/bundle/headless/src/index.ts)
+- `source`: [`packages/bundle/headless/src/index.ts:44`](../packages/bundle/headless/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the task and run options resolved from this app's injected provider service. */

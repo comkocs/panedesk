@@ -273,6 +273,25 @@ it('loads the real tool through Cordis, exposes payload paths in place, and unre
   }
 })
 
+it.each([false, true])('ignores model-supplied installation source and target (install=%s)', async (install) => {
+  const { source, root, manifest, directory } = await fixture()
+  const alternate = await fixture()
+  await writeFile(join(alternate.source, 'runtime.json'), JSON.stringify({ ...alternate.manifest, desktopVersion: '99.0.0' }))
+  const modelRoot = join(directory, 'model-selected-installation')
+  const { ctx } = await tool(install ? { source, root } : { source })
+  try {
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal, name: 'load_workspace_dependencies', callId: ToolCallId('untrusted-paths'),
+      arguments: { source: alternate.source, root: modelRoot, target: modelRoot },
+    })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: JSON.stringify(workspaceDependencyPaths(install ? root : source, manifest), undefined, 2) }])
+    expect(await readPrimaryRuntime(install ? root : source)).toEqual(manifest)
+    await expect(lstat(modelRoot)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await readPrimaryRuntime(alternate.source)).desktopVersion).toBe('99.0.0')
+  } finally { await ctx.fiber.dispose() }
+})
+
 it('uses a payload in place without copying and tolerates a payload without Node.js or pnpm', async () => {
   const { source, directory } = await fixture()
   const manifest: PrimaryRuntimeManifest = {

@@ -39,6 +39,8 @@ agent 会完成该任务，把提供方的每个非空推理（reasoning）增�
 { echo "Summarize these changes:"; git diff --stat; } | dsh --profile headless
 ```
 
+新建与恢复的 headless 会话使用 `never` 审批策略：无人值守运行不发送审批提示，即使 owner 已连接也不发送。Windows 隐式只读保持只读，直到 owner 在设置 > 通用 > Windows 工作区写权限中预授权该工作区；显式文件访问模式不变。
+
 任务与运行选项通过三个设置提供：
 
 | 字段 | 默认值 | 含义 |

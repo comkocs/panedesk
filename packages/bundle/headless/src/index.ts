@@ -15,6 +15,7 @@ import type { Context } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { brandString } from '@panedesk/dsh-brand'
 import { installModelSelection } from '@panedesk/dsh-agent'
+import { setApprovalPolicy } from '@panedesk/dsh-user-approval'
 import type { Agent, ModelSelectionRef } from '@panedesk/dsh-agent'
 import type {} from '@panedesk/dsh-agent-default-model'
 import type {} from '@panedesk/dsh-fs'
@@ -248,7 +249,7 @@ async function resolveAgent(
   agents: Context['agents'],
   sessionId: SessionId,
   agentOptions: { provider: string; model: string },
-  setup: (agentCtx: Context) => void,
+  setup: (agentCtx: Context, agent: Agent) => void,
   cwd: string,
 ): Promise<Agent> {
   // Resuming promises the caller a log a later process can continue. Without a
@@ -337,9 +338,10 @@ async function run(ctx: Context, config: Config, io: HeadlessIo): Promise<void> 
   // host plane and the agent reads them from the global layer. A deployment
   // that DOES configure one has to join it here first
   // (@panedesk/dsh-agent-preset-registry README, "Composing a child agent").
-  const setup = (agentCtx: Context): void => {
+  const setup = (agentCtx: Context, agent: Agent): void => {
     const selected: ModelSelectionRef = { current: selection, assembled: undefined }
     installModelSelection(agentCtx, selected)
+    setApprovalPolicy(agent.session, 'never')
   }
   const sessionId = brandString<SessionId>(config.sessionId ?? `session-${randomUUID()}`)
   const fs = ctx.get('fs')
