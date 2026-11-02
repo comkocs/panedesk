@@ -52,7 +52,7 @@ kind: "package-reference"
 
 挂载提供方后，命令在你逐调用解析的模式下运行。强制执行是报告的事实，而非承诺：`full` 表示后端管辖模式承诺的每个文件操作，`partial` 表示它只管辖子集——Windows ACL 档（硬链接、读取不受限与 AppContainer ACL 边界）与较旧的 Landlock ABI 是当前的部分强制执行情形，因此需要绝对边界的消费方可以拒绝或向上暴露它们。被拒绝的文件操作通过后端的拒绝方言呈现，执行命令前失败的 runner 会报告结构化的 runner 失败签名。
 
-针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并。Bubblewrap 将现存保护输入绑定为只读，不绑定其祖先。缺失输入与可写根重叠时拒绝授权；否则由只读文件系统根保护。Seatbelt 增加写入拒绝。Landlock 在共享临时根与保护输入重叠时省略该授权，并拒绝重叠工作区授权。Windows 在创建 ACL 前拒绝重叠工作区授权。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
+针对[受保护宿主输入](../sandbox-policy/README.zh.md#protected-host-inputs)，隔离会将传入路径与当前本机策略合并。Bubblewrap 将现存保护输入绑定为只读，不绑定其祖先。Bubblewrap、Seatbelt 与 Landlock 在共享临时根与保护输入重叠时省略该写授权，并拒绝重叠工作区授权。可写根之外的缺失输入仍由默认只读保护。Seatbelt 另加显式写入拒绝。Windows 在创建 ACL 前拒绝重叠工作区授权。保护集合变化时，这些检查不会撤回既有进程或打开句柄的权限。
 
 ### Windows 工作区撤销
 
@@ -80,11 +80,11 @@ kind: "package-reference"
 
 ### 平台 profile
 
-bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；`workspace-write` 另加临时的 `/tmp` 与可写工作区绑定挂载。[历史私有 PID 笔记](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md)记录该边界。
+bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名空间中的 `/proc`——命令可管理其后代，但看不到宿主进程，因此 procfs 魔法链接无法绕过挂载；`workspace-write` 另加可写工作区绑定挂载，并在不与保护输入重叠时增加临时的 `/tmp`。[历史私有 PID 笔记](../../../.agents/notes/archived/bug-fix/2026-08-06-bwrap-private-pid-namespace.md)记录该边界。
 
 `@panedesk/node-addon-system/landlock-run` API 提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。
 
-Seatbelt profile 默认允许，带 `(deny file-write*)` 与来自共享 `writableRoots` 辅助函数的写入 allow-list，因此恰好管辖模式承诺的文件操作；每个根目录都经过规范化，因为 Seatbelt 匹配解析后的路径（`/tmp` 就是 `/private/tmp`）。
+Seatbelt profile 默认允许，带 `(deny file-write*)` 与从 `writableRoots` 排除保护根重叠后得到的写入 allow-list；每个根目录都经过规范化，因为 Seatbelt 匹配解析后的路径（`/tmp` 就是 `/private/tmp`）。
 
 Windows 档为每个工作区保留一个确定性写入 SID 和常驻 ACE，同时为每个活跃的会话/工作区对分配一个随机私有临时目录，以及不同的 SID 和可撤销 ACE——共享工作区的会话共享其预期写权限，却不会继承彼此的临时目录权限。新的提供方总会选择新的临时路径和 SID，因此崩溃残留既无法阻止恢复的会话，也无法向其授权。该档报告 `partial` 强制执行，因为 NTFS 硬链接会把同一文件对象别名为多个路径、读取仍不受限，且被其他 AppContainer 工具以包 SID 标记过的目录树对 Low 完整性子进程不可读。
 
