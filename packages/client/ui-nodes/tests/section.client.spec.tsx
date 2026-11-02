@@ -33,6 +33,7 @@ it.each([['en', en], ['zh', zh]] as const)('renders evidence and confirms local-
   expect(screen.getByText(labels.sinceStart)).toBeTruthy()
   expect(screen.getByText(labels.remoteOnly)).toBeTruthy()
   expect(screen.getByText(labels.atLeast.replace('{count}', '7'))).toBeTruthy()
+  expect(screen.getAllByText(labels.notRecorded).length).toBeGreaterThanOrEqual(6)
   fireEvent.click(screen.getByRole('button', { name: labels.rebuild }))
   expect(h.act).not.toHaveBeenCalled()
   expect(screen.getByRole('dialog', { name: labels.confirm })).toBeTruthy()
@@ -61,6 +62,16 @@ it.each([['none', undefined, 'idle'], ['loading', undefined, 'loading'], ['faile
 ('reports %s %s without presenting missing observations as success', (status, code, key) => {
   render(<NodesSection {...fixture(en, status, code).props} />)
   expect(screen.getByText(en[key])).toBeTruthy()
+})
+it.each([['en', en], ['zh', zh]] as const)('shows recorded failure and direct pending groups separately in %s', (_language, labels) => {
+  const split = { ...view, callbacks: [{ ...view.callbacks[0]!,
+    failures: { count: 6, firstAt: '2026-01-01T00:00:00Z', lastAt: '2026-01-01T00:50:00Z', attemptsAtLeast: true },
+    directPending: { count: 1, firstAt: '2026-01-01T01:00:00Z', lastAt: '2026-01-01T01:00:00Z' } }] }
+  render(<NodesSection {...fixture(labels, 'live', undefined, split).props} />)
+  expect(screen.getByText(labels.atLeast.replace('{count}', '6'))).toBeTruthy()
+  expect(screen.getByText('1')).toBeTruthy()
+  expect(screen.getByText('2026-01-01T00:50:00Z')).toBeTruthy()
+  expect(screen.queryByText(labels.notRecorded)).toBeNull()
 })
 it('reports empty, unavailable and incomplete observations explicitly', () => {
   const empty = { ...view, nodes: [], callbacks: [], sourceOperations: [], callbacksAvailable: false, sourceAvailable: false }
