@@ -30,7 +30,15 @@ import type { Session } from '@panedesk/dsh-session'
 import type {} from '@panedesk/dsh-session-projection'
 import type {} from '@panedesk/dsh-system-prompt'
 
+import { resolveDshHome } from '@panedesk/dsh-home-paths'
+import { resolveEffectivePermissionMode } from './effective-mode.ts'
+import type { EffectivePermissionMode } from './effective-mode.ts'
+import { WorkspaceWriteAccess } from './workspace-access.ts'
+
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
+export { resolveEffectivePermissionMode } from './effective-mode.ts'
+export { WorkspaceWriteAccess } from './workspace-access.ts'
+export type { WorkspaceWriteRecord } from './workspace-access.ts'
 
 /** Preserve execution-world spelling; enforcing providers resolve filesystem identity on their host. */
 function resolveWorkspaceRoot(path: string): string {
@@ -62,14 +70,13 @@ declare module '@panedesk/cordis' {
 }
 
 /**
- * Plugin config: the deployment's sandbox default. All optional — `Config`
- * supplies the defaults (`mode: 'read-only'` is the fail-safe default; a
- * deployment that wants a workspace-writable agent opts in explicitly). The
+ * Plugin config: the deployment's sandbox default. Without an explicit mode
+ * or environment choice, Windows is read-only and Linux/macOS are workspace-writable. The
  * runner choice is NOT here (it is the `ctx.sandbox` provider's config), nor
  * is any per-family knob: this is the one shared policy home.
  */
 export interface Config {
-  /** File-sandbox mode a session starts from (default: `read-only`). */
+  /** Explicit file-sandbox mode; otherwise the environment or platform default applies. */
   mode?: SandboxMode
   /**
    * Absolute fallback root for agentless calls and sessions without a cwd (default:
@@ -110,7 +117,7 @@ declare module '@panedesk/dsh-session-projection/types' {
 export class SandboxPolicyService extends Service {
   // Inline schema call: the config catalog walks `static Config` statically.
   static Config: z<Config> = z.object({
-    mode: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const).default('read-only'),
+    mode: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const),
     // No schema default: process.cwd() is resolved in the constructor so the
     // stored root is always absolute regardless of how it was supplied.
     workspaceRoot: z.string(),
@@ -120,14 +127,21 @@ export class SandboxPolicyService extends Service {
 
   /** The deployment default mode — the fallback beneath a session override. */
   readonly defaultMode: SandboxMode
+  /** Whether configuration or the environment explicitly selected the deployment mode. */
+  readonly defaultSource: EffectivePermissionMode['source']
+  /** True only when Windows is using the implicit platform default. */
+  readonly windowsDefault: boolean
+  /** Product-home workspace authorizations, read afresh at each policy resolution. */
+  readonly workspaceAccess: WorkspaceWriteAccess
   /** The absolute `workspace-write` fallback root for calls without a session cwd. */
   readonly workspaceRoot: string
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
-    // schemastery (static Config) already filled `mode`; the cast records that
-    // runtime fact. `workspaceRoot` has NO schema default, so its fallback to
-    // the process cwd is real branching, resolved absolute either way.
-    this.defaultMode = config.mode as SandboxMode
+    const effective = resolveEffectivePermissionMode(config.mode)
+    this.defaultMode = effective.mode
+    this.defaultSource = effective.source
+    this.windowsDefault = process.platform === 'win32' && effective.source === 'default'
+    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome())
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 
     ctx.sessionProjections.register({
@@ -163,11 +177,28 @@ export class SandboxPolicyService extends Service {
    */
   resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy {
     const { session } = request
+    const workspaceRoot = resolveWorkspaceRoot(session?.header.cwd ?? this.workspaceRoot)
+    const explicit = request.mode ?? (session === undefined ? undefined : this.overrideOf(session))
+    const mode = explicit ?? (this.windowsDefault && this.workspaceAccess.isAuthorized(workspaceRoot)
+      ? 'workspace-write' : this.defaultMode)
     return {
-      mode: request.mode ?? (session === undefined ? undefined : this.overrideOf(session)) ?? this.defaultMode,
-      workspaceRoot: resolveWorkspaceRoot(session?.header.cwd ?? this.workspaceRoot),
+      mode,
+      workspaceRoot,
       ...session === undefined ? {} : { sessionId: session.id },
     }
+  }
+
+  /**
+   * Explain owner-managed workspace access after a Windows default read-only denial.
+   * @param mode - The settled operation's mode, not a fresh policy resolution.
+   * @returns Settings guidance for implicit Windows read-only, otherwise undefined.
+   */
+  writeDenialHint(mode: SandboxMode): string | undefined {
+    return this.windowsDefault && mode === 'read-only'
+      ? 'Windows defaults to read-only. The owner can preauthorize the workspace in '
+        + 'Settings > General > Windows workspace write access. Unattended tasks cannot grant this access. '
+        + 'An explicit read-only session choice still applies after preauthorization.'
+      : undefined
   }
 
   /**

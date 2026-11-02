@@ -22,6 +22,8 @@ const mockState = vi.hoisted(() => ({
   addFailureStanding: undefined as boolean | undefined,
   createTempFailure: undefined as Error | undefined,
   disposeFailure: undefined as Error | undefined,
+  legacyGrant: false,
+  revoked: [] as string[],
 }))
 
 vi.mock('@panedesk/dsh-sandbox-windows-acl', () => {
@@ -44,6 +46,8 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', () => {
         throw mockState.addFailure
       }
     }
+    has(): boolean { return mockState.legacyGrant }
+    revoke(path: string): void { mockState.revoked.push(path) }
     dispose(): void {
       if (mockState.disposeFailure !== undefined) throw mockState.disposeFailure
       this.disposed = true
@@ -92,6 +96,8 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     mockState.addFailureStanding = undefined
     mockState.createTempFailure = undefined
     mockState.disposeFailure = undefined
+    mockState.legacyGrant = false
+    mockState.revoked = []
   })
 
   const cleanup = () => {
@@ -102,6 +108,40 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     }
     for (const dir of scratch.splice(0)) rmSync(dir, { recursive: true, force: true })
   }
+
+  it('inspects legacy workspace access without granting and invalidates the cache on revocation', async () => {
+    const { sandbox, fiber } = await setup()
+    try {
+      const ws = workspaceRoot()
+      scratch.push(ws)
+      mockState.legacyGrant = true
+      expect(sandbox.hasWorkspaceWriteGrant(ws)).toBe(true)
+      expect(mockState.grants.flatMap(grant => grant.added)).toEqual([])
+      const policy: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: ws, sessionId: SessionId('revoke') }
+      await sandbox.confine(['true'], policy)
+      sandbox.revokeWorkspaceWriteGrant(ws)
+      expect(mockState.revoked).toEqual([ws])
+      await sandbox.confine(['true'], policy)
+      expect(mockState.grants.flatMap(grant => grant.added).filter(grant => grant.standing)).toHaveLength(2)
+    } finally { await fiber.dispose(); cleanup() }
+  })
+
+  it('advertises workspace ACL management only for the built-in Windows runner', async () => {
+    const { sandbox, fiber } = await setup()
+    const customContext = new Context()
+    const custom = await customContext.plugin(LocalSandboxProvider, {
+      runnerCommand: ['custom-runner'], runnerFailureSignatures: ['custom runner refused'],
+    })
+    try {
+      expect(sandbox.supportsWorkspaceWriteAccess).toBe(true)
+      sandbox.internals = { platform: 'linux' }
+      expect(sandbox.supportsWorkspaceWriteAccess).toBe(false)
+      const provider = customContext.sandbox as LocalSandboxProvider
+      provider.internals = { platform: 'win32' }
+      expect(provider.supportsWorkspaceWriteAccess).toBe(false)
+      expect(mockState.grants).toEqual([])
+    } finally { await fiber.dispose(); await custom.dispose() }
+  })
 
   it('does not create grants for a cancelled confinement request', async () => {
     const { sandbox, fiber } = await setup()

@@ -222,7 +222,7 @@ class ConfiningFakeBash extends ShellExecutor {
 }
 
 /** Sandboxed composition: the shared policy service + a confining executor + the pwsh tool (+ optional approval). */
-async function setupSandboxed(withApproval = false) {
+async function setupSandboxed(withApproval = false, platformDefault = false) {
   const ctx = new Context()
   provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(SystemPrompt)
@@ -236,7 +236,7 @@ async function setupSandboxed(withApproval = false) {
   // bench — the loop itself is not composed. Register its open-turn fold so
   // the approval service's turn-enclosure gate reads the seeded log shape.
   ctx.sessionProjections.register(turnBoundaryProjectionDefinition)
-  await ctx.plugin(SandboxPolicyService, {})
+  await ctx.plugin(SandboxPolicyService, platformDefault ? {} : { mode: 'read-only' })
   await ctx.plugin(ConfiningFakeBash)
   if (withApproval) await ctx.plugin(ApprovalService)
   await ctx.plugin(ToolPwsh)
@@ -1224,6 +1224,44 @@ describe('processOutcome', () => {
   })
 })
 
+
+describe('Windows default denial guidance', () => {
+  it.each([false, true])('retains owner preauthorization guidance for background=%s without approving or retrying', async (background) => {
+    const home = mkdtempSync(join(import.meta.dirname, '.windows-denial-'))
+    vi.stubEnv('PANEDESK_HOME', home)
+    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    let ctx: Context | undefined
+    try {
+      const setup = await setupSandboxed(true, true)
+      ctx = setup.ctx
+      platform.mockRestore()
+      const sandbox = { mode: 'read-only', denied: true } as const
+      const execute = vi.spyOn(setup.bash, 'execute').mockImplementation(async () => ({
+        ...fakeProcess(''), exitCode: 1, sandbox,
+        result: async () => runResult('', { exitCode: 1, sandbox }),
+      }))
+      const approve = vi.spyOn(ctx.approval, 'request')
+      const result = await call(ctx, 'pwsh', { command: 'write denied', description: 'Attempt workspace write', run_in_background: background })
+      const output = background
+        ? text(await call(ctx, 'job_output', { job_id: currentId(ctx), wait: true }))
+        : text(result)
+      expect(output).toContain('Windows defaults to read-only.')
+      expect(output).toContain('Settings > General > Windows workspace write access.')
+      expect(output).toContain('Unattended tasks cannot grant this access.')
+      expect(output).toContain('An explicit read-only session choice still applies after preauthorization.')
+      expect(output).not.toContain('escalation available')
+      expect(execute).toHaveBeenCalledOnce()
+      expect(approve).not.toHaveBeenCalled()
+      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+    } finally {
+      await ctx?.fiber.dispose()
+      vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('resolved launch directory metadata', () => {
   it.each([

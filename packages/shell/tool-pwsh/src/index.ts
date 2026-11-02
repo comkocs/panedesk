@@ -223,6 +223,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     throw new Error('tool-pwsh: the mounted bash executor confines but ctx.sandboxPolicy is missing')
   }
   /* jscpd:ignore-end */
+  const readOnlyHint = sandboxPolicy?.writeDenialHint('read-only')
   /** Resolve the complete standing policy for this call when a confining executor is mounted. */
   const resolveSandboxPolicy = (exec: ToolExecution): SandboxExecutionPolicy | undefined =>
     sandboxPolicy?.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
@@ -295,7 +296,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               proc = await ctx.shell.execute({ ...spec, signal })
               return proc
             },
-            started => processOutcome(started, escalationModes),
+            started => processOutcome(started, escalationModes, readOnlyHint),
           )
           return {
             done: hooks.done,
@@ -365,7 +366,8 @@ export function apply(ctx: Context, config: Config = {}): void {
           jobId: attached.id,
           timeoutMs,
           output: renderPwshJobRead(
-            ringDelta(read.chunks), read.lossy, read.job.output.spillPaths ?? [], attached.process()?.sandbox, escalationModes,
+            ringDelta(read.chunks), read.lossy, read.job.output.spillPaths ?? [],
+            attached.process()?.sandbox, escalationModes, readOnlyHint,
           ),
         }
       }
@@ -496,7 +498,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             ? `started background job ${value.jobId}`
             : value.kind === 'promoted'
               ? renderPwshPromoted(value)
-              : renderPwshResult(value as RenderablePwshResult, escalationModes),
+              : renderPwshResult(value as RenderablePwshResult, escalationModes, readOnlyHint),
         }],
         presentationMeta: (_args, value) => ({ cwd: value.cwd }),
       },

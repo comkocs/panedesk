@@ -43,6 +43,9 @@
     },
     {
       "path": "../../settings/settings"
+    },
+    {
+      "path": "../../session/session-persistence"
     }
   ]
 }

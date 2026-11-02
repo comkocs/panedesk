@@ -185,6 +185,19 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
  *   the selected backend achieves for it.
  */
 abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
+
+/**
+ * Inspect a persistent workspace capability without granting access.
+ * @param workspaceRoot - Absolute native workspace directory.
+ * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
+ */
+hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
+
+/**
+ * Revoke a persistent workspace capability and invalidate provider caches.
+ * @param workspaceRoot - Absolute native workspace directory.
+ */
+revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 ```
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)
@@ -206,6 +219,13 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
  * @returns the fully resolved per-call mode and absolute workspace root.
  */
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
+
+/**
+ * Explain owner-managed workspace access after a Windows default read-only denial.
+ * @param mode - The settled operation's mode, not a fresh policy resolution.
+ * @returns Settings guidance for implicit Windows read-only, otherwise undefined.
+ */
+writeDenialHint(mode: SandboxMode): string | undefined
 
 /**
  * Read the session override without applying the deployment default.

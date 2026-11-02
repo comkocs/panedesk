@@ -47,6 +47,9 @@ import {
   AUTO_REVIEW_PRESET, displayPermissionPreset, FULL_ACCESS_PRESET,
 } from './presentation.ts'
 import { PermissionPresetSettingsController } from './settings-store.ts'
+import { WorkspaceAccessController } from './workspace-access-store.ts'
+import { WorkspaceAccessRow } from './WorkspaceAccessRow.tsx'
+import { workspaceEn, workspaceZh } from './locales.ts'
 
 export type { PermissionRowInjected, PermissionRowProps } from './PermissionRow.tsx'
 export type { PermissionCatalogState } from './catalog.ts'
@@ -163,6 +166,20 @@ export function apply(ctx: ClientContext): void {
     locale: 'settings.permission',
     inject: injected,
   }, PermissionRow))
+
+  ctx.inject(['remote.directoryPicker'], (scope) => {
+    const workspaces = new WorkspaceAccessController(scope)
+    scope.effect(() => () => { workspaces.dispose() }, 'ui-permission: workspace authorizations')
+    scope.effect(() => scope.locale.register('settings.workspaceAccess', { en: workspaceEn, zh: workspaceZh }), 'ui-permission: workspace copy')
+    const load = (): Promise<void> => workspaces.load()
+    const selectDirectory = (): Promise<void> => workspaces.selectDirectory()
+    const revoke = (workspace: string): Promise<void> => workspaces.revoke(workspace)
+    scope.slots.inject('settings.general.item', () => scope.slots.register({
+      name: 'settings.general.item', id: 'windows-workspace-access', order: -19,
+      locale: 'settings.workspaceAccess',
+      inject: () => ({ hooks: { workspaceGrants: workspaces.store }, load, selectDirectory, revoke }),
+    }, WorkspaceAccessRow))
+  })
 
   ctx.slots.inject('conversation.input.permission', () => ctx.slots.register({
     name: 'conversation.input.permission',

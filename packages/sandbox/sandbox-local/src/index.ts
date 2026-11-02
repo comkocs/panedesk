@@ -343,6 +343,45 @@ export class LocalSandboxProvider extends SandboxProvider {
     })
   }
 
+  /**
+   * Inspect the deterministic workspace SID without materializing an ACE.
+   * @param workspaceRoot - Existing absolute native workspace directory.
+   * @returns Whether the workspace carries this provider's write capability.
+   */
+  override hasWorkspaceWriteGrant(workspaceRoot: string): boolean {
+    this.requireWindowsAclManagement()
+    const root = canonicalPath(workspaceRoot)
+    const grant = AclWriteGrant.create(workspaceWriteSid(root))
+    try { return grant.has(root) } finally { grant.dispose() }
+  }
+
+  /**
+   * Remove the workspace ACE, including legacy grants, and forget its materialization.
+   * @param workspaceRoot - Existing absolute native workspace directory.
+   */
+  override revokeWorkspaceWriteGrant(workspaceRoot: string): void {
+    this.requireWindowsAclManagement()
+    const root = canonicalPath(workspaceRoot)
+    const cached = this.workspaceGrants.get(root)
+    const grant = cached ?? AclWriteGrant.create(workspaceWriteSid(root))
+    try {
+      grant.revoke(root)
+      this.workspaceGrants.delete(root)
+    } finally {
+      if (cached === undefined || !this.workspaceGrants.has(root)) grant.dispose()
+    }
+  }
+
+  override get supportsWorkspaceWriteAccess(): boolean {
+    return (this.internals.platform ?? process.platform) === 'win32' && this.runnerCommand === undefined
+  }
+
+  private requireWindowsAclManagement(): void {
+    if (!this.supportsWorkspaceWriteAccess) {
+      throw new Error('Workspace ACL management requires the built-in Windows sandbox provider')
+    }
+  }
+
   /** The selected rung's runner invocation (program + profile arguments) for one policy. */
   private runnerArgv(runner: SelectedRunner['runner'], policy: SandboxPolicy): string[] {
     switch (runner) {

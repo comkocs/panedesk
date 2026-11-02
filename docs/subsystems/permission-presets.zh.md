@@ -74,6 +74,10 @@ interface PresetOption {
 
 `permission/preset` 是持久、仅记日志的用户意图：它不进入模型 transcript（文本记录），模型可见的后果由 knob 事件经各自消费方承担；它存在是为了在两个预设共享同一个旋钮组合时，让 `current()` 仍能保住用户选择的究竟是哪一个预设。`permissions` 投影把该选择与两个 knob 事件一同折叠，并保留用于区分空恢复 seed 与新会话的 `session/end-seed` 边界；回放不需要任何追赶状态或原始日志重扫。恢复的 `auto` 选择在 agent 发布前必须存在 live Auto 注册。完整事件声明见[持久化日志事件目录](../persistence-catalog.zh.md)；方法签名见生成的[服务目录](#ctxpermissionpresets--permissionpresetservice)。
 
+## Windows 工作区清单
+
+`WorkspaceWriteView` 包含 `supported` 与 `entries` 数组。每个 `WorkspaceWriteEntry` 标识规范化的 `workspace`、`source`（`first-confirmation`、`settings-preauthorization`、`legacy` 或 `revocation-pending`）以及可选的 ISO `grantedAt` 时间戳；无记录的旧 ACE 没有该时间戳。仅所有者可调用的方法负责列举、授权及撤销这些条目；提供方能力决定是否支持管理。[包参考](../../packages/interaction/permission-presets/README.zh.md)说明发现范围与失败行为。该清单独立于持久化的 `permissions` 投影；按目录生效的策略变化目前不会更新该投影。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -94,6 +98,31 @@ Owns the deployment's configured permission presets, the fixed Auto integration 
  * @returns every currently selectable preset in contribution order.
  */
 @Remote('catalog') catalog(): PermissionCatalog
+
+/**
+ * List durable Windows workspace grants without materializing native permissions.
+ * @returns The authenticated owner's authorization inventory.
+ */
+@Remote('workspaceWriteAccess') async workspaceWriteAccess(): Promise<WorkspaceWriteView>
+
+/**
+ * Record explicit settings consent; an executor materializes the ACE only when needed.
+ * @param workspace - Existing absolute directory selected by the owner.
+ */
+@Remote('authorizeWorkspaceWrite') async authorizeWorkspaceWrite(workspace: string): Promise<void>
+
+/**
+ * Revoke the directory's native write capability and its durable authorization.
+ * @param workspace - Exact recorded directory identity (possibly deleted), or an existing legacy directory.
+ */
+@Remote('revokeWorkspaceWrite') async revokeWorkspaceWrite(workspace: string): Promise<void>
+
+/**
+ * Include a provider's cold-readable directory inventory in legacy ACL discovery.
+ * @param directories - Metadata reader that never activates sessions or grants access.
+ * @returns Disposer for this contribution.
+ */
+registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void>
 
 /**
  * Publish the fixed current-session Auto preset for the calling

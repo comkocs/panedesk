@@ -114,9 +114,9 @@ export class FsSandboxController {
    * WHILE keeping the structured `FS_SANDBOX_DENIED` code — `ToolRuntime`
    * populates `result.error` only for `HarnessError` instances, so a plain
    * `Error` would strip the code retry/observers key off. Any other error
-   * passes through unchanged. A `FS_SANDBOX_DENIED` only arises under a
-   * confining backend, which always advertises the escalation fields, so the
-   * hint always applies here.
+   * passes through unchanged. Windows implicit-default read-only denials name
+   * owner preauthorization instead of suggesting an unattended approval retry.
+   * The result text is retained by the caller's ordinary tool/result event.
    * @param error - the error thrown by the mutation.
    * @param policy - the policy stamped onto the call (names the mode in the marker).
    * @returns the error to throw — the marker `FsError` for a sandbox denial, else the original.
@@ -126,6 +126,7 @@ export class FsSandboxController {
     // A FS_SANDBOX_DENIED only arises under a confining backend, whose tool
     // path always resolves a policy before mutation.
     const mode = (policy as SandboxExecutionPolicy).mode
-    return new FsError(`${sandboxDenialMarker(mode)}\n${escalationHintMarker('operation')}`, 'FS_SANDBOX_DENIED', { cause: error })
+    const hint = this.policy?.writeDenialHint(mode) ?? escalationHintMarker('operation')
+    return new FsError(`${sandboxDenialMarker(mode)}\n${hint}`, 'FS_SANDBOX_DENIED', { cause: error })
   }
 }

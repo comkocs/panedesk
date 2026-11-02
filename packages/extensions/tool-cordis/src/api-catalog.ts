@@ -2245,6 +2245,28 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'every currently selectable preset in contribution order.',
       },
       {
+        signature: '@Remote(\'workspaceWriteAccess\') async workspaceWriteAccess(): Promise<WorkspaceWriteView>',
+        description: 'List durable Windows workspace grants without materializing native permissions.',
+        parameters: [],
+        returns: 'The authenticated owner\'s authorization inventory.',
+      },
+      {
+        signature: '@Remote(\'authorizeWorkspaceWrite\') async authorizeWorkspaceWrite(workspace: string): Promise<void>',
+        description: 'Record explicit settings consent; an executor materializes the ACE only when needed.',
+        parameters: [{ name: 'workspace', description: 'Existing absolute directory selected by the owner.' }],
+      },
+      {
+        signature: '@Remote(\'revokeWorkspaceWrite\') async revokeWorkspaceWrite(workspace: string): Promise<void>',
+        description: 'Revoke the directory\'s native write capability and its durable authorization.',
+        parameters: [{ name: 'workspace', description: 'Exact recorded directory identity (possibly deleted), or an existing legacy directory.' }],
+      },
+      {
+        signature: 'registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void>',
+        description: 'Include a provider\'s cold-readable directory inventory in legacy ACL discovery.',
+        parameters: [{ name: 'directories', description: 'Metadata reader that never activates sessions or grants access.' }],
+        returns: 'Disposer for this contribution.',
+      },
+      {
         signature: 'registerAuto(admit: () => void): () => Promise<void>',
         description: 'Publish the fixed current-session Auto preset for the calling integration\'s effect lifetime.',
         parameters: [{ name: 'admit', description: 'synchronous gate run before live Auto selection or restore.' }],
@@ -2622,6 +2644,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'argv', description: 'the exact argv the caller is about to spawn (program plus arguments), NOT a shell string — a shell-shaped consumer passes `[\'bash\', \'-c\', command]`.' }, { name: 'policy', description: 'the file-effect policy this execution runs under, carried per call (see {@link SandboxPolicy}).' }, { name: 'signal', description: 'cancellation while the provider resolves the policy and runner.' }],
         returns: 'the argv to spawn instead, plus the enforcement completeness the selected backend achieves for it.',
       },
+      {
+        signature: 'hasWorkspaceWriteGrant?(workspaceRoot: string): boolean',
+        description: 'Inspect a persistent workspace capability without granting access.',
+        parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
+        returns: 'Whether this provider\'s workspace write ACE exists; absence of the method means unsupported.',
+      },
+      {
+        signature: 'revokeWorkspaceWriteGrant?(workspaceRoot: string): void',
+        description: 'Revoke a persistent workspace capability and invalidate provider caches.',
+        parameters: [{ name: 'workspaceRoot', description: 'Absolute native workspace directory.' }],
+      },
     ],
   },
   {
@@ -2635,6 +2668,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'readonly defaultSource: EffectivePermissionMode[\'source\']',
+        description: 'Whether configuration or the environment explicitly selected the deployment mode.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly windowsDefault: boolean',
+        description: 'True only when Windows is using the implicit platform default.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly workspaceAccess: WorkspaceWriteAccess',
+        description: 'Product-home workspace authorizations, read afresh at each policy resolution.',
+        parameters: [],
+      },
+      {
         signature: 'readonly workspaceRoot: string',
         description: 'The absolute `workspace-write` fallback root for calls without a session cwd.',
         parameters: [],
@@ -2644,6 +2692,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session cwd is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
         returns: 'the fully resolved per-call mode and absolute workspace root.',
+      },
+      {
+        signature: 'writeDenialHint(mode: SandboxMode): string | undefined',
+        description: 'Explain owner-managed workspace access after a Windows default read-only denial.',
+        parameters: [{ name: 'mode', description: 'The settled operation\'s mode, not a fresh policy resolution.' }],
+        returns: 'Settings guidance for implicit Windows read-only, otherwise undefined.',
       },
       {
         signature: 'overrideOf(session: Session): SandboxMode | undefined',
@@ -7959,6 +8013,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EditMessageRequest extends MessageControlRequest {\n    readonly content: string;\n}',
   },
   {
+    name: 'EffectivePermissionMode',
+    declaration: 'export interface EffectivePermissionMode {\n    mode: SandboxMode;\n    source: \'default\' | \'explicit\';\n}',
+  },
+  {
     name: 'EncodedFileAttachment',
     declaration: 'export interface EncodedFileAttachment {\n    data: string;\n    name?: string;\n}',
   },
@@ -13257,6 +13315,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceView',
     declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
+    name: 'WorkspaceWriteAccess',
+    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\']): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+  },
+  {
+    name: 'WorkspaceWriteEntry',
+    declaration: 'export interface WorkspaceWriteEntry {\n    workspace: string;\n    source: \'first-confirmation\' | \'settings-preauthorization\' | \'legacy\' | \'revocation-pending\';\n    grantedAt?: string;\n}',
+  },
+  {
+    name: 'WorkspaceWriteRecord',
+    declaration: 'export type WorkspaceWriteRecord = z.infer<typeof recordSchema>;',
+  },
+  {
+    name: 'WorkspaceWriteView',
+    declaration: 'export interface WorkspaceWriteView {\n    supported: boolean;\n    entries: WorkspaceWriteEntry[];\n}',
   },
 ]
 

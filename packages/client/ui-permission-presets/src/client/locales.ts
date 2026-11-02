@@ -1,5 +1,38 @@
 /** `settings.permission` namespace dictionaries (the Permission row's copy). */
 
+/** Windows workspace authorization management copy. */
+export const workspaceEn = {
+  title: 'Windows workspace write access',
+  description: 'Authorize only directories you trust. Authorization allows sandboxed writes and adds a persistent directory ACL when a command needs it. Revoke removes the record and the product write ACE.',
+  preauthorize: 'Choose directory and authorize',
+  revoke: 'Revoke',
+  refresh: 'Refresh',
+  empty: 'No authorized workspaces',
+  legacy: 'Legacy authorization (no record)',
+  pending: 'Revocation incomplete — record-based writes blocked; revoke again to finish',
+  first: 'First confirmation',
+  settings: 'Settings preauthorization',
+  failure: 'Workspace permissions could not be updated. Refresh and retry; do not assume the change succeeded.',
+  loading: 'Loading workspace permissions…',
+} satisfies Record<string, string>
+
+/** Chinese workspace authorization copy, checked against the English keys. */
+export const workspaceZh = {
+  title: 'Windows 工作区写权限',
+  description: '仅授权你信任的目录。授权允许沙盒内写入，命令需要时会添加持久目录 ACL；撤销会删除记录并撤去本产品的写权限 ACE。',
+  preauthorize: '选择目录并预授权',
+  revoke: '撤销',
+  refresh: '刷新',
+  empty: '暂无已授权工作区',
+  legacy: '旧版授权（无记录）',
+  pending: '撤销未完成：已阻止基于记录的写入，请再次撤销以完成',
+  first: '首次确认',
+  settings: '设置预授权',
+  failure: '无法更新工作区权限。请刷新后重试，不要假定变更已成功。',
+  loading: '正在加载工作区权限…',
+} satisfies Record<keyof typeof workspaceEn, string>
+
+
 /** Locale namespace shared by both current-session permission pickers. */
 export const PERMISSION_ACCESS_NS = 'permission.access'
 

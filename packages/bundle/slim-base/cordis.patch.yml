@@ -83,16 +83,15 @@
     - id: subprocess
       name: '@panedesk/dsh-subprocess-local'
 
-    # Every shipped CLI mode starts with the same file-effect boundary.
-    # The environment remains an explicit deployment override; otherwise fresh
-    # sessions pin workspace-write + ask through the permission service below.
+    # The policy service owns platform defaults; configuration and environment
+    # choices remain explicit overrides rather than implicit write authorization.
     - id: sandbox
       name: '@panedesk/dsh-sandbox-local'
 
     - id: sandbox-policy
       name: '@panedesk/dsh-sandbox-policy'
       config:
-        mode: !!js process.env.PANEDESK_PERMISSION_MODE ?? 'workspace-write'
+        mode: !!js process.env.PANEDESK_PERMISSION_MODE
         workspaceRoot: !!js process.cwd()
 
     - id: bash-sandbox
@@ -109,7 +108,7 @@
     - id: approval
       name: '@panedesk/dsh-user-approval'
       config:
-        policy: !!js "(process.env.PANEDESK_PERMISSION_MODE ?? 'workspace-write') === 'danger-full-access' ? 'never' : 'ask'"
+        policy: !!js "process.env.PANEDESK_PERMISSION_MODE === 'danger-full-access' ? 'never' : 'ask'"
 
     - id: permission
       name: '@panedesk/dsh-permission-presets'

@@ -209,7 +209,7 @@ class CountingStartExecutor extends ShellExecutor {
   }
 }
 
-async function setupSandboxed(withApproval = false) {
+async function setupSandboxed(withApproval = false, platformDefault = false) {
   const ctx = new Context()
   provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(SystemPrompt)
@@ -219,7 +219,7 @@ async function setupSandboxed(withApproval = false) {
   await ctx.plugin(ToolJobs)
   await ctx.plugin(SessionProjectionRegistry)
   ctx.sessionProjections.register(turnBoundaryProjectionDefinition)
-  await ctx.plugin(SandboxPolicyService, {})
+  await ctx.plugin(SandboxPolicyService, platformDefault ? {} : { mode: 'read-only' })
   await ctx.plugin(RecordingSandboxExecutor)
   if (withApproval) await ctx.plugin(ApprovalService)
   await ctx.plugin(BashEnvPlugin)
@@ -1279,6 +1279,48 @@ describe('tool-owned UI presentation (presentCall / presentResult)', () => {
     // `defineTool` soft-validates replayed logged args before presentation. Invalid shapes return
     // undefined for generic UI rendering rather than throwing; `presentCall` accepts `unknown`.
     expect(ctx.tools.get('bash')?.presentCall?.({ command: 'ls' })).toBeUndefined()
+  })
+})
+
+describe('Windows default denial guidance', () => {
+  it.each([false, true])('retains owner preauthorization guidance for background=%s without approving or retrying', async (background) => {
+    const home = mkdtempSync(join(import.meta.dirname, '.windows-denial-'))
+    vi.stubEnv('PANEDESK_HOME', home)
+    vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    let ctx: Context | undefined
+    try {
+      const setup = await setupSandboxed(true, true)
+      ctx = setup.ctx
+      platform.mockRestore()
+      const sandbox = { mode: 'read-only', denied: true } as const
+      const execute = vi.spyOn(setup.bash, 'execute').mockImplementation(async () => fakeExecution({
+        status: 'completed', exitCode: 1, signal: null, done: Promise.resolve(), sandbox,
+        readOutput: () => ({ delta: '', lossy: false }),
+        observed: { stdout: silentReader, stderr: silentReader }, kill: () => false,
+      }, async () => ({
+        exitCode: 1, signal: null, timedOut: false, aborted: false, timeoutMs: 1000,
+        stdout: { text: '', truncated: false }, stderr: { text: '', truncated: false }, sandbox,
+      })))
+      const approve = vi.spyOn(ctx.approval, 'request')
+      const result = await call(ctx, 'bash', { command: 'write denied', description: 'Attempt workspace write', run_in_background: background })
+      const output = background
+        ? text(await call(ctx, 'job_output', { job_id: currentId(ctx), wait: true }))
+        : text(result)
+      expect(output).toContain('Windows defaults to read-only.')
+      expect(output).toContain('Settings > General > Windows workspace write access.')
+      expect(output).toContain('Unattended tasks cannot grant this access.')
+      expect(output).toContain('An explicit read-only session choice still applies after preauthorization.')
+      expect(output).not.toContain('escalation available')
+      expect(execute).toHaveBeenCalledOnce()
+      expect(approve).not.toHaveBeenCalled()
+      expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+    } finally {
+      await ctx?.fiber.dispose()
+      vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 })
 

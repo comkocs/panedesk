@@ -74,6 +74,10 @@ interface PresetOption {
 
 `permission/preset` is durable, log-only user intent: it stays out of the model transcript (the knob events own the model-visible consequences through their consumers), and it exists so `current()` can preserve which preset the user chose when two presets share a bundle. The `permissions` projection folds that selection with both knob events and retains the `session/end-seed` boundary used to distinguish a restored empty seed from a fresh session; replay needs no catch-up state or raw-log rescan. A restored `auto` selection requires the live Auto registration before Agent publication. The complete event declaration is in the [persistence log event catalog](../persistence-catalog.md); the method signatures are in the generated [service catalog](#ctxpermissionpresets--permissionpresetservice).
 
+## Windows workspace inventory
+
+`WorkspaceWriteView` contains `supported` and an `entries` array. Each `WorkspaceWriteEntry` identifies a canonical `workspace`, a `source` (`first-confirmation`, `settings-preauthorization`, `legacy`, or `revocation-pending`), and an optional ISO `grantedAt` timestamp, absent for legacy ACEs without a record. The owner-only methods list, authorize, and revoke these entries; provider capability determines whether management is supported. The [package reference](../../packages/interaction/permission-presets/README.md) owns discovery and failure behavior. This inventory is independent of the durable `permissions` projection; directory-based effective policy changes do not currently update that projection.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -94,6 +98,31 @@ Owns the deployment's configured permission presets, the fixed Auto integration 
  * @returns every currently selectable preset in contribution order.
  */
 @Remote('catalog') catalog(): PermissionCatalog
+
+/**
+ * List durable Windows workspace grants without materializing native permissions.
+ * @returns The authenticated owner's authorization inventory.
+ */
+@Remote('workspaceWriteAccess') async workspaceWriteAccess(): Promise<WorkspaceWriteView>
+
+/**
+ * Record explicit settings consent; an executor materializes the ACE only when needed.
+ * @param workspace - Existing absolute directory selected by the owner.
+ */
+@Remote('authorizeWorkspaceWrite') async authorizeWorkspaceWrite(workspace: string): Promise<void>
+
+/**
+ * Revoke the directory's native write capability and its durable authorization.
+ * @param workspace - Exact recorded directory identity (possibly deleted), or an existing legacy directory.
+ */
+@Remote('revokeWorkspaceWrite') async revokeWorkspaceWrite(workspace: string): Promise<void>
+
+/**
+ * Include a provider's cold-readable directory inventory in legacy ACL discovery.
+ * @param directories - Metadata reader that never activates sessions or grants access.
+ * @returns Disposer for this contribution.
+ */
+registerWorkspaceDirectories(directories: () => Promise<readonly string[]>): () => Promise<void>
 
 /**
  * Publish the fixed current-session Auto preset for the calling

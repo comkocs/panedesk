@@ -17,6 +17,26 @@ function fixture() {
 }
 
 describe('authenticated seat Remote', () => {
+  it('contributes paginated definition directories without activating sessions and removes the reader on disposal', async () => {
+    const ctx = new Context()
+    let directories: (() => Promise<readonly string[]>) | undefined
+    const remove = vi.fn(async () => {})
+    ctx.provide('permissionPresets', { registerWorkspaceDirectories: (read: () => Promise<readonly string[]>) => { directories = read; return remove } })
+    const definitions = vi.fn(async (request: { cursor?: string }) => request.cursor === undefined
+      ? { definitions: [{ directories: [{ path: '/workspace' }], memoryDirectories: ['/memory'] }], complete: false, nextCursor: 'next' }
+      : { definitions: [{ directories: [{ path: '/second' }], memoryDirectories: [] }], complete: true })
+    const withAuthority = vi.fn(() => ({ definitions }))
+    ctx.provide('seats', { nodeStatus: async () => ({ nodeId: 'node-a' }), withAuthority })
+    try {
+      const fiber = await ctx.plugin(SeatRemote)
+      expect(directories).toBeDefined()
+      expect(await directories?.()).toEqual(['/workspace', '/memory', '/second'])
+      expect(definitions).toHaveBeenCalledTimes(2)
+      expect(withAuthority).toHaveBeenCalledWith({ principalId: 'owner', origin: 'manual', nodeId: 'node-a' })
+      await fiber.dispose()
+      expect(remove).toHaveBeenCalledOnce()
+    } finally { await ctx.fiber.dispose() }
+  })
   it('forces automatic opening through SeatService with invocation-derived authority', async () => {
     const f = fixture()
     try {

@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../interaction/permission-presets" },
     { "path": "../seat" },
     { "path": "../seat-engine" },
     { "path": "../../sdk/protocol" },

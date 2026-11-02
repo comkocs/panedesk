@@ -12387,6 +12387,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-persistence':
+        specifier: workspace:*
+        version: link:../../session/session-persistence
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../../session/session-projection
@@ -13507,6 +13510,12 @@ importers:
 
   packages/sandbox/sandbox-policy:
     dependencies:
+      '@panedesk/dsh-atomic-write':
+        specifier: workspace:*
+        version: link:../../util/atomic-write
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
       '@panedesk/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -14343,6 +14352,9 @@ importers:
       '@panedesk/dsh-host-webserver':
         specifier: workspace:*
         version: link:../../host/webserver
+      '@panedesk/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../interaction/permission-presets
       '@panedesk/dsh-sdk-protocol':
         specifier: workspace:*
         version: link:../../sdk/protocol

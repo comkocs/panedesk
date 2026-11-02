@@ -1,0 +1,25 @@
+# Inject only the platform policy; keep the real filesystem enforcement and tool result writer.
+- id: sandbox-policy
+  disabled: true
+
+- insert:
+    - id: windows-policy
+      name: ./windows-policy.mjs
+      config: {}
+
+- id: approval
+  config:
+    policy: never
+
+- id: permission
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: never
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never

@@ -331,6 +331,12 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
   const { requireRuntime, peekRuntime, maxParallel, shapeDispatchLog } = options
   const stateOwners = new WeakMap<object, WeakSet<PtcRuntime>>()
   const calls = new PtcCalls(ctx)
+  const denialGuidance = (sandbox: PtcRunSandbox, runtime: PtcRuntime | undefined): string => {
+    const hint = ctx.get('sandboxPolicy')?.writeDenialHint(sandbox.mode)
+    return hint === undefined ? escalationGuidance(runtime)
+      : ` ${hint} Earlier effects may already have completed: inspect them before explicitly retrying.`
+        + ' Programs are never replayed automatically.'
+  }
   const definition = defineTool({
     name: RUN_CODE_NAME,
     // The description and `code` parameter description are placeholders here:
@@ -371,7 +377,9 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
         const rendered = value.result === undefined ? '' : renderValue(value.result)
         const parts = [value.logs.join('\n'), rendered].filter(part => part.length > 0)
         if (value.sandbox?.enforcement === 'partial') parts.push('File sandbox enforcement is partial on this host.')
-        if (value.sandbox?.denied) parts.push(`The ${value.sandbox.mode} file sandbox denied an operation.${escalationGuidance(peekRuntime())}`)
+        if (value.sandbox?.denied) {
+          parts.push(`The ${value.sandbox.mode} file sandbox denied an operation.${denialGuidance(value.sandbox, peekRuntime())}`)
+        }
         return [{ type: 'text', text: parts.length > 0 ? parts.join('\n') : '(run_code completed with no output)' }]
       },
     },
@@ -737,7 +745,8 @@ export function createRunCodeTool(registry: ToolRuntime, options: RunCodeBridgeO
             const logsText = result.logs.length > 0 ? `\nCaptured output:\n${result.logs.join('\n')}` : ''
             const sandboxText = result.sandbox === undefined ? ''
               : `\nFile sandbox: ${result.sandbox.mode}${result.sandbox.enforcement === undefined ? '' : `; enforcement: ${result.sandbox.enforcement}`}${result.sandbox.denied ? '; operation denied' : ''}.`
-            throw new CodeRunFailedError(`code run failed (${result.error.kind}): ${result.error.message}${logsText}${sandboxText}${result.sandbox?.denied ? escalationGuidance(runtime) : ''}`)
+            const guidance = result.sandbox?.denied ? denialGuidance(result.sandbox, runtime) : ''
+            throw new CodeRunFailedError(`code run failed (${result.error.kind}): ${result.error.message}${logsText}${sandboxText}${guidance}`)
           }
           return {
             logs: result.logs,

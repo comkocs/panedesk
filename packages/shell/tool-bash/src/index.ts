@@ -211,6 +211,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   if (defaultMode !== undefined && sandboxPolicy === undefined) {
     throw new Error('tool-bash: the mounted bash executor confines but ctx.sandboxPolicy is missing')
   }
+  const readOnlyHint = sandboxPolicy?.writeDenialHint('read-only')
   /** Resolve the complete standing policy for this call when a confining executor is mounted. */
   const resolveSandboxPolicy = (exec: ToolExecution): SandboxExecutionPolicy | undefined =>
     sandboxPolicy?.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
@@ -285,7 +286,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               }
               return proc
             },
-            started => processOutcome(started, escalationModes),
+            started => processOutcome(started, escalationModes, readOnlyHint),
           )
           return {
             done: hooks.done,
@@ -355,7 +356,8 @@ export function apply(ctx: Context, config: Config = {}): void {
           jobId: attached.id,
           timeoutMs,
           output: renderJobRead(
-            ringDelta(read.chunks), read.lossy, read.job.output.spillPaths ?? [], attached.process()?.sandbox, escalationModes,
+            ringDelta(read.chunks), read.lossy, read.job.output.spillPaths ?? [],
+            attached.process()?.sandbox, escalationModes, readOnlyHint,
           ),
         }
       }
@@ -482,7 +484,7 @@ export function apply(ctx: Context, config: Config = {}): void {
             ? `started background job ${value.jobId}`
             : value.kind === 'promoted'
               ? renderPromoted(value)
-              : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes),
+              : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes, readOnlyHint),
         }],
         presentationMeta: (_args, value) => ({ cwd: value.cwd }),
       },

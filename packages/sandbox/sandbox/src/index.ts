@@ -175,6 +175,22 @@ export abstract class SandboxProvider extends Service {
    *   the selected backend achieves for it.
    */
   abstract confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv>
+
+  /** Whether this configured provider manages native local Windows workspace capabilities. */
+  get supportsWorkspaceWriteAccess(): boolean { return false }
+
+  /**
+   * Inspect a persistent workspace capability without granting access.
+   * @param workspaceRoot - Absolute native workspace directory.
+   * @returns Whether this provider's workspace write ACE exists; absence of the method means unsupported.
+   */
+  hasWorkspaceWriteGrant?(workspaceRoot: string): boolean
+
+  /**
+   * Revoke a persistent workspace capability and invalidate provider caches.
+   * @param workspaceRoot - Absolute native workspace directory.
+   */
+  revokeWorkspaceWriteGrant?(workspaceRoot: string): void
 }
 
 export default SandboxProvider
