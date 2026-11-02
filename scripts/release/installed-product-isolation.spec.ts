@@ -93,6 +93,47 @@ describe.each([experimental, ...Object.values(EXPERIMENTAL_PACKAGE_NAME_EXCEPTIO
     expect(() => verifyInstalledProductIsolation(entry)).toThrow(experimental)
   })
 
+  it('admits optional bundles carried through the launcher\'s optional peer to the declared carrier and still rejects the rest', () => {
+    const root = fixture()
+    const entry = writePackage(root, 'panedesk', {
+      peerDependencies: { '@panedesk/full': '1.0.0' },
+      peerDependenciesMeta: { '@panedesk/full': { optional: true } },
+    })
+    writePackage(root, '@panedesk/full', { dependencies: { [experimental]: '1.0.0' } })
+    writePackage(root, experimental, {})
+    expect(verifyInstalledProductIsolation(entry, [experimental])).toBe(2)
+
+    writePackage(root, 'panedesk', { dependencies: { core: '1.0.0' } })
+    writePackage(root, 'core', {
+      peerDependencies: { '@panedesk/full': '1.0.0' },
+      peerDependenciesMeta: { '@panedesk/full': { optional: true } },
+    })
+    expect(() => verifyInstalledProductIsolation(entry, [experimental])).toThrow(`@panedesk/full -> ${experimental}`)
+
+    const unlisted = '@panedesk/dsh-experimental-unlisted'
+    writePackage(root, unlisted, {})
+    writePackage(root, 'panedesk', { dependencies: { [unlisted]: '1.0.0' } })
+    expect(() => verifyInstalledProductIsolation(entry, [experimental])).toThrow(`panedesk -> ${unlisted}`)
+
+    writePackage(root, 'panedesk', {
+      peerDependencies: { '@panedesk/full': '1.0.0' },
+      peerDependenciesMeta: { '@panedesk/full': { optional: false } },
+    })
+    expect(() => verifyInstalledProductIsolation(entry, [experimental])).toThrow(`@panedesk/full -> ${experimental}`)
+
+    writePackage(root, 'panedesk', {
+      peerDependencies: { '@panedesk/full': '1.0.0' },
+      peerDependenciesMeta: { '@panedesk/full': { optional: true } },
+    })
+    writePackage(root, '@panedesk/full', { dependencies: { '@panedesk/dsh-experimental-unlisted': '1.0.0' } })
+    expect(() => verifyInstalledProductIsolation(entry, [experimental])).toThrow('@panedesk/dsh-experimental-unlisted')
+
+    const absent = '@panedesk/dsh-experimental-example'
+    writePackage(root, '@panedesk/full', { dependencies: { [absent]: '1.0.0' } })
+    rmSync(join(root, 'node_modules', absent), { recursive: true, force: true })
+    expect(() => verifyInstalledProductIsolation(entry, [absent])).toThrow(`optional bundle is missing: panedesk -> @panedesk/full -> ${absent}`)
+  })
+
   it('permits missing optional packages and optional peers but rejects missing dependencies', () => {
     const root = fixture()
     const entry = writePackage(root, 'panedesk', {
