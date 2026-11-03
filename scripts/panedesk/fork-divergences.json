@@ -149,7 +149,7 @@
       "id": "owner-private-credential-relocation",
       "description": "Relocate owner credentials into a dedicated private directory",
       "origin": "Owner credential read isolation",
-      "reason": "Expose protected credential storage directories, relocate the default document without changing its format, verify and synchronize the successor before removing the legacy copy, and resume interrupted relocation. Cover completed filesystem operations with interruption injection and document rollback behavior. These changes can be contributed upstream.",
+      "reason": "Expose protected credential storage directories, relocate the default document without changing its format, verify and synchronize the successor before removing the legacy copy, and resume interrupted relocation. Cover completed filesystem operations with interruption injection, assert file and directory synchronization ordering and complete post-restart inventories, and document rollback behavior. Keep the storage-location record with its upgrade guide rather than Session persistence-type history. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [

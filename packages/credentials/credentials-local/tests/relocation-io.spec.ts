@@ -74,7 +74,14 @@ it('syncs the new directory entry in the home before deleting the legacy documen
   try { await boot(home) } finally { faults.enabled = false }
   const homeSync = faults.operations.indexOf(`sync:${home}`)
   expect(homeSync).toBeGreaterThan(-1)
-  expect(homeSync).toBeLessThan(faults.operations.indexOf('unlink'))
+  const removal = faults.operations.indexOf('unlink')
+  const fileSync = faults.operations.indexOf(`sync:${join(home, 'private', '.credentials.yaml')}`)
+  const privateSync = faults.operations.indexOf(`sync:${join(home, 'private')}`)
+  expect(fileSync).toBeGreaterThan(-1)
+  expect(privateSync).toBeGreaterThan(fileSync)
+  expect(homeSync).toBeGreaterThan(privateSync)
+  expect(homeSync).toBeLessThan(removal)
+  expect(faults.operations.lastIndexOf(`sync:${home}`)).toBeGreaterThan(removal)
 })
 
 it('restarts after every completed relocation I/O without losing or duplicating credentials', async () => {
@@ -94,6 +101,9 @@ it('restarts after every completed relocation I/O without losing or duplicating 
     await expect(boot(home), `interrupt after ${index + 1}: ${operations[index]}`)
       .rejects.toThrow('simulated relocation interruption')
     faults.enabled = false
+    if (index < operations.indexOf('unlink')) {
+      expect(await readFile(join(home, '.credentials.yaml'), 'utf8')).toBe(text)
+    }
     // A failed lock acquisition still owns a real completed write in this process.
     // Remove only this fixture's locks to model the exited holder being reclaimed.
     await rm(join(home, '.credentials.yaml.lock'), { force: true })
@@ -104,6 +114,8 @@ it('restarts after every completed relocation I/O without losing or duplicating 
     expect(await ctx.credentials.resolve(credentialRef('SYNTHETIC_LOGIN')))
       .toEqual({ value: 'saved', source: 'file' })
     expect((await readdir(join(home, 'private'))).filter(name => name === '.credentials.yaml')).toHaveLength(1)
+    expect(await readdir(home)).toEqual(['private'])
+    expect(await readdir(join(home, 'private'))).toEqual(['.credentials.yaml'])
     const restarted = await boot(home)
     expect(await restarted.credentials.resolve(credentialRef('SYNTHETIC_LOGIN')))
       .toEqual({ value: 'saved', source: 'file' })

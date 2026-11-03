@@ -1,19 +1,19 @@
-# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# Bilingual-pair consistency record for relocation.md (docs/i18n/README.md): per heading
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write docs/persistence-changes/owner-private-storage/README.md
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/relocation.md
 /:
-  en: f29d7aa58effd119
-  zh: 390bdc046ee949a8
+  en: a417b8379fd5e2a2
+  zh: f47c2867487354c3
 /owner-credential-storage-relocation:
-  en: e8b574b2e90b8916
-  zh: b11feadcf0c60220
+  en: d693127d2a883733
+  zh: 46371cf29214a122
 /owner-credential-storage-relocation/scope:
-  en: ceef59d6b93eac5e
-  zh: 227956328975eef8
+  en: 1fc60cabd73333f7
+  zh: d3ddd9c0b7de38d5
 /owner-credential-storage-relocation/recovery:
-  en: 82f51edd9a97503e
-  zh: 6a90f0fddeb026c3
+  en: 6561c1e19af23de3
+  zh: 7accf2a5f21d7994
 /owner-credential-storage-relocation/compatibility:
-  en: 765f28d7b009b861
-  zh: 24b71f5a2484011c
+  en: 426b42dda430c51e
+  zh: 4ca1f4ca9b6936f3
