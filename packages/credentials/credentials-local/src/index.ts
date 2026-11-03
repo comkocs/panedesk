@@ -1,9 +1,9 @@
 /**
- * File-backed credentials provider over `$PANEDESK_HOME/.credentials.yaml`, layered
+ * File-backed credentials provider over `$PANEDESK_HOME/private/.credentials.yaml`, layered
  * over the environment in this precedence order:
  *
  * ```text
- * $PANEDESK_HOME/.credentials.yaml        (provider-managed, written by set/unset)
+ * $PANEDESK_HOME/private/.credentials.yaml        (provider-managed, written by set/unset)
  * > inherited process environment    (fallback; this provider never writes it)
  * > <invocation cwd>/.env            (fallback; this provider never writes it)
  * > $PANEDESK_HOME/.env                   (fallback; this provider never writes it)
@@ -38,7 +38,7 @@
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import { watch as chokidarWatch } from 'chokidar'
-import { mkdir, readFile, stat } from 'node:fs/promises'
+import { chmod, mkdir, open, readFile, stat, unlink } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { Document, isMap, isScalar, parseDocument, type YAMLError } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
@@ -62,7 +62,7 @@ export const CREDENTIALS_FILENAME = '.credentials.yaml'
 
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
-  /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
+  /** Credentials document path; defaults to `private/.credentials.yaml` under the harness home. */
   path?: string
   /** Harness home used when `path` is omitted; defaults to `$PANEDESK_HOME` or `~/.panedesk`. */
   dshHome?: string
@@ -81,13 +81,13 @@ interface ResolvedSpec {
 
 /**
  * Resolve the runtime spec from plugin config: an explicit `path` wins,
- * otherwise the document lives at `<harness home>/.credentials.yaml`.
+ * otherwise the document lives at `<harness home>/private/.credentials.yaml`.
  * @param config - raw plugin config.
  * @returns the resolved file location and watch behavior.
  */
 export function resolveSpec(config: Config): ResolvedSpec {
   return {
-    filename: resolve(config.path ?? join(resolveDshHome(config.dshHome), CREDENTIALS_FILENAME)),
+    filename: resolve(config.path ?? join(resolveDshHome(config.dshHome), 'private', CREDENTIALS_FILENAME)),
     watch: config.watch ?? true,
     debounceMs: config.debounceMs ?? 100,
   }
@@ -513,7 +513,7 @@ function sameJsonValue(left: unknown, right: unknown): boolean {
     && sameJsonValue((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
 }
 
-/** File-backed credentials provider (`$PANEDESK_HOME/.credentials.yaml`). */
+/** File-backed credentials provider (`$PANEDESK_HOME/private/.credentials.yaml`). */
 export class LocalCredentialProvider extends CredentialProvider {
   static Config: z<Config> = z.object({
     path: z.string(),
@@ -523,6 +523,10 @@ export class LocalCredentialProvider extends CredentialProvider {
   })
 
   private readonly spec: ResolvedSpec
+
+  override get protectedStoragePaths(): readonly string[] {
+    return [dirname(this.spec.filename)]
+  }
   /**
    * Raw text of the last read or persisted document; `undefined` while the
    * file is absent. Watcher events whose content equals this cache are no-ops,
@@ -784,6 +788,54 @@ export class LocalCredentialProvider extends CredentialProvider {
    * the layout change without a hand edit.
    */
   private async loadInitial(): Promise<void> {
+    await assertOwnerOnly(this.spec.filename)
+    await mkdir(dirname(this.spec.filename), { recursive: true, mode: 0o700 })
+    if (this.config.path === undefined) {
+      if (process.platform !== 'win32') await chmod(dirname(this.spec.filename), 0o700)
+      const legacy = join(resolveDshHome(this.config.dshHome), CREDENTIALS_FILENAME)
+      await withFileLock(legacy, async () => {
+        try { await stat(legacy) } catch (error) {
+          if (isENOENT(error)) return
+          throw error
+        }
+        await assertOwnerOnly(legacy)
+        await withFileLock(this.spec.filename, async () => {
+          const source = await readFile(legacy, 'utf8')
+          parseCredentialsDocument(renderFlatLayoutMigration(source) ?? source, legacy)
+          await assertOwnerOnly(this.spec.filename)
+          let destination: string | undefined
+          try {
+            destination = await readFile(this.spec.filename, 'utf8')
+          } catch (error) {
+            if (!isENOENT(error)) throw error
+          }
+          if (destination !== undefined && destination !== source) {
+            throw new Error('Credential relocation found conflicting documents; keep both and reconcile before startup. / 凭据迁址发现冲突文档；请保留两份并合并处理后再启动。')
+          }
+          if (destination === undefined) {
+            await writeFileAtomic(this.spec.filename, source, { mode: 0o600, dirMode: 0o700 })
+          }
+          if (await readFile(this.spec.filename, 'utf8') !== source) {
+            throw new Error('Credential relocation verification failed; the original is unchanged. / 凭据迁址核验失败，原件未改动。')
+          }
+          // Persist the verified successor before removing the only legacy copy.
+          const file = await open(this.spec.filename, 'r')
+          try { await file.sync() } finally { await file.close() }
+          if (process.platform !== 'win32') {
+            const directory = await open(dirname(this.spec.filename), 'r')
+            try { await directory.sync() } finally { await directory.close() }
+            // The private directory itself must survive before its predecessor is removed.
+            const home = await open(dirname(legacy), 'r')
+            try { await home.sync() } finally { await home.close() }
+          }
+          await unlink(legacy)
+          if (process.platform !== 'win32') {
+            const home = await open(dirname(legacy), 'r')
+            try { await home.sync() } finally { await home.close() }
+          }
+        }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
+      }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
+    }
     await assertOwnerOnly(this.spec.filename)
     let text: string
     try {

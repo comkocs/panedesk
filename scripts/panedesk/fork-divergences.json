@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "owner-private-credential-relocation",
+      "description": "Relocate owner credentials into a dedicated private directory",
+      "origin": "Owner credential read isolation",
+      "reason": "Expose protected credential storage directories, relocate the default document without changing its format, verify and synchronize the successor before removing the legacy copy, and resume interrupted relocation. Cover completed filesystem operations with interruption injection and document rollback behavior. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/credentials/credentials/src/index.ts",
+          "packages/credentials/credentials-local/src/index.ts",
+          "packages/credentials/credentials-local/tests/local.spec.ts",
+          "packages/credentials/credentials-local/tests/private-directory.spec.ts",
+          "packages/credentials/credentials-local/tests/relocation-io.spec.ts",
+          "packages/credentials/credentials-local/README.md",
+          "packages/credentials/credentials-local/README.zh.md",
+          "packages/credentials/credentials-local/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "persistent-pwsh-output-completion",
       "description": "Retain PowerShell pipeline output and caught error diagnostics",
       "origin": "Persistent terminal output capture repair",

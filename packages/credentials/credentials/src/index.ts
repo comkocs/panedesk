@@ -169,6 +169,11 @@ declare module '@panedesk/cordis' {
  * one lock).
  */
 export abstract class CredentialProvider extends Service {
+  /** Host storage paths that confined readers must not access; memory-only providers return none. */
+  get protectedStoragePaths(): readonly string[] {
+    return []
+  }
+
   constructor(ctx: Context) {
     super(ctx, 'credentials')
   }

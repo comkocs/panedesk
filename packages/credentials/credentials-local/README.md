@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. Only your OS user can read the file, but agent tool processes run as that same user, so this store cannot isolate secrets from the agent.
+`dsh-credentials-local` keeps API keys and other secrets in a private file under your harness home. You can save credentials through the configuration UI or edit the file directly; changes reload automatically and saved values survive restarts. Credential lookup follows a fixed precedence: the stored file wins, followed by the launch environment, the project's `.env`, and the harness-home `.env`; a newly saved value immediately overrides older environment values. The local store exposes its dedicated parent directory to the filesystem and process sandbox providers for owner-material isolation. File permissions alone do not isolate same-user processes; unconfined tools and host plugins remain trusted.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ This package gives a composition a local credential store: save API keys and oth
 
 ### When to use it
 
-Use it as the default local store: the product's base composition loads it, and a key you save through a configuration UI takes effect immediately. Choose a different store when a deployment must keep provider keys away from its own agent — file permissions cannot do that, because the agent's tool processes run as your OS user (see "Who can read the file").
+Use it as the default local store: the product's base composition loads it, and a key you save through a configuration UI takes effect immediately. Use the confined filesystem and process providers when agent tools must not read the store (see "Who can read the file"); selecting this provider alone does not confine tools.
 
 ### Setting it up
 
@@ -41,7 +41,7 @@ Use it as the default local store: the product's base composition loads it, and 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `path` | `<harness home>/.credentials.yaml` | Where the credential file lives |
+| `path` | `<harness home>/private/.credentials.yaml` | Where the credential file lives |
 | `dshHome` | `$PANEDESK_HOME` or `~/.panedesk` | Harness home used when `path` is omitted |
 | `watch` | `true` | Reload the file automatically when it changes on disk |
 | `debounceMs` | `100` | Wait this long after a change before reloading, in milliseconds |
@@ -112,7 +112,9 @@ A key's value can be any text, multi-line values included — no quoting tricks 
 
 ### Who can read the file
 
-Only your OS user can read the file: the product creates it with owner-only permissions, and on POSIX it refuses to load a file that any other user can read — the error tells you to run `chmod 600`. Windows has no mode to inspect, so the check is skipped there rather than faked. The agent is not another user: its tool processes run as you, so they can read the file like any other file you own. The product never hands the agent the file's path and never loads the file into the environment, so reaching a value takes a deliberate read of a path the agent was not given. That is discretion, not a boundary: a deployment that must keep provider keys away from its own agent cannot get there with file permissions.
+Only your OS user can read the file: the product creates it with owner-only permissions, and on POSIX it refuses to load a file that any other user can read — the error tells you to run `chmod 600`. Windows has no mode to inspect, so the check is skipped there rather than faked. The default parent directory is created with POSIX mode 0700 and the file with mode 0600. A configured `path` protects its entire parent directory, not just the current file inode; choose a dedicated directory disjoint from the workspace. Sandboxed file tools reject owner-material paths and matching file identities. Process confinement consumes the same directory inventory; full-access tools remain outside this read restriction.
+
+On startup, an old default `<harness home>/.credentials.yaml` is copied into `private`, parsed and read back, synchronized, and only then removed. On POSIX, both the private directory and its entry in the home are synchronized before removal, and the home is synchronized again afterward. An identical destination allows interrupted relocation to resume; conflicting documents are preserved and startup fails with a reconciliation message. Explicit custom paths are not relocated. Keep an owner-only backup before upgrading; after rollback, older releases require an explicit path to the relocated document.
 
 ### What can go wrong
 
