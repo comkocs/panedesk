@@ -14270,6 +14270,8 @@
           "packages/sandbox/sandbox-policy/src/index.ts",
           "packages/sandbox/sandbox-policy/tests/policy.spec.ts",
           "packages/sandbox/sandbox-policy/tsconfig.json",
+          "packages/sandbox/sandbox-policy/locale/en.json",
+          "packages/sandbox/sandbox-policy/locale/zh.json",
           "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
           "packages/sandbox/sandbox-windows-acl/README.md",
           "packages/sandbox/sandbox-windows-acl/README.zh.md",
