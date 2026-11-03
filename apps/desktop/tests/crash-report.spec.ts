@@ -32,6 +32,21 @@ const input = (overrides: Partial<CrashReportInput> = {}): CrashReportInput => (
   ...overrides,
 })
 
+it('removes authentication values from error, host and renderer diagnostics', () => {
+  const text = renderCrashReport(input({
+    error: new Error('https://localhost/?token=synthetic-launch&other=synthetic-query'),
+    hostDiagnostic: 'Cookie: synthetic-cookie\nAuthorization: Bearer synthetic-authorization\ntoken=synthetic-token\n'
+      + JSON.stringify({ token: 'synthetic-json-token', apiKey: 'synthetic-json-key' })
+      + '\n' + JSON.stringify({ cookie: 'synthetic-json-cookie' }),
+    rendererConsole: ['https://localhost/path?secret=synthetic-query'],
+  }))
+  for (const value of ['synthetic-launch', 'synthetic-query', 'synthetic-cookie', 'synthetic-authorization', 'synthetic-token',
+    'synthetic-json-token', 'synthetic-json-key', 'synthetic-json-cookie']) {
+    expect(text.includes(value)).toBe(false)
+  }
+  expect(text).toContain('<redacted>')
+})
+
 it('names files by sortable time and source', () => {
   expect(crashReportFileName(new Date('2026-09-22T10:30:00.123Z'), 'web-boot')).toBe('crash-2026-09-22T10-30-00-123Z-web-boot.log')
 })

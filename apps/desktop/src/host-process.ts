@@ -2,11 +2,14 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
+import { createInterface } from 'node:readline'
+import { redactDiagnostic } from './redact-diagnostic.ts'
 import type { PlatformSession } from '@panedesk/dsh-deepseek-account'
 import { desktopNodeEnvironment } from './node-environment.ts'
 
 interface ReadyEvent {
   readonly type: 'ready'
+  readonly cookie: string
   readonly url: string
   readonly injections?: readonly unknown[] | undefined
 }
@@ -57,7 +60,7 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
     case 'shutdown-complete':
       return true
     case 'ready':
-      return typeof candidate.url === 'string'
+      return typeof candidate.url === 'string' && typeof candidate.cookie === 'string' && candidate.cookie.length > 0
     case 'platform-session': {
       const session = candidate.session
       if (session === null) return true
@@ -103,8 +106,10 @@ async function exitsWithin(exit: Promise<void>, milliseconds: number): Promise<b
   }
 }
 
-/** Browser authentication URL reported by the running Web application. */
+/** Clean application URL and IPC-only credential reported by the running Web application. */
 export interface DesktopHostReady {
+  /** Owner credential delivered over the inherited IPC channel; never logged or persisted. */
+  readonly cookie: string
   readonly url: string
   readonly injections?: readonly unknown[] | undefined
 }
@@ -202,20 +207,24 @@ export class DesktopHostProcess {
     this.child = child
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-MAX_HOST_DIAGNOSTIC_CHARS) })
-    child.stdout?.pipe(process.stdout)
+    if (child.stdout !== null) {
+      const lines = createInterface({ input: child.stdout })
+      lines.on('line', line => process.stdout.write(`${redactDiagnostic(line)}\n`))
+    }
     child.on('message', (message: unknown) => {
       if (!isDesktopHostEvent(message)) {
         this.fail(new Error('dsh desktop host sent an invalid IPC event'))
         child.kill('SIGTERM')
         return
       }
-      if (message.type === 'ready') this.readyResolve({ url: message.url, injections: message.injections })
+      if (message.type === 'ready') this.readyResolve({ url: message.url, cookie: message.cookie, injections: message.injections })
       else if (message.type === 'platform-session') this.onPlatformSession?.(message.session)
       else if (message.type === 'shutdown-complete') {
         if (this.stopping) this.shutdownCompleted = true
         else this.fail(new Error('dsh desktop host acknowledged an unrequested shutdown'))
       }
-      else if (message.type === 'fatal') this.fail(new DesktopHostFatalError(message.message, message.diagnostic))
+      else if (message.type === 'fatal') this.fail(new DesktopHostFatalError(redactDiagnostic(message.message),
+        message.diagnostic === undefined ? undefined : redactDiagnostic(message.diagnostic)))
       else {
         const request = this.controlRequests.get(message.requestId)
         if (message.error === undefined) request?.resolve(message)
@@ -225,7 +234,7 @@ export class DesktopHostProcess {
     child.once('error', (error) => { this.fail(error) })
     this.exitPromise = new Promise<void>((resolve) => {
       child.once('close', (code) => {
-        const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
+        const suffix = this.stderr.trim() === '' ? '' : `: ${redactDiagnostic(this.stderr.trim())}`
         if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
         else this.fail(new Error(`dsh desktop host stopped${suffix}`))
         resolve()

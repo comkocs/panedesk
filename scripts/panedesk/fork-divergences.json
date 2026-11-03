@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "desktop-memory-owner-session",
+      "description": "Keep desktop owner authentication in memory and protect diagnostic storage",
+      "origin": "Owner credential read isolation",
+      "reason": "Deliver clean listener URLs and owner cookies over inherited IPC, use a nonpersistent owner session partition, register crash directories for sandbox read protection, and redact named authentication inputs from diagnostics. Do not label Windows userData or change persistent third-party platform sessions. Document platform limitations and cover desktop startup with Electron substitutes. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/desktop-host/src/index.ts",
+          "apps/desktop/src/crash-report.ts",
+          "apps/desktop/src/host-process.ts",
+          "apps/desktop/src/main.ts",
+          "apps/desktop/src/redact-diagnostic.ts",
+          "apps/desktop/tests/crash-report.spec.ts",
+          "apps/desktop/tests/host-process.spec.ts",
+          "apps/desktop/tests/main-startup.spec.ts",
+          "apps/desktop/README.md",
+          "apps/desktop/README.zh.md",
+          "apps/desktop/README.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "owner-material-file-read-policy",
       "description": "Deny owner material reads through filesystem tools",
       "origin": "Owner credential read isolation",
