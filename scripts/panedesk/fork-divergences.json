@@ -4,7 +4,7 @@
       "id": "browser-owner-confirmation",
       "description": "Require host-local confirmation before new browsers receive owner authority",
       "origin": "Owner credential read isolation",
-      "reason": "Make launch links single-use and short-lived, admit pending browser cookies only after a host controlling-terminal decision, refuse Windows and noninteractive confirmation by default, and support an explicit protected-configuration opt-out. API connect requires an authenticated owner cookie. Desktop credentials travel over owned IPC instead of launch URLs. Add real-credential confirmation and transport regressions with bilingual guidance. These changes can be contributed upstream.",
+      "reason": "Make launch links single-use and short-lived, admit pending browser cookies only after a host controlling-terminal decision, refuse Windows and noninteractive confirmation by default, and support an explicit protected-configuration opt-out. API connect requires an authenticated owner cookie. Desktop credentials travel over owned IPC instead of launch URLs, with the cookie minting method declared on the Host connection handle. Add real-credential confirmation and transport regressions with bilingual guidance. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
