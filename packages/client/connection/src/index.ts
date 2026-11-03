@@ -11,6 +11,7 @@ import { CONNECT_PATH } from './connect-protocol.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
+import { confirmBrowserLogin } from './owner-confirmation.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
 
@@ -107,6 +108,8 @@ export interface ConnectionConfig {
   cookieMaxAgeDays?: number
   /** Require host-terminal confirmation for new browsers. Disabling trusts launch-link possession. */
   requireOwnerConfirmation?: boolean
+  /** Maximum host-terminal confirmation wait in milliseconds. Default: 60000. */
+  ownerConfirmationTimeoutMs?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }
@@ -116,6 +119,7 @@ export const Config: z<ConnectionConfig> = z.object({
   trustedHosts: z.array(String).default([]),
   cookieMaxAgeDays: z.natural().min(1).default(30),
   requireOwnerConfirmation: z.boolean().default(true),
+  ownerConfirmationTimeoutMs: z.natural().min(1).max(2_147_483_647).default(60_000),
   maxRequestBodyBytes: z.natural().min(1).default(DEFAULT_MAX_REQUEST_BODY_BYTES),
 })
 
@@ -140,7 +144,9 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
     ctx,
     trustedHosts,
     await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays,
-      config?.requireOwnerConfirmation === false ? () => true : undefined),
+      config?.requireOwnerConfirmation === false
+        ? () => true
+        : request => confirmBrowserLogin(request, config?.ownerConfirmationTimeoutMs ?? 60_000)),
   )
   ctx.inject(['webServer'], (webCtx) => {
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)

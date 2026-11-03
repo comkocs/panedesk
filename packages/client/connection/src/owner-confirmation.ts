@@ -17,9 +17,10 @@ export type ConfirmBrowserLogin = (request: BrowserLoginRequest) => boolean | Pr
 /**
  * Ask through a POSIX controlling terminal; Windows and service launches refuse.
  * @param request - Untrusted browser identification, escaped before terminal output.
- * @returns The owner's explicit answer, or false when no safe terminal is available.
+ * @param timeoutMs - Maximum owner decision wait, configured by the Host; defaults to one minute.
+ * @returns The owner's explicit answer, or false on timeout or when no safe terminal is available.
  */
-export function confirmBrowserLogin(request: BrowserLoginRequest): boolean | Promise<boolean> {
+export function confirmBrowserLogin(request: BrowserLoginRequest, timeoutMs = 60_000): boolean | Promise<boolean> {
   if (process.platform === 'win32' || !process.stdin.isTTY) return false
   let fd: number
   try { fd = openSync('/dev/tty', 'r+') } catch (_error) {
@@ -41,10 +42,12 @@ export function confirmBrowserLogin(request: BrowserLoginRequest): boolean | Pro
     const finish = (allowed: boolean): void => {
       if (decided) return
       decided = true
+      clearTimeout(timer)
       reader.close()
       input.destroy()
       resolve(allowed)
     }
+    const timer = setTimeout(() => { finish(false) }, timeoutMs)
     reader.once('close', () => { finish(false) })
     input.once('error', () => { finish(false) })
     reader.once('line', (answer) => { finish(answer.trim().toLowerCase() === 'y') })

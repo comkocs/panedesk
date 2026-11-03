@@ -115,7 +115,7 @@
       "id": "browser-owner-confirmation",
       "description": "Require host-local confirmation before new browsers receive owner authority",
       "origin": "Owner credential read isolation",
-      "reason": "Make launch links single-use and short-lived, admit pending browser cookies only after a host controlling-terminal decision, refuse Windows and noninteractive confirmation by default, and support an explicit protected-configuration opt-out. API connect requires an authenticated owner cookie. Desktop credentials travel over owned IPC instead of launch URLs, with the cookie minting method declared on the Host connection handle. Add real-credential confirmation and transport regressions with bilingual guidance, including same-host credential read denial and authenticated versus forged-cookie controls for event answers, workspace authorization, and bundle installation. These changes can be contributed upstream.",
+      "reason": "Make launch links single-use and short-lived, admit pending browser cookies only after a host controlling-terminal decision, refuse Windows and noninteractive confirmation by default, and support an explicit protected-configuration opt-out. Bound terminal decisions with a configurable timeout and exercise confirmation, cancellation, and silence through a real pseudoterminal. API connect requires an authenticated owner cookie. Desktop credentials travel over owned IPC instead of launch URLs, with the cookie minting method declared on the Host connection handle. Add real-credential confirmation and transport regressions with bilingual guidance, including same-host credential read denial and authenticated versus forged-cookie controls for event answers, workspace authorization, and bundle installation. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -128,6 +128,7 @@
           "packages/client/connection/tsconfig.host.json",
           "packages/client/connection/tests/browser-auth.host.spec.ts",
           "packages/client/connection/tests/browser-confirmation.host.spec.ts",
+          "packages/client/connection/tests/owner-terminal.host.spec.ts",
           "packages/client/connection/tests/node-half.host.spec.ts",
           "packages/client/connection/README.md",
           "packages/client/connection/README.zh.md",
