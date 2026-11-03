@@ -2,12 +2,20 @@ import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit
 /** The Node compatibility matrix runs this complete source-entry smoke. */
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { expect, it } from 'vitest'
+import { beforeEach, expect, it } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import SubagentRuntime from '@panedesk/dsh-subagent'
 import type { SandboxMode } from '@panedesk/dsh-sandbox'
 import PtcWorkflowEngine from '../src/index.ts'
 import { fakeParent, mountPtcRuntime } from './setup.ts'
+
+beforeEach(({ skip }) => {
+  if (process.env.PANEDESK_CI_NATIVE_SANDBOX !== 'required') {
+    const reason = 'Native workflow coverage requires PANEDESK_CI_NATIVE_SANDBOX=required; unavailable confinement fails closed.'
+    console.warn(reason)
+    skip(reason)
+  }
+})
 
 async function setup(mode: SandboxMode, executionMode: 'per-call' | 'persistent-in-memory' = 'per-call') {
   const ctx = new Context()

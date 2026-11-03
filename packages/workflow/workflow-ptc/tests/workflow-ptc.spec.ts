@@ -885,7 +885,12 @@ describe('dsh-workflow-ptc', { timeout: 120_000 }, () => {
   })
 
   describe('process failure and pending child cleanup', () => {
-    it('waits for a late provider publication to release its file after cancellation', async () => {
+    it('waits for a late provider publication to release its file after cancellation', async ({ skip }) => {
+      if (process.env.PANEDESK_CI_NATIVE_SANDBOX !== 'required') {
+        const reason = 'Native workflow cleanup coverage requires PANEDESK_CI_NATIVE_SANDBOX=required; unavailable confinement fails closed.'
+        console.warn(reason)
+        skip(reason)
+      }
       const ctx = new Context()
       const { root } = await mountPtcRuntime(ctx, 'read-only')
       provideWorkingDirectoryFixture(ctx)

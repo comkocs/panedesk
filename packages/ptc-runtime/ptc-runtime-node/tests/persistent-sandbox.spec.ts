@@ -8,8 +8,18 @@ import { SessionId } from '@panedesk/dsh-session'
 import { Context } from '@panedesk/cordis'
 import { SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
-import { expect, it, onTestFinished, vi } from 'vitest'
+import { beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { mountRuntime } from './setup.ts'
+
+beforeEach(({ task, skip }) => {
+  const mocked = task.name === 'fails closed when confinement is unavailable without spawning Node'
+    || task.name === 'cancels a pending confinement operation before spawning'
+  if (!mocked && process.env.PANEDESK_CI_NATIVE_SANDBOX !== 'required') {
+    const reason = 'Native sandbox process coverage requires PANEDESK_CI_NATIVE_SANDBOX=required; unavailable confinement fails closed.'
+    console.warn(reason)
+    skip(reason)
+  }
+})
 
 async function setup(mode: 'read-only' | 'workspace-write' = 'read-only', executionMode: 'per-call' | 'persistent-in-memory' = 'persistent-in-memory') {
   const root = await mkdtemp(join(homedir(), '.panedesk-persistent-sandbox-'))
@@ -23,9 +33,9 @@ async function setup(mode: 'read-only' | 'workspace-write' = 'read-only', execut
   return { root, cwd, ctx, runtime, owner, run }
 }
 
-it.for(['per-call', 'persistent-in-memory'] as const)('starts %s Node with protected inputs read-only and ordinary workspace writes allowed', async (executionMode, { skip }) => {
+it.for(['per-call', 'persistent-in-memory'] as const)('starts %s Node with protected inputs read-only and ordinary workspace writes allowed', async (executionMode) => {
   const probe = spawnSync('bwrap', ['--ro-bind', '/', '/', '--unshare-pid', '--proc', '/proc', '--', 'true'])
-  if (probe.status !== 0) skip('native bubblewrap unavailable')
+  expect(probe.status, 'Required native bubblewrap must be available').toBe(0)
   const { ctx, cwd, runtime, owner } = await setup('workspace-write', executionMode)
   const input = join(cwd, 'plugin.mjs')
   await writeFile(input, 'owner')

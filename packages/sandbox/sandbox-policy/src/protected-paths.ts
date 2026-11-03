@@ -30,7 +30,8 @@ export function resolveProtectedPaths(ctx: Context, workspace?: string): string[
     const suffix = relative(root, target)
     if (suffix === '' || isAbsolute(suffix) || suffix === '..' || suffix.startsWith(`..${sep}`)) return
     mkdirSync(directory, { recursive: true, mode: 0o700 })
-    add(join(root, suffix.split(sep)[0]!))
+    const [child = ''] = suffix.split(sep)
+    add(join(root, child))
   }
   addState(resolveDshHome())
   const profile = ctx.get('profileContext')

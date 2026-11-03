@@ -41,7 +41,8 @@ export class WorkspaceWriteAccess {
       if (process.platform === 'win32') {
         throw new Error('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。')
       }
-      const first = join(workspace, relative(workspace, directory).split(sep)[0]!)
+      const [child = ''] = relative(workspace, directory).split(sep)
+      const first = join(workspace, child)
       if (first === workspace || !protectedPaths.includes(first)) {
         throw new Error('Workspace authorization records must be outside the writable workspace or protected at its first child')
       }

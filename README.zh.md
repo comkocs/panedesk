@@ -16,12 +16,14 @@
 
 Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
 
+旧 Windows 工作区授权若没有产品记录，先关闭相关沙盒进程，再以工作区 owner 身份执行这一行 PowerShell：将 `C:\old-workspace` 换成授写时使用的规范路径，将 `C:\current-workspace` 换成当前位置：`$old='C:\old-workspace'; $dir='C:\current-workspace'; $h=[Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($old)); $sid='S-1-4-'+(([BitConverter]::ToUInt32($h,0)%1073741823)+1)+'-'+(([BitConverter]::ToUInt32($h,4)%1073741823)+1); icacls $dir /remove "*$sid" /T`。此命令只撤该工作区派生主体，不撤所有 `S-1-4-*` 主体；不要替换成 owner 账号或 Everyone。检查失败项，并对每个已知旧授权路径分别执行。仅凭 SID 前缀无法认出未知旧路径。
+
 owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedesk 沙盒与首次写确认约束；安装前请确认其写能力。其 profile 配置仍受保护，受限模型不能直接修改；插件管理变更须经认证的 owner 批准。
 
 | 平台 | 沙盒方式 | 写权限来源 | Bash 缺省 | 已知限制 |
 | --- | --- | --- | --- | --- |
 | Windows | 低完整性受限令牌与目录能力 ACL；属于部分隔离，不隔离读取。 | 未显式设模式时只读，不改 ACL。工作区首次写入会请求中英确认；允许后记录授权，工作区可写，受保护路径仍拒写。设置页可预授权或撤销工作区。无人值守会话不弹确认：保持只读并说明开法。显式模式照用。 | 未通过环境或设置选择时禁用；可用 PowerShell。 | 权限收紧（撤销或新增保护根）后，已开进程与句柄不终止，新的工具调用即刻按新策略走。模型持久终端在权限变化后拒绝输入时，需关闭后重开。权限模式选择器不即时反映目录记录。 |
-| Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | 无可用 runner 时拒绝。旧 Landlock ABI 可能只有部分隔离；未验遍所有内核配置。 |
+| Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | bubblewrap 缺失或不可用时尝试 Landlock；无可用 runner 或无法充分保护宿主输入时拒绝，不会无隔离执行。旧 Landlock ABI 可能只有部分隔离。原生 Node/workflow 进程测试要求 `PANEDESK_CI_NATIVE_SANDBOX=required`，否则打印原因并跳过。未验遍所有内核配置。 |
 | macOS | 通过 `sandbox-exec` 使用 Seatbelt。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | 路径由本机规范化。Seatbelt 不隐藏宿主进程；平台注入回归不等于 macOS 实机验收。 |
 
 ## 相对 DSH 改了什么
