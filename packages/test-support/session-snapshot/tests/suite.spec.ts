@@ -1142,6 +1142,27 @@ describe('refreshFixtureReplacements', () => {
 })
 
 describe('stabilizeRefreshLog', () => {
+  it.each([
+    ['{{id:1}}', '{{id:2}}'],
+    ['bash-cccccccccccccccc', 'bash-dddddddddddddddd'],
+  ])('preserves distinct job references across refresh records: %s, %s', (first, second) => {
+    const log = (ids: readonly string[], result: string) => [
+      { type: 'session', id: 'same', cwd: '/workspace', createdAt: 0 },
+      ...ids.map(jobId => ({ type: 'job/registered', data: { jobId, startedAt: 0 } })),
+      { type: 'tool/result', data: { text: `started background job ${ids[0]}` } },
+      { type: 'tool/call', data: { arguments: JSON.stringify({ job_id: ids[1] }) } },
+      { type: 'job/settled', data: { jobId: ids[0], finishedAt: 0, detail: result } },
+      { type: 'tool/result', data: { text: `read ${ids[1]}` } },
+    ].map(record => JSON.stringify(record)).join('\n') + '\n'
+    const ids = ['bash-aaaaaaaaaaaaaaaa', 'bash-bbbbbbbbbbbbbbbb']
+    const tokens = [first, second]
+    const fresh = log(ids, 'new failure')
+    const existing = log(tokens, 'old failure')
+    const expected = log(tokens, 'new failure')
+    expect(stabilize(fresh, existing)).toBe(expected)
+    expect(stabilize(fresh, expected)).toBe(expected)
+  })
+
   it('refreshes each child using its own cwd instead of the parent context', () => {
     for (const child of ['first', 'second']) {
       const log = (root: string) => [
