@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '../src/index.ts'
 
 async function fixture(covered: boolean, linked = false) {
@@ -12,6 +12,10 @@ async function fixture(covered: boolean, linked = false) {
   const workspace = join(root, 'workspace')
   const home = join(root, 'owner')
   mkdirSync(workspace)
+  mkdirSync(home)
+  writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
+  vi.stubEnv('PANEDESK_HOME', home)
+  onTestFinished(() => { vi.unstubAllEnvs() })
   const input = join(workspace, 'config.yml')
   if (linked) {
     const target = join(root, 'owner.yml')
@@ -24,7 +28,7 @@ async function fixture(covered: boolean, linked = false) {
     integrity.grantWrite()
   }
   const profile: ProfileContext = {
-    name: 'test', dir: workspace, patchPath: input, cwd: workspace, home,
+    name: 'test', dir: home, patchPath: input, cwd: workspace, home,
     installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
     telemetryDisabledEnv: undefined, inputIntegrity: integrity,
   }
@@ -35,7 +39,9 @@ async function fixture(covered: boolean, linked = false) {
   const provider = ctx.sandbox
   if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local sandbox missing')
   provider.internals = { platform: 'linux', probeBwrap: () => true }
-  return { provider, integrity, input, workspace }
+  const nativeInputs = [home, join(home, 'cordis.patch.yml'), join(home, 'windows-workspace-write'),
+    ...linked ? [join(root, 'owner.yml')] : []].sort().map(path => ({ path, enforcement: 'native' }))
+  return { provider, integrity, input, workspace, nativeInputs }
 }
 
 it.each([false, true])('reports full with recorded host coverage for a linked input: %s', async (linked) => {
@@ -44,9 +50,10 @@ it.each([false, true])('reports full with recorded host coverage for a linked in
     mode: 'workspace-write', workspaceRoot: f.workspace, protectedPaths: [f.input],
   })
   expect(result.enforcement).toBe('full')
-  expect(result.protectedInputs).toEqual([{
-    path: f.input, enforcement: 'host-fallback', reason: linked ? 'link-name' : 'unrepresentable',
-  }])
+  expect(result.protectedInputs).toEqual([
+    { path: f.input, enforcement: 'host-fallback', reason: linked ? 'link-name' : 'unrepresentable' },
+    ...f.nativeInputs,
+  ])
 })
 
 it('refuses an uncovered input before returning executable argv', async () => {
@@ -61,15 +68,18 @@ it('inspects coverage without returning executable argv or granting workspace ac
   const f = await fixture(true)
   expect(f.provider.inspect({ mode: 'workspace-write', workspaceRoot: f.workspace, protectedPaths: [f.input] })).toEqual({
     enforcement: 'full',
-    protectedInputs: [{ path: f.input, enforcement: 'host-fallback', reason: 'unrepresentable' }],
+    protectedInputs: [{ path: f.input, enforcement: 'host-fallback', reason: 'unrepresentable' }, ...f.nativeInputs],
   })
 })
 
 it('keeps absent inputs outside writable mounts natively protected', async () => {
-  const f = await fixture(false)
+  const f = await fixture(true)
   const outside = join(f.workspace, '..', 'absent.yml')
   const status = f.provider.inspect({ mode: 'workspace-write', workspaceRoot: f.workspace, protectedPaths: [outside] })
-  expect(status).toEqual({ enforcement: 'full', protectedInputs: [{ path: outside, enforcement: 'native' }] })
+  expect(status).toEqual({ enforcement: 'full', protectedInputs: [
+    { path: outside, enforcement: 'native' }, ...f.nativeInputs,
+    { path: f.input, enforcement: 'host-fallback', reason: 'unrepresentable' },
+  ] })
 })
 
 it('refuses an uncovered absent input in a writable temporary root outside the workspace', async () => {

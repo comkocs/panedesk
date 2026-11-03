@@ -5,10 +5,10 @@
  * is mocked; native access checks live in sandbox-windows-acl's runner suite.
  */
 
-import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { SessionId } from '@panedesk/dsh-session'
@@ -89,8 +89,14 @@ function flag(argv: readonly string[], name: string): string | undefined {
 
 describe('windows-acl write grants (LocalSandboxProvider)', () => {
   const scratch: string[] = []
+  let ownerState: string
 
   beforeEach(() => {
+    const home = mkdtempSync(join(tmpdir(), 'acl-grants-owner-'))
+    scratch.push(home)
+    vi.stubEnv('PANEDESK_HOME', home)
+    ownerState = join(home, 'windows-workspace-write')
+    mkdirSync(ownerState)
     mockState.grants = []
     mockState.addFailure = undefined
     mockState.addFailureStanding = undefined
@@ -99,6 +105,8 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     mockState.legacyGrant = false
     mockState.revoked = []
   })
+
+  afterEach(() => { vi.unstubAllEnvs(); cleanup() })
 
   const cleanup = () => {
     for (const grant of mockState.grants) {
@@ -177,6 +185,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--mode', 'workspace-write',
         '--write-sid', WORKSPACE_SID,
         '--temp-write-sid', tempSid,
+        '--protected-path', ownerState,
         '--',
         'pwsh', '/Command', 'x',
       ])
@@ -358,6 +367,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--workspace', '/ws',
         '--temp', tmpdir(),
         '--mode', 'workspace-write',
+        '--protected-path', ownerState,
         '--',
         'pwsh', '/Command', 'x',
       ])

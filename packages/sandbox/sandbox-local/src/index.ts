@@ -331,14 +331,7 @@ export class LocalSandboxProvider extends SandboxProvider {
    */
   async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
     signal?.throwIfAborted()
-    policy = {
-      ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
-      protectedPaths: [...new Set([
-        ...policy.protectedPaths ?? [],
-        ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
-        ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined),
-      ])],
-    }
+    policy = this.protectedPolicy(policy)
     if (this.runnerCommand !== undefined) {
       const protectedInputs = this.coveredInputs(policy, 'bwrap')
       return Promise.resolve<ConfinedArgv>({
@@ -366,7 +359,19 @@ export class LocalSandboxProvider extends SandboxProvider {
   }
 
   override inspect(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'> {
-    policy = {
+    policy = this.protectedPolicy(policy)
+    const selected: SelectedRunner = this.runnerCommand === undefined
+      ? this.selectRunner(policy.mode) : { runner: 'bwrap', enforcement: 'full' }
+    if (selected.runner === 'windows-acl' && policy.mode === 'workspace-write') {
+      assertTempRootOutsideWorkspace(policy.workspaceRoot, tmpdir())
+    }
+    const protectedInputs = this.coveredInputs(policy, selected.runner)
+    if (selected.runner === 'landlock') landlockProfileArgs(policy)
+    return { enforcement: selected.enforcement, protectedInputs }
+  }
+
+  private protectedPolicy(policy: SandboxPolicy): SandboxPolicy {
+    return {
       ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
       protectedPaths: [...new Set([
         ...policy.protectedPaths ?? [],
@@ -374,14 +379,6 @@ export class LocalSandboxProvider extends SandboxProvider {
         ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined),
       ])],
     }
-    const selected: SelectedRunner = this.runnerCommand === undefined
-      ? this.selectRunner(policy.mode) : { runner: 'bwrap', enforcement: 'full' }
-    const protectedInputs = this.coveredInputs(policy, selected.runner)
-    if (selected.runner === 'landlock') landlockProfileArgs(policy)
-    if (selected.runner === 'windows-acl' && policy.mode === 'workspace-write') {
-      assertTempRootOutsideWorkspace(policy.workspaceRoot, tmpdir())
-    }
-    return { enforcement: selected.enforcement, protectedInputs }
   }
 
   private coveredInputs(policy: SandboxPolicy, runner: SelectedRunner['runner']) {

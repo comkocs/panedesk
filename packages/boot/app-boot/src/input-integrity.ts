@@ -66,7 +66,9 @@ function treeStamp(path: string): string {
   }
 }
 
-function snapshot(path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), excluded?: string): InputSnapshot {
+function snapshot(
+  path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), excluded?: string,
+): InputSnapshot {
   const hash = createHash('sha256')
   const copies: { path: string; content: string }[] = []
   const capture = (filename: string): void => {
@@ -277,7 +279,13 @@ export class ProtectedInputIntegrity {
   }
 
   private isRecordStorage(path: string): boolean {
-    return this.record !== undefined && contains(canonicalLocation(dirname(this.record)), canonicalLocation(path))
+    if (this.record === undefined) return false
+    const storage = canonicalLocation(dirname(this.record))
+    try { return contains(storage, canonicalLocation(path)) } catch (error) {
+      // A cyclic input cannot resolve into record storage; coverage still checks its recorded spelling.
+      if (error instanceof Error && 'code' in error && error.code === 'ELOOP') return false
+      throw error
+    }
   }
 
   private capture(path: string, files?: Map<string, Buffer>, stamps = new Map<string, string>()): InputSnapshot {
@@ -337,7 +345,7 @@ export class ProtectedInputIntegrity {
   }
 
   /**
-   * Query coverage without trusting a new path or changing the record.
+   * Query coverage without trusting a new path or changing the record; cyclic names use their recorded spelling.
    * @param filename Exact input or descendant of a recorded directory.
    * @returns Whether a granted baseline covers the path spelling.
    */

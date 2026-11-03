@@ -1,5 +1,5 @@
 /** Real owner-approved input inventory for native profile hand-off fixtures. */
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
@@ -15,6 +15,7 @@ import { onTestFinished } from 'vitest'
  */
 export function coveredContext(workspace: string, input: string, ...additionalInputs: string[]): Context {
   const home = mkdtempSync(join(tmpdir(), 'protected-link-owner-'))
+  writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
   onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
   const integrity = new ProtectedInputIntegrity(workspace, home)
   for (const path of [input, ...additionalInputs]) integrity.observe(path)

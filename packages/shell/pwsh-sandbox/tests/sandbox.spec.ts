@@ -93,6 +93,7 @@ async function setup(
 it.each(['kill', 'none'] as const)('hands protected inputs and writable workspace to the runner before PowerShell %s spawns', async (onExpiry) => {
   const { ctx, executor } = await setup()
   const home = mkdtempSync(join(tmpdir(), 'pwsh-handoff-owner-'))
+  writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
   onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
   const input = join(spillDir, 'plugin.mjs')
   const integrity = new ProtectedInputIntegrity(spillDir, home)
