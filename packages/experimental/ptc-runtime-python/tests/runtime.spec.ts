@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRuntimeContext } from './setup.ts'
+import { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { PythonPtcRuntime, hostFrameParseCeiling, readProcessStart, resolvePythonBin } from '../src/index.ts'
 import { logTruncationMarker } from '../src/protocol.ts'
 import type { Config } from '../src/index.ts'
@@ -77,11 +78,11 @@ describe('PythonPtcRuntime — seam descriptors and misuse', () => {
   })
 
   it('resolves its configured deadline and cwd while refusing unsupported execution choices', async () => {
-    const { runtime, fiber } = await setup({ maxWallMs: 30_000 })
+    const { ctx, runtime, fiber } = await setup({ maxWallMs: 30_000 })
     try {
       const request = { program: 'return 1', bindings: [] }
       expect(runtime.sandboxMode).toBe('danger-full-access')
-      expect(runtime.resolve(request)).toEqual({ ...request, cwd: process.cwd(), timeoutMs: 30_000, sandboxPolicy: { mode: 'danger-full-access', workspaceRoot: process.cwd() } })
+      expect(runtime.resolve(request)).toEqual({ ...request, cwd: process.cwd(), timeoutMs: 30_000, sandboxPolicy: { mode: 'danger-full-access', workspaceRoot: process.cwd(), protectedPaths: resolveProtectedPaths(ctx) } })
       const cwd = await makeTempDir('dsh-py-resolved-cwd-')
       const spec = runtime.resolve({ ...request, cwd })
       expect(spec.cwd).toBe(cwd)

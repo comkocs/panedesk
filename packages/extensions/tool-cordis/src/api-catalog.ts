@@ -10218,7 +10218,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ProtectedInputIntegrity',
-    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(): void;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
+    declaration: 'export class ProtectedInputIntegrity {\n    static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity;\n    constructor(workspace: string, home?: string);\n    observe(filename: string): void;\n    grantWrite(protectedPaths: readonly string[] = []): void;\n    covers(filename: string): boolean;\n    readTrusted(filename: string): Buffer | undefined;\n    readExecutable(filename: string): Buffer | undefined;\n    async verify(owner: ProtectedInputOwner): Promise<boolean>;\n}',
   },
   {
     name: 'ProtectedInputOwner',
@@ -13442,7 +13442,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceWriteAccess',
-    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string, private readonly protectedPaths: () => readonly string[] = () => []);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
+    declaration: 'export class WorkspaceWriteAccess {\n    constructor(home: string, private readonly protectedPaths: (workspace: string) => readonly string[] = () => [], private readonly profileDirectory: () => string | undefined = () => undefined);\n    canonical(workspace: string): string;\n    recordPath(workspace: string): string;\n    find(workspace: string): WorkspaceWriteRecord | undefined;\n    isAuthorized(workspace: string): boolean;\n    async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T>;\n    list(): WorkspaceWriteRecord[];\n    pendingRevocations(): string[];\n    async authorize(workspace: string, source: WorkspaceWriteRecord[\'source\'], signal?: AbortSignal): Promise<WorkspaceWriteRecord>;\n    async revoke(workspace: string, revokeAcl: (workspace: string) => void): Promise<void>;\n}',
   },
   {
     name: 'WorkspaceWriteApproval',

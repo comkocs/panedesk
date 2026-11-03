@@ -6,8 +6,20 @@ import { pathToFileURL } from 'node:url'
 import { Context } from '@panedesk/cordis'
 import Loader from '@panedesk/cordis-plugin-loader'
 import { initProfile, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { resolveProtectedPaths } from '../src/protected-paths.ts'
+
+it('protects the effective owner authorization root without a profile service', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'owner-record-protection-'))
+  const ctx = new Context()
+  vi.stubEnv('PANEDESK_HOME', root)
+  onTestFinished(async () => {
+    await ctx.fiber.dispose()
+    vi.unstubAllEnvs()
+    rmSync(root, { recursive: true, force: true })
+  })
+  expect(resolveProtectedPaths(ctx)).toContain(join(root, 'windows-workspace-write'))
+})
 
 it.skipIf(process.platform === 'win32')('retains a watched symlink spelling as well as its target', async () => {
   const root = mkdtempSync(join(tmpdir(), 'watched-link-'))

@@ -40,7 +40,7 @@ import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnfor
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
 import { assertNever } from '@panedesk/dsh-util-values'
-import { WorkspaceWriteAccess } from '@panedesk/dsh-sandbox-policy'
+import { WorkspaceWriteAccess, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { bwrapProfileArgs, landlockProfileArgs, protectedInputRecords, seatbeltProfileArgs } from './profiles.ts'
 import { protectAclInputs } from './protected-acl.ts'
@@ -333,7 +333,11 @@ export class LocalSandboxProvider extends SandboxProvider {
     signal?.throwIfAborted()
     policy = {
       ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
-      protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
+      protectedPaths: [...new Set([
+        ...policy.protectedPaths ?? [],
+        ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
+        ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined),
+      ])],
     }
     if (this.runnerCommand !== undefined) {
       const protectedInputs = this.coveredInputs(policy, 'bwrap')
@@ -364,7 +368,11 @@ export class LocalSandboxProvider extends SandboxProvider {
   override inspect(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'> {
     policy = {
       ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
-      protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
+      protectedPaths: [...new Set([
+        ...policy.protectedPaths ?? [],
+        ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
+        ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined),
+      ])],
     }
     const selected: SelectedRunner = this.runnerCommand === undefined
       ? this.selectRunner(policy.mode) : { runner: 'bwrap', enforcement: 'full' }

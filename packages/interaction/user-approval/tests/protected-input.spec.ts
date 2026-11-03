@@ -1,5 +1,6 @@
 /** Protected-input decisions use authenticated owner transport even between turns. */
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import SandboxPolicyService from '../../../sandbox/sandbox-policy/src/index.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -20,14 +21,14 @@ import ApprovalService, { type ApprovalOutcome, setApprovalPolicy } from '../src
 
 const purpose = { type: 'protected-input', path: '/project/profile/patch.yml', previous: 'old-digest', current: 'new-digest' } as const
 
-async function fixture() {
+async function fixture(cwd = '/project') {
   const ctx = new Context()
   onTestFinished(() => ctx.fiber.dispose())
   await mountAgentLoopTestDependencies(ctx)
   provideWorkingDirectoryFixture(ctx)
   await ctx.plugin(ApprovalService, { workspaceWriteTimeoutMs: 1000 })
   const harness = await mountAgentLoopTestHarness(ctx)
-  const agent = await harness.create(SessionId('protected-input-owner'), {}, { cwd: '/project' })
+  const agent = await harness.create(SessionId('protected-input-owner'), {}, { cwd })
   provideBrowserCredentials(ctx)
   await ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
   await ctx.plugin(TypertRegistry)
@@ -52,6 +53,54 @@ async function fixture() {
   }
   return { ctx, agent, events, reply, peer }
 }
+
+it.each(['allowed-once', 'rejected'] as const)('captures Windows inputs after authenticated consent and before write authorization: %s', async (outcome) => {
+  const root = mkdtempSync(join(tmpdir(), 'owner-write-capture-'))
+  const workspace = join(root, 'workspace')
+  const home = join(root, 'owner-state')
+  const profile = join(workspace, '.panedesk')
+  mkdirSync(profile, { recursive: true })
+  const f = await fixture(workspace)
+  const path = join(profile, 'cordis.patch.yml')
+  writeFileSync(path, 'before owner consent')
+  const platformSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+  vi.stubEnv('PANEDESK_HOME', home)
+  vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
+  onTestFinished(() => {
+    platformSpy.mockRestore()
+    vi.unstubAllEnvs()
+    rmSync(root, { recursive: true, force: true })
+  })
+  f.ctx.provide('profileContext', {
+    name: 'windows-capture', dir: profile, patchPath: path, installAnchor: join(profile, 'package.json'),
+    home, cwd: workspace, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+  })
+  await f.ctx.plugin(SandboxPolicyService, { workspaceRoot: workspace })
+  const policy = f.ctx.sandboxPolicy
+  expect(policy.resolve({ session: f.agent.session }).workspaceRoot).toBe(workspace)
+  f.agent.session.append('turn/start', { turn: 1 })
+  const reader = new ProtectedInputIntegrity(workspace, home)
+  expect(reader.covers(path)).toBe(false)
+  const pending = policy.requestWrite({ agent: f.agent, toolName: 'capture-fixture' })
+  const settled = pending.then(value => ({ value }), (error: unknown) => ({ error }))
+  const frame = await f.events.next()
+  if (frame.done || frame.value.type !== 'waterfall') throw new Error('Expected workspace write approval')
+  expect(reader.covers(path)).toBe(false)
+  writeFileSync(path, 'present when owner confirms')
+  expect((await f.reply(frame.value.eventId, outcome)).result.ok).toBe(true)
+  const result = await settled
+  if (outcome === 'allowed-once') {
+    if ('error' in result) throw result.error
+    expect(result.value.mode).toBe('workspace-write')
+    expect(reader.covers(path)).toBe(true)
+    writeFileSync(path, 'after authorization')
+    expect(reader.readTrusted(path)?.toString()).toBe('present when owner confirms')
+  } else {
+    expect('error' in result).toBe(true)
+    expect(reader.covers(path)).toBe(false)
+    expect(policy.workspaceAccess.isAuthorized(workspace)).toBe(false)
+  }
+})
 
 it.each(['allowed-once', 'rejected'] as const)('records an idle owner decision without starting a model turn: %s', async (outcome) => {
   const f = await fixture()

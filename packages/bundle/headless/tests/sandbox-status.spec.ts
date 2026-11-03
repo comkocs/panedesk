@@ -7,7 +7,7 @@ import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
 import SessionProjections from '@panedesk/dsh-session-projection'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { apply } from '../src/index.ts'
 import { internals } from '../src/runner-internals.ts'
 
@@ -15,6 +15,7 @@ it.each(['en', 'zh'] as const)('reports every host fallback in %s without a mode
   const root = mkdtempSync(join(tmpdir(), 'headless-sandbox-status-'))
   const workspace = join(root, 'workspace')
   const home = join(root, 'owner')
+  vi.stubEnv('PANEDESK_HOME', home)
   const input = join(workspace, 'missing.yml')
   mkdirSync(workspace)
   const integrity = new ProtectedInputIntegrity(workspace, home)
@@ -31,6 +32,7 @@ it.each(['en', 'zh'] as const)('reports every host fallback in %s without a mode
   onTestFinished(async () => {
     Object.assign(internals, original)
     await ctx.fiber.dispose()
+    vi.unstubAllEnvs()
     rmSync(root, { recursive: true, force: true })
   })
   await ctx.plugin(SessionProjections)

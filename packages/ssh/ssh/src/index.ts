@@ -150,7 +150,7 @@ export class SshConnection extends Service {
       const policy = policySchema.parse(rawPolicy)
       const { protectedPaths, ...remotePolicy } = policy
       params = { ...input, policy: this.targetsLocalHost()
-        ? { ...remotePolicy, protectedPaths: [...new Set([...protectedPaths ?? [], ...resolveProtectedPaths(this.ctx)])] }
+        ? { ...remotePolicy, protectedPaths: [...new Set([...protectedPaths ?? [], ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined)])] }
         : remotePolicy }
     }
     return (this.rpc as SshRpcPeer).request(method, params, result, bounded)

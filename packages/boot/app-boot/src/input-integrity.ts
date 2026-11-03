@@ -275,11 +275,18 @@ export class ProtectedInputIntegrity {
     return contains(this.workspace, path) ? resolve(this.root, relative(this.workspace, path)) : path
   }
 
-  private assertRecordLocation(): void {
-    if (this.record !== undefined && (contains(this.root, this.record)
-      || contains(this.root, canonicalLocation(this.record)))) {
-      throw new Error('Protected input records must be outside the writable workspace')
+  private assertRecordLocation(protectedPaths?: readonly string[]): void {
+    if (this.record === undefined) return
+    const record = canonicalLocation(this.record)
+    if (!contains(this.root, record)) return
+    const first = join(this.root, relative(this.root, record).split(sep)[0]!)
+    if (process.platform === 'win32') {
+      if (protectedPaths === undefined) return
+      throw new Error('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。 Protected input records must be outside the writable workspace.')
     }
+    if (first !== this.root
+      && (protectedPaths === undefined || protectedPaths.some(path => canonicalLocation(path) === first))) return
+    throw new Error('Protected input records must be outside the writable workspace or protected at its first child')
   }
 
   /**
@@ -290,15 +297,21 @@ export class ProtectedInputIntegrity {
     const path = this.inputPath(filename)
     for (const record of this.ownerRecords) record.observe(filename)
     if (!contains(this.root, path)) return
+    // Native state exclusions must not snapshot their own mutable record storage.
+    if (this.record !== undefined && contains(canonicalLocation(path), canonicalLocation(this.record))) return
     this.observed.add(path)
     if (this.record === undefined && !this.approved.has(path)) this.approved.set(path, snapshot(path, this.root))
   }
 
-  /** Capture the current owner inputs before publishing workspace write access; existing grants never reset trust. */
-  grantWrite(): void {
+  /**
+   * Capture owner inputs before publishing write access; existing grants never reset trust.
+   * @param protectedPaths Native write exclusions; omission requires state outside the workspace.
+   */
+  grantWrite(protectedPaths: readonly string[] = []): void {
+    this.assertRecordLocation(protectedPaths)
     this.refreshRecord()
     if (this.granted) return
-    this.assertRecordLocation()
+    if (this.record !== undefined) mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
     const stamps = new Map<string, string>()
     const candidates = new Map<string, InputSnapshot>()
     for (const path of this.observed) candidates.set(path, snapshot(path, this.root, undefined, stamps))

@@ -2,5 +2,9 @@
   "meta": {
     "title": "沙箱权限策略",
     "description": "根据当前会话的权限模式和工作区，确定每次操作的限制。"
+  },
+  "workspaceWrite": {
+    "protectedProfile": "该目录是受保护的 profile 目录，请换一个工作区。",
+    "containsState": "工作区包含 Panedesk 状态目录，请选它的子目录。"
   }
 }

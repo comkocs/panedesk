@@ -55,6 +55,7 @@ const scratch: string[] = []
 afterEach(() => {
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true })
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 function track<T extends { directory: string }>(files: T): T {
@@ -388,6 +389,8 @@ describe('runner launch inputs', () => {
   })
 
   it('resolves Windows executables with target-cwd and PATH search semantics', () => {
+    vi.stubEnv('NoDefaultCurrentDirectoryInExePath', undefined)
+    vi.stubEnv('NODEFAULTCURRENTDIRECTORYINEXEPATH', undefined)
     const probed: string[] = []
     const exists = (candidate: string): boolean => {
       probed.push(candidate)
@@ -395,7 +398,7 @@ describe('runner launch inputs', () => {
     }
     expect(resolveWindowsExecutable('bash', 'C:\\target', {
       Path: 'relative;"C:\\semi;colon";"C:\\tools\\git\\bin";C:\\later',
-    }, exists)).toBe('C:\\tools\\git\\bin\\bash.exe')
+    }, exists, {})).toBe('C:\\tools\\git\\bin\\bash.exe')
     expect(probed).toEqual([
       'C:\\target\\bash.com',
       'C:\\target\\bash.exe',

@@ -26,7 +26,7 @@ export function grantProtectedWorkspace(context: ProfileContext, workspace: stri
   for (const path of [context.dir, join(context.dir, 'package.json'), context.patchPath, join(context.home, PROFILE_PATCH_FILENAME),
     ...context.bundleInputPaths ?? [], ...context.overlayPaths ?? [],
     ...context.protectedInputPaths?.() ?? [], ...paths]) integrity.observe(path)
-  integrity.grantWrite()
+  integrity.grantWrite([...context.protectedInputPaths?.() ?? [], ...paths])
 }
 
 /**

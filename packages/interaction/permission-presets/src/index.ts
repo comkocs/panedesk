@@ -517,7 +517,7 @@ export class PermissionPresetService extends TypertRemoteService {
 
   private captureWorkspace(workspace: string): void {
     const profile = this.ctx.get('profileContext')
-    if (profile !== undefined) grantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx))
+    if (profile !== undefined) grantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
   }
 
   private captureSession(session: Session, mode: SandboxMode): void {

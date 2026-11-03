@@ -1,5 +1,5 @@
 /** Loaded host inputs stay immutable even inside an otherwise writable workspace. */
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,10 +19,12 @@ afterEach(async () => {
 })
 
 async function fixture(implicit: boolean) {
-  const root = mkdtempSync(join(tmpdir(), 'protected-host-'))
-  directories.push(root)
-  const home = join(root, 'home')
-  const profile = join(home, 'profiles', 'active')
+  const parent = mkdtempSync(join(tmpdir(), 'protected-host-'))
+  directories.push(parent)
+  const root = join(parent, 'workspace')
+  mkdirSync(root)
+  const home = join(parent, 'home')
+  const profile = join(root, 'profiles', 'active')
   mkdirSync(profile, { recursive: true })
   vi.stubEnv('PANEDESK_HOME', home)
   vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
@@ -41,6 +43,35 @@ async function fixture(implicit: boolean) {
   await ctx.plugin(SandboxedFileSystem, { cwd: root })
   return { ctx, root, home, profile }
 }
+
+it.each(['linux', 'darwin'] as const)('denies state replacement and creation through canonical file admission on %s', async (platform) => {
+  const root = mkdtempSync(join(tmpdir(), 'state-file-admission-'))
+  directories.push(root)
+  const home = join(root, '.panedesk', 'nested')
+  vi.stubEnv('PANEDESK_HOME', home)
+  vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+  const ctx = new Context()
+  contexts.push(ctx)
+  await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SandboxPolicyService, { workspaceRoot: root, mode: 'workspace-write' })
+  await ctx.plugin(SandboxedFileSystem, { cwd: root })
+  const state = join(home, 'windows-workspace-write')
+  ctx.sandboxPolicy.resolve()
+  const record = join(state, 'record.json')
+  writeFileSync(record, 'owner')
+  const alias = join(root, 'state-alias')
+  symlinkSync(state, alias, 'junction')
+  for (const path of [join(root, '.panedesk'), home, state, record, join(state, 'missing.json'), join(alias, 'record.json')]) {
+    await expect(ctx.fs.writeText(await ctx.fs.resolve(path), 'replacement'))
+      .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
+  }
+  await expect(ctx.fs.editText(await ctx.fs.resolve(record), { oldString: 'owner', newString: 'forged', replaceAll: false }))
+    .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
+  expect(readFileSync(record, 'utf8')).toBe('owner')
+  const ordinary = join(root, 'ordinary.txt')
+  await ctx.fs.writeText(await ctx.fs.resolve(ordinary), 'allowed')
+  expect(readFileSync(ordinary, 'utf8')).toBe('allowed')
+})
 
 describe.each([false, true])('loaded host paths, implicit Windows default: %s', (implicit) => {
   for (const location of ['profile patch', 'bundle manifest', 'plugin source', 'home patch']) {

@@ -325,6 +325,10 @@ export class ApprovalService extends Service {
       if (profile !== undefined) {
         try { grantProtectedWorkspace(profile, req.purpose.workspace, []) } catch (error) {
           this.ctx.logger.warn('Workspace write refused because protected input capture failed: %s', error)
+          req.agent.inject(createUserMessage({
+            content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
+            source: { kind: 'user-approval' },
+          }))
           outcome = 'unavailable'
         }
       }
