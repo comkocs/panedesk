@@ -38,11 +38,13 @@ import type { EffectivePermissionMode } from './effective-mode.ts'
 import { UnsafeWindowsStateError } from '@panedesk/dsh-sandbox-windows-acl'
 import { WorkspaceWriteAccess, WorkspaceWriteRuleError } from './workspace-access.ts'
 import { resolveProtectedPaths } from './protected-paths.ts'
+import { resolveOwnerMaterialPaths } from './owner-material.ts'
 import { en, zh } from './locales.ts'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 export { resolveEffectivePermissionMode } from './effective-mode.ts'
 export { resolveProtectedPaths } from './protected-paths.ts'
+export { resolveOwnerMaterialPaths } from './owner-material.ts'
 export { WorkspaceWriteAccess } from './workspace-access.ts'
 export type { WorkspaceWriteRecord } from './workspace-access.ts'
 
@@ -215,6 +217,7 @@ export class SandboxPolicyService extends Service {
       mode,
       workspaceRoot,
       ...protectedPaths.length === 0 ? {} : { protectedPaths },
+      ...mode === 'danger-full-access' ? {} : { unreadablePaths: resolveOwnerMaterialPaths(this.ctx) },
       ...session === undefined ? {} : { sessionId: session.id },
       ...this.windowsDefault && explicit === undefined && mode === 'workspace-write'
         ? { requiresWorkspaceAuthorization: true as const } : {},

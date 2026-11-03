@@ -1,6 +1,44 @@
 {
   "divergences": [
     {
+      "id": "owner-directory-process-isolation",
+      "description": "Exclude owner material directories from restricted processes",
+      "origin": "Owner credential read isolation",
+      "reason": "Collect provider-owned private directories, reject hard-linked material and workspace overlaps, mask directories after writable bubblewrap mounts, deny Seatbelt reads, and grant Landlock sibling trees. Separate POSIX terminal sessions and apply verified Medium mandatory read/write protection in Windows runners. Preserve full-access behavior and test restricted policy inventories with temporary homes. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/sandbox/sandbox/src/index.ts",
+          "packages/sandbox/sandbox/src/owner-material.ts",
+          "packages/sandbox/sandbox-policy/package.json",
+          "packages/sandbox/sandbox-policy/tsconfig.json",
+          "packages/sandbox/sandbox-policy/src/index.ts",
+          "packages/sandbox/sandbox-policy/src/owner-material.ts",
+          "packages/sandbox/sandbox-policy/tests/policy.spec.ts",
+          "packages/sandbox/sandbox-local/src/index.ts",
+          "packages/sandbox/sandbox-local/src/profiles.ts",
+          "packages/sandbox/sandbox-local/tests/owner-directories.spec.ts",
+          "packages/sandbox/sandbox-local/tests/owner-material.spec.ts",
+          "packages/sandbox/sandbox-local/tests/terminal-isolation.spec.ts",
+          "packages/sandbox/sandbox-local/tests/protected-bwrap-native.spec.ts",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml",
+          "packages/sandbox/sandbox-windows-acl/package.json",
+          "packages/sandbox/sandbox-windows-acl/tsconfig.json",
+          "packages/sandbox/sandbox-windows-acl/src/acl.ts",
+          "packages/sandbox/sandbox-windows-acl/src/index.ts",
+          "packages/sandbox/sandbox-windows-acl/src/runner.ts",
+          "packages/sandbox/sandbox-windows-acl/src/win32-abi.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/README.md",
+          "packages/sandbox/sandbox-windows-acl/README.zh.md",
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "browser-owner-confirmation",
       "description": "Require host-local confirmation before new browsers receive owner authority",
       "origin": "Owner credential read isolation",

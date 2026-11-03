@@ -8,6 +8,7 @@
     "src"
   ],
   "references": [
+    { "path": "../../credentials/credentials" },
     { "path": "../../boot/app-boot" },
     { "path": "../../boot/hmr" },
     { "path": "../../client/modules" },

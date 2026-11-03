@@ -44,6 +44,8 @@
  * @module @panedesk/dsh-sandbox-windows-acl/runner
  */
 
+import { resolveDshHome } from '@panedesk/dsh-home-paths'
+import { rootsOverlap } from '@panedesk/dsh-sandbox'
 import { SUBPROCESS_CONTROL_ENV, SUBPROCESS_CONTROL_FD } from '@panedesk/dsh-subprocess/control'
 import { closeSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -70,6 +72,7 @@ interface ParsedArgs {
   writeSid: string | undefined
   tempWriteSid: string | undefined
   protectedPaths: string[]
+  unreadablePaths: string[]
   stateDirectory: string | undefined
   command: string
   args: string[]
@@ -82,6 +85,7 @@ function parseArgs(raw: string[]): ParsedArgs {
   let writeSid: string | undefined
   let parsedTempWriteSid: string | undefined
   const protectedPaths: string[] = []
+  const unreadablePaths: string[] = []
   let stateDirectory: string | undefined
   let index = 0
   for (; index < raw.length; index++) {
@@ -100,6 +104,7 @@ function parseArgs(raw: string[]): ParsedArgs {
       case '--write-sid': writeSid = value; break
       case '--temp-write-sid': parsedTempWriteSid = value; break
       case '--protected-path': protectedPaths.push(value); break
+      case '--unreadable-path': unreadablePaths.push(value); break
       case '--state-directory': stateDirectory = value; break
       default: fail(`unknown argument: ${token}`)
     }
@@ -110,7 +115,10 @@ function parseArgs(raw: string[]): ParsedArgs {
   const argv = raw.slice(index)
   const command = argv[0]
   if (command === undefined) fail('missing command after --')
-  return { workspace, temp, mode, writeSid, tempWriteSid: parsedTempWriteSid, protectedPaths, stateDirectory, command, args: argv.slice(1) }
+  return {
+    workspace, temp, mode, writeSid, tempWriteSid: parsedTempWriteSid,
+    protectedPaths, unreadablePaths, stateDirectory, command, args: argv.slice(1),
+  }
 }
 
 function requireDirectory(label: string, path: string): void {
@@ -125,6 +133,18 @@ async function main(): Promise<number> {
   // a bogus root must fail loudly at the runner boundary, never mid-child.
   requireDirectory('--workspace', parsed.workspace)
   requireDirectory('--temp', parsed.temp)
+  const ownerDirectories = new Set([...parsed.unreadablePaths, join(resolveDshHome(), 'private')])
+  const desktopPrivatePaths = process.env.DSH_DESKTOP_PRIVATE_PATHS
+  if (desktopPrivatePaths !== undefined) {
+    const paths: unknown = JSON.parse(desktopPrivatePaths)
+    if (!Array.isArray(paths) || !paths.every((path): path is string => typeof path === 'string')) {
+      fail('Desktop private paths must be a JSON string array / 桌面私有目录必须为字符串数组。')
+    }
+    for (const path of paths) ownerDirectories.add(path)
+  }
+  if ([...ownerDirectories].some(path => rootsOverlap(path, parsed.workspace))) {
+    fail('Owner directories must be outside the workspace / 所有者目录必须与工作区互不包含。')
+  }
 
   const seamManaged = parsed.writeSid !== undefined || parsed.tempWriteSid !== undefined
   if (parsed.mode === 'read-only' && seamManaged) {
@@ -173,6 +193,7 @@ async function main(): Promise<number> {
       ...privateTempSid === undefined ? {} : { tempWriteSid: privateTempSid },
       manageDacls: !seamManaged,
       protectedPaths: parsed.protectedPaths,
+      unreadablePaths: [...ownerDirectories],
       ...parsed.stateDirectory === undefined ? {} : { stateDirectory: parsed.stateDirectory },
     })
     await sandbox.init()

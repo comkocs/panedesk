@@ -1,12 +1,82 @@
 /** Real Linux mutations distinguish mount protection from host-owned name validation. */
 import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { coveredContext } from './host-coverage-fixture.ts'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
+import { Context } from '@panedesk/cordis'
+import { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs } from '../src/profiles.ts'
+
+for (const mode of ['read-only', 'workspace-write'] as const) it(`native owner-directory read control and masking in ${mode}`, ({ skip }) => {
+  if (process.platform !== 'linux') skip('native bubblewrap requires Linux')
+  const root = mkdtempSync(join(tmpdir(), 'owner-bwrap-'))
+  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+  const workspace = join(root, 'workspace')
+  const owner = join(root, 'private')
+  mkdirSync(workspace)
+  mkdirSync(owner)
+  const document = join(owner, 'document')
+  writeFileSync(document, 'synthetic-owner-material')
+  const policy = { mode, workspaceRoot: workspace, protectedPaths: [root] }
+  const control = spawnSync('bwrap', [...bwrapProfileArgs(policy), '--', '/bin/cat', document], { encoding: 'utf8', timeout: 5_000 })
+  if (control.status !== 0) skip('native bubblewrap is unavailable; the unmasked read control could not run')
+  expect(control.stdout).toBe('synthetic-owner-material')
+  const isolated = spawnSync('bwrap', [...bwrapProfileArgs({ ...policy, unreadablePaths: [owner] }), '--', '/bin/cat', document], { encoding: 'utf8', timeout: 5_000 })
+  expect(isolated.status).not.toBe(0)
+  expect(isolated.stdout).toBe('')
+})
+
+const stateActions = [
+  ['overwrite/append/truncate', 'printf changed > "$1"; printf appended >> "$1"; truncate -s 0 "$1"'],
+  ['delete', 'rm -rf "$1"'],
+  ['rename state and first-level ancestor', 'mv "$1" "$1.moved"; mv "$2" "$2.moved"'],
+  ['delete and recreate', 'rm -rf "$1"; printf replacement > "$1"'],
+  ['create absent state', 'printf premature > "$1"'],
+  ['replace symlink', 'rm "$1" && ln -s "$3" "$1"'],
+] as const
+
+for (const [action, command] of stateActions) it(`native bwrap first-level state binding: ${action}`, async ({ skip }) => {
+  if (process.platform !== 'linux') skip('native bubblewrap requires Linux')
+  const probe = spawnSync('bwrap', [...bwrapProfileArgs({ mode: 'read-only', workspaceRoot: '/' }), '--', '/bin/true'], { encoding: 'utf8', timeout: 5_000 })
+  if (probe.status !== 0) skip('native bubblewrap is unavailable; first-level state binding is not verified')
+  const workspace = mkdtempSync(join(homedir(), '.state-bwrap-native-'))
+  const ctx = new Context()
+  onTestFinished(async () => {
+    await ctx.fiber.dispose()
+    vi.unstubAllEnvs()
+    rmSync(workspace, { recursive: true, force: true })
+  })
+  const first = join(workspace, 'private')
+  const home = join(first, 'product-home')
+  vi.stubEnv('PANEDESK_HOME', home)
+  const protectedPaths = resolveProtectedPaths(ctx, workspace)
+  expect(protectedPaths).toContain(first)
+  const input = join(home, 'windows-workspace-write', 'record.json')
+  const original = join(home, 'original.json')
+  const replacement = join(workspace, 'replacement.json')
+  writeFileSync(original, 'owner')
+  writeFileSync(replacement, 'replacement')
+  if (action === 'replace symlink') symlinkSync(original, input)
+  else if (action !== 'create absent state') writeFileSync(input, 'owner')
+  const ordinary = join(workspace, 'ordinary.txt')
+  const script = `${command}\nmutation=$?\nprintf allowed > "$4" || exit 90\nprintf 'mutation=%s\\n' "$mutation"`
+  const result = spawnSync('bwrap', [
+    ...bwrapProfileArgs({ mode: 'workspace-write', workspaceRoot: workspace, protectedPaths }),
+    '--', '/bin/sh', '-c', script, 'sh', input, first, replacement, ordinary,
+  ], { encoding: 'utf8', timeout: 10_000 })
+  expect(result.status, result.stderr).toBe(0)
+  expect(result.stdout).not.toBe('mutation=0\n')
+  expect(readFileSync(ordinary, 'utf8')).toBe('allowed')
+  expect(existsSync(`${first}.moved`)).toBe(false)
+  if (action === 'create absent state') expect(existsSync(input)).toBe(false)
+  else {
+    expect(readFileSync(input, 'utf8')).toBe('owner')
+    if (action === 'replace symlink') expect(readlinkSync(input)).toBe(original)
+  }
+})
 
 const actions = [
   ['overwrite/append/truncate', 'printf changed > "$1"; printf appended >> "$1"; truncate -s 0 "$1"'],

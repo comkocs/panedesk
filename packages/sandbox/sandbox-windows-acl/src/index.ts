@@ -46,8 +46,9 @@
 import { existsSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { Win32Error } from '@panedesk/dsh-win32-process'
+import { isolatedOwnerPaths } from '@panedesk/dsh-sandbox'
 
-import { denyProtectedWrite, grantWrite, revokeWrite } from './acl.ts'
+import { assertOwnerReadProtection, denyProtectedWrite, grantWrite, revokeWrite, setOwnerReadProtection } from './acl.ts'
 import { checkFileAccess } from './access-check.ts'
 import { inspectStateAncestors } from './state-access.ts'
 import { UnsafeWindowsStateError } from './state-trust.ts'
@@ -70,6 +71,8 @@ export interface AclSandboxOptions {
   writableDirs: readonly string[]
   /** Protected names excluded from workspace grants; absent names require host-side validation. */
   protectedPaths?: readonly string[]
+  /** Dedicated owner directories requiring Medium no-read-up labels before spawning. */
+  unreadablePaths?: readonly string[]
   /** Owner record storage to check with the exact process token before spawning. */
   stateDirectory?: string
   /**
@@ -181,12 +184,14 @@ export class AclSandbox {
   private readonly tempDirOption: string | null | undefined
   private readonly manageDacls: boolean
   private readonly protectedPaths: readonly string[]
+  private readonly unreadablePaths: readonly string[]
   private readonly stateDirectory: string | undefined
   private tempDirResolved: string | null | undefined
   private api: Win32Bindings | undefined
   private token: NativePtr | undefined
   private writeSidPtr: NativePtr | undefined
   private tempWriteSidPtr: NativePtr | undefined
+  private ownerLabelSid: NativePtr | undefined
   /** The well-known/logon SID allocations init() makes; freed by dispose() alongside the write SIDs. */
   private sidAllocations: NativePtr[] = []
   private grantedPaths: Array<{ path: string; sidPtr: NativePtr }> = []
@@ -195,6 +200,7 @@ export class AclSandbox {
     this.mode = options.mode
     this.manageDacls = options.manageDacls ?? true
     this.protectedPaths = options.protectedPaths ?? []
+    this.unreadablePaths = isolatedOwnerPaths(options.unreadablePaths ?? [])
     this.stateDirectory = options.stateDirectory
     this.writableDirs = options.writableDirs.map((directory) => {
       const absolute = resolve(directory)
@@ -264,6 +270,9 @@ export class AclSandbox {
         }
         assertPrivateTempDisjoint(this.writableDirs, tempDir)
       }
+      for (const directory of this.unreadablePaths) {
+        assertPrivateTempDisjoint([...this.writableDirs, ...tempDir === null ? [] : [tempDir]], directory)
+      }
       this.tempDirResolved = tempDir
 
       // manageDacls: false — the caller (the sandbox seam's grant) already
@@ -277,6 +286,12 @@ export class AclSandbox {
       const lowLabelSid = makeWellKnownSid(api, abi.WinLowLabelSid)
       const worldSid = makeWellKnownSid(api, abi.WinWorldSid)
       this.sidAllocations.push(lowLabelSid, worldSid)
+      if (this.unreadablePaths.length > 0) {
+        const medium = makeWellKnownSid(api, abi.WinMediumLabelSid)
+        this.sidAllocations.push(medium)
+        this.ownerLabelSid = medium
+        for (const directory of this.unreadablePaths) setOwnerReadProtection(api, directory, medium, true)
+      }
 
       if (this.manageDacls) {
         if (this.writeSidPtr !== undefined) {
@@ -399,6 +414,9 @@ export class AclSandbox {
     if (api === undefined || token === undefined) throw new Error('AclSandbox is not initialized: call init() first')
     if (options.controlFileDescriptor !== undefined && options.stdio !== 'inherit') {
       throw new Error('control pipe requires inherited stdio')
+    }
+    if (this.ownerLabelSid !== undefined) {
+      for (const directory of this.unreadablePaths) assertOwnerReadProtection(api, directory, this.ownerLabelSid)
     }
     const args = options.args ?? []
     const cwd = options.cwd ?? process.cwd()

@@ -204,6 +204,64 @@ function hasExactLabel(labelAcl: NativePtr, lowLabelSidPtr: NativePtr): boolean 
 }
 
 /**
+ * Apply or remove an owner directory's Medium no-read-up label without changing its DACL.
+ * Admission requires an exact readback; the label inherits to new files and atomic replacements.
+ * @param api - Native binding table.
+ * @param path - Dedicated private directory, disjoint from writable roots.
+ * @param mediumSid - Medium integrity SID (S-1-16-8192).
+ * @param enabled - Apply protection when true; remove the label when false.
+ */
+export function setOwnerReadProtection(api: Win32Bindings, path: string, mediumSid: NativePtr, enabled: boolean): void {
+  withPathLock(api, path, () => {
+    let label: NativePtr | null = null
+    const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
+    if (!enabled) assertOwnerReadProtection(api, path, mediumSid)
+    if (enabled) {
+      const sidLength = api.getLengthSid(mediumSid)
+      if (sidLength === 0) throwLastError(api, 'GetLengthSid', path)
+      const length = abi.ACL_HEADER_SIZE + abi.MANDATORY_ACE_OVERHEAD + sidLength
+      label = api.localAlloc(abi.LPTR, length)
+      if (isNullPtr(label)) throwLastError(api, 'LocalAlloc', path)
+      if (api.initializeAcl(label, length, abi.ACL_REVISION) === 0
+        || api.addMandatoryAce(label, abi.ACL_REVISION, abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, policy, mediumSid) === 0) {
+        const code = api.getLastError()
+        api.localFree(label)
+        throwWin32(api, 'AddMandatoryAce', code, path)
+      }
+    }
+    try {
+      const code = api.setNamedSecurityInfoW(path, abi.SE_FILE_OBJECT, abi.LABEL_SECURITY_INFORMATION,
+        null, null, null, label)
+      if (code !== abi.ERROR_SUCCESS) throwWin32(api, 'SetNamedSecurityInfoW', code, path)
+    } finally {
+      if (label !== null) api.localFree(label)
+    }
+    if (enabled) assertOwnerReadProtection(api, path, mediumSid)
+  })
+}
+
+/**
+ * Refuse process creation if an owner directory lost its mandatory read protection.
+ * @param api - Native binding table.
+ * @param path - Protected private directory.
+ * @param mediumSid - Medium integrity SID.
+ */
+export function assertOwnerReadProtection(api: Win32Bindings, path: string, mediumSid: NativePtr): void {
+  const current = readCurrentSecurity(api, path)
+  try {
+    const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
+    if (current.labelAcl === null || !hasExactEntry(current.labelAcl, abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE,
+      abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, policy, mediumSid)) {
+      throw new Error('Owner directory integrity label verification failed. / 所有者目录完整性标签核验失败。')
+    }
+  } finally {
+    if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
+      throwLastError(api, 'LocalFree', path)
+    }
+  }
+}
+
+/**
  * The mandatory-label half of an apply: set the given label ACL, clear the
  * label, or leave it untouched. `clear` is what a revoke does when the
  * directory carries no other capability grant; `keep` is what it does while

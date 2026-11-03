@@ -5,15 +5,29 @@
  */
 
 import { grantArgs as landlockGrantArgs } from '@panedesk/node-addon-system/landlock-run'
-import { existsSync, lstatSync } from 'node:fs'
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
-import { assertUnprotectedRoots, canonicalPath, rootsOverlap, writableRoots } from '@panedesk/dsh-sandbox'
+import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { assertUnprotectedRoots, canonicalPath, isolatedOwnerPaths, rootsOverlap, SandboxUnavailableError, writableRoots } from '@panedesk/dsh-sandbox'
 import type { ProtectedInputEnforcement, SandboxPolicy } from '@panedesk/dsh-sandbox'
 
 /** Test containment after callers have canonicalized both paths. */
 function contains(root: string, path: string): boolean {
   const suffix = relative(root, path)
   return suffix === '' || (!isAbsolute(suffix) && suffix !== '..' && !suffix.startsWith(`..${sep}`))
+}
+
+/**
+ * Resolve private stores outside the workspace a command must read.
+ * @param policy - Resolved confinement policy.
+ * @returns Private paths to exclude before admitting the command.
+ */
+export function ownerDirectories(policy: SandboxPolicy): string[] {
+  const paths = isolatedOwnerPaths(policy.unreadablePaths ?? [])
+  if (paths.some(path => rootsOverlap(path, policy.workspaceRoot))) {
+    throw new SandboxUnavailableError(policy.mode,
+      'Put the credentials file in a dedicated directory outside the workspace. / 把凭据文件放进单独目录，且与工作区互不包含。')
+  }
+  return paths
 }
 
 /** Ancestors need stable names while their unrelated children remain writable. */
@@ -57,7 +71,7 @@ function mountPath(path: string): string | undefined {
  * @returns profile arguments before the trailing separator and command argv.
  */
 export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
-  const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent']
+  const args = ['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session']
   if (policy.mode === 'workspace-write') {
     const workspace = canonicalPath(policy.workspaceRoot)
     const protectedPaths = policy.protectedPaths ?? []
@@ -75,6 +89,10 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
       args.push('--bind', parent, parent)
     }
     for (const path of paths) args.push('--ro-bind', path, path)
+  }
+  for (const path of ownerDirectories(policy)) {
+    if (statSync(path).isDirectory()) args.push('--perms', '000', '--tmpfs', path, '--remount-ro', path)
+    else args.push('--ro-bind', '/dev/null', path)
   }
   return args
 }
@@ -114,14 +132,33 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
  * @returns launcher grant arguments before the trailing separator and command argv.
  */
 export function landlockProfileArgs(policy: SandboxPolicy): string[] {
+  const owners = ownerDirectories(policy).map(canonicalPath)
+  const readOnly: string[] = []
+  const visit = (path: string): void => {
+    const canonical = canonicalPath(path)
+    if (owners.some(owner => contains(owner, canonical))) return
+    if (!owners.some(owner => contains(canonical, owner))) {
+      readOnly.push(canonical)
+      return
+    }
+    for (const entry of readdirSync(canonical, { withFileTypes: true })) {
+      // Symlink targets receive their own grants; granting aliases can reopen a private ancestor.
+      if (!entry.isSymbolicLink()) visit(join(canonical, entry.name))
+    }
+  }
+  try { visit('/') } catch (error) {
+    throw new SandboxUnavailableError(policy.mode,
+      'Cannot enumerate readable siblings of the private directory. / 无法枚举私密目录的可读兄弟项。'
+      + (error instanceof Error ? ` ${error.name}` : ''))
+  }
   const readWrite = ['/dev/null']
   if (policy.mode === 'workspace-write') {
     // Landlock grants are additive: omit shared temp rather than denying an unrelated workspace.
-    if (!(policy.protectedPaths ?? []).some(path => rootsOverlap('/tmp', path))) readWrite.push('/tmp')
+    if (![...policy.protectedPaths ?? [], ...owners].some(path => rootsOverlap('/tmp', path))) readWrite.push('/tmp')
     readWrite.push(policy.workspaceRoot)
     assertUnprotectedRoots(readWrite, policy.protectedPaths)
   }
-  return landlockGrantArgs({ readOnly: ['/'], readWrite })
+  return landlockGrantArgs({ readOnly: [...new Set(readOnly)], readWrite })
 }
 
 /** Quote one path as an SBPL string literal. */
@@ -151,6 +188,10 @@ export function seatbeltProfileArgs(policy: SandboxPolicy): string[] {
   }
   for (const parent of new Set(paths.flatMap(path => protectedParents(workspace, path)))) {
     forms.push(`(deny file-write-unlink (literal ${sbplString(parent)}))`)
+  }
+  for (const path of ownerDirectories(policy)) {
+    forms.push(`(deny file-read* (subpath ${sbplString(path)}))`)
+    forms.push(`(deny file-write* (subpath ${sbplString(path)}))`)
   }
   return ['-p', forms.join(' ')]
 }

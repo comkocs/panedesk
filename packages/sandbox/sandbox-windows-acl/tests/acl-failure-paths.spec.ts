@@ -14,12 +14,17 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import koffi from 'koffi'
 
-import { denyProtectedWrite, grantWrite, hasWriteGrant, revokeWrite, withPathLock } from '../src/acl.ts'
+import { denyProtectedWrite, explicitCapabilityEntries, grantWrite, hasWriteGrant, revokeWrite, setOwnerReadProtection, withPathLock } from '../src/acl.ts'
 import { allocBytes, ptrAddress } from '../src/ffi.ts'
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
 import * as abi from '../src/win32-abi.ts'
 
 const PVOID = koffi.pointer('void')
+
+/** Borrow a pointer while the fixture retains ownership of its backing Buffer. */
+function bufferPointer(buffer: Buffer): NativePtr {
+  return koffi.address(buffer) as NativePtr
+}
 
 /** The stub the grant/revoke happy path needs; every call succeeds until a field is overridden per test. */
 function aclApi(overrides: Partial<Win32Bindings> = {}): Win32Bindings {
@@ -171,6 +176,87 @@ function readStub(dacl: NativePtr | null, label: NativePtr | null, descriptor: b
     return 0
   })
 }
+
+describe('explicit capability revocation preserves unrelated ACE bytes', () => {
+  it('removes only this SID explicit allow and deny entries, retaining other SIDs and inherited entries', () => {
+    const sid = craftSid(1, 0)
+    const acl = Buffer.alloc(8 + 5 * 16)
+    acl.writeUInt8(2, 0)
+    acl.writeUInt16LE(acl.length, 2)
+    acl.writeUInt16LE(5, 4)
+    writeAce(bufferPointer(acl), 8, abi.ACCESS_DENIED_ACE_TYPE, abi.GRANT_MASK, sid, true)
+    writeAce(bufferPointer(acl), 24, abi.ACCESS_ALLOWED_ACE_TYPE, 0x12345678, sid, false, 0)
+    writeAce(bufferPointer(acl), 40, abi.ACCESS_ALLOWED_ACE_TYPE, abi.GRANT_MASK, sid, true)
+    writeAce(bufferPointer(acl), 56, abi.ACCESS_ALLOWED_ACE_TYPE, 0x87654321, sid, true, 0x10)
+    writeAce(bufferPointer(acl), 72, abi.ACCESS_DENIED_ACE_TYPE, 0x01020304, sid, false, 0x10)
+    const retained = Buffer.concat([acl.subarray(24, 40), acl.subarray(56, 88)])
+    const deleteAce = vi.fn((_pointer: NativePtr, index: number) => {
+      const count = acl.readUInt16LE(4)
+      acl.copyWithin(8 + index * 16, 8 + (index + 1) * 16, 8 + count * 16)
+      acl.writeUInt16LE(count - 1, 4)
+      return 1
+    })
+    const setSecurityInfo = vi.fn(() => 0)
+    const api = aclApi({
+      getSecurityInfo: vi.fn((_handle, _type, _info, _owner, _group, dacl, _sacl, descriptor) => {
+        koffi.encode(dacl, PVOID, koffi.address(acl))
+        koffi.encode(descriptor, PVOID, 0n)
+        return 0
+      }),
+      deleteAce, setSecurityInfo,
+    })
+    expect(explicitCapabilityEntries(api, 'C:\\workspace', sid, true)).toBe(true)
+    expect(deleteAce.mock.calls.map(call => call[1])).toEqual([2, 0])
+    expect(acl.readUInt16LE(4)).toBe(3)
+    expect(acl.subarray(8, 56)).toEqual(retained)
+    expect(setSecurityInfo).toHaveBeenCalledOnce()
+  })
+})
+
+/** Medium integrity SID and an exact inheritable mandatory label, with the full RID bytes. */
+function ownerLabelFixture(): { medium: Buffer; label: Buffer } {
+  const medium = Buffer.from([1, 1, 0, 0, 0, 0, 0, 16, 0, 32, 0, 0])
+  const label = Buffer.alloc(28)
+  label.writeUInt8(2, 0)
+  label.writeUInt16LE(28, 2)
+  label.writeUInt16LE(1, 4)
+  label.writeUInt8(abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE, 8)
+  label.writeUInt8(abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, 9)
+  label.writeUInt16LE(20, 10)
+  label.writeUInt32LE(abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP, 12)
+  medium.copy(label, 16)
+  return { medium, label }
+}
+
+describe('owner mandatory read protection', () => {
+  it('writes an inheritable no-read-up and no-write-up label and verifies it before admission', () => {
+    const { medium, label } = ownerLabelFixture()
+    const addMandatoryAce = vi.fn(() => 1)
+    const setNamedSecurityInfoW = vi.fn(() => 0)
+    const api = aclApi({ getNamedSecurityInfoW: readStub(null, bufferPointer(label), null), addMandatoryAce, setNamedSecurityInfoW })
+    setOwnerReadProtection(api, 'C:\\private', bufferPointer(medium), true)
+    expect(addMandatoryAce).toHaveBeenCalledWith(11n, 2, 3, 3, bufferPointer(medium))
+    expect(setNamedSecurityInfoW).toHaveBeenCalledWith('C:\\private', abi.SE_FILE_OBJECT,
+      abi.LABEL_SECURITY_INFORMATION, null, null, null, 11n)
+  })
+
+  it('refuses admission when the applied label cannot be read back', () => {
+    const { medium } = ownerLabelFixture()
+    expect(() => { setOwnerReadProtection(aclApi(), 'C:\\private', bufferPointer(medium), true) })
+      .toThrow('Owner directory integrity label verification failed')
+  })
+
+  it('clears only the integrity label when revoking owner read protection', () => {
+    const { medium, label } = ownerLabelFixture()
+    const setNamedSecurityInfoW = vi.fn(() => 0)
+    const setEntriesInAclW = vi.fn(() => 0)
+    const api = aclApi({ getNamedSecurityInfoW: readStub(null, bufferPointer(label), null), setNamedSecurityInfoW, setEntriesInAclW })
+    setOwnerReadProtection(api, 'C:\\private', bufferPointer(medium), false)
+    expect(setNamedSecurityInfoW).toHaveBeenCalledWith('C:\\private', abi.SE_FILE_OBJECT,
+      abi.LABEL_SECURITY_INFORMATION, null, null, null, null)
+    expect(setEntriesInAclW).not.toHaveBeenCalled()
+  })
+})
 
 describe('protected input capability denies', () => {
   it.each([true, false])('merges the exact deny without changing the integrity label: recursive=%s', (recursive) => {

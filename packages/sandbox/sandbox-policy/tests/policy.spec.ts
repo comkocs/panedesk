@@ -7,13 +7,26 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@panedesk/dsh-session'
 import SandboxPolicyService, { SANDBOX_MODES, setSandboxMode, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SystemPrompt, { renderContextSnapshot, renderPrompt } from '@panedesk/dsh-system-prompt'
+
+let testHome: string
+
+beforeEach(() => {
+  testHome = mkdtempSync(join(tmpdir(), 'sandbox-policy-home-'))
+  vi.stubEnv('PANEDESK_HOME', testHome)
+  vi.stubEnv('DSH_DESKTOP_PRIVATE_PATHS', undefined)
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  rmSync(testHome, { recursive: true, force: true })
+})
 
 async function mounted(config: { mode?: 'read-only' | 'workspace-write' | 'danger-full-access'; workspaceRoot?: string } = {}) {
   const ctx = new Context()
@@ -73,6 +86,7 @@ describe('SandboxPolicyService', () => {
       mode: 'workspace-write',
       workspaceRoot: '/fallback',
       protectedPaths: resolveProtectedPaths(ctx),
+      unreadablePaths: [join(testHome, 'private')],
     })
   })
 
@@ -87,12 +101,14 @@ describe('SandboxPolicyService', () => {
       workspaceRoot: '/projects/first',
       sessionId: 'sess-first',
       protectedPaths: resolveProtectedPaths(ctx),
+      unreadablePaths: [join(testHome, 'private')],
     })
     expect(ctx.sandboxPolicy.resolve({ session: second })).toEqual({
       mode: 'read-only',
       workspaceRoot: '/projects/second',
       sessionId: 'sess-second',
       protectedPaths: resolveProtectedPaths(ctx),
+      unreadablePaths: [join(testHome, 'private')],
     })
     expect(ctx.sandboxPolicy.overrideOf(first)).toBeUndefined()
     expect(ctx.sandboxPolicy.overrideOf(second)).toBe('read-only')
@@ -100,6 +116,7 @@ describe('SandboxPolicyService', () => {
       mode: 'workspace-write',
       workspaceRoot: '/fallback',
       protectedPaths: resolveProtectedPaths(ctx),
+      unreadablePaths: [join(testHome, 'private')],
     })
   })
 
@@ -121,6 +138,7 @@ describe('SandboxPolicyService', () => {
         workspaceRoot: cwd,
         sessionId: 'sess-symlink-parent',
         protectedPaths: resolveProtectedPaths(ctx),
+        unreadablePaths: [join(testHome, 'private')],
       })
     } finally {
       rmSync(root, { recursive: true, force: true })

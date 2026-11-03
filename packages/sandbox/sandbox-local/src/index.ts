@@ -40,9 +40,9 @@ import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnfor
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
 import { assertNever } from '@panedesk/dsh-util-values'
-import { WorkspaceWriteAccess, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import { WorkspaceWriteAccess, resolveOwnerMaterialPaths, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
-import { bwrapProfileArgs, landlockProfileArgs, protectedInputRecords, seatbeltProfileArgs } from './profiles.ts'
+import { bwrapProfileArgs, landlockProfileArgs, ownerDirectories, protectedInputRecords, seatbeltProfileArgs } from './profiles.ts'
 import { protectAclInputs } from './protected-acl.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
@@ -366,13 +366,19 @@ export class LocalSandboxProvider extends SandboxProvider {
       assertTempRootOutsideWorkspace(policy.workspaceRoot, tmpdir())
     }
     const protectedInputs = this.coveredInputs(policy, selected.runner)
+    if (selected.runner === 'windows-acl') ownerDirectories(policy)
     if (selected.runner === 'landlock') landlockProfileArgs(policy)
+    if (selected.runner === 'bwrap') bwrapProfileArgs(policy)
+    if (selected.runner === 'seatbelt') seatbeltProfileArgs(policy)
     return { enforcement: selected.enforcement, protectedInputs }
   }
 
   private protectedPolicy(policy: SandboxPolicy): SandboxPolicy {
     return {
       ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
+      unreadablePaths: [...new Set([
+        ...policy.unreadablePaths ?? [], ...resolveOwnerMaterialPaths(this.ctx),
+      ])],
       protectedPaths: [...new Set([
         ...policy.protectedPaths ?? [],
         ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
@@ -478,10 +484,11 @@ export class LocalSandboxProvider extends SandboxProvider {
    * @returns the runner invocation.
    */
   private windowsAclRunnerArgv(policy: SandboxPolicy): string[] {
+    const ownerArgs = ownerDirectories(policy).flatMap(path => ['--unreadable-path', path])
     const sessionId = policy.sessionId
-    const protectedArgs = policy.mode === 'workspace-write'
+    const protectedArgs = [...ownerArgs, ...policy.mode === 'workspace-write'
       ? [...(policy.protectedPaths ?? []).flatMap(path => ['--protected-path', path]),
-        '--state-directory', join(resolveDshHome(), 'windows-workspace-write')] : []
+        '--state-directory', join(resolveDshHome(), 'windows-workspace-write')] : []]
     if (sessionId === undefined || policy.mode === 'read-only') {
       return [
         ...this.windowsAclRunnerInvocation(),

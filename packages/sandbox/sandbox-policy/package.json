@@ -46,6 +46,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@panedesk/dsh-credentials": "workspace:*",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-hmr": "workspace:*",

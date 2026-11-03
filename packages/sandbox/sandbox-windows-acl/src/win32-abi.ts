@@ -53,6 +53,10 @@ export const SYSTEM_MANDATORY_LABEL_ACE_TYPE = 0x11
  * the path the write-restricted pass-2 intersection does not reach.
  */
 export const SYSTEM_MANDATORY_LABEL_NO_WRITE_UP = 0x00000001
+/** winnt.h SYSTEM_MANDATORY_LABEL_ACE policy: deny reads from lower-integrity tokens. */
+export const SYSTEM_MANDATORY_LABEL_NO_READ_UP = 0x00000002
+/** winnt.h WELL_KNOWN_SID_TYPE: Medium mandatory level (S-1-16-8192). */
+export const WinMediumLabelSid = 67
 /** TOKEN_INFORMATION_CLASS value for the token's integrity level. */
 export const TokenIntegrityLevel = 25
 /** Group attribute marking the integrity SID of a TOKEN_MANDATORY_LABEL. */
