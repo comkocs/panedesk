@@ -4,6 +4,7 @@ import { prepareSessionSnapshotFixtureForComparison } from '@panedesk/dsh-llm-re
 import {
   type NormalizeContext,
   extractSnapshotSpillPaths,
+  externalSnapshotHomeSpellings,
   normalizeSessionLog,
   normalizeSessionFormatMetadata,
   normalizeSessionSnapshot,
@@ -25,6 +26,27 @@ const ctx: NormalizeContext = {
   sessionIds: ['11111111-2222-3333-4444-555555555555'],
   cwd: '/tmp/acp-snap-cwd-abc123',
 }
+
+describe('externalSnapshotHomeSpellings', () => {
+  const home = '/tmp/dsh-log-snap-abc123-dsh-home'
+  const homeContext: NormalizeContext = { sessionIds: [], cwd: '/tmp/dsh-log-snap-abc123', externalHome: home }
+
+  it('maps the one external home spelling and its realpath spelling to {{home}}', () => {
+    const raw = JSON.stringify({ type: 'tool/result', data: { logPath: `${home}/profiles/headless/pnpm.log` } })
+    const out = normalizeSessionLog(raw, { ...homeContext, externalHomeAliases: [`/private${home}`] })
+    expect(out).toContain('"logPath":"{{home}}/profiles/headless/pnpm.log"')
+    expect(out).not.toContain(home)
+    expect(externalSnapshotHomeSpellings({ ...homeContext, externalHomeAliases: [`/private${home}`] }))
+      .toEqual([`/private${home}`, home])
+  })
+
+  it('does not map a look-alike home path', () => {
+    const lookAlike = `${home}-extra/profiles/headless/pnpm.log`
+    const out = normalizeSessionLog(JSON.stringify({ type: 'tool/result', data: { logPath: lookAlike } }), homeContext)
+    expect(out).toContain(lookAlike)
+    expect(out).not.toContain('{{home}}')
+  })
+})
 
 describe('normalizeStdout', () => {
   it('rewrites JSON-RPC ids to a stable first-seen sequence', () => {

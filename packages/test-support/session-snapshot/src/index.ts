@@ -38,6 +38,8 @@ export {
   type LaunchedAcpTestAgent,
 } from './launcher.ts'
 export {
+  externalSnapshotHomeSpellings,
+  tokenizeExternalSnapshotHome,
   extractSnapshotSpillPaths,
   normalizeSessionFormatMetadata,
   normalizeSessionLog,

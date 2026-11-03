@@ -17,6 +17,7 @@ const SESSION_ID = '{{sessionId}}'
 const MESSAGE_ID = '{{messageId}}'
 const USED_TOKENS = '{{usedTokens}}'
 const CWD = '{{cwd}}'
+const HOME = '{{home}}'
 const SYSTEM = '{{system}}'
 const TOOLS = '{{tools}}'
 const EVENT_TIME = '{{eventTime}}'
@@ -37,6 +38,7 @@ function omitFixtureEnvelope(record: Record<string, unknown>): void {
 
 /** A cwd-rooted path after volatile cwd replacement, through its last separator-delimited segment. */
 const CWD_ROOTED_PATH_RE = /\{\{cwd\}\}(?:[\\/][^\s<>"'`]+)+/g
+const HOME_ROOTED_PATH_RE = /\{\{home\}\}(?:[\\/][^\s<>"'`]+)+/g
 const PATH_TAG_RE = /(<path>)([^<]*)(<\/path>)/g
 const ADDITIONAL_INSTRUCTIONS_PATH_RE = /(Additional instructions from: )([^\r\n]+)/g
 const EMBEDDED_EVENT_TIME_RE = /^(  "time": )\d+(?=,\r?$)/gm
@@ -95,6 +97,41 @@ export interface NormalizeContext {
   cwd: string
   /** Other filesystem spellings of the same cwd (for example Windows short and long paths). */
   cwdAliases?: readonly string[]
+  /**
+   * The one product-home directory placed outside the workspace for this run,
+   * replaced with `{{home}}`. Absent means no home is tokenized.
+   */
+  externalHome?: string
+  /** Other filesystem spellings of that same home (for example its realpath). */
+  externalHomeAliases?: readonly string[]
+}
+
+/**
+ * Replace the one external home's spellings inside raw JSONL text with `{{home}}`.
+ * JSON escaping is applied per spelling, and a look-alike longer path is left intact.
+ * @param content - raw session JSONL.
+ * @param ctx - the run context carrying the external home and its aliases.
+ * @returns the same JSONL with only that home tokenized.
+ */
+export function tokenizeExternalSnapshotHome(content: string, ctx: NormalizeContext): string {
+  const spellings = externalSnapshotHomeSpellings(ctx)
+    .map(spelling => JSON.stringify(spelling).slice(1, -1))
+  let out = content
+  for (const spelling of spellings) out = replaceCwdSpelling(out, spelling, HOME)
+  return out
+}
+
+/**
+ * Every filesystem spelling of the one external home, longest first.
+ * @param ctx - the run context carrying the external home and its aliases.
+ * @returns the distinct non-empty spellings, or none when no home was supplied.
+ */
+export function externalSnapshotHomeSpellings(ctx: NormalizeContext): string[] {
+  const home = ctx.externalHome
+  if (home === undefined || home.length === 0) return []
+  return [...new Set([home, ...ctx.externalHomeAliases ?? []])]
+    .filter(spelling => spelling.length > 0)
+    .sort((left, right) => right.length - left.length)
 }
 
 /**
@@ -112,6 +149,8 @@ export function sessionLogContext(rawLog: string, context: NormalizeContext): No
     sessionIds: context.sessionIds,
     cwd,
     ...sameDirectory ? { cwdAliases: [context.cwd, ...context.cwdAliases ?? []] } : {},
+    ...context.externalHome === undefined ? {} : { externalHome: context.externalHome },
+    ...context.externalHomeAliases === undefined ? {} : { externalHomeAliases: context.externalHomeAliases },
   }
 }
 
@@ -193,6 +232,7 @@ function scrubString(
   identityMode: 'legacy' | 'preserve',
 ): string {
   let out = replaceCwd(value, ctx, CWD)
+  for (const spelling of externalSnapshotHomeSpellings(ctx)) out = replaceCwdSpelling(out, spelling, HOME)
   // Filesystem APIs can report one directory with several spellings. Replace
   // every known spelling longest-first so a shorter alias cannot corrupt a
   // longer one before it is tokenized. macOS additionally symlinks
@@ -205,6 +245,7 @@ function scrubString(
     // Restrict separator conversion to paths rooted at the cwd token. A global
     // backslash rewrite would corrupt regexes, commands, and model-authored text.
     out = out.replace(CWD_ROOTED_PATH_RE, path => path.replaceAll('\\', '/'))
+    out = out.replace(HOME_ROOTED_PATH_RE, path => path.replaceAll('\\', '/'))
     out = canonicalizeEmbeddedPaths(out)
   }
   out = out.replace(LOCAL_SPILL_PATH_RE, (_match, name: string) => `{{spillLocator:${name}}}`)

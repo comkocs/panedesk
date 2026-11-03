@@ -117,7 +117,7 @@ This section explains the design of the kit; the observable behavior is fully co
 
 ### Design
 
-The shared core owns manifests, generation-qualified role selection, workspace setup/comparison, typed identity mapping, normalizers, and fixture invariants. The ACP adapter adds four composable layers: launcher, scenario harness, normalizers, and suite factory. `launchAcpTestAgent` boots a source profile under tsx or a built `lib` profile under plain Node, connects the SDK client over a raw-byte stdout tee, collects Session updates and stderr, fails closed on unhandled permission requests, and owns shutdown. `runScenario` drives ACP JSON-RPC stdio and harvests the numerically highest persisted raw JSONL generation for every Session directory. The pure normalizers replace cwd paths and typed identities with stable tokens, zero times, expand physical source-event ranges, and scrub system-prompt text and tool-schema bulk. `defineAcpSnapshotSuite` registers comparisons, generation-qualified fixture write-back, and the live uniformity guard.
+The shared core owns manifests, generation-qualified role selection, workspace setup/comparison, typed identity mapping, normalizers, and fixture invariants. The ACP adapter adds four composable layers: launcher, scenario harness, normalizers, and suite factory. `launchAcpTestAgent` boots a source profile under tsx or a built `lib` profile under plain Node, connects the SDK client over a raw-byte stdout tee, collects Session updates and stderr, fails closed on unhandled permission requests, and owns shutdown. `runScenario` drives ACP JSON-RPC stdio and harvests the numerically highest persisted raw JSONL generation for every Session directory. The pure normalizers replace cwd paths and typed identities with stable tokens, replace one caller-supplied external product-home directory (and only its realpath spelling) with `{{home}}`, zero times, expand physical source-event ranges, and scrub system-prompt text and tool-schema bulk. `defineAcpSnapshotSuite` registers comparisons, generation-qualified fixture write-back, and the live uniformity guard.
 
 ### Source map
 
@@ -135,7 +135,7 @@ The shared core owns manifests, generation-qualified role selection, workspace s
 
 ### Data flow
 
-A scenario runs the agent under the launcher, feeds it the input script through the harness, and captures stdout plus the persisted logs. The normalizers canonicalize those captures — ids to first-seen sequence, generated cwd to `{{cwd}}`, `system/message` text to `{{system}}` and header tool schemas to `{{tools}}` — so recorded and fresh runs compare structurally. The factory then compares normalized stdout and re-persisted logs against committed fixtures, or writes them back in record/refresh mode, and its guards reject malformed or drifting fixtures before any comparison result is trusted.
+A scenario runs the agent under the launcher, feeds it the input script through the harness, and captures stdout plus the persisted logs. The normalizers canonicalize those captures — ids to first-seen sequence, generated cwd to `{{cwd}}`, the one supplied external product home to `{{home}}`, `system/message` text to `{{system}}` and header tool schemas to `{{tools}}` — so recorded and fresh runs compare structurally. The factory then compares normalized stdout and re-persisted logs against committed fixtures, or writes them back in record/refresh mode, and its guards reject malformed or drifting fixtures before any comparison result is trusted.
 
 </details>
 

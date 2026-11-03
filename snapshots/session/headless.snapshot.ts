@@ -3,7 +3,7 @@
 import { withDefaultSubagentQueue } from '../subagent-default.ts'
 import { startHttpMcpFixture } from '../../packages/mcp/mcp-client/tests/http-fixture.ts'
 import { cp, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, utimes, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { basename, delimiter, dirname, isAbsolute, join, relative, sep } from 'node:path'
@@ -44,6 +44,7 @@ import {
   snapshotSpillRoot,
   stabilizeFixtureMessageIds,
   stabilizeRefreshLog,
+  tokenizeExternalSnapshotHome,
   tokenizeSessionFixtureCwd,
   writesCurrentSessionFixtures,
   type HarvestedLog,
@@ -189,13 +190,22 @@ function headerOf(log: string): JsonObject {
   return records(log)[0] ?? {}
 }
 
-function contextOf(logs: readonly string[]): NormalizeContext {
+/** Both filesystem spellings of one external home: the sibling path and its realpath. */
+function externalHomeAliases(home: string): string[] {
+  const spellings = [home]
+  try { spellings.push(realpathSync(home)) } catch { /* the home may already be removed; the literal spelling still matches */ }
+  return [...new Set(spellings)]
+}
+
+function contextOf(logs: readonly string[], homeOutsideWorkspace = false): NormalizeContext {
   const headers = logs.map(headerOf)
   const cwd = typeof headers[0]?.cwd === 'string' ? headers[0].cwd : '\0missing-cwd\0'
+  const externalHome = homeOutsideWorkspace && cwd !== '\0missing-cwd\0' ? dshHomeOutsideWorkspacePath(cwd) : undefined
   return {
     sessionIds: headers.flatMap(header => typeof header.id === 'string' ? [header.id] : []),
     cwd,
     cwdAliases: [cwd.split(sep).join('/')],
+    ...externalHome === undefined ? {} : { externalHome, externalHomeAliases: externalHomeAliases(externalHome) },
   }
 }
 
@@ -263,9 +273,11 @@ async function writeSessionFixtures(
     if (replacement.from === ctx.cwd) replacements.push({ from: ctx.cwd.split(sep).join('/'), to: replacement.to })
   }
   const fresh = actualLogs.map((log, index) => {
-    const stable = tokenizeSessionFixtureCwd(mode === 'refresh'
-      ? stabilizeRefreshLog(log.content, prior[index] as string, replacements, ctx)
-      : log.content)
+    const withHome = tokenizeExternalSnapshotHome(log.content, ctx)
+    const harvested = mode === 'refresh'
+      ? stabilizeRefreshLog(withHome, prior[index] as string, replacements, ctx)
+      : withHome
+    const stable = tokenizeSessionFixtureCwd(harvested)
     return scrubSessionSnapshot(prepareSessionSnapshotFixtureForComparison(stable))
   })
   const output = redactSessionSnapshotIds(stabilizeFixtureMessageIds(fresh, prior))
@@ -1280,6 +1292,7 @@ describe('headless recorded-session snapshots', () => {
       const patches = patchSources.map((source, index) => join(patchRoot, `${String(index)}-${basename(source)}`))
 
       let actualLogs: SessionLog[] = []
+      const externalHomeRealpaths: string[] = []
       let initialWorkspace: WorkspaceSnapshotEntry[] | undefined
       let finalWorkspace: WorkspaceSnapshotEntry[] | undefined
       const spillRoot = await mkdtemp(join(tmpdir(), 'acp-snap-spill-'))
@@ -1417,6 +1430,9 @@ describe('headless recorded-session snapshots', () => {
         })
       } finally {
         await mcpDemo?.close()
+        if (scenarioHome !== undefined) {
+          try { externalHomeRealpaths.push(realpathSync(scenarioHome)) } catch { /* already gone; the literal spelling still matches */ }
+        }
         await rm(spillRoot, { recursive: true, force: true })
         if (scenarioCwd !== undefined) {
           await rm(isAbsolute(patchRoot) ? patchRoot : join(scenarioCwd, patchRoot), { recursive: true, force: true })
@@ -1427,7 +1443,10 @@ describe('headless recorded-session snapshots', () => {
       const stderrLog = mode === 'replay' ? primaryFixture : actualLogs[0]?.content
       if (stderrLog === undefined) throw new Error(`${scenario.name}: stderr projection has no primary session`)
       const expectedStderr = stderrFromSession(stderrLog)
-      const actualContext = contextOf(actualLogs.map(log => log.content))
+      const actualContext = contextOf(actualLogs.map(log => log.content), homeOutsideWorkspace)
+      if (externalHomeRealpaths.length > 0 && actualContext.externalHome !== undefined) {
+        actualContext.externalHomeAliases = [...new Set([...(actualContext.externalHomeAliases ?? []), ...externalHomeRealpaths])]
+      }
 
       if (writesCurrentSessionFixtures(scenario.manifest, mode)) {
         fixtures = await writeSessionFixtures(
