@@ -121,7 +121,9 @@ function executionProofs(text: string): Set<string> {
       || (ts.isCallExpression(node.expression) && ts.isPropertyAccessExpression(node.expression.expression)
         && ts.isIdentifier(node.expression.expression.expression) && node.expression.expression.expression.text === 'it'
         && ['each', 'for'].includes(node.expression.expression.name.text)))) {
-      const [name, body] = node.arguments
+      const [name, optionsOrBody, configuredBody] = node.arguments
+      const body = optionsOrBody !== undefined && ts.isObjectLiteralExpression(optionsOrBody)
+        ? configuredBody : optionsOrBody
       if (name !== undefined && ts.isStringLiteral(name) && body !== undefined
         && (ts.isArrowFunction(body) || ts.isFunctionExpression(body))) tests.add(name.text)
     }

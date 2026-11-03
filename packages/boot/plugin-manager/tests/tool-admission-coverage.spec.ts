@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync,
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 import { Context } from '@panedesk/cordis'
-import { expect, it, onTestFinished, vi, type TestContext } from 'vitest'
+import { expect, it, onTestFailed, onTestFinished, vi, type TestContext } from 'vitest'
 import { boot, initProfile, readProfilePatches, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
@@ -138,13 +138,20 @@ it('fails rather than skipping when required native admission has no usable bubb
   expect(requireAdmissionSandbox('required', true)).toBe(true)
 })
 
-async function fixture(mode: 'native' | 'ptc' = 'native', realDirectory = false, externalProfile = false) {
+async function fixture(mode: 'native' | 'ptc' = 'native', realDirectory = false, externalProfile = false, verifyOnFinish = false) {
   const root = mkdtempSync(join(tmpdir(), 'tool-admission-'))
   const ctx = new Context()
   if (!realDirectory) provideWorkingDirectoryFixture(ctx)
   onTestFinished(async () => {
-    await ctx.fiber.dispose()
-    rmSync(root, { recursive: true, force: true })
+    try {
+      if (verifyOnFinish) expect(readFileSync(target, 'utf8')).toBe(original)
+    } finally {
+      try {
+        await ctx.fiber.dispose()
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    }
   })
   const workspace = join(root, 'workspace')
   const home = join(root, 'home')
@@ -1111,9 +1118,13 @@ it('lsp confines a real stdio server and retains protected inputs', async (test)
   executed.add('@panedesk/dsh-tool-lsp:lsp')
 })
 
-it.for(['bash', 'pwsh'] as const)('%s persistent denies protected writes through the real terminal backend', async (name, test) => {
+// The tool keeps its 5s deadline; allow dispatch and teardown to report its result first.
+it.for(['bash', 'pwsh'] as const)('%s persistent denies protected writes through the real terminal backend', { timeout: 15_000 }, async (name, test) => {
   nativeEvidence(test, `@panedesk/dsh-tool-${name}-persistent:${name}`)
-  const { ctx, workspace, target, original } = await fixture()
+  // Teardown checks the bytes even when the test runner times out before dispatch settles.
+  const { ctx, workspace, target } = await fixture('native', false, false, true)
+  let terminalContent = 'The tool did not return before the test finished.'
+  onTestFailed(() => { console.error(`Persistent ${name} terminal result: ${terminalContent}`) })
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(LocalSubprocessRuntime)
@@ -1136,6 +1147,7 @@ it.for(['bash', 'pwsh'] as const)('%s persistent denies protected writes through
     name, arguments: { command: name === 'bash' ? `printf replacement > '${target}'` : `Set-Content -LiteralPath '${target}' -Value replacement` }, agent,
     callId: ToolCallId(`persistent-admission-${name}`), signal: new AbortController().signal,
   }))
+  terminalContent = JSON.stringify(result.content)
   expect(confine).toHaveBeenCalledOnce()
   const confinement = confine.mock.results[0]
   if (confinement?.type !== 'return') throw new Error('Confinement did not return a result')
@@ -1143,7 +1155,6 @@ it.for(['bash', 'pwsh'] as const)('%s persistent denies protected writes through
   expect(result.isError, JSON.stringify(result.content)).toBe(false)
   expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ argv: confined?.argv }))
   expect(JSON.stringify(result.content)).toMatch(/permission denied|read-only file system|access.*denied/i)
-  expect(readFileSync(target, 'utf8')).toBe(original)
   executed.add(`@panedesk/dsh-tool-${name}-persistent:${name}`)
 })
 
