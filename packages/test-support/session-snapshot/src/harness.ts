@@ -242,6 +242,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
   const cwd = await mkdtemp(join(opts.workspaceParent ?? tmpdir(), 'acp-snap-cwd-'))
   const cwdAliases = [...new Set([realpathSync(cwd), realpathSync.native(cwd)])]
   const sessionsRoot = await mkdtemp(join(tmpdir(), 'acp-snap-sessions-'))
+  let homeRoot: string | undefined
   let spillRoot: string | undefined
   // Everything past the temp-dir creation is followed by failure-safe cleanup,
   // so a failure in workspace seeding, spawn, or any step never leaks resources.
@@ -250,6 +251,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
   let sessionLogs: HarvestedLog[] = []
   const outcome = await (async (): Promise<RunResult> => {
     spillRoot = await mkdtemp(join(tmpdir(), 'acp-snap-spill-'))
+    homeRoot = await mkdtemp(join(tmpdir(), 'acp-snap-home-'))
     // Seed the workspace if the scenario ships one (a file the agent reads/edits).
     // Copied into the generated cwd so the agent's bash tools see it; the expected outputs
     // normalize the cwd, so the seeded paths stay stable across runs.
@@ -273,8 +275,8 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
       DSH_SNAPSHOT_SESSIONS_ROOT: sessionsRoot,
       DSH_SNAPSHOT_SPILL_ROOT: spillRoot,
       DSH_SNAPSHOT_SPILL_LOCATOR_ROOT: snapshotSpillRoot(opts.fixtureFile),
-      PANEDESK_HOME: join(cwd, '.panedesk'),
-      PANEDESK_AGENTS_HOME: join(cwd, '.agents'),
+      PANEDESK_HOME: homeRoot,
+      PANEDESK_AGENTS_HOME: join(homeRoot, 'agents'),
       ...opts.overrideFile !== undefined ? { DSH_SNAPSHOT_OVERRIDE: opts.overrideFile } : {},
       ...opts.childFiles !== undefined && opts.childFiles.length > 0
         ? { DSH_SNAPSHOT_CHILD_FILES: opts.childFiles.join(delimiter) }
@@ -386,6 +388,8 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
   await cleanup(() => rm(sessionsRoot, { recursive: true, force: true }))
   const allocatedSpillRoot = spillRoot
   if (allocatedSpillRoot !== undefined) await cleanup(() => rm(allocatedSpillRoot, { recursive: true, force: true }))
+  const allocatedHomeRoot = homeRoot
+  if (allocatedHomeRoot !== undefined) await cleanup(() => rm(allocatedHomeRoot, { recursive: true, force: true }))
 
   const cleanupFailures = cleanupResults
     .filter((result): result is PromiseRejectedResult => result.status === 'rejected')

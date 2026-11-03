@@ -13,8 +13,8 @@
 //
 // Composition divergences from `panedesk web`, all deliberate, all via include
 // patches after the shipped bundle layers, over the SAME tree (never a
-// second yml): temp persistenceRoot; host-level skill roots confined to the
-// temp workspace while project skill discovery remains real; agent-instructions
+// second yml): temp persistenceRoot and owner home outside the writable workspace;
+// host-level skill roots stay in owned temp directories while project skill discovery remains real; agent-instructions
 // disabled (recorded fixtures must not embed this repo's AGENTS.md);
 // session-title-llm disabled (its fire-and-forget title call would race the
 // loop for the session's replay cursor); webserver pinned to port 0 with the
@@ -463,11 +463,11 @@ export interface LaunchOptions {
 }
 
 /** Dispose the booted tree and remove both owned temp roots, reporting every independent cleanup failure. */
-async function cleanupScaffoldWorld(ctx: Context, workspaceCwd: string, persistenceRoot: string): Promise<unknown[]> {
+async function cleanupScaffoldWorld(ctx: Context, workspaceCwd: string, stateRoot: string): Promise<unknown[]> {
   const failures: unknown[] = []
   await Promise.resolve(ctx.fiber.dispose()).catch((error: unknown) => failures.push(error))
   await rm(workspaceCwd, { recursive: true, force: true }).catch((error: unknown) => failures.push(error))
-  await rm(persistenceRoot, { recursive: true, force: true }).catch((error: unknown) => failures.push(error))
+  await rm(stateRoot, { recursive: true, force: true }).catch((error: unknown) => failures.push(error))
   return failures
 }
 
@@ -529,10 +529,21 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     workspacePrefix += '-'.repeat(paddingLength)
   }
   const workspaceCwd = await realpath(await mkdtemp(join(workspaceParent, workspacePrefix)))
+  let stateRoot: string
+  try {
+    stateRoot = await mkdtemp(join(tmpdir(), 'dsh-web-e2e-sessions-'))
+  } catch (error) {
+    const failures: unknown[] = [error]
+    await rm(workspaceCwd, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError))
+    if (failures.length > 1) throw new AggregateError(failures, 'web scaffold temp-root setup failed')
+    throw error
+  }
   // Isolated harness home: the settings/credentials rows resolve $PANEDESK_HOME
   // paths at load, and an in-process boot must NEVER touch the developer's
   // real ~/.panedesk document or credential file.
-  const harnessHome = options.harnessHome ?? join(workspaceCwd, '.panedesk-home')
+  // Mutable owner state belongs outside the granted workspace, as in an ordinary profile launch.
+  const persistenceRoot = join(stateRoot, 'sessions')
+  const harnessHome = options.harnessHome ?? join(stateRoot, '.panedesk-home')
   // Skill discovery is model-visible input, and its roots now resolve inside a
   // PRESET — a subtree this lane's include patches cannot reach, because the
   // roster mounts it directly per session rather than as a row of the booted
@@ -561,16 +572,6 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     }
   }
   Object.assign(process.env, skillRootEnvironment)
-  let persistenceRoot: string
-  try {
-    persistenceRoot = await mkdtemp(join(tmpdir(), 'dsh-web-e2e-sessions-'))
-  } catch (error) {
-    const failures: unknown[] = [error]
-    await rm(workspaceCwd, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError))
-    restoreSkillRootEnvironment()
-    if (failures.length > 1) throw new AggregateError(failures, 'web scaffold temp-root setup failed')
-    throw error
-  }
   if (maskDeepSeekCredential) Reflect.deleteProperty(process.env, 'DEEPSEEK_API_KEY')
 
   // The include patch set — the same layer stack the profile boot composes
@@ -620,7 +621,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     {
       id: 'skill-filesystem',
       config: {
-        dshHome: join(workspaceCwd, '.panedesk-home'),
+        dshHome: harnessHome,
         agentsHome: join(workspaceCwd, '.agents-home'),
         bundledSkillDir: join(workspaceCwd, '.bundled-skills'),
         watch: false,
@@ -743,6 +744,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
   let publicProxy: PrefixProxy | undefined
   let replayHandle: ReplayHandle | undefined
   try {
+    // Match attachment storage permissions before protected-input baselines capture this home.
+    await mkdir(harnessHome, { recursive: true, mode: 0o700 })
     // The proxy takes its browser-facing port before the boot so the mount URL
     // is final by the time any row reads it; its target follows the listener.
     if (publicHost !== undefined && publicPrefix !== undefined) {
@@ -967,7 +970,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     }
   } catch (error) {
     if (process.cwd() !== originalCwd) process.chdir(originalCwd)
-    const cleanupFailures = await cleanupScaffoldWorld(ctx, workspaceCwd, persistenceRoot)
+    const cleanupFailures = await cleanupScaffoldWorld(ctx, workspaceCwd, stateRoot)
     if (publicProxy !== undefined) {
       await publicProxy.close().catch((closeError: unknown) => cleanupFailures.push(closeError))
     }
@@ -1043,7 +1046,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       }
       try {
         stopObservingSessions()
-        failures.push(...await cleanupScaffoldWorld(ctx, workspaceCwd, persistenceRoot))
+        failures.push(...await cleanupScaffoldWorld(ctx, workspaceCwd, stateRoot))
         if (publicProxy !== undefined) {
           try {
             await publicProxy.close()

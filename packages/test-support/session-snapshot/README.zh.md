@@ -27,6 +27,8 @@ kind: "package-library"
 
 本包把随附 profile 场景变成无密钥快照套件：写一张场景表和一个 fixture 目录，调用一次匹配的适配器，工具包就负责启动或组合 profile、驱动场景、比较规范化输出并守护已提交的 fixture。
 
+ACP 启动器将产品 home、profile patch 与包链接放在进程工作区外。调用方提供的 `PANEDESK_HOME` 仍由调用方持有；否则启动器分配临时 home，在进程、流和回调全部结束后删除。场景 harness 将 home 与会话存储一起管理。SDK 回放将父子 home 放在 cwd 外，不改变回放输入或预期输出。
+
 ### 编写快照套件
 
 消费方 `*.snapshot.ts` 就是场景表加一次工厂调用。`AgentUnderTest` 提供绝对 `binScript`、可选 `libBinScript`、`configPath` 与 `tsconfigPath` 路径，因为子进程 cwd 位于仓库之外：

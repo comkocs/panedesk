@@ -1267,10 +1267,13 @@ describe('headless recorded-session snapshots', () => {
         ...existsSync(join(scenario.dir, 'runtime.cordis.yml')) ? [join(scenario.dir, 'runtime.cordis.yml')] : [],
       ]
       const homeOutsideWorkspace = scenario.manifest.workspace?.home === 'outside-workspace'
+        || ['deepseek-fetch', 'plugin-owner-install-explicit', 'ptc-node-workspace', 'ptc-policy-change',
+          'session-sandbox-root', 'terminal-workspace-revoked', 'web-fetch'].includes(scenario.name)
       // Outside-workspace-home scenarios own their cwd and place the product home beside it,
       // keeping the materialized launch patches and package links out of the authorized workspace.
       const scenarioCwd = homeOutsideWorkspace
-        ? await mkdtemp(join(tmpdir(), 'dsh-log-snap-'))
+        ? await mkdtemp(join(scenario.manifest.workspace?.parent === 'outside-temp'
+          ? outsideTempWorkspaceParent() : tmpdir(), 'dsh-log-snap-'))
         : undefined
       const scenarioHome = scenarioCwd === undefined ? undefined : dshHomeOutsideWorkspacePath(scenarioCwd)
       const patchRoot = scenarioHome === undefined ? '.snapshot-patches' : join(scenarioHome, 'snapshot-patches')
@@ -1369,7 +1372,7 @@ describe('headless recorded-session snapshots', () => {
                 expect.objectContaining({ type: 'text', text: expect.stringContaining('owner approval was rejected') }),
               ]))
               expect(results[1]?.isError).toBe(false)
-              expect(JSON.parse(await readFile(join(cwd, '.panedesk/profiles/headless/package.json'), 'utf8')))
+              expect(JSON.parse(await readFile(join(scenarioHome ?? join(cwd, '.panedesk'), 'profiles/headless/package.json'), 'utf8')))
                 .toMatchObject({ dependencies: { 'owner-addon': '1.0.0' }, dsh: { profile: { bundles: expect.arrayContaining(['owner-addon']) } } })
             }
             if (scenario.name.startsWith('office-progressive-')) {

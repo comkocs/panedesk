@@ -27,6 +27,8 @@ English | [中文](README.zh.md)
 
 This package turns a shipped profile scenario into a keyless snapshot suite: write a scenario table and a fixtures directory, call the matching adapter once, and the kit owns launching or composing the profile, driving the scenario, comparing normalized output, and guarding the committed fixtures.
 
+ACP launchers place product home, profile patches, and package links outside the process workspace. A caller-supplied `PANEDESK_HOME` remains caller-owned; otherwise the launcher allocates a temporary home and removes it after process, stream, and callback drainage. The scenario harness owns its home alongside session storage. SDK replay keeps parent and child homes outside cwd without changing replay inputs or expected outputs.
+
 ### Writing a snapshot suite
 
 A consuming `*.snapshot.ts` is the scenario table plus one factory call. `AgentUnderTest` supplies absolute `binScript`, optional `libBinScript`, `configPath`, and `tsconfigPath` paths, because the subprocess cwd sits outside the repository:

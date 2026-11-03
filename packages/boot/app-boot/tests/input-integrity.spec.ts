@@ -308,11 +308,11 @@ it('rejects a directory snapshot when an earlier descendant changes during trave
   writeFileSync(second, 'second')
   const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
   integrity.observe(directory)
-  const read = fs.readFileSync
+  const open = fs.openSync
   let reads = 0
-  const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((...args: Parameters<typeof fs.readFileSync>) => {
-    const bytes = read(...args)
-    if (typeof args[0] === 'number' && ++reads === 2) writeFileSync(first, 'changed during traversal')
+  const spy = vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+    const bytes = open(...args)
+    if (args[1] === 'r' && ++reads === 2) writeFileSync(first, 'changed during traversal')
     return bytes
   })
   try {
@@ -338,11 +338,11 @@ it('rejects an earlier linked root changed while a later root is captured', () =
     symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir')
     integrity.observe(link)
   }
-  const read = fs.readFileSync
+  const open = fs.openSync
   let reads = 0
-  const spy = vi.spyOn(fs, 'readFileSync').mockImplementation((...args: Parameters<typeof fs.readFileSync>) => {
-    const bytes = read(...args)
-    if (typeof args[0] === 'number' && ++reads === 2) writeFileSync(first, 'changed while reading another root')
+  const spy = vi.spyOn(fs, 'openSync').mockImplementation((...args: Parameters<typeof fs.openSync>) => {
+    const bytes = open(...args)
+    if (args[1] === 'r' && ++reads === 2) writeFileSync(first, 'changed while reading another root')
     return bytes
   })
   try {
@@ -401,6 +401,73 @@ it('refuses deletion of an already granted durable record instead of trusting cu
   writeFileSync(f.path, 'untrusted after record loss')
   expect(() => integrity.readTrusted(f.path)).toThrow('Protected workspace record disappeared')
   expect(() => integrity.readExecutable(f.path)).toThrow('Protected workspace record disappeared')
+})
+
+it('captures deep linked dependency trees without exceeding the filesystem symlink limit', async () => {
+  const f = fixture()
+  const packages = join(f.root, 'packages')
+  mkdirSync(packages)
+  const directories = Array.from({ length: 48 }, (_, index) => join(packages, `package-${index}`))
+  for (const directory of directories) mkdirSync(directory)
+  for (const [index, directory] of directories.entries()) {
+    const next = directories[index + 1]
+    if (next !== undefined) symlinkSync(next, join(directory, 'dependency'), 'dir')
+  }
+  const entry = join(directories[directories.length - 1]!, 'index.js')
+  writeFileSync(entry, 'trusted module')
+  const link = join(f.workspace, 'plugin')
+  symlinkSync(directories[0]!, link, 'dir')
+  const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
+  integrity.observe(link)
+  integrity.grantWrite()
+  const confirm = vi.fn(async () => false)
+  expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
+  expect(confirm).not.toHaveBeenCalled()
+  writeFileSync(entry, 'unconfirmed module')
+  expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(false)
+  expect(confirm).toHaveBeenCalledOnce()
+})
+
+it('accepts only ancestor permission tightening and still rejects owner changes', async () => {
+  const f = fixture()
+  let ancestorMode = 0o777n
+  const originalStat = fs.lstatSync
+  const platformStat = process.platform === 'win32' ? vi.spyOn(fs, 'lstatSync').mockImplementation((...args: Parameters<typeof fs.lstatSync>) => {
+    const stat = originalStat(...args)
+    // Windows chmod does not expose POSIX group/other bits; exercise the recorded mode comparison.
+    if (args[0] === f.workspace && stat !== undefined && typeof stat.mode === 'bigint') {
+      stat.mode = (stat.mode & ~0o777n) | ancestorMode
+    }
+    return stat
+  }) : undefined
+  onTestFinished(() => { platformStat?.mockRestore() })
+  fs.chmodSync(f.workspace, 0o777)
+  const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
+  integrity.observe(f.path)
+  integrity.grantWrite()
+  ancestorMode = 0o700n
+  fs.chmodSync(f.workspace, 0o700)
+  const confirm = vi.fn(async () => false)
+  expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
+  expect(confirm).not.toHaveBeenCalled()
+  expect(integrity.readExecutable(f.path)?.toString()).toBe('initial')
+  const restarted = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
+  ancestorMode = 0o777n
+  fs.chmodSync(f.workspace, 0o777)
+  expect(await restarted.verify({ blocked: vi.fn(), confirm })).toBe(false)
+  ancestorMode = 0o700n
+  fs.chmodSync(f.workspace, 0o700)
+  const spy = vi.spyOn(fs, 'lstatSync').mockImplementation((...args: Parameters<typeof fs.lstatSync>) => {
+    const stat = originalStat(...args)
+    if (args[0] === f.workspace && stat !== undefined && typeof stat.uid === 'bigint') {
+      if (process.platform === 'win32' && typeof stat.mode === 'bigint') stat.mode = (stat.mode & ~0o777n) | ancestorMode
+      stat.uid += 1n
+    }
+    return stat
+  })
+  try {
+    expect(await restarted.verify({ blocked: vi.fn(), confirm })).toBe(false)
+  } finally { spy.mockRestore() }
 })
 
 it('leaves inputs outside the writable workspace unchanged', async () => {

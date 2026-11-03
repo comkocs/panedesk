@@ -2005,6 +2005,9 @@ importers:
       '@panedesk/cordis-plugin-timer':
         specifier: workspace:~
         version: link:../../../vendor/timer
+      '@panedesk/dsh-attachment-local':
+        specifier: workspace:*
+        version: link:../../attachment/attachment-local
       '@panedesk/dsh-bash-local':
         specifier: workspace:*
         version: link:../../shell/bash-local

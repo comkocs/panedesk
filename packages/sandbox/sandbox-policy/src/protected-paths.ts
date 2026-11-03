@@ -19,7 +19,10 @@ export function resolveProtectedPaths(ctx: Context, workspace?: string): string[
   const paths = new Set<string>()
   const add = (path: string): void => {
     paths.add(resolve(path))
-    paths.add(canonicalPath(resolve(path)))
+    try { paths.add(canonicalPath(resolve(path))) } catch (error) {
+      // Cyclic names still require coverage checks using their original spelling.
+      if (!(error instanceof Error && 'code' in error && error.code === 'ELOOP')) throw error
+    }
   }
   const addState = (home: string): void => {
     const directory = join(home, 'windows-workspace-write')

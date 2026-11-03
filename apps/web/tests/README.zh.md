@@ -4,6 +4,8 @@
 
 这些测试在进程内启动真实的 web 组合，并用真实浏览器通过真实 HTTP 驱动它。Chromium 运行整个 lane；[模型与推理强度选择场景](declared-reasoning.e2e.ts) 还在 WebKit 中运行，以覆盖原生鼠标焦点行为。[会话回放恢复](session-replay-reload.e2e.ts)还在 WebKit 中运行，共用 `fresh-round-trip` 的录制和预期输出，不改写这些文件。该用例覆盖输出中刷新、完成后刷新和重新打开 Session。该 lane 的运行机制——模式、fixture（测试前置数据）、golden，以及与 `dsh web` 之间刻意保留的组合差异——记录在 [`scaffold.ts`](scaffold.ts) 和 [浏览器 e2e Agent Note](../../../.agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.zh.md) 中。
 
+scaffold 将可变 owner 状态与 Session 持久化分别放在自身持有的临时根的独立子目录中，位于可写工作区之外。home 以私有目录权限创建，profile 输入在会话启动前准备完成；受保护输入校验与经认证的 owner 审批保持启用。第二个 Host 可显式复用第一个 scaffold 的 home 来检查跨来源持久化，清理仍由第一个 scaffold 负责。
+
 安装工作区依赖后，在仓库根目录安装浏览器及其系统依赖：
 
 ```sh

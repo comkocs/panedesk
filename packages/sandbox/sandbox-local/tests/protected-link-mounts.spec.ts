@@ -3,7 +3,7 @@ import { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync }
 import { tmpdir } from 'node:os'
 import { dirname, join, parse } from 'node:path'
 import { coveredContext } from './host-coverage-fixture.ts'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs } from '../src/profiles.ts'
 
@@ -26,6 +26,9 @@ it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('marks every
   const input = join(root, 'input')
   const path = kind === 'non-directory ancestor' ? join(input, 'config.yml') : input
   const ctx = coveredContext(root, path)
+  const { home } = ctx.profileContext
+  vi.stubEnv('PANEDESK_HOME', home)
+  onTestFinished(() => { vi.unstubAllEnvs() })
   if (kind === 'dangling link') symlinkSync(join(root, 'absent'), input)
   else if (kind === 'cyclic link') symlinkSync(input, input)
   else writeFileSync(input, 'owner')
@@ -37,6 +40,8 @@ it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('marks every
   const handed = await provider.confine(['true'], { mode: 'workspace-write', workspaceRoot: root, protectedPaths: [path] })
   expect(handed).toHaveProperty('protectedInputs', [
     { path, enforcement: 'host-fallback', reason: 'unrepresentable' },
+    ...[home, join(home, 'cordis.patch.yml'), join(home, 'windows-workspace-write')]
+      .sort().map(input => ({ path: input, enforcement: 'native' })),
   ])
   const mounts = mountDestinations(handed.argv)
   expect(mounts).toContainEqual({ kind: '--bind', path: root })

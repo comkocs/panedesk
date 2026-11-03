@@ -60,7 +60,7 @@ import PluginMarket from '@panedesk/dsh-plugin-market'
 import * as MarketTool from '@panedesk/dsh-plugin-market/src/tools.ts'
 import BrowserUseRegistry from '@panedesk/dsh-browser-use'
 import * as Stagehand from '@panedesk/dsh-experimental-browser-use-stagehand-native'
-import SubagentRuntime from '@panedesk/dsh-subagent'
+import SubagentRuntime, { type SubagentRun } from '@panedesk/dsh-subagent'
 import * as ToolSubagent from '@panedesk/dsh-tool-subagent'
 import * as SubagentControl from '@panedesk/dsh-tool-subagent-control'
 import * as SubagentList from '@panedesk/dsh-tool-subagent-control/list-agents'
@@ -1713,7 +1713,10 @@ it('create_worktree confines commands for a live caller', async (test) => {
   const repository = join(workspace, 'repository')
   mkdirSync(repository, { recursive: true })
   const exec = promisify(execFile)
-  const git = (...args: string[]) => exec('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false', ...args], {
+  const git = (...args: string[]) => exec('git', [
+    '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false',
+    '-c', 'user.name=Worktree Fixture', '-c', 'user.email=worktree-fixture@example.invalid', ...args,
+  ], {
     cwd: repository,
     env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_PARAMETERS: '', GIT_CONFIG_COUNT: '0',
       GIT_DIR: undefined, GIT_WORK_TREE: undefined, GIT_INDEX_FILE: undefined },
@@ -1794,7 +1797,13 @@ it.for(['workflow', 'ralph'] as const)('%s retains protected inputs through the 
   await ctx.plugin(JsonlSessionPersistence, { root: join(root, 'workflow-sessions'), compression: 'none' })
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(SubagentRuntime)
-  const startChild = vi.fn(() => Promise.reject(new Error('Synthetic workflow provider never starts a model')))
+  const disposeChild = vi.fn(async () => {})
+  // A child-level failure settles normally; rejecting start would test an infrastructure fault.
+  const startChild = vi.fn(async (): Promise<SubagentRun> => ({
+    id: SessionId(`synthetic-workflow-child-${name}`),
+    result: Promise.resolve({ output: [], stopReason: 'error' }),
+    dispose: disposeChild,
+  }))
   ctx.subagents.registerProvider({
     name: 'admission-workflow', inheritsParentContext: false,
     capabilities: { agentOptions: true, agentPreset: false, outputSchema: true, depthLimit: true },
@@ -1827,6 +1836,7 @@ it.for(['workflow', 'ralph'] as const)('%s retains protected inputs through the 
     expect(result.isError).toBe(true)
     expect(JSON.stringify(result.content)).toContain('child failed')
     expect(startChild).toHaveBeenCalledOnce()
+    expect(disposeChild).toHaveBeenCalled()
   }
   expect(spawn).toHaveBeenCalled()
   expect(spawn.mock.calls).toHaveLength(confine.mock.results.length)

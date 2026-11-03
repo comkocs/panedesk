@@ -55,6 +55,13 @@ function resolution(
 }
 
 describe('profile package metadata service', () => {
+  it('refuses memory-only loading on a Node host', async () => {
+    const ctx = new Context()
+    contexts.push(ctx)
+    await expect(ctx.plugin(PluginPackages, { inputFilesystem: 'memory' }))
+      .rejects.toThrow('cannot disable Node host input verification')
+  })
+
   it('blocks changed CommonJS bytes without HMR and releases the load hook on disposal', async () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'protected-module-load-')))
     roots.push(root)
