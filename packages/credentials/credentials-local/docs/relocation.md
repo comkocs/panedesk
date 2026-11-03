@@ -13,8 +13,8 @@ This storage-location change does not change Session types, credential YAML fiel
 
 ## Recovery
 
-The credential provider owns [relocation ordering and recovery](../../../../packages/credentials/credentials-local/README.md#who-can-read-the-file). Windows does not use POSIX directory synchronization.
+The credential provider owns [relocation ordering and recovery](../README.md). Windows does not use POSIX directory synchronization.
 
 ## Compatibility
 
-See the [upgrade guide](guide.md) for browser reauthentication, service configuration, custom-directory requirements, and explicit downgrade paths.
+See the [upgrade guide](../../../../docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.md) for browser reauthentication, service configuration, custom-directory requirements, and explicit downgrade paths.

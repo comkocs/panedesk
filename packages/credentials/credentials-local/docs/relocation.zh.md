@@ -13,8 +13,8 @@ kind: reference
 
 ## 恢复
 
-凭据提供方负责[迁址顺序与恢复](../../../../packages/credentials/credentials-local/README.zh.md#谁能读取该文件)。Windows 不使用 POSIX 目录同步。
+凭据提供方负责[迁址顺序与恢复](../README.zh.md)。Windows 不使用 POSIX 目录同步。
 
 ## 兼容性
 
-浏览器重新认证、服务配置、自定义目录要求与显式降级路径参见[升级指南](guide.zh.md)。
+浏览器重新认证、服务配置、自定义目录要求与显式降级路径参见[升级指南](../../../../docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.zh.md)。

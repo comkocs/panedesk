@@ -457,7 +457,7 @@ export type Config = LocalConfig
 ## `@panedesk/dsh-client-connection`
 
 - `inject`: `credentials`
-- `source`: [`packages/client/connection/src/index.ts:96`](../packages/client/connection/src/index.ts)
+- `source`: [`packages/client/connection/src/index.ts:97`](../packages/client/connection/src/index.ts)
 
 ```ts config-catalog
 /** Browser authentication, request limits, and connection recovery configuration. */
@@ -475,6 +475,8 @@ export interface ConnectionConfig {
   cookieMaxAgeDays?: number
   /** Require host-terminal confirmation for new browsers. Disabling trusts launch-link possession. */
   requireOwnerConfirmation?: boolean
+  /** Maximum host-terminal confirmation wait in milliseconds. Default: 60000. */
+  ownerConfirmationTimeoutMs?: number
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }

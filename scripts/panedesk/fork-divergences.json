@@ -4,7 +4,7 @@
       "id": "owner-read-isolation-documentation",
       "description": "Document owner read isolation and synchronize generated references",
       "origin": "Owner credential read isolation",
-      "reason": "Describe platform-specific owner directory protection, memory-only desktop owner sessions, service login migration, credential relocation recovery, and Windows third-party cookie limitations. Synchronize generated configuration, persistence source locations, and public service declarations with the implementation. These changes can be contributed upstream.",
+      "reason": "Describe platform-specific owner directory protection, memory-only desktop owner sessions, service login migration, credential relocation recovery, and Windows third-party cookie limitations. Synchronize generated configuration, including the bounded owner-confirmation timeout, persistence source locations, and public service declarations with the implementation. Distinguish restricted owner-directory reads from unconfined same-user access in credential guidance. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -13,6 +13,8 @@
           "README.i18n.yaml",
           "docs/config-catalog.md",
           "docs/config-catalog.zh.md",
+          "docs/event-producer-consumer.md",
+          "docs/event-producer-consumer.zh.md",
           "docs/persistence-catalog.md",
           "docs/persistence-catalog.zh.md",
           "docs/persistence-catalog.i18n.yaml",
@@ -23,7 +25,6 @@
           "docs/subsystems/sandbox.zh.md",
           "docs/subsystems/web-server.md",
           "docs/subsystems/web-server.zh.md",
-          "docs/persistence-changes/owner-private-storage/**",
           "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/**",
           "packages/extensions/tool-cordis/src/api-catalog.ts"
         ]
@@ -149,7 +150,7 @@
       "id": "owner-private-credential-relocation",
       "description": "Relocate owner credentials into a dedicated private directory",
       "origin": "Owner credential read isolation",
-      "reason": "Expose protected credential storage directories, relocate the default document without changing its format, verify and synchronize the successor before removing the legacy copy, and resume interrupted relocation. Cover completed filesystem operations with interruption injection, assert file and directory synchronization ordering and complete post-restart inventories, and document rollback behavior. Keep the storage-location record with its upgrade guide rather than Session persistence-type history. These changes can be contributed upstream.",
+      "reason": "Expose protected credential storage directories, relocate the default document without changing its format, verify and synchronize the successor before removing the legacy copy, and resume interrupted relocation. Cover completed filesystem operations with interruption injection, assert file and directory synchronization ordering and complete post-restart inventories, and document rollback behavior. Keep the storage-location record in the credential provider documentation, linked to the upgrade guide rather than Session persistence-type history. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -158,6 +159,7 @@
           "packages/credentials/credentials-local/tests/local.spec.ts",
           "packages/credentials/credentials-local/tests/private-directory.spec.ts",
           "packages/credentials/credentials-local/tests/relocation-io.spec.ts",
+          "packages/credentials/credentials-local/docs/relocation*",
           "packages/credentials/credentials-local/README.md",
           "packages/credentials/credentials-local/README.zh.md",
           "packages/credentials/credentials-local/README.i18n.yaml"
