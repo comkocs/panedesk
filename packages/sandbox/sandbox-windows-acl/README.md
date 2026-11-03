@@ -178,6 +178,7 @@ One extra catalog entry on Windows: the skill's description enters context with 
 
 ## Known Limitations and Deferred Work
 
+- **The default user-profile ancestor chain is only partly sourced** — the system-drive root DACL is taken from the SDDL in MSDN Magazine, November 2008, "Access Control: Understanding Windows File And Registry Permissions" (https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/november/access-control-understanding-windows-file-and-registry-permissions), where Users may create subdirectories on that folder only. No official default ACE table was found for `C:\Users`, the user profile directory, or AppData, so the trust fixture grants those directories only the inherited read plus the owner's full control.
 - **Diagnosis preserves integrity labels** — it cannot fix Low-labeled executables affecting programs launched outside DSH. It also cannot repair a caller's missing `WRITE_DAC`; extracted and recovery scripts are user-writable and are not supported elevated entrypoints. Resource directories can remain after an unclean shutdown.
 
 <a id="known-limitations-and-deferred-work"></a>

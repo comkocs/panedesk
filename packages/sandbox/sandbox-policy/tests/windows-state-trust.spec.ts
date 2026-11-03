@@ -70,15 +70,25 @@ it('allows the default Windows user-profile chain but refuses inherited state wr
   const local = join(appData, 'Local')
   const home = join(local, 'Panedesk')
   mkdirSync(home, { recursive: true })
-  // Default system-drive DACL: AU may create a directory on the volume itself,
-  // not replace an existing user profile. Owner/SYSTEM/Administrators retain full control.
+  // Default system-drive DACL, quoted from MSDN Magazine, November 2008,
+  // "Access Control: Understanding Windows File And Registry Permissions":
+  // c:\"D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)(A;CI;LC;;;BU)(A;CIIO;DC;;;BU)(A;OICIIO;GA;;;CO)"
+  // (https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/november/access-control-understanding-windows-file-and-registry-permissions).
+  // Users (BU) receives inheritable read (0x1200a9) and, this folder only (CI),
+  // LC — FILE_ADD_SUBDIRECTORY, which this fixture spells `append`. The child
+  // ACE (CIIO) grants DC — FILE_DELETE_CHILD — only to children, so the volume
+  // itself is not deletable through it. No official default ACE table was found
+  // for C:\Users, the user profile, or AppData, so those directories carry only
+  // the inherited read plus the owner's full control.
+  const inheritedRead = { sid: 'S-1-5-32-545', deny: false, recursive: true, rights: ['read'] } as const
+  const ownerFull = { sid: 'S-1-5-21-1', deny: false, recursive: true, rights: ['read', 'write', 'append', 'delete', 'delete-child', 'write-dac', 'write-owner'] } as const
   for (const path of [volume, users, user, appData, local, home]) {
-    windowsAcl.entries.push(
-      { path, sid: 'S-1-5-21-1', deny: false, recursive: true, rights: ['read', 'write', 'append', 'delete', 'delete-child', 'write-dac', 'write-owner'] },
-      { path, sid: 'S-1-1-0', deny: false, recursive: false, rights: ['read'] },
-    )
+    windowsAcl.entries.push({ path, ...ownerFull }, { path, ...inheritedRead })
   }
-  windowsAcl.entries.push({ path: volume, sid: 'S-1-5-11', deny: false, recursive: false, rights: ['append'] })
+  windowsAcl.entries.push(
+    { path: volume, sid: 'S-1-5-32-545', deny: false, recursive: false, rights: ['append'] },
+    { path: users, sid: 'S-1-5-32-545', deny: false, recursive: false, rights: ['delete-child'] },
+  )
   const access = new WorkspaceWriteAccess(home)
   await access.authorize(f.workspace, 'first-confirmation')
   expect(access.isAuthorized(f.workspace)).toBe(true)

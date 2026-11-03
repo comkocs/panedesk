@@ -180,6 +180,7 @@ Windows 上多一个目录条目：技能描述随目录进入上下文，正文
 
 ## 已知限制与延期工作
 
+- **默认用户配置祖先链只有部分出处**——系统盘根目录 DACL 取自 MSDN Magazine 2008 年 11 月《Access Control: Understanding Windows File And Registry Permissions》(https://learn.microsoft.com/en-us/archive/msdn-magazine/2008/november/access-control-understanding-windows-file-and-registry-permissions) 所列 SDDL，其中 Users 仅在该文件夹本身可建子目录。`C:\Users`、用户配置目录与 AppData 未找到官方默认 ACE 表，信任夹具只给这些目录继承来的读取与属主的完全控制。
 - **诊断保留完整性标签**——它无法修复 Low 标签的可执行文件影响用户在 DSH 外启动程序的问题，也无法修复调用者缺少 `WRITE_DAC` 的情况；提取的脚本和恢复脚本均可由用户写入，不支持作为提权入口。非正常退出后可能残留资源目录。
 
 <a id="known-limitations-and-deferred-work"></a>
