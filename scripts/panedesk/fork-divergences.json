@@ -14549,6 +14549,36 @@
       ],
       "test": "reports the scenario home path and removes that directory after the run"
      }
+    },
+    {
+      "id": "persistent-shell-protected-write-timeout-evidence",
+      "description": "Retain protected-file assertions when persistent shell admission times out",
+      "origin": "Protected-write admission evidence",
+      "reason": "Run the unchanged protected-file byte assertion during test teardown before fixture removal, including runner timeout failures. Keep the tool's five-second deadline and denial assertion unchanged, allow fifteen seconds for the test to receive the tool result, and print terminal content on failure. Recognize executable test callbacks after explicit Vitest options without changing the required evidence inventory. These changes can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/boot/plugin-manager/tests/tool-admission-coverage.spec.ts",
+          "packages/boot/plugin-manager/tests/write-entry-routes.spec.ts"
+        ],
+        "test": "persistent denies protected writes through the real terminal backend"
+      }
+    },
+    {
+      "id": "persistent-pwsh-current-input-readiness",
+      "description": "Reject delayed PowerShell prompts while the current Linux command is running",
+      "origin": "Persistent terminal readiness repair",
+      "reason": "On Linux, require a current foreground stdin wait before a PowerShell prompt can settle a send. A delayed prompt from the previous command shares the same process group and must not publish the next command's output prematurely. Preserve Bash and non-Linux readiness behavior, add a deterministic delayed-prompt regression, and synchronize the bilingual terminal documentation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/terminal/terminal-bash/src/session.ts",
+          "packages/terminal/terminal-bash/tests/session.spec.ts",
+          "packages/terminal/terminal-bash/README.md",
+          "packages/terminal/terminal-bash/README.zh.md",
+          "packages/terminal/terminal-bash/README.i18n.yaml"
+        ]
+      }
     }
   ]
 }
