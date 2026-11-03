@@ -25,7 +25,7 @@ owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedes
 | 平台 | 沙盒方式 | 写权限来源 | Bash 缺省 | 已知限制 |
 | --- | --- | --- | --- | --- |
 | Windows | 低完整性受限令牌与目录能力 ACL；属于部分隔离，不隔离读取。 | 未显式设模式时只读，不改 ACL。工作区首次写入会请求中英确认；允许后记录授权，工作区可写，受保护路径仍拒写。设置页可预授权或撤销工作区。无人值守会话不弹确认：保持只读并说明开法。显式模式照用。 | 未通过环境或设置选择时禁用；可用 PowerShell。 | 权限收紧（撤销或新增保护根）后，已开进程与句柄不终止，新的工具调用即刻按新策略走。模型持久终端在权限变化后拒绝输入时，需关闭后重开。权限模式选择器不即时反映目录记录。 |
-| Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | bubblewrap 缺失或不可用时尝试 Landlock；无可用 runner 或无法充分保护宿主输入时拒绝，不会无隔离执行。旧 Landlock ABI 可能只有部分隔离。原生 Node/workflow 进程测试要求 `PANEDESK_CI_NATIVE_SANDBOX=required`，否则打印原因并跳过。未验遍所有内核配置。 |
+| Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | bubblewrap 缺失或不可用时尝试 Landlock；无可用 runner 或无法充分保护宿主输入时拒绝，不会无隔离执行。旧 Landlock ABI 可能只有部分隔离。原生 Node/workflow 进程测试要求 `PANEDESK_CI_NATIVE_SANDBOX=required`，否则打印原因并跳过。未验遍所有内核配置。Linux 原生沙箱下 pwsh 持久终端不可用(读不到输出、会超时)。 |
 | macOS | 通过 `sandbox-exec` 使用 Seatbelt。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | 路径由本机规范化。Seatbelt 不隐藏宿主进程；平台注入回归不等于 macOS 实机验收。 |
 
 ## 相对 DSH 改了什么
