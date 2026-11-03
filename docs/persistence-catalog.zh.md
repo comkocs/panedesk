@@ -28,7 +28,7 @@
 | `event:agent/inbox/spliced` | event | `50d8870c243f856efea4c7376cae8261e2474dae1032f7ef0f4855f25cab3d98` | [`{ type: "agent/inbox/spliced" }`](#persistence-type-sha256-50d8870c243f856efea4c7376cae8261e2474dae1032f7ef0f4855f25cab3d98) |
 | `event:agent/input/transition` | event | `b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf` | [`{ type: "agent/input/transition" }`](#persistence-type-sha256-b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf) |
 | `event:approval/asked` | event | `bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d` | [`{ type: "approval/asked" }`](#persistence-type-sha256-bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d) |
-| `event:approval/decided` | event | `bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3` | [`{ type: "approval/decided" }`](#persistence-type-sha256-bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3) |
+| `event:approval/decided` | event | `8e41e729609767fd1c3697ad5ab323068db7273ab48eabc49d5c55f03ec94c69` | [`{ type: "approval/decided" }`](#persistence-type-sha256-8e41e729609767fd1c3697ad5ab323068db7273ab48eabc49d5c55f03ec94c69) |
 | `event:approval/policy` | event | `26718e15e7e395bce9642dba5bbe09b3b1a4ce2213d20d566cd9207d7fc5fb78` | [`{ type: "approval/policy" }`](#persistence-type-sha256-26718e15e7e395bce9642dba5bbe09b3b1a4ce2213d20d566cd9207d7fc5fb78) |
 | `event:assistant/attempt` | event | `41f8c16d4681c4cd8b2f317262cc4c2d21ca65ab27514e7e8b75e4dc698316d2` | [`{ type: "assistant/attempt" }`](#persistence-type-sha256-41f8c16d4681c4cd8b2f317262cc4c2d21ca65ab27514e7e8b75e4dc698316d2) |
 | `event:assistant/message` | event | `679003a1efb09972bc012da3182fca051594d2023cb94f61d93d32c703016c02` | [`{ type: "assistant/message" }`](#persistence-type-sha256-679003a1efb09972bc012da3182fca051594d2023cb94f61d93d32c703016c02) |
@@ -269,6 +269,8 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'approval/decided': {
   id: ApprovalRequestId
   outcome: ApprovalOutcome
+  /** Concrete policy refusal after an owner answer; absent for ordinary decisions. */
+  reason?: string
 }
 ```
 
@@ -4875,7 +4877,7 @@ SHA-256: `deebfc7c62177ea840f23c6362b8615bc78ffa93377dd5d243c04e541c413af5`
 
 SHA-256: `32a8550767c818517d211599e5a3a509848f3467ca65d84afd064d4642c305a3`
 
-来源：[`packages/interaction/user-approval/src/types.ts:73`](../packages/interaction/user-approval/src/types.ts)
+来源：[`packages/interaction/user-approval/src/types.ts:75`](../packages/interaction/user-approval/src/types.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
@@ -5904,7 +5906,7 @@ SHA-256: `8465ece5e9d9007c038b357015d849c15262cb0bc25abc59e47692d87ee01a15`
 
 SHA-256: `2c5476afbf05ee2303c6327348e52aedd060da73b9185ccbef42adae7bab2043`
 
-来源：[`packages/interaction/user-approval/src/types.ts:65`](../packages/interaction/user-approval/src/types.ts)
+来源：[`packages/interaction/user-approval/src/types.ts:67`](../packages/interaction/user-approval/src/types.ts)
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
@@ -6944,11 +6946,11 @@ SHA-256: `0f46153645c297846a3fad3911636659ca4717a5e7d71c9f50bffacd312115ef`
 | `height` | 必需 | `number` |
 | `width` | 必需 | `number` |
 
-<a id="persistence-type-sha256-93cbbc5a7fd0b1aa1ff1b9a6bb5ec52b073f48e5a5200365c45c0cd54059e1b9"></a>
+<a id="persistence-type-sha256-6df2639ea099fef1f0977c07691ef4c9d8e794f2dae3978c28384c4e87dea2d9"></a>
 
-### `{ id, outcome }`
+### `{ id, outcome, reason? }`
 
-SHA-256: `93cbbc5a7fd0b1aa1ff1b9a6bb5ec52b073f48e5a5200365c45c0cd54059e1b9`
+SHA-256: `6df2639ea099fef1f0977c07691ef4c9d8e794f2dae3978c28384c4e87dea2d9`
 
 来源：[`packages/interaction/user-approval/src/types.ts:57`](../packages/interaction/user-approval/src/types.ts)
 
@@ -6956,6 +6958,7 @@ SHA-256: `93cbbc5a7fd0b1aa1ff1b9a6bb5ec52b073f48e5a5200365c45c0cd54059e1b9`
 |---|---|---|
 | `id` | 必需 | `string` |
 | `outcome` | 必需 | [`ApprovalOutcome`](#persistence-type-sha256-930c1cd289def119d443e19dd90008916bf035f0a4d23e07241e7f050f2b89b7) |
+| `reason` | 可选 | `string` |
 
 <a id="persistence-type-sha256-998f22585a5d73ec005365e203f07fc3b3a029e82323fdda3fd7f13b0a9639d0"></a>
 
@@ -8726,17 +8729,17 @@ SHA-256: `bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d`
 | `time` | 必需 | `number` |
 | `type` | 必需 | `"approval/asked"` |
 
-<a id="persistence-type-sha256-bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3"></a>
+<a id="persistence-type-sha256-8e41e729609767fd1c3697ad5ab323068db7273ab48eabc49d5c55f03ec94c69"></a>
 
 <a id="persistence-type-eventapprovaldecided"></a>
 
 ### `{ type: "approval/decided" }`
 
-SHA-256: `bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3`
+SHA-256: `8e41e729609767fd1c3697ad5ab323068db7273ab48eabc49d5c55f03ec94c69`
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
-| `data` | 必需 | [`{ id, outcome }`](#persistence-type-sha256-93cbbc5a7fd0b1aa1ff1b9a6bb5ec52b073f48e5a5200365c45c0cd54059e1b9) |
+| `data` | 必需 | [`{ id, outcome, reason? }`](#persistence-type-sha256-6df2639ea099fef1f0977c07691ef4c9d8e794f2dae3978c28384c4e87dea2d9) |
 | `ignorable` | 可选 | `true` |
 | `seq` | 必需 | `number` |
 | `time` | 必需 | `number` |

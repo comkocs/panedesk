@@ -37,6 +37,7 @@ import { resolveEffectivePermissionMode } from './effective-mode.ts'
 import type { EffectivePermissionMode } from './effective-mode.ts'
 import { WorkspaceWriteAccess } from './workspace-access.ts'
 import { resolveProtectedPaths } from './protected-paths.ts'
+import { en, zh } from './locales.ts'
 
 export { SANDBOX_MODES, setSandboxMode } from './session-mode.ts'
 export { resolveEffectivePermissionMode } from './effective-mode.ts'
@@ -149,6 +150,28 @@ export class SandboxPolicyService extends Service {
       () => this.ctx.get('profileContext')?.dir)
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 
+    ctx.on('agent/created', ({ agent }) => {
+      if (process.platform !== 'win32') return
+      const sandbox = ctx.get('sandbox')
+      if (sandbox?.supportsWorkspaceWriteAccess !== true) return
+      const directory = agent.session.header.cwd ?? this.workspaceRoot
+      let workspace: string
+      try {
+        workspace = this.workspaceAccess.canonical(directory)
+        if (this.workspaceAccess.find(workspace) !== undefined || !sandbox.hasWorkspaceWriteGrant?.(workspace)) return
+      } catch (error) {
+        agent.inject(createUserMessage({
+          content: [{ type: 'text', text: `${en.inspectionFailed} / ${zh.inspectionFailed} ${directory}\n${error instanceof Error ? error.message : String(error)}` }],
+          source: { kind: 'user-approval' },
+        }))
+        return
+      }
+      agent.inject(createUserMessage({
+        content: [{ type: 'text', text: `${en.legacyWrite} / ${zh.legacyWrite} ${workspace}` }],
+        source: { kind: 'user-approval' },
+      }))
+    })
+
     ctx.sessionProjections.register({
       key: 'sandboxMode',
       stateVersion: 1,
@@ -254,9 +277,7 @@ export class SandboxPolicyService extends Service {
    */
   writeDenialHint(mode: SandboxMode): string | undefined {
     return this.windowsDefault && mode === 'read-only'
-      ? 'Windows defaults to read-only. The owner can preauthorize the workspace in '
-        + 'Settings > General > Windows workspace write access. Unattended tasks cannot grant this access. '
-        + 'An explicit read-only session choice still applies after preauthorization.'
+      ? `${en.readOnly} / ${zh.readOnly}`
       : undefined
   }
 

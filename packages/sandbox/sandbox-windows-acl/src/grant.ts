@@ -128,6 +128,18 @@ export class AclWriteGrant {
   }
 
   /**
+   * Inspect effective root write access using the workspace token, without changing ACLs.
+   * @param path Canonical workspace root.
+   * @returns Whether any write, deletion, or security-descriptor change is permitted.
+   */
+  hasEffectiveWrite(path: string): boolean {
+    const probe = RestrictedFileAccess.create([this.writeSid])
+    try {
+      return [2, 4, 0x10, 0x100, 0x10000, 0x40, 0x40000, 0x80000].some(mask => probe.permits(path, mask))
+    } finally { probe.dispose() }
+  }
+
+  /**
    * Explicitly revoke a workspace or temporary grant; failed removal remains retryable.
    * @param path - Canonical directory whose capability ACE is removed.
    */

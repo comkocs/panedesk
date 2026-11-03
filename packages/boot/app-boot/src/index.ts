@@ -20,7 +20,7 @@ import { readWindowsBashConfig, type WindowsBashConfig } from '@panedesk/dsh-bas
 import { createLaunchEnvironmentSnapshot, type LaunchEnvironmentSnapshot } from '@panedesk/dsh-launch-environment'
 export { grantProtectedWorkspace, protectedInputCovered, readBundlePatches, readProfilePatches, resolveTelemetryPatch, type ProfileContext, type ProfilePnpmInvocation } from './profile-context.ts'
 export { sanitizeProfile } from './profile-sanitize.ts'
-export { ProtectedInputIntegrity, type ProtectedInputChange, type ProtectedInputOwner } from './input-integrity.ts'
+export { ProtectedInputIntegrity, WorkspaceContainsStateError, type ProtectedInputChange, type ProtectedInputOwner } from './input-integrity.ts'
 export {
   CREDENTIALS_DOC_FILENAME, CREDENTIALS_DOC_VERSION, HOME_PATCH_FILENAME, providerPatchEntries,
   renderCredentialsRefUpdate, updateHomeProviderPatch, type HomePatchUpdate, type ProviderRoute,

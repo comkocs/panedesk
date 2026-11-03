@@ -63,11 +63,13 @@ sandbox.dispose() // revokes the revocable (temp) grant and label, keeps the sta
 rmSync(tempDir, { recursive: true, force: true })
 ```
 
-工作区的安全描述符改动以常驻方式授予——`dispose()` 将其保留为跨实例复用缓存——不同的临时 SID 则以可回收方式授予。每次授权组合能力 SID 允许 ACE、环境性删除拒绝与 Low 禁止上调标签。`AclWriteGrant.add(path, standing)` 物化这些改动；`has(path)` 检测精确的可继承能力 ACE，不修改 ACL；`revoke(path)` 显式撤销常驻或旧版授权。撤销失败仍保留跟踪信息以便重试。`dispose()` 撤销临时授权并释放 SID，不能替代显式工作区撤销。
+工作区的安全描述符改动以常驻方式授予——`dispose()` 将其保留为跨实例复用缓存——不同的临时 SID 则以可回收方式授予。每次授权组合能力 SID 允许 ACE、环境性删除拒绝与 Low 禁止上调标签。`AclWriteGrant.add(path, standing)` 物化这些改动；`has(path)` 检测精确的可继承能力 ACE；`hasEffectiveWrite(path)` 用受限工作区令牌检查根写权，包括部分授权或继承授权，不修改 ACL；`revoke(path)` 显式撤销常驻或旧版授权。撤销失败仍保留跟踪信息以便重试。`dispose()` 撤销临时授权并释放 SID，不能替代显式工作区撤销。
 
 `revokeTree(root)` 盘点整个工作区，包括依赖目录，删除精确匹配工作区 SID 的显式项，再用受限令牌 AccessCheck 核验根和每个命中点。它不依赖进程内的授权历史。链接对象使用不跟随目标的安全句柄；不遍历外部目标。残留写权或父目录删除子项权限都会令撤销失败。其他主体和完整性标签保持不变。撤销前应停止活跃的工作区进程；既有句柄不会被关闭。
 
-所有者状态信任通过 AccessCheck 检查存储及所有祖先，而非根据 SID 前缀猜测归属。内置运行器接收 `--state-directory`，并使用包含私有临时能力的实际进程令牌检查。不安全记录不能授权首次写入；只读启动会省略不可信的工作区配置。见 [Windows 迁移及精确 ACE 恢复步骤](../../../docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。Windows 原生执行仍未经验证；确定性测试和 Linux 遍历测量并非 Windows 强制执行证据。
+所有者状态信任通过 AccessCheck 判定，而非根据 SID 前缀猜测归属：存储及其后代拒绝任何写、删除、`WRITE_DAC` 与 `WRITE_OWNER`；祖先拒绝自身 `DELETE`、`WRITE_DAC`、`WRITE_OWNER` 及父目录 `FILE_DELETE_CHILD`。只有缺失名称的最低一级已存在父目录检查文件／目录创建权限；更高祖先上不继承的写权限不会使现存存储失去信任。内置运行器接收 `--state-directory`，并使用包含私有临时能力的实际进程令牌检查。不安全记录不能授权首次写入；只读启动会省略不可信的工作区配置。见 [Windows 迁移及精确 ACE 恢复步骤](../../../docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。Windows 原生执行仍未经验证；确定性测试和 Linux 遍历测量并非 Windows 强制执行证据。
+
+10 万文件撤销遍历的 204.6 ms 测量使用 ACL 替身，非 Windows 实机数。它测量遍历及记账，不代表 Windows ACL 或 AccessCheck 延迟。
 
 ### 隔离给你带来什么
 

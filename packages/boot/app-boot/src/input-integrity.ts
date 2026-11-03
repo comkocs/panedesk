@@ -4,6 +4,14 @@ import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, rea
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 
+/** Windows policy refuses workspace writes that include owner-state storage. */
+export class WorkspaceContainsStateError extends Error {
+  constructor() {
+    super('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。 Protected input records must be outside the writable workspace.')
+    this.name = 'WorkspaceContainsStateError'
+  }
+}
+
 /** Exact candidate shown to an owner before a protected input can change. */
 export interface ProtectedInputChange {
   readonly path: string
@@ -317,7 +325,7 @@ export class ProtectedInputIntegrity {
     const first = join(this.root, child)
     if (process.platform === 'win32') {
       if (protectedPaths === undefined) return
-      throw new Error('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。 Protected input records must be outside the writable workspace.')
+      throw new WorkspaceContainsStateError()
     }
     if (first !== this.root
       && (protectedPaths === undefined || protectedPaths.some(path => canonicalLocation(path) === first))) return

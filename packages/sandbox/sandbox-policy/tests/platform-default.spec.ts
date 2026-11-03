@@ -38,6 +38,7 @@ describe('platform permission defaults', () => {
   it('offers owner guidance only for settled read-only denials under the Windows default', async () => {
     const windows = await policy('win32')
     expect(windows.writeDenialHint('read-only')).toContain('Unattended tasks cannot grant this access.')
+    expect(windows.writeDenialHint('read-only')).toContain('Windows 默认只读。所有者可在设置 > 通用 > Windows 工作区写权限中预授权。无人值守任务不能授予此权限。预授权后，显式选择的只读模式仍然生效。')
     expect(windows.writeDenialHint('workspace-write')).toBeUndefined()
     expect(windows.writeDenialHint('danger-full-access')).toBeUndefined()
     expect((await policy('win32', 'read-only')).writeDenialHint('read-only')).toBeUndefined()

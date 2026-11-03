@@ -3165,7 +3165,7 @@ export interface Config {
 
 - `inject`: `sessionProjections`
 - `refs`: [`SandboxMode`](subsystems/sandbox.md)
-- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:82`](../packages/sandbox/sandbox-policy/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:83`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 ```ts config-catalog
 /**

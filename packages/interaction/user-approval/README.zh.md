@@ -54,7 +54,7 @@ kind: "package-reference"
 
 `requestProtectedInput(agent, purpose)` 在轮次之间接受路径及原版本和候选版本的摘要。它只使用经过认证的 owner 运输，并写入被动、持久的收件提示，不唤醒模型。`never` 保留输入被阻止的提示而不弹确认；其他结果追加决定提示。等待时间使用 `workspaceWriteTimeoutMs`；只有 `allowed-once` 确认该候选版本。对于已挂载的 profile，owner 运输就绪及新根 agent 会调度串行审核已保留的输入记录。有 HMR 时通过其事务应用已确认输入；没有 HMR 时，被动提示要求 owner 重启。直接重组拒绝也会调度同一审核，不阻塞等待弹窗。无人值守会话保留拒绝提示，始终不弹确认。新增 Client 分块及整包替换受同一精确候选版本决定约束；拒绝保留已发布的 Client 代次。
 
-返回经过认证的工作区写入允许结果前，已挂载的 profile 会把已登记的受保护输入捕获到持久 owner 状态中。Windows 要求该状态位于可写根之外；Linux 和 macOS 也允许状态位于受保护的工作区第一级目录下。捕获失败时，请求结算为 `unavailable`，记录该结果，并在会话收件箱保留拒因，不授予写权。受保护输入确认独立于工作区授权，不会创建一般工作区写入授权。[工作区同意](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)允许工作区普通位置写入，不允许受保护输入写入。
+返回经过认证的工作区写入允许结果前，已挂载的 profile 会把已登记的受保护输入捕获到持久 owner 状态中。Windows 要求该状态位于可写根之外；Linux 和 macOS 也允许状态位于受保护的工作区第一级目录下。Windows 工作区包含状态存储时结算为 `rejected`，具体拒因同时保存在 `approval/decided.reason` 与会话收件箱。其他捕获失败仍为 `unavailable`；两者均不授予写权。受保护输入确认独立于工作区授权，不会创建一般工作区写入授权。[工作区同意](../../sandbox/sandbox-policy/README.zh.md#windows-workspace-records)允许工作区普通位置写入，不允许受保护输入写入。
 
 ### 模型与用户看到什么
 

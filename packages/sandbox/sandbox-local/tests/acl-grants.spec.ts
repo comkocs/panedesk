@@ -47,6 +47,7 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', () => {
       }
     }
     has(): boolean { return mockState.legacyGrant }
+    hasEffectiveWrite(): boolean { return mockState.legacyGrant }
     revokeTree(path: string): void { mockState.revoked.push(path) }
     dispose(): void {
       if (mockState.disposeFailure !== undefined) throw mockState.disposeFailure

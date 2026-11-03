@@ -3,6 +3,7 @@ import { RestrictedFileAccess } from './access-token.ts'
 import { inspectStateAncestors } from './state-access.ts'
 import { workspaceWriteSid } from './workspace-sid.ts'
 import type { StateAllowAce } from './ace-diagnostic.ts'
+import { en, zh } from './locales.ts'
 
 /** A state directory that a restricted workspace token can modify is not an authorization source. */
 export class UnsafeWindowsStateError extends Error {
@@ -12,11 +13,15 @@ export class UnsafeWindowsStateError extends Error {
    * @param entries Matching explicit allow entries for owner remediation.
    */
   constructor(readonly directory: string, readonly mask: number, readonly entries: readonly StateAllowAce[] = []) {
-    super(`Windows owner state is writable by the sandbox token at ${JSON.stringify(directory)} (access mask 0x${mask.toString(16)}). Inspect its ACL with icacls before retrying. / Windows 所有者状态目录的祖先可被沙箱令牌写入：${JSON.stringify(directory)}（权限掩码 0x${mask.toString(16)}），请先用 icacls 检查权限再重试。`)
+    super([en, zh].map(locale => locale.unsafeState(JSON.stringify(directory), `0x${mask.toString(16)}`)).join(' / '))
     this.name = 'UnsafeWindowsStateError'
+    this.message += `\n${en.review} / ${zh.review}`
     for (const entry of entries) {
-      this.message += `\nAllow ACE / 允许项: ${JSON.stringify(entry.directory)}; SID=${entry.sid}; mask=0x${entry.mask.toString(16)}; inherited / 继承=${entry.inherited}. Review then remove this trustee's explicit grants / 核对后移除该主体的显式允许项: ${entry.command}`
+      this.message += `\n${[en, zh].map(locale => locale.allowEntry(
+        JSON.stringify(entry.directory), entry.sid, `0x${entry.mask.toString(16)}`, entry.inherited,
+      )).join(' / ')} ${entry.command}`
     }
+    if (entries.length === 0) this.message += `\n${en.unknownTrustee} / ${zh.unknownTrustee}`
   }
 }
 

@@ -35,7 +35,7 @@ When the live catalog withdraws a preset, the composer closes its pending confir
 
 ### Windows workspace write access
 
-On supported Windows hosts, General settings also lists canonical workspace directories with their authorization time and source. Choose a directory to preauthorize sandboxed writes, or revoke its record and native product write ACE. Unrecorded legacy ACEs discovered from local session history and registered directory inventories are labeled separately. Incomplete revocations have a separate retry label even when no authorization record remains. Failures remain visible with a refresh action; a failed operation is not reported as a successful authorization change. Connection changes clear the inventory, and a picker result cannot authorize a directory after its connection changes or the row is disposed. Non-Windows hosts hide this row.
+On supported Windows hosts, General settings also lists canonical workspace directories with their authorization time and source. Choose a directory to preauthorize sandboxed writes, or revoke its record and native product write ACE. Unrecorded effective root write permissions discovered from local session history and registered directory inventories are labeled as write access left by an older version, with an explicit instruction to revoke the trustee's permissions throughout the workspace. Incomplete revocations have a separate retry label even when no authorization record remains. Failures remain visible with a refresh action; a failed operation is not reported as a successful authorization change. Connection changes clear the inventory, and a picker result cannot authorize a directory after its connection changes or the row is disposed. Non-Windows hosts hide this row.
 
 ### The Settings row
 

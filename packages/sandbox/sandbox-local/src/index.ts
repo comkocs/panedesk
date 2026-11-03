@@ -402,7 +402,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     this.requireWindowsAclManagement()
     const root = canonicalPath(workspaceRoot)
     const grant = AclWriteGrant.create(workspaceWriteSid(root))
-    try { return grant.has(root) } finally { grant.dispose() }
+    try { return grant.hasEffectiveWrite(root) } finally { grant.dispose() }
   }
 
   /**
