@@ -39,13 +39,13 @@ interface LspRange {
 
 ## 请求
 
-每个字段都是必填项：`workspaceRoot` 由调用方提供，`languageId` 来自提供方注册而非请求，超时与结果上限由消费方决定。因此没有字段需要由实现提供默认值，也不存在 `resolve()` 步骤。提供方收到调用方请求和派生的 `languageId`；后者只用于同步瞬态文档，从不参与选择。
+`workspaceRoot` 由调用方提供，`languageId` 来自提供方注册，超时与结果上限由消费方决定。模型工具传入调用方 `session`，用于进程策略与归属；无 Session 的宿主调用使用部署沙箱策略。提供方收到请求和派生的 `languageId`；后者只用于同步瞬态文档，从不参与选择。
 
 ```ts type-equiv
 /**
- * A caller's normalized query. Every field is required: `workspaceRoot` is caller-supplied,
- * `languageId` comes from the provider registration (not here), and consumers own timeouts and
- * result limits — so no field needs implementation defaulting and there is no `resolve()` step.
+ * A caller's normalized query. `workspaceRoot` is caller-supplied, `languageId` comes from
+ * provider registration, and consumers own timeouts and result limits. Session-less host calls
+ * use the deployment sandbox policy; model tool calls carry their calling Session.
  */
 interface LspQueryRequest {
   /** Which semantic query to run. */
@@ -56,6 +56,8 @@ interface LspQueryRequest {
   readonly position: LspPosition
   /** The workspace root the provider resolves against and indexes; required, never defaulted. */
   readonly workspaceRoot: string
+  /** Calling Session for process policy and ownership; omitted only by host callers. */
+  readonly session?: Session
 }
 ```
 

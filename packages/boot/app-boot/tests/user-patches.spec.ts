@@ -18,7 +18,9 @@ import {
   loadOverlayPatches,
   PROFILE_PATCH_FILENAME,
   reconcileProfilePatches,
+  recomposeProfile,
 } from '../src/index.ts'
+import { ProtectedInputIntegrity } from '../src/input-integrity.ts'
 
 const NAME = 'dsh-test-bin'
 
@@ -331,6 +333,34 @@ describe('Loader entry disabled interpolation', () => {
 })
 
 describe('profile reconciliation settlement', () => {
+  it('rejects direct recomposition without HMR before stopping the previous generation', async () => {
+    const dir = tmp()
+    const home = tmp()
+    const patchPath = join(dir, 'cordis.patch.yml')
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    writeFileSync(join(dir, 'noop.mjs'), 'export function apply() {}\n')
+    writeFileSync(patchPath, '[]\n')
+    const integrity = new ProtectedInputIntegrity(dir, home)
+    integrity.observe(patchPath)
+    integrity.grantWrite()
+    const patches: PatchOptions[] = [{ insert: [{ id: 'retained', name: './noop.mjs' }] }]
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), patches, (host) => {
+      host.provide('profileContext', {
+        name: 'protected', home, cwd: dir, dir, patchPath, installAnchor: join(dir, 'package.json'),
+        startedBundles: [], overlays: [], telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+      })
+    })
+    onTestFinished(() => ctx.fiber.dispose())
+    const entry = [...ctx.loader.entries()].find(row => row.options.id === 'retained')!
+    const fiber = entry.fiber
+    expect(fiber?.state).toBe(FiberState.ACTIVE)
+    writeFileSync(patchPath, '- id: retained\n  disabled: true\n')
+    await expect(recomposeProfile(ctx, [], NAME)).rejects.toThrow('requires owner confirmation')
+    expect(entry.fiber).toBe(fiber)
+    expect(fiber?.state).toBe(FiberState.ACTIVE)
+    expect([...ctx.loader.entries()]).toContain(entry)
+  })
+
   it('lets an explicit disabled declaration replace a retained runtime enablement', async () => {
     const dir = tmp()
     writeFileSync(join(dir, 'cordis.yml'), '[]\n')

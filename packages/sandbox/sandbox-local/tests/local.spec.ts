@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import { LAUNCHER_FAILURE_EXIT } from '@panedesk/node-addon-system/landlock-run'
 import { SANDBOX_UNAVAILABLE, SandboxUnavailableError } from '@panedesk/dsh-sandbox'
@@ -27,7 +27,15 @@ const WW: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: '/ws' }
 
 /** Every temp dir created by this file (fake launchers and runner entries), removed after each test. */
 const tempDirs: string[] = []
+let ownerState: string
+beforeEach(() => {
+  const home = mkdtempSync(join(tmpdir(), 'sandbox-owner-'))
+  tempDirs.push(home)
+  vi.stubEnv('PANEDESK_HOME', home)
+  ownerState = join(home, 'windows-workspace-write')
+})
 afterEach(() => {
+  vi.unstubAllEnvs()
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
@@ -138,9 +146,9 @@ describe('runnerCommand config', () => {
     }, { probeBwrap, probeLandlock, probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: ['fake-runner', '--flag', ...bwrapProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
+      argv: ['fake-runner', '--flag', ...bwrapProfileArgs({ ...WW, protectedPaths: [ownerState] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
-      protectedInputs: [],
+      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       // An operator runner's kernel mechanism is unknown: both Linux
       // file-denial dialects, never bare EPERM.
       denialSignatures: ['read-only file system', 'permission denied'],
@@ -189,7 +197,7 @@ describe('the platform chains', () => {
     expect(confined).toEqual({
       argv: ['bwrap', ...bwrapProfileArgs(RO), '--', 'true'],
       enforcement: 'full',
-      protectedInputs: [],
+      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['read-only file system'],
       runnerFailureRules: [{ fatalSignatures: ['bwrap: '] }],
     })
@@ -203,9 +211,9 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock, landlockLauncher: launcher })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: [launcher, ...landlockProfileArgs(WW), '--', 'bash', '-c', 'echo hi'],
+      argv: [launcher, ...landlockProfileArgs({ ...WW, protectedPaths: [ownerState] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
-      protectedInputs: [],
+      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['permission denied'],
       runnerFailureRules: [{
         allowedExitCodes: [LAUNCHER_FAILURE_EXIT],
@@ -224,9 +232,9 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'darwin', probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], RO)
     expect(confined).toEqual({
-      argv: ['sandbox-exec', ...seatbeltProfileArgs(RO), '--', 'bash', '-c', 'echo hi'],
+      argv: ['sandbox-exec', ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
-      protectedInputs: [],
+      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
     })
@@ -390,9 +398,9 @@ describe('the default seatbelt probe (sandbox-exec contract)', () => {
     const { sandbox } = await setup({}, { chain: ['bwrap', 'seatbelt'], probeBwrap: () => false, seatbeltExec: exec })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: [exec, ...seatbeltProfileArgs(RO), '--', 'true'],
+      argv: [exec, ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState] }), '--', 'true'],
       enforcement: 'full',
-      protectedInputs: [],
+      protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['operation not permitted'],
       runnerFailureRules: [{ fatalSignatures: ['sandbox-exec: '] }],
     })

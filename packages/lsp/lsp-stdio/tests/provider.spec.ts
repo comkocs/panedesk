@@ -3,6 +3,8 @@ import { chmod, mkdtemp, mkdir, rm, writeFile, realpath } from 'node:fs/promises
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { Context } from '@panedesk/cordis'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import LocalFileSystem from '@panedesk/dsh-fs-local'
 import Lsp, { type LspQueryRequest } from '@panedesk/dsh-lsp'
@@ -43,6 +45,8 @@ describe('lsp-stdio provider resolution', () => {
     if (process.platform !== 'win32') await chmod(exe, 0o755)
 
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -57,6 +61,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('skips empty PATH segments and fails when the command is absent', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -72,6 +78,8 @@ describe('lsp-stdio provider resolution', () => {
   it('rejects a query after the provider is disposed', async () => {
     // Use a server that never emits results and dispose the plugin, then confirm queries are refused.
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -90,6 +98,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('rejects a nonpositive teardown budget at load', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -104,6 +114,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('rejects a nonpositive byte cap at load', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -118,6 +130,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it.each(['shutdownTimeoutMs', 'killGraceMs'] as const)('rejects %s above Node timer range at load', async (name) => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -135,6 +149,8 @@ describe('lsp-stdio provider resolution', () => {
     const notExe = join(root, 'not-exe.txt')
     await writeFile(notExe, 'plain text, not executable')
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -148,6 +164,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('rejects an executable directory as a command at load', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -161,6 +179,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('rejects an empty server table at load', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -170,6 +190,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('rejects an empty server id at load', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -182,6 +204,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('resolves every executable before publishing any provider', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -197,6 +221,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('waits for aborted sibling executable lookups before setup rejects', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -241,6 +267,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('aborts executable resolution when disposed during setup', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -276,6 +304,8 @@ describe('lsp-stdio provider resolution', () => {
 
   it('rolls back earlier registrations when a later server conflicts', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })

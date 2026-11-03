@@ -34,6 +34,15 @@
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../sandbox/sandbox"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
     }
   ]
 }

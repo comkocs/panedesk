@@ -39,13 +39,13 @@ interface LspRange {
 
 ## Request
 
-Every field is required: `workspaceRoot` is caller-supplied, `languageId` comes from the provider's registration (not the request), and consumers own timeouts and result limits — so no field needs implementation defaulting and there is no `resolve()` step. The provider receives the caller's request plus the derived `languageId`, which only synchronizes the transient document and never participates in selection.
+`workspaceRoot` is caller-supplied, `languageId` comes from provider registration, and consumers own timeouts and result limits. Model tools pass their calling `session` for process policy and ownership; Session-less host calls use the deployment sandbox policy. The provider receives the request plus the derived `languageId`, which only synchronizes the transient document and never participates in selection.
 
 ```ts type-equiv
 /**
- * A caller's normalized query. Every field is required: `workspaceRoot` is caller-supplied,
- * `languageId` comes from the provider registration (not here), and consumers own timeouts and
- * result limits — so no field needs implementation defaulting and there is no `resolve()` step.
+ * A caller's normalized query. `workspaceRoot` is caller-supplied, `languageId` comes from
+ * provider registration, and consumers own timeouts and result limits. Session-less host calls
+ * use the deployment sandbox policy; model tool calls carry their calling Session.
  */
 interface LspQueryRequest {
   /** Which semantic query to run. */
@@ -56,6 +56,8 @@ interface LspQueryRequest {
   readonly position: LspPosition
   /** The workspace root the provider resolves against and indexes; required, never defaulted. */
   readonly workspaceRoot: string
+  /** Calling Session for process policy and ownership; omitted only by host callers. */
+  readonly session?: Session
 }
 ```
 

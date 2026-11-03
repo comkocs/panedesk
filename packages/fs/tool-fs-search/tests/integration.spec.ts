@@ -21,6 +21,9 @@ import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRuntime, { TOOL_ABORTED_BEFORE_DISPATCH } from '@panedesk/dsh-tools'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import * as ToolFsSearch from '@panedesk/dsh-tool-fs-search'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
 
 const testToolSignal = new AbortController().signal
 
@@ -43,7 +46,12 @@ function text(result: { content: { type: string; text?: string }[] }): string {
 }
 
 /** The fixture workspace as a session cwd, so relative paths resolve inside `dir`. */
-const agent = () => ({ session: { header: { id: 'session-int', cwd: dir } } })
+const agent = (cwd = dir) => {
+  const id = SessionId('session-int')
+  return { session: Session.create(id, [], {
+    version: SESSION_FORMAT_VERSION, id, createdAt: 1, isSeeded: false, cwd,
+  }) }
+}
 
 describe('search tools over the real subprocess service + the packaged rg', () => {
   beforeEach(async () => {
@@ -66,6 +74,8 @@ describe('search tools over the real subprocess service + the packaged rg', () =
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(ToolFsSearch, { sampleOverCapGlobResults: true })
   })
@@ -167,7 +177,7 @@ describe('search tools over the real subprocess service + the packaged rg', () =
       const sessionDir = await mkdtemp(join(tmpdir(), 'dsh-search-session-'))
       try {
         await writeFile(join(sessionDir, 'only-here.ts'), 'const sessionFile = true\n')
-        const agentObj = { session: { header: { id: 'session-int', cwd: sessionDir } } }
+        const agentObj = agent(sessionDir)
         const globbed = await call('glob', { pattern: '*.ts' }, agentObj)
         expect(text(globbed)).toBe('only-here.ts')
         const grepped = await call('grep', { pattern: 'sessionFile' }, agentObj)
@@ -194,7 +204,7 @@ describe('search tools over the real subprocess service + the packaged rg', () =
 
     it('an unusable session cwd provider rejection is SEARCH_FAILED', async () => {
       const gone = join(dir, 'deleted-session-dir')
-      const result = await call('glob', { pattern: '*' }, { session: { header: { id: 'session-int', cwd: gone } } })
+      const result = await call('glob', { pattern: '*' }, agent(gone))
       expect(result.isError).toBe(true)
       expect(result.error).toMatchObject({ info: { name: 'SearchError', code: 'SEARCH_FAILED' } })
       expect(text(result)).toContain('subprocess failed before reporting an outcome')

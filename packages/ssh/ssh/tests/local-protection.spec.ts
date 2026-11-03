@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { SshConnection } from '../src/index.ts'
 import { SshRpcPeer } from '../src/protocol.ts'
 import type {} from '@panedesk/dsh-app-boot'
+import { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 
 const transport = vi.hoisted(() => ({ spawn: vi.fn() }))
 vi.mock('node:child_process', async original => ({ ...await original<typeof import('node:child_process')>(), spawn: transport.spawn }))
@@ -53,7 +54,7 @@ for (const target of [
     const policy = { mode: 'workspace-write', workspaceRoot: '/project', protectedPaths: ['/host/config.yml'], requiresWorkspaceAuthorization: true }
     await service.request('sandbox', { argv: ['true'], policy }, z.null())
     expect(calls).toEqual([{ argv: ['true'], policy: {
-      mode: 'workspace-write', workspaceRoot: '/project', ...target.local ? { protectedPaths: ['/host/config.yml'] } : {},
+      mode: 'workspace-write', workspaceRoot: '/project', ...target.local ? { protectedPaths: ['/host/config.yml', ...resolveProtectedPaths(ctx)] } : {},
     } }])
   })
 }

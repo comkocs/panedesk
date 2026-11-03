@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { Agent } from '@panedesk/dsh-agent'
 import { SESSION_FORMAT_VERSION, Session, SessionId } from '@panedesk/dsh-session'
-import SandboxPolicyService, { SANDBOX_MODES, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { SANDBOX_MODES, setSandboxMode, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SystemPrompt, { renderContextSnapshot, renderPrompt } from '@panedesk/dsh-system-prompt'
 
@@ -72,6 +72,7 @@ describe('SandboxPolicyService', () => {
     expect(ctx.sandboxPolicy.resolve()).toEqual({
       mode: 'workspace-write',
       workspaceRoot: '/fallback',
+      protectedPaths: resolveProtectedPaths(ctx),
     })
   })
 
@@ -85,17 +86,20 @@ describe('SandboxPolicyService', () => {
       mode: 'workspace-write',
       workspaceRoot: '/projects/first',
       sessionId: 'sess-first',
+      protectedPaths: resolveProtectedPaths(ctx),
     })
     expect(ctx.sandboxPolicy.resolve({ session: second })).toEqual({
       mode: 'read-only',
       workspaceRoot: '/projects/second',
       sessionId: 'sess-second',
+      protectedPaths: resolveProtectedPaths(ctx),
     })
     expect(ctx.sandboxPolicy.overrideOf(first)).toBeUndefined()
     expect(ctx.sandboxPolicy.overrideOf(second)).toBe('read-only')
     expect(ctx.sandboxPolicy.resolve()).toEqual({
       mode: 'workspace-write',
       workspaceRoot: '/fallback',
+      protectedPaths: resolveProtectedPaths(ctx),
     })
   })
 
@@ -116,6 +120,7 @@ describe('SandboxPolicyService', () => {
         mode: 'workspace-write',
         workspaceRoot: cwd,
         sessionId: 'sess-symlink-parent',
+        protectedPaths: resolveProtectedPaths(ctx),
       })
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -130,6 +135,7 @@ describe('SandboxPolicyService', () => {
       mode: 'danger-full-access',
       workspaceRoot: '/projects/approved',
       sessionId: 'sess-approved',
+      protectedPaths: resolveProtectedPaths(ctx),
     })
   })
 

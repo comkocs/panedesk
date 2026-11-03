@@ -39,6 +39,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/cordis-plugin-loader": "workspace:~",
     "@panedesk/dsh-host-webserver": "workspace:*",
     "@panedesk/cordis": "workspace:~",

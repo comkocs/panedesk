@@ -129,15 +129,17 @@ Usage: panedesk --profile headless [options] [task...]
 Answer one task and exit; the answer goes to stdout and diagnostics to stderr.
 
 Arguments:
-  task               the task text; multiple words are joined by spaces, and `-`
-                     reads stdin
+  task                       the task text; multiple words are joined by spaces,
+                             and `-` reads stdin
 
 Options:
-  --json             write newline-delimited run events to stdout instead of the
-                     final message
-  --session-id <id>  adopt the persisted Session with this id; an unknown id is
-                     an error
-  -h, --help         show this help
+  --json                     write newline-delimited run events to stdout
+                             instead of the final message
+  --session-id <id>          adopt the persisted Session with this id; an
+                             unknown id is an error
+  --sandbox-status <locale>  inspect sandbox coverage without a model request
+                             (en or zh)
+  -h, --help                 show this help
 
 Examples:
   panedesk --profile headless "run the tests"          answer one task and exit

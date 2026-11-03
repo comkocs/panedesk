@@ -43,6 +43,12 @@
     },
     {
       "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../sandbox/sandbox"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
     }
   ]
 }

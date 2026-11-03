@@ -207,7 +207,14 @@ class Kernel {
     this.channel = new JsonChannel(handle.control, this.config.maxMessageBytes,
       (raw, bytes) => { this.receive(raw, bytes) }, (error, kind) => {
         if (kind === 'protocol') this.fail('protocol', error.message)
-        else setImmediate(() => { if (!this.closed && this.exitOutcome === undefined) handle.terminate() })
+        else {
+          // Control EOF can precede the provider's publication of a normal exit.
+          // Bound the wait so a live process with a broken channel is still stopped.
+          const timer = setTimeout(() => {
+            if (!this.closed && this.exitOutcome === undefined) handle.terminate()
+          }, this.config.graceMs)
+          void handle.done.then(() => { clearTimeout(timer) }, () => { clearTimeout(timer) })
+        }
       })
     void handle.done.then(async (outcome) => {
       this.exitOutcome = outcome

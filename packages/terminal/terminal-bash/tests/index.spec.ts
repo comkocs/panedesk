@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { provideWorkingDirectoryFixture, unsupportedInbox } from '@panedesk/dsh-agent-loop-testkit'
 import { ownerAnswer } from '../../../fs/tool-fs/tests/owner-answer.ts'
 import { PassThrough } from 'node:stream'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
@@ -13,7 +13,7 @@ import AgentRegistry, { type Agent } from '@panedesk/dsh-agent'
 import SandboxProvider from '@panedesk/dsh-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import type { ConfinedArgv, SandboxPolicy } from '@panedesk/dsh-sandbox'
-import SandboxPolicyService, { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { resolveProtectedPaths, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
 import ApprovalService from '@panedesk/dsh-user-approval'
 import type { ApprovalOutcome } from '@panedesk/dsh-user-approval'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
@@ -330,7 +330,7 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(initialized).toHaveBeenCalledWith(undefined)
     expect((ctx.sandbox as RecordingSandbox).calls).toEqual([{
       argv: ['/bin/bash', '-i'],
-      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/workspace') },
+      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/workspace'), protectedPaths: resolveProtectedPaths(ctx) },
     }])
   })
 
@@ -364,7 +364,7 @@ describe('BashTerminalBackend startup rollback', () => {
     })
     expect((ctx.sandbox as RecordingSandbox).calls).toEqual([{
       argv: ['/bin/bash', '-i'],
-      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/session-workspace') },
+      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/session-workspace'), protectedPaths: resolveProtectedPaths(ctx) },
     }])
   })
 
@@ -657,6 +657,8 @@ describe('BashTerminalBackend startup rollback', () => {
 describe('first workspace confirmation for model terminals', () => {
   it.each(['allowed-once', 'rejected'] as const)('waits for %s before starting the terminal backend', async (outcome) => {
     const home = mkdtempSync(join(tmpdir(), 'terminal-first-write-'))
+    const workspace = join(home, 'workspace')
+    mkdirSync(workspace)
     const ctx = new Context()
     try {
       vi.stubEnv('PANEDESK_HOME', home)
@@ -664,11 +666,11 @@ describe('first workspace confirmation for model terminals', () => {
       provideWorkingDirectoryFixture(ctx)
       await ctx.plugin(SessionProjectionRegistry)
       const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-      await ctx.plugin(SandboxPolicyService, { workspaceRoot: home })
+      await ctx.plugin(SandboxPolicyService, { workspaceRoot: workspace })
       platform.mockRestore()
       await ctx.plugin(ApprovalService)
       await ctx.plugin(RecordingSandbox)
-      const owner = agent(ctx, home)
+      const owner = agent(ctx, workspace)
       owner.session.append('turn/start', { turn: 1 })
       const answer = Promise.withResolvers<ApprovalOutcome>()
       const listener = vi.fn(() => answer.promise)
@@ -743,6 +745,8 @@ describe('workspace access revocation', () => {
 
   it.each(['before-call', 'before-write'] as const)('rejects input after %s revocation without terminating the existing terminal', async (timing) => {
     const home = mkdtempSync(join(tmpdir(), 'terminal-access-'))
+    const workspace = join(home, 'workspace')
+    mkdirSync(workspace)
     const ctx = new Context()
     const completion = Promise.withResolvers<{ exitCode: number; signal: null }>()
     const output = new PassThrough()
@@ -757,14 +761,14 @@ describe('workspace access revocation', () => {
       provideWorkingDirectoryFixture(ctx)
       await ctx.plugin(SessionProjectionRegistry)
       vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
-      await ctx.plugin(SandboxPolicyService, { workspaceRoot: home })
+      await ctx.plugin(SandboxPolicyService, { workspaceRoot: workspace })
       vi.restoreAllMocks()
       await ctx.plugin(RecordingSandbox)
-      await ctx.sandboxPolicy.workspaceAccess.authorize(home, 'settings-preauthorization')
+      await ctx.sandboxPolicy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
       const backend = new BashTerminalBackend(ctx, config(), async () => ({
         ...terminalHandle(), output, done: completion.promise, write, terminate,
         inspectForeground: async () => {
-          if (timing === 'before-write') await ctx.sandboxPolicy.workspaceAccess.revoke(home, () => {})
+          if (timing === 'before-write') await ctx.sandboxPolicy.workspaceAccess.revoke(workspace, () => {})
           return undefined
         },
       }), (handle, resolved, assertInputPolicy) => {
@@ -772,9 +776,9 @@ describe('workspace access revocation', () => {
         vi.spyOn(session, 'initialize').mockResolvedValue(undefined)
         return session
       })
-      const session = await backend.spawn(spec(agent(ctx, home)))
+      const session = await backend.spawn(spec(agent(ctx, workspace)))
       try {
-        if (timing === 'before-call') await ctx.sandboxPolicy.workspaceAccess.revoke(home, () => {})
+        if (timing === 'before-call') await ctx.sandboxPolicy.workspaceAccess.revoke(workspace, () => {})
         await expect(Promise.resolve().then(() => session.startSend({ text: 'write command', submit: true }).done))
           .rejects.toThrow('Settings > General > Windows workspace write access')
         expect(write).not.toHaveBeenCalled()

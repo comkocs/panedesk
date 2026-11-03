@@ -16,6 +16,13 @@ const shared = {
 export default defineConfig([
   {
     ...shared,
+    entry: { 'protected-plugin-load.worker': 'protected-plugin-load/protected-plugin-load.worker.ts' },
+    outDir: '.panedesk-build/protected-plugin-load',
+    clean: true,
+    tsconfig: 'tsconfig.host.json',
+  },
+  {
+    ...shared,
     entry: { 'terminal-io.worker': 'terminal-io/terminal-io.worker.ts' },
     outDir: '.panedesk-build/terminal-io',
     clean: true,

@@ -8,7 +8,7 @@
  * denied write leaves no file on disk.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -173,7 +173,13 @@ describe('workspace-write containment', () => {
 })
 
 describe('workspace-write with the filesystem root as the workspace (a root ending in the path separator)', () => {
-  it('grants writes anywhere on that volume', async () => {
+  it('grants writes to unprotected paths on that volume', async ({ onTestFinished }) => {
+    const home = await mkdtemp(join(tmpdir(), 'fs-root-owner-'))
+    vi.stubEnv('PANEDESK_HOME', home)
+    onTestFinished(async () => {
+      vi.unstubAllEnvs()
+      await rm(home, { recursive: true, force: true })
+    })
     // A degenerate but valid config: the filesystem root containing the target.
     // It exercises the separator-suffixed-root branch on POSIX and Windows.
     const rootCtx = new Context()

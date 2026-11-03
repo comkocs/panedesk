@@ -48,4 +48,4 @@ You are a coding agent powered by the {{model}} model.
 <a id="dev-note"></a>
 ### 开发备注
 
-`cordis.patch.yml` 在 slim 核心之后应用；本包不提供独立命令，且不得隐式选择默认模型路由。
+`cordis.patch.yml` 在 slim 核心之后应用；本包不提供独立命令，且不得隐式选择默认模型路由。它透传 headless 执行器的[沙盒状态诊断](../headless/README.zh.md#use-this-package)，包括 `--sandbox-status zh --json`，不提交任务。

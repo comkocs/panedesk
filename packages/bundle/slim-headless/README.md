@@ -45,4 +45,4 @@ The persona prefix stays stable while its configuration is unchanged. Changes to
 
 ### Dev Note
 
-`cordis.patch.yml` applies after the slim core; this bundle supplies no separate command and must not implicitly select a default model route.
+`cordis.patch.yml` applies after the slim core; this bundle supplies no separate command and must not implicitly select a default model route. It forwards the headless runner's [sandbox status diagnostic](../headless/README.md#use-this-package), including `--sandbox-status en --json`, without submitting a task.

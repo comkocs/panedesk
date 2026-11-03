@@ -29,6 +29,8 @@ type ApprovalRequestId = Branded<'ApprovalRequestId'>
 type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 ```
 
+`ApprovalPurpose` also accepts `{ type: 'protected-input', path, previous, current }`. The path and digests identify one candidate host input; `requestProtectedInput()` uses authenticated owner transport between turns and retains passive inbox notices without waking the model. Refusal does not authorize the candidate or grant workspace writes.
+
 ## Per-session policy
 
 `ApprovalPolicy` determines what happens before interactive answerers run. `ask` delegates to the composed answerer chain, whose no-answer default is `unavailable`; `never` deterministically returns `rejected` without dispatching any answerer. The effective value is the last `approval/policy` event in the session log, falling back to the service config. Consumers read it with `ctx.approval.effectivePolicy(session)`; `setApprovalPolicy(session, policy)` is the single write path, so replay reconstructs the override.
@@ -134,6 +136,15 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  *   append commit point.
  */
 async request(req: ApprovalRequest): Promise<ApprovalOutcome>
+
+/**
+ * Ask an authenticated owner about a host input, including between model turns.
+ * Passive inbox notices retain the refusal and decision without starting a model request.
+ * @param agent Session whose workspace contains the protected input.
+ * @param purpose Exact path identity and content digest awaiting consent.
+ * @returns Only allowed-once authorizes this candidate; unattended sessions never prompt.
+ */
+async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome>
 
 /**
  * Read the session override without applying the configured default.

@@ -2,7 +2,7 @@
 import { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, parse } from 'node:path'
-import { Context } from '@panedesk/cordis'
+import { coveredContext } from './host-coverage-fixture.ts'
 import { expect, it, onTestFinished } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs } from '../src/profiles.ts'
@@ -24,11 +24,11 @@ it.each(['dangling link', 'cyclic link', 'non-directory ancestor'])('marks every
   const root = mkdtempSync(join(tmpdir(), 'protected-unrepresentable-'))
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
   const input = join(root, 'input')
+  const path = kind === 'non-directory ancestor' ? join(input, 'config.yml') : input
+  const ctx = coveredContext(root, path)
   if (kind === 'dangling link') symlinkSync(join(root, 'absent'), input)
   else if (kind === 'cyclic link') symlinkSync(input, input)
   else writeFileSync(input, 'owner')
-  const path = kind === 'non-directory ancestor' ? join(input, 'config.yml') : input
-  const ctx = new Context()
   onTestFinished(async () => { await ctx.fiber.dispose() })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -73,7 +73,7 @@ it.each(layouts)('mounts the canonical target of a %s read-only', async (_layout
     symlinkSync(modules, join(workspace, 'linked-node_modules'), 'dir')
   } else mkdirSync(dirname(alias), { recursive: true })
   symlinkSync(target, alias, 'dir')
-  const ctx = new Context()
+  const ctx = coveredContext(workspace, alias)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -101,7 +101,7 @@ it('leaves external linked targets under the read-only root without an alias mou
   mkdirSync(workspace)
   writeFileSync(target, 'owner')
   symlinkSync(target, alias)
-  const ctx = new Context()
+  const ctx = coveredContext(workspace, alias)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox

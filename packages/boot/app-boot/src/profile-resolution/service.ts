@@ -1,7 +1,8 @@
 /** Package metadata resolved through one runtime interception. */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { createRequire, registerHooks } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { Service, type Context } from '@panedesk/cordis'
 import type { PluginLocalizedMeta } from '@panedesk/dsh-package-manifest'
@@ -65,6 +66,29 @@ export class PluginPackages extends Service {
 
   constructor(ctx: Context, config: PluginPackagesConfig = {}) {
     super(ctx, 'pluginPackages')
+    ctx.effect(() => {
+      const hooks = registerHooks({
+        load(url, context, nextLoad) {
+          const profile = ctx.get('profileContext')
+          if (profile === undefined || !url.startsWith('file:')) return nextLoad(url, context)
+          const records = new Set([...(profile.inputIntegrities?.values() ?? []),
+            ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+          let source: Buffer | undefined
+          for (const record of records) {
+            const candidate = record.readExecutable(fileURLToPath(url))
+            if (candidate === undefined) continue
+            if (source !== undefined && !source.equals(candidate)) throw new Error('Protected module records disagree')
+            source = candidate
+          }
+          if (source === undefined) return nextLoad(url, context)
+          if (context.format !== 'module' && context.format !== 'commonjs' && context.format !== 'json') {
+            throw new Error(`Protected module format cannot consume verified bytes: ${url}`)
+          }
+          return { format: context.format, source, shortCircuit: true }
+        },
+      })
+      return () => { hooks.deregister() }
+    }, 'protected module bytes')
     if (config.resolution === undefined) return
     this.current = config.resolution
     const interception = installRuntimeInterception(config.resolution)

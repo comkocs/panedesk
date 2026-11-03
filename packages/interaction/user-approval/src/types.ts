@@ -47,7 +47,7 @@ declare module '@panedesk/dsh-session/types' {
       toolName: string
       callId?: ToolCallId
       reason?: string
-      purpose?: WorkspaceWriteApproval
+      purpose?: ApprovalPurpose
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
@@ -69,6 +69,17 @@ export interface WorkspaceWriteApproval {
   readonly workspace: string
 }
 
+/** Consent to one exact executable-input identity and digest, not general filesystem access. */
+export interface ProtectedInputApproval {
+  readonly type: 'protected-input'
+  readonly path: string
+  readonly previous: string
+  readonly current: string
+}
+
+/** Explicit owner decisions with purpose-specific consumers. */
+export type ApprovalPurpose = WorkspaceWriteApproval | ProtectedInputApproval
+
 /** Client-safe payload declared for the approval answerer waterfall. */
 export interface ApprovalRequestEvent {
   /** Agent identity projected to the corresponding Client Context in transit. */
@@ -79,8 +90,8 @@ export interface ApprovalRequestEvent {
   readonly callId?: ToolCallId
   /** Human-readable reason supplied by the asker. */
   readonly reason?: string
-  /** Persistent workspace consent; absence retains ordinary one-operation approval. */
-  readonly purpose?: WorkspaceWriteApproval
+  /** Exact owner-approved purpose; absence retains ordinary one-operation approval. */
+  readonly purpose?: ApprovalPurpose
   /** Localized presentation only; never persisted in approval audit events. */
   readonly displayReason?: { readonly en: string; readonly [locale: string]: string }
   /** Cancellation lifetime of the pending request. */

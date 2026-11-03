@@ -8,13 +8,14 @@
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { Context } from '@panedesk/cordis'
 import type { CollectedOutput, ShellExecSpec, ShellExecution, ShellRunResult } from '@panedesk/dsh-shell'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import { SANDBOX_UNAVAILABLE, SandboxProvider, SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, SandboxExecutionPolicy, SandboxMode, SandboxPolicy } from '@panedesk/dsh-sandbox'
-import { SandboxPolicyService } from '@panedesk/dsh-sandbox-policy'
+import { SandboxPolicyService, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { SandboxBashExecutor } from '@panedesk/dsh-bash-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
@@ -106,7 +107,20 @@ function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd(
 describe('the provider hand-off', () => {
   it.each(['kill', 'none'] as const)('hands protected inputs and writable workspace to the runner before Bash %s spawns', async (onExpiry) => {
     const { ctx, bash } = await setup({ mode: 'workspace-write', workspaceRoot: spillDir })
+    const home = mkdtempSync(join(tmpdir(), 'bash-handoff-owner-'))
+    onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
+    writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
+    const input = join(spillDir, 'plugin.mjs')
+    const integrity = new ProtectedInputIntegrity(spillDir, home)
+    integrity.observe(input)
+    integrity.grantWrite()
+    const profile: ProfileContext = {
+      name: 'test', dir: spillDir, patchPath: input, cwd: spillDir, home,
+      installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
+      telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+    }
     const providerContext = new Context()
+    providerContext.provide('profileContext', profile)
     await providerContext.plugin(LocalSandboxProvider, {})
     const provider = providerContext.sandbox
     if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
@@ -239,13 +253,13 @@ describe('the provider hand-off', () => {
   })
 
   it('hands the provider the exact bash argv and the per-call policy, and runs the returned argv', async () => {
-    const { bash, calls } = await setup()
+    const { ctx, bash, calls } = await setup()
     const result = await run(bash, bash.resolve({ command: 'echo \'a b\' "c\'d"' }))
     expect(result.stdout.text).toBe('a b c\'d\n')
     expect(result.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
     expect(calls).toEqual([{
       argv: ['bash', '-c', 'echo \'a b\' "c\'d"'],
-      policy: { mode: 'read-only', workspaceRoot: resolve(process.cwd()) },
+      policy: { mode: 'read-only', workspaceRoot: resolve(process.cwd()), protectedPaths: resolveProtectedPaths(ctx) },
     }])
   })
 
@@ -293,10 +307,10 @@ describe('the provider hand-off', () => {
   })
 
   it('workspace-write rides the policy, workspaceRoot falling back to process.cwd() when not configured', async () => {
-    const { bash, calls } = await setup({ mode: 'workspace-write' })
+    const { ctx, bash, calls } = await setup({ mode: 'workspace-write' })
     const result = await run(bash, bash.resolve({ command: 'true' }))
     expect(result.sandbox).toEqual({ mode: 'workspace-write', denied: false, enforcement: 'full' })
-    expect(calls[0]?.policy).toEqual({ mode: 'workspace-write', workspaceRoot: resolve(process.cwd()) })
+    expect(calls[0]?.policy).toEqual({ mode: 'workspace-write', workspaceRoot: resolve(process.cwd()), protectedPaths: resolveProtectedPaths(ctx) })
   })
 
   it('an explicit workspaceRoot on the policy wins', async () => {
@@ -463,18 +477,22 @@ describe('danger-full-access', () => {
 
 describe('per-call sandbox policy (the session and escalation carrier)', () => {
   it('exposes the configured default as the capability fact, and resolve() stamps it', async () => {
-    const { bash } = await setup()
+    const { ctx, bash } = await setup()
     expect(bash.sandboxMode).toBe('read-only')
-    expect(bash.resolve({ command: 'true' }).sandboxPolicy).toEqual(executionPolicy('read-only'))
+    expect(bash.resolve({ command: 'true' }).sandboxPolicy).toEqual({
+      ...executionPolicy('read-only'), protectedPaths: resolveProtectedPaths(ctx),
+    })
   })
 
   it('an explicit policy outranks the default at resolve(), and the wrap follows its mode and root', async () => {
-    const { bash, calls } = await setup()
+    const { ctx, bash, calls } = await setup()
     const explicit = executionPolicy('workspace-write', '/session/project')
     expect(bash.resolve({ command: 'true', sandboxPolicy: explicit }).sandboxPolicy).toEqual(explicit)
     await run(bash, bash.resolve({ command: 'true', sandboxPolicy: explicit }))
     await run(bash, bash.resolve({ command: 'true' }))
-    expect(calls.map(call => call.policy)).toEqual([explicit, executionPolicy('read-only')])
+    expect(calls.map(call => call.policy)).toEqual([
+      explicit, { ...executionPolicy('read-only'), protectedPaths: resolveProtectedPaths(ctx) },
+    ])
   })
 
   it('an escalated run reports the mode it ACTUALLY ran under', async () => {

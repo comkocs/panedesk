@@ -26,6 +26,9 @@ import { rgPath } from '@vscode/ripgrep'
 import { SpillLocator, SpillStore } from '@panedesk/dsh-spill'
 import type { SaveTextSpill, SpillRef } from '@panedesk/dsh-spill'
 import * as ToolFsSearch from '@panedesk/dsh-tool-fs-search'
+import SandboxPolicy, { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
 import {
   buildGlobCommand,
   buildGrepCommand,
@@ -204,6 +207,8 @@ async function setup(options: SetupOptions = {}) {
   ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof ctx.logger.warn
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
+  await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
   await ctx.plugin(FakeSubprocess)
   const subprocess = ctx.subprocess as FakeSubprocess
   if (options.spill === true) await ctx.plugin(FakeSpill)
@@ -212,8 +217,14 @@ async function setup(options: SetupOptions = {}) {
   return { ctx, subprocess, spill, fiber, warnings }
 }
 
-/** A stand-in agent whose session header carries the given cwd (and a stable id). */
-const agent = (cwd?: string) => ({ session: { header: { id: 'session-1', ...cwd !== undefined ? { cwd } : {} } } })
+/** A stand-in agent with a real session for cwd and policy projections. */
+const agent = (cwd?: string) => {
+  const id = SessionId('session-1')
+  return { session: Session.create(id, [], {
+    version: SESSION_FORMAT_VERSION, id, createdAt: 1, isSeeded: false,
+    ...cwd === undefined ? {} : { cwd },
+  }) }
+}
 
 let callCounter = 0
 function call(
@@ -261,6 +272,8 @@ describe('registration', () => {
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(ToolFsSearch, DEFAULT_CONFIG) // no subprocess service
     expect(ctx.tools.schemas()).toHaveLength(0)
   })
@@ -295,6 +308,20 @@ describe('registration', () => {
   })
 })
 
+describe('session search admission', () => {
+  it.each(['glob', 'grep'])('%s refuses a restricted session without a sandbox before spawning', async (name) => {
+    const { ctx, subprocess } = await setup()
+    const caller = agent('/sessions/restricted')
+    setSandboxMode(caller.session, 'read-only')
+    const result = await call(ctx, name, { pattern: '*' }, { agent: caller })
+    expect(result.isError).toBe(true)
+    expect(result.error).toMatchObject({ info: { code: 'SEARCH_FAILED' } })
+    expect(ctx.sandboxPolicy.resolve({ session: caller.session }).mode).toBe('read-only')
+    expect(subprocess.spawns).toHaveLength(0)
+    await ctx.fiber.dispose()
+  })
+})
+
 describe('config validation', () => {
   it('requires an explicit over-cap glob sampling choice', () => {
     expect(() => new ToolFsSearch.Config()).toThrow(/sampleOverCapGlobResults/)
@@ -317,6 +344,8 @@ describe('config validation', () => {
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(FakeSubprocess)
     await expect(ctx.plugin(ToolFsSearch, { ...DEFAULT_CONFIG, ...config })).rejects.toThrow(new RegExp(`tool-fs-search: ${name} must be a positive integer`))
   })
@@ -326,6 +355,8 @@ describe('config validation', () => {
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(FakeSubprocess)
     await expect(ctx.plugin(ToolFsSearch, {
       ...DEFAULT_CONFIG,

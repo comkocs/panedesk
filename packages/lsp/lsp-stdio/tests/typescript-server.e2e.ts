@@ -10,6 +10,8 @@ import { mkdtemp, mkdir, rm, writeFile, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import LocalFileSystem from '@panedesk/dsh-fs-local'
 import Lsp, { type LspQueryRequest, type LspQueryResult } from '@panedesk/dsh-lsp'
@@ -53,6 +55,8 @@ beforeAll(async () => {
   ].join('\n'))
 
   ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
   await ctx.plugin(Lsp)
   await ctx.plugin(LocalSubprocessRuntime)
   await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })

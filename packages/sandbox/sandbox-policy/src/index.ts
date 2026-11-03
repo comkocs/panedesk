@@ -25,7 +25,7 @@ import { Context, Service } from '@panedesk/cordis'
 import { z as zod } from 'zod'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
-import type { ToolCallId } from '@panedesk/dsh-llm'
+import { createUserMessage, type ToolCallId } from '@panedesk/dsh-llm'
 import type {} from '@panedesk/dsh-user-approval'
 import type { SandboxExecutionPolicy, SandboxMode } from '@panedesk/dsh-sandbox'
 import type { Session } from '@panedesk/dsh-session'
@@ -145,7 +145,8 @@ export class SandboxPolicyService extends Service {
     this.defaultMode = effective.mode
     this.defaultSource = effective.source
     this.windowsDefault = process.platform === 'win32' && effective.source === 'default'
-    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome(), () => resolveProtectedPaths(this.ctx))
+    this.workspaceAccess = new WorkspaceWriteAccess(resolveDshHome(), workspace => resolveProtectedPaths(this.ctx, workspace),
+      () => this.ctx.get('profileContext')?.dir)
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
 
     ctx.sessionProjections.register({
@@ -185,7 +186,7 @@ export class SandboxPolicyService extends Service {
     const explicit = request.mode ?? (session === undefined ? undefined : this.overrideOf(session))
     const mode = explicit ?? (this.windowsDefault && this.workspaceAccess.isAuthorized(workspaceRoot)
       ? 'workspace-write' : this.defaultMode)
-    const protectedPaths = resolveProtectedPaths(this.ctx)
+    const protectedPaths = resolveProtectedPaths(this.ctx, mode === 'workspace-write' ? workspaceRoot : undefined)
     return {
       mode,
       workspaceRoot,
@@ -228,7 +229,15 @@ export class SandboxPolicyService extends Service {
     }
     // An explicit policy change while the owner answers remains authoritative.
     if (session !== undefined && this.overrideOf(session) !== undefined) return this.resolve({ session })
-    await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal)
+    try {
+      await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal)
+    } catch (error) {
+      request.agent.inject(createUserMessage({
+        content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
+        source: { kind: 'user-approval' },
+      }))
+      throw error
+    }
     request.signal?.throwIfAborted()
     const granted = this.resolve(session === undefined ? {} : { session })
     const sandbox = this.ctx.get('sandbox')

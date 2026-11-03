@@ -1032,6 +1032,9 @@ importers:
       '@panedesk/dsh-api-session-controller':
         specifier: workspace:*
         version: link:../packages/api/session-controller
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../packages/boot/app-boot
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../packages/util/brand
@@ -2100,6 +2103,9 @@ importers:
       '@panedesk/cordis-plugin-timer':
         specifier: workspace:~
         version: link:../../../vendor/timer
+      '@panedesk/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
       '@panedesk/dsh-app-boot':
         specifier: workspace:*
         version: link:../app-boot
@@ -2109,6 +2115,9 @@ importers:
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../cmdline
+      '@panedesk/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
       '@types/babel__code-frame':
         specifier: ^7.27.0
         version: 7.27.0
@@ -2155,24 +2164,75 @@ importers:
       '@panedesk/dsh-agent':
         specifier: workspace:*
         version: link:../../core/agent
+      '@panedesk/dsh-agent-default-model':
+        specifier: workspace:*
+        version: link:../../core/agent-default-model
+      '@panedesk/dsh-agent-loop':
+        specifier: workspace:*
+        version: link:../../core/agent-loop
       '@panedesk/dsh-agent-loop-testkit':
         specifier: workspace:*
         version: link:../../test-support/agent-loop-testkit
+      '@panedesk/dsh-api-remote-access':
+        specifier: workspace:*
+        version: link:../../api/remote-access
+      '@panedesk/dsh-api-session-controller':
+        specifier: workspace:*
+        version: link:../../api/session-controller
+      '@panedesk/dsh-attachment-local':
+        specifier: workspace:*
+        version: link:../../attachment/attachment-local
       '@panedesk/dsh-bash-sandbox':
         specifier: workspace:*
         version: link:../../shell/bash-sandbox
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
+      '@panedesk/dsh-browser-use':
+        specifier: workspace:*
+        version: link:../../browser-use/browser-use
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
+      '@panedesk/dsh-client-file-upload':
+        specifier: workspace:*
+        version: link:../../client/file-upload
       '@panedesk/dsh-client-hmr':
         specifier: workspace:*
         version: link:../../client/hmr
       '@panedesk/dsh-client-modules':
         specifier: workspace:*
         version: link:../../client/modules
+      '@panedesk/dsh-commands':
+        specifier: workspace:*
+        version: link:../../interaction/commands
+      '@panedesk/dsh-cordis-host-runner':
+        specifier: workspace:*
+        version: link:../../extensions/cordis-host-runner
+      '@panedesk/dsh-credentials-local':
+        specifier: workspace:*
+        version: link:../../credentials/credentials-local
+      '@panedesk/dsh-experimental-agent-team':
+        specifier: workspace:*
+        version: link:../../experimental/agent-team
+      '@panedesk/dsh-experimental-browser-use-stagehand-native':
+        specifier: workspace:*
+        version: link:../../experimental/browser-use-stagehand-native
+      '@panedesk/dsh-experimental-tool-agent-team':
+        specifier: workspace:*
+        version: link:../../experimental/tool-agent-team
+      '@panedesk/dsh-experimental-tool-worktree':
+        specifier: workspace:*
+        version: link:../../experimental/tool-worktree
+      '@panedesk/dsh-experimental-worktree':
+        specifier: workspace:*
+        version: link:../../experimental/worktree
       '@panedesk/dsh-fs-sandbox':
         specifier: workspace:*
         version: link:../../fs/fs-sandbox
+      '@panedesk/dsh-goal':
+        specifier: workspace:*
+        version: link:../../goal/goal
       '@panedesk/dsh-hmr':
         specifier: workspace:*
         version: link:../hmr
@@ -2182,12 +2242,42 @@ importers:
       '@panedesk/dsh-host-webserver':
         specifier: workspace:*
         version: link:../../host/webserver
+      '@panedesk/dsh-instruction-subscriptions':
+        specifier: workspace:*
+        version: link:../../context/instruction-subscriptions
+      '@panedesk/dsh-jobs':
+        specifier: workspace:*
+        version: link:../../jobs/jobs
+      '@panedesk/dsh-jobs-local':
+        specifier: workspace:*
+        version: link:../../jobs/jobs-local
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-lsp':
+        specifier: workspace:*
+        version: link:../../lsp/lsp
+      '@panedesk/dsh-lsp-stdio':
+        specifier: workspace:*
+        version: link:../../lsp/lsp-stdio
+      '@panedesk/dsh-mcp-resources':
+        specifier: workspace:*
+        version: link:../../mcp/mcp-resources
+      '@panedesk/dsh-message-delivery-local':
+        specifier: workspace:*
+        version: link:../../session/message-delivery-local
       '@panedesk/dsh-package-manifest':
         specifier: workspace:*
         version: link:../../util/package-manifest
+      '@panedesk/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../interaction/permission-presets
+      '@panedesk/dsh-plan-mode':
+        specifier: workspace:*
+        version: link:../../plan/plan-mode
+      '@panedesk/dsh-plugin-market':
+        specifier: workspace:*
+        version: link:../plugin-market
       '@panedesk/dsh-ptc-runtime':
         specifier: workspace:*
         version: link:../../ptc-runtime/ptc-runtime
@@ -2209,12 +2299,57 @@ importers:
       '@panedesk/dsh-sandbox-windows-acl':
         specifier: workspace:*
         version: link:../../sandbox/sandbox-windows-acl
+      '@panedesk/dsh-schedule':
+        specifier: workspace:*
+        version: link:../../schedule/schedule
+      '@panedesk/dsh-seat':
+        specifier: workspace:*
+        version: link:../../seat/seat
+      '@panedesk/dsh-seat-engine':
+        specifier: workspace:*
+        version: link:../../seat/seat-engine
+      '@panedesk/dsh-seat-local':
+        specifier: workspace:*
+        version: link:../../seat/seat-local
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-ledger':
+        specifier: workspace:*
+        version: link:../../session/session-ledger
+      '@panedesk/dsh-session-persistence-jsonl':
+        specifier: workspace:*
+        version: link:../../session/session-persistence-jsonl
       '@panedesk/dsh-session-projection':
         specifier: workspace:*
         version: link:../../session/session-projection
+      '@panedesk/dsh-session-query-sqlite':
+        specifier: workspace:*
+        version: link:../../session-query/session-query-sqlite
+      '@panedesk/dsh-session-title':
+        specifier: workspace:*
+        version: link:../../session/session-title
+      '@panedesk/dsh-shell-env':
+        specifier: workspace:*
+        version: link:../../shell/shell-env
+      '@panedesk/dsh-skill':
+        specifier: workspace:*
+        version: link:../../skill/skill
+      '@panedesk/dsh-skill-filesystem':
+        specifier: workspace:*
+        version: link:../../skill/skill-filesystem
+      '@panedesk/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@panedesk/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@panedesk/dsh-storage-json':
+        specifier: workspace:*
+        version: link:../../storage/storage-json
+      '@panedesk/dsh-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/subagent
       '@panedesk/dsh-subprocess':
         specifier: workspace:*
         version: link:../../subprocess/subprocess
@@ -2230,21 +2365,114 @@ importers:
       '@panedesk/dsh-terminal-bash':
         specifier: workspace:*
         version: link:../../terminal/terminal-bash
+      '@panedesk/dsh-tool-ask-user':
+        specifier: workspace:*
+        version: link:../../interaction/tool-ask-user
+      '@panedesk/dsh-tool-bash':
+        specifier: workspace:*
+        version: link:../../shell/tool-bash
+      '@panedesk/dsh-tool-bash-persistent':
+        specifier: workspace:*
+        version: link:../../shell/tool-bash-persistent
+      '@panedesk/dsh-tool-cordis':
+        specifier: workspace:*
+        version: link:../../extensions/tool-cordis
       '@panedesk/dsh-tool-fs':
         specifier: workspace:*
         version: link:../../fs/tool-fs
+      '@panedesk/dsh-tool-fs-search':
+        specifier: workspace:*
+        version: link:../../fs/tool-fs-search
+      '@panedesk/dsh-tool-goal':
+        specifier: workspace:*
+        version: link:../../goal/tool-goal
+      '@panedesk/dsh-tool-jobs':
+        specifier: workspace:*
+        version: link:../../jobs/tool-jobs
+      '@panedesk/dsh-tool-lsp':
+        specifier: workspace:*
+        version: link:../../lsp/tool-lsp
+      '@panedesk/dsh-tool-present':
+        specifier: workspace:*
+        version: link:../../deliverables/tool-present
+      '@panedesk/dsh-tool-pwsh':
+        specifier: workspace:*
+        version: link:../../shell/tool-pwsh
+      '@panedesk/dsh-tool-pwsh-persistent':
+        specifier: workspace:*
+        version: link:../../shell/tool-pwsh-persistent
+      '@panedesk/dsh-tool-ralph':
+        specifier: workspace:*
+        version: link:../../experimental/tool-ralph
+      '@panedesk/dsh-tool-schedule':
+        specifier: workspace:*
+        version: link:../../schedule/tool-schedule
+      '@panedesk/dsh-tool-seat':
+        specifier: workspace:*
+        version: link:../../seat/tool-seat
+      '@panedesk/dsh-tool-seat-messages':
+        specifier: workspace:*
+        version: link:../../session/tool-seat-messages
+      '@panedesk/dsh-tool-session-query':
+        specifier: workspace:*
+        version: link:../../experimental/tool-session-query
+      '@panedesk/dsh-tool-skill':
+        specifier: workspace:*
+        version: link:../../skill/tool-skill
       '@panedesk/dsh-tool-str-replace-editor':
         specifier: workspace:*
         version: link:../../fs/tool-str-replace-editor
+      '@panedesk/dsh-tool-subagent':
+        specifier: workspace:*
+        version: link:../../subagent/tool-subagent
+      '@panedesk/dsh-tool-subagent-control':
+        specifier: workspace:*
+        version: link:../../subagent/tool-subagent-control
+      '@panedesk/dsh-tool-terminal':
+        specifier: workspace:*
+        version: link:../../experimental/tool-terminal
+      '@panedesk/dsh-tool-todo':
+        specifier: workspace:*
+        version: link:../../todo/tool-todo
+      '@panedesk/dsh-tool-web':
+        specifier: workspace:*
+        version: link:../../web/tool-web
+      '@panedesk/dsh-tool-workflow':
+        specifier: workspace:*
+        version: link:../../workflow/tool-workflow
+      '@panedesk/dsh-tool-working-directory':
+        specifier: workspace:*
+        version: link:../../session/tool-working-directory
+      '@panedesk/dsh-tool-workspace-dependencies':
+        specifier: workspace:*
+        version: link:../../skill/tool-workspace-dependencies
       '@panedesk/dsh-tools':
         specifier: workspace:*
         version: link:../../core/tools
       '@panedesk/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
+      '@panedesk/dsh-typert-registry':
+        specifier: workspace:*
+        version: link:../../typert/registry
       '@panedesk/dsh-user-approval':
         specifier: workspace:*
         version: link:../../interaction/user-approval
+      '@panedesk/dsh-user-questions':
+        specifier: workspace:*
+        version: link:../../interaction/user-questions
+      '@panedesk/dsh-web':
+        specifier: workspace:*
+        version: link:../../web/web
+      '@panedesk/dsh-workflow-ptc':
+        specifier: workspace:*
+        version: link:../../workflow/workflow-ptc
+      '@panedesk/dsh-working-directory':
+        specifier: workspace:*
+        version: link:../../session/working-directory
+      '@panedesk/dsh-workspace':
+        specifier: workspace:*
+        version: link:../../workspace/workspace
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
@@ -2975,6 +3203,9 @@ importers:
       '@panedesk/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../api/gateway
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-fs':
         specifier: workspace:*
         version: link:../../fs/fs
@@ -2984,9 +3215,21 @@ importers:
       '@panedesk/dsh-permission-presets':
         specifier: workspace:*
         version: link:../../interaction/permission-presets
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-session-query':
         specifier: workspace:*
         version: link:../../session-query/session-query
@@ -3978,6 +4221,9 @@ importers:
       '@panedesk/cordis-plugin-loader':
         specifier: workspace:~
         version: link:../../../vendor/loader
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-client-store':
         specifier: workspace:*
         version: link:../store
@@ -11922,12 +12168,21 @@ importers:
       '@panedesk/dsh-output-retention':
         specifier: workspace:*
         version: link:../../util/output-retention
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-spill':
         specifier: workspace:*
         version: link:../../spill/spill
@@ -12531,6 +12786,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-commands':
         specifier: workspace:*
         version: link:../commands
@@ -12602,12 +12860,24 @@ importers:
       '@panedesk/dsh-api-gateway':
         specifier: workspace:*
         version: link:../../api/gateway
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-sandbox-windows-acl':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-windows-acl
       '@panedesk/dsh-scope':
         specifier: workspace:*
         version: link:../../core/scope
@@ -13211,6 +13481,9 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
 
   packages/lsp/lsp-stdio:
     dependencies:
@@ -13239,6 +13512,18 @@ importers:
       '@panedesk/dsh-lsp':
         specifier: workspace:*
         version: link:../lsp
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-subprocess':
         specifier: workspace:*
         version: link:../../subprocess/subprocess
@@ -13285,9 +13570,15 @@ importers:
       '@panedesk/dsh-lsp-stdio':
         specifier: workspace:*
         version: link:../lsp-stdio
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-subprocess-local':
         specifier: workspace:*
         version: link:../../subprocess/subprocess-local
@@ -13644,6 +13935,9 @@ importers:
 
   packages/sandbox/sandbox-local:
     dependencies:
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
@@ -15601,6 +15895,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-bash-local':
         specifier: workspace:*
         version: link:../bash-local
@@ -15653,6 +15950,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-pwsh-local':
         specifier: workspace:*
         version: link:../pwsh-local
@@ -16138,6 +16438,15 @@ importers:
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-system-prompt':
         specifier: workspace:*
         version: link:../../core/system-prompt

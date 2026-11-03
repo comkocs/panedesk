@@ -28,6 +28,8 @@ import type { RetainedItems } from '@panedesk/dsh-output-retention'
 import type { SubprocessHandle, SubprocessOutcome, SubprocessOutputRead, SubprocessSpawnSpec } from '@panedesk/dsh-subprocess'
 import type { SaveTextSpill, SpillRef } from '@panedesk/dsh-spill'
 import type { ToolExecution } from '@panedesk/dsh-tools'
+import type {} from '@panedesk/dsh-sandbox'
+import type {} from '@panedesk/dsh-sandbox-policy'
 
 /**
  * Default cap on the complete raw `rg` stdout the tools will parse (the
@@ -191,10 +193,10 @@ export function resolveRgPath(): Promise<string> {
  * (`@panedesk/dsh-tool-call-timeout-policy`) and caller cancellation terminate the
  * process tree.
  *
- * The spawn is unconfined (a plain `ctx.subprocess` call), so `--no-config`
- * is prepended: a host `RIPGREP_CONFIG_PATH` (or `rg.conf` next to the
- * binary) can otherwise inject `--pre` and make ripgrep execute an arbitrary
- * preprocessor for every matched file. The collect dispositions are the
+ * Restricted session policies require `sandbox.confine` before spawning;
+ * missing or failed confinement prevents execution. Explicit full-access
+ * policies run directly. `--no-config` prevents host ripgrep configuration
+ * from injecting `--pre` and executing an arbitrary file preprocessor. The collect dispositions are the
  * seam's diagnostic-tail shape (no spill files): the tools never read a raw
  * spill path, and truncated stdout fails as `SEARCH_RAW_OUTPUT_OVERFLOW`.
  *
@@ -236,8 +238,17 @@ export async function runRipgrep(
     : await ctx.workingDirectory.ensure(exec.agent, exec.signal)
   let handle: SubprocessHandle
   try {
+    const command = [await resolveRgPath(), '--no-config', ...argv]
+    const policy = ctx.sandboxPolicy.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
+    let confined = command
+    if (policy.mode !== 'danger-full-access') {
+      const sandbox = ctx.get('sandbox')
+      if (sandbox === undefined) throw new Error('Search confinement requires a sandbox provider')
+      confined = (await sandbox.confine(command, { ...policy, mode: policy.mode }, exec.signal)).argv
+    }
+    exec.signal.throwIfAborted()
     handle = ctx.subprocess.spawn({
-      argv: [await resolveRgPath(), '--no-config', ...argv],
+      argv: confined,
       cwd: workdir,
       stdio: {
         stdin: 'ignore',

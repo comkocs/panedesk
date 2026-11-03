@@ -7,8 +7,10 @@
  * runner.spec.ts on win32 hosts.
  */
 
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { describe, expect, it, vi } from 'vitest'
+import { join } from 'node:path'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
@@ -25,6 +27,14 @@ async function setup(internals: LocalSandboxProvider['internals']) {
 }
 
 describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
+  let ownerState: string
+  beforeEach(() => {
+    const home = mkdtempSync(join(tmpdir(), 'provider-chain-owner-'))
+    vi.stubEnv('PANEDESK_HOME', home)
+    ownerState = join(home, 'windows-workspace-write')
+    mkdirSync(ownerState)
+    onTestFinished(() => { vi.unstubAllEnvs(); rmSync(home, { recursive: true, force: true }) })
+  })
   it('agentless workspace-write: runner argv prefix, temp root, mode flag, partial enforcement, ACL denial dialect', async () => {
     const probeWindowsAcl = vi.fn(() => true)
     const sandbox = await setup({
@@ -38,6 +48,7 @@ describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
       '--workspace', '/ws',
       '--temp', tmpdir(),
       '--mode', 'workspace-write',
+      '--protected-path', ownerState,
       '--',
       'pwsh', '/Command', 'x',
     ])

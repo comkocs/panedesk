@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import WebRuntime from '@panedesk/dsh-web'
 import { ExaSearchProvider, EXA_PROVIDER_ID } from '@panedesk/dsh-web-search-exa'
@@ -86,6 +89,26 @@ describe('ExaSearchProvider availability', () => {
 })
 
 describe('ExaSearchProvider request mapping', () => {
+  it('returns search results in memory without honoring a file destination', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'search-no-file-output-'))
+    onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+    const target = join(root, 'protected.txt')
+    writeFileSync(target, 'original')
+    const requests: RequestInit[] = []
+    vi.stubGlobal('fetch', async (_input: string | URL | Request, init?: RequestInit) => {
+      if (init !== undefined) requests.push(init)
+      return jsonResponse({ results: [{ url: 'https://result.invalid/', highlights: ['retrieved'] }] })
+    })
+    const request = { query: 'fixture', file_path: target, output_path: target }
+    const result = await new ExaSearchProvider(options).search(request)
+    expect(result.sources).toHaveLength(1)
+    expect(requests).toHaveLength(1)
+    const body = requests[0]?.body
+    if (typeof body !== 'string') throw new Error('Expected a serialized search request')
+    expect(body).not.toContain(target)
+    expect(readFileSync(target, 'utf8')).toBe('original')
+    expect(readdirSync(root)).toEqual(['protected.txt'])
+  })
   it('sends query, type, highlights, numResults and bearer auth', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ results: [{ url: 'https://a.test', highlights: ['hi'] }] }))
     vi.stubGlobal('fetch', fetchMock)

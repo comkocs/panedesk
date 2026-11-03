@@ -33,13 +33,14 @@ import {
   probe as defaultProbeLandlock,
 } from '@panedesk/node-addon-system/landlock-run'
 import { Context } from '@panedesk/cordis'
+import { protectedInputCovered } from '@panedesk/dsh-app-boot'
 import z from '@panedesk/schemastery'
 import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxExecutionPolicy, SandboxPolicy } from '@panedesk/dsh-sandbox'
 import type { SessionId } from '@panedesk/dsh-session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, registerAclDiagnosisSkill, tempWriteSid, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
 import { assertNever } from '@panedesk/dsh-util-values'
-import { WorkspaceWriteAccess } from '@panedesk/dsh-sandbox-policy'
+import { WorkspaceWriteAccess, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { bwrapProfileArgs, landlockProfileArgs, protectedInputRecords, seatbeltProfileArgs } from './profiles.ts'
 import { protectAclInputs } from './protected-acl.ts'
@@ -276,6 +277,7 @@ export class LocalSandboxProvider extends SandboxProvider {
    * dispose).
    */
   private readonly workspaceGrants = new Map<string, AclWriteGrant>()
+  private readonly workspaceProtectedPaths = new Map<string, Set<string>>()
   private readonly tempCapabilities = new Map<string, AclTempCapability>()
   private readonly workspaceAccess: WorkspaceWriteAccess
 
@@ -329,34 +331,66 @@ export class LocalSandboxProvider extends SandboxProvider {
    */
   async confine(argv: readonly string[], policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
     signal?.throwIfAborted()
-    policy = {
-      ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
-      protectedPaths: [...new Set([...policy.protectedPaths ?? [], ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? []])],
-    }
+    policy = this.protectedPolicy(policy)
     if (this.runnerCommand !== undefined) {
-      const protectedInputs = protectedInputRecords(policy, 'bwrap')
+      const protectedInputs = this.coveredInputs(policy, 'bwrap')
       return Promise.resolve<ConfinedArgv>({
         argv: [...this.runnerCommand, ...bwrapProfileArgs(policy), '--', ...argv],
-        enforcement: protectedInputs.some(input => input.enforcement === 'host-fallback') ? 'partial' : 'full',
+        enforcement: 'full',
         protectedInputs,
         denialSignatures: DENIAL_SIGNATURES.runnerCommand,
         runnerFailureRules: [{ fatalSignatures: this.configuredRunnerFailureSignatures }],
       })
     }
     const selected = this.selectRunner(policy.mode)
+    const protectedInputs = this.coveredInputs(policy, selected.runner)
     const resolvedPolicy = policy
     const runnerArgv = selected.runner === 'windows-acl' && policy.requiresWorkspaceAuthorization
       ? await this.workspaceAccess.withAuthorization(policy.workspaceRoot,
         () => this.runnerArgv(selected.runner, resolvedPolicy), signal)
       : this.runnerArgv(selected.runner, policy)
-    const protectedInputs = protectedInputRecords(policy, selected.runner)
     return Promise.resolve<ConfinedArgv>({
       argv: [...runnerArgv, '--', ...argv],
-      enforcement: protectedInputs.some(input => input.enforcement === 'host-fallback') ? 'partial' : selected.enforcement,
+      enforcement: selected.enforcement,
       protectedInputs,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
       runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
     })
+  }
+
+  override inspect(policy: SandboxPolicy): Pick<ConfinedArgv, 'enforcement' | 'protectedInputs'> {
+    policy = this.protectedPolicy(policy)
+    const selected: SelectedRunner = this.runnerCommand === undefined
+      ? this.selectRunner(policy.mode) : { runner: 'bwrap', enforcement: 'full' }
+    if (selected.runner === 'windows-acl' && policy.mode === 'workspace-write') {
+      assertTempRootOutsideWorkspace(policy.workspaceRoot, tmpdir())
+    }
+    const protectedInputs = this.coveredInputs(policy, selected.runner)
+    if (selected.runner === 'landlock') landlockProfileArgs(policy)
+    return { enforcement: selected.enforcement, protectedInputs }
+  }
+
+  private protectedPolicy(policy: SandboxPolicy): SandboxPolicy {
+    return {
+      ...policy, workspaceRoot: canonicalPath(policy.workspaceRoot),
+      protectedPaths: [...new Set([
+        ...policy.protectedPaths ?? [],
+        ...this.ctx.get('sandboxPolicy')?.resolve().protectedPaths ?? [],
+        ...resolveProtectedPaths(this.ctx, policy.mode === 'workspace-write' ? policy.workspaceRoot : undefined),
+      ])],
+    }
+  }
+
+  private coveredInputs(policy: SandboxPolicy, runner: SelectedRunner['runner']) {
+    const inputs = protectedInputRecords(policy, runner)
+    const profile = this.ctx.get('profileContext')
+    const uncovered = inputs.filter(input => input.enforcement === 'host-fallback'
+      && (profile === undefined || !protectedInputCovered(profile, input.path)))
+    if (uncovered.length) {
+      throw new SandboxUnavailableError(policy.mode,
+        `Protected host input has no fallback coverage: ${uncovered.map(input => input.path).join(', ')}. Restore owner-approved host input coverage before retrying.`)
+    }
+    return inputs
   }
 
   /**
@@ -382,6 +416,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     const grant = cached ?? AclWriteGrant.create(workspaceWriteSid(root))
     try {
       grant.revoke(root)
+      const paths = this.workspaceProtectedPaths.get(root) ?? new Set<string>()
+      for (const path of paths) grant.revoke(path)
+      this.workspaceProtectedPaths.delete(root)
       this.workspaceGrants.delete(root)
     } finally {
       if (cached === undefined || !this.workspaceGrants.has(root)) grant.dispose()
@@ -503,7 +540,9 @@ export class LocalSandboxProvider extends SandboxProvider {
     }
     const workspaceGrant = this.workspaceGrants.get(workspaceRoot)
     if (workspaceGrant === undefined) throw new Error('Workspace capability was not materialized')
-    protectAclInputs(workspaceGrant, workspaceRoot, protectedPaths)
+    const protectedGrants = this.workspaceProtectedPaths.get(workspaceRoot) ?? new Set<string>()
+    this.workspaceProtectedPaths.set(workspaceRoot, protectedGrants)
+    protectAclInputs(workspaceGrant, workspaceRoot, protectedPaths, (path) => { protectedGrants.add(path) })
     const key = JSON.stringify([String(sessionId), workspaceRoot])
     const existing = this.tempCapabilities.get(key)
     if (existing !== undefined) return existing

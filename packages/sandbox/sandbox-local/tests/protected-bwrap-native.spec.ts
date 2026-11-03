@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { Context } from '@panedesk/cordis'
+import { coveredContext } from './host-coverage-fixture.ts'
 import { expect, it, onTestFinished } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs } from '../src/profiles.ts'
@@ -40,7 +40,9 @@ for (const [action, command] of actions) it(`native bwrap protected inputs: ${ac
   const original = existsSync(input) ? lstatSync(input) : undefined
   const originalParent = lstatSync(parent)
   const originalTarget = lstatSync(target)
-  const ctx = new Context()
+  const missingAncestor = join(workspace, 'missing')
+  const nestedInput = join(missingAncestor, 'ancestor', 'config.yml')
+  const ctx = coveredContext(workspace, input, nestedInput)
   onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
@@ -57,8 +59,6 @@ for (const [action, command] of actions) it(`native bwrap protected inputs: ${ac
     expect(startup.status, startup.stderr).toBe(0)
     expect(existsSync(input)).toBe(false)
     expect(handed.protectedInputs).toContainEqual({ path: input, enforcement: 'host-fallback', reason: 'unrepresentable' })
-    const missingAncestor = join(workspace, 'missing')
-    const nestedInput = join(missingAncestor, 'ancestor', 'config.yml')
     const nested = await provider.confine(['/bin/true'], {
       mode: 'workspace-write', workspaceRoot: workspace, protectedPaths: [nestedInput],
     })

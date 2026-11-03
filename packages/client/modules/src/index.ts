@@ -33,6 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { Service } from '@panedesk/cordis'
 import type { Context } from '@panedesk/cordis'
 import type { Entry } from '@panedesk/cordis-plugin-loader'
+import type {} from '@panedesk/dsh-app-boot/profile-context'
 import type { IndexInjection } from '@panedesk/dsh-host-webserver'
 import { exactPackageSpecifier, parseDshClient, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootBatch, WebBootBatchPhase, WebBootEntry, WebBootGraph, WebBootRelease } from './client/manifest.ts'
@@ -320,10 +321,10 @@ function comboScript(input: string, sourceMapUrl?: string): Buffer {
 }
 
 /** Read and parse an optional source map when its combo-map endpoint is requested. */
-function readSourceMap(clientPath: string): Record<string, unknown> | undefined {
+function readSourceMap(clientPath: string, read: (path: string) => Buffer): Record<string, unknown> | undefined {
   let body: Buffer
   try {
-    body = readFileSync(`${clientPath}.map`)
+    body = read(`${clientPath}.map`)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
     throw error
@@ -741,7 +742,7 @@ export class ClientModuleRegistry extends Service {
   /**
    * Publish one completed bundle generation (the HMR watch's registration
    * hook — the only entry point through which build changes reach the graph).
-   * Unchanged mtime, ctime and size preserve the graph without reading the bundle.
+   * Unchanged mtime, ctime and size preserve the graph; protected trees are still verified.
    * @param id - entry id (package name).
    * @returns the current artifact rev, or undefined for an unknown id.
    */
@@ -750,8 +751,9 @@ export class ClientModuleRegistry extends Service {
     if (record === undefined) return undefined
     const baseline = this.captureArtifactBaseline(record.meta.clientPath)
     const rev = artifactRevision(baseline)
+    const protectedBundle = this.protectedArtifact(record.meta.clientPath)
     if (rev === record.entry.rev) return rev
-    const bundle = readFileSync(record.meta.clientPath)
+    const bundle = protectedBundle ?? readFileSync(record.meta.clientPath)
     record.baseline = baseline
     record.entry = graphRow(id, rev, record.meta)
     record.bundle = bundle
@@ -872,7 +874,7 @@ export class ClientModuleRegistry extends Service {
       return null
     }
     const { packageName, path: pkgPath } = located
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
+    const pkg = JSON.parse((this.protectedArtifact(pkgPath) ?? readFileSync(pkgPath)).toString('utf8')) as Record<string, unknown>
     const dsh = pkg.dsh
     const decl = parseDshClient(
       packageName,
@@ -950,12 +952,15 @@ export class ClientModuleRegistry extends Service {
     expectedPackageName?: string,
   ): { path: string; packageName: string } | undefined {
     if (!moduleUrl.startsWith('file:')) return undefined
-    let dir = dirname(fileURLToPath(moduleUrl))
+    const modulePath = fileURLToPath(moduleUrl)
+    this.protectedArtifact(modulePath)
+    let dir = dirname(modulePath)
     while (true) {
       const candidate = join(dir, 'package.json')
       if (existsSync(candidate)) {
+        const verified = this.protectedArtifact(candidate)
         try {
-          const name = (JSON.parse(readFileSync(candidate, 'utf8')) as { name?: unknown }).name
+          const name = (JSON.parse((verified ?? readFileSync(candidate)).toString('utf8')) as { name?: unknown }).name
           if (typeof name === 'string' && (expectedPackageName === undefined || name === expectedPackageName)) {
             return { path: candidate, packageName: name }
           }
@@ -973,6 +978,20 @@ export class ClientModuleRegistry extends Service {
 
   private sourceKey(loaderName: string, baseUrl: string): string {
     return `${baseUrl}\0${loaderName}`
+  }
+
+  private protectedArtifact(clientPath: string): Buffer | undefined {
+    const profile = this.ctx.get('profileContext')
+    const records = new Set([...(profile?.inputIntegrities?.values() ?? []),
+      ...profile?.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+    let bytes: Buffer | undefined
+    for (const record of records) {
+      const candidate = record.readExecutable(clientPath)
+      if (candidate === undefined) continue
+      if (bytes !== undefined && !bytes.equals(candidate)) throw new Error('Protected client artifact records disagree')
+      bytes = candidate
+    }
+    return bytes
   }
 
   /** Capture the bundle stats before reading its bytes. */
@@ -999,7 +1018,7 @@ export class ClientModuleRegistry extends Service {
   } {
     try {
       const baseline = this.captureArtifactBaseline(clientPath)
-      const bundle = readFileSync(clientPath)
+      const bundle = this.protectedArtifact(clientPath) ?? readFileSync(clientPath)
       return { bundle, baseline }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
@@ -1010,7 +1029,7 @@ export class ClientModuleRegistry extends Service {
   /** Treat a missing, torn, or malformed development map as an identity section. */
   private readonly readSourceMap = (clientPath: string): Record<string, unknown> | undefined => {
     try {
-      return readSourceMap(clientPath)
+      return readSourceMap(clientPath, path => this.protectedArtifact(path) ?? readFileSync(path))
     } catch (error) {
       this.ctx.logger.warn(error)
       return undefined
@@ -1154,7 +1173,7 @@ export class ClientModuleRegistry extends Service {
       rev: record.entry.rev,
       clientPath,
       fileName,
-      bundle: await readFile(clientPath),
+      bundle: this.protectedArtifact(clientPath) ?? await readFile(clientPath),
     })
     const response: LazyResponse = sourceMap
       ? {

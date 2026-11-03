@@ -12,6 +12,8 @@ import AgentRegistry from '@panedesk/dsh-agent'
 import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRuntime from '@panedesk/dsh-tools'
 import { ToolCallId } from '@panedesk/dsh-llm'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import * as workspaceDependencies from '../src/index.ts'
 import { copyPrimaryRuntime, installPrimaryRuntime, parsePrimaryRuntime, readPrimaryRuntime, resolvePrimaryRuntime, workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../src/index.ts'
 
@@ -289,6 +291,100 @@ it.each([false, true])('ignores model-supplied installation source and target (i
     expect(await readPrimaryRuntime(install ? root : source)).toEqual(manifest)
     await expect(lstat(modelRoot)).rejects.toMatchObject({ code: 'ENOENT' })
     expect((await readPrimaryRuntime(alternate.source)).desktopVersion).toBe('99.0.0')
+  } finally { await ctx.fiber.dispose() }
+})
+
+it('denies replacing a protected profile inside the application-owned runtime target', async () => {
+  const { source, root, directory } = await fixture()
+  const profileDir = join(root, 'profiles', 'active')
+  const patchPath = join(profileDir, 'cordis.patch.yml')
+  await mkdir(profileDir, { recursive: true })
+  await writeFile(patchPath, 'protected profile\n')
+  const { ctx, execute } = await tool({ source, root })
+  try {
+    ctx.provide('profileContext', {
+      name: 'active', dir: profileDir, patchPath, home: join(directory, 'home'), cwd: directory,
+      installAnchor: join(directory, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    })
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'workspace-write', workspaceRoot: directory })
+    expect(ctx.sandboxPolicy.resolve().protectedPaths).toContain(profileDir)
+    const result = await execute()
+    expect(result.isError).toBe(true)
+    expect(await readFile(patchPath, 'utf8')).toBe('protected profile\n')
+  } finally { await ctx.fiber.dispose() }
+})
+
+it('denies removing a protected profile from the runtime recovery directory', async () => {
+  const { source, root, directory } = await fixture()
+  const profileDir = join(`${root}.previous`, 'profiles', 'active')
+  const patchPath = join(profileDir, 'cordis.patch.yml')
+  await mkdir(profileDir, { recursive: true })
+  await writeFile(patchPath, 'protected recovery profile\n')
+  const { ctx, execute } = await tool({ source, root })
+  try {
+    ctx.provide('profileContext', {
+      name: 'active', dir: profileDir, patchPath, home: join(directory, 'home'), cwd: directory,
+      installAnchor: join(directory, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    })
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'read-only', workspaceRoot: directory })
+    const result = await execute()
+    expect(result.isError).toBe(true)
+    expect(await readFile(patchPath, 'utf8')).toBe('protected recovery profile\n')
+    await expect(lstat(root)).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally { await ctx.fiber.dispose() }
+})
+
+it('rechecks protected inputs before returning a cached runtime installation', async () => {
+  const { source, root, directory } = await fixture()
+  const { ctx, execute } = await tool({ source, root })
+  try {
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'workspace-write', workspaceRoot: directory })
+    expect((await execute()).isError).toBe(false)
+    const profileDir = join(root, 'profiles', 'newly-active')
+    const patchPath = join(profileDir, 'cordis.patch.yml')
+    await mkdir(profileDir, { recursive: true })
+    await writeFile(patchPath, 'newly protected profile\n')
+    ctx.provide('profileContext', {
+      name: 'newly-active', dir: profileDir, patchPath, home: join(directory, 'home'), cwd: directory,
+      installAnchor: join(directory, 'package.json'), startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    })
+    expect((await execute()).isError).toBe(true)
+    expect(await readFile(patchPath, 'utf8')).toBe('newly protected profile\n')
+  } finally { await ctx.fiber.dispose() }
+})
+
+it.each(['read-only', 'workspace-write', 'danger-full-access'] as const)(
+  'permits the fixed application-owned runtime installation in %s mode', async (mode) => {
+    const { source, root, manifest, directory } = await fixture()
+    const { ctx, execute } = await tool({ source, root })
+    try {
+      await ctx.plugin(SessionProjectionRegistry)
+      await ctx.plugin(SandboxPolicy, { mode, workspaceRoot: directory })
+      const result = await execute()
+      expect(result.isError).toBe(false)
+      expect(await readPrimaryRuntime(root)).toEqual(manifest)
+    } finally { await ctx.fiber.dispose() }
+  },
+)
+
+it('preserves full-access runtime replacement even when its target contains a profile', async () => {
+  const { source, root, manifest, directory } = await fixture()
+  const profileDir = join(root, 'profiles', 'active')
+  await mkdir(profileDir, { recursive: true })
+  const { ctx, execute } = await tool({ source, root })
+  try {
+    ctx.provide('profileContext', {
+      name: 'active', dir: profileDir, patchPath: join(profileDir, 'cordis.patch.yml'),
+      home: join(directory, 'home'), cwd: directory, installAnchor: join(directory, 'package.json'),
+      startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    })
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access', workspaceRoot: directory })
+    expect((await execute()).isError).toBe(false)
+    expect(await readPrimaryRuntime(root)).toEqual(manifest)
   } finally { await ctx.fiber.dispose() }
 })
 

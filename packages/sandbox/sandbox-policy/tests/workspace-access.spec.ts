@@ -17,6 +17,12 @@ function fixture() {
 }
 
 describe('workspace write authorization records', () => {
+  it('refuses to store owner consent inside its writable workspace', async () => {
+    const { workspace } = fixture()
+    const access = new WorkspaceWriteAccess(join(workspace, 'owner-state'))
+    await expect(access.authorize(workspace, 'first-confirmation')).rejects.toThrow('outside the writable workspace')
+    expect(access.find(workspace)).toBeUndefined()
+  })
   it('records consent for a workspace containing protected inputs without authorizing those inputs', async () => {
     const { home, workspace } = fixture()
     const input = join(workspace, '.panedesk', 'cordis.patch.yml')

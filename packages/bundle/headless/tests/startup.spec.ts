@@ -75,6 +75,7 @@ export const apply = ctx => globalThis.__headlessStartupApply(ctx)
     '    task: !!js ctx.headlessStartup.task',
     '    sessionId: !!js ctx.headlessStartup.sessionId',
     '    json: !!js ctx.headlessStartup.json',
+    '    sandboxStatus: !!js ctx.headlessStartup.sandboxStatus',
     '- id: headless-startup',
     `  name: ${pathToFileURL(join(dir, 'startup.mjs')).href}`,
     '',
@@ -228,6 +229,21 @@ describe('headless command-line provider', () => {
 
   it('fails loud without the launcher command line and exit request', () => {
     expect(() => { apply(new Context()) }).toThrow('the launcher must provide ctx.cmdlineArgs and ctx.appExit')
+  })
+
+  it.each(['en', 'zh'])('accepts a task-free sandbox status request in %s', async (locale) => {
+    const { task, observed } = await bootStartup(['--sandbox-status', locale, '--json'], { stdinIsTty: true })
+    expect(task).toMatchObject({ sandboxStatus: locale, json: true })
+    expect(observed.runnerConfig).toMatchObject({ sandboxStatus: locale, json: true })
+    expect(observed.exits).toEqual([])
+    expect(observed.err).toBe('')
+  })
+
+  it('rejects unsupported sandbox status locales', async () => {
+    const { task, observed } = await bootStartup(['--sandbox-status', 'invalid', '--json'])
+    expect(task).toBeUndefined()
+    expect(observed.out).toContain('--sandbox-status expects en or zh')
+    expect(observed.exits).toEqual([1])
   })
 
   it('prints its own help and leaves the runner pending', async () => {

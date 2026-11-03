@@ -11,6 +11,7 @@
     "@panedesk/dsh-subprocess": "workspace:*",
     "@panedesk/dsh-llm-replay": "workspace:*",
     "@panedesk/cordis": "workspace:~",
+    "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-agent-loop": "workspace:*",
     "@panedesk/dsh-agent-loop-testkit": "workspace:*",

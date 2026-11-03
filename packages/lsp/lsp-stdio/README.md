@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `dsh-lsp-stdio` to give agents definitions, references, implementations, and hover from explicitly configured local language servers. It maps file extensions to language identifiers, starts one server per workspace on demand, and reads each queried file afresh without retaining document state between queries. Language-server processes and source reads share the mounted filesystem and subprocess environment. The package does not install servers or provide a sandbox: deployments supply commands, mappings, and any required confinement. Queries are serialized per server and workspace, while different workspaces can run in parallel.
+Use `dsh-lsp-stdio` for definitions, references, implementations, and hover from configured local language servers. It maps extensions to language identifiers, starts servers per workspace on demand, and rereads queried files without retaining document state. Language-server processes and source reads share the mounted filesystem and subprocess environment. The package does not install servers: deployments supply commands, mappings, sandbox policy, and a same-world sandbox provider for restricted execution. Restricted processes pass through `sandbox.confine` before launch; missing or failed confinement rejects the query without spawning. Queries are serialized per server and workspace, while different workspaces can run in parallel.
 
 ## Table of Contents
 
@@ -34,6 +34,9 @@ The `servers` record maps each stable provider id to one server command. The pro
 ```yaml
 - name: '@panedesk/dsh-fs-local'
 - name: '@panedesk/dsh-subprocess-local'
+- name: '@panedesk/dsh-session-projection'
+- name: '@panedesk/dsh-sandbox-policy'
+- name: '@panedesk/dsh-sandbox-local'
 - name: '@panedesk/dsh-lsp'
 - name: '@panedesk/dsh-lsp-stdio'
   config:
@@ -72,7 +75,7 @@ A successful navigation returns normalized locations, and hover returns normaliz
 
 ### Security boundary
 
-This provider trusts its configured server and adds no sandbox confinement; the server receives the filesystem and process authority of the mounted execution world. It rejects query sources that are missing, non-regular, non-UTF-8, oversized, or canonically outside the workspace before server startup. Result locations may point outside the workspace, but an external path can never become a query source. Mount filesystem and subprocess providers for the same execution world — a split-world composition is invalid.
+This provider resolves the calling Session's policy before launch; host calls without a Session use deployment policy. Only explicit `danger-full-access` bypasses confinement. A pooled process is reused only for the same Session object and complete resolved policy; a change disposes it before replacement. It rejects query sources that are missing, non-regular, non-UTF-8, oversized, or canonically outside the workspace before server startup. Result locations may point outside the workspace, but an external path can never become a query source. Mount filesystem and subprocess providers for the same execution world — a split-world composition is invalid.
 
 -----
 
@@ -143,7 +146,7 @@ No direct invalidation; `dsh-tool-lsp` owns request-prefix changes.
 
 These limits define when the provider is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
-- **No confinement policy** — this package trusts the configured server and does not sandbox its process; a restricted deployment must supply appropriate process and filesystem providers or a same-world sandbox wrapper.
+- **Policy changes take effect at the next query** — an idle pooled server retains its launch policy until another query replaces it or the provider is disposed. This provider does not implement immediate revocation of an already-running process. Filesystem, subprocess, and sandbox providers must share one execution world.
 - **Transient-open compatibility floor** — servers whose synchronization omits open/close (or advertises `None`) are unsupported even if closed-document queries would work; the pinned TypeScript e2e establishes one compatibility floor, not a cross-language claim.
 - **Per-server and per-workspace serialization latency** — parallel agents sharing one server and workspace queue behind one process; long-lived workspace processes consume memory until disposal.
 - **A hard-killed harness orphans language servers** — `initialize.processId: null` removes server-side client-PID monitoring, so servers are cleaned only by graceful service disposal; a SIGKILL'd harness leaves them running until they exit on their own.

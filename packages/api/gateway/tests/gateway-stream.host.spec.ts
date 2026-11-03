@@ -364,6 +364,37 @@ describe('Typert Remote streams', () => {
     await unregister()
   })
 
+  it('notifies owner readiness only after the opening frame and unregisters listeners', async () => {
+    const { ctx } = await setup(false)
+    const source = new RemoteEventSourceProbe()
+    const unregister = ctx.effect(() => ctx.typertGateway.registerRemoteEvents(source.source, REMOTE_HOST))
+    const ready = vi.fn()
+    const remove = ctx.typertGateway.onOwnerReady(ready)
+    const abort = new AbortController()
+    const events = await ctx.typertGateway.wireStream.open('$events', { args: {} },
+      (async function* () {})(), ownerPeer(ctx), abort.signal)
+    const iterator = events[Symbol.asyncIterator]()
+    try {
+      expect(ready).not.toHaveBeenCalled()
+      expect((await iterator.next()).value).toMatchObject({ type: 'ready' })
+      expect(ready).not.toHaveBeenCalled()
+      const pending = iterator.next()
+      await vi.waitFor(() => { expect(ready).toHaveBeenCalledOnce() })
+      await remove()
+      const late = vi.fn()
+      const cancel = ctx.typertGateway.onOwnerReady(late)
+      await vi.waitFor(() => { expect(late).toHaveBeenCalledOnce() })
+      await cancel()
+      abort.abort()
+      await pending
+    } finally {
+      await remove()
+      abort.abort()
+      await iterator.return?.()
+      await unregister()
+    }
+  })
+
   it('ignores cancelled event streams before their paused consumers finish cleanup', async () => {
     const { ctx } = await setup(false)
     const source = new RemoteEventSourceProbe()

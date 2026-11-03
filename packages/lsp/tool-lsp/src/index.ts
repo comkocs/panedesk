@@ -190,6 +190,7 @@ export function apply(ctx: Context, config: Config): void {
         filePath: input.filePath,
         position: input.position,
         workspaceRoot,
+        ...exec.agent === undefined ? {} : { session: exec.agent.session },
       }, exec.signal)
       switch (result.kind) {
         case 'locations':

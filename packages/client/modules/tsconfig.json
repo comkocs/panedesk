@@ -8,6 +8,7 @@
   },
   "include": ["src"],
   "references": [
+    {"path": "../../boot/app-boot"},
     {"path": "../../../vendor/cordis"},
     {"path": "../../../vendor/loader"},
     {"path": "../../host/webserver"},

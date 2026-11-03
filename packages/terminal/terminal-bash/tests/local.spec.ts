@@ -12,7 +12,7 @@ import TerminalSessionService from '@panedesk/dsh-terminal'
 import type { TerminalSendOperation } from '@panedesk/dsh-terminal'
 import SandboxProvider from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, SandboxPolicy } from '@panedesk/dsh-sandbox'
-import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
+import SandboxPolicyService, { resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import { resolvePwshPath } from '@panedesk/dsh-pwsh-local/src/resolve.ts'
@@ -209,7 +209,7 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     const created = await ctx.terminals.spawn(agent, { type: 'shell' })
     expect(sandbox.calls).toEqual([{
       argv: ['/bin/bash', '--noprofile', '--norc', '-i'],
-      policy: { mode: 'workspace-write', workspaceRoot: root, sessionId: 'agent-workspace-write' },
+      policy: { mode: 'workspace-write', workspaceRoot: root, sessionId: 'agent-workspace-write', protectedPaths: resolveProtectedPaths(ctx) },
     }])
     await fiber.dispose()
     expect(ctx.terminals.listBackends()).toEqual([])

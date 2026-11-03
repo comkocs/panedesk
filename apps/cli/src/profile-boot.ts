@@ -23,6 +23,8 @@ import {
   installFailLoud,
   loadOverlayPatches,
   loadProfile,
+  loadProfileDirectory,
+  ProtectedInputIntegrity,
   reportSkippedBundles,
   PluginPackages,
   PROFILE_PATCH_FILENAME,
@@ -231,12 +233,18 @@ async function composeProfile(
   patchFiles: readonly string[],
   fromDefaultProfile?: string,
   resolvedProfile?: ResolvedProfileRuntime,
+  integrity?: ProtectedInputIntegrity,
 ): Promise<ComposedProfile> {
-  const profile = resolvedProfile?.profile ?? prepareProfile(name, true, fromDefaultProfile)
+  const dir = resolvedProfile?.profile.dir ?? resolveProfileDir(name)
+  const profile = integrity?.covers(join(dir, 'package.json')) === true
+    ? loadProfileDirectory(NAME, dir, resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, { integrity })
+    : resolvedProfile?.profile ?? prepareProfile(name, true, fromDefaultProfile)
   if (resolvedProfile !== undefined) writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
-  const resolutionOptions = { installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, profile }
+  const resolutionOptions = { installAnchor: resolvedProfile?.installAnchor ?? INSTALL_ANCHOR, profile,
+    ...integrity === undefined ? {} : { integrity },
+  }
   const resolution = await createRuntimeResolution(resolutionOptions)
-  const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file)))
+  const overlays = patchFiles.flatMap(file => loadOverlayPatches(NAME, resolve(file), integrity))
   return { profile, resolution, overlays }
 }
 
@@ -296,8 +304,9 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     if (failures.length > 1) throw new AggregateError(failures, 'panedesk: profile cleanup failed')
   })()
   try {
+    const inputIntegrity = ProtectedInputIntegrity.openOwnerRecords(process.cwd(), resolveDshHome())
     const composed = await composeProfile(
-      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile,
+      options.profile, options.patchFiles, options.fromDefaultProfile, options.resolvedProfile, inputIntegrity,
     )
     const appReady = createAppReady()
     const shutdown = createProcessShutdown(dispose)
@@ -320,6 +329,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     const rootConfig = join(composed.profile.dir, PROFILE_ROOT_FILENAME)
     const profileContext: ProfileContext = {
       name: options.profile,
+      inputIntegrity,
       ...(options.packageManager === undefined ? {} : { packageManager: options.packageManager }),
       dir: composed.profile.dir, patchPath: composed.profile.patchPath,
       installAnchor: options.resolvedProfile?.installAnchor ?? INSTALL_ANCHOR,
@@ -330,6 +340,8 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     }
     const ctx = await boot(NAME, rootConfig, readProfilePatches(NAME, profileContext, composed.profile), async (hostCtx) => {
       app.current = hostCtx
+      profileContext.protectedInputPaths = () => hostCtx.get('sandboxPolicy')?.resolve().protectedPaths ?? []
+      profileContext.protectedWorkspaceRoot = () => hostCtx.get('sandboxPolicy')?.workspaceRoot ?? profileContext.cwd
       hostCtx.provide('profileContext', profileContext)
       // Before any config-tree entry mounts, so plugins resolve all launch-time
       // environment values from the same immutable launch snapshot.

@@ -404,7 +404,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@panedesk/dsh-tool-fs-search',
     dir: 'tool-fs-search',
     source: 'packages/fs/tool-fs-search/src/index.ts',
-    requires: ['ctx.workingDirectory', 'ctx.tools', 'ctx.subprocess', 'ctx.systemPrompt'],
+    requires: ['ctx.workingDirectory', 'ctx.tools', 'ctx.subprocess', 'ctx.systemPrompt', 'ctx.sandboxPolicy'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
       // The tools inject `subprocess` (search spawns the packaged ripgrep
@@ -413,10 +413,11 @@ const TOOL_PACKAGES: ToolPackage[] = [
       // optional (read via ctx.get) and does not affect the schemas, so no
       // spill backend is mounted.
       await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(SandboxPolicy)
       await ctx.plugin(ToolFsSearch, { sampleOverCapGlobResults: true })
     },
     note:
-      'glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments.',
+      'glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. Restricted session policies require ctx.sandbox confinement before spawning; missing or failed confinement refuses execution. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments.',
   },
   {
     pkg: '@panedesk/dsh-tool-terminal',

@@ -9,6 +9,12 @@
   ],
   "references": [
     {
+      "path": "../../sandbox/sandbox"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {

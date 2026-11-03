@@ -89,6 +89,18 @@ export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | '
   return (policy.protectedPaths ?? []).map((input) => {
     const path = resolve(input)
     if (policy.mode === 'read-only' || runner === 'landlock' || runner === 'seatbelt') return { path, enforcement: 'native' }
+    // bwrap omits its temporary mount when it overlaps a protected input.
+    const roots = runner === 'bwrap'
+      ? [canonicalPath(policy.workspaceRoot)] : writableRoots(policy)
+    if (!roots.some(root => contains(root, path))) {
+      let target: string
+      try { target = canonicalPath(path) }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code === undefined) throw error
+        return { path, enforcement: 'host-fallback', reason: 'unrepresentable' }
+      }
+      if (!roots.some(root => contains(root, target))) return { path, enforcement: 'native' }
+    }
     const canonical = mountPath(path)
     if (canonical === undefined || !existsSync(path)) return { path, enforcement: 'host-fallback', reason: 'unrepresentable' }
     if (canonical !== path) return { path, enforcement: 'host-fallback', reason: 'link-name' }

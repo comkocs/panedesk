@@ -26,10 +26,20 @@
   ],
   "license": "MIT",
   "peerDependencies": {
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   },
+  "peerDependenciesMeta": {
+    "@panedesk/dsh-sandbox-policy": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@panedesk/dsh-sandbox": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-tools": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/cordis-plugin-loader": "workspace:~",

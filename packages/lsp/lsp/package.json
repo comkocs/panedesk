@@ -29,11 +29,13 @@
   "peerDependencies": {
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-llm": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
     "@panedesk/cordis": "workspace:~"
   }
 }

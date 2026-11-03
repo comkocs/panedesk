@@ -54,6 +54,8 @@
     "@panedesk/cordis-plugin-include": "workspace:~",
     "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-cmdline": "workspace:*",
-    "@panedesk/dsh-atomic-write": "workspace:*"
+    "@panedesk/dsh-atomic-write": "workspace:*",
+    "@panedesk/dsh-agent": "workspace:*",
+    "@panedesk/dsh-user-approval": "workspace:*"
   }
 }

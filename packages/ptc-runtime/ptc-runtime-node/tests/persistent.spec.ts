@@ -157,6 +157,34 @@ describe('persistent Node REPL', () => {
     expect((await run('42')).value).toBe(42)
   })
 
+  it('does not terminate on control EOF before the provider publishes direct exit facts', async () => {
+    const { ctx, run } = await setup()
+    const spawn = ctx.subprocess.spawn.bind(ctx.subprocess)
+    const premature: string[] = []
+    const intercept = vi.spyOn(ctx.subprocess, 'spawn').mockImplementation((spec) => {
+      const handle = spawn(spec)
+      let published = false
+      const done = handle.done.then(async (outcome) => {
+        await setImmediate()
+        await setImmediate()
+        published = true
+        return outcome
+      })
+      return {
+        ...handle, done,
+        terminate: () => {
+          if (!published) premature.push('terminate before direct exit publication')
+          handle.terminate()
+        },
+      }
+    })
+    onTestFinished(() => { intercept.mockRestore() })
+    const result = await run('process.exit(7)')
+    expect(result.error?.kind).toBe('worker-exit')
+    expect(result.error?.message).toContain('Node process exited (7, signal null)')
+    expect(premature).toEqual([])
+  })
+
   it('isolates owners and uses fresh state when no owner is supplied', async () => {
     const { run, runtime, cwd } = await setup()
     const temporary = (program: string) => runtime.run(runtime.resolve({ program, bindings: [], cwd }))

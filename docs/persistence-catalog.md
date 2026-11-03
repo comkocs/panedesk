@@ -25,7 +25,7 @@ The [format references](persistence-changes/historical-formats/README.md) cover 
 | `event:agent-preset/selected` | event | `a10c17474eaf2ddab7095a099e0fe3d046fc18e56c3e344fc8894c05ff9ef97b` | [`{ type: "agent-preset/selected" }`](#persistence-type-sha256-a10c17474eaf2ddab7095a099e0fe3d046fc18e56c3e344fc8894c05ff9ef97b) |
 | `event:agent/inbox/spliced` | event | `50d8870c243f856efea4c7376cae8261e2474dae1032f7ef0f4855f25cab3d98` | [`{ type: "agent/inbox/spliced" }`](#persistence-type-sha256-50d8870c243f856efea4c7376cae8261e2474dae1032f7ef0f4855f25cab3d98) |
 | `event:agent/input/transition` | event | `b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf` | [`{ type: "agent/input/transition" }`](#persistence-type-sha256-b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf) |
-| `event:approval/asked` | event | `3cd6c45914d5c48606d1c426ff75610cc4d023aa0d430b0b0384dfa44e661381` | [`{ type: "approval/asked" }`](#persistence-type-sha256-3cd6c45914d5c48606d1c426ff75610cc4d023aa0d430b0b0384dfa44e661381) |
+| `event:approval/asked` | event | `bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d` | [`{ type: "approval/asked" }`](#persistence-type-sha256-bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d) |
 | `event:approval/decided` | event | `bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3` | [`{ type: "approval/decided" }`](#persistence-type-sha256-bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3) |
 | `event:approval/policy` | event | `26718e15e7e395bce9642dba5bbe09b3b1a4ce2213d20d566cd9207d7fc5fb78` | [`{ type: "approval/policy" }`](#persistence-type-sha256-26718e15e7e395bce9642dba5bbe09b3b1a4ce2213d20d566cd9207d7fc5fb78) |
 | `event:assistant/attempt` | event | `41f8c16d4681c4cd8b2f317262cc4c2d21ca65ab27514e7e8b75e4dc698316d2` | [`{ type: "assistant/attempt" }`](#persistence-type-sha256-41f8c16d4681c4cd8b2f317262cc4c2d21ca65ab27514e7e8b75e4dc698316d2) |
@@ -246,7 +246,7 @@ Source: [`packages/preset/agent-preset-registry/src/session.ts:31`](../packages/
   toolName: string
   callId?: ToolCallId
   reason?: string
-  purpose?: WorkspaceWriteApproval
+  purpose?: ApprovalPurpose
 }
 ```
 
@@ -292,7 +292,7 @@ Source: [`packages/interaction/user-approval/src/types.ts:57`](../packages/inter
 }
 ```
 
-Source: [`packages/interaction/user-approval/src/index.ts:42`](../packages/interaction/user-approval/src/index.ts)
+Source: [`packages/interaction/user-approval/src/index.ts:44`](../packages/interaction/user-approval/src/index.ts)
 
 ### `assistant/*`
 
@@ -755,7 +755,7 @@ Source: [`packages/api/session-controller/src/types.ts:47`](../packages/api/sess
 'permission/preset': { preset: string }
 ```
 
-Source: [`packages/interaction/permission-presets/src/index.ts:67`](../packages/interaction/permission-presets/src/index.ts)
+Source: [`packages/interaction/permission-presets/src/index.ts:68`](../packages/interaction/permission-presets/src/index.ts)
 
 ### `plan/*`
 
@@ -2480,6 +2480,14 @@ SHA-256: `0341d4c3dfcd53253cdc1e789d9130d3cd848b6f8b0706bf92f313a68b39ff23`
 
 `"product-interaction"`
 
+<a id="persistence-type-sha256-8011e4084a33e92fcc7813c4f0324d8bf798809c835ea5ccdb67306746439391"></a>
+
+### `"protected-input"`
+
+SHA-256: `8011e4084a33e92fcc7813c4f0324d8bf798809c835ea5ccdb67306746439391`
+
+`"protected-input"`
+
 <a id="persistence-type-sha256-e31572180d6b28b73f073ad30ae19d5d82982d3daf984723984e23da1e7c459a"></a>
 
 ### `"provider"`
@@ -3450,7 +3458,7 @@ One of:
 
 SHA-256: `05d2ae1e0c7f8770f83f9a09047afb39a335d8ac986df3193659aa1e581472cf`
 
-Sources: [`packages/interaction/user-approval/src/index.ts:69`](../packages/interaction/user-approval/src/index.ts)
+Sources: [`packages/interaction/user-approval/src/index.ts:71`](../packages/interaction/user-approval/src/index.ts)
 
 One of:
 
@@ -4855,6 +4863,25 @@ Sources: [`packages/typert/protocol/src/types.ts:457`](../packages/typert/protoc
 |---|---|---|
 | `kind` | required | `"owner"` |
 
+<a id="persistence-type-sha256-32a8550767c818517d211599e5a3a509848f3467ca65d84afd064d4642c305a3"></a>
+
+<a id="persistence-type-packagesinteractionuser-approvalsrctypestsprotectedinputapproval"></a>
+
+<a id="persistence-type-protectedinputapproval"></a>
+
+### `ProtectedInputApproval`
+
+SHA-256: `32a8550767c818517d211599e5a3a509848f3467ca65d84afd064d4642c305a3`
+
+Sources: [`packages/interaction/user-approval/src/types.ts:73`](../packages/interaction/user-approval/src/types.ts)
+
+| Property | Presence | Type |
+|---|---|---|
+| `current` | required | `string` |
+| `path` | required | `string` |
+| `previous` | required | `string` |
+| `type` | required | `"protected-input"` |
+
 <a id="persistence-type-sha256-cef171adf021a1867d244618a3dbbaafc22beb17c7f3df3ee203393271c8c6f6"></a>
 
 <a id="persistence-type-packagescoretoolssrctypestsptcdispatcheventdata"></a>
@@ -6153,6 +6180,17 @@ One of:
 - `"handoff"`
 - `"notice"`
 
+<a id="persistence-type-sha256-e848b23ba8a8ab806a54d435b01b716ad15505daba320ac5da088f98a9e2fb00"></a>
+
+### `union (2 variants)`
+
+SHA-256: `e848b23ba8a8ab806a54d435b01b716ad15505daba320ac5da088f98a9e2fb00`
+
+One of:
+
+- [`ProtectedInputApproval`](#persistence-type-sha256-32a8550767c818517d211599e5a3a509848f3467ca65d84afd064d4642c305a3)
+- [`WorkspaceWriteApproval`](#persistence-type-sha256-2c5476afbf05ee2303c6327348e52aedd060da73b9185ccbef42adae7bab2043)
+
 <a id="persistence-type-sha256-5776e5553ff2dfe3f5bc202dbb1e7c9f93e35a531aebb7764c23b2b6153b2ccc"></a>
 
 <a id="persistence-type-sessioneventenvelope"></a>
@@ -6383,11 +6421,11 @@ Sources: [`packages/deliverables/tool-present/src/types.ts:15`](../packages/deli
 | `files` | required | [`PresentedFile[]`](#persistence-type-sha256-1d9cb3caa96100b18b1911fa3ff8c751ef6992971a03c5f4d9aefc1a0004a345) |
 | `turn` | required | `number` |
 
-<a id="persistence-type-sha256-622e055ecf8925d84ad1a3c0885791cbd446ce4c9e2cbe771f6a2b318d1ef0a9"></a>
+<a id="persistence-type-sha256-017033450a7aea1469b60abdf3e7ca05a15e054f0af5e60588b8346b8d8025c3"></a>
 
 ### `{ callId?, id, purpose?, reason?, … }`
 
-SHA-256: `622e055ecf8925d84ad1a3c0885791cbd446ce4c9e2cbe771f6a2b318d1ef0a9`
+SHA-256: `017033450a7aea1469b60abdf3e7ca05a15e054f0af5e60588b8346b8d8025c3`
 
 Sources: [`packages/interaction/user-approval/src/types.ts:45`](../packages/interaction/user-approval/src/types.ts)
 
@@ -6395,7 +6433,7 @@ Sources: [`packages/interaction/user-approval/src/types.ts:45`](../packages/inte
 |---|---|---|
 | `callId` | optional | `string` |
 | `id` | required | `string` |
-| `purpose` | optional | [`WorkspaceWriteApproval`](#persistence-type-sha256-2c5476afbf05ee2303c6327348e52aedd060da73b9185ccbef42adae7bab2043) |
+| `purpose` | optional | [`union (2 variants)`](#persistence-type-sha256-e848b23ba8a8ab806a54d435b01b716ad15505daba320ac5da088f98a9e2fb00) |
 | `reason` | optional | `string` |
 | `toolName` | required | `string` |
 
@@ -8472,7 +8510,7 @@ Sources: [`packages/sandbox/sandbox-policy/src/session-mode.ts:33`](../packages/
 
 SHA-256: `11f70b595aa76897fc4e25a352bfa718c659f44b799e5aa14e84e5a38fe72912`
 
-Sources: [`packages/interaction/user-approval/src/index.ts:42`](../packages/interaction/user-approval/src/index.ts)
+Sources: [`packages/interaction/user-approval/src/index.ts:44`](../packages/interaction/user-approval/src/index.ts)
 
 | Property | Presence | Type |
 |---|---|---|
@@ -8485,7 +8523,7 @@ Sources: [`packages/interaction/user-approval/src/index.ts:42`](../packages/inte
 
 SHA-256: `8a9c990773f798eac10ca8878e6bcc531ee080bc589cac956730e462cc6a09ad`
 
-Sources: [`packages/interaction/permission-presets/src/index.ts:67`](../packages/interaction/permission-presets/src/index.ts)
+Sources: [`packages/interaction/permission-presets/src/index.ts:68`](../packages/interaction/permission-presets/src/index.ts)
 
 | Property | Presence | Type |
 |---|---|---|
@@ -8670,17 +8708,17 @@ SHA-256: `b9e10f1ac80ba67a20ba4c147c2c244eddec9d3cbe10152c65b8897bccdfbadf`
 | `time` | required | `number` |
 | `type` | required | `"agent/input/transition"` |
 
-<a id="persistence-type-sha256-3cd6c45914d5c48606d1c426ff75610cc4d023aa0d430b0b0384dfa44e661381"></a>
+<a id="persistence-type-sha256-bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d"></a>
 
 <a id="persistence-type-eventapprovalasked"></a>
 
 ### `{ type: "approval/asked" }`
 
-SHA-256: `3cd6c45914d5c48606d1c426ff75610cc4d023aa0d430b0b0384dfa44e661381`
+SHA-256: `bed5a8f779840c79899e36b28ce0246f886bc17d8f37353695fe594b6082eb4d`
 
 | Property | Presence | Type |
 |---|---|---|
-| `data` | required | [`{ callId?, id, purpose?, reason?, … }`](#persistence-type-sha256-622e055ecf8925d84ad1a3c0885791cbd446ce4c9e2cbe771f6a2b318d1ef0a9) |
+| `data` | required | [`{ callId?, id, purpose?, reason?, … }`](#persistence-type-sha256-017033450a7aea1469b60abdf3e7ca05a15e054f0af5e60588b8346b8d8025c3) |
 | `ignorable` | optional | `true` |
 | `seq` | required | `number` |
 | `time` | required | `number` |

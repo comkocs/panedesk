@@ -5,6 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { Context } from '@panedesk/cordis'
+import SandboxPolicy, { setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import { Session, SessionId, SESSION_FORMAT_VERSION } from '@panedesk/dsh-session'
 import Lsp, { type LspProvider, type LspQueryRequest, type LspQueryResult } from '@panedesk/dsh-lsp'
 import { deadline } from '@panedesk/dsh-timeout'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
@@ -48,6 +51,8 @@ async function mount(
   configureSubprocess?: (ctx: Context) => void,
 ): Promise<Context> {
   const ctx = new Context()
+  await ctx.plugin(SessionProjectionRegistry)
+  await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
   await ctx.plugin(Lsp)
   await ctx.plugin(LocalSubprocessRuntime)
   configureSubprocess?.(ctx)
@@ -79,9 +84,37 @@ function locationJson(line: number): unknown {
 }
 
 describe('lsp-stdio end to end over a fake server', () => {
+  it('replaces a pooled server before another session or restricted policy can use it', async () => {
+    const ctx = await mount({ LSP_FAKE_HOVER: JSON.stringify({ contents: 'ready' }) })
+    const spawn = vi.spyOn(ctx.subprocess, 'spawn')
+    const session = (name: string) => Session.create(SessionId(name), [], {
+      version: SESSION_FORMAT_VERSION, id: SessionId(name), createdAt: 1, isSeeded: false, cwd: ws,
+    })
+    const first = session('lsp-first')
+    const second = session('lsp-second')
+    try {
+      await ctx.lsp.query({ ...query('hover'), session: first })
+      await ctx.lsp.query({ ...query('hover'), session: first })
+      expect(spawn).toHaveBeenCalledTimes(1)
+      await ctx.lsp.query({ ...query('hover'), session: second })
+      expect(spawn).toHaveBeenCalledTimes(2)
+      setSandboxMode(second, 'read-only')
+      await expect(ctx.lsp.query({ ...query('hover'), session: second })).rejects.toThrow('LSP confinement requires a sandbox provider')
+      expect(spawn).toHaveBeenCalledTimes(2)
+      for (const result of spawn.mock.results) {
+        if (result.type !== 'return') throw new Error('Server spawn did not return a handle')
+        expect(await result.value.waitForExit()).toBe(true)
+      }
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('routes different extensions to independent configured servers', async () => {
     await writeFile(join(ws, 'a.py'), 'x = 1\n')
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -513,6 +546,8 @@ describe('lsp-stdio end to end over a fake server', () => {
     const ctx = new Context()
     const disposalErrors: unknown[] = []
     ctx.logger.error = ((error: unknown) => { disposalErrors.push(error) }) as typeof ctx.logger.error
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })
@@ -570,6 +605,8 @@ describe('lsp-stdio end to end over a fake server', () => {
 
   it('rejects at load when the command is not found', async () => {
     const ctx = new Context()
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(Lsp)
     await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(LocalFileSystem, { cwd: process.cwd() })

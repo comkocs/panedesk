@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.md
 /:
-  en: 7f0be6a09442fd74
+  en: b2a9b6a1bf211be5
   zh: 1fc3b8c30e25a79d
 /windows-workspace-write-access:
   en: 954cd39ce57fbdfd
   zh: cd1cb2658efaa234
 /windows-workspace-write-access/change:
-  en: 2ca88fcc7b1d6aed
-  zh: 799eb140bd191405
+  en: 53b619dc3809fcd6
+  zh: 1a47e4708f6afe62
 /windows-workspace-write-access/migration:
-  en: 81a462cfe085ea5f
-  zh: 05c1097f70134d93
+  en: 1b4c8a07a97a15fc
+  zh: b92dc420ead9b1fd

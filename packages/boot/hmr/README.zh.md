@@ -35,6 +35,8 @@ kind: "package-reference"
 
 已有配置将模块名 `@panedesk/cordis-plugin-hmr` 替换为 `@panedesk/dsh-hmr`。继续提供 `hmr` 服务键、`baseDir`、`config`、`getLinked()`、`getOuterStack()`、`hmr/change` 和 `hmr/reload`。工作区保留 vendored 包；DSH profile 使用本包。
 
+对于已授写权工作区内登记的输入，HMR 在重新加载前比较文件内容、目录树、链接目标与祖先路径身份；基线在授予工作区写权前捕获，并跨重启保持。候选版本变化须经过认证的 owner 确认；拒绝时保留运行中的版本。会话匹配使用其 cwd，未指定时使用启动器提供的策略工作区根。匹配的无人值守会话会收到被动收件提示，不启动模型轮次。确认仅针对展示的候选版本，不授予一般写权限。profile 持有的审核与重载回调共用 HMR 事务队列，因此刚就绪的 owner 可以确认保留的离线改动，不与监听器重载竞争；释放时移除这些回调。
+
 ### 配置
 
 | 字段 | 默认值 | 含义 |
@@ -91,11 +93,11 @@ Loader entry 保留原始导入结果。HMR 为每个 entry 名称与配置树 b
 
 #### 模型看到什么
 
-`ctx.hmr` 不添加模型工具或消息。加载后的插件决定后续工具和提示词贡献。
+`ctx.hmr` 不添加模型工具。受保护输入决定通过 [user-approval](../../interaction/user-approval/README.zh.md#model-experience) 排队被动消息；加载后的插件决定后续工具和提示词贡献。
 
 #### Token 影响
 
-没有直接的 token 贡献。
+受保护输入提示在后续模型步骤消费收件箱时贡献文本；不产生此类提示的重载不增加 token。
 
 #### KV Cache 影响
 

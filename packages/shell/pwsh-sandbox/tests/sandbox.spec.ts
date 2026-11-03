@@ -10,7 +10,8 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import { SandboxProvider, SandboxUnavailableError } from '@panedesk/dsh-sandbox'
 import type { ConfinedArgv, RunnerFailureRule, SandboxExecutionPolicy, SandboxPolicy } from '@panedesk/dsh-sandbox'
@@ -91,7 +92,20 @@ async function setup(
 
 it.each(['kill', 'none'] as const)('hands protected inputs and writable workspace to the runner before PowerShell %s spawns', async (onExpiry) => {
   const { ctx, executor } = await setup()
+  const home = mkdtempSync(join(tmpdir(), 'pwsh-handoff-owner-'))
+  writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
+  onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
+  const input = join(spillDir, 'plugin.mjs')
+  const integrity = new ProtectedInputIntegrity(spillDir, home)
+  integrity.observe(input)
+  integrity.grantWrite()
+  const profile: ProfileContext = {
+    name: 'test', dir: spillDir, patchPath: input, cwd: spillDir, home,
+    installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
+    telemetryDisabledEnv: undefined, inputIntegrity: integrity,
+  }
   const providerContext = new Context()
+  providerContext.provide('profileContext', profile)
   await providerContext.plugin(LocalSandboxProvider, {})
   const provider = providerContext.sandbox
   if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')

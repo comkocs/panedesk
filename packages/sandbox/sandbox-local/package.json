@@ -35,6 +35,7 @@
     "@panedesk/dsh-session": "workspace:*"
   },
   "dependencies": {
+    "@panedesk/dsh-app-boot": "workspace:*",
     "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
     "@panedesk/dsh-sandbox-policy": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",

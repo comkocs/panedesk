@@ -57,8 +57,12 @@ function expectConversationCalls(snapshot: LedgerSnapshot, requests: readonly Pi
 }
 
 async function start(profile: 'slim' | 'full'): Promise<{ ctx: Context; adapter: AccountingAdapter }> {
-  const home = await mkdtemp(join(tmpdir(), 'default-ledger-'))
-  roots.push(home)
+  const root = await mkdtemp(join(tmpdir(), 'default-ledger-'))
+  roots.push(root)
+  const home = join(root, 'home')
+  const workspace = join(root, 'workspace')
+  await mkdir(home)
+  await mkdir(workspace)
   vi.stubEnv('PANEDESK_HOME', home)
   const layers = profile === 'slim' ? ['slim-base', 'slim-headless'] : ['base', 'headless']
   const warnings: string[] = []
@@ -76,7 +80,7 @@ async function start(profile: 'slim' | 'full'): Promise<{ ctx: Context; adapter:
   const path = join(home, 'cordis.yml')
   await writeFile(path, JSON.stringify(entries))
   const ctx = await boot('default-ledger-test', path, undefined, (host) => {
-    host.provide('profileContext', { name: profile, home, cwd: home, dir: home,
+    host.provide('profileContext', { name: profile, home, cwd: workspace, dir: home,
       patchPath: join(home, 'cordis.patch.yml'), installAnchor: join(home, 'package.json'),
       startedBundles: layers.map(layer => layer === 'base' ? '@panedesk/dsh-base' : `@panedesk/${layer}`),
       overlays: [], telemetryDisabledEnv: '1' })
@@ -191,7 +195,8 @@ describe('default profile durable accounting', () => {
     expect(ctx.get('messageLedger')).toBeDefined()
     expect(ctx.get('llmCache')).toBeDefined()
     const fallback = vi.spyOn(ctx.get('sessionLedger')!, 'messages').mockRejectedValue(new Error('Full-ledger messages fallback must not run'))
-    const handle = await ctx.get('agents')!.create({ sessionId: SessionId(randomUUID()), agentOptions: { provider: 'mock', model: 'ledger-model' } })
+    const handle = await ctx.get('agents')!.create({ sessionId: SessionId(randomUUID()),
+      meta: { cwd: ctx.get('profileContext')!.cwd }, agentOptions: { provider: 'mock', model: 'ledger-model' } })
     try {
       handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Run the probe.' }], source: { kind: 'user' } }))
       await handle.agent.whenIdle()
@@ -230,7 +235,7 @@ describe('default profile durable accounting', () => {
       const client = clientApp.connect(ndJsonStream(inbound.writable, outbound.readable)).agent
       try {
         await client.request(methods.agent.initialize, { protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
-        const session = await client.request(methods.agent.session.new, { cwd: ctx.get('profileContext')!.home, mcpServers: [] })
+        const session = await client.request(methods.agent.session.new, { cwd: ctx.get('profileContext')!.cwd, mcpServers: [] })
         const response = await client.request(methods.agent.session.prompt, { sessionId: session.sessionId,
           prompt: [{ type: 'text', text: 'Run the probe.' }] })
         expect(response.stopReason).toBe('end_turn')
@@ -243,6 +248,7 @@ describe('default profile durable accounting', () => {
 
       const home = ctx.get('profileContext')!.home
       const seatConfig = deployment(home, await ctx.get('sessionLedger')!.nodeId())
+      seatConfig.definition.directories = [{ path: ctx.get('profileContext')!.cwd, startup: true }]
       seatConfig.definition.provider = 'mock'
       seatConfig.definition.model = 'ledger-model'
       seatConfig.definition.permissionPreset = 'workspace-write'

@@ -22,7 +22,8 @@ import { z as zod } from 'zod'
 import { Remote, RemoteError, TypertRemoteService } from '@panedesk/dsh-typert-protocol'
 import type { Session, SessionEvent } from '@panedesk/dsh-session'
 import type { SandboxMode } from '@panedesk/dsh-sandbox'
-import { SANDBOX_MODES, setSandboxMode } from '@panedesk/dsh-sandbox-policy'
+import { SANDBOX_MODES, setSandboxMode, resolveProtectedPaths } from '@panedesk/dsh-sandbox-policy'
+import { grantProtectedWorkspace } from '@panedesk/dsh-app-boot'
 // Side-effect type import: declaration-merges `ctx.shell` (the capability fact
 // `sandboxMode` this service reads), without a value dependency on the seam.
 import type {} from '@panedesk/dsh-shell'
@@ -358,6 +359,7 @@ export class PermissionPresetService extends TypertRemoteService {
   async authorizeWorkspaceWrite(workspace: string): Promise<void> {
     this.requireWorkspaceOwner()
     const policy = this.requireWorkspaceAccess()
+    this.captureWorkspace(workspace)
     await policy.workspaceAccess.authorize(workspace, 'settings-preauthorization')
     this.emitChanged('permission-presets/workspace-write-changed')
   }
@@ -513,10 +515,23 @@ export class PermissionPresetService extends TypertRemoteService {
     this.apply(session, name, (policy) => { setApprovalPolicy(session, policy) })
   }
 
+  private captureWorkspace(workspace: string): void {
+    const profile = this.ctx.get('profileContext')
+    if (profile !== undefined) grantProtectedWorkspace(profile, workspace, resolveProtectedPaths(this.ctx, workspace))
+  }
+
+  private captureSession(session: Session, mode: SandboxMode): void {
+    if (mode !== 'workspace-write') return
+    const policy = this.ctx.get('sandboxPolicy')
+    const workspace = session.header.cwd ?? policy?.workspaceRoot
+    if (workspace !== undefined) this.captureWorkspace(workspace)
+  }
+
   /** Apply one preset through its durable identity and canonical knob setters. */
   private apply(session: Session, name: string, setApproval: (policy: ApprovalPolicy) => void): void {
     const spec = this.resolve(name)
     if (name === AUTO_PRESET) this.autoAdmit?.()
+    this.captureSession(session, spec.sandbox)
     const current = this.current(session)
     const knobs = this.permissionState(session)
     const updateKnobs = (): void => {
@@ -556,11 +571,15 @@ export class PermissionPresetService extends TypertRemoteService {
       const name = this.defaultPreset
       const spec = this.resolve(name)
       session.append('permission/preset', { preset: name })
-      if (!this.implicitWindowsDefault()) setSandboxMode(session, spec.sandbox)
+      if (!this.implicitWindowsDefault()) {
+        this.captureSession(session, spec.sandbox)
+        setSandboxMode(session, spec.sandbox)
+      }
       setApprovalPolicy(session, approvalOverride ?? spec.approval)
       return
     }
 
+    this.captureSession(session, sandbox ?? this.ctx.shell.sandboxMode as SandboxMode)
     const effective = this.derive(state)
     if (preset === null && effective !== CUSTOM_PRESET) {
       session.append('permission/preset', { preset: effective })

@@ -6,6 +6,8 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { grantProtectedWorkspace } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -48,10 +50,10 @@ declare module '@panedesk/dsh-session/types' {
 }
 
 import { ApprovalRequestId } from './types.ts'
-import type { ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
+import type { ApprovalOutcome, ApprovalRequestEvent, ProtectedInputApproval } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutcome, WorkspaceWriteApproval } from './types.ts'
+export type { ApprovalOutcome, ApprovalPurpose, ProtectedInputApproval, WorkspaceWriteApproval } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalOutcome[] = ['allowed-once', 'rejected', 'cancelled', 'unavailable']
@@ -162,6 +164,74 @@ export class ApprovalService extends Service {
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'approval')
 
+    ctx.inject(['profileContext', 'agents', 'typertGateway'], (scope) => {
+      const profile = scope.profileContext
+      const lifetime = new AbortController()
+      const active = (): boolean => !lifetime.signal.aborted
+      let running = false
+      let requested = false
+      let ownerReady = false
+      const review = async (): Promise<void> => {
+        const agents = scope.agents.roots()
+        if (agents.length === 0) return
+        const records = new Set([...(profile.inputIntegrities?.values() ?? []),
+          ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+        const approved = new Set<string>()
+        for (const record of records) {
+          if (!await record.verify({
+            blocked: (change) => { scope.logger.warn('Protected host input awaits owner review: %s', change.path) },
+            confirm: async (change) => {
+              if (lifetime.signal.aborted) return false
+              const agent = agents.find((candidate) => {
+                const child = relative(resolve(candidate.session.header.cwd ?? profile.cwd), change.path)
+                return child === '' || (!isAbsolute(child) && child !== '..' && !child.startsWith(`..${sep}`))
+              }) ?? agents[0]
+              if (agent === undefined) return false
+              if (!ownerReady && this.effectivePolicy(agent.session) !== 'never') return false
+              const allowed = await this.requestProtectedInput(agent, { type: 'protected-input', ...change }) === 'allowed-once'
+              if (allowed) approved.add(change.path)
+              return active() && allowed
+            },
+          })) return
+        }
+        if (approved.size === 0 || lifetime.signal.aborted) return
+        if (profile.reloadProtectedInputs !== undefined) await profile.reloadProtectedInputs()
+        else {
+          for (const agent of agents) agent.inject(createUserMessage({
+            content: [{ type: 'text', text: 'Protected host inputs approved. Restart the application to load the approved version; live reload is unavailable.' }],
+            source: { kind: 'user-approval' },
+          }))
+        }
+      }
+      const schedule = (): void => {
+        requested = true
+        if (running || lifetime.signal.aborted) return
+        running = true
+        queueMicrotask(() => {
+          void (async () => {
+            try {
+              while (requested && !lifetime.signal.aborted) {
+                requested = false
+                if (profile.runInputReview === undefined) await review()
+                else await profile.runInputReview(review)
+              }
+            } catch (error) { scope.logger.warn('Protected host input review failed: %s', error) }
+            finally { running = false }
+          })()
+        })
+      }
+      scope.effect(() => {
+        profile.requestInputReview = schedule
+        return () => {
+          lifetime.abort()
+          if (profile.requestInputReview === schedule) delete profile.requestInputReview
+        }
+      })
+      scope.effect(() => scope.typertGateway.onOwnerReady(() => { ownerReady = true; schedule() }))
+      scope.on('agent/created', () => { schedule() })
+      schedule()
+    })
+
     const effective = (agent: Agent): ApprovalPolicy => this.effectivePolicy(agent.session)
 
     // The complete current value travels after retained history, so switching
@@ -250,7 +320,50 @@ export class ApprovalService extends Service {
     } finally {
       if (timer !== undefined) clearTimeout(timer)
     }
+    if (outcome === 'allowed-once' && req.purpose?.type === 'workspace-write') {
+      const profile = this.ctx.get('profileContext')
+      if (profile !== undefined) {
+        try { grantProtectedWorkspace(profile, req.purpose.workspace, []) } catch (error) {
+          this.ctx.logger.warn('Workspace write refused because protected input capture failed: %s', error)
+          req.agent.inject(createUserMessage({
+            content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
+            source: { kind: 'user-approval' },
+          }))
+          outcome = 'unavailable'
+        }
+      }
+    }
     session.append('approval/decided', { id, outcome })
+    return outcome
+  }
+
+  /**
+   * Ask an authenticated owner about a host input, including between model turns.
+   * Passive inbox notices retain the refusal and decision without starting a model request.
+   * @param agent Session whose workspace contains the protected input.
+   * @param purpose Exact path identity and content digest awaiting consent.
+   * @returns Only allowed-once authorizes this candidate; unattended sessions never prompt.
+   */
+  async requestProtectedInput(agent: Agent, purpose: ProtectedInputApproval): Promise<ApprovalOutcome> {
+    const reason = `Protected host input changed: ${purpose.path}. The previous version remains active until the owner approves this exact input.`
+    const notice = (text: string): void => {
+      agent.inject(createUserMessage({
+        content: [{ type: 'text', text }], source: { kind: 'user-approval' },
+      }))
+    }
+    notice(reason)
+    if (this.effectivePolicy(agent.session) === 'never') return 'rejected'
+    const controller = new AbortController()
+    const timer = setTimeout(() => { controller.abort() }, this.config.workspaceWriteTimeoutMs)
+    let outcome: ApprovalOutcome
+    try {
+      outcome = await this.decide({
+        agent, toolName: 'protected-input', purpose, ownerOnly: true, reason, signal: controller.signal,
+      }, agent.session)
+    } finally {
+      clearTimeout(timer)
+    }
+    notice(`Protected host input decision: ${outcome}. ${purpose.path}`)
     return outcome
   }
 
@@ -299,7 +412,7 @@ export class ApprovalService extends Service {
     // path as an async one — `Promise.resolve(call())` would let it escape
     // the containment into the caller.
     const answer: Promise<ApprovalOutcome> = Promise.resolve().then(async () => {
-      if (req.ownerOnly === true || req.purpose?.type === 'workspace-write') {
+      if (req.ownerOnly === true || req.purpose !== undefined) {
         const gateway = this.ctx.get('typertGateway')
         if (gateway === undefined) return 'unavailable'
         const outcome = await gateway.requestOwnerEvent('approval/request', req, {

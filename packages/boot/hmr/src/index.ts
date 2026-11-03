@@ -6,12 +6,14 @@ import { Context, FiberState, Inject, Service, type Fiber, type Plugin } from '@
 import type { Entry, ModuleLoader, ModuleJob, ResolveResult } from '@panedesk/cordis-plugin-loader'
 import type { Include } from '@panedesk/cordis-plugin-include'
 import { FSWatcher, watch, type ChokidarOptions } from 'chokidar'
-import { basename, dirname, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import {
   readProfileManifest, readProfilePatches, recomposeProfile, PROFILE_PATCH_FILENAME, type RuntimeResolution,
 } from '@panedesk/dsh-app-boot'
 import type {} from '@panedesk/dsh-cmdline'
+import type {} from '@panedesk/dsh-user-approval'
+import type {} from '@panedesk/dsh-agent'
 import { handleError } from './error.ts'
 import { PackageManifests } from './package-manifest.ts'
 import { ModuleFiles } from './module-files.ts'
@@ -275,9 +277,36 @@ class Hmr extends Service {
     return task
   }
 
+  private async verifyInputs(): Promise<boolean> {
+    const profile = this.ownerContext.get('profileContext')
+    if (profile === undefined) return true
+    const records = new Set([...(profile.inputIntegrities?.values() ?? []),
+      ...profile.inputIntegrity === undefined ? [] : [profile.inputIntegrity]])
+    for (const integrity of records) {
+      if (!await integrity.verify({
+        blocked: (change) => {
+          this.ctx.logger.warn('Protected host input changed; owner confirmation is required before loading: %s', change.path)
+        },
+        confirm: async (change) => {
+          const approval = this.ownerContext.get('approval')
+          const agents = this.ownerContext.get('agents')?.roots() ?? []
+          const agent = agents.find((candidate) => {
+            const root = canonicalPath(resolve(candidate.session.header.cwd
+              ?? profile.protectedWorkspaceRoot?.() ?? profile.cwd))
+            const child = relative(root, change.path)
+            return child === '' || (!child.startsWith(`..${sep}`) && child !== '..' && !isAbsolute(child))
+          })
+          if (approval === undefined || agent === undefined) return false
+          return await approval.requestProtectedInput(agent, { type: 'protected-input', ...change }) === 'allowed-once'
+        },
+      })) return false
+    }
+    return true
+  }
+
   private runReload(operation: () => Promise<void>): Promise<void> {
     return this.runExclusive(async () => {
-      if (await this.applicationReady) await operation()
+      if (await this.applicationReady && await this.verifyInputs()) await operation()
     })
   }
 
@@ -295,6 +324,7 @@ class Hmr extends Service {
    */
   async watchConfig(filename: string, refresh: () => Promise<void>): Promise<() => Promise<void>> {
     const paths = [resolve(filename), canonicalPath(filename)]
+    this.ownerContext.get('profileContext')?.inputIntegrity?.observe(filename)
     if (paths.some(path => this.configPaths.has(path))) throw new Error(`config path already registered: ${filename}`)
     for (const path of paths) this.configPaths.add(path)
     try {
@@ -380,7 +410,11 @@ class Hmr extends Service {
       const unsubscribe = ready.onReady(() => {
         // Plugins started with the application are recorded; modules loaded later are compared by modification time.
         try {
-          this.files.observe(this.profileModules(profileRoots(profile.dir)))
+          const modules = this.profileModules(profileRoots(profile.dir))
+          this.files.observe(modules)
+          for (const url of this.loadedUrls()) {
+            if (url.startsWith('file:')) profile.inputIntegrity?.observe(fileURLToPath(url))
+          }
         } catch (error) {
           // Without a first record, modules are compared by modification time against this HMR instance’s creation time.
           this.ctx.logger.warn(error)
@@ -409,6 +443,15 @@ class Hmr extends Service {
         lastInputs = inputs
         lastBundles = bundles
         for (const diagnostic of warnings) this.ctx.logger.warn(diagnostic)
+      }
+      const reloadProtectedInputs = (): Promise<void> => refresh(false)
+      const runInputReview = (operation: () => Promise<void>): Promise<void> => this.runExclusive(operation)
+      profile.reloadProtectedInputs = reloadProtectedInputs
+      profile.runInputReview = runInputReview
+      yield () => {
+        if (profile.reloadProtectedInputs === reloadProtectedInputs) delete profile.reloadProtectedInputs
+        if (profile.runInputReview === runInputReview) delete profile.runInputReview
+        return Promise.resolve()
       }
       for (const filename of patchFiles) await this.watchConfig(filename, () => refresh(false))
       await this.watchConfig(manifestPath, () => refresh(true))
@@ -446,6 +489,7 @@ class Hmr extends Service {
         if (!await this.applicationReady) return
         const batch = [...changed]
         changed.clear()
+        if (!await this.verifyInputs()) return
         const includes = new Set<Include>()
         let fullReload = false
         for (const path of batch) {
@@ -933,6 +977,7 @@ class Hmr extends Service {
     if (this.executing.getStore() !== true) throw new Error('HMR profile reconciliation must run inside runExclusive')
     const profile = this.ownerContext.get('profileContext')
     if (profile === undefined) throw new Error('HMR profile reconciliation requires profileContext')
+    if (!await this.verifyInputs()) throw new Error('Protected host input requires owner confirmation; the previous generation remains active.')
     // Entries this recomposition stops start again, and fail it when they cannot.
     const running = [...this.ctx.loader.entries()].filter(entry => entry.fiber?.state === FiberState.ACTIVE)
     // Read while the packages are still on disk, so a removed link's target is known in its real spellings.

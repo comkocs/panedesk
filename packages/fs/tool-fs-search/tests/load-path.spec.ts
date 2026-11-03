@@ -22,6 +22,8 @@ import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRuntime from '@panedesk/dsh-tools'
 import LocalSubprocessRuntime from '@panedesk/dsh-subprocess-local'
 import * as toolFsSearch from '@panedesk/dsh-tool-fs-search'
+import SandboxPolicy from '@panedesk/dsh-sandbox-policy'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 
 describe('dsh-tool-fs-search real-load-path guard', () => {
   it('has no default export and keeps name/inject/Config through unwrapExports', () => {
@@ -31,7 +33,7 @@ describe('dsh-tool-fs-search real-load-path guard', () => {
     const unwrapped = loader.unwrapExports(toolFsSearch) as Record<string, unknown>
     expect(unwrapped).toBe(toolFsSearch)
     expect(unwrapped.name).toBe('tool-fs-search')
-    expect(unwrapped.inject).toEqual(['tools', 'systemPrompt', 'subprocess', 'workingDirectory'])
+    expect(unwrapped.inject).toEqual(['tools', 'systemPrompt', 'subprocess', 'workingDirectory', 'sandboxPolicy'])
     expect(typeof unwrapped.Config).toBe('function')
     expect(typeof unwrapped.apply).toBe('function')
   })
@@ -41,6 +43,8 @@ describe('dsh-tool-fs-search real-load-path guard', () => {
     provideWorkingDirectoryFixture(ctx)
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicy, { mode: 'danger-full-access' })
     await ctx.plugin(LocalSubprocessRuntime)
 
     const loader = Object.create(Loader.prototype) as Loader

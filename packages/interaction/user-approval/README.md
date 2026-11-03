@@ -52,9 +52,13 @@ The generated [configuration catalog](../../../docs/config-catalog.md#panedeskds
 
 `request(req)` names the agent, tool, optional call id and reason, and an abort signal. Optional `purpose` identifies workspace consent and is retained in the audit event; its `allowed-once` outcome consents to that named purpose, not a generic permanent grant. Optional `displayReason` supplies localized presentation text without changing the logged reason. It requires an open turn: an idle or between-turn caller throws before auditing anything. Aborting withdraws the question — the request settles `cancelled` and a late answer is discarded. A failure that prevents either audit append from committing rejects instead of returning an unlogged decision.
 
+`requestProtectedInput(agent, purpose)` accepts a path and its previous and candidate digests between turns. It uses only authenticated owner transport and queues passive, durable inbox notices without waking the model. `never` retains the blocked-input notice without prompting; other outcomes append a decision notice. The wait uses `workspaceWriteTimeoutMs`; only `allowed-once` confirms that candidate. For a mounted profile, owner transport readiness and new root agents schedule a serialized review of retained input records. An available HMR transaction applies approved inputs; without HMR, the passive notice asks the owner to restart. Direct recomposition refusals schedule the same review without blocking on a prompt. Unattended sessions retain refusal notices and never prompt. The same exact-candidate decision governs newly added Client chunks and whole-package replacements; refusal preserves the published Client generation.
+
+Before returning an authenticated workspace-write allowance, a mounted profile captures its registered protected inputs in persistent owner state. Windows requires that state outside the writable root; Linux and macOS also allow state beneath a protected first-level workspace directory. Capture failure settles the request as `unavailable`, records that outcome, and retains the refusal reason in the session inbox instead of granting write access. Protected-input confirmation is separate and never creates a general workspace grant. [Workspace consent](../../sandbox/sandbox-policy/README.md#windows-workspace-records) enables ordinary workspace writes, not writes to protected inputs.
+
 ### What the model and user see
 
-The model sees only the asking consumer's eventual tool outcome — allowed, rejected, cancelled, or unavailable — plus the current policy in the runtime-context snapshot; the audit events and the human permission UI are not model context. A `never` switch is announced to the model by a sourced user message, and both policies contribute their complete current meaning to the snapshot.
+For tool requests, the model sees the consumer's eventual outcome — allowed, rejected, cancelled, or unavailable — plus the current policy; audit events and the human permission UI are not model context. Protected-input notices remain in the inbox until a later model step consumes them. A `never` switch is announced to the model by a sourced user message, and both policies contribute their complete current meaning to the snapshot.
 
 -----
 
@@ -75,7 +79,7 @@ The observable behavior is covered in [Use this package](#use-this-package); thi
 
 ### Dispatch
 
-`decide()` races the answerer waterfall against the request signal and contains every answerer failure: a throwing listener fails the question closed to `unavailable`, and a rogue non-vocabulary return is normalized to `unavailable`. The `never` policy is enforced inside the service before waterfall dispatch, so a listener registered later with `prepend` cannot bypass the deterministic rejection. The request must be turn-enclosed because the turn is the durable log's commit/replay boundary — a bare event between turns is indistinguishable from a crash tail.
+`decide()` races the answerer waterfall against the request signal and contains every answerer failure: a throwing listener fails the question closed to `unavailable`, and a rogue non-vocabulary return is normalized to `unavailable`. The `never` policy is enforced inside the service before waterfall dispatch, so a listener registered later with `prepend` cannot bypass the deterministic rejection. `request()` must be turn-enclosed because the turn is the durable log's commit/replay boundary — a bare event between turns is indistinguishable from a crash tail.
 
 ### Policy and the runtime-context snapshot
 
@@ -138,7 +142,7 @@ Append-only after retained history. An `ask`/`never` switch preserves the stable
 
 #### Token effect
 
-Zero duplicate audit tokens. A rejection may replace a normal tool result with a small retained error, while an allowance leaves the consumer's ordinary result.
+Zero duplicate audit tokens. A rejection may replace a normal tool result with a small retained error, while an allowance leaves the consumer's ordinary result. Passive protected-input notices add their text when a later model step consumes the inbox.
 
 #### KV Cache effect
 
@@ -151,7 +155,7 @@ Append-only; newly visible content follows the reusable request prefix and does 
 
 These limits define when the seam is a poor fit or needs special composition care. They are current package constraints, not a general permission comparison.
 
-- **Requests are valid only inside an open turn** — an idle or between-turn caller throws before auditing; a durable out-of-turn approval workflow is deferred.
+- **`request()` requires an open turn** — an idle or between-turn caller throws before auditing. `requestProtectedInput()` instead retains passive inbox notices; those notices are not a persistent input authorization store.
 - **No generic grant store** — `allowed-once` consents to the request's declared purpose; without a purpose it covers one action. Workspace persistence and revocation belong to the [sandbox policy consumer](../../sandbox/sandbox-policy/README.md#windows-workspace-records), not this service. Session policy remains `ask` / `never`.
 - **The request carries no tool arguments** — an answerer sees the tool name, reason, and optional call id; the ACP machine channel requires a call id and delegates requests without one.
 - **No built-in answerer** — headless or incompletely composed deployments resolve `unavailable` and fail closed; the service itself never prompts a human.
