@@ -77,7 +77,7 @@
       "id": "owner-directory-process-isolation",
       "description": "Exclude owner material directories from restricted processes",
       "origin": "Owner credential read isolation",
-      "reason": "Collect provider-owned private directories, reject hard-linked material and workspace overlaps, mask directories after writable bubblewrap mounts, deny Seatbelt reads, and grant Landlock sibling trees. Separate POSIX terminal sessions and apply verified Medium mandatory read/write protection in Windows runners. Preserve full-access behavior and test restricted policy inventories with temporary homes. These changes can be contributed upstream.",
+      "reason": "Collect provider-owned private directories, reject hard-linked material and workspace overlaps, mask directories after writable bubblewrap mounts, deny Seatbelt reads, and grant Landlock sibling trees. Separate POSIX terminal sessions and apply verified Medium mandatory read/write protection in Windows runners. Preserve full-access behavior and test restricted policy inventories with temporary homes. Import shared session identifiers from the types leaf so the Windows isolation dependency does not load the Host session service into Client type programs. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [

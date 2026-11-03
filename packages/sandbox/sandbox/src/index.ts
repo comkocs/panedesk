@@ -7,7 +7,7 @@
 
 import { Context, Service } from '@panedesk/cordis'
 import { HarnessError } from '@panedesk/dsh-llm'
-import type { SessionId } from '@panedesk/dsh-session'
+import type { SessionId } from '@panedesk/dsh-session/types'
 
 export {
   ESCALATION_TARGETS,
