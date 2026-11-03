@@ -53,6 +53,12 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       process.exit(await runPlugin(invocation.profile, invocation.args, options.packageManager))
       break
     }
+    case 'cleanup-owner-labels': {
+      if (process.platform !== 'win32') throw new Error('Owner integrity labels are Windows-only. / 所有者完整性标签仅适用于 Windows。')
+      const { cleanupOwnerReadProtection } = await import('@panedesk/dsh-sandbox-windows-acl')
+      await cleanupOwnerReadProtection(invocation.path)
+      break
+    }
     case 'init': {
       const { runInit } = await import('./init.ts')
       process.exit(await runInit(invocation.args))

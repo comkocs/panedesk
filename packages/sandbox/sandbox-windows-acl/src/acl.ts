@@ -215,7 +215,6 @@ export function setOwnerReadProtection(api: Win32Bindings, path: string, mediumS
   withPathLock(api, path, () => {
     let label: NativePtr | null = null
     const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
-    if (!enabled) assertOwnerReadProtection(api, path, mediumSid)
     if (enabled) {
       const sidLength = api.getLengthSid(mediumSid)
       if (sidLength === 0) throwLastError(api, 'GetLengthSid', path)
@@ -240,9 +239,39 @@ export function setOwnerReadProtection(api: Win32Bindings, path: string, mediumS
             for (const child of readdirSync(entry)) apply(join(entry, child))
           }
         }
+        if (!enabled) {
+          const current = readCurrentSecurity(api, entry)
+          try {
+            const existingLabel = current.labelAcl
+            if (existingLabel !== null && decodeUint16At(existingLabel, 4) !== 0) {
+              const flags = [0, abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, abi.INHERITED_ACE,
+                abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT | abi.INHERITED_ACE]
+              if (decodeUint16At(existingLabel, 4) !== 1 || !flags.some(flag => hasExactEntry(
+                existingLabel, abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE, flag, policy, mediumSid))) {
+                throw new Error('Refusing to remove an unrelated integrity label. / 拒绝移除不属于本产品的完整性标签。')
+              }
+            }
+          } finally {
+            if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
+              throwLastError(api, 'LocalFree', entry)
+            }
+          }
+        }
         const code = api.setNamedSecurityInfoW(entry, abi.SE_FILE_OBJECT, abi.LABEL_SECURITY_INFORMATION,
           null, null, null, label)
         if (code !== abi.ERROR_SUCCESS) throwWin32(api, 'SetNamedSecurityInfoW', code, entry)
+        if (!enabled) {
+          const current = readCurrentSecurity(api, entry)
+          try {
+            if (current.labelAcl !== null && decodeUint16At(current.labelAcl, 4) !== 0) {
+              throw new Error('Owner directory integrity label cleanup verification failed. / 所有者目录完整性标签清理核验失败。')
+            }
+          } finally {
+            if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
+              throwLastError(api, 'LocalFree', entry)
+            }
+          }
+        }
       }
       apply(path)
     } finally {

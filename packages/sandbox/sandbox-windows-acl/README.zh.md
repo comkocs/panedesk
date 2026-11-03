@@ -31,6 +31,21 @@ kind: "package-library"
 
 为在 `read-only` 或 `workspace-write` 下隔离子进程文件操作的 Windows 组合选择它。`WRITE_RESTRICTED` 只交叉检查写访问。经 `unreadablePaths` 传入的专用所有者目录还会设置可继承的 Medium 禁止向上读写标签，并在设置后及 spawn 前检查。这些标签在释放后保留，不标记桌面 userData。通用读取隔离与网络限制需要其他机制。
 
+<a id="owner-label-removal-before-uninstall"></a>
+### 卸载前移除所有者标签
+
+撤销保护或卸载前，停止全部 Panedesk 宿主与沙箱。在不受限、Medium 或更高完整性级别的 PowerShell 中，对每个专用私密目录（凭据与崩溃存储，绝非桌面 userData）分别运行已安装 CLI。`--stopped` 表示确认此前置条件，不会终止进程。命令不启动 profile，保留 DACL，拒绝其他标签及链接，先清后代再清根，并逐项读回核验；中断后可以重跑。普通 `dispose()` 刻意保留保护，避免影响其他活跃会话。本包不提供桌面安装器自动接线；移除 CLI 前须先执行此步骤。
+
+```powershell
+$Private = Read-Host 'Absolute dedicated private directory'
+panedesk cleanup-owner-labels --stopped "$Private"
+if ($LASTEXITCODE -ne 0) { throw 'Owner label cleanup failed; keep the application installed and retry offline.' }
+icacls "$Private" /T /L
+if ($LASTEXITCODE -ne 0) { throw 'Security descriptor readback failed.' }
+```
+
+CLI 执行权威读回：每个对象都不得残留强制完整性标签 ACE。`icacls` 另行显示整棵树供人工检查，并非工作区能力 SID 撤销命令。原生操作调用 [`SetNamedSecurityInfoW`](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow)，使用 [`LABEL_SECURITY_INFORMATION`](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information)，随后调用 [`GetNamedSecurityInfoW`](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-getnamedsecurityinfow)；[微软 icacls 参考](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls)说明显示选项。清理已有原生调用替身覆盖；Windows 原生移除尚未经实机验证。
+
 ### 直接 API
 
 `AclSandbox` 以捕获 stdio 的方式 spawn 受限子进程（runner 风格使用可用继承 stdio）。它要求显式提供私有临时目录，或用 `tempDir: null` 禁用临时写入——环境临时根目录绝不会被隐式授权。

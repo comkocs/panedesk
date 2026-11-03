@@ -77,6 +77,7 @@ interface InitInvocation {
 
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
 export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation | InitInvocation
+  | { mode: 'cleanup-owner-labels'; path: string }
 
 /** Launcher flags for profile boot and configuration dumps. */
 interface BootOptions {
@@ -266,9 +267,20 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
       })
   }
 
+  if (first === 'cleanup-owner-labels') {
+    program.command('cleanup-owner-labels')
+      .description('remove Windows owner-directory integrity labels before uninstalling; stop all hosts and sandboxes first')
+      .helpOption('-h, --help', 'show this help')
+      .allowUnknownOption(false)
+      .requiredOption('--stopped', 'acknowledge that every product host and sandbox has stopped')
+      .argument('<directory>', 'absolute dedicated private directory; never desktop userData')
+      .action((path: string) => { resolved = { mode: 'cleanup-owner-labels', path } })
+  }
+
   try {
     // A leading token containing whitespace is a task for the default profile, not a profile name.
-    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'init' && !/\s/.test(first)
+    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'init'
+      && first !== 'cleanup-owner-labels' && !/\s/.test(first)
       ? ['--profile', ...argv]
       : argv
     program.parse(expanded, { from: 'user' })

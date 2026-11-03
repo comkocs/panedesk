@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "offline-owner-label-cleanup",
+      "description": "Expose verified offline Windows owner-label withdrawal",
+      "origin": "Owner directory lifecycle",
+      "reason": "Add an explicit CLI cleanup mode for an unrestricted Medium-or-higher owner before uninstalling. Preserve DACLs and unrelated labels, verify each removal, and allow interrupted cleanup to resume. Document the offline prerequisite and manual PowerShell invocation without claiming desktop installer integration or native Windows validation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "apps/cli/src/args.ts", "apps/cli/src/bin.ts", "apps/cli/tests/args.spec.ts",
+          "apps/cli/package.json", "apps/cli/README.md", "apps/cli/README.zh.md", "apps/cli/README.i18n.yaml",
+          "packages/sandbox/sandbox-windows-acl/src/owner-cleanup.ts",
+          "packages/sandbox/sandbox-windows-acl/src/acl.ts", "packages/sandbox/sandbox-windows-acl/src/index.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/owner-cleanup.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/tests/acl-failure-paths.spec.ts",
+          "packages/sandbox/sandbox-windows-acl/README.md", "packages/sandbox/sandbox-windows-acl/README.zh.md",
+          "packages/sandbox/sandbox-windows-acl/README.i18n.yaml", "pnpm-lock.yaml"
+        ]
+      }
+    }
+    {
       "id": "owner-read-isolation-documentation",
       "description": "Document owner read isolation and synchronize generated references",
       "origin": "Owner credential read isolation",

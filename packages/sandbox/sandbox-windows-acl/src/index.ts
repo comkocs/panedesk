@@ -60,6 +60,7 @@ import { drainPipe, spawnSandboxed, spawnSandboxedInherited, waitForExit } from 
 import { createRestrictedToken, findLogonSid, makeWellKnownSid, openCurrentProcessToken, restrictTokenIntegrity, setTokenDefaultDaclGrant } from './token.ts'
 import * as abi from './win32-abi.ts'
 
+export { cleanupOwnerReadProtection } from './owner-cleanup.ts'
 export { AclWriteGrant } from './grant.ts'
 export { assertWindowsStateTrusted, UnsafeWindowsStateError } from './state-trust.ts'
 export { assertTempRootOutsideWorkspace } from './path-boundary.ts'

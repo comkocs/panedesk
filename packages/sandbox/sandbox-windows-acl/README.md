@@ -31,6 +31,20 @@ On Windows, mounting the local sandbox provider makes this backend the runner be
 
 Choose it for Windows compositions that confine subprocess file effects under `read-only` or `workspace-write`. `WRITE_RESTRICTED` intersects write accesses only. Dedicated owner directories supplied through `unreadablePaths` additionally receive inheritable Medium no-read-up/no-write-up labels, checked after application and before spawn. These labels persist after disposal and do not label desktop userData. General read confinement and network restriction require a different mechanism.
 
+### Owner-label removal before uninstall
+
+Stop every Panedesk host and sandbox before withdrawing protection or uninstalling. From an unrestricted Medium-or-higher PowerShell, run the installed CLI once for each dedicated private directory (credentials and crash storage, never desktop userData). `--stopped` acknowledges this offline prerequisite; it does not terminate processes. The command does not boot a profile, preserves the DACL, refuses unrelated labels and links, clears descendants before the root, and reads back every cleared label. An interrupted command can be repeated. Ordinary `dispose()` deliberately keeps protection for other live sessions. Desktop installer automation is not supplied by this package; run this step before removing the CLI.
+
+```powershell
+$Private = Read-Host 'Absolute dedicated private directory'
+panedesk cleanup-owner-labels --stopped "$Private"
+if ($LASTEXITCODE -ne 0) { throw 'Owner label cleanup failed; keep the application installed and retry offline.' }
+icacls "$Private" /T /L
+if ($LASTEXITCODE -ne 0) { throw 'Security descriptor readback failed.' }
+```
+
+The CLI performs the authoritative readback: no mandatory-label ACE may remain on each object. `icacls` additionally displays the tree for manual inspection; it is not a workspace-capability SID removal command. The native operation uses [`SetNamedSecurityInfoW`](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow) with [`LABEL_SECURITY_INFORMATION`](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information), followed by [`GetNamedSecurityInfoW`](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-getnamedsecurityinfow); the [Microsoft icacls reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls) documents the display switches. Cleanup is covered with native-call substitutes; Windows native removal remains unvalidated.
+
 ### Direct API
 
 `AclSandbox` spawns a confined child with captured stdio (or inherited stdio for runner-style use). It requires an explicit private temp directory, or `tempDir: null` to disable temp writes — the ambient temp root is never an implicit grant.

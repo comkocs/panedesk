@@ -282,6 +282,48 @@ describe('owner mandatory read protection', () => {
     expect(remaining.size).toBe(0)
   })
 
+  it.each([0, 1, 2])('resumes explicit cleanup after interruption at step %s and verifies every cleared label', (interruptedStep) => {
+    const root = mkdtempSync(join(tmpdir(), 'owner-label-resume-'))
+    onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+    const child = join(root, 'existing')
+    mkdirSync(child)
+    const file = join(child, 'credential')
+    writeFileSync(file, 'synthetic material')
+    const { medium, label } = ownerLabelFixture()
+    const remaining = new Set([root, child, file])
+    const verified: string[] = []
+    let step = 0
+    let interrupt = true
+    const api = aclApi({
+      getNamedSecurityInfoW: vi.fn<Win32Bindings['getNamedSecurityInfoW']>((path, type, info, owner, group, dacl, sacl, descriptor) => {
+        if (!remaining.has(path)) verified.push(path)
+        const read = readStub(null, remaining.has(path) ? bufferPointer(label) : null, null)
+        return read(path, type, info, owner, group, dacl, sacl, descriptor)
+      }),
+      setNamedSecurityInfoW: vi.fn<Win32Bindings['setNamedSecurityInfoW']>((path, _type, info, _owner, _group, dacl, sacl) => {
+        expect(info).toBe(abi.LABEL_SECURITY_INFORMATION)
+        expect(dacl).toBeNull()
+        expect(sacl).toBeNull()
+        remaining.delete(path)
+        if (interrupt && step++ === interruptedStep) throw new Error('cleanup interrupted')
+        return 0
+      }),
+    })
+    expect(() => { setOwnerReadProtection(api, root, bufferPointer(medium), false) }).toThrow('cleanup interrupted')
+    interrupt = false
+    setOwnerReadProtection(api, root, bufferPointer(medium), false)
+    setOwnerReadProtection(api, root, bufferPointer(medium), false)
+    expect(remaining.size).toBe(0)
+    expect(new Set(verified)).toEqual(new Set([root, child, file]))
+  })
+
+  it('refuses successful cleanup when the native write leaves the label in place', () => {
+    const { medium, label } = ownerLabelFixture()
+    const api = aclApi({ getNamedSecurityInfoW: readStub(null, bufferPointer(label), null) })
+    expect(() => { setOwnerReadProtection(api, 'C:\\private', bufferPointer(medium), false) })
+      .toThrow('Owner directory integrity label cleanup verification failed')
+  })
+
   it('writes an inheritable no-read-up and no-write-up label and verifies it before admission', () => {
     const { medium, label } = ownerLabelFixture()
     const addMandatoryAce = vi.fn(() => 1)
@@ -303,7 +345,10 @@ describe('owner mandatory read protection', () => {
     const { medium, label } = ownerLabelFixture()
     const setNamedSecurityInfoW = vi.fn(() => 0)
     const setEntriesInAclW = vi.fn(() => 0)
-    const api = aclApi({ getNamedSecurityInfoW: readStub(null, bufferPointer(label), null), setNamedSecurityInfoW, setEntriesInAclW })
+    const getNamedSecurityInfoW = readStub(null, bufferPointer(label), null)
+      .mockImplementationOnce(readStub(null, bufferPointer(label), null))
+      .mockImplementation(readStub(null, null, null))
+    const api = aclApi({ getNamedSecurityInfoW, setNamedSecurityInfoW, setEntriesInAclW })
     setOwnerReadProtection(api, 'C:\\private', bufferPointer(medium), false)
     expect(setNamedSecurityInfoW).toHaveBeenCalledWith('C:\\private', abi.SE_FILE_OBJECT,
       abi.LABEL_SECURITY_INFORMATION, null, null, null, null)

@@ -263,6 +263,9 @@ importers:
       '@panedesk/dsh-launch-environment':
         specifier: workspace:*
         version: link:../../packages/util/launch-environment
+      '@panedesk/dsh-sandbox-windows-acl':
+        specifier: workspace:*
+        version: link:../../packages/sandbox/sandbox-windows-acl
       '@panedesk/node-addon-system':
         specifier: workspace:~
         version: link:../../native/system/packages/entry
