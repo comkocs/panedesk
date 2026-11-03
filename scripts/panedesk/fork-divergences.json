@@ -14463,7 +14463,9 @@
           "packages/shell/tool-pwsh-persistent/tests/tools.spec.ts",
           "packages/shell/tool-pwsh-persistent/README.md",
           "packages/shell/tool-pwsh-persistent/README.zh.md",
-          "packages/shell/tool-pwsh-persistent/README.i18n.yaml"
+          "packages/shell/tool-pwsh-persistent/README.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md"
         ]
       }
     },
