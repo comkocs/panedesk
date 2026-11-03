@@ -1,5 +1,5 @@
 /** Default cache controls and the user-facing disabled patch through all model-running protocols. */
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,12 +32,14 @@ describe('default profile cache request compatibility', () => {
       .map(header => restorePinnedToolSchemas(header, schemas.initial))
     expect(expected).toHaveLength(1)
     for (const disabled of [true, false]) {
-      const cwd = await mkdtemp(join(tmpdir(), 'profile-cache-'))
-      const home = join(cwd, '.panedesk')
+      const root = await mkdtemp(join(tmpdir(), 'profile-cache-'))
+      const cwd = join(root, 'workspace')
+      const home = join(root, 'home')
+      await mkdir(cwd)
       const reader = new Context()
       try {
         const patches = ['cordis.yml', 'cordis.snapshot.yml', 'model.cordis.yml']
-          .map((name, index) => materializeProfilePatch(join(composition, name), cwd, profile, cwd, index))
+          .map((name, index) => materializeProfilePatch(join(composition, name), cwd, profile, cwd, index, home))
         const overlay = join(cwd, 'cache.patch.yml')
         await writeFile(overlay, JSON.stringify([
           { id: 'llm-cache', disabled },
@@ -87,7 +89,7 @@ describe('default profile cache request compatibility', () => {
         const rows = (await ledger.snapshot()).rows.filter(row => row.kind === 'call')
         expect(rows).toHaveLength(1)
         expect(rows[0]?.finish?.endReason).toBe('completed')
-      } finally { await reader.fiber.dispose(); await rm(cwd, { recursive: true, force: true }) }
+      } finally { await reader.fiber.dispose(); await rm(root, { recursive: true, force: true }) }
     }
   })
 })

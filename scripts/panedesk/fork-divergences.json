@@ -14458,6 +14458,36 @@
           "packages/terminal/terminal-bash/src/sanitize.ts"
         ]
       }
+    },
+    {
+      "id": "cache-default-home-outside-workspace",
+      "description": "Place the default-cache profile expectation's product home outside its workspace.",
+      "origin": "Owner state location for profile expectations",
+      "reason": "The owner state directory must stay outside writable roots: the default-cache expectation keeps its product home beside the workspace instead of inside it, and its assertions are unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "apps/cli/tests/profiles/cache-default.expected.e2e.ts"
+        ],
+        "test": "%s adds only cache controls and preserves accounting when disabled"
+      }
+    },
+    {
+      "id": "session-snapshot-external-home-token",
+      "description": "Tokenize one caller-supplied external product home in session snapshot normalization.",
+      "origin": "Owner state location for recorded sessions",
+      "reason": "The owner state directory must stay outside writable roots: normalization replaces exactly one supplied external home directory, including its realpath spelling, with a stable token and leaves look-alike paths unchanged.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/test-support/session-snapshot/src/normalize.ts",
+          "packages/test-support/session-snapshot/src/index.ts",
+          "packages/test-support/session-snapshot/tests/normalize.spec.ts",
+          "packages/test-support/session-snapshot/README.md",
+          "packages/test-support/session-snapshot/README.zh.md"
+        ],
+        "test": "maps the one external home spelling and its realpath spelling to {{home}}"
+      }
     }
   ]
 }
