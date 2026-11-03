@@ -66,7 +66,7 @@ function treeStamp(path: string): string {
   }
 }
 
-function snapshot(path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>()): InputSnapshot {
+function snapshot(path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), excluded?: string): InputSnapshot {
   const hash = createHash('sha256')
   const copies: { path: string; content: string }[] = []
   const capture = (filename: string): void => {
@@ -79,6 +79,7 @@ function snapshot(path: string, root: string, files?: Map<string, Buffer>, stamp
   }
   const visited = new Set<string>()
   const walk = (filename: string): Buffer | null => {
+    if (excluded !== undefined && contains(excluded, canonicalLocation(filename))) return null
     capture(filename)
     hash.update(filename).update('\0').update(identity(filename)).update('\0')
     let stat: ReturnType<typeof statSync>
@@ -275,11 +276,21 @@ export class ProtectedInputIntegrity {
     return contains(this.workspace, path) ? resolve(this.root, relative(this.workspace, path)) : path
   }
 
+  private isRecordStorage(path: string): boolean {
+    return this.record !== undefined && contains(canonicalLocation(dirname(this.record)), canonicalLocation(path))
+  }
+
+  private capture(path: string, files?: Map<string, Buffer>, stamps = new Map<string, string>()): InputSnapshot {
+    return snapshot(path, this.root, files, stamps,
+      this.record === undefined ? undefined : canonicalLocation(dirname(this.record)))
+  }
+
   private assertRecordLocation(protectedPaths?: readonly string[]): void {
     if (this.record === undefined) return
     const record = canonicalLocation(this.record)
     if (!contains(this.root, record)) return
-    const first = join(this.root, relative(this.root, record).split(sep)[0]!)
+    const [child = ''] = relative(this.root, record).split(sep)
+    const first = join(this.root, child)
     if (process.platform === 'win32') {
       if (protectedPaths === undefined) return
       throw new Error('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。 Protected input records must be outside the writable workspace.')
@@ -297,10 +308,10 @@ export class ProtectedInputIntegrity {
     const path = this.inputPath(filename)
     for (const record of this.ownerRecords) record.observe(filename)
     if (!contains(this.root, path)) return
-    // Native state exclusions must not snapshot their own mutable record storage.
-    if (this.record !== undefined && contains(canonicalLocation(path), canonicalLocation(this.record))) return
+    // Only mutable record storage is excluded; its ancestors also contain host inputs.
+    if (this.isRecordStorage(path)) return
     this.observed.add(path)
-    if (this.record === undefined && !this.approved.has(path)) this.approved.set(path, snapshot(path, this.root))
+    if (this.record === undefined && !this.approved.has(path)) this.approved.set(path, this.capture(path))
   }
 
   /**
@@ -314,7 +325,7 @@ export class ProtectedInputIntegrity {
     if (this.record !== undefined) mkdirSync(dirname(this.record), { recursive: true, mode: 0o700 })
     const stamps = new Map<string, string>()
     const candidates = new Map<string, InputSnapshot>()
-    for (const path of this.observed) candidates.set(path, snapshot(path, this.root, undefined, stamps))
+    for (const path of this.observed) candidates.set(path, this.capture(path, undefined, stamps))
     const previous = new Map(this.approved)
     for (const [path, value] of candidates) this.approved.set(path, value)
     try { this.persist() } catch (error) {
@@ -333,6 +344,7 @@ export class ProtectedInputIntegrity {
   covers(filename: string): boolean {
     this.refreshRecord()
     const path = this.inputPath(filename)
+    if (this.isRecordStorage(path)) return false
     return this.ownerRecords.some(record => record.covers(filename))
       || this.granted && [...this.approved].some(([root, value]) => root === path
         || ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)))
@@ -417,7 +429,7 @@ export class ProtectedInputIntegrity {
     const stamps = new Map<string, string>()
     for (const { root, value, candidate } of roots) {
       const files = new Map<string, Buffer>()
-      const current = snapshot(root, this.root, files, stamps)
+      const current = this.capture(root, files, stamps)
       if (current.digest !== value.digest) throw new Error(`Protected host input requires owner confirmation: ${root}`)
       const content = files.get(candidate)
       if (content !== undefined) {
@@ -478,7 +490,7 @@ export class ProtectedInputIntegrity {
     const captured = new Map<string, string>()
     for (const path of this.observed) {
       const previous = this.approved.get(path)?.digest ?? 'unrecorded'
-      const value = snapshot(path, this.root, undefined, captured)
+      const value = this.capture(path, undefined, captured)
       candidates.set(path, value)
       if (value.digest !== previous) changes.push({ path, previous, current: value.digest })
     }
@@ -488,7 +500,7 @@ export class ProtectedInputIntegrity {
     }
     const checked = new Map<string, string>()
     for (const [path, candidate] of candidates) {
-      const current = snapshot(path, this.root, undefined, checked).digest
+      const current = this.capture(path, undefined, checked).digest
       if (current !== candidate.digest) {
         owner.blocked({ path, previous: candidate.digest, current })
         return false
