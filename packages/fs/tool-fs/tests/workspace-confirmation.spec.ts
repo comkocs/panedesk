@@ -607,7 +607,7 @@ describe('Windows first workspace write confirmation', () => {
   })
 
   it('fails closed when the answerer disconnects before answering', async () => {
-    const { ctx, write } = await fixture()
+    const { ctx, agent, write } = await fixture()
     const answer = Promise.withResolvers<ApprovalOutcome>()
     const listener = vi.fn(() => answer.promise)
     await ownerAnswer(ctx, listener)
@@ -617,6 +617,8 @@ describe('Windows first workspace write confirmation', () => {
     const result = await writing
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('unavailable')
+    expect(agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+      .toMatchObject({ outcome: 'unavailable', reason: 'Error: answerer disconnected' })
     expect(ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
     expect(native.additions).toEqual([])
   })

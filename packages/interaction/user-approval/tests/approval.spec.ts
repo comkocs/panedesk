@@ -250,23 +250,37 @@ describe('ApprovalService.request', () => {
     await scopeFiber.dispose()
   })
 
-  it('contains a throwing answerer as unavailable', async () => {
+  it('contains a throwing answerer as unavailable with its exception class and text', async () => {
     const ctx = await mounted()
     const { agent, appended } = fakeAgent()
     ctx.on('approval/request', () => Promise.reject(new Error('transport died')))
 
     await expect(ctx.approval.request(requestOf(agent))).resolves.toBe('unavailable')
-    expect(appended[1]?.data).toMatchObject({ outcome: 'unavailable' })
+    expect(appended[1]?.data).toMatchObject({ outcome: 'unavailable', reason: 'Error: transport died' })
   })
 
-  it('normalizes a rogue non-vocabulary answer to unavailable', async () => {
+  it('removes URL queries and complete credential header values from exception diagnostics', async () => {
     const ctx = await mounted()
-    const { agent } = fakeAgent()
+    const { agent, appended } = fakeAgent()
+    ctx.on('approval/request', () => Promise.reject(new TypeError(
+      'https://example.invalid/reply?sample=fixture\nCookie: first=fixture; second=fixture\nAuthorization: Bearer fixture',
+    )))
+    await expect(ctx.approval.request(requestOf(agent))).resolves.toBe('unavailable')
+    expect(appended[1]?.data).toMatchObject({
+      outcome: 'unavailable',
+      reason: 'TypeError: https://example.invalid/reply?<redacted>\nCookie: <redacted>\nAuthorization: <redacted>',
+    })
+  })
+
+  it('normalizes a rogue non-vocabulary answer to unavailable with a reason', async () => {
+    const ctx = await mounted()
+    const { agent, appended } = fakeAgent()
     // A JS answerer can return anything; the seam must not leak it into
     // callers' closed-union switches.
     ctx.on('approval/request', () => Promise.resolve('yolo' as ApprovalOutcome))
 
     await expect(ctx.approval.request(requestOf(agent))).resolves.toBe('unavailable')
+    expect(appended[1]?.data).toMatchObject({ outcome: 'unavailable', reason: 'TypeError: Invalid approval outcome' })
   })
 
   it('settles cancelled immediately on an already-aborted signal without asking anyone', async () => {
@@ -398,12 +412,14 @@ describe('approval policy (the approval/policy fold)', () => {
     await expect(service.request({ agent, toolName: 'echo' })).resolves.toBe('allowed-once')
   })
 
-  it('contains an answerer that throws SYNCHRONOUSLY as unavailable', async () => {
+  it('contains an answerer that throws SYNCHRONOUSLY as unavailable with a reason', async () => {
     const ctx = new Context()
     await ctx.plugin(ApprovalService)
-    const { agent } = sessionAgent('sess-syncthrow')
+    const { agent, session } = sessionAgent('sess-syncthrow')
     ctx.on('approval/request', () => { throw new Error('sync bug') })
     await expect(ctx.approval.request({ agent, toolName: 'echo' })).resolves.toBe('unavailable')
+    expect(session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+      .toMatchObject({ outcome: 'unavailable', reason: 'Error: sync bug' })
   })
 
   it('a never config rejects deterministically without consulting any answerer', async () => {

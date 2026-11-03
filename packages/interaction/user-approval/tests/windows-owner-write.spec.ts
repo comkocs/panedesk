@@ -113,7 +113,7 @@ async function fixture(protectedWorkspace = false, nestedState = false) {
     expect(await response.json()).toMatchObject({ result: { ok: true } })
     return settled
   }
-  return { ctx, harness, workspace, profile, input, policy, sandbox, agent, approve, reader, order }
+  return { ctx, harness, workspace, home, profile, input, policy, sandbox, agent, approve, reader, order }
 }
 
 it('writes after authenticated owner consent, a durable record and one ACL materialization', async () => {
@@ -178,17 +178,20 @@ it('revokes every explicit workspace capability after restart and checks every f
   expect(windowsAcl.entries.filter(entry => entry.sid === sid)).toEqual([])
 })
 
-it('keeps an entirely protected workspace non-writable even after authenticated owner consent', async () => {
+it('rejects a protected profile before requesting authenticated owner consent', async () => {
   const f = await fixture(true)
-  const result = await f.approve('allowed-once')
-  if (!('error' in result) || !(result.error instanceof Error)) throw new Error('Expected protected workspace refusal')
-  expect(result.error.message).toContain('This directory is a protected profile directory; choose another workspace')
-  expect(result.error.message).toContain('该目录是受保护的 profile 目录，请换一个工作区')
+  const dispatch = vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent')
+  await expect(f.policy.requestWrite({ agent: f.agent, toolName: 'windows-owner-write' })).rejects.toThrow()
+  expect(dispatch.mock.calls.length).toBe(0)
+  const decision = f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')
+  expect(decision?.data.outcome).toBe('rejected')
+  expect(decision?.data.reason).toContain('This directory is a protected profile directory; choose another workspace')
+  expect(decision?.data.reason).toContain('该目录是受保护的 profile 目录，请换一个工作区')
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
   expect(windowsAcl.additions).toEqual([])
 })
 
-it('starts read-only with nested state and retains an authenticated write refusal in the durable inbox', async () => {
+it('rejects nested state before asking an owner and retains the refusal in the durable inbox', async () => {
   const f = await fixture(false, true)
   const policy = f.policy.resolve({ session: f.agent.session })
   expect(policy.mode).toBe('read-only')
@@ -196,8 +199,9 @@ it('starts read-only with nested state and retains an authenticated write refusa
   const handed = await f.sandbox.confine(['node', 'read.js'], { ...policy, mode: policy.mode })
   expect(handed.argv).toContain('read-only')
   expect(windowsAcl.additions).toEqual([])
-  const result = await f.approve('allowed-once')
-  expect('error' in result).toBe(true)
+  const dispatch = vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent')
+  await expect(f.policy.requestWrite({ agent: f.agent, toolName: 'windows-owner-write' })).rejects.toThrow()
+  expect(dispatch.mock.calls.length).toBe(0)
   const reason = 'The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。'
   expect(JSON.stringify(f.agent.inbox.nextStep)).toContain(reason)
   expect(JSON.stringify(f.agent.session.snapshotEvents())).toContain(reason)
@@ -210,10 +214,114 @@ it('starts read-only with nested state and retains an authenticated write refusa
   expect(windowsAcl.additions).toEqual([])
 })
 
+it('rejects unsafe state ancestors before asking an owner and records the bilingual reason', async () => {
+  const f = await fixture()
+  windowsAcl.entries.push({ path: f.home, sid: 'S-1-1-0', deny: false, recursive: false, rights: ['write-dac'] })
+  const dispatch = vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent')
+  await expect(f.policy.requestWrite({ agent: f.agent, toolName: 'windows-owner-write' })).rejects.toThrow()
+  expect(dispatch.mock.calls.length).toBe(0)
+  const decision = f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')
+  expect(decision?.data.outcome).toBe('rejected')
+  expect(decision?.data.reason).toContain('Windows owner state is not trusted')
+  expect(decision?.data.reason).toContain('Windows 所有者状态不可信')
+  expect(JSON.stringify(f.agent.inbox.nextStep)).toContain('Windows 所有者状态不可信')
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('rejects a failed rule check before owner dispatch and retains its sanitized diagnostic', async () => {
+  const f = await fixture()
+  const dispatch = vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent')
+  vi.spyOn(f.policy.workspaceAccess, 'assertCanAuthorize').mockImplementation(() => {
+    throw new Error('state probe unavailable')
+  })
+  await expect(f.policy.requestWrite({ agent: f.agent, toolName: 'windows-owner-write' })).rejects.toThrow('rejected')
+  expect(dispatch).not.toHaveBeenCalled()
+  const reason = 'Rule check failed: Error: state probe unavailable / 规则检查失败:Error: state probe unavailable'
+  expect(f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+    .toMatchObject({ outcome: 'rejected', reason })
+  expect(JSON.stringify(f.agent.inbox.nextStep)).toContain(reason)
+  expect(f.policy.resolve({ session: f.agent.session }).mode).toBe('read-only')
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('rechecks rules after owner consent before recording consent or materializing ACLs', async () => {
+  const f = await fixture()
+  const dispatch = f.ctx.typertGateway.requestOwnerEvent.bind(f.ctx.typertGateway)
+  vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent').mockImplementation(async (...args) => {
+    const outcome = await dispatch(...args)
+    windowsAcl.entries.push({ path: f.home, sid: 'S-1-1-0', deny: false, recursive: false, rights: ['write-dac'] })
+    return outcome
+  })
+  const result = await f.approve('allowed-once')
+  expect('error' in result).toBe(true)
+  const decision = f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')
+  expect(decision?.data.outcome).toBe('rejected')
+  expect(decision?.data.reason).toContain('Windows owner state is not trusted')
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('records a genuine owner transport absence as unavailable without granting writes', async () => {
+  const f = await fixture()
+  vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent').mockResolvedValue({ kind: 'next' })
+  await expect(f.policy.requestWrite({ agent: f.agent, toolName: 'windows-owner-write' })).rejects.toThrow('unavailable')
+  expect(f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+    .toMatchObject({ outcome: 'unavailable' })
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('records owner transport exceptions as unavailable with their class and text', async () => {
+  const f = await fixture()
+  const inject = vi.spyOn(f.agent, 'inject')
+  vi.spyOn(f.ctx.typertGateway, 'requestOwnerEvent').mockRejectedValue(new TypeError('owner result decoding failed'))
+  await expect(f.policy.requestWrite({ agent: f.agent, toolName: 'windows-owner-write' })).rejects.toThrow()
+  expect(f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+    .toMatchObject({ outcome: 'unavailable', reason: 'TypeError: owner result decoding failed' })
+  expect(inject).not.toHaveBeenCalled()
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('rejects a materialization failure and removes its committed authorization', async () => {
+  const f = await fixture()
+  const inject = vi.spyOn(f.agent, 'inject')
+  vi.spyOn(f.sandbox, 'materializeWorkspaceWriteGrant').mockRejectedValue(new Error('ACL materialization failed'))
+  const result = await f.approve('allowed-once')
+  expect('error' in result).toBe(true)
+  expect(f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+    .toMatchObject({ outcome: 'rejected',
+      reason: 'Approved but authorization failed: Error: ACL materialization failed / 已批准但授权失败:Error: ACL materialization failed' })
+  expect(inject).not.toHaveBeenCalled()
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(f.policy.resolve({ session: f.agent.session }).mode).toBe('read-only')
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('revokes materialized access when the decision audit cannot commit', async () => {
+  const f = await fixture()
+  const materialize = f.sandbox.materializeWorkspaceWriteGrant.bind(f.sandbox)
+  vi.spyOn(f.sandbox, 'materializeWorkspaceWriteGrant').mockImplementation(async (...args) => {
+    await materialize(...args)
+    vi.spyOn(f.agent.session, 'append').mockImplementationOnce(() => { throw new Error('decision append failed') })
+  })
+  const result = await f.approve('allowed-once')
+  expect('error' in result).toBe(true)
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  expect(f.policy.resolve({ session: f.agent.session }).mode).toBe('read-only')
+  expect(windowsAcl.entries.filter(entry => entry.sid === workspaceWriteSid(f.workspace))).toEqual([])
+})
+
 it('keeps a rejected Windows owner decision read-only without a record or ACL', async () => {
   const f = await fixture()
+  const inject = vi.spyOn(f.agent, 'inject')
   const result = await f.approve('rejected')
+  expect(inject).not.toHaveBeenCalled()
   expect('error' in result).toBe(true)
+  expect(f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data)
+    .toMatchObject({ outcome: 'rejected', reason: 'Owner rejected / owner 拒' })
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
   expect(windowsAcl.additions).toEqual([])
   expect(f.reader.covers(f.input)).toBe(false)

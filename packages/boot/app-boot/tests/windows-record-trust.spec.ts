@@ -28,7 +28,9 @@ it('omits untrusted recorded and current configuration but keeps read-only reads
   initial.grantWrite()
   writeFileSync(input, 'attacker current bytes')
   state.unsafe = true
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
   const reopened = ProtectedInputIntegrity.openOwnerRecords(workspace, home)
+  expect(warning).toHaveBeenCalledWith(expect.stringContaining('UnsafeWindowsStateError:'))
   expect(reopened.readTrusted(input)).toBeUndefined()
   expect(() => reopened.readExecutable(input)).toThrow('Windows owner state')
   expect(() => { reopened.grantWrite() }).toThrow('Windows owner state')

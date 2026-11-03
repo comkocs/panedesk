@@ -63,6 +63,8 @@ describe('ACP machine permission policy', () => {
     const request = await ownedRequest()
     harness.onPermission = () => { throw new Error('client gone') }
     await expect(harness.ctx.approval.request(request)).resolves.toBe('unavailable')
+    const decision = request.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')
+    expect(decision?.data.reason).toBe('RequestError: Internal error')
   })
 
   it('delegates a same-id foreign agent', async () => {
