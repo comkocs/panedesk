@@ -9,6 +9,11 @@ import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import PermissionPresetService from '../src/index.ts'
 
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
+  const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
+  return { ...actual, assertWindowsStateTrusted: vi.fn() }
+})
+
 const contexts: Context[] = []
 const homes: string[] = []
 afterEach(async () => {
