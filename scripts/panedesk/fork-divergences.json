@@ -14501,6 +14501,19 @@
         ],
         "test": "maps the one external home spelling and its realpath spelling to {{home}}; preserves distinct job references across refresh records: %s, %s"
       }
+    },
+    {
+     "id": "tracked-file-listing-buffer",
+     "description": "Raise the tracked-file listing buffer for the public-link and concrete-term gates.",
+     "origin": "Tracked-file discovery for repository gates",
+     "reason": "tracked-file listing exceeds Node's default 1 MiB buffer as the fork grows",
+     "match": {
+      "type": "behavior",
+      "paths": [
+       "scripts/verify-public-repository-links.ts",
+       "scripts/verify-concrete-terms.ts"
+      ]
+     }
     }
   ]
 }
