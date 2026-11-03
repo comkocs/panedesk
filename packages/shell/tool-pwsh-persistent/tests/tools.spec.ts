@@ -21,6 +21,45 @@ import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRegistry from '@panedesk/dsh-tools'
 import * as ToolPwshPersistent from '@panedesk/dsh-tool-pwsh-persistent'
 import { resolvePwshPath } from '@panedesk/dsh-pwsh-local/src/resolve.ts'
+import { requireAdmissionSandbox } from '../../../boot/plugin-manager/tests/admission-evidence.ts'
+
+function pwshEvidence(test: { skip: (reason: string) => void }): void {
+  const available = spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '$true'], {
+    encoding: 'utf8', timeout: 10_000,
+  }).status === 0
+  if (requireAdmissionSandbox(process.env.PANEDESK_CI_NATIVE_SANDBOX, available, 'PowerShell')) return
+  const reason = 'Local pwsh evidence skipped: PowerShell is absent or cannot execute commands.'
+  console.warn(reason)
+  test.skip(reason)
+}
+
+it('fails rather than skipping when required pwsh evidence cannot resolve PowerShell', () => {
+  vi.stubEnv('PANEDESK_CI_NATIVE_SANDBOX', 'required')
+  vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+  vi.stubEnv('PATH', '')
+  const skip = vi.fn()
+  try {
+    expect(() => { pwshEvidence({ skip }) }).toThrow('needs usable PowerShell; refusing to skip.')
+    expect(skip).not.toHaveBeenCalled()
+  } finally {
+    vi.unstubAllEnvs()
+  }
+})
+
+it('skips local pwsh evidence with a reason when PowerShell cannot resolve', () => {
+  vi.stubEnv('PANEDESK_CI_NATIVE_SANDBOX', '')
+  vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+  vi.stubEnv('PATH', '')
+  const skip = vi.fn()
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  try {
+    pwshEvidence({ skip })
+    expect(skip).toHaveBeenCalledWith('Local pwsh evidence skipped: PowerShell is absent or cannot execute commands.')
+    expect(warn).toHaveBeenCalledWith('Local pwsh evidence skipped: PowerShell is absent or cannot execute commands.')
+  } finally {
+    vi.unstubAllEnvs()
+  }
+})
 
 const contexts: Context[] = []
 let callNumber = 0
@@ -369,7 +408,8 @@ describe('tool-pwsh-persistent', () => {
     expect(ctx.tools.get('pwsh')).toBeUndefined()
   })
 
-  it('retains terminating PowerShell errors before the completion status', async () => {
+  it('retains terminating PowerShell errors before the completion status', async (test) => {
+    pwshEvidence(test)
     const { ctx, owner, stub } = await setup({ backendType: 'stub' })
     await call(ctx, owner, 'warm up')
     const session = stub.sessions[0]!

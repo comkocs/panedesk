@@ -14602,6 +14602,19 @@
           "packages/terminal/terminal-bash/README.i18n.yaml"
         ]
       }
+    },
+    {
+      "id": "persistent-pwsh-required-prerequisite",
+      "description": "Require PowerShell for native CI evidence and explain local skips",
+      "origin": "PowerShell test prerequisite policy",
+      "reason": "Reuse the native admission prerequisite policy for the real terminating-error regression: probe the resolved PowerShell executable, explain a local skip when unavailable, and fail instead of skipping when PANEDESK_CI_NATIVE_SANDBOX=required. Exercise both the required failure and local skip with an unavailable executable. Existing PowerShell availability checks are distributed across independent suites and remain listed as follow-up work. These test changes can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": [
+          "packages/boot/plugin-manager/tests/admission-evidence.ts",
+          "packages/shell/tool-pwsh-persistent/tests/tools.spec.ts"
+        ]
+      }
     }
   ]
 }
