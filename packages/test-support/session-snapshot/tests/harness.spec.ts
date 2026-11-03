@@ -595,6 +595,20 @@ describe('runScenario', () => {
     expect(env.childFiles).toBe(childFiles.join(delimiter))
   })
 
+  it('reports the scenario home path and removes that directory after the run', { timeout: 20_000 }, async () => {
+    const { fixtureFile } = await scenario({ echoEnv: true })
+    const result = await runScenario(
+      { steps: [...boot, { op: 'prompt', text: 'env?' }] },
+      { agent: AGENT, mode: 'replay', fixtureFile, env: { PANEDESK_HOME: join(tmpdir(), 'caller-owned-home') } },
+    )
+    const reportedHome = environmentEcho(result.rawStdout).home
+    expect(typeof result.home).toBe('string')
+    expect(result.home).not.toBe(result.cwd)
+    expect(relative(tmpdir(), result.home)).toMatch(/^acp-snap-home-[^/\\]+$/)
+    expect(reportedHome).toBe(result.home)
+    await expect(readdir(result.home)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('cleans acquired workspace and session roots when spill allocation fails', async () => {
     const { fixtureFile } = await scenario({})
     const failure = { error: Object.assign(new Error('spill allocation failed'), { code: 'ENOSPC' }), allocated: [] as string[] }

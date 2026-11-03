@@ -147,6 +147,12 @@ export interface RunResult {
   sessionId?: string
   /** The generated cwd the session ran in (the bash workspace). */
   cwd: string
+  /**
+   * Absolute path of the temporary product home this run allocated. The harness
+   * removes that directory before returning, so the path is a record of where
+   * owner state lived, not a directory the caller can read afterwards.
+   */
+  home: string
   /** Filesystem-resolved spellings of {@link cwd} that child processes may report. */
   cwdAliases: string[]
   /** User-visible workspace state after committed and runtime-only setup. */
@@ -355,6 +361,7 @@ export async function runScenario(input: InputScript, opts: RunOptions): Promise
       rawStdout: launched.rawStdout(),
       stderr: launched.stderr(),
       cwd,
+      home: homeRoot,
       cwdAliases,
       initialWorkspace,
       finalWorkspace,

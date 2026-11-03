@@ -121,10 +121,9 @@ it('pins Messages Files offload and inline fallback in assembled requests', asyn
     expect(fileRequests).toEqual([{ method: 'POST', path: filesPath, bytes: 69 }])
     const attachmentDigest = 'b1ff9c8ea3a780bad09b346c423d2d0e46815926879b18e841d928376a946640'
     const attachmentId = `sha256:${attachmentDigest}`
-    const accessText = (cwd: string): string => {
+    const accessText = (home: string): string => {
       const attachmentPath = join(
-        cwd,
-        '.panedesk',
+        home,
         'attachments',
         'v1',
         'objects',
@@ -135,7 +134,7 @@ it('pins Messages Files offload and inline fallback in assembled requests', asyn
         + ' Source dimensions, format, and byte size may differ.'
         + ' Copy to a writable path ending in .png before editing.'
     }
-    const normalizedAccess = accessText(result.cwd)
+    const normalizedAccess = accessText(result.home)
     const fileImage = { type: 'image', source: { type: 'file', file_id: 'file-api-snapshot-1' } }
     const offloadedImage = `[image omitted to fit request image limits; ${attachmentId}.${normalizedAccess}]`
     const imageHandle = `Image ${attachmentId}; request preview 1x1px.${normalizedAccess}`
@@ -195,7 +194,7 @@ it('pins Messages Files offload and inline fallback in assembled requests', asyn
     expect(requests).toHaveLength(3)
     const fallbackMessages = requests[2]?.messages as { content?: unknown }[] | undefined
     const fallbackInput = fallbackMessages?.find(message => JSON.stringify(message.content).includes('[image omitted'))
-    const fallbackAccess = accessText(fallback.cwd)
+    const fallbackAccess = accessText(fallback.home)
     expect(fallbackInput?.content).toEqual([
       { type: 'text', text: 'Compare the older image ' },
       { type: 'text', text: `[image omitted to fit request image limits; ${attachmentId}.${fallbackAccess}]` },

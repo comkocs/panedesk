@@ -14520,6 +14520,19 @@
        "scripts/verify-concrete-terms.ts"
       ]
      }
+    },
+    {
+     "id": "acp-image-offload-home-outside-workspace",
+     "description": "Expect offloaded ACP image attachments under the scenario product home.",
+     "origin": "Owner state location for profile expectations",
+     "reason": "The owner state directory must stay outside writable roots: the image-offload expectation reads stored attachments from the scenario product home instead of the workspace, and its assertions are unchanged.",
+     "match": {
+      "type": "test-assertion",
+      "paths": [
+       "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
+      ],
+      "test": "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
+     }
     }
   ]
 }
