@@ -981,14 +981,6 @@ function preserveNormalizedVolatiles(
   return Object.is(normalizedFresh, normalizedExisting) ? existing : fresh
 }
 
-/** Normalize one aligned record with the same contract used by fixture comparison. */
-function normalizedRefreshRecord(
-  record: Record<string, unknown>,
-  context: NormalizeContext,
-): Record<string, unknown> {
-  return JSON.parse(normalizeSessionLog(`${JSON.stringify(record)}\n`, context)) as Record<string, unknown>
-}
-
 /**
  * Add normalized-equivalent string replacements to a bijection.
  * Structural differences are fresh-owned and therefore contribute no mapping.
@@ -1080,8 +1072,8 @@ function normalizedStringMappings(
   records: Record<string, unknown>[],
   freshRecords: Record<string, unknown>[],
   existingRecords: Record<string, unknown>[],
-  freshContext: NormalizeContext,
-  existingContext: NormalizeContext,
+  normalizedFreshRecords: Record<string, unknown>[],
+  normalizedExistingRecords: Record<string, unknown>[],
 ): Map<string, string> | undefined {
   const excludedStrings = new Set<string>()
   for (const record of [...freshRecords, ...existingRecords]) {
@@ -1107,8 +1099,8 @@ function normalizedStringMappings(
       if (!collectNormalizedStringMappings(
         record,
         existingRecord,
-        normalizedRefreshRecord(freshRecords[recordIndex] as Record<string, unknown>, freshContext),
-        normalizedRefreshRecord(existingRecord, existingContext),
+        normalizedFreshRecords[recordIndex],
+        normalizedExistingRecords[existingIndex],
         excludedStrings,
         forward,
         reverse,
@@ -1125,7 +1117,9 @@ function normalizedStringMappings(
  * existing fixture lends normalized-equivalent values, including non-message ids, paths,
  * creation/event times, spill locators, and hook durations, only when the
  * record layout aligns apart from inserted titles or skill catalogs and volatile
- * strings form a consistent bijection. Inserted preparation events retain their
+ * strings form a consistent bijection. Both logs normalize job identities before
+ * record alignment, preserving references in later text and tool arguments.
+ * Inserted preparation events retain their
  * payloads and borrow the preceding event time without advancing the old log.
  * Complete durable-message ids are excluded because the later
  * fixture-ready structural pass owns them. Ambiguous layouts or mappings
@@ -1150,13 +1144,14 @@ export function stabilizeRefreshLog(
   const stable = applyFixtureReplacements(fresh, replacements)
   const existingRecords = logicalRecords(parseJsonlRecords(existing))
   const records = parseJsonlRecords(stable)
-  const existingContext = fixtureContext(existing)
+  const normalizedFreshRecords = parseJsonlRecords(normalizeSessionLog(fresh, freshContext))
+  const normalizedExistingRecords = logicalRecords(parseJsonlRecords(normalizeSessionLog(existing, fixtureContext(existing))))
   const stringMappings = normalizedStringMappings(
     records,
     freshRecords,
     existingRecords,
-    freshContext,
-    existingContext,
+    normalizedFreshRecords,
+    normalizedExistingRecords,
   )
   let existingIndex = 0
   let previousEventTime: unknown
@@ -1179,8 +1174,8 @@ export function stabilizeRefreshLog(
         record = preserveNormalizedVolatiles(
           record,
           existingRecord,
-          normalizedRefreshRecord(freshRecords[i] as Record<string, unknown>, freshContext),
-          normalizedRefreshRecord(existingRecord, existingContext),
+          normalizedFreshRecords[i],
+          normalizedExistingRecords[existingIndex],
           stringMappings,
         ) as Record<string, unknown>
         records[i] = record

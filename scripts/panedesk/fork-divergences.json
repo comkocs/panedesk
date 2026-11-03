@@ -14474,19 +14474,22 @@
     },
     {
       "id": "session-snapshot-external-home-token",
-      "description": "Tokenize one caller-supplied external product home in session snapshot normalization.",
+      "description": "Normalize external product homes and preserve log-wide job references during session snapshot refresh.",
       "origin": "Owner state location for recorded sessions",
-      "reason": "The owner state directory must stay outside writable roots: normalization replaces exactly one supplied external home directory, including its realpath spelling, with a stable token and leaves look-alike paths unchanged.",
+      "reason": "The owner state directory must stay outside writable roots: normalization replaces exactly one supplied external home directory, including its realpath spelling, with a stable token and leaves look-alike paths unchanged. Refresh normalizes complete logs before borrowing fixture values so job events, text, and serialized arguments retain consistent identities without hiding changed results.",
       "match": {
         "type": "test-assertion",
         "paths": [
           "packages/test-support/session-snapshot/src/normalize.ts",
           "packages/test-support/session-snapshot/src/index.ts",
           "packages/test-support/session-snapshot/tests/normalize.spec.ts",
+          "packages/test-support/session-snapshot/src/suite.ts",
+          "packages/test-support/session-snapshot/tests/suite.spec.ts",
           "packages/test-support/session-snapshot/README.md",
-          "packages/test-support/session-snapshot/README.zh.md"
+          "packages/test-support/session-snapshot/README.zh.md",
+          "packages/test-support/session-snapshot/README.i18n.yaml"
         ],
-        "test": "maps the one external home spelling and its realpath spelling to {{home}}"
+        "test": "maps the one external home spelling and its realpath spelling to {{home}}; preserves distinct job references across refresh records: %s, %s"
       }
     }
   ]
