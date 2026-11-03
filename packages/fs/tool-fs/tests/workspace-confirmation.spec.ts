@@ -118,7 +118,7 @@ async function fixture(
   if (loader) {
     const config = join(home, 'cordis.yml')
     writeFileSync(config, JSON.stringify([
-      { name: 'cordis:policy', config: { workspaceRoot: workspace } },
+      { name: 'cordis:policy', config: { workspaceRoot: workspace, ...mode === undefined ? {} : { mode } } },
       { name: 'cordis:approval', config: { policy, workspaceWriteTimeoutMs: options.timeoutMs ?? 100 } },
       { name: 'cordis:sandbox' },
       { name: 'cordis:fs', config: { cwd: workspace } },
@@ -204,6 +204,56 @@ async function fixture(
 function text(result: { content: readonly { type: string; text?: string }[] }): string {
   return result.content.map(block => block.text ?? '').join('')
 }
+
+describe('owner material through Loader tools', () => {
+  it('reads synthetic credentials when read isolation is explicitly disabled', async () => {
+    const { ctx, agent, workspace } = await fixture('never', 'linux', 'danger-full-access', false, true)
+    const directory = join(workspace, '..', 'private')
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+    const document = join(directory, '.credentials.yaml')
+    writeFileSync(document, 'synthetic owner material', { mode: 0o600 })
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal, agent, name: 'read', callId: ToolCallId('owner-read-control'),
+      arguments: { file_path: document },
+    })
+    expect(result.isError).not.toBe(true)
+    expect(text(result)).toContain('synthetic owner material')
+  })
+
+  it.each(['read-only', 'workspace-write'] as const)('filters owner directories and refuses edits through Loader in %s', async (mode) => {
+    const { ctx, agent, workspace } = await fixture('never', 'linux', mode, false, true)
+    const home = join(workspace, '..')
+    const directory = join(home, 'private')
+    mkdirSync(directory, { recursive: true, mode: 0o700 })
+    const document = join(directory, '.credentials.yaml')
+    writeFileSync(document, 'synthetic owner material', { mode: 0o600 })
+    const listing = await ctx.fs.listDir(await ctx.fs.resolve(home), undefined, ctx.sandboxPolicy.resolve({ session: agent.session }))
+    expect(listing.map(entry => entry.name)).not.toContain('private')
+    const edit = await ctx.tools.execute({
+      signal: new AbortController().signal, agent, name: 'edit', callId: ToolCallId('owner-edit'),
+      arguments: { file_path: document, old_string: 'synthetic', new_string: 'modified' },
+    })
+    expect(edit.isError).toBe(true)
+    expect(text(edit)).not.toContain('synthetic owner material')
+    expect(readFileSync(document, 'utf8')).toBe('synthetic owner material')
+  })
+
+  it.each(['read-only', 'workspace-write'] as const)('refuses the credential document through the real read tool in %s', async (mode) => {
+    const { ctx, agent, workspace } = await fixture('never', 'linux', mode, false, true)
+    const privateDirectory = join(workspace, '..', 'private')
+    mkdirSync(privateDirectory, { recursive: true, mode: 0o700 })
+    const document = join(privateDirectory, '.credentials.yaml')
+    writeFileSync(document, 'synthetic owner material', { mode: 0o600 })
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal, agent, name: 'read', callId: ToolCallId('owner-read'),
+      arguments: { file_path: document },
+    })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('Owner identity material')
+    expect(text(result)).toContain('所有者身份材料')
+    expect(text(result)).not.toContain('synthetic owner material')
+  })
+})
 
 describe('Windows first workspace write confirmation', () => {
   it('keeps writes read-only until consent, persists first confirmation, and asks again after revocation', async () => {

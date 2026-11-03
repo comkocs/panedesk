@@ -1,6 +1,28 @@
 {
   "divergences": [
     {
+      "id": "owner-material-file-read-policy",
+      "description": "Deny owner material reads through filesystem tools",
+      "origin": "Owner credential read isolation",
+      "reason": "Carry per-call read policies through filesystem interfaces and tools, reject canonical and inode aliases of owner materials, filter private directory entries, and preserve explicit full-access reads. Cover real credential files and workspace confirmation without weakening write approvals. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/fs/fs/src/index.ts",
+          "packages/fs/fs-sandbox/src/index.ts",
+          "packages/fs/fs-sandbox/tests/owner-material.spec.ts",
+          "packages/fs/fs-sandbox/README.md",
+          "packages/fs/fs-sandbox/README.zh.md",
+          "packages/fs/fs-sandbox/README.i18n.yaml",
+          "packages/fs/tool-fs/src/read-image.ts",
+          "packages/fs/tool-fs/src/read-target.ts",
+          "packages/fs/tool-fs/src/read.ts",
+          "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
+          "packages/fs/tool-str-replace-editor/src/index.ts"
+        ]
+      }
+    },
+    {
       "id": "owner-directory-process-isolation",
       "description": "Exclude owner material directories from restricted processes",
       "origin": "Owner credential read isolation",

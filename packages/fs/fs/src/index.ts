@@ -176,9 +176,10 @@ export abstract class FileSystem extends Service {
    * Return target metadata, or `undefined` when the target does not exist.
    * @param target - the resolved target to stat.
    * @param signal - aborts the metadata round-trip.
+   * @param sandboxPolicy - Per-call read policy; omission uses the provider default.
    * @returns metadata only, never content; undefined for an absent target.
    */
-  abstract stat(target: FsTarget, signal?: AbortSignal): Promise<FsInfo | undefined>
+  abstract stat(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<FsInfo | undefined>
 
   /**
    * Return path metadata without following the final path component when it is a
@@ -200,9 +201,10 @@ export abstract class FileSystem extends Service {
    * Read the whole regular text file as a single decoded string.
    * @param target - the resolved target to read.
    * @param signal - aborts the read.
+   * @param sandboxPolicy - Per-call read policy; omission uses the provider default.
    * @returns the full decoded UTF-8 content.
    */
-  abstract readText(target: FsTarget, signal?: AbortSignal): Promise<string>
+  abstract readText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<string>
 
   /**
    * Stream the whole regular text file as decoded text chunks (same text
@@ -211,9 +213,10 @@ export abstract class FileSystem extends Service {
    * touches raw bytes.
    * @param target - the resolved target to read.
    * @param signal - aborts the stream, including between chunks.
+   * @param sandboxPolicy - Per-call read policy; omission uses the provider default.
    * @returns the chunk iterable, decoded and validated like {@link readText}.
    */
-  abstract streamText(target: FsTarget, signal?: AbortSignal): Promise<AsyncIterable<string>>
+  abstract streamText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<AsyncIterable<string>>
 
   /**
    * Read the whole regular file as raw bytes with no decoding or binary
@@ -223,9 +226,12 @@ export abstract class FileSystem extends Service {
    * @param target - the resolved target to read.
    * @param signal - aborts the read.
    * @param maxBytes - inclusive byte cap on the complete content.
+   * @param sandboxPolicy - Per-call read policy; omission uses the provider default.
    * @returns the full raw content, at most `maxBytes` long.
    */
-  abstract readBytes(target: FsTarget, signal: AbortSignal | undefined, maxBytes: number): Promise<Uint8Array>
+  abstract readBytes(
+    target: FsTarget, signal: AbortSignal | undefined, maxBytes: number, sandboxPolicy?: SandboxExecutionPolicy,
+  ): Promise<Uint8Array>
 
   /**
    * Read one byte window of the regular file as raw bytes with no decoding or
@@ -238,18 +244,22 @@ export abstract class FileSystem extends Service {
    * @param target - the resolved target to read.
    * @param range - `offset`, the 0-based first byte, and `length`, the largest byte count; both non-negative integers.
    * @param signal - aborts the read.
+   * @param sandboxPolicy - Per-call read policy; omission uses the provider default.
    * @returns the window's bytes, at most `length` long.
    */
-  abstract readByteRange(target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal): Promise<Uint8Array>
+  abstract readByteRange(
+    target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy,
+  ): Promise<Uint8Array>
 
   /**
    * List direct children of a directory in stable name order. Returns resolved
    * child targets plus cheap metadata only; never reads file contents.
    * @param target - the resolved directory target.
    * @param signal - aborts the listing.
+   * @param sandboxPolicy - Per-call read policy; omission uses the provider default.
    * @returns one entry per direct child, in stable name order.
    */
-  abstract listDir(target: FsTarget, signal?: AbortSignal): Promise<FsDirEntry[]>
+  abstract listDir(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<FsDirEntry[]>
 
   /**
    * Atomically create or replace UTF-8 text. `expected` guards intent and

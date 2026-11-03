@@ -138,13 +138,13 @@ export function applyReadTool(ctx: Context, caps: ReadToolCaps): void {
       const input = parseReadArgs(args, caps.limit)
       // One stat: absence observation OR type check + size routing + present version.
       // A concurrent write can only make a later guarded mutation fail stale and require reread.
-      const { target, info } = await resolveRegularReadTarget(ctx, exec, input.filePath)
+      const { target, info, policy } = await resolveRegularReadTarget(ctx, exec, input.filePath)
 
       // Stream when the file is large OR size is unknown, so a size-less backend
       // never buffers an arbitrarily large file.
       const chunks = info.size === undefined || info.size >= caps.streamMinSize
-        ? await ctx.fs.streamText(target, exec.signal)
-        : [await ctx.fs.readText(target, exec.signal)]
+        ? await ctx.fs.streamText(target, exec.signal, policy)
+        : [await ctx.fs.readText(target, exec.signal, policy)]
       const window = await buildWindow(
         chunks,
         { offset: input.offset, limit: input.limit, maxLineLength: caps.maxLineLength, maxBytes: caps.maxBytes },

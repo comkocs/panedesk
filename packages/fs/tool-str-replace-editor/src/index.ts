@@ -106,7 +106,7 @@ async function statExisting(
   command: 'view' | 'str_replace' | 'insert',
   exec: ToolRunContext,
 ): Promise<FsInfo> {
-  const info = await ctx.fs.stat(target, exec.signal)
+  const info = await ctx.fs.stat(target, exec.signal, new MutationPolicy(ctx).resolve(exec))
   if (info === undefined) {
     ctx.emit('fs/observed', target, { kind: 'absent' }, exec)
     throw new FsError(
@@ -192,7 +192,7 @@ async function listDirectory(
   exec: ToolRunContext,
 ): Promise<string> {
   async function visit(dir: FsTarget, depth: number): Promise<string[]> {
-    const entries = await ctx.fs.listDir(dir, exec.signal)
+    const entries = await ctx.fs.listDir(dir, exec.signal, new MutationPolicy(ctx).resolve(exec))
     const rows: string[] = []
     for (const entry of entries.filter(candidate =>
       !candidate.name.startsWith('.')
@@ -234,7 +234,7 @@ async function viewPath(
   if (info.type !== 'file') {
     throw new FsError(`cannot view "${target.displayPath}": not a regular file or directory`, 'FS_NOT_REGULAR_FILE')
   }
-  const content = await ctx.fs.readText(target, exec.signal)
+  const content = await ctx.fs.readText(target, exec.signal, new MutationPolicy(ctx).resolve(exec))
   ctx.emit('fs/observed', target, { kind: 'present', version: info.version }, exec)
   return formatFileView(target.displayPath, content, maxOutputChars, viewRange)
 }
@@ -294,7 +294,7 @@ async function replaceInFile(
   if (info.type !== 'file') {
     throw new FsError(`cannot edit "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
   }
-  const before = await ctx.fs.readText(target, exec.signal)
+  const before = await ctx.fs.readText(target, exec.signal, new MutationPolicy(ctx).resolve(exec))
   const offsets = matchOffsets(before, oldValue)
   const offset = offsets[0]
   if (offset === undefined) {
@@ -345,7 +345,7 @@ async function insertInFile(
   if (info.type !== 'file') {
     throw new FsError(`cannot insert into "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
   }
-  const before = await ctx.fs.readText(target, exec.signal)
+  const before = await ctx.fs.readText(target, exec.signal, new MutationPolicy(ctx).resolve(exec))
   const lines = before.split('\n')
   if (!Number.isInteger(insertLine) || insertLine < 0 || insertLine > lines.length) {
     throw new Error(
