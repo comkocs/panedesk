@@ -59,6 +59,8 @@ Plugin commands can import `requestRunningHost` and `RunningHostOptions` from `p
 
 ## Development
 
+The built headless entry acceptance uses an isolated project directory with its owner home outside that workspace, so the checkout and its linked dependencies are not treated as task inputs.
+
 Production runs require built package and frontend artifacts. From the repository root, run `pnpm run build` separately, then use `pnpm dsh <args...>` to run the TypeScript entry and forward every argument; the [source-execution reference](reference/README.md#source-execution) owns the module-resolution contract.
 
 The `panedesk/profile-boot` export provides the shared profile lifecycle to the Desktop host. A resolved application profile supplies its own installation anchor for runtime package resolution while retaining the Harness home patch, proxy environment, telemetry switch, patch reload, and bounded shutdown.
