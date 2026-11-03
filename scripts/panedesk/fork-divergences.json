@@ -14533,6 +14533,22 @@
       ],
       "test": "apps/cli/tests/profiles/acp/tests/image-offload.expected.e2e.ts"
      }
+    },
+    {
+     "id": "session-snapshot-harness-external-home",
+     "description": "Allocate the scenario product home outside the writable workspace and report it.",
+     "origin": "Owner state location for snapshot harness runs",
+     "reason": "The owner state directory must stay outside writable roots: the harness allocates each scenario product home outside the writable workspace and reports that path on RunResult so expectations can read it, without changing assertions. The launcher places profile patches and package links under the same home and removes a home it allocated itself. These changes are suitable for upstream.",
+     "match": {
+      "type": "test-assertion",
+      "paths": [
+       "packages/test-support/session-snapshot/src/harness.ts",
+       "packages/test-support/session-snapshot/src/launcher.ts",
+       "packages/test-support/session-snapshot/tests/fixtures/fake-acp-agent.ts",
+       "packages/test-support/session-snapshot/tests/harness.spec.ts"
+      ],
+      "test": "reports the scenario home path and removes that directory after the run"
+     }
     }
   ]
 }
