@@ -55,7 +55,7 @@
       "id": "owner-material-file-read-policy",
       "description": "Deny owner material reads through filesystem tools",
       "origin": "Owner credential read isolation",
-      "reason": "Carry per-call read policies through filesystem interfaces and tools, reject canonical and inode aliases of owner materials, filter private directory entries, and preserve explicit full-access reads. Cover real credential files and workspace confirmation without weakening write approvals. These changes can be contributed upstream.",
+      "reason": "Carry per-call read policies through filesystem interfaces and tools, reject canonical and inode aliases of owner materials, filter private directory entries, and preserve explicit full-access reads. Cover real credential files and workspace confirmation without weakening write approvals. Verify glob and grep carry owner directories through session policy, real mount-profile construction, and subprocess spawn in both restricted modes, with a full-access control. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -69,7 +69,13 @@
           "packages/fs/tool-fs/src/read-target.ts",
           "packages/fs/tool-fs/src/read.ts",
           "packages/fs/tool-fs/tests/workspace-confirmation.spec.ts",
-          "packages/fs/tool-str-replace-editor/src/index.ts"
+          "packages/fs/tool-str-replace-editor/src/index.ts",
+          "packages/fs/tool-fs-search/tests/tools.spec.ts",
+          "packages/fs/tool-fs-search/package.json",
+          "packages/fs/tool-fs-search/README.md",
+          "packages/fs/tool-fs-search/README.zh.md",
+          "packages/fs/tool-fs-search/README.i18n.yaml",
+          "pnpm-lock.yaml"
         ]
       }
     },

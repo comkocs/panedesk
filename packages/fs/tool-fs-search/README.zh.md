@@ -31,7 +31,7 @@ kind: "package-reference"
 
 ### 最小组合
 
-先加载子进程与 sandbox-policy 服务，再加载工具。受限调用需要沙箱提供方，并在启动 ripgrep 前将调用 Session 的当前策略传给 `confine`；隔离缺失或失败均不启动进程。显式 `danger-full-access` 不执行隔离。spill 后端为可选，使达到上限的结果可完整恢复。
+先加载子进程与 sandbox-policy 服务，再加载工具。受限调用需要沙箱提供方，并在启动 ripgrep 前将调用 Session 的当前策略传给 `confine`；隔离缺失或失败均不启动进程。`glob` 与 `grep` 均把已登记的所有者目录传入提供方的读取拒绝 profile，不经过 `ctx.fs`。显式 `danger-full-access` 不执行隔离。spill 后端为可选，使达到上限的结果可完整恢复。
 
 ```yaml
 - name: '@panedesk/dsh-sandbox-policy'

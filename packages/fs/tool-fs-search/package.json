@@ -47,6 +47,7 @@
     "@panedesk/dsh-working-directory": "workspace:*"
   },
   "devDependencies": {
+    "@panedesk/dsh-sandbox-local": "workspace:*",
     "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-agent": "workspace:*",
     "@panedesk/dsh-subprocess": "workspace:*",

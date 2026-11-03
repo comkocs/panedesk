@@ -11,7 +11,11 @@
  */
 
 import { provideWorkingDirectoryFixture } from '@panedesk/dsh-agent-loop-testkit'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { SandboxProvider, type ConfinedArgv, type SandboxPolicy as ProcessPolicy } from '@panedesk/dsh-sandbox'
+import { bwrapProfileArgs } from '@panedesk/dsh-sandbox-local/src/profiles.ts'
 import { Context } from '@panedesk/cordis'
 import { createScope, type Scope } from '@panedesk/dsh-scope'
 import { join, sep } from 'node:path'
@@ -308,7 +312,49 @@ describe('registration', () => {
   })
 })
 
+/** Build the real mount profile while leaving process execution to the recording double. */
+class ProfileSandbox extends SandboxProvider {
+  policies: ProcessPolicy[] = []
+  confine(argv: readonly string[], policy: ProcessPolicy): Promise<ConfinedArgv> {
+    this.policies.push(policy)
+    return Promise.resolve({ argv: ['bwrap', ...bwrapProfileArgs(policy), '--', ...argv],
+      enforcement: 'full', denialSignatures: [], runnerFailureRules: [] })
+  }
+}
+
 describe('session search admission', () => {
+  it.each(['glob', 'grep'])('%s carries owner directories through policy, profile, and spawn', async (name) => {
+    const home = mkdtempSync(join(tmpdir(), 'search-owner-home-'))
+    const workspace = join(home, 'workspace')
+    mkdirSync(workspace)
+    vi.stubEnv('PANEDESK_HOME', home)
+    vi.stubEnv('DSH_DESKTOP_PRIVATE_PATHS', undefined)
+    onTestFinished(() => {
+      vi.unstubAllEnvs()
+      rmSync(home, { recursive: true, force: true })
+    })
+    const { ctx, subprocess } = await setup()
+    onTestFinished(() => ctx.fiber.dispose())
+    await ctx.plugin(ProfileSandbox)
+    const sandbox = ctx.sandbox as ProfileSandbox
+    const caller = agent(workspace)
+    for (const mode of ['read-only', 'workspace-write'] as const) {
+      setSandboxMode(caller.session, mode)
+      const result = await call(ctx, name, { pattern: '*' }, { agent: caller })
+      expect(result.isError).toBe(false)
+      expect(sandbox.policies.at(-1)).toMatchObject({ mode, unreadablePaths: [join(home, 'private')] })
+      const argv = subprocess.spawns.at(-1)?.argv ?? []
+      expect(argv[0]).toBe('bwrap')
+      expect(argv).toContain('--new-session')
+      expect(argv.join('\n')).toContain(['--tmpfs', join(home, 'private'), '--remount-ro', join(home, 'private')].join('\n'))
+      expect(argv.indexOf('--tmpfs')).toBeGreaterThan(argv.lastIndexOf('--bind'))
+    }
+    setSandboxMode(caller.session, 'danger-full-access')
+    const result = await call(ctx, name, { pattern: '*' }, { agent: caller })
+    expect(result.isError).toBe(false)
+    expect(sandbox.policies).toHaveLength(2)
+    expect(subprocess.spawns.at(-1)?.argv[0]).not.toBe('bwrap')
+  })
   it.each(['glob', 'grep'])('%s refuses a restricted session without a sandbox before spawning', async (name) => {
     const { ctx, subprocess } = await setup()
     const caller = agent('/sessions/restricted')

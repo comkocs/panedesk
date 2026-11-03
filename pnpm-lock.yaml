@@ -12198,6 +12198,9 @@ importers:
       '@panedesk/dsh-sandbox':
         specifier: workspace:*
         version: link:../../sandbox/sandbox
+      '@panedesk/dsh-sandbox-local':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-local
       '@panedesk/dsh-sandbox-policy':
         specifier: workspace:*
         version: link:../../sandbox/sandbox-policy
