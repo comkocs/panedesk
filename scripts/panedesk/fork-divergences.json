@@ -33,7 +33,7 @@
       "id": "desktop-memory-owner-session",
       "description": "Keep desktop owner authentication in memory and protect diagnostic storage",
       "origin": "Owner credential read isolation",
-      "reason": "Deliver clean listener URLs and owner cookies over inherited IPC, use a nonpersistent owner session partition, register crash directories for sandbox read protection, and redact named authentication inputs from diagnostics. Do not label Windows userData or change persistent third-party platform sessions. Document platform limitations and cover desktop startup with Electron substitutes. These changes can be contributed upstream.",
+      "reason": "Deliver clean listener URLs and owner cookies over inherited IPC, use a nonpersistent owner session partition, register crash directories for sandbox read protection, and redact named authentication inputs from diagnostics. Do not label Windows userData or change persistent third-party platform sessions. Redact fragmented stderr fields before truncation and suppress the remainder of sensitive lines. Document platform limitations and assert the uncached owner partition and crash-directory registration with Electron substitutes. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [

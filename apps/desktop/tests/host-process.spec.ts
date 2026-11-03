@@ -163,6 +163,21 @@ describe('desktop host process', () => {
     expect(failure).toHaveBeenCalledWith(new Error('dsh desktop host exited with 7: plugin crashed'))
   })
 
+  it('redacts split credential fields before a long diagnostic can truncate their labels', async () => {
+    const runtime = projectWithHost(`
+      process.stderr.write('cook');
+      setTimeout(() => {
+        process.stderr.write('ie: ' + 'synthetic-sensitive-'.repeat(5000), () => {
+          process.exitCode = 7; process.disconnect()
+        })
+      }, 10)
+    `)
+    const failure = await hostProcess(runtime).start().catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(Error)
+    expect(String(failure)).not.toContain('synthetic-sensitive-')
+    expect(String(failure)).toContain('<redacted>')
+  })
+
   it('retains only recent diagnostics from a noisy child', async () => {
     const runtime = projectWithHost('process.stderr.write(\'discarded-prefix\' + \'x\'.repeat(70_000) + \'recent-failure\', () => { process.exitCode = 7; process.disconnect() })')
     const failure = await hostProcess(runtime).start().catch((error: unknown) => error)

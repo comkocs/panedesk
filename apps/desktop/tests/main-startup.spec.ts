@@ -445,6 +445,18 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('uses an uncached memory owner partition and registers the crash directory for read isolation', async () => {
+    const { session } = await import('electron')
+    const fromPartition = vi.spyOn(session, 'fromPartition')
+    await readyForUpdate()
+    expect(fromPartition).toHaveBeenCalledWith('dsh-owner', { cache: false })
+    expect(harness.windows[0]?.options).toMatchObject({ webPreferences: { partition: 'dsh-owner' } })
+    const paths: unknown = JSON.parse(harness.hosts[0]?.environment?.DSH_DESKTOP_PRIVATE_PATHS ?? 'null')
+    expect(paths).toContain(harness.app.getPath('crashDumps'))
+    if (process.platform === 'win32') expect(paths).not.toContain(harness.app.getPath('userData'))
+    else expect(paths).toContain(harness.app.getPath('userData'))
+  })
+
   it.each([true, false])('selects the package manager before Host startup (packaged=%s)', async (packaged) => {
     harness.app.isPackaged = packaged
     await readyForUpdate()

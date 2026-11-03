@@ -150,6 +150,8 @@ export class DesktopHostProcess {
   })
   private exitPromise: Promise<void> | undefined
   private stderr = ''
+  private stderrLine = ''
+  private stderrLineRedacted = false
   private failureReported = false
   private stopping = false
   private shutdownCompleted = false
@@ -206,7 +208,22 @@ export class DesktopHostProcess {
     })
     this.child = child
     child.stderr?.setEncoding('utf8')
-    child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-MAX_HOST_DIAGNOSTIC_CHARS) })
+    child.stderr?.on('data', (chunk: string) => {
+      for (const part of chunk.split(/(?<=\n)/u)) {
+        if (!this.stderrLineRedacted) {
+          const complete = this.stderrLine + part
+          const safe = redactDiagnostic(complete)
+          this.stderrLineRedacted = safe !== complete
+          this.stderrLine = safe.slice(-MAX_HOST_DIAGNOSTIC_CHARS)
+        }
+        if (part.endsWith('\n')) {
+          this.stderr = (this.stderr + this.stderrLine + (this.stderrLine.endsWith('\n') ? '' : '\n'))
+            .slice(-MAX_HOST_DIAGNOSTIC_CHARS)
+          this.stderrLine = ''
+          this.stderrLineRedacted = false
+        }
+      }
+    })
     if (child.stdout !== null) {
       const lines = createInterface({ input: child.stdout })
       lines.on('line', line => process.stdout.write(`${redactDiagnostic(line)}\n`))
@@ -234,6 +251,8 @@ export class DesktopHostProcess {
     child.once('error', (error) => { this.fail(error) })
     this.exitPromise = new Promise<void>((resolve) => {
       child.once('close', (code) => {
+        this.stderr = (this.stderr + this.stderrLine).slice(-MAX_HOST_DIAGNOSTIC_CHARS)
+        this.stderrLine = ''
         const suffix = this.stderr.trim() === '' ? '' : `: ${redactDiagnostic(this.stderr.trim())}`
         if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
         else this.fail(new Error(`dsh desktop host stopped${suffix}`))
