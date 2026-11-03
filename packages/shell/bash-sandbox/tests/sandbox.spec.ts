@@ -109,6 +109,7 @@ describe('the provider hand-off', () => {
     const { ctx, bash } = await setup({ mode: 'workspace-write', workspaceRoot: spillDir })
     const home = mkdtempSync(join(tmpdir(), 'bash-handoff-owner-'))
     onTestFinished(() => { rmSync(home, { recursive: true, force: true }) })
+    writeFileSync(join(home, 'cordis.patch.yml'), '[]\n')
     const input = join(spillDir, 'plugin.mjs')
     const integrity = new ProtectedInputIntegrity(spillDir, home)
     integrity.observe(input)

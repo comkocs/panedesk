@@ -20,7 +20,7 @@ export function coveredContext(workspace: string, input: string, ...additionalIn
   for (const path of [input, ...additionalInputs]) integrity.observe(path)
   integrity.grantWrite()
   const profile: ProfileContext = {
-    name: 'test', dir: workspace, patchPath: input, cwd: workspace, home,
+    name: 'test', dir: home, patchPath: input, cwd: workspace, home,
     installAnchor: join(home, 'package.json'), startedBundles: [], overlays: [],
     telemetryDisabledEnv: undefined, inputIntegrity: integrity,
   }

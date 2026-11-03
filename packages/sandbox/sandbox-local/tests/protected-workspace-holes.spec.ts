@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
-import { expect, it, onTestFinished } from 'vitest'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import { coveredContext } from './host-coverage-fixture.ts'
 
@@ -69,7 +69,10 @@ it.each(['cordis.patch.yml', 'missing/ancestor/cordis.patch.yml'])('hands an abs
   const root = mkdtempSync(join(tmpdir(), 'protected-absent-'))
   const input = join(root, name)
   const ctx = coveredContext(root, input)
-  onTestFinished(async () => { await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
+  const profile = ctx.get('profileContext')
+  if (profile === undefined) throw new Error('Profile context missing')
+  vi.stubEnv('PANEDESK_HOME', profile.home)
+  onTestFinished(async () => { vi.unstubAllEnvs(); await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   await ctx.plugin(LocalSandboxProvider)
   const provider = ctx.sandbox
   if (!(provider instanceof LocalSandboxProvider)) throw new Error('Local provider missing')
@@ -79,6 +82,8 @@ it.each(['cordis.patch.yml', 'missing/ancestor/cordis.patch.yml'])('hands an abs
   expect(handed.enforcement).toBe('full')
   expect(handed).toHaveProperty('protectedInputs', [
     { path: input, enforcement: 'host-fallback', reason: 'unrepresentable' },
+    ...[profile.home, join(profile.home, 'cordis.patch.yml'), join(profile.home, 'windows-workspace-write')]
+      .sort().map(path => ({ path, enforcement: 'native' })),
   ])
   expect(handed.argv.join('\n')).not.toContain(['--ro-bind', root, root].join('\n'))
 })
