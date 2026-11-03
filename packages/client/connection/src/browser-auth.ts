@@ -3,6 +3,8 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { PeerId } from '@panedesk/dsh-typert-protocol'
 import { CONNECT_PATH, type ConnectionInteractions } from './connect-protocol.ts'
+import { authLocale } from './auth-locale.ts'
+import { confirmBrowserLogin, type ConfirmBrowserLogin } from './owner-confirmation.ts'
 import { credentialKey } from '@panedesk/dsh-credentials'
 import type { CredentialProvider, CredentialRecord } from '@panedesk/dsh-credentials'
 import type {
@@ -19,7 +21,7 @@ const COOKIE_PREFIX = 'dsh-auth-'
 const COOKIE_PAYLOAD_VERSION = 1
 const STORED_SECRET_VERSION = 1
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]*$/
-const PROCESS_LAUNCH_TOKENS = new WeakMap<object, string>()
+const PROCESS_LAUNCH_TOKENS = new WeakMap<object, { value: string; expiresAt: number; consumed: boolean }>()
 
 interface StoredSecretPayload {
   readonly version: typeof STORED_SECRET_VERSION
@@ -31,6 +33,7 @@ interface BrowserCookiePayload {
   readonly authority: string
   readonly issuedAt: number
   readonly expiresAt: number
+  readonly confirmation?: string
 }
 
 interface ApiCookiePayload extends Omit<BrowserCookiePayload, 'version'> {
@@ -58,10 +61,10 @@ function decodeBase64Url(value: string): Buffer | undefined {
   return encodeBase64Url(decoded) === value ? decoded : undefined
 }
 
-function processLaunchToken(owner: object): string {
+function processLaunchToken(owner: object): { value: string; expiresAt: number; consumed: boolean } {
   const existing = PROCESS_LAUNCH_TOKENS.get(owner)
   if (existing !== undefined) return existing
-  const created = encodeBase64Url(randomBytes(SECRET_BYTES))
+  const created = { value: encodeBase64Url(randomBytes(SECRET_BYTES)), expiresAt: Date.now() + 5 * 60 * 1000, consumed: false }
   PROCESS_LAUNCH_TOKENS.set(owner, created)
   return created
 }
@@ -174,7 +177,11 @@ function decodeCookie(value: string, secret: Buffer): CookiePayload | undefined 
     || typeof decoded.issuedAt !== 'number' || !Number.isSafeInteger(decoded.issuedAt)
     || typeof decoded.expiresAt !== 'number' || !Number.isSafeInteger(decoded.expiresAt)) return undefined
   const payload = { authority: decoded.authority, issuedAt: decoded.issuedAt, expiresAt: decoded.expiresAt }
-  if (decoded.version === COOKIE_PAYLOAD_VERSION) return { version: COOKIE_PAYLOAD_VERSION, ...payload }
+  if (decoded.confirmation !== undefined && typeof decoded.confirmation !== 'string') return undefined
+  if (decoded.version === COOKIE_PAYLOAD_VERSION) return {
+    version: COOKIE_PAYLOAD_VERSION, ...payload,
+    ...typeof decoded.confirmation === 'string' ? { confirmation: decoded.confirmation } : {},
+  }
   if (typeof decoded.id !== 'string' || decoded.id.length === 0) return undefined
   return { version: 2, ...payload, id: decoded.id as PeerId }
 }
@@ -204,13 +211,16 @@ async function initializeSecret(credentials: CredentialProvider): Promise<Buffer
  * and retains it for synchronous request authentication.
  */
 export class BrowserAuth {
-  private readonly launchToken: string
+  private readonly launchToken: { value: string; expiresAt: number; consumed: boolean }
   private readonly maxAgeMilliseconds: number
+  private readonly confirmed = new Set<string>()
+  private confirmationPending = false
 
   private constructor(
     processOwner: object,
     private readonly secret: Buffer,
     maxAgeDays: number,
+    private readonly confirm: ConfirmBrowserLogin,
   ) {
     this.launchToken = processLaunchToken(processOwner)
     this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
@@ -226,14 +236,30 @@ export class BrowserAuth {
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
    * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
+   * @param confirm - Host-owned confirmation; defaults to the controlling terminal.
    * @returns initialized authentication owner with the process owner's launch token.
    */
   static async create(
     processOwner: object,
     credentials: CredentialProvider,
     maxAgeDays: number,
+    confirm: ConfirmBrowserLogin = confirmBrowserLogin,
   ): Promise<BrowserAuth> {
-    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays)
+    return new BrowserAuth(processOwner, await initializeSecret(credentials), maxAgeDays, confirm)
+  }
+
+  /**
+   * Mint a cookie for an owned desktop IPC carrier, never an HTTP request.
+   * @param baseUrl - The owned listener's clean URL.
+   * @returns A cookie header held only in the desktop main process.
+   */
+  desktopCookie(baseUrl: string): string {
+    const url = new URL(baseUrl)
+    const authority = url.protocol === 'https:' ? url.origin : url.host
+    const issuedAt = Date.now()
+    const value = encodeCookie({ version: COOKIE_PAYLOAD_VERSION, authority,
+      issuedAt, expiresAt: issuedAt + this.maxAgeMilliseconds }, this.secret)
+    return `${cookieName(authority)}=${value}`
   }
 
   /**
@@ -243,7 +269,12 @@ export class BrowserAuth {
    */
   authenticatedUrl(baseUrl: string): string {
     const url = new URL(baseUrl)
-    url.searchParams.set(TOKEN_QUERY, this.launchToken)
+    if (this.launchToken.consumed || Date.now() >= this.launchToken.expiresAt) {
+      this.launchToken.value = encodeBase64Url(randomBytes(SECRET_BYTES))
+      this.launchToken.expiresAt = Date.now() + 5 * 60 * 1000
+      this.launchToken.consumed = false
+    }
+    url.searchParams.set(TOKEN_QUERY, this.launchToken.value)
     return url.href
   }
 
@@ -267,14 +298,45 @@ export class BrowserAuth {
     if (tokens.length > 0) {
       const authority = requestAudience(req.headers, secure)
       if (req.method === 'GET' && url.pathname === '/' && tokens.length === 1
-        && authority !== undefined && tokenMatches(tokens.join(''), this.launchToken)) {
+        && authority !== undefined && !this.launchToken.consumed && Date.now() < this.launchToken.expiresAt
+        && tokenMatches(tokens.join(''), this.launchToken.value)) {
+        if (this.confirmationPending) {
+          this.writePending(res)
+          return false
+        }
+        this.launchToken.consumed = true
         const issuedAt = Date.now()
         const expiresAt = issuedAt + this.maxAgeMilliseconds
+        const confirmation = encodeBase64Url(randomBytes(SECRET_BYTES))
+        let decision: boolean | Promise<boolean>
+        try {
+          decision = this.confirm({
+            userAgent: header(req.headers, 'user-agent') ?? '(unknown)',
+            requestedAt: issuedAt,
+            source: req.socket?.remoteAddress ?? '(unknown)',
+          })
+        } catch (_error) {
+          // A synchronous failure of the host confirmation channel cannot authorize a browser.
+          this.writePending(res)
+          return false
+        }
+        if (decision === false) {
+          this.writePending(res)
+          return false
+        }
+        if (decision !== true) {
+          this.confirmationPending = true
+          void decision.then((allowed) => {
+            if (allowed) this.confirmed.add(confirmation)
+          }).catch((_error: unknown) => { /* A failed confirmation never grants owner access. */ })
+            .finally(() => { this.confirmationPending = false })
+        }
         const value = encodeCookie({
           version: COOKIE_PAYLOAD_VERSION,
           authority,
           issuedAt,
           expiresAt,
+          ...decision === true ? {} : { confirmation },
         }, this.secret)
         res.writeHead(303, {
           'cache-control': 'no-store',
@@ -300,13 +362,14 @@ export class BrowserAuth {
       return false
     }
     if (this.isAuthenticated(req, secure)) return true
-    this.writeUnauthorized(req, res)
+    if (header(req.headers, 'cookie') !== undefined) this.writePending(res)
+    else this.writeUnauthorized(req, res)
     return false
   }
 
   /**
-   * Exchange the launch token for an independent API operator; omitted interactions default to none.
-   * @param req - trusted GET request on /connect with at most one interactions declaration.
+   * Exchange an authenticated browser session for an independent API operator; URL tokens are never accepted.
+   * @param req - trusted GET request on /connect with an owner cookie and at most one interactions declaration.
    * @param res - response owned to completion, redirecting to the API mux on success.
    * @param secure - whether the receiving listener serves TLS.
    * @param publish - synchronously create the operator before exposing its signed credential.
@@ -327,8 +390,8 @@ export class BrowserAuth {
     }
     const tokens = url.searchParams.getAll(TOKEN_QUERY)
     const authority = requestAudience(req.headers, secure)
-    if (req.method !== 'GET' || url.pathname !== CONNECT_PATH || tokens.length !== 1
-      || authority === undefined || !tokenMatches(tokens.join(''), this.launchToken)) {
+    if (req.method !== 'GET' || url.pathname !== CONNECT_PATH || tokens.length !== 0
+      || authority === undefined || !this.isAuthenticated(req, secure)) {
       this.writeUnauthorized(req, res)
       return
     }
@@ -379,7 +442,14 @@ export class BrowserAuth {
     const now = Date.now()
     if (payload.issuedAt > now || payload.expiresAt <= now || payload.expiresAt <= payload.issuedAt
       || payload.expiresAt - payload.issuedAt > this.maxAgeMilliseconds) return undefined
+    if (payload.version === COOKIE_PAYLOAD_VERSION && payload.confirmation !== undefined
+      && !this.confirmed.has(payload.confirmation)) return undefined
     return payload
+  }
+
+  private writePending(res: ConnectionIndexResponse): void {
+    res.writeHead(401, { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' })
+    res.end(`${authLocale.en.pending} / ${authLocale.zh.pending}\n`)
   }
 
   private writeUnauthorized(req: ConnectionIndexRequest, res: ConnectionIndexResponse): void {
@@ -389,6 +459,6 @@ export class BrowserAuth {
     })
     res.end(req.method === 'HEAD'
       ? undefined
-      : 'panedesk web authentication required; reopen the URL printed by panedesk web.\n')
+      : `${authLocale.en.required} / ${authLocale.zh.required}\n`)
   }
 }

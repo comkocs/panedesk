@@ -211,7 +211,7 @@ async function boot(): Promise<Host> {
   const rows = [
     { name: '@panedesk/dsh-credentials-local', config: { path: join(root, '.credentials.yaml'), watch: false } },
     { name: '@panedesk/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } },
-    { name: '@panedesk/dsh-client-connection' },
+    { name: '@panedesk/dsh-client-connection', config: { requireOwnerConfirmation: false } },
     { name: '@panedesk/dsh-host-frontend-static', config: { distIndex } },
     { name: '@panedesk/dsh-typert-registry' },
     { name: '@panedesk/dsh-api-remote-access' },
@@ -247,9 +247,14 @@ async function boot(): Promise<Host> {
 }
 
 async function exchange(host: Host, mode: 'html' | 'none' | 'answer'): Promise<string> {
-  const target = new URL(host.ctx.connection.authenticatedUrl(`${host.origin}${mode === 'html' ? '/' : '/connect'}`))
+  const target = new URL(mode === 'html'
+    ? host.ctx.connection.authenticatedUrl(`${host.origin}/`) : `${host.origin}/connect`)
   if (mode !== 'html') target.searchParams.set('interactions', mode)
-  const response = await fetch(target, { redirect: 'manual', headers: { accept: mode === 'html' ? 'text/html' : 'application/json' } })
+  const ownerCookie = mode === 'html' ? undefined : await exchange(host, 'html')
+  const response = await fetch(target, { redirect: 'manual', headers: {
+    accept: mode === 'html' ? 'text/html' : 'application/json',
+    ...ownerCookie === undefined ? {} : { cookie: ownerCookie },
+  } })
   expect(response.status).toBe(mode === 'html' ? 303 : 302)
   const cookie = response.headers.get('set-cookie')
   await response.text()

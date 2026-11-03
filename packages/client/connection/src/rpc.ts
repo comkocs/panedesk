@@ -105,6 +105,8 @@ export type ConnectionRequestRejection = 401 | 403 | undefined
 
 /** Root/index request facts used by the browser-token exchange. */
 export interface ConnectionIndexRequest extends ConnectionTrustRequest {
+  /** Direct transport source; forwarded headers do not identify the requester. */
+  readonly socket?: { readonly remoteAddress?: string | undefined }
   readonly method?: string | undefined
   readonly url?: string | undefined
 }

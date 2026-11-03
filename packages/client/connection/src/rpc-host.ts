@@ -194,6 +194,15 @@ export class HostConnectionService extends Service implements HostConnectionHand
     return this.browserAuth.authorizeIndex(request, response, this.ctx.get('webServer')?.protocol === 'https:')
   }
 
+  /**
+   * Mint a browser credential for the owned desktop IPC channel, not a remote method.
+   * @param baseUrl - Clean URL of the owned listener.
+   * @returns Cookie header for the desktop main process's memory-only session.
+   */
+  desktopCookie(baseUrl: string): string {
+    return this.browserAuth.desktopCookie(baseUrl)
+  }
+
   /** Add this process's launch token to the clean application URL. */
   authenticatedUrl(baseUrl: string): string {
     return this.browserAuth.authenticatedUrl(baseUrl)

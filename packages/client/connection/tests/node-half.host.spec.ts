@@ -112,7 +112,7 @@ async function mounted(
   if (credentials === undefined) provideBrowserCredentials(ctx)
   else ctx.provide('credentials', credentials)
   ctx.provide('webServer', fakeHttpServer(routes, upgrades, '127.0.0.1', protocol) as WebServer)
-  const fiber = ctx.plugin({ inject: [...inject], apply }, config)
+  const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false, ...config })
   await fiber.await()
   return {
     ctx,
@@ -198,7 +198,7 @@ describe('connection node half', () => {
   it('provides the carrier-neutral service without a Web server', async () => {
     const ctx = new Context()
     provideBrowserCredentials(ctx)
-    const fiber = ctx.plugin({ inject: [...inject], apply })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
     try {
       await fiber.await()
       const connection = ctx.get('connection') as HostConnectionHandle
@@ -214,7 +214,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     const upgrades: WebUpgradeRoute[] = []
     provideBrowserCredentials(ctx)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     try {
       await fiber.await()
       const connection = ctx.get('connection') as HostConnectionHandle
@@ -364,7 +364,7 @@ describe('connection node half', () => {
   })
 
   it('requires the same browser session for every method on every trusted authority', async () => {
-    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'] })
+    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     const methods = [
       'session/openWorkspacePath',
       'llm/discoverModels', 'skills/list', 'agentPresets/list',
@@ -420,7 +420,7 @@ describe('connection node half', () => {
   })
 
   it('shares its configured trust and authentication policy with sibling routes', async () => {
-    const { connection, dispose } = await mounted({ trustedHosts: ['harness.example'] })
+    const { connection, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     const loopback = fakeRequest({ host: '127.0.0.1:3080' })
     const declared = fakeRequest({ host: 'harness.example' })
 
@@ -438,7 +438,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    const fiber = ctx.plugin({ inject: [...inject], apply })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { requireOwnerConfirmation: false })
     await fiber.await()
     expect(routes).toHaveLength(2)
     expect(routes[0]).toMatchObject({ kind: 'prefix', path: API_PATH })
@@ -487,7 +487,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     await fiber.await()
     const connection = ctx.get('connection') as HostConnectionHandle
     const calls: unknown[] = []
@@ -567,7 +567,7 @@ describe('connection node half', () => {
   })
 
   it('admits every trusted, authenticated request as the owner browser Peer and hands each call that Peer', async () => {
-    const { connection, routes, dispose } = await mounted({ trustedHosts: ['harness.example'] })
+    const { connection, routes, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     const peers: PeerScope[] = []
     const remove = connection.rpc.intercept(
       '/api',
@@ -613,7 +613,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
-    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     await fiber.await()
     const connection = ctx.get('connection') as HostConnectionHandle
     const remove = connection.rpc.handle('/rpc', async (endpoint) => {
@@ -690,10 +690,10 @@ describe('operator-scoped connect', () => {
     query = '',
     headers: Record<string, string> = {},
   ): Promise<{ cookie: string; state: ReturnType<typeof fakeResponse>['state'] }> {
-    const token = new URL(host.connection.authenticatedUrl('http://localhost')).search
+    const cookie = browserCookie(host.connection, 'localhost')
     const response = fakeResponse()
     await host.routes.find(route => route.path === '/connect')!.handler(
-      fakeRequest({ host: 'localhost', ...headers }, `/connect${token}${query}`), response.response,
+      fakeRequest({ host: 'localhost', ...headers, cookie }, `/connect${query.replace(/^&/, '?')}`), response.response,
     )
     return { cookie: response.state.headers?.['set-cookie']?.split(';', 1)[0] ?? '', state: response.state }
   }
@@ -926,7 +926,7 @@ describe('connection node half over a real HTTP server', () => {
   it('requires authentication uniformly over a real HTTP request', async () => {
     // A real IncomingMessage pins the exploit boundary: a client-controlled
     // Host naming loopback passes the rebinding fence but never authenticates.
-    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'] })
+    const { routes, connection, dispose } = await mounted({ trustedHosts: ['harness.example'], requireOwnerConfirmation: false })
     const { port, close } = await serve(routes)
     try {
       const methods = [
