@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 These tests boot the real web composition in-process and drive it with real browsers over real HTTP. Chromium runs the full lane; the [model and reasoning picker scenario](declared-reasoning.e2e.ts) also runs in WebKit to cover native mouse focus behavior. [Session replay recovery](session-replay-reload.e2e.ts) also runs in WebKit, sharing the `fresh-round-trip` recording and expected output without rewriting them. It covers active-stream reload, completed-turn reload, and reopening a Session. The lane's mechanics — modes, fixtures, goldens, and the deliberate composition divergences from `dsh web` — are documented in [`scaffold.ts`](scaffold.ts) and the [browser e2e Agent Note](../../../.agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.md).
 
+The scaffold keeps mutable owner state in its owned persistence directory outside the writable workspace. The home is created with private directory permissions and profile inputs are prepared before sessions start; protected-input validation and authenticated owner approval remain enabled. A second Host may explicitly reuse the first scaffold's home for cross-origin persistence checks, while the first scaffold retains cleanup ownership.
+
 After installing workspace dependencies, install the browsers and their system dependencies from the repository root:
 
 ```sh
