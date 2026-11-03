@@ -24,7 +24,7 @@ it('measures a dependency-heavy workspace without excluding node_modules', async
     if (outcome.exitCode !== 0 || outcome.report === undefined) throw new Error(`Workspace revocation benchmark failed: ${outcome.stderr}`)
     const report = outcome.report
     const budgets = { elapsedMs: ciTimeBudget(30_000) }
-    console.log(JSON.stringify({ benchmark: benchmarkCase.id, report, budgets }))
+    console.log(JSON.stringify({ benchmark: benchmarkCase.id, measurement: 'ACL substitute; not native Windows hardware', report, budgets }))
     recordTimings(benchmarkCase, { elapsedMs: { ms: report.elapsedMs, cpuMs: report.cpuMs } }, budgets)
     recordPeakMemory(benchmarkCase, { worker: report.peakRssMb })
     expect(report.elapsedMs).toBeLessThanOrEqual(budgets.elapsedMs)
