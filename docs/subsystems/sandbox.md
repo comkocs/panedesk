@@ -55,6 +55,8 @@ interface SandboxExecutionPolicy {
   workspaceRoot: string
   /** Current host executable-input roots, excluded from confined writes; absent means no registered host inputs. */
   protectedPaths?: readonly string[]
+  /** Owner identity files and directories excluded from confined reads; absent means no registered material. */
+  unreadablePaths?: readonly string[]
   /**
    * Opaque identity of the calling session (the branded `dsh-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives

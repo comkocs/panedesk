@@ -473,6 +473,8 @@ export interface ConnectionConfig {
   trustedHosts?: string[]
   /** Absolute browser and API cookie lifetime in days. Default: 30. */
   cookieMaxAgeDays?: number
+  /** Require host-terminal confirmation for new browsers. Disabling trusts launch-link possession. */
+  requireOwnerConfirmation?: boolean
   /** Maximum buffered JSON body for every `/api` request. Default: 300 MiB. */
   maxRequestBodyBytes?: number
 }
@@ -966,7 +968,7 @@ export interface Config {
 ```ts config-catalog
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
-  /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
+  /** Credentials document path; defaults to `private/.credentials.yaml` under the harness home. */
   path?: string
   /** Harness home used when `path` is omitted; defaults to `$PANEDESK_HOME` or `~/.panedesk`. */
   dshHome?: string
@@ -1583,7 +1585,7 @@ export interface Config {
 
 - `inject`: `sandboxPolicy`
 - `refs`: [`LocalConfig`](#panedeskdsh-fs-local)
-- `source`: [`packages/fs/fs-sandbox/src/index.ts:45`](../packages/fs/fs-sandbox/src/index.ts)
+- `source`: [`packages/fs/fs-sandbox/src/index.ts:44`](../packages/fs/fs-sandbox/src/index.ts)
 
 ```ts config-catalog
 /**
@@ -3167,7 +3169,7 @@ export interface Config {
 
 - `inject`: `sessionProjections`
 - `refs`: [`SandboxMode`](subsystems/sandbox.zh.md)
-- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:84`](../packages/sandbox/sandbox-policy/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-policy/src/index.ts:86`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 ```ts config-catalog
 /**

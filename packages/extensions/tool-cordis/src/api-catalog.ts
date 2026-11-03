@@ -848,6 +848,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'baseUrl', description: 'clean application URL whose authority and mount are preserved.' }],
         returns: 'tokenized URL for initial login; a mount proxy strips its prefix before {@link authorizeIndex}.',
       },
+      {
+        signature: 'desktopCookie(baseUrl: string): string',
+        description: 'Mint an owner cookie for the desktop\'s inherited IPC channel, never a remote request.',
+        parameters: [{ name: 'baseUrl', description: 'Clean URL of the owned Host listener.' }],
+        returns: 'Cookie header retained only in desktop process memory.',
+      },
     ],
   },
   {
@@ -1193,9 +1199,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'true when `child` is `parent` or a descendant of it.',
       },
       {
-        signature: 'abstract stat(target: FsTarget, signal?: AbortSignal): Promise<FsInfo | undefined>',
+        signature: 'abstract stat(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<FsInfo | undefined>',
         description: 'Return target metadata, or `undefined` when the target does not exist.',
-        parameters: [{ name: 'target', description: 'the resolved target to stat.' }, { name: 'signal', description: 'aborts the metadata round-trip.' }],
+        parameters: [{ name: 'target', description: 'the resolved target to stat.' }, { name: 'signal', description: 'aborts the metadata round-trip.' }, { name: 'sandboxPolicy', description: 'Per-call read policy; omission uses the provider default.' }],
         returns: 'metadata only, never content; undefined for an absent target.',
       },
       {
@@ -1205,33 +1211,33 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'metadata only, never content; undefined for an absent path.',
       },
       {
-        signature: 'abstract readText(target: FsTarget, signal?: AbortSignal): Promise<string>',
+        signature: 'abstract readText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<string>',
         description: 'Read the whole regular text file as a single decoded string.',
-        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'signal', description: 'aborts the read.' }],
+        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'signal', description: 'aborts the read.' }, { name: 'sandboxPolicy', description: 'Per-call read policy; omission uses the provider default.' }],
         returns: 'the full decoded UTF-8 content.',
       },
       {
-        signature: 'abstract streamText(target: FsTarget, signal?: AbortSignal): Promise<AsyncIterable<string>>',
+        signature: 'abstract streamText(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<AsyncIterable<string>>',
         description: 'Stream the whole regular text file as decoded text chunks (same text semantics as readText, for large files). The backend owns cross-chunk UTF-8 decoding and binary rejection so the policy layer never touches raw bytes.',
-        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'signal', description: 'aborts the stream, including between chunks.' }],
+        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'signal', description: 'aborts the stream, including between chunks.' }, { name: 'sandboxPolicy', description: 'Per-call read policy; omission uses the provider default.' }],
         returns: 'the chunk iterable, decoded and validated like {@link readText}.',
       },
       {
-        signature: 'abstract readBytes(target: FsTarget, signal: AbortSignal | undefined, maxBytes: number): Promise<Uint8Array>',
+        signature: 'abstract readBytes( target: FsTarget, signal: AbortSignal | undefined, maxBytes: number, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<Uint8Array>',
         description: 'Read the whole regular file as raw bytes with no decoding or binary rejection. The bound lives at this seam so a backend can never buffer an unbounded file: a target known or discovered to exceed `maxBytes` fails with `FS_TOO_LARGE` instead of returning a truncated result.',
-        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'signal', description: 'aborts the read.' }, { name: 'maxBytes', description: 'inclusive byte cap on the complete content.' }],
+        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'signal', description: 'aborts the read.' }, { name: 'maxBytes', description: 'inclusive byte cap on the complete content.' }, { name: 'sandboxPolicy', description: 'Per-call read policy; omission uses the provider default.' }],
         returns: 'the full raw content, at most `maxBytes` long.',
       },
       {
-        signature: 'abstract readByteRange(target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal): Promise<Uint8Array>',
+        signature: 'abstract readByteRange( target: FsTarget, range: { offset: number; length: number }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<Uint8Array>',
         description: 'Read one byte window of the regular file as raw bytes with no decoding or binary rejection: the bytes at `[offset, offset + length)`, shorter when the file ends inside the window and empty when `offset` lies at or past its end. The window is the bound here, not the file: a backend transfers at most `length` bytes of content beyond the prefix it skips to reach `offset` and never buffers the whole file, so the caller\'s cap on `length` is the guard against unbounded buffering.',
-        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'range', description: '`offset`, the 0-based first byte, and `length`, the largest byte count; both non-negative integers.' }, { name: 'signal', description: 'aborts the read.' }],
+        parameters: [{ name: 'target', description: 'the resolved target to read.' }, { name: 'range', description: '`offset`, the 0-based first byte, and `length`, the largest byte count; both non-negative integers.' }, { name: 'signal', description: 'aborts the read.' }, { name: 'sandboxPolicy', description: 'Per-call read policy; omission uses the provider default.' }],
         returns: 'the window\'s bytes, at most `length` long.',
       },
       {
-        signature: 'abstract listDir(target: FsTarget, signal?: AbortSignal): Promise<FsDirEntry[]>',
+        signature: 'abstract listDir(target: FsTarget, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<FsDirEntry[]>',
         description: 'List direct children of a directory in stable name order. Returns resolved child targets plus cheap metadata only; never reads file contents.',
-        parameters: [{ name: 'target', description: 'the resolved directory target.' }, { name: 'signal', description: 'aborts the listing.' }],
+        parameters: [{ name: 'target', description: 'the resolved directory target.' }, { name: 'signal', description: 'aborts the listing.' }, { name: 'sandboxPolicy', description: 'Per-call read policy; omission uses the provider default.' }],
         returns: 'one entry per direct child, in stable name order.',
       },
       {
@@ -7746,7 +7752,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectionIndexRequest',
-    declaration: 'export interface ConnectionIndexRequest extends ConnectionTrustRequest {\n    readonly method?: string | undefined;\n    readonly url?: string | undefined;\n}',
+    declaration: 'export interface ConnectionIndexRequest extends ConnectionTrustRequest {\n    readonly socket?: {\n        readonly remoteAddress?: string | undefined;\n    };\n    readonly method?: string | undefined;\n    readonly url?: string | undefined;\n}',
   },
   {
     name: 'ConnectionIndexResponse',
@@ -10614,7 +10620,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    protectedPaths?: readonly string[];\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    protectedPaths?: readonly string[];\n    unreadablePaths?: readonly string[];\n    sessionId?: SessionId;\n    requiresWorkspaceAuthorization?: true;\n}',
   },
   {
     name: 'SandboxMode',

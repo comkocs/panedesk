@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/owner-private-storage/README.md
+/:
+  en: f29d7aa58effd119
+  zh: 390bdc046ee949a8
+/owner-credential-storage-relocation:
+  en: e8b574b2e90b8916
+  zh: b11feadcf0c60220
+/owner-credential-storage-relocation/scope:
+  en: ceef59d6b93eac5e
+  zh: 227956328975eef8
+/owner-credential-storage-relocation/recovery:
+  en: 82f51edd9a97503e
+  zh: 6a90f0fddeb026c3
+/owner-credential-storage-relocation/compatibility:
+  en: 765f28d7b009b861
+  zh: 24b71f5a2484011c

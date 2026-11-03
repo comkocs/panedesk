@@ -154,6 +154,13 @@ authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexRespons
  * @returns tokenized URL for initial login; a mount proxy strips its prefix before {@link authorizeIndex}.
  */
 authenticatedUrl(baseUrl: string): string
+
+/**
+ * Mint an owner cookie for the desktop's inherited IPC channel, never a remote request.
+ * @param baseUrl - Clean URL of the owned Host listener.
+ * @returns Cookie header retained only in desktop process memory.
+ */
+desktopCookie(baseUrl: string): string
 ```
 
 Types: [Principal](typert.zh.md)

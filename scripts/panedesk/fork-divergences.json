@@ -1,6 +1,35 @@
 {
   "divergences": [
     {
+      "id": "owner-read-isolation-documentation",
+      "description": "Document owner read isolation and synchronize generated references",
+      "origin": "Owner credential read isolation",
+      "reason": "Describe platform-specific owner directory protection, memory-only desktop owner sessions, service login migration, credential relocation recovery, and Windows third-party cookie limitations. Synchronize generated configuration, persistence source locations, and public service declarations with the implementation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "README.md",
+          "README.zh.md",
+          "README.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "docs/persistence-catalog.md",
+          "docs/persistence-catalog.zh.md",
+          "docs/persistence-catalog.i18n.yaml",
+          "docs/persistence-schema.json",
+          "docs/subsystems/filesystem.md",
+          "docs/subsystems/filesystem.zh.md",
+          "docs/subsystems/sandbox.md",
+          "docs/subsystems/sandbox.zh.md",
+          "docs/subsystems/web-server.md",
+          "docs/subsystems/web-server.zh.md",
+          "docs/persistence-changes/owner-private-storage/**",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/**",
+          "packages/extensions/tool-cordis/src/api-catalog.ts"
+        ]
+      }
+    },
+    {
       "id": "desktop-memory-owner-session",
       "description": "Keep desktop owner authentication in memory and protect diagnostic storage",
       "origin": "Owner credential read isolation",

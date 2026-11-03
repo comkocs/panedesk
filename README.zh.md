@@ -14,6 +14,8 @@
 
 ## 平台行为
 
+受限文件工具和沙箱进程排除 owner 凭据目录，原子替换后仍受保护；普通附件仍可读取。Linux 使用目录挂载或 Landlock 兄弟树放行，macOS 使用 Seatbelt 排除，Windows 对凭据及崩溃目录使用 Medium 禁止向上读写标签。这是指定 owner 材料保护，不是整个 home 的保密隔离。新 Web 浏览器要求 POSIX 控制终端确认；Windows Web 与非交互服务默认拒绝新登录，除非 owner 在受保护配置中显式关闭确认、自担持有启动链接即可获得身份的风险。升级服务部署前请看[登录及服务配置](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)。桌面 owner cookie 使用纯内存会话及 IPC；Windows 不标记 userData，因此低完整性命令仍可读取第三方平台 cookie。详见[桌面安全说明](apps/desktop/README.zh.md)。
+
 Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
 
 Windows 状态存储及其祖先必须拒绝沙箱令牌写入；不安全记录不能授权写入，只读启动会省略不可信的工作区配置。撤销在重启后扫描所选工作区，包括 `node_modules`，只有令牌检查确认根与每个匹配显式 ACE 的位置均无写权才报成功。精确目录与 SID 的 `icacls` 命令及限制见 [Windows 恢复指南](docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。
@@ -24,7 +26,7 @@ owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedes
 
 | 平台 | 沙盒方式 | 写权限来源 | Bash 缺省 | 已知限制 |
 | --- | --- | --- | --- | --- |
-| Windows | 低完整性受限令牌与目录能力 ACL；属于部分隔离，不隔离读取。 | 未显式设模式时只读，不改 ACL。工作区首次写入会请求中英确认；允许后记录授权，工作区可写，受保护路径仍拒写。设置页可预授权或撤销工作区。无人值守会话不弹确认：保持只读并说明开法。显式模式照用。 | 未通过环境或设置选择时禁用；可用 PowerShell。 | 权限收紧（撤销或新增保护根）后，已开进程与句柄不终止，新的工具调用即刻按新策略走。模型持久终端在权限变化后拒绝输入时，需关闭后重开。权限模式选择器不即时反映目录记录。 |
+| Windows | 低完整性受限令牌与目录能力 ACL；属于部分隔离，针对 owner 目录提供读保护。 | 未显式设模式时只读，不授予工作区写权；仍设置 owner 目录读保护标签。工作区首次写入会请求中英确认；允许后记录授权，工作区可写，受保护路径仍拒写。设置页可预授权或撤销工作区。无人值守会话不弹确认：保持只读并说明开法。显式模式照用。 | 未通过环境或设置选择时禁用；可用 PowerShell。 | 权限收紧（撤销或新增保护根）后，已开进程与句柄不终止，新的工具调用即刻按新策略走。模型持久终端在权限变化后拒绝输入时，需关闭后重开。权限模式选择器不即时反映目录记录。 |
 | Linux | bubblewrap（`bwrap`），Landlock 备选。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | bubblewrap 缺失或不可用时尝试 Landlock；无可用 runner 或无法充分保护宿主输入时拒绝，不会无隔离执行。旧 Landlock ABI 可能只有部分隔离。原生 Node/workflow 进程测试要求 `PANEDESK_CI_NATIVE_SANDBOX=required`，否则打印原因并跳过。未验遍所有内核配置。Linux 原生沙箱下 pwsh 持久终端不可用(读不到输出、会超时)。 |
 | macOS | 通过 `sandbox-exec` 使用 Seatbelt。 | 缺省 workspace-write，允许工作区与临时根写入；显式模式覆盖缺省。 | 启用，使用配置的 Bash 或 PATH 上的 `bash`。 | 路径由本机规范化。Seatbelt 不隐藏宿主进程；平台注入回归不等于 macOS 实机验收。 |
 
