@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { PassThrough } from 'node:stream'
 import { LocalPtySession } from '@panedesk/dsh-terminal-bash/src/session.ts'
 import type { ResolvedConfig } from '@panedesk/dsh-terminal-bash/src/config.ts'
@@ -1260,6 +1260,31 @@ describe('LocalPtySession readiness and output', () => {
     terminal.emitData('PID=123\r\n\x1b]133;D;0\x07dsh> ')
     await vi.advanceTimersByTimeAsync(10)
     expect(await operation.done).toMatchObject({ waitReason: 'stdin_read' })
+  })
+
+  it('does not settle pwsh on a prior prompt while the current command is running', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+    onTestFinished(() => { vi.restoreAllMocks() })
+    vi.useFakeTimers()
+    const terminal = new FakeTerminal()
+    const session = new LocalPtySession(terminal, config({ shellDialect: 'pwsh', timeoutMs: 200 }))
+    terminal.inspector.waiting = true
+    await initialize(session, terminal)
+
+    const operation = session.startSend({ text: 'Write-Output current', submit: true })
+    let settled = false
+    void operation.done.then(() => { settled = true })
+    await vi.advanceTimersByTimeAsync(1)
+    terminal.emitData('\x1b]133;D;0\x07dsh> ')
+    terminal.inspector.waiting = false
+    await vi.advanceTimersByTimeAsync(20)
+    expect(settled).toBe(false)
+
+    terminal.emitData('current\r\n\x1b]133;D;0\x07dsh> ')
+    terminal.inspector.waiting = true
+    await vi.advanceTimersByTimeAsync(10)
+    expect(await operation.done).toMatchObject({ waitReason: 'stdin_read' })
+    await session.close('pwsh delayed prompt cleanup')
   })
 
   it('retains a prompt marker until the startup shell regains the foreground group', async () => {

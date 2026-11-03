@@ -584,8 +584,11 @@ export class LocalPtySession implements TerminalBackendSession {
       if (this.promptSeen && foreground !== undefined && this.shellPgid === undefined) {
         this.shellPgid = foreground.processGroupId
       }
+      // A prior pwsh prompt can arrive after the next write; its process group
+      // stays unchanged while that command runs, so require a current stdin wait.
       if (this.promptSeen && this.promptTextSeen && idleFor >= this.config.pollIntervalMs
-        && foreground?.processGroupId === this.shellPgid) {
+        && foreground?.processGroupId === this.shellPgid
+        && (this.config.shellDialect !== 'pwsh' || process.platform !== 'linux' || foreground?.inputWaiting === true)) {
         this.settleActive('stdin_read')
         return
       }
