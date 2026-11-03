@@ -102,6 +102,7 @@ type StubMode =
   | 'empty-page-after-latest'
   | 'paged-scrollback'
   | 'with-echo'
+  | 'echo-before-execution'
   | 'exit-after-send'
   | 'prompt-collision'
 
@@ -143,6 +144,13 @@ class StubTerminalSession implements TerminalBackendSession {
         }, { once: true })
       })
       return this.operation(done)
+    }
+    if (this.mode === 'echo-before-execution') {
+      this.mode = 'normal'
+      this.pendingText = request.text
+      const output = request.text.slice(0, request.text.indexOf('Invoke-Expression') + 24)
+      this.scrollback += output
+      return this.operation(Promise.resolve(this.result(output, 'stdin_read')))
     }
     if (this.mode === 'idle-then-normal') {
       this.mode = 'normal'
@@ -368,6 +376,19 @@ describe('tool-pwsh-persistent', () => {
     expect(result).not.toContain('__DSH_PERSISTENT_PWSH_START_')
     expect(result).not.toContain('__DSH_PERSISTENT_PWSH_END_')
     expect(result).not.toContain('Invoke-Expression')
+  })
+
+  it('waits through a partial input echo before command execution', async () => {
+    const { ctx, owner, stub } = await setup({ backendType: 'stub' })
+    await call(ctx, owner, 'warm up')
+    const session = stub.sessions[0]!
+    session.mode = 'echo-before-execution'
+    const send = vi.spyOn(session, 'startSend')
+
+    expect(text(await call(ctx, owner, 'Write-Output hi'))).toBe('hello from stub')
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[1]?.[0]).toMatchObject({ text: '', submit: false })
+    expect(session.closed).toEqual([])
   })
 
   it("preserves command output that equals the backend's prompt text", async () => {

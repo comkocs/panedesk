@@ -394,6 +394,12 @@ async function executeCommand(
     // spinning until the command deadline.
     if (result.waitReason === 'stdin_read') {
       const snapshot = retainedScrollback(ctx, owner, id, latest)
+      const echoStart = snapshot.text.lastIndexOf(`Write-Output '${marker.start}`)
+      // PSReadLine can still be reading submitted input while echoing its prefix.
+      if (echoStart >= 0 && wrapped.startsWith(trimTrailingNewline(snapshot.text.slice(echoStart)))) {
+        await pause()
+        continue
+      }
       return renderCaptured(
         partialOutput(snapshot, marker, wrapped, fallback, fallbackTruncated),
         config.maxOutputChars,
