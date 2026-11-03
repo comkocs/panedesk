@@ -36,3 +36,27 @@ it('measures complete protected plugin tree comparisons without skipping digest 
     await rm(root, { recursive: true, force: true })
   }
 }, 40_000)
+
+it('measures synthetic overlapping dependency-scale capture without retaining duplicate file bytes', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'protected-overlap-bench-'))
+  const overlapCase = {
+    id: 'protected-plugin-overlapping-capture',
+    measures: 'Durable capture of two synthetic linked roots, each containing 44494 files and 703177774 bytes.',
+    affects: 'Granting workspace write access when protected plugin roots overlap.',
+  }
+  try {
+    const outcome = await runBuiltBenchmarkWorker<ProtectedPluginReport>({
+      worker: join(import.meta.dirname, '..', '.panedesk-build', 'protected-plugin-load', 'protected-plugin-load.worker.js'),
+      args: [root, 'overlapping'], timeoutMs: 180_000,
+    })
+    if (outcome.exitCode !== 0 || outcome.report === undefined) throw new Error(`Overlapping input benchmark failed: ${outcome.stderr}`)
+    const report = outcome.report
+    const budgets = { captureMs: ciTimeBudget(30_000) }
+    console.log(JSON.stringify({ benchmark: overlapCase.id, report, budgets }))
+    recordTimings(overlapCase, { captureMs: { ms: report.captureMs, cpuMs: report.captureCpuMs } }, budgets)
+    recordPeakMemory(overlapCase, { worker: report.peakRssMb })
+    expect(report.captureMs).toBeLessThanOrEqual(budgets.captureMs)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}, 200_000)

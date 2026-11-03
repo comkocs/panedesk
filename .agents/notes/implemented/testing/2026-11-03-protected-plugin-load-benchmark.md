@@ -14,6 +14,8 @@ The [protected plugin benchmark](../../../../benchmarks/protected-plugin-load/RE
 
 Each run records a single sample per interval, same-interval process CPU, and whole-child peak RSS before assertions. Absolute reference limits are 250 ms for capture and 2,500 ms for repeated reads; the shared calibration multiplies them by the CI time scale and variance headroom. These are conservative throughput limits, not measured arm64 medians or a per-module latency promise. An initial Linux sample measured 4.04 ms capture, 81.90 ms reads, and 77.61 MiB peak RSS. That sample is a local sanity check, not cross-platform calibration. Memory is reported without a threshold or time scaling.
 
+The capture-only overlapping-root case creates 44,494 synthetic files totaling 703,177,774 bytes and observes the tree through two links. Counts reproduce an earlier dependency-scale experiment, not a real plugin tree or the original application input set. Distinct per-file bytes prevent accidental content deduplication from reducing the payload to a few blobs. Its 30,000 ms reference capture limit includes both root traversals and durable publication, excludes fixture creation and module loads, and receives the same CI scale. The earlier sample measured 13,170.63 ms with 463,220,736 bytes of ending RSS; only new worker measurements report whole-process peak RSS. A flat linked tree does not model dependency topology.
+
 ## Alternatives considered
 
 **Measure ambient plugin contents.** Reading an installation during every run makes the workload depend on local package versions and contents. Fixed synthetic bytes retain the observed scale without importing ambient data.

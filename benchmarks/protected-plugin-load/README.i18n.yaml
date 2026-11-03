@@ -3,5 +3,5 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write benchmarks/protected-plugin-load/README.md
 /protected-plugin-loading:
-  en: a2120f85ef8ee7c6
-  zh: 1e01689c8d85c045
+  en: 121b1a0777fd045d
+  zh: 1159e62ff26dec32

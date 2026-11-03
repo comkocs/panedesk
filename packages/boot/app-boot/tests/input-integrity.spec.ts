@@ -36,6 +36,36 @@ it('keeps rejecting a changed input after owner refusal and accepts the exact al
   expect(reject).toHaveBeenCalledTimes(2)
 })
 
+it.each(['mtime', 'inode', 'unchanged metadata'] as const)('recomputes executable digests after %s changes', (change) => {
+  const f = fixture()
+  expect(f.integrity.readExecutable(f.path)?.toString()).toBe('initial')
+  const before = fs.statSync(f.path)
+  if (change === 'inode') {
+    const replacement = join(f.workspace, 'replacement.yml')
+    writeFileSync(replacement, 'changed')
+    fs.renameSync(replacement, f.path)
+    expect(fs.statSync(f.path).ino).not.toBe(before.ino)
+  } else {
+    writeFileSync(f.path, 'changed')
+  }
+  fs.utimesSync(f.path, before.atime, change === 'mtime' ? new Date(before.mtimeMs + 10_000) : before.mtime)
+  expect(fs.statSync(f.path).size).toBe(before.size)
+  expect(() => f.integrity.readExecutable(f.path)).toThrow('requires owner confirmation')
+})
+
+it('rechecks canonical targets before returning executable bytes', () => {
+  const f = fixture()
+  const alternate = join(f.workspace, 'alternate.yml')
+  const link = join(f.workspace, 'module.js')
+  writeFileSync(alternate, 'initial')
+  symlinkSync(f.path, link)
+  f.integrity.observe(link)
+  expect(f.integrity.readExecutable(link)?.toString()).toBe('initial')
+  unlinkSync(link)
+  symlinkSync(alternate, link)
+  expect(() => f.integrity.readExecutable(link)).toThrow('requires owner confirmation')
+})
+
 it('does not accept different bytes substituted while the owner is answering', async () => {
   const f = fixture()
   writeFileSync(f.path, 'first candidate')
