@@ -596,7 +596,12 @@ export class LocalPtySession implements TerminalBackendSession {
       const startupHasOutput = !this.initializing || !this.scrollback.isEmpty
       const acceptsStdinWait = startupHasOutput && foreground !== undefined
         && operation.acceptsStdinWait(foreground.processGroupId, foreground.inputWaiting)
-      if (elapsed >= this.config.exactProbeAfterMs && acceptsStdinWait) {
+      // pwsh can read stdin on a background thread while its pipeline still emits output.
+      // Only a different foreground group proves an interactive child; the shell itself
+      // must publish its prompt. Before the first prompt its group is not yet known.
+      const shellInputWait = this.config.shellDialect === 'pwsh' && process.platform === 'linux'
+        && (this.shellPgid === undefined || foreground?.processGroupId === this.shellPgid)
+      if (elapsed >= this.config.exactProbeAfterMs && acceptsStdinWait && !shellInputWait) {
         this.settleActive('stdin_read')
         return
       }

@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "persistent-pwsh-output-completion",
+      "description": "Retain PowerShell pipeline output and caught error diagnostics",
+      "origin": "Persistent terminal output capture repair",
+      "reason": "On Linux, do not treat a stdin-waiting thread in the PowerShell process group as command completion without the controlled prompt; retain exact readiness for other foreground groups and preserve Bash and non-Linux behavior. Render caught terminating PowerShell errors before the command completion marker instead of returning only a failure status. Add deterministic output-delivery and real PowerShell error regressions, and synchronize the bilingual package documentation. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/terminal/terminal-bash/src/session.ts",
+          "packages/terminal/terminal-bash/tests/session.spec.ts",
+          "packages/terminal/terminal-bash/README.md",
+          "packages/terminal/terminal-bash/README.zh.md",
+          "packages/terminal/terminal-bash/README.i18n.yaml",
+          "packages/shell/tool-pwsh-persistent/src/index.ts",
+          "packages/shell/tool-pwsh-persistent/tests/tools.spec.ts",
+          "packages/shell/tool-pwsh-persistent/README.md",
+          "packages/shell/tool-pwsh-persistent/README.zh.md",
+          "packages/shell/tool-pwsh-persistent/README.i18n.yaml",
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md"
+        ]
+      }
+    },
+    {
       "id": "web-session-replay-fixtures",
       "description": "Recorded web session and interface fixtures",
       "origin": "Web session replay coverage",

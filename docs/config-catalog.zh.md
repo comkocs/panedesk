@@ -4717,7 +4717,7 @@ export interface Config {
 ## `@panedesk/dsh-tool-pwsh-persistent`
 
 - `inject`: `tools` · `terminals` · `workingDirectory`
-- `source`: [`packages/shell/tool-pwsh-persistent/src/index.ts:464`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+- `source`: [`packages/shell/tool-pwsh-persistent/src/index.ts:466`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for the persistent pwsh tool. */

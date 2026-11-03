@@ -95,8 +95,10 @@ function wrapCommand(command: string, marker: CommandMarkers): string {
   // The echoed END nonce can never fabricate completion because the status
   // regex needs digits immediately after it and the echo continues with
   // quote characters.
+  // A caught terminating error is otherwise silent; render it before END so
+  // the captured result retains the diagnostic even when error handling stops.
   const body = quoteForPwsh(command)
-  return `Write-Output '${marker.start}'; $LASTEXITCODE = $null; $__s = 1; try { Invoke-Expression "${body}"; $__ok = $? } catch { $__ok = $false }; if ($null -ne $LASTEXITCODE) { $__s = [int]$LASTEXITCODE } else { $__s = if ($__ok) { 0 } else { 1 } }; Write-Output ('${marker.end}' + $__s)`
+  return `Write-Output '${marker.start}'; $LASTEXITCODE = $null; $__s = 1; try { Invoke-Expression "${body}"; $__ok = $? } catch { $__ok = $false; Write-Output $_.ToString() }; if ($null -ne $LASTEXITCODE) { $__s = [int]$LASTEXITCODE } else { $__s = if ($__ok) { 0 } else { 1 } }; Write-Output ('${marker.end}' + $__s)`
 }
 
 function trimTrailingNewline(text: string): string {

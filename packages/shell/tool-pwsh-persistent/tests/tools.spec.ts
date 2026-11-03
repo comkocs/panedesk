@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { provideWorkingDirectoryFixture, unsupportedInbox } from '@panedesk/dsh-agent-loop-testkit'
 import { Context } from '@panedesk/cordis'
@@ -19,6 +20,7 @@ import type {
 import SystemPrompt from '@panedesk/dsh-system-prompt'
 import ToolRegistry from '@panedesk/dsh-tools'
 import * as ToolPwshPersistent from '@panedesk/dsh-tool-pwsh-persistent'
+import { resolvePwshPath } from '@panedesk/dsh-pwsh-local/src/resolve.ts'
 
 const contexts: Context[] = []
 let callNumber = 0
@@ -365,6 +367,32 @@ describe('tool-pwsh-persistent', () => {
     await fiber.dispose()
     expect(ctx.tools.schemas()).toEqual([])
     expect(ctx.tools.get('pwsh')).toBeUndefined()
+  })
+
+  it('retains terminating PowerShell errors before the completion status', async () => {
+    const { ctx, owner, stub } = await setup({ backendType: 'stub' })
+    await call(ctx, owner, 'warm up')
+    const session = stub.sessions[0]!
+    vi.spyOn(session, 'startSend').mockImplementation((request) => {
+      const executed = spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', request.text], {
+        encoding: 'utf8', timeout: 10_000,
+      })
+      expect(executed.error).toBeUndefined()
+      expect(executed.status).toBe(0)
+      const viewport = executed.stdout + executed.stderr
+      session.scrollback += viewport
+      return {
+        done: Promise.resolve({ viewport, waitReason: 'stdin_read', sessionStatus: session.status(), truncated: false }),
+        readOutput: () => ({ delta: viewport, truncated: false }),
+        cancel: () => false,
+      }
+    })
+
+    const output = text(await call(ctx, owner, 'Write-Output before; throw [System.UnauthorizedAccessException]::new("Access denied by fixture")'))
+    expect(output).toContain('before')
+    expect(output).toContain('Access denied by fixture')
+    expect(output).toContain('[exit code: 1]')
+    expect(output).not.toContain('DSH_PERSISTENT_PWSH')
   })
 
   it('strips the echoed wrapper from captured output', async () => {
