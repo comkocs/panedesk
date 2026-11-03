@@ -352,6 +352,12 @@ async function bootPreview(site: Site, manifest: ImageManifest, browser: Browser
     const configureLater = page.getByRole('button', { name: 'Configure later' })
     await configureLater.waitFor({ timeout: 30_000 })
     await configureLater.click()
+    await page.getByRole('textbox', { name: 'Choose workspace' }).click()
+    const directory = page.getByRole('dialog', { name: 'Select Workspace Directory' })
+    await directory.getByRole('button', { name: 'Edit path' }).click()
+    await directory.getByRole('textbox', { name: 'Edit path' }).fill('/dsh/workspace')
+    await page.keyboard.press('Enter')
+    await directory.getByRole('button', { name: 'Open', exact: true }).click()
     await page.locator('[data-composer-input][data-placeholder="Describe what you want to build, / commands, @ files or sessions"]')
       .waitFor({ timeout: 30_000 })
 

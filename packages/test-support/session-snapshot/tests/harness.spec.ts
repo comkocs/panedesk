@@ -177,6 +177,8 @@ describe('runScenario', () => {
 
   it('builds panedesk profile argv and rebases relative modules in live and replay patches', async () => {
     const { dir, fixtureFile } = await scenario({})
+    const home = await mkdtemp(join(tmpdir(), 'acp-profile-home-'))
+    tempDirs.push(home)
     const patchDir = join(dir, 'patches')
     const basePatch = join(patchDir, 'base.cordis.yml')
     const selectedPatch = join(patchDir, 'selected.cordis.yml')
@@ -222,18 +224,18 @@ describe('runScenario', () => {
       agent: profileAgent,
       cwd: dir,
       configPath: selectedPatch,
-      env: { DSH_SNAPSHOT: 'record', DSH_SNAPSHOT_FILE: fixtureFile },
+      env: { DSH_SNAPSHOT: 'record', DSH_SNAPSHOT_FILE: fixtureFile, PANEDESK_HOME: home },
     })
     await live.spawned
     await live.close()
-    const materializedRoot = join(dir, '.panedesk-profile-patches')
+    const materializedRoot = join(home, 'profile-patches')
     const materialized = await readFile(await materializedPatch(materializedRoot, '0-base.cordis.yml'), 'utf8')
     expect(materialized).toContain(pathToFileURL(join(patchDir, 'plugin.mjs')).href)
     expect(materialized).toContain(pathToFileURL(join(dir, 'nested.mjs')).href)
     expect(materialized).toContain('example-package')
-    expect(await realpath(join(dir, '.panedesk', 'profiles', 'acp', 'node_modules', 'example-package')))
+    expect(await realpath(join(home, 'profiles', 'acp', 'node_modules', 'example-package')))
       .toBe(await realpath(packageDir))
-    expect(await realpath(join(dir, '.panedesk', 'profiles', 'acp', 'node_modules', '@fixture', 'example-package')))
+    expect(await realpath(join(home, 'profiles', 'acp', 'node_modules', '@fixture', 'example-package')))
       .toBe(await realpath(scopedPackageDir))
     expect(await readFile(await materializedPatch(materializedRoot, '1-selected.cordis.yml'), 'utf8')).toContain('[]')
 
@@ -241,7 +243,7 @@ describe('runScenario', () => {
       agent: profileAgent,
       cwd: dir,
       configPath: selectedPatch,
-      env: { DSH_SNAPSHOT: 'replay', DSH_SNAPSHOT_FILE: fixtureFile },
+      env: { DSH_SNAPSHOT: 'replay', DSH_SNAPSHOT_FILE: fixtureFile, PANEDESK_HOME: home },
     })
     await replay.spawned
     await replay.close()
@@ -253,7 +255,7 @@ describe('runScenario', () => {
     const conflictPatch = join(dir, 'conflict.cordis.yml')
     const conflictPackage = join(dir, 'node_modules', 'conflict-package')
     const otherPackage = join(dir, 'other-conflict-package')
-    const conflictLink = join(dir, '.panedesk', 'profiles', 'acp', 'node_modules', 'conflict-package')
+    const conflictLink = join(home, 'profiles', 'acp', 'node_modules', 'conflict-package')
     await Promise.all([
       mkdir(conflictPackage, { recursive: true }),
       mkdir(otherPackage, { recursive: true }),
@@ -267,7 +269,7 @@ describe('runScenario', () => {
     expect(() => launchAcpTestAgent({
       agent: { ...profileAgent, configPath: conflictPatch },
       cwd: dir,
-      env: { DSH_SNAPSHOT: 'record', DSH_SNAPSHOT_FILE: fixtureFile },
+      env: { DSH_SNAPSHOT: 'record', DSH_SNAPSHOT_FILE: fixtureFile, PANEDESK_HOME: home },
     })).toThrow('snapshot profile package conflict-package resolves to two directories')
 
     const invalidPatch = join(dir, 'invalid.cordis.yml')
@@ -275,7 +277,7 @@ describe('runScenario', () => {
     expect(() => launchAcpTestAgent({
       agent: { ...profileAgent, configPath: invalidPatch },
       cwd: dir,
-      env: { DSH_SNAPSHOT: 'record', DSH_SNAPSHOT_FILE: fixtureFile },
+      env: { DSH_SNAPSHOT: 'record', DSH_SNAPSHOT_FILE: fixtureFile, PANEDESK_HOME: home },
     })).toThrow(`snapshot profile patch must be a top-level array: ${invalidPatch}`)
   })
 

@@ -8,7 +8,8 @@
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { basename, dirname, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -67,7 +68,7 @@ export interface AgentUnderTest {
 export interface AcpTestLaunchOptions {
   /** The agent composition to boot. */
   agent: AgentUnderTest
-  /** Process cwd and default session-home root. */
+  /** Process working directory; launcher-owned home state lives outside it. */
   cwd: string
   /** Alternate leaf config for this launch. */
   configPath?: string
@@ -119,20 +120,25 @@ export interface LaunchedAcpTestAgent {
 export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTestAgent {
   const { agent, cwd } = options
   const selectedConfig = options.configPath ?? agent.configPath
-  const launch = resolveExampleLaunch({
+  const home = options.env?.PANEDESK_HOME ?? mkdtempSync(join(tmpdir(), 'acp-test-home-'))
+  const ownedHome = options.env?.PANEDESK_HOME === undefined ? home : undefined
+  const cleanupHome = (): void => {
+    if (ownedHome !== undefined) rmSync(ownedHome, { recursive: true, force: true })
+  }
+  const launch = (() => { try { return resolveExampleLaunch({
     srcBin: agent.binScript,
     libBin: agent.libBinScript,
     configArgs: agent.profile === undefined
       ? ['--config', selectedConfig]
-      : profileArgs(agent.profile, agent.configPath, selectedConfig, options.env?.DSH_SNAPSHOT, cwd),
+      : profileArgs(agent.profile, agent.configPath, selectedConfig, options.env?.DSH_SNAPSHOT, cwd, home),
     tsconfigPath: agent.tsconfigPath,
     ...agent.profile === undefined ? {} : { sourceImport: 'tsx/esm' },
     env: {
       ...options.env,
-      PANEDESK_HOME: join(cwd, '.panedesk'),
-      PANEDESK_AGENTS_HOME: join(cwd, '.agents'),
+      PANEDESK_HOME: home,
+      PANEDESK_AGENTS_HOME: options.env?.PANEDESK_AGENTS_HOME ?? join(home, 'agents'),
     },
-  })
+  }) } catch (error) { cleanupHome(); throw error } })()
   const child = spawn(
     launch.command,
     launch.args,
@@ -252,6 +258,7 @@ export function launchAcpTestAgent(options: AcpTestLaunchOptions): LaunchedAcpTe
     while (inFlightClientCallbacks.size > 0) {
       await Promise.allSettled([...inFlightClientCallbacks])
     }
+    cleanupHome()
   })
   // A caller may await a pending update without calling close(). Make natural
   // stream exhaustion terminal for those waiters too, but only after the
@@ -347,6 +354,7 @@ function profileArgs(
   selectedPatch: string,
   snapshotMode: string | undefined,
   cwd: string,
+  home: string,
 ): string[] {
   const base = resolve(cwd, basePatch)
   const selected = resolve(cwd, selectedPatch)
@@ -355,10 +363,10 @@ function profileArgs(
   const patches = snapshotMode === 'replay'
     ? [base, replayPatchPath(selected)]
     : [...new Set([base, selected])]
-  const materializedRoot = join(cwd, '.panedesk-profile-patches')
+  const materializedRoot = join(home, 'profile-patches')
   mkdirSync(materializedRoot, { recursive: true })
   const materializedDir = mkdtempSync(join(materializedRoot, 'launch-'))
-  const materialized = patches.map((file, index) => materializeProfilePatch(file, cwd, profile, materializedDir, index))
+  const materialized = patches.map((file, index) => materializeProfilePatch(file, cwd, profile, materializedDir, index, home))
   return ['--profile', profile, ...materialized.flatMap(file => ['--patch', file])]
 }
 

@@ -583,27 +583,28 @@ async function runScenario(scenario: CorpusScenario, productDefaults = false): P
     workspacePrefix += '-'.repeat(paddingLength)
   }
   const cwd = await realpath(await mkdtemp(join(workspaceParent, workspacePrefix)))
-  const dshHome = join(cwd, '.panedesk')
+  const stateRoot = await realpath(await mkdtemp(join(workspaceParent, 'sdk-snapshot-state-')))
+  const dshHome = join(stateRoot, 'home')
   const sessionsRoot = join(dshHome, 'sessions')
   const replayFixtures = recording ? [] : await hydrateReplayFixtures(scenario, cwd)
   const fixtureContents = await Promise.all((await fixtureFiles(scenario)).map(file => readFile(file, 'utf8')))
   const primaryFixture = fixtureContents[0]
   if (primaryFixture === undefined) throw new Error(`${scenario.name}: no primary session fixture`)
   const route = modelFromSession(primaryFixture)
-  const patchRoot = join(cwd, '.snapshot-patches')
+  const patchRoot = join(stateRoot, 'snapshot-patches')
   await mkdir(patchRoot, { recursive: true })
   const assertions = SDK_ASSERTIONS[scenario.name] ?? {}
   const cacheDisabledPatch = join(corpusRoot, 'cache-disabled.patch.yml')
   const patches = [...productDefaults || scenario.manifest.profile === 'sdk-minimal' ? [] : [join(corpusRoot, 'subagent-upstream.patch.yml')],
     ...authoredPatches(scenario, !recording), ...assertions.patches ?? [], cacheDisabledPatch]
-    .map((patch, index) => materializeProfilePatch(patch, cwd, scenario.manifest.profile, patchRoot, index))
+    .map((patch, index) => materializeProfilePatch(patch, cwd, scenario.manifest.profile, patchRoot, index, dshHome))
   let childSessionsRoot: string | undefined
   let childEnvironment: Record<string, string> = {}
   if (assertions.dshSdkChild !== undefined) {
-    const childHome = join(cwd, '.child-dsh')
-    const childPatch = materializeProfilePatch(assertions.dshSdkChild.config, cwd, 'sdk', patchRoot, patches.length)
-    const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1)
-    const childSubagentPatch = materializeProfilePatch(join(corpusRoot, 'subagent-upstream.patch.yml'), cwd, 'sdk', patchRoot, patches.length + 2)
+    const childHome = join(stateRoot, 'child-home')
+    const childPatch = materializeProfilePatch(assertions.dshSdkChild.config, cwd, 'sdk', patchRoot, patches.length, childHome)
+    const childCachePatch = materializeProfilePatch(cacheDisabledPatch, cwd, 'sdk', patchRoot, patches.length + 1, childHome)
+    const childSubagentPatch = materializeProfilePatch(join(corpusRoot, 'subagent-upstream.patch.yml'), cwd, 'sdk', patchRoot, patches.length + 2, childHome)
     await mkdir(childHome, { recursive: true })
     childSessionsRoot = join(childHome, 'sessions')
     childEnvironment = {
@@ -637,7 +638,7 @@ async function runScenario(scenario: CorpusScenario, productDefaults = false): P
     DSH_SNAPSHOT_PROVIDER: route.provider,
     DSH_SNAPSHOT_MODEL: route.model,
     PANEDESK_TELEMETRY_DISABLED: '1',
-    PANEDESK_AGENTS_HOME: join(cwd, '.agents'),
+    PANEDESK_AGENTS_HOME: join(stateRoot, 'agents'),
     NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
     ...parentFixture === undefined ? {} : {
       DSH_SNAPSHOT_FILE: parentFixture,
@@ -808,7 +809,10 @@ async function runScenario(scenario: CorpusScenario, productDefaults = false): P
     return { results, notifications, observedMethods, logs, initialWorkspace, finalWorkspace, cwd }
   } finally {
     await harness.close()
-    await rm(cwd, { recursive: true, force: true })
+    await Promise.all([
+      rm(cwd, { recursive: true, force: true }),
+      rm(stateRoot, { recursive: true, force: true }),
+    ])
   }
 }
 
