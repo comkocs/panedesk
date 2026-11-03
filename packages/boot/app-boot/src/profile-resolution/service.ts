@@ -40,6 +40,8 @@ export interface PluginPackage {
 export interface PluginPackagesConfig {
   /** Complete package table; omit it to expose native package lookup only. */
   resolution?: RuntimeResolution
+  /** Memory-only runtimes have no host filesystem inputs; Node hosts always install byte verification. */
+  inputFilesystem?: 'host' | 'memory'
 }
 
 function readPackage(dir: string, fallbackName: string): PluginPackage | undefined {
@@ -66,7 +68,10 @@ export class PluginPackages extends Service {
 
   constructor(ctx: Context, config: PluginPackagesConfig = {}) {
     super(ctx, 'pluginPackages')
-    ctx.effect(() => {
+    if (config.inputFilesystem === 'memory' && typeof registerHooks === 'function') {
+      throw new Error('Memory-only module loading cannot disable Node host input verification')
+    }
+    if (config.inputFilesystem !== 'memory') ctx.effect(() => {
       const hooks = registerHooks({
         load(url, context, nextLoad) {
           const profile = ctx.get('profileContext')

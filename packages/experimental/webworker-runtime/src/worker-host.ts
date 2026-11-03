@@ -241,9 +241,8 @@ export function createWorkerHost(options: WorkerHostOptions): WorkerHost {
         hostCtx.provide('profileContext', profile)
         hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, environment)
         installLogSink(hostCtx, require)
-        // Package lookup without a runtime resolution: the Worker loader owns
-        // module resolution, so only manifest lookup over the image applies.
-        await hostCtx.plugin(appBoot.PluginPackages, {})
+        // The Worker loader reads only MemoryVfs image bytes, never host filesystem inputs.
+        await hostCtx.plugin(appBoot.PluginPackages, { inputFilesystem: 'memory' })
         cmdline.provideCmdline(hostCtx, {
           args: [...(options.cmdlineArgs ?? ['--host', '127.0.0.1', '--port', String(port), '--no-open'])],
           exit: (code: number) => { console.warn(`webworker host: tree requested exit(${String(code)})`) },

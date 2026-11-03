@@ -1,6 +1,6 @@
 /** Host-owned identities and trusted bytes for executable inputs inside a writable workspace. */
 import { createHash, randomUUID } from 'node:crypto'
-import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 /** Exact candidate shown to an owner before a protected input can change. */
@@ -20,10 +20,13 @@ export interface ProtectedInputOwner {
 
 interface InputSnapshot {
   digest: string
+  treeDigest?: string
   kind: 'missing' | 'file' | 'directory' | 'link' | 'other'
   target: string | null
   content: string | null
-  files?: readonly { path: string; content: string }[]
+  blob?: string
+  ancestors?: readonly { path: string; mode: number }[]
+  files?: readonly { path: string; content?: string; blob?: string }[]
 }
 
 function contains(root: string, path: string): boolean {
@@ -44,10 +47,10 @@ function canonicalLocation(path: string): string {
   }
 }
 
-function identity(path: string): string {
+function identity(path: string, ancestor = false, legacy = false): string {
   try {
     const stat = lstatSync(path, { bigint: true })
-    return `${stat.dev}:${stat.ino}:${stat.birthtimeNs}:${stat.mode}:${stat.isSymbolicLink() ? realpathSync(path) : ''}`
+    return `${stat.dev}:${stat.ino}:${stat.birthtimeNs}:${ancestor ? stat.mode & ~0o777n : stat.mode}:${stat.isSymbolicLink() ? realpathSync(path) : ''}${legacy ? '' : `:${stat.uid}:${stat.gid}`}`
   } catch (error) {
     if (missing(error)) return 'missing'
     throw error
@@ -68,53 +71,90 @@ function treeStamp(path: string): string {
 
 function snapshot(
   path: string, root: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), excluded?: string,
+  blobs?: string, selected?: string, legacy = false,
 ): InputSnapshot {
   const hash = createHash('sha256')
-  const copies: { path: string; content: string }[] = []
+  const copies: { path: string; content?: string; blob?: string }[] = []
+  const ancestors: { path: string; mode: number }[] = []
+  const chunk = Buffer.allocUnsafe(64 * 1024)
+  if (blobs !== undefined) mkdirSync(blobs, { recursive: true, mode: 0o700 })
   const capture = (filename: string): void => {
     if (!stamps.has(filename)) stamps.set(filename, treeStamp(filename))
   }
   for (let current = path; contains(root, current); current = dirname(current)) {
     capture(current)
-    hash.update(current).update('\0').update(identity(current)).update('\0')
+    const ancestor = !legacy && current !== path
+    hash.update(current).update('\0').update(identity(current, ancestor, legacy)).update('\0')
+    if (ancestor) {
+      try { ancestors.push({ path: current, mode: Number(lstatSync(current, { bigint: true }).mode) }) } catch (error) {
+        if (!missing(error)) throw error
+      }
+    }
     if (current === dirname(current)) break
   }
   const visited = new Set<string>()
-  const walk = (filename: string, logicalFilename = filename): Buffer | null => {
-    if (excluded !== undefined && contains(excluded, canonicalLocation(filename))) return null
+  const walk = (filename: string, logicalFilename = filename): void => {
+    if (excluded !== undefined && contains(excluded, canonicalLocation(filename))) return
     capture(filename)
-    hash.update(logicalFilename).update('\0').update(identity(filename)).update('\0')
+    hash.update(logicalFilename).update('\0').update(identity(filename, false, legacy)).update('\0')
     let stat: ReturnType<typeof statSync>
     try { stat = statSync(filename) } catch (error) {
-      if (missing(error)) return null
+      if (missing(error)) return
       throw error
     }
     if (stat.isFile()) {
       const descriptor = openSync(filename, 'r')
+      const temporary = blobs === undefined ? undefined : join(blobs, `${randomUUID()}.new`)
+      let output: number | undefined
       try {
+        if (temporary !== undefined) output = openSync(temporary, 'wx', 0o600)
         const before = fstatSync(descriptor, { bigint: true })
-        const bytes = readFileSync(descriptor)
+        const digest = createHash('sha256')
+        const retained: Buffer[] = []
+        let length: number
+        while ((length = readSync(descriptor, chunk, 0, chunk.length, null)) > 0) {
+          const bytes = chunk.subarray(0, length)
+          hash.update(bytes)
+          digest.update(bytes)
+          if (blobs === undefined || logicalFilename === selected) retained.push(Buffer.from(bytes))
+          if (output !== undefined) {
+            let offset = 0
+            while (offset < length) offset += writeSync(output, bytes, offset, length - offset)
+          }
+        }
         const after = fstatSync(descriptor, { bigint: true })
         if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size
           || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs) {
           throw new Error(`Protected host input changed while being read: ${filename}`)
         }
-        hash.update(bytes).update('\0')
-        files?.set(logicalFilename, bytes)
-        copies.push({ path: logicalFilename, content: bytes.toString('base64') })
-        return bytes
+        hash.update('\0')
+        const blob = digest.digest('hex')
+        if (output !== undefined) { closeSync(output); output = undefined }
+        if (temporary !== undefined && blobs !== undefined) {
+          const destination = join(blobs, blob)
+          if (existsSync(destination)) unlinkSync(temporary)
+          else renameSync(temporary, destination)
+          copies.push({ path: logicalFilename, blob })
+        } else copies.push({ path: logicalFilename, content: Buffer.concat(retained).toString('base64') })
+        if (files !== undefined && (selected === undefined || logicalFilename === selected)) {
+          files.set(logicalFilename, Buffer.concat(retained))
+        }
       } finally {
         closeSync(descriptor)
+        if (output !== undefined) closeSync(output)
+        if (temporary !== undefined) {
+          try { unlinkSync(temporary) } catch (error) { if (!missing(error)) throw error }
+        }
       }
+      return
     }
     if (stat.isDirectory()) {
       const target = realpathSync(filename)
-      if (visited.has(target)) return null
+      if (visited.has(target)) return
       visited.add(target)
       // Resolve each directory once without accumulating links in descendant filesystem calls.
       for (const name of readdirSync(target).sort()) walk(join(target, name), join(logicalFilename, name))
     }
-    return null
   }
   let kind: InputSnapshot['kind'] = 'missing'
   let target: string | null = null
@@ -125,11 +165,26 @@ function snapshot(
   } catch (error) {
     if (!missing(error)) throw error
   }
-  const content = walk(path)?.toString('base64') ?? null
+  walk(path)
   for (const [filename, before] of stamps) {
     if (treeStamp(filename) !== before) throw new Error(`Protected host input changed while being read: ${filename}`)
   }
-  return { digest: hash.digest('hex'), kind, target, content, files: copies }
+  const direct = copies.find(file => file.path === path)
+  const treeDigest = hash.digest('hex')
+  const digest = legacy ? treeDigest : createHash('sha256').update(treeDigest).update(JSON.stringify(ancestors)).digest('hex')
+  return { digest, ...legacy ? {} : { treeDigest }, kind, target, content: direct?.content ?? null,
+    ...(direct?.blob === undefined ? {} : { blob: direct.blob }),
+    ...legacy ? {} : { ancestors }, files: copies }
+}
+
+function matches(previous: InputSnapshot, current: InputSnapshot): boolean {
+  if ((previous.treeDigest ?? previous.digest) !== (current.treeDigest ?? current.digest)) return false
+  return previous.ancestors === undefined || previous.ancestors.every((before) => {
+    const after = current.ancestors?.find(item => item.path === before.path)
+    // Only removing group/other permissions is an automatic tightening.
+    return after !== undefined && (after.mode & ~0o077) === (before.mode & ~0o077)
+      && (after.mode & 0o077 & ~before.mode) === 0
+  })
 }
 
 function parseSnapshot(value: unknown): InputSnapshot {
@@ -143,17 +198,45 @@ function parseSnapshot(value: unknown): InputSnapshot {
   if (kind !== 'missing' && kind !== 'file' && kind !== 'directory' && kind !== 'link' && kind !== 'other') {
     throw new Error('Invalid protected host input type')
   }
-  const files: { path: string; content: string }[] = []
+  const treeDigest = 'treeDigest' in value ? value.treeDigest : undefined
+  if (treeDigest !== undefined && (typeof treeDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(treeDigest))) {
+    throw new Error('Invalid protected input tree digest')
+  }
+  const blob = 'blob' in value ? value.blob : undefined
+  if (blob !== undefined && (typeof blob !== 'string' || !/^[a-f0-9]{64}$/u.test(blob))) {
+    throw new Error('Invalid protected input blob')
+  }
+  const ancestors: { path: string; mode: number }[] = []
+  if ('ancestors' in value) {
+    if (!Array.isArray(value.ancestors)) throw new Error('Invalid protected input ancestors')
+    const entries: unknown[] = value.ancestors
+    for (const item of entries) {
+      if (typeof item !== 'object' || item === null || !('path' in item) || typeof item.path !== 'string'
+        || !('mode' in item) || typeof item.mode !== 'number' || !Number.isSafeInteger(item.mode)) {
+        throw new Error('Invalid protected input ancestor')
+      }
+      ancestors.push({ path: item.path, mode: item.mode })
+    }
+  }
+  const files: { path: string; content?: string; blob?: string }[] = []
   if ('files' in value) {
     if (!Array.isArray(value.files)) throw new Error('Invalid protected input copies')
     const entries: unknown[] = value.files
     for (const file of entries) {
-      if (typeof file !== 'object' || file === null || !('path' in file) || typeof file.path !== 'string'
-        || !('content' in file) || typeof file.content !== 'string') throw new Error('Invalid protected input copy')
-      files.push({ path: file.path, content: file.content })
+      if (typeof file !== 'object' || file === null || !('path' in file) || typeof file.path !== 'string') {
+        throw new Error('Invalid protected input copy')
+      }
+      if ('blob' in file && typeof file.blob === 'string' && /^[a-f0-9]{64}$/u.test(file.blob)) {
+        files.push({ path: file.path, blob: file.blob })
+      } else if ('content' in file && typeof file.content === 'string') {
+        files.push({ path: file.path, content: file.content })
+      } else throw new Error('Invalid protected input copy')
     }
   }
   return { digest: value.digest, kind, target: value.target, content: value.content,
+    ...treeDigest === undefined ? {} : { treeDigest },
+    ...blob === undefined ? {} : { blob },
+    ...'ancestors' in value ? { ancestors } : {},
     ...'files' in value ? { files } : {},
   }
 }
@@ -258,7 +341,7 @@ export class ProtectedInputIntegrity {
       this.approved.set(path, value)
       this.observed.add(path)
     }
-    this.revision = text
+    this.revision = createHash('sha256').update(text).digest('hex')
     this.granted = true
   }
 
@@ -271,7 +354,7 @@ export class ProtectedInputIntegrity {
       if (this.revision !== undefined) throw new Error('Protected workspace record disappeared')
       return
     }
-    if (text !== this.revision) this.loadRecord(text)
+    if (createHash('sha256').update(text).digest('hex') !== this.revision) this.loadRecord(text)
   }
 
   private inputPath(filename: string): string {
@@ -289,9 +372,23 @@ export class ProtectedInputIntegrity {
     }
   }
 
-  private capture(path: string, files?: Map<string, Buffer>, stamps = new Map<string, string>()): InputSnapshot {
+  private capture(path: string, files?: Map<string, Buffer>, stamps = new Map<string, string>(), selected?: string): InputSnapshot {
     return snapshot(path, this.root, files, stamps,
-      this.record === undefined ? undefined : canonicalLocation(dirname(this.record)))
+      this.record === undefined ? undefined : canonicalLocation(dirname(this.record)),
+      this.record === undefined ? undefined : join(dirname(this.record), 'blobs'), selected,
+      this.approved.has(path) && this.approved.get(path)?.ancestors === undefined)
+  }
+
+  private readCopy(copy: { content?: string | null; blob?: string }): Buffer {
+    if (copy.blob !== undefined && this.record !== undefined) {
+      const bytes = readFileSync(join(dirname(this.record), 'blobs', copy.blob))
+      if (createHash('sha256').update(bytes).digest('hex') !== copy.blob) {
+        throw new Error('Protected input copy changed')
+      }
+      return bytes
+    }
+    if (typeof copy.content === 'string') return Buffer.from(copy.content, 'base64')
+    throw new Error('Protected host input has no approved copy')
   }
 
   private assertRecordLocation(protectedPaths?: readonly string[]): void {
@@ -386,13 +483,13 @@ export class ProtectedInputIntegrity {
     const copies: (Buffer | undefined)[] = []
     for (const [root, value] of this.approved) {
       if (root === path) {
-        if (value.content !== null) copies.push(Buffer.from(value.content, 'base64'))
+        if (value.content !== null || value.blob !== undefined) copies.push(this.readCopy(value))
         else if (value.kind === 'missing') copies.push(undefined)
         else throw new Error(`Protected host input is not a configuration file: ${path}`)
       } else if ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)) {
         if (value.files === undefined) throw new Error(`Protected host input has no approved copy: ${path}`)
         const file = value.files.find(file => file.path === path)
-        copies.push(file === undefined ? undefined : Buffer.from(file.content, 'base64'))
+        copies.push(file === undefined ? undefined : this.readCopy(file))
       }
     }
     if (copies.length === 0) throw new Error(`Protected host input has no approved copy: ${path}`)
@@ -438,8 +535,8 @@ export class ProtectedInputIntegrity {
     const stamps = new Map<string, string>()
     for (const { root, value, candidate } of roots) {
       const files = new Map<string, Buffer>()
-      const current = this.capture(root, files, stamps)
-      if (current.digest !== value.digest) throw new Error(`Protected host input requires owner confirmation: ${root}`)
+      const current = this.capture(root, files, stamps, candidate)
+      if (!matches(value, current)) throw new Error(`Protected host input requires owner confirmation: ${root}`)
       const content = files.get(candidate)
       if (content !== undefined) {
         if (bytes !== undefined && !bytes.equals(content)) throw new Error(`Protected host input changed while being read: ${path}`)
@@ -463,13 +560,36 @@ export class ProtectedInputIntegrity {
       try { current = readFileSync(this.record, 'utf8') } catch (error) {
         if (!missing(error)) throw error
       }
-      if (current !== this.revision) throw new Error('Protected workspace record changed in another host; reopen it before granting trust')
-      const text = JSON.stringify({ version: 1, workspace: this.root,
-        inputs: [...this.approved].map(([path, value]) => ({ path, snapshot: value })),
-      }) + '\n'
-      writeFileSync(temporary, text, { mode: 0o600, flag: 'wx' })
+      if ((current === undefined ? undefined : createHash('sha256').update(current).digest('hex')) !== this.revision) {
+        throw new Error('Protected workspace record changed in another host; reopen it before granting trust')
+      }
+      const descriptor = openSync(temporary, 'wx', 0o600)
+      const revision = createHash('sha256')
+      const append = (text: string): void => {
+        const bytes = Buffer.from(text)
+        revision.update(bytes)
+        let offset = 0
+        while (offset < bytes.length) offset += writeSync(descriptor, bytes, offset, bytes.length - offset)
+      }
+      try {
+        append(`{"version":1,"workspace":${JSON.stringify(this.root)},"inputs":[`)
+        let separator = ''
+        for (const [path, value] of this.approved) {
+          const { files, ...metadata } = value
+          append(`${separator}{"path":${JSON.stringify(path)},"snapshot":${JSON.stringify(metadata).slice(0, -1)}`)
+          if (files !== undefined) {
+            append(',"files":[')
+            let fileSeparator = ''
+            for (const file of files) { append(fileSeparator + JSON.stringify(file)); fileSeparator = ',' }
+            append(']')
+          }
+          append('}}')
+          separator = ','
+        }
+        append(']}\n')
+      } finally { closeSync(descriptor) }
       renameSync(temporary, this.record)
-      this.revision = text
+      this.revision = revision.digest('hex')
     } finally {
       try { unlinkSync(temporary) } catch (error) {
         if (!missing(error)) throw error
@@ -501,7 +621,8 @@ export class ProtectedInputIntegrity {
       const previous = this.approved.get(path)?.digest ?? 'unrecorded'
       const value = this.capture(path, undefined, captured)
       candidates.set(path, value)
-      if (value.digest !== previous) changes.push({ path, previous, current: value.digest })
+      const approved = this.approved.get(path)
+      if (approved === undefined || !matches(approved, value)) changes.push({ path, previous, current: value.digest })
     }
     for (const change of changes) {
       owner.blocked(change)
@@ -509,15 +630,19 @@ export class ProtectedInputIntegrity {
     }
     const checked = new Map<string, string>()
     for (const [path, candidate] of candidates) {
-      const current = this.capture(path, undefined, checked).digest
-      if (current !== candidate.digest) {
-        owner.blocked({ path, previous: candidate.digest, current })
+      const current = this.capture(path, undefined, checked)
+      if (!matches(candidate, current) || !matches(current, candidate)) {
+        owner.blocked({ path, previous: candidate.digest, current: current.digest })
         return false
       }
     }
     const previous = new Map(this.approved)
     for (const [path, candidate] of candidates) this.approved.set(path, candidate)
-    try { if (changes.length > 0) this.persist() } catch (error) {
+    const tightened = [...candidates].some(([path, candidate]) => {
+      const before = previous.get(path)
+      return before !== undefined && !matches(candidate, before)
+    })
+    try { if (changes.length > 0 || tightened) this.persist() } catch (error) {
       this.approved.clear()
       for (const [path, value] of previous) this.approved.set(path, value)
       throw error

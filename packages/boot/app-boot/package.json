@@ -61,6 +61,7 @@
     "@panedesk/cordis-plugin-timer": "workspace:~",
     "@panedesk/dsh-bash-local": "workspace:*",
     "@panedesk/dsh-cmdline": "workspace:*",
+    "@panedesk/dsh-attachment-local": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
     "@panedesk/dsh-launch-environment": "workspace:*",
     "@panedesk/dsh-system-prompt": "workspace:*",
