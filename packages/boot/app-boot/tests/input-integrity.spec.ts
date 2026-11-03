@@ -403,6 +403,31 @@ it('refuses deletion of an already granted durable record instead of trusting cu
   expect(() => integrity.readExecutable(f.path)).toThrow('Protected workspace record disappeared')
 })
 
+it('captures deep linked dependency trees without exceeding the filesystem symlink limit', async () => {
+  const f = fixture()
+  const packages = join(f.root, 'packages')
+  mkdirSync(packages)
+  const directories = Array.from({ length: 48 }, (_, index) => join(packages, `package-${index}`))
+  for (const directory of directories) mkdirSync(directory)
+  for (const [index, directory] of directories.entries()) {
+    const next = directories[index + 1]
+    if (next !== undefined) symlinkSync(next, join(directory, 'dependency'), 'dir')
+  }
+  const entry = join(directories[directories.length - 1]!, 'index.js')
+  writeFileSync(entry, 'trusted module')
+  const link = join(f.workspace, 'plugin')
+  symlinkSync(directories[0]!, link, 'dir')
+  const integrity = new ProtectedInputIntegrity(f.workspace, join(f.root, 'owner-state'))
+  integrity.observe(link)
+  integrity.grantWrite()
+  const confirm = vi.fn(async () => false)
+  expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(true)
+  expect(confirm).not.toHaveBeenCalled()
+  writeFileSync(entry, 'unconfirmed module')
+  expect(await integrity.verify({ blocked: vi.fn(), confirm })).toBe(false)
+  expect(confirm).toHaveBeenCalledOnce()
+})
+
 it('leaves inputs outside the writable workspace unchanged', async () => {
   const f = fixture()
   const outside = join(f.root, 'outside.yml')

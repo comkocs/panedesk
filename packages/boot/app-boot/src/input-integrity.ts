@@ -80,10 +80,10 @@ function snapshot(
     if (current === dirname(current)) break
   }
   const visited = new Set<string>()
-  const walk = (filename: string): Buffer | null => {
+  const walk = (filename: string, logicalFilename = filename): Buffer | null => {
     if (excluded !== undefined && contains(excluded, canonicalLocation(filename))) return null
     capture(filename)
-    hash.update(filename).update('\0').update(identity(filename)).update('\0')
+    hash.update(logicalFilename).update('\0').update(identity(filename)).update('\0')
     let stat: ReturnType<typeof statSync>
     try { stat = statSync(filename) } catch (error) {
       if (missing(error)) return null
@@ -100,8 +100,8 @@ function snapshot(
           throw new Error(`Protected host input changed while being read: ${filename}`)
         }
         hash.update(bytes).update('\0')
-        files?.set(filename, bytes)
-        copies.push({ path: filename, content: bytes.toString('base64') })
+        files?.set(logicalFilename, bytes)
+        copies.push({ path: logicalFilename, content: bytes.toString('base64') })
         return bytes
       } finally {
         closeSync(descriptor)
@@ -111,7 +111,8 @@ function snapshot(
       const target = realpathSync(filename)
       if (visited.has(target)) return null
       visited.add(target)
-      for (const name of readdirSync(filename).sort()) walk(join(filename, name))
+      // Resolve each directory once without accumulating links in descendant filesystem calls.
+      for (const name of readdirSync(target).sort()) walk(join(target, name), join(logicalFilename, name))
     }
     return null
   }
