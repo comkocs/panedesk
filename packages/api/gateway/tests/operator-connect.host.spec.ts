@@ -1,7 +1,16 @@
 /** Connect lifecycle and event ownership through real Loader, HTTP and WebSocket composition. */
 import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { initProfile, readProfileManifest } from '@panedesk/dsh-app-boot'
+import PluginManager from '@panedesk/dsh-plugin-manager'
+import * as packageOperations from '../../../boot/plugin-manager/src/operations.ts'
+import * as githubConnection from '../../../boot/plugin-manager/src/github-connection.ts'
+import SessionStore from '@panedesk/dsh-session'
+import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
+import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
+import SandboxedFileSystem from '@panedesk/dsh-fs-sandbox'
+import PermissionPresetService from '@panedesk/dsh-permission-presets'
 import { IncomingMessage } from 'node:http'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -23,6 +32,11 @@ import { parseRemoteStreamServerMessage, type RemoteStreamServerMessage } from '
 import { RemoteStreamMuxServer } from '../src/stream-server.ts'
 import OperatorConnectFixture from './operator-connect-fixture.ts'
 
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
+  const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
+  return { ...actual, assertWindowsStateTrusted: vi.fn() }
+})
+
 interface SocketClient {
   readonly socket: WebSocket
   readonly closed: Promise<void>
@@ -33,6 +47,7 @@ interface Host {
   readonly ctx: Context
   readonly origin: string
   readonly fixture: OperatorConnectFixture
+  readonly workspace: string
 }
 const roots: string[] = []
 const hosts: Host[] = []
@@ -52,6 +67,8 @@ afterEach(async () => {
     await client.closed
   }))
   await Promise.all(hosts.splice(0).map(host => host.ctx.fiber.dispose()))
+  vi.restoreAllMocks()
+  vi.unstubAllEnvs()
   for (const root of roots.splice(0)) {
     if (!isAbsolute(root) || dirname(root) !== resolve(tmpdir()) || !basename(root).startsWith('dsh-operator-connect-')) {
       throw new Error(`refusing unexpected fixture cleanup path: ${root}`)
@@ -61,6 +78,88 @@ afterEach(async () => {
 })
 
 describe('operator connect through Loader composition', () => {
+  it.each([
+    ['$events/result', { clientId: 'synthetic-client', eventId: 'synthetic-event', outcome: { kind: 'result', value: 'allowed' } }],
+    ['permissionPresets/authorizeWorkspaceWrite', { workspace: 'synthetic-workspace' }],
+    ['pluginManager/installBundle', { spec: 'synthetic-bundle' }],
+  ] as const)('rejects a forged browser cookie before dispatching %s', async (endpoint, args) => {
+    const host = await boot()
+    const cookie = await exchange(host, 'html')
+    const separator = cookie.indexOf('=')
+    const forged = `${cookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
+      version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
+    })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
+    expect(await rpc(host, forged, endpoint, args)).toEqual({ status: 401, body: 'unauthorized' })
+    expect(host.fixture.calls.size).toBe(0)
+    expect(host.fixture.effects.size).toBe(0)
+    await success(host, cookie, 'fixture/identity', { label: 'legitimate-owner' })
+    expect(call(host, 'legitimate-owner').peer === host.ctx.connection.browserPeer).toBe(true)
+  })
+
+  it('installs a disabled bundle only for the authenticated owner through HTTP', async () => {
+    const host = await boot(false, true)
+    const dir = host.ctx.profileContext.dir
+    const manifestPath = join(dir, 'package.json')
+    const patchPath = join(dir, 'cordis.patch.yml')
+    const beforeManifest = await readFile(manifestPath, 'utf8')
+    const beforePatch = await readFile(patchPath, 'utf8')
+    vi.spyOn(packageOperations, 'readProfileRegistry').mockResolvedValue('https://registry.npmjs.org/')
+    vi.spyOn(githubConnection, 'checkGithubConnection').mockResolvedValue(undefined)
+    const install = vi.spyOn(packageOperations, 'runProfilePnpm').mockImplementation(async (_context, args) => {
+      expect(args.slice(0, 2)).toEqual(['add', 'synthetic-owner-bundle'])
+      const bundle = join(dir, 'node_modules', 'synthetic-owner-bundle')
+      await mkdir(bundle, { recursive: true })
+      await writeFile(join(bundle, 'package.json'), JSON.stringify({ name: 'synthetic-owner-bundle', version: '1.0.0',
+        dsh: { bundle: { patch: './cordis.patch.yml' } } }))
+      await writeFile(join(bundle, 'cordis.patch.yml'), '[]\n')
+      const manifest = readProfileManifest('fixture', dir)
+      manifest.dependencies = { ...manifest.dependencies, 'synthetic-owner-bundle': '1.0.0' }
+      await writeFile(manifestPath, JSON.stringify(manifest))
+      return { exitCode: 0, output: 'synthetic installation', truncated: false, logPath: join(dir, 'install.log') }
+    })
+    const cookie = await exchange(host, 'html')
+    const separator = cookie.indexOf('=')
+    const forged = `${cookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
+      version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
+    })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
+    const args = { spec: 'synthetic-owner-bundle', options: { enabled: false } }
+    expect(await rpc(host, forged, 'pluginManager/installBundle', args)).toEqual({ status: 401, body: 'unauthorized' })
+    expect(install).not.toHaveBeenCalled()
+    expect(await readFile(manifestPath, 'utf8')).toBe(beforeManifest)
+    expect(await readFile(patchPath, 'utf8')).toBe(beforePatch)
+    expect(await rpc(host, cookie, 'pluginManager/installBundle', args)).toMatchObject({ status: 200, body: {
+      result: { ok: true, value: { changed: true, application: 'restart-required', stage: 'enable',
+        bundle: 'synthetic-owner-bundle', packageResult: { exitCode: 0 } } },
+    } })
+    expect(install).toHaveBeenCalledOnce()
+    expect(readProfileManifest('fixture', dir).dependencies?.['synthetic-owner-bundle']).toBe('1.0.0')
+    expect((await host.ctx.pluginManager.listBundles()).find(bundle => bundle.name === 'synthetic-owner-bundle')?.enabled).toBe(false)
+  })
+
+  it('records workspace authorization only for the authenticated owner through HTTP', async () => {
+    const host = await boot(true)
+    const cookie = await exchange(host, 'html')
+    const separator = cookie.indexOf('=')
+    const forged = `${cookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
+      version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
+    })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
+    const changes: boolean[] = []
+    host.ctx.on('permission-presets/workspace-write-changed', () => {
+      changes.push(host.ctx.sandboxPolicy.workspaceAccess.isAuthorized(host.workspace))
+    })
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const args = { workspace: host.workspace }
+    expect(await rpc(host, forged, 'permissionPresets/authorizeWorkspaceWrite', args))
+      .toEqual({ status: 401, body: 'unauthorized' })
+    expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toEqual([])
+    expect(changes).toEqual([])
+    await success(host, cookie, 'permissionPresets/authorizeWorkspaceWrite', args)
+    expect(host.ctx.sandboxPolicy.workspaceAccess.list()).toMatchObject([
+      { workspace: host.workspace, source: 'settings-preauthorization' },
+    ])
+    expect(changes).toEqual([true])
+  })
+
   it('admits HTTP before attachment and releases the Operator before slow stream cleanup', async () => {
     const host = await boot()
     const cookie = await exchange(host, 'none')
@@ -188,8 +287,16 @@ describe('operator connect through Loader composition', () => {
     open(passive, 'forbidden', '$events', {})
     expect(await frame(passive, 'forbidden', 'error')).toMatchObject({ error: { code: 'gateway/interactions-forbidden' } })
     const pending = host.fixture.pending('approval')
+    const settled = vi.fn()
+    void pending.then(settled)
     const delivery = await invocation(page, 'approval')
     const args = { clientId: ready.clientId, eventId: delivery.eventId, outcome: { kind: 'result', value: 'allowed' } }
+    const separator = pageCookie.indexOf('=')
+    const forged = `${pageCookie.slice(0, separator + 1)}v1.${Buffer.from(JSON.stringify({
+      version: 1, authority: new URL(host.origin).host, issuedAt: Date.now(), expiresAt: Date.now() + 60_000,
+    })).toString('base64url')}.${Buffer.alloc(32, 1).toString('base64url')}`
+    expect(await rpc(host, forged, '$events/result', args)).toEqual({ status: 401, body: 'unauthorized' })
+    expect(settled).not.toHaveBeenCalled()
     for (const cookie of [passiveCookie, otherCookie]) {
       expect(await rpc(host, cookie, '$events/result', args)).toMatchObject({
         body: { result: { ok: false, error: { code: 'gateway/interactions-forbidden' } } },
@@ -197,19 +304,26 @@ describe('operator connect through Loader composition', () => {
     }
     await success(host, pageCookie, '$events/result', args)
     await expect(pending).resolves.toEqual({ kind: 'result', value: 'allowed' })
+    expect(settled).toHaveBeenCalledOnce()
     expect(passive.frames.filter(item => item.type === 'item')).toEqual([])
   })
 
 })
 
-async function boot(): Promise<Host> {
+async function boot(workspaceAccess = false, pluginManagement = false): Promise<Host> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-operator-connect-'))
   roots.push(root)
+  const workspace = join(root, 'workspace')
+  await mkdir(workspace)
+  const privateDirectory = join(root, 'private')
+  await mkdir(privateDirectory, { mode: 0o700 })
+  vi.stubEnv('PANEDESK_HOME', join(root, 'owner-home'))
+  vi.stubEnv('PANEDESK_PERMISSION_MODE', undefined)
   const distIndex = join(root, 'index.html')
   await writeFile(distIndex, '<head></head><body>operator fixture</body>')
   const configPath = join(root, 'cordis.yml')
   const rows = [
-    { name: '@panedesk/dsh-credentials-local', config: { path: join(root, '.credentials.yaml'), watch: false } },
+    { name: '@panedesk/dsh-credentials-local', config: { path: join(privateDirectory, '.credentials.yaml'), watch: false } },
     { name: '@panedesk/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } },
     { name: '@panedesk/dsh-client-connection', config: { requireOwnerConfirmation: false } },
     { name: '@panedesk/dsh-host-frontend-static', config: { distIndex } },
@@ -217,12 +331,32 @@ async function boot(): Promise<Host> {
     { name: '@panedesk/dsh-api-remote-access' },
     { name: '@panedesk/dsh-api-gateway' },
     { name: '@fixture/operator-connect' },
+    ...pluginManagement ? [{ name: '@panedesk/dsh-plugin-manager' }] : [],
+    { name: '@panedesk/dsh-session-projection' },
+    { name: '@panedesk/dsh-sandbox-policy', config: { workspaceRoot: workspace, mode: 'read-only' } },
+    { name: '@panedesk/dsh-fs-sandbox', config: { cwd: workspace } },
+    ...workspaceAccess ? [
+      { name: '@panedesk/dsh-session' },
+      { name: '@fixture/workspace-capabilities' },
+      { name: '@panedesk/dsh-permission-presets', config: { presets: {
+        'read-only': { sandbox: 'read-only', approval: 'ask' },
+        'workspace-write': { sandbox: 'workspace-write', approval: 'ask' },
+      } } },
+    ] : [],
   ]
   await writeFile(configPath, rows.map(row => `- ${JSON.stringify({ ...row, name: `cordis:${row.name}` })}`).join('\n') + '\n')
   const ctx = new Context()
   ctx.baseUrl = pathToFileURL(root).href + '/'
   try {
     await ctx.plugin(Loader)
+    if (pluginManagement) {
+      const dir = join(root, 'profile')
+      initProfile(dir, [])
+      const anchor = join(root, 'package.json')
+      await writeFile(anchor, JSON.stringify({ name: 'fixture-installation', dependencies: {} }))
+      ctx.provide('profileContext', { name: 'fixture', dir, patchPath: join(dir, 'cordis.patch.yml'),
+        installAnchor: anchor, cwd: root, home: root, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined })
+    }
     Object.assign(ctx.loader.builtins, {
       include: Include,
       '@panedesk/dsh-credentials-local': LocalCredentials,
@@ -233,11 +367,30 @@ async function boot(): Promise<Host> {
       '@panedesk/dsh-api-remote-access': RemoteAccess,
       '@panedesk/dsh-api-gateway': TypertGateway,
       '@fixture/operator-connect': OperatorConnectFixture,
+      '@panedesk/dsh-session': SessionStore,
+      '@panedesk/dsh-session-projection': SessionProjectionRegistry,
+      '@panedesk/dsh-sandbox-policy': SandboxPolicyService,
+      '@panedesk/dsh-fs-sandbox': SandboxedFileSystem,
+      '@panedesk/dsh-permission-presets': PermissionPresetService,
+      '@panedesk/dsh-plugin-manager': PluginManager,
+      '@fixture/workspace-capabilities': { apply(scope: Context) {
+        scope.provide('shell', { sandboxMode: 'read-only' })
+        scope.provide('approval', { config: { policy: 'ask' } })
+        scope.provide('sandbox', { supportsWorkspaceWriteAccess: true,
+          hasWorkspaceWriteGrant: () => false, revokeWorkspaceWriteGrant: () => {} })
+      } },
     })
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await ctx.loader.await()
     expect(ctx.webServer.port).toBeGreaterThan(0)
-    const host = { ctx, origin: `http://127.0.0.1:${ctx.webServer.port}`, fixture: ctx.operatorConnectFixture }
+    const material = await ctx.fs.resolve(join(privateDirectory, '.credentials.yaml'))
+    for (const mode of ['read-only', 'workspace-write'] as const) {
+      await expect(ctx.fs.readText(material, undefined, ctx.sandboxPolicy.resolve({ mode })))
+        .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
+    }
+    expect((await ctx.fs.readText(material, undefined, { mode: 'danger-full-access', workspaceRoot: workspace })).length)
+      .toBeGreaterThan(0)
+    const host = { ctx, origin: `http://127.0.0.1:${ctx.webServer.port}`, fixture: ctx.operatorConnectFixture, workspace }
     hosts.push(host)
     return host
   } catch (error) {

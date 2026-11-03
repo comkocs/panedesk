@@ -70,6 +70,13 @@
     "@panedesk/cordis": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-app-boot": "workspace:*",
+    "@panedesk/dsh-fs-sandbox": "workspace:*",
+    "@panedesk/dsh-permission-presets": "workspace:*",
+    "@panedesk/dsh-plugin-manager": "workspace:*",
+    "@panedesk/dsh-sandbox-policy": "workspace:*",
+    "@panedesk/dsh-session": "workspace:*",
+    "@panedesk/dsh-session-projection": "workspace:*",
     "@panedesk/dsh-api-remote-access": "workspace:*",
     "@panedesk/dsh-brand": "workspace:*",
     "@panedesk/dsh-cmdline": "workspace:*",

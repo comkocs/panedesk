@@ -1320,6 +1320,9 @@ importers:
       '@panedesk/dsh-api-remote-access':
         specifier: workspace:*
         version: link:../remote-access
+      '@panedesk/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
       '@panedesk/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
@@ -1329,12 +1332,30 @@ importers:
       '@panedesk/dsh-cmdline':
         specifier: workspace:*
         version: link:../../boot/cmdline
+      '@panedesk/dsh-fs-sandbox':
+        specifier: workspace:*
+        version: link:../../fs/fs-sandbox
       '@panedesk/dsh-host-webserver':
         specifier: workspace:*
         version: link:../../host/webserver
+      '@panedesk/dsh-permission-presets':
+        specifier: workspace:*
+        version: link:../../interaction/permission-presets
+      '@panedesk/dsh-plugin-manager':
+        specifier: workspace:*
+        version: link:../../boot/plugin-manager
       '@panedesk/dsh-remote-mock':
         specifier: workspace:*
         version: link:../../test-support/remote-mock
+      '@panedesk/dsh-sandbox-policy':
+        specifier: workspace:*
+        version: link:../../sandbox/sandbox-policy
+      '@panedesk/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@panedesk/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
       '@panedesk/dsh-typert-registry':
         specifier: workspace:*
         version: link:../../typert/registry
@@ -14009,6 +14030,9 @@ importers:
       '@panedesk/dsh-client-modules':
         specifier: workspace:*
         version: link:../../client/modules
+      '@panedesk/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
       '@panedesk/dsh-hmr':
         specifier: workspace:*
         version: link:../../boot/hmr
@@ -14033,9 +14057,15 @@ importers:
 
   packages/sandbox/sandbox-windows-acl:
     dependencies:
+      '@panedesk/dsh-home-paths':
+        specifier: workspace:*
+        version: link:../../util/home-paths
       '@panedesk/dsh-lazy-require':
         specifier: workspace:*
         version: link:../../util/lazy-require
+      '@panedesk/dsh-sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
       '@panedesk/dsh-win32-process':
         specifier: workspace:*
         version: link:../../subprocess/win32-process
