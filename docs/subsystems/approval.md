@@ -122,20 +122,24 @@ setPolicy(agent: Agent, policy: ApprovalPolicy): void
  * The request requires an open turn because the audit pair must be enclosed
  * by the durable log's commit/replay boundary; an idle ask rejects before
  * appending anything. The answerer phase always produces an outcome: an
- * aborted signal yields `'cancelled'`, a missing or throwing answerer yields
- * `'unavailable'` (fail closed), and a rogue non-vocabulary return value is
- * normalized to `'unavailable'`. A failure that prevents either audit append
+ * aborted signal yields `'cancelled'`; missing answerers, exceptions, and invalid
+ * answers yield `'unavailable'` with a diagnostic reason. Owner rejection and
+ * rule failures yield `'rejected'`; failed grants identify prior owner consent.
+ * Workspace rules run before dispatch and again after consent; their failures
+ * are audited without granting access. A failure that prevents either audit append
  * from committing still rejects because returning an unlogged decision would
  * violate the pair. Session contains post-commit observer failures, so an
  * authoritative append cannot reject the request or suppress its matching
  * audit event.
  * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+ * @param authorization - Host-owned check (returns a rule refusal, throws on inspection failure), grant commit,
+ *   and rollback; omitted without a policy consumer. Only rule refusals and failed checks inject a diagnostic.
  * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
  *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
  * @throws when no turn is open or either audit event fails before the session
  *   append commit point.
  */
-async request(req: ApprovalRequest): Promise<ApprovalOutcome>
+async request( req: ApprovalRequest, authorization?: { check(): Error | void; commit(): Promise<void>; rollback(): Promise<void> }, ): Promise<ApprovalOutcome>
 
 /**
  * Ask an authenticated owner about a host input, including between model turns.

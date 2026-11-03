@@ -267,7 +267,7 @@ Source: [`packages/interaction/user-approval/src/types.ts:45`](../packages/inter
 'approval/decided': {
   id: ApprovalRequestId
   outcome: ApprovalOutcome
-  /** Concrete policy refusal after an owner answer; absent for ordinary decisions. */
+  /** Owner refusal, policy reason, or sanitized transport/grant failure; absent for allowances and cancellation. */
   reason?: string
 }
 ```
@@ -3460,7 +3460,7 @@ One of:
 
 SHA-256: `05d2ae1e0c7f8770f83f9a09047afb39a335d8ac986df3193659aa1e581472cf`
 
-Sources: [`packages/interaction/user-approval/src/index.ts:71`](../packages/interaction/user-approval/src/index.ts)
+Sources: [`packages/interaction/user-approval/src/index.ts:72`](../packages/interaction/user-approval/src/index.ts)
 
 One of:
 

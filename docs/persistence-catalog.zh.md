@@ -269,7 +269,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'approval/decided': {
   id: ApprovalRequestId
   outcome: ApprovalOutcome
-  /** Concrete policy refusal after an owner answer; absent for ordinary decisions. */
+  /** Owner refusal, policy reason, or sanitized transport/grant failure; absent for allowances and cancellation. */
   reason?: string
 }
 ```
@@ -3462,7 +3462,7 @@ SHA-256: `930c1cd289def119d443e19dd90008916bf035f0a4d23e07241e7f050f2b89b7`
 
 SHA-256: `05d2ae1e0c7f8770f83f9a09047afb39a335d8ac986df3193659aa1e581472cf`
 
-来源：[`packages/interaction/user-approval/src/index.ts:71`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts:72`](../packages/interaction/user-approval/src/index.ts)
 
 以下类型之一：
 
