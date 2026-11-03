@@ -332,7 +332,10 @@ export class ProtectedInputIntegrity {
     if (home === undefined) return
     const directory = join(resolve(home), 'windows-workspace-write', 'protected-inputs')
     this.record = join(directory, `${createHash('sha256').update(this.root).digest('hex')}.json`)
-    if (!this.stateTrusted()) return
+    if (!this.stateTrusted()) {
+      console.warn(String(this.stateFailure))
+      return
+    }
     let text: string
     try { text = readFileSync(this.record, 'utf8') } catch (error) {
       if (missing(error)) return

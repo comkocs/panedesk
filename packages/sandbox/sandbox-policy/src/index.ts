@@ -35,7 +35,8 @@ import type {} from '@panedesk/dsh-system-prompt'
 import { resolveDshHome } from '@panedesk/dsh-home-paths'
 import { resolveEffectivePermissionMode } from './effective-mode.ts'
 import type { EffectivePermissionMode } from './effective-mode.ts'
-import { WorkspaceWriteAccess } from './workspace-access.ts'
+import { UnsafeWindowsStateError } from '@panedesk/dsh-sandbox-windows-acl'
+import { WorkspaceWriteAccess, WorkspaceWriteRuleError } from './workspace-access.ts'
 import { resolveProtectedPaths } from './protected-paths.ts'
 import { en, zh } from './locales.ts'
 
@@ -238,6 +239,8 @@ export class SandboxPolicyService extends Service {
     if (request.agent === undefined || approval === undefined) return policy
     if ((approval.overrideOf(request.agent.session) ?? approval.config.policy) === 'never') return policy
     const workspace = this.workspaceAccess.canonical(policy.workspaceRoot)
+    const sandbox = this.ctx.get('sandbox')
+    let committed = false
     const outcome = await approval.request({
       ...request, agent: request.agent,
       purpose: { type: 'workspace-write', workspace },
@@ -246,28 +249,36 @@ export class SandboxPolicyService extends Service {
         en: `Allow sandboxed writes to ${workspace}? This adds a Windows directory write ACL. Revoke in Settings > General > Windows workspace write access.`,
         zh: `允许向目录 ${workspace} 写入吗？这会添加 Windows 目录写入 ACL。可在设置 > 通用 > Windows 工作区写权限中撤销。`,
       },
+    }, {
+      check: () => {
+        try { this.workspaceAccess.assertCanAuthorize(workspace) } catch (error) {
+          if (error instanceof WorkspaceWriteRuleError || error instanceof UnsafeWindowsStateError) return error
+          throw error
+        }
+      },
+      commit: async () => {
+        if (session !== undefined && this.overrideOf(session) !== undefined) return
+        await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal)
+        committed = true
+        request.signal?.throwIfAborted()
+        const granted = this.resolve(session === undefined ? {} : { session })
+        if (sandbox?.supportsWorkspaceWriteAccess === true) {
+          await sandbox.materializeWorkspaceWriteGrant?.(granted, request.signal)
+        }
+      },
+      rollback: async () => {
+        if (!committed) return
+        await this.workspaceAccess.revoke(workspace, (path) => { sandbox?.revokeWorkspaceWriteGrant?.(path) })
+        committed = false
+      },
     })
     if (outcome !== 'allowed-once' || request.signal?.aborted) {
       throw new Error(`Workspace write confirmation ${outcome}; access remains read-only. ${this.writeDenialHint('read-only')}`)
     }
     // An explicit policy change while the owner answers remains authoritative.
     if (session !== undefined && this.overrideOf(session) !== undefined) return this.resolve({ session })
-    try {
-      await this.workspaceAccess.authorize(workspace, 'first-confirmation', request.signal)
-    } catch (error) {
-      request.agent.inject(createUserMessage({
-        content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
-        source: { kind: 'user-approval' },
-      }))
-      throw error
-    }
     request.signal?.throwIfAborted()
-    const granted = this.resolve(session === undefined ? {} : { session })
-    const sandbox = this.ctx.get('sandbox')
-    if (sandbox?.supportsWorkspaceWriteAccess === true) {
-      await sandbox.materializeWorkspaceWriteGrant?.(granted, request.signal)
-    }
-    return granted
+    return this.resolve(session === undefined ? {} : { session })
   }
 
   /**

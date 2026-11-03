@@ -57,7 +57,7 @@ declare module '@panedesk/dsh-session/types' {
     'approval/decided': {
       id: ApprovalRequestId
       outcome: ApprovalOutcome
-      /** Concrete policy refusal after an owner answer; absent for ordinary decisions. */
+      /** Owner refusal, policy reason, or sanitized transport/grant failure; absent for allowances and cancellation. */
       reason?: string
     }
   }

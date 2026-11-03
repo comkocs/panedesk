@@ -8,6 +8,9 @@ import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
 import { canonicalPath } from '@panedesk/dsh-sandbox'
 import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 
+/** An evaluated workspace rule denied authorization; inspection failures use their original error. */
+export class WorkspaceWriteRuleError extends Error {}
+
 const recordSchema = z.object({
   workspace: z.string().min(1),
   grantedAt: z.iso.datetime(),
@@ -40,22 +43,35 @@ export class WorkspaceWriteAccess {
     const directory = canonicalPath(this.directory)
     if (contains(workspace, directory)) {
       if (process.platform === 'win32') {
-        throw new Error('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。')
+        throw new WorkspaceWriteRuleError('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。')
       }
       const [child = ''] = relative(workspace, directory).split(sep)
       const first = join(workspace, child)
       if (first === workspace || !protectedPaths.includes(first)) {
-        throw new Error('Workspace authorization records must be outside the writable workspace or protected at its first child')
+        throw new WorkspaceWriteRuleError('Workspace authorization records must be outside the writable workspace or protected at its first child')
       }
     }
     const profile = this.profileDirectory()
     if (profile !== undefined && contains(canonicalPath(profile), workspace)) {
-      throw new Error('This directory is a protected profile directory; choose another workspace. / 该目录是受保护的 profile 目录，请换一个工作区。')
+      throw new WorkspaceWriteRuleError('This directory is a protected profile directory; choose another workspace. / 该目录是受保护的 profile 目录，请换一个工作区。')
     }
     for (const path of protectedPaths) {
       if (contains(path, workspace)) {
-        throw new Error(`Workspace write authorization overlaps protected host path ${JSON.stringify(path)}`)
+        throw new WorkspaceWriteRuleError(`Workspace write authorization overlaps protected host path ${JSON.stringify(path)}`)
       }
+    }
+  }
+
+  /**
+   * Reject ineligible workspaces without creating records or changing ACLs.
+   * @param workspace - Existing absolute workspace directory.
+   */
+  assertCanAuthorize(workspace: string): void {
+    const canonical = this.canonical(workspace)
+    this.assertUnprotected(canonical)
+    assertWindowsStateTrusted(this.identityPath(canonical), canonical)
+    if (this.revocationPending(this.identityPath(canonical))) {
+      throw new WorkspaceWriteRuleError('Workspace revocation is incomplete; retry revocation before authorizing')
     }
   }
 
@@ -219,7 +235,7 @@ export class WorkspaceWriteAccess {
       signal?.throwIfAborted()
       this.assertUnprotected(canonical)
       assertWindowsStateTrusted(path, canonical)
-      if (this.revocationPending(path)) throw new Error('Workspace revocation is incomplete; retry revocation before authorizing')
+      if (this.revocationPending(path)) throw new WorkspaceWriteRuleError('Workspace revocation is incomplete; retry revocation before authorizing')
       const previous = this.find(canonical)
       const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }
       await writeFileAtomic(path, `${JSON.stringify(record)}\n`, { mode: 0o600 })

@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { grantProtectedWorkspace, WorkspaceContainsStateError } from '@panedesk/dsh-app-boot'
+import { grantProtectedWorkspace } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -50,6 +50,7 @@ declare module '@panedesk/dsh-session/types' {
 }
 
 import { ApprovalRequestId } from './types.ts'
+import { en, zh } from './locales.ts'
 import type { ApprovalOutcome, ApprovalRequestEvent, ProtectedInputApproval } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
@@ -277,20 +278,27 @@ export class ApprovalService extends Service {
    * The request requires an open turn because the audit pair must be enclosed
    * by the durable log's commit/replay boundary; an idle ask rejects before
    * appending anything. The answerer phase always produces an outcome: an
-   * aborted signal yields `'cancelled'`, a missing or throwing answerer yields
-   * `'unavailable'` (fail closed), and a rogue non-vocabulary return value is
-   * normalized to `'unavailable'`. A failure that prevents either audit append
+   * aborted signal yields `'cancelled'`; missing answerers, exceptions, and invalid
+   * answers yield `'unavailable'` with a diagnostic reason. Owner rejection and
+   * rule failures yield `'rejected'`; failed grants identify prior owner consent.
+   * Workspace rules run before dispatch and again after consent; their failures
+   * are audited without granting access. A failure that prevents either audit append
    * from committing still rejects because returning an unlogged decision would
    * violate the pair. Session contains post-commit observer failures, so an
    * authoritative append cannot reject the request or suppress its matching
    * audit event.
    * @param req - the pending decision (agent, tool identity, purpose, reason, signal).
+   * @param authorization - Host-owned check (returns a rule refusal, throws on inspection failure), grant commit,
+   *   and rollback; omitted without a policy consumer. Only rule refusals and failed checks inject a diagnostic.
    * @returns the closed outcome; only `'allowed-once'` consents to the declared purpose.
    *   Without a purpose it grants one action; workspace persistence belongs to the consumer.
    * @throws when no turn is open or either audit event fails before the session
    *   append commit point.
    */
-  async request(req: ApprovalRequest): Promise<ApprovalOutcome> {
+  async request(
+    req: ApprovalRequest,
+    authorization?: { check(): Error | void; commit(): Promise<void>; rollback(): Promise<void> },
+  ): Promise<ApprovalOutcome> {
     const session = req.agent.session
     if (!hasOpenTurn(session)) {
       throw new Error(
@@ -311,34 +319,54 @@ export class ApprovalService extends Service {
     const timer = timeout === undefined ? undefined : setTimeout(() => {
       timeout.abort(new Error('Workspace write confirmation timed out'))
     }, this.config.workspaceWriteTimeoutMs)
-    let outcome: ApprovalOutcome
+    let decision: { outcome: ApprovalOutcome; reason?: string }
+    let authorizing = false
+    let ruleRefused = true
     try {
-      outcome = await this.decide(timeout === undefined ? req : {
+      const refusal = authorization?.check()
+      ruleRefused = refusal !== undefined
+      decision = refusal === undefined ? await this.decide(timeout === undefined ? req : {
         ...req,
         signal: req.signal === undefined ? timeout.signal : AbortSignal.any([req.signal, timeout.signal]),
-      }, session)
+      }, session) : this.refusal(refusal)
+      if (decision.outcome === 'allowed-once' && req.purpose?.type === 'workspace-write') {
+        ruleRefused = true
+        const refusal = authorization?.check()
+        ruleRefused = refusal !== undefined
+        if (refusal !== undefined) decision = this.refusal(refusal)
+        else {
+          authorizing = true
+          const profile = this.ctx.get('profileContext')
+          if (profile !== undefined) grantProtectedWorkspace(profile, req.purpose.workspace, [])
+          await authorization?.commit()
+          req.signal?.throwIfAborted()
+        }
+      }
+    } catch (error) {
+      let failure = error
+      try { await authorization?.rollback() } catch (rollbackError) {
+        failure = new AggregateError([error, rollbackError], `${this.refusal(error).reason}; rollback: ${this.refusal(rollbackError).reason}`)
+      }
+      decision = this.refusal(failure)
+      if (authorizing) {
+        decision.reason = `${en.authorizationFailed} ${decision.reason} / ${zh.authorizationFailed}${decision.reason}`
+      } else if (ruleRefused) {
+        decision.reason = `${en.ruleCheckFailed} ${decision.reason} / ${zh.ruleCheckFailed}${decision.reason}`
+      }
     } finally {
       if (timer !== undefined) clearTimeout(timer)
     }
-    let refusalReason: string | undefined
-    if (outcome === 'allowed-once' && req.purpose?.type === 'workspace-write') {
-      const profile = this.ctx.get('profileContext')
-      if (profile !== undefined) {
-        try { grantProtectedWorkspace(profile, req.purpose.workspace, []) } catch (error) {
-          this.ctx.logger.warn('Workspace write refused because protected input capture failed: %s', error)
-          req.agent.inject(createUserMessage({
-            content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
-            source: { kind: 'user-approval' },
-          }))
-          if (error instanceof WorkspaceContainsStateError) {
-            refusalReason = error.message
-            outcome = 'rejected'
-          } else outcome = 'unavailable'
-        }
-      }
+    try { session.append('approval/decided', { id, ...decision }) } catch (error) {
+      await authorization?.rollback()
+      throw error
     }
-    session.append('approval/decided', { id, outcome, ...refusalReason === undefined ? {} : { reason: refusalReason } })
-    return outcome
+    if (ruleRefused && decision.reason !== undefined && req.purpose !== undefined) {
+      req.agent.inject(createUserMessage({
+        content: [{ type: 'text', text: decision.reason }],
+        source: { kind: 'user-approval' },
+      }))
+    }
+    return decision.outcome
   }
 
   /**
@@ -359,16 +387,16 @@ export class ApprovalService extends Service {
     if (this.effectivePolicy(agent.session) === 'never') return 'rejected'
     const controller = new AbortController()
     const timer = setTimeout(() => { controller.abort() }, this.config.workspaceWriteTimeoutMs)
-    let outcome: ApprovalOutcome
+    let decision: { outcome: ApprovalOutcome; reason?: string }
     try {
-      outcome = await this.decide({
+      decision = await this.decide({
         agent, toolName: 'protected-input', purpose, ownerOnly: true, reason, signal: controller.signal,
       }, agent.session)
     } finally {
       clearTimeout(timer)
     }
-    notice(`Protected host input decision: ${outcome}. ${purpose.path}`)
-    return outcome
+    notice(`Protected host input decision: ${decision.outcome}. ${purpose.path}${decision.reason === undefined ? '' : `\n${decision.reason}`}`)
+    return decision.outcome
   }
 
   /**
@@ -396,26 +424,35 @@ export class ApprovalService extends Service {
     return undefined
   }
 
+  /** Format a fail-closed diagnostic without URL queries or credential header values. */
+  private refusal(error: unknown): { outcome: 'rejected'; reason: string } {
+    const reason = error instanceof Error ? `${error.name}: ${error.message}` : `${typeof error}: ${String(error)}`
+    return { outcome: 'rejected', reason: reason
+      .replace(/(https?:\/\/[^\s?]+)\?[^\s]*/giu, '$1?<redacted>')
+      .replace(/\b(authorization|cookie|set-cookie)\s*[:=]\s*[^\r\n]+/giu, '$1: <redacted>')
+      .replace(/\b(token|api[-_]?key)\s*[:=]\s*[^\r\n,;]+/giu, '$1: <redacted>') }
+  }
+
   /**
    * Dispatch the waterfall, contained and raced against the request signal.
    * @param req - the borrowed public request.
    * @param session - the request agent's session used for policy lookup.
-   * @returns the normalized closed outcome.
+   * @returns the normalized closed outcome with a diagnostic for failures.
    */
-  private async decide(req: ApprovalRequest, session: Session): Promise<ApprovalOutcome> {
+  private async decide(req: ApprovalRequest, session: Session): Promise<{ outcome: ApprovalOutcome; reason?: string }> {
     const signal = req.signal
-    if (signal?.aborted) return 'cancelled'
+    if (signal?.aborted) return { outcome: 'cancelled' }
     // The 'never' policy is decided HERE, before any dispatch: a listener
     // registered with `prepend: true` after this service mounts would sit
     // ahead of any gate LISTENER, so a listener-shaped gate cannot keep the
     // documented promise that 'never' rejects deterministically regardless
     // of registration order — only the service's own request path can.
-    if (this.effectivePolicy(session) === 'never') return 'rejected'
+    if (this.effectivePolicy(session) === 'never') return { outcome: 'rejected' }
     // Enter the promise chain BEFORE dispatching: a listener that throws
     // SYNCHRONOUSLY (before its first await) must land in the same rejection
     // path as an async one — `Promise.resolve(call())` would let it escape
     // the containment into the caller.
-    const answer: Promise<ApprovalOutcome> = Promise.resolve().then(async () => {
+    const answer: Promise<{ outcome: ApprovalOutcome; reason?: string }> = Promise.resolve().then(async () => {
       if (req.ownerOnly === true || req.purpose !== undefined) {
         const gateway = this.ctx.get('typertGateway')
         if (gateway === undefined) return 'unavailable'
@@ -431,16 +468,22 @@ export class ApprovalService extends Service {
     }).then(
       // Normalize a rogue (non-vocabulary) answerer return to the fail-closed
       // outcome instead of leaking it into callers' closed-union switches.
-      outcome => OUTCOMES.find(candidate => candidate === outcome) ?? 'unavailable',
-      // A throwing answerer must fail the QUESTION closed, not the caller's
-      // tool call open — the seam contains its callbacks.
-      () => 'unavailable',
+      (outcome) => {
+        const accepted = OUTCOMES.find(candidate => candidate === outcome)
+        if (accepted === undefined) {
+          return { outcome: 'unavailable', reason: this.refusal(new TypeError('Invalid approval outcome')).reason }
+        }
+        if (accepted === 'rejected') return { outcome: accepted, reason: `${en.ownerRejected} / ${zh.ownerRejected}` }
+        if (accepted === 'unavailable') return { outcome: accepted, reason: `${en.unavailable} / ${zh.unavailable}` }
+        return { outcome: accepted }
+      },
+      (error: unknown) => ({ outcome: 'unavailable', reason: this.refusal(error).reason }),
     )
     if (signal === undefined) return answer
-    return await new Promise<ApprovalOutcome>((resolve) => {
+    return await new Promise<{ outcome: ApprovalOutcome; reason?: string }>((resolve) => {
       const onAbort = () => {
         signal.removeEventListener('abort', onAbort)
-        resolve('cancelled')
+        resolve({ outcome: 'cancelled' })
       }
       signal.addEventListener('abort', onAbort, { once: true })
       void answer.then((outcome) => {
