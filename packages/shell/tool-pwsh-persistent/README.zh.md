@@ -88,7 +88,7 @@ kind: "package-reference"
 
 ### 命令流程
 
-首条命令通过 `ctx.terminals.spawn` 生成 shell，其 pwsh 启动流程安装受控的 `prompt` 函数，并只在该 shell 达到就绪后返回。随后每条命令都包装成一行物理文本——`Write-Output` 起始标记、用反引号转义进双引号字符串的命令体、`Write-Output` 结束标记加退出状态——因此 PSReadLine 对换行包装的回显无法伪造完成。解析器允许状态码数字后的 ASCII 空格，但仍要求以 LF 或 CRLF 结束。命令输出中的空格保持不变。工具以 1,000 行一页轮询 scrollback，直到出现完整的结束标记状态行或该 send 以 `stdin_read` 结算，提取区间、剥离回显的包装，并连同任何状态标记一起渲染。超时会中止截止时间、捕获部分输出并重置 shell。
+首条命令通过 `ctx.terminals.spawn` 生成 shell，其 pwsh 启动流程安装受控的 `prompt` 函数，并只在该 shell 达到就绪后返回。随后每条命令都包装成一行物理文本——`Write-Output` 起始标记、用反引号转义进双引号字符串的命令体、`Write-Output` 结束标记加退出状态——因此 PSReadLine 对换行包装的回显无法伪造完成。解析器允许状态码数字后的 ASCII 空格，但仍要求以 LF 或 CRLF 结束。命令输出中的空格保持不变。工具以 1,000 行一页轮询 scrollback，直到出现完整的结束标记状态行，或该 send 以 `stdin_read` 结算且不再只有包装命令前缀的回显，提取区间、剥离回显的包装，并连同任何状态标记一起渲染。超时会中止截止时间、捕获部分输出并重置 shell。
 
 </details>
 
