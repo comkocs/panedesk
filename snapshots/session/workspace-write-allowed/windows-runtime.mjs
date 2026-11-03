@@ -17,7 +17,9 @@ export function apply(ctx, config) {
         if (!standing) temporary.add(path)
       },
       has: path => active.has(path),
+      hasEffectiveWrite: path => active.has(path),
       revoke: path => { active.delete(path) },
+      revokeTree: path => { active.delete(path) },
       dispose: () => { for (const path of temporary) active.delete(path) },
     }
   }

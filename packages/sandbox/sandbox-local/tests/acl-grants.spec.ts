@@ -208,6 +208,22 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
     }
   })
 
+  it('requires host coverage for missing inputs inside the session private temporary directory', async () => {
+    const { sandbox, fiber } = await setup()
+    try {
+      const ws = workspaceRoot()
+      scratch.push(ws)
+      const policy: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: ws, sessionId: SessionId('private-input') }
+      const confined = await sandbox.confine(['true'], policy)
+      const temp = flag(confined.argv, '--temp')
+      if (temp === undefined) throw new Error('Private temporary directory missing')
+      const protectedPolicy = { ...policy, protectedPaths: [join(temp, 'missing.yml')] }
+      expect(() => sandbox.inspect(protectedPolicy)).toThrow('Protected host input has no fallback coverage')
+      await expect(sandbox.confine(['true'], protectedPolicy)).rejects.toThrow('Protected host input has no fallback coverage')
+      expect(mockState.grants).toHaveLength(2)
+    } finally { await fiber.dispose(); cleanup() }
+  })
+
   it('read-only materializes no capability; upgrade creates them and downgrade leaves them reusable', async () => {
     try {
       const { sandbox, fiber } = await setup()

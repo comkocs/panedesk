@@ -382,7 +382,9 @@ export class LocalSandboxProvider extends SandboxProvider {
   }
 
   private coveredInputs(policy: SandboxPolicy, runner: SelectedRunner['runner']) {
-    const inputs = protectedInputRecords(policy, runner)
+    const temp = runner === 'windows-acl' && policy.sessionId !== undefined
+      ? this.tempCapabilities.get(JSON.stringify([String(policy.sessionId), policy.workspaceRoot])) : undefined
+    const inputs = protectedInputRecords(policy, runner, temp === undefined ? [] : [temp.dir])
     const profile = this.ctx.get('profileContext')
     const uncovered = inputs.filter(input => input.enforcement === 'host-fallback'
       && (profile === undefined || !protectedInputCovered(profile, input.path)))

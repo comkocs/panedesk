@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@panedesk/cordis'
 import { ProtectedInputIntegrity, type ProfileContext } from '@panedesk/dsh-app-boot'
+import { SessionId } from '@panedesk/dsh-session'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { LocalSandboxProvider } from '../src/index.ts'
 
@@ -80,6 +81,23 @@ it('keeps absent inputs outside writable mounts natively protected', async () =>
     { path: outside, enforcement: 'native' }, ...f.nativeInputs,
     { path: f.input, enforcement: 'host-fallback', reason: 'unrepresentable' },
   ] })
+})
+
+it('does not treat unrelated Windows temporary homes as writable private session directories', async () => {
+  const f = await fixture(true)
+  const outside = join(f.workspace, '..', 'absent.yml')
+  const link = join(f.workspace, '..', 'linked.yml')
+  symlinkSync(f.workspace, link, 'dir')
+  f.provider.internals = { platform: 'win32', windowsAclRunnerArgs: ['windows-acl-runner'] }
+  const status = f.provider.inspect({
+    mode: 'workspace-write', workspaceRoot: f.workspace, sessionId: SessionId('external-home'),
+    protectedPaths: [outside],
+  })
+  expect(status.protectedInputs).toContainEqual({ path: outside, enforcement: 'native' })
+  expect(status.protectedInputs).toContainEqual({ path: f.input, enforcement: 'host-fallback', reason: 'unrepresentable' })
+  expect(() => f.provider.inspect({
+    mode: 'workspace-write', workspaceRoot: f.workspace, protectedPaths: [link],
+  })).toThrow('Protected host input has no fallback coverage')
 })
 
 it('refuses an uncovered absent input in a writable temporary root outside the workspace', async () => {

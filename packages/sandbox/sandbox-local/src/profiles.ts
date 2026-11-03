@@ -83,15 +83,15 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
  * Describe native input protection and names that require host validation.
  * @param policy - Resolved policy whose inputs the profile protects.
  * @param runner - Native profile dialect selected for this execution.
+ * @param privateTempRoots - Existing private temporary capabilities for the Windows session.
  * @returns One record per input, including every unrepresentable name.
  */
-export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | 'landlock' | 'seatbelt' | 'windows-acl'): ProtectedInputEnforcement[] {
+export function protectedInputRecords(policy: SandboxPolicy, runner: 'bwrap' | 'landlock' | 'seatbelt' | 'windows-acl', privateTempRoots: readonly string[] = []): ProtectedInputEnforcement[] {
   return (policy.protectedPaths ?? []).map((input) => {
     const path = resolve(input)
     if (policy.mode === 'read-only' || runner === 'landlock' || runner === 'seatbelt') return { path, enforcement: 'native' }
-    // bwrap omits its temporary mount when it overlaps a protected input.
-    const roots = runner === 'bwrap'
-      ? [canonicalPath(policy.workspaceRoot)] : writableRoots(policy)
+    // Neither backend grants the ambient temporary root to the child.
+    const roots = [canonicalPath(policy.workspaceRoot), ...runner === 'windows-acl' ? privateTempRoots.map(canonicalPath) : []]
     if (!roots.some(root => contains(root, path))) {
       let target: string
       try { target = canonicalPath(path) }
