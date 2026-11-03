@@ -33,6 +33,9 @@ it.each([workspaceEn, workspaceZh])('shows authorization origins and routes sele
     revoke={revoke} useWorkspaceGrants={bindSnapshotSelector(store)} />)
   expect(screen.getByText(dictionary.title)).toBeDefined()
   expect(screen.getByText(dictionary.legacy)).toBeDefined()
+  expect(dictionary.legacy).toBe(dictionary === workspaceZh
+    ? '该工作区有旧版留下的写权限。请点击撤销以清理工作区全树的本主体显式权限。'
+    : 'This workspace has write access left by an older version. Select Revoke to remove this trustee’s explicit permissions throughout the workspace.')
   expect(screen.getByText(dictionary.pending)).toBeDefined()
   expect(screen.getByText('C:\\project')).toBeDefined()
   fireEvent.click(screen.getByRole('button', { name: dictionary.preauthorize }))

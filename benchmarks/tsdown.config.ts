@@ -16,6 +16,13 @@ const shared = {
 export default defineConfig([
   {
     ...shared,
+    entry: { 'workspace-revocation.worker': 'workspace-revocation/workspace-revocation.worker.ts' },
+    outDir: '.panedesk-build/workspace-revocation',
+    clean: true,
+    tsconfig: 'tsconfig.host.json',
+  },
+  {
+    ...shared,
     entry: { 'protected-plugin-load.worker': 'protected-plugin-load/protected-plugin-load.worker.ts' },
     outDir: '.panedesk-build/protected-plugin-load',
     clean: true,

@@ -49,6 +49,7 @@ describe('windows-acl win32 chain (LocalSandboxProvider)', () => {
       '--temp', tmpdir(),
       '--mode', 'workspace-write',
       '--protected-path', ownerState,
+      '--state-directory', ownerState,
       '--',
       'pwsh', '/Command', 'x',
     ])

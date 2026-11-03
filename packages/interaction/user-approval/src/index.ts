@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { grantProtectedWorkspace } from '@panedesk/dsh-app-boot'
+import { grantProtectedWorkspace, WorkspaceContainsStateError } from '@panedesk/dsh-app-boot'
 import { Context, Service } from '@panedesk/cordis'
 import z from '@panedesk/schemastery'
 import type { Agent } from '@panedesk/dsh-agent'
@@ -320,6 +320,7 @@ export class ApprovalService extends Service {
     } finally {
       if (timer !== undefined) clearTimeout(timer)
     }
+    let refusalReason: string | undefined
     if (outcome === 'allowed-once' && req.purpose?.type === 'workspace-write') {
       const profile = this.ctx.get('profileContext')
       if (profile !== undefined) {
@@ -329,11 +330,14 @@ export class ApprovalService extends Service {
             content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
             source: { kind: 'user-approval' },
           }))
-          outcome = 'unavailable'
+          if (error instanceof WorkspaceContainsStateError) {
+            refusalReason = error.message
+            outcome = 'rejected'
+          } else outcome = 'unavailable'
         }
       }
     }
-    session.append('approval/decided', { id, outcome })
+    session.append('approval/decided', { id, outcome, ...refusalReason === undefined ? {} : { reason: refusalReason } })
     return outcome
   }
 

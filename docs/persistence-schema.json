@@ -3868,7 +3868,7 @@
       "kind": "event",
       "event": "approval/decided",
       "surface": false,
-      "digest": "bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3",
+      "digest": "8e41e729609767fd1c3697ad5ab323068db7273ab48eabc49d5c55f03ec94c69",
       "schema": {
         "root": 0,
         "nodes": [
@@ -3915,6 +3915,11 @@
                 "name": "outcome",
                 "type": 3,
                 "optional": false
+              },
+              {
+                "name": "reason",
+                "type": 2,
+                "optional": true
               }
             ],
             "indices": []
@@ -24582,7 +24587,7 @@
         "packages/interaction/user-approval/src/types.ts#WorkspaceWriteApproval"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/types.ts:65"
+        "packages/interaction/user-approval/src/types.ts:67"
       ]
     },
     {
@@ -24693,7 +24698,7 @@
         "packages/interaction/user-approval/src/types.ts#ProtectedInputApproval"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/types.ts:73"
+        "packages/interaction/user-approval/src/types.ts:75"
       ]
     },
     {
@@ -25667,6 +25672,13 @@
       ]
     },
     {
+      "digest": "6df2639ea099fef1f0977c07691ef4c9d8e794f2dae3978c28384c4e87dea2d9",
+      "names": [],
+      "sources": [
+        "packages/interaction/user-approval/src/types.ts:57"
+      ]
+    },
+    {
       "digest": "6e52dd55a1d48954ed5464ec46fe34d9eb65f709baabc9561e7a279910b0c406",
       "names": [],
       "sources": [
@@ -26200,6 +26212,11 @@
       ]
     },
     {
+      "digest": "8e41e729609767fd1c3697ad5ab323068db7273ab48eabc49d5c55f03ec94c69",
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "8e4e1300eaff1472e3e9c158718893bfdc9d85daa54fa6d32290611bd2aa515c",
       "names": [],
       "sources": []
@@ -26289,13 +26306,6 @@
       "digest": "93c33d9687613293f8c95d46c4d922fe9ceae83b84c384beff5c3315abe005f2",
       "names": [],
       "sources": []
-    },
-    {
-      "digest": "93cbbc5a7fd0b1aa1ff1b9a6bb5ec52b073f48e5a5200365c45c0cd54059e1b9",
-      "names": [],
-      "sources": [
-        "packages/interaction/user-approval/src/types.ts:57"
-      ]
     },
     {
       "digest": "93d38436347f67c9022aacbc4472e283d722bcab8eb73fc376aaf7b6a6b9fb35",
@@ -27040,11 +27050,6 @@
     },
     {
       "digest": "baccc97ec34be6c4c78e95aa88c85c29820269479445e5b13f956cd64c5e286f",
-      "names": [],
-      "sources": []
-    },
-    {
-      "digest": "bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3",
       "names": [],
       "sources": []
     },

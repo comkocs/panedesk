@@ -68,7 +68,8 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
         if (!standing) this.temporary.push(path)
       }
       has(path: string) { return native.active.has(path) }
-      revoke(path: string) { native.active.delete(path) }
+      hasEffectiveWrite(path: string) { return native.active.has(path) }
+      revokeTree(path: string) { native.active.delete(path) }
       dispose() { for (const path of this.temporary) native.active.delete(path) }
     },
   }

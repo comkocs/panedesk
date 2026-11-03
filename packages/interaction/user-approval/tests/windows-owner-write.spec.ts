@@ -6,7 +6,8 @@ import { Context } from '@panedesk/cordis'
 import { ProtectedInputIntegrity } from '@panedesk/dsh-app-boot'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
-import { workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
+import { UnsafeWindowsStateError, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
+import { inspectStateAncestors } from '../../../sandbox/sandbox-windows-acl/src/state-access.ts'
 import { SessionId } from '@panedesk/dsh-session'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '../../../test-support/agent-loop-testkit/src/index.ts'
@@ -23,7 +24,15 @@ import { FixtureAclWriteGrant, WindowsAclFixture, windowsAcl } from './windows-a
 vi.mock('@panedesk/dsh-sandbox-windows-acl', async original => ({
   ...await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>(),
   AclWriteGrant: (await import('./windows-acl-fixture.ts')).FixtureAclWriteGrant,
+  assertWindowsStateTrusted: checkFixtureState,
 }))
+
+function checkFixtureState(directory: string, workspace: string): void {
+  const unsafe = inspectStateAncestors(directory, {
+    permits: (path, mask) => windowsAcl.permitsToken(path, [workspaceWriteSid(workspace)], mask),
+  })
+  if (unsafe !== undefined) throw new UnsafeWindowsStateError(unsafe.path, unsafe.mask)
+}
 
 async function fixture(protectedWorkspace = false, nestedState = false) {
   const root = mkdtempSync(join(tmpdir(), 'windows-owner-write-'))
@@ -104,7 +113,7 @@ async function fixture(protectedWorkspace = false, nestedState = false) {
     expect(await response.json()).toMatchObject({ result: { ok: true } })
     return settled
   }
-  return { workspace, profile, input, policy, sandbox, agent, approve, reader, order }
+  return { ctx, harness, workspace, profile, input, policy, sandbox, agent, approve, reader, order }
 }
 
 it('writes after authenticated owner consent, a durable record and one ACL materialization', async () => {
@@ -147,6 +156,28 @@ it('writes after authenticated owner consent, a durable record and one ACL mater
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
 })
 
+it('revokes every explicit workspace capability after restart and checks every former grant point', async () => {
+  const f = await fixture()
+  const result = await f.approve('allowed-once')
+  if ('error' in result) throw result.error
+  const child = join(f.workspace, 'explicit-child')
+  mkdirSync(child)
+  const sid = workspaceWriteSid(f.workspace)
+  new FixtureAclWriteGrant(sid).add(child)
+  const restarted = new Context()
+  onTestFinished(async () => { await restarted.fiber.dispose() })
+  await restarted.plugin(LocalSandboxProvider)
+  const sandbox = restarted.sandbox
+  if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local sandbox provider missing')
+  sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['windows-acl-runner'] }
+  await f.policy.workspaceAccess.revoke(f.workspace, (path) => { sandbox.revokeWorkspaceWriteGrant(path) })
+  for (const path of [f.workspace, child, f.profile]) {
+    expect(windowsAcl.permits(path, sid, 'write'), path).toBe(false)
+    expect(windowsAcl.permits(path, sid, 'delete'), path).toBe(false)
+  }
+  expect(windowsAcl.entries.filter(entry => entry.sid === sid)).toEqual([])
+})
+
 it('keeps an entirely protected workspace non-writable even after authenticated owner consent', async () => {
   const f = await fixture(true)
   const result = await f.approve('allowed-once')
@@ -171,7 +202,9 @@ it('starts read-only with nested state and retains an authenticated write refusa
   expect(JSON.stringify(f.agent.inbox.nextStep)).toContain(reason)
   expect(JSON.stringify(f.agent.session.snapshotEvents())).toContain(reason)
   expect(f.agent.session.snapshotEvents().filter(event => event.type === 'approval/decided').map(event => event.data.outcome))
-    .toEqual(['unavailable'])
+    .toEqual(['rejected'])
+  expect(f.agent.session.snapshotEvents().find(event => event.type === 'approval/decided')?.data.reason)
+    .toContain(reason)
   expect(f.policy.resolve({ session: f.agent.session }).mode).toBe('read-only')
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
   expect(windowsAcl.additions).toEqual([])
@@ -184,6 +217,44 @@ it('keeps a rejected Windows owner decision read-only without a record or ACL', 
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
   expect(windowsAcl.additions).toEqual([])
   expect(f.reader.covers(f.input)).toBe(false)
+})
+
+it('warns when opening an unrecorded writable workspace and revokes its exact SID across the tree', async () => {
+  const f = await fixture()
+  const sid = workspaceWriteSid(f.workspace)
+  windowsAcl.entries.push({ path: f.workspace, sid, deny: false, recursive: false, rights: ['write'] })
+  expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+  const legacy = await f.harness.create(SessionId('legacy-workspace'), {}, { cwd: f.workspace })
+  const notice = JSON.stringify(legacy.inbox.nextStep)
+  expect(notice).toContain('This workspace has write access left by an older version.')
+  expect(notice).toContain('该工作区有旧版留下的写权限。')
+  expect(notice).toContain('Settings > General > Windows workspace write access')
+  expect(f.sandbox.hasWorkspaceWriteGrant(f.workspace)).toBe(true)
+  await f.policy.workspaceAccess.revoke(f.workspace, (path) => { f.sandbox.revokeWorkspaceWriteGrant(path) })
+  expect(windowsAcl.permitsToken(f.workspace, [sid], 2)).toBe(false)
+  expect(f.sandbox.hasWorkspaceWriteGrant(f.workspace)).toBe(false)
+})
+
+it('retains a visible inspection failure without blocking read-only workspace opening', async () => {
+  const f = await fixture()
+  vi.spyOn(f.sandbox, 'hasWorkspaceWriteGrant').mockImplementation(() => { throw new Error('AccessCheck unavailable') })
+  const opened = await f.harness.create(SessionId('inspection-failed'), {}, { cwd: f.workspace })
+  const notice = JSON.stringify(opened.inbox.nextStep)
+  expect(notice).toContain('AccessCheck unavailable')
+  expect(notice).toContain('Could not inspect existing workspace write access')
+  expect(notice).toContain('无法检查已有工作区写权限')
+  expect(notice).not.toContain('This workspace has write access left by an older version.')
+  expect(f.policy.resolve({ session: opened.session }).mode).toBe('read-only')
+  expect(windowsAcl.additions).toEqual([])
+})
+
+it('does not warn about legacy access for a normally recorded workspace', async () => {
+  const f = await fixture()
+  const result = await f.approve('allowed-once')
+  if ('error' in result) throw result.error
+  const recorded = await f.harness.create(SessionId('recorded-workspace'), {}, { cwd: f.workspace })
+  expect(JSON.stringify(recorded.inbox.nextStep)).not.toContain('write access left by an older version')
+  expect(JSON.stringify(recorded.inbox.nextStep)).not.toContain('旧版留下的写权限')
 })
 
 it('orders explicit deny before explicit allow and inherited allow for the same SID', () => {

@@ -9,8 +9,8 @@
   en: 1387c4505dde2faf
   zh: 48570fa1c13d6910
 /session-persistence-event-catalog/persistence-type-fingerprints:
-  en: ce6bf0152f72a375
-  zh: 551dd973ccb9a3bf
+  en: 15fb22d861f24fa3
+  zh: e4d14f0549064255
 /session-persistence-event-catalog/event-envelope:
   en: 56b5dec434b0a7b5
   zh: c63f94665eb2803d
@@ -1290,8 +1290,8 @@
   en: c32521bd6745f7da
   zh: f351abe65a17bc50
 /session-persistence-event-catalog/resolved-persistence-types/protectedinputapproval:
-  en: 7e9ae7f450e70443
-  zh: bfdb59c96954c765
+  en: 5b63f82840d39840
+  zh: f0c4e96b868b4923
 /session-persistence-event-catalog/resolved-persistence-types/ptcdispatcheventdata:
   en: 81e66c5a07e17dd6
   zh: 0ecf3cfceba14d2b
@@ -1458,8 +1458,8 @@
   en: 8c195294eb6dcf7b
   zh: 530f5b7c42c65cb0
 /session-persistence-event-catalog/resolved-persistence-types/workspacewriteapproval:
-  en: cf06f55e7055583f
-  zh: a6b35106680f45ff
+  en: ca7db58d41fb3111
+  zh: 89c3f15161979470
 /session-persistence-event-catalog/resolved-persistence-types/boolean:
   en: 40616917f0b8f9cc
   zh: 40616917f0b8f9cc
@@ -1671,11 +1671,11 @@
   en: 0e2e76f45622617f
   zh: 89ee7b4520886c72
 /session-persistence-event-catalog/resolved-persistence-types/height-width:
-  en: a5df50710083ac25
-  zh: aad3ccf6f6de70e4
-/session-persistence-event-catalog/resolved-persistence-types/id-outcome:
-  en: 790d94b55d17e1dd
-  zh: 826f53a040eb1a3e
+  en: 9cb4e4e1a8e637e2
+  zh: 5696db922734b6e6
+/session-persistence-event-catalog/resolved-persistence-types/id-outcome-reason:
+  en: afabc600a7632ae8
+  zh: 77b824e3daa684be
 /session-persistence-event-catalog/resolved-persistence-types/ignorable-seq-sourceeventseqs-surfaceop:
   en: 26ee37a85c770942
   zh: 0ae916ed57cb8470
@@ -2115,11 +2115,11 @@
   en: 7ec07336a4ffc29a
   zh: 8e67fea13ff6ddaf
 /session-persistence-event-catalog/resolved-persistence-types/type-approval-asked:
-  en: 6f0de8ca50630816
-  zh: 2da2afb9dd539525
+  en: f8dd2ae692ba5723
+  zh: cdd315d8269c0a35
 /session-persistence-event-catalog/resolved-persistence-types/type-approval-decided:
-  en: 5ded6f8ecbb0bc7d
-  zh: 0165bc0d0f247f74
+  en: 8f84316a9e9d7b7b
+  zh: e098ed24d75227fd
 /session-persistence-event-catalog/resolved-persistence-types/type-approval-policy:
   en: d9fc24fc3a917819
   zh: 1c9b5c7c25273938

@@ -19,6 +19,11 @@ import { provideBrowserCredentials } from '../../../api/gateway/tests/browser-cr
 import type { RemoteEventDownlinkFrame } from '../../../api/gateway/src/stream-protocol.ts'
 import ApprovalService, { type ApprovalOutcome, setApprovalPolicy } from '../src/index.ts'
 
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
+  const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
+  return { ...actual, assertWindowsStateTrusted: vi.fn() }
+})
+
 const purpose = { type: 'protected-input', path: '/project/profile/patch.yml', previous: 'old-digest', current: 'new-digest' } as const
 
 async function fixture(cwd = '/project') {

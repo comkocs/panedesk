@@ -8,6 +8,11 @@ import { expect, it, onTestFinished, vi } from 'vitest'
 import { WorkspaceWriteAccess } from '../src/workspace-access.ts'
 import SandboxPolicyService from '../src/index.ts'
 
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async original => ({
+  ...await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>(),
+  assertWindowsStateTrusted: vi.fn(),
+}))
+
 it.each(['linux', 'darwin'] as const)('protects the first workspace child and creates owner state before %s writes', async (platform) => {
   const workspace = mkdtempSync(join(tmpdir(), 'state-directory-'))
   const home = join(workspace, '.panedesk', 'nested')

@@ -9,6 +9,11 @@ import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 import { expect, it, vi } from 'vitest'
 
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async (original) => {
+  const actual = await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>()
+  return { ...actual, assertWindowsStateTrusted: vi.fn() }
+})
+
 it('loads read-only policy, persists directory consent, reloads it, and observes native revocation', async () => {
   const root = await mkdtemp(join(import.meta.dirname, '.workspace-policy-'))
   const workspace = join(root, 'workspace')

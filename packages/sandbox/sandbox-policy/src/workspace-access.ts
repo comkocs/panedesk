@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { z } from 'zod'
 import { withFileLock, writeFileAtomic } from '@panedesk/dsh-atomic-write'
 import { canonicalPath } from '@panedesk/dsh-sandbox'
+import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
 
 const recordSchema = z.object({
   workspace: z.string().min(1),
@@ -126,6 +127,13 @@ export class WorkspaceWriteAccess {
    * @returns True only for an authorization without a durable revocation marker.
    */
   isAuthorized(workspace: string): boolean {
+    if (process.platform === 'win32') {
+      try { assertWindowsStateTrusted(this.recordPath(workspace), this.canonical(workspace)) } catch (error) {
+        // A failed native check cannot authorize writes or prevent a read-only session.
+        if (error instanceof Error) return false
+        throw error
+      }
+    }
     return !this.revocationPending(this.recordPath(workspace)) && this.find(workspace) !== undefined
   }
 
@@ -139,10 +147,12 @@ export class WorkspaceWriteAccess {
    */
   async withAuthorization<T>(workspace: string, operation: () => T | Promise<T>, signal?: AbortSignal): Promise<T> {
     const canonical = this.canonical(workspace)
+    assertWindowsStateTrusted(this.directory, canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
     const path = this.identityPath(canonical)
     return withFileLock(path, async () => {
       signal?.throwIfAborted()
+      assertWindowsStateTrusted(path, canonical)
       if (!this.isAuthorized(canonical)) throw new Error('Workspace write authorization is absent or revoked')
       this.assertUnprotected(canonical)
       return operation()
@@ -202,11 +212,13 @@ export class WorkspaceWriteAccess {
    */
   async authorize(workspace: string, source: WorkspaceWriteRecord['source'], signal?: AbortSignal): Promise<WorkspaceWriteRecord> {
     const canonical = this.canonical(workspace)
+    assertWindowsStateTrusted(this.directory, canonical)
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
     const path = this.recordPath(canonical)
     return withFileLock(path, async () => {
       signal?.throwIfAborted()
       this.assertUnprotected(canonical)
+      assertWindowsStateTrusted(path, canonical)
       if (this.revocationPending(path)) throw new Error('Workspace revocation is incomplete; retry revocation before authorizing')
       const previous = this.find(canonical)
       const record: WorkspaceWriteRecord = { workspace: canonical, grantedAt: new Date().toISOString(), source }

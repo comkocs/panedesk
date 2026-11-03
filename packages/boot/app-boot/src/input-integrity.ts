@@ -2,6 +2,15 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { assertWindowsStateTrusted } from '@panedesk/dsh-sandbox-windows-acl'
+
+/** Windows policy refuses workspace writes that include owner-state storage. */
+export class WorkspaceContainsStateError extends Error {
+  constructor() {
+    super('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。 Protected input records must be outside the writable workspace.')
+    this.name = 'WorkspaceContainsStateError'
+  }
+}
 
 /** Exact candidate shown to an owner before a protected input can change. */
 export interface ProtectedInputChange {
@@ -167,6 +176,18 @@ export class ProtectedInputIntegrity {
   private granted: boolean
   private revision: string | undefined
   private verifying = false
+  private stateFailure: Error | undefined
+
+  private stateTrusted(): boolean {
+    if (this.record === undefined || process.platform !== 'win32') return true
+    try { assertWindowsStateTrusted(this.record, this.root) } catch (error) {
+      if (!(error instanceof Error)) throw error
+      this.stateFailure = error
+      return false
+    }
+    this.stateFailure = undefined
+    return true
+  }
   private readonly ownerRecords: ProtectedInputIntegrity[] = []
 
   /**
@@ -177,6 +198,7 @@ export class ProtectedInputIntegrity {
    */
   static openOwnerRecords(workspace: string, home: string): ProtectedInputIntegrity {
     const reader = new ProtectedInputIntegrity(workspace, home)
+    if (!reader.stateTrusted()) return reader
     const directory = join(resolve(home), 'windows-workspace-write', 'protected-inputs')
     let names: string[]
     try { names = readdirSync(directory) } catch (error) {
@@ -226,6 +248,7 @@ export class ProtectedInputIntegrity {
     if (home === undefined) return
     const directory = join(resolve(home), 'windows-workspace-write', 'protected-inputs')
     this.record = join(directory, `${createHash('sha256').update(this.root).digest('hex')}.json`)
+    if (!this.stateTrusted()) return
     let text: string
     try { text = readFileSync(this.record, 'utf8') } catch (error) {
       if (missing(error)) return
@@ -262,7 +285,7 @@ export class ProtectedInputIntegrity {
   }
 
   private refreshRecord(): void {
-    if (this.record === undefined || this.verifying) return
+    if (this.record === undefined || this.verifying || !this.stateTrusted()) return
     if (this.revision !== undefined) this.assertRecordLocation()
     let text: string
     try { text = readFileSync(this.record, 'utf8') } catch (error) {
@@ -295,13 +318,14 @@ export class ProtectedInputIntegrity {
 
   private assertRecordLocation(protectedPaths?: readonly string[]): void {
     if (this.record === undefined) return
+    assertWindowsStateTrusted(this.record, this.root)
     const record = canonicalLocation(this.record)
     if (!contains(this.root, record)) return
     const [child = ''] = relative(this.root, record).split(sep)
     const first = join(this.root, child)
     if (process.platform === 'win32') {
       if (protectedPaths === undefined) return
-      throw new Error('The workspace contains the Panedesk state directory; choose one of its subdirectories. / 工作区包含 Panedesk 状态目录，请选它的子目录。 Protected input records must be outside the writable workspace.')
+      throw new WorkspaceContainsStateError()
     }
     if (first !== this.root
       && (protectedPaths === undefined || protectedPaths.some(path => canonicalLocation(path) === first))) return
@@ -353,6 +377,7 @@ export class ProtectedInputIntegrity {
     this.refreshRecord()
     const path = this.inputPath(filename)
     if (this.isRecordStorage(path)) return false
+    if (this.stateFailure !== undefined) return contains(this.root, path)
     return this.ownerRecords.some(record => record.covers(filename))
       || this.granted && [...this.approved].some(([root, value]) => root === path
         || ((value.kind === 'directory' || value.kind === 'link') && contains(root, path)))
@@ -366,6 +391,9 @@ export class ProtectedInputIntegrity {
   readTrusted(filename: string): Buffer | undefined {
     this.refreshRecord()
     const path = this.inputPath(filename)
+    // Unsafe state must not redirect launch reads to either forged snapshots
+    // or current workspace bytes. Optional workspace configuration is omitted.
+    if (this.stateFailure !== undefined && contains(this.root, path)) return undefined
     const copies = this.ownerRecords.filter(record => record.covers(filename)).map(record => record.readTrusted(filename))
     if (this.granted && contains(this.root, path)) copies.push(this.readLocalTrusted(path))
     if (copies.length > 0) {
@@ -410,6 +438,7 @@ export class ProtectedInputIntegrity {
    */
   readExecutable(filename: string): Buffer | undefined {
     this.refreshRecord()
+    if (this.stateFailure !== undefined && contains(this.root, this.inputPath(filename))) throw this.stateFailure
     const copies = [this.readLocalExecutable(filename), ...this.ownerRecords.map(record => record.readExecutable(filename))]
       .filter(bytes => bytes !== undefined)
     const first = copies[0]
@@ -485,6 +514,7 @@ export class ProtectedInputIntegrity {
   async verify(owner: ProtectedInputOwner): Promise<boolean> {
     if (this.verifying) throw new Error('Protected host input verification is already pending')
     this.refreshRecord()
+    if (this.stateFailure !== undefined) return false
     this.verifying = true
     try {
       for (const record of this.ownerRecords) if (!await record.verify(owner)) return false
