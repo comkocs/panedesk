@@ -184,6 +184,7 @@ describe('web e2e: Markdown image rendering', () => {
       await oversized.close()
     }
     const outsidePath = join(scaffold.persistenceRoot, 'outside.png')
+    await mkdir(scaffold.persistenceRoot, { recursive: true })
     await writeFile(outsidePath, PNG)
     await writeFile(join(scaffold.workspaceCwd, 'active.html'), '<p>File preview</p><script>document.body.dataset.scriptRan = "yes"</script>')
     await seedSession(scaffold, markdownImageFixture(imageOrigin.url, outsidePath), SEED_ID, undefined,

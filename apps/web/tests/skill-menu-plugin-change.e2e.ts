@@ -26,7 +26,7 @@ describe('web e2e: the slash menu follows plugin switches', () => {
   beforeAll(async () => {
     scaffold = await launchWebScaffold({ profile: { packages: [{ dir: BUNDLE_DIR }] } })
     // The scaffold pins the skill-filesystem harness home inside its temporary world.
-    const directory = join(scaffold.workspaceCwd, '.panedesk-home', 'skills', GLOBAL_SKILL)
+    const directory = join(scaffold.harnessHome, 'skills', GLOBAL_SKILL)
     await mkdir(directory, { recursive: true })
     await writeFile(join(directory, 'SKILL.md'), [
       '---',
