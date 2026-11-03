@@ -8,13 +8,15 @@
  * the real-FFI round-trip lives in acl.spec.ts (win32 only).
  */
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { Win32Error } from '@panedesk/dsh-win32-process'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { Mock } from 'vitest'
 import koffi from 'koffi'
 
-import { denyProtectedWrite, explicitCapabilityEntries, grantWrite, hasWriteGrant, revokeWrite, setOwnerReadProtection, withPathLock } from '../src/acl.ts'
+import { assertOwnerReadProtection, denyProtectedWrite, explicitCapabilityEntries, grantWrite, hasWriteGrant, revokeWrite, setOwnerReadProtection, withPathLock } from '../src/acl.ts'
 import { allocBytes, ptrAddress } from '../src/ffi.ts'
 import type { NativePtr, Win32Bindings } from '../src/ffi.ts'
 import * as abi from '../src/win32-abi.ts'
@@ -229,6 +231,57 @@ function ownerLabelFixture(): { medium: Buffer; label: Buffer } {
 }
 
 describe('owner mandatory read protection', () => {
+  it('verifies existing descendants and refuses a child whose inherited label is missing', () => {
+    const root = mkdtempSync(join(tmpdir(), 'owner-label-tree-'))
+    onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+    const child = join(root, 'existing')
+    mkdirSync(child)
+    const file = join(child, 'credential')
+    writeFileSync(file, 'synthetic material')
+    const { medium, label } = ownerLabelFixture()
+    const inherited = Buffer.from(label)
+    inherited.writeUInt8(abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT | abi.INHERITED_ACE, 9)
+    const reads: string[] = []
+    let missing = false
+    const api = aclApi({
+      getNamedSecurityInfoW: vi.fn<Win32Bindings['getNamedSecurityInfoW']>((path, type, info, owner, group, dacl, sacl, descriptor) => {
+        reads.push(path)
+        const value = missing && path === file ? null : bufferPointer(path === root ? label : inherited)
+        return readStub(null, value, null)(path, type, info, owner, group, dacl, sacl, descriptor)
+      }),
+    })
+    assertOwnerReadProtection(api, root, bufferPointer(medium))
+    expect(reads).toEqual([root, child, file])
+    missing = true
+    expect(() => { assertOwnerReadProtection(api, root, bufferPointer(medium)) })
+      .toThrow('Owner directory integrity label verification failed')
+  })
+
+  it('removes owner labels from existing descendants during explicit cleanup', () => {
+    const root = mkdtempSync(join(tmpdir(), 'owner-label-cleanup-'))
+    onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
+    const child = join(root, 'existing')
+    mkdirSync(child)
+    const file = join(child, 'credential')
+    writeFileSync(file, 'synthetic material')
+    const { medium, label } = ownerLabelFixture()
+    const remaining = new Set([root, child, file])
+    const cleared: string[] = []
+    const api = aclApi({
+      getNamedSecurityInfoW: vi.fn<Win32Bindings['getNamedSecurityInfoW']>((path, type, info, owner, group, dacl, sacl, descriptor) =>
+        readStub(null, remaining.has(path) ? bufferPointer(label) : null, null)(path, type, info, owner, group, dacl, sacl, descriptor)),
+      setNamedSecurityInfoW: vi.fn<Win32Bindings['setNamedSecurityInfoW']>((path, _type, _info, _owner, _group, _dacl, sacl) => {
+        expect(sacl).toBeNull()
+        cleared.push(path)
+        remaining.delete(path)
+        return 0
+      }),
+    })
+    setOwnerReadProtection(api, root, bufferPointer(medium), false)
+    expect(cleared).toEqual([file, child, root])
+    expect(remaining.size).toBe(0)
+  })
+
   it('writes an inheritable no-read-up and no-write-up label and verifies it before admission', () => {
     const { medium, label } = ownerLabelFixture()
     const addMandatoryAce = vi.fn(() => 1)

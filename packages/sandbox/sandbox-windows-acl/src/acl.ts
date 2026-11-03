@@ -22,7 +22,7 @@
  */
 
 import { createHash } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { allocOverlapped, allocPtrSlot, decodePtr, decodeUint8At, decodeUint16At, decodeUint32At, getTempPath, isInvalidHandle, isNullPtr, ptrAddress, sameSidAt, throwLastError, throwWin32 } from './ffi.ts'
@@ -230,9 +230,21 @@ export function setOwnerReadProtection(api: Win32Bindings, path: string, mediumS
       }
     }
     try {
-      const code = api.setNamedSecurityInfoW(path, abi.SE_FILE_OBJECT, abi.LABEL_SECURITY_INFORMATION,
-        null, null, null, label)
-      if (code !== abi.ERROR_SUCCESS) throwWin32(api, 'SetNamedSecurityInfoW', code, path)
+      const apply = (entry: string): void => {
+        if (!enabled && existsSync(entry)) {
+          const info = lstatSync(entry)
+          if (info.isSymbolicLink()) {
+            throw new Error('Owner directory contains an unverified link. / 所有者目录包含未核验链接。')
+          }
+          if (info.isDirectory()) {
+            for (const child of readdirSync(entry)) apply(join(entry, child))
+          }
+        }
+        const code = api.setNamedSecurityInfoW(entry, abi.SE_FILE_OBJECT, abi.LABEL_SECURITY_INFORMATION,
+          null, null, null, label)
+        if (code !== abi.ERROR_SUCCESS) throwWin32(api, 'SetNamedSecurityInfoW', code, entry)
+      }
+      apply(path)
     } finally {
       if (label !== null) api.localFree(label)
     }
@@ -247,18 +259,35 @@ export function setOwnerReadProtection(api: Win32Bindings, path: string, mediumS
  * @param mediumSid - Medium integrity SID.
  */
 export function assertOwnerReadProtection(api: Win32Bindings, path: string, mediumSid: NativePtr): void {
-  const current = readCurrentSecurity(api, path)
-  try {
-    const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
-    if (current.labelAcl === null || !hasExactEntry(current.labelAcl, abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE,
-      abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT, policy, mediumSid)) {
-      throw new Error('Owner directory integrity label verification failed. / 所有者目录完整性标签核验失败。')
+  const verify = (entry: string, descendant: boolean): void => {
+    const info = existsSync(entry) ? lstatSync(entry) : undefined
+    if (info?.isSymbolicLink()) {
+      throw new Error('Owner directory contains an unverified link. / 所有者目录包含未核验链接。')
     }
-  } finally {
-    if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
-      throwLastError(api, 'LocalFree', path)
+    const current = readCurrentSecurity(api, entry)
+    try {
+      const policy = abi.SYSTEM_MANDATORY_LABEL_NO_READ_UP | abi.SYSTEM_MANDATORY_LABEL_NO_WRITE_UP
+      // INHERITED_ACE is metadata; INHERIT_ONLY_ACE must never authorize this object.
+      const inheritance = abi.SUB_CONTAINERS_AND_OBJECTS_INHERIT
+      const inherited = inheritance | abi.INHERITED_ACE
+      const flags = descendant
+        ? info?.isDirectory() ? [inheritance, inherited] : [0, inheritance, abi.INHERITED_ACE, inherited]
+        : [inheritance]
+      const label = current.labelAcl
+      if (label === null || !flags.some(flag => hasExactEntry(label,
+        abi.SYSTEM_MANDATORY_LABEL_ACE_TYPE, flag, policy, mediumSid))) {
+        throw new Error('Owner directory integrity label verification failed. / 所有者目录完整性标签核验失败。')
+      }
+    } finally {
+      if (current.descriptor !== null && !isNullPtr(api.localFree(current.descriptor))) {
+        throwLastError(api, 'LocalFree', entry)
+      }
+    }
+    if (info?.isDirectory()) {
+      for (const child of readdirSync(entry)) verify(join(entry, child), true)
     }
   }
+  verify(path, false)
 }
 
 /**
