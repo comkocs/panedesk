@@ -226,6 +226,7 @@ export function lstat(
 export function realpathSync(path: PathArg): string {
   return vfs().realpathSync(asPath(path))
 }
+realpathSync.native = realpathSync
 
 /**
  * Resolve a UTF-8 path through Node's callback form and its native alias.
@@ -292,6 +293,20 @@ export function mkdtempSync(prefix: string): string {
  */
 export function rmSync(path: PathArg, options?: { recursive?: boolean; force?: boolean }): void {
   vfs().rmSync(asPath(path), options)
+}
+
+/**
+ * Remove an empty directory; files and occupied directories are refused.
+ * @param path - Directory path.
+ */
+export function rmdirSync(path: PathArg): void {
+  const target = asPath(path)
+  if (vfs().readdirSync(target).length !== 0) {
+    throw Object.assign(new Error(`ENOTEMPTY: directory not empty, rmdir '${target}'`), {
+      code: 'ENOTEMPTY', syscall: 'rmdir', path: target,
+    })
+  }
+  vfs().rmSync(target, { recursive: true })
 }
 
 /**
@@ -901,7 +916,7 @@ type NodeFace = Partial<Omit<typeof import('node:fs'), OwnSignature>>
 export default {
   constants, promises, Dirent, FSWatcher, StatWatcher, ReadStream, WriteStream,
   readFileSync, writeFileSync, appendFileSync, existsSync, statSync, stat, lstatSync, lstat, realpathSync, realpath, chmodSync,
-  readdirSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, renameSync, accessSync, opendirSync,
+  readdirSync, mkdirSync, mkdtempSync, rmSync, rmdirSync, unlinkSync, renameSync, accessSync, opendirSync,
   openHandleSync, linkSync,
   openSync, readSync, writeSync, closeSync, watch, watchFile, unwatchFile,
   createReadStream, createWriteStream,

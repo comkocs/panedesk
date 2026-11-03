@@ -64,6 +64,23 @@ check('statSync size', fs.statSync('/dsh/config/cordis.yml').size, 12)
 check('statSync dir', fs.statSync('/dsh/config').isDirectory(), true)
 check('realpathSync', fs.realpathSync('/dsh/config/../config/cordis.yml'), '/dsh/config/cordis.yml')
 
+test('native synchronous realpath supports canonical sandbox roots', () => {
+  expect(fs.default.realpathSync).toBe(fs.realpathSync)
+  expect(fs.realpathSync.native('/dsh/config/../config/cordis.yml')).toBe('/dsh/config/cordis.yml')
+  expect(() => fs.realpathSync.native('/dsh/missing-realpath')).toThrow(expect.objectContaining({ code: 'ENOENT' }))
+})
+
+test('synchronous directory removal releases record locks without deleting occupied paths', () => {
+  expect(fs.default.rmdirSync).toBe(fs.rmdirSync)
+  fs.mkdirSync('/dsh/record.lock')
+  fs.rmdirSync('/dsh/record.lock')
+  expect(fs.existsSync('/dsh/record.lock')).toBe(false)
+  expect(() => { fs.rmdirSync('/dsh/record.lock') }).toThrow(expect.objectContaining({ code: 'ENOENT' }))
+  expect(() => { fs.rmdirSync('/dsh/config/cordis.yml') }).toThrow(expect.objectContaining({ code: 'ENOTDIR' }))
+  expect(() => { fs.rmdirSync('/dsh/config') }).toThrow(expect.objectContaining({ code: 'ENOTEMPTY' }))
+  expect(fs.existsSync('/dsh/config/cordis.yml')).toBe(true)
+})
+
 test('native realpath supports the filesystem provider promise wrapper', async () => {
   expect(fs.default.realpath).toBe(fs.realpath)
   const resolveNative = promisify(fs.realpath.native)
