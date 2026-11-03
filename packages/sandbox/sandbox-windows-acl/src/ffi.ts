@@ -37,6 +37,11 @@ function ffiTypes(): { PVOID: Ptr; PPVOID: Ptr } {
 
 /** ACL/token calls composed with the generic Win32 process binding table. */
 export interface Win32Bindings extends Win32ProcessBindings {
+  duplicateToken(token: NativePtr, level: number, duplicate: NativePtr): number
+  accessCheck(
+    descriptor: NativePtr, token: NativePtr, desired: number, mapping: Buffer,
+    privileges: Buffer, length: NativePtr, granted: NativePtr, status: NativePtr,
+  ): number
   openProcess(desiredAccess: number, inheritHandle: number, pid: number): NativePtr
   openProcessToken(process: NativePtr, desiredAccess: number, tokenHandle: NativePtr): number
   localAlloc(flags: number, bytes: number): NativePtr
@@ -60,6 +65,7 @@ export interface Win32Bindings extends Win32ProcessBindings {
     newToken: NativePtr,
   ): number
   setEntriesInAclW(count: number, entries: Buffer, oldAcl: NativePtr | null, newAcl: NativePtr): number
+  deleteAce(acl: NativePtr, index: number): number
   initializeAcl(acl: NativePtr, length: number, revision: number): number
   addMandatoryAce(acl: NativePtr, revision: number, aceFlags: number, policy: number, sid: NativePtr): number
   setNamedSecurityInfoW(
@@ -70,6 +76,14 @@ export interface Win32Bindings extends Win32ProcessBindings {
     group: null,
     dacl: NativePtr | null,
     sacl: NativePtr | null,
+  ): number
+  getSecurityInfo(
+    handle: NativePtr, objectType: number, information: number,
+    owner: NativePtr, group: NativePtr, dacl: NativePtr, sacl: NativePtr, descriptor: NativePtr,
+  ): number
+  setSecurityInfo(
+    handle: NativePtr, objectType: number, information: number,
+    owner: null, group: null, dacl: NativePtr | null, sacl: NativePtr | null,
   ): number
   getNamedSecurityInfoW(
     path: string,
@@ -145,6 +159,14 @@ export function ptrAddress(ptr: NativePtr): bigint {
  */
 export function allocBytes(length: number): NativePtr {
   return requireKoffi().alloc('uint8', length) as NativePtr
+}
+
+/**
+ * Release a byte block allocated by Koffi, not by a Windows local allocator.
+ * @param pointer Owned block returned by allocBytes.
+ */
+export function freeBytes(pointer: NativePtr): void {
+  requireKoffi().free(pointer)
 }
 
 /**
@@ -235,6 +257,10 @@ function bindings(): Win32Bindings {
   const koffi = requireKoffi()
   const { PVOID, PPVOID } = ffiTypes()
   cached = extendWin32ProcessBindings(({ kernel32, advapi32, bind }) => ({
+    duplicateToken: bind(advapi32, 'DuplicateToken', 'int', [PVOID, 'int', PPVOID]),
+    accessCheck: bind(advapi32, 'AccessCheck', 'int', [
+      PVOID, PVOID, 'uint32', PVOID, PVOID, koffi.pointer('uint32'), koffi.pointer('uint32'), koffi.pointer('int'),
+    ]),
     openProcess: bind(kernel32, 'OpenProcess', PVOID, ['uint32', 'int', 'uint32']),
     openProcessToken: bind(advapi32, 'OpenProcessToken', 'int', [PVOID, 'uint32', PPVOID]),
     localAlloc: bind(kernel32, 'LocalAlloc', PVOID, ['uint32', 'size_t']),
@@ -254,10 +280,17 @@ function bindings(): Win32Bindings {
       PVOID, 'uint32', 'uint32', PVOID, 'uint32', PVOID, 'uint32', PVOID, PPVOID,
     ]),
     setEntriesInAclW: bind(advapi32, 'SetEntriesInAclW', 'uint32', ['uint32', PVOID, PVOID, PPVOID]),
+    deleteAce: bind(advapi32, 'DeleteAce', 'int', [PVOID, 'uint32']),
     initializeAcl: bind(advapi32, 'InitializeAcl', 'int', [PVOID, 'uint32', 'uint32']),
     addMandatoryAce: bind(advapi32, 'AddMandatoryAce', 'int', [PVOID, 'uint32', 'uint32', 'uint32', PVOID]),
     setNamedSecurityInfoW: bind(advapi32, 'SetNamedSecurityInfoW', 'uint32', [
       'str16', 'int', 'uint32', PVOID, PVOID, PVOID, PVOID,
+    ]),
+    getSecurityInfo: bind(advapi32, 'GetSecurityInfo', 'uint32', [
+      PVOID, 'int', 'uint32', PPVOID, PPVOID, PPVOID, PPVOID, PPVOID,
+    ]),
+    setSecurityInfo: bind(advapi32, 'SetSecurityInfo', 'uint32', [
+      PVOID, 'int', 'uint32', PVOID, PVOID, PVOID, PVOID,
     ]),
     getNamedSecurityInfoW: bind(advapi32, 'GetNamedSecurityInfoW', 'uint32', [
       'str16', 'int', 'uint32', PPVOID, PPVOID, PPVOID, PPVOID, PPVOID,

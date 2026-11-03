@@ -16,6 +16,8 @@
 
 Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。
 
+Windows 状态存储及其祖先必须拒绝沙箱令牌写入；不安全记录不能授权写入，只读启动会省略不可信的工作区配置。撤销在重启后扫描所选工作区，包括 `node_modules`，只有令牌检查确认根与每个匹配显式 ACE 的位置均无写权才报成功。精确目录与 SID 的 `icacls` 命令及限制见 [Windows 恢复指南](docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。
+
 旧 Windows 工作区授权若没有产品记录，先关闭相关沙盒进程，再以工作区 owner 身份执行这一行 PowerShell：将 `C:\old-workspace` 换成授写时使用的规范路径，将 `C:\current-workspace` 换成当前位置：`$old='C:\old-workspace'; $dir='C:\current-workspace'; $h=[Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($old)); $sid='S-1-4-'+(([BitConverter]::ToUInt32($h,0)%1073741823)+1)+'-'+(([BitConverter]::ToUInt32($h,4)%1073741823)+1); icacls $dir /remove "*$sid" /T`。此命令只撤该工作区派生主体，不撤所有 `S-1-4-*` 主体；不要替换成 owner 账号或 Everyone。检查失败项，并对每个已知旧授权路径分别执行。仅凭 SID 前缀无法认出未知旧路径。
 
 owner 自装的 MCP 服务器与 provider 按自身能力运行，不受 Panedesk 沙盒与首次写确认约束；安装前请确认其写能力。其 profile 配置仍受保护，受限模型不能直接修改；插件管理变更须经认证的 owner 批准。

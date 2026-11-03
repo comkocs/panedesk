@@ -7,6 +7,11 @@ import { ProtectedInputIntegrity } from '../src/input-integrity.ts'
 import { grantProtectedWorkspace } from '../src/profile-context.ts'
 import type { ProfileContext } from '../src/profile-context-types.ts'
 
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async original => ({
+  ...await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>(),
+  assertWindowsStateTrusted: vi.fn(),
+}))
+
 it.each(['linux', 'darwin'] as const)('establishes nested owner state behind the first protected child on %s', (platform) => {
   const workspace = mkdtempSync(join(tmpdir(), 'nested-owner-state-'))
   const home = join(workspace, '.panedesk', 'nested')

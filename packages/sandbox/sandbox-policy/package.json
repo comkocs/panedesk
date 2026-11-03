@@ -41,6 +41,7 @@
   "dependencies": {
     "@panedesk/dsh-atomic-write": "workspace:*",
     "@panedesk/dsh-home-paths": "workspace:*",
+    "@panedesk/dsh-sandbox-windows-acl": "workspace:*",
     "@panedesk/schemastery": "workspace:~",
     "zod": "^4.4.3"
   },

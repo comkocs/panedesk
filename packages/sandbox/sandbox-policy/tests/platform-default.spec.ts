@@ -7,6 +7,13 @@ import { Context } from '@panedesk/cordis'
 import SessionProjectionRegistry from '@panedesk/dsh-session-projection'
 import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
 
+// This suite substitutes only the newly introduced native ACL probe; consent
+// records, policy defaults and revocation remain the real implementations.
+vi.mock('@panedesk/dsh-sandbox-windows-acl', async original => ({
+  ...await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>(),
+  assertWindowsStateTrusted: vi.fn(),
+}))
+
 const contexts: Context[] = []
 afterEach(async () => {
   for (const ctx of contexts.splice(0)) await ctx.fiber.dispose()

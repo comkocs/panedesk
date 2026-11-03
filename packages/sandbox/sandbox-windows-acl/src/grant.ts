@@ -12,7 +12,9 @@
  * @module @panedesk/dsh-sandbox-windows-acl/grant
  */
 
-import { denyProtectedWrite, grantWrite, hasWriteGrant, revokeWrite } from './acl.ts'
+import { denyProtectedWrite, explicitCapabilityEntries, grantWrite, hasWriteGrant, revokeWrite } from './acl.ts'
+import { RestrictedFileAccess } from './access-token.ts'
+import { revokeWorkspaceTree } from './revoke-tree.ts'
 import { allocPtrSlot, decodePtr, isNullPtr, throwLastError, win32Sync } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { makeWellKnownSid } from './token.ts'
@@ -136,6 +138,22 @@ export class AclWriteGrant {
         if (paths[index] === path) paths.splice(index, 1)
       }
     }
+  }
+
+  /**
+   * Revoke every explicit workspace capability across provider restarts.
+   * @param root Canonical workspace tree; link objects are inspected without traversing targets.
+   */
+  revokeTree(root: string): void {
+    const probe = RestrictedFileAccess.create([this.writeSid])
+    try {
+      revokeWorkspaceTree(root, {
+        hasExplicit: path => explicitCapabilityEntries(this.api, path, this.sidPtr, false),
+        removeExplicit: (path) => { explicitCapabilityEntries(this.api, path, this.sidPtr, true) },
+        permits: (path, mask) => probe.permits(path, mask, true),
+      })
+      this.standingPaths.length = 0
+    } finally { probe.dispose() }
   }
 
   /** Every directory currently carrying the grant, in grant order. */

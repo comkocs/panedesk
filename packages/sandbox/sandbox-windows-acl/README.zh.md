@@ -65,6 +65,10 @@ rmSync(tempDir, { recursive: true, force: true })
 
 工作区的安全描述符改动以常驻方式授予——`dispose()` 将其保留为跨实例复用缓存——不同的临时 SID 则以可回收方式授予。每次授权组合能力 SID 允许 ACE、环境性删除拒绝与 Low 禁止上调标签。`AclWriteGrant.add(path, standing)` 物化这些改动；`has(path)` 检测精确的可继承能力 ACE，不修改 ACL；`revoke(path)` 显式撤销常驻或旧版授权。撤销失败仍保留跟踪信息以便重试。`dispose()` 撤销临时授权并释放 SID，不能替代显式工作区撤销。
 
+`revokeTree(root)` 盘点整个工作区，包括依赖目录，删除精确匹配工作区 SID 的显式项，再用受限令牌 AccessCheck 核验根和每个命中点。它不依赖进程内的授权历史。链接对象使用不跟随目标的安全句柄；不遍历外部目标。残留写权或父目录删除子项权限都会令撤销失败。其他主体和完整性标签保持不变。撤销前应停止活跃的工作区进程；既有句柄不会被关闭。
+
+所有者状态信任通过 AccessCheck 检查存储及所有祖先，而非根据 SID 前缀猜测归属。内置运行器接收 `--state-directory`，并使用包含私有临时能力的实际进程令牌检查。不安全记录不能授权首次写入；只读启动会省略不可信的工作区配置。见 [Windows 迁移及精确 ACE 恢复步骤](../../../docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.zh.md)。Windows 原生执行仍未经验证；确定性测试和 Linux 遍历测量并非 Windows 强制执行证据。
+
 ### 隔离给你带来什么
 
 在 `workspace-write` 下，子进程可以写入工作区及其私有临时目录；受 ACL 管辖的其他写入与删除都会被拒绝，已记录的硬链接与 AppContainer ACL 边界除外。在 `read-only` 下不存在显式写入授权，因此写入与删除都会被拒绝，同样带有已记录的边界。

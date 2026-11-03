@@ -6,7 +6,8 @@ import { Context } from '@panedesk/cordis'
 import { ProtectedInputIntegrity } from '@panedesk/dsh-app-boot'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
 import SandboxPolicyService from '@panedesk/dsh-sandbox-policy'
-import { workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
+import { UnsafeWindowsStateError, workspaceWriteSid } from '@panedesk/dsh-sandbox-windows-acl'
+import { inspectStateAncestors } from '../../../sandbox/sandbox-windows-acl/src/state-access.ts'
 import { SessionId } from '@panedesk/dsh-session'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness, provideWorkingDirectoryFixture } from '../../../test-support/agent-loop-testkit/src/index.ts'
@@ -23,7 +24,15 @@ import { FixtureAclWriteGrant, WindowsAclFixture, windowsAcl } from './windows-a
 vi.mock('@panedesk/dsh-sandbox-windows-acl', async original => ({
   ...await original<typeof import('@panedesk/dsh-sandbox-windows-acl')>(),
   AclWriteGrant: (await import('./windows-acl-fixture.ts')).FixtureAclWriteGrant,
+  assertWindowsStateTrusted: checkFixtureState,
 }))
+
+function checkFixtureState(directory: string, workspace: string): void {
+  const unsafe = inspectStateAncestors(directory, {
+    permits: (path, mask) => windowsAcl.permitsToken(path, [workspaceWriteSid(workspace)], mask),
+  })
+  if (unsafe !== undefined) throw new UnsafeWindowsStateError(unsafe.path, unsafe.mask)
+}
 
 async function fixture(protectedWorkspace = false, nestedState = false) {
   const root = mkdtempSync(join(tmpdir(), 'windows-owner-write-'))
@@ -145,6 +154,28 @@ it('writes after authenticated owner consent, a durable record and one ACL mater
   const readonly = await f.sandbox.confine(['node', 'write.js'], { ...revoked, mode: revoked.mode })
   expect(() => { windowsAcl.write(readonly.argv, output, 'after revocation') }).toThrow('ACL access denied')
   expect(f.policy.workspaceAccess.find(f.workspace)).toBeUndefined()
+})
+
+it('revokes every explicit workspace capability after restart and checks every former grant point', async () => {
+  const f = await fixture()
+  const result = await f.approve('allowed-once')
+  if ('error' in result) throw result.error
+  const child = join(f.workspace, 'explicit-child')
+  mkdirSync(child)
+  const sid = workspaceWriteSid(f.workspace)
+  new FixtureAclWriteGrant(sid).add(child)
+  const restarted = new Context()
+  onTestFinished(async () => { await restarted.fiber.dispose() })
+  await restarted.plugin(LocalSandboxProvider)
+  const sandbox = restarted.sandbox
+  if (!(sandbox instanceof LocalSandboxProvider)) throw new Error('Local sandbox provider missing')
+  sandbox.internals = { platform: 'win32', windowsAclRunnerArgs: ['windows-acl-runner'] }
+  await f.policy.workspaceAccess.revoke(f.workspace, (path) => { sandbox.revokeWorkspaceWriteGrant(path) })
+  for (const path of [f.workspace, child, f.profile]) {
+    expect(windowsAcl.permits(path, sid, 'write'), path).toBe(false)
+    expect(windowsAcl.permits(path, sid, 'delete'), path).toBe(false)
+  }
+  expect(windowsAcl.entries.filter(entry => entry.sid === sid)).toEqual([])
 })
 
 it('keeps an entirely protected workspace non-writable even after authenticated owner consent', async () => {

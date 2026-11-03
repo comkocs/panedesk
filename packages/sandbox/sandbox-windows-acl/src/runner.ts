@@ -70,6 +70,7 @@ interface ParsedArgs {
   writeSid: string | undefined
   tempWriteSid: string | undefined
   protectedPaths: string[]
+  stateDirectory: string | undefined
   command: string
   args: string[]
 }
@@ -81,6 +82,7 @@ function parseArgs(raw: string[]): ParsedArgs {
   let writeSid: string | undefined
   let parsedTempWriteSid: string | undefined
   const protectedPaths: string[] = []
+  let stateDirectory: string | undefined
   let index = 0
   for (; index < raw.length; index++) {
     const token = raw[index]
@@ -98,6 +100,7 @@ function parseArgs(raw: string[]): ParsedArgs {
       case '--write-sid': writeSid = value; break
       case '--temp-write-sid': parsedTempWriteSid = value; break
       case '--protected-path': protectedPaths.push(value); break
+      case '--state-directory': stateDirectory = value; break
       default: fail(`unknown argument: ${token}`)
     }
   }
@@ -107,7 +110,7 @@ function parseArgs(raw: string[]): ParsedArgs {
   const argv = raw.slice(index)
   const command = argv[0]
   if (command === undefined) fail('missing command after --')
-  return { workspace, temp, mode, writeSid, tempWriteSid: parsedTempWriteSid, protectedPaths, command, args: argv.slice(1) }
+  return { workspace, temp, mode, writeSid, tempWriteSid: parsedTempWriteSid, protectedPaths, stateDirectory, command, args: argv.slice(1) }
 }
 
 function requireDirectory(label: string, path: string): void {
@@ -170,6 +173,7 @@ async function main(): Promise<number> {
       ...privateTempSid === undefined ? {} : { tempWriteSid: privateTempSid },
       manageDacls: !seamManaged,
       protectedPaths: parsed.protectedPaths,
+      ...parsed.stateDirectory === undefined ? {} : { stateDirectory: parsed.stateDirectory },
     })
     await sandbox.init()
     initialized = true

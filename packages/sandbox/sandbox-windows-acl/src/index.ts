@@ -48,6 +48,10 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { Win32Error } from '@panedesk/dsh-win32-process'
 
 import { denyProtectedWrite, grantWrite, revokeWrite } from './acl.ts'
+import { checkFileAccess } from './access-check.ts'
+import { inspectStateAncestors } from './state-access.ts'
+import { UnsafeWindowsStateError } from './state-trust.ts'
+import { describeStateAllowAces, sidText } from './ace-diagnostic.ts'
 import { allocPtrSlot, decodePtr, isNullPtr, throwLastError, win32 } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import { assertPrivateTempDisjoint } from './path-boundary.ts'
@@ -56,6 +60,7 @@ import { createRestrictedToken, findLogonSid, makeWellKnownSid, openCurrentProce
 import * as abi from './win32-abi.ts'
 
 export { AclWriteGrant } from './grant.ts'
+export { assertWindowsStateTrusted, UnsafeWindowsStateError } from './state-trust.ts'
 export { assertTempRootOutsideWorkspace } from './path-boundary.ts'
 export { tempWriteSid, workspaceWriteSid } from './workspace-sid.ts'
 export { ACL_DIAGNOSIS_SKILL, registerAclDiagnosisSkill } from './acl-skill.ts'
@@ -65,6 +70,8 @@ export interface AclSandboxOptions {
   writableDirs: readonly string[]
   /** Protected names excluded from workspace grants; absent names require host-side validation. */
   protectedPaths?: readonly string[]
+  /** Owner record storage to check with the exact process token before spawning. */
+  stateDirectory?: string
   /**
    * Existing private temp directory to grant. Workspace-write callers must
    * pass it explicitly or pass null to disable temp writes; the ambient temp
@@ -174,6 +181,7 @@ export class AclSandbox {
   private readonly tempDirOption: string | null | undefined
   private readonly manageDacls: boolean
   private readonly protectedPaths: readonly string[]
+  private readonly stateDirectory: string | undefined
   private tempDirResolved: string | null | undefined
   private api: Win32Bindings | undefined
   private token: NativePtr | undefined
@@ -187,6 +195,7 @@ export class AclSandbox {
     this.mode = options.mode
     this.manageDacls = options.manageDacls ?? true
     this.protectedPaths = options.protectedPaths ?? []
+    this.stateDirectory = options.stateDirectory
     this.writableDirs = options.writableDirs.map((directory) => {
       const absolute = resolve(directory)
       if (!existsSync(absolute) || !statSync(absolute).isDirectory()) {
@@ -321,6 +330,16 @@ export class AclSandbox {
       // objects in one session's temp tree from acquiring the shared
       // workspace capability.
       setTokenDefaultDaclGrant(api, restrictedToken, this.tempWriteSidPtr ?? this.writeSidPtr ?? worldSid)
+      if (this.mode === 'workspace-write' && this.stateDirectory !== undefined) {
+        const selectedToken = restrictedToken
+        const unsafe = inspectStateAncestors(this.stateDirectory, {
+          permits: (path, mask) => checkFileAccess(api, selectedToken, path, mask),
+        })
+        if (unsafe !== undefined) {
+          const sids = [logonSid, worldSid, ...writeSids].map(sid => sidText(sid))
+          throw new UnsafeWindowsStateError(unsafe.path, unsafe.mask, describeStateAllowAces(api, unsafe.path, unsafe.mask, sids))
+        }
+      }
       if (api.closeHandle(currentToken) === 0) throwLastError(api, 'CloseHandle', 'current process token')
       currentTokenOpen = false
       this.api = api

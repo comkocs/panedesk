@@ -15,6 +15,7 @@
     { "path": "../../interaction/user-approval" },
     { "path": "../../util/atomic-write" },
     { "path": "../../util/home-paths" },
+    { "path": "../sandbox-windows-acl" },
     {
       "path": "../../../vendor/cosmokit"
     },

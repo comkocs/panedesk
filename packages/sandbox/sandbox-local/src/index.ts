@@ -415,9 +415,7 @@ export class LocalSandboxProvider extends SandboxProvider {
     const cached = this.workspaceGrants.get(root)
     const grant = cached ?? AclWriteGrant.create(workspaceWriteSid(root))
     try {
-      grant.revoke(root)
-      const paths = this.workspaceProtectedPaths.get(root) ?? new Set<string>()
-      for (const path of paths) grant.revoke(path)
+      grant.revokeTree(root)
       this.workspaceProtectedPaths.delete(root)
       this.workspaceGrants.delete(root)
     } finally {
@@ -480,7 +478,8 @@ export class LocalSandboxProvider extends SandboxProvider {
   private windowsAclRunnerArgv(policy: SandboxPolicy): string[] {
     const sessionId = policy.sessionId
     const protectedArgs = policy.mode === 'workspace-write'
-      ? (policy.protectedPaths ?? []).flatMap(path => ['--protected-path', path]) : []
+      ? [...(policy.protectedPaths ?? []).flatMap(path => ['--protected-path', path]),
+        '--state-directory', join(resolveDshHome(), 'windows-workspace-write')] : []
     if (sessionId === undefined || policy.mode === 'read-only') {
       return [
         ...this.windowsAclRunnerInvocation(),

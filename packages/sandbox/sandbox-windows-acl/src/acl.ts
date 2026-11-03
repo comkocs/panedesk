@@ -28,6 +28,7 @@ import { dirname, join } from 'node:path'
 import { allocOverlapped, allocPtrSlot, decodePtr, decodeUint8At, decodeUint16At, decodeUint32At, getTempPath, isInvalidHandle, isNullPtr, ptrAddress, sameSidAt, throwLastError, throwWin32 } from './ffi.ts'
 import type { NativePtr, Win32Bindings } from './ffi.ts'
 import * as abi from './win32-abi.ts'
+import { withSecurityHandle } from './file-handle.ts'
 
 /**
  * Pack one EXPLICIT_ACCESS_W (48 bytes, layout verified by abi-probe.cpp):
@@ -330,6 +331,71 @@ export function hasWriteGrant(api: Win32Bindings, path: string, sidPtr: NativePt
       if (!isNullPtr(freed)) throwLastError(api, 'LocalFree', `hasWriteGrant(${path}) descriptor`)
     }
   }
+}
+
+/**
+ * Inspect or remove explicit allow/deny ACEs for one exact capability SID.
+ * Inherited entries and all other trustees remain unchanged.
+ * @param api Native security bindings.
+ * @param path Existing file or directory.
+ * @param sidPtr Exact workspace capability SID.
+ * @param remove Whether to apply removal while holding the object lock.
+ * @returns Whether an explicit capability entry was found.
+ */
+export function explicitCapabilityEntries(api: Win32Bindings, path: string, sidPtr: NativePtr, remove: boolean): boolean {
+  const inspect = (): boolean => withSecurityHandle(api, path, remove, (handle) => {
+    const owner = allocPtrSlot()
+    const group = allocPtrSlot()
+    const dacl = allocPtrSlot()
+    const sacl = allocPtrSlot()
+    const output = allocPtrSlot()
+    const read = api.getSecurityInfo(handle, abi.SE_FILE_OBJECT, abi.DACL_SECURITY_INFORMATION, owner, group, dacl, sacl, output)
+    if (read !== abi.ERROR_SUCCESS) throwWin32(api, 'GetSecurityInfo', read, path)
+    const oldAcl = decodePtr(dacl)
+    const descriptor = decodePtr(output)
+    try {
+      if (oldAcl === null) return false
+      const size = decodeUint16At(oldAcl, 2)
+      const count = decodeUint16At(oldAcl, 4)
+      const matches: number[] = []
+      let offset = 8
+      for (let index = 0; index < count; index++) {
+        if (offset + 8 > size) throw new Error(`Invalid workspace ACL: ${path}`)
+        const length = decodeUint16At(oldAcl, offset + 2)
+        if (length < 8 || offset + length > size) throw new Error(`Invalid workspace ACE: ${path}`)
+        const type = decodeUint8At(oldAcl, offset)
+        const flags = decodeUint8At(oldAcl, offset + 1)
+        if ((flags & 0x10) === 0) {
+          // Object ACEs put optional GUIDs before the SID; callback ACEs retain
+          // the corresponding ordinary/object layout and append condition data.
+          let sidOffset: number
+          if ([0, 1, 9, 10].includes(type)) sidOffset = 8
+          else if ([5, 6, 11, 12].includes(type)) {
+            if (length < 12) throw new Error(`Invalid workspace object ACE: ${path}`)
+            const objectFlags = decodeUint32At(oldAcl, offset + 8)
+            if ((objectFlags & ~3) !== 0) throw new Error(`Unsupported workspace object ACE flags: ${path}`)
+            sidOffset = 12 + ((objectFlags & 1) === 0 ? 0 : 16) + ((objectFlags & 2) === 0 ? 0 : 16)
+          } else throw new Error(`Unsupported explicit workspace DACL ACE type ${type}: ${path}`)
+          if (sidOffset + 8 > length) throw new Error(`Invalid workspace ACE SID: ${path}`)
+          const subauthorities = decodeUint8At(oldAcl, offset + sidOffset + 1)
+          if (sidOffset + 8 + subauthorities * 4 > length) throw new Error(`Invalid workspace ACE SID size: ${path}`)
+          if (sameSidAt(oldAcl, offset + sidOffset, sidPtr, 0)) matches.push(index)
+        }
+        offset += length
+      }
+      if (remove && matches.length > 0) {
+        for (const index of matches.reverse()) {
+          if (api.deleteAce(oldAcl, index) === 0) throwLastError(api, 'DeleteAce', path)
+        }
+        const result = api.setSecurityInfo(handle, abi.SE_FILE_OBJECT, abi.DACL_SECURITY_INFORMATION, null, null, oldAcl, null)
+        if (result !== abi.ERROR_SUCCESS) throwWin32(api, 'SetSecurityInfo', result, path)
+      }
+      return matches.length > 0
+    } finally {
+      if (descriptor !== null && !isNullPtr(api.localFree(descriptor))) throwLastError(api, 'LocalFree', path)
+    }
+  })
+  return remove ? withPathLock(api, path, inspect) : inspect()
 }
 
 /**

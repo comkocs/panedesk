@@ -4,13 +4,13 @@
 #   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.2/windows-workspace-write-access/guide.md
 /:
   en: b2a9b6a1bf211be5
-  zh: 1fc3b8c30e25a79d
+  zh: 357e3d6be12ef385
 /windows-workspace-write-access:
   en: 954cd39ce57fbdfd
   zh: cd1cb2658efaa234
 /windows-workspace-write-access/change:
-  en: 53b619dc3809fcd6
-  zh: 1a47e4708f6afe62
+  en: befd060299bb207f
+  zh: d16f8e04ab63542e
 /windows-workspace-write-access/migration:
-  en: 1b4c8a07a97a15fc
-  zh: b92dc420ead9b1fd
+  en: e2f10a25b718893b
+  zh: 17788064121d8b5f

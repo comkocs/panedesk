@@ -47,7 +47,7 @@ vi.mock('@panedesk/dsh-sandbox-windows-acl', () => {
       }
     }
     has(): boolean { return mockState.legacyGrant }
-    revoke(path: string): void { mockState.revoked.push(path) }
+    revokeTree(path: string): void { mockState.revoked.push(path) }
     dispose(): void {
       if (mockState.disposeFailure !== undefined) throw mockState.disposeFailure
       this.disposed = true
@@ -186,6 +186,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--write-sid', WORKSPACE_SID,
         '--temp-write-sid', tempSid,
         '--protected-path', ownerState,
+        '--state-directory', ownerState,
         '--',
         'pwsh', '/Command', 'x',
       ])
@@ -368,6 +369,7 @@ describe('windows-acl write grants (LocalSandboxProvider)', () => {
         '--temp', tmpdir(),
         '--mode', 'workspace-write',
         '--protected-path', ownerState,
+        '--state-directory', ownerState,
         '--',
         'pwsh', '/Command', 'x',
       ])
