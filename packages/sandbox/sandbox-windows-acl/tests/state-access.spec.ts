@@ -22,12 +22,36 @@ function fixture() {
   return { root, state, rights, checks, probe }
 }
 
-it.each([2, 4, 0x10000, 0x40])('refuses state trust for ancestor access mask %s and trusts after removal', (mask) => {
+it.each([2, 4, 0x10, 0x100, 0x10000, 0x40, 0x40000, 0x80000])('refuses state trust for storage access mask %s and trusts after removal', (mask) => {
   const f = fixture()
-  f.rights.set(f.root, mask)
-  expect(inspectStateAncestors(f.state, f.probe)).toEqual({ path: f.root, mask })
+  f.rights.set(f.state, mask)
+  expect(inspectStateAncestors(f.state, f.probe)).toEqual({ path: f.state, mask })
   f.rights.clear()
   expect(inspectStateAncestors(f.state, f.probe)).toBeUndefined()
+})
+
+it.each([2, 4, 0x10, 0x100])('ignores non-inheriting write mask %s on higher ancestors', (mask) => {
+  const f = fixture()
+  f.rights.set(f.root, mask)
+  expect(inspectStateAncestors(f.state, f.probe)).toBeUndefined()
+})
+
+it.each([2, 4])('refuses precreation mask %s only at the nearest existing ancestor', (mask) => {
+  const f = fixture()
+  rmSync(f.state, { recursive: true })
+  f.rights.set(dirname(f.state), mask)
+  expect(inspectStateAncestors(join(f.state, 'missing', 'record'), f.probe)).toEqual({ path: dirname(f.state), mask })
+  f.rights.clear()
+  f.rights.set(f.root, mask)
+  expect(inspectStateAncestors(f.state, f.probe)).toBeUndefined()
+})
+
+it('refuses a writable child below state storage', () => {
+  const f = fixture()
+  const child = join(f.state, 'records')
+  mkdirSync(child)
+  f.rights.set(child, 0x40000)
+  expect(inspectStateAncestors(f.state, f.probe)).toEqual({ path: child, mask: 0x40000 })
 })
 
 it('checks every existing ancestor through the volume root without granting read-only ACEs write authority', () => {
@@ -35,7 +59,9 @@ it('checks every existing ancestor through the volume root without granting read
   f.rights.set(f.root, 1)
   expect(inspectStateAncestors(f.state, f.probe)).toBeUndefined()
   for (let path = f.state; ; path = dirname(path)) {
-    expect(f.checks.filter(check => check.path === path).map(check => check.mask)).toEqual([2, 4, 0x10000, 0x40])
+    expect(f.checks.filter(check => check.path === path).map(check => check.mask)).toEqual(
+      path === f.state ? [2, 4, 0x10, 0x100, 0x10000, 0x40, 0x40000, 0x80000] : [0x10000, 0x40000, 0x80000, 0x40],
+    )
     if (dirname(path) === path) break
   }
 })

@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { isAbsolute, relative, sep } from 'node:path'
 import { revokeWorkspaceTree } from '../../../sandbox/sandbox-windows-acl/src/revoke-tree.ts'
 
-type Access = 'read' | 'write' | 'append' | 'delete' | 'delete-child'
+type Access = 'read' | 'write' | 'append' | 'write-ea' | 'write-attributes' | 'delete' | 'delete-child' | 'write-dac' | 'write-owner'
 interface Entry {
   path: string
   sid: string
@@ -50,7 +50,10 @@ export class WindowsAclFixture {
 
   /** Match WRITE_RESTRICTED: ordinary access and restricting-list access must both grant writes. */
   permitsToken(path: string, capabilities: readonly string[], mask: number): boolean {
-    const rights = new Map<number, Access>([[1, 'read'], [2, 'write'], [4, 'append'], [0x10000, 'delete'], [0x40, 'delete-child']])
+    const rights = new Map<number, Access>([
+      [1, 'read'], [2, 'write'], [4, 'append'], [0x10, 'write-ea'], [0x100, 'write-attributes'],
+      [0x10000, 'delete'], [0x40, 'delete-child'], [0x40000, 'write-dac'], [0x80000, 'write-owner'],
+    ])
     const right = rights.get(mask)
     if (right === undefined) throw new Error(`Unsupported fixture access mask: ${mask}`)
     const ambient = ['S-1-1-0', 'S-1-5-5-1-2']
@@ -92,6 +95,9 @@ export class FixtureAclWriteGrant {
     windowsAcl.entries.push({ path, sid: this.sid, deny: true, recursive, rights: recursive ? ['write', 'append', 'delete', 'delete-child'] : ['delete'] })
   }
   has(path: string): boolean { return windowsAcl.entries.some(entry => entry.path === path && entry.sid === this.sid && !entry.deny) }
+  hasEffectiveWrite(path: string): boolean {
+    return [2, 4, 0x10, 0x100, 0x10000, 0x40, 0x40000, 0x80000].some(mask => windowsAcl.permitsToken(path, [this.sid], mask))
+  }
   revoke(path: string): void {
     for (let index = windowsAcl.entries.length - 1; index >= 0; index--) {
       const entry = windowsAcl.entries[index]
