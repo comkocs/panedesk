@@ -14478,7 +14478,7 @@
     {
       "id": "ci-replay-fixture-assembly",
       "description": "Keep replay fixtures linked, external-home web fixtures aligned, and persistent PowerShell input echoes separate from execution output.",
-      "origin": "K1 integration replay fixture repair",
+      "origin": "Integration replay fixture repair",
       "reason": "Scenario runtime `.mjs` fixtures import workspace packages through real ESM resolution; registering `snapshots` as a workspace member links them on a clean checkout. Web fixtures use the scaffold's external home and create their owned persistence directory before seeding files. Persistent PowerShell must keep polling when stdin readiness accompanies only an echoed command prefix. These changes are suitable for upstream.",
       "match": {
         "type": "test-assertion",
