@@ -1,6 +1,22 @@
 {
   "divergences": [
     {
+      "id": "worker-connection-host-terminal-loading",
+      "description": "Keep the host readline builtin out of packed Worker imports",
+      "origin": "Worker preview compatibility",
+      "reason": "Load readline through the host builtin loader only after a safe controlling terminal is available. Preserve default owner confirmation, noninteractive refusal and terminal decisions; assert the real packed connection entry has no node:readline import. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/client/connection/src/owner-confirmation.ts",
+          "packages/client/connection/README.md",
+          "packages/client/connection/README.zh.md",
+          "packages/client/connection/README.i18n.yaml",
+          "packages/experimental/webworker-packer/tests/image-loadable.spec.ts"
+        ]
+      }
+    },
+    {
       "id": "nested-owner-workspace-isolation",
       "description": "Isolate nested owner storage without refusing unrelated workspace writes",
       "origin": "Local confinement and state consistency",

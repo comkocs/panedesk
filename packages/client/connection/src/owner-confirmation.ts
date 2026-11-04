@@ -1,7 +1,6 @@
 /** Owner confirmation reads the host controlling terminal, never HTTP or redirected stdin. */
 import { closeSync, openSync, writeSync } from 'node:fs'
 import { ReadStream } from 'node:tty'
-import { createInterface } from 'node:readline'
 import { authLocale } from './auth-locale.ts'
 
 /** Browser facts shown before a host-local login decision. */
@@ -36,7 +35,8 @@ export function confirmBrowserLogin(request: BrowserLoginRequest, timeoutMs = 60
     return false
   }
   const input = new ReadStream(fd)
-  const reader = createInterface({ input, terminal: false })
+  // Worker deployments have no controlling terminal and never load this host-only builtin.
+  const reader = process.getBuiltinModule('readline').createInterface({ input, terminal: false })
   return new Promise<boolean>((resolve) => {
     let decided = false
     const finish = (allowed: boolean): void => {

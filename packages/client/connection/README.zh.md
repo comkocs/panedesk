@@ -38,7 +38,7 @@ kind: "package-reference"
 <a id="browser-authentication-and-request-trust"></a>
 ## 浏览器认证与请求信任
 
-新浏览器 cookie 保持待确认，直到 owner 在 POSIX Host 的控制终端回答 `y`。提示显示转义后的 User-Agent、请求时刻与来源地址。取消或未答复的提示拒绝访问；`ownerConfirmationTimeoutMs` 限制等待时长，默认 60000 毫秒。待确认或拒绝的 cookie 不能取得 owner Peer，也不能使用 `/connect`；批准后刷新干净页面。经过待确认流程的 cookie 在 Connection 重启后需要重新登录。Windows Web 与没有交互控制终端的启动方式拒绝新浏览器登录。升级服务方式运行的 Web 实例前，owner 可以在受保护配置文件的 `client-connection` 行设置 `requireOwnerConfirmation: false`。关闭确认后，持有未使用启动链接即可成为 owner，风险由 owner 自担。桌面 IPC 认证不使用此终端提示。
+新浏览器 cookie 保持待确认，直到 owner 在 POSIX Host 的控制终端回答 `y`。提示显示转义后的 User-Agent、请求时刻与来源地址。取消或未答复的提示拒绝访问；`ownerConfirmationTimeoutMs` 限制等待时长，默认 60000 毫秒。待确认或拒绝的 cookie 不能取得 owner Peer，也不能使用 `/connect`；批准后刷新干净页面。经过待确认流程的 cookie 在 Connection 重启后需要重新登录。Windows Web 与没有交互控制终端的启动方式拒绝新浏览器登录。升级服务方式运行的 Web 实例前，owner 可以在受保护配置文件的 `client-connection` 行设置 `requireOwnerConfirmation: false`。关闭确认后，持有未使用启动链接即可成为 owner，风险由 owner 自担。桌面 IPC 认证不使用此终端提示。只有取得控制终端后才加载 readline 内置模块，因此 Worker 镜像不会导入仅宿主可用的输入模块。
 
 通过 Web 载体访问时，每个 Host RPC 方法和 WebSocket 流都要求经过认证的浏览器或 API Peer，不存在按方法区分的 loopback 层。Host 生成随机的一次性启动令牌，五分钟后过期。`dsh-web-app` 打印并打开带 `?token=...` 的应用 URL，保留调用方的 authority 与挂载；`frontend-static` 把根路径和 index 请求交给 `ctx.connection.authorizeIndex`，后者只在 `GET /` 接受该令牌，写入绑定 authority 的签名 cookie，再重定向到干净的 `./`，移除令牌并保留请求目录。缺失、过期、畸形或 authority 不匹配的 cookie 会在 RPC 分发前得到 401。静态资源保持公开。HTTP 载体只在根路径交换接受 query token，绝不在 `/connect` 接受，也不接受 Authorization header token。已消费或过期的链接不能再次签发 cookie。
 
