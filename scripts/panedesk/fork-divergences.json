@@ -3883,11 +3883,12 @@
       "id": "harness-identity-opt-in",
       "description": "Omit the harness identity paragraph when includeHarnessIdentity is not enabled.",
       "origin": "Slim launcher, slim/full presets, privacy-off defaults, CLI rename",
-      "reason": "The fork makes harness identity an explicit opt-in instead of a default system prompt section.",
+      "reason": "The fork makes harness identity an explicit opt-in instead of a default system prompt section. The single-turn PowerShell snapshot records this default by omitting only the old identity paragraph and its following blank line.",
       "match": {
         "type": "remove-exact-paragraph",
         "paths": [
-          "snapshots/*/*/system-prompt*.expected.md"
+          "snapshots/*/*/system-prompt*.expected.md",
+          "snapshots/session/pwsh-tool-turn/system-prompt.expected.md"
         ],
         "line": "You are an AI agent powered by DeepSeek Harness.",
         "followingBlankLines": 1
