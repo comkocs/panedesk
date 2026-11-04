@@ -40,7 +40,7 @@
       "id": "platform-source-documentation-sync",
       "description": "Synchronize platform source registration and confinement documentation",
       "origin": "Owner authentication isolation",
-      "reason": "Register the platform connection-source service and its types, document internal host identity owners, and regenerate service, type, graph and configuration catalogs. Preserve existing source behavior while aligning confinement facts and bilingual references. These documentation changes can be contributed upstream.",
+      "reason": "Register the platform connection-source service and its types, document internal host identity owners, and regenerate service, type, graph and configuration catalogs. Preserve existing source behavior while aligning confinement facts and bilingual references, including the authored Chinese graph and direct-consumer table. These documentation changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
