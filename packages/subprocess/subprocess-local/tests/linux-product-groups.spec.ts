@@ -137,7 +137,8 @@ describe('Linux product socket attribution', () => {
     const second = new Context()
     try {
       expect(LinuxProductGroups.forHost(first.extend())).toBe(LinuxProductGroups.forHost(first.extend()))
-      expect(LinuxProductGroups.forHost(first)).not.toBe(LinuxProductGroups.forHost(second))
+      // Negated toBe computes deep-equality diagnostics for the large identity buffers.
+      expect(Object.is(LinuxProductGroups.forHost(first), LinuxProductGroups.forHost(second))).toBe(false)
     } finally {
       await first.fiber.dispose()
       await second.fiber.dispose()

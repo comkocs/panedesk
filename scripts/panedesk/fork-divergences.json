@@ -15515,6 +15515,16 @@
       }
     },
     {
+      "id": "identity-owner-exact-comparison-cost",
+      "description": "Avoid deep diagnostics for distinct host identity owners",
+      "origin": "Coverage instrumentation test cost",
+      "reason": "Assert Object.is is false for distinct host registries, exactly preserving the negated toBe identity condition without Vitest's eager deep-equality diagnostics over two large identity buffers. Keep the same-host identity assertion and all production filter and admission semantics unchanged. This test performance repair can be contributed upstream.",
+      "match": {
+        "type": "test-assertion",
+        "paths": ["packages/subprocess/subprocess-local/tests/linux-product-groups.spec.ts"]
+      }
+    },
+    {
       "id": "native-session-tmux-lifetime-fixture",
       "description": "Keep the test-owned tmux server alive through native socket checks",
       "origin": "Service-account native session fixture",
