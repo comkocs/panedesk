@@ -1,6 +1,16 @@
 {
   "divergences": [
     {
+      "id": "linux-native-owner-source-tests",
+      "description": "Exercise native Linux owner admission and report delegation warnings per case",
+      "origin": "Owner authentication isolation",
+      "reason": "Run host and Chromium owner controls, confined cookie replay, orphan descendants, cgroup migration denial, nested namespaces and native socket queries in the ordinary unit inventory. Report exact limitation counts and leave unavailable delegation unverified. These tests can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": ["packages/sandbox/sandbox-local/tests/linux-owner-source-native.spec.ts"]
+      }
+    },
+    {
       "id": "linux-product-scope-limitation",
       "description": "Keep sandbox execution available without a live delegated scope",
       "origin": "Owner authentication isolation",
