@@ -61,6 +61,7 @@ function spawnWeb(root: string, patch: string, interrupt: string, flags: string[
       WEB_INTERRUPT_FILE: interrupt,
     },
     input: '',
+    ipc: true,
     reject: false,
     timeout: 90_000,
     killSignal: 'SIGKILL',
@@ -72,6 +73,8 @@ interface RunningWeb {
   child: WebChild
   port: number
   startup: URL
+  /** Obtain a fresh single-use link from the host-owned Connection service. */
+  freshLink(): Promise<URL>
   /** Stop the child within the shutdown deadline; every caller shares the one settlement. */
   stop(): Promise<StoppedWeb>
 }
@@ -87,9 +90,12 @@ async function bootWeb(root: string, flags: string[]): Promise<RunningWeb> {
   writeFileSync(marker, [
     "import { existsSync } from 'node:fs'",
     "export const name = 'public-url-listen-port'",
-    "export const inject = ['webServer']",
+    "export const inject = ['webServer', 'connection']",
     'export function apply(ctx) {',
     "  console.log('public-url-listen-port: ' + ctx.webServer.port)",
+    "  const freshLink = () => process.send(ctx.connection.authenticatedUrl('http://localhost/'))",
+    "  process.on('message', freshLink)",
+    "  ctx.effect(() => () => process.off('message', freshLink))",
     '  const heartbeat = setInterval(() => {',
     '    if (!existsSync(process.env.WEB_INTERRUPT_FILE)) return',
     '    clearInterval(heartbeat)',
@@ -100,7 +106,7 @@ async function bootWeb(root: string, flags: string[]): Promise<RunningWeb> {
     '',
   ].join('\n'))
   const patch = join(root, 'extra.yml')
-  writeFileSync(patch, `- id: connection\n  config:\n    requireOwnerConfirmation: false\n- insert:\n    - name: ${JSON.stringify(pathToFileURL(marker).href)}\n`)
+  writeFileSync(patch, `- id: connection\n  config:\n    requireOwnerConfirmation: false\n    trustedHosts: !!js ctx.webStartup.trustedHosts\n- insert:\n    - name: ${JSON.stringify(pathToFileURL(marker).href)}\n`)
   const child = spawnWeb(root, patch, interrupt, flags)
   const lines = createInterface({ input: child.stdout })
   const ready = Promise.withResolvers<RunningWeb>()
@@ -109,7 +115,12 @@ async function bootWeb(root: string, flags: string[]): Promise<RunningWeb> {
   let startup: URL | undefined
   const announced = (): void => {
     if (port === undefined || startup === undefined) return
-    ready.resolve({ child, port, startup, stop: () => stopping ??= stop(child, interrupt) })
+    ready.resolve({ child, port, startup, freshLink: async () => {
+      await child.sendMessage('fresh-link')
+      const link = await child.getOneMessage()
+      if (typeof link !== 'string') throw new Error('Missing fresh Web launch link')
+      return new URL(link)
+    }, stop: () => stopping ??= stop(child, interrupt) })
   }
   lines.on('line', (line) => {
     if (line.startsWith('public-url-listen-port: ')) port = Number(line.slice('public-url-listen-port: '.length))
@@ -254,7 +265,8 @@ describe.skipIf(!builtArtifactsExist)('dsh Web profile bind address and advertis
           { dial: '127.0.0.1', port: web.port, prefix: '/', host: `127.0.0.1:${String(web.port)}` },
         ]
         for (const entry of entries) {
-          const { cookie } = await exchange('http:', entry.dial, entry.port, `${entry.prefix}${web.startup.search}`, entry.host)
+          const link = await web.freshLink()
+          const { cookie } = await exchange('http:', entry.dial, entry.port, `${entry.prefix}${link.search}`, entry.host)
           const response = await request('http:', entry.dial, entry.port, `${entry.prefix}api/session/create`, entry.host, 'POST', cookie)
           expect(response.status).toBe(200)
           expect(await response.json()).toMatchObject({ result: { ok: true } })
@@ -287,7 +299,8 @@ describe.skipIf(!builtArtifactsExist)('dsh Web profile bind address and advertis
       // A declared authority is admitted without being advertised; any other
       // name for the same socket is a rebound Host.
       const declared = `${trustedHost}:${String(web.port)}`
-      const declaredSession = await exchange('http:', NON_LOOPBACK_IPV4!, web.port, `/${web.startup.search}`, declared)
+      const declaredLink = await web.freshLink()
+      const declaredSession = await exchange('http:', NON_LOOPBACK_IPV4!, web.port, `/${declaredLink.search}`, declared)
       const viaDeclared = await request('http:', NON_LOOPBACK_IPV4!, web.port, '/api/session/create', declared, 'POST', declaredSession.cookie)
       expect(viaDeclared.status).toBe(200)
       await viaDeclared.arrayBuffer()

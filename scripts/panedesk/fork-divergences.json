@@ -129,7 +129,7 @@
       "id": "web-public-url-owner-opt-out",
       "description": "Configure unattended public URL fixtures explicitly",
       "origin": "Owner confirmation fixture configuration",
-      "reason": "Without a terminal, the owner explicitly disables confirmation through one minimal connection config entry. Authentication and URL assertions remain unchanged. These changes can be contributed upstream.",
+      "reason": "Without a terminal, the owner explicitly disables confirmation through protected connection configuration while preserving trustedHosts derived from the invocation flags. Launch tokens are single-use and cookies are authority-bound, so cross-authority fixtures obtain fresh links through the existing host Connection authenticatedUrl method over the fixture child IPC channel. Each authority reuses its first exchanged cookie. Authentication and URL assertions remain unchanged. These changes can be contributed upstream.",
       "match": { "type": "behavior", "paths": ["apps/cli/tests/profiles/web/tests/public-url.expected.e2e.ts"] }
     },
     {
