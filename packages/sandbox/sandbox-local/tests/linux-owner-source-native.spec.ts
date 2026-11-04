@@ -178,12 +178,11 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
       } else {
         const unshare = process.env.PANEDESK_TEST_UNSHARE ?? 'unshare'
         let namespaceDenial: string | undefined
-        const namespaceDenials = [
-          'unshare: unshare failed: Operation not permitted\n',
-          'unshare: write failed /proc/self/uid_map: Operation not permitted\n',
-        ]
+        // Landlock keeps /proc read-only inside the product sandbox, so the nested namespace stays unmapped there and in the probe.
+        const nestedFlags = ['--user', '--pid', '--fork']
+        const namespaceDenials = ['unshare: unshare failed: Operation not permitted\n']
         if (name === 'nested-user-pid') {
-          const probe = spawnSync(unshare, ['--user', '--map-root-user', '--pid', '--fork', '/bin/true'], { encoding: 'utf8', timeout: 5000 })
+          const probe = spawnSync(unshare, [...nestedFlags, '/bin/true'], { encoding: 'utf8', timeout: 5000 })
           if (probe.status !== 0) {
             const reason = `unprivileged user/PID namespaces unavailable: status=${probe.status}; ${probe.stderr?.trim() ?? probe.error?.message}`
             writeSync(1, `${reason}\n`)
@@ -192,16 +191,14 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
             expect(probe.status).toBe(1)
             expect(probe.signal).toBe(null)
             expect(namespaceDenials).toContain(probe.stderr)
-            namespaceDenial = probe.stderr === namespaceDenials[0]
-              ? namespaceDenials[0]
-              : 'unshare: cannot open /proc/self/uid_map: Permission denied\n'
+            namespaceDenial = probe.stderr
             writeSync(1, 'unverified: hosts allowing user namespaces have not been verified\n')
           }
         }
         const migrating = name === 'landlock-subgroup-migration'
         const argv = ['/usr/bin/python3', '-I', '-c', migrating ? migration : replay,
           ...name === 'landlock-double-fork' ? ['orphan'] : name === 'nested-user-pid' ? ['nested'] : []]
-        if (name === 'nested-user-pid') argv.unshift(unshare, '--user', '--map-root-user', '--pid', '--fork')
+        if (name === 'nested-user-pid') argv.unshift(unshare, ...nestedFlags)
         const prepared = confined ? await sandbox.confine(argv, { mode: 'workspace-write', workspaceRoot: workspace }) : { argv, productSandbox: undefined }
         const handle = subprocess.spawn({
           argv: prepared.argv, ...prepared.productSandbox === true ? { productSandbox: true } : {}, cwd: workspace,
@@ -246,10 +243,10 @@ describe.skipIf(process.platform !== 'linux')('Linux native owner sources', () =
             expect(output.split('\n').slice(1)).toEqual(['parent: denied errno=13', 'self: denied errno=13', 'sibling: denied errno=13', ''])
           } else if (name === 'nested-user-pid') {
             // A denial only counts after the replay proves it entered a fresh user namespace.
-            const evidence = /^userns=(user:\[\d+\]) uid_map=0 (\d+) 1\n/.exec(output)
+            const evidence = /^userns=(user:\[\d+\]) uid_map=(.*)\n/.exec(output)
             expect(evidence).not.toBeNull()
             expect(evidence![1]).not.toBe(readlinkSync('/proc/self/ns/user'))
-            expect(evidence![2]).toBe(String(process.getuid?.()))
+            expect(evidence![2]).toBe('')
             expect(output.slice(evidence![0].length)).toBe('status=403 principal=denied\n')
           } else {
             expect(output).toBe(`${name === 'landlock-double-fork' ? 'ppid=1\n' : ''}status=${confined ? '403 principal=denied' : '200 principal=owner'}\n`)
