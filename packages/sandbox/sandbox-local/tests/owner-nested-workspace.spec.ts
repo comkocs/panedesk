@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { launcherPath } from '@panedesk/node-addon-system/landlock-run'
+import { buildLandlockLauncher } from './landlock-launcher.ts'
 import { expect, it, onTestFinished } from 'vitest'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from '../src/profiles.ts'
 
@@ -60,7 +60,7 @@ it('Landlock denies owner reads, six replacement methods and root creation while
     printf sibling-ok > "$5/allowed"
     printf confined-ok
   `
-  const result = spawnSync(launcherPath(), [...args, '--', '/bin/sh', '-c', command, 'sh',
+  const result = spawnSync(buildLandlockLauncher(), [...args, '--', '/bin/sh', '-c', command, 'sh',
     document, owner, home, join(home, 'nested'), other, workspace], { encoding: 'utf8', timeout: 10_000 })
   expect(result.error).toBeUndefined()
   expect(result.status, result.stderr).toBe(0)
@@ -73,7 +73,7 @@ it('prepares missing nested owner storage before Landlock can race to create it'
   const { owner, policy } = fixture()
   rmSync(owner, { recursive: true })
   const args = landlockProfileArgs(policy)
-  const result = spawnSync(launcherPath(), [...args, '--', '/bin/sh', '-c',
+  const result = spawnSync(buildLandlockLauncher(), [...args, '--', '/bin/sh', '-c',
     'if mkdir "$1/injected" 2>/dev/null; then exit 21; fi; if printf forged > "$1/credentials" 2>/dev/null; then exit 22; fi; printf confined-ok',
     'sh', owner], { encoding: 'utf8', timeout: 10_000 })
   expect(result.error).toBeUndefined()

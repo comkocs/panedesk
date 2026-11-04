@@ -46,7 +46,7 @@
       "id": "landlock-unavailable-siblings",
       "description": "Omit unavailable siblings from Landlock allow-lists",
       "origin": "Local confinement reliability",
-      "reason": "Skip ENOENT, EACCES and EPERM during sibling enumeration and native rule opening without granting an ancestor. Exercise dangling, removed and inaccessible grants against the real launcher while retaining fatal rejection for other open failures. These changes can be contributed upstream.",
+      "reason": "Skip ENOENT, EACCES and EPERM during sibling enumeration and native rule opening without granting an ancestor. Check grants before launcher invocation for older binaries and compile the checked-out C source with the host compiler in native regressions, independent of ignored release artifacts. Exercise dangling, removed and inaccessible grants against the real launcher while retaining fatal rejection for other open failures. These changes can be contributed upstream.",
       "match": {
         "type": "behavior",
         "paths": [
@@ -59,6 +59,9 @@
           "native/system/README.i18n.yaml",
           "packages/sandbox/sandbox-local/src/profiles.ts",
           "packages/sandbox/sandbox-local/tests/landlock-missing-siblings.spec.ts",
+          "packages/sandbox/sandbox-local/tests/landlock-launcher.ts",
+          "packages/sandbox/sandbox-local/tests/landlock-grant-roots.spec.ts",
+          "packages/sandbox/sandbox-local/tests/owner-nested-workspace.spec.ts",
           "packages/sandbox/sandbox-local/README.md",
           "packages/sandbox/sandbox-local/README.zh.md",
           "packages/sandbox/sandbox-local/README.i18n.yaml"

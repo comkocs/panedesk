@@ -174,7 +174,15 @@ export function landlockProfileArgs(policy: SandboxPolicy): string[] {
     }
     assertUnprotectedRoots(readWrite, excluded)
   }
-  return landlockGrantArgs({ readOnly: [...new Set(readOnly)], readWrite })
+  const available = (path: string): boolean => {
+    try { statSync(path); return true } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'EPERM') throw error
+      // Older launchers reject these roots; omission never grants their parent.
+      return false
+    }
+  }
+  return landlockGrantArgs({ readOnly: [...new Set(readOnly)].filter(available), readWrite: readWrite.filter(available) })
 }
 
 /** Quote one path as an SBPL string literal. */
