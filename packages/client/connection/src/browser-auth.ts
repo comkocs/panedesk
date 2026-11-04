@@ -138,8 +138,11 @@ function sessionCookie(
   expiresAt: number,
   maxAgeSeconds: number,
   secure: boolean,
+  persistent: boolean,
 ): string {
-  const attributes = `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
+  const attributes = persistent
+    ? `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
+    : `${name}=${value}; Path=/; HttpOnly; SameSite=Strict`
   return secure ? `${attributes}; Secure` : attributes
 }
 
@@ -220,12 +223,12 @@ export class BrowserAuth {
   private constructor(
     processOwner: object,
     private readonly secret: Buffer,
-    maxAgeDays: number,
+    private readonly maxAgeDays: number | undefined,
     private readonly confirm: ConfirmBrowserLogin,
     private readonly connectionSource?: OwnerConnectionSource,
   ) {
     this.launchToken = processLaunchToken(processOwner)
-    this.maxAgeMilliseconds = maxAgeDays * DAY_MILLISECONDS
+    this.maxAgeMilliseconds = (maxAgeDays ?? 30) * DAY_MILLISECONDS
     if (!Number.isSafeInteger(this.maxAgeMilliseconds)
       || !Number.isSafeInteger(Date.now() + this.maxAgeMilliseconds)) {
       throw new Error('client-connection: cookieMaxAgeDays exceeds the safe timestamp range')
@@ -237,7 +240,7 @@ export class BrowserAuth {
    * when this Harness home has none.
    * @param processOwner - root application context retaining one token across Connection reloads.
    * @param credentials - persistent credential provider for the Web profile.
-   * @param maxAgeDays - positive absolute browser-cookie lifetime in days.
+   * @param maxAgeDays - Explicit positive lifetime enables persistent cookies; undefined uses session cookies with a 30-day signed expiry.
    * @param confirm - Host-owned confirmation; defaults to the controlling terminal.
    * @param connectionSource - Host platform admission adapter; absent leaves source identification to the carrier.
    * @returns initialized authentication owner with the process owner's launch token.
@@ -245,7 +248,7 @@ export class BrowserAuth {
   static async create(
     processOwner: object,
     credentials: CredentialProvider,
-    maxAgeDays: number,
+    maxAgeDays: number | undefined,
     confirm: ConfirmBrowserLogin = confirmBrowserLogin,
     connectionSource?: OwnerConnectionSource,
   ): Promise<BrowserAuth> {
@@ -348,7 +351,7 @@ export class BrowserAuth {
           'location': './',
           'referrer-policy': 'no-referrer',
           'set-cookie': sessionCookie(
-            cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure,
+            cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure, this.maxAgeDays !== undefined,
           ),
         })
         res.end()
@@ -411,7 +414,7 @@ export class BrowserAuth {
       'location': './api/remote.mux',
       'referrer-policy': 'no-referrer',
       'set-cookie': sessionCookie(
-        cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure,
+        cookieName(authority), value, expiresAt, Math.floor(this.maxAgeMilliseconds / 1000), secure, this.maxAgeDays !== undefined,
       ),
     })
     res.end()

@@ -54,7 +54,7 @@ function credentials(store: RecordCredentials): CredentialProvider {
 
 function createAuth(
   store: RecordCredentials,
-  maxAgeDays = 30,
+  maxAgeDays?: number,
   processOwner: object = {},
 ): Promise<BrowserAuth> {
   return BrowserAuth.create(processOwner, credentials(store), maxAgeDays, () => true)
@@ -199,6 +199,20 @@ describe('API credentials', () => {
 })
 
 describe('BrowserAuth', () => {
+  it('defaults browser and API cookies to session storage with signed expiry', async () => {
+    const auth = await createAuth(new RecordCredentials())
+    const login = exchange(auth, 'localhost')
+    expect(login.state.headers?.['set-cookie']?.slice(login.cookie.length)).toBe('; Path=/; HttpOnly; SameSite=Strict')
+    expect(auth.isAuthenticated(request('/', 'localhost', { cookie: login.cookie }))).toBe(true)
+    const api = response()
+    auth.authorizeConnect(request('/connect', 'localhost', { cookie: login.cookie }), api.value, false, () => 'session-api' as PeerId)
+    const raw = api.state.headers?.['set-cookie']
+    expect(raw?.slice(raw.indexOf(';'))).toBe('; Path=/; HttpOnly; SameSite=Strict')
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(30 * 86_400_000)
+    expect(auth.isAuthenticated(request('/', 'localhost', { cookie: login.cookie }))).toBe(false)
+  })
+
   it('mints one process token and a persistent authority-bound cookie', async () => {
     const store = new RecordCredentials()
     const processOwner = {}

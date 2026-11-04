@@ -137,6 +137,31 @@ function browserCookie(connection: HostConnectionHandle, authority: string): str
 }
 
 describe('connection node half', () => {
+  it.each([undefined, 2])('uses only host configuration for cookie persistence (%s)', async (cookieMaxAgeDays) => {
+    const host = await mounted(cookieMaxAgeDays === undefined ? {} : { cookieMaxAgeDays })
+    try {
+      const target = new URL(host.connection.authenticatedUrl('http://localhost'))
+      target.searchParams.set('cookieMaxAgeDays', '99')
+      const exchanged = fakeResponse()
+      host.connection.authorizeIndex(fakeRequest({ host: 'localhost', 'x-cookie-max-age-days': '99' }, target.pathname + target.search), exchanged.response)
+      expect(exchanged.state.status).toBe(303)
+      const raw = exchanged.state.headers?.['set-cookie']
+      if (raw === undefined) throw new Error('missing cookie')
+      const attributes = raw.slice(raw.indexOf(';'))
+      if (cookieMaxAgeDays === undefined) {
+        expect(attributes).toBe('; Path=/; HttpOnly; SameSite=Strict')
+      } else {
+        const value = raw.split(';')[0]?.split('=')[1]?.split('.')[1]
+        if (value === undefined) throw new Error('missing payload')
+        const payload: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
+        if (typeof payload !== 'object' || payload === null || !('expiresAt' in payload) || typeof payload.expiresAt !== 'number') {
+          throw new Error('missing expiry')
+        }
+        expect(attributes).toBe(`; Max-Age=172800; Path=/; Expires=${new Date(payload.expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`)
+      }
+    } finally { await host.dispose() }
+  })
+
   it('runs request admission after authentication and removes it with its owning fiber', async () => {
     const { ctx, routes, connection, dispose } = await mounted()
     let admitted = 0

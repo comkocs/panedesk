@@ -1,6 +1,29 @@
 {
   "divergences": [
     {
+      "id": "owner-session-cookie-default",
+      "description": "Use session cookies unless protected configuration enables persistence",
+      "origin": "Owner authentication isolation",
+      "reason": "Omit browser and API cookie persistence attributes by default while retaining signed expiration and authority binding. Only an explicit positive cookieMaxAgeDays in protected Host configuration enables persistence. Document browser session restoration and existing-cookie limitations. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "docs/config-catalog.md",
+          "docs/config-catalog.zh.md",
+          "packages/client/connection/src/browser-auth.ts",
+          "packages/client/connection/src/index.ts",
+          "packages/client/connection/tests/browser-auth.host.spec.ts",
+          "packages/client/connection/tests/node-half.host.spec.ts",
+          "packages/client/connection/README.md",
+          "packages/client/connection/README.zh.md",
+          "packages/client/connection/README.i18n.yaml",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.zh.md",
+          "docs/upgrade-guide/v0.2.1-rc.2/owner-private-storage/guide.i18n.yaml"
+        ]
+      }
+    },
+    {
       "id": "owner-connection-source-admission",
       "description": "Check physical connection sources before granting owner authority",
       "origin": "Owner authentication isolation",

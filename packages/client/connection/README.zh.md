@@ -42,7 +42,7 @@ kind: "package-reference"
 
 通过 Web 载体访问时，每个 Host RPC 方法和 WebSocket 流都要求经过认证的浏览器或 API Peer，不存在按方法区分的 loopback 层。Host 生成随机的一次性启动令牌，五分钟后过期。`dsh-web-app` 打印并打开带 `?token=...` 的应用 URL，保留调用方的 authority 与挂载；`frontend-static` 把根路径和 index 请求交给 `ctx.connection.authorizeIndex`，后者只在 `GET /` 接受该令牌，写入绑定 authority 的签名 cookie，再重定向到干净的 `./`，移除令牌并保留请求目录。缺失、过期、畸形或 authority 不匹配的 cookie 会在 RPC 分发前得到 401。静态资源保持公开。HTTP 载体只在根路径交换接受 query token，绝不在 `/connect` 接受，也不接受 Authorization header token。已消费或过期的链接不能再次签发 cookie。
 
-cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-session` 拥有的 grant 记录。本地提供方把它持久化到 `$PANEDESK_HOME/private/.credentials.yaml`；`BrowserAuth` 在 Connection 激活期间加载或创建该记录，并把密钥留在内存中，因此请求认证同步执行。删除或替换该记录会在下一次 Connection 激活时生效。cookie 携带绝对签发与过期区间，`cookieMaxAgeDays` 默认设为 30 天，并在确定性名称与签名 payload 中同时绑定规范化 hostname 和 port。它是 host-only、`Path=/`、`HttpOnly`、`SameSite=Strict`；收到该 index 请求的监听器提供 TLS 时才带上 `Secure`，且只由该监听器自身的协议决定，`publicUrl` 声明与转发头都不参与判断。
+cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-session` 拥有的 grant 记录。本地提供方把它持久化到 `$PANEDESK_HOME/private/.credentials.yaml`；`BrowserAuth` 在 Connection 激活期间加载或创建该记录，并把密钥留在内存中，因此请求认证同步执行。删除或替换该记录会在下一次 Connection 激活时生效。浏览器与 API cookie 默认采用不带 `Max-Age` 或 `Expires` 的会话 cookie，签名中的签发与过期区间仍限制为 30 天。在受保护的 Host 配置中显式设置正整数 `cookieMaxAgeDays`，才会启用对应天数的持久存储；没有环境变量、命令行或请求覆盖入口。浏览器会话恢复可能保留会话 cookie，因此这不是撤销机制。cookie 在确定性名称与签名 payload 中同时绑定规范化 hostname 和 port。它是 host-only、`Path=/`、`HttpOnly`、`SameSite=Strict`；收到该 index 请求的监听器提供 TLS 时才带上 `Secure`，且只由该监听器自身的协议决定，`publicUrl` 声明与转发头都不参与判断。
 
 Host 持有的连接来源适配器可在消费启动令牌、发布 API Peer 或分派已认证请求之前拒绝 owner 准入。判定区分本产品沙箱、非本产品和未知来源；沙箱与未知结果返回中英 403 拒因。HTTP keep-alive 与 WebSocket 升级共享 socket 缓存，关闭时释放。适配器不是请求字段或配置绕过开关；具体平台识别必须由 Host 提供。
 

@@ -469,7 +469,7 @@ export interface ConnectionConfig {
    * an entry here. A non-canonical or non-bare authority fails plugin load.
    */
   trustedHosts?: string[]
-  /** Absolute browser and API cookie lifetime in days. Default: 30. */
+  /** Explicit positive lifetime enables persistent cookies; omitted uses session cookies with a 30-day signed expiry. */
   cookieMaxAgeDays?: number
   /** Require host-terminal confirmation for new browsers. Disabling trusts launch-link possession. */
   requireOwnerConfirmation?: boolean
@@ -3133,7 +3133,7 @@ export interface Config {
 
 ## `@panedesk/dsh-sandbox-local`
 
-- `source`: [`packages/sandbox/sandbox-local/src/index.ts:49`](../packages/sandbox/sandbox-local/src/index.ts)
+- `source`: [`packages/sandbox/sandbox-local/src/index.ts:51`](../packages/sandbox/sandbox-local/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config. All optional — `static Config` supplies the defaults. */
