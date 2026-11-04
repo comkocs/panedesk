@@ -17,6 +17,10 @@
       "types": "./lib/flock.d.ts",
       "default": "./lib/flock.js"
     },
+    "./socket-cgroup": {
+      "types": "./lib/socket-cgroup.d.ts",
+      "default": "./lib/socket-cgroup.js"
+    },
     "./windows-private-files": {
       "types": "./lib/windows-private-files.d.ts",
       "default": "./lib/windows-private-files.js"
@@ -29,6 +33,7 @@
     "!lib/*.tsbuildinfo",
     "src/main.c",
     "src/flock.c",
+    "src/socket-cgroup.c",
     "src/windows-private-files.c"
   ],
   "scripts": {

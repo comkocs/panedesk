@@ -28,6 +28,8 @@ kind: "package-library"
 
 导入任一入口都不会加载 addon。Landlock 可执行文件缺失时探测为不可用；flock 绑定缺失时拒绝获取。两条路径都不会进行编译，也不会静默允许不受支持的行为。
 
+`@panedesk/node-addon-system/socket-cgroup` 加载实例拥有的 Linux 查询能力。`probe()` 检查内核套接字归属能力，不检查委派；`query(tuple)` 根据客户端方向的 IPv4 或 IPv6 端点，返回调用方网络命名空间中 TCP 套接字的 cgroup 标识。每次同步 netlink 查询最多 100 毫秒、256 个数据报；套接字不存在、属性缺失或转储不完整均抛错。本产品登记与后代匹配由宿主负责。已在 Linux 7.0 实测，最低内核版本未核定。
+
 ## Support
 
 Linux x64/arm64 包包含静态 Landlock 可执行文件，以及分别用于 glibc/musl 的 `system.node` 文件。macOS x64/arm64 包仅包含 `system.node`。Windows x64/arm64 包仅包含私有文件 Win32 `system.node`；POSIX flock 与 Windows 锁文件行为不变。Landlock 还需要支持强制执行的 Linux 内核。[支持矩阵](docs/support-matrix.md) 指定构建者与验证负责人。

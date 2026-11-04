@@ -28,6 +28,8 @@ The [flock behavior contract](docs/flock-contract.md) maps descriptor, process, 
 
 Importing any entry does not load an addon. A missing Landlock executable probes unusable; a missing flock binding rejects acquisition. Neither path compiles or silently grants unsupported behavior.
 
+`@panedesk/node-addon-system/socket-cgroup` loads an instance-owned Linux query capability. `probe()` checks kernel socket attribution, not delegation; `query(tuple)` returns the TCP socket's cgroup ID from client-direction IPv4 or IPv6 endpoints in the caller's network namespace. Each synchronous netlink query is bounded to 100 ms and 256 datagrams; absent sockets, missing attributes and incomplete dumps throw. Product registration and descendant matching belong to the host. Linux 7.0 has been exercised; the minimum kernel version is not established.
+
 ## Support
 
 Linux x64/arm64 packages contain the static Landlock executable and separate glibc/musl `system.node` files. macOS x64/arm64 packages contain `system.node` only. Windows x64/arm64 packages contain only the private-file Win32 `system.node`; POSIX flock and Windows lock-file behavior are unchanged. Landlock additionally needs an enforcing Linux kernel. The [support matrix](docs/support-matrix.md) names builders and verification owners.

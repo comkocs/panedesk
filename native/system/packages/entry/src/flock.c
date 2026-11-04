@@ -5,7 +5,9 @@
  * errno; JavaScript owns the promise and syscall error construction.
  */
 
+#define _GNU_SOURCE
 #include <node_api.h>
+#include "socket-cgroup.c"
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -160,5 +162,15 @@ NAPI_MODULE_INIT() {
       napi_set_named_property(env, exports, "tryLock", function) != napi_ok) {
     return NULL;
   }
+#ifdef __linux__
+  if (napi_create_function(env, "querySocketCgroup", NAPI_AUTO_LENGTH, query_socket_cgroup,
+                           NULL, &function) != napi_ok ||
+      napi_set_named_property(env, exports, "querySocketCgroup", function) != napi_ok ||
+      napi_create_function(env, "probeSocketCgroup", NAPI_AUTO_LENGTH, probe_socket_cgroup,
+                           NULL, &function) != napi_ok ||
+      napi_set_named_property(env, exports, "probeSocketCgroup", function) != napi_ok) {
+    return NULL;
+  }
+#endif
   return exports;
 }

@@ -1,6 +1,22 @@
 {
   "divergences": [
     {
+      "id": "linux-native-socket-cgroup-query",
+      "description": "Expose bounded Linux IPv4 and IPv6 socket cgroup queries",
+      "origin": "Owner authentication isolation",
+      "reason": "Add a lazy Node-API socket-cgroup entry with capability probing and bounded client-direction inet_diag lookup. Reject incomplete or interrupted replies and document native installation and kernel prerequisites. IPv4 and IPv6 host-addon tests pass; full musl packaging remains dependent on the build toolchain. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "native/system/README.md", "native/system/README.zh.md", "native/system/README.i18n.yaml",
+          "native/system/package.json", "native/system/packages/entry/package.json",
+          "native/system/packages/entry/README.md", "native/system/packages/entry/README.zh.md", "native/system/packages/entry/README.i18n.yaml",
+          "native/system/packages/entry/src/flock.c", "native/system/packages/entry/src/socket-cgroup.*",
+          "native/system/test/socket-cgroup.test.js", "tsconfig.base.json"
+        ]
+      }
+    },
+    {
       "id": "owner-macos-source-limitation",
       "description": "Report missing macOS product-sandbox connection identification",
       "origin": "Owner authentication isolation",

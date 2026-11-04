@@ -16,4 +16,6 @@ kind: "package-library"
 
 `./windows-private-files` 导出 `inspectWindowsPrivatePath(path, directory?)`、`secureWindowsPrivatePath(path)` 及 `replaceWindowsPrivatePath(source, target)`。导入不加载原生模块；调用时仅加载匹配的 Windows 平台 addon，其他平台或二进制缺失即拒绝。检查返回当前与属主 SID、受保护 DACL 规则及新鲜的祖先重解析点结果，可同时检查文件与根目录。secure 设置唯一当前用户 FullControl ACE 并禁用继承，只能由调用方用于新建空对象。替换返回 Win32 错误号，成功为零，保留 `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH` 且不跨卷复制；调用方先刷内容，负责有界重试、文件名及句柄身份检查。绑定不读取内容、不启动进程。
 
-三个 C 源文件随包分发以供审计。参见工作区[架构](../../docs/architecture.md)、[支持矩阵](../../docs/support-matrix.md)和 [CLI 约定](../../docs/cli-contract.md)。
+`./socket-cgroup` 导出 `loadSocketCgroupQuery()`，导入时不加载原生代码。返回的实例提供检查内核能力的 `probe(): boolean`，以及按客户端方向 IPv4/IPv6 TCP 端点查询的 `query({ sourceAddress, sourcePort, destinationAddress, destinationPort }): bigint`。Linux 绑定复用按 libc 选择的 `system.node`，没有环境覆盖开关，不支持的平台或二进制缺失均抛错。查询失败不表示非本产品；调用方负责委派检查、登记和授权。查询在宿主网络命名空间执行，限制为 100 毫秒、256 个数据报。
+
+四个 C 源文件随包分发以供审计。参见工作区[架构](../../docs/architecture.md)、[支持矩阵](../../docs/support-matrix.md)和 [CLI 约定](../../docs/cli-contract.md)。
