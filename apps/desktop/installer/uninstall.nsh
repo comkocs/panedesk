@@ -1,5 +1,6 @@
 ; Electron user data and updater downloads leave with the application; the Harness home is never touched.
 !include FileFunc.nsh
+!define MUI_FINISHPAGE_TEXT "$(INSTALLER_OWNER_RETAINED)"
 Var UnTarget
 Var UnHome
 
@@ -22,6 +23,7 @@ Function un.CleanData
   ${EndIf}
   ; Only a PANEDESK_HOME published as a Windows environment variable is visible here.
   ReadEnvStr $UnHome PANEDESK_HOME
+  DetailPrint "$(INSTALLER_OWNER_RETAINED)"
   ClearErrors
   StrCpy $UnTarget "$APPDATA\${PRODUCT_FILENAME}"
   Call un.RemoveData

@@ -1,4 +1,19 @@
-/** Windows startup copy derived from the mounted policy, never a second mode resolver. */
+/** Windows startup copy derived from the mounted policy and interactive launch surface. */
+
+/**
+ * Warn interactive console owners without affecting unattended profiles.
+ * @param platform - Host execution platform.
+ * @param profile - Selected application profile.
+ * @param args - Inner application arguments.
+ * @param interactive - Whether the host receives terminal input.
+ * @returns One bilingual line for Windows CLI/TUI, otherwise undefined.
+ */
+export function windowsConsoleNotice(platform: string, profile: string, args: readonly string[], interactive: boolean): string | undefined {
+  if (platform !== 'win32' || !interactive || !['cli', 'tui'].includes(profile)) return undefined
+  if (args.some(arg => ['--json', '--quiet', '-q'].includes(arg) || arg.startsWith('--dump-config'))) return undefined
+  return 'panedesk: Windows sandbox processes share the host console and can inject keys into CLI / TUI to impersonate owner approval or commands. Use the desktop app for owner approval; console isolation is deferred. / Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。所有者审批请用桌面端；控制台隔离为后续工作。\n'
+}
+
 interface StartupPermissionPolicy {
   readonly defaultMode: string
   readonly defaultSource: 'default' | 'explicit'

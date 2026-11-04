@@ -14,6 +14,12 @@
 
 ## 平台行为
 
+Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。Windows 上所有者审批请用桌面端；控制台隔离为后续工作。Windows CLI / TUI 交互启动时会输出此提示。
+
+Linux/macOS 上所有者私密目录可以位于工作区内，但工作区位于所有者目录内时仍拒绝。Landlock 不授予受保护第一级分支写权；其他现存分支仍可写，但不能在工作区根下新建文件或目录。Windows 在工作区包含所有者存储时允许只读启动，但拒绝写授权。
+
+卸载桌面端不动 Harness home 及其所有者读保护标签。删除 home 或彻底移除 CLI 前，请先停掉全部 Panedesk 进程，再按[手动移除所有者标签](packages/sandbox/sandbox-windows-acl/README.zh.md#owner-label-removal-before-uninstall)操作。
+
 受限文件工具和沙箱进程排除 owner 凭据目录，原子替换后仍受保护；普通附件仍可读取。Linux 使用目录挂载或 Landlock 兄弟树放行，macOS 使用 Seatbelt 排除，Windows 对凭据及崩溃目录使用 Medium 禁止向上读写标签。这是指定 owner 材料保护，不是整个 home 的保密隔离。新 Web 浏览器要求 POSIX 控制终端确认；Windows Web 与非交互服务默认拒绝新登录，除非 owner 在受保护配置中显式关闭确认、自担持有启动链接即可获得身份的风险。升级服务部署前请看[登录及服务配置](packages/client/connection/README.zh.md#browser-authentication-and-request-trust)。桌面 owner cookie 使用纯内存会话及 IPC；Windows 不标记 userData，因此低完整性命令仍可读取第三方平台 cookie。详见[桌面安全说明](apps/desktop/README.zh.md)。
 
 Windows 未显式选择权限模式时默认只读。工作区首次写入会向经过认证的 owner 前端请求确认；设置页也可预授权或撤销工作区。Windows 原生权限执行尚未在 Windows 实机验收。保护输入排除保留工作区普通位置的写入，而非拒绝整个重叠工作区；[提供者限制](packages/sandbox/sandbox-local/README.zh.md#known-limitations-and-deferred-work)区分参数检查与原生执行。无关的插件项目与源码克隆仍可写。已登记的受保护宿主输入在工作区写权授予时建立跨重启保持的基线；HMR 对变化要求经过认证的 owner 确认，拒绝或无人值守时保留运行版本并提示被阻止的变更。`danger-full-access` 表示 owner 明示授予宿主用户的全部写权，包括配置与插件；`plugin_manager` 每次变更仍须 owner 批准。

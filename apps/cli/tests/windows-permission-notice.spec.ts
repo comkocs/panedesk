@@ -1,6 +1,21 @@
 /** Startup diagnostics never mix with machine-readable or quiet output. */
 import { describe, expect, it } from 'vitest'
-import { windowsPermissionNotice } from '../src/windows-permission-notice.ts'
+import { windowsConsoleNotice, windowsPermissionNotice } from '../src/windows-permission-notice.ts'
+
+describe('Windows shared-console startup notice', () => {
+  it.each(['cli', 'tui'])('warns once for Windows interactive %s', (profile) => {
+    expect(windowsConsoleNotice('win32', profile, [], true)).toBe('panedesk: Windows sandbox processes share the host console and can inject keys into CLI / TUI to impersonate owner approval or commands. Use the desktop app for owner approval; console isolation is deferred. / Windows 沙箱进程与宿主共用控制台，能向 CLI / TUI 注入按键，冒充所有者答审批或敲命令。所有者审批请用桌面端；控制台隔离为后续工作。\n')
+  })
+  it('stays silent on Linux', () => {
+    expect(windowsConsoleNotice('linux', 'tui', [], true)).toBeUndefined()
+  })
+  it.each(['headless', 'web', 'desktop', 'full', 'slim'])('stays silent for Windows %s', (profile) => {
+    expect(windowsConsoleNotice('win32', profile, [], true)).toBeUndefined()
+  })
+  it('stays silent without an interactive terminal', () => {
+    expect(windowsConsoleNotice('win32', 'cli', [], false)).toBeUndefined()
+  })
+})
 
 describe('Windows permission startup notice', () => {
   const policy = { defaultMode: 'read-only', defaultSource: 'default' } as const
