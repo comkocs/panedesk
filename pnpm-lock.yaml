@@ -13993,6 +13993,9 @@ importers:
       '@panedesk/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@panedesk/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
       '@panedesk/dsh-llm':
         specifier: workspace:*
         version: link:../../llm/llm
@@ -14002,6 +14005,9 @@ importers:
       '@panedesk/dsh-session':
         specifier: workspace:*
         version: link:../../core/session
+      '@panedesk/dsh-subprocess-local':
+        specifier: workspace:*
+        version: link:../../subprocess/subprocess-local
 
   packages/sandbox/sandbox-policy:
     dependencies:

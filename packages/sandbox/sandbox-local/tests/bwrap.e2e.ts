@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readlinkSync, rmSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@panedesk/cordis'
 import type { SandboxPolicy } from '@panedesk/dsh-sandbox'
 import { LocalSandboxProvider } from '@panedesk/dsh-sandbox-local'
@@ -24,7 +24,12 @@ let ctx: Context | undefined
 const tempDirs: string[] = []
 const tempFiles: string[] = []
 
+beforeEach(async () => {
+  vi.stubEnv('PANEDESK_HOME', await tempDir(tmpdir()))
+})
+
 afterEach(async () => {
+  vi.unstubAllEnvs()
   await ctx?.fiber.dispose()
   ctx = undefined
   await Promise.all(tempDirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
@@ -51,6 +56,59 @@ async function runConfined(sandbox: LocalSandboxProvider, command: string, polic
 }
 
 describe.skipIf(!bwrapUsable)('sandbox-local: real bwrap confinement', () => {
+  it('production runner blocks TIOCSTI owner impersonation while the attached control accepts injected input', async () => {
+    const workspace = await tempDir(tmpdir())
+    const sandbox = await provider()
+    const injector = 'import fcntl, termios; [fcntl.ioctl(0, termios.TIOCSTI, bytes([byte])) for byte in b"y\\n"]'
+    const confined = await sandbox.confine(['python3', '-I', '-c', injector], { mode: 'read-only', workspaceRoot: workspace })
+    expect(confined.argv).toContain('--new-session')
+    const owner = `import { spawnSync } from 'node:child_process';
+import { confirmBrowserLogin } from ${JSON.stringify(import.meta.resolve('@panedesk/dsh-client-connection/src/owner-confirmation.ts'))};
+const argv = JSON.parse(process.argv[1]);
+const decision = confirmBrowserLogin({ userAgent: 'synthetic browser', requestedAt: 0, source: 'synthetic source' }, 3000);
+const injected = spawnSync(argv[0], argv.slice(1), { stdio: ['inherit', 'ignore', 'ignore'], timeout: 5000 });
+console.log('INJECT_EXIT=' + injected.status);
+console.log('DECISION=' + await decision);`
+    const harness = `import os, pty, select, signal, sys, time
+pid, master = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], [sys.argv[1], '--import', 'tsx/esm', '--input-type=module', '-e', sys.argv[2], sys.argv[3]])
+output = b''
+finished = False
+deadline = time.monotonic() + 12
+try:
+    while time.monotonic() < deadline:
+        if not select.select([master], [], [], 0.1)[0]:
+            continue
+        try:
+            chunk = os.read(master, 65536)
+        except OSError:
+            break
+        output += chunk
+        if b'DECISION=' in output:
+            finished = True
+            break
+finally:
+    if not finished:
+        os.kill(pid, signal.SIGTERM)
+    os.waitpid(pid, 0)
+    os.close(master)
+sys.stdout.buffer.write(output)
+sys.exit(0 if finished else 1)
+`
+    for (const separated of [false, true]) {
+      const argv = separated ? confined.argv : confined.argv.filter(argument => argument !== '--new-session')
+      const result = spawnSync('python3', ['-I', '-c', harness, process.execPath, owner, JSON.stringify(argv)], {
+        encoding: 'utf8', timeout: 15_000,
+      })
+      expect(result.error).toBeUndefined()
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toContain(`DECISION=${!separated}`)
+      if (separated) expect(result.stdout).not.toContain('INJECT_EXIT=0')
+      else expect(result.stdout, 'The attached control requires a kernel permitting legacy TIOCSTI; no isolation verdict without it.')
+        .toContain('INJECT_EXIT=0')
+    }
+  })
   it('the passing probe selects the bwrap rung naturally — first in the ladder, full enforcement, EROFS dialect', async () => {
     const workdir = await tempDir(tmpdir())
     const sandbox = await provider()

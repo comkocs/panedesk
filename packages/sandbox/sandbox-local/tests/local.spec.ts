@@ -8,6 +8,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
+import * as fs from 'node:fs'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,17 +23,21 @@ import {
 import type { Config } from '@panedesk/dsh-sandbox-local'
 import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from '../src/profiles.ts'
 
+vi.mock('node:fs', async importOriginal => ({ ...await importOriginal<typeof import('node:fs')>() }))
+
 const RO: SandboxPolicy = { mode: 'read-only', workspaceRoot: '/ws' }
 const WW: SandboxPolicy = { mode: 'workspace-write', workspaceRoot: '/ws' }
 
 /** Every temp dir created by this file (fake launchers and runner entries), removed after each test. */
 const tempDirs: string[] = []
 let ownerState: string
+let ownerPrivate: string
 beforeEach(() => {
   const home = mkdtempSync(join(tmpdir(), 'sandbox-owner-'))
   tempDirs.push(home)
   vi.stubEnv('PANEDESK_HOME', home)
   ownerState = join(home, 'windows-workspace-write')
+  ownerPrivate = join(home, 'private')
 })
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -82,12 +87,12 @@ const SEATBELT_RO_PROFILE = '(version 1) (allow default) (deny file-write*) (all
 
 describe('profile dialects', () => {
   it('bwrap read-only: whole tree read-only with fresh /dev and private PID-scoped /proc, no writable mounts', () => {
-    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent'])
+    expect(bwrapProfileArgs(RO)).toEqual(['--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session'])
   })
 
   it('bwrap workspace-write: adds an ephemeral /tmp and rebinds the workspace root', () => {
     expect(bwrapProfileArgs(WW)).toEqual([
-      '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent',
+      '--ro-bind', '/', '/', '--dev', '/dev', '--unshare-pid', '--proc', '/proc', '--die-with-parent', '--new-session',
       '--tmpfs', '/tmp', '--bind', '/ws', '/ws',
     ])
   })
@@ -146,7 +151,7 @@ describe('runnerCommand config', () => {
     }, { probeBwrap, probeLandlock, probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
     expect(confined).toEqual({
-      argv: ['fake-runner', '--flag', ...bwrapProfileArgs({ ...WW, protectedPaths: [ownerState] }), '--', 'bash', '-c', 'echo hi'],
+      argv: ['fake-runner', '--flag', ...bwrapProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       // An operator runner's kernel mechanism is unknown: both Linux
@@ -195,7 +200,7 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: ['bwrap', ...bwrapProfileArgs(RO), '--', 'true'],
+      argv: ['bwrap', ...bwrapProfileArgs({ ...RO, unreadablePaths: [ownerPrivate] }), '--', 'true'],
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['read-only file system'],
@@ -209,9 +214,15 @@ describe('the platform chains', () => {
     const probeLandlock = vi.fn(() => 'full' as const)
     const launcher = fakeLauncher()
     const { sandbox } = await setup({}, { platform: 'linux', probeBwrap, probeLandlock, landlockLauncher: launcher })
+    const directories = vi.spyOn(fs, 'readdirSync')
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], WW)
+    // Reuse this traversal's entries: unrelated workers can change shared temp between comparisons.
+    for (const result of [...directories.mock.results]) {
+      if (result.type !== 'return') throw new Error('Directory enumeration failed')
+      directories.mockImplementationOnce(() => result.value)
+    }
     expect(confined).toEqual({
-      argv: [launcher, ...landlockProfileArgs({ ...WW, protectedPaths: [ownerState] }), '--', 'bash', '-c', 'echo hi'],
+      argv: [launcher, ...landlockProfileArgs({ ...WW, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['permission denied'],
@@ -221,6 +232,7 @@ describe('the platform chains', () => {
         informationalLines: ['landlock-run: partial enforcement (older Landlock ABI)'],
       }],
     })
+    directories.mockRestore()
     expect(probeLandlock).toHaveBeenCalledWith(launcher)
   })
 
@@ -232,7 +244,7 @@ describe('the platform chains', () => {
     const { sandbox } = await setup({}, { platform: 'darwin', probeSeatbelt })
     const confined = await sandbox.confine(['bash', '-c', 'echo hi'], RO)
     expect(confined).toEqual({
-      argv: ['sandbox-exec', ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState] }), '--', 'bash', '-c', 'echo hi'],
+      argv: ['sandbox-exec', ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'bash', '-c', 'echo hi'],
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['operation not permitted'],
@@ -398,7 +410,7 @@ describe('the default seatbelt probe (sandbox-exec contract)', () => {
     const { sandbox } = await setup({}, { chain: ['bwrap', 'seatbelt'], probeBwrap: () => false, seatbeltExec: exec })
     const confined = await sandbox.confine(['true'], RO)
     expect(confined).toEqual({
-      argv: [exec, ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState] }), '--', 'true'],
+      argv: [exec, ...seatbeltProfileArgs({ ...RO, protectedPaths: [ownerState], unreadablePaths: [ownerPrivate] }), '--', 'true'],
       enforcement: 'full',
       protectedInputs: [{ path: ownerState, enforcement: 'native' }],
       denialSignatures: ['operation not permitted'],
@@ -426,7 +438,7 @@ describe('the windows-acl probe (runner invocation contract)', () => {
     })
     const confined = await sandbox.confine(['true'], RO)
     expect(probeWindowsAcl).toHaveBeenCalledTimes(1)
-    expect(confined.argv.slice(-4)).toEqual(['--mode', 'read-only', '--', 'true'])
+    expect(confined.argv.slice(-6)).toEqual(['--mode', 'read-only', '--unreadable-path', ownerPrivate, '--', 'true'])
     expect(confined.enforcement).toBe('partial')
     expect(confined.denialSignatures).toEqual(['access is denied', 'access to the path', 'permission denied', 'operation not permitted'])
     expect(confined.runnerFailureRules).toEqual([{ allowedExitCodes: [127], fatalSignatures: ['windows-acl-run: '] }])

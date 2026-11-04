@@ -1,6 +1,25 @@
 {
   "divergences": [
     {
+      "id": "production-terminal-isolation-regressions",
+      "description": "Exercise production POSIX session separation and owner confirmation",
+      "origin": "Owner terminal input isolation",
+      "reason": "Add a native bubblewrap TIOCSTI comparison using the production runner argv and browser confirmation, plus Landlock and Seatbelt production spawn-option assertions. Update exact profile expectations to include existing owner-directory exclusions and session separation without weakening assertions. Repair the preceding cleanup registration JSON separator. Native Windows console isolation remains unresolved. These changes can be contributed upstream.",
+      "match": {
+        "type": "behavior",
+        "paths": [
+          "packages/sandbox/sandbox-local/tests/bwrap.e2e.ts",
+          "packages/sandbox/sandbox-local/tests/native-profile-handoff.spec.ts",
+          "packages/sandbox/sandbox-local/tests/local.spec.ts",
+          "packages/sandbox/sandbox-local/package.json",
+          "packages/sandbox/sandbox-local/README.md",
+          "packages/sandbox/sandbox-local/README.zh.md",
+          "packages/sandbox/sandbox-local/README.i18n.yaml",
+          "pnpm-lock.yaml"
+        ]
+      }
+    },
+    {
       "id": "offline-owner-label-cleanup",
       "description": "Expose verified offline Windows owner-label withdrawal",
       "origin": "Owner directory lifecycle",
@@ -18,7 +37,7 @@
           "packages/sandbox/sandbox-windows-acl/README.i18n.yaml", "pnpm-lock.yaml"
         ]
       }
-    }
+    },
     {
       "id": "owner-read-isolation-documentation",
       "description": "Document owner read isolation and synchronize generated references",

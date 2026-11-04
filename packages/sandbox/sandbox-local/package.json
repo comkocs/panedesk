@@ -44,6 +44,8 @@
     "@panedesk/schemastery": "workspace:~"
   },
   "devDependencies": {
+    "@panedesk/dsh-client-connection": "workspace:*",
+    "@panedesk/dsh-subprocess-local": "workspace:*",
     "@panedesk/cordis": "workspace:~",
     "@panedesk/dsh-llm": "workspace:*",
     "@panedesk/dsh-sandbox": "workspace:*",
